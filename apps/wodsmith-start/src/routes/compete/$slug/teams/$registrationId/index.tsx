@@ -129,6 +129,15 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 
 		const { registration, members, pending, isTeamRegistration } = roster
 
+		// Check if user is authorized to view this registration
+		const isTeamMember = members.some((m) => m.user?.id === session.userId)
+		const isRegisteredUser = registration.userId === session.userId
+
+		// If user is not authorized, show 404 (don't reveal that the resource exists)
+		if (!isTeamMember && !isRegisteredUser) {
+			throw notFound()
+		}
+
 		// Now fetch questions, answers, and full competition data if we have a competition
 		let registrationQuestions: RegistrationQuestion[] = []
 		let registrationAnswers: Array<{
@@ -165,10 +174,6 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 			registrationAnswers = answersResult.answers
 			fullCompetition = competitionData || null
 		}
-
-		// Check if current user is a team member
-		const isTeamMember = members.some((m) => m.user?.id === session.userId)
-		const isRegisteredUser = registration.userId === session.userId
 
 		// Parse affiliates from registration metadata
 		let memberAffiliates: Record<string, string> = {}
