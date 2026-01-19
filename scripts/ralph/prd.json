@@ -316,7 +316,7 @@
         "pnpm type-check passes"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "Follow existing test patterns in test/ directory. Mock db using vi.mock."
     },
     {
@@ -335,7 +335,7 @@
         "All feedback loops pass: pnpm type-check, pnpm lint, pnpm test"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "Manual testing checklist. This is a verification story to ensure all pieces work together."
     }
   ]
