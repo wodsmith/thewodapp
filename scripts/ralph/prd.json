@@ -280,7 +280,7 @@
         "pnpm lint passes"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "Check existing tab structure in organizer volunteers page. May need to create the tab container if it doesn't exist."
     },
     {
@@ -297,7 +297,7 @@
         "pnpm lint passes"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "Find the organizer volunteers page route and update its loader."
     },
     {

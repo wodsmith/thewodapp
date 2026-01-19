@@ -397,3 +397,33 @@ Feature: Volunteer Scheduler for Non-Judge Roles
 - Sheet component is great for side panels that overlay content without navigating away
 ---
 
+## 2026-01-19 - VS-013 & VS-014: Add shifts tab to organizer volunteers page
+- Updated `src/routes/compete/organizer/$competitionId/volunteers.tsx` to add tabbed interface
+- Implementation details:
+  - Added search schema validation with `validateSearch` using Zod: `z.object({ tab: z.enum(["volunteers", "shifts"]).optional().default("volunteers") })`
+  - Added Tabs UI (Volunteers tab and Shifts tab) from Shadcn UI
+  - Tab state persisted in URL search params (e.g., `?tab=shifts`)
+  - "Volunteers" tab default (no URL param shown for default state)
+  - Added `getCompetitionShiftsFn` call to loader's parallel fetch
+  - Shifts data passed through to component and then to ShiftList
+- Imports added:
+  - `useNavigate` from TanStack Router for tab navigation
+  - `z` from Zod for search schema
+  - `Tabs, TabsContent, TabsList, TabsTrigger` from Shadcn UI
+  - `getCompetitionShiftsFn` from `@/server-fns/volunteer-shift-fns`
+  - `ShiftList` from `./-components/shifts/shift-list`
+- Navigation handler uses `navigate()` with proper type casting for search params
+- Existing volunteers content (Invited Volunteers, Volunteers List, Judge Scheduling) wrapped in TabsContent for "volunteers" value
+
+**Files changed:**
+- `apps/wodsmith-start/src/routes/compete/organizer/$competitionId/volunteers.tsx` (updated, +30 lines net)
+
+**Learnings:**
+- TanStack Router's `validateSearch` with Zod requires proper schema for type inference in `search` object
+- For tab URL persistence, use empty object `{}` for default tab to avoid redundant URL params
+- When passing string value from `onValueChange` to typed search param, use explicit type cast: `value as "volunteers" | "shifts"`
+- The `Route.useSearch()` hook returns typed search params based on `validateSearch` schema
+- Existing parallel fetch pattern (`Promise.all`) makes adding new data fetching straightforward
+- No need to create separate VS-014 story - shift data fetching was naturally part of adding the tab
+---
+
