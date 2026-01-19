@@ -43,7 +43,7 @@
         "pnpm lint passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Follow existing patterns from competitionJudgeRotationsTable. Use integer timestamp mode for startTime/endTime."
     },
     {
@@ -65,7 +65,7 @@
         "pnpm lint passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Follow pattern from judgeHeatAssignmentsTable. Keep it simple - no versioning needed for v1."
     },
     {
