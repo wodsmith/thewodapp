@@ -85,3 +85,4 @@ export const createOrganizerRequestId = () => `oreq_${createId()}`
 
 // Volunteer shift ID generators
 export const createVolunteerShiftId = () => `vshft_${createId()}`
+export const createVolunteerShiftAssignmentId = () => `vshfta_${createId()}`
