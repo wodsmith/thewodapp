@@ -159,3 +159,25 @@ Feature: Volunteer Scheduler for Non-Judge Roles
 - Both volunteer shift tables reference existing tables (competitions, team_membership) via foreign keys
 ---
 
+## 2026-01-19 - VS-004: Create shift CRUD server functions
+- Created new file `src/server-fns/volunteer-shift-fns.ts` with four server functions:
+  - `createShiftFn` - creates a new shift with validation (name, roleType, startTime, endTime required)
+  - `getCompetitionShiftsFn` - gets all shifts for a competition, ordered by startTime, includes assignments with volunteer details
+  - `updateShiftFn` - updates a shift by id with partial update support
+  - `deleteShiftFn` - deletes a shift by id (cascade deletes assignments via foreign key)
+- All functions validate competitionId and check user has organizer permission via `requireTeamPermission(organizingTeamId, TEAM_PERMISSIONS.MANAGE_COMPETITIONS)`
+- Input validation using Zod schemas with proper error messages
+- Helper function `getCompetitionWithAuthCheck` centralizes competition lookup and authorization
+- Validated end time must be after start time for create and update operations
+
+**Files changed:**
+- `apps/wodsmith-start/src/server-fns/volunteer-shift-fns.ts` (new file, 264 lines)
+
+**Learnings:**
+- Use `.inputValidator((data: unknown) => z.object({...}).parse(data))` not `.validator()` - the pattern differs from the newer TanStack Start docs
+- The `asc` ordering function is imported from `drizzle-orm` for orderBy clauses
+- For nullable optional fields in update operations, use pattern: `data.field !== undefined ? (data.field ?? undefined) : undefined` to distinguish between "not provided" and "set to null"
+- Competition authorization checks should go through the competition's `organizingTeamId` - that's the team with MANAGE_COMPETITIONS permission
+- The shift ID prefix is `vshf_` (defined in common.ts as createVolunteerShiftId)
+---
+
