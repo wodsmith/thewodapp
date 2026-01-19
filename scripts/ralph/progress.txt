@@ -137,3 +137,25 @@ Feature: Volunteer Scheduler for Non-Judge Roles
 - Rename relations when their scope expands (e.g., judge-specific -> all volunteer types)
 ---
 
+## 2026-01-19 - VS-003: Apply volunteer shift migrations
+- Applied migrations 0074 and 0075 to local D1 database successfully
+- Both `volunteer_shifts` and `volunteer_shift_assignments` tables created with:
+  - Proper columns and constraints
+  - Foreign key cascade deletes working
+  - Indexes on competitionId, startTime, shiftId, membershipId
+  - Unique constraint on (shiftId, membershipId)
+- All 75 migrations applied successfully to fresh local database
+- Created `.alchemy/local/wrangler.jsonc` for local development (gitignored)
+
+**Files changed:**
+- `.alchemy/local/wrangler.jsonc` (created, gitignored - for local db:migrate:local support)
+
+**Learnings:**
+- The command is `pnpm db:migrate:local` (not `db:migrate:dev` as AGENTS.md suggests)
+- Local migrations require `.alchemy/local/wrangler.jsonc` config file with D1 database configuration
+- Running `pnpm alchemy:dev` requires Cloudflare credentials; for local migration testing, manually create minimal wrangler.jsonc
+- The local wrangler config should reference `src/db/migrations` relative path for migrations_dir
+- D1 migration output shows checkmark for applied, clock emoji for pending during batch apply
+- Both volunteer shift tables reference existing tables (competitions, team_membership) via foreign keys
+---
+
