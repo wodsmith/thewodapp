@@ -19,6 +19,7 @@ import {
 	COMMERCE_PAYMENT_STATUS,
 	COMMERCE_PURCHASE_STATUS,
 	commercePurchaseTable,
+	competitionRegistrationAnswersTable,
 	competitionRegistrationsTable,
 	teamTable,
 } from "@/db/schema"
@@ -129,6 +130,10 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 							lastName?: string
 							affiliateName?: string
 						}>
+						answers?: Array<{
+							questionId: string
+							answer: string
+						}>
 					} = {}
 
 					if (existingPurchase.metadata) {
@@ -225,6 +230,18 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 							.where(
 								eq(competitionRegistrationsTable.id, result.registrationId),
 							)
+
+						// Store registration answers if present
+						if (registrationData.answers && registrationData.answers.length > 0) {
+							for (const answer of registrationData.answers) {
+								await db.insert(competitionRegistrationAnswersTable).values({
+									questionId: answer.questionId,
+									registrationId: result.registrationId,
+									userId,
+									answer: answer.answer,
+								})
+							}
+						}
 
 						// Mark purchase as completed
 						await db

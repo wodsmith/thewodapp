@@ -14,6 +14,8 @@ interface AcceptInviteButtonProps {
 	competitionSlug?: string
 	teamName?: string
 	competitionId?: string
+	answers?: Array<{ questionId: string; answer: string }>
+	disabled?: boolean
 }
 
 interface AcceptResult {
@@ -34,6 +36,8 @@ export function AcceptInviteButton({
 	competitionSlug,
 	teamName,
 	competitionId,
+	answers,
+	disabled,
 }: AcceptInviteButtonProps) {
 	const navigate = useNavigate()
 	const [isPending, setIsPending] = useState(false)
@@ -44,7 +48,7 @@ export function AcceptInviteButton({
 		setIsPending(true)
 		try {
 			const result = (await acceptInvitation({
-				data: { token },
+				data: { token, answers },
 			})) as AcceptResult
 
 			trackEvent("competition_team_invite_accepted", {
@@ -88,12 +92,14 @@ export function AcceptInviteButton({
 	return (
 		<Button
 			onClick={handleAccept}
-			disabled={isPending}
+			disabled={isPending || disabled}
 			className="w-full"
 			size="lg"
 		>
 			{isPending ? (
 				"Joining Team..."
+			) : disabled ? (
+				"Please answer all required questions"
 			) : (
 				<>
 					<CheckCircle className="mr-2 h-4 w-4" />

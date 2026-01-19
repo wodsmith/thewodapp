@@ -9,7 +9,6 @@ import { createFileRoute, notFound, redirect } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
-import { getDb } from "@/db"
 import {
 	competitionRegistrationsTable,
 	scalingGroupsTable,
@@ -21,6 +20,7 @@ import {
 	parseCompetitionSettings,
 } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
+import { getCompetitionQuestionsFn } from "@/server-fns/registration-questions-fns"
 import { cancelPendingPurchaseFn } from "@/server-fns/registration-fns"
 import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
 import { getLocalDateKey } from "@/utils/date-utils"
@@ -41,6 +41,7 @@ const getUserCompetitionRegistrationFn = createServerFn({ method: "GET" })
 			.parse(data),
 	)
 	.handler(async ({ data }) => {
+		const { getDb } = await import("@/db")
 		const db = getDb()
 		const registration = await db.query.competitionRegistrationsTable.findFirst(
 			{
@@ -63,6 +64,7 @@ const getScalingGroupWithLevelsFn = createServerFn({ method: "GET" })
 		z.object({ scalingGroupId: z.string() }).parse(data),
 	)
 	.handler(async ({ data }) => {
+		const { getDb } = await import("@/db")
 		const db = getDb()
 		const scalingGroup = await db.query.scalingGroupsTable.findFirst({
 			where: eq(scalingGroupsTable.id, data.scalingGroupId),
@@ -82,6 +84,7 @@ const getUserAffiliateNameFn = createServerFn({ method: "GET" })
 		z.object({ userId: z.string() }).parse(data),
 	)
 	.handler(async ({ data }) => {
+		const { getDb } = await import("@/db")
 		const db = getDb()
 		const user = await db.query.userTable.findFirst({
 			where: eq(userTable.id, data.userId),
@@ -125,12 +128,13 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			})
 		}
 
-		// 3. Parallel fetch: registration check, affiliate name, and waivers
+		// 3. Parallel fetch: registration check, affiliate name, waivers, and questions
 		// These all only need competition.id or session.userId
 		const [
 			{ registration: existingRegistration },
 			{ affiliateName },
 			{ waivers },
+			{ questions },
 		] = await Promise.all([
 			getUserCompetitionRegistrationFn({
 				data: {
@@ -142,6 +146,9 @@ export const Route = createFileRoute("/compete/$slug/register")({
 				data: { userId: session.userId },
 			}),
 			getCompetitionWaiversFn({
+				data: { competitionId: competition.id },
+			}),
+			getCompetitionQuestionsFn({
 				data: { competitionId: competition.id },
 			}),
 		])
@@ -179,6 +186,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 				defaultAffiliateName: undefined,
 				divisionsConfigured: false,
 				waivers: [],
+				questions: [],
 			}
 		}
 
@@ -212,6 +220,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 				defaultAffiliateName: undefined,
 				divisionsConfigured: false,
 				waivers: [],
+				questions: [],
 			}
 		}
 
@@ -226,6 +235,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			defaultAffiliateName: affiliateName ?? undefined,
 			divisionsConfigured: true,
 			waivers,
+			questions,
 		}
 	},
 })
@@ -242,6 +252,7 @@ function RegisterPage() {
 		defaultAffiliateName,
 		divisionsConfigured,
 		waivers,
+		questions,
 	} = Route.useLoaderData()
 
 	const { canceled } = Route.useSearch()
@@ -277,6 +288,7 @@ function RegisterPage() {
 				paymentCanceled={canceled === "true"}
 				defaultAffiliateName={defaultAffiliateName}
 				waivers={waivers}
+				questions={questions}
 			/>
 		</div>
 	)

@@ -82,3 +82,7 @@ export const createSponsorId = () => `spnsr_${createId()}`
 
 // Organizer request ID generators
 export const createOrganizerRequestId = () => `oreq_${createId()}`
+
+// Competition registration question ID generators
+export const createCompetitionRegistrationQuestionId = () => `crq_${createId()}`
+export const createCompetitionRegistrationAnswerId = () => `cra_${createId()}`

@@ -20,6 +20,7 @@ import {
 	teamTable,
 	userTable,
 } from "@/db/schema"
+import { competitionRegistrationAnswersTable } from "@/db/schemas/competitions"
 import { waiversTable } from "@/db/schemas/waivers"
 import type { VolunteerMembershipMetadata } from "@/db/schemas/volunteers"
 import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
@@ -92,6 +93,14 @@ const checkEmailExistsSchema = z.object({
 
 const acceptTeamInvitationSchema = z.object({
 	token: z.string().min(1, "Token is required"),
+	answers: z
+		.array(
+			z.object({
+				questionId: z.string().min(1),
+				answer: z.string().max(5000),
+			}),
+		)
+		.optional(),
 })
 
 const acceptVolunteerInviteSchema = z.object({
@@ -586,6 +595,51 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 									}
 								} catch {
 									// Ignore JSON parse errors
+								}
+							}
+						}
+
+						// Store teammate registration answers if provided
+						if (data.answers && data.answers.length > 0 && registrationId) {
+							for (const answerData of data.answers) {
+								// Check if answer already exists for this user/question/registration
+								const existingAnswer =
+									await db.query.competitionRegistrationAnswersTable.findFirst({
+										where: and(
+											eq(
+												competitionRegistrationAnswersTable.questionId,
+												answerData.questionId,
+											),
+											eq(
+												competitionRegistrationAnswersTable.registrationId,
+												registrationId,
+											),
+											eq(
+												competitionRegistrationAnswersTable.userId,
+												session.userId,
+											),
+										),
+									})
+
+								if (existingAnswer) {
+									// Update existing answer
+									await db
+										.update(competitionRegistrationAnswersTable)
+										.set({
+											answer: answerData.answer,
+											updatedAt: new Date(),
+										})
+										.where(eq(competitionRegistrationAnswersTable.id, existingAnswer.id))
+								} else {
+									// Insert new answer
+									await db
+										.insert(competitionRegistrationAnswersTable)
+										.values({
+											questionId: answerData.questionId,
+											registrationId: registrationId,
+											userId: session.userId,
+											answer: answerData.answer,
+										})
 								}
 							}
 						}
