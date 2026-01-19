@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
+import { ROLES_ENUM } from "@/db/schema"
 
 export const Route = createFileRoute("/_protected/movements/")({
 	component: MovementsPage,
@@ -20,6 +21,7 @@ export const Route = createFileRoute("/_protected/movements/")({
 
 function MovementsPage() {
 	const { movements } = Route.useLoaderData()
+	const { session } = Route.useRouteContext()
 	const navigate = useNavigate({ from: Route.fullPath })
 	const { q, type } = Route.useSearch()
 	const [searchTerm, setSearchTerm] = useState(q)
@@ -67,12 +69,14 @@ function MovementsPage() {
 			{/* Header */}
 			<div className="mb-6 flex items-center justify-between">
 				<h1 className="text-4xl font-bold">MOVEMENTS</h1>
-				<Button asChild>
-					<Link to="/movements/new">
-						<Plus className="h-5 w-5 mr-2" />
-						Create Movement
-					</Link>
-				</Button>
+				{session?.user.role === ROLES_ENUM.ADMIN && (
+					<Button asChild>
+						<Link to="/movements/new">
+							<Plus className="h-5 w-5 mr-2" />
+							Create Movement
+						</Link>
+					</Button>
+				)}
 			</div>
 
 			{/* Search + Filter */}
