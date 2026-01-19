@@ -102,7 +102,7 @@
         "pnpm lint passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Follow patterns from src/server-fns/volunteer-fns.ts. Use requireTeamPermission for authorization."
     },
     {
