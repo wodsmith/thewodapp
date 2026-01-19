@@ -2,7 +2,7 @@
 
 import { useServerFn } from "@tanstack/react-start"
 import { CalendarDays, Clock, Edit2, MapPin, Plus, Trash2, Users } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { toast } from "sonner"
 import {
 	AlertDialog,
@@ -31,8 +31,9 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
-import type { VolunteerRoleType } from "@/db/schemas/volunteers"
+import type { VolunteerRoleType, VolunteerShift } from "@/db/schemas/volunteers"
 import { deleteShiftFn, getCompetitionShiftsFn } from "@/server-fns/volunteer-shift-fns"
+import { ShiftFormDialog } from "./shift-form-dialog"
 
 // Type inferred from getCompetitionShiftsFn return type
 type ShiftWithAssignments = Awaited<ReturnType<typeof getCompetitionShiftsFn>>[number]
@@ -103,16 +104,26 @@ interface ShiftListProps {
  * Shifts are grouped by date and show name, role type, time, location, and assignment counts.
  */
 export function ShiftList({
-	competitionId: _competitionId,
+	competitionId,
 	shifts: initialShifts,
 }: ShiftListProps) {
-	// Note: competitionId will be used in VS-011 for the create/edit dialog
-	void _competitionId
 	const [shifts, setShifts] = useState(initialShifts)
 	const [deletingShiftId, setDeletingShiftId] = useState<string | null>(null)
 	const [isDeleting, setIsDeleting] = useState(false)
+	const [formDialogOpen, setFormDialogOpen] = useState(false)
+	const [editingShift, setEditingShift] = useState<VolunteerShift | undefined>(undefined)
 
 	const deleteShift = useServerFn(deleteShiftFn)
+
+	const handleOpenCreateDialog = useCallback(() => {
+		setEditingShift(undefined)
+		setFormDialogOpen(true)
+	}, [])
+
+	const handleOpenEditDialog = useCallback((shift: VolunteerShift) => {
+		setEditingShift(shift)
+		setFormDialogOpen(true)
+	}, [])
 
 	// Group shifts by date
 	const dayGroups = useMemo<DayGroup[]>(() => {
@@ -167,24 +178,28 @@ export function ShiftList({
 	// Empty state
 	if (shifts.length === 0) {
 		return (
-			<Card>
-				<CardContent className="flex flex-col items-center justify-center py-12 text-center">
-					<CalendarDays className="mb-4 h-12 w-12 text-muted-foreground" />
-					<h3 className="mb-2 text-lg font-semibold">No shifts created</h3>
-					<p className="mb-4 text-sm text-muted-foreground">
-						Create volunteer shifts to schedule non-judge roles like check-in, medical staff, and more.
-					</p>
-					<Button
-						onClick={() => {
-							// TODO (VS-011): Open create dialog
-							toast.info("Add Shift dialog coming soon")
-						}}
-					>
-						<Plus className="mr-2 h-4 w-4" />
-						Add Shift
-					</Button>
-				</CardContent>
-			</Card>
+			<>
+				<Card>
+					<CardContent className="flex flex-col items-center justify-center py-12 text-center">
+						<CalendarDays className="mb-4 h-12 w-12 text-muted-foreground" />
+						<h3 className="mb-2 text-lg font-semibold">No shifts created</h3>
+						<p className="mb-4 text-sm text-muted-foreground">
+							Create volunteer shifts to schedule non-judge roles like check-in, medical staff, and more.
+						</p>
+						<Button onClick={handleOpenCreateDialog}>
+							<Plus className="mr-2 h-4 w-4" />
+							Add Shift
+						</Button>
+					</CardContent>
+				</Card>
+
+				<ShiftFormDialog
+					competitionId={competitionId}
+					open={formDialogOpen}
+					onOpenChange={setFormDialogOpen}
+					shift={editingShift}
+				/>
+			</>
 		)
 	}
 
@@ -198,12 +213,7 @@ export function ShiftList({
 						Manage time-based volunteer shifts for non-judge roles
 					</p>
 				</div>
-				<Button
-					onClick={() => {
-						// TODO (VS-011): Open create dialog
-						toast.info("Add Shift dialog coming soon")
-					}}
-				>
+				<Button onClick={handleOpenCreateDialog}>
 					<Plus className="mr-2 h-4 w-4" />
 					Add Shift
 				</Button>
@@ -280,10 +290,7 @@ export function ShiftList({
 													<Button
 														variant="ghost"
 														size="sm"
-														onClick={() => {
-															// TODO (VS-011): Open edit dialog
-															toast.info("Edit Shift dialog coming soon")
-														}}
+														onClick={() => handleOpenEditDialog(shift)}
 														aria-label={`Edit ${shift.name}`}
 													>
 														<Edit2 className="h-4 w-4" />
@@ -338,6 +345,14 @@ export function ShiftList({
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>
+
+			{/* Create/Edit Shift Dialog */}
+			<ShiftFormDialog
+				competitionId={competitionId}
+				open={formDialogOpen}
+				onOpenChange={setFormDialogOpen}
+				shift={editingShift}
+			/>
 		</div>
 	)
 }
