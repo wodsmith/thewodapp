@@ -526,6 +526,13 @@
       "when": 1767629400002,
       "tag": "0073_add-competition-timezone",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "6",
+      "when": 1768785271712,
+      "tag": "0074_add-volunteer-shifts",
+      "breakpoints": true
     }
   ]
 }
