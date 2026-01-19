@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/table"
 import type { VolunteerRoleType, VolunteerShift } from "@/db/schemas/volunteers"
 import { deleteShiftFn, getCompetitionShiftsFn } from "@/server-fns/volunteer-shift-fns"
+import { ShiftAssignmentPanel } from "./shift-assignment-panel"
 import { ShiftFormDialog } from "./shift-form-dialog"
 
 // Type inferred from getCompetitionShiftsFn return type
@@ -96,6 +97,7 @@ function toDate(value: Date | string | number): Date {
 
 interface ShiftListProps {
 	competitionId: string
+	competitionTeamId: string
 	shifts: ShiftWithAssignments[]
 }
 
@@ -105,6 +107,7 @@ interface ShiftListProps {
  */
 export function ShiftList({
 	competitionId,
+	competitionTeamId,
 	shifts: initialShifts,
 }: ShiftListProps) {
 	const [shifts, setShifts] = useState(initialShifts)
@@ -112,6 +115,8 @@ export function ShiftList({
 	const [isDeleting, setIsDeleting] = useState(false)
 	const [formDialogOpen, setFormDialogOpen] = useState(false)
 	const [editingShift, setEditingShift] = useState<VolunteerShift | undefined>(undefined)
+	const [assignmentPanelOpen, setAssignmentPanelOpen] = useState(false)
+	const [selectedShift, setSelectedShift] = useState<ShiftWithAssignments | null>(null)
 
 	const deleteShift = useServerFn(deleteShiftFn)
 
@@ -123,6 +128,18 @@ export function ShiftList({
 	const handleOpenEditDialog = useCallback((shift: VolunteerShift) => {
 		setEditingShift(shift)
 		setFormDialogOpen(true)
+	}, [])
+
+	const handleOpenAssignmentPanel = useCallback((shift: ShiftWithAssignments) => {
+		setSelectedShift(shift)
+		setAssignmentPanelOpen(true)
+	}, [])
+
+	const handleAssignmentChange = useCallback((updatedShift: ShiftWithAssignments) => {
+		setShifts((prev) =>
+			prev.map((s) => (s.id === updatedShift.id ? updatedShift : s)),
+		)
+		setSelectedShift(updatedShift)
 	}, [])
 
 	// Group shifts by date
@@ -254,7 +271,11 @@ export function ShiftList({
 									)
 
 									return (
-										<TableRow key={shift.id}>
+										<TableRow
+											key={shift.id}
+											className="cursor-pointer hover:bg-muted/50"
+											onClick={() => handleOpenAssignmentPanel(shift)}
+										>
 											<TableCell className="font-medium">
 												{shift.name}
 											</TableCell>
@@ -290,7 +311,10 @@ export function ShiftList({
 													<Button
 														variant="ghost"
 														size="sm"
-														onClick={() => handleOpenEditDialog(shift)}
+														onClick={(e) => {
+															e.stopPropagation()
+															handleOpenEditDialog(shift)
+														}}
 														aria-label={`Edit ${shift.name}`}
 													>
 														<Edit2 className="h-4 w-4" />
@@ -298,7 +322,10 @@ export function ShiftList({
 													<Button
 														variant="ghost"
 														size="sm"
-														onClick={() => setDeletingShiftId(shift.id)}
+														onClick={(e) => {
+															e.stopPropagation()
+															setDeletingShiftId(shift.id)
+														}}
 														aria-label={`Delete ${shift.name}`}
 													>
 														<Trash2 className="h-4 w-4 text-destructive" />
@@ -352,6 +379,15 @@ export function ShiftList({
 				open={formDialogOpen}
 				onOpenChange={setFormDialogOpen}
 				shift={editingShift}
+			/>
+
+			{/* Assignment Panel */}
+			<ShiftAssignmentPanel
+				shift={selectedShift}
+				competitionTeamId={competitionTeamId}
+				open={assignmentPanelOpen}
+				onOpenChange={setAssignmentPanelOpen}
+				onAssignmentChange={handleAssignmentChange}
 			/>
 		</div>
 	)
