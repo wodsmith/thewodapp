@@ -582,6 +582,13 @@
       "when": 1769600000000,
       "tag": "0083_add-volunteer-shifts",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "6",
+      "when": 1768785564952,
+      "tag": "0075_add-volunteer-shift-assignments",
+      "breakpoints": true
     }
   ]
 }

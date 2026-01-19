@@ -12,6 +12,7 @@ import {
 	createHeatVolunteerId,
 	createJudgeAssignmentVersionId,
 	createJudgeRotationId,
+	createVolunteerShiftAssignmentId,
 	createVolunteerShiftId,
 } from "./common"
 import { competitionHeatsTable, competitionsTable } from "./competitions"
@@ -285,6 +286,39 @@ export const volunteerShiftsTable = sqliteTable(
 	],
 )
 
+// Volunteer Shift Assignments Table
+// Junction table to assign volunteers (team memberships) to shifts
+// A volunteer can be assigned to multiple shifts, and a shift can have multiple volunteers up to its capacity
+export const volunteerShiftAssignmentsTable = sqliteTable(
+	"volunteer_shift_assignments",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => createVolunteerShiftAssignmentId())
+			.notNull(),
+		// The shift this assignment is for
+		shiftId: text()
+			.notNull()
+			.references(() => volunteerShiftsTable.id, { onDelete: "cascade" }),
+		// The team membership (volunteer) being assigned
+		membershipId: text()
+			.notNull()
+			.references(() => teamMembershipTable.id, { onDelete: "cascade" }),
+		// Optional notes/instructions for this specific assignment
+		notes: text({ length: 500 }),
+	},
+	(table) => [
+		index("volunteer_shift_assignments_shift_idx").on(table.shiftId),
+		index("volunteer_shift_assignments_membership_idx").on(table.membershipId),
+		// Ensure a volunteer can only be assigned once per shift
+		uniqueIndex("volunteer_shift_assignments_unique_idx").on(
+			table.shiftId,
+			table.membershipId,
+		),
+	],
+)
+
 // Type exports
 export type JudgeAssignmentVersion = InferSelectModel<
 	typeof judgeAssignmentVersionsTable
@@ -296,6 +330,9 @@ export type CompetitionJudgeRotation = InferSelectModel<
 	typeof competitionJudgeRotationsTable
 >
 export type VolunteerShift = InferSelectModel<typeof volunteerShiftsTable>
+export type VolunteerShiftAssignment = InferSelectModel<
+	typeof volunteerShiftAssignmentsTable
+>
 
 // Legacy type aliases for backward compatibility
 export type CompetitionHeatVolunteer = JudgeHeatAssignment
@@ -347,12 +384,13 @@ export const competitionHeatsJudgeAssignmentsReverseRelations = relations(
 	}),
 )
 
-// Reverse relation: team memberships can have judge assignments
-export const teamMembershipJudgeAssignmentsReverseRelations = relations(
+// Reverse relation: team memberships can have judge assignments and shift assignments
+export const teamMembershipVolunteerReverseRelations = relations(
 	teamMembershipTable,
 	({ many }) => ({
 		judgeAssignments: many(judgeHeatAssignmentsTable),
 		judgeRotations: many(competitionJudgeRotationsTable),
+		volunteerShiftAssignments: many(volunteerShiftAssignmentsTable),
 	}),
 )
 
@@ -396,10 +434,26 @@ export const trackWorkoutsJudgeSystemReverseRelations = relations(
 // Volunteer shifts relations
 export const volunteerShiftsRelations = relations(
 	volunteerShiftsTable,
-	({ one }) => ({
+	({ one, many }) => ({
 		competition: one(competitionsTable, {
 			fields: [volunteerShiftsTable.competitionId],
 			references: [competitionsTable.id],
+		}),
+		assignments: many(volunteerShiftAssignmentsTable),
+	}),
+)
+
+// Volunteer shift assignments relations
+export const volunteerShiftAssignmentsRelations = relations(
+	volunteerShiftAssignmentsTable,
+	({ one }) => ({
+		shift: one(volunteerShiftsTable, {
+			fields: [volunteerShiftAssignmentsTable.shiftId],
+			references: [volunteerShiftsTable.id],
+		}),
+		membership: one(teamMembershipTable, {
+			fields: [volunteerShiftAssignmentsTable.membershipId],
+			references: [teamMembershipTable.id],
 		}),
 	}),
 )
