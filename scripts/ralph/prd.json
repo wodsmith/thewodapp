@@ -217,7 +217,7 @@
         "pnpm lint passes"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "Follow patterns from judges/ components. Use Shadcn Table component."
     },
     {

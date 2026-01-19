@@ -284,3 +284,35 @@ Feature: Volunteer Scheduler for Non-Judge Roles
 - Import multiple types from the same module using grouped import: `import type { EventWithRotations, VolunteerShiftData } from "..."`
 ---
 
+## 2026-01-19 - VS-010: Create admin shift list component
+- Created `src/routes/compete/organizer/$competitionId/-components/shifts/shift-list.tsx`
+- Component features:
+  - Groups shifts by date with date headers (e.g., "Monday, Jan 20")
+  - Each shift displays: name, role type badge, time range, location (if set), assigned/capacity count
+  - Add Shift button (placeholder for VS-011 dialog)
+  - Edit button on each shift (placeholder for VS-011 dialog)
+  - Delete button with confirmation AlertDialog
+  - Empty state with icon and Add Shift CTA
+- Styled with Shadcn UI components:
+  - Table for shift list within each day group
+  - Card for day groupings
+  - Badge for role type and capacity display
+  - AlertDialog for delete confirmation
+- Delete confirmation shows shift name and warns about assigned volunteers
+- Uses `useServerFn` hook for `deleteShiftFn` calls
+- Type inferred from `getCompetitionShiftsFn` return type using `Awaited<ReturnType<typeof getCompetitionShiftsFn>>[number]`
+- Role type labels map for display (ROLE_TYPE_LABELS constant)
+
+**Files changed:**
+- `apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-components/shifts/shift-list.tsx` (new file, ~280 lines)
+
+**Learnings:**
+- Infer types from server function return types using `Awaited<ReturnType<typeof fnName>>` pattern
+- For list items, index into the array type with `[number]`
+- Group items by date using Map with date key string (YYYY-MM-DD format)
+- Use `toLocaleTimeString` and `toLocaleDateString` for user-friendly time/date formatting
+- AlertDialog component from Shadcn uses controlled state with open prop
+- For props that will be used in future stories, use underscore prefix and void statement to suppress unused warnings
+- Follow existing patterns from waiver-list.tsx (delete confirmation) and judge-overview.tsx (date grouping)
+---
+
