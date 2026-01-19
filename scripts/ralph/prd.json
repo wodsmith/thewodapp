@@ -160,7 +160,7 @@
         "pnpm lint passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Follow design patterns from rotation-card.tsx. Use date-utils for time formatting."
     },
     {
@@ -179,7 +179,7 @@
         "pnpm lint passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Keep existing events/rotations display unchanged. Add shifts as new section."
     },
     {
@@ -197,7 +197,7 @@
         "pnpm lint passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Minimal changes needed - just pass through the new shifts data."
     },
     {
