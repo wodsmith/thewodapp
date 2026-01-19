@@ -10,6 +10,7 @@ import {
 	EVENT_DETAILS_FORM_ID,
 	EventDetailsForm,
 } from "@/components/events/event-details-form"
+import { EventResourcesCard } from "@/components/events/event-resources-card"
 import { HeatSchedulePublishingCard } from "@/components/organizer/heat-schedule-publishing-card"
 import { Button } from "@/components/ui/button"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
@@ -18,6 +19,7 @@ import {
 	getCompetitionEventFn,
 	getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
+import { getEventResourcesFn } from "@/server-fns/event-resources-fns"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
 import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
 
@@ -38,26 +40,37 @@ export const Route = createFileRoute(
 			throw new Error("Competition not found")
 		}
 
-		// Parallel fetch event, divisions, movements, and sponsors
-		const [eventResult, divisionsResult, movementsResult, sponsorsResult] =
-			await Promise.all([
-				getCompetitionEventFn({
-					data: {
-						trackWorkoutId: params.eventId,
-						teamId: competition.organizingTeamId,
-					},
-				}),
-				getCompetitionDivisionsWithCountsFn({
-					data: {
-						competitionId: params.competitionId,
-						teamId: competition.organizingTeamId,
-					},
-				}),
-				getAllMovementsFn(),
-				getCompetitionSponsorsFn({
-					data: { competitionId: params.competitionId },
-				}),
-			])
+		// Parallel fetch event, divisions, movements, sponsors, and resources
+		const [
+			eventResult,
+			divisionsResult,
+			movementsResult,
+			sponsorsResult,
+			resourcesResult,
+		] = await Promise.all([
+			getCompetitionEventFn({
+				data: {
+					trackWorkoutId: params.eventId,
+					teamId: competition.organizingTeamId,
+				},
+			}),
+			getCompetitionDivisionsWithCountsFn({
+				data: {
+					competitionId: params.competitionId,
+					teamId: competition.organizingTeamId,
+				},
+			}),
+			getAllMovementsFn(),
+			getCompetitionSponsorsFn({
+				data: { competitionId: params.competitionId },
+			}),
+			getEventResourcesFn({
+				data: {
+					eventId: params.eventId,
+					teamId: competition.organizingTeamId,
+				},
+			}),
+		])
 
 		if (!eventResult.event) {
 			throw new Error("Event not found")
@@ -93,13 +106,20 @@ export const Route = createFileRoute(
 			movements: movementsResult.movements,
 			sponsors: allSponsors,
 			divisionDescriptions,
+			resources: resourcesResult.resources,
 		}
 	},
 })
 
 function EventEditPage() {
-	const { event, divisions, movements, sponsors, divisionDescriptions } =
-		Route.useLoaderData()
+	const {
+		event,
+		divisions,
+		movements,
+		sponsors,
+		divisionDescriptions,
+		resources,
+	} = Route.useLoaderData()
 	// Get competition from parent layout loader data
 	const { competition } = parentRoute.useLoaderData()
 
@@ -127,6 +147,13 @@ function EventEditPage() {
 				divisionDescriptions={divisionDescriptions}
 				movements={movements}
 				sponsors={sponsors}
+			/>
+
+			{/* Event Resources */}
+			<EventResourcesCard
+				eventId={event.id}
+				teamId={competition.organizingTeamId}
+				initialResources={resources}
 			/>
 
 			{/* Heat Schedule Publishing */}
