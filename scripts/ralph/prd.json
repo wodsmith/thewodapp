@@ -141,7 +141,7 @@
         "pnpm lint passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Keep backward compatibility - events array structure unchanged. Add shifts as new field."
     },
     {

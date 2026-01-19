@@ -206,3 +206,25 @@ Feature: Volunteer Scheduler for Non-Judge Roles
 - The shift assignment ID prefix is `vsha_` (defined in common.ts as createVolunteerShiftAssignmentId)
 ---
 
+## 2026-01-19 - VS-006: Extend volunteer schedule data fetching
+- Updated `getVolunteerScheduleDataFn` in `src/server-fns/volunteer-schedule-fns.ts` to fetch volunteer shift assignments
+- Added new type interfaces:
+  - `VolunteerShiftData` - individual shift with id, name, roleType, startTime, endTime, location, notes
+  - `VolunteerScheduleData` - combined return type with events and shifts arrays
+- Query joins `volunteerShiftAssignmentsTable` with `volunteerShiftsTable` to get shift details for the volunteer
+- Shifts are ordered by startTime ascending
+- Backward compatible: events array structure unchanged, shifts added as new field
+- Return type changed from `{ events: EventWithRotations[] }` to `VolunteerScheduleData`
+- Handle case where volunteer has shifts but no judge rotations (still return valid response)
+
+**Files changed:**
+- `apps/wodsmith-start/src/server-fns/volunteer-schedule-fns.ts` (updated, +62 lines)
+
+**Learnings:**
+- When extending return types, create a new interface (VolunteerScheduleData) rather than modifying inline types for better type exports
+- Import additional tables and types as needed - volunteerShiftsTable, volunteerShiftAssignmentsTable, VolunteerRoleType
+- When function has early return, ensure it includes all new fields (shifts array, not just events)
+- Use innerJoin when the relationship is required (every assignment must have a shift)
+- For time-based ordering, use `getTime()` on Date objects for numeric comparison in sort callback
+---
+
