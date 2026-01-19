@@ -1026,7 +1026,8 @@ export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
 			isTeamMember = !!membership
 		}
 		if (!isRegisteredUser && !isTeamMember) {
-			throw new Error("You are not authorized to view this registration")
+			// Return null instead of throwing to allow route to show 404
+			return null
 		}
 
 		// Parse related data (handle array vs single object)
