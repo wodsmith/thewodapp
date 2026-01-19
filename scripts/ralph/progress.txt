@@ -181,3 +181,28 @@ Feature: Volunteer Scheduler for Non-Judge Roles
 - The shift ID prefix is `vshf_` (defined in common.ts as createVolunteerShiftId)
 ---
 
+## 2026-01-19 - VS-005: Create shift assignment server functions
+- Added five server functions to `src/server-fns/volunteer-shift-fns.ts`:
+  - `assignVolunteerToShiftFn` - assigns a volunteer to a shift, validates capacity not exceeded
+  - `unassignVolunteerFromShiftFn` - removes a volunteer from a shift
+  - `getShiftAssignmentsFn` - gets all assignments for a shift with volunteer details (name, email, roleTypes)
+  - `getVolunteerShiftsFn` - gets all shift assignments for a specific volunteer (by membershipId + competitionId)
+  - `bulkAssignVolunteersToShiftFn` - assigns multiple volunteers to a shift at once with capacity validation
+- Added helper function `getShiftWithAuthCheck` for shift lookup with permission validation
+- Added helper function `parseVolunteerRoleTypes` to extract roleTypes from membership metadata JSON
+- All functions validate capacity constraints (shift.capacity vs current assignment count)
+- All functions check user has organizer permission via `requireTeamPermission`
+- bulkAssignVolunteersToShiftFn uses autochunk for D1 parameter limits when verifying memberships exist
+- Bulk insert uses batching (15 rows per batch) to stay under D1's 100 parameter limit
+
+**Files changed:**
+- `apps/wodsmith-start/src/server-fns/volunteer-shift-fns.ts` (added assignment functions, ~250 new lines)
+
+**Learnings:**
+- Drizzle relational queries with nested `with: { membership: { with: { user: true } } }` may not properly infer types when querying from junction tables; use join queries instead for explicit type control
+- User table has `firstName` and `lastName` fields, not a single `name` field - combine them with `[firstName, lastName].filter(Boolean).join(" ")`
+- For bulk inserts, D1 parameter count = columns * rows; volunteerShiftAssignmentsTable has ~6 columns, so safe batch size is ~15 rows
+- Use `autochunk` from `@/utils/batch-query` for verifying membership IDs exist when the array size could exceed D1's 100 parameter limit
+- The shift assignment ID prefix is `vsha_` (defined in common.ts as createVolunteerShiftAssignmentId)
+---
+

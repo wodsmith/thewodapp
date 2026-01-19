@@ -5,15 +5,20 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { asc, eq } from "drizzle-orm"
+import { and, asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
 	competitionsTable,
+	teamMembershipTable,
+	userTable,
 	VOLUNTEER_ROLE_TYPES,
+	volunteerShiftAssignmentsTable,
 	volunteerShiftsTable,
 } from "@/db/schema"
+import type { VolunteerMembershipMetadata } from "@/db/schema"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { autochunk } from "@/utils/batch-query"
 import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
@@ -27,6 +32,10 @@ const competitionIdSchema = z
 const shiftIdSchema = z
 	.string()
 	.startsWith("vshf_", "Invalid volunteer shift ID")
+
+const membershipIdSchema = z
+	.string()
+	.startsWith("tmem_", "Invalid team membership ID")
 
 const volunteerRoleTypeSchema = z.enum([
 	VOLUNTEER_ROLE_TYPES.JUDGE,
@@ -261,4 +270,354 @@ export const deleteShiftFn = createServerFn({ method: "POST" })
 			.where(eq(volunteerShiftsTable.id, data.shiftId))
 
 		return { success: true }
+	})
+
+// ============================================================================
+// Assignment Functions
+// ============================================================================
+
+/**
+ * Helper to get shift with competition context for assignment operations
+ * Validates organizer permission and returns shift with current assignment count
+ */
+async function getShiftWithAuthCheck(shiftId: string) {
+	const db = getDb()
+
+	const shift = await db.query.volunteerShiftsTable.findFirst({
+		where: eq(volunteerShiftsTable.id, shiftId),
+		with: {
+			assignments: true,
+		},
+	})
+
+	if (!shift) {
+		throw new Error("NOT_FOUND: Volunteer shift not found")
+	}
+
+	// Validate permission for this competition
+	await getCompetitionWithAuthCheck(shift.competitionId)
+
+	return shift
+}
+
+/**
+ * Parse volunteer role types from membership metadata
+ */
+function parseVolunteerRoleTypes(
+	metadata: string | null,
+): VolunteerMembershipMetadata["volunteerRoleTypes"] {
+	if (!metadata) return []
+	try {
+		const parsed = JSON.parse(metadata) as VolunteerMembershipMetadata
+		return parsed.volunteerRoleTypes ?? []
+	} catch {
+		return []
+	}
+}
+
+/**
+ * Assign a volunteer to a shift
+ * Validates that shift capacity is not exceeded
+ */
+export const assignVolunteerToShiftFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				shiftId: shiftIdSchema,
+				membershipId: membershipIdSchema,
+				notes: z.string().max(500).optional(),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Get shift with current assignments and validate permission
+		const shift = await getShiftWithAuthCheck(data.shiftId)
+
+		// Check if volunteer is already assigned to this shift
+		const existingAssignment = shift.assignments.find(
+			(a) => a.membershipId === data.membershipId,
+		)
+		if (existingAssignment) {
+			throw new Error(
+				"VALIDATION_ERROR: Volunteer is already assigned to this shift",
+			)
+		}
+
+		// Validate capacity
+		if (shift.assignments.length >= shift.capacity) {
+			throw new Error(
+				`VALIDATION_ERROR: Shift capacity (${shift.capacity}) has been reached`,
+			)
+		}
+
+		// Verify membership exists
+		const membership = await db.query.teamMembershipTable.findFirst({
+			where: eq(teamMembershipTable.id, data.membershipId),
+		})
+
+		if (!membership) {
+			throw new Error("NOT_FOUND: Team membership not found")
+		}
+
+		// Create the assignment
+		const [assignment] = await db
+			.insert(volunteerShiftAssignmentsTable)
+			.values({
+				shiftId: data.shiftId,
+				membershipId: data.membershipId,
+				notes: data.notes,
+			})
+			.returning()
+
+		if (!assignment) {
+			throw new Error("Failed to create shift assignment")
+		}
+
+		return assignment
+	})
+
+/**
+ * Unassign a volunteer from a shift
+ */
+export const unassignVolunteerFromShiftFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				shiftId: shiftIdSchema,
+				membershipId: membershipIdSchema,
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Validate permission via shift
+		await getShiftWithAuthCheck(data.shiftId)
+
+		// Delete the assignment
+		const result = await db
+			.delete(volunteerShiftAssignmentsTable)
+			.where(
+				and(
+					eq(volunteerShiftAssignmentsTable.shiftId, data.shiftId),
+					eq(volunteerShiftAssignmentsTable.membershipId, data.membershipId),
+				),
+			)
+			.returning({ id: volunteerShiftAssignmentsTable.id })
+
+		if (result.length === 0) {
+			throw new Error("NOT_FOUND: Assignment not found")
+		}
+
+		return { success: true }
+	})
+
+/**
+ * Get all assignments for a shift with volunteer details (name, email, roleTypes)
+ */
+export const getShiftAssignmentsFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				shiftId: shiftIdSchema,
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		// Validate permission
+		await getShiftWithAuthCheck(data.shiftId)
+
+		const db = getDb()
+
+		// Use join query to get assignments with membership and user data
+		const rows = await db
+			.select({
+				assignment: volunteerShiftAssignmentsTable,
+				membership: teamMembershipTable,
+				user: userTable,
+			})
+			.from(volunteerShiftAssignmentsTable)
+			.innerJoin(
+				teamMembershipTable,
+				eq(
+					volunteerShiftAssignmentsTable.membershipId,
+					teamMembershipTable.id,
+				),
+			)
+			.innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
+			.where(eq(volunteerShiftAssignmentsTable.shiftId, data.shiftId))
+
+		// Transform to include volunteer details
+		return rows.map((row) => ({
+			id: row.assignment.id,
+			shiftId: row.assignment.shiftId,
+			membershipId: row.assignment.membershipId,
+			notes: row.assignment.notes,
+			createdAt: row.assignment.createdAt,
+			updatedAt: row.assignment.updatedAt,
+			volunteer: {
+				name: [row.user.firstName, row.user.lastName]
+					.filter(Boolean)
+					.join(" "),
+				email: row.user.email,
+				roleTypes: parseVolunteerRoleTypes(row.membership.metadata),
+			},
+		}))
+	})
+
+/**
+ * Get all shift assignments for a specific volunteer (by membershipId)
+ */
+export const getVolunteerShiftsFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				membershipId: membershipIdSchema,
+				competitionId: competitionIdSchema,
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		// Validate permission for the competition
+		await getCompetitionWithAuthCheck(data.competitionId)
+
+		const db = getDb()
+
+		// Get all assignments for this volunteer
+		const assignments = await db.query.volunteerShiftAssignmentsTable.findMany({
+			where: eq(volunteerShiftAssignmentsTable.membershipId, data.membershipId),
+			with: {
+				shift: true,
+			},
+		})
+
+		// Filter to only include shifts from the specified competition
+		const filteredAssignments = assignments.filter(
+			(a) => a.shift.competitionId === data.competitionId,
+		)
+
+		// Return assignments with shift details
+		return filteredAssignments.map((assignment) => ({
+			id: assignment.id,
+			shiftId: assignment.shiftId,
+			membershipId: assignment.membershipId,
+			notes: assignment.notes,
+			createdAt: assignment.createdAt,
+			updatedAt: assignment.updatedAt,
+			shift: {
+				id: assignment.shift.id,
+				name: assignment.shift.name,
+				roleType: assignment.shift.roleType,
+				startTime: assignment.shift.startTime,
+				endTime: assignment.shift.endTime,
+				location: assignment.shift.location,
+				capacity: assignment.shift.capacity,
+			},
+		}))
+	})
+
+/**
+ * Bulk assign multiple volunteers to a shift at once
+ * Validates capacity is not exceeded for all assignments combined
+ */
+export const bulkAssignVolunteersToShiftFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				shiftId: shiftIdSchema,
+				membershipIds: z.array(membershipIdSchema).min(1),
+				notes: z.string().max(500).optional(),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Get shift with current assignments and validate permission
+		const shift = await getShiftWithAuthCheck(data.shiftId)
+
+		// Remove duplicates from membershipIds
+		const uniqueMembershipIds = [...new Set(data.membershipIds)]
+
+		// Check which volunteers are already assigned
+		const existingMembershipIds = new Set(
+			shift.assignments.map((a) => a.membershipId),
+		)
+		const newMembershipIds = uniqueMembershipIds.filter(
+			(id) => !existingMembershipIds.has(id),
+		)
+
+		if (newMembershipIds.length === 0) {
+			return {
+				success: true,
+				assignedCount: 0,
+				skippedCount: uniqueMembershipIds.length,
+				message: "All volunteers are already assigned to this shift",
+			}
+		}
+
+		// Validate capacity for new assignments
+		const totalAfterAssignment = shift.assignments.length + newMembershipIds.length
+		if (totalAfterAssignment > shift.capacity) {
+			throw new Error(
+				`VALIDATION_ERROR: Cannot assign ${newMembershipIds.length} volunteers. ` +
+					`Shift capacity is ${shift.capacity}, currently ${shift.assignments.length} assigned. ` +
+					`Would exceed by ${totalAfterAssignment - shift.capacity}.`,
+			)
+		}
+
+		// Verify all memberships exist using autochunk for D1 parameter limits
+		const memberships = await autochunk(
+			{ items: newMembershipIds, otherParametersCount: 0 },
+			async (chunk) =>
+				db
+					.select({ id: teamMembershipTable.id })
+					.from(teamMembershipTable)
+					.where(inArray(teamMembershipTable.id, chunk)),
+		)
+
+		const foundMembershipIds = new Set(memberships.map((m) => m.id))
+		const missingMembershipIds = newMembershipIds.filter(
+			(id) => !foundMembershipIds.has(id),
+		)
+
+		if (missingMembershipIds.length > 0) {
+			throw new Error(
+				`NOT_FOUND: Team memberships not found: ${missingMembershipIds.join(", ")}`,
+			)
+		}
+
+		// Create assignments using autochunk for inserts
+		const assignmentValues = newMembershipIds.map((membershipId) => ({
+			shiftId: data.shiftId,
+			membershipId,
+			notes: data.notes,
+		}))
+
+		// D1 insert parameter count = number of columns * number of rows
+		// volunteerShiftAssignmentsTable has ~5 columns per insert (id, shiftId, membershipId, notes, createdAt, updatedAt)
+		// Safe batch size = floor(100 / 6) = ~16 rows per batch
+		const BATCH_SIZE = 15
+
+		const createdAssignments: Array<
+			typeof volunteerShiftAssignmentsTable.$inferSelect
+		> = []
+
+		for (let i = 0; i < assignmentValues.length; i += BATCH_SIZE) {
+			const batch = assignmentValues.slice(i, i + BATCH_SIZE)
+			const inserted = await db
+				.insert(volunteerShiftAssignmentsTable)
+				.values(batch)
+				.returning()
+			createdAssignments.push(...inserted)
+		}
+
+		return {
+			success: true,
+			assignedCount: createdAssignments.length,
+			skippedCount: uniqueMembershipIds.length - newMembershipIds.length,
+			assignments: createdAssignments,
+		}
 	})
