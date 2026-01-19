@@ -228,3 +228,59 @@ Feature: Volunteer Scheduler for Non-Judge Roles
 - For time-based ordering, use `getTime()` on Date objects for numeric comparison in sort callback
 ---
 
+## 2026-01-19 - VS-007: Create shift card component
+- Created `src/routes/compete/$slug/-components/shift-card.tsx` with ShiftCard component
+- Component displays:
+  - Shift name as header
+  - Role type badge with distinct colors for each volunteer role type
+  - Time range in user-friendly format (e.g., "Sat 8:00 AM - 12:00 PM")
+  - Location with MapPin icon (conditionally shown when set)
+  - Notes section with distinct blue styling (conditionally shown when set)
+- Styling patterns:
+  - Border-left accent (primary for upcoming, muted with opacity for past shifts)
+  - Card/CardContent from Shadcn UI
+  - Clock and MapPin icons from lucide-react
+  - Role-specific badge colors (blue for judge, red for medical, green for check_in, etc.)
+- Time formatting uses Intl.DateTimeFormat for localization
+- Handles edge case of shifts spanning multiple days (shows both day abbreviations)
+- Follows responsive design patterns from existing rotation-card.tsx
+
+**Files changed:**
+- `apps/wodsmith-start/src/routes/compete/$slug/-components/shift-card.tsx` (new file, ~145 lines)
+
+**Learnings:**
+- Follow existing component patterns for consistency (rotation-card.tsx for card structure, volunteer-profile-card.tsx for role formatting)
+- The `formatRoleType` function exists in volunteer-profile-card.tsx but is local; recreated in shift-card for now (could be extracted to shared utils later)
+- Use `cn()` utility from `@/utils/cn` for conditional class merging
+- Intl.DateTimeFormat handles time formatting with proper AM/PM and localization
+- For badge colors, use semantic Tailwind color names that have dark mode variants (e.g., bg-blue-100 dark:bg-blue-900)
+- VolunteerShiftData type is exported from volunteer-schedule-fns.ts and can be imported directly
+---
+
+## 2026-01-19 - VS-008 & VS-009: Update schedule-view for shifts and my-schedule page loader
+- Updated `schedule-view.tsx` to accept `shifts` prop of type `VolunteerShiftData[]`
+- Added "My Shifts" section after volunteer profile card with:
+  - Section title "My Shifts"
+  - ShiftCard component for each shift
+  - Empty state: "No shifts assigned yet" in a dashed border box
+- Updated page title logic:
+  - Shows "My Judging Schedule" only if judge with events and no shifts
+  - Shows "My Volunteer Schedule" in all other cases (shifts exist, or generic volunteer)
+- Updated `my-schedule.tsx` loader to:
+  - Destructure `shifts` from `getVolunteerScheduleDataFn` result
+  - Include `shifts: []` in early return cases (no team, no membership)
+  - Pass `shifts` prop to ScheduleView component
+- Events/judging section now conditionally renders only when `hasEvents` is true
+
+**Files changed:**
+- `apps/wodsmith-start/src/routes/compete/$slug/-components/schedule-view.tsx` (updated, +30 lines)
+- `apps/wodsmith-start/src/routes/compete/$slug/my-schedule.tsx` (updated, +5 lines)
+
+**Learnings:**
+- When adding new props to a component, update all consuming components (found my-schedule.tsx needed shifts prop)
+- For conditional rendering with two boolean flags (hasEvents, hasShifts), consider all four states in the logic
+- The empty state condition changed from `events.length === 0` to `!hasEvents && !hasShifts` to properly handle shifts-only volunteers
+- TanStack Router's useLoaderData returns typed data based on the loader return type - updating loader return automatically updates component types
+- Import multiple types from the same module using grouped import: `import type { EventWithRotations, VolunteerShiftData } from "..."`
+---
+
