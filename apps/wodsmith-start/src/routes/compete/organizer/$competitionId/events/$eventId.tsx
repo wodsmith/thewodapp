@@ -2,15 +2,17 @@
  * Competition Event Edit Route
  *
  * Organizer page for editing a single competition event.
- * Fetches event details, divisions, movements, and sponsors.
+ * Fetches event details, divisions, movements, sponsors, and judging sheets.
  */
 
+import { useState } from "react"
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import {
 	EVENT_DETAILS_FORM_ID,
 	EventDetailsForm,
 } from "@/components/events/event-details-form"
 import { HeatSchedulePublishingCard } from "@/components/organizer/heat-schedule-publishing-card"
+import { EventJudgingSheets } from "@/components/organizer/event-judging-sheets"
 import { Button } from "@/components/ui/button"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
@@ -20,6 +22,7 @@ import {
 } from "@/server-fns/competition-workouts-fns"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
 import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
+import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
 
 // Get parent route API to access its loader data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -38,8 +41,8 @@ export const Route = createFileRoute(
 			throw new Error("Competition not found")
 		}
 
-		// Parallel fetch event, divisions, movements, and sponsors
-		const [eventResult, divisionsResult, movementsResult, sponsorsResult] =
+		// Parallel fetch event, divisions, movements, sponsors, and judging sheets
+		const [eventResult, divisionsResult, movementsResult, sponsorsResult, judgingSheetsResult] =
 			await Promise.all([
 				getCompetitionEventFn({
 					data: {
@@ -56,6 +59,9 @@ export const Route = createFileRoute(
 				getAllMovementsFn(),
 				getCompetitionSponsorsFn({
 					data: { competitionId: params.competitionId },
+				}),
+				getEventJudgingSheetsFn({
+					data: { trackWorkoutId: params.eventId },
 				}),
 			])
 
@@ -93,15 +99,19 @@ export const Route = createFileRoute(
 			movements: movementsResult.movements,
 			sponsors: allSponsors,
 			divisionDescriptions,
+			judgingSheets: judgingSheetsResult.sheets,
 		}
 	},
 })
 
 function EventEditPage() {
-	const { event, divisions, movements, sponsors, divisionDescriptions } =
+	const { event, divisions, movements, sponsors, divisionDescriptions, judgingSheets: initialSheets } =
 		Route.useLoaderData()
 	// Get competition from parent layout loader data
 	const { competition } = parentRoute.useLoaderData()
+
+	// Local state for judging sheets to enable real-time updates
+	const [judgingSheets, setJudgingSheets] = useState(initialSheets)
 
 	return (
 		<>
@@ -127,6 +137,14 @@ function EventEditPage() {
 				divisionDescriptions={divisionDescriptions}
 				movements={movements}
 				sponsors={sponsors}
+			/>
+
+			{/* Judging Sheets */}
+			<EventJudgingSheets
+				competitionId={competition.id}
+				trackWorkoutId={event.id}
+				sheets={judgingSheets}
+				onSheetsChange={setJudgingSheets}
 			/>
 
 			{/* Heat Schedule Publishing */}

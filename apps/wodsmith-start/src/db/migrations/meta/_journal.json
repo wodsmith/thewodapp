@@ -533,6 +533,13 @@
       "when": 1767629400003,
       "tag": "0074_add-registration-questions",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "6",
+      "when": 1767801600000,
+      "tag": "0075_add_event_judging_sheets",
+      "breakpoints": true
     }
   ]
 }
