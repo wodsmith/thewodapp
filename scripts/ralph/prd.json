@@ -238,7 +238,7 @@
         "pnpm lint passes"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "Equipment role excluded from roleType options. Follow form patterns from existing dialogs."
     },
     {
@@ -261,7 +261,7 @@
         "pnpm lint passes"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "Similar to judge assignment UI but simpler (no rotation patterns). Filter available volunteers by roleType."
     },
     {

@@ -316,3 +316,84 @@ Feature: Volunteer Scheduler for Non-Judge Roles
 - Follow existing patterns from waiver-list.tsx (delete confirmation) and judge-overview.tsx (date grouping)
 ---
 
+## 2026-01-19 - VS-011: Create shift form dialog
+- Created `src/routes/compete/organizer/$competitionId/-components/shifts/shift-form-dialog.tsx`
+- Dialog component features:
+  - Supports both 'create' and 'edit' modes via optional `shift` prop
+  - Form fields: name (text input), roleType (select dropdown), date (calendar popover), startTime (time input), endTime (time input), location (optional text), capacity (number input), notes (optional textarea)
+  - Equipment role excluded from roleType options per requirements
+  - Validates: name required, startTime before endTime (via Zod refine), capacity >= 1
+  - Uses React Hook Form with `standardSchemaResolver` for Zod validation
+  - Combines date + time inputs into full timestamp for startTime/endTime when submitting
+  - Shows loading state during submission (button text changes, fields disabled)
+  - Closes dialog and invalidates router on success
+- Updated `shift-list.tsx` to use the new dialog:
+  - Added state for `formDialogOpen` and `editingShift`
+  - Add Shift buttons now call `handleOpenCreateDialog`
+  - Edit buttons now call `handleOpenEditDialog(shift)`
+  - ShiftFormDialog rendered in both empty state and list views
+- Styling with Shadcn UI:
+  - Dialog, DialogContent, DialogHeader, DialogFooter
+  - Form, FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage
+  - Input, Select, Textarea, Calendar, Popover, Button
+- Used date-fns for date formatting in the calendar display
+
+**Files changed:**
+- `apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-components/shifts/shift-form-dialog.tsx` (new file, ~503 lines)
+- `apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-components/shifts/shift-list.tsx` (updated with dialog integration)
+
+**Learnings:**
+- For Zod enums with TypeScript, define the enum separately using `z.enum([...])` and then infer the type with `z.infer<typeof enumSchema>` - don't use `as const` with the enum definition
+- The `required_error` option is not supported in the Zod version used - use `.min(1, "...")` for required strings instead
+- For number inputs with React Hook Form, handle the conversion manually: `onChange={(e) => field.onChange(Number(e.target.value) || 1)}`
+- The `standardSchemaResolver` from `@hookform/resolvers/standard-schema` is the correct resolver for Zod in this codebase
+- Calendar component from Shadcn uses `mode="single"` for single date selection and `onSelect` callback for date changes
+- When combining date and time picker inputs, create helper functions: `formatTimeFromDate(date)` for extracting time string and `combineDateAndTime(date, timeString)` for the reverse
+- Popover + Calendar pattern works well for date pickers without needing a dedicated date-picker component
+- Use `useCallback` for event handlers that are passed to child components to prevent unnecessary re-renders
+---
+
+## 2026-01-19 - VS-012: Create shift assignment panel
+- Created `src/routes/compete/organizer/$competitionId/-components/shifts/shift-assignment-panel.tsx`
+- Sheet panel component features:
+  - Opens when clicking on a shift row in ShiftList
+  - Shows shift details at top: name, role type badge, time range, location (if set), notes (if set)
+  - Capacity indicator badge showing "X/Y assigned"
+  - Lists currently assigned volunteers with Remove button
+  - Lists available volunteers filtered by roleType with Add button
+  - Available volunteers list excludes already-assigned volunteers
+  - Add button disabled when shift is at capacity
+  - Loading state while fetching volunteers
+  - Toast notifications on successful assign/unassign
+- Updated `shift-list.tsx` to integrate the panel:
+  - Added `competitionTeamId` prop (required for fetching volunteers)
+  - Added state for `assignmentPanelOpen` and `selectedShift`
+  - Made table rows clickable with cursor pointer
+  - Added `handleOpenAssignmentPanel` callback
+  - Added `handleAssignmentChange` to update local state on assignment changes
+  - Action buttons use `e.stopPropagation()` to prevent row click
+  - Renders ShiftAssignmentPanel at bottom of component
+- Uses server functions from VS-005:
+  - `assignVolunteerToShiftFn` for adding volunteers
+  - `unassignVolunteerFromShiftFn` for removing volunteers
+  - `getCompetitionVolunteersFn` for fetching available volunteers
+- Styled with Shadcn UI:
+  - Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription
+  - ScrollArea for volunteer lists
+  - Badge for role type and capacity
+  - Button for add/remove actions
+
+**Files changed:**
+- `apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-components/shifts/shift-assignment-panel.tsx` (new file, ~445 lines)
+- `apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-components/shifts/shift-list.tsx` (updated with panel integration)
+
+**Learnings:**
+- Drizzle ORM relation queries return nested types that TypeScript may not fully infer - use type assertions (`as ShiftAssignment`) for optimistic updates
+- The `commonColumns` includes `updateCounter` field which must be included when constructing objects matching table types
+- For accessing nested relation data (e.g., `membership.user`) when TypeScript doesn't infer it, create helper functions with type assertions
+- Use `e.stopPropagation()` on buttons inside clickable rows to prevent row click handler from firing
+- When filtering available items, use `Set.has()` for O(1) lookup instead of array includes
+- The `useServerFn` hook from `@tanstack/react-start` wraps server functions for client-side calling
+- Sheet component is great for side panels that overlay content without navigating away
+---
+
