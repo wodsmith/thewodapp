@@ -132,7 +132,11 @@ Free registrations ($0) work without a Stripe connection. Paid registrations req
 
 ![Waivers page](../../../static/img/how-to/organizers/edit-waivers.png)
 
-<!-- FEATURE NOT FOUND: Custom questions - there is no feature to add custom registration questions. -->
+### Registration Questions
+
+1. Go to **Registrations** in the sidebar
+2. Click **Add Question** to create custom questions
+3. See [How to Create Registration Questions](/how-to/organizers/registration-questions) for full details
 
 ## Changing Competition Status
 
