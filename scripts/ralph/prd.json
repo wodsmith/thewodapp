@@ -81,7 +81,7 @@
         "pnpm lint passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Run migrations in order. If migration fails, check for syntax issues in generated SQL."
     },
     {
