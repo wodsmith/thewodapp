@@ -1,0 +1,87 @@
+# Ralph Progress Log
+Started: 2026-01-19
+Feature: Volunteer Scheduler for Non-Judge Roles
+
+## Codebase Patterns
+
+### Database Schema Patterns
+- Tables defined in `src/db/schemas/*.ts` using Drizzle ORM
+- Common columns (id, createdAt, updatedAt) via `commonColumns` from `src/db/schemas/common.ts`
+- ID generators follow pattern: `createXxxId()` in common.ts using CUID2
+- Timestamps use `integer({ mode: "timestamp" })` for D1 compatibility
+- Relations defined after table definition using `relations()` from drizzle-orm
+- Indexes use `index()` and `uniqueIndex()` in table third argument
+
+### Server Function Patterns
+- Server functions in `src/server-fns/*.ts` files
+- Use `createServerFn` from `@tanstack/react-start`
+- Input validation with `.validator()` using Zod
+- Handler chaining with `.handler()`
+- Authorization via `requireTeamPermission()` from `src/utils/team-auth.ts`
+- Example structure:
+  ```typescript
+  export const myFn = createServerFn({ method: "GET" })
+    .validator(z.object({ ... }))
+    .handler(async ({ data }) => { ... })
+  ```
+
+### Volunteer System Patterns
+- Volunteer roles defined in `VOLUNTEER_ROLE_TYPES` constant
+- Volunteer metadata stored as JSON in `teamMembershipTable.metadata`
+- Judge rotations use heat-based scheduling (ties to competition heats)
+- New shift system will use time-based scheduling (standalone time slots)
+
+### Component Patterns
+- Route components in `src/routes/` following TanStack Router file-based routing
+- Shared components in `src/routes/*/-components/` directories (co-located with routes)
+- Use Shadcn UI components from `src/components/ui/`
+- Forms use React Hook Form with Zod validation
+
+## Key Files
+
+### Schema Files
+- `src/db/schemas/volunteers.ts` - Volunteer roles, rotations, assignments
+- `src/db/schemas/common.ts` - Common columns, ID generators
+- `src/db/schemas/competitions.ts` - Competition heats, venues
+
+### Server Functions
+- `src/server-fns/volunteer-fns.ts` - Volunteer management (invite, approve, roles)
+- `src/server-fns/volunteer-schedule-fns.ts` - Fetch volunteer schedule data
+- `src/server-fns/judge-rotation-fns.ts` - Judge rotation CRUD
+
+### UI Components
+- `src/routes/compete/$slug/my-schedule.tsx` - Volunteer's schedule page
+- `src/routes/compete/$slug/-components/schedule-view.tsx` - Schedule display component
+- `src/routes/compete/$slug/-components/rotation-card.tsx` - Judge rotation card
+- `src/routes/compete/organizer/$competitionId/-components/judges/` - Judge scheduling admin UI
+
+### Utility Files
+- `src/utils/team-auth.ts` - Permission checking helpers
+- `src/utils/date-utils.ts` - Date formatting utilities
+- `src/utils/batch-query.ts` - autochunk for D1 parameter limits
+
+## Out of Scope
+- Equipment team scheduling (needs special scheduling between heat division changes)
+- Judge rotation system (already exists and works well)
+
+## Target Volunteer Roles for Shift Scheduling
+- medical
+- check_in
+- staff
+- scorekeeper
+- emcee
+- floor_manager
+- media
+- general
+
+(Note: judge, head_judge use existing rotation system; equipment is out of scope)
+
+---
+
+## Session Progress
+
+### 2026-01-19 - Initial Setup
+- PRD created with 16 user stories
+- Stories prioritized by dependency order
+- Context documented in this file
+
