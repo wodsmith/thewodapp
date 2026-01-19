@@ -1,0 +1,342 @@
+{
+  "branchName": "claude/volunteer-scheduler-prd-Q55Z5",
+  "description": "Build a general volunteer scheduler for non-judge volunteer roles. Volunteers can be assigned to time-based shifts, and their schedule appears on the my-schedule page.",
+  "context": {
+    "overview": "WODsmith has 11 volunteer roles but only judges have scheduling. This feature adds time-based shift scheduling for all other volunteer types (medical, check_in, staff, scorekeeper, emcee, floor_manager, media, general). Equipment team is OUT OF SCOPE as they need special scheduling between heat division changes.",
+    "existingPatterns": {
+      "volunteerRoles": "Defined in src/db/schemas/volunteers.ts - VOLUNTEER_ROLE_TYPES constant",
+      "judgeRotations": "Uses heat-based scheduling with rotation patterns (judge_rotations table)",
+      "mySchedulePage": "src/routes/compete/$slug/my-schedule.tsx - currently only shows judge assignments",
+      "serverFns": "src/server-fns/volunteer-*.ts - existing patterns for volunteer data fetching",
+      "adminUI": "src/routes/compete/organizer/$competitionId/-components/judges/ - judge scheduling UI patterns"
+    },
+    "keyFiles": {
+      "volunteerSchema": "src/db/schemas/volunteers.ts",
+      "mySchedulePage": "src/routes/compete/$slug/my-schedule.tsx",
+      "scheduleView": "src/routes/compete/$slug/-components/schedule-view.tsx",
+      "volunteerFns": "src/server-fns/volunteer-fns.ts",
+      "judgeSchedulingUI": "src/routes/compete/organizer/$competitionId/-components/judges/"
+    },
+    "outOfScope": [
+      "Equipment team scheduling (needs special scheduling between heat division changes)",
+      "Judge rotation system (already exists and works)"
+    ],
+    "targetRoles": ["medical", "check_in", "staff", "scorekeeper", "emcee", "floor_manager", "media", "general"]
+  },
+  "userStories": [
+    {
+      "id": "VS-001",
+      "title": "Create volunteer_shifts schema",
+      "category": "functional",
+      "description": "Add a new database table for time-based volunteer shifts. Shifts have a name, role type, start/end time, location, capacity, and notes. Unlike judge rotations (heat-based), these are standalone time slots volunteers can be assigned to.",
+      "acceptanceCriteria": [
+        "volunteer_shifts table added to src/db/schemas/volunteers.ts",
+        "Table has columns: id, competitionId, name, roleType, startTime (timestamp), endTime (timestamp), location (optional text), capacity (integer, default 1), notes (optional text), createdAt, updatedAt",
+        "roleType column uses VolunteerRoleType type",
+        "Proper indexes on competitionId and startTime",
+        "Foreign key to competitions table with cascade delete",
+        "createVolunteerShiftId() function added to src/db/schemas/common.ts",
+        "Type export: VolunteerShift",
+        "Relations defined: shift belongs to competition",
+        "pnpm db:generate creates migration successfully",
+        "pnpm type-check passes",
+        "pnpm lint passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Follow existing patterns from competitionJudgeRotationsTable. Use integer timestamp mode for startTime/endTime."
+    },
+    {
+      "id": "VS-002",
+      "title": "Create volunteer_shift_assignments schema",
+      "category": "functional",
+      "description": "Add a junction table to assign volunteers (team memberships) to shifts. A volunteer can be assigned to multiple shifts, and a shift can have multiple volunteers up to its capacity.",
+      "acceptanceCriteria": [
+        "volunteer_shift_assignments table added to src/db/schemas/volunteers.ts",
+        "Table has columns: id, shiftId, membershipId, notes (optional text for per-assignment instructions), createdAt, updatedAt",
+        "Proper indexes on shiftId and membershipId",
+        "Foreign keys to volunteer_shifts and team_membership tables with cascade delete",
+        "Unique constraint on (shiftId, membershipId) - volunteer can only be assigned once per shift",
+        "createVolunteerShiftAssignmentId() function added to src/db/schemas/common.ts",
+        "Type export: VolunteerShiftAssignment",
+        "Relations defined: assignment belongs to shift and membership, reverse relations added",
+        "pnpm db:generate creates migration successfully",
+        "pnpm type-check passes",
+        "pnpm lint passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Follow pattern from judgeHeatAssignmentsTable. Keep it simple - no versioning needed for v1."
+    },
+    {
+      "id": "VS-003",
+      "title": "Apply volunteer shift migrations",
+      "category": "integration",
+      "description": "Apply the generated migrations to the local D1 database and verify the schema is correct.",
+      "acceptanceCriteria": [
+        "pnpm db:migrate:dev runs successfully",
+        "Both volunteer_shifts and volunteer_shift_assignments tables exist in local D1",
+        "Schema matches the defined columns and constraints",
+        "pnpm type-check passes",
+        "pnpm lint passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Run migrations in order. If migration fails, check for syntax issues in generated SQL."
+    },
+    {
+      "id": "VS-004",
+      "title": "Create shift CRUD server functions",
+      "category": "functional",
+      "description": "Add server functions for creating, reading, updating, and deleting volunteer shifts. These are admin-only operations.",
+      "acceptanceCriteria": [
+        "New file: src/server-fns/volunteer-shift-fns.ts",
+        "createShiftFn - creates a new shift with validation (name, roleType, startTime, endTime required)",
+        "getCompetitionShiftsFn - gets all shifts for a competition, ordered by startTime",
+        "updateShiftFn - updates a shift by id",
+        "deleteShiftFn - deletes a shift by id (cascade deletes assignments)",
+        "All functions validate competitionId and check user has organizer permission",
+        "Input validation using Zod schemas",
+        "Functions use createServerFn pattern from existing volunteer-fns.ts",
+        "pnpm type-check passes",
+        "pnpm lint passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Follow patterns from src/server-fns/volunteer-fns.ts. Use requireTeamPermission for authorization."
+    },
+    {
+      "id": "VS-005",
+      "title": "Create shift assignment server functions",
+      "category": "functional",
+      "description": "Add server functions for assigning and unassigning volunteers to shifts, and fetching assignments.",
+      "acceptanceCriteria": [
+        "assignVolunteerToShiftFn - assigns a volunteer (membershipId) to a shift, validates capacity not exceeded",
+        "unassignVolunteerFromShiftFn - removes a volunteer from a shift",
+        "getShiftAssignmentsFn - gets all assignments for a shift with volunteer details (name, email, roleTypes)",
+        "getVolunteerShiftsFn - gets all shift assignments for a specific volunteer (membershipId)",
+        "bulkAssignVolunteersToShiftFn - assigns multiple volunteers to a shift at once",
+        "Functions validate capacity constraints (shift.capacity vs current assignment count)",
+        "Functions check user has organizer permission",
+        "pnpm type-check passes",
+        "pnpm lint passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Follow patterns from judge-rotation-fns.ts. Use autochunk for bulk operations if needed."
+    },
+    {
+      "id": "VS-006",
+      "title": "Extend volunteer schedule data fetching",
+      "category": "functional",
+      "description": "Extend the existing getVolunteerScheduleDataFn to also fetch volunteer shift assignments, not just judge rotations.",
+      "acceptanceCriteria": [
+        "getVolunteerScheduleDataFn in src/server-fns/volunteer-schedule-fns.ts updated",
+        "Returns both events (judge rotations) AND shifts (time-based assignments)",
+        "New return type includes shifts array with shift details and assignment info",
+        "Shifts are ordered by startTime",
+        "Each shift includes: id, name, roleType, startTime, endTime, location, notes",
+        "Type exports updated for the new return shape",
+        "pnpm type-check passes",
+        "pnpm lint passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Keep backward compatibility - events array structure unchanged. Add shifts as new field."
+    },
+    {
+      "id": "VS-007",
+      "title": "Create shift card component",
+      "category": "functional",
+      "description": "Create a UI component to display a single volunteer shift assignment in the my-schedule page.",
+      "acceptanceCriteria": [
+        "New file: src/routes/compete/$slug/-components/shift-card.tsx",
+        "Component displays: shift name, role type badge, start/end time, location (if set), notes (if set)",
+        "Time displayed in user-friendly format (e.g., 'Sat 8:00 AM - 12:00 PM')",
+        "Role type shown as colored badge matching the role",
+        "Responsive design matching existing rotation-card.tsx style",
+        "Uses Shadcn UI Card component",
+        "pnpm type-check passes",
+        "pnpm lint passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "Follow design patterns from rotation-card.tsx. Use date-utils for time formatting."
+    },
+    {
+      "id": "VS-008",
+      "title": "Update schedule-view for shifts",
+      "category": "functional",
+      "description": "Update the ScheduleView component to display volunteer shifts in addition to judge rotations.",
+      "acceptanceCriteria": [
+        "schedule-view.tsx updated to accept shifts prop",
+        "Shifts displayed in a separate section titled 'My Shifts'",
+        "Shifts section appears after volunteer profile card, before events (if any)",
+        "Uses ShiftCard component for each shift",
+        "Empty state message for no shifts: 'No shifts assigned yet'",
+        "Page title logic updated: shows 'My Volunteer Schedule' when user has shifts (even if no judge rotations)",
+        "pnpm type-check passes",
+        "pnpm lint passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "Keep existing events/rotations display unchanged. Add shifts as new section."
+    },
+    {
+      "id": "VS-009",
+      "title": "Update my-schedule page loader",
+      "category": "integration",
+      "description": "Update the my-schedule page route to fetch and pass shift data to ScheduleView.",
+      "acceptanceCriteria": [
+        "my-schedule.tsx loader fetches shifts via updated getVolunteerScheduleDataFn",
+        "Shifts passed to ScheduleView component",
+        "Loading and error states handle shifts appropriately",
+        "Page works correctly for volunteers with only shifts (no judge assignments)",
+        "Page works correctly for volunteers with both shifts and judge assignments",
+        "pnpm type-check passes",
+        "pnpm lint passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "Minimal changes needed - just pass through the new shifts data."
+    },
+    {
+      "id": "VS-010",
+      "title": "Create admin shift list component",
+      "category": "functional",
+      "description": "Create an admin component to display all shifts for a competition with add/edit/delete actions.",
+      "acceptanceCriteria": [
+        "New file: src/routes/compete/organizer/$competitionId/-components/shifts/shift-list.tsx",
+        "Lists all shifts for the competition grouped by date",
+        "Each shift shows: name, role type, time, location, assigned count vs capacity",
+        "Add Shift button opens create dialog",
+        "Edit button on each shift opens edit dialog",
+        "Delete button with confirmation dialog",
+        "Empty state when no shifts exist",
+        "pnpm type-check passes",
+        "pnpm lint passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "Follow patterns from judges/ components. Use Shadcn Table component."
+    },
+    {
+      "id": "VS-011",
+      "title": "Create shift form dialog",
+      "category": "functional",
+      "description": "Create a dialog component for creating and editing shifts with form validation.",
+      "acceptanceCriteria": [
+        "New file: src/routes/compete/organizer/$competitionId/-components/shifts/shift-form-dialog.tsx",
+        "Dialog mode: 'create' or 'edit' (edit pre-fills values)",
+        "Form fields: name (text), roleType (select from non-equipment roles), date (date picker), startTime (time picker), endTime (time picker), location (optional text), capacity (number, min 1), notes (optional textarea)",
+        "Validates: name required, startTime before endTime, capacity >= 1",
+        "Uses React Hook Form with Zod validation",
+        "Submit calls createShiftFn or updateShiftFn",
+        "Shows loading state during submission",
+        "Closes and refreshes list on success",
+        "pnpm type-check passes",
+        "pnpm lint passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "Equipment role excluded from roleType options. Follow form patterns from existing dialogs."
+    },
+    {
+      "id": "VS-012",
+      "title": "Create shift assignment panel",
+      "category": "functional",
+      "description": "Create a panel to view and manage volunteer assignments for a specific shift.",
+      "acceptanceCriteria": [
+        "New file: src/routes/compete/organizer/$competitionId/-components/shifts/shift-assignment-panel.tsx",
+        "Opens when clicking on a shift in the list",
+        "Shows shift details at top",
+        "Lists currently assigned volunteers with remove button",
+        "Shows available volunteers (matching roleType) that can be added",
+        "Available volunteers list filters out already-assigned volunteers",
+        "Add button assigns volunteer to shift",
+        "Remove button unassigns volunteer from shift",
+        "Shows capacity indicator (e.g., '2/4 assigned')",
+        "Disable add when at capacity",
+        "pnpm type-check passes",
+        "pnpm lint passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "Similar to judge assignment UI but simpler (no rotation patterns). Filter available volunteers by roleType."
+    },
+    {
+      "id": "VS-013",
+      "title": "Create volunteers tab with shift management",
+      "category": "integration",
+      "description": "Add a 'Shifts' tab to the organizer volunteers page that contains the shift list and management UI.",
+      "acceptanceCriteria": [
+        "Organizer volunteers page has existing tabs for volunteer management",
+        "New 'Shifts' tab added after existing tabs",
+        "Shifts tab contains ShiftList component",
+        "Clicking a shift opens ShiftAssignmentPanel",
+        "Tab state persisted in URL search params",
+        "Navigation between tabs works correctly",
+        "pnpm type-check passes",
+        "pnpm lint passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "Check existing tab structure in organizer volunteers page. May need to create the tab container if it doesn't exist."
+    },
+    {
+      "id": "VS-014",
+      "title": "Add shift data fetching to organizer page",
+      "category": "integration",
+      "description": "Update the organizer volunteers page loader to fetch shifts data for the Shifts tab.",
+      "acceptanceCriteria": [
+        "Organizer volunteers page loader fetches competition shifts",
+        "Uses getCompetitionShiftsFn server function",
+        "Shift data passed to Shifts tab component",
+        "Proper loading states",
+        "pnpm type-check passes",
+        "pnpm lint passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "Find the organizer volunteers page route and update its loader."
+    },
+    {
+      "id": "VS-015",
+      "title": "Add volunteer shift tests",
+      "category": "test",
+      "description": "Add unit tests for volunteer shift server functions.",
+      "acceptanceCriteria": [
+        "New test file: test/volunteer-shifts.test.ts",
+        "Tests for createShiftFn: validates input, creates shift correctly",
+        "Tests for assignVolunteerToShiftFn: validates capacity, creates assignment",
+        "Tests for unassignVolunteerFromShiftFn: removes assignment correctly",
+        "Tests for getVolunteerShiftsFn: returns correct shifts for a volunteer",
+        "Tests mock the database appropriately",
+        "pnpm test passes",
+        "pnpm type-check passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "Follow existing test patterns in test/ directory. Mock db using vi.mock."
+    },
+    {
+      "id": "VS-016",
+      "title": "End-to-end flow verification",
+      "category": "integration",
+      "description": "Verify the complete volunteer shift scheduling flow works end-to-end: create shift, assign volunteer, view on my-schedule.",
+      "acceptanceCriteria": [
+        "Organizer can create a new shift for a competition",
+        "Organizer can assign a volunteer to the shift",
+        "Volunteer can view their shift on my-schedule page",
+        "Shift displays correct time, role, location",
+        "Organizer can edit shift details",
+        "Organizer can remove volunteer from shift",
+        "Organizer can delete shift",
+        "All feedback loops pass: pnpm type-check, pnpm lint, pnpm test"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "Manual testing checklist. This is a verification story to ensure all pieces work together."
+    }
+  ]
+}
