@@ -8,7 +8,6 @@
 
 import { eq } from "drizzle-orm"
 import { getDb } from "@/db"
-import { formatDateStringWithWeekday } from "@/utils/date-utils"
 import {
 	competitionRegistrationsTable,
 	competitionsTable,
@@ -18,122 +17,149 @@ import {
 	userTable,
 } from "@/db/schema"
 import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
+import { CompetitionTeamInviteEmail } from "@/react-email/compete/team-invite"
+import { VolunteerApprovedEmail } from "@/react-email/compete/volunteer-approved"
+import { VolunteerSignupConfirmationEmail } from "@/react-email/compete/volunteer-signup-confirmation"
 import { PaymentExpiredEmail } from "@/react-email/payment-expired"
 import { RegistrationConfirmationEmail } from "@/react-email/registration-confirmation"
 import { TeammateJoinedEmail } from "@/react-email/teammate-joined"
 import { sendEmail } from "@/utils/email"
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Format cents to display currency (e.g., 5000 -> "$50.00")
- */
-function formatCents(cents: number): string {
-	return `$${(cents / 100).toFixed(2)}`
-}
-
-/**
- * Format date for email display.
- * Handles both YYYY-MM-DD strings (new format) and Date objects (legacy).
- */
-function formatDate(date: string | Date | null | undefined): string {
-	if (!date) return ""
-
-	// Handle YYYY-MM-DD string format using validated utility
-	if (typeof date === "string") {
-		return formatDateStringWithWeekday(date)
-	}
-
-	// Handle Date object (legacy)
-	const weekdays = [
-		"Sunday",
-		"Monday",
-		"Tuesday",
-		"Wednesday",
-		"Thursday",
-		"Friday",
-		"Saturday",
-	]
-	const months = [
-		"January",
-		"February",
-		"March",
-		"April",
-		"May",
-		"June",
-		"July",
-		"August",
-		"September",
-		"October",
-		"November",
-		"December",
-	]
-	const weekday = weekdays[date.getUTCDay()]
-	const month = months[date.getUTCMonth()]
-	const day = date.getUTCDate()
-	const year = date.getUTCFullYear()
-
-	return `${weekday}, ${month} ${day}, ${year}`
-}
-
-/**
- * Derive athlete display name from user data
- */
-function getAthleteName(user: {
-	firstName?: string | null
-	email?: string | null
-}): string {
-	if (user.firstName) return user.firstName
-	if (user.email) return user.email.split("@")[0] || "Athlete"
-	return "Athlete"
-}
-
-/**
- * Parse pending teammates count from JSON string
- */
-function parsePendingTeammateCount(
-	pendingTeammatesJson: string | null | undefined,
-): number {
-	if (!pendingTeammatesJson) return 0
-
-	try {
-		const parsed = JSON.parse(pendingTeammatesJson) as unknown
-		if (Array.isArray(parsed)) {
-			return parsed.length
-		}
-		return 0
-	} catch {
-		return 0
-	}
-}
-
-/**
- * Check if team is complete
- */
-function isTeamComplete(currentSize: number, maxSize: number): boolean {
-	return currentSize >= maxSize
-}
-
-/**
- * Get subject line for teammate joined email
- */
-function getTeammateJoinedSubject(params: {
-	isTeamComplete: boolean
-	newTeammateName: string
-	teamName: string
-	competitionName: string
-}): string {
-	if (params.isTeamComplete) {
-		return `Your team is complete for ${params.competitionName}!`
-	}
-	return `${params.newTeammateName} joined ${params.teamName}`
-}
+import {
+	buildInviteLink,
+	formatCents,
+	formatDate,
+	getAthleteName,
+	getTeammateJoinedSubject,
+	isTeamComplete,
+	parsePendingTeammateCount,
+} from "./helpers"
 
 // ============================================================================
 // Notification Functions
 // ============================================================================
+
+/**
+ * Send competition team invite email
+ * Called when captain invites teammate during registration
+ */
+export async function notifyCompetitionTeamInvite(params: {
+	recipientEmail: string
+	inviteToken: string
+	competitionTeamId: string
+	competitionId: string
+	invitedByUserId: string
+}): Promise<void> {
+	const {
+		recipientEmail,
+		inviteToken,
+		competitionTeamId,
+		competitionId,
+		invitedByUserId,
+	} = params
+
+	try {
+		const db = getDb()
+
+		// Fetch competition
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, competitionId),
+		})
+
+		if (!competition) {
+			logError({
+				message: "[Email] Cannot send team invite - no competition",
+				attributes: { competitionId, competitionTeamId },
+			})
+			return
+		}
+
+		// Fetch captain (inviter)
+		const captain = await db.query.userTable.findFirst({
+			where: eq(userTable.id, invitedByUserId),
+		})
+
+		const captainName = captain ? getAthleteName(captain) : "Team Captain"
+
+		// Fetch athlete team
+		const athleteTeam = await db.query.teamTable.findFirst({
+			where: eq(teamTable.id, competitionTeamId),
+		})
+
+		const teamName = athleteTeam?.name || "Team"
+
+		// Fetch registration to get division
+		const registration = await db.query.competitionRegistrationsTable.findFirst(
+			{
+				where: eq(
+					competitionRegistrationsTable.athleteTeamId,
+					competitionTeamId,
+				),
+			},
+		)
+
+		let divisionName = "Open"
+		let currentRosterSize = 1
+		let maxRosterSize = 3
+
+		if (registration?.divisionId) {
+			const division = await db.query.scalingLevelsTable.findFirst({
+				where: eq(scalingLevelsTable.id, registration.divisionId),
+			})
+			if (division) {
+				divisionName = division.label
+				maxRosterSize = division.teamSize
+			}
+		}
+
+		// Count current team members
+		if (competitionTeamId) {
+			const members = await db
+				.select()
+				.from(teamMembershipTable)
+				.where(eq(teamMembershipTable.teamId, competitionTeamId))
+			currentRosterSize = members.length
+		}
+
+		const inviteLink = buildInviteLink(inviteToken)
+
+		await sendEmail({
+			to: recipientEmail,
+			subject: `Join ${teamName} for ${competition.name}`,
+			template: CompetitionTeamInviteEmail({
+				recipientEmail,
+				captainName,
+				teamName,
+				competitionName: competition.name,
+				competitionSlug: competition.slug,
+				competitionDate: formatDate(competition.startDate),
+				divisionName,
+				currentRosterSize,
+				maxRosterSize,
+				inviteLink,
+				registrationDeadline: competition.registrationClosesAt
+					? formatDate(competition.registrationClosesAt)
+					: undefined,
+			}),
+			tags: [{ name: "type", value: "compete-team-invite" }],
+		})
+
+		logInfo({
+			message: "[Email] Sent competition team invite",
+			attributes: {
+				recipientEmail,
+				competitionId,
+				competitionTeamId,
+				competitionName: competition.name,
+			},
+		})
+	} catch (err) {
+		logError({
+			message: "[Email] Failed to send competition team invite",
+			error: err,
+			attributes: { recipientEmail, competitionId, competitionTeamId },
+		})
+	}
+}
 
 /**
  * Send payment expired notification
@@ -463,6 +489,149 @@ export async function notifyTeammateJoined(params: {
 			message: "[Email] Failed to send teammate joined notification",
 			error: err,
 			attributes: { captainUserId, newTeammateUserId, competitionTeamId },
+		})
+	}
+}
+
+// ============================================================================
+// Volunteer Notifications
+// ============================================================================
+
+/**
+ * Send confirmation email when someone submits the public volunteer signup form.
+ * Confirms their application was received and is pending review.
+ */
+export async function notifyVolunteerSignupReceived(params: {
+	volunteerEmail: string
+	volunteerName: string
+	competitionTeamId: string
+}): Promise<void> {
+	const { volunteerEmail, volunteerName, competitionTeamId } = params
+
+	try {
+		const db = getDb()
+
+		// Find the competition via the competition team
+		const competitionTeam = await db.query.teamTable.findFirst({
+			where: eq(teamTable.id, competitionTeamId),
+		})
+
+		if (!competitionTeam) {
+			logError({
+				message: "[Email] Cannot send volunteer signup confirmation - no team",
+				attributes: { competitionTeamId },
+			})
+			return
+		}
+
+		// Find competition that uses this team
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.competitionTeamId, competitionTeamId),
+		})
+
+		if (!competition) {
+			logError({
+				message:
+					"[Email] Cannot send volunteer signup confirmation - no competition",
+				attributes: { competitionTeamId },
+			})
+			return
+		}
+
+		await sendEmail({
+			to: volunteerEmail,
+			subject: `Volunteer Application Received: ${competition.name}`,
+			template: VolunteerSignupConfirmationEmail({
+				volunteerName,
+				competitionName: competition.name,
+				competitionSlug: competition.slug,
+				competitionDate: formatDate(competition.startDate),
+			}),
+			tags: [{ name: "type", value: "volunteer-signup-confirmation" }],
+		})
+
+		logInfo({
+			message: "[Email] Sent volunteer signup confirmation",
+			attributes: {
+				competitionTeamId,
+				competitionId: competition.id,
+				competitionName: competition.name,
+			},
+		})
+	} catch (err) {
+		logError({
+			message: "[Email] Failed to send volunteer signup confirmation",
+			error: err,
+			attributes: { competitionTeamId },
+		})
+	}
+}
+
+/**
+ * Send email when a volunteer's application is approved by organizers.
+ * Includes their assigned role types.
+ */
+export async function notifyVolunteerApproved(params: {
+	volunteerEmail: string
+	volunteerName: string
+	competitionTeamId: string
+	roleTypes?: string[]
+}): Promise<void> {
+	const { volunteerEmail, volunteerName, competitionTeamId, roleTypes } = params
+
+	try {
+		const db = getDb()
+
+		// Find competition that uses this team
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.competitionTeamId, competitionTeamId),
+		})
+
+		if (!competition) {
+			logError({
+				message:
+					"[Email] Cannot send volunteer approved email - no competition",
+				attributes: { competitionTeamId },
+			})
+			return
+		}
+
+		// Format role types for display (capitalize first letter)
+		const formattedRoleTypes = roleTypes?.map((role) => {
+			// Convert snake_case to Title Case (e.g., "head_judge" -> "Head Judge")
+			return role
+				.split("_")
+				.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+				.join(" ")
+		})
+
+		await sendEmail({
+			to: volunteerEmail,
+			subject: `You're approved to volunteer at ${competition.name}!`,
+			template: VolunteerApprovedEmail({
+				volunteerName,
+				competitionName: competition.name,
+				competitionSlug: competition.slug,
+				competitionDate: formatDate(competition.startDate),
+				roleTypes: formattedRoleTypes,
+			}),
+			tags: [{ name: "type", value: "volunteer-approved" }],
+		})
+
+		logInfo({
+			message: "[Email] Sent volunteer approved notification",
+			attributes: {
+				competitionTeamId,
+				competitionId: competition.id,
+				competitionName: competition.name,
+				roleTypes,
+			},
+		})
+	} catch (err) {
+		logError({
+			message: "[Email] Failed to send volunteer approved notification",
+			error: err,
+			attributes: { competitionTeamId },
 		})
 	}
 }
