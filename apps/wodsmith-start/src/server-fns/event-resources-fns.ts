@@ -273,9 +273,30 @@ export const getEventResourcesBatchFn = createServerFn({ method: "GET" })
 
 		const db = getDb()
 
-		// Batch fetch resources using autochunk for D1 parameter limits
-		const allResources = await autochunk(
+		// First, filter to only published events
+		const publishedEventIds = await autochunk(
 			{ items: data.eventIds },
+			async (chunk: string[]) => {
+				return db
+					.select({ id: trackWorkoutsTable.id })
+					.from(trackWorkoutsTable)
+					.where(
+						and(
+							inArray(trackWorkoutsTable.id, chunk),
+							eq(trackWorkoutsTable.eventStatus, "published"),
+						),
+					)
+			},
+		)
+
+		const publishedIds = publishedEventIds.map((e) => e.id)
+		if (publishedIds.length === 0) {
+			return { resourcesByEvent: {} }
+		}
+
+		// Batch fetch resources for published events only
+		const allResources = await autochunk(
+			{ items: publishedIds },
 			async (chunk: string[]) => {
 				return db
 					.select()

@@ -40,7 +40,7 @@ export function createEventResource(
 		sortOrder: overrides?.sortOrder ?? 1,
 		createdAt: overrides?.createdAt ?? now,
 		updatedAt: overrides?.updatedAt ?? now,
-		updateCounter: overrides?.updateCounter ?? null,
+		updateCounter: overrides?.updateCounter ?? 0,
 		...overrides,
 	}
 }

@@ -1,6 +1,5 @@
 "use client"
 
-import { monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 import { useServerFn } from "@tanstack/react-start"
 import { FileText, Plus } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -97,13 +96,6 @@ export function EventResourcesCard({
 		},
 		[resources, eventId, teamId, reorderResources],
 	)
-
-	// Monitor for drops
-	useEffect(() => {
-		return monitorForElements({
-			canMonitor: ({ source }) => source.data.instanceId === instanceId,
-		})
-	}, [instanceId])
 
 	// Handle add/edit dialog
 	const handleOpenAddDialog = () => {

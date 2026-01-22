@@ -179,6 +179,7 @@ export function EventResourceRow({
 								rel="noopener noreferrer"
 								className="text-muted-foreground hover:text-foreground"
 								onClick={(e) => e.stopPropagation()}
+								aria-label="Open resource link"
 							>
 								<ExternalLink className="h-3.5 w-3.5" />
 							</a>
@@ -198,6 +199,7 @@ export function EventResourceRow({
 						size="icon"
 						onClick={onEdit}
 						className="h-8 w-8 text-muted-foreground hover:text-foreground"
+						aria-label="Edit resource"
 					>
 						<Pencil className="h-4 w-4" />
 					</Button>
@@ -206,6 +208,7 @@ export function EventResourceRow({
 						size="icon"
 						onClick={onDelete}
 						className="h-8 w-8 text-muted-foreground hover:text-destructive"
+						aria-label="Delete resource"
 					>
 						<Trash2 className="h-4 w-4" />
 					</Button>

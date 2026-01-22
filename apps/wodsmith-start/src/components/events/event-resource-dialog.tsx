@@ -65,16 +65,18 @@ export function EventResourceDialog({
 		},
 	})
 
+	const { reset } = form
+
 	// Reset form when dialog opens/closes or resource changes
 	useEffect(() => {
 		if (open) {
-			form.reset({
+			reset({
 				title: resource?.title ?? "",
 				description: resource?.description ?? "",
 				url: resource?.url ?? "",
 			})
 		}
-	}, [open, resource, form])
+	}, [open, resource, reset])
 
 	const handleSubmit = async (data: EventResourceFormData) => {
 		await onSave(data)
