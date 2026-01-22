@@ -34,21 +34,12 @@ const DEFAULT_CF_ACCOUNT_ID = "317fb84f366ea1ab038ca90000953697";
 
 /**
  * Create a checkpoint for a sprite using SDK
- * Uses manual next() iteration since processAll may not be available
+ * TODO: Re-enable when SDK version supports checkpoint streaming
  */
-async function createCheckpoint(sprite: Sprite, comment: string): Promise<boolean> {
-  try {
-    const stream = await sprite.createCheckpoint(comment);
-    // Consume stream using next() method
-    let msg;
-    while ((msg = await stream.next()) !== null) {
-      // Optionally log progress
-    }
-    return true;
-  } catch (err) {
-    console.warn(`   Warning: Checkpoint failed: ${err}`);
-    return false;
-  }
+async function createCheckpoint(_sprite: Sprite, comment: string): Promise<boolean> {
+  // SDK 0.0.1 doesn't have working checkpoint stream methods
+  console.log(`   Checkpoint skipped (${comment}) - SDK 0.0.1 doesn't support streaming`);
+  return false;
 }
 
 /**
@@ -174,7 +165,7 @@ async function main() {
 
   try {
     console.log("   Installing pnpm...");
-    const pnpmInstall = await sprite.exec("curl -fsSL https://get.pnpm.io/install.sh | sh -");
+    const pnpmInstall = await sprite.exec("curl -fsSL https://get.pnpm.io/install.sh | bash");
     if (pnpmInstall.stdout) console.log(`   ${pnpmInstall.stdout.trim()}`);
     if (pnpmInstall.stderr) console.log(`   ${pnpmInstall.stderr.trim()}`);
   } catch (err: any) {
