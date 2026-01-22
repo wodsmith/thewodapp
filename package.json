@@ -16,9 +16,13 @@
 		"db:migrate:dev": "turbo db:migrate:dev",
 		"db:migrate:prod": "turbo db:migrate:prod",
 		"email:dev": "turbo email:dev",
-		"ts:clean": "find . -name '.tsbuildinfo' -type f -delete"
+		"ts:clean": "find . -name '.tsbuildinfo' -type f -delete",
+		"sprite:create": "bun run scripts/create-sprite.ts",
+		"sprite:checkout": "bun run scripts/create-sprite.ts --checkout",
+		"sprite:destroy": "bun run scripts/destroy-sprite.ts"
 	},
 	"devDependencies": {
+		"@fly/sprites": "^0.0.1",
 		"turbo": "^2.5.8"
 	},
 	"workspaces": [

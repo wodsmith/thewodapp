@@ -26,6 +26,9 @@ importers:
 
   .:
     devDependencies:
+      '@fly/sprites':
+        specifier: ^0.0.1
+        version: 0.0.1
       turbo:
         specifier: ^2.5.8
         version: 2.5.8
@@ -522,7 +525,7 @@ importers:
         version: 3.2.1(@types/react@19.2.7)(react@19.2.3)
       '@cloudflare/vite-plugin':
         specifier: ^1.19.0
-        version: 1.19.0(vite@7.3.0(@types/node@22.19.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.2))(workerd@1.20251217.0)(wrangler@4.56.0)
+        version: 1.19.0(vite@7.3.0(@types/node@22.19.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.2))(workerd@1.20251217.0)(wrangler@4.56.0(@cloudflare/workers-types@4.20251205.0))
       '@fullcalendar/core':
         specifier: ^6.1.17
         version: 6.1.17
@@ -4155,6 +4158,10 @@ packages:
 
   '@floating-ui/utils@0.2.9':
     resolution: {integrity: sha512-MDWhGtE+eHw5JW7lq4qhc5yRLS11ERl1c7Z6Xd0a58DozHES6EnNNwUWbMiG4J9Cgj053Bhk8zvlhFYKVhULwg==}
+
+  '@fly/sprites@0.0.1':
+    resolution: {integrity: sha512-1s+dIVi/pTMP4Aj4Mkg+4LoZ/+a0Kp6l9piPRxvpgEKm11b/eRiZgJwVytwAHeI/vtg2fuwcFExjtXOEfny/TA==}
+    engines: {node: '>=24.0.0'}
 
   '@formatjs/ecma402-abstract@2.3.4':
     resolution: {integrity: sha512-qrycXDeaORzIqNhBOx0btnhpD1c+/qFIHAN9znofuMJX6QBwtbrmlpWfD4oiUUD2vJUOIYFA/gYtg2KAMGG7sA==}
@@ -18306,7 +18313,7 @@ snapshots:
     optionalDependencies:
       workerd: 1.20251217.0
 
-  '@cloudflare/vite-plugin@1.19.0(vite@7.3.0(@types/node@22.19.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.2))(workerd@1.20251217.0)(wrangler@4.56.0)':
+  '@cloudflare/vite-plugin@1.19.0(vite@7.3.0(@types/node@22.19.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.2))(workerd@1.20251217.0)(wrangler@4.56.0(@cloudflare/workers-types@4.20251205.0))':
     dependencies:
       '@cloudflare/unenv-preset': 2.7.13(unenv@2.0.0-rc.24)(workerd@1.20251217.0)
       '@remix-run/node-fetch-server': 0.8.1
@@ -20237,6 +20244,8 @@ snapshots:
   '@floating-ui/utils@0.2.10': {}
 
   '@floating-ui/utils@0.2.9': {}
+
+  '@fly/sprites@0.0.1': {}
 
   '@formatjs/ecma402-abstract@2.3.4':
     dependencies:
@@ -27105,7 +27114,7 @@ snapshots:
       '@aws-sdk/client-s3': 3.808.0
       '@aws-sdk/client-sqs': 3.808.0
       '@aws-sdk/client-sts': 3.398.0
-      '@cloudflare/vite-plugin': 1.19.0(vite@7.3.0(@types/node@22.19.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.2))(workerd@1.20251217.0)(wrangler@4.56.0)
+      '@cloudflare/vite-plugin': 1.19.0(vite@7.3.0(@types/node@22.19.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.2))(workerd@1.20251217.0)(wrangler@4.56.0(@cloudflare/workers-types@4.20251205.0))
       '@opennextjs/cloudflare': 1.14.3(next@15.5.7(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(@playwright/test@1.57.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(wrangler@4.56.0(@cloudflare/workers-types@4.20251205.0))
       stripe: 17.7.0
       vite: 7.3.0(@types/node@22.19.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.2)
