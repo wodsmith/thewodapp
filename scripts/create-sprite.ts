@@ -40,9 +40,9 @@ async function createCheckpoint(sprite: Sprite, comment: string): Promise<boolea
   try {
     const stream = await sprite.createCheckpoint(comment);
     // Consume the stream to complete the checkpoint
-    for await (const event of stream) {
-      // Optionally log progress
-    }
+    await stream.processAll(async () => {
+      // Optionally handle progress messages
+    });
     return true;
   } catch (err) {
     console.warn(`   Warning: Checkpoint failed: ${err}`);
@@ -150,9 +150,23 @@ async function main() {
 
   // Install pnpm, bun, and update claude
   console.log("\n5. Installing pnpm, bun, and updating claude...");
-  await sprite.exec("curl -fsSL https://get.pnpm.io/install.sh | sh -");
-  await sprite.exec("curl -fsSL https://bun.sh/install | bash");
-  await sprite.exec("claude install");
+
+  const pnpmInstall = await sprite.exec("curl -fsSL https://get.pnpm.io/install.sh | sh -");
+  if (pnpmInstall.stderr && !pnpmInstall.stderr.includes("Extracting")) {
+    console.log(`   pnpm install output: ${pnpmInstall.stderr}`);
+  }
+
+  const bunInstall = await sprite.exec("curl -fsSL https://bun.sh/install | bash");
+  if (bunInstall.stderr) {
+    console.log(`   bun install output: ${bunInstall.stderr}`);
+  }
+
+  // claude install might not be available in the sprite, make it optional
+  try {
+    await sprite.exec("which claude && claude install || echo 'claude not found, skipping'");
+  } catch {
+    console.log("   claude not installed, skipping update");
+  }
   // Add pnpm and bun to PATH for this session
   const pnpmHome = "/home/sprite/.local/share/pnpm";
   const bunHome = "/home/sprite/.bun/bin";
