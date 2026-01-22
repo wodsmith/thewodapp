@@ -2,18 +2,18 @@
 -- Allows organizers to attach various resources to competition events
 
 CREATE TABLE `event_resources` (
-	`created_at` integer NOT NULL,
-	`updated_at` integer NOT NULL,
-	`update_counter` integer DEFAULT 0,
+	`createdAt` integer NOT NULL,
+	`updatedAt` integer NOT NULL,
+	`updateCounter` integer DEFAULT 0,
 	`id` text PRIMARY KEY NOT NULL,
-	`event_id` text NOT NULL,
+	`eventId` text NOT NULL,
 	`title` text(255) NOT NULL,
 	`description` text(5000),
 	`url` text(2048),
-	`sort_order` integer DEFAULT 1 NOT NULL,
-	FOREIGN KEY (`event_id`) REFERENCES `track_workout`(`id`) ON UPDATE no action ON DELETE cascade
+	`sortOrder` integer DEFAULT 1 NOT NULL,
+	FOREIGN KEY (`eventId`) REFERENCES `track_workout`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE INDEX `event_resources_event_idx` ON `event_resources` (`event_id`);
+CREATE INDEX `event_resources_event_idx` ON `event_resources` (`eventId`);
 --> statement-breakpoint
-CREATE INDEX `event_resources_event_order_idx` ON `event_resources` (`event_id`,`sort_order`);
+CREATE INDEX `event_resources_event_order_idx` ON `event_resources` (`eventId`,`sortOrder`);
