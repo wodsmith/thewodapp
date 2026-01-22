@@ -34,6 +34,7 @@ export default defineConfig({
 	out: "./src/db/migrations",
 	schema: "./src/db/schema.ts",
 	dialect: "sqlite",
+  casing: "camelCase",
 	...(process.env.NODE_ENV === "production"
 		? {
 				driver: "d1-http",
