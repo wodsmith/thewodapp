@@ -402,20 +402,6 @@
       "breakpoints": true
     },
     {
-      "idx": 55,
-      "version": "6",
-      "when": 1765408465245,
-      "tag": "0055_add-organizer-requests",
-      "breakpoints": true
-    },
-    {
-      "idx": 56,
-      "version": "6",
-      "when": 1765408892523,
-      "tag": "0056_add-competition-status",
-      "breakpoints": true
-    },
-    {
       "idx": 57,
       "version": "6",
       "when": 1765950512940,
@@ -537,8 +523,22 @@
     {
       "idx": 75,
       "version": "6",
+      "when": 1767715800000,
+      "tag": "0075_add-competition-type",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "6",
+      "when": 1767715800001,
+      "tag": "0076_fix-competition-type-column-name",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "6",
       "when": 1767801600000,
-      "tag": "0075_add_event_judging_sheets",
+      "tag": "0077_add_event_judging_sheets",
       "breakpoints": true
     }
   ]

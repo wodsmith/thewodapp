@@ -50,6 +50,7 @@ const formSchema = z
 				/^[a-z0-9-]+$/,
 				"Slug must be lowercase letters, numbers, and hyphens only",
 			),
+		competitionType: z.enum(["in-person", "online"]),
 		isMultiDay: z.boolean(),
 		startDate: z.string().min(1, "Start date is required"),
 		endDate: z.string().optional(),
@@ -143,6 +144,7 @@ export function OrganizerCompetitionForm({
 			teamId: competition?.organizingTeamId ?? selectedTeamId,
 			name: competition?.name ?? "",
 			slug: competition?.slug ?? "",
+			competitionType: competition?.competitionType ?? "in-person",
 			isMultiDay: existingIsMultiDay,
 			startDate: competition?.startDate
 				? formatDateForInput(competition.startDate)
@@ -225,6 +227,7 @@ export function OrganizerCompetitionForm({
 						registrationClosesAt: data.registrationClosesAt || undefined,
 						groupId: data.groupId || undefined,
 						timezone: data.timezone,
+						competitionType: data.competitionType,
 					},
 				})
 
@@ -330,6 +333,42 @@ export function OrganizerCompetitionForm({
 							<FormDescription>
 								URL-friendly identifier (globally unique, lowercase, hyphens
 								only)
+							</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+
+				{/* Competition Type */}
+				<FormField
+					control={form.control}
+					name="competitionType"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Competition Type</FormLabel>
+							<Select
+								onValueChange={field.onChange}
+								value={field.value}
+								disabled={isEditMode}
+							>
+								<FormControl>
+									<SelectTrigger>
+										<SelectValue placeholder="Select competition type" />
+									</SelectTrigger>
+								</FormControl>
+								<SelectContent>
+									<SelectItem value="in-person">
+										In-Person - Traditional venue-based competition
+									</SelectItem>
+									<SelectItem value="online">
+										Online - Virtual competition with video submissions
+									</SelectItem>
+								</SelectContent>
+							</Select>
+							<FormDescription>
+								{field.value === "online"
+									? "Athletes submit video recordings of their workouts"
+									: "Athletes compete at a physical venue"}
 							</FormDescription>
 							<FormMessage />
 						</FormItem>
