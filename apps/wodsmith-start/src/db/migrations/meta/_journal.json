@@ -540,6 +540,13 @@
       "when": 1767715800000,
       "tag": "0075_add-competition-type",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "6",
+      "when": 1769060681933,
+      "tag": "0077_fast_stardust",
+      "breakpoints": true
     }
   ]
 }
