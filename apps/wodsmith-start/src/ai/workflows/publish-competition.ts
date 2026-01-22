@@ -98,13 +98,11 @@ const loadCompetition = createStep({
 				id: competition.id,
 				name: competition.name,
 				status: competition.status,
-				startDate: competition.startDate?.toISOString() ?? null,
-				endDate: competition.endDate?.toISOString() ?? null,
+				startDate: competition.startDate ?? null,
+				endDate: competition.endDate ?? null,
 				venue: null, // Venue info stored elsewhere
-				registrationStartDate:
-					competition.registrationOpensAt?.toISOString() ?? null,
-				registrationEndDate:
-					competition.registrationClosesAt?.toISOString() ?? null,
+				registrationStartDate: competition.registrationOpensAt ?? null,
+				registrationEndDate: competition.registrationClosesAt ?? null,
 				requiresWaiver: false, // Waivers checked separately
 			},
 			found: true,

@@ -12,7 +12,7 @@ import { z } from "zod"
 import { eq, and } from "drizzle-orm"
 import { getDb } from "@/db"
 import { competitionsTable } from "@/db/schemas/competitions"
-import { scalingLevelsTable, scalingGroupsTable } from "@/db/schemas/scaling"
+import { scalingLevelsTable } from "@/db/schemas/scaling"
 import {
 	programmingTracksTable,
 	trackWorkoutsTable,
@@ -321,14 +321,13 @@ export const manageEvents = createTool({
 			})
 
 			if (!track && inputData.action === "create") {
-				const trackId = `ptrk_${createId()}`
-				await db.insert(programmingTracksTable).values({
-					id: trackId,
-					teamId,
+				const [{ id: trackId }] = await db.insert(programmingTracksTable).values({
+					ownerTeamId: teamId,
 					name: `${competition.name} Track`,
 					description: "Competition programming track",
+					type: "competition",
 					competitionId: inputData.competitionId,
-				})
+				}).returning({ id: programmingTracksTable.id })
 				track = await db.query.programmingTracksTable.findFirst({
 					where: eq(programmingTracksTable.id, trackId),
 				})
@@ -406,7 +405,7 @@ export const manageEvents = createTool({
 						id: workoutId,
 						teamId,
 						name: inputData.eventName,
-						description: inputData.workoutDescription,
+						description: inputData.workoutDescription || "",
 						scheme: inputData.scheme || "time",
 						timeCap: inputData.timeCap,
 					})
@@ -613,7 +612,7 @@ export const manageWaivers = createTool({
 							waivers: waivers.map((w) => ({
 								id: w.id,
 								title: w.title,
-								isRequired: w.isRequired,
+								isRequired: w.required,
 							})),
 						},
 						message: `Found ${waivers.length} waivers`,

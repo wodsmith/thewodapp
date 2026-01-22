@@ -67,3 +67,4 @@ dist
 .hive/
 .beads/daemon.lock
 .beads/daemon.pid
+.mastra/

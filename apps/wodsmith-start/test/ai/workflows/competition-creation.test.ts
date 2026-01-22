@@ -18,7 +18,6 @@ import {
 import {
 	manageDivisions,
 	manageEvents,
-	manageWaivers,
 } from "@/ai/tools/consolidated"
 import { getDb } from "@/db"
 import * as competitionServerLogic from "@/server-fns/competition-server-logic"
@@ -87,7 +86,7 @@ describe("Competition Creation Workflow", () => {
 
 	it("should create, customize, and publish a competition in 3 steps", async () => {
 		// ========== STEP 1: Create complete competition (replaces 10+ legacy calls) ==========
-		const setupResult = await setupNewCompetition.execute(
+		const setupResult = await setupNewCompetition.execute!(
 			{
 				name: "Spring Throwdown 2026",
 				startDate: "2026-05-15",
@@ -125,7 +124,7 @@ describe("Competition Creation Workflow", () => {
 			settings: JSON.stringify({ divisions: { scalingGroupId: "sgrp_123" } }),
 		})
 
-		const updateDivisionResult = await manageDivisions.execute(
+		const updateDivisionResult = await manageDivisions.execute!(
 			{
 				competitionId: "comp_123",
 				action: "update",
@@ -161,7 +160,7 @@ describe("Competition Creation Workflow", () => {
 			workoutId: "wkt_1",
 		})
 
-		const updateEventResult = await manageEvents.execute(
+		const updateEventResult = await manageEvents.execute!(
 			{
 				competitionId: "comp_123",
 				action: "update",
@@ -201,7 +200,7 @@ describe("Competition Creation Workflow", () => {
 		mockDb.query.trackWorkoutsTable.findMany.mockResolvedValue([{ id: "tw_1" }])
 		mockDb.query.waiversTable.findMany.mockResolvedValue([{ id: "waiver_1" }])
 
-		const publishResult = await publishCompetition.execute(
+		const publishResult = await publishCompetition.execute!(
 			{
 				competitionId: "comp_123",
 				visibility: "public",
@@ -253,7 +252,7 @@ describe("Competition Creation Workflow", () => {
 		mockDb.query.programmingTracksTable.findFirst.mockResolvedValue(null)
 		mockDb.query.waiversTable.findMany.mockResolvedValue([])
 
-		const publishResult = await publishCompetition.execute(
+		const publishResult = await publishCompetition.execute!(
 			{
 				competitionId: "comp_123",
 				visibility: "public",
@@ -294,7 +293,7 @@ describe("Competition Creation Workflow", () => {
 			{ id: "reg_1", hasSignedAllWaivers: true, paymentStatus: "PAID" },
 		])
 
-		const readinessResult = await checkCompetitionReadiness.execute(
+		const readinessResult = await checkCompetitionReadiness.execute!(
 			{
 				competitionId: "comp_123",
 				daysUntilEvent: 30,
@@ -328,7 +327,7 @@ describe("Competition Creation Workflow", () => {
 		mockDb.query.waiversTable.findMany.mockResolvedValue([])
 		mockDb.query.competitionRegistrationsTable.findMany.mockResolvedValue([])
 
-		const readinessResult = await checkCompetitionReadiness.execute(
+		const readinessResult = await checkCompetitionReadiness.execute!(
 			{
 				competitionId: "comp_123",
 				daysUntilEvent: 6,
@@ -394,7 +393,7 @@ describe("Division Management Workflow", () => {
 			{ id: "div_2", label: "Rx Women", teamSize: 1 },
 		])
 
-		const listResult = await manageDivisions.execute(
+		const listResult = await manageDivisions.execute!(
 			{
 				competitionId: "comp_123",
 				action: "list",
@@ -417,7 +416,7 @@ describe("Division Management Workflow", () => {
 			id: "sgrp_123",
 		})
 
-		const createResult = await manageDivisions.execute(
+		const createResult = await manageDivisions.execute!(
 			{
 				competitionId: "comp_123",
 				action: "create",
@@ -441,7 +440,7 @@ describe("Division Management Workflow", () => {
 			label: "Rx Men",
 		})
 
-		const updateResult = await manageDivisions.execute(
+		const updateResult = await manageDivisions.execute!(
 			{
 				competitionId: "comp_123",
 				action: "update",
@@ -459,7 +458,7 @@ describe("Division Management Workflow", () => {
 		})
 
 		// ========== STEP 4: Delete division ==========
-		const deleteResult = await manageDivisions.execute(
+		const deleteResult = await manageDivisions.execute!(
 			{
 				competitionId: "comp_123",
 				action: "delete",
@@ -559,7 +558,7 @@ describe("Event Management Workflow", () => {
 			})),
 		})
 
-		const listResult = await manageEvents.execute(
+		const listResult = await manageEvents.execute!(
 			{
 				competitionId: "comp_123",
 				action: "list",
@@ -584,7 +583,7 @@ describe("Event Management Workflow", () => {
 			{ id: "tw_2", trackOrder: 1 },
 		])
 
-		const createResult = await manageEvents.execute(
+		const createResult = await manageEvents.execute!(
 			{
 				competitionId: "comp_123",
 				action: "create",
@@ -609,7 +608,7 @@ describe("Event Management Workflow", () => {
 			workoutId: "wkt_1",
 		})
 
-		const updateResult = await manageEvents.execute(
+		const updateResult = await manageEvents.execute!(
 			{
 				competitionId: "comp_123",
 				action: "update",
@@ -636,7 +635,7 @@ describe("Event Management Workflow", () => {
 			workoutId: "wkt_2",
 		})
 
-		const deleteResult = await manageEvents.execute(
+		const deleteResult = await manageEvents.execute!(
 			{
 				competitionId: "comp_123",
 				action: "delete",
@@ -678,7 +677,7 @@ describe("Error Propagation Workflow", () => {
 		// Attempt to manage divisions for non-existent competition
 		mockDb.query.competitionsTable.findFirst.mockResolvedValue(null)
 
-		const result = await manageDivisions.execute(
+		const result = await manageDivisions.execute!(
 			{
 				competitionId: "comp_999",
 				action: "list",
@@ -702,7 +701,7 @@ describe("Error Propagation Workflow", () => {
 		// Mock competition belonging to different team (query will return null)
 		mockDb.query.competitionsTable.findFirst.mockResolvedValue(null)
 
-		const result = await manageDivisions.execute(
+		const result = await manageDivisions.execute!(
 			{
 				competitionId: "comp_123",
 				action: "list",

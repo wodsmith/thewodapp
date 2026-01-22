@@ -11,10 +11,7 @@ import { competitionsTable } from "@/db/schemas/competitions"
 import { createCompetition as createCompetitionLogic } from "@/server-fns/competition-server-logic"
 import { generateSlug } from "@/utils/slugify"
 import { getLocalDateKey } from "@/utils/date-utils"
-import {
-	hasDateStartedInTimezone,
-	isDeadlinePassedInTimezone,
-} from "@/utils/timezone-utils"
+import { hasDateStartedInTimezone } from "@/utils/timezone-utils"
 
 /**
  * Create a new competition.

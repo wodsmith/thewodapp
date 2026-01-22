@@ -23,7 +23,6 @@ import {
 	createToolError,
 	ErrorCode,
 } from "../utils/tool-responses"
-import type { ToolResponse } from "../utils/tool-responses"
 
 /**
  * Simplified waiver creation using templates instead of Lexical JSON.
@@ -97,15 +96,12 @@ export const createWaiverSimple = createTool({
 			const title = getWaiverTitle(inputData.waiverType)
 
 			// Create waiver
-			const waiverId = `wvr_${createId()}`
-			await db.insert(waiversTable).values({
-				id: waiverId,
-				teamId: competition.competitionTeamId || teamId,
+			const [{ id: waiverId }] = await db.insert(waiversTable).values({
 				competitionId: inputData.competitionId,
 				title,
 				content: JSON.stringify(waiverContent),
-				isRequired: inputData.isRequired,
-			})
+				required: inputData.isRequired,
+			}).returning({ id: waiversTable.id })
 
 			return createToolSuccess({
 				data: {

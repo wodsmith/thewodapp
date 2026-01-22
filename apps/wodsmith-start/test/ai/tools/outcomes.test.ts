@@ -6,7 +6,6 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 import type { Mock } from "vitest"
 import {
 	setupNewCompetition,
-	duplicateCompetition,
 	publishCompetition,
 	checkCompetitionReadiness,
 	scheduleAllHeats,
@@ -56,7 +55,7 @@ describe("setupNewCompetition", () => {
 	})
 
 	it("should create a complete competition with all dependencies", async () => {
-		const result = await setupNewCompetition.execute(
+		const result = await setupNewCompetition.execute!(
 			{
 				name: "Spring Throwdown 2026",
 				startDate: "2026-05-15",
@@ -86,8 +85,8 @@ describe("setupNewCompetition", () => {
 			organizingTeamId: "team_123",
 			name: "Spring Throwdown 2026",
 			slug: "spring-throwdown-2026",
-			startDate: expect.any(Date),
-			endDate: expect.any(Date),
+			startDate: "2026-05-15",
+			endDate: "2026-05-15",
 			description: undefined,
 		})
 
@@ -102,7 +101,7 @@ describe("setupNewCompetition", () => {
 			},
 		}
 
-		const result = await setupNewCompetition.execute(
+		const result = await setupNewCompetition.execute!(
 			{
 				name: "Test Competition",
 				startDate: "2026-05-15",
@@ -124,7 +123,7 @@ describe("setupNewCompetition", () => {
 	})
 
 	it("should return structured error for invalid date format", async () => {
-		const result = await setupNewCompetition.execute(
+		const result = await setupNewCompetition.execute!(
 			{
 				name: "Test Competition",
 				startDate: "invalid-date",
@@ -147,7 +146,7 @@ describe("setupNewCompetition", () => {
 	})
 
 	it("should create team competition with team divisions", async () => {
-		const result = await setupNewCompetition.execute(
+		const result = await setupNewCompetition.execute!(
 			{
 				name: "Team Throwdown 2026",
 				startDate: "2026-05-15",
@@ -220,7 +219,7 @@ describe("publishCompetition", () => {
 			settings: JSON.stringify({ divisions: { scalingGroupId: "sgrp_123" } }),
 		})
 
-		const result = await publishCompetition.execute(
+		const result = await publishCompetition.execute!(
 			{
 				competitionId: "comp_123",
 				visibility: "public",
@@ -248,7 +247,7 @@ describe("publishCompetition", () => {
 			settings: null, // No scaling group
 		})
 
-		const result = await publishCompetition.execute(
+		const result = await publishCompetition.execute!(
 			{
 				competitionId: "comp_123",
 				visibility: "public",
@@ -317,7 +316,7 @@ describe("scheduleAllHeats", () => {
 			},
 		])
 
-		const result = await scheduleAllHeats.execute(
+		const result = await scheduleAllHeats.execute!(
 			{
 				competitionId: "comp_123",
 				trackWorkoutId: "twkt_123",
@@ -352,7 +351,7 @@ describe("scheduleAllHeats", () => {
 
 		mockDb.query.competitionRegistrationsTable.findMany.mockResolvedValue([])
 
-		const result = await scheduleAllHeats.execute(
+		const result = await scheduleAllHeats.execute!(
 			{
 				competitionId: "comp_123",
 				trackWorkoutId: "twkt_123",
@@ -424,7 +423,7 @@ describe("checkCompetitionReadiness", () => {
 			{ id: "reg_1", hasSignedAllWaivers: true, paymentStatus: "PAID" },
 		])
 
-		const result = await checkCompetitionReadiness.execute(
+		const result = await checkCompetitionReadiness.execute!(
 			{
 				competitionId: "comp_123",
 				daysUntilEvent: 30,
@@ -453,7 +452,7 @@ describe("checkCompetitionReadiness", () => {
 		mockDb.query.waiversTable.findMany.mockResolvedValue([])
 		mockDb.query.competitionRegistrationsTable.findMany.mockResolvedValue([])
 
-		const result = await checkCompetitionReadiness.execute(
+		const result = await checkCompetitionReadiness.execute!(
 			{
 				competitionId: "comp_123",
 				daysUntilEvent: 7,

@@ -40,7 +40,7 @@ describe("createWaiverSimple", () => {
 			competitionTeamId: "team_456",
 		})
 
-		const result = await createWaiverSimple.execute(
+		const result = await createWaiverSimple.execute!(
 			{
 				competitionId: "comp_123",
 				waiverType: "liability",
@@ -69,7 +69,7 @@ describe("createWaiverSimple", () => {
 			competitionTeamId: "team_456",
 		})
 
-		const result = await createWaiverSimple.execute(
+		const result = await createWaiverSimple.execute!(
 			{
 				competitionId: "comp_123",
 				waiverType: "photo",
@@ -88,7 +88,7 @@ describe("createWaiverSimple", () => {
 	it("should return error for non-existent competition", async () => {
 		mockDb.query.competitionsTable.findFirst.mockResolvedValue(null)
 
-		const result = await createWaiverSimple.execute(
+		const result = await createWaiverSimple.execute!(
 			{
 				competitionId: "comp_999",
 				waiverType: "liability",
@@ -156,7 +156,7 @@ describe("enterResultSimple", () => {
 			id: "reg_123",
 		})
 
-		const result = await enterResultSimple.execute(
+		const result = await enterResultSimple.execute!(
 			{
 				registrationId: "reg_123",
 				trackWorkoutId: "twkt_123",
@@ -199,7 +199,7 @@ describe("enterResultSimple", () => {
 			id: "reg_123",
 		})
 
-		const result = await enterResultSimple.execute(
+		const result = await enterResultSimple.execute!(
 			{
 				registrationId: "reg_123",
 				trackWorkoutId: "twkt_123",
@@ -242,7 +242,7 @@ describe("enterResultSimple", () => {
 			id: "reg_123",
 		})
 
-		const result = await enterResultSimple.execute(
+		const result = await enterResultSimple.execute!(
 			{
 				registrationId: "reg_123",
 				trackWorkoutId: "twkt_123",
@@ -274,7 +274,7 @@ describe("enterResultSimple", () => {
 			})),
 		})
 
-		const result = await enterResultSimple.execute(
+		const result = await enterResultSimple.execute!(
 			{
 				registrationId: "reg_123",
 				trackWorkoutId: "twkt_999",
