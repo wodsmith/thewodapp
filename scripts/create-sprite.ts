@@ -125,21 +125,41 @@ async function main() {
 
   // Clone the repository
   console.log("\n3. Cloning wodsmith repository...");
-  const cloneResult = await sprite.exec(`git clone ${REPO_URL} ${PROJECT_DIR}`);
-  if (cloneResult.stderr) {
-    console.log(`   Clone output: ${cloneResult.stderr}`);
+  try {
+    const cloneResult = await sprite.exec(`git clone ${REPO_URL} ${PROJECT_DIR}`);
+    if (cloneResult.stderr) {
+      console.log(`   Clone output: ${cloneResult.stderr}`);
+    }
+    console.log(`   Repository cloned to ${PROJECT_DIR}`);
+  } catch (err: any) {
+    console.error(`   Git clone failed: ${err.message}`);
+    if (err.stdout) console.error(`   stdout: ${err.stdout}`);
+    if (err.stderr) console.error(`   stderr: ${err.stderr}`);
+    throw err;
   }
-  console.log(`   Repository cloned to ${PROJECT_DIR}`);
 
   // Create or checkout branch
-  if (checkoutExisting) {
-    console.log(`\n4. Checking out existing branch: ${branchName}`);
-    await sprite.exec(`git checkout ${branchName}`, { cwd: PROJECT_DIR });
-    console.log(`   Branch '${branchName}' checked out`);
-  } else {
-    console.log(`\n4. Creating branch: ${branchName}`);
-    await sprite.exec(`git checkout -b ${branchName}`, { cwd: PROJECT_DIR });
-    console.log(`   Branch '${branchName}' created and checked out`);
+  try {
+    if (checkoutExisting) {
+      console.log(`\n4. Checking out existing branch: ${branchName}`);
+      const checkoutResult = await sprite.exec(`git checkout ${branchName}`, { cwd: PROJECT_DIR });
+      if (checkoutResult.stderr) {
+        console.log(`   ${checkoutResult.stderr.trim()}`);
+      }
+      console.log(`   Branch '${branchName}' checked out`);
+    } else {
+      console.log(`\n4. Creating branch: ${branchName}`);
+      const branchResult = await sprite.exec(`git checkout -b ${branchName}`, { cwd: PROJECT_DIR });
+      if (branchResult.stderr) {
+        console.log(`   ${branchResult.stderr.trim()}`);
+      }
+      console.log(`   Branch '${branchName}' created and checked out`);
+    }
+  } catch (err: any) {
+    console.error(`   Git checkout failed: ${err.message}`);
+    if (err.stdout) console.error(`   stdout: ${err.stdout}`);
+    if (err.stderr) console.error(`   stderr: ${err.stderr}`);
+    throw err;
   }
 
   // Checkpoint after initial setup (before dependencies)
