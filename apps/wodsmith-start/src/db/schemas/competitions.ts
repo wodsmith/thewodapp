@@ -111,6 +111,11 @@ export const competitionsTable = sqliteTable(
 			.$type<"draft" | "published">()
 			.default("draft")
 			.notNull(),
+		// Competition type: in-person = traditional venue-based, online = virtual/remote with video submissions
+		competitionType: text({ length: 15 })
+			.$type<"in-person" | "online">()
+			.default("in-person")
+			.notNull(),
 		// Competition branding images
 		profileImageUrl: text({ length: 600 }),
 		bannerImageUrl: text({ length: 600 }),
@@ -399,6 +404,15 @@ export const COMPETITION_VISIBILITY = {
 
 export type CompetitionVisibility =
 	(typeof COMPETITION_VISIBILITY)[keyof typeof COMPETITION_VISIBILITY]
+
+// Competition type constants
+export const COMPETITION_TYPES = {
+	IN_PERSON: "in-person",
+	ONLINE: "online",
+} as const
+
+export type CompetitionType =
+	(typeof COMPETITION_TYPES)[keyof typeof COMPETITION_TYPES]
 
 // Relations
 export const competitionGroupsRelations = relations(

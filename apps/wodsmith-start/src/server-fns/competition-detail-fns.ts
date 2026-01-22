@@ -174,6 +174,7 @@ export const getCompetitionByIdFn = createServerFn({ method: "GET" })
 					competitionsTable.passPlatformFeesToCustomer,
 				visibility: competitionsTable.visibility,
 				status: competitionsTable.status,
+				competitionType: competitionsTable.competitionType,
 				profileImageUrl: competitionsTable.profileImageUrl,
 				bannerImageUrl: competitionsTable.bannerImageUrl,
 				defaultHeatsPerRotation: competitionsTable.defaultHeatsPerRotation,

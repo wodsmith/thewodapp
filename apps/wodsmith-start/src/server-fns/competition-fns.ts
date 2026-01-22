@@ -72,6 +72,7 @@ const createCompetitionInputSchema = z.object({
 	groupId: z.string().optional(),
 	settings: z.string().optional(),
 	timezone: z.string().optional(),
+	competitionType: z.enum(["in-person", "online"]).optional(),
 })
 
 const updateCompetitionInputSchema = z.object({
@@ -87,6 +88,7 @@ const updateCompetitionInputSchema = z.object({
 	settings: z.string().nullable().optional(),
 	visibility: z.enum(["public", "private"]).optional(),
 	status: z.enum(["draft", "published"]).optional(),
+	competitionType: z.enum(["in-person", "online"]).optional(),
 	profileImageUrl: z.string().nullable().optional(),
 	bannerImageUrl: z.string().nullable().optional(),
 	timezone: z.string().optional(),
@@ -159,6 +161,7 @@ export const getPublicCompetitionsFn = createServerFn({ method: "GET" })
 					competitionsTable.passPlatformFeesToCustomer,
 				visibility: competitionsTable.visibility,
 				status: competitionsTable.status,
+				competitionType: competitionsTable.competitionType,
 				profileImageUrl: competitionsTable.profileImageUrl,
 				bannerImageUrl: competitionsTable.bannerImageUrl,
 				defaultHeatsPerRotation: competitionsTable.defaultHeatsPerRotation,
@@ -224,6 +227,7 @@ export const getPublicCompetitionsFn = createServerFn({ method: "GET" })
 				passPlatformFeesToCustomer: row.passPlatformFeesToCustomer,
 				visibility: row.visibility,
 				status: row.status,
+				competitionType: row.competitionType,
 				profileImageUrl: row.profileImageUrl,
 				bannerImageUrl: row.bannerImageUrl,
 				defaultHeatsPerRotation: row.defaultHeatsPerRotation,
@@ -294,6 +298,7 @@ export const getOrganizerCompetitionsFn = createServerFn({ method: "GET" })
 					competitionsTable.passPlatformFeesToCustomer,
 				visibility: competitionsTable.visibility,
 				status: competitionsTable.status,
+				competitionType: competitionsTable.competitionType,
 				profileImageUrl: competitionsTable.profileImageUrl,
 				bannerImageUrl: competitionsTable.bannerImageUrl,
 				defaultHeatsPerRotation: competitionsTable.defaultHeatsPerRotation,
@@ -367,6 +372,7 @@ export const getOrganizerCompetitionsFn = createServerFn({ method: "GET" })
 			passPlatformFeesToCustomer: row.passPlatformFeesToCustomer,
 			visibility: row.visibility,
 			status: row.status,
+			competitionType: row.competitionType,
 			profileImageUrl: row.profileImageUrl,
 			bannerImageUrl: row.bannerImageUrl,
 			defaultHeatsPerRotation: row.defaultHeatsPerRotation,
@@ -431,6 +437,7 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
 					competitionsTable.passPlatformFeesToCustomer,
 				visibility: competitionsTable.visibility,
 				status: competitionsTable.status,
+				competitionType: competitionsTable.competitionType,
 				profileImageUrl: competitionsTable.profileImageUrl,
 				bannerImageUrl: competitionsTable.bannerImageUrl,
 				defaultHeatsPerRotation: competitionsTable.defaultHeatsPerRotation,
@@ -490,6 +497,7 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
 			passPlatformFeesToCustomer: row.passPlatformFeesToCustomer,
 			visibility: row.visibility,
 			status: row.status,
+			competitionType: row.competitionType,
 			profileImageUrl: row.profileImageUrl,
 			bannerImageUrl: row.bannerImageUrl,
 			defaultHeatsPerRotation: row.defaultHeatsPerRotation,
@@ -536,6 +544,7 @@ export const createCompetitionFn = createServerFn({ method: "POST" })
 				groupId: data.groupId,
 				settings: data.settings,
 				timezone: data.timezone,
+				competitionType: data.competitionType,
 			})
 
 			logInfo({
