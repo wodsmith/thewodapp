@@ -182,7 +182,7 @@ async function main() {
 
   try {
     console.log("   Installing pnpm...");
-    const pnpmInstall = await sprite.exec("curl -fsSL https://get.pnpm.io/install.sh | bash");
+    const pnpmInstall = await sprite.exec('bash -c "curl -fsSL https://get.pnpm.io/install.sh | bash"');
     if (pnpmInstall.stdout) console.log(`   ${pnpmInstall.stdout.trim()}`);
     if (pnpmInstall.stderr) console.log(`   ${pnpmInstall.stderr.trim()}`);
   } catch (err: any) {
@@ -194,7 +194,7 @@ async function main() {
 
   try {
     console.log("   Installing bun...");
-    const bunInstall = await sprite.exec("curl -fsSL https://bun.sh/install | bash");
+    const bunInstall = await sprite.exec('bash -c "curl -fsSL https://bun.sh/install | bash"');
     if (bunInstall.stdout) console.log(`   ${bunInstall.stdout.trim()}`);
     if (bunInstall.stderr) console.log(`   ${bunInstall.stderr.trim()}`);
   } catch (err: any) {
@@ -207,7 +207,7 @@ async function main() {
   // claude install might not be available in the sprite, make it optional
   try {
     console.log("   Updating claude...");
-    await sprite.exec("which claude && claude install || echo 'claude not found, skipping'");
+    await sprite.exec('bash -c "which claude && claude install || echo claude not found, skipping"');
   } catch {
     console.log("   claude not installed, skipping update");
   }
