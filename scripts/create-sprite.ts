@@ -211,21 +211,24 @@ async function main() {
   } catch {
     console.log("   claude not installed, skipping update");
   }
-  // Add pnpm and bun to PATH for this session
-  const pnpmHome = "/home/sprite/.local/share/pnpm";
-  const bunHome = "/home/sprite/.bun/bin";
-  const pathEnv = { PATH: `${pnpmHome}:${bunHome}:${process.env.PATH}` };
-
-  // Install dependencies
+  // Install dependencies using bash to source the PATH
   console.log("\n6. Installing dependencies...");
-  const installResult = await sprite.exec("pnpm install --frozen-lockfile", {
-    cwd: PROJECT_DIR,
-    env: pathEnv,
-  });
-  if (installResult.stderr && !installResult.stderr.includes("WARN")) {
-    console.log(`   Install stderr: ${installResult.stderr}`);
+  try {
+    const installResult = await sprite.execFile("bash", [
+      "-c",
+      `export PATH="/home/sprite/.local/share/pnpm:/home/sprite/.bun/bin:$PATH" && cd ${PROJECT_DIR} && pnpm install --frozen-lockfile`
+    ]);
+    if (installResult.stdout) console.log(`   ${installResult.stdout.trim()}`);
+    if (installResult.stderr && !installResult.stderr.includes("WARN")) {
+      console.log(`   ${installResult.stderr.trim()}`);
+    }
+    console.log("   Dependencies installed");
+  } catch (err: any) {
+    console.error(`   pnpm install failed: ${err.message}`);
+    if (err.stdout) console.error(`   stdout: ${err.stdout}`);
+    if (err.stderr) console.error(`   stderr: ${err.stderr}`);
+    throw err;
   }
-  console.log("   Dependencies installed");
 
   // Checkpoint after dependencies installed
   console.log("\n   Creating checkpoint: post-install...");
@@ -273,25 +276,33 @@ DEVVARS`, { cwd: PROJECT_DIR });
     console.log(`   Stage: ${alchemyStage}`);
     console.log(`   This may take a few minutes...`);
 
-    const deployResult = await sprite.exec(`STAGE=${alchemyStage} pnpm run deploy`, {
-      cwd: APP_DIR,
-      env: {
-        ...pathEnv,
-        STAGE: alchemyStage,
-        CLOUDFLARE_ACCOUNT_ID: cfAccountId,
-        CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN!,
-        ALCHEMY_PASSWORD: process.env.ALCHEMY_PASSWORD!,
-        APP_URL: appUrl,
-      },
-    });
+    try {
+      const deployCmd = [
+        `export PATH="/home/sprite/.local/share/pnpm:/home/sprite/.bun/bin:$PATH"`,
+        `export STAGE="${alchemyStage}"`,
+        `export CLOUDFLARE_ACCOUNT_ID="${cfAccountId}"`,
+        `export CLOUDFLARE_API_TOKEN="${process.env.CLOUDFLARE_API_TOKEN}"`,
+        `export ALCHEMY_PASSWORD="${process.env.ALCHEMY_PASSWORD}"`,
+        `export APP_URL="${appUrl}"`,
+        `cd ${APP_DIR}`,
+        `pnpm run deploy`,
+      ].join(" && ");
 
-    if (deployResult.stdout) {
-      console.log(deployResult.stdout);
+      const deployResult = await sprite.execFile("bash", ["-c", deployCmd]);
+
+      if (deployResult.stdout) {
+        console.log(deployResult.stdout);
+      }
+      if (deployResult.stderr) {
+        console.log(`   Deploy stderr: ${deployResult.stderr}`);
+      }
+      console.log("   Alchemy deployment complete!");
+    } catch (err: any) {
+      console.error(`   Alchemy deploy failed: ${err.message}`);
+      if (err.stdout) console.error(`   stdout: ${err.stdout}`);
+      if (err.stderr) console.error(`   stderr: ${err.stderr}`);
+      throw err;
     }
-    if (deployResult.stderr) {
-      console.log(`   Deploy stderr: ${deployResult.stderr}`);
-    }
-    console.log("   Alchemy deployment complete!");
   }
 
   // Verify the setup
