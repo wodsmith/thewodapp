@@ -21,12 +21,10 @@
  * If no branch name is provided, generates one like: claude/sprite-{timestamp}
  */
 
-import { SpritesClient } from "@fly/sprites";
+import { SpritesClient, Sprite } from "@fly/sprites";
 import { readFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-
-const SPRITES_API_BASE = "https://api.sprites.dev";
 
 // Use HTTPS for public repo (no auth needed for clone)
 const REPO_URL = "https://github.com/wodsmith/thewodapp.git";
@@ -35,24 +33,15 @@ const APP_DIR = `${PROJECT_DIR}/apps/wodsmith-start`;
 const DEFAULT_CF_ACCOUNT_ID = "317fb84f366ea1ab038ca90000953697";
 
 /**
- * Create a checkpoint for a sprite via REST API
+ * Create a checkpoint for a sprite using SDK
  * Non-blocking - logs warning on failure but doesn't throw
  */
-async function createCheckpoint(spriteName: string, token: string, name?: string): Promise<boolean> {
+async function createCheckpoint(sprite: Sprite, comment: string): Promise<boolean> {
   try {
-    const response = await fetch(`${SPRITES_API_BASE}/v1/sprites/${spriteName}/checkpoints`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ name: name || `checkpoint-${Date.now()}` }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      console.warn(`   Warning: Checkpoint failed (${response.status}): ${error}`);
-      return false;
+    const stream = await sprite.createCheckpoint(comment);
+    // Consume the stream to complete the checkpoint
+    for await (const event of stream) {
+      // Optionally log progress
     }
     return true;
   } catch (err) {
@@ -120,11 +109,8 @@ async function main() {
 
   // Create the sprite
   console.log("\n1. Creating sprite...");
-  await client.createSprite(spriteName);
+  const sprite = await client.createSprite(spriteName);
   console.log(`   Sprite created: ${spriteName}`);
-
-  // Get a reference to interact with the sprite
-  const sprite = client.sprite(spriteName);
 
   // Set up git config
   console.log("\n2. Configuring git...");
@@ -158,7 +144,7 @@ async function main() {
 
   // Checkpoint after initial setup (before dependencies)
   console.log("\n   Creating checkpoint: post-clone...");
-  if (await createCheckpoint(spriteName, token, "post-clone")) {
+  if (await createCheckpoint(sprite, "post-clone")) {
     console.log("   Checkpoint created");
   }
 
@@ -185,7 +171,7 @@ async function main() {
 
   // Checkpoint after dependencies installed
   console.log("\n   Creating checkpoint: post-install...");
-  if (await createCheckpoint(spriteName, token, "post-install")) {
+  if (await createCheckpoint(sprite, "post-install")) {
     console.log("   Checkpoint created");
   }
 
