@@ -60,6 +60,7 @@ function createMockCompetition(
 		endDate?: Date
 		visibility?: "public" | "private"
 		status?: "draft" | "published"
+		competitionType?: "in-person" | "online"
 		createdAt?: Date
 		updatedAt?: Date
 		organizingTeam?: { id: string; name: string; slug?: string } | null
@@ -89,6 +90,7 @@ function createMockCompetition(
 		passPlatformFeesToCustomer: true,
 		visibility: overrides.visibility ?? "public",
 		status: overrides.status ?? "draft",
+		competitionType: overrides.competitionType ?? "in-person",
 		profileImageUrl: null,
 		bannerImageUrl: null,
 		defaultHeatsPerRotation: 4,
@@ -361,6 +363,85 @@ describe("Competition Server Functions - Team Filtering", () => {
 			expect(result.competitions).toHaveLength(1)
 			expect(result.competitions[0].organizingTeam).toBeNull()
 			expect(result.competitions[0].group).toBeNull()
+		})
+	})
+
+	describe("Competition Types", () => {
+		/**
+		 * Tests that in-person competition type is returned correctly.
+		 */
+		it("returns in-person as default competition type", async () => {
+			const teamId = "team_with_inperson"
+			const inPersonCompetition = createMockCompetition({
+				id: "comp_inperson",
+				name: "In-Person Throwdown",
+				organizingTeamId: teamId,
+				competitionType: "in-person",
+			})
+
+			mockDb.setMockReturnValue([inPersonCompetition])
+
+			const result = await getOrganizerCompetitionsFn({
+				data: { teamId },
+			})
+
+			expect(result.competitions).toHaveLength(1)
+			expect(result.competitions[0].competitionType).toBe("in-person")
+		})
+
+		/**
+		 * Tests that online competition type is returned correctly.
+		 */
+		it("returns online competition type", async () => {
+			const teamId = "team_with_online"
+			const onlineCompetition = createMockCompetition({
+				id: "comp_online",
+				name: "Online Qualifier",
+				organizingTeamId: teamId,
+				competitionType: "online",
+			})
+
+			mockDb.setMockReturnValue([onlineCompetition])
+
+			const result = await getOrganizerCompetitionsFn({
+				data: { teamId },
+			})
+
+			expect(result.competitions).toHaveLength(1)
+			expect(result.competitions[0].competitionType).toBe("online")
+		})
+
+		/**
+		 * Tests that a team can have both in-person and online competitions.
+		 */
+		it("handles mix of in-person and online competitions", async () => {
+			const teamId = "team_with_both"
+			const competitions = [
+				createMockCompetition({
+					id: "comp_local",
+					name: "Local Throwdown",
+					organizingTeamId: teamId,
+					competitionType: "in-person",
+					startDate: new Date("2025-12-01"),
+				}),
+				createMockCompetition({
+					id: "comp_remote",
+					name: "Remote Qualifier",
+					organizingTeamId: teamId,
+					competitionType: "online",
+					startDate: new Date("2025-06-01"),
+				}),
+			]
+
+			mockDb.setMockReturnValue(competitions)
+
+			const result = await getOrganizerCompetitionsFn({
+				data: { teamId },
+			})
+
+			expect(result.competitions).toHaveLength(2)
+			expect(result.competitions.find((c) => c.id === "comp_local")?.competitionType).toBe("in-person")
+			expect(result.competitions.find((c) => c.id === "comp_remote")?.competitionType).toBe("online")
 		})
 	})
 })

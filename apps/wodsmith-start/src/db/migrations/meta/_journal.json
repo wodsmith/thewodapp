@@ -537,8 +537,15 @@
     {
       "idx": 75,
       "version": "6",
-      "when": 1737331200000,
-      "tag": "0075_add-event-resources",
+      "when": 1767715800000,
+      "tag": "0075_add-competition-type",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "6",
+      "when": 1767802200000,
+      "tag": "0076_add-event-resources",
       "breakpoints": true
     }
   ]
