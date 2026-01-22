@@ -121,7 +121,7 @@ export const getEventJudgingSheetsFn = createServerFn({ method: "GET" })
 
 /**
  * Create a new judging sheet
- * Requires MANAGE_PROGRAMMING permission
+ * Requires MANAGE_COMPETITIONS permission
  */
 export const createJudgingSheetFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => createJudgingSheetInputSchema.parse(data))
@@ -146,7 +146,7 @@ export const createJudgingSheetFn = createServerFn({ method: "POST" })
 		// Check permission on the organizing team
 		await requireTeamPermission(
 			competition.organizingTeamId,
-			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
 
 		// Verify the track workout belongs to this competition using a join
@@ -204,7 +204,7 @@ export const createJudgingSheetFn = createServerFn({ method: "POST" })
 
 /**
  * Update a judging sheet title
- * Requires MANAGE_PROGRAMMING permission
+ * Requires MANAGE_COMPETITIONS permission
  */
 export const updateJudgingSheetFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => updateJudgingSheetInputSchema.parse(data))
@@ -232,7 +232,7 @@ export const updateJudgingSheetFn = createServerFn({ method: "POST" })
 		// Check permission on the organizing team
 		await requireTeamPermission(
 			sheet.competition.organizingTeamId,
-			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
 
 		// Update the title
@@ -250,7 +250,7 @@ export const updateJudgingSheetFn = createServerFn({ method: "POST" })
 
 /**
  * Delete a judging sheet
- * Requires MANAGE_PROGRAMMING permission
+ * Requires MANAGE_COMPETITIONS permission
  * Note: This does not delete the file from R2, which would need to be handled separately
  */
 export const deleteJudgingSheetFn = createServerFn({ method: "POST" })
@@ -279,7 +279,7 @@ export const deleteJudgingSheetFn = createServerFn({ method: "POST" })
 		// Check permission on the organizing team
 		await requireTeamPermission(
 			sheet.competition.organizingTeamId,
-			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
 
 		// Delete the judging sheet record
@@ -292,7 +292,7 @@ export const deleteJudgingSheetFn = createServerFn({ method: "POST" })
 
 /**
  * Reorder judging sheets for an event
- * Requires MANAGE_PROGRAMMING permission
+ * Requires MANAGE_COMPETITIONS permission
  */
 export const reorderJudgingSheetsFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) =>
@@ -335,7 +335,7 @@ export const reorderJudgingSheetsFn = createServerFn({ method: "POST" })
 		// Check permission on the organizing team
 		await requireTeamPermission(
 			competition.organizingTeamId,
-			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
 
 		// Update sort orders

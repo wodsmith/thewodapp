@@ -34,7 +34,7 @@ export async function checkUploadAuthorization(
 		}
 		const hasPermission = await hasTeamPermission(
 			competition.organizingTeamId,
-			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
 		if (!hasPermission) {
 			return {
@@ -62,7 +62,7 @@ export async function checkUploadAuthorization(
 		}
 		const hasPermission = await hasTeamPermission(
 			competition.organizingTeamId,
-			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
 		if (!hasPermission) {
 			return {
