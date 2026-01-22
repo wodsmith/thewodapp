@@ -21,7 +21,7 @@
  * If no branch name is provided, generates one like: claude/sprite-{timestamp}
  */
 
-import { SpritesClient, Sprite } from "@fly/sprites";
+import { SpritesClient } from "@fly/sprites";
 import { readFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -33,13 +33,30 @@ const APP_DIR = `${PROJECT_DIR}/apps/wodsmith-start`;
 const DEFAULT_CF_ACCOUNT_ID = "317fb84f366ea1ab038ca90000953697";
 
 /**
- * Create a checkpoint for a sprite using SDK
- * TODO: Re-enable when SDK version supports checkpoint streaming
+ * Create a checkpoint for a sprite via REST API
+ * SDK 0.0.1 doesn't have working checkpoint methods, so use direct API call
  */
-async function createCheckpoint(_sprite: Sprite, comment: string): Promise<boolean> {
-  // SDK 0.0.1 doesn't have working checkpoint stream methods
-  console.log(`   Checkpoint skipped (${comment}) - SDK 0.0.1 doesn't support streaming`);
-  return false;
+async function createCheckpoint(spriteName: string, token: string, comment: string): Promise<boolean> {
+  try {
+    const response = await fetch(`https://api.sprites.dev/v1/sprites/${spriteName}/checkpoint`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ comment }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.warn(`   Warning: Checkpoint failed (${response.status}): ${error}`);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn(`   Warning: Checkpoint failed: ${err}`);
+    return false;
+  }
 }
 
 /**
@@ -156,7 +173,7 @@ async function main() {
 
   // Checkpoint after initial setup (before dependencies)
   console.log("\n   Creating checkpoint: post-clone...");
-  if (await createCheckpoint(sprite, "post-clone")) {
+  if (await createCheckpoint(spriteName, token, "post-clone")) {
     console.log("   Checkpoint created");
   }
 
@@ -212,7 +229,7 @@ async function main() {
 
   // Checkpoint after dependencies installed
   console.log("\n   Creating checkpoint: post-install...");
-  if (await createCheckpoint(sprite, "post-install")) {
+  if (await createCheckpoint(spriteName, token, "post-install")) {
     console.log("   Checkpoint created");
   }
 
