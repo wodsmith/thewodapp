@@ -9,6 +9,7 @@ import {
 } from "drizzle-orm/sqlite-core"
 import {
 	commonColumns,
+	createCompetitionEventId,
 	createCompetitionGroupId,
 	createCompetitionHeatAssignmentId,
 	createCompetitionHeatId,
@@ -378,7 +379,39 @@ export const competitionRegistrationAnswersTable = sqliteTable(
 	],
 )
 
+// Competition Events Table
+// Per-event settings for online competitions (submission windows, etc.)
+export const competitionEventsTable = sqliteTable(
+	"competition_events",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => createCompetitionEventId())
+			.notNull(),
+		competitionId: text()
+			.notNull()
+			.references(() => competitionsTable.id, { onDelete: "cascade" }),
+		// References track_workout (competition event/workout)
+		trackWorkoutId: text().notNull(),
+		// Submission window for online competitions (ISO 8601 datetime strings)
+		// Athletes can only submit scores within this window
+		submissionOpensAt: text(),
+		submissionClosesAt: text(),
+	},
+	(table) => [
+		index("competition_events_competition_idx").on(table.competitionId),
+		index("competition_events_workout_idx").on(table.trackWorkoutId),
+		// One event config per workout per competition
+		uniqueIndex("competition_events_comp_workout_idx").on(
+			table.competitionId,
+			table.trackWorkoutId,
+		),
+	],
+)
+
 // Type exports
+export type CompetitionEvent = InferSelectModel<typeof competitionEventsTable>
 export type CompetitionGroup = InferSelectModel<typeof competitionGroupsTable>
 export type Competition = InferSelectModel<typeof competitionsTable>
 export type CompetitionRegistration = InferSelectModel<
@@ -457,6 +490,8 @@ export const competitionsRelations = relations(
 		programmingTrack: many(programmingTracksTable),
 		// Registration questions
 		registrationQuestions: many(competitionRegistrationQuestionsTable),
+		// Per-event settings (submission windows for online competitions)
+		events: many(competitionEventsTable),
 	}),
 )
 
@@ -578,6 +613,17 @@ export const competitionRegistrationAnswersRelations = relations(
 		user: one(userTable, {
 			fields: [competitionRegistrationAnswersTable.userId],
 			references: [userTable.id],
+		}),
+	}),
+)
+
+// Competition events relations
+export const competitionEventsRelations = relations(
+	competitionEventsTable,
+	({ one }) => ({
+		competition: one(competitionsTable, {
+			fields: [competitionEventsTable.competitionId],
+			references: [competitionsTable.id],
 		}),
 	}),
 )
