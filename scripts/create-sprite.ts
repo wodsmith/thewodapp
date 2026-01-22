@@ -36,20 +36,28 @@ const DEFAULT_CF_ACCOUNT_ID = "317fb84f366ea1ab038ca90000953697";
 
 /**
  * Create a checkpoint for a sprite via REST API
+ * Non-blocking - logs warning on failure but doesn't throw
  */
-async function createCheckpoint(spriteName: string, token: string, name?: string): Promise<void> {
-  const response = await fetch(`${SPRITES_API_BASE}/v1/sprites/${spriteName}/checkpoints`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ name: name || `checkpoint-${Date.now()}` }),
-  });
+async function createCheckpoint(spriteName: string, token: string, name?: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${SPRITES_API_BASE}/v1/sprites/${spriteName}/checkpoints`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name: name || `checkpoint-${Date.now()}` }),
+    });
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to create checkpoint: ${response.status} ${error}`);
+    if (!response.ok) {
+      const error = await response.text();
+      console.warn(`   Warning: Checkpoint failed (${response.status}): ${error}`);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn(`   Warning: Checkpoint failed: ${err}`);
+    return false;
   }
 }
 
@@ -150,8 +158,9 @@ async function main() {
 
   // Checkpoint after initial setup (before dependencies)
   console.log("\n   Creating checkpoint: post-clone...");
-  await createCheckpoint(spriteName, token, "post-clone");
-  console.log("   Checkpoint created");
+  if (await createCheckpoint(spriteName, token, "post-clone")) {
+    console.log("   Checkpoint created");
+  }
 
   // Install pnpm, bun, and update claude
   console.log("\n5. Installing pnpm, bun, and updating claude...");
@@ -176,8 +185,9 @@ async function main() {
 
   // Checkpoint after dependencies installed
   console.log("\n   Creating checkpoint: post-install...");
-  await createCheckpoint(spriteName, token, "post-install");
-  console.log("   Checkpoint created");
+  if (await createCheckpoint(spriteName, token, "post-install")) {
+    console.log("   Checkpoint created");
+  }
 
   // Set up Alchemy environment if credentials provided
   if (hasAlchemyEnv) {
