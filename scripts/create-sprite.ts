@@ -34,20 +34,11 @@ const DEFAULT_CF_ACCOUNT_ID = "317fb84f366ea1ab038ca90000953697";
 
 /**
  * Create a checkpoint for a sprite using SDK
- * Non-blocking - logs warning on failure but doesn't throw
+ * Disabled for now - SDK version doesn't support processAll
  */
-async function createCheckpoint(sprite: Sprite, comment: string): Promise<boolean> {
-  try {
-    const stream = await sprite.createCheckpoint(comment);
-    // Consume the stream to complete the checkpoint
-    await stream.processAll(async () => {
-      // Optionally handle progress messages
-    });
-    return true;
-  } catch (err) {
-    console.warn(`   Warning: Checkpoint failed: ${err}`);
-    return false;
-  }
+async function createCheckpoint(_sprite: Sprite, comment: string): Promise<boolean> {
+  console.log(`   Skipping checkpoint (${comment}) - not supported in SDK version`);
+  return false;
 }
 
 /**
@@ -171,18 +162,33 @@ async function main() {
   // Install pnpm, bun, and update claude
   console.log("\n5. Installing pnpm, bun, and updating claude...");
 
-  const pnpmInstall = await sprite.exec("curl -fsSL https://get.pnpm.io/install.sh | sh -");
-  if (pnpmInstall.stderr && !pnpmInstall.stderr.includes("Extracting")) {
-    console.log(`   pnpm install output: ${pnpmInstall.stderr}`);
+  try {
+    console.log("   Installing pnpm...");
+    const pnpmInstall = await sprite.exec("curl -fsSL https://get.pnpm.io/install.sh | sh -");
+    if (pnpmInstall.stdout) console.log(`   ${pnpmInstall.stdout.trim()}`);
+    if (pnpmInstall.stderr) console.log(`   ${pnpmInstall.stderr.trim()}`);
+  } catch (err: any) {
+    console.error(`   pnpm install failed: ${err.message}`);
+    if (err.stdout) console.error(`   stdout: ${err.stdout}`);
+    if (err.stderr) console.error(`   stderr: ${err.stderr}`);
+    throw err;
   }
 
-  const bunInstall = await sprite.exec("curl -fsSL https://bun.sh/install | bash");
-  if (bunInstall.stderr) {
-    console.log(`   bun install output: ${bunInstall.stderr}`);
+  try {
+    console.log("   Installing bun...");
+    const bunInstall = await sprite.exec("curl -fsSL https://bun.sh/install | bash");
+    if (bunInstall.stdout) console.log(`   ${bunInstall.stdout.trim()}`);
+    if (bunInstall.stderr) console.log(`   ${bunInstall.stderr.trim()}`);
+  } catch (err: any) {
+    console.error(`   bun install failed: ${err.message}`);
+    if (err.stdout) console.error(`   stdout: ${err.stdout}`);
+    if (err.stderr) console.error(`   stderr: ${err.stderr}`);
+    throw err;
   }
 
   // claude install might not be available in the sprite, make it optional
   try {
+    console.log("   Updating claude...");
     await sprite.exec("which claude && claude install || echo 'claude not found, skipping'");
   } catch {
     console.log("   claude not installed, skipping update");
