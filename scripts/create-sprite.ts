@@ -34,11 +34,21 @@ const DEFAULT_CF_ACCOUNT_ID = "317fb84f366ea1ab038ca90000953697";
 
 /**
  * Create a checkpoint for a sprite using SDK
- * Disabled for now - SDK version doesn't support processAll
+ * Uses manual next() iteration since processAll may not be available
  */
-async function createCheckpoint(_sprite: Sprite, comment: string): Promise<boolean> {
-  console.log(`   Skipping checkpoint (${comment}) - not supported in SDK version`);
-  return false;
+async function createCheckpoint(sprite: Sprite, comment: string): Promise<boolean> {
+  try {
+    const stream = await sprite.createCheckpoint(comment);
+    // Consume stream using next() method
+    let msg;
+    while ((msg = await stream.next()) !== null) {
+      // Optionally log progress
+    }
+    return true;
+  } catch (err) {
+    console.warn(`   Warning: Checkpoint failed: ${err}`);
+    return false;
+  }
 }
 
 /**
