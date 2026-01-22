@@ -48,6 +48,7 @@ export function FileUpload({
 
 	const handleUpload = useCallback(
 		async (file: File) => {
+			if (disabled || isUploading) return
 			setError(null)
 			setIsUploading(true)
 
@@ -82,7 +83,7 @@ export function FileUpload({
 				setIsUploading(false)
 			}
 		},
-		[purpose, entityId, onUpload],
+		[purpose, entityId, onUpload, disabled, isUploading],
 	)
 
 	const handleFileSelect = useCallback(

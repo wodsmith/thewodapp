@@ -38,15 +38,6 @@ const mockOrganizerSession = {
 	],
 }
 
-const mockNoPermSession = {
-	userId: "user-no-perm",
-	user: {
-		id: "user-no-perm",
-		email: "noperm@example.com",
-	},
-	teams: [],
-}
-
 // Mock auth
 vi.mock("@/utils/auth", () => ({
 	getSessionFromCookie: vi.fn(() => Promise.resolve(mockOrganizerSession)),
@@ -114,24 +105,6 @@ function createMockJudgingSheet(
 		sortOrder: overrides.sortOrder ?? 0,
 		createdAt: overrides.createdAt ?? new Date(),
 		updatedAt: overrides.updatedAt ?? new Date(),
-	}
-}
-
-function createMockCompetition(
-	overrides: Partial<{
-		id: string
-		organizingTeamId: string
-		competitionTeamId: string
-		slug: string
-		name: string
-	}> = {},
-) {
-	return {
-		id: overrides.id ?? competitionId,
-		organizingTeamId: overrides.organizingTeamId ?? teamId,
-		competitionTeamId: overrides.competitionTeamId ?? "team-comp-123",
-		slug: overrides.slug ?? "test-competition",
-		name: overrides.name ?? "Test Competition",
 	}
 }
 

@@ -17,11 +17,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
 import { env } from "cloudflare:workers"
 import { getSessionFromCookie } from "@/utils/auth"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { hasTeamPermission } from "@/utils/team-auth"
-import { getDb } from "@/db"
-import { competitionsTable } from "@/db/schema"
-import { eq } from "drizzle-orm"
+import { checkUploadAuthorization } from "@/server/upload-authorization"
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
 const DOCUMENT_TYPES = ["application/pdf"]
@@ -71,80 +67,6 @@ export const Route = createFileRoute("/api/upload")({
 	server: {
 		handlers: {
 			POST: async ({ request }) => {
-				/**
-				 * Check if user has permission to upload for the given entity
-				 */
-				async function checkUploadAuthorization(
-					purpose: string,
-					entityId: string | null,
-					userId: string,
-				): Promise<{ authorized: boolean; error?: string }> {
-					// Competition uploads require team permission
-					if (purpose.startsWith("competition-") && entityId) {
-						const db = getDb()
-						const competition = await db.query.competitionsTable.findFirst({
-							where: eq(competitionsTable.id, entityId),
-						})
-						if (!competition) {
-							return { authorized: false, error: "Competition not found" }
-						}
-						const hasPermission = await hasTeamPermission(
-							competition.organizingTeamId,
-							TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
-						)
-						if (!hasPermission) {
-							return {
-								authorized: false,
-								error: "Not authorized to upload for this competition",
-							}
-						}
-						return { authorized: true }
-					}
-
-					// Judging sheet uploads require team permission (entityId is competitionId)
-					if (purpose === "judging-sheet" && entityId) {
-						const db = getDb()
-						const competition = await db.query.competitionsTable.findFirst({
-							where: eq(competitionsTable.id, entityId),
-						})
-						if (!competition) {
-							return { authorized: false, error: "Competition not found" }
-						}
-						const hasPermission = await hasTeamPermission(
-							competition.organizingTeamId,
-							TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
-						)
-						if (!hasPermission) {
-							return {
-								authorized: false,
-								error: "Not authorized to upload judging sheets for this competition",
-							}
-						}
-						return { authorized: true }
-					}
-
-					// Athlete uploads can only be for the current user
-					if (purpose.startsWith("athlete-") && entityId) {
-						if (entityId !== userId) {
-							return {
-								authorized: false,
-								error: "Not authorized to upload for this athlete",
-							}
-						}
-						return { authorized: true }
-					}
-
-					// Sponsor uploads require entityId to be the user's own or not provided
-					if (purpose === "sponsor-logo" && entityId && entityId !== userId) {
-						return {
-							authorized: false,
-							error: "Not authorized to upload sponsor logo",
-						}
-					}
-
-					return { authorized: true }
-				}
-
 				const session = await getSessionFromCookie()
 				if (!session) {
 					return json({ error: "Unauthorized" }, { status: 401 })
