@@ -2,15 +2,18 @@
  * Competition Event Edit Route
  *
  * Organizer page for editing a single competition event.
- * Fetches event details, divisions, movements, and sponsors.
+ * Fetches event details, divisions, movements, sponsors, and judging sheets.
  */
 
+import { useState } from "react"
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import {
 	EVENT_DETAILS_FORM_ID,
 	EventDetailsForm,
 } from "@/components/events/event-details-form"
+import { EventResourcesCard } from "@/components/events/event-resources-card"
 import { HeatSchedulePublishingCard } from "@/components/organizer/heat-schedule-publishing-card"
+import { EventJudgingSheets } from "@/components/organizer/event-judging-sheets"
 import { Button } from "@/components/ui/button"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
@@ -18,8 +21,10 @@ import {
 	getCompetitionEventFn,
 	getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
+import { getEventResourcesFn } from "@/server-fns/event-resources-fns"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
 import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
+import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
 
 // Get parent route API to access its loader data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -38,26 +43,41 @@ export const Route = createFileRoute(
 			throw new Error("Competition not found")
 		}
 
-		// Parallel fetch event, divisions, movements, and sponsors
-		const [eventResult, divisionsResult, movementsResult, sponsorsResult] =
-			await Promise.all([
-				getCompetitionEventFn({
-					data: {
-						trackWorkoutId: params.eventId,
-						teamId: competition.organizingTeamId,
-					},
-				}),
-				getCompetitionDivisionsWithCountsFn({
-					data: {
-						competitionId: params.competitionId,
-						teamId: competition.organizingTeamId,
-					},
-				}),
-				getAllMovementsFn(),
-				getCompetitionSponsorsFn({
-					data: { competitionId: params.competitionId },
-				}),
-			])
+		// Parallel fetch event, divisions, movements, sponsors, resources, and judging sheets
+		const [
+			eventResult,
+			divisionsResult,
+			movementsResult,
+			sponsorsResult,
+			resourcesResult,
+			judgingSheetsResult,
+		] = await Promise.all([
+			getCompetitionEventFn({
+				data: {
+					trackWorkoutId: params.eventId,
+					teamId: competition.organizingTeamId,
+				},
+			}),
+			getCompetitionDivisionsWithCountsFn({
+				data: {
+					competitionId: params.competitionId,
+					teamId: competition.organizingTeamId,
+				},
+			}),
+			getAllMovementsFn(),
+			getCompetitionSponsorsFn({
+				data: { competitionId: params.competitionId },
+			}),
+			getEventResourcesFn({
+				data: {
+					eventId: params.eventId,
+					teamId: competition.organizingTeamId,
+				},
+			}),
+			getEventJudgingSheetsFn({
+				data: { trackWorkoutId: params.eventId },
+			}),
+		])
 
 		if (!eventResult.event) {
 			throw new Error("Event not found")
@@ -93,15 +113,27 @@ export const Route = createFileRoute(
 			movements: movementsResult.movements,
 			sponsors: allSponsors,
 			divisionDescriptions,
+			resources: resourcesResult.resources,
+			judgingSheets: judgingSheetsResult.sheets,
 		}
 	},
 })
 
 function EventEditPage() {
-	const { event, divisions, movements, sponsors, divisionDescriptions } =
-		Route.useLoaderData()
+	const {
+		event,
+		divisions,
+		movements,
+		sponsors,
+		divisionDescriptions,
+		resources,
+		judgingSheets: initialSheets,
+	} = Route.useLoaderData()
 	// Get competition from parent layout loader data
 	const { competition } = parentRoute.useLoaderData()
+
+	// Local state for judging sheets to enable real-time updates
+	const [judgingSheets, setJudgingSheets] = useState(initialSheets)
 
 	return (
 		<>
@@ -127,6 +159,21 @@ function EventEditPage() {
 				divisionDescriptions={divisionDescriptions}
 				movements={movements}
 				sponsors={sponsors}
+			/>
+
+			{/* Event Resources */}
+			<EventResourcesCard
+				eventId={event.id}
+				teamId={competition.organizingTeamId}
+				initialResources={resources}
+			/>
+
+			{/* Judging Sheets */}
+			<EventJudgingSheets
+				competitionId={competition.id}
+				trackWorkoutId={event.id}
+				sheets={judgingSheets}
+				onSheetsChange={setJudgingSheets}
 			/>
 
 			{/* Heat Schedule Publishing */}
