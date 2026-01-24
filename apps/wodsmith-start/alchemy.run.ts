@@ -307,6 +307,23 @@ const r2Bucket = await R2Bucket("wodsmith-uploads", {
 	 * Only configured for production - other stages use the r2.dev URL.
 	 */
 	...(stage === "prod" && { domains: "uploads.wodsmith.com" }),
+	/**
+	 * CORS configuration to allow cross-origin requests from the app.
+	 */
+	cors: [
+		{
+			allowed: {
+				origins: [
+					"https://wodsmith.com",
+					"https://demo.wodsmith.com",
+					"http://localhost:3000",
+				],
+				methods: ["GET", "HEAD"],
+				headers: ["*"],
+			},
+			maxAgeSeconds: 3600,
+		},
+	],
 })
 
 /**
