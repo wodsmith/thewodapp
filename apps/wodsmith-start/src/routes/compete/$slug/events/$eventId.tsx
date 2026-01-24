@@ -4,9 +4,7 @@ import {
 	Clock,
 	Dumbbell,
 	ExternalLink,
-	Hash,
 	Link,
-	MapPin,
 	Target,
 	Timer,
 	Trophy,
@@ -94,20 +92,20 @@ function getSchemeLabel(scheme: string, timeCap?: number | null): string {
 	return scheme.replace(/-/g, " ").toUpperCase()
 }
 
-function formatHeatTime(date: Date, timezone?: string): string {
+function formatHeatTime(date: Date, timezone?: string | null): string {
 	return new Intl.DateTimeFormat("en-US", {
 		weekday: "short",
 		month: "short",
 		day: "numeric",
 		hour: "numeric",
 		minute: "2-digit",
-		timeZone: timezone,
+		timeZone: timezone ?? undefined,
 	}).format(new Date(date))
 }
 
 function formatEventDate(
-	startDate: Date | null,
-	endDate: Date | null,
+	startDate: string | null,
+	endDate: string | null,
 ): string | null {
 	if (!startDate) return null
 
@@ -162,10 +160,6 @@ function EventDetailsPage() {
 	// Only show divisions that have descriptions
 	const divisionsWithDescriptions = sortedDivisions.filter((d) => d.description)
 
-	const hasMovementsOrTags =
-		(workout.movements && workout.movements.length > 0) ||
-		(workout.tags && workout.tags.length > 0)
-
 	const eventDate = formatEventDate(competition.startDate, competition.endDate)
 
 	return (
@@ -184,39 +178,6 @@ function EventDetailsPage() {
 					)}
 				</div>
 				<h1 className="text-3xl font-bold tracking-tight">{workout.name}</h1>
-
-				{/* Workout Type Badges */}
-				<div className="flex flex-wrap gap-2 pt-2">
-					<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-secondary text-secondary-foreground">
-						<Target className="h-4 w-4" />
-						{schemeLabel}
-					</div>
-					{formattedTimeCap && (
-						<div
-							className={cn(
-								"inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border",
-								workout.scheme === "time-with-cap"
-									? "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900"
-									: "bg-secondary text-secondary-foreground border-transparent",
-							)}
-						>
-							<Timer className="h-4 w-4" />
-							{formattedTimeCap} Cap
-						</div>
-					)}
-					{workout.scoreType && (
-						<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-secondary text-secondary-foreground">
-							<Trophy className="h-4 w-4" />
-							{workout.scoreType}
-						</div>
-					)}
-					{workout.roundsToScore && workout.roundsToScore > 1 && (
-						<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-secondary text-secondary-foreground">
-							<Hash className="h-4 w-4" />
-							{workout.roundsToScore} Rounds
-						</div>
-					)}
-				</div>
 			</div>
 
 			<div className="grid gap-8 lg:grid-cols-3">
@@ -227,81 +188,26 @@ function EventDetailsPage() {
 						{displayDescription || "Details coming soon."}
 					</div>
 
-					{/* Movements and Tags */}
-					{hasMovementsOrTags && (
-						<Card>
-							<CardContent className="pt-6">
-								<div className="grid gap-6 md:grid-cols-2">
-									{workout.movements && workout.movements.length > 0 && (
-										<div>
-											<h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-												<Dumbbell className="h-3.5 w-3.5" />
-												Movements
-											</h4>
-											<ul className="space-y-1.5">
-												{workout.movements.map(
-													(m: { id: string; name: string }) => (
-														<li
-															key={m.id}
-															className="text-sm font-medium text-foreground/90"
-														>
-															{m.name}
-														</li>
-													),
-												)}
-											</ul>
-										</div>
-									)}
-
-									{workout.tags && workout.tags.length > 0 && (
-										<div>
-											<h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
-												Tags
-											</h4>
-											<div className="flex flex-wrap gap-1.5">
-												{workout.tags.map(
-													(tag: { id: string; name: string }) => (
-														<Badge
-															key={tag.id}
-															variant="secondary"
-															className="text-xs font-normal"
-														>
-															{tag.name}
-														</Badge>
-													),
-												)}
-											</div>
-										</div>
-									)}
-								</div>
-							</CardContent>
-						</Card>
-					)}
-
 					{/* Division Variations */}
 					{divisionsWithDescriptions.length > 1 && (
-						<Card>
-							<CardHeader className="pb-3">
-								<CardTitle className="text-lg">Division Variations</CardTitle>
-							</CardHeader>
-							<CardContent className="space-y-4">
-								{divisionsWithDescriptions.map((div) => (
-									<div key={div.divisionId}>
-										<h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-											{div.divisionLabel}
-											{div.position === 0 && (
-												<Badge variant="secondary" className="text-xs">
-													RX
-												</Badge>
-											)}
-										</h4>
-										<div className="bg-muted/40 rounded-lg p-4 font-mono text-sm whitespace-pre-wrap border">
-											{div.description}
-										</div>
+						<div className="space-y-6">
+							<h3 className="text-lg font-semibold">Division Variations</h3>
+							{divisionsWithDescriptions.map((div) => (
+								<div key={div.divisionId}>
+									<h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+										{div.divisionLabel}
+										{div.position === 0 && (
+											<Badge variant="secondary" className="text-xs">
+												RX
+											</Badge>
+										)}
+									</h4>
+									<div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
+										{div.description}
 									</div>
-								))}
-							</CardContent>
-						</Card>
+								</div>
+							))}
+						</div>
 					)}
 				</div>
 
@@ -354,12 +260,50 @@ function EventDetailsPage() {
 						</Card>
 					)}
 
-					{/* Event Meta Card */}
+					{/* Event Info Card */}
 					<Card>
-						<CardHeader className="pb-3">
-							<CardTitle className="text-lg">Event Meta</CardTitle>
-						</CardHeader>
-						<CardContent className="space-y-4">
+						<CardContent className="pt-6 space-y-4">
+							{/* Workout Type */}
+							<div className="flex items-start gap-3">
+								<Target className="h-4 w-4 text-muted-foreground mt-0.5" />
+								<div>
+									<p className="text-xs text-muted-foreground uppercase tracking-wider">
+										Format
+									</p>
+									<p className="font-medium text-sm">{schemeLabel}</p>
+								</div>
+							</div>
+
+							{/* Time Cap */}
+							{formattedTimeCap && (
+								<div className="flex items-start gap-3">
+									<Timer className="h-4 w-4 text-muted-foreground mt-0.5" />
+									<div>
+										<p className="text-xs text-muted-foreground uppercase tracking-wider">
+											Time Cap
+										</p>
+										<p className="font-medium text-sm">{formattedTimeCap}</p>
+									</div>
+								</div>
+							)}
+
+							{/* Movements */}
+							{workout.movements && workout.movements.length > 0 && (
+								<div className="flex items-start gap-3">
+									<Dumbbell className="h-4 w-4 text-muted-foreground mt-0.5" />
+									<div>
+										<p className="text-xs text-muted-foreground uppercase tracking-wider">
+											Movements
+										</p>
+										<p className="font-medium text-sm">
+											{workout.movements
+												.map((m: { id: string; name: string }) => m.name)
+												.join(", ")}
+										</p>
+									</div>
+								</div>
+							)}
+
 							{eventDate && (
 								<div className="flex items-start gap-3">
 									<Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
@@ -368,19 +312,6 @@ function EventDetailsPage() {
 											Date
 										</p>
 										<p className="font-medium text-sm">{eventDate}</p>
-									</div>
-								</div>
-							)}
-							{competition.location && (
-								<div className="flex items-start gap-3">
-									<MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-									<div>
-										<p className="text-xs text-muted-foreground uppercase tracking-wider">
-											Location
-										</p>
-										<p className="font-medium text-sm">
-											{competition.location}
-										</p>
 									</div>
 								</div>
 							)}
@@ -412,27 +343,27 @@ function EventDetailsPage() {
 										<Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
 										<div>
 											<p className="text-xs text-muted-foreground uppercase tracking-wider">
-												First Heat
+												First Heat Starts
 											</p>
 											<p className="font-medium text-sm">
 												{formatHeatTime(
-													heatTimes.firstHeatTime,
+													heatTimes.firstHeatStartTime,
 													competition.timezone,
 												)}
 											</p>
 										</div>
 									</div>
-									{heatTimes.firstHeatTime.getTime() !==
-										heatTimes.lastHeatTime.getTime() && (
+									{heatTimes.firstHeatStartTime.getTime() !==
+										heatTimes.lastHeatEndTime.getTime() && (
 										<div className="flex items-start gap-3">
 											<Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
 											<div>
 												<p className="text-xs text-muted-foreground uppercase tracking-wider">
-													Last Heat
+													Last Heat Ends
 												</p>
 												<p className="font-medium text-sm">
 													{formatHeatTime(
-														heatTimes.lastHeatTime,
+														heatTimes.lastHeatEndTime,
 														competition.timezone,
 													)}
 												</p>

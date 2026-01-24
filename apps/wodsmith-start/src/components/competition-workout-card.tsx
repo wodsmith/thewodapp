@@ -15,11 +15,8 @@ interface CompetitionWorkoutCardProps {
 	name: string
 	scheme: string // e.g. "time", "amrap", etc. from DB enum
 	description: string | null // Default description
-	scoreType: string | null
 	roundsToScore: number | null
-	tiebreakScheme?: string | null
 	pointsMultiplier: number | null
-	notes: string | null
 	movements?: Array<{ id: string; name: string }>
 	tags?: Array<{ id: string; name: string }>
 	divisionDescriptions: DivisionDescription[]
@@ -52,11 +49,8 @@ export function CompetitionWorkoutCard({
 	name,
 	scheme,
 	description,
-	scoreType,
 	roundsToScore,
-	tiebreakScheme,
 	pointsMultiplier,
-	notes,
 	movements,
 	tags,
 	divisionDescriptions,
@@ -235,15 +229,6 @@ export function CompetitionWorkoutCard({
 						)}
 					</div>
 
-					{/* Footer / Notes */}
-					{notes && (
-						<div className="mt-6 pt-4 border-t">
-							<p className="text-sm text-muted-foreground">
-								<span className="font-semibold text-foreground">Notes:</span>{" "}
-								{notes}
-							</p>
-						</div>
-					)}
 				</div>
 			</div>
 		</Card>

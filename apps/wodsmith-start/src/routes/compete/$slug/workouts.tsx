@@ -177,11 +177,8 @@ function CompetitionWorkoutsPage() {
 							name={event.workout.name}
 							scheme={event.workout.scheme}
 							description={event.workout.description}
-							scoreType={event.workout.scoreType}
 							roundsToScore={event.workout.roundsToScore}
-							tiebreakScheme={event.workout.tiebreakScheme}
 							pointsMultiplier={event.pointsMultiplier}
-							notes={event.notes}
 							movements={event.workout.movements}
 							tags={event.workout.tags}
 							divisionDescriptions={
