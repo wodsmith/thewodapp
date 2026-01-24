@@ -15,14 +15,12 @@ import {
 } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import type { ScoringConfig, ScoringAlgorithm } from "@/types/scoring"
-import {
-	generatePointsTable,
-	WINNER_TAKES_MORE_TABLE,
-} from "@/lib/scoring/algorithms/custom"
-import { RotateCcw } from "lucide-react"
+import { generatePointsTable } from "@/lib/scoring/algorithms/custom"
+import { RotateCcw, Users } from "lucide-react"
 
 /**
  * Editable points preview panel - click to edit values inline
+ * Now supports division size to show the correct number of positions
  */
 function EditablePointsPreview({
 	algorithm,
@@ -32,6 +30,8 @@ function EditablePointsPreview({
 	onPointEdit,
 	onResetOverrides,
 	disabled,
+	divisionSize,
+	autoScale,
 }: {
 	algorithm: ScoringAlgorithm
 	baseTemplate: "traditional" | "winner_takes_more" | "online"
@@ -40,6 +40,8 @@ function EditablePointsPreview({
 	onPointEdit: (position: number, value: number) => void
 	onResetOverrides: () => void
 	disabled?: boolean
+	divisionSize?: number
+	autoScale?: boolean
 }) {
 	const [editingPosition, setEditingPosition] = useState<number | null>(null)
 	const [editValue, setEditValue] = useState("")
@@ -60,6 +62,7 @@ function EditablePointsPreview({
 
 	// Online scoring - static display, no customization
 	if (algorithm === "online" || baseTemplate === "online") {
+		const displayCount = divisionSize ?? 20
 		return (
 			<div className="rounded-lg border bg-muted/20 p-6">
 				<h3 className="font-semibold mb-4">Points Preview</h3>
@@ -67,7 +70,7 @@ function EditablePointsPreview({
 					Points equal finishing position. Lowest total wins.
 				</p>
 				<div className="grid grid-cols-5 gap-2">
-					{Array.from({ length: 20 }, (_, idx) => {
+					{Array.from({ length: displayCount }, (_, idx) => {
 						const position = idx + 1
 						return (
 							<div
@@ -82,9 +85,11 @@ function EditablePointsPreview({
 						)
 					})}
 				</div>
-				<p className="text-xs text-muted-foreground mt-3">
-					Pattern continues: 21st = 21 pts, 22nd = 22 pts, etc.
-				</p>
+				{!divisionSize && (
+					<p className="text-xs text-muted-foreground mt-3">
+						Pattern continues: 21st = 21 pts, 22nd = 22 pts, etc.
+					</p>
+				)}
 			</div>
 		)
 	}
@@ -165,10 +170,14 @@ function EditablePointsPreview({
 				<p className="text-xs text-amber-600 mb-3">Custom overrides applied</p>
 			)}
 
-			{/* Show 30 for winner_takes_more (full table), 20 for traditional */}
+			{/* Show divisionSize positions if set, otherwise 30 for winner_takes_more, 20 for traditional */}
 			<div className="grid grid-cols-5 gap-2">
 				{Array.from(
-					{ length: baseTemplate === "winner_takes_more" ? 30 : 20 },
+					{
+						length:
+							divisionSize ??
+							(baseTemplate === "winner_takes_more" ? 30 : 20),
+					},
 					(_, idx) => {
 						const position = idx + 1
 						const effectiveValue = getEffectivePoints(position)
@@ -221,9 +230,11 @@ function EditablePointsPreview({
 				)}
 			</div>
 			<p className="text-xs text-muted-foreground mt-3">
-				{baseTemplate === "winner_takes_more"
-					? "0 points for positions beyond 30th"
-					: "Points continue decreasing for all positions (minimum 0)"}
+				{divisionSize && autoScale
+					? `Points auto-scaled for ${divisionSize} athletes`
+					: baseTemplate === "winner_takes_more"
+						? "0 points for positions beyond 30th"
+						: "Points continue decreasing for all positions (minimum 0)"}
 			</p>
 		</div>
 	)
@@ -241,6 +252,10 @@ interface ScoringConfigFormProps {
 	events?: Array<{ id: string; name: string }>
 	/** Whether the form is disabled */
 	disabled?: boolean
+	/** Optional division size for preview (overrides config.defaultDivisionSize) */
+	divisionSize?: number
+	/** Show division size input in the form */
+	showDivisionSizeInput?: boolean
 }
 
 /**
@@ -290,12 +305,17 @@ export function ScoringConfigForm({
 	onChange,
 	events,
 	disabled = false,
+	divisionSize: propDivisionSize,
+	showDivisionSizeInput = true,
 }: ScoringConfigFormProps) {
 	// Get the base algorithm (not "custom" - that's derived)
 	const displayAlgorithm =
 		value.algorithm === "custom"
 			? (value.customTable?.baseTemplate ?? "traditional")
 			: value.algorithm
+
+	// Use prop divisionSize if provided, otherwise use config's defaultDivisionSize
+	const effectiveDivisionSize = propDivisionSize ?? value.defaultDivisionSize
 
 	const handleAlgorithmChange = (algorithm: ScoringAlgorithm) => {
 		const newConfig = { ...value, algorithm }
@@ -322,7 +342,64 @@ export function ScoringConfigForm({
 				...value.traditional,
 				step,
 				firstPlacePoints: value.traditional?.firstPlacePoints ?? 100,
+				minPoints: value.traditional?.minPoints ?? 0,
+				autoScale: value.traditional?.autoScale ?? false,
 			},
+		})
+	}
+
+	const handleTraditionalAutoScaleChange = (autoScale: boolean) => {
+		onChange({
+			...value,
+			traditional: {
+				...value.traditional,
+				step: value.traditional?.step ?? 5,
+				firstPlacePoints: value.traditional?.firstPlacePoints ?? 100,
+				minPoints: value.traditional?.minPoints ?? 0,
+				autoScale,
+			},
+		})
+	}
+
+	const handleTraditionalMinPointsChange = (minPoints: number) => {
+		onChange({
+			...value,
+			traditional: {
+				...value.traditional,
+				step: value.traditional?.step ?? 5,
+				firstPlacePoints: value.traditional?.firstPlacePoints ?? 100,
+				minPoints,
+				autoScale: value.traditional?.autoScale ?? false,
+			},
+		})
+	}
+
+	const handleWinnerTakesMoreAutoScaleChange = (autoScale: boolean) => {
+		onChange({
+			...value,
+			winnerTakesMore: {
+				...value.winnerTakesMore,
+				autoScale,
+				minPoints: value.winnerTakesMore?.minPoints ?? 5,
+			},
+		})
+	}
+
+	const handleWinnerTakesMoreMinPointsChange = (minPoints: number) => {
+		onChange({
+			...value,
+			winnerTakesMore: {
+				...value.winnerTakesMore,
+				autoScale: value.winnerTakesMore?.autoScale ?? false,
+				minPoints,
+			},
+		})
+	}
+
+	const handleDivisionSizeChange = (size: number | undefined) => {
+		onChange({
+			...value,
+			defaultDivisionSize: size,
 		})
 	}
 
@@ -456,6 +533,7 @@ export function ScoringConfigForm({
 
 	/**
 	 * Get base points for current algorithm (without overrides)
+	 * Uses division size for preview if set
 	 */
 	const getBasePoints = (): number[] | null => {
 		// For custom, use the base template
@@ -464,20 +542,44 @@ export function ScoringConfigForm({
 				? (value.customTable?.baseTemplate ?? "traditional")
 				: value.algorithm
 
+		// Use division size for point count if available
+		const pointCount = effectiveDivisionSize ?? 100
+
 		switch (algo) {
-			case "traditional":
-				return generatePointsTable("traditional", 100, {
+			case "traditional": {
+				const traditionalConfig = {
 					firstPlacePoints: value.traditional?.firstPlacePoints ?? 100,
 					step: value.traditional?.step ?? 5,
-				})
-			case "winner_takes_more":
-				return [...WINNER_TAKES_MORE_TABLE]
+					minPoints: value.traditional?.minPoints ?? 0,
+					autoScale: value.traditional?.autoScale ?? false,
+				}
+				return generatePointsTable(
+					"traditional",
+					effectiveDivisionSize ?? 100,
+					traditionalConfig,
+					undefined,
+					traditionalConfig.autoScale ? effectiveDivisionSize : undefined,
+				)
+			}
+			case "winner_takes_more": {
+				const winnerTakesMoreConfig = {
+					autoScale: value.winnerTakesMore?.autoScale ?? false,
+					minPoints: value.winnerTakesMore?.minPoints ?? 5,
+				}
+				return generatePointsTable(
+					"winner_takes_more",
+					effectiveDivisionSize ?? 30,
+					undefined,
+					winnerTakesMoreConfig,
+					winnerTakesMoreConfig.autoScale ? effectiveDivisionSize : undefined,
+				)
+			}
 			case "p_score":
 				return null // P-Score is dynamic
 			case "online":
 				return null // Online is handled separately in preview
 			default:
-				return generatePointsTable("traditional", 100)
+				return generatePointsTable("traditional", pointCount)
 		}
 	}
 
@@ -519,23 +621,69 @@ export function ScoringConfigForm({
 											Points based on finish position. 1st gets most points,
 											each subsequent place gets fewer by the step amount.
 										</p>
-										<div className="flex items-center space-x-2">
-											<Label htmlFor="step">Step:</Label>
-											<Input
-												id="step"
-												type="number"
-												className="w-20"
-												value={value.traditional?.step ?? 5}
-												onChange={(e) =>
-													handleTraditionalStepChange(Number(e.target.value))
-												}
-												disabled={disabled}
-												min={1}
-											/>
-											<span className="text-sm text-muted-foreground">
-												points between places
-											</span>
+										{/* Auto-scale toggle */}
+										<div className="space-y-1">
+											<div className="flex items-center space-x-2">
+												<Checkbox
+													id="traditional-auto-scale"
+													checked={value.traditional?.autoScale ?? false}
+													onCheckedChange={(checked) =>
+														handleTraditionalAutoScaleChange(checked === true)
+													}
+													disabled={disabled}
+												/>
+												<Label htmlFor="traditional-auto-scale">
+													Auto-scale to division size
+												</Label>
+											</div>
+											<p className="text-xs text-muted-foreground ml-6">
+												{value.traditional?.autoScale
+													? "Points will be distributed evenly across all positions in the division"
+													: "Points decrease by a fixed step regardless of division size"}
+											</p>
 										</div>
+										{/* Step input - only when not auto-scaling */}
+										{!value.traditional?.autoScale && (
+											<div className="flex items-center space-x-2">
+												<Label htmlFor="step">Step:</Label>
+												<Input
+													id="step"
+													type="number"
+													className="w-20"
+													value={value.traditional?.step ?? 5}
+													onChange={(e) =>
+														handleTraditionalStepChange(Number(e.target.value))
+													}
+													disabled={disabled}
+													min={1}
+												/>
+												<span className="text-sm text-muted-foreground">
+													points between places
+												</span>
+											</div>
+										)}
+										{/* Min points input - only when auto-scaling */}
+										{value.traditional?.autoScale && (
+											<div className="flex items-center space-x-2">
+												<Label htmlFor="min-points">Min points:</Label>
+												<Input
+													id="min-points"
+													type="number"
+													className="w-20"
+													value={value.traditional?.minPoints ?? 0}
+													onChange={(e) =>
+														handleTraditionalMinPointsChange(
+															Number(e.target.value),
+														)
+													}
+													disabled={disabled}
+													min={0}
+												/>
+												<span className="text-sm text-muted-foreground">
+													for last place
+												</span>
+											</div>
+										)}
 									</div>
 								)}
 							</div>
@@ -552,11 +700,58 @@ export function ScoringConfigForm({
 									</Label>
 								</div>
 								{displayAlgorithm === "winner_takes_more" && (
-									<p className="ml-6 text-xs text-muted-foreground">
-										Top positions get disproportionately more points. Similar to
-										CrossFit Games scoring where 1st place is worth
-										significantly more than 2nd.
-									</p>
+									<div className="ml-6 space-y-3">
+										<p className="text-xs text-muted-foreground">
+											Top positions get disproportionately more points. Similar
+											to CrossFit Games scoring where 1st place is worth
+											significantly more than 2nd.
+										</p>
+										{/* Auto-scale toggle */}
+										<div className="space-y-1">
+											<div className="flex items-center space-x-2">
+												<Checkbox
+													id="winner-auto-scale"
+													checked={value.winnerTakesMore?.autoScale ?? false}
+													onCheckedChange={(checked) =>
+														handleWinnerTakesMoreAutoScaleChange(
+															checked === true,
+														)
+													}
+													disabled={disabled}
+												/>
+												<Label htmlFor="winner-auto-scale">
+													Auto-scale to division size
+												</Label>
+											</div>
+											<p className="text-xs text-muted-foreground ml-6">
+												{value.winnerTakesMore?.autoScale
+													? "Points table will be interpolated to fit division size"
+													: "Uses the standard 30-position table (0 points beyond 30th)"}
+											</p>
+										</div>
+										{/* Min points input - only when auto-scaling */}
+										{value.winnerTakesMore?.autoScale && (
+											<div className="flex items-center space-x-2">
+												<Label htmlFor="winner-min-points">Min points:</Label>
+												<Input
+													id="winner-min-points"
+													type="number"
+													className="w-20"
+													value={value.winnerTakesMore?.minPoints ?? 5}
+													onChange={(e) =>
+														handleWinnerTakesMoreMinPointsChange(
+															Number(e.target.value),
+														)
+													}
+													disabled={disabled}
+													min={0}
+												/>
+												<span className="text-sm text-muted-foreground">
+													for last place
+												</span>
+											</div>
+										)}
+									</div>
 								)}
 							</div>
 
@@ -877,7 +1072,40 @@ export function ScoringConfigForm({
 			</Card>
 
 			{/* Points Preview Panel - takes 1/3 on large screens */}
-			<div className="lg:sticky lg:top-6 h-fit">
+			<div className="lg:sticky lg:top-6 h-fit space-y-4">
+				{/* Division Size Input for Preview */}
+				{showDivisionSizeInput && (
+					<div className="rounded-lg border bg-muted/20 p-4">
+						<div className="flex items-center gap-2 mb-3">
+							<Users className="h-4 w-4 text-muted-foreground" />
+							<Label className="font-semibold">Preview Size</Label>
+						</div>
+						<div className="flex items-center gap-2">
+							<Input
+								type="number"
+								className="w-24"
+								value={effectiveDivisionSize ?? ""}
+								onChange={(e) => {
+									const val = e.target.value
+									handleDivisionSizeChange(
+										val === "" ? undefined : Number(val),
+									)
+								}}
+								placeholder="Auto"
+								disabled={disabled}
+								min={1}
+								max={500}
+							/>
+							<span className="text-sm text-muted-foreground">athletes</span>
+						</div>
+						<p className="text-xs text-muted-foreground mt-2">
+							{effectiveDivisionSize
+								? `Showing points for ${effectiveDivisionSize} athletes`
+								: "Set a size to preview how points scale"}
+						</p>
+					</div>
+				)}
+
 				<EditablePointsPreview
 					algorithm={value.algorithm}
 					baseTemplate={
@@ -890,6 +1118,14 @@ export function ScoringConfigForm({
 					onPointEdit={handlePointEdit}
 					onResetOverrides={handleResetOverrides}
 					disabled={disabled}
+					divisionSize={effectiveDivisionSize}
+					autoScale={
+						displayAlgorithm === "traditional"
+							? value.traditional?.autoScale
+							: displayAlgorithm === "winner_takes_more"
+								? value.winnerTakesMore?.autoScale
+								: false
+					}
 				/>
 			</div>
 		</div>

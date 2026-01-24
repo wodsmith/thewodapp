@@ -6,13 +6,19 @@
  * - traditional: Fixed step deduction
  * - winner_takes_more: Front-loaded points table (like CrossFit Games)
  *
+ * Both templates support auto-scaling to division size.
+ *
  * Note: P-Score cannot be used as a base template because it calculates
  * points dynamically based on performance gaps, not static positions.
  *
  * @see docs/plans/configurable-scoring-system.md
  */
 
-import type { CustomTableConfig, TraditionalConfig } from "@/types/scoring"
+import type {
+	CustomTableConfig,
+	TraditionalConfig,
+	WinnerTakesMoreConfig,
+} from "@/types/scoring"
 import { calculateTraditionalPoints } from "./traditional"
 
 /**
@@ -26,11 +32,121 @@ export const WINNER_TAKES_MORE_TABLE = [
 ] as const
 
 /**
+ * Interpolate a value from the winner takes more table for a scaled position.
+ * Uses linear interpolation between table values.
+ *
+ * @param scaledPosition - Position in the scaled range (0-based, 0 to divisionSize-1)
+ * @param divisionSize - Size of the division
+ * @param minPoints - Minimum points for last place
+ * @returns Interpolated points value
+ */
+function interpolateWinnerTakesMore(
+	scaledPosition: number,
+	divisionSize: number,
+	minPoints: number,
+): number {
+	const tableLength = WINNER_TAKES_MORE_TABLE.length
+
+	// If division is larger than or equal to table, use direct lookup
+	if (divisionSize >= tableLength) {
+		const index = Math.min(scaledPosition, tableLength - 1)
+		return WINNER_TAKES_MORE_TABLE[index] ?? minPoints
+	}
+
+	// Map the position to the table range
+	// Position 0 (1st place) always maps to index 0 (100 points)
+	// Position divisionSize-1 (last place) maps to a calculated endpoint
+	if (scaledPosition === 0) {
+		return WINNER_TAKES_MORE_TABLE[0]
+	}
+
+	// For smaller divisions, we want to preserve the "front-loaded" nature
+	// by using a portion of the table proportional to division size
+	const tableIndex = (scaledPosition / (divisionSize - 1)) * (tableLength - 1)
+	const lowerIndex = Math.floor(tableIndex)
+	const upperIndex = Math.ceil(tableIndex)
+	const fraction = tableIndex - lowerIndex
+
+	const lowerValue = WINNER_TAKES_MORE_TABLE[lowerIndex] ?? minPoints
+	const upperValue = WINNER_TAKES_MORE_TABLE[upperIndex] ?? minPoints
+
+	// Linear interpolation
+	const interpolated = lowerValue + (upperValue - lowerValue) * fraction
+
+	// Ensure minimum points for last place
+	if (scaledPosition === divisionSize - 1) {
+		return Math.max(minPoints, Math.round(interpolated))
+	}
+
+	return Math.round(interpolated)
+}
+
+/**
+ * Calculate points for winner takes more algorithm with optional auto-scaling.
+ *
+ * @param place - The athlete's finishing position (1-indexed)
+ * @param config - Winner takes more configuration (partial is allowed)
+ * @param divisionSize - Optional division size for auto-scaling
+ * @returns Points awarded
+ */
+export function calculateWinnerTakesMorePoints(
+	place: number,
+	config?: Partial<WinnerTakesMoreConfig>,
+	divisionSize?: number,
+): number {
+	const effectivePlace = Math.max(1, place)
+	const autoScale = config?.autoScale ?? false
+	const minPoints = config?.minPoints ?? 5
+
+	// If auto-scaling with valid division size
+	if (autoScale && divisionSize && divisionSize > 1) {
+		// Position is 0-indexed for interpolation
+		const position = effectivePlace - 1
+
+		// Places beyond division size get minimum points
+		if (effectivePlace > divisionSize) {
+			return minPoints
+		}
+
+		return interpolateWinnerTakesMore(position, divisionSize, minPoints)
+	}
+
+	// Standard lookup from table
+	if (effectivePlace <= WINNER_TAKES_MORE_TABLE.length) {
+		return WINNER_TAKES_MORE_TABLE[effectivePlace - 1]
+	}
+
+	return 0
+}
+
+/**
+ * Generate a winner takes more points table.
+ *
+ * @param count - Number of places to generate
+ * @param config - Optional winner takes more configuration (partial is allowed)
+ * @param divisionSize - Optional division size for auto-scaling
+ * @returns Array of points for places 1 through count
+ */
+export function generateWinnerTakesMoreTable(
+	count: number,
+	config?: Partial<WinnerTakesMoreConfig>,
+	divisionSize?: number,
+): number[] {
+	const table: number[] = []
+	for (let place = 1; place <= count; place++) {
+		table.push(calculateWinnerTakesMorePoints(place, config, divisionSize))
+	}
+	return table
+}
+
+/**
  * Generate a points table for a given base template.
  *
  * @param baseTemplate - The template to use as base
  * @param count - Number of places to generate
- * @param traditionalConfig - Config for traditional/p_score templates
+ * @param traditionalConfig - Config for traditional template (partial is allowed)
+ * @param winnerTakesMoreConfig - Config for winner_takes_more template (partial is allowed)
+ * @param divisionSize - Optional division size for auto-scaling
  * @returns Array of points for places 1 through count
  *
  * @example
@@ -39,29 +155,27 @@ export const WINNER_TAKES_MORE_TABLE = [
  *
  * generatePointsTable('traditional', 5, { firstPlacePoints: 100, step: 5 })
  * // [100, 95, 90, 85, 80]
+ *
+ * generatePointsTable('winner_takes_more', 10, undefined, { autoScale: true }, 10)
+ * // [100, 89, 79, 70, 64, 58, 52, 46, 40, 34] (interpolated for 10 athletes)
  */
 export function generatePointsTable(
 	baseTemplate: CustomTableConfig["baseTemplate"],
 	count: number,
-	traditionalConfig?: TraditionalConfig,
+	traditionalConfig?: Partial<TraditionalConfig>,
+	winnerTakesMoreConfig?: Partial<WinnerTakesMoreConfig>,
+	divisionSize?: number,
 ): number[] {
-	const table: number[] = []
-
-	for (let place = 1; place <= count; place++) {
-		if (baseTemplate === "winner_takes_more") {
-			// Use the winner_takes_more table, floor at 0 for places beyond 30
-			const points =
-				place <= WINNER_TAKES_MORE_TABLE.length
-					? WINNER_TAKES_MORE_TABLE[place - 1]
-					: 0
-			table.push(points)
-		} else {
-			// 'traditional' uses traditional calculation
-			const config = traditionalConfig ?? { firstPlacePoints: 100, step: 5 }
-			table.push(calculateTraditionalPoints(place, config))
-		}
+	if (baseTemplate === "winner_takes_more") {
+		return generateWinnerTakesMoreTable(count, winnerTakesMoreConfig, divisionSize)
 	}
 
+	// 'traditional' uses traditional calculation
+	const table: number[] = []
+	const config = traditionalConfig ?? { firstPlacePoints: 100, step: 5 }
+	for (let place = 1; place <= count; place++) {
+		table.push(calculateTraditionalPoints(place, config, divisionSize))
+	}
 	return table
 }
 
@@ -70,7 +184,9 @@ export function generatePointsTable(
  *
  * @param place - The athlete's finishing position (1-indexed)
  * @param config - Custom table configuration with base template and overrides
- * @param traditionalConfig - Config for traditional template (if used)
+ * @param traditionalConfig - Config for traditional template (if used, partial is allowed)
+ * @param winnerTakesMoreConfig - Config for winner_takes_more template (if used, partial is allowed)
+ * @param divisionSize - Optional division size for auto-scaling
  * @returns Points awarded
  *
  * @example
@@ -88,7 +204,9 @@ export function generatePointsTable(
 export function calculateCustomPoints(
 	place: number,
 	config: CustomTableConfig,
-	traditionalConfig?: TraditionalConfig,
+	traditionalConfig?: Partial<TraditionalConfig>,
+	winnerTakesMoreConfig?: Partial<WinnerTakesMoreConfig>,
+	divisionSize?: number,
 ): number {
 	const { baseTemplate, overrides } = config
 
@@ -103,13 +221,14 @@ export function calculateCustomPoints(
 
 	// Calculate base points from template
 	if (baseTemplate === "winner_takes_more") {
-		// Use the winner_takes_more table, floor at 0 for places beyond 30
-		return effectivePlace <= WINNER_TAKES_MORE_TABLE.length
-			? WINNER_TAKES_MORE_TABLE[effectivePlace - 1]
-			: 0
+		return calculateWinnerTakesMorePoints(
+			effectivePlace,
+			winnerTakesMoreConfig,
+			divisionSize,
+		)
 	}
 
 	// 'traditional' uses traditional calculation
 	const config2 = traditionalConfig ?? { firstPlacePoints: 100, step: 5 }
-	return calculateTraditionalPoints(effectivePlace, config2)
+	return calculateTraditionalPoints(effectivePlace, config2, divisionSize)
 }

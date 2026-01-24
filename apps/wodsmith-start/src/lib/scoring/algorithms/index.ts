@@ -16,20 +16,30 @@
 import type {
 	ScoringConfig,
 	TraditionalConfig,
+	WinnerTakesMoreConfig,
 	PScoreConfig,
 } from "@/types/scoring"
 import type { WorkoutScheme } from "@/lib/scoring/types"
 import { calculatePScore, type PScoreInput } from "./p-score"
 import { calculateTraditionalPoints } from "./traditional"
-import { calculateCustomPoints } from "./custom"
+import {
+	calculateCustomPoints,
+	calculateWinnerTakesMorePoints,
+} from "./custom"
 import { calculateOnlinePoints } from "./online"
 
 // Re-export algorithm implementations
 export { calculatePScore, type PScoreInput, type PScoreResult } from "./p-score"
-export { calculateTraditionalPoints } from "./traditional"
+export {
+	calculateTraditionalPoints,
+	getEffectiveStep,
+	generateTraditionalPointsTable,
+} from "./traditional"
 export {
 	calculateCustomPoints,
+	calculateWinnerTakesMorePoints,
 	generatePointsTable,
+	generateWinnerTakesMoreTable,
 	WINNER_TAKES_MORE_TABLE,
 } from "./custom"
 export { calculateOnlinePoints } from "./online"
@@ -64,6 +74,12 @@ export const DEFAULT_SCORING_CONFIG: ScoringConfig = {
 	traditional: {
 		step: 5,
 		firstPlacePoints: 100,
+		minPoints: 0,
+		autoScale: false,
+	},
+	winnerTakesMore: {
+		autoScale: false,
+		minPoints: 5,
 	},
 	tiebreaker: {
 		primary: "countback",
@@ -81,6 +97,16 @@ export const DEFAULT_SCORING_CONFIG: ScoringConfig = {
 export const DEFAULT_TRADITIONAL_CONFIG: TraditionalConfig = {
 	step: 5,
 	firstPlacePoints: 100,
+	minPoints: 0,
+	autoScale: false,
+}
+
+/**
+ * Default Winner Takes More config
+ */
+export const DEFAULT_WINNER_TAKES_MORE_CONFIG: WinnerTakesMoreConfig = {
+	autoScale: false,
+	minPoints: 5,
 }
 
 /**
@@ -153,11 +179,13 @@ export function calculateEventPoints(
 
 /**
  * Calculate points using traditional (placement-based) scoring
+ * Supports auto-scaling to division size
  */
 function calculateTraditionalEventPoints(
 	scores: EventScoreInput[],
 	scheme: WorkoutScheme,
 	config: ScoringConfig,
+	divisionSize?: number,
 ): Map<string, EventPointsResult> {
 	const traditionalConfig = config.traditional ?? DEFAULT_TRADITIONAL_CONFIG
 	const isAscending = ASCENDING_SCHEMES.has(scheme)
@@ -184,9 +212,17 @@ function calculateTraditionalEventPoints(
 	const ranked = assignRanks(sortedActive)
 	const results = new Map<string, EventPointsResult>()
 
+	// Use active scores count as division size if not provided and auto-scaling
+	const effectiveDivisionSize =
+		divisionSize ?? (traditionalConfig.autoScale ? activeScores.length : undefined)
+
 	// Calculate points for active athletes
 	for (const { score, rank } of ranked) {
-		const points = calculateTraditionalPoints(rank, traditionalConfig)
+		const points = calculateTraditionalPoints(
+			rank,
+			traditionalConfig,
+			effectiveDivisionSize,
+		)
 		results.set(score.userId, {
 			userId: score.userId,
 			points,
@@ -213,7 +249,11 @@ function calculateTraditionalEventPoints(
 			case "worst_performance":
 				// Both get ranked after all active athletes
 				rank = lastActiveRank + 1
-				points = calculateTraditionalPoints(rank, traditionalConfig)
+				points = calculateTraditionalPoints(
+					rank,
+					traditionalConfig,
+					effectiveDivisionSize,
+				)
 				break
 			case "zero":
 				rank = lastActiveRank + 1
@@ -237,12 +277,16 @@ function calculateTraditionalEventPoints(
 /**
  * Calculate points using Winner Takes More scoring
  * Uses a front-loaded points table that rewards top finishers more heavily
+ * Supports auto-scaling to division size
  */
 function calculateWinnerTakesMoreEventPoints(
 	scores: EventScoreInput[],
 	scheme: WorkoutScheme,
 	config: ScoringConfig,
+	divisionSize?: number,
 ): Map<string, EventPointsResult> {
+	const winnerTakesMoreConfig =
+		config.winnerTakesMore ?? DEFAULT_WINNER_TAKES_MORE_CONFIG
 	const isAscending = ASCENDING_SCHEMES.has(scheme)
 
 	// Separate active scores from inactive
@@ -267,12 +311,17 @@ function calculateWinnerTakesMoreEventPoints(
 	const ranked = assignRanks(sortedActive)
 	const results = new Map<string, EventPointsResult>()
 
+	// Use active scores count as division size if not provided and auto-scaling
+	const effectiveDivisionSize =
+		divisionSize ?? (winnerTakesMoreConfig.autoScale ? activeScores.length : undefined)
+
 	// Calculate points for active athletes using winner_takes_more table
 	for (const { score, rank } of ranked) {
-		const points = calculateCustomPoints(rank, {
-			baseTemplate: "winner_takes_more",
-			overrides: {},
-		})
+		const points = calculateWinnerTakesMorePoints(
+			rank,
+			winnerTakesMoreConfig,
+			effectiveDivisionSize,
+		)
 		results.set(score.userId, {
 			userId: score.userId,
 			points,
@@ -299,10 +348,11 @@ function calculateWinnerTakesMoreEventPoints(
 			case "worst_performance":
 				// Both get ranked after all active athletes
 				rank = lastActiveRank + 1
-				points = calculateCustomPoints(rank, {
-					baseTemplate: "winner_takes_more",
-					overrides: {},
-				})
+				points = calculateWinnerTakesMorePoints(
+					rank,
+					winnerTakesMoreConfig,
+					effectiveDivisionSize,
+				)
 				break
 			case "zero":
 				rank = lastActiveRank + 1

@@ -7,6 +7,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, asc, count, eq, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import { scoringConfigSchema } from "@/schemas/scoring.schema"
 import {
 	COMMERCE_PURCHASE_STATUS,
 	commercePurchaseTable,
@@ -29,6 +30,7 @@ import { getSessionFromCookie } from "@/utils/auth"
  */
 export function parseCompetitionSettings(settings: string | null): {
 	divisions?: { scalingGroupId?: string }
+	scoringConfig?: unknown
 } | null {
 	if (!settings) return null
 	try {
@@ -1305,5 +1307,144 @@ export const getDivisionSpotsAvailableFn = createServerFn({ method: "GET" })
 			pendingCount,
 			available: effectiveMax !== null ? effectiveMax - registered : null,
 			isFull: effectiveMax !== null && registered >= effectiveMax,
+		}
+	})
+
+// ============================================================================
+// Division Scoring Configuration
+// ============================================================================
+
+const updateDivisionScoringConfigInputSchema = z.object({
+	competitionId: z.string().min(1, "Competition ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+	divisionId: z.string().min(1, "Division ID is required"),
+	// Partial scoring config - only the fields to override
+	scoringConfig: scoringConfigSchema.partial().nullable(),
+})
+
+const getDivisionScoringConfigInputSchema = z.object({
+	competitionId: z.string().min(1, "Competition ID is required"),
+	divisionId: z.string().min(1, "Division ID is required"),
+})
+
+/**
+ * Update scoring configuration for a specific division
+ * Pass null to clear the override and use competition default
+ */
+export const updateDivisionScoringConfigFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		updateDivisionScoringConfigInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Verify authentication
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
+			competitionId: data.competitionId,
+			teamId: data.teamId,
+		})
+
+		// Verify division belongs to this group
+		const [division] = await db
+			.select()
+			.from(scalingLevelsTable)
+			.where(eq(scalingLevelsTable.id, data.divisionId))
+
+		if (!division || division.scalingGroupId !== scalingGroupId) {
+			throw new Error("Division not found in this competition")
+		}
+
+		// Serialize scoring config to JSON (null if clearing override)
+		const scoringConfigJson = data.scoringConfig
+			? JSON.stringify(data.scoringConfig)
+			: null
+
+		// Check if division config exists
+		const existing = await db.query.competitionDivisionsTable.findFirst({
+			where: and(
+				eq(competitionDivisionsTable.competitionId, data.competitionId),
+				eq(competitionDivisionsTable.divisionId, data.divisionId),
+			),
+		})
+
+		if (existing) {
+			// Update existing
+			await db
+				.update(competitionDivisionsTable)
+				.set({ scoringConfig: scoringConfigJson, updatedAt: new Date() })
+				.where(eq(competitionDivisionsTable.id, existing.id))
+		} else {
+			// Get competition default fee for new division config
+			const competition = await db.query.competitionsTable.findFirst({
+				where: eq(competitionsTable.id, data.competitionId),
+			})
+			const defaultFee = competition?.defaultRegistrationFeeCents ?? 0
+
+			await db.insert(competitionDivisionsTable).values({
+				competitionId: data.competitionId,
+				divisionId: data.divisionId,
+				feeCents: defaultFee,
+				scoringConfig: scoringConfigJson,
+			})
+		}
+
+		return { success: true }
+	})
+
+/**
+ * Get scoring configuration for a specific division
+ * Returns the division-specific config merged with competition defaults
+ */
+export const getDivisionScoringConfigFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		getDivisionScoringConfigInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Get competition with scoring config
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, data.competitionId),
+		})
+
+		if (!competition) {
+			throw new Error("Competition not found")
+		}
+
+		// Parse competition-level scoring config
+		const competitionSettings = parseCompetitionSettings(competition.settings)
+		const competitionScoringConfig = competitionSettings?.scoringConfig ?? null
+
+		// Get division-specific scoring config
+		const divisionConfig = await db.query.competitionDivisionsTable.findFirst({
+			where: and(
+				eq(competitionDivisionsTable.competitionId, data.competitionId),
+				eq(competitionDivisionsTable.divisionId, data.divisionId),
+			),
+		})
+
+		let divisionScoringConfig = null
+		if (divisionConfig?.scoringConfig) {
+			try {
+				divisionScoringConfig = JSON.parse(divisionConfig.scoringConfig)
+			} catch {
+				// Invalid JSON, treat as no config
+			}
+		}
+
+		return {
+			competitionConfig: competitionScoringConfig,
+			divisionConfig: divisionScoringConfig,
+			hasOverride: divisionScoringConfig !== null,
 		}
 	})

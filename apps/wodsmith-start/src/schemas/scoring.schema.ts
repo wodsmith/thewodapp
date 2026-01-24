@@ -42,12 +42,24 @@ export type TiebreakerMethod = z.infer<typeof tiebreakerMethodSchema>
 /**
  * Traditional scoring configuration
  * Points decrease by fixed step from first place
+ * New fields (minPoints, autoScale) are optional for backward compatibility
  */
 export const traditionalConfigSchema = z.object({
 	/** Points decrease per place (default: 5) */
 	step: z.number().positive().default(5),
 	/** Points for first place (default: 100) */
 	firstPlacePoints: z.number().positive().default(100),
+	/**
+	 * Minimum points for last place (default: 0)
+	 * When autoScale is true, step is calculated to ensure last place gets at least this amount
+	 */
+	minPoints: z.number().min(0).optional(),
+	/**
+	 * Auto-scale step based on division size
+	 * When true, step is calculated as: (firstPlacePoints - minPoints) / (divisionSize - 1)
+	 * This ensures points are evenly distributed across all positions in the division
+	 */
+	autoScale: z.boolean().optional(),
 })
 export type TraditionalConfig = z.infer<typeof traditionalConfigSchema>
 
@@ -62,6 +74,23 @@ export const pScoreConfigSchema = z.object({
 	medianField: z.enum(["top_half", "all"]).default("top_half"),
 })
 export type PScoreConfig = z.infer<typeof pScoreConfigSchema>
+
+/**
+ * Winner Takes More scoring configuration
+ * Uses a front-loaded points table that rewards top finishers more heavily
+ * All fields are optional for backward compatibility
+ */
+export const winnerTakesMoreConfigSchema = z.object({
+	/**
+	 * Auto-scale the points table based on division size
+	 * When true, interpolates the 30-position table to fit the division size
+	 * This ensures all positions in the division receive meaningful points
+	 */
+	autoScale: z.boolean().optional(),
+	/** Minimum points for last place when auto-scaling (default: 5) */
+	minPoints: z.number().min(0).optional(),
+})
+export type WinnerTakesMoreConfig = z.infer<typeof winnerTakesMoreConfigSchema>
 
 /**
  * Custom points table configuration
@@ -128,6 +157,9 @@ export const scoringConfigSchema = z.object({
 	/** Traditional algorithm settings (optional) */
 	traditional: traditionalConfigSchema.optional(),
 
+	/** Winner Takes More algorithm settings (optional) */
+	winnerTakesMore: winnerTakesMoreConfigSchema.optional(),
+
 	/** P-Score algorithm settings (optional) */
 	pScore: pScoreConfigSchema.optional(),
 
@@ -139,5 +171,12 @@ export const scoringConfigSchema = z.object({
 
 	/** DNF/DNS/Withdrawn handling */
 	statusHandling: statusHandlingConfigSchema,
+
+	/**
+	 * Default division size for points preview (optional)
+	 * When set, the points preview will show this many positions
+	 * Divisions can override this with their own size
+	 */
+	defaultDivisionSize: z.number().int().min(1).max(500).optional(),
 })
 export type ScoringConfig = z.infer<typeof scoringConfigSchema>

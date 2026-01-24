@@ -159,6 +159,9 @@ export const competitionDivisionsTable = sqliteTable(
 		description: text({ length: 2000 }),
 		// Max spots for this division (null = use competition default)
 		maxSpots: integer(),
+		// Division-specific scoring configuration (JSON, null = use competition default)
+		// Allows overriding algorithm, points table, or division size for this specific division
+		scoringConfig: text({ length: 10000 }),
 	},
 	(table) => [
 		// Each division can only have one config per competition
