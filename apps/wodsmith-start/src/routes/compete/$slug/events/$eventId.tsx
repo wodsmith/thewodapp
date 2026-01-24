@@ -12,7 +12,6 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { cn } from "@/lib/utils"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import {
@@ -36,7 +35,7 @@ export const Route = createFileRoute("/compete/$slug/events/$eventId")({
 
 		// Fetch event details in parallel with divisions
 		const [eventResult, divisionsResult] = await Promise.all([
-			getPublicEventDetailsFn({ data: { eventId } }),
+			getPublicEventDetailsFn({ data: { eventId, competitionId: competition.id } }),
 			getPublicCompetitionDivisionsFn({
 				data: { competitionId: competition.id },
 			}),
@@ -130,11 +129,6 @@ function formatEventDate(
 	return `${startStr} - ${endStr}`
 }
 
-function getResourceIcon(url: string | null) {
-	if (!url) return <Link className="h-4 w-4" />
-	return <Link className="h-4 w-4" />
-}
-
 function EventDetailsPage() {
 	const {
 		competition,
@@ -226,35 +220,52 @@ function EventDetailsPage() {
 										title: string
 										description: string | null
 										url: string | null
-									}) => (
-										<a
-											key={resource.id}
-											href={resource.url ?? "#"}
-											target="_blank"
-											rel="noopener noreferrer"
-											className={cn(
-												"flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors group",
-												!resource.url && "pointer-events-none",
-											)}
-										>
-											<div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary shrink-0">
-												{getResourceIcon(resource.url)}
-											</div>
-											<div className="flex-1 min-w-0">
-												<p className="font-medium text-sm group-hover:text-primary transition-colors">
-													{resource.title}
-												</p>
-												{resource.description && (
-													<p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-														{resource.description}
+									}) => {
+										const content = (
+											<>
+												<div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary shrink-0">
+													<Link className="h-4 w-4" />
+												</div>
+												<div className="flex-1 min-w-0">
+													<p className="font-medium text-sm group-hover:text-primary transition-colors">
+														{resource.title}
 													</p>
+													{resource.description && (
+														<p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+															{resource.description}
+														</p>
+													)}
+												</div>
+												{resource.url && (
+													<ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
 												)}
+											</>
+										)
+
+										// Render as anchor only if URL exists (a11y fix for focusable dead links)
+										if (resource.url) {
+											return (
+												<a
+													key={resource.id}
+													href={resource.url}
+													target="_blank"
+													rel="noopener noreferrer"
+													className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors group"
+												>
+													{content}
+												</a>
+											)
+										}
+
+										return (
+											<div
+												key={resource.id}
+												className="flex items-center gap-3 p-3 rounded-lg border bg-card"
+											>
+												{content}
 											</div>
-											{resource.url && (
-												<ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-											)}
-										</a>
-									),
+										)
+									},
 								)}
 							</CardContent>
 						</Card>

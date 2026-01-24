@@ -107,6 +107,7 @@ const getCompetitionEventInputSchema = z.object({
 
 const getPublicEventDetailsInputSchema = z.object({
 	eventId: z.string().min(1, "Event ID is required"),
+	competitionId: z.string().min(1, "Competition ID is required"),
 })
 
 const addWorkoutToCompetitionInputSchema = z.object({
@@ -532,6 +533,15 @@ export const getPublicEventDetailsFn = createServerFn({
 	.handler(async ({ data }) => {
 		const db = getDb()
 
+		// First verify the event belongs to the competition
+		const track = await db.query.programmingTracksTable.findFirst({
+			where: eq(programmingTracksTable.competitionId, data.competitionId),
+		})
+
+		if (!track) {
+			return { event: null, resources: [], heatTimes: null, totalEvents: 0 }
+		}
+
 		// Get the track workout with workout details and sponsor
 		const trackWorkoutResult = await db
 			.select({
@@ -569,6 +579,7 @@ export const getPublicEventDetailsFn = createServerFn({
 			.where(
 				and(
 					eq(trackWorkoutsTable.id, data.eventId),
+					eq(trackWorkoutsTable.trackId, track.id),
 					eq(trackWorkoutsTable.eventStatus, "published"),
 				),
 			)
