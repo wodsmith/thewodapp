@@ -1,28 +1,10 @@
 "use client"
 
 import { Link } from "@tanstack/react-router"
-import {
-	ArrowRight,
-	Clock,
-	Dumbbell,
-	Flame,
-	Hash,
-	Maximize2,
-	Target,
-	Timer,
-	Trophy,
-} from "lucide-react"
+import { ArrowRight, Dumbbell, Hash, Target, Timer, Trophy } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import type { DivisionDescription } from "@/server-fns/competition-workouts-fns"
 
@@ -139,139 +121,16 @@ export function CompetitionWorkoutCard({
 							</div>
 						</div>
 
-						{/* Action Buttons */}
-						<div className="flex items-center gap-2 shrink-0">
-							<Button variant="outline" size="sm" asChild>
-								<Link
-									to="/compete/$slug/events/$eventId"
-									params={{ slug, eventId }}
-								>
-									View Details
-									<ArrowRight className="ml-2 h-4 w-4" />
-								</Link>
-							</Button>
-							{/* Focus Mode Button */}
-							<Dialog>
-								<DialogTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="text-muted-foreground hover:text-foreground"
-									>
-										<Maximize2 className="h-5 w-5" />
-										<span className="sr-only">Expand workout</span>
-									</Button>
-								</DialogTrigger>
-								<DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-									<DialogHeader>
-										<DialogTitle className="text-2xl flex items-center gap-3">
-											<span className="text-primary/40 font-black">
-												#{trackOrder}
-											</span>
-											{name}
-										</DialogTitle>
-										<DialogDescription>{schemeLabel}</DialogDescription>
-									</DialogHeader>
-									<div className="mt-6 space-y-6">
-										{/* Specs in Modal */}
-										<div className="flex flex-wrap gap-3">
-											{formattedTimeCap && (
-												<Badge
-													variant="outline"
-													className={cn(
-														"px-3 py-1 text-sm flex gap-2 items-center",
-														scheme === "time-with-cap" &&
-															"border-red-200 bg-red-50 text-red-700 dark:bg-red-950/30 dark:border-red-800 dark:text-red-400",
-													)}
-												>
-													<Clock className="h-4 w-4" />
-													{formattedTimeCap} Cap
-												</Badge>
-											)}
-											<Badge
-												variant="outline"
-												className="px-3 py-1 text-sm flex gap-2 items-center"
-											>
-												<Target className="h-4 w-4" />
-												{schemeLabel}
-											</Badge>
-											{scoreType && (
-												<Badge
-													variant="outline"
-													className="px-3 py-1 text-sm flex gap-2 items-center"
-												>
-													<Trophy className="h-4 w-4" />
-													Score: {scoreType}
-												</Badge>
-											)}
-											{roundsToScore && roundsToScore > 1 && (
-												<Badge
-													variant="outline"
-													className="px-3 py-1 text-sm flex gap-2 items-center"
-												>
-													<Hash className="h-4 w-4" />
-													{roundsToScore} Rounds
-												</Badge>
-											)}
-											{tiebreakScheme && (
-												<Badge
-													variant="outline"
-													className="px-3 py-1 text-sm flex gap-2 items-center"
-												>
-													<ArrowRight className="h-4 w-4" />
-													Tiebreak: {tiebreakScheme}
-												</Badge>
-											)}
-										</div>
-
-										<div className="grid md:grid-cols-3 gap-8">
-											{/* Movements List */}
-											<div className="md:col-span-1 space-y-4">
-												<h4 className="font-semibold flex items-center gap-2 text-sm uppercase tracking-wider text-muted-foreground">
-													<Dumbbell className="h-4 w-4" />
-													Ingredients
-												</h4>
-												{movements && movements.length > 0 ? (
-													<ul className="space-y-2">
-														{movements.map((m) => (
-															<li
-																key={m.id}
-																className="text-sm font-medium border-b pb-2 last:border-0"
-															>
-																{m.name}
-															</li>
-														))}
-													</ul>
-												) : (
-													<p className="text-sm text-muted-foreground italic">
-														No specific movements listed.
-													</p>
-												)}
-											</div>
-
-											{/* Workout Flow */}
-											<div className="md:col-span-2 space-y-4">
-												<h4 className="font-semibold flex items-center gap-2 text-sm uppercase tracking-wider text-muted-foreground">
-													<Flame className="h-4 w-4" />
-													The Work
-												</h4>
-												<div className="bg-muted/30 rounded-lg p-6 font-mono text-sm whitespace-pre-wrap leading-relaxed">
-													{displayDescription || "Details coming soon."}
-												</div>
-												{notes && (
-													<div className="bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 rounded-md p-4 text-sm mt-4">
-														<strong className="font-semibold block mb-1">
-															Notes
-														</strong>
-														{notes}
-													</div>
-												)}
-											</div>
-										</div>
-									</div>
-								</DialogContent>
-							</Dialog>
-						</div>
+						{/* View Details Button */}
+						<Button variant="outline" size="sm" asChild className="shrink-0">
+							<Link
+								to="/compete/$slug/events/$eventId"
+								params={{ slug, eventId }}
+							>
+								View Details
+								<ArrowRight className="ml-2 h-4 w-4" />
+							</Link>
+						</Button>
 					</div>
 
 					{/* Specs Row */}

@@ -1,12 +1,6 @@
-import {
-	createFileRoute,
-	getRouteApi,
-	Link,
-	notFound,
-} from "@tanstack/react-router"
+import { createFileRoute, notFound } from "@tanstack/react-router"
 import {
 	Calendar,
-	ChevronRight,
 	Clock,
 	Dumbbell,
 	ExternalLink,
@@ -29,8 +23,6 @@ import {
 	getPublicEventDetailsFn,
 	getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
-
-const parentRoute = getRouteApi("/compete/$slug")
 
 export const Route = createFileRoute("/compete/$slug/events/$eventId")({
 	component: EventDetailsPage,
@@ -188,7 +180,6 @@ function EventDetailsPage() {
 		totalEvents,
 		divisionDescriptions,
 	} = Route.useLoaderData()
-	const { slug } = Route.useParams()
 
 	const workout = event.workout
 	const formattedTimeCap = workout.timeCap ? formatTime(workout.timeCap) : null
@@ -210,27 +201,6 @@ function EventDetailsPage() {
 
 	return (
 		<div className="space-y-6">
-			{/* Breadcrumb Navigation */}
-			<nav className="flex items-center gap-1 text-sm text-muted-foreground">
-				<Link
-					to="/compete/$slug"
-					params={{ slug }}
-					className="hover:text-foreground transition-colors"
-				>
-					{competition.name}
-				</Link>
-				<ChevronRight className="h-4 w-4" />
-				<Link
-					to="/compete/$slug/workouts"
-					params={{ slug }}
-					className="hover:text-foreground transition-colors"
-				>
-					Events
-				</Link>
-				<ChevronRight className="h-4 w-4" />
-				<span className="text-foreground font-medium">{workout.name}</span>
-			</nav>
-
 			{/* Event Title with Context */}
 			<div className="space-y-2">
 				<div className="flex items-center gap-3">
@@ -283,77 +253,68 @@ function EventDetailsPage() {
 			<div className="grid gap-8 lg:grid-cols-3">
 				{/* Main Content - Event Details */}
 				<div className="lg:col-span-2 space-y-6">
-					{/* Event Details Card */}
-					<Card>
-						<CardHeader className="pb-3">
-							<CardTitle className="text-lg flex items-center gap-2">
-								<Dumbbell className="h-5 w-5" />
-								Event Details
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							<div className="bg-muted/40 rounded-lg p-6 font-mono text-sm whitespace-pre-wrap leading-relaxed border">
-								{displayDescription || "Details coming soon."}
-							</div>
+					{/* Event Description */}
+					<div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
+						{displayDescription || "Details coming soon."}
+					</div>
 
-							{event.notes && (
-								<div className="bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 rounded-md p-4 text-sm border border-amber-200 dark:border-amber-800">
-									<strong className="font-semibold block mb-1">Notes</strong>
-									{event.notes}
+					{event.notes && (
+						<div className="bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 rounded-md p-4 text-sm border border-amber-200 dark:border-amber-800">
+							<strong className="font-semibold block mb-1">Notes</strong>
+							{event.notes}
+						</div>
+					)}
+
+					{/* Movements and Tags */}
+					{hasMovementsOrTags && (
+						<Card>
+							<CardContent className="pt-6">
+								<div className="grid gap-6 md:grid-cols-2">
+									{workout.movements && workout.movements.length > 0 && (
+										<div>
+											<h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+												<Dumbbell className="h-3.5 w-3.5" />
+												Movements
+											</h4>
+											<ul className="space-y-1.5">
+												{workout.movements.map(
+													(m: { id: string; name: string }) => (
+														<li
+															key={m.id}
+															className="text-sm font-medium text-foreground/90"
+														>
+															{m.name}
+														</li>
+													),
+												)}
+											</ul>
+										</div>
+									)}
+
+									{workout.tags && workout.tags.length > 0 && (
+										<div>
+											<h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
+												Tags
+											</h4>
+											<div className="flex flex-wrap gap-1.5">
+												{workout.tags.map(
+													(tag: { id: string; name: string }) => (
+														<Badge
+															key={tag.id}
+															variant="secondary"
+															className="text-xs font-normal"
+														>
+															{tag.name}
+														</Badge>
+													),
+												)}
+											</div>
+										</div>
+									)}
 								</div>
-							)}
-
-							{/* Movements and Tags */}
-							{hasMovementsOrTags && (
-								<>
-									<Separator />
-									<div className="grid gap-6 md:grid-cols-2">
-										{workout.movements && workout.movements.length > 0 && (
-											<div>
-												<h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-													<Dumbbell className="h-3.5 w-3.5" />
-													Movements
-												</h4>
-												<ul className="space-y-1.5">
-													{workout.movements.map(
-														(m: { id: string; name: string }) => (
-															<li
-																key={m.id}
-																className="text-sm font-medium text-foreground/90"
-															>
-																{m.name}
-															</li>
-														),
-													)}
-												</ul>
-											</div>
-										)}
-
-										{workout.tags && workout.tags.length > 0 && (
-											<div>
-												<h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
-													Tags
-												</h4>
-												<div className="flex flex-wrap gap-1.5">
-													{workout.tags.map(
-														(tag: { id: string; name: string }) => (
-															<Badge
-																key={tag.id}
-																variant="secondary"
-																className="text-xs font-normal"
-															>
-																{tag.name}
-															</Badge>
-														),
-													)}
-												</div>
-											</div>
-										)}
-									</div>
-								</>
-							)}
-						</CardContent>
-					</Card>
+							</CardContent>
+						</Card>
+					)}
 
 					{/* Division Variations */}
 					{divisionDescriptions.length > 1 && (
