@@ -4,14 +4,12 @@ import {
 	Clock,
 	Dumbbell,
 	ExternalLink,
-	FileText,
 	Hash,
-	Image,
+	Link,
 	MapPin,
 	Target,
 	Timer,
 	Trophy,
-	Video,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -134,41 +132,9 @@ function formatEventDate(
 	return `${startStr} - ${endStr}`
 }
 
-function getResourceIcon(url: string | null, title: string) {
-	if (!url) return <FileText className="h-4 w-4" />
-
-	const lowerUrl = url.toLowerCase()
-	const lowerTitle = title.toLowerCase()
-
-	if (
-		lowerUrl.includes("youtube") ||
-		lowerUrl.includes("vimeo") ||
-		lowerUrl.includes("video") ||
-		lowerTitle.includes("video")
-	) {
-		return <Video className="h-4 w-4" />
-	}
-
-	if (
-		lowerUrl.includes(".pdf") ||
-		lowerTitle.includes("pdf") ||
-		lowerTitle.includes("guide") ||
-		lowerTitle.includes("sheet")
-	) {
-		return <FileText className="h-4 w-4" />
-	}
-
-	if (
-		lowerTitle.includes("map") ||
-		lowerTitle.includes("image") ||
-		lowerUrl.includes(".png") ||
-		lowerUrl.includes(".jpg") ||
-		lowerUrl.includes(".jpeg")
-	) {
-		return <Image className="h-4 w-4" />
-	}
-
-	return <ExternalLink className="h-4 w-4" />
+function getResourceIcon(url: string | null) {
+	if (!url) return <Link className="h-4 w-4" />
+	return <Link className="h-4 w-4" />
 }
 
 function EventDetailsPage() {
@@ -192,6 +158,9 @@ function EventDetailsPage() {
 	const rxDivision = sortedDivisions.find((d) => d.position === 0)
 	const displayDescription =
 		rxDivision?.description || workout.description || null
+
+	// Only show divisions that have descriptions
+	const divisionsWithDescriptions = sortedDivisions.filter((d) => d.description)
 
 	const hasMovementsOrTags =
 		(workout.movements && workout.movements.length > 0) ||
@@ -258,13 +227,6 @@ function EventDetailsPage() {
 						{displayDescription || "Details coming soon."}
 					</div>
 
-					{event.notes && (
-						<div className="bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 rounded-md p-4 text-sm border border-amber-200 dark:border-amber-800">
-							<strong className="font-semibold block mb-1">Notes</strong>
-							{event.notes}
-						</div>
-					)}
-
 					{/* Movements and Tags */}
 					{hasMovementsOrTags && (
 						<Card>
@@ -317,24 +279,24 @@ function EventDetailsPage() {
 					)}
 
 					{/* Division Variations */}
-					{divisionDescriptions.length > 1 && (
+					{divisionsWithDescriptions.length > 1 && (
 						<Card>
 							<CardHeader className="pb-3">
 								<CardTitle className="text-lg">Division Variations</CardTitle>
 							</CardHeader>
 							<CardContent className="space-y-4">
-								{sortedDivisions.map((div, idx) => (
+								{divisionsWithDescriptions.map((div) => (
 									<div key={div.divisionId}>
 										<h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
 											{div.divisionLabel}
-											{idx === 0 && (
+											{div.position === 0 && (
 												<Badge variant="secondary" className="text-xs">
 													RX
 												</Badge>
 											)}
 										</h4>
 										<div className="bg-muted/40 rounded-lg p-4 font-mono text-sm whitespace-pre-wrap border">
-											{div.description || "Same as RX"}
+											{div.description}
 										</div>
 									</div>
 								))}
@@ -370,7 +332,7 @@ function EventDetailsPage() {
 											)}
 										>
 											<div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary shrink-0">
-												{getResourceIcon(resource.url, resource.title)}
+												{getResourceIcon(resource.url)}
 											</div>
 											<div className="flex-1 min-w-0">
 												<p className="font-medium text-sm group-hover:text-primary transition-colors">
