@@ -252,6 +252,8 @@ describe("Scoring Factory", () => {
 			it("returns correct display names", () => {
 				expect(getScoringAlgorithmName("traditional")).toBe("Traditional")
 				expect(getScoringAlgorithmName("p_score")).toBe("P-Score")
+				expect(getScoringAlgorithmName("winner_takes_more")).toBe("Winner Takes More")
+				expect(getScoringAlgorithmName("online")).toBe("Online")
 				expect(getScoringAlgorithmName("custom")).toBe("Custom")
 			})
 		})

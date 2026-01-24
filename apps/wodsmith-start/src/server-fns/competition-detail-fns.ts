@@ -77,7 +77,7 @@ const updateCompetitionRotationSettingsInputSchema = z.object({
 const updateCompetitionScoringConfigInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
 	scoringConfig: z.object({
-		algorithm: z.enum(["traditional", "p_score", "custom"]),
+		algorithm: z.enum(["traditional", "p_score", "winner_takes_more", "online", "custom"]),
 		traditional: z
 			.object({
 				step: z.number().positive(),

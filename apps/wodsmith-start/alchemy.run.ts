@@ -292,6 +292,38 @@ const r2Bucket = await R2Bucket("wodsmith-uploads", {
 	 * Required for production where resources were created before Alchemy.
 	 */
 	adopt: true,
+	/**
+	 * Use remote R2 bucket during local development instead of Miniflare emulation.
+	 * Required to get the actual devDomain URL and test with real uploads.
+	 */
+	dev: { remote: true },
+	/**
+	 * Enable r2.dev public URL for non-prod stages.
+	 * Production uses a custom domain instead.
+	 */
+	devDomain: stage !== "prod",
+	/**
+	 * Custom domain for public access to bucket files.
+	 * Only configured for production - other stages use the r2.dev URL.
+	 */
+	...(stage === "prod" && { domains: "uploads.wodsmith.com" }),
+	/**
+	 * CORS configuration to allow cross-origin requests from the app.
+	 */
+	cors: [
+		{
+			allowed: {
+				origins: [
+					"https://wodsmith.com",
+					"https://demo.wodsmith.com",
+					"http://localhost:3000",
+				],
+				methods: ["GET", "HEAD"],
+				headers: ["*"],
+			},
+			maxAgeSeconds: 3600,
+		},
+	],
 })
 
 /**
@@ -465,7 +497,13 @@ const website = await TanStackStart("app", {
 		EMAIL_REPLY_TO: "support@mail.wodsmith.com",
 
 		// Public URLs and keys
-		R2_PUBLIC_URL: "https://pub-14c651314867492fa9637e830cc729a3.r2.dev",
+		// Use custom domain for prod, r2.dev domain for other stages
+		// Fallback to known r2.dev URL if devDomain not yet provisioned
+		R2_PUBLIC_URL: r2Bucket.domains?.[0]
+			? `https://${r2Bucket.domains[0]}`
+			: r2Bucket.devDomain
+				? `https://${r2Bucket.devDomain}`
+				: "https://pub-14c651314867492fa9637e830cc729a3.r2.dev",
 		POSTHOG_KEY: "phc_UCtCVOUXvpuKzF50prCLKIWWCFc61j5CPTbt99OrKsK",
 		TURNSTILE_SITE_KEY: "0x4AAAAAACF8K4v1TmFMOmtk",
 

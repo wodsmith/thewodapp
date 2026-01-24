@@ -2,6 +2,7 @@
   "permissions": {
     "allow": [
       "mcp__deepwiki__read_wiki_structure",
+      "Bash(pnpm db:push:*)",
       "Bash(pnpm db:generate:*)",
       "Bash(pnpm vitest run:*)",
       "Bash(pnpm db:migrate:dev:*)",

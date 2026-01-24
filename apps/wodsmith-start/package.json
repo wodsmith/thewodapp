@@ -13,6 +13,7 @@
 		"check": "biome check .",
 		"type-check": "tsgo --noEmit",
 		"cf-typegen": "wrangler types",
+		"db:push": "drizzle-kit push",
 		"db:generate": "drizzle-kit generate",
 		"db:studio": "drizzle-kit studio",
 		"db:migrate:prod": "wrangler d1 migrations apply wodsmith-db --remote",

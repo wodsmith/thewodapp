@@ -29,10 +29,10 @@ Run these from `apps/wodsmith-start/`:
 
 ### Database Operations
 
-- `pnpm db:generate` - Generate Drizzle migrations (never write SQL manually)
+- `pnpm db:push` - Push schema changes to local D1 (use during development)
+- `pnpm db:generate --name=X` - Generate migration (only before merging to main)
 - `pnpm db:studio` - Open Drizzle Studio
-- `pnpm db:migrate:dev` - Apply migrations to local D1 database
-- `pnpm db:migrate:prod` - Apply migrations to production D1 database
+- `pnpm db:migrate:local` - Apply migrations to local D1 database
 
 ### Testing
 
@@ -111,7 +111,9 @@ Database is modularly structured in `src/db/schemas/`:
 
 ### Database
 
-- **Never write SQL migrations manually** - always use `pnpm db:generate [MIGRATION_NAME]`
+- **Local development**: Use `pnpm db:push` to apply schema changes directly (no migration files)
+- **Before merging**: Generate migrations with `pnpm db:generate --name=feature-name`
+- **Never write SQL migrations manually** - always use drizzle-kit
 - Never use Drizzle transactions (D1 doesn't support them)
 - Never pass `id` when inserting (auto-generated with CUID2)
 - Always filter by `teamId` for multi-tenant data

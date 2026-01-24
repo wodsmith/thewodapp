@@ -11,7 +11,7 @@
  * @see docs/plans/configurable-scoring-system.md
  */
 
-import type { TiebreakerConfig } from "@/types/scoring"
+import type { ScoringAlgorithm, TiebreakerConfig } from "@/types/scoring"
 
 /**
  * Input for tiebreaker calculation
@@ -24,6 +24,8 @@ export interface TiebreakerInput {
 		eventPlacements: Map<string, number>
 	}>
 	config: TiebreakerConfig
+	/** Scoring algorithm - determines sort direction */
+	scoringAlgorithm?: ScoringAlgorithm
 }
 
 /**
@@ -65,7 +67,7 @@ interface AthleteWithIndex {
  * ```
  */
 export function applyTiebreakers(input: TiebreakerInput): RankedAthlete[] {
-	const { athletes, config } = input
+	const { athletes, config, scoringAlgorithm } = input
 
 	if (athletes.length === 0) {
 		return []
@@ -79,16 +81,22 @@ export function applyTiebreakers(input: TiebreakerInput): RankedAthlete[] {
 		throw new Error("headToHeadEventId is required for head_to_head tiebreaker")
 	}
 
+	// For online scoring, lower points = better (ascending sort)
+	// For all other algorithms, higher points = better (descending sort)
+	const lowerIsBetter = scoringAlgorithm === "online"
+
 	// Add original index for stable sorting
 	const athletesWithIndex: AthleteWithIndex[] = athletes.map((a, i) => ({
 		...a,
 		originalIndex: i,
 	}))
 
-	// Sort by total points descending, then by original index for stability
+	// Sort by total points (direction depends on algorithm)
 	athletesWithIndex.sort((a, b) => {
-		if (b.totalPoints !== a.totalPoints) {
-			return b.totalPoints - a.totalPoints
+		if (a.totalPoints !== b.totalPoints) {
+			return lowerIsBetter
+				? a.totalPoints - b.totalPoints // ascending for online
+				: b.totalPoints - a.totalPoints // descending for traditional
 		}
 		return a.originalIndex - b.originalIndex
 	})
