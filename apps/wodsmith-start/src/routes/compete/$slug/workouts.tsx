@@ -83,11 +83,13 @@ export const Route = createFileRoute("/compete/$slug/workouts")({
 
 function CompetitionWorkoutsPage() {
 	const { workouts, divisions, divisionDescriptionsMap } = Route.useLoaderData()
+	const { slug } = Route.useParams()
 	const search = Route.useSearch()
 	const navigate = useNavigate({ from: Route.fullPath })
-	
+
 	// Default to first division if available and none selected, or "default"
-	const defaultDivisionId = divisions && divisions.length > 0 ? divisions[0].id : "default"
+	const defaultDivisionId =
+		divisions && divisions.length > 0 ? divisions[0].id : "default"
 	const selectedDivisionId = search.division || defaultDivisionId
 
 	const handleDivisionChange = (divisionId: string) => {
@@ -126,7 +128,11 @@ function CompetitionWorkoutsPage() {
 							</span>
 						</h2>
 						<p className="text-sm text-muted-foreground hidden sm:block">
-							Viewing variations for <span className="font-medium text-foreground">{divisions?.find(d => d.id === selectedDivisionId)?.label || "All Divisions"}</span>
+							Viewing variations for{" "}
+							<span className="font-medium text-foreground">
+								{divisions?.find((d) => d.id === selectedDivisionId)?.label ||
+									"All Divisions"}
+							</span>
 						</p>
 					</div>
 
@@ -142,7 +148,11 @@ function CompetitionWorkoutsPage() {
 								</SelectTrigger>
 								<SelectContent>
 									{divisions.map((division) => (
-										<SelectItem key={division.id} value={division.id} className="cursor-pointer">
+										<SelectItem
+											key={division.id}
+											value={division.id}
+											className="cursor-pointer"
+										>
 											{division.label}
 										</SelectItem>
 									))}
@@ -156,10 +166,13 @@ function CompetitionWorkoutsPage() {
 			{/* Workouts List */}
 			<div className="space-y-6 pb-20">
 				{workouts.map((event) => {
-					const divisionDescriptionsResult = divisionDescriptionsMap[event.workoutId]
+					const divisionDescriptionsResult =
+						divisionDescriptionsMap[event.workoutId]
 					return (
 						<CompetitionWorkoutCard
 							key={event.id}
+							eventId={event.id}
+							slug={slug}
 							trackOrder={event.trackOrder}
 							name={event.workout.name}
 							scheme={event.workout.scheme}
@@ -177,7 +190,7 @@ function CompetitionWorkoutsPage() {
 							sponsorName={event.sponsorName}
 							sponsorLogoUrl={event.sponsorLogoUrl}
 							selectedDivisionId={selectedDivisionId}
-                            timeCap={event.workout.timeCap}
+							timeCap={event.workout.timeCap}
 						/>
 					)
 				})}
