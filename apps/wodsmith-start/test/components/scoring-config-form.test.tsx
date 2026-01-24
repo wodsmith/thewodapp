@@ -43,6 +43,7 @@ describe("ScoringConfigForm", () => {
 			expect(screen.getByLabelText(/traditional/i)).toBeInTheDocument()
 			expect(screen.getByLabelText(/winner takes more/i)).toBeInTheDocument()
 			expect(screen.getByLabelText(/p-score/i)).toBeInTheDocument()
+			expect(screen.getByLabelText(/^online$/i)).toBeInTheDocument()
 			// Note: "Custom" is no longer a separate option - it's auto-applied when editing points
 		})
 
@@ -151,6 +152,76 @@ describe("ScoringConfigForm", () => {
 					pScore: expect.objectContaining({ allowNegatives: false }),
 				}),
 			)
+		})
+	})
+
+	describe("Online Algorithm", () => {
+		it("shows online explanation when selected", () => {
+			const config = createDefaultConfig({ algorithm: "online" })
+
+			render(<ScoringConfigForm value={config} onChange={onChange} />)
+
+			// Check for explanatory text about online scoring (use getAllBy since text appears in multiple places)
+			const explanationElements = screen.getAllByText(
+				/points equal finishing position/i,
+			)
+			expect(explanationElements.length).toBeGreaterThan(0)
+
+			const lowestWinsElements = screen.getAllByText(/lowest.*wins/i)
+			expect(lowestWinsElements.length).toBeGreaterThan(0)
+		})
+
+		it("calls onChange when algorithm changes to online", () => {
+			render(
+				<ScoringConfigForm value={createDefaultConfig()} onChange={onChange} />,
+			)
+
+			fireEvent.click(screen.getByLabelText(/^online$/i))
+
+			expect(onChange).toHaveBeenCalledWith(
+				expect.objectContaining({
+					algorithm: "online",
+				}),
+			)
+		})
+
+		it("shows static points preview for online (1, 2, 3...)", () => {
+			const config = createDefaultConfig({ algorithm: "online" })
+
+			render(<ScoringConfigForm value={config} onChange={onChange} />)
+
+			// Online scoring shows rank-based points (1st = 1, 2nd = 2, etc.)
+			expect(screen.getByText("Points Preview")).toBeInTheDocument()
+			// Find the preview cells showing position numbers
+			// The format is: "1." label with "1" value
+			expect(screen.getByText("1.")).toBeInTheDocument()
+			expect(screen.getByText("20.")).toBeInTheDocument()
+			// Verify the explanation about the pattern
+			expect(
+				screen.getByText(/pattern continues: 21st = 21 pts/i),
+			).toBeInTheDocument()
+		})
+
+		it("does not show editable hint for online scoring", () => {
+			const config = createDefaultConfig({ algorithm: "online" })
+
+			render(<ScoringConfigForm value={config} onChange={onChange} />)
+
+			// Online scoring is not customizable, so no "click to customize" hint
+			expect(
+				screen.queryByText(/click any value to customize/i),
+			).not.toBeInTheDocument()
+		})
+
+		it("shows how online scoring works explanation", () => {
+			const config = createDefaultConfig({ algorithm: "online" })
+
+			render(<ScoringConfigForm value={config} onChange={onChange} />)
+
+			// Check the detailed explanation box
+			expect(
+				screen.getByText(/how online scoring works/i),
+			).toBeInTheDocument()
 		})
 	})
 

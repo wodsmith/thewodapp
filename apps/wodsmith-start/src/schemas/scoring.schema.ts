@@ -14,12 +14,14 @@ import { z } from "zod"
  * - traditional: Fixed step points (default: 100, 95, 90...)
  * - p_score: Performance-based scoring (margin of victory)
  * - winner_takes_more: Top positions get disproportionately more points (like CrossFit Games)
+ * - online: Place-based scoring (1st=1pt, 2nd=2pts...) - lowest total wins
  * - custom: User-defined points table with overrides
  */
 export const scoringAlgorithmSchema = z.enum([
 	"traditional",
 	"p_score",
 	"winner_takes_more",
+	"online",
 	"custom",
 ])
 export type ScoringAlgorithm = z.infer<typeof scoringAlgorithmSchema>

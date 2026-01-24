@@ -22,6 +22,7 @@ import type { WorkoutScheme } from "@/lib/scoring/types"
 import { calculatePScore, type PScoreInput } from "./p-score"
 import { calculateTraditionalPoints } from "./traditional"
 import { calculateCustomPoints } from "./custom"
+import { calculateOnlinePoints } from "./online"
 
 // Re-export algorithm implementations
 export { calculatePScore, type PScoreInput, type PScoreResult } from "./p-score"
@@ -31,6 +32,7 @@ export {
 	generatePointsTable,
 	WINNER_TAKES_MORE_TABLE,
 } from "./custom"
+export { calculateOnlinePoints } from "./online"
 
 /**
  * Input for event score calculation
@@ -137,6 +139,8 @@ export function calculateEventPoints(
 			return calculatePScoreEventPoints(scores, scheme, config)
 		case "winner_takes_more":
 			return calculateWinnerTakesMoreEventPoints(scores, scheme, config)
+		case "online":
+			return calculateOnlineEventPoints(scores, scheme, config)
 		case "custom":
 			return calculateCustomEventPoints(scores, scheme, config)
 		default: {
@@ -463,6 +467,93 @@ function calculateCustomEventPoints(
 }
 
 /**
+ * Calculate points using online scoring
+ * Points = rank (1st place = 1 point, 2nd = 2 points, etc.)
+ * Lowest total wins, ideal for online competitions with unknown participant count
+ */
+function calculateOnlineEventPoints(
+	scores: EventScoreInput[],
+	scheme: WorkoutScheme,
+	config: ScoringConfig,
+): Map<string, EventPointsResult> {
+	const isAscending = ASCENDING_SCHEMES.has(scheme)
+
+	// Separate active scores from inactive
+	const activeScores = scores.filter(
+		(s) => s.status === "scored" || s.status === "cap",
+	)
+	const inactiveScores = scores.filter(
+		(s) => s.status === "dnf" || s.status === "dns" || s.status === "withdrawn",
+	)
+
+	// Sort active scores by performance
+	const sortedActive = [...activeScores].sort((a, b) => {
+		// In time-with-cap, capped athletes rank after scored athletes
+		if (scheme === "time-with-cap") {
+			if (a.status === "cap" && b.status !== "cap") return 1
+			if (a.status !== "cap" && b.status === "cap") return -1
+		}
+		return isAscending ? a.value - b.value : b.value - a.value
+	})
+
+	// Assign ranks with tie handling
+	const ranked = assignRanks(sortedActive)
+	const results = new Map<string, EventPointsResult>()
+
+	// Calculate points for active athletes (points = rank)
+	for (const { score, rank } of ranked) {
+		const points = calculateOnlinePoints(rank)
+		results.set(score.userId, {
+			userId: score.userId,
+			points,
+			rank,
+		})
+	}
+
+	// Handle inactive athletes based on config
+	const lastActiveRank = ranked.length > 0 ? ranked[ranked.length - 1].rank : 0
+	for (const score of inactiveScores) {
+		if (
+			score.status !== "dnf" &&
+			score.status !== "dns" &&
+			score.status !== "withdrawn"
+		) {
+			continue
+		}
+		const handling = getStatusHandling(score.status, config)
+		let points: number
+		let rank: number
+
+		switch (handling) {
+			case "last_place":
+			case "worst_performance":
+				// Both get ranked after all active athletes
+				rank = lastActiveRank + 1
+				points = calculateOnlinePoints(rank)
+				break
+			case "zero":
+				// For online scoring, "zero" means worst possible position
+				// Rank and points should stay consistent (points = rank)
+				// Use total participants + 1 as the penalty position
+				rank = scores.length + 1
+				points = calculateOnlinePoints(rank)
+				break
+			case "exclude":
+				// Don't add to results
+				continue
+		}
+
+		results.set(score.userId, {
+			userId: score.userId,
+			points,
+			rank,
+		})
+	}
+
+	return results
+}
+
+/**
  * Assign ranks to sorted scores, handling ties
  */
 function assignRanks(
@@ -528,6 +619,8 @@ export function getScoringAlgorithmName(
 			return "P-Score"
 		case "winner_takes_more":
 			return "Winner Takes More"
+		case "online":
+			return "Online"
 		case "custom":
 			return "Custom"
 	}

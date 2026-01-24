@@ -497,6 +497,7 @@ export async function getCompetitionLeaderboard(params: {
 				),
 			})),
 			config: scoringConfig.tiebreaker,
+			scoringAlgorithm: scoringConfig.algorithm,
 		}
 
 		const rankedAthletes = applyTiebreakers(tiebreakerInput)
