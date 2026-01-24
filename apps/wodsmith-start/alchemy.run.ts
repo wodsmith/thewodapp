@@ -312,13 +312,15 @@ const r2Bucket = await R2Bucket("wodsmith-uploads", {
 	 */
 	cors: [
 		{
-			allowedOrigins: [
-				"https://wodsmith.com",
-				"https://demo.wodsmith.com",
-				"http://localhost:3000",
-			],
-			allowedMethods: ["GET", "HEAD"],
-			allowedHeaders: ["*"],
+			allowed: {
+				origins: [
+					"https://wodsmith.com",
+					"https://demo.wodsmith.com",
+					"http://localhost:3000",
+				],
+				methods: ["GET", "HEAD"],
+				headers: ["*"],
+			},
 			maxAgeSeconds: 3600,
 		},
 	],
