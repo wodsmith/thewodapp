@@ -1,6 +1,5 @@
 import { createFileRoute, notFound, Outlet } from "@tanstack/react-router"
 import { CompetitionHero } from "@/components/competition-hero"
-import { CompetitionTabs } from "@/components/competition-tabs"
 import {
 	checkCanManageCompetitionFn,
 	checkIsVolunteerFn,
@@ -115,11 +114,8 @@ function CompetitionDetailLayout() {
 	const {
 		competition,
 		registrationCount,
-		userRegistration,
 		canManage,
-		registrationStatus,
 	} = Route.useLoaderData()
-	const { slug } = Route.useParams()
 
 	return (
 		<div className="min-h-screen bg-background">
@@ -128,15 +124,6 @@ function CompetitionDetailLayout() {
 				competition={competition}
 				registrationCount={registrationCount}
 				canManage={canManage}
-			/>
-
-			{/* Tabbed Navigation */}
-			<CompetitionTabs
-				slug={slug}
-				isRegistered={!!userRegistration}
-				registrationOpen={registrationStatus.registrationOpen}
-				registrationClosed={registrationStatus.registrationClosed}
-				registrationNotYetOpen={registrationStatus.registrationNotYetOpen}
 			/>
 
 			{/* Content Area */}
