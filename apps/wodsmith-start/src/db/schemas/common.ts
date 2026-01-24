@@ -87,5 +87,8 @@ export const createOrganizerRequestId = () => `oreq_${createId()}`
 export const createCompetitionRegistrationQuestionId = () => `crq_${createId()}`
 export const createCompetitionRegistrationAnswerId = () => `cra_${createId()}`
 
+// Event resource ID generators
+export const createEventResourceId = () => `eres_${createId()}`
+
 // Judging sheet ID generators
 export const createEventJudgingSheetId = () => `ejsheet_${createId()}`

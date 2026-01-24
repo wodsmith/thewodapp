@@ -11,6 +11,7 @@ import {
 	EVENT_DETAILS_FORM_ID,
 	EventDetailsForm,
 } from "@/components/events/event-details-form"
+import { EventResourcesCard } from "@/components/events/event-resources-card"
 import { HeatSchedulePublishingCard } from "@/components/organizer/heat-schedule-publishing-card"
 import { EventJudgingSheets } from "@/components/organizer/event-judging-sheets"
 import { Button } from "@/components/ui/button"
@@ -20,6 +21,7 @@ import {
 	getCompetitionEventFn,
 	getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
+import { getEventResourcesFn } from "@/server-fns/event-resources-fns"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
 import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
 import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
@@ -41,29 +43,41 @@ export const Route = createFileRoute(
 			throw new Error("Competition not found")
 		}
 
-		// Parallel fetch event, divisions, movements, sponsors, and judging sheets
-		const [eventResult, divisionsResult, movementsResult, sponsorsResult, judgingSheetsResult] =
-			await Promise.all([
-				getCompetitionEventFn({
-					data: {
-						trackWorkoutId: params.eventId,
-						teamId: competition.organizingTeamId,
-					},
-				}),
-				getCompetitionDivisionsWithCountsFn({
-					data: {
-						competitionId: params.competitionId,
-						teamId: competition.organizingTeamId,
-					},
-				}),
-				getAllMovementsFn(),
-				getCompetitionSponsorsFn({
-					data: { competitionId: params.competitionId },
-				}),
-				getEventJudgingSheetsFn({
-					data: { trackWorkoutId: params.eventId },
-				}),
-			])
+		// Parallel fetch event, divisions, movements, sponsors, resources, and judging sheets
+		const [
+			eventResult,
+			divisionsResult,
+			movementsResult,
+			sponsorsResult,
+			resourcesResult,
+			judgingSheetsResult,
+		] = await Promise.all([
+			getCompetitionEventFn({
+				data: {
+					trackWorkoutId: params.eventId,
+					teamId: competition.organizingTeamId,
+				},
+			}),
+			getCompetitionDivisionsWithCountsFn({
+				data: {
+					competitionId: params.competitionId,
+					teamId: competition.organizingTeamId,
+				},
+			}),
+			getAllMovementsFn(),
+			getCompetitionSponsorsFn({
+				data: { competitionId: params.competitionId },
+			}),
+			getEventResourcesFn({
+				data: {
+					eventId: params.eventId,
+					teamId: competition.organizingTeamId,
+				},
+			}),
+			getEventJudgingSheetsFn({
+				data: { trackWorkoutId: params.eventId },
+			}),
+		])
 
 		if (!eventResult.event) {
 			throw new Error("Event not found")
@@ -99,14 +113,22 @@ export const Route = createFileRoute(
 			movements: movementsResult.movements,
 			sponsors: allSponsors,
 			divisionDescriptions,
+			resources: resourcesResult.resources,
 			judgingSheets: judgingSheetsResult.sheets,
 		}
 	},
 })
 
 function EventEditPage() {
-	const { event, divisions, movements, sponsors, divisionDescriptions, judgingSheets: initialSheets } =
-		Route.useLoaderData()
+	const {
+		event,
+		divisions,
+		movements,
+		sponsors,
+		divisionDescriptions,
+		resources,
+		judgingSheets: initialSheets,
+	} = Route.useLoaderData()
 	// Get competition from parent layout loader data
 	const { competition } = parentRoute.useLoaderData()
 
@@ -137,6 +159,13 @@ function EventEditPage() {
 				divisionDescriptions={divisionDescriptions}
 				movements={movements}
 				sponsors={sponsors}
+			/>
+
+			{/* Event Resources */}
+			<EventResourcesCard
+				eventId={event.id}
+				teamId={competition.organizingTeamId}
+				initialResources={resources}
 			/>
 
 			{/* Judging Sheets */}

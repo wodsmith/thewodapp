@@ -315,7 +315,7 @@ INSERT OR IGNORE INTO scaling_levels (id, scalingGroupId, label, position, teamS
 -- Competitions - Winter Throwdown 2025
 -- Registration opens 30 days before, closes 7 days before the event
 -- defaultRegistrationFeeCents: 7500 = $75.00
-INSERT OR IGNORE INTO competitions (id, organizingTeamId, competitionTeamId, groupId, slug, name, description, startDate, endDate, registrationOpensAt, registrationClosesAt, settings, defaultRegistrationFeeCents, createdAt, updatedAt, updateCounter) VALUES
+INSERT OR IGNORE INTO competitions (id, organizingTeamId, competitionTeamId, groupId, slug, name, description, startDate, endDate, registrationOpensAt, registrationClosesAt, timezone, settings, defaultRegistrationFeeCents, visibility, status, competitionType, createdAt, updatedAt, updateCounter) VALUES
 ('comp_winter_throwdown_2025',
  'team_cokkpu1klwo0ulfhl1iwzpvnbox1',
  'team_winter_throwdown_2025',
@@ -325,10 +325,14 @@ INSERT OR IGNORE INTO competitions (id, organizingTeamId, competitionTeamId, gro
  'Kick off the new year with CrossFit Box One''s signature winter competition! Four challenging workouts testing your strength, endurance, and mental toughness. Open to all skill levels with RX, RX Male Partner (teams of 2), Scaled, Masters 40+, and Teen divisions.',
  strftime('%Y-%m-%d', datetime('now', '+14 days')),
  strftime('%Y-%m-%d', datetime('now', '+14 days')),
- strftime('%Y-%m-%d', datetime('now', '-30 days')),
+ strftime('%Y-%m-%d', 'now'),
  strftime('%Y-%m-%d', datetime('now', '+7 days')),
+ 'America/Denver',
  '{"divisions": {"scalingGroupId": "sgrp_winter_throwdown_2025"}}',
  7500,
+ 'public',
+ 'published',
+ 'in-person',
  strftime('%s', 'now'),
  strftime('%s', 'now'),
  0);
@@ -367,7 +371,7 @@ INSERT OR IGNORE INTO competition_registrations (id, eventId, userId, teamMember
 -- Creates the track that holds competition events (workouts)
 -- NOTE: Competition events (track_workout) are inserted AFTER workouts table is populated below
 INSERT OR IGNORE INTO programming_track (id, name, description, type, ownerTeamId, scalingGroupId, isPublic, competitionId, createdAt, updatedAt, updateCounter) VALUES
-('track_winter_throwdown_2025', 'Winter Throwdown 2025 - Events', 'Competition events for Winter Throwdown 2025', 'team_owned', 'team_winter_throwdown_2025', 'sgrp_winter_throwdown_2025', 0, 'comp_winter_throwdown_2025', strftime('%s', 'now'), strftime('%s', 'now'), 0);
+('track_winter_throwdown_2025', 'Winter Throwdown 2025 - Events', 'Competition events for Winter Throwdown 2025', 'team_owned', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'sgrp_winter_throwdown_2025', 0, 'comp_winter_throwdown_2025', strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- ============================================
 -- END COMPETITION PLATFORM SEED DATA
