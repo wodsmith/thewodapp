@@ -18,6 +18,7 @@ import {
 	type CompetitionLeaderboardEntry,
 	getCompetitionLeaderboardFn,
 } from "@/server-fns/leaderboard-fns"
+import type { ScoringAlgorithm } from "@/types/scoring"
 
 // Get parent route API to access divisions from loader
 const parentRoute = getRouteApi("/compete/$slug")
@@ -58,6 +59,8 @@ export function LeaderboardPageContent({
 	const [leaderboard, setLeaderboard] = useState<CompetitionLeaderboardEntry[]>(
 		[],
 	)
+	const [scoringAlgorithm, setScoringAlgorithm] =
+		useState<ScoringAlgorithm>("traditional")
 	const [isLoading, setIsLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 
@@ -86,7 +89,8 @@ export function LeaderboardPageContent({
 				})
 
 				if (!cancelled) {
-					setLeaderboard(result)
+					setLeaderboard(result.entries)
+					setScoringAlgorithm(result.scoringAlgorithm)
 				}
 			} catch (err) {
 				if (!cancelled) {
@@ -310,6 +314,7 @@ export function LeaderboardPageContent({
 					leaderboard={leaderboard}
 					events={events}
 					selectedEventId={selectedEventId}
+					scoringAlgorithm={scoringAlgorithm}
 				/>
 			</div>
 		</div>
