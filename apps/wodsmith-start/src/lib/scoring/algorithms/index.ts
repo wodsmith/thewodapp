@@ -532,10 +532,11 @@ function calculateOnlineEventPoints(
 				points = calculateOnlinePoints(rank)
 				break
 			case "zero":
-				// For online scoring, "zero" means last place + 1 (worst possible)
-				// Since lower is better, we use the number of total participants + 1
-				rank = lastActiveRank + 1
-				points = scores.length + 1
+				// For online scoring, "zero" means worst possible position
+				// Rank and points should stay consistent (points = rank)
+				// Use total participants + 1 as the penalty position
+				rank = scores.length + 1
+				points = calculateOnlinePoints(rank)
 				break
 			case "exclude":
 				// Don't add to results

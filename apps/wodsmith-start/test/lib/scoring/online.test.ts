@@ -110,8 +110,8 @@ describe("Online Scoring Algorithm", () => {
 			const results = calculateEventPoints("e1", scoresWithDns, "time", config)
 
 			expect(results.get("a")).toEqual({ userId: "a", points: 1, rank: 1 })
-			// DNS gets penalty: total scores (2) + 1 = 3 points
-			expect(results.get("b")).toEqual({ userId: "b", points: 3, rank: 2 })
+			// DNS gets penalty: rank = total scores (2) + 1 = 3, points = rank = 3
+			expect(results.get("b")).toEqual({ userId: "b", points: 3, rank: 3 })
 		})
 
 		it("excludes withdrawn athletes", () => {

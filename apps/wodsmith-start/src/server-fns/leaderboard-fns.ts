@@ -8,7 +8,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { competitionsTable } from "@/db/schemas/competitions"
@@ -142,7 +142,10 @@ export const getLeaderboardDataFn = createServerFn({ method: "GET" })
 
 		const trackWorkoutsWithWorkouts = track
 			? await db.query.trackWorkoutsTable.findMany({
-					where: eq(trackWorkoutsTable.trackId, track.id),
+					where: and(
+						eq(trackWorkoutsTable.trackId, track.id),
+						eq(trackWorkoutsTable.eventStatus, "published"),
+					),
 					with: {
 						workout: true,
 					},
@@ -154,7 +157,10 @@ export const getLeaderboardDataFn = createServerFn({ method: "GET" })
 		const registrations = await db.query.competitionRegistrationsTable.findMany(
 			{
 				where: data.divisionId
-					? eq(competitionRegistrationsTable.divisionId, data.divisionId)
+					? and(
+							eq(competitionRegistrationsTable.eventId, data.competitionId),
+							eq(competitionRegistrationsTable.divisionId, data.divisionId),
+						)
 					: eq(competitionRegistrationsTable.eventId, data.competitionId),
 				with: {
 					user: true,
