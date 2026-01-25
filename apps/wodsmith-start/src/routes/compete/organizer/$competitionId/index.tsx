@@ -22,16 +22,22 @@ import {
 	getCompetitionByIdFn,
 	getCompetitionRegistrationsFn,
 } from "@/server-fns/competition-detail-fns"
+import { getCompetitionEventsFn } from "@/server-fns/competition-event-fns"
 import { getHeatsForCompetitionFn } from "@/server-fns/competition-heats-fns"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
 import {
 	type AllEventsResultsStatusResponse,
 	getDivisionResultsStatusFn,
 } from "@/server-fns/division-results-fns"
-import { formatUTCDateFull, getLocalDateKey, isSameUTCDay } from "@/utils/date-utils"
+import {
+	formatUTCDateFull,
+	getLocalDateKey,
+	isSameUTCDay,
+} from "@/utils/date-utils"
 import { QuickActionsDivisionResults } from "./-components/quick-actions-division-results"
 import { QuickActionsEvents } from "./-components/quick-actions-events"
 import { QuickActionsHeats } from "./-components/quick-actions-heats"
+import { QuickActionsSubmissionWindows } from "./-components/quick-actions-submission-windows"
 
 // Get parent route API to access its loader data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -49,13 +55,16 @@ export const Route = createFileRoute("/compete/organizer/$competitionId/")({
 			throw new Error("Competition not found")
 		}
 
-		// Parallel fetch: registrations, revenue stats, events, heats, and division results
+		const isOnline = competition.competitionType === "online"
+
+		// Parallel fetch: registrations, revenue stats, events, heats/submission windows, and division results
 		const [
 			registrationsResult,
 			revenueResult,
 			eventsResult,
 			heatsResult,
 			divisionResultsResult,
+			competitionEventsResult,
 		] = await Promise.all([
 			getCompetitionRegistrationsFn({
 				data: { competitionId: params.competitionId },
@@ -69,15 +78,24 @@ export const Route = createFileRoute("/compete/organizer/$competitionId/")({
 					teamId: competition.organizingTeamId,
 				},
 			}),
-			getHeatsForCompetitionFn({
-				data: { competitionId: params.competitionId },
-			}),
+			// Only fetch heats for in-person competitions
+			isOnline
+				? Promise.resolve({ heats: [] })
+				: getHeatsForCompetitionFn({
+						data: { competitionId: params.competitionId },
+					}),
 			getDivisionResultsStatusFn({
 				data: {
 					competitionId: params.competitionId,
 					organizingTeamId: competition.organizingTeamId,
 				},
 			}),
+			// Fetch competition events (submission windows) for online competitions
+			isOnline
+				? getCompetitionEventsFn({
+						data: { competitionId: params.competitionId },
+					})
+				: Promise.resolve({ events: [] }),
 		])
 
 		return {
@@ -88,6 +106,9 @@ export const Route = createFileRoute("/compete/organizer/$competitionId/")({
 			// When called without eventId, the server returns AllEventsResultsStatusResponse
 			divisionResults: divisionResultsResult as AllEventsResultsStatusResponse,
 			organizingTeamId: competition.organizingTeamId,
+			competitionEvents: competitionEventsResult.events,
+			isOnline,
+			timezone: competition.timezone || "America/Denver",
 		}
 	},
 })
@@ -104,6 +125,9 @@ function CompetitionOverviewPage() {
 		heats,
 		divisionResults,
 		organizingTeamId,
+		competitionEvents,
+		isOnline,
+		timezone,
 	} = Route.useLoaderData()
 	// Get competition from parent layout loader data
 	const { competition } = parentRoute.useLoaderData()
@@ -118,7 +142,20 @@ function CompetitionOverviewPage() {
 				const year = Number(yearStr)
 				const month = Number(monthStr)
 				const day = Number(dayStr)
-				const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+				const months = [
+					"January",
+					"February",
+					"March",
+					"April",
+					"May",
+					"June",
+					"July",
+					"August",
+					"September",
+					"October",
+					"November",
+					"December",
+				]
 				return `${months[month - 1]} ${day}, ${year}`
 			}
 		}
@@ -160,12 +197,21 @@ function CompetitionOverviewPage() {
 						/>
 					)}
 
-					{/* Heat Schedules - Full Width */}
-					<QuickActionsHeats
-						events={events}
-						heats={heats}
-						organizingTeamId={organizingTeamId}
-					/>
+					{/* Submission Windows (online) or Heat Schedules (in-person) */}
+					{isOnline ? (
+						<QuickActionsSubmissionWindows
+							competitionId={competition.id}
+							events={events}
+							competitionEvents={competitionEvents}
+							timezone={timezone}
+						/>
+					) : (
+						<QuickActionsHeats
+							events={events}
+							heats={heats}
+							organizingTeamId={organizingTeamId}
+						/>
+					)}
 
 					{/* Events - Full Width */}
 					<QuickActionsEvents

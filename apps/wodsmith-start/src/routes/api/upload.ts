@@ -110,9 +110,7 @@ export const Route = createFileRoute("/api/upload")({
 
 				if (!config.allowedTypes.includes(file.type)) {
 					const allowedTypeNames =
-						purpose === "judging-sheet"
-							? "PDF"
-							: "JPEG, PNG, WebP, GIF"
+						purpose === "judging-sheet" ? "PDF" : "JPEG, PNG, WebP, GIF"
 					return json(
 						{ error: `Invalid file type. Allowed: ${allowedTypeNames}` },
 						{ status: 400 },

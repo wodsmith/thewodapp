@@ -1,5 +1,7 @@
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
+import { PublicSubmissionWindows } from "@/components/public-submission-windows"
 import { SchedulePageContent } from "@/components/schedule-page-content"
+import { getPublicCompetitionEventsFn } from "@/server-fns/competition-event-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { getHeatsForCompetitionFn } from "@/server-fns/competition-heats-fns"
 import { getPublishedCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
@@ -15,10 +17,40 @@ export const Route = createFileRoute("/compete/$slug/schedule")({
 		})
 
 		if (!competition) {
-			return { heats: [], events: [] }
+			return {
+				heats: [],
+				events: [],
+				submissionWindows: [],
+				competitionStarted: false,
+				isOnline: false,
+				timezone: "America/Denver",
+			}
 		}
 
-		// Fetch heats and events for this competition
+		const isOnline = competition.competitionType === "online"
+
+		// For online competitions, fetch submission windows instead of heats
+		if (isOnline) {
+			const [eventsResult, submissionResult] = await Promise.all([
+				getPublishedCompetitionWorkoutsFn({
+					data: { competitionId: competition.id },
+				}),
+				getPublicCompetitionEventsFn({
+					data: { competitionId: competition.id },
+				}),
+			])
+
+			return {
+				heats: [],
+				events: eventsResult.workouts,
+				submissionWindows: submissionResult.events,
+				competitionStarted: submissionResult.competitionStarted,
+				isOnline: true,
+				timezone: competition.timezone ?? "America/Denver",
+			}
+		}
+
+		// For in-person competitions, fetch heats as usual
 		const [heatsResult, eventsResult] = await Promise.all([
 			getHeatsForCompetitionFn({ data: { competitionId: competition.id } }),
 			getPublishedCompetitionWorkoutsFn({
@@ -29,14 +61,38 @@ export const Route = createFileRoute("/compete/$slug/schedule")({
 		return {
 			heats: heatsResult.heats,
 			events: eventsResult.workouts,
+			submissionWindows: [],
+			competitionStarted: false,
+			isOnline: false,
+			timezone: competition.timezone ?? "America/Denver",
 		}
 	},
 })
 
 function CompetitionSchedulePage() {
-	const { heats, events } = Route.useLoaderData()
+	const {
+		heats,
+		events,
+		submissionWindows,
+		competitionStarted,
+		isOnline,
+		timezone,
+	} = Route.useLoaderData()
 	const { session } = parentRoute.useLoaderData()
 
+	// For online competitions, show submission windows
+	if (isOnline) {
+		return (
+			<PublicSubmissionWindows
+				events={events}
+				submissionWindows={submissionWindows}
+				competitionStarted={competitionStarted}
+				timezone={timezone}
+			/>
+		)
+	}
+
+	// For in-person competitions, show heat schedule
 	return (
 		<SchedulePageContent
 			events={events}
