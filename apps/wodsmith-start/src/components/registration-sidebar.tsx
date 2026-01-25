@@ -317,9 +317,10 @@ export function RegistrationSidebar({
 						<div>
 							<p className="font-medium">
 								{formatDateShort(competition.startDate)}
-								{!isSameDateString(competition.startDate, competition.endDate) && (
-									<> - {formatDateShort(competition.endDate)}</>
-								)}
+								{!isSameDateString(
+									competition.startDate,
+									competition.endDate,
+								) && <> - {formatDateShort(competition.endDate)}</>}
 							</p>
 						</div>
 					</div>

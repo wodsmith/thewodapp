@@ -210,12 +210,7 @@ export function FileListItem({
 				</div>
 			</div>
 			<div className="flex items-center gap-2 shrink-0">
-				<Button
-					type="button"
-					variant="outline"
-					size="sm"
-					asChild
-				>
+				<Button type="button" variant="outline" size="sm" asChild>
 					<a href={url} target="_blank" rel="noopener noreferrer">
 						View
 					</a>

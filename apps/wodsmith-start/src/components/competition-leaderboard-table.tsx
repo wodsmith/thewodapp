@@ -316,7 +316,8 @@ function MobileLeaderboardRow({
 												)}
 											</span>
 											<span className="text-xs text-muted-foreground tabular-nums">
-												#{result.rank} {formatPoints(result.points, scoringAlgorithm)}
+												#{result.rank}{" "}
+												{formatPoints(result.points, scoringAlgorithm)}
 											</span>
 										</div>
 									) : (
@@ -504,7 +505,12 @@ export function CompetitionLeaderboardTable({
 					if (!result) {
 						return <span className="text-muted-foreground">-</span>
 					}
-					return <EventResultCell result={result} scoringAlgorithm={scoringAlgorithm} />
+					return (
+						<EventResultCell
+							result={result}
+							scoringAlgorithm={scoringAlgorithm}
+						/>
+					)
 				},
 				sortingFn: "basic",
 			})

@@ -30,10 +30,7 @@ import {
 	createCompetitionFn,
 	updateCompetitionFn,
 } from "@/server-fns/competition-fns"
-import {
-	COMMON_US_TIMEZONES,
-	DEFAULT_TIMEZONE,
-} from "@/utils/timezone-utils"
+import { COMMON_US_TIMEZONES, DEFAULT_TIMEZONE } from "@/utils/timezone-utils"
 
 const formSchema = z
 	.object({
@@ -643,7 +640,9 @@ export function OrganizerCompetitionForm({
  * Format a date for HTML input. Now that dates are stored as YYYY-MM-DD strings,
  * this is just a passthrough for strings. Kept for backwards compatibility with Date objects.
  */
-function formatDateForInput(date: Date | string | number | null | undefined): string {
+function formatDateForInput(
+	date: Date | string | number | null | undefined,
+): string {
 	if (!date) return ""
 	// If already a YYYY-MM-DD string, return as-is
 	if (typeof date === "string") {

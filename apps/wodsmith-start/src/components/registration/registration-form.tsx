@@ -215,7 +215,9 @@ export function RegistrationForm({
 				if (question.required) {
 					const answer = data.answers.find((a) => a.questionId === question.id)
 					if (!answer?.answer?.trim()) {
-						toast.error(`Please answer the required question: ${question.label}`)
+						toast.error(
+							`Please answer the required question: ${question.label}`,
+						)
 						return
 					}
 				}
@@ -344,8 +346,29 @@ export function RegistrationForm({
 				const day = Number(dayStr)
 				// Create Date object in UTC to get weekday
 				const d = new Date(Date.UTC(year, monthNum - 1, day))
-				const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-				const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+				const weekdays = [
+					"Sunday",
+					"Monday",
+					"Tuesday",
+					"Wednesday",
+					"Thursday",
+					"Friday",
+					"Saturday",
+				]
+				const months = [
+					"January",
+					"February",
+					"March",
+					"April",
+					"May",
+					"June",
+					"July",
+					"August",
+					"September",
+					"October",
+					"November",
+					"December",
+				]
 				return `${weekdays[d.getUTCDay()]}, ${months[monthNum - 1]} ${day}, ${year}`
 			}
 			return "TBA"
@@ -477,7 +500,13 @@ export function RegistrationForm({
 															disabled={isFull}
 														>
 															<div className="flex items-center gap-2">
-																<span className={isFull ? "line-through text-muted-foreground" : ""}>
+																<span
+																	className={
+																		isFull
+																			? "line-through text-muted-foreground"
+																			: ""
+																	}
+																>
 																	{level.label}
 																</span>
 																{(level.teamSize ?? 1) > 1 ? (
@@ -499,14 +528,20 @@ export function RegistrationForm({
 																)}
 																{/* Show capacity info */}
 																{isFull ? (
-																	<Badge variant="destructive" className="ml-1 text-xs">
+																	<Badge
+																		variant="destructive"
+																		className="ml-1 text-xs"
+																	>
 																		SOLD OUT
 																	</Badge>
 																) : maxSpots !== null &&
-																  spotsAvailable !== null &&
-																  spotsAvailable !== undefined &&
-																  spotsAvailable <= 5 ? (
-																	<Badge variant="secondary" className="ml-1 text-xs text-amber-600 dark:text-amber-400">
+																	spotsAvailable !== null &&
+																	spotsAvailable !== undefined &&
+																	spotsAvailable <= 5 ? (
+																	<Badge
+																		variant="secondary"
+																		className="ml-1 text-xs text-amber-600 dark:text-amber-400"
+																	>
 																		{spotsAvailable} left
 																	</Badge>
 																) : null}
