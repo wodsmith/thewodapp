@@ -27,6 +27,8 @@ export interface ScoreEntryData {
 	scoreStatus: ScoreStatus
 	tieBreakScore: string | null
 	secondaryScore: string | null
+	/** Video URL for online competition submissions */
+	videoUrl: string | null
 	formattedScore: string
 	/** Parsed numeric value (seconds for time, reps for AMRAP, etc.) */
 	rawValue?: number | null
@@ -48,6 +50,8 @@ export interface ScoreInputSubject {
 		scoreStatus: ScoreStatus | null
 		tieBreakScore: string | null
 		secondaryScore: string | null
+		/** Video URL for online submissions */
+		videoUrl: string | null
 		sets: Array<{
 			setNumber: number
 			score: number | null
@@ -89,6 +93,8 @@ export interface UseScoreRowStateResult {
 	setTieBreakValue: (v: string) => void
 	secondaryValue: string
 	setSecondaryValue: (v: string) => void
+	videoUrlValue: string
+	setVideoUrlValue: (v: string) => void
 	showWarning: boolean
 	setShowWarning: (v: boolean) => void
 	showTieBreakWarning: boolean
@@ -262,6 +268,9 @@ export function useScoreRowState({
 	const [secondaryValue, setSecondaryValue] = useState(
 		value?.secondaryScore || subject.existingResult?.secondaryScore || "",
 	)
+	const [videoUrlValue, setVideoUrlValue] = useState(
+		value?.videoUrl || subject.existingResult?.videoUrl || "",
+	)
 	const [showWarning, setShowWarning] = useState(false)
 	const [showTieBreakWarning, setShowTieBreakWarning] = useState(false)
 	const [parseResult, setParseResult] = useState<ParseResult | null>(() => {
@@ -380,6 +389,7 @@ export function useScoreRowState({
 		const newScoreStatus = parseResult?.scoreStatus || "scored"
 		const newTieBreak = tieBreakValue || null
 		const newSecondary = showSecondaryInput ? secondaryValue || null : null
+		const newVideoUrl = videoUrlValue || null
 
 		if (
 			!isMultiRound &&
@@ -387,7 +397,8 @@ export function useScoreRowState({
 			finalScore === (existing.wodScore || "") &&
 			newScoreStatus === (existing.scoreStatus || "scored") &&
 			newTieBreak === (existing.tieBreakScore || null) &&
-			newSecondary === (existing.secondaryScore || null)
+			newSecondary === (existing.secondaryScore || null) &&
+			newVideoUrl === (existing.videoUrl || null)
 		) {
 			return
 		}
@@ -397,6 +408,7 @@ export function useScoreRowState({
 			scoreStatus: newScoreStatus,
 			tieBreakScore: newTieBreak,
 			secondaryScore: newSecondary,
+			videoUrl: newVideoUrl,
 			formattedScore: parseResult?.formatted || finalScore,
 			rawValue: parseResult?.rawValue,
 			roundScores: isMultiRound
@@ -559,6 +571,8 @@ export function useScoreRowState({
 		setTieBreakValue,
 		secondaryValue,
 		setSecondaryValue,
+		videoUrlValue,
+		setVideoUrlValue,
 		showWarning,
 		setShowWarning,
 		showTieBreakWarning,

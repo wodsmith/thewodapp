@@ -97,6 +97,12 @@ export const scoresTable = sqliteTable(
 
 		// Metadata
 		notes: text("notes"),
+		/** Video URL for online competition submissions (validated YouTube/Vimeo URLs) */
+		videoUrl: text("video_url", { length: 2048 }),
+		/** Video platform extracted from URL (youtube, vimeo) */
+		videoPlatform: text("video_platform", { length: 20 }),
+		/** Video ID extracted from URL for embedding */
+		videoId: text("video_id", { length: 100 }),
 		// When the workout was performed (Unix timestamp ms)
 		recordedAt: integer("recorded_at", { mode: "timestamp" }).notNull(),
 	},

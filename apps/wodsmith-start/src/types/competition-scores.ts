@@ -45,6 +45,12 @@ export interface EventScoreEntryAthlete {
 		scoreStatus: ScoreStatus | null
 		tieBreakScore: string | null
 		secondaryScore: string | null
+		/** Video URL for online submissions */
+		videoUrl: string | null
+		/** Video platform (youtube, vimeo) */
+		videoPlatform: string | null
+		/** Video ID for embedding */
+		videoId: string | null
 		/** Existing sets for multi-round workouts */
 		sets: ExistingSetData[]
 	} | null

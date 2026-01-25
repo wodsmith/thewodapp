@@ -1,10 +1,14 @@
 "use client"
 
-import { AlertTriangle, Check, Loader2 } from "lucide-react"
-import { forwardRef, useImperativeHandle } from "react"
+import { AlertTriangle, Check, Loader2, Video } from "lucide-react"
+import { forwardRef, useImperativeHandle, useState, useCallback } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+	VideoUrlInput,
+	type VideoUrlValidationState,
+} from "@/components/ui/video-url-input"
 import type { ScoreType, TiebreakScheme, WorkoutScheme } from "@/db/schema"
 import { cn } from "@/lib/utils"
 import type { EventScoreEntryAthlete } from "@/types/competition-scores"
@@ -22,6 +26,8 @@ interface ScoreInputRowProps {
 	scoreType?: ScoreType | null
 	tiebreakScheme: TiebreakScheme | null
 	showTiebreak?: boolean
+	/** Show video URL input field (for online competitions) */
+	showVideoUrl?: boolean
 	timeCap?: number
 	/** Number of rounds to score (default 1) */
 	roundsToScore?: number
@@ -49,6 +55,7 @@ export const ScoreInputRow = forwardRef<
 		scoreType: scoreTypeProp,
 		tiebreakScheme,
 		showTiebreak = false,
+		showVideoUrl = false,
 		timeCap,
 		roundsToScore = 1,
 		value,
@@ -72,6 +79,8 @@ export const ScoreInputRow = forwardRef<
 		tieBreakValue,
 		secondaryValue,
 		setSecondaryValue,
+		videoUrlValue,
+		setVideoUrlValue,
 		showWarning,
 		setShowWarning,
 		showTieBreakWarning,
@@ -106,6 +115,17 @@ export const ScoreInputRow = forwardRef<
 		onTabNext,
 	})
 
+	// Track video URL validation state for UI feedback (stored for potential future use)
+	const [_videoValidation, setVideoValidation] =
+		useState<VideoUrlValidationState | null>(null)
+
+	const handleVideoUrlValidationChange = useCallback(
+		(state: VideoUrlValidationState) => {
+			setVideoValidation(state)
+		},
+		[],
+	)
+
 	useImperativeHandle(
 		ref,
 		() => ({
@@ -126,13 +146,25 @@ export const ScoreInputRow = forwardRef<
 	const isInvalidWarning = showWarning
 	const hasWarning = parseResult?.error && parseResult?.isValid
 
+	// Determine grid columns based on what fields are shown
+	const gridColsClass = (() => {
+		if (showTiebreak && showVideoUrl) {
+			return "grid-cols-[60px_1fr_2fr_1fr_1fr_100px]"
+		}
+		if (showTiebreak) {
+			return "grid-cols-[60px_1fr_2fr_1fr_100px]"
+		}
+		if (showVideoUrl) {
+			return "grid-cols-[60px_1fr_2fr_1fr_100px]"
+		}
+		return "grid-cols-[60px_1fr_2fr_100px]"
+	})()
+
 	return (
 		<div
 			className={cn(
 				"grid items-center gap-3 border-b p-3 transition-colors",
-				showTiebreak
-					? "grid-cols-[60px_1fr_2fr_1fr_100px]"
-					: "grid-cols-[60px_1fr_2fr_100px]",
+				gridColsClass,
 				isInvalidWarning &&
 					"bg-yellow-50 dark:bg-yellow-950/20 border-yellow-300",
 				hasWarning &&
@@ -470,6 +502,34 @@ export const ScoreInputRow = forwardRef<
 									</Button>
 								</div>
 							</div>
+						</div>
+					)}
+				</div>
+			)}
+
+			{/* Video URL Input (for online competitions) */}
+			{showVideoUrl && (
+				<div className="space-y-1">
+					<VideoUrlInput
+						value={videoUrlValue}
+						onChange={setVideoUrlValue}
+						onValidationChange={handleVideoUrlValidationChange}
+						showPlatformBadge={true}
+						showPreviewLink={true}
+						debounceMs={300}
+					/>
+					{/* Show existing video indicator */}
+					{athlete.existingResult?.videoUrl && !videoUrlValue && (
+						<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+							<Video className="h-3 w-3" />
+							<span>
+								{athlete.existingResult.videoPlatform === "youtube"
+									? "YouTube"
+									: athlete.existingResult.videoPlatform === "vimeo"
+										? "Vimeo"
+										: "Video"}{" "}
+								submitted
+							</span>
 						</div>
 					)}
 				</div>
