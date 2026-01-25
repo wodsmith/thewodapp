@@ -512,6 +512,11 @@ const website = await TanStackStart("app", {
 		TURNSTILE_SECRET_KEY: alchemy.secret(process.env.TURNSTILE_SECRET_KEY!),
 		RESEND_API_KEY: alchemy.secret(process.env.RESEND_API_KEY!),
 
+		// Cron secret for scheduled job authentication
+		...(process.env.CRON_SECRET && {
+			CRON_SECRET: alchemy.secret(process.env.CRON_SECRET),
+		}),
+
 		// AI configuration (optional - only include if available)
 		...(process.env.OPENAI_API_KEY && {
 			OPENAI_API_KEY: alchemy.secret(process.env.OPENAI_API_KEY),

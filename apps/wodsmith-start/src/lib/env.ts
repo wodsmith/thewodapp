@@ -15,6 +15,7 @@ type ExtendedEnv = typeof env & {
 	TURNSTILE_SECRET_KEY?: string
 	NODE_ENV?: string
 	SITE_URL?: string
+	CRON_SECRET?: string
 }
 
 const extendedEnv = env as ExtendedEnv
@@ -162,4 +163,16 @@ export const getSiteUrl = createServerOnlyFn((): string => {
 		return "http://localhost:3000"
 	}
 	return extendedEnv.SITE_URL || "https://wodsmith.com"
+})
+
+// Cron configuration accessors
+
+/**
+ * Get the cron secret for authenticating scheduled job requests.
+ * This is a server-only function that will throw if called from the client.
+ *
+ * @returns The CRON_SECRET environment variable or undefined if not set
+ */
+export const getCronSecret = createServerOnlyFn((): string | undefined => {
+	return extendedEnv.CRON_SECRET
 })
