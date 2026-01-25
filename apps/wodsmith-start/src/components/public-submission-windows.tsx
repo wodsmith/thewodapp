@@ -108,6 +108,9 @@ export function PublicSubmissionWindows({
 	competitionStarted,
 	timezone,
 }: PublicSubmissionWindowsProps) {
+	// State must be declared before any early returns (React hooks rules)
+	const [selectedTab, setSelectedTab] = useState<string>("all")
+
 	// Build window lookup map
 	const windowMap = new Map(submissionWindows.map((w) => [w.trackWorkoutId, w]))
 
@@ -217,8 +220,6 @@ export function PublicSubmissionWindows({
 			</div>
 		)
 	}
-
-	const [selectedTab, setSelectedTab] = useState<string>("all")
 
 	// Filter groups based on selected tab
 	const scheduledGroups = sortedGroups.filter(
