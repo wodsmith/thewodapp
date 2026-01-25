@@ -13,8 +13,9 @@ import {
 	Trophy,
 } from "lucide-react"
 import { z } from "zod"
-import { CompetitionTabs } from "@/components/competition-tabs"
+import { AthleteScoreSubmission } from "@/components/compete/athlete-score-submission"
 import { VideoSubmissionForm } from "@/components/compete/video-submission-form"
+import { CompetitionTabs } from "@/components/competition-tabs"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -74,16 +75,28 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 		}
 
 		// Fetch event details, divisions, judging sheets, athlete's division, and video submission in parallel
-		const [eventResult, divisionsResult, judgingSheetsResult, athleteDivisionResult, videoSubmissionResult] = await Promise.all([
-			getPublicEventDetailsFn({ data: { eventId, competitionId: competition.id } }),
+		const [
+			eventResult,
+			divisionsResult,
+			judgingSheetsResult,
+			athleteDivisionResult,
+			videoSubmissionResult,
+		] = await Promise.all([
+			getPublicEventDetailsFn({
+				data: { eventId, competitionId: competition.id },
+			}),
 			getPublicCompetitionDivisionsFn({
 				data: { competitionId: competition.id },
 			}),
 			getEventJudgingSheetsFn({ data: { trackWorkoutId: eventId } }),
-			getAthleteRegisteredDivisionFn({ data: { competitionId: competition.id } }),
+			getAthleteRegisteredDivisionFn({
+				data: { competitionId: competition.id },
+			}),
 			// Only fetch video submission for online competitions
 			competition.competitionType === "online"
-				? getVideoSubmissionFn({ data: { trackWorkoutId: eventId, competitionId: competition.id } })
+				? getVideoSubmissionFn({
+						data: { trackWorkoutId: eventId, competitionId: competition.id },
+					})
 				: Promise.resolve(null),
 		])
 
@@ -217,8 +230,7 @@ function EventDetailsPage() {
 		(d) => d.divisionId === selectedDivisionId,
 	)
 	const divisionDescription = selectedDivision?.description?.trim()
-	const displayDescription =
-		divisionDescription || workout.description || null
+	const displayDescription = divisionDescription || workout.description || null
 
 	const eventDate = formatEventDate(competition.startDate, competition.endDate)
 
@@ -255,7 +267,9 @@ function EventDetailsPage() {
 										</span>
 									)}
 								</div>
-								<h1 className="text-2xl font-bold tracking-tight">{workout.name}</h1>
+								<h1 className="text-2xl font-bold tracking-tight">
+									{workout.name}
+								</h1>
 							</div>
 
 							{divisions && divisions.length > 0 && (
@@ -301,6 +315,15 @@ function EventDetailsPage() {
 						competitionId={competition.id}
 						timezone={competition.timezone}
 						initialData={videoSubmission}
+					/>
+				)}
+
+				{/* Score Submission Card (Online Competitions Only) */}
+				{competition.competitionType === "online" && (
+					<AthleteScoreSubmission
+						competitionId={competition.id}
+						trackWorkoutId={event.id}
+						competitionTimezone={competition.timezone}
 					/>
 				)}
 
