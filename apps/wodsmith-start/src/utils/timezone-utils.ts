@@ -63,7 +63,11 @@ export function resolveDisplayTimezone(
  * Check if a date string represents a valid calendar date.
  * Validates month (1-12) and day for the given month/year.
  */
-function isValidCalendarDate(year: number, month: number, day: number): boolean {
+function isValidCalendarDate(
+	year: number,
+	month: number,
+	day: number,
+): boolean {
 	// Month must be 1-12
 	if (month < 1 || month > 12) return false
 	// Day must be at least 1
@@ -73,8 +77,7 @@ function isValidCalendarDate(year: number, month: number, day: number): boolean 
 	const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
 	// Check for leap year (Feb has 29 days)
-	const isLeapYear =
-		(year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+	const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
 	if (isLeapYear && month === 2) {
 		return day <= 29
 	}

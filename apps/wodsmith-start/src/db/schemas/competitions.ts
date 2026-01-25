@@ -320,9 +320,7 @@ export const competitionRegistrationQuestionsTable = sqliteTable(
 			.notNull()
 			.references(() => competitionsTable.id, { onDelete: "cascade" }),
 		// Question type: text (free form), select (dropdown), number
-		type: text({ length: 20 })
-			.$type<"text" | "select" | "number">()
-			.notNull(),
+		type: text({ length: 20 }).$type<"text" | "select" | "number">().notNull(),
 		// Question label shown to athletes
 		label: text({ length: 500 }).notNull(),
 		// Optional help text / description
@@ -338,7 +336,10 @@ export const competitionRegistrationQuestionsTable = sqliteTable(
 	},
 	(table) => [
 		index("comp_reg_questions_competition_idx").on(table.competitionId),
-		index("comp_reg_questions_sort_idx").on(table.competitionId, table.sortOrder),
+		index("comp_reg_questions_sort_idx").on(
+			table.competitionId,
+			table.sortOrder,
+		),
 	],
 )
 
@@ -354,11 +355,15 @@ export const competitionRegistrationAnswersTable = sqliteTable(
 			.notNull(),
 		questionId: text()
 			.notNull()
-			.references(() => competitionRegistrationQuestionsTable.id, { onDelete: "cascade" }),
+			.references(() => competitionRegistrationQuestionsTable.id, {
+				onDelete: "cascade",
+			}),
 		// The registration this answer belongs to
 		registrationId: text()
 			.notNull()
-			.references(() => competitionRegistrationsTable.id, { onDelete: "cascade" }),
+			.references(() => competitionRegistrationsTable.id, {
+				onDelete: "cascade",
+			}),
 		// The user who answered (useful for team registrations where teammates answer separately)
 		userId: text()
 			.notNull()
