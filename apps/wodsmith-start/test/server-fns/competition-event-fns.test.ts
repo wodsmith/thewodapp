@@ -32,7 +32,7 @@ vi.mock("@/utils/auth", () => ({
 vi.mock("@tanstack/react-start", () => ({
 	createServerFn: () => {
 		return {
-			validator: (validatorFn: (data: unknown) => unknown) => ({
+			inputValidator: (validatorFn: (data: unknown) => unknown) => ({
 				handler: (fn: (ctx: { data: unknown }) => Promise<unknown>) => {
 					return async (ctx: { data: unknown }) => {
 						const validatedData = validatorFn(ctx.data)
