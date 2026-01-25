@@ -14,7 +14,10 @@ import {
 	eventResourcesTable,
 	type EventResource,
 } from "@/db/schemas/event-resources"
-import { programmingTracksTable, trackWorkoutsTable } from "@/db/schemas/programming"
+import {
+	programmingTracksTable,
+	trackWorkoutsTable,
+} from "@/db/schemas/programming"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk } from "@/utils/batch-query"
@@ -37,7 +40,12 @@ const createEventResourceInputSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
 	title: z.string().min(1, "Title is required").max(255),
 	description: z.string().max(5000).optional(),
-	url: z.string().url("Must be a valid URL").max(2048).optional().or(z.literal("")),
+	url: z
+		.string()
+		.url("Must be a valid URL")
+		.max(2048)
+		.optional()
+		.or(z.literal("")),
 	sortOrder: z.number().int().min(1).optional(),
 })
 
@@ -46,7 +54,13 @@ const updateEventResourceInputSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
 	title: z.string().min(1, "Title is required").max(255).optional(),
 	description: z.string().max(5000).nullable().optional(),
-	url: z.string().url("Must be a valid URL").max(2048).nullable().optional().or(z.literal("")),
+	url: z
+		.string()
+		.url("Must be a valid URL")
+		.max(2048)
+		.nullable()
+		.optional()
+		.or(z.literal("")),
 	sortOrder: z.number().int().min(1).optional(),
 })
 
@@ -322,9 +336,7 @@ export const getEventResourcesBatchFn = createServerFn({ method: "GET" })
  * Create a new event resource
  */
 export const createEventResourceFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) =>
-		createEventResourceInputSchema.parse(data),
-	)
+	.inputValidator((data: unknown) => createEventResourceInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		// Verify authentication
 		const session = await getSessionFromCookie()
@@ -350,7 +362,8 @@ export const createEventResourceFn = createServerFn({ method: "POST" })
 		const db = getDb()
 
 		// Get next sort order if not provided
-		const sortOrder = data.sortOrder ?? (await getNextResourceSortOrder(data.eventId))
+		const sortOrder =
+			data.sortOrder ?? (await getNextResourceSortOrder(data.eventId))
 
 		// Normalize empty string URL to null
 		const url = data.url === "" ? null : data.url
@@ -378,9 +391,7 @@ export const createEventResourceFn = createServerFn({ method: "POST" })
  * Update an existing event resource
  */
 export const updateEventResourceFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) =>
-		updateEventResourceInputSchema.parse(data),
-	)
+	.inputValidator((data: unknown) => updateEventResourceInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		// Verify authentication
 		const session = await getSessionFromCookie()
@@ -442,9 +453,7 @@ export const updateEventResourceFn = createServerFn({ method: "POST" })
  * Delete an event resource
  */
 export const deleteEventResourceFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) =>
-		deleteEventResourceInputSchema.parse(data),
-	)
+	.inputValidator((data: unknown) => deleteEventResourceInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		// Verify authentication
 		const session = await getSessionFromCookie()

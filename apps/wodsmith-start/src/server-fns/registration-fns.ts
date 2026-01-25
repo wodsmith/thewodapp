@@ -716,9 +716,11 @@ export const updateRegistrationAffiliateFn = createServerFn({ method: "POST" })
 		const db = getDb()
 
 		// Get the registration
-		const registration = await db.query.competitionRegistrationsTable.findFirst({
-			where: eq(competitionRegistrationsTable.id, input.registrationId),
-		})
+		const registration = await db.query.competitionRegistrationsTable.findFirst(
+			{
+				where: eq(competitionRegistrationsTable.id, input.registrationId),
+			},
+		)
 
 		if (!registration) {
 			throw new Error("Registration not found")
@@ -986,28 +988,30 @@ export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
 		const { competitionDivisionsTable } = await import("@/db/schema")
 
 		// Get registration with all related data
-		const registration = await db.query.competitionRegistrationsTable.findFirst({
-			where: eq(competitionRegistrationsTable.id, data.registrationId),
-			with: {
-				competition: {
-					columns: {
-						id: true,
-						name: true,
-						slug: true,
-						startDate: true,
-						endDate: true,
-						profileImageUrl: true,
+		const registration = await db.query.competitionRegistrationsTable.findFirst(
+			{
+				where: eq(competitionRegistrationsTable.id, data.registrationId),
+				with: {
+					competition: {
+						columns: {
+							id: true,
+							name: true,
+							slug: true,
+							startDate: true,
+							endDate: true,
+							profileImageUrl: true,
+						},
 					},
-				},
-				division: {
-					columns: {
-						id: true,
-						label: true,
-						teamSize: true,
+					division: {
+						columns: {
+							id: true,
+							label: true,
+							teamSize: true,
+						},
 					},
 				},
 			},
-		})
+		)
 
 		if (!registration) {
 			return null
@@ -1048,12 +1052,14 @@ export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
 		let divisionFeeCents: number | null = null
 
 		if (competition?.id && division?.id) {
-			const divisionConfig = await db.query.competitionDivisionsTable.findFirst({
-				where: and(
-					eq(competitionDivisionsTable.competitionId, competition.id),
-					eq(competitionDivisionsTable.divisionId, division.id),
-				),
-			})
+			const divisionConfig = await db.query.competitionDivisionsTable.findFirst(
+				{
+					where: and(
+						eq(competitionDivisionsTable.competitionId, competition.id),
+						eq(competitionDivisionsTable.divisionId, division.id),
+					),
+				},
+			)
 			if (divisionConfig) {
 				divisionDescription = divisionConfig.description
 				divisionFeeCents = divisionConfig.feeCents
