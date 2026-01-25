@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 import { z } from "zod"
 import { CompetitionTabs } from "@/components/competition-tabs"
+import { VideoSubmissionForm } from "@/components/compete/video-submission-form"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -32,6 +33,7 @@ import {
 	getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
 import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
+import { getVideoSubmissionFn } from "@/server-fns/video-submission-fns"
 import { getSessionFromCookie } from "@/utils/auth"
 
 const eventSearchSchema = z.object({
@@ -71,14 +73,18 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 			throw notFound()
 		}
 
-		// Fetch event details, divisions, judging sheets, and athlete's division in parallel
-		const [eventResult, divisionsResult, judgingSheetsResult, athleteDivisionResult] = await Promise.all([
+		// Fetch event details, divisions, judging sheets, athlete's division, and video submission in parallel
+		const [eventResult, divisionsResult, judgingSheetsResult, athleteDivisionResult, videoSubmissionResult] = await Promise.all([
 			getPublicEventDetailsFn({ data: { eventId, competitionId: competition.id } }),
 			getPublicCompetitionDivisionsFn({
 				data: { competitionId: competition.id },
 			}),
 			getEventJudgingSheetsFn({ data: { trackWorkoutId: eventId } }),
 			getAthleteRegisteredDivisionFn({ data: { competitionId: competition.id } }),
+			// Only fetch video submission for online competitions
+			competition.competitionType === "online"
+				? getVideoSubmissionFn({ data: { trackWorkoutId: eventId, competitionId: competition.id } })
+				: Promise.resolve(null),
 		])
 
 		if (!eventResult.event) {
@@ -114,6 +120,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 			divisionDescriptions,
 			divisions,
 			athleteRegisteredDivisionId: athleteDivisionResult.divisionId,
+			videoSubmission: videoSubmissionResult,
 		}
 	},
 })
@@ -183,6 +190,7 @@ function EventDetailsPage() {
 		divisionDescriptions,
 		divisions,
 		athleteRegisteredDivisionId,
+		videoSubmission,
 	} = Route.useLoaderData()
 	const { slug } = Route.useParams()
 	const search = Route.useSearch()
@@ -286,6 +294,16 @@ function EventDetailsPage() {
 
 			{/* Sidebar */}
 			<aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+				{/* Video Submission Card - Only for online competitions */}
+				{competition.competitionType === "online" && videoSubmission && (
+					<VideoSubmissionForm
+						trackWorkoutId={event.id}
+						competitionId={competition.id}
+						timezone={competition.timezone}
+						initialData={videoSubmission}
+					/>
+				)}
+
 				{/* Event Info Card - Metadata */}
 				<Card>
 					<CardContent className="pt-6 space-y-4">
