@@ -3,7 +3,6 @@ import { createServerFn } from "@tanstack/react-start"
 import { Dumbbell, Filter } from "lucide-react"
 import { z } from "zod"
 import { CompetitionTabs } from "@/components/competition-tabs"
-import { RegistrationSidebar } from "@/components/registration-sidebar"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
 	Select,
@@ -124,22 +123,10 @@ function CompetitionWorkoutsPage() {
 		divisionDescriptionsMap,
 		athleteRegisteredDivisionId,
 	} = Route.useLoaderData()
-	const {
-		competition,
-		registrationCount,
-		userRegistration,
-		isVolunteer,
-		registrationStatus,
-		session,
-		userDivision,
-		maxSpots,
-	} = parentRoute.useLoaderData()
+	const { competition } = parentRoute.useLoaderData()
 	const { slug } = Route.useParams()
 	const search = Route.useSearch()
 	const navigate = useNavigate({ from: Route.fullPath })
-
-	const isRegistered = !!userRegistration
-	const isTeamRegistration = (userDivision?.teamSize ?? 1) > 1
 
 	// Default to athlete's registered division if logged in, otherwise first division
 	const defaultDivisionId =
@@ -156,132 +143,100 @@ function CompetitionWorkoutsPage() {
 
 	if (workouts.length === 0) {
 		return (
-			<div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-				<div className="space-y-4">
-					<div className="sticky top-4 z-10">
-						<CompetitionTabs slug={competition.slug} />
-					</div>
-					<div className="rounded-2xl border border-black/10 bg-black/5 p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
-						<div className="space-y-8">
-							<h2 className="text-3xl font-bold tracking-tight">Workouts</h2>
-							<Alert variant="default" className="border-dashed">
-								<Dumbbell className="h-4 w-4" />
-								<AlertTitle>Workouts not yet released</AlertTitle>
-								<AlertDescription>
-									Competition workouts will be announced closer to the event. Check
-									back soon or follow the event organizer for updates.
-								</AlertDescription>
-							</Alert>
-						</div>
-					</div>
-				</div>
-				<aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
-					<RegistrationSidebar
-						competition={competition}
-						isRegistered={isRegistered}
-						registrationOpen={registrationStatus.registrationOpen}
-						registrationCount={registrationCount}
-						maxSpots={maxSpots}
-						userDivision={userDivision?.label}
-						registrationId={userRegistration?.id}
-						isTeamRegistration={isTeamRegistration}
-						isCaptain={userRegistration?.userId === session?.userId}
-						isVolunteer={isVolunteer}
-					/>
-				</aside>
-			</div>
-		)
-	}
-
-	return (
-		<div className="grid gap-6 lg:grid-cols-[1fr_320px]">
 			<div className="space-y-4">
 				<div className="sticky top-4 z-10">
 					<CompetitionTabs slug={competition.slug} />
 				</div>
 				<div className="rounded-2xl border border-black/10 bg-black/5 p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
 					<div className="space-y-8">
-						{/* Header with Division Switcher */}
-						<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-							<div>
-								<h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-									Workouts
-									<span className="inline-flex items-center justify-center rounded-full bg-muted px-2.5 py-0.5 text-sm font-medium text-muted-foreground">
-										{workouts.length}
-									</span>
-								</h2>
-								<p className="text-sm text-muted-foreground hidden sm:block">
-									Viewing variations for <span className="font-medium text-foreground">{divisions?.find(d => d.id === selectedDivisionId)?.label || "All Divisions"}</span>
-								</p>
-							</div>
-
-							{divisions && divisions.length > 0 && (
-								<div className="flex items-center gap-2">
-									<Filter className="h-4 w-4 text-muted-foreground hidden sm:block" />
-									<Select
-										value={selectedDivisionId}
-										onValueChange={handleDivisionChange}
-									>
-										<SelectTrigger className="w-full sm:w-[240px] h-10 font-medium">
-											<SelectValue placeholder="Select Division" />
-										</SelectTrigger>
-										<SelectContent>
-											{divisions.map((division) => (
-												<SelectItem key={division.id} value={division.id} className="cursor-pointer">
-													{division.label}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
-							)}
-						</div>
-
-						{/* Workouts List */}
-						<div className="space-y-6">
-							{workouts.map((event) => {
-								const divisionDescriptionsResult = divisionDescriptionsMap[event.workoutId]
-								return (
-									<CompetitionWorkoutCard
-										key={event.id}
-										eventId={event.id}
-										slug={slug}
-										trackOrder={event.trackOrder}
-										name={event.workout.name}
-										scheme={event.workout.scheme}
-										description={event.workout.description}
-										roundsToScore={event.workout.roundsToScore}
-										pointsMultiplier={event.pointsMultiplier}
-										movements={event.workout.movements}
-										tags={event.workout.tags}
-										divisionDescriptions={
-											divisionDescriptionsResult?.descriptions ?? []
-										}
-										sponsorName={event.sponsorName}
-										sponsorLogoUrl={event.sponsorLogoUrl}
-										selectedDivisionId={selectedDivisionId}
-										timeCap={event.workout.timeCap}
-									/>
-								)
-							})}
-						</div>
+						<h2 className="text-3xl font-bold tracking-tight">Workouts</h2>
+						<Alert variant="default" className="border-dashed">
+							<Dumbbell className="h-4 w-4" />
+							<AlertTitle>Workouts not yet released</AlertTitle>
+							<AlertDescription>
+								Competition workouts will be announced closer to the event. Check
+								back soon or follow the event organizer for updates.
+							</AlertDescription>
+						</Alert>
 					</div>
 				</div>
 			</div>
-			<aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
-				<RegistrationSidebar
-					competition={competition}
-					isRegistered={isRegistered}
-					registrationOpen={registrationStatus.registrationOpen}
-					registrationCount={registrationCount}
-					maxSpots={maxSpots}
-					userDivision={userDivision?.label}
-					registrationId={userRegistration?.id}
-					isTeamRegistration={isTeamRegistration}
-					isCaptain={userRegistration?.userId === session?.userId}
-					isVolunteer={isVolunteer}
-				/>
-			</aside>
+		)
+	}
+
+	return (
+		<div className="space-y-4">
+			<div className="sticky top-4 z-10">
+				<CompetitionTabs slug={competition.slug} />
+			</div>
+			<div className="rounded-2xl border border-black/10 bg-black/5 p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
+				<div className="space-y-8">
+					{/* Header with Division Switcher */}
+					<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+						<div>
+							<h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+								Workouts
+								<span className="inline-flex items-center justify-center rounded-full bg-muted px-2.5 py-0.5 text-sm font-medium text-muted-foreground">
+									{workouts.length}
+								</span>
+							</h2>
+							<p className="text-sm text-muted-foreground hidden sm:block">
+								Viewing variations for <span className="font-medium text-foreground">{divisions?.find(d => d.id === selectedDivisionId)?.label || "All Divisions"}</span>
+							</p>
+						</div>
+
+						{divisions && divisions.length > 0 && (
+							<div className="flex items-center gap-2">
+								<Filter className="h-4 w-4 text-muted-foreground hidden sm:block" />
+								<Select
+									value={selectedDivisionId}
+									onValueChange={handleDivisionChange}
+								>
+									<SelectTrigger className="w-full sm:w-[240px] h-10 font-medium">
+										<SelectValue placeholder="Select Division" />
+									</SelectTrigger>
+									<SelectContent>
+										{divisions.map((division) => (
+											<SelectItem key={division.id} value={division.id} className="cursor-pointer">
+												{division.label}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+						)}
+					</div>
+
+					{/* Workouts List */}
+					<div className="space-y-6">
+						{workouts.map((event) => {
+							const divisionDescriptionsResult = divisionDescriptionsMap[event.workoutId]
+							return (
+								<CompetitionWorkoutCard
+									key={event.id}
+									eventId={event.id}
+									slug={slug}
+									trackOrder={event.trackOrder}
+									name={event.workout.name}
+									scheme={event.workout.scheme}
+									description={event.workout.description}
+									roundsToScore={event.workout.roundsToScore}
+									pointsMultiplier={event.pointsMultiplier}
+									movements={event.workout.movements}
+									tags={event.workout.tags}
+									divisionDescriptions={
+										divisionDescriptionsResult?.descriptions ?? []
+									}
+									sponsorName={event.sponsorName}
+									sponsorLogoUrl={event.sponsorLogoUrl}
+									selectedDivisionId={selectedDivisionId}
+									timeCap={event.workout.timeCap}
+								/>
+							)
+						})}
+					</div>
+				</div>
+			</div>
 		</div>
 	)
 }
