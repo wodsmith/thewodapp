@@ -63,7 +63,8 @@ interface RegistrationAnswersFormProps {
 
 // Build dynamic form schema based on questions
 const buildFormSchema = (questions: RegistrationQuestion[]) => {
-	const schemaFields: Record<string, z.ZodString | z.ZodOptional<z.ZodString>> = {}
+	const schemaFields: Record<string, z.ZodString | z.ZodOptional<z.ZodString>> =
+		{}
 
 	for (const question of questions) {
 		const fieldSchema = question.required
@@ -101,7 +102,10 @@ export function RegistrationAnswersForm({
 	}, [questions, isCaptain])
 
 	// Build form schema
-	const formSchema = useMemo(() => buildFormSchema(userQuestions), [userQuestions])
+	const formSchema = useMemo(
+		() => buildFormSchema(userQuestions),
+		[userQuestions],
+	)
 	type FormValues = z.infer<typeof formSchema>
 
 	// Initialize form
@@ -188,7 +192,9 @@ export function RegistrationAnswersForm({
 													{...field}
 													disabled={!isEditable}
 													placeholder={
-														isEditable ? "Enter your answer" : "No answer provided"
+														isEditable
+															? "Enter your answer"
+															: "No answer provided"
 													}
 												/>
 											) : question.type === "number" ? (

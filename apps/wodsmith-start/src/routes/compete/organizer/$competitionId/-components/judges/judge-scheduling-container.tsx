@@ -45,6 +45,7 @@ interface EventDefaults {
 interface JudgeSchedulingContainerProps {
 	competitionId: string
 	organizingTeamId: string
+	competitionType: "in-person" | "online"
 	events: CompetitionWorkout[]
 	heats: HeatWithAssignments[]
 	judges: JudgeVolunteerInfo[]
@@ -69,6 +70,7 @@ interface JudgeSchedulingContainerProps {
 export function JudgeSchedulingContainer({
 	competitionId,
 	organizingTeamId,
+	competitionType,
 	events,
 	heats,
 	judges,
@@ -80,6 +82,7 @@ export function JudgeSchedulingContainer({
 	competitionDefaultHeats,
 	competitionDefaultPattern,
 }: JudgeSchedulingContainerProps) {
+	const isOnline = competitionType === "online"
 	const [selectedEventId, setSelectedEventId] = useState<string>(
 		events[0]?.id ?? "",
 	)
@@ -390,7 +393,8 @@ export function JudgeSchedulingContainer({
 				</Select>
 			</div>
 
-			{/* Published Assignments Section */}
+			{/* Published Assignments Section - Only for in-person competitions */}
+			{!isOnline && (
 			<section className="space-y-6">
 				<h3 className="text-lg font-semibold">Published Assignments</h3>
 
@@ -554,8 +558,10 @@ export function JudgeSchedulingContainer({
 					</>
 				)}
 			</section>
+			)}
 
-			{/* Rotations Section */}
+			{/* Rotations Section - Only for in-person competitions */}
+			{!isOnline && (
 			<section className="space-y-6">
 				<h3 className="text-lg font-semibold">Rotations</h3>
 
@@ -622,6 +628,7 @@ export function JudgeSchedulingContainer({
 					</Card>
 				)}
 			</section>
+			)}
 		</section>
 	)
 }

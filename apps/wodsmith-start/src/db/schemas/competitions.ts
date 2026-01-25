@@ -9,6 +9,7 @@ import {
 } from "drizzle-orm/sqlite-core"
 import {
 	commonColumns,
+	createCompetitionEventId,
 	createCompetitionGroupId,
 	createCompetitionHeatAssignmentId,
 	createCompetitionHeatId,
@@ -319,9 +320,7 @@ export const competitionRegistrationQuestionsTable = sqliteTable(
 			.notNull()
 			.references(() => competitionsTable.id, { onDelete: "cascade" }),
 		// Question type: text (free form), select (dropdown), number
-		type: text({ length: 20 })
-			.$type<"text" | "select" | "number">()
-			.notNull(),
+		type: text({ length: 20 }).$type<"text" | "select" | "number">().notNull(),
 		// Question label shown to athletes
 		label: text({ length: 500 }).notNull(),
 		// Optional help text / description
@@ -337,7 +336,10 @@ export const competitionRegistrationQuestionsTable = sqliteTable(
 	},
 	(table) => [
 		index("comp_reg_questions_competition_idx").on(table.competitionId),
-		index("comp_reg_questions_sort_idx").on(table.competitionId, table.sortOrder),
+		index("comp_reg_questions_sort_idx").on(
+			table.competitionId,
+			table.sortOrder,
+		),
 	],
 )
 
@@ -353,11 +355,15 @@ export const competitionRegistrationAnswersTable = sqliteTable(
 			.notNull(),
 		questionId: text()
 			.notNull()
-			.references(() => competitionRegistrationQuestionsTable.id, { onDelete: "cascade" }),
+			.references(() => competitionRegistrationQuestionsTable.id, {
+				onDelete: "cascade",
+			}),
 		// The registration this answer belongs to
 		registrationId: text()
 			.notNull()
-			.references(() => competitionRegistrationsTable.id, { onDelete: "cascade" }),
+			.references(() => competitionRegistrationsTable.id, {
+				onDelete: "cascade",
+			}),
 		// The user who answered (useful for team registrations where teammates answer separately)
 		userId: text()
 			.notNull()
@@ -378,7 +384,39 @@ export const competitionRegistrationAnswersTable = sqliteTable(
 	],
 )
 
+// Competition Events Table
+// Per-event settings for online competitions (submission windows, etc.)
+export const competitionEventsTable = sqliteTable(
+	"competition_events",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => createCompetitionEventId())
+			.notNull(),
+		competitionId: text()
+			.notNull()
+			.references(() => competitionsTable.id, { onDelete: "cascade" }),
+		// References track_workout (competition event/workout)
+		trackWorkoutId: text().notNull(),
+		// Submission window for online competitions (ISO 8601 datetime strings)
+		// Athletes can only submit scores within this window
+		submissionOpensAt: text(),
+		submissionClosesAt: text(),
+	},
+	(table) => [
+		index("competition_events_competition_idx").on(table.competitionId),
+		index("competition_events_workout_idx").on(table.trackWorkoutId),
+		// One event config per workout per competition
+		uniqueIndex("competition_events_comp_workout_idx").on(
+			table.competitionId,
+			table.trackWorkoutId,
+		),
+	],
+)
+
 // Type exports
+export type CompetitionEvent = InferSelectModel<typeof competitionEventsTable>
 export type CompetitionGroup = InferSelectModel<typeof competitionGroupsTable>
 export type Competition = InferSelectModel<typeof competitionsTable>
 export type CompetitionRegistration = InferSelectModel<
@@ -457,6 +495,8 @@ export const competitionsRelations = relations(
 		programmingTrack: many(programmingTracksTable),
 		// Registration questions
 		registrationQuestions: many(competitionRegistrationQuestionsTable),
+		// Per-event settings (submission windows for online competitions)
+		events: many(competitionEventsTable),
 	}),
 )
 
@@ -578,6 +618,17 @@ export const competitionRegistrationAnswersRelations = relations(
 		user: one(userTable, {
 			fields: [competitionRegistrationAnswersTable.userId],
 			references: [userTable.id],
+		}),
+	}),
+)
+
+// Competition events relations
+export const competitionEventsRelations = relations(
+	competitionEventsTable,
+	({ one }) => ({
+		competition: one(competitionsTable, {
+			fields: [competitionEventsTable.competitionId],
+			references: [competitionsTable.id],
 		}),
 	}),
 )

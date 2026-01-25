@@ -235,7 +235,9 @@ export const getWaiverSignaturesForUserFn = createServerFn({ method: "GET" })
  * Returns signatures grouped by waiverId and userId for easy lookup
  * Requires MANAGE_PROGRAMMING permission
  */
-export const getCompetitionWaiverSignaturesFn = createServerFn({ method: "GET" })
+export const getCompetitionWaiverSignaturesFn = createServerFn({
+	method: "GET",
+})
 	.inputValidator((data: unknown) =>
 		z
 			.object({

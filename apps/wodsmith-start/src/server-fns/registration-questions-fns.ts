@@ -196,7 +196,10 @@ export const createQuestionFn = createServerFn({ method: "POST" })
 			throw new Error("Not authenticated")
 		}
 
-		await requireTeamPermission(data.teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
 
 		// Verify competition exists and belongs to team
 		const [competition] = await db
@@ -213,7 +216,10 @@ export const createQuestionFn = createServerFn({ method: "POST" })
 		}
 
 		// Validate select type has options
-		if (data.type === "select" && (!data.options || data.options.length === 0)) {
+		if (
+			data.type === "select" &&
+			(!data.options || data.options.length === 0)
+		) {
 			throw new Error("Select questions must have at least one option")
 		}
 
@@ -228,7 +234,10 @@ export const createQuestionFn = createServerFn({ method: "POST" })
 				),
 			)
 
-		const maxSortOrder = Math.max(0, ...existingQuestions.map((q) => q.sortOrder))
+		const maxSortOrder = Math.max(
+			0,
+			...existingQuestions.map((q) => q.sortOrder),
+		)
 
 		const [created] = await db
 			.insert(competitionRegistrationQuestionsTable)
@@ -266,7 +275,10 @@ export const updateQuestionFn = createServerFn({ method: "POST" })
 			throw new Error("Not authenticated")
 		}
 
-		await requireTeamPermission(data.teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
 
 		// Get question and verify ownership
 		const [question] = await db
@@ -290,22 +302,27 @@ export const updateQuestionFn = createServerFn({ method: "POST" })
 
 		// Validate select type has options
 		const newType = data.type ?? question.type
-		const newOptions = data.options !== undefined ? data.options : parseOptions(question.options)
+		const newOptions =
+			data.options !== undefined ? data.options : parseOptions(question.options)
 		if (newType === "select" && (!newOptions || newOptions.length === 0)) {
 			throw new Error("Select questions must have at least one option")
 		}
 
 		// Build update object
-		const updateData: Partial<typeof competitionRegistrationQuestionsTable.$inferInsert> = {
+		const updateData: Partial<
+			typeof competitionRegistrationQuestionsTable.$inferInsert
+		> = {
 			updatedAt: new Date(),
 		}
 
 		if (data.type !== undefined) updateData.type = data.type
 		if (data.label !== undefined) updateData.label = data.label
 		if (data.helpText !== undefined) updateData.helpText = data.helpText
-		if (data.options !== undefined) updateData.options = stringifyOptions(data.options)
+		if (data.options !== undefined)
+			updateData.options = stringifyOptions(data.options)
 		if (data.required !== undefined) updateData.required = data.required
-		if (data.forTeammates !== undefined) updateData.forTeammates = data.forTeammates
+		if (data.forTeammates !== undefined)
+			updateData.forTeammates = data.forTeammates
 
 		const [updated] = await db
 			.update(competitionRegistrationQuestionsTable)
@@ -336,7 +353,10 @@ export const deleteQuestionFn = createServerFn({ method: "POST" })
 			throw new Error("Not authenticated")
 		}
 
-		await requireTeamPermission(data.teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
 
 		// Get question and verify ownership
 		const [question] = await db
@@ -381,7 +401,10 @@ export const reorderQuestionsFn = createServerFn({ method: "POST" })
 			throw new Error("Not authenticated")
 		}
 
-		await requireTeamPermission(data.teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
 
 		// Verify competition belongs to team
 		const [competition] = await db
@@ -433,10 +456,16 @@ export const getRegistrationAnswersFn = createServerFn({ method: "GET" })
 
 		const whereClause = data.userId
 			? and(
-					eq(competitionRegistrationAnswersTable.registrationId, data.registrationId),
+					eq(
+						competitionRegistrationAnswersTable.registrationId,
+						data.registrationId,
+					),
 					eq(competitionRegistrationAnswersTable.userId, data.userId),
 				)
-			: eq(competitionRegistrationAnswersTable.registrationId, data.registrationId)
+			: eq(
+					competitionRegistrationAnswersTable.registrationId,
+					data.registrationId,
+				)
 
 		const answers = await db
 			.select()
@@ -484,13 +513,17 @@ export const submitRegistrationAnswersFn = createServerFn({ method: "POST" })
 		// For each answer, upsert
 		for (const { questionId, answer } of data.answers) {
 			// Check if answer exists
-			const existing = await db.query.competitionRegistrationAnswersTable.findFirst({
-				where: and(
-					eq(competitionRegistrationAnswersTable.questionId, questionId),
-					eq(competitionRegistrationAnswersTable.registrationId, data.registrationId),
-					eq(competitionRegistrationAnswersTable.userId, session.userId),
-				),
-			})
+			const existing =
+				await db.query.competitionRegistrationAnswersTable.findFirst({
+					where: and(
+						eq(competitionRegistrationAnswersTable.questionId, questionId),
+						eq(
+							competitionRegistrationAnswersTable.registrationId,
+							data.registrationId,
+						),
+						eq(competitionRegistrationAnswersTable.userId, session.userId),
+					),
+				})
 
 			if (existing) {
 				// Update existing
@@ -518,7 +551,9 @@ export const submitRegistrationAnswersFn = createServerFn({ method: "POST" })
  * Returns answers grouped by registration ID
  * Requires MANAGE_PROGRAMMING permission
  */
-export const getCompetitionRegistrationAnswersFn = createServerFn({ method: "GET" })
+export const getCompetitionRegistrationAnswersFn = createServerFn({
+	method: "GET",
+})
 	.inputValidator((data: unknown) =>
 		z
 			.object({
@@ -536,7 +571,10 @@ export const getCompetitionRegistrationAnswersFn = createServerFn({ method: "GET
 			throw new Error("Not authenticated")
 		}
 
-		await requireTeamPermission(data.teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
 
 		// Verify competition belongs to team
 		const [competition] = await db
@@ -561,7 +599,10 @@ export const getCompetitionRegistrationAnswersFn = createServerFn({ method: "GET
 			.from(competitionRegistrationAnswersTable)
 			.innerJoin(
 				competitionRegistrationsTable,
-				eq(competitionRegistrationAnswersTable.registrationId, competitionRegistrationsTable.id),
+				eq(
+					competitionRegistrationAnswersTable.registrationId,
+					competitionRegistrationsTable.id,
+				),
 			)
 			.where(eq(competitionRegistrationsTable.eventId, data.competitionId))
 

@@ -12,11 +12,13 @@ import {
 	EventDetailsForm,
 } from "@/components/events/event-details-form"
 import { EventResourcesCard } from "@/components/events/event-resources-card"
+import { EventSubmissionWindowCard } from "@/components/organizer/event-submission-window-card"
 import { HeatSchedulePublishingCard } from "@/components/organizer/heat-schedule-publishing-card"
 import { EventJudgingSheets } from "@/components/organizer/event-judging-sheets"
 import { Button } from "@/components/ui/button"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
+import { getCompetitionEventsFn } from "@/server-fns/competition-event-fns"
 import {
 	getCompetitionEventFn,
 	getWorkoutDivisionDescriptionsFn,
@@ -43,7 +45,9 @@ export const Route = createFileRoute(
 			throw new Error("Competition not found")
 		}
 
-		// Parallel fetch event, divisions, movements, sponsors, resources, and judging sheets
+		const isOnline = competition.competitionType === "online"
+
+		// Parallel fetch event, divisions, movements, sponsors, resources, judging sheets, and competition events
 		const [
 			eventResult,
 			divisionsResult,
@@ -51,6 +55,7 @@ export const Route = createFileRoute(
 			sponsorsResult,
 			resourcesResult,
 			judgingSheetsResult,
+			competitionEventsResult,
 		] = await Promise.all([
 			getCompetitionEventFn({
 				data: {
@@ -77,6 +82,12 @@ export const Route = createFileRoute(
 			getEventJudgingSheetsFn({
 				data: { trackWorkoutId: params.eventId },
 			}),
+			// Fetch competition events (submission windows) for online competitions
+			isOnline
+				? getCompetitionEventsFn({
+						data: { competitionId: params.competitionId },
+					})
+				: Promise.resolve({ events: [] }),
 		])
 
 		if (!eventResult.event) {
@@ -107,6 +118,11 @@ export const Route = createFileRoute(
 			divisionDescriptions = descriptionsResult.descriptions
 		}
 
+		// Find this event's submission window
+		const competitionEvent = competitionEventsResult.events.find(
+			(ce) => ce.trackWorkoutId === params.eventId,
+		)
+
 		return {
 			event: eventResult.event,
 			divisions: divisionsResult.divisions,
@@ -115,6 +131,10 @@ export const Route = createFileRoute(
 			divisionDescriptions,
 			resources: resourcesResult.resources,
 			judgingSheets: judgingSheetsResult.sheets,
+			isOnline,
+			submissionOpensAt: competitionEvent?.submissionOpensAt ?? null,
+			submissionClosesAt: competitionEvent?.submissionClosesAt ?? null,
+			timezone: competition.timezone || "America/Denver",
 		}
 	},
 })
@@ -128,6 +148,10 @@ function EventEditPage() {
 		divisionDescriptions,
 		resources,
 		judgingSheets: initialSheets,
+		isOnline,
+		submissionOpensAt,
+		submissionClosesAt,
+		timezone,
 	} = Route.useLoaderData()
 	// Get competition from parent layout loader data
 	const { competition } = parentRoute.useLoaderData()
@@ -176,13 +200,23 @@ function EventEditPage() {
 				onSheetsChange={setJudgingSheets}
 			/>
 
-			{/* Heat Schedule Publishing */}
-			<HeatSchedulePublishingCard
-				trackWorkoutId={event.id}
-				eventName={event.workout.name}
-				competitionId={competition.id}
-				organizingTeamId={competition.organizingTeamId}
-			/>
+			{/* Submission Window (online) or Heat Schedule Publishing (in-person) */}
+			{isOnline ? (
+				<EventSubmissionWindowCard
+					competitionId={competition.id}
+					eventName={event.workout.name}
+					submissionOpensAt={submissionOpensAt}
+					submissionClosesAt={submissionClosesAt}
+					timezone={timezone}
+				/>
+			) : (
+				<HeatSchedulePublishingCard
+					trackWorkoutId={event.id}
+					eventName={event.workout.name}
+					competitionId={competition.id}
+					organizingTeamId={competition.organizingTeamId}
+				/>
+			)}
 		</>
 	)
 }

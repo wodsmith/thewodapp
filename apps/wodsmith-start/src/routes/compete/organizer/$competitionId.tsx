@@ -70,6 +70,7 @@ const routeLabels: Record<string, string> = {
 	divisions: "Divisions",
 	athletes: "Registrations",
 	events: "Events",
+	"submission-windows": "Submission Windows",
 	schedule: "Schedule",
 	volunteers: "Volunteers",
 	results: "Results",
@@ -103,7 +104,10 @@ function CompetitionLayout() {
 	}
 
 	return (
-		<CompetitionSidebar competitionId={competition.id}>
+		<CompetitionSidebar
+			competitionId={competition.id}
+			competitionType={competition.competitionType}
+		>
 			{entitlements.isPendingApproval && (
 				<PendingOrganizerBanner variant="sidebar-inset" />
 			)}

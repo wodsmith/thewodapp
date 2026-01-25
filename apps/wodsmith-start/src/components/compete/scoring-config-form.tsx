@@ -665,8 +665,8 @@ export function ScoringConfigForm({
 												Each event awards points equal to the athlete's
 												finishing position. Athletes aim for the lowest total
 												across all events. This system works well for any field
-												size since points are determined by relative performance,
-												not a fixed table.
+												size since points are determined by relative
+												performance, not a fixed table.
 											</p>
 										</div>
 									</div>

@@ -58,7 +58,9 @@ const getCompetitionBySlugInputSchema = z.object({
 })
 
 // Schema for YYYY-MM-DD date strings
-const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
+const dateStringSchema = z
+	.string()
+	.regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
 
 const createCompetitionInputSchema = z.object({
 	organizingTeamId: z.string().min(1, "Team ID is required"),

@@ -483,7 +483,8 @@ const website = await TanStackStart("app", {
 		 * Must be "production" for emails to be sent via Resend.
 		 * In dev mode, emails are logged to console only.
 		 */
-		NODE_ENV: stage === "prod" || stage === "demo" ? "production" : "development",
+		NODE_ENV:
+			stage === "prod" || stage === "demo" ? "production" : "development",
 
 		/**
 		 * Site URL used in email templates for links (verify email, reset password, etc.)

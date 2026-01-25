@@ -629,17 +629,20 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 											answer: answerData.answer,
 											updatedAt: new Date(),
 										})
-										.where(eq(competitionRegistrationAnswersTable.id, existingAnswer.id))
+										.where(
+											eq(
+												competitionRegistrationAnswersTable.id,
+												existingAnswer.id,
+											),
+										)
 								} else {
 									// Insert new answer
-									await db
-										.insert(competitionRegistrationAnswersTable)
-										.values({
-											questionId: answerData.questionId,
-											registrationId: registrationId,
-											userId: session.userId,
-											answer: answerData.answer,
-										})
+									await db.insert(competitionRegistrationAnswersTable).values({
+										questionId: answerData.questionId,
+										registrationId: registrationId,
+										userId: session.userId,
+										answer: answerData.answer,
+									})
 								}
 							}
 						}

@@ -77,7 +77,13 @@ const updateCompetitionRotationSettingsInputSchema = z.object({
 const updateCompetitionScoringConfigInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
 	scoringConfig: z.object({
-		algorithm: z.enum(["traditional", "p_score", "winner_takes_more", "online", "custom"]),
+		algorithm: z.enum([
+			"traditional",
+			"p_score",
+			"winner_takes_more",
+			"online",
+			"custom",
+		]),
 		traditional: z
 			.object({
 				step: z.number().positive(),
@@ -477,7 +483,12 @@ export const getRegistrationStatusFn = createServerFn({ method: "GET" })
 		const hasOpened = hasDateStartedInTimezone(regOpensAt, timezone)
 		const hasClosed = isDeadlinePassedInTimezone(regClosesAt, timezone)
 
-		const registrationOpen = !!(regOpensAt && regClosesAt && hasOpened && !hasClosed)
+		const registrationOpen = !!(
+			regOpensAt &&
+			regClosesAt &&
+			hasOpened &&
+			!hasClosed
+		)
 		const registrationClosed = hasClosed
 		const registrationNotYetOpen = !!(regOpensAt && !hasOpened)
 

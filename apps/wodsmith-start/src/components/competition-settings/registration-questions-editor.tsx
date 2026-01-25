@@ -120,7 +120,10 @@ interface QuestionItemProps {
 // ============================================================================
 
 function QuestionTypeBadge({ type }: { type: string }) {
-	const variants: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
+	const variants: Record<
+		string,
+		{ label: string; variant: "default" | "secondary" | "outline" }
+	> = {
 		text: { label: "Text", variant: "secondary" },
 		select: { label: "Select", variant: "default" },
 		number: { label: "Number", variant: "outline" },
@@ -281,12 +284,7 @@ function QuestionItem({
 							)}
 						</div>
 						<div className="flex items-center gap-2">
-							<Button
-								type="button"
-								size="sm"
-								variant="ghost"
-								onClick={onEdit}
-							>
+							<Button type="button" size="sm" variant="ghost" onClick={onEdit}>
 								<Edit2 className="h-4 w-4" />
 							</Button>
 							<Button
@@ -420,7 +418,10 @@ function QuestionFormDialog({
 	}
 
 	const onSubmit = async (values: QuestionFormValues) => {
-		if (values.type === "select" && (!values.options || values.options.length === 0)) {
+		if (
+			values.type === "select" &&
+			(!values.options || values.options.length === 0)
+		) {
 			toast.error("Select questions must have at least one option")
 			return
 		}
@@ -610,7 +611,8 @@ function QuestionFormDialog({
 									<div className="space-y-1 leading-none">
 										<FormLabel>Required Question</FormLabel>
 										<FormDescription>
-											Athletes must answer this question to complete registration.
+											Athletes must answer this question to complete
+											registration.
 										</FormDescription>
 									</div>
 								</FormItem>
@@ -631,8 +633,8 @@ function QuestionFormDialog({
 									<div className="space-y-1 leading-none">
 										<FormLabel>Ask Teammates Separately</FormLabel>
 										<FormDescription>
-											For team registrations, ask this question for each teammate
-											individually.
+											For team registrations, ask this question for each
+											teammate individually.
 										</FormDescription>
 									</div>
 								</FormItem>
@@ -666,8 +668,10 @@ export function RegistrationQuestionsEditor({
 }: RegistrationQuestionsEditorProps) {
 	const [questions, setQuestions] = useState(initialQuestions)
 	const [instanceId] = useState(() => Symbol("registration-questions"))
-	const [editingQuestion, setEditingQuestion] = useState<RegistrationQuestion | null>(null)
-	const [deletingQuestion, setDeletingQuestion] = useState<RegistrationQuestion | null>(null)
+	const [editingQuestion, setEditingQuestion] =
+		useState<RegistrationQuestion | null>(null)
+	const [deletingQuestion, setDeletingQuestion] =
+		useState<RegistrationQuestion | null>(null)
 	const [isFormOpen, setIsFormOpen] = useState(false)
 
 	const reorderQuestions = useServerFn(reorderQuestionsFn)

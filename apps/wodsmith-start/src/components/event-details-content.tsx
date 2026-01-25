@@ -176,7 +176,9 @@ export function EventDetailsContent({
 // Helper component for grouping divisions by price
 function DivisionsGroupedByPrice({
 	divisions,
-}: { divisions: DivisionWithDetails[] }) {
+}: {
+	divisions: DivisionWithDetails[]
+}) {
 	// Group divisions by price
 	const freeDivisions = divisions.filter((d) => d.feeCents === 0)
 	const paidDivisionsMap = new Map<number, DivisionWithDetails[]>()

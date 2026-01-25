@@ -268,11 +268,7 @@ export function formatDateStringRange(
 	const endDay = endParsed.getDate()
 
 	// Single-day event
-	if (
-		startYear === endYear &&
-		startMonth === endMonth &&
-		startDay === endDay
-	) {
+	if (startYear === endYear && startMonth === endMonth && startDay === endDay) {
 		return format(startParsed, "MMMM d, yyyy")
 	}
 
@@ -339,9 +335,7 @@ export function parseDateString(
  * Check if a YYYY-MM-DD string represents a valid date.
  * Returns false for invalid dates like "2024-13-01" or "2024-02-30".
  */
-export function isValidDateString(
-	dateStr: string | null | undefined,
-): boolean {
+export function isValidDateString(dateStr: string | null | undefined): boolean {
 	return parseDateString(dateStr) !== null
 }
 
@@ -350,18 +344,24 @@ export function isValidDateString(
  * Use this for deadline comparisons to ensure consistent behavior across timezones.
  * Returns null if the date string is invalid.
  */
-export function getEndOfDayUTC(dateStr: string | null | undefined): Date | null {
+export function getEndOfDayUTC(
+	dateStr: string | null | undefined,
+): Date | null {
 	const parts = parseDateString(dateStr)
 	if (!parts) return null
 
-	return new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 23, 59, 59, 999))
+	return new Date(
+		Date.UTC(parts.year, parts.month - 1, parts.day, 23, 59, 59, 999),
+	)
 }
 
 /**
  * Get the start of day (00:00:00.000 UTC) for a YYYY-MM-DD string.
  * Returns null if the date string is invalid.
  */
-export function getStartOfDayUTC(dateStr: string | null | undefined): Date | null {
+export function getStartOfDayUTC(
+	dateStr: string | null | undefined,
+): Date | null {
 	const parts = parseDateString(dateStr)
 	if (!parts) return null
 
@@ -380,7 +380,9 @@ export function getTodayStringUTC(): string {
  * Compare a YYYY-MM-DD deadline string against the current time.
  * Returns true if the deadline has passed (current time is after end of day UTC).
  */
-export function isDeadlinePassed(deadlineStr: string | null | undefined): boolean {
+export function isDeadlinePassed(
+	deadlineStr: string | null | undefined,
+): boolean {
 	const deadline = getEndOfDayUTC(deadlineStr)
 	if (!deadline) return false
 	return new Date() > deadline
