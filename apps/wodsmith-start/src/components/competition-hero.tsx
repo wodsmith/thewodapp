@@ -3,6 +3,7 @@
 import { Calendar, MapPin, Settings, Share2, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import type { CompetitionWithOrganizingTeam } from "@/server-fns/competition-fns"
 import { formatUTCDateRange } from "@/utils/date-utils"
 
@@ -21,10 +22,15 @@ export function CompetitionHero({
 	const profileImage =
 		competition.profileImageUrl ?? competition.organizingTeam?.avatarUrl
 
+	const hasBanner = !!competition.bannerImageUrl
+
 	return (
-		<div className="relative overflow-hidden text-white">
+		<div className={cn(
+			"relative overflow-hidden",
+			hasBanner ? "text-white" : "text-foreground"
+		)}>
 			{/* Banner Image or Glassmorphism Background */}
-			{competition.bannerImageUrl ? (
+			{hasBanner ? (
 				<>
 					<img
 						src={competition.bannerImageUrl}
@@ -38,10 +44,20 @@ export function CompetitionHero({
 
 			{/* Glassmorphism content container */}
 			<div className="container relative mx-auto px-4 py-8 md:py-12">
-				<div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20 backdrop-blur-xl md:p-8">
+				<div className={cn(
+					"rounded-2xl border p-6 shadow-2xl backdrop-blur-xl md:p-8",
+					hasBanner
+						? "border-white/10 bg-white/5 shadow-black/20"
+						: "border-black/10 bg-black/5 shadow-black/5 dark:border-white/10 dark:bg-white/5 dark:shadow-black/20"
+				)}>
 					<div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-8">
 						{/* Event Logo */}
-						<div className="hidden h-36 w-36 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/20 bg-white/10 shadow-lg shadow-black/10 backdrop-blur-md md:flex">
+						<div className={cn(
+							"hidden h-36 w-36 shrink-0 items-center justify-center overflow-hidden rounded-xl border shadow-lg backdrop-blur-md md:flex",
+							hasBanner
+								? "border-white/20 bg-white/10 shadow-black/10"
+								: "border-black/10 bg-black/5 shadow-black/5 dark:border-white/20 dark:bg-white/10 dark:shadow-black/10"
+						)}>
 							{profileImage ? (
 								<img
 									src={profileImage}
@@ -49,7 +65,10 @@ export function CompetitionHero({
 									className="h-full w-full object-cover"
 								/>
 							) : (
-								<span className="text-4xl font-bold text-slate-300">
+								<span className={cn(
+									"text-4xl font-bold",
+									hasBanner ? "text-slate-300" : "text-muted-foreground"
+								)}>
 									{competition.name.charAt(0)}
 								</span>
 							)}
@@ -67,7 +86,10 @@ export function CompetitionHero({
 									<h1 className="text-3xl font-bold md:text-4xl lg:text-5xl">
 										{competition.name}
 									</h1>
-									<div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 text-slate-200/90">
+									<div className={cn(
+										"flex flex-wrap items-center gap-x-4 gap-y-2 pt-2",
+										hasBanner ? "text-slate-200/90" : "text-muted-foreground"
+									)}>
 										<span className="flex items-center gap-1.5">
 											<Calendar className="h-4 w-4" />
 											{formatUTCDateRange(
@@ -97,7 +119,12 @@ export function CompetitionHero({
 									<Button
 										variant="ghost"
 										size="icon"
-										className="border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white"
+										className={cn(
+											"border",
+											hasBanner
+												? "border-white/10 text-slate-300 hover:bg-white/10 hover:text-white"
+												: "border-black/10 text-muted-foreground hover:bg-black/5 hover:text-foreground dark:border-white/10 dark:hover:bg-white/10"
+										)}
 									>
 										<Share2 className="h-5 w-5" />
 										<span className="sr-only">Share</span>
@@ -109,7 +136,12 @@ export function CompetitionHero({
 							<div className="flex flex-wrap gap-2">
 								<Badge
 									variant="secondary"
-									className="border border-white/10 bg-white/10 text-slate-100 backdrop-blur-sm hover:bg-white/20"
+									className={cn(
+										"border backdrop-blur-sm",
+										hasBanner
+											? "border-white/10 bg-white/10 text-slate-100 hover:bg-white/20"
+											: "border-black/10 bg-black/5 text-foreground hover:bg-black/10 dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:hover:bg-white/20"
+									)}
 								>
 									<Users className="mr-1 h-3 w-3" />
 									{registrationCount} Athletes

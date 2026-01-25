@@ -46,7 +46,7 @@ const workoutsSearchSchema = z.object({
 	division: z.string().optional(),
 })
 
-export const Route = createFileRoute("/compete/$slug/workouts")({
+export const Route = createFileRoute("/compete/$slug/workouts/")({
 	component: CompetitionWorkoutsPage,
 	validateSearch: (search) => workoutsSearchSchema.parse(search),
 	loader: async ({ params }) => {
@@ -161,7 +161,7 @@ function CompetitionWorkoutsPage() {
 					<div className="sticky top-4 z-10">
 						<CompetitionTabs slug={competition.slug} />
 					</div>
-					<div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
+					<div className="rounded-2xl border border-black/10 bg-black/5 p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
 						<div className="space-y-8">
 							<h2 className="text-3xl font-bold tracking-tight">Workouts</h2>
 							<Alert variant="default" className="border-dashed">
@@ -199,7 +199,7 @@ function CompetitionWorkoutsPage() {
 				<div className="sticky top-4 z-10">
 					<CompetitionTabs slug={competition.slug} />
 				</div>
-				<div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
+				<div className="rounded-2xl border border-black/10 bg-black/5 p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
 					<div className="space-y-8">
 						{/* Header with Division Switcher */}
 						<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
