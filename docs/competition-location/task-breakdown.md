@@ -94,6 +94,9 @@ This document provides a granular task breakdown for implementing competition lo
 - `formatFullAddress()` - Format complete address
 - `hasLocationData()` - Check if location has meaningful data
 - `formatCityLine()` - Format city/state/country line
+- `normalizeState()` - Normalize state input to abbreviation (e.g., "Texas" → "TX")
+- `normalizeCountry()` - Normalize country to ISO 3166-1 alpha-2 code
+- `getCountryDisplayName()` - Get display name from ISO code
 
 **Acceptance Criteria:**
 - [ ] All functions handle null/undefined gracefully
@@ -249,12 +252,14 @@ This document provides a granular task breakdown for implementing competition lo
 - Venue management component (identify specific file)
 
 **Changes:**
-- Add `isOffsite` toggle switch
-- Show location fields when toggled on
+- Add radio group: "Use main competition location" (default) / "Different location"
+- Show location fields when "Different location" selected
 - Save venue location data
+- Clear location fields when switched back to main
 
 **Acceptance Criteria:**
-- [ ] Toggle shows/hides location fields
+- [ ] Radio selection shows/hides location fields
+- [ ] "Use main competition location" is default
 - [ ] Venue location saves correctly
 - [ ] Existing venues show correct state
 
@@ -376,6 +381,9 @@ This document provides a granular task breakdown for implementing competition lo
 - `formatFullAddress` field combinations
 - `hasLocationData` true/false cases
 - `formatCityLine` formatting
+- `normalizeState` - "Texas" → "TX", "tx" → "TX", passthrough unknown
+- `normalizeCountry` - "United States" → "US", "UK" → "GB", passthrough ISO codes
+- `getCountryDisplayName` - "US" → "United States"
 
 **Acceptance Criteria:**
 - [ ] All utility functions tested

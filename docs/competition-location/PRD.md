@@ -56,9 +56,9 @@ Add the following fields to the `competitionsTable`:
 | `addressLine1` | text | No | Street address |
 | `addressLine2` | text | No | Suite, unit, building, etc. |
 | `city` | text | No | City name |
-| `state` | text | No | State/Province/Region |
+| `state` | text | No | State/Province/Region (normalized to abbreviation on save, e.g., "TX") |
 | `postalCode` | text | No | ZIP/Postal code |
-| `country` | text | No | Country (ISO code or full name) |
+| `country` | text | No | Country (ISO 3166-1 alpha-2 code, e.g., "US", "GB") |
 | `locationNotes` | text | No | Additional directions, parking info, etc. |
 
 **Validation Rules:**
@@ -120,16 +120,17 @@ Add optional location fields to `competitionVenuesTable`:
 | `isOffsite` | boolean | No | Flag indicating this venue is NOT at main location |
 
 **Logic:**
-- If `isOffsite` is false or location fields are empty: Venue is at main competition location
+- If `isOffsite` is false or location fields are empty: Venue uses main competition location
 - If `isOffsite` is true with location: Display venue-specific location
 - UI should indicate "Main Venue" vs "Offsite Location"
+- Default option: "Use main competition location" (explicit choice in UI)
 
 #### 2.2 Venue Edit Form
 
 Update venue management UI to include:
-- Toggle: "This venue is at a different location"
-- When toggled on: Show location fields
-- Clear location fields when toggled off
+- Radio: "Use main competition location" (default) / "Different location"
+- When "Different location" selected: Show location fields
+- Clear location fields when switched back to main location
 
 #### 2.3 Schedule Display
 

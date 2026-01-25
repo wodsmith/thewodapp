@@ -180,6 +180,53 @@ export function formatFullAddress(location: Partial<CompetitionLocation> | null)
 }
 
 /**
+ * Normalize state input to abbreviation
+ * e.g., "Texas" → "TX", "tx" → "TX"
+ */
+export function normalizeState(state: string | null | undefined): string | null {
+  if (!state) return null;
+  const trimmed = state.trim().toUpperCase();
+  // US state mapping (expand as needed)
+  const stateMap: Record<string, string> = {
+    'TEXAS': 'TX', 'CALIFORNIA': 'CA', 'NEW YORK': 'NY',
+    'FLORIDA': 'FL', 'COLORADO': 'CO', 'ARIZONA': 'AZ',
+    // ... add more as needed
+  };
+  return stateMap[trimmed] || trimmed;
+}
+
+/**
+ * Normalize country to ISO 3166-1 alpha-2 code
+ * e.g., "United States" → "US", "usa" → "US"
+ */
+export function normalizeCountry(country: string | null | undefined): string | null {
+  if (!country) return null;
+  const trimmed = country.trim().toUpperCase();
+  const countryMap: Record<string, string> = {
+    'UNITED STATES': 'US', 'USA': 'US', 'U.S.A.': 'US', 'U.S.': 'US',
+    'UNITED KINGDOM': 'GB', 'UK': 'GB', 'ENGLAND': 'GB',
+    'CANADA': 'CA', 'AUSTRALIA': 'AU', 'GERMANY': 'DE',
+    'FRANCE': 'FR', 'SPAIN': 'ES', 'ITALY': 'IT', 'MEXICO': 'MX',
+    // ... add more as needed
+  };
+  return countryMap[trimmed] || trimmed;
+}
+
+/**
+ * Get display name for country ISO code
+ */
+export function getCountryDisplayName(isoCode: string | null | undefined): string | null {
+  if (!isoCode) return null;
+  const displayMap: Record<string, string> = {
+    'US': 'United States', 'GB': 'United Kingdom', 'CA': 'Canada',
+    'AU': 'Australia', 'DE': 'Germany', 'FR': 'France',
+    'ES': 'Spain', 'IT': 'Italy', 'MX': 'Mexico',
+    // ... add more as needed
+  };
+  return displayMap[isoCode.toUpperCase()] || isoCode;
+}
+
+/**
  * Check if location has meaningful data
  */
 export function hasLocationData(location: Partial<CompetitionLocation> | null): boolean {
@@ -229,9 +276,9 @@ export const competitionLocationSchema = z.object({
   addressLine1: z.string().max(200).nullable().optional(),
   addressLine2: z.string().max(200).nullable().optional(),
   city: z.string().max(100).nullable().optional(),
-  state: z.string().max(100).nullable().optional(),
+  state: z.string().max(10).nullable().optional(), // Normalized to abbreviation (e.g., "TX")
   postalCode: z.string().max(20).nullable().optional(),
-  country: z.string().max(100).nullable().optional(),
+  country: z.string().max(2).nullable().optional(), // ISO 3166-1 alpha-2 (e.g., "US", "GB")
   locationNotes: z.string().max(1000).nullable().optional(),
 });
 
@@ -692,15 +739,23 @@ Add location toggle and fields to venue edit form:
   control={form.control}
   name="isOffsite"
   render={({ field }) => (
-    <FormItem className="flex items-center justify-between rounded-lg border p-3">
-      <div className="space-y-0.5">
-        <FormLabel>Offsite Location</FormLabel>
-        <FormDescription>
-          This venue is at a different location than the main competition
-        </FormDescription>
-      </div>
+    <FormItem className="space-y-3">
+      <FormLabel>Venue Location</FormLabel>
       <FormControl>
-        <Switch checked={field.value} onCheckedChange={field.onChange} />
+        <RadioGroup
+          onValueChange={(value) => field.onChange(value === 'offsite')}
+          defaultValue={field.value ? 'offsite' : 'main'}
+          className="space-y-2"
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="main" id="main" />
+            <Label htmlFor="main">Use main competition location</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="offsite" id="offsite" />
+            <Label htmlFor="offsite">Different location</Label>
+          </div>
+        </RadioGroup>
       </FormControl>
     </FormItem>
   )}

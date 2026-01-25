@@ -18,9 +18,9 @@ Two tables will be modified:
 | `address_line_1` | TEXT | Yes | NULL | Primary street address |
 | `address_line_2` | TEXT | Yes | NULL | Secondary address (suite, building, floor) |
 | `city` | TEXT | Yes | NULL | City name |
-| `state` | TEXT | Yes | NULL | State, province, or region |
+| `state` | TEXT | Yes | NULL | State/province abbreviation (normalized on save, e.g., "TX") |
 | `postal_code` | TEXT | Yes | NULL | ZIP code or postal code |
-| `country` | TEXT | Yes | NULL | Country name or ISO code |
+| `country` | TEXT | Yes | NULL | ISO 3166-1 alpha-2 country code (e.g., "US", "GB") |
 | `location_notes` | TEXT | Yes | NULL | Additional directions, parking info, etc. |
 
 ### Drizzle Schema Definition
@@ -49,9 +49,9 @@ locationNotes: text('location_notes'),
 | `address_line_1` | TEXT | Yes | NULL | Primary street address |
 | `address_line_2` | TEXT | Yes | NULL | Secondary address |
 | `city` | TEXT | Yes | NULL | City name |
-| `state` | TEXT | Yes | NULL | State/province/region |
+| `state` | TEXT | Yes | NULL | State/province abbreviation (normalized) |
 | `postal_code` | TEXT | Yes | NULL | ZIP/postal code |
-| `country` | TEXT | Yes | NULL | Country |
+| `country` | TEXT | Yes | NULL | ISO 3166-1 alpha-2 country code |
 | `location_notes` | TEXT | Yes | NULL | Directions specific to this venue |
 | `is_offsite` | INTEGER | Yes | 0 | Boolean flag (0=false, 1=true) indicating venue is at different location |
 
