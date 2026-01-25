@@ -333,7 +333,7 @@ export function SchedulePageContent({
 							return (
 								<Card
 									key={heat.id}
-									className="border-teal-500/50 bg-teal-500/5"
+									className="border-orange-500/50 bg-orange-500/5"
 								>
 									<CardContent className="py-4">
 										<div className="flex justify-between items-start">
@@ -399,7 +399,7 @@ export function SchedulePageContent({
 						) === 0 ? (
 							<span>No matches found for "{searchTerm}"</span>
 						) : (
-							<span className="text-teal-500">
+							<span className="text-orange-500">
 								Found matches in{" "}
 								{filteredDayGroups.reduce(
 									(acc, g) => acc + g.workouts.length,
@@ -427,7 +427,7 @@ export function SchedulePageContent({
 						className={cn(
 							"px-4 py-2 text-sm font-medium transition-colors border-b-2",
 							selectedTab === "all"
-								? "border-teal-500 text-teal-500"
+								? "border-orange-500 text-orange-500"
 								: "border-transparent text-muted-foreground hover:text-foreground",
 						)}
 					>
@@ -441,7 +441,7 @@ export function SchedulePageContent({
 							className={cn(
 								"px-4 py-2 text-sm font-medium transition-colors border-b-2",
 								selectedTab === day.dateKey
-									? "border-teal-500 text-teal-500"
+									? "border-orange-500 text-orange-500"
 									: "border-transparent text-muted-foreground hover:text-foreground",
 							)}
 						>
@@ -481,7 +481,7 @@ export function SchedulePageContent({
 												className="w-full px-4 py-4 flex items-center justify-between hover:bg-muted/50 transition-colors text-left"
 											>
 												<div className="flex items-center gap-4 flex-1">
-													<div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-teal-600 to-teal-500 rounded-lg flex items-center justify-center">
+													<div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-orange-600 to-orange-500 rounded-lg flex items-center justify-center">
 														<span className="text-white text-sm font-bold tabular-nums">
 															{String(workout.event.trackOrder).padStart(
 																2,
@@ -574,7 +574,7 @@ export function SchedulePageContent({
 																			hasLaneAssignments
 																				? "hover:bg-muted/50 cursor-pointer"
 																				: "cursor-default opacity-75",
-																			userInHeat && "bg-teal-500/10",
+																			userInHeat && "bg-orange-500/10",
 																		)}
 																	>
 																		<div className="flex items-center gap-3">
@@ -604,7 +604,7 @@ export function SchedulePageContent({
 																					</Badge>
 																				)}
 																			{userInHeat && (
-																				<Badge className="bg-teal-500 text-xs">
+																				<Badge className="bg-orange-500 text-xs">
 																					You're here
 																				</Badge>
 																			)}
@@ -665,9 +665,9 @@ export function SchedulePageContent({
 																									className={cn(
 																										"rounded-lg p-3 border",
 																										isMatch
-																											? "bg-teal-500/10 border-teal-500"
+																											? "bg-orange-500/10 border-orange-500"
 																											: isUser
-																												? "bg-teal-500/5 border-teal-500/50"
+																												? "bg-orange-500/5 border-orange-500/50"
 																												: "bg-card",
 																									)}
 																								>
@@ -676,7 +676,7 @@ export function SchedulePageContent({
 																											className={cn(
 																												"w-8 h-8 rounded flex items-center justify-center text-sm font-bold tabular-nums",
 																												isMatch || isUser
-																													? "bg-teal-500 text-white"
+																													? "bg-orange-500 text-white"
 																													: "bg-muted",
 																											)}
 																										>
@@ -697,7 +697,7 @@ export function SchedulePageContent({
 																										</p>
 																										{assignment.registration
 																											.division && (
-																											<p className="text-xs text-teal-500">
+																											<p className="text-xs text-orange-500">
 																												{
 																													assignment
 																														.registration
@@ -751,9 +751,9 @@ export function SchedulePageContent({
 																									className={cn(
 																										"grid grid-cols-[auto_1fr_1fr_1fr] gap-4 items-center rounded p-2",
 																										isMatch
-																											? "bg-teal-500/10 border border-teal-500"
+																											? "bg-orange-500/10 border border-orange-500"
 																											: isUser
-																												? "bg-teal-500/5 border border-teal-500/50"
+																												? "bg-orange-500/5 border border-orange-500/50"
 																												: "bg-card border",
 																									)}
 																								>
@@ -762,7 +762,7 @@ export function SchedulePageContent({
 																											className={cn(
 																												"w-8 h-8 rounded flex items-center justify-center text-sm font-bold tabular-nums",
 																												isMatch || isUser
-																													? "bg-teal-500 text-white"
+																													? "bg-orange-500 text-white"
 																													: "bg-muted",
 																											)}
 																										>
@@ -777,7 +777,7 @@ export function SchedulePageContent({
 																											.affiliate ||
 																											"Independent"}
 																									</span>
-																									<span className="text-sm text-teal-500 truncate">
+																									<span className="text-sm text-orange-500 truncate">
 																										{assignment.registration
 																											.division?.label || "—"}
 																									</span>
