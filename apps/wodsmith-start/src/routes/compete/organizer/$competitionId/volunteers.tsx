@@ -258,6 +258,7 @@ function VolunteersPage() {
 			<JudgeSchedulingContainer
 				competitionId={competition.id}
 				organizingTeamId={competition.organizingTeamId}
+				competitionType={competition.competitionType}
 				events={events}
 				heats={heats}
 				judges={judges}
