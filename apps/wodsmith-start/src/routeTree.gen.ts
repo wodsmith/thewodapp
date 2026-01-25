@@ -89,6 +89,7 @@ import { Route as CompeteOrganizerOnboardPendingRouteImport } from './routes/com
 import { Route as CompeteOrganizerDashboardNewRouteImport } from './routes/compete/organizer/_dashboard/new'
 import { Route as CompeteOrganizerCompetitionIdWaiversRouteImport } from './routes/compete/organizer/$competitionId/waivers'
 import { Route as CompeteOrganizerCompetitionIdVolunteersRouteImport } from './routes/compete/organizer/$competitionId/volunteers'
+import { Route as CompeteOrganizerCompetitionIdSubmissionWindowsRouteImport } from './routes/compete/organizer/$competitionId/submission-windows'
 import { Route as CompeteOrganizerCompetitionIdSponsorsRouteImport } from './routes/compete/organizer/$competitionId/sponsors'
 import { Route as CompeteOrganizerCompetitionIdSettingsRouteImport } from './routes/compete/organizer/$competitionId/settings'
 import { Route as CompeteOrganizerCompetitionIdScoringRouteImport } from './routes/compete/organizer/$competitionId/scoring'
@@ -554,6 +555,12 @@ const CompeteOrganizerCompetitionIdVolunteersRoute =
     path: '/volunteers',
     getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
   } as any)
+const CompeteOrganizerCompetitionIdSubmissionWindowsRoute =
+  CompeteOrganizerCompetitionIdSubmissionWindowsRouteImport.update({
+    id: '/submission-windows',
+    path: '/submission-windows',
+    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+  } as any)
 const CompeteOrganizerCompetitionIdSponsorsRoute =
   CompeteOrganizerCompetitionIdSponsorsRouteImport.update({
     id: '/sponsors',
@@ -870,6 +877,7 @@ export interface FileRoutesByFullPath {
   '/compete/organizer/$competitionId/scoring': typeof CompeteOrganizerCompetitionIdScoringRoute
   '/compete/organizer/$competitionId/settings': typeof CompeteOrganizerCompetitionIdSettingsRoute
   '/compete/organizer/$competitionId/sponsors': typeof CompeteOrganizerCompetitionIdSponsorsRoute
+  '/compete/organizer/$competitionId/submission-windows': typeof CompeteOrganizerCompetitionIdSubmissionWindowsRoute
   '/compete/organizer/$competitionId/volunteers': typeof CompeteOrganizerCompetitionIdVolunteersRoute
   '/compete/organizer/$competitionId/waivers': typeof CompeteOrganizerCompetitionIdWaiversRoute
   '/compete/organizer/new': typeof CompeteOrganizerDashboardNewRoute
@@ -983,6 +991,7 @@ export interface FileRoutesByTo {
   '/compete/organizer/$competitionId/scoring': typeof CompeteOrganizerCompetitionIdScoringRoute
   '/compete/organizer/$competitionId/settings': typeof CompeteOrganizerCompetitionIdSettingsRoute
   '/compete/organizer/$competitionId/sponsors': typeof CompeteOrganizerCompetitionIdSponsorsRoute
+  '/compete/organizer/$competitionId/submission-windows': typeof CompeteOrganizerCompetitionIdSubmissionWindowsRoute
   '/compete/organizer/$competitionId/volunteers': typeof CompeteOrganizerCompetitionIdVolunteersRoute
   '/compete/organizer/$competitionId/waivers': typeof CompeteOrganizerCompetitionIdWaiversRoute
   '/compete/organizer/new': typeof CompeteOrganizerDashboardNewRoute
@@ -1105,6 +1114,7 @@ export interface FileRoutesById {
   '/compete/organizer/$competitionId/scoring': typeof CompeteOrganizerCompetitionIdScoringRoute
   '/compete/organizer/$competitionId/settings': typeof CompeteOrganizerCompetitionIdSettingsRoute
   '/compete/organizer/$competitionId/sponsors': typeof CompeteOrganizerCompetitionIdSponsorsRoute
+  '/compete/organizer/$competitionId/submission-windows': typeof CompeteOrganizerCompetitionIdSubmissionWindowsRoute
   '/compete/organizer/$competitionId/volunteers': typeof CompeteOrganizerCompetitionIdVolunteersRoute
   '/compete/organizer/$competitionId/waivers': typeof CompeteOrganizerCompetitionIdWaiversRoute
   '/compete/organizer/_dashboard/new': typeof CompeteOrganizerDashboardNewRoute
@@ -1227,6 +1237,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/scoring'
     | '/compete/organizer/$competitionId/settings'
     | '/compete/organizer/$competitionId/sponsors'
+    | '/compete/organizer/$competitionId/submission-windows'
     | '/compete/organizer/$competitionId/volunteers'
     | '/compete/organizer/$competitionId/waivers'
     | '/compete/organizer/new'
@@ -1340,6 +1351,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/scoring'
     | '/compete/organizer/$competitionId/settings'
     | '/compete/organizer/$competitionId/sponsors'
+    | '/compete/organizer/$competitionId/submission-windows'
     | '/compete/organizer/$competitionId/volunteers'
     | '/compete/organizer/$competitionId/waivers'
     | '/compete/organizer/new'
@@ -1461,6 +1473,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/scoring'
     | '/compete/organizer/$competitionId/settings'
     | '/compete/organizer/$competitionId/sponsors'
+    | '/compete/organizer/$competitionId/submission-windows'
     | '/compete/organizer/$competitionId/volunteers'
     | '/compete/organizer/$competitionId/waivers'
     | '/compete/organizer/_dashboard/new'
@@ -2096,6 +2109,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompeteOrganizerCompetitionIdVolunteersRouteImport
       parentRoute: typeof CompeteOrganizerCompetitionIdRoute
     }
+    '/compete/organizer/$competitionId/submission-windows': {
+      id: '/compete/organizer/$competitionId/submission-windows'
+      path: '/submission-windows'
+      fullPath: '/compete/organizer/$competitionId/submission-windows'
+      preLoaderRoute: typeof CompeteOrganizerCompetitionIdSubmissionWindowsRouteImport
+      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+    }
     '/compete/organizer/$competitionId/sponsors': {
       id: '/compete/organizer/$competitionId/sponsors'
       path: '/sponsors'
@@ -2612,6 +2632,7 @@ interface CompeteOrganizerCompetitionIdRouteChildren {
   CompeteOrganizerCompetitionIdScoringRoute: typeof CompeteOrganizerCompetitionIdScoringRoute
   CompeteOrganizerCompetitionIdSettingsRoute: typeof CompeteOrganizerCompetitionIdSettingsRoute
   CompeteOrganizerCompetitionIdSponsorsRoute: typeof CompeteOrganizerCompetitionIdSponsorsRoute
+  CompeteOrganizerCompetitionIdSubmissionWindowsRoute: typeof CompeteOrganizerCompetitionIdSubmissionWindowsRoute
   CompeteOrganizerCompetitionIdVolunteersRoute: typeof CompeteOrganizerCompetitionIdVolunteersRoute
   CompeteOrganizerCompetitionIdWaiversRoute: typeof CompeteOrganizerCompetitionIdWaiversRoute
   CompeteOrganizerCompetitionIdIndexRoute: typeof CompeteOrganizerCompetitionIdIndexRoute
@@ -2643,6 +2664,8 @@ const CompeteOrganizerCompetitionIdRouteChildren: CompeteOrganizerCompetitionIdR
       CompeteOrganizerCompetitionIdSettingsRoute,
     CompeteOrganizerCompetitionIdSponsorsRoute:
       CompeteOrganizerCompetitionIdSponsorsRoute,
+    CompeteOrganizerCompetitionIdSubmissionWindowsRoute:
+      CompeteOrganizerCompetitionIdSubmissionWindowsRoute,
     CompeteOrganizerCompetitionIdVolunteersRoute:
       CompeteOrganizerCompetitionIdVolunteersRoute,
     CompeteOrganizerCompetitionIdWaiversRoute:
