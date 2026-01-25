@@ -1,6 +1,6 @@
 # Competition Location Implementation Plan
 
-This document provides a detailed technical implementation plan for adding location support to competitions.
+This document provides a detailed technical implementation plan for adding location support to competitions using a normalized `addresses` table.
 
 ## Implementation Phases
 
@@ -14,70 +14,130 @@ This document provides a detailed technical implementation plan for adding locat
 
 ## Phase 1: Database Schema & Core Types
 
-### 1.1 Update Competition Schema
+### 1.1 Create Addresses Schema
+
+**File:** `apps/wodsmith-start/src/db/schemas/addresses.ts` (new file)
+
+```typescript
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { relations } from 'drizzle-orm';
+import { createId } from '@paralleldrive/cuid2';
+
+export const addressesTable = sqliteTable('addresses', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => createId()),
+
+  addressType: text('address_type'), // 'competition', 'venue', 'gym', 'team'
+  name: text('name'), // Venue/location name
+
+  streetLine1: text('street_line_1'),
+  streetLine2: text('street_line_2'),
+  city: text('city'),
+  stateProvince: text('state_province'), // Normalized abbreviation (e.g., "TX")
+  postalCode: text('postal_code'),
+  countryCode: text('country_code'), // ISO 3166-1 alpha-2 (e.g., "US")
+  notes: text('notes'),
+
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export const addressesRelations = relations(addressesTable, ({ many }) => ({
+  competitions: many(competitionsTable),
+  venues: many(competitionVenuesTable),
+}));
+```
+
+### 1.2 Update Competition Schema
 
 **File:** `apps/wodsmith-start/src/db/schemas/competitions.ts`
 
-Add the following columns to `competitionsTable`:
+Add FK to `competitionsTable`:
 
 ```typescript
-// Location fields
-locationName: text('location_name'),
-addressLine1: text('address_line_1'),
-addressLine2: text('address_line_2'),
-city: text('city'),
-state: text('state'),
-postalCode: text('postal_code'),
-country: text('country'),
-locationNotes: text('location_notes'),
+// Add import
+import { addressesTable } from './addresses';
+
+// Add to competitionsTable columns
+primaryAddressId: text('primary_address_id').references(() => addressesTable.id),
 ```
 
-### 1.2 Update Venue Schema
+Update relations:
+
+```typescript
+export const competitionsRelations = relations(competitionsTable, ({ one, many }) => ({
+  // ... existing relations
+  primaryAddress: one(addressesTable, {
+    fields: [competitionsTable.primaryAddressId],
+    references: [addressesTable.id],
+  }),
+}));
+```
+
+### 1.3 Update Venue Schema
 
 **File:** `apps/wodsmith-start/src/db/schemas/competitions.ts`
 
-Add the following columns to `competitionVenuesTable`:
+Add FK to `competitionVenuesTable`:
 
 ```typescript
-// Venue-specific location (for offsite venues)
-locationName: text('location_name'),
-addressLine1: text('address_line_1'),
-addressLine2: text('address_line_2'),
-city: text('city'),
-state: text('state'),
-postalCode: text('postal_code'),
-country: text('country'),
-locationNotes: text('location_notes'),
-isOffsite: integer('is_offsite', { mode: 'boolean' }).default(false),
+// Add to competitionVenuesTable columns
+addressId: text('address_id').references(() => addressesTable.id),
 ```
 
-### 1.3 Generate Migration
+Update relations:
+
+```typescript
+export const competitionVenuesRelations = relations(competitionVenuesTable, ({ one }) => ({
+  // ... existing relations
+  address: one(addressesTable, {
+    fields: [competitionVenuesTable.addressId],
+    references: [addressesTable.id],
+  }),
+}));
+```
+
+### 1.4 Export from Schema Index
+
+**File:** `apps/wodsmith-start/src/db/schema.ts`
+
+```typescript
+export * from './schemas/addresses';
+```
+
+### 1.5 Push Schema Changes
 
 ```bash
 cd apps/wodsmith-start
-pnpm db:push  # For local development
-# Before merging: pnpm db:generate --name=add-competition-location
+pnpm db:push
 ```
 
-### 1.4 Create Location Types
+### 1.6 Create Address Types
 
-**File:** `apps/wodsmith-start/src/types/location.ts` (new file)
+**File:** `apps/wodsmith-start/src/types/address.ts` (new file)
 
 ```typescript
-export interface CompetitionLocation {
-  locationName: string | null;
-  addressLine1: string | null;
-  addressLine2: string | null;
+export interface Address {
+  id: string;
+  addressType: string | null;
+  name: string | null;
+  streetLine1: string | null;
+  streetLine2: string | null;
   city: string | null;
-  state: string | null;
+  stateProvince: string | null;
   postalCode: string | null;
-  country: string | null;
-  locationNotes: string | null;
+  countryCode: string | null;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-export interface VenueLocation extends CompetitionLocation {
-  isOffsite: boolean;
-}
+export type AddressInput = Omit<Address, 'id' | 'createdAt' | 'updatedAt'>;
 
 export type LocationBadgeDisplay = {
   text: string;
@@ -85,25 +145,25 @@ export type LocationBadgeDisplay = {
 };
 ```
 
-### 1.5 Create Location Utility Functions
+### 1.7 Create Address Utility Functions
 
-**File:** `apps/wodsmith-start/src/utils/location.ts` (new file)
+**File:** `apps/wodsmith-start/src/utils/address.ts` (new file)
 
 ```typescript
-import type { CompetitionLocation, LocationBadgeDisplay } from '@/types/location';
+import type { Address, LocationBadgeDisplay } from '@/types/address';
 
 /**
  * Format location for badge display in competition rows
  * Priority:
  * 1. Online competition → "Online" with globe icon
  * 2. City + State → "City, ST"
- * 3. City + Country (non-US) → "City, Country"
+ * 3. City + Country → "City, CC"
  * 4. City only → "City"
- * 5. Location name only → locationName
+ * 5. Name only → name
  * 6. Fallback → organizingTeamName
  */
 export function formatLocationBadge(
-  location: Partial<CompetitionLocation> | null,
+  address: Partial<Address> | null,
   competitionType: 'in-person' | 'online',
   organizingTeamName?: string | null
 ): LocationBadgeDisplay {
@@ -113,29 +173,29 @@ export function formatLocationBadge(
   }
 
   // Has city and state (typically US)
-  if (location?.city && location?.state) {
+  if (address?.city && address?.stateProvince) {
     return {
-      text: `${location.city}, ${location.state}`,
+      text: `${address.city}, ${address.stateProvince}`,
       icon: 'map-pin'
     };
   }
 
   // Has city and country (international)
-  if (location?.city && location?.country) {
+  if (address?.city && address?.countryCode) {
     return {
-      text: `${location.city}, ${location.country}`,
+      text: `${address.city}, ${address.countryCode}`,
       icon: 'map-pin'
     };
   }
 
   // City only
-  if (location?.city) {
-    return { text: location.city, icon: 'map-pin' };
+  if (address?.city) {
+    return { text: address.city, icon: 'map-pin' };
   }
 
-  // Location name only
-  if (location?.locationName) {
-    return { text: location.locationName, icon: 'map-pin' };
+  // Name only
+  if (address?.name) {
+    return { text: address.name, icon: 'map-pin' };
   }
 
   // Fallback to organizing team name
@@ -150,33 +210,65 @@ export function formatLocationBadge(
 /**
  * Format full address for display
  */
-export function formatFullAddress(location: Partial<CompetitionLocation> | null): string | null {
-  if (!location) return null;
+export function formatFullAddress(address: Partial<Address> | null): string | null {
+  if (!address) return null;
 
   const parts: string[] = [];
 
-  if (location.addressLine1) {
-    parts.push(location.addressLine1);
+  if (address.streetLine1) {
+    parts.push(address.streetLine1);
   }
-  if (location.addressLine2) {
-    parts.push(location.addressLine2);
+  if (address.streetLine2) {
+    parts.push(address.streetLine2);
   }
 
   const cityStateZip = [
-    location.city,
-    location.state,
-    location.postalCode,
+    address.city,
+    address.stateProvince,
+    address.postalCode,
   ].filter(Boolean).join(', ').replace(/, ([^,]+)$/, ' $1'); // Format as "City, State Zip"
 
   if (cityStateZip) {
     parts.push(cityStateZip);
   }
 
-  if (location.country) {
-    parts.push(location.country);
+  if (address.countryCode) {
+    const countryName = getCountryDisplayName(address.countryCode);
+    parts.push(countryName || address.countryCode);
   }
 
   return parts.length > 0 ? parts.join('\n') : null;
+}
+
+/**
+ * Check if address has meaningful data
+ */
+export function hasAddressData(address: Partial<Address> | null): boolean {
+  if (!address) return false;
+  return Boolean(
+    address.name ||
+    address.streetLine1 ||
+    address.city ||
+    address.stateProvince ||
+    address.countryCode
+  );
+}
+
+/**
+ * Format city line for display (City, State or City, Country)
+ */
+export function formatCityLine(address: Partial<Address> | null): string | null {
+  if (!address?.city) return null;
+
+  if (address.stateProvince) {
+    return `${address.city}, ${address.stateProvince}${address.postalCode ? ` ${address.postalCode}` : ''}`;
+  }
+
+  if (address.countryCode) {
+    return `${address.city}, ${address.countryCode}`;
+  }
+
+  return address.city;
 }
 
 /**
@@ -186,12 +278,24 @@ export function formatFullAddress(location: Partial<CompetitionLocation> | null)
 export function normalizeState(state: string | null | undefined): string | null {
   if (!state) return null;
   const trimmed = state.trim().toUpperCase();
-  // US state mapping (expand as needed)
+
+  // US state mapping
   const stateMap: Record<string, string> = {
-    'TEXAS': 'TX', 'CALIFORNIA': 'CA', 'NEW YORK': 'NY',
-    'FLORIDA': 'FL', 'COLORADO': 'CO', 'ARIZONA': 'AZ',
-    // ... add more as needed
+    'ALABAMA': 'AL', 'ALASKA': 'AK', 'ARIZONA': 'AZ', 'ARKANSAS': 'AR',
+    'CALIFORNIA': 'CA', 'COLORADO': 'CO', 'CONNECTICUT': 'CT', 'DELAWARE': 'DE',
+    'FLORIDA': 'FL', 'GEORGIA': 'GA', 'HAWAII': 'HI', 'IDAHO': 'ID',
+    'ILLINOIS': 'IL', 'INDIANA': 'IN', 'IOWA': 'IA', 'KANSAS': 'KS',
+    'KENTUCKY': 'KY', 'LOUISIANA': 'LA', 'MAINE': 'ME', 'MARYLAND': 'MD',
+    'MASSACHUSETTS': 'MA', 'MICHIGAN': 'MI', 'MINNESOTA': 'MN', 'MISSISSIPPI': 'MS',
+    'MISSOURI': 'MO', 'MONTANA': 'MT', 'NEBRASKA': 'NE', 'NEVADA': 'NV',
+    'NEW HAMPSHIRE': 'NH', 'NEW JERSEY': 'NJ', 'NEW MEXICO': 'NM', 'NEW YORK': 'NY',
+    'NORTH CAROLINA': 'NC', 'NORTH DAKOTA': 'ND', 'OHIO': 'OH', 'OKLAHOMA': 'OK',
+    'OREGON': 'OR', 'PENNSYLVANIA': 'PA', 'RHODE ISLAND': 'RI', 'SOUTH CAROLINA': 'SC',
+    'SOUTH DAKOTA': 'SD', 'TENNESSEE': 'TN', 'TEXAS': 'TX', 'UTAH': 'UT',
+    'VERMONT': 'VT', 'VIRGINIA': 'VA', 'WASHINGTON': 'WA', 'WEST VIRGINIA': 'WV',
+    'WISCONSIN': 'WI', 'WYOMING': 'WY', 'DISTRICT OF COLUMBIA': 'DC',
   };
+
   return stateMap[trimmed] || trimmed;
 }
 
@@ -202,13 +306,26 @@ export function normalizeState(state: string | null | undefined): string | null 
 export function normalizeCountry(country: string | null | undefined): string | null {
   if (!country) return null;
   const trimmed = country.trim().toUpperCase();
+
   const countryMap: Record<string, string> = {
-    'UNITED STATES': 'US', 'USA': 'US', 'U.S.A.': 'US', 'U.S.': 'US',
-    'UNITED KINGDOM': 'GB', 'UK': 'GB', 'ENGLAND': 'GB',
-    'CANADA': 'CA', 'AUSTRALIA': 'AU', 'GERMANY': 'DE',
-    'FRANCE': 'FR', 'SPAIN': 'ES', 'ITALY': 'IT', 'MEXICO': 'MX',
-    // ... add more as needed
+    'UNITED STATES': 'US', 'USA': 'US', 'U.S.A.': 'US', 'U.S.': 'US', 'AMERICA': 'US',
+    'UNITED KINGDOM': 'GB', 'UK': 'GB', 'ENGLAND': 'GB', 'GREAT BRITAIN': 'GB',
+    'CANADA': 'CA', 'AUSTRALIA': 'AU', 'GERMANY': 'DE', 'DEUTSCHLAND': 'DE',
+    'FRANCE': 'FR', 'SPAIN': 'ES', 'ESPANA': 'ES', 'ITALY': 'IT', 'ITALIA': 'IT',
+    'MEXICO': 'MX', 'BRASIL': 'BR', 'BRAZIL': 'BR', 'JAPAN': 'JP',
+    'CHINA': 'CN', 'INDIA': 'IN', 'RUSSIA': 'RU', 'SOUTH KOREA': 'KR',
+    'NETHERLANDS': 'NL', 'BELGIUM': 'BE', 'SWITZERLAND': 'CH', 'SWEDEN': 'SE',
+    'NORWAY': 'NO', 'DENMARK': 'DK', 'FINLAND': 'FI', 'IRELAND': 'IE',
+    'AUSTRIA': 'AT', 'POLAND': 'PL', 'PORTUGAL': 'PT', 'GREECE': 'GR',
+    'NEW ZEALAND': 'NZ', 'SOUTH AFRICA': 'ZA', 'ARGENTINA': 'AR', 'CHILE': 'CL',
+    'COLOMBIA': 'CO', 'PERU': 'PE', 'ICELAND': 'IS', 'CZECH REPUBLIC': 'CZ',
   };
+
+  // If already a 2-letter code, return uppercase
+  if (trimmed.length === 2) {
+    return trimmed;
+  }
+
   return countryMap[trimmed] || trimmed;
 }
 
@@ -217,149 +334,179 @@ export function normalizeCountry(country: string | null | undefined): string | n
  */
 export function getCountryDisplayName(isoCode: string | null | undefined): string | null {
   if (!isoCode) return null;
+
   const displayMap: Record<string, string> = {
     'US': 'United States', 'GB': 'United Kingdom', 'CA': 'Canada',
     'AU': 'Australia', 'DE': 'Germany', 'FR': 'France',
-    'ES': 'Spain', 'IT': 'Italy', 'MX': 'Mexico',
-    // ... add more as needed
+    'ES': 'Spain', 'IT': 'Italy', 'MX': 'Mexico', 'BR': 'Brazil',
+    'JP': 'Japan', 'CN': 'China', 'IN': 'India', 'RU': 'Russia',
+    'KR': 'South Korea', 'NL': 'Netherlands', 'BE': 'Belgium',
+    'CH': 'Switzerland', 'SE': 'Sweden', 'NO': 'Norway', 'DK': 'Denmark',
+    'FI': 'Finland', 'IE': 'Ireland', 'AT': 'Austria', 'PL': 'Poland',
+    'PT': 'Portugal', 'GR': 'Greece', 'NZ': 'New Zealand', 'ZA': 'South Africa',
+    'AR': 'Argentina', 'CL': 'Chile', 'CO': 'Colombia', 'PE': 'Peru',
+    'IS': 'Iceland', 'CZ': 'Czech Republic',
   };
+
   return displayMap[isoCode.toUpperCase()] || isoCode;
 }
 
 /**
- * Check if location has meaningful data
+ * Normalize address input before saving
  */
-export function hasLocationData(location: Partial<CompetitionLocation> | null): boolean {
-  if (!location) return false;
-  return Boolean(
-    location.locationName ||
-    location.addressLine1 ||
-    location.city ||
-    location.state ||
-    location.country
-  );
+export function normalizeAddressInput(address: Partial<Address>): Partial<Address> {
+  return {
+    ...address,
+    stateProvince: normalizeState(address.stateProvince),
+    countryCode: normalizeCountry(address.countryCode),
+  };
 }
+```
 
-/**
- * Format city line for display (City, State or City, Country)
- */
-export function formatCityLine(location: Partial<CompetitionLocation> | null): string | null {
-  if (!location?.city) return null;
+### 1.8 Add Zod Validation Schemas
 
-  if (location.state) {
-    return `${location.city}, ${location.state}${location.postalCode ? ` ${location.postalCode}` : ''}`;
-  }
+**File:** `apps/wodsmith-start/src/schemas/address.ts` (new file)
 
-  if (location.country) {
-    return `${location.city}, ${location.country}`;
-  }
+```typescript
+import { z } from 'zod';
 
-  return location.city;
-}
+export const addressSchema = z.object({
+  addressType: z.enum(['competition', 'venue', 'gym', 'team']).nullable().optional(),
+  name: z.string().max(200).nullable().optional(),
+  streetLine1: z.string().max(200).nullable().optional(),
+  streetLine2: z.string().max(200).nullable().optional(),
+  city: z.string().max(100).nullable().optional(),
+  stateProvince: z.string().max(10).nullable().optional(),
+  postalCode: z.string().max(20).nullable().optional(),
+  countryCode: z.string().max(2).nullable().optional(),
+  notes: z.string().max(1000).nullable().optional(),
+});
+
+export const addressInputSchema = addressSchema;
+
+export type AddressSchemaType = z.infer<typeof addressSchema>;
 ```
 
 ---
 
 ## Phase 2: Server Functions & API
 
-### 2.1 Update Zod Schemas
+### 2.1 Create Address Server Functions
 
-**File:** `apps/wodsmith-start/src/schemas/competition.ts`
-
-Add location validation schema:
+**File:** `apps/wodsmith-start/src/server-fns/address-fns.ts` (new file)
 
 ```typescript
-import { z } from 'zod';
+import { createServerFn } from '@tanstack/react-start';
+import { db } from '@/db';
+import { addressesTable } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import { addressInputSchema } from '@/schemas/address';
+import { normalizeAddressInput } from '@/utils/address';
 
-export const competitionLocationSchema = z.object({
-  locationName: z.string().max(200).nullable().optional(),
-  addressLine1: z.string().max(200).nullable().optional(),
-  addressLine2: z.string().max(200).nullable().optional(),
-  city: z.string().max(100).nullable().optional(),
-  state: z.string().max(10).nullable().optional(), // Normalized to abbreviation (e.g., "TX")
-  postalCode: z.string().max(20).nullable().optional(),
-  country: z.string().max(2).nullable().optional(), // ISO 3166-1 alpha-2 (e.g., "US", "GB")
-  locationNotes: z.string().max(1000).nullable().optional(),
-});
+export const createAddressFn = createServerFn({ method: 'POST' })
+  .validator(addressInputSchema)
+  .handler(async ({ data }) => {
+    const normalized = normalizeAddressInput(data);
 
-export const venueLocationSchema = competitionLocationSchema.extend({
-  isOffsite: z.boolean().optional().default(false),
-});
+    const [address] = await db
+      .insert(addressesTable)
+      .values({
+        ...normalized,
+        addressType: normalized.addressType ?? 'competition',
+      })
+      .returning();
+
+    return address;
+  });
+
+export const updateAddressFn = createServerFn({ method: 'POST' })
+  .validator(addressInputSchema.extend({ id: z.string() }))
+  .handler(async ({ data }) => {
+    const { id, ...rest } = data;
+    const normalized = normalizeAddressInput(rest);
+
+    const [address] = await db
+      .update(addressesTable)
+      .set({
+        ...normalized,
+        updatedAt: new Date(),
+      })
+      .where(eq(addressesTable.id, id))
+      .returning();
+
+    return address;
+  });
+
+export const getAddressFn = createServerFn({ method: 'GET' })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }) => {
+    const address = await db.query.addressesTable.findFirst({
+      where: eq(addressesTable.id, data.id),
+    });
+    return address ?? null;
+  });
 ```
 
-### 2.2 Update Competition Server Functions
+### 2.2 Update getPublicCompetitionsFn
 
 **File:** `apps/wodsmith-start/src/server-fns/competition-fns.ts`
 
-Update `getPublicCompetitionsFn` to include location fields:
+Include primaryAddress in the query:
 
 ```typescript
-// In the select statement, add:
-locationName: competitionsTable.locationName,
-city: competitionsTable.city,
-state: competitionsTable.state,
-country: competitionsTable.country,
-competitionType: competitionsTable.competitionType,
+// Update the query to include primaryAddress relation
+const competitions = await db.query.competitionsTable.findMany({
+  // ... existing options
+  with: {
+    // ... existing relations
+    primaryAddress: true,
+  },
+});
 ```
 
-Update `getCompetitionBySlugFn` to include all location fields:
+### 2.3 Update getCompetitionBySlugFn
+
+Include full address details:
 
 ```typescript
-// Add to columns selection:
-locationName: competitionsTable.locationName,
-addressLine1: competitionsTable.addressLine1,
-addressLine2: competitionsTable.addressLine2,
-city: competitionsTable.city,
-state: competitionsTable.state,
-postalCode: competitionsTable.postalCode,
-country: competitionsTable.country,
-locationNotes: competitionsTable.locationNotes,
+// Update the query to include primaryAddress
+const competition = await db.query.competitionsTable.findFirst({
+  where: eq(competitionsTable.slug, data.slug),
+  with: {
+    // ... existing relations
+    primaryAddress: true,
+  },
+});
 ```
 
-### 2.3 Update Competition Update Function
+### 2.4 Update updateCompetitionFn
 
-**File:** `apps/wodsmith-start/src/server-fns/competition-fns.ts`
-
-Update `updateCompetitionFn` to handle location fields:
+Handle address creation/linking:
 
 ```typescript
-// In the update schema, merge with location schema
-const updateSchema = existingSchema.merge(competitionLocationSchema);
-
-// In the update handler, include location fields in the update object
+// In the update handler, handle address
+if (data.address) {
+  // If competition already has an address, update it
+  if (existingCompetition.primaryAddressId) {
+    await updateAddressFn({ data: { id: existingCompetition.primaryAddressId, ...data.address } });
+  } else {
+    // Create new address and link it
+    const address = await createAddressFn({ data: { ...data.address, addressType: 'competition' } });
+    await db
+      .update(competitionsTable)
+      .set({ primaryAddressId: address.id })
+      .where(eq(competitionsTable.id, competitionId));
+  }
+}
 ```
 
 ---
 
 ## Phase 3: Edit Form UI
 
-### 3.1 Update Edit Form Schema
+### 3.1 Create AddressFields Component
 
-**File:** `apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-components/organizer-competition-edit-form.tsx`
-
-Add location fields to the form schema:
-
-```typescript
-const formSchema = z.object({
-  // ... existing fields
-
-  // Location fields
-  locationName: z.string().max(200).optional().nullable(),
-  addressLine1: z.string().max(200).optional().nullable(),
-  addressLine2: z.string().max(200).optional().nullable(),
-  city: z.string().max(100).optional().nullable(),
-  state: z.string().max(100).optional().nullable(),
-  postalCode: z.string().max(20).optional().nullable(),
-  country: z.string().max(100).optional().nullable(),
-  locationNotes: z.string().max(1000).optional().nullable(),
-});
-```
-
-### 3.2 Add Location Section Component
-
-Create a reusable location form section:
-
-**File:** `apps/wodsmith-start/src/components/forms/location-fields.tsx` (new file)
+**File:** `apps/wodsmith-start/src/components/forms/address-fields.tsx` (new file)
 
 ```tsx
 import {
@@ -373,12 +520,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { UseFormReturn } from 'react-hook-form';
 
-interface LocationFieldsProps {
+interface AddressFieldsProps {
   form: UseFormReturn<any>;
   prefix?: string;
 }
 
-export function LocationFields({ form, prefix = '' }: LocationFieldsProps) {
+export function AddressFields({ form, prefix = 'address' }: AddressFieldsProps) {
   const fieldName = (name: string) => prefix ? `${prefix}.${name}` : name;
 
   return (
@@ -386,7 +533,7 @@ export function LocationFields({ form, prefix = '' }: LocationFieldsProps) {
       {/* Location Name */}
       <FormField
         control={form.control}
-        name={fieldName('locationName')}
+        name={fieldName('name')}
         render={({ field }) => (
           <FormItem>
             <FormLabel>Venue / Location Name</FormLabel>
@@ -405,7 +552,7 @@ export function LocationFields({ form, prefix = '' }: LocationFieldsProps) {
       {/* Street Address */}
       <FormField
         control={form.control}
-        name={fieldName('addressLine1')}
+        name={fieldName('streetLine1')}
         render={({ field }) => (
           <FormItem>
             <FormLabel>Street Address</FormLabel>
@@ -424,7 +571,7 @@ export function LocationFields({ form, prefix = '' }: LocationFieldsProps) {
       {/* Address Line 2 */}
       <FormField
         control={form.control}
-        name={fieldName('addressLine2')}
+        name={fieldName('streetLine2')}
         render={({ field }) => (
           <FormItem>
             <FormLabel>Address Line 2</FormLabel>
@@ -465,7 +612,7 @@ export function LocationFields({ form, prefix = '' }: LocationFieldsProps) {
         <div className="col-span-1">
           <FormField
             control={form.control}
-            name={fieldName('state')}
+            name={fieldName('stateProvince')}
             render={({ field }) => (
               <FormItem>
                 <FormLabel>State</FormLabel>
@@ -506,13 +653,13 @@ export function LocationFields({ form, prefix = '' }: LocationFieldsProps) {
       {/* Country */}
       <FormField
         control={form.control}
-        name={fieldName('country')}
+        name={fieldName('countryCode')}
         render={({ field }) => (
           <FormItem>
             <FormLabel>Country</FormLabel>
             <FormControl>
               <Input
-                placeholder="United States"
+                placeholder="US"
                 {...field}
                 value={field.value ?? ''}
               />
@@ -525,7 +672,7 @@ export function LocationFields({ form, prefix = '' }: LocationFieldsProps) {
       {/* Location Notes */}
       <FormField
         control={form.control}
-        name={fieldName('locationNotes')}
+        name={fieldName('notes')}
         render={({ field }) => (
           <FormItem>
             <FormLabel>Additional Directions / Notes</FormLabel>
@@ -547,13 +694,13 @@ export function LocationFields({ form, prefix = '' }: LocationFieldsProps) {
 }
 ```
 
-### 3.3 Integrate into Edit Form
+### 3.2 Integrate into Edit Form
 
 In the competition edit form, add a collapsible location section:
 
 ```tsx
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { LocationFields } from '@/components/forms/location-fields';
+import { AddressFields } from '@/components/forms/address-fields';
 import { MapPinIcon, ChevronDownIcon } from 'lucide-react';
 
 // In the form JSX, after existing sections:
@@ -567,7 +714,7 @@ import { MapPinIcon, ChevronDownIcon } from 'lucide-react';
       <ChevronDownIcon className="h-4 w-4 transition-transform [[data-state=open]_&]:rotate-180" />
     </CollapsibleTrigger>
     <CollapsibleContent className="px-4 pb-4">
-      <LocationFields form={form} />
+      <AddressFields form={form} prefix="address" />
     </CollapsibleContent>
   </Collapsible>
 )}
@@ -582,17 +729,12 @@ import { MapPinIcon, ChevronDownIcon } from 'lucide-react';
 **File:** `apps/wodsmith-start/src/components/competition-row.tsx`
 
 ```tsx
-import { formatLocationBadge } from '@/utils/location';
+import { formatLocationBadge } from '@/utils/address';
 import { MapPinIcon, GlobeIcon } from 'lucide-react';
 
-// In the component, replace the location display:
+// In the component:
 const locationBadge = formatLocationBadge(
-  {
-    city: competition.city,
-    state: competition.state,
-    country: competition.country,
-    locationName: competition.locationName,
-  },
+  competition.primaryAddress,
   competition.competitionType,
   competition.organizingTeam?.name
 );
@@ -612,15 +754,13 @@ const locationBadge = formatLocationBadge(
 
 **File:** `apps/wodsmith-start/src/components/competition-hero.tsx`
 
-Add location display below dates:
-
 ```tsx
-import { formatLocationBadge, hasLocationData, formatCityLine } from '@/utils/location';
+import { formatLocationBadge } from '@/utils/address';
 import { MapPinIcon, GlobeIcon } from 'lucide-react';
 
 // In the component:
 const locationBadge = formatLocationBadge(
-  competition,
+  competition.primaryAddress,
   competition.competitionType,
   competition.organizingTeam?.name
 );
@@ -643,17 +783,17 @@ const locationBadge = formatLocationBadge(
 ```tsx
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MapPinIcon, GlobeIcon, InfoIcon } from 'lucide-react';
-import { hasLocationData, formatFullAddress } from '@/utils/location';
-import type { CompetitionLocation } from '@/types/location';
+import { hasAddressData, formatFullAddress, getCountryDisplayName } from '@/utils/address';
+import type { Address } from '@/types/address';
 
 interface CompetitionLocationCardProps {
-  location: Partial<CompetitionLocation> | null;
+  address: Partial<Address> | null;
   competitionType: 'in-person' | 'online';
   organizingTeamName?: string | null;
 }
 
 export function CompetitionLocationCard({
-  location,
+  address,
   competitionType,
   organizingTeamName,
 }: CompetitionLocationCardProps) {
@@ -675,8 +815,8 @@ export function CompetitionLocationCard({
     );
   }
 
-  const hasLocation = hasLocationData(location);
-  const fullAddress = formatFullAddress(location);
+  const hasLocation = hasAddressData(address);
+  const fullAddress = formatFullAddress(address);
 
   return (
     <Card>
@@ -687,8 +827,8 @@ export function CompetitionLocationCard({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {location?.locationName && (
-          <p className="font-semibold">{location.locationName}</p>
+        {address?.name && (
+          <p className="font-semibold">{address.name}</p>
         )}
 
         {fullAddress ? (
@@ -701,12 +841,12 @@ export function CompetitionLocationCard({
           <p className="text-muted-foreground">Location to be announced</p>
         )}
 
-        {location?.locationNotes && (
+        {address?.notes && (
           <div className="rounded-md bg-muted p-3">
             <div className="flex items-start gap-2">
               <InfoIcon className="mt-0.5 h-4 w-4 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
-                {location.locationNotes}
+                {address.notes}
               </p>
             </div>
           </div>
@@ -717,34 +857,30 @@ export function CompetitionLocationCard({
 }
 ```
 
-### 4.4 Add Location Card to Competition Detail Page
-
-**File:** `apps/wodsmith-start/src/routes/compete/$slug/index.tsx` (or relevant detail page)
-
-Import and add the location card component in the page layout.
-
 ---
 
-## Phase 5: Venue Locations (Secondary)
+## Phase 5: Venue Locations
 
 ### 5.1 Update Venue Management UI
 
-**File:** `apps/wodsmith-start/src/routes/compete/organizer/$competitionId/settings.tsx` (or dedicated venue page)
-
-Add location toggle and fields to venue edit form:
+Add radio group for venue location selection:
 
 ```tsx
-// In venue edit dialog/form:
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { AddressFields } from '@/components/forms/address-fields';
+
+// In venue edit form:
 <FormField
   control={form.control}
-  name="isOffsite"
+  name="useMainLocation"
   render={({ field }) => (
     <FormItem className="space-y-3">
       <FormLabel>Venue Location</FormLabel>
       <FormControl>
         <RadioGroup
-          onValueChange={(value) => field.onChange(value === 'offsite')}
-          defaultValue={field.value ? 'offsite' : 'main'}
+          onValueChange={(value) => field.onChange(value === 'main')}
+          defaultValue={field.value ? 'main' : 'different'}
           className="space-y-2"
         >
           <div className="flex items-center space-x-2">
@@ -752,8 +888,8 @@ Add location toggle and fields to venue edit form:
             <Label htmlFor="main">Use main competition location</Label>
           </div>
           <div className="flex items-center space-x-2">
-            <RadioGroupItem value="offsite" id="offsite" />
-            <Label htmlFor="offsite">Different location</Label>
+            <RadioGroupItem value="different" id="different" />
+            <Label htmlFor="different">Different location</Label>
           </div>
         </RadioGroup>
       </FormControl>
@@ -761,20 +897,7 @@ Add location toggle and fields to venue edit form:
   )}
 />
 
-{isOffsite && <LocationFields form={form} />}
-```
-
-### 5.2 Update Schedule Display
-
-When displaying venue information in schedules, show location context:
-
-```tsx
-// In schedule/heat display:
-{venue.isOffsite && venue.city && (
-  <span className="text-xs text-muted-foreground">
-    @ {venue.locationName || formatCityLine(venue)}
-  </span>
-)}
+{!useMainLocation && <AddressFields form={form} prefix="venueAddress" />}
 ```
 
 ---
@@ -785,42 +908,30 @@ When displaying venue information in schedules, show location context:
 
 - [ ] `formatLocationBadge()` - all priority cases
 - [ ] `formatFullAddress()` - various field combinations
-- [ ] `hasLocationData()` - true/false cases
-- [ ] `formatCityLine()` - city+state, city+country, city only
+- [ ] `hasAddressData()` - true/false cases
+- [ ] `formatCityLine()` - formatting variations
+- [ ] `normalizeState()` - "Texas" → "TX", "tx" → "TX", passthrough
+- [ ] `normalizeCountry()` - "United States" → "US", "UK" → "GB", passthrough
+- [ ] `getCountryDisplayName()` - "US" → "United States"
 
 ### Integration Tests
 
-- [ ] Competition edit form saves location data
-- [ ] Location displays correctly on competition row
+- [ ] Competition edit form saves address data
+- [ ] Address displays correctly on competition row
 - [ ] Location card renders for in-person vs online
-- [ ] Venue location toggle works correctly
-- [ ] Backwards compatibility - competitions without location data
+- [ ] Venue location selection works correctly
+- [ ] Backwards compatibility - competitions without address data
 
 ### Manual Testing
 
-- [ ] Create new competition with full location
-- [ ] Edit existing competition to add location
-- [ ] View competition list with location badges
-- [ ] View competition detail with location card
-- [ ] Create venue with offsite location
-- [ ] View schedule with venue locations
-
----
-
-## Migration Notes
-
-### Backwards Compatibility
-
-- All location fields are optional
-- Existing competitions without location data will fallback to organizing team name
-- No data migration required - existing data remains unchanged
-
-### Deployment Steps
-
-1. Deploy schema changes (migration)
-2. Deploy server function updates
-3. Deploy UI components
-4. Verify backwards compatibility
+- [ ] Create new competition with full address
+- [ ] Edit competition address
+- [ ] Clear competition address
+- [ ] Online competition shows correctly
+- [ ] Competition list shows location badges
+- [ ] Competition detail shows location card
+- [ ] Create venue with different location
+- [ ] Mobile layout works
 
 ---
 
@@ -830,20 +941,23 @@ When displaying venue information in schedules, show location context:
 
 | File | Description |
 |------|-------------|
-| `src/types/location.ts` | Location type definitions |
-| `src/utils/location.ts` | Location formatting utilities |
-| `src/components/forms/location-fields.tsx` | Reusable location form fields |
+| `src/db/schemas/addresses.ts` | Addresses table schema |
+| `src/types/address.ts` | Address type definitions |
+| `src/utils/address.ts` | Address formatting utilities |
+| `src/schemas/address.ts` | Zod validation schemas |
+| `src/server-fns/address-fns.ts` | Address CRUD server functions |
+| `src/components/forms/address-fields.tsx` | Reusable address form fields |
 | `src/components/competition-location-card.tsx` | Location display card |
 
 ### Modified Files
 
 | File | Changes |
 |------|---------|
-| `src/db/schemas/competitions.ts` | Add location columns |
-| `src/schemas/competition.ts` | Add Zod validation |
-| `src/server-fns/competition-fns.ts` | Include location in queries |
+| `src/db/schemas/competitions.ts` | Add `primaryAddressId` FK, `addressId` on venues |
+| `src/db/schema.ts` | Export addresses |
+| `src/server-fns/competition-fns.ts` | Include address relations in queries |
 | `src/routes/compete/organizer/$competitionId/-components/organizer-competition-edit-form.tsx` | Add location section |
 | `src/components/competition-row.tsx` | Update location badge |
 | `src/components/competition-hero.tsx` | Add location display |
 | `src/routes/compete/$slug/index.tsx` | Add location card |
-| Venue management components | Add venue location fields |
+| Venue management components | Add venue location selection |

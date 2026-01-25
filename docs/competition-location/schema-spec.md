@@ -4,139 +4,146 @@ This document details the database schema changes required for the competition l
 
 ## Overview
 
-Two tables will be modified:
-1. `competitions` - Add primary competition location fields
-2. `competition_venues` - Add optional offsite venue location fields
+**Approach: Normalized Addresses Table**
 
-## Competition Location Fields
+Instead of inline location fields on competitions/venues, we create a reusable `addresses` table:
 
-### Table: `competitions`
+1. `addresses` - New table for all address data (reusable for teams, users, gyms later)
+2. `competitions` - Add `primaryAddressId` FK
+3. `competition_venues` - Add `addressId` FK (nullable, falls back to competition's primary)
+
+## New Table: `addresses`
 
 | Column | Type | Nullable | Default | Description |
 |--------|------|----------|---------|-------------|
-| `location_name` | TEXT | Yes | NULL | Name of the venue/location (e.g., "CrossFit Central Arena") |
-| `address_line_1` | TEXT | Yes | NULL | Primary street address |
-| `address_line_2` | TEXT | Yes | NULL | Secondary address (suite, building, floor) |
+| `id` | TEXT | No | cuid2 | Primary key |
+| `address_type` | TEXT | Yes | NULL | Type: 'competition', 'venue', 'gym', 'team' |
+| `name` | TEXT | Yes | NULL | Location/venue name (e.g., "CrossFit Central Arena") |
+| `street_line_1` | TEXT | Yes | NULL | Primary street address |
+| `street_line_2` | TEXT | Yes | NULL | Apt, Suite, Unit, Building |
 | `city` | TEXT | Yes | NULL | City name |
-| `state` | TEXT | Yes | NULL | State/province abbreviation (normalized on save, e.g., "TX") |
-| `postal_code` | TEXT | Yes | NULL | ZIP code or postal code |
-| `country` | TEXT | Yes | NULL | ISO 3166-1 alpha-2 country code (e.g., "US", "GB") |
-| `location_notes` | TEXT | Yes | NULL | Additional directions, parking info, etc. |
+| `state_province` | TEXT | Yes | NULL | State/province abbreviation (normalized, e.g., "TX") |
+| `postal_code` | TEXT | Yes | NULL | ZIP or postal code |
+| `country_code` | TEXT | Yes | NULL | ISO 3166-1 alpha-2 (e.g., "US", "GB") |
+| `notes` | TEXT | Yes | NULL | Additional directions, parking info |
+| `created_at` | INTEGER | No | now | Unix timestamp |
+| `updated_at` | INTEGER | No | now | Unix timestamp |
 
 ### Drizzle Schema Definition
+
+```typescript
+// In src/db/schemas/addresses.ts (new file)
+
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { createId } from '@paralleldrive/cuid2';
+
+export const addressesTable = sqliteTable('addresses', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => createId()),
+
+  addressType: text('address_type'), // 'competition', 'venue', 'gym', 'team'
+  name: text('name'), // Venue/location name
+
+  streetLine1: text('street_line_1'),
+  streetLine2: text('street_line_2'),
+  city: text('city'),
+  stateProvince: text('state_province'), // Normalized abbreviation
+  postalCode: text('postal_code'),
+  countryCode: text('country_code'), // ISO 3166-1 alpha-2
+  notes: text('notes'),
+
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+```
+
+## Modified Table: `competitions`
+
+Add single FK column:
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `primary_address_id` | TEXT | Yes | NULL | FK to addresses.id |
+
+### Drizzle Schema Changes
 
 ```typescript
 // In src/db/schemas/competitions.ts - Add to competitionsTable
 
-// Location fields
-locationName: text('location_name'),
-addressLine1: text('address_line_1'),
-addressLine2: text('address_line_2'),
-city: text('city'),
-state: text('state'),
-postalCode: text('postal_code'),
-country: text('country'),
-locationNotes: text('location_notes'),
+primaryAddressId: text('primary_address_id').references(() => addressesTable.id),
 ```
 
-## Venue Location Fields
+### Relations
 
-### Table: `competition_venues`
+```typescript
+// Add to competition relations
+export const competitionsRelations = relations(competitionsTable, ({ one, many }) => ({
+  // ... existing relations
+  primaryAddress: one(addressesTable, {
+    fields: [competitionsTable.primaryAddressId],
+    references: [addressesTable.id],
+  }),
+}));
+```
+
+## Modified Table: `competition_venues`
+
+Add single FK column:
 
 | Column | Type | Nullable | Default | Description |
 |--------|------|----------|---------|-------------|
-| `location_name` | TEXT | Yes | NULL | Venue-specific location name |
-| `address_line_1` | TEXT | Yes | NULL | Primary street address |
-| `address_line_2` | TEXT | Yes | NULL | Secondary address |
-| `city` | TEXT | Yes | NULL | City name |
-| `state` | TEXT | Yes | NULL | State/province abbreviation (normalized) |
-| `postal_code` | TEXT | Yes | NULL | ZIP/postal code |
-| `country` | TEXT | Yes | NULL | ISO 3166-1 alpha-2 country code |
-| `location_notes` | TEXT | Yes | NULL | Directions specific to this venue |
-| `is_offsite` | INTEGER | Yes | 0 | Boolean flag (0=false, 1=true) indicating venue is at different location |
+| `address_id` | TEXT | Yes | NULL | FK to addresses.id (null = use competition's primary) |
 
-### Drizzle Schema Definition
+### Drizzle Schema Changes
 
 ```typescript
 // In src/db/schemas/competitions.ts - Add to competitionVenuesTable
 
-// Venue-specific location (for offsite venues)
-locationName: text('location_name'),
-addressLine1: text('address_line_1'),
-addressLine2: text('address_line_2'),
-city: text('city'),
-state: text('state'),
-postalCode: text('postal_code'),
-country: text('country'),
-locationNotes: text('location_notes'),
-isOffsite: integer('is_offsite', { mode: 'boolean' }).default(false),
+addressId: text('address_id').references(() => addressesTable.id),
+```
+
+### Relations
+
+```typescript
+// Add to venue relations
+export const competitionVenuesRelations = relations(competitionVenuesTable, ({ one }) => ({
+  // ... existing relations
+  address: one(addressesTable, {
+    fields: [competitionVenuesTable.addressId],
+    references: [addressesTable.id],
+  }),
+}));
 ```
 
 ## SQL Migration
 
-The following SQL represents the migration that will be generated by Drizzle:
-
 ```sql
--- Competition location fields
-ALTER TABLE competitions ADD COLUMN location_name TEXT;
-ALTER TABLE competitions ADD COLUMN address_line_1 TEXT;
-ALTER TABLE competitions ADD COLUMN address_line_2 TEXT;
-ALTER TABLE competitions ADD COLUMN city TEXT;
-ALTER TABLE competitions ADD COLUMN state TEXT;
-ALTER TABLE competitions ADD COLUMN postal_code TEXT;
-ALTER TABLE competitions ADD COLUMN country TEXT;
-ALTER TABLE competitions ADD COLUMN location_notes TEXT;
+-- Create addresses table
+CREATE TABLE addresses (
+  id TEXT PRIMARY KEY,
+  address_type TEXT,
+  name TEXT,
+  street_line_1 TEXT,
+  street_line_2 TEXT,
+  city TEXT,
+  state_province TEXT,
+  postal_code TEXT,
+  country_code TEXT,
+  notes TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
 
--- Venue location fields
-ALTER TABLE competition_venues ADD COLUMN location_name TEXT;
-ALTER TABLE competition_venues ADD COLUMN address_line_1 TEXT;
-ALTER TABLE competition_venues ADD COLUMN address_line_2 TEXT;
-ALTER TABLE competition_venues ADD COLUMN city TEXT;
-ALTER TABLE competition_venues ADD COLUMN state TEXT;
-ALTER TABLE competition_venues ADD COLUMN postal_code TEXT;
-ALTER TABLE competition_venues ADD COLUMN country TEXT;
-ALTER TABLE competition_venues ADD COLUMN location_notes TEXT;
-ALTER TABLE competition_venues ADD COLUMN is_offsite INTEGER DEFAULT 0;
-```
+-- Add FK to competitions
+ALTER TABLE competitions ADD COLUMN primary_address_id TEXT REFERENCES addresses(id);
 
-## Field Constraints & Validation
-
-### Character Limits
-
-| Field | Max Length | Rationale |
-|-------|------------|-----------|
-| `location_name` | 200 | Generous for venue names with subtitles |
-| `address_line_1` | 200 | Standard address length |
-| `address_line_2` | 200 | Suite/building info |
-| `city` | 100 | Longest city names worldwide |
-| `state` | 100 | Full state/province names |
-| `postal_code` | 20 | International postal codes vary |
-| `country` | 100 | Full country names |
-| `location_notes` | 1000 | Detailed directions/parking info |
-
-### Zod Validation Schema
-
-```typescript
-import { z } from 'zod';
-
-export const competitionLocationSchema = z.object({
-  locationName: z.string().max(200).nullable().optional(),
-  addressLine1: z.string().max(200).nullable().optional(),
-  addressLine2: z.string().max(200).nullable().optional(),
-  city: z.string().max(100).nullable().optional(),
-  state: z.string().max(100).nullable().optional(),
-  postalCode: z.string().max(20).nullable().optional(),
-  country: z.string().max(100).nullable().optional(),
-  locationNotes: z.string().max(1000).nullable().optional(),
-});
-
-export const venueLocationSchema = competitionLocationSchema.extend({
-  isOffsite: z.boolean().optional().default(false),
-});
-
-// Type inference
-export type CompetitionLocation = z.infer<typeof competitionLocationSchema>;
-export type VenueLocation = z.infer<typeof venueLocationSchema>;
+-- Add FK to competition_venues
+ALTER TABLE competition_venues ADD COLUMN address_id TEXT REFERENCES addresses(id);
 ```
 
 ## Data Model Relationships
@@ -147,48 +154,43 @@ export type VenueLocation = z.infer<typeof venueLocationSchema>;
 ├─────────────────────────────────────────────┤
 │ id                                          │
 │ name, slug, description                     │
-│ organizing_team_id ──────────┐              │
-│ competition_team_id          │              │
-│ start_date, end_date         │              │
-│ competition_type             │              │
-│ ...                          │              │
-│                              │              │
-│ ┌─────────────────────────┐  │              │
-│ │ LOCATION FIELDS (NEW)   │  │              │
-│ │ location_name           │  │              │
-│ │ address_line_1          │  │              │
-│ │ address_line_2          │  │              │
-│ │ city                    │  │              │
-│ │ state                   │  │              │
-│ │ postal_code             │  │              │
-│ │ country                 │  │              │
-│ │ location_notes          │  │              │
-│ └─────────────────────────┘  │              │
+│ competition_type ('in-person' | 'online')   │
+│ ...                                         │
+│                                             │
+│ primary_address_id ─────────────────────┐   │
 └─────────────────────────────────────────────┘
+                                          │
+                    ┌─────────────────────┘
                     │
-                    │ 1:many
                     ▼
+┌─────────────────────────────────────────────┐
+│              addresses                       │
+├─────────────────────────────────────────────┤
+│ id (PK)                                     │
+│ address_type                                │
+│ name                                        │
+│ street_line_1, street_line_2                │
+│ city, state_province, postal_code           │
+│ country_code                                │
+│ notes                                       │
+│ created_at, updated_at                      │
+└─────────────────────────────────────────────┘
+                    ▲
+                    │
+                    └─────────────────────┐
+                                          │
 ┌─────────────────────────────────────────────┐
 │         competition_venues                   │
 ├─────────────────────────────────────────────┤
 │ id                                          │
-│ competition_id ──────────────────────────── │
+│ competition_id                              │
 │ name                                        │
 │ lane_count, transition_minutes              │
 │ sort_order                                  │
 │                                             │
-│ ┌─────────────────────────┐                 │
-│ │ LOCATION FIELDS (NEW)   │                 │
-│ │ is_offsite              │                 │
-│ │ location_name           │                 │
-│ │ address_line_1          │                 │
-│ │ address_line_2          │                 │
-│ │ city                    │                 │
-│ │ state                   │                 │
-│ │ postal_code             │                 │
-│ │ country                 │                 │
-│ │ location_notes          │                 │
-│ └─────────────────────────┘                 │
+│ address_id ─────────────────────────────────┘
+│ (nullable - if null, uses competition's     │
+│  primary_address_id)                        │
 └─────────────────────────────────────────────┘
 ```
 
@@ -196,25 +198,23 @@ export type VenueLocation = z.infer<typeof venueLocationSchema>;
 
 ### Competition Location Display Priority
 
-When displaying a competition's location badge:
-
 ```
 1. competitionType === 'online'
    → Display "Online" with globe icon
 
-2. city && state (US-style)
+2. primaryAddress exists with city + state
    → Display "{city}, {state}"
    → Example: "Austin, TX"
 
-3. city && country (international)
-   → Display "{city}, {country}"
-   → Example: "London, UK"
+3. primaryAddress exists with city + country
+   → Display "{city}, {countryCode}"
+   → Example: "London, GB"
 
-4. city only
+4. primaryAddress exists with city only
    → Display "{city}"
 
-5. locationName only
-   → Display "{locationName}"
+5. primaryAddress exists with name only
+   → Display "{name}"
 
 6. organizingTeam.name exists
    → Display "{organizingTeam.name}"
@@ -226,21 +226,57 @@ When displaying a competition's location badge:
 ### Venue Location Logic
 
 ```
-IF venue.isOffsite === false OR venue has no location data:
-  → Venue is at main competition location
+IF venue.addressId IS NULL:
+  → Venue uses competition.primaryAddress
   → Display venue name only (e.g., "Main Floor")
 
-IF venue.isOffsite === true AND venue has location data:
-  → Venue is at a different location
+IF venue.addressId IS NOT NULL:
+  → Venue has its own address
   → Display venue name with location (e.g., "YMCA Pool @ 456 Oak St")
 ```
 
-## Index Considerations
+## Field Constraints & Validation
 
-No indexes are recommended for location fields initially because:
-1. Location fields are not used for filtering in list queries
-2. Competitions are filtered by status, dates, and organizing team
-3. Future: If location-based search is added, consider indexing `city` and `country`
+### Character Limits
+
+| Field | Max Length | Rationale |
+|-------|------------|-----------|
+| `name` | 200 | Generous for venue names with subtitles |
+| `street_line_1` | 200 | Standard address length |
+| `street_line_2` | 200 | Suite/building info |
+| `city` | 100 | Longest city names worldwide |
+| `state_province` | 10 | Abbreviations only |
+| `postal_code` | 20 | International postal codes vary |
+| `country_code` | 2 | ISO 3166-1 alpha-2 |
+| `notes` | 1000 | Detailed directions/parking info |
+
+### Zod Validation Schema
+
+```typescript
+import { z } from 'zod';
+
+export const addressSchema = z.object({
+  addressType: z.enum(['competition', 'venue', 'gym', 'team']).nullable().optional(),
+  name: z.string().max(200).nullable().optional(),
+  streetLine1: z.string().max(200).nullable().optional(),
+  streetLine2: z.string().max(200).nullable().optional(),
+  city: z.string().max(100).nullable().optional(),
+  stateProvince: z.string().max(10).nullable().optional(), // Normalized abbreviation
+  postalCode: z.string().max(20).nullable().optional(),
+  countryCode: z.string().max(2).nullable().optional(), // ISO 3166-1 alpha-2
+  notes: z.string().max(1000).nullable().optional(),
+});
+
+export type Address = z.infer<typeof addressSchema>;
+```
+
+## Benefits of Normalized Approach
+
+1. **No `is_primary` conflicts** - Single `primaryAddressId` FK on competition
+2. **Reusable** - Same table can store team addresses, gym locations, user addresses
+3. **Clean updates** - Update address once, reflected everywhere it's referenced
+4. **Simpler venue logic** - `addressId` null = use primary, non-null = custom location
+5. **Future-proof** - Easy to add address search, geocoding, etc.
 
 ## Migration Commands
 
@@ -250,53 +286,47 @@ cd apps/wodsmith-start
 pnpm db:push
 
 # Before merging to main (generate migration file)
-pnpm db:generate --name=add-competition-location
+pnpm db:generate --name=add-addresses-table
 ```
 
 ## Backwards Compatibility
 
-- All new fields are nullable with no defaults (except `is_offsite` which defaults to `false`)
-- Existing competitions will have NULL location values
-- UI must handle null values gracefully
-- Location display falls back to organizing team name (current behavior)
-- No data migration required - existing data unchanged
+- Online competitions: `primaryAddressId` remains null, display "Online"
+- Existing competitions: No address yet, fallback to organizing team name
+- Existing venues: `addressId` null, use competition's primary address
+- No data migration required for existing records
 
 ## Example Data
 
-### Competition with Full Location
+### Address for Competition
+
+```json
+{
+  "id": "addr_abc123",
+  "addressType": "competition",
+  "name": "CrossFit Central Arena",
+  "streetLine1": "123 Main Street",
+  "streetLine2": "Building C",
+  "city": "Austin",
+  "stateProvince": "TX",
+  "postalCode": "78701",
+  "countryCode": "US",
+  "notes": "Free parking in lot behind building. Enter through side door marked 'Competition Entrance'."
+}
+```
+
+### Competition with Address
 
 ```json
 {
   "id": "comp_123",
   "name": "Summer Showdown 2025",
   "competitionType": "in-person",
-  "locationName": "CrossFit Central Arena",
-  "addressLine1": "123 Main Street",
-  "addressLine2": "Building C",
-  "city": "Austin",
-  "state": "TX",
-  "postalCode": "78701",
-  "country": "United States",
-  "locationNotes": "Free parking available in the lot behind the building. Enter through the side door marked 'Competition Entrance'."
+  "primaryAddressId": "addr_abc123"
 }
 ```
 
-### Online Competition
-
-```json
-{
-  "id": "comp_456",
-  "name": "Virtual Open 2025",
-  "competitionType": "online",
-  "locationName": null,
-  "addressLine1": null,
-  "city": null,
-  "state": null,
-  "country": null
-}
-```
-
-### Venue with Offsite Location
+### Venue with Custom Address
 
 ```json
 {
@@ -304,17 +334,11 @@ pnpm db:generate --name=add-competition-location
   "competitionId": "comp_123",
   "name": "Swimming Events",
   "laneCount": 6,
-  "isOffsite": true,
-  "locationName": "Austin Aquatics Center",
-  "addressLine1": "456 Pool Lane",
-  "city": "Austin",
-  "state": "TX",
-  "postalCode": "78702",
-  "locationNotes": "Enter through the north entrance. Athlete check-in at the front desk."
+  "addressId": "addr_pool456"
 }
 ```
 
-### Venue at Main Location
+### Venue Using Competition's Primary Address
 
 ```json
 {
@@ -322,9 +346,6 @@ pnpm db:generate --name=add-competition-location
   "competitionId": "comp_123",
   "name": "Main Floor",
   "laneCount": 10,
-  "isOffsite": false,
-  "locationName": null,
-  "addressLine1": null,
-  "city": null
+  "addressId": null
 }
 ```

@@ -1,79 +1,105 @@
 # Competition Location - Task Breakdown
 
-This document provides a granular task breakdown for implementing competition location support.
+This document provides a granular task breakdown for implementing competition location support using a normalized `addresses` table.
 
 ## Epic Overview
 
 **Epic:** Add Location Support to Competitions
 **Scope:** Database, API, Organizer UI, Public Display
-**Estimated Scope:** Medium-Large feature
+**Approach:** Normalized `addresses` table with FK references
 
 ---
 
 ## Phase 1: Foundation
 
-### Task 1.1: Database Schema - Competition Location
+### Task 1.1: Create Addresses Table Schema
 
-**Description:** Add location fields to the competitions table
-
-**Files to modify:**
-- `apps/wodsmith-start/src/db/schemas/competitions.ts`
-
-**Changes:**
-- Add 8 new columns to `competitionsTable`:
-  - `locationName`
-  - `addressLine1`
-  - `addressLine2`
-  - `city`
-  - `state`
-  - `postalCode`
-  - `country`
-  - `locationNotes`
-
-**Acceptance Criteria:**
-- [ ] Schema compiles without errors
-- [ ] `pnpm db:push` applies changes to local D1
-- [ ] Can insert competition with location data
-- [ ] Existing competitions unaffected
-
----
-
-### Task 1.2: Database Schema - Venue Location
-
-**Description:** Add optional location fields to competition venues table
-
-**Files to modify:**
-- `apps/wodsmith-start/src/db/schemas/competitions.ts`
-
-**Changes:**
-- Add 9 new columns to `competitionVenuesTable`:
-  - `isOffsite` (boolean, default false)
-  - `locationName`
-  - `addressLine1`
-  - `addressLine2`
-  - `city`
-  - `state`
-  - `postalCode`
-  - `country`
-  - `locationNotes`
-
-**Acceptance Criteria:**
-- [ ] Schema compiles without errors
-- [ ] Can create venue with offsite location
-- [ ] Existing venues unaffected
-
----
-
-### Task 1.3: Create Location Types
-
-**Description:** Create TypeScript types for location data
+**Description:** Create new `addresses` table for storing location data
 
 **Files to create:**
-- `apps/wodsmith-start/src/types/location.ts`
+- `apps/wodsmith-start/src/db/schemas/addresses.ts`
+
+**Changes:**
+- Define `addressesTable` with columns:
+  - `id` (cuid2 primary key)
+  - `addressType` ('competition', 'venue', 'gym', 'team')
+  - `name` (venue/location name)
+  - `streetLine1`, `streetLine2`
+  - `city`, `stateProvince`, `postalCode`, `countryCode`
+  - `notes`
+  - `createdAt`, `updatedAt`
+- Define `addressesRelations`
+
+**Acceptance Criteria:**
+- [ ] Schema compiles without errors
+- [ ] Table exported from schema index
+
+---
+
+### Task 1.2: Add FK to Competitions Table
+
+**Description:** Add `primaryAddressId` FK to competitions table
+
+**Files to modify:**
+- `apps/wodsmith-start/src/db/schemas/competitions.ts`
+
+**Changes:**
+- Add `primaryAddressId` column with FK reference to `addressesTable`
+- Update `competitionsRelations` to include `primaryAddress` relation
+
+**Acceptance Criteria:**
+- [ ] Schema compiles without errors
+- [ ] Relation properly configured
+
+---
+
+### Task 1.3: Add FK to Venues Table
+
+**Description:** Add `addressId` FK to competition_venues table
+
+**Files to modify:**
+- `apps/wodsmith-start/src/db/schemas/competitions.ts`
+
+**Changes:**
+- Add `addressId` column with FK reference to `addressesTable`
+- Update `competitionVenuesRelations` to include `address` relation
+
+**Acceptance Criteria:**
+- [ ] Schema compiles without errors
+- [ ] Relation properly configured
+
+---
+
+### Task 1.4: Export Schema & Push Changes
+
+**Description:** Export addresses schema and push to local D1
+
+**Files to modify:**
+- `apps/wodsmith-start/src/db/schema.ts`
+
+**Commands:**
+```bash
+cd apps/wodsmith-start
+pnpm db:push
+```
+
+**Acceptance Criteria:**
+- [ ] `pnpm db:push` succeeds
+- [ ] Tables created in local D1
+- [ ] Existing data unaffected
+
+---
+
+### Task 1.5: Create Address Types
+
+**Description:** Create TypeScript types for address data
+
+**Files to create:**
+- `apps/wodsmith-start/src/types/address.ts`
 
 **Contents:**
-- `CompetitionLocation` interface
-- `VenueLocation` interface
+- `Address` interface
+- `AddressInput` type (without id, timestamps)
 - `LocationBadgeDisplay` type
 
 **Acceptance Criteria:**
@@ -82,135 +108,156 @@ This document provides a granular task breakdown for implementing competition lo
 
 ---
 
-### Task 1.4: Create Location Utility Functions
+### Task 1.6: Create Address Utility Functions
 
-**Description:** Create utility functions for formatting and displaying locations
+**Description:** Create utility functions for formatting and displaying addresses
 
 **Files to create:**
-- `apps/wodsmith-start/src/utils/location.ts`
+- `apps/wodsmith-start/src/utils/address.ts`
 
 **Functions to implement:**
 - `formatLocationBadge()` - Format for competition row badge
 - `formatFullAddress()` - Format complete address
-- `hasLocationData()` - Check if location has meaningful data
+- `hasAddressData()` - Check if address has meaningful data
 - `formatCityLine()` - Format city/state/country line
-- `normalizeState()` - Normalize state input to abbreviation (e.g., "Texas" → "TX")
+- `normalizeState()` - Normalize state to abbreviation (e.g., "Texas" → "TX")
 - `normalizeCountry()` - Normalize country to ISO 3166-1 alpha-2 code
 - `getCountryDisplayName()` - Get display name from ISO code
+- `normalizeAddressInput()` - Normalize address before saving
 
 **Acceptance Criteria:**
 - [ ] All functions handle null/undefined gracefully
 - [ ] `formatLocationBadge()` follows priority rules
-- [ ] Unit tests pass (if applicable)
+- [ ] Normalization works correctly
 
 ---
 
-### Task 1.5: Add Zod Validation Schemas
+### Task 1.7: Add Zod Validation Schemas
 
-**Description:** Add validation schemas for location data
+**Description:** Add validation schemas for address data
 
-**Files to modify:**
-- `apps/wodsmith-start/src/schemas/competition.ts` (or create new file)
+**Files to create:**
+- `apps/wodsmith-start/src/schemas/address.ts`
 
 **Schemas to add:**
-- `competitionLocationSchema`
-- `venueLocationSchema`
+- `addressSchema` - Address field validation
+- `addressInputSchema` - Input validation
 
 **Acceptance Criteria:**
 - [ ] Schemas validate field lengths
 - [ ] Schemas handle nullable fields correctly
-- [ ] Schemas integrate with existing competition schemas
 
 ---
 
 ## Phase 2: Server Functions
 
-### Task 2.1: Update getPublicCompetitionsFn
+### Task 2.1: Create Address Server Functions
 
-**Description:** Include location fields in public competitions list query
+**Description:** Create CRUD server functions for addresses
+
+**Files to create:**
+- `apps/wodsmith-start/src/server-fns/address-fns.ts`
+
+**Functions:**
+- `createAddressFn` - Create new address with normalization
+- `updateAddressFn` - Update existing address
+- `getAddressFn` - Get address by ID
+
+**Acceptance Criteria:**
+- [ ] Functions normalize state/country on save
+- [ ] Functions return proper types
+- [ ] Error handling works
+
+---
+
+### Task 2.2: Update getPublicCompetitionsFn
+
+**Description:** Include primaryAddress relation in public competitions query
 
 **Files to modify:**
 - `apps/wodsmith-start/src/server-fns/competition-fns.ts`
 
 **Changes:**
-- Add to select: `city`, `state`, `country`, `locationName`, `competitionType`
-- Ensure fields included in return type
+- Add `primaryAddress: true` to query `with` clause
+- Update return type if needed
 
 **Acceptance Criteria:**
-- [ ] API returns location fields
-- [ ] Competition row can access location data
+- [ ] API returns address data
+- [ ] Competition row can access address
 - [ ] No performance regression
 
 ---
 
-### Task 2.2: Update getCompetitionBySlugFn
+### Task 2.3: Update getCompetitionBySlugFn
 
-**Description:** Include full location details in competition detail query
+**Description:** Include full address details in competition detail query
 
 **Files to modify:**
 - `apps/wodsmith-start/src/server-fns/competition-fns.ts`
 
 **Changes:**
-- Add all 8 location fields to select
-- Ensure fields included in return type
+- Add `primaryAddress: true` to query `with` clause
+- Update return type if needed
 
 **Acceptance Criteria:**
-- [ ] API returns all location fields
+- [ ] API returns full address details
 - [ ] Detail page can display full location
 
 ---
 
-### Task 2.3: Update updateCompetitionFn
+### Task 2.4: Update updateCompetitionFn
 
-**Description:** Allow updating location fields when editing competition
+**Description:** Handle address creation/update when editing competition
 
 **Files to modify:**
 - `apps/wodsmith-start/src/server-fns/competition-fns.ts`
 
 **Changes:**
-- Merge location schema with update schema
-- Include location fields in update object
-- Handle null values appropriately
+- Accept address data in update payload
+- If competition has `primaryAddressId`, update existing address
+- If not, create new address and link it
+- Handle clearing address (set `primaryAddressId` to null)
 
 **Acceptance Criteria:**
-- [ ] Can save location data from edit form
-- [ ] Can clear location fields
-- [ ] Partial updates work correctly
+- [ ] Can save new address from edit form
+- [ ] Can update existing address
+- [ ] Can clear address
+- [ ] Normalization applied on save
 
 ---
 
-### Task 2.4: Update Venue Server Functions
+### Task 2.5: Update Venue Server Functions
 
-**Description:** Include venue location fields in venue queries/updates
+**Description:** Include venue address data in venue queries/updates
 
 **Files to modify:**
-- Venue-related server functions (identify specific file)
+- Venue-related server functions
 
 **Changes:**
-- Add location fields to venue queries
-- Handle `isOffsite` flag
-- Support venue location updates
+- Add `address: true` to venue queries
+- Handle venue address creation/update
+- Handle `addressId` nullable FK
 
 **Acceptance Criteria:**
-- [ ] Venue queries return location data
-- [ ] Can update venue location
-- [ ] `isOffsite` toggle works
+- [ ] Venue queries return address data
+- [ ] Can update venue address
+- [ ] Null addressId means use competition's primary
 
 ---
 
 ## Phase 3: Organizer UI
 
-### Task 3.1: Create LocationFields Component
+### Task 3.1: Create AddressFields Component
 
-**Description:** Create reusable form component for location fields
+**Description:** Create reusable form component for address fields
 
 **Files to create:**
-- `apps/wodsmith-start/src/components/forms/location-fields.tsx`
+- `apps/wodsmith-start/src/components/forms/address-fields.tsx`
 
 **Component features:**
-- All location input fields
+- All address input fields
 - Proper form integration (react-hook-form)
-- Responsive grid layout
+- Responsive grid layout (City/State/Postal in row)
 - Optional prefix prop for nested forms
 
 **Acceptance Criteria:**
@@ -223,44 +270,44 @@ This document provides a granular task breakdown for implementing competition lo
 
 ### Task 3.2: Add Location Section to Competition Edit Form
 
-**Description:** Integrate location fields into the competition edit form
+**Description:** Integrate address fields into the competition edit form
 
 **Files to modify:**
 - `apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-components/organizer-competition-edit-form.tsx`
 
 **Changes:**
-- Add location fields to form schema
+- Add address fields to form schema (nested under `address`)
 - Add collapsible location section
-- Conditionally show for in-person competitions
-- Populate with existing data
-- Save location on form submit
+- Conditionally show for in-person competitions only
+- Populate with existing address data
+- Save address on form submit
 
 **Acceptance Criteria:**
 - [ ] Location section visible for in-person competitions
 - [ ] Hidden for online competitions
-- [ ] Existing location data loads correctly
-- [ ] Location saves on submit
+- [ ] Existing address data loads correctly
+- [ ] Address saves on submit
 - [ ] Collapsible works correctly
 
 ---
 
-### Task 3.3: Add Venue Location Toggle & Fields
+### Task 3.3: Add Venue Location Selection
 
-**Description:** Allow setting offsite location on venues
+**Description:** Allow selecting location for venues
 
 **Files to modify:**
-- Venue management component (identify specific file)
+- Venue management component
 
 **Changes:**
 - Add radio group: "Use main competition location" (default) / "Different location"
-- Show location fields when "Different location" selected
-- Save venue location data
-- Clear location fields when switched back to main
+- Show address fields when "Different location" selected
+- Save venue address data
+- Clear addressId when switching back to main
 
 **Acceptance Criteria:**
-- [ ] Radio selection shows/hides location fields
+- [ ] Radio selection shows/hides address fields
 - [ ] "Use main competition location" is default
-- [ ] Venue location saves correctly
+- [ ] Venue address saves correctly
 - [ ] Existing venues show correct state
 
 ---
@@ -276,13 +323,13 @@ This document provides a granular task breakdown for implementing competition lo
 
 **Changes:**
 - Import `formatLocationBadge` utility
-- Replace organizing team name with location badge
+- Call with `competition.primaryAddress`
 - Use globe icon for online, map-pin for in-person
 - Handle mobile layout
 
 **Acceptance Criteria:**
 - [ ] Shows "City, ST" for US competitions
-- [ ] Shows "City, Country" for international
+- [ ] Shows "City, CC" for international
 - [ ] Shows "Online" with globe for online competitions
 - [ ] Falls back to organizing team name
 - [ ] Works on mobile
@@ -297,9 +344,9 @@ This document provides a granular task breakdown for implementing competition lo
 - `apps/wodsmith-start/src/components/competition-hero.tsx`
 
 **Changes:**
+- Import `formatLocationBadge` utility
 - Add location badge below dates
 - Use appropriate icon (globe/map-pin)
-- Format location text appropriately
 
 **Acceptance Criteria:**
 - [ ] Location displays in hero
@@ -317,8 +364,8 @@ This document provides a granular task breakdown for implementing competition lo
 
 **Component features:**
 - Show venue name, full address
-- Display location notes
-- Handle online competitions
+- Display location notes in muted box
+- Handle online competitions (show "Online" message)
 - Handle missing location data
 
 **Acceptance Criteria:**
@@ -339,7 +386,7 @@ This document provides a granular task breakdown for implementing competition lo
 **Changes:**
 - Import location card component
 - Add to page layout in appropriate position
-- Pass competition location data
+- Pass `competition.primaryAddress` data
 
 **Acceptance Criteria:**
 - [ ] Location card appears on detail page
@@ -353,34 +400,34 @@ This document provides a granular task breakdown for implementing competition lo
 **Description:** Show venue location context in schedule/heat displays
 
 **Files to modify:**
-- Schedule display components (identify specific files)
+- Schedule display components
 
 **Changes:**
-- Show venue name with location for offsite venues
-- Visual indicator for offsite venues
+- Show venue name with location for venues with custom address
+- Visual indicator for venues at different locations
 - Consider grouping by location
 
 **Acceptance Criteria:**
-- [ ] Offsite venues show location
-- [ ] Non-offsite venues show name only
+- [ ] Venues with custom address show location
+- [ ] Venues using main location show name only
 - [ ] Clear visual distinction
 
 ---
 
 ## Phase 5: Testing & Polish
 
-### Task 5.1: Add Unit Tests for Location Utilities
+### Task 5.1: Add Unit Tests for Address Utilities
 
-**Description:** Test location formatting functions
+**Description:** Test address formatting and normalization functions
 
 **Files to create:**
-- `apps/wodsmith-start/test/utils/location.test.ts`
+- `apps/wodsmith-start/test/utils/address.test.ts`
 
 **Tests:**
-- `formatLocationBadge` all priority cases
-- `formatFullAddress` field combinations
-- `hasLocationData` true/false cases
-- `formatCityLine` formatting
+- `formatLocationBadge` - all priority cases (online, city+state, city+country, city only, name only, fallback)
+- `formatFullAddress` - field combinations
+- `hasAddressData` - true/false cases
+- `formatCityLine` - formatting variations
 - `normalizeState` - "Texas" → "TX", "tx" → "TX", passthrough unknown
 - `normalizeCountry` - "United States" → "US", "UK" → "GB", passthrough ISO codes
 - `getCountryDisplayName` - "US" → "United States"
@@ -397,16 +444,17 @@ This document provides a granular task breakdown for implementing competition lo
 **Description:** End-to-end testing of location feature
 
 **Test scenarios:**
-- [ ] Create competition with full location
-- [ ] Edit competition location
-- [ ] Clear competition location
-- [ ] Online competition shows correctly
+- [ ] Create competition with full address
+- [ ] Edit competition address
+- [ ] Clear competition address
+- [ ] Online competition shows "Online" correctly
 - [ ] Competition list shows location badges
 - [ ] Competition detail shows location card
-- [ ] Create venue with offsite location
+- [ ] Create venue with different location
+- [ ] Venue uses main location by default
 - [ ] Schedule shows venue locations
 - [ ] Mobile layout works
-- [ ] Backwards compatibility (old competitions)
+- [ ] Backwards compatibility (old competitions without address)
 
 ---
 
@@ -417,7 +465,7 @@ This document provides a granular task breakdown for implementing competition lo
 **Commands:**
 ```bash
 cd apps/wodsmith-start
-pnpm db:generate --name=add-competition-location
+pnpm db:generate --name=add-addresses-table
 ```
 
 **Acceptance Criteria:**
@@ -431,22 +479,25 @@ pnpm db:generate --name=add-competition-location
 
 ```
 Phase 1 (Foundation)
-  ├── Task 1.1: Competition Schema
-  ├── Task 1.2: Venue Schema
-  ├── Task 1.3: Location Types
-  ├── Task 1.4: Location Utilities
-  └── Task 1.5: Zod Schemas
+  ├── Task 1.1: Create Addresses Schema
+  ├── Task 1.2: Add FK to Competitions
+  ├── Task 1.3: Add FK to Venues
+  ├── Task 1.4: Export & Push Schema
+  ├── Task 1.5: Address Types
+  ├── Task 1.6: Address Utilities
+  └── Task 1.7: Zod Schemas
 
 Phase 2 (Server) - depends on Phase 1
-  ├── Task 2.1: getPublicCompetitionsFn
-  ├── Task 2.2: getCompetitionBySlugFn
-  ├── Task 2.3: updateCompetitionFn
-  └── Task 2.4: Venue Server Functions
+  ├── Task 2.1: Address Server Functions
+  ├── Task 2.2: getPublicCompetitionsFn
+  ├── Task 2.3: getCompetitionBySlugFn
+  ├── Task 2.4: updateCompetitionFn
+  └── Task 2.5: Venue Server Functions
 
 Phase 3 (Organizer UI) - depends on Phase 2
-  ├── Task 3.1: LocationFields Component
+  ├── Task 3.1: AddressFields Component
   ├── Task 3.2: Competition Edit Form
-  └── Task 3.3: Venue Location Toggle
+  └── Task 3.3: Venue Location Selection
 
 Phase 4 (Public Display) - depends on Phase 2
   ├── Task 4.1: Competition Row Badge
@@ -461,10 +512,22 @@ Phase 5 (Testing) - depends on all phases
   └── Task 5.3: Migration Generation
 ```
 
+## Parallelization
+
+**Can run in parallel within Phase 1:**
+- Tasks 1.1, 1.2, 1.3 (schema changes)
+- Tasks 1.5, 1.6, 1.7 (types/utils/schemas)
+
+**Can run in parallel after Phase 2:**
+- Phase 3 (Organizer UI) and Phase 4 (Public Display)
+
+**Sequential dependencies:**
+- Schema tasks → Push → Server functions → UI
+
 ## Notes
 
-- Phase 1 tasks can be done in parallel
-- Phase 2 tasks can be started once Phase 1 is complete
-- Phase 3 and Phase 4 can be done in parallel after Phase 2
-- Consider feature flagging if phased rollout is desired
+- All fields nullable for backwards compatibility
+- State/country normalized on save, not display
+- Venues with null `addressId` use competition's `primaryAddress`
+- Online competitions should have null `primaryAddressId`
 - Mobile testing is critical for competition row badge
