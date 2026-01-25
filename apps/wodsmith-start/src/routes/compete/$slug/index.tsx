@@ -3,7 +3,10 @@ import { CompetitionTabs } from "@/components/competition-tabs"
 import { EventDetailsContent } from "@/components/event-details-content"
 import { RegistrationSidebar } from "@/components/registration-sidebar"
 import { Card, CardContent } from "@/components/ui/card"
-import { getPublishedCompetitionWorkoutsWithDetailsFn, getWorkoutDivisionDescriptionsFn } from "@/server-fns/competition-workouts-fns"
+import {
+	getPublishedCompetitionWorkoutsWithDetailsFn,
+	getWorkoutDivisionDescriptionsFn,
+} from "@/server-fns/competition-workouts-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { CompetitionWorkoutCard } from "@/components/competition-workout-card"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
@@ -12,8 +15,8 @@ const parentRoute = getRouteApi("/compete/$slug")
 
 export const Route = createFileRoute("/compete/$slug/")({
 	component: CompetitionOverviewPage,
-    loader: async ({ params }) => {
-        const { competition } = await getCompetitionBySlugFn({
+	loader: async ({ params }) => {
+		const { competition } = await getCompetitionBySlugFn({
 			data: { slug: params.slug },
 		})
 
@@ -21,20 +24,20 @@ export const Route = createFileRoute("/compete/$slug/")({
 			return { workouts: [], divisionDescriptionsMap: {} }
 		}
 
-        const competitionId = competition.id
+		const competitionId = competition.id
 
-        const [workoutsResult, divisionsResult] = await Promise.all([
-            getPublishedCompetitionWorkoutsWithDetailsFn({
-                data: { competitionId }
-            }),
-            getPublicCompetitionDivisionsFn({
-                data: { competitionId }
-            })
-        ])
+		const [workoutsResult, divisionsResult] = await Promise.all([
+			getPublishedCompetitionWorkoutsWithDetailsFn({
+				data: { competitionId },
+			}),
+			getPublicCompetitionDivisionsFn({
+				data: { competitionId },
+			}),
+		])
 
-        const workouts = workoutsResult.workouts
-        const divisions = divisionsResult.divisions
-        const divisionIds = divisions?.map((d) => d.id) ?? []
+		const workouts = workoutsResult.workouts
+		const divisions = divisionsResult.divisions
+		const divisionIds = divisions?.map((d) => d.id) ?? []
 		const divisionDescriptionsMap: Record<
 			string,
 			Awaited<ReturnType<typeof getWorkoutDivisionDescriptionsFn>>
@@ -57,8 +60,8 @@ export const Route = createFileRoute("/compete/$slug/")({
 			}
 		}
 
-        return { workouts, divisionDescriptionsMap }
-    }
+		return { workouts, divisionDescriptionsMap }
+	},
 })
 
 function CompetitionOverviewPage() {
@@ -74,8 +77,9 @@ function CompetitionOverviewPage() {
 		userDivision,
 		maxSpots,
 	} = parentRoute.useLoaderData()
-    
-    const { workouts, divisionDescriptionsMap } = Route.useLoaderData()
+
+	const { slug } = Route.useParams()
+	const { workouts, divisionDescriptionsMap } = Route.useLoaderData()
 
 	const isRegistered = !!userRegistration
 	const isTeamRegistration = (userDivision?.teamSize ?? 1) > 1
@@ -96,49 +100,49 @@ function CompetitionOverviewPage() {
 				divisions={divisions.length > 0 ? divisions : undefined}
 				sponsors={sponsors}
 				workoutsContent={
-                    workouts.length > 0 ? (
-                        <div className="space-y-6">
-                            <h2 className="text-xl font-semibold mb-4">Workouts</h2>
-                            <div className="space-y-6">
-                                {workouts.map((event) => {
-                                    const divisionDescriptionsResult = divisionDescriptionsMap[event.workoutId]
-                                    return (
-                                        <CompetitionWorkoutCard
-                                            key={event.id}
-                                            trackOrder={event.trackOrder}
-                                            name={event.workout.name}
-                                            scheme={event.workout.scheme}
-                                            description={event.workout.description}
-                                            scoreType={event.workout.scoreType}
-                                            roundsToScore={event.workout.roundsToScore}
-                                            tiebreakScheme={event.workout.tiebreakScheme}
-                                            pointsMultiplier={event.pointsMultiplier}
-                                            notes={event.notes}
-                                            movements={event.workout.movements}
-                                            tags={event.workout.tags}
-                                            divisionDescriptions={
-                                                divisionDescriptionsResult?.descriptions ?? []
-                                            }
-                                            sponsorName={event.sponsorName}
-                                            sponsorLogoUrl={event.sponsorLogoUrl}
-                                            selectedDivisionId="default"
-                                            timeCap={event.workout.timeCap}
-                                        />
-                                    )
-                                })}
-                            </div>
-                        </div>
-                    ) : (
-					<section>
-						<Card className="border-dashed">
-							<CardContent className="py-6 text-center">
-								<p className="text-muted-foreground">
-									Workouts will be announced by the event organizer.
-								</p>
-							</CardContent>
-						</Card>
-					</section>
-                    )
+					workouts.length > 0 ? (
+						<div className="space-y-6">
+							<h2 className="text-xl font-semibold mb-4">Workouts</h2>
+							<div className="space-y-6">
+								{workouts.map((event) => {
+									const divisionDescriptionsResult =
+										divisionDescriptionsMap[event.workoutId]
+									return (
+										<CompetitionWorkoutCard
+											key={event.id}
+											eventId={event.id}
+											slug={slug}
+											trackOrder={event.trackOrder}
+											name={event.workout.name}
+											scheme={event.workout.scheme}
+											description={event.workout.description}
+											roundsToScore={event.workout.roundsToScore}
+											pointsMultiplier={event.pointsMultiplier}
+											movements={event.workout.movements}
+											tags={event.workout.tags}
+											divisionDescriptions={
+												divisionDescriptionsResult?.descriptions ?? []
+											}
+											sponsorName={event.sponsorName}
+											sponsorLogoUrl={event.sponsorLogoUrl}
+											selectedDivisionId="default"
+											timeCap={event.workout.timeCap}
+										/>
+									)
+								})}
+							</div>
+						</div>
+					) : (
+						<section>
+							<Card className="border-dashed">
+								<CardContent className="py-6 text-center">
+									<p className="text-muted-foreground">
+										Workouts will be announced by the event organizer.
+									</p>
+								</CardContent>
+							</Card>
+						</section>
+					)
 				}
 				scheduleContent={
 					<Card className="border-dashed">

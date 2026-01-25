@@ -5,14 +5,18 @@
 
 import { createId } from "@paralleldrive/cuid2"
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray } from "drizzle-orm"
+import { and, asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
 	createTagId,
 	createWorkoutScalingDescriptionId,
 } from "@/db/schemas/common"
-import { competitionsTable } from "@/db/schemas/competitions"
+import {
+	competitionHeatsTable,
+	competitionsTable,
+} from "@/db/schemas/competitions"
+import { eventResourcesTable } from "@/db/schemas/event-resources"
 import {
 	PROGRAMMING_TRACK_TYPE,
 	programmingTracksTable,
@@ -99,6 +103,11 @@ const getCompetitionWorkoutsInputSchema = z.object({
 const getCompetitionEventInputSchema = z.object({
 	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
 	teamId: z.string().min(1, "Team ID is required"),
+})
+
+const getPublicEventDetailsInputSchema = z.object({
+	eventId: z.string().min(1, "Event ID is required"),
+	competitionId: z.string().min(1, "Competition ID is required"),
 })
 
 const addWorkoutToCompetitionInputSchema = z.object({
@@ -509,6 +518,194 @@ export const getPublishedCompetitionWorkoutsWithDetailsFn = createServerFn({
 		}))
 
 		return { workouts: enrichedWorkouts }
+	})
+
+/**
+ * Get public event details including resources and heat times
+ * Returns event details, resources, and first/last heat times for public views
+ */
+export const getPublicEventDetailsFn = createServerFn({
+	method: "GET",
+})
+	.inputValidator((data: unknown) =>
+		getPublicEventDetailsInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// First verify the event belongs to the competition
+		const track = await db.query.programmingTracksTable.findFirst({
+			where: eq(programmingTracksTable.competitionId, data.competitionId),
+		})
+
+		if (!track) {
+			return { event: null, resources: [], heatTimes: null, totalEvents: 0 }
+		}
+
+		// Get the track workout with workout details and sponsor
+		const trackWorkoutResult = await db
+			.select({
+				id: trackWorkoutsTable.id,
+				trackId: trackWorkoutsTable.trackId,
+				workoutId: trackWorkoutsTable.workoutId,
+				trackOrder: trackWorkoutsTable.trackOrder,
+				notes: trackWorkoutsTable.notes,
+				pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+				heatStatus: trackWorkoutsTable.heatStatus,
+				eventStatus: trackWorkoutsTable.eventStatus,
+				sponsorId: trackWorkoutsTable.sponsorId,
+				createdAt: trackWorkoutsTable.createdAt,
+				updatedAt: trackWorkoutsTable.updatedAt,
+				workout: {
+					id: workouts.id,
+					name: workouts.name,
+					description: workouts.description,
+					scheme: workouts.scheme,
+					scoreType: workouts.scoreType,
+					roundsToScore: workouts.roundsToScore,
+					repsPerRound: workouts.repsPerRound,
+					tiebreakScheme: workouts.tiebreakScheme,
+					timeCap: workouts.timeCap,
+				},
+				sponsorName: sponsorsTable.name,
+				sponsorLogoUrl: sponsorsTable.logoUrl,
+			})
+			.from(trackWorkoutsTable)
+			.innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+			.leftJoin(
+				sponsorsTable,
+				eq(trackWorkoutsTable.sponsorId, sponsorsTable.id),
+			)
+			.where(
+				and(
+					eq(trackWorkoutsTable.id, data.eventId),
+					eq(trackWorkoutsTable.trackId, track.id),
+					eq(trackWorkoutsTable.eventStatus, "published"),
+				),
+			)
+			.limit(1)
+
+		if (trackWorkoutResult.length === 0) {
+			return { event: null, resources: [], heatTimes: null, totalEvents: 0 }
+		}
+
+		const event = trackWorkoutResult[0]
+
+		// Count total published events in this track for "Event X of Y" display
+		const totalEventsResult = await db
+			.select({ id: trackWorkoutsTable.id })
+			.from(trackWorkoutsTable)
+			.where(
+				and(
+					eq(trackWorkoutsTable.trackId, event.trackId),
+					eq(trackWorkoutsTable.eventStatus, "published"),
+				),
+			)
+		const totalEvents = totalEventsResult.length
+
+		// Fetch movements for this workout
+		const workoutMovementsData = await db
+			.select({
+				movementId: movements.id,
+				movementName: movements.name,
+			})
+			.from(workoutMovements)
+			.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
+			.where(eq(workoutMovements.workoutId, event.workoutId))
+
+		// Fetch tags for this workout
+		const workoutTagsData = await db
+			.select({
+				tagId: tags.id,
+				tagName: tags.name,
+			})
+			.from(workoutTags)
+			.innerJoin(tags, eq(workoutTags.tagId, tags.id))
+			.where(eq(workoutTags.workoutId, event.workoutId))
+
+		// Fetch event resources
+		const resources = await db
+			.select()
+			.from(eventResourcesTable)
+			.where(eq(eventResourcesTable.eventId, data.eventId))
+			.orderBy(asc(eventResourcesTable.sortOrder))
+
+		// Fetch heats for this event to get first and last heat times
+		const heats = await db
+			.select({
+				scheduledTime: competitionHeatsTable.scheduledTime,
+				schedulePublishedAt: competitionHeatsTable.schedulePublishedAt,
+				durationMinutes: competitionHeatsTable.durationMinutes,
+			})
+			.from(competitionHeatsTable)
+			.where(eq(competitionHeatsTable.trackWorkoutId, data.eventId))
+			.orderBy(asc(competitionHeatsTable.scheduledTime))
+
+		// Only include heats that are published (have schedulePublishedAt set)
+		const publishedHeats = heats.filter(
+			(h) => h.schedulePublishedAt !== null && h.scheduledTime !== null,
+		)
+
+		// Get first heat start time and last heat end time from published heats
+		let heatTimes: {
+			firstHeatStartTime: Date
+			lastHeatEndTime: Date
+		} | null = null
+		if (publishedHeats.length > 0) {
+			const sortedHeats = publishedHeats
+				.filter((h) => h.scheduledTime !== null)
+				.sort((a, b) => a.scheduledTime!.getTime() - b.scheduledTime!.getTime())
+
+			if (sortedHeats.length > 0) {
+				const firstHeat = sortedHeats[0]!
+				const lastHeat = sortedHeats[sortedHeats.length - 1]!
+
+				// Calculate last heat end time (start time + duration)
+				const lastHeatEndTime = new Date(lastHeat.scheduledTime!.getTime())
+				if (lastHeat.durationMinutes) {
+					lastHeatEndTime.setMinutes(
+						lastHeatEndTime.getMinutes() + lastHeat.durationMinutes,
+					)
+				}
+
+				heatTimes = {
+					firstHeatStartTime: firstHeat.scheduledTime!,
+					lastHeatEndTime,
+				}
+			}
+		}
+
+		// Combine all data
+		const enrichedEvent = {
+			id: event.id,
+			trackId: event.trackId,
+			workoutId: event.workoutId,
+			trackOrder: event.trackOrder,
+			notes: event.notes,
+			pointsMultiplier: event.pointsMultiplier,
+			heatStatus: event.heatStatus,
+			eventStatus: event.eventStatus,
+			sponsorId: event.sponsorId,
+			createdAt: event.createdAt,
+			updatedAt: event.updatedAt,
+			workout: {
+				...event.workout,
+				movements: workoutMovementsData.map((m) => ({
+					id: m.movementId,
+					name: m.movementName,
+				})),
+				tags: workoutTagsData.map((t) => ({ id: t.tagId, name: t.tagName })),
+			},
+			sponsorName: event.sponsorName ?? undefined,
+			sponsorLogoUrl: event.sponsorLogoUrl ?? undefined,
+		}
+
+		return {
+			event: enrichedEvent,
+			resources,
+			heatTimes,
+			totalEvents,
+		}
 	})
 
 /**
