@@ -10,6 +10,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { CompetitionWorkoutCard } from "@/components/competition-workout-card"
+import { getPublicCompetitionEventsFn } from "@/server-fns/competition-event-fns"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import {
@@ -31,23 +32,51 @@ export const Route = createFileRoute("/compete/$slug/workouts")({
 		})
 
 		if (!competition) {
-			return { workouts: [], divisions: [], divisionDescriptionsMap: {} }
+			return {
+				workouts: [],
+				divisions: [],
+				divisionDescriptionsMap: {},
+				submissionWindowsMap: {},
+				isOnline: false,
+				competitionStarted: false,
+				timezone: "America/Denver",
+			}
 		}
 
 		const competitionId = competition.id
+		const isOnline = competition.competitionType === "online"
 
-		// Fetch divisions, workouts in parallel
-		const [divisionsResult, workoutsResult] = await Promise.all([
-			getPublicCompetitionDivisionsFn({
-				data: { competitionId },
-			}),
-			getPublishedCompetitionWorkoutsWithDetailsFn({
-				data: { competitionId },
-			}),
-		])
+		// Fetch divisions, workouts, and submission windows (if online) in parallel
+		const [divisionsResult, workoutsResult, submissionResult] =
+			await Promise.all([
+				getPublicCompetitionDivisionsFn({
+					data: { competitionId },
+				}),
+				getPublishedCompetitionWorkoutsWithDetailsFn({
+					data: { competitionId },
+				}),
+				isOnline
+					? getPublicCompetitionEventsFn({ data: { competitionId } })
+					: Promise.resolve({ events: [], competitionStarted: false }),
+			])
 
 		const divisions = divisionsResult.divisions
 		const workouts = workoutsResult.workouts
+
+		// Build submission windows map by trackWorkoutId
+		const submissionWindowsMap: Record<
+			string,
+			{
+				submissionOpensAt: string | null
+				submissionClosesAt: string | null
+			}
+		> = {}
+		for (const event of submissionResult.events) {
+			submissionWindowsMap[event.trackWorkoutId] = {
+				submissionOpensAt: event.submissionOpensAt,
+				submissionClosesAt: event.submissionClosesAt,
+			}
+		}
 
 		// Fetch division descriptions for all workouts in parallel
 		const divisionIds = divisions?.map((d) => d.id) ?? []
@@ -77,17 +106,30 @@ export const Route = createFileRoute("/compete/$slug/workouts")({
 			workouts,
 			divisions,
 			divisionDescriptionsMap,
+			submissionWindowsMap,
+			isOnline,
+			competitionStarted: submissionResult.competitionStarted,
+			timezone: competition.timezone ?? "America/Denver",
 		}
 	},
 })
 
 function CompetitionWorkoutsPage() {
-	const { workouts, divisions, divisionDescriptionsMap } = Route.useLoaderData()
+	const {
+		workouts,
+		divisions,
+		divisionDescriptionsMap,
+		submissionWindowsMap,
+		isOnline,
+		competitionStarted,
+		timezone,
+	} = Route.useLoaderData()
 	const search = Route.useSearch()
 	const navigate = useNavigate({ from: Route.fullPath })
-	
+
 	// Default to first division if available and none selected, or "default"
-	const defaultDivisionId = divisions && divisions.length > 0 ? divisions[0].id : "default"
+	const defaultDivisionId =
+		divisions && divisions.length > 0 ? divisions[0].id : "default"
 	const selectedDivisionId = search.division || defaultDivisionId
 
 	const handleDivisionChange = (divisionId: string) => {
@@ -126,7 +168,11 @@ function CompetitionWorkoutsPage() {
 							</span>
 						</h2>
 						<p className="text-sm text-muted-foreground hidden sm:block">
-							Viewing variations for <span className="font-medium text-foreground">{divisions?.find(d => d.id === selectedDivisionId)?.label || "All Divisions"}</span>
+							Viewing variations for{" "}
+							<span className="font-medium text-foreground">
+								{divisions?.find((d) => d.id === selectedDivisionId)?.label ||
+									"All Divisions"}
+							</span>
 						</p>
 					</div>
 
@@ -142,7 +188,11 @@ function CompetitionWorkoutsPage() {
 								</SelectTrigger>
 								<SelectContent>
 									{divisions.map((division) => (
-										<SelectItem key={division.id} value={division.id} className="cursor-pointer">
+										<SelectItem
+											key={division.id}
+											value={division.id}
+											className="cursor-pointer"
+										>
 											{division.label}
 										</SelectItem>
 									))}
@@ -156,7 +206,10 @@ function CompetitionWorkoutsPage() {
 			{/* Workouts List */}
 			<div className="space-y-6 pb-20">
 				{workouts.map((event) => {
-					const divisionDescriptionsResult = divisionDescriptionsMap[event.workoutId]
+					const divisionDescriptionsResult =
+						divisionDescriptionsMap[event.workoutId]
+					const submissionWindow = submissionWindowsMap[event.id]
+
 					return (
 						<CompetitionWorkoutCard
 							key={event.id}
@@ -177,7 +230,11 @@ function CompetitionWorkoutsPage() {
 							sponsorName={event.sponsorName}
 							sponsorLogoUrl={event.sponsorLogoUrl}
 							selectedDivisionId={selectedDivisionId}
-                            timeCap={event.workout.timeCap}
+							timeCap={event.workout.timeCap}
+							submissionWindow={
+								isOnline && competitionStarted ? submissionWindow : undefined
+							}
+							timezone={timezone}
 						/>
 					)
 				})}
