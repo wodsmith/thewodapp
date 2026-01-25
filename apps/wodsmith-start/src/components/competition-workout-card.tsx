@@ -1,48 +1,22 @@
 "use client"
 
-import {
-	Clock,
-	Dumbbell,
-	Maximize2,
-	Target,
-	Trophy,
-	Timer,
-	Flame,
-	Hash,
-	ArrowRight,
-	Calendar,
-	CheckCircle2,
-	AlertCircle,
-} from "lucide-react"
+import { Link } from "@tanstack/react-router"
+import { ArrowRight, Dumbbell, Hash, Target, Timer, Trophy } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-	DialogDescription,
-} from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import type { DivisionDescription } from "@/server-fns/competition-workouts-fns"
 
-interface SubmissionWindow {
-	submissionOpensAt: string | null
-	submissionClosesAt: string | null
-}
-
 interface CompetitionWorkoutCardProps {
+	eventId: string
+	slug: string
 	trackOrder: number
 	name: string
 	scheme: string // e.g. "time", "amrap", etc. from DB enum
 	description: string | null // Default description
-	scoreType: string | null
 	roundsToScore: number | null
-	tiebreakScheme?: string | null
 	pointsMultiplier: number | null
-	notes: string | null
 	movements?: Array<{ id: string; name: string }>
 	tags?: Array<{ id: string; name: string }>
 	divisionDescriptions: DivisionDescription[]
@@ -50,8 +24,6 @@ interface CompetitionWorkoutCardProps {
 	sponsorLogoUrl?: string | null
 	selectedDivisionId?: string
 	timeCap?: number | null // in seconds
-	submissionWindow?: SubmissionWindow
-	timezone?: string
 }
 
 function formatTime(seconds: number): string {
@@ -70,71 +42,15 @@ function getSchemeLabel(scheme: string, timeCap?: number | null): string {
 	return scheme.replace(/-/g, " ").toUpperCase()
 }
 
-type WindowStatus = "upcoming" | "open" | "closed" | "not-set"
-
-function getWindowStatus(
-	opensAt: string | null,
-	closesAt: string | null,
-): WindowStatus {
-	if (!opensAt && !closesAt) return "not-set"
-
-	const now = new Date()
-	const opens = opensAt ? new Date(opensAt) : null
-	const closes = closesAt ? new Date(closesAt) : null
-
-	if (opens && now < opens) return "upcoming"
-	if (closes && now > closes) return "closed"
-	if (opens && now >= opens) return "open"
-
-	return "not-set"
-}
-
-function formatSubmissionDateTime(
-	isoString: string,
-	timezone?: string,
-): string {
-	const date = new Date(isoString)
-	return date.toLocaleString("en-US", {
-		weekday: "short",
-		month: "short",
-		day: "numeric",
-		hour: "numeric",
-		minute: "2-digit",
-		hour12: true,
-		timeZone: timezone,
-	})
-}
-
-function getTimeUntil(dateString: string): string {
-	const now = new Date()
-	const target = new Date(dateString)
-	const diff = target.getTime() - now.getTime()
-
-	if (diff < 0) return "now"
-
-	const hours = Math.floor(diff / (1000 * 60 * 60))
-	const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-
-	if (hours > 24) {
-		const days = Math.floor(hours / 24)
-		return `in ${days}d`
-	}
-	if (hours > 0) {
-		return `in ${hours}h ${minutes}m`
-	}
-	return `in ${minutes}m`
-}
-
 export function CompetitionWorkoutCard({
+	eventId,
+	slug,
 	trackOrder,
 	name,
 	scheme,
 	description,
-	scoreType,
 	roundsToScore,
-	tiebreakScheme,
 	pointsMultiplier,
-	notes,
 	movements,
 	tags,
 	divisionDescriptions,
@@ -142,8 +58,6 @@ export function CompetitionWorkoutCard({
 	sponsorLogoUrl,
 	selectedDivisionId,
 	timeCap,
-	submissionWindow,
-	timezone,
 }: CompetitionWorkoutCardProps) {
 	// Find RX division (position 0 is typically RX/hardest)
 	const sortedDivisions = [...divisionDescriptions].sort(
@@ -168,14 +82,6 @@ export function CompetitionWorkoutCard({
 	const schemeLabel = getSchemeLabel(scheme, timeCap)
 	const hasMovementsOrTags =
 		(movements && movements.length > 0) || (tags && tags.length > 0)
-
-	// Submission window status (for online competitions)
-	const windowStatus = submissionWindow
-		? getWindowStatus(
-				submissionWindow.submissionOpensAt,
-				submissionWindow.submissionClosesAt,
-			)
-		: null
 
 	return (
 		<Card className="overflow-hidden border-l-4 border-l-primary/40 hover:border-l-primary transition-all">
@@ -209,145 +115,17 @@ export function CompetitionWorkoutCard({
 							</div>
 						</div>
 
-						{/* Focus Mode Button */}
-						<Dialog>
-							<DialogTrigger asChild>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="shrink-0 text-muted-foreground hover:text-foreground"
-								>
-									<Maximize2 className="h-5 w-5" />
-									<span className="sr-only">Expand workout</span>
-								</Button>
-							</DialogTrigger>
-							<DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-								<DialogHeader>
-									<DialogTitle className="text-2xl flex items-center gap-3">
-										<span className="text-primary/40 font-black">
-											#{trackOrder}
-										</span>
-										{name}
-									</DialogTitle>
-									<DialogDescription>{schemeLabel}</DialogDescription>
-								</DialogHeader>
-								<div className="mt-6 space-y-6">
-									{/* Submission Window in Modal (for online competitions) */}
-									{submissionWindow && windowStatus && (
-										<SubmissionWindowBanner
-											submissionWindow={submissionWindow}
-											status={windowStatus}
-											timezone={timezone}
-										/>
-									)}
-									{/* Specs in Modal */}
-									<div className="flex flex-wrap gap-3">
-										{formattedTimeCap && (
-											<Badge
-												variant="outline"
-												className={cn(
-													"px-3 py-1 text-sm flex gap-2 items-center",
-													scheme === "time-with-cap" &&
-														"border-red-200 bg-red-50 text-red-700 dark:bg-red-950/30 dark:border-red-800 dark:text-red-400",
-												)}
-											>
-												<Clock className="h-4 w-4" />
-												{formattedTimeCap} Cap
-											</Badge>
-										)}
-										<Badge
-											variant="outline"
-											className="px-3 py-1 text-sm flex gap-2 items-center"
-										>
-											<Target className="h-4 w-4" />
-											{schemeLabel}
-										</Badge>
-										{scoreType && (
-											<Badge
-												variant="outline"
-												className="px-3 py-1 text-sm flex gap-2 items-center"
-											>
-												<Trophy className="h-4 w-4" />
-												Score: {scoreType}
-											</Badge>
-										)}
-										{roundsToScore && roundsToScore > 1 && (
-											<Badge
-												variant="outline"
-												className="px-3 py-1 text-sm flex gap-2 items-center"
-											>
-												<Hash className="h-4 w-4" />
-												{roundsToScore} Rounds
-											</Badge>
-										)}
-										{tiebreakScheme && (
-											<Badge
-												variant="outline"
-												className="px-3 py-1 text-sm flex gap-2 items-center"
-											>
-												<ArrowRight className="h-4 w-4" />
-												Tiebreak: {tiebreakScheme}
-											</Badge>
-										)}
-									</div>
-
-									<div className="grid md:grid-cols-3 gap-8">
-										{/* Movements List */}
-										<div className="md:col-span-1 space-y-4">
-											<h4 className="font-semibold flex items-center gap-2 text-sm uppercase tracking-wider text-muted-foreground">
-												<Dumbbell className="h-4 w-4" />
-												Ingredients
-											</h4>
-											{movements && movements.length > 0 ? (
-												<ul className="space-y-2">
-													{movements.map((m) => (
-														<li
-															key={m.id}
-															className="text-sm font-medium border-b pb-2 last:border-0"
-														>
-															{m.name}
-														</li>
-													))}
-												</ul>
-											) : (
-												<p className="text-sm text-muted-foreground italic">
-													No specific movements listed.
-												</p>
-											)}
-										</div>
-
-										{/* Workout Flow */}
-										<div className="md:col-span-2 space-y-4">
-											<h4 className="font-semibold flex items-center gap-2 text-sm uppercase tracking-wider text-muted-foreground">
-												<Flame className="h-4 w-4" />
-												The Work
-											</h4>
-											<div className="bg-muted/30 rounded-lg p-6 font-mono text-sm whitespace-pre-wrap leading-relaxed">
-												{displayDescription || "Details coming soon."}
-											</div>
-											{notes && (
-												<div className="bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 rounded-md p-4 text-sm mt-4">
-													<strong className="font-semibold block mb-1">
-														Notes
-													</strong>
-													{notes}
-												</div>
-											)}
-										</div>
-									</div>
-								</div>
-							</DialogContent>
-						</Dialog>
+						{/* View Details Button */}
+						<Button variant="outline" size="sm" asChild className="shrink-0">
+							<Link
+								to="/compete/$slug/events/$eventId"
+								params={{ slug, eventId }}
+							>
+								View Details
+								<ArrowRight className="ml-2 h-4 w-4" />
+							</Link>
+						</Button>
 					</div>
-
-					{/* Submission Window Banner (for online competitions) */}
-					{submissionWindow && windowStatus && (
-						<SubmissionWindowBanner
-							submissionWindow={submissionWindow}
-							status={windowStatus}
-							timezone={timezone}
-						/>
-					)}
 
 					{/* Specs Row */}
 					<div className="flex flex-wrap gap-3 mb-6">
@@ -371,7 +149,7 @@ export function CompetitionWorkoutCard({
 						{pointsMultiplier && pointsMultiplier !== 100 && (
 							<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900">
 								<Trophy className="h-4 w-4" />
-								{pointsMultiplier}pts
+								{pointsMultiplier / 100}x
 							</div>
 						)}
 						{roundsToScore && roundsToScore > 1 && (
@@ -380,7 +158,6 @@ export function CompetitionWorkoutCard({
 								{roundsToScore} Rounds
 							</div>
 						)}
-						{/* Placeholder for Division Tag if strictly needed, but context is global now */}
 					</div>
 
 					{/* Content Grid */}
@@ -450,120 +227,8 @@ export function CompetitionWorkoutCard({
 							</div>
 						)}
 					</div>
-
-					{/* Footer / Notes */}
-					{notes && (
-						<div className="mt-6 pt-4 border-t">
-							<p className="text-sm text-muted-foreground">
-								<span className="font-semibold text-foreground">Notes:</span>{" "}
-								{notes}
-							</p>
-						</div>
-					)}
 				</div>
 			</div>
 		</Card>
-	)
-}
-
-// Submission Window Banner Component
-interface SubmissionWindowBannerProps {
-	submissionWindow: SubmissionWindow
-	status: WindowStatus
-	timezone?: string
-}
-
-function SubmissionWindowBanner({
-	submissionWindow,
-	status,
-	timezone,
-}: SubmissionWindowBannerProps) {
-	const { submissionOpensAt, submissionClosesAt } = submissionWindow
-
-	return (
-		<div
-			className={cn(
-				"rounded-lg p-3 mb-6 flex items-center justify-between gap-4",
-				status === "open" &&
-					"bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800",
-				status === "upcoming" &&
-					"bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800",
-				status === "closed" && "bg-muted border border-border",
-				status === "not-set" &&
-					"bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800",
-			)}
-		>
-			<div className="flex items-center gap-3">
-				<div
-					className={cn(
-						"rounded-full p-2",
-						status === "open" && "bg-teal-500 text-white",
-						status === "upcoming" && "bg-blue-500 text-white",
-						status === "closed" &&
-							"bg-muted-foreground/20 text-muted-foreground",
-						status === "not-set" && "bg-amber-500 text-white",
-					)}
-				>
-					{status === "open" && <CheckCircle2 className="h-4 w-4" />}
-					{status === "upcoming" && <Clock className="h-4 w-4" />}
-					{status === "closed" && <AlertCircle className="h-4 w-4" />}
-					{status === "not-set" && <Calendar className="h-4 w-4" />}
-				</div>
-				<div>
-					<p
-						className={cn(
-							"text-sm font-medium",
-							status === "open" && "text-teal-700 dark:text-teal-300",
-							status === "upcoming" && "text-blue-700 dark:text-blue-300",
-							status === "closed" && "text-muted-foreground",
-							status === "not-set" && "text-amber-700 dark:text-amber-300",
-						)}
-					>
-						{status === "open" && "Submissions Open"}
-						{status === "upcoming" && "Submissions Opening Soon"}
-						{status === "closed" && "Submissions Closed"}
-						{status === "not-set" && "Submission Window TBD"}
-					</p>
-					{(submissionOpensAt || submissionClosesAt) && (
-						<p className="text-xs text-muted-foreground">
-							{status === "open" && submissionClosesAt && (
-								<>
-									Closes:{" "}
-									{formatSubmissionDateTime(submissionClosesAt, timezone)}
-								</>
-							)}
-							{status === "upcoming" && submissionOpensAt && (
-								<>
-									Opens: {formatSubmissionDateTime(submissionOpensAt, timezone)}
-									{submissionClosesAt && (
-										<>
-											{" "}
-											&bull; Closes:{" "}
-											{formatSubmissionDateTime(submissionClosesAt, timezone)}
-										</>
-									)}
-								</>
-							)}
-							{status === "closed" && submissionClosesAt && (
-								<>
-									Closed:{" "}
-									{formatSubmissionDateTime(submissionClosesAt, timezone)}
-								</>
-							)}
-						</p>
-					)}
-				</div>
-			</div>
-			{status === "open" && submissionClosesAt && (
-				<Badge className="bg-teal-500 text-white shrink-0">
-					{getTimeUntil(submissionClosesAt)} left
-				</Badge>
-			)}
-			{status === "upcoming" && submissionOpensAt && (
-				<Badge variant="outline" className="shrink-0">
-					Opens {getTimeUntil(submissionOpensAt)}
-				</Badge>
-			)}
-		</div>
 	)
 }

@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { createServerFn } from "@tanstack/react-start"
 import { Dumbbell, Filter } from "lucide-react"
 import { z } from "zod"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -10,13 +11,32 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { CompetitionWorkoutCard } from "@/components/competition-workout-card"
-import { getPublicCompetitionEventsFn } from "@/server-fns/competition-event-fns"
+import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import {
 	getPublishedCompetitionWorkoutsWithDetailsFn,
 	getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
+import { getSessionFromCookie } from "@/utils/auth"
+
+// Server function to get athlete's registered division for this competition
+const getAthleteRegisteredDivisionFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z.object({ competitionId: z.string() }).parse(data),
+	)
+	.handler(async ({ data }) => {
+		const session = await getSessionFromCookie()
+		if (!session?.user?.id) {
+			return { divisionId: null }
+		}
+
+		const result = await getUserCompetitionRegistrationFn({
+			data: { competitionId: data.competitionId, userId: session.user.id },
+		})
+
+		return { divisionId: result.registration?.divisionId ?? null }
+	})
 
 const workoutsSearchSchema = z.object({
 	division: z.string().optional(),
@@ -36,18 +56,14 @@ export const Route = createFileRoute("/compete/$slug/workouts")({
 				workouts: [],
 				divisions: [],
 				divisionDescriptionsMap: {},
-				submissionWindowsMap: {},
-				isOnline: false,
-				competitionStarted: false,
-				timezone: "America/Denver",
+				athleteRegisteredDivisionId: null,
 			}
 		}
 
 		const competitionId = competition.id
-		const isOnline = competition.competitionType === "online"
 
-		// Fetch divisions, workouts, and submission windows (if online) in parallel
-		const [divisionsResult, workoutsResult, submissionResult] =
+		// Fetch divisions, workouts, and optionally user's registered division in parallel
+		const [divisionsResult, workoutsResult, athleteDivisionResult] =
 			await Promise.all([
 				getPublicCompetitionDivisionsFn({
 					data: { competitionId },
@@ -55,28 +71,14 @@ export const Route = createFileRoute("/compete/$slug/workouts")({
 				getPublishedCompetitionWorkoutsWithDetailsFn({
 					data: { competitionId },
 				}),
-				isOnline
-					? getPublicCompetitionEventsFn({ data: { competitionId } })
-					: Promise.resolve({ events: [], competitionStarted: false }),
+				getAthleteRegisteredDivisionFn({
+					data: { competitionId },
+				}),
 			])
 
 		const divisions = divisionsResult.divisions
 		const workouts = workoutsResult.workouts
-
-		// Build submission windows map by trackWorkoutId
-		const submissionWindowsMap: Record<
-			string,
-			{
-				submissionOpensAt: string | null
-				submissionClosesAt: string | null
-			}
-		> = {}
-		for (const event of submissionResult.events) {
-			submissionWindowsMap[event.trackWorkoutId] = {
-				submissionOpensAt: event.submissionOpensAt,
-				submissionClosesAt: event.submissionClosesAt,
-			}
-		}
+		const athleteRegisteredDivisionId = athleteDivisionResult.divisionId
 
 		// Fetch division descriptions for all workouts in parallel
 		const divisionIds = divisions?.map((d) => d.id) ?? []
@@ -106,10 +108,7 @@ export const Route = createFileRoute("/compete/$slug/workouts")({
 			workouts,
 			divisions,
 			divisionDescriptionsMap,
-			submissionWindowsMap,
-			isOnline,
-			competitionStarted: submissionResult.competitionStarted,
-			timezone: competition.timezone ?? "America/Denver",
+			athleteRegisteredDivisionId,
 		}
 	},
 })
@@ -119,17 +118,16 @@ function CompetitionWorkoutsPage() {
 		workouts,
 		divisions,
 		divisionDescriptionsMap,
-		submissionWindowsMap,
-		isOnline,
-		competitionStarted,
-		timezone,
+		athleteRegisteredDivisionId,
 	} = Route.useLoaderData()
+	const { slug } = Route.useParams()
 	const search = Route.useSearch()
 	const navigate = useNavigate({ from: Route.fullPath })
 
-	// Default to first division if available and none selected, or "default"
+	// Default to athlete's registered division if logged in, otherwise first division
 	const defaultDivisionId =
-		divisions && divisions.length > 0 ? divisions[0].id : "default"
+		athleteRegisteredDivisionId ||
+		(divisions && divisions.length > 0 ? divisions[0].id : "default")
 	const selectedDivisionId = search.division || defaultDivisionId
 
 	const handleDivisionChange = (divisionId: string) => {
@@ -208,20 +206,17 @@ function CompetitionWorkoutsPage() {
 				{workouts.map((event) => {
 					const divisionDescriptionsResult =
 						divisionDescriptionsMap[event.workoutId]
-					const submissionWindow = submissionWindowsMap[event.id]
-
 					return (
 						<CompetitionWorkoutCard
 							key={event.id}
+							eventId={event.id}
+							slug={slug}
 							trackOrder={event.trackOrder}
 							name={event.workout.name}
 							scheme={event.workout.scheme}
 							description={event.workout.description}
-							scoreType={event.workout.scoreType}
 							roundsToScore={event.workout.roundsToScore}
-							tiebreakScheme={event.workout.tiebreakScheme}
 							pointsMultiplier={event.pointsMultiplier}
-							notes={event.notes}
 							movements={event.workout.movements}
 							tags={event.workout.tags}
 							divisionDescriptions={
@@ -231,10 +226,6 @@ function CompetitionWorkoutsPage() {
 							sponsorLogoUrl={event.sponsorLogoUrl}
 							selectedDivisionId={selectedDivisionId}
 							timeCap={event.workout.timeCap}
-							submissionWindow={
-								isOnline && competitionStarted ? submissionWindow : undefined
-							}
-							timezone={timezone}
 						/>
 					)
 				})}

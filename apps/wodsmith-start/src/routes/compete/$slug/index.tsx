@@ -77,6 +77,7 @@ function CompetitionOverviewPage() {
 		maxSpots,
 	} = parentRoute.useLoaderData()
 
+	const { slug } = Route.useParams()
 	const { workouts, divisionDescriptionsMap } = Route.useLoaderData()
 
 	const isRegistered = !!userRegistration
@@ -100,15 +101,14 @@ function CompetitionOverviewPage() {
 									return (
 										<CompetitionWorkoutCard
 											key={event.id}
+											eventId={event.id}
+											slug={slug}
 											trackOrder={event.trackOrder}
 											name={event.workout.name}
 											scheme={event.workout.scheme}
 											description={event.workout.description}
-											scoreType={event.workout.scoreType}
 											roundsToScore={event.workout.roundsToScore}
-											tiebreakScheme={event.workout.tiebreakScheme}
 											pointsMultiplier={event.pointsMultiplier}
-											notes={event.notes}
 											movements={event.workout.movements}
 											tags={event.workout.tags}
 											divisionDescriptions={

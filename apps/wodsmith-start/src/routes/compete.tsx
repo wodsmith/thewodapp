@@ -1,7 +1,12 @@
 /**
  * This file uses top-level imports for server-only modules.
  */
-import { createFileRoute, Outlet, useLocation } from "@tanstack/react-router"
+import {
+	createFileRoute,
+	Outlet,
+	useLocation,
+	useMatches,
+} from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
 import { CompeteBreadcrumb } from "@/components/compete-breadcrumb"
 import CompeteNav from "@/components/compete-nav"
@@ -36,6 +41,7 @@ export const Route = createFileRoute("/compete")({
 function CompeteLayout() {
 	const { session, canOrganize } = Route.useLoaderData()
 	const location = useLocation()
+	const matches = useMatches()
 
 	// Check if we're on an organizer route that uses its own layout
 	// - _dashboard routes: have their own layout with CompeteNav
@@ -50,12 +56,33 @@ function CompeteLayout() {
 		return <Outlet />
 	}
 
+	// Build dynamic labels from matched route loader data
+	const dynamicLabels: Record<string, string> = {}
+
+	// Look for event details data in matched routes
+	for (const match of matches) {
+		const loaderData = match.loaderData as Record<string, unknown> | undefined
+		if (loaderData?.event && typeof loaderData.event === "object") {
+			const event = loaderData.event as { id?: string; workout?: { name?: string } }
+			if (event.id && event.workout?.name) {
+				dynamicLabels[event.id] = event.workout.name
+			}
+		}
+		// Add competition name for slug
+		if (loaderData?.competition && typeof loaderData.competition === "object") {
+			const competition = loaderData.competition as { slug?: string; name?: string }
+			if (competition.slug && competition.name) {
+				dynamicLabels[competition.slug] = competition.name
+			}
+		}
+	}
+
 	return (
 		<div className="flex min-h-screen flex-col">
 			<CompeteNav session={session} canOrganize={canOrganize} />
 
 			<main className="container mx-auto flex-1 pt-4 sm:p-4">
-				<CompeteBreadcrumb />
+				<CompeteBreadcrumb dynamicLabels={dynamicLabels} />
 				<Outlet />
 			</main>
 
