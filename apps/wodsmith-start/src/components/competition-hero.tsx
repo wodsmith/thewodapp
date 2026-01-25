@@ -33,7 +33,7 @@ export function CompetitionHero({
       {hasBanner ? (
         <>
           <img
-            src={competition.bannerImageUrl}
+            src={competition.bannerImageUrl!}
             alt=""
             className="absolute inset-0 h-full w-full object-cover"
           />
