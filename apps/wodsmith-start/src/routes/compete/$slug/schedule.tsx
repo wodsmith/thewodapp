@@ -1,4 +1,5 @@
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
+import { CompetitionTabs } from "@/components/competition-tabs"
 import { PublicSubmissionWindows } from "@/components/public-submission-windows"
 import { SchedulePageContent } from "@/components/schedule-page-content"
 import { getPublicCompetitionEventsFn } from "@/server-fns/competition-event-fns"
@@ -78,7 +79,7 @@ function CompetitionSchedulePage() {
 		isOnline,
 		timezone,
 	} = Route.useLoaderData()
-	const { session } = parentRoute.useLoaderData()
+	const { competition, session } = parentRoute.useLoaderData()
 
 	// For online competitions, show submission windows
 	if (isOnline) {
@@ -94,10 +95,17 @@ function CompetitionSchedulePage() {
 
 	// For in-person competitions, show heat schedule
 	return (
-		<SchedulePageContent
-			events={events}
-			heats={heats}
-			currentUserId={session?.userId}
-		/>
+		<div className="space-y-4">
+			<div className="sticky top-4 z-10">
+				<CompetitionTabs slug={competition.slug} />
+			</div>
+			<div className="rounded-2xl border border-black/10 bg-black/5 p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
+				<SchedulePageContent
+					events={events}
+					heats={heats}
+					currentUserId={session?.userId}
+				/>
+			</div>
+		</div>
 	)
 }

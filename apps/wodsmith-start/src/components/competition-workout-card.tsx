@@ -118,7 +118,7 @@ export function CompetitionWorkoutCard({
 						{/* View Details Button */}
 						<Button variant="outline" size="sm" asChild className="shrink-0">
 							<Link
-								to="/compete/$slug/events/$eventId"
+								to="/compete/$slug/workouts/$eventId"
 								params={{ slug, eventId }}
 							>
 								View Details

@@ -7,12 +7,13 @@ import {
 	ExternalLink,
 	FileText,
 	Filter,
-	Link,
+	Link as LinkIcon,
 	Target,
 	Timer,
 	Trophy,
 } from "lucide-react"
 import { z } from "zod"
+import { CompetitionTabs } from "@/components/competition-tabs"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -55,7 +56,7 @@ const getAthleteRegisteredDivisionFn = createServerFn({ method: "GET" })
 		return { divisionId: result.registration?.divisionId ?? null }
 	})
 
-export const Route = createFileRoute("/compete/$slug/events/$eventId")({
+export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 	component: EventDetailsPage,
 	validateSearch: (search) => eventSearchSchema.parse(search),
 	loader: async ({ params }) => {
@@ -183,6 +184,7 @@ function EventDetailsPage() {
 		divisions,
 		athleteRegisteredDivisionId,
 	} = Route.useLoaderData()
+	const { slug } = Route.useParams()
 	const search = Route.useSearch()
 	const navigate = useNavigate({ from: Route.fullPath })
 
@@ -220,254 +222,251 @@ function EventDetailsPage() {
 	}
 
 	return (
-		<div className="space-y-6">
-			{/* Sticky Header with Division Switcher */}
-			{divisions && divisions.length > 0 && (
-				<div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-4 border-b -mx-4 px-4 sm:mx-0 sm:px-0">
-					<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-						<div>
-							<p className="text-sm text-muted-foreground">
-								Viewing workout for{" "}
-								<span className="font-medium text-foreground">
-									{divisions.find((d) => d.id === selectedDivisionId)?.label ||
-										"All Divisions"}
-								</span>
-							</p>
-						</div>
-						<div className="flex items-center gap-2">
-							<Filter className="h-4 w-4 text-muted-foreground hidden sm:block" />
-							<Select
-								value={selectedDivisionId}
-								onValueChange={handleDivisionChange}
-							>
-								<SelectTrigger className="w-full sm:w-[240px] h-10 font-medium">
-									<SelectValue placeholder="Select Division" />
-								</SelectTrigger>
-								<SelectContent>
-									{divisions.map((division) => (
-										<SelectItem
-											key={division.id}
-											value={division.id}
-											className="cursor-pointer"
-										>
-											{division.label}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-					</div>
-				</div>
-			)}
-
-			{/* Event Title with Context */}
-			<div className="space-y-2">
-				<div className="flex items-center gap-3">
-					<Badge variant="outline" className="text-xs font-medium">
-						Event {event.trackOrder} of {totalEvents}
-					</Badge>
-					{event.sponsorName && (
-						<span className="text-xs text-muted-foreground">
-							Presented by{" "}
-							<span className="font-medium">{event.sponsorName}</span>
-						</span>
-					)}
-				</div>
-				<h1 className="text-3xl font-bold tracking-tight">{workout.name}</h1>
-			</div>
-
-			<div className="grid gap-8 lg:grid-cols-3">
-				{/* Main Content - Event Details */}
-				<div className="lg:col-span-2 space-y-6">
-					{/* Event Description - shows selected division's variation or default */}
-					<div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
-						{displayDescription || "Details coming soon."}
-					</div>
+		<div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+			{/* Main Content */}
+			<div className="space-y-4">
+				{/* Competition Tabs */}
+				<div className="sticky top-4 z-10">
+					<CompetitionTabs slug={slug} />
 				</div>
 
-				{/* Sidebar */}
-				<div className="space-y-6">
-					{/* Event Info Card - Metadata first */}
-					<Card>
-						<CardContent className="pt-6 space-y-4">
-							{/* Workout Type */}
-							<div className="flex items-start gap-3">
-								<Target className="h-4 w-4 text-muted-foreground mt-0.5" />
-								<div>
-									<p className="text-xs text-muted-foreground uppercase tracking-wider">
-										Format
-									</p>
-									<p className="font-medium text-sm">{schemeLabel}</p>
+				{/* Glassmorphism Content Container */}
+				<div className="rounded-2xl border border-black/10 bg-black/5 p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
+					<div className="space-y-8">
+						{/* Header with Division Switcher */}
+						<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+							<div className="space-y-1">
+								<div className="flex items-center gap-3">
+									<Badge variant="outline" className="text-xs font-medium">
+										Event {event.trackOrder} of {totalEvents}
+									</Badge>
+									{event.sponsorName && (
+										<span className="text-xs text-muted-foreground">
+											Presented by{" "}
+											<span className="font-medium">{event.sponsorName}</span>
+										</span>
+									)}
 								</div>
+								<h1 className="text-2xl font-bold tracking-tight">{workout.name}</h1>
 							</div>
 
-							{/* Time Cap */}
-							{formattedTimeCap && (
-								<div className="flex items-start gap-3">
-									<Timer className="h-4 w-4 text-muted-foreground mt-0.5" />
-									<div>
-										<p className="text-xs text-muted-foreground uppercase tracking-wider">
-											Time Cap
-										</p>
-										<p className="font-medium text-sm">{formattedTimeCap}</p>
-									</div>
+							{divisions && divisions.length > 0 && (
+								<div className="flex items-center gap-2">
+									<Filter className="h-4 w-4 text-muted-foreground hidden sm:block" />
+									<Select
+										value={selectedDivisionId}
+										onValueChange={handleDivisionChange}
+									>
+										<SelectTrigger className="w-full sm:w-[240px] h-10 font-medium">
+											<SelectValue placeholder="Select Division" />
+										</SelectTrigger>
+										<SelectContent>
+											{divisions.map((division) => (
+												<SelectItem
+													key={division.id}
+													value={division.id}
+													className="cursor-pointer"
+												>
+													{division.label}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
 								</div>
 							)}
+						</div>
 
-							{/* Movements */}
-							{workout.movements && workout.movements.length > 0 && (
+						{/* Event Description */}
+						<div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
+							{displayDescription || "Details coming soon."}
+						</div>
+					</div>
+				</div>
+			</div>
+
+			{/* Sidebar */}
+			<aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+				{/* Event Info Card - Metadata */}
+				<Card>
+					<CardContent className="pt-6 space-y-4">
+						{/* Workout Type */}
+						<div className="flex items-start gap-3">
+							<Target className="h-4 w-4 text-muted-foreground mt-0.5" />
+							<div>
+								<p className="text-xs text-muted-foreground uppercase tracking-wider">
+									Format
+								</p>
+								<p className="font-medium text-sm">{schemeLabel}</p>
+							</div>
+						</div>
+
+						{/* Time Cap */}
+						{formattedTimeCap && (
+							<div className="flex items-start gap-3">
+								<Timer className="h-4 w-4 text-muted-foreground mt-0.5" />
+								<div>
+									<p className="text-xs text-muted-foreground uppercase tracking-wider">
+										Time Cap
+									</p>
+									<p className="font-medium text-sm">{formattedTimeCap}</p>
+								</div>
+							</div>
+						)}
+
+						{/* Movements */}
+						{workout.movements && workout.movements.length > 0 && (
+							<div className="flex items-start gap-3">
+								<Dumbbell className="h-4 w-4 text-muted-foreground mt-0.5" />
+								<div>
+									<p className="text-xs text-muted-foreground uppercase tracking-wider">
+										Movements
+									</p>
+									<p className="font-medium text-sm">
+										{workout.movements
+											.map((m: { id: string; name: string }) => m.name)
+											.join(", ")}
+									</p>
+								</div>
+							</div>
+						)}
+
+						{eventDate && (
+							<div className="flex items-start gap-3">
+								<Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+								<div>
+									<p className="text-xs text-muted-foreground uppercase tracking-wider">
+										Date
+									</p>
+									<p className="font-medium text-sm">{eventDate}</p>
+								</div>
+							</div>
+						)}
+
+						{event.pointsMultiplier && event.pointsMultiplier !== 100 && (
+							<div className="flex items-start gap-3">
+								<Trophy className="h-4 w-4 text-muted-foreground mt-0.5" />
+								<div>
+									<p className="text-xs text-muted-foreground uppercase tracking-wider">
+										Points Multiplier
+									</p>
+									<p className="font-medium text-sm">
+										{event.pointsMultiplier / 100}x
+									</p>
+								</div>
+							</div>
+						)}
+					</CardContent>
+				</Card>
+
+				{/* Schedule Card */}
+				{heatTimes && (
+					<Card>
+						<CardHeader className="pb-3">
+							<CardTitle className="text-lg">Schedule</CardTitle>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							<div className="space-y-3">
 								<div className="flex items-start gap-3">
-									<Dumbbell className="h-4 w-4 text-muted-foreground mt-0.5" />
+									<Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
 									<div>
 										<p className="text-xs text-muted-foreground uppercase tracking-wider">
-											Movements
+											First Heat Starts
 										</p>
 										<p className="font-medium text-sm">
-											{workout.movements
-												.map((m: { id: string; name: string }) => m.name)
-												.join(", ")}
+											{formatHeatTime(
+												heatTimes.firstHeatStartTime,
+												competition.timezone,
+											)}
 										</p>
 									</div>
 								</div>
-							)}
-
-							{eventDate && (
-								<div className="flex items-start gap-3">
-									<Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
-									<div>
-										<p className="text-xs text-muted-foreground uppercase tracking-wider">
-											Date
-										</p>
-										<p className="font-medium text-sm">{eventDate}</p>
-									</div>
-								</div>
-							)}
-							{event.pointsMultiplier && event.pointsMultiplier !== 100 && (
-								<div className="flex items-start gap-3">
-									<Trophy className="h-4 w-4 text-muted-foreground mt-0.5" />
-									<div>
-										<p className="text-xs text-muted-foreground uppercase tracking-wider">
-											Points Multiplier
-										</p>
-										<p className="font-medium text-sm">
-											{event.pointsMultiplier / 100}x
-										</p>
-									</div>
-								</div>
-							)}
-						</CardContent>
-					</Card>
-
-					{/* Schedule Card */}
-					{heatTimes && (
-						<Card>
-							<CardHeader className="pb-3">
-								<CardTitle className="text-lg">Schedule</CardTitle>
-							</CardHeader>
-							<CardContent className="space-y-4">
-								<div className="space-y-3">
+								{heatTimes.firstHeatStartTime.getTime() !==
+									heatTimes.lastHeatEndTime.getTime() && (
 									<div className="flex items-start gap-3">
 										<Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
 										<div>
 											<p className="text-xs text-muted-foreground uppercase tracking-wider">
-												First Heat Starts
+												Last Heat Ends
 											</p>
 											<p className="font-medium text-sm">
 												{formatHeatTime(
-													heatTimes.firstHeatStartTime,
+													heatTimes.lastHeatEndTime,
 													competition.timezone,
 												)}
 											</p>
 										</div>
 									</div>
-									{heatTimes.firstHeatStartTime.getTime() !==
-										heatTimes.lastHeatEndTime.getTime() && (
-										<div className="flex items-start gap-3">
-											<Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
-											<div>
-												<p className="text-xs text-muted-foreground uppercase tracking-wider">
-													Last Heat Ends
-												</p>
-												<p className="font-medium text-sm">
-													{formatHeatTime(
-														heatTimes.lastHeatEndTime,
-														competition.timezone,
-													)}
-												</p>
-											</div>
-										</div>
-									)}
-								</div>
-								<Separator />
-								<p className="text-xs text-muted-foreground">
-									Timezone: {competition.timezone}
-								</p>
-							</CardContent>
-						</Card>
-					)}
+								)}
+							</div>
+							<Separator />
+							<p className="text-xs text-muted-foreground">
+								Timezone: {competition.timezone}
+							</p>
+						</CardContent>
+					</Card>
+				)}
 
-					{/* Event Resources Card */}
-					{resources && resources.length > 0 && (
-						<Card>
-							<CardHeader className="pb-3">
-								<CardTitle className="text-lg">Event Resources</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<ul className="space-y-3">
-									{resources.map((resource) => (
-										<li key={resource.id}>
-											{resource.url ? (
-												<a
-													href={resource.url}
-													target="_blank"
-													rel="noopener noreferrer"
-													className="flex items-center gap-3 text-sm hover:text-primary transition-colors group"
-												>
-													<Link className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
-													<span className="flex-1">{resource.title}</span>
-													<ExternalLink className="h-3 w-3 text-muted-foreground" />
-												</a>
-											) : (
-												<div className="flex items-center gap-3 text-sm">
-													<FileText className="h-4 w-4 text-muted-foreground" />
-													<span className="flex-1">{resource.title}</span>
-												</div>
-											)}
-										</li>
-									))}
-								</ul>
-							</CardContent>
-						</Card>
-					)}
-
-					{/* Judge Sheets Card */}
-					{judgingSheets && judgingSheets.length > 0 && (
-						<Card>
-							<CardHeader className="pb-3">
-								<CardTitle className="text-lg">Judge Sheets</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<ul className="space-y-3">
-									{judgingSheets.map((sheet) => (
-										<li key={sheet.id}>
+				{/* Event Resources Card */}
+				{resources && resources.length > 0 && (
+					<Card>
+						<CardHeader className="pb-3">
+							<CardTitle className="text-lg">Event Resources</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<ul className="space-y-3">
+								{resources.map((resource) => (
+									<li key={resource.id}>
+										{resource.url ? (
 											<a
-												href={sheet.url}
+												href={resource.url}
 												target="_blank"
 												rel="noopener noreferrer"
 												className="flex items-center gap-3 text-sm hover:text-primary transition-colors group"
 											>
-												<FileText className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
-												<span className="flex-1">{sheet.title}</span>
+												<LinkIcon className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+												<span className="flex-1">{resource.title}</span>
 												<ExternalLink className="h-3 w-3 text-muted-foreground" />
 											</a>
-										</li>
-									))}
-								</ul>
-							</CardContent>
-						</Card>
-					)}
-				</div>
-			</div>
+										) : (
+											<div className="flex items-center gap-3 text-sm">
+												<FileText className="h-4 w-4 text-muted-foreground" />
+												<span className="flex-1">{resource.title}</span>
+											</div>
+										)}
+									</li>
+								))}
+							</ul>
+						</CardContent>
+					</Card>
+				)}
+
+				{/* Judge Sheets Card */}
+				{judgingSheets && judgingSheets.length > 0 && (
+					<Card>
+						<CardHeader className="pb-3">
+							<CardTitle className="text-lg">Judge Sheets</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<ul className="space-y-3">
+								{judgingSheets.map((sheet) => (
+									<li key={sheet.id}>
+										<a
+											href={sheet.url}
+											target="_blank"
+											rel="noopener noreferrer"
+											className="flex items-center gap-3 text-sm hover:text-primary transition-colors group"
+										>
+											<FileText className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+											<span className="flex-1">{sheet.title}</span>
+											<ExternalLink className="h-3 w-3 text-muted-foreground" />
+										</a>
+									</li>
+								))}
+							</ul>
+						</CardContent>
+					</Card>
+				)}
+			</aside>
 		</div>
 	)
 }

@@ -1,4 +1,5 @@
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
+import { CompetitionTabs } from "@/components/competition-tabs"
 import { EventDetailsContent } from "@/components/event-details-content"
 import { RegistrationSidebar } from "@/components/registration-sidebar"
 import { Card, CardContent } from "@/components/ui/card"
@@ -84,9 +85,17 @@ function CompetitionOverviewPage() {
 	const isTeamRegistration = (userDivision?.teamSize ?? 1) > 1
 
 	return (
-		<div className="grid gap-8 lg:grid-cols-[1fr_320px]">
-			{/* Main Content */}
-			<EventDetailsContent
+		<div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+			{/* Main Content Column */}
+			<div className="space-y-4">
+				{/* Sticky Tabs */}
+				<div className="sticky top-4 z-10">
+					<CompetitionTabs slug={competition.slug} />
+				</div>
+
+				{/* Content Panel */}
+				<div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
+					<EventDetailsContent
 				competition={competition}
 				divisions={divisions.length > 0 ? divisions : undefined}
 				sponsors={sponsors}
@@ -144,10 +153,12 @@ function CompetitionOverviewPage() {
 						</CardContent>
 					</Card>
 				}
-			/>
+					/>
+				</div>
+			</div>
 
 			{/* Sidebar */}
-			<aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+			<aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
 				<RegistrationSidebar
 					competition={competition}
 					isRegistered={isRegistered}
