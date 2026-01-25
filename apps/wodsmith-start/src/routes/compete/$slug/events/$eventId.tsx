@@ -1,26 +1,63 @@
-import { createFileRoute, notFound } from "@tanstack/react-router"
+import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router"
+import { createServerFn } from "@tanstack/react-start"
 import {
 	Calendar,
 	Clock,
 	Dumbbell,
 	ExternalLink,
+	FileText,
+	Filter,
 	Link,
 	Target,
 	Timer,
 	Trophy,
 } from "lucide-react"
+import { z } from "zod"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import {
 	getPublicEventDetailsFn,
 	getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
+import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
+import { getSessionFromCookie } from "@/utils/auth"
+
+const eventSearchSchema = z.object({
+	division: z.string().optional(),
+})
+
+// Server function to get athlete's registered division for this competition
+const getAthleteRegisteredDivisionFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z.object({ competitionId: z.string() }).parse(data),
+	)
+	.handler(async ({ data }) => {
+		const session = await getSessionFromCookie()
+		if (!session?.user?.id) {
+			return { divisionId: null }
+		}
+
+		const result = await getUserCompetitionRegistrationFn({
+			data: { competitionId: data.competitionId, userId: session.user.id },
+		})
+
+		return { divisionId: result.registration?.divisionId ?? null }
+	})
 
 export const Route = createFileRoute("/compete/$slug/events/$eventId")({
 	component: EventDetailsPage,
+	validateSearch: (search) => eventSearchSchema.parse(search),
 	loader: async ({ params }) => {
 		const { slug, eventId } = params
 
@@ -33,12 +70,14 @@ export const Route = createFileRoute("/compete/$slug/events/$eventId")({
 			throw notFound()
 		}
 
-		// Fetch event details in parallel with divisions
-		const [eventResult, divisionsResult] = await Promise.all([
+		// Fetch event details, divisions, judging sheets, and athlete's division in parallel
+		const [eventResult, divisionsResult, judgingSheetsResult, athleteDivisionResult] = await Promise.all([
 			getPublicEventDetailsFn({ data: { eventId, competitionId: competition.id } }),
 			getPublicCompetitionDivisionsFn({
 				data: { competitionId: competition.id },
 			}),
+			getEventJudgingSheetsFn({ data: { trackWorkoutId: eventId } }),
+			getAthleteRegisteredDivisionFn({ data: { competitionId: competition.id } }),
 		])
 
 		if (!eventResult.event) {
@@ -68,9 +107,12 @@ export const Route = createFileRoute("/compete/$slug/events/$eventId")({
 			competition,
 			event: eventResult.event,
 			resources: eventResult.resources,
+			judgingSheets: judgingSheetsResult.sheets,
 			heatTimes: eventResult.heatTimes,
 			totalEvents: eventResult.totalEvents,
 			divisionDescriptions,
+			divisions,
+			athleteRegisteredDivisionId: athleteDivisionResult.divisionId,
 		}
 	},
 })
@@ -134,30 +176,90 @@ function EventDetailsPage() {
 		competition,
 		event,
 		resources,
+		judgingSheets,
 		heatTimes,
 		totalEvents,
 		divisionDescriptions,
+		divisions,
+		athleteRegisteredDivisionId,
 	} = Route.useLoaderData()
+	const search = Route.useSearch()
+	const navigate = useNavigate({ from: Route.fullPath })
 
 	const workout = event.workout
 	const formattedTimeCap = workout.timeCap ? formatTime(workout.timeCap) : null
 	const schemeLabel = getSchemeLabel(workout.scheme, workout.timeCap)
 
-	// Get RX description (position 0 is typically the hardest/RX)
+	// Sort division descriptions by position
 	const sortedDivisions = [...divisionDescriptions].sort(
 		(a, b) => a.position - b.position,
 	)
-	const rxDivision = sortedDivisions.find((d) => d.position === 0)
-	const displayDescription =
-		rxDivision?.description || workout.description || null
 
-	// Only show divisions that have descriptions
-	const divisionsWithDescriptions = sortedDivisions.filter((d) => d.description)
+	// Default to athlete's registered division, otherwise first division
+	const defaultDivisionId =
+		athleteRegisteredDivisionId ||
+		(divisions && divisions.length > 0 ? divisions[0].id : undefined)
+	const selectedDivisionId = search.division || defaultDivisionId
+
+	// Get the selected division's description, fallback to workout description
+	// Only use division description if it exists and is not empty
+	const selectedDivision = sortedDivisions.find(
+		(d) => d.divisionId === selectedDivisionId,
+	)
+	const divisionDescription = selectedDivision?.description?.trim()
+	const displayDescription =
+		divisionDescription || workout.description || null
 
 	const eventDate = formatEventDate(competition.startDate, competition.endDate)
 
+	const handleDivisionChange = (divisionId: string) => {
+		navigate({
+			search: (prev) => ({ ...prev, division: divisionId }),
+			replace: true,
+		})
+	}
+
 	return (
 		<div className="space-y-6">
+			{/* Sticky Header with Division Switcher */}
+			{divisions && divisions.length > 0 && (
+				<div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-4 border-b -mx-4 px-4 sm:mx-0 sm:px-0">
+					<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+						<div>
+							<p className="text-sm text-muted-foreground">
+								Viewing workout for{" "}
+								<span className="font-medium text-foreground">
+									{divisions.find((d) => d.id === selectedDivisionId)?.label ||
+										"All Divisions"}
+								</span>
+							</p>
+						</div>
+						<div className="flex items-center gap-2">
+							<Filter className="h-4 w-4 text-muted-foreground hidden sm:block" />
+							<Select
+								value={selectedDivisionId}
+								onValueChange={handleDivisionChange}
+							>
+								<SelectTrigger className="w-full sm:w-[240px] h-10 font-medium">
+									<SelectValue placeholder="Select Division" />
+								</SelectTrigger>
+								<SelectContent>
+									{divisions.map((division) => (
+										<SelectItem
+											key={division.id}
+											value={division.id}
+											className="cursor-pointer"
+										>
+											{division.label}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+					</div>
+				</div>
+			)}
+
 			{/* Event Title with Context */}
 			<div className="space-y-2">
 				<div className="flex items-center gap-3">
@@ -177,101 +279,15 @@ function EventDetailsPage() {
 			<div className="grid gap-8 lg:grid-cols-3">
 				{/* Main Content - Event Details */}
 				<div className="lg:col-span-2 space-y-6">
-					{/* Event Description */}
+					{/* Event Description - shows selected division's variation or default */}
 					<div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
 						{displayDescription || "Details coming soon."}
 					</div>
-
-					{/* Division Variations */}
-					{divisionsWithDescriptions.length > 1 && (
-						<div className="space-y-6">
-							<h3 className="text-lg font-semibold">Division Variations</h3>
-							{divisionsWithDescriptions.map((div) => (
-								<div key={div.divisionId}>
-									<h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-										{div.divisionLabel}
-										{div.position === 0 && (
-											<Badge variant="secondary" className="text-xs">
-												RX
-											</Badge>
-										)}
-									</h4>
-									<div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
-										{div.description}
-									</div>
-								</div>
-							))}
-						</div>
-					)}
 				</div>
 
 				{/* Sidebar */}
 				<div className="space-y-6">
-					{/* Event Resources Card */}
-					{resources.length > 0 && (
-						<Card>
-							<CardHeader className="pb-3">
-								<CardTitle className="text-lg">Event Resources</CardTitle>
-							</CardHeader>
-							<CardContent className="space-y-3">
-								{resources.map(
-									(resource: {
-										id: string
-										title: string
-										description: string | null
-										url: string | null
-									}) => {
-										const content = (
-											<>
-												<div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary shrink-0">
-													<Link className="h-4 w-4" />
-												</div>
-												<div className="flex-1 min-w-0">
-													<p className="font-medium text-sm group-hover:text-primary transition-colors">
-														{resource.title}
-													</p>
-													{resource.description && (
-														<p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-															{resource.description}
-														</p>
-													)}
-												</div>
-												{resource.url && (
-													<ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-												)}
-											</>
-										)
-
-										// Render as anchor only if URL exists (a11y fix for focusable dead links)
-										if (resource.url) {
-											return (
-												<a
-													key={resource.id}
-													href={resource.url}
-													target="_blank"
-													rel="noopener noreferrer"
-													className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors group"
-												>
-													{content}
-												</a>
-											)
-										}
-
-										return (
-											<div
-												key={resource.id}
-												className="flex items-center gap-3 p-3 rounded-lg border bg-card"
-											>
-												{content}
-											</div>
-										)
-									},
-								)}
-							</CardContent>
-						</Card>
-					)}
-
-					{/* Event Info Card */}
+					{/* Event Info Card - Metadata first */}
 					<Card>
 						<CardContent className="pt-6 space-y-4">
 							{/* Workout Type */}
@@ -386,6 +402,67 @@ function EventDetailsPage() {
 								<p className="text-xs text-muted-foreground">
 									Timezone: {competition.timezone}
 								</p>
+							</CardContent>
+						</Card>
+					)}
+
+					{/* Event Resources Card */}
+					{resources && resources.length > 0 && (
+						<Card>
+							<CardHeader className="pb-3">
+								<CardTitle className="text-lg">Event Resources</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<ul className="space-y-3">
+									{resources.map((resource) => (
+										<li key={resource.id}>
+											{resource.url ? (
+												<a
+													href={resource.url}
+													target="_blank"
+													rel="noopener noreferrer"
+													className="flex items-center gap-3 text-sm hover:text-primary transition-colors group"
+												>
+													<Link className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+													<span className="flex-1">{resource.title}</span>
+													<ExternalLink className="h-3 w-3 text-muted-foreground" />
+												</a>
+											) : (
+												<div className="flex items-center gap-3 text-sm">
+													<FileText className="h-4 w-4 text-muted-foreground" />
+													<span className="flex-1">{resource.title}</span>
+												</div>
+											)}
+										</li>
+									))}
+								</ul>
+							</CardContent>
+						</Card>
+					)}
+
+					{/* Judge Sheets Card */}
+					{judgingSheets && judgingSheets.length > 0 && (
+						<Card>
+							<CardHeader className="pb-3">
+								<CardTitle className="text-lg">Judge Sheets</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<ul className="space-y-3">
+									{judgingSheets.map((sheet) => (
+										<li key={sheet.id}>
+											<a
+												href={sheet.url}
+												target="_blank"
+												rel="noopener noreferrer"
+												className="flex items-center gap-3 text-sm hover:text-primary transition-colors group"
+											>
+												<FileText className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+												<span className="flex-1">{sheet.title}</span>
+												<ExternalLink className="h-3 w-3 text-muted-foreground" />
+											</a>
+										</li>
+									))}
+								</ul>
 							</CardContent>
 						</Card>
 					)}

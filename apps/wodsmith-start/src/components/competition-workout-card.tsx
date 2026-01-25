@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router"
 import { ArrowRight, Dumbbell, Hash, Target, Timer, Trophy } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import type { DivisionDescription } from "@/server-fns/competition-workouts-fns"
 
@@ -83,22 +84,14 @@ export function CompetitionWorkoutCard({
 		(movements && movements.length > 0) || (tags && tags.length > 0)
 
 	return (
-		<div
-			className={cn(
-				"overflow-hidden rounded-2xl",
-				"border border-primary/20 bg-background/60 backdrop-blur-xl",
-				"shadow-lg shadow-primary/5",
-				"dark:bg-background/40 dark:border-primary/30",
-				"transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 hover:border-primary/40",
-			)}
-		>
+		<Card className="overflow-hidden border-l-4 border-l-primary/40 hover:border-l-primary transition-all">
 			<div className="flex flex-col md:flex-row">
 				{/* Hero Number & Header Section */}
 				<div className="flex-1 p-6">
 					{/* Header */}
 					<div className="flex items-start justify-between gap-4 mb-6">
 						<div className="flex items-start gap-4">
-							<span className="text-6xl font-black bg-gradient-to-br from-primary to-primary/50 bg-clip-text text-transparent leading-none select-none -ml-1">
+							<span className="text-6xl font-black text-primary/70 leading-none select-none -ml-1">
 								{trackOrder.toString().padStart(2, "0")}
 							</span>
 							<div className="pt-1">
@@ -123,12 +116,7 @@ export function CompetitionWorkoutCard({
 						</div>
 
 						{/* View Details Button */}
-						<Button
-							variant="outline"
-							size="sm"
-							asChild
-							className="shrink-0 border-primary/30 hover:bg-primary/10 hover:border-primary/50"
-						>
+						<Button variant="outline" size="sm" asChild className="shrink-0">
 							<Link
 								to="/compete/$slug/events/$eventId"
 								params={{ slug, eventId }}
@@ -144,28 +132,28 @@ export function CompetitionWorkoutCard({
 						{formattedTimeCap && (
 							<div
 								className={cn(
-									"inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border backdrop-blur-sm",
+									"inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border",
 									scheme === "time-with-cap"
-										? "bg-red-500/10 text-red-600 border-red-500/30 dark:text-red-400"
-										: "bg-primary/10 text-primary border-primary/20",
+										? "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900"
+										: "bg-secondary text-secondary-foreground border-transparent",
 								)}
 							>
 								<Timer className="h-4 w-4" />
 								{formattedTimeCap} Cap
 							</div>
 						)}
-						<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary border border-primary/20 backdrop-blur-sm">
+						<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-secondary text-secondary-foreground">
 							<Target className="h-4 w-4" />
 							{schemeLabel}
 						</div>
 						{pointsMultiplier && pointsMultiplier !== 100 && (
-							<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary border border-primary/20 backdrop-blur-sm">
+							<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900">
 								<Trophy className="h-4 w-4" />
 								{pointsMultiplier / 100}x
 							</div>
 						)}
 						{roundsToScore && roundsToScore > 1 && (
-							<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary border border-primary/20 backdrop-blur-sm">
+							<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-secondary text-secondary-foreground">
 								<Hash className="h-4 w-4" />
 								{roundsToScore} Rounds
 							</div>
@@ -198,10 +186,10 @@ export function CompetitionWorkoutCard({
 
 						{/* Side Panel for Movements ("Ingredients") */}
 						{hasMovementsOrTags && (
-							<div className="md:col-span-4 border-t md:border-t-0 md:border-l border-primary/10 pt-4 md:pt-0 md:pl-6">
+							<div className="md:col-span-4 border-t md:border-t-0 md:border-l pt-4 md:pt-0 md:pl-6">
 								{movements && movements.length > 0 && (
 									<div>
-										<h4 className="text-xs font-bold uppercase tracking-wider text-primary/70 mb-3 flex items-center gap-2">
+										<h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
 											<Dumbbell className="h-3.5 w-3.5" />
 											Movements
 										</h4>
@@ -220,15 +208,15 @@ export function CompetitionWorkoutCard({
 
 								{tags && tags.length > 0 && (
 									<div className="mt-6">
-										<h4 className="text-xs font-bold uppercase tracking-wider text-primary/70 mb-3">
+										<h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
 											Tags
 										</h4>
 										<div className="flex flex-wrap gap-1.5">
 											{tags.map((tag) => (
 												<Badge
-													variant="secondary"
 													key={tag.id}
-													className="text-xs font-normal bg-primary/10 text-primary border-0"
+													variant="secondary"
+													className="text-xs font-normal"
 												>
 													{tag.name}
 												</Badge>
@@ -239,9 +227,8 @@ export function CompetitionWorkoutCard({
 							</div>
 						)}
 					</div>
-
 				</div>
 			</div>
-		</div>
+		</Card>
 	)
 }
