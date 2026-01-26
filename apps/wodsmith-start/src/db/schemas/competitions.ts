@@ -22,6 +22,7 @@ import { programmingTracksTable } from "./programming"
 import { scalingLevelsTable } from "./scaling"
 import { teamMembershipTable, teamTable } from "./teams"
 import { userTable } from "./users"
+import { addressesTable } from "./addresses"
 
 // Competition Groups (Series) Table
 // Groups organize multiple competitions into series (e.g., "2026 Throwdowns Series")
@@ -124,6 +125,10 @@ export const competitionsTable = sqliteTable(
 		defaultLaneShiftPattern: text({ length: 20 }).default("shift_right"),
 		// Capacity: default max spots per division (null = unlimited)
 		defaultMaxSpotsPerDivision: integer(),
+		// Primary address for the competition
+		primaryAddressId: text("primary_address_id").references(
+			() => addressesTable.id,
+		),
 	},
 	(table) => [
 		// slug unique index is already created by .unique() on the column
@@ -220,6 +225,8 @@ export const competitionVenuesTable = sqliteTable(
 		// Minutes between heats for auto-scheduling
 		transitionMinutes: integer().notNull().default(3),
 		sortOrder: integer().default(0).notNull(),
+		// Address for this venue
+		addressId: text("address_id").references(() => addressesTable.id),
 	},
 	(table) => [
 		index("competition_venues_competition_idx").on(table.competitionId),
@@ -457,6 +464,11 @@ export const competitionsRelations = relations(
 		programmingTrack: many(programmingTracksTable),
 		// Registration questions
 		registrationQuestions: many(competitionRegistrationQuestionsTable),
+		// Primary address
+		primaryAddress: one(addressesTable, {
+			fields: [competitionsTable.primaryAddressId],
+			references: [addressesTable.id],
+		}),
 	}),
 )
 
@@ -512,6 +524,10 @@ export const competitionVenuesRelations = relations(
 			references: [competitionsTable.id],
 		}),
 		heats: many(competitionHeatsTable),
+		address: one(addressesTable, {
+			fields: [competitionVenuesTable.addressId],
+			references: [addressesTable.id],
+		}),
 	}),
 )
 

@@ -1,11 +1,12 @@
 "use client"
 
-import { Calendar, MapPin, Settings, Share2, Users } from "lucide-react"
+import { Calendar, Globe, MapPin, Settings, Share2, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { CompetitionWithOrganizingTeam } from "@/server-fns/competition-fns"
 import { formatUTCDateRange } from "@/utils/date-utils"
+import { formatLocationBadge } from "@/utils/address"
 
 interface CompetitionHeroProps {
   competition: CompetitionWithOrganizingTeam
@@ -23,6 +24,14 @@ export function CompetitionHero({
     competition.profileImageUrl ?? competition.organizingTeam?.avatarUrl
 
   const hasBanner = !!competition.bannerImageUrl
+
+  // Format location badge
+  const locationBadge = formatLocationBadge(
+    null, // primaryAddress not loaded in current query
+    competition.competitionType,
+    competition.organizingTeam?.name
+  )
+  const LocationIcon = locationBadge.icon === "globe" ? Globe : MapPin
 
   return (
     <div className={cn(
@@ -98,8 +107,8 @@ export function CompetitionHero({
                       )}
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <MapPin className="h-4 w-4" />
-                      {competition.organizingTeam?.name || "Location TBA"}
+                      <LocationIcon className="h-4 w-4" />
+                      {locationBadge.text}
                     </span>
                   </div>
                 </div>

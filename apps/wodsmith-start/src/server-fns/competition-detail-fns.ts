@@ -181,6 +181,7 @@ export const getCompetitionByIdFn = createServerFn({ method: "GET" })
 				defaultLaneShiftPattern: competitionsTable.defaultLaneShiftPattern,
 				defaultMaxSpotsPerDivision:
 					competitionsTable.defaultMaxSpotsPerDivision,
+				primaryAddressId: competitionsTable.primaryAddressId,
 				createdAt: competitionsTable.createdAt,
 				updatedAt: competitionsTable.updatedAt,
 				updateCounter: competitionsTable.updateCounter,

@@ -1,6 +1,6 @@
 "use client"
 
-import { CalendarIcon, ChevronDown, MapPinIcon } from "lucide-react"
+import { CalendarIcon, ChevronDown, GlobeIcon, MapPinIcon } from "lucide-react"
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/collapsible"
 import { ListItem } from "@/components/ui/list-item"
 import type { CompetitionWithOrganizingTeam } from "@/server-fns/competition-fns"
+import { formatLocationBadge } from "@/utils/address"
 import { cn } from "@/utils/cn"
 import {
 	formatUTCDateFull,
@@ -37,6 +38,12 @@ export function CompetitionRow({
 	isAuthenticated,
 }: CompetitionRowProps) {
 	const [isOpen, setIsOpen] = useState(false)
+
+	const locationBadge = formatLocationBadge(
+		competition.primaryAddress,
+		competition.competitionType,
+		competition.organizingTeam?.name,
+	)
 
 	const getStatusBadge = () => {
 		switch (status) {
@@ -146,7 +153,7 @@ export function CompetitionRow({
 							{competition.name}
 						</a>
 
-						{/* Event dates + gym - visible on larger screens */}
+						{/* Event dates + location - visible on larger screens */}
 						<div className="hidden md:flex items-center gap-3 text-sm text-muted-foreground ml-auto shrink-0">
 							<span className="flex items-center gap-1">
 								<CalendarIcon className="h-3.5 w-3.5" />
@@ -155,12 +162,14 @@ export function CompetitionRow({
 									? formatUTCDateShort(competition.startDate)
 									: `${formatUTCDateShort(competition.startDate)} - ${formatUTCDateShort(competition.endDate)}`}
 							</span>
-							{competition.organizingTeam && (
-								<span className="flex items-center gap-1">
+							<span className="flex items-center gap-1">
+								{locationBadge.icon === "globe" ? (
+									<GlobeIcon className="h-3.5 w-3.5" />
+								) : (
 									<MapPinIcon className="h-3.5 w-3.5" />
-									{competition.organizingTeam.name}
-								</span>
-							)}
+								)}
+								{locationBadge.text}
+							</span>
 						</div>
 					</div>
 
@@ -176,14 +185,14 @@ export function CompetitionRow({
 								? formatUTCDateShort(competition.startDate)
 								: `${formatUTCDateShort(competition.startDate)} - ${formatUTCDateShort(competition.endDate)}`}
 						</span>
-						{competition.organizingTeam && (
-							<span className="flex items-center gap-1 truncate">
+						<span className="flex items-center gap-1 truncate">
+							{locationBadge.icon === "globe" ? (
+								<GlobeIcon className="h-3 w-3 shrink-0" />
+							) : (
 								<MapPinIcon className="h-3 w-3 shrink-0" />
-								<span className="truncate">
-									{competition.organizingTeam.name}
-								</span>
-							</span>
-						)}
+							)}
+							<span className="truncate">{locationBadge.text}</span>
+						</span>
 					</div>
 				</ListItem.Content>
 

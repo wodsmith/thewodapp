@@ -2,6 +2,7 @@ import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import { EventDetailsContent } from "@/components/event-details-content"
 import { RegistrationSidebar } from "@/components/registration-sidebar"
+import { CompetitionLocationCard } from "@/components/competition-location-card"
 import { Card, CardContent } from "@/components/ui/card"
 import {
 	getPublishedCompetitionWorkoutsWithDetailsFn,
@@ -170,6 +171,11 @@ function CompetitionOverviewPage() {
 					isTeamRegistration={isTeamRegistration}
 					isCaptain={userRegistration?.userId === session?.userId}
 					isVolunteer={isVolunteer}
+				/>
+				<CompetitionLocationCard
+					address={competition.primaryAddress}
+					competitionType={competition.competitionType}
+					organizingTeamName={competition.organizingTeam?.name}
 				/>
 			</aside>
 		</div>
