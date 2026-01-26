@@ -1199,3 +1199,151 @@ INSERT OR IGNORE INTO credit_transaction (id, userId, amount, remainingAmount, t
 ('ctxn_admin_monthly', 'usr_demo1admin', 100, 90, 'MONTHLY_REFRESH', 'Monthly admin credit refresh', strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('ctxn_coach_purchase', 'usr_demo2coach', 50, 35, 'PURCHASE', 'Credit purchase - starter pack', strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('ctxn_john_usage', 'usr_demo3member', -5, 0, 'USAGE', 'Used credits for premium workout', strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- ============================================
+-- ONLINE COMPETITION SEED DATA
+-- For testing video submission feature (WOD-105)
+-- ============================================
+
+-- Online Competition Team (athletes become members when they register)
+INSERT OR IGNORE INTO team (id, name, slug, type, description, createdAt, updatedAt, updateCounter) VALUES
+('team_online_qualifier_2026', 'Online Qualifier 2026 Athletes', 'online-qualifier-2026-athletes', 'competition_event', 'Athlete team for the Online Qualifier 2026', strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Scaling Group for Online Qualifier 2026 divisions
+INSERT OR IGNORE INTO scaling_groups (id, title, description, teamId, isDefault, isSystem, createdAt, updatedAt, updateCounter) VALUES
+('sgrp_online_qualifier_2026', 'Online Qualifier 2026 Divisions', 'Divisions for Online Qualifier 2026', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 0, 0, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Divisions for Online Qualifier
+INSERT OR IGNORE INTO scaling_levels (id, scalingGroupId, label, position, teamSize, createdAt, updatedAt, updateCounter) VALUES
+('slvl_online_rx', 'sgrp_online_qualifier_2026', 'RX', 0, 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('slvl_online_scaled', 'sgrp_online_qualifier_2026', 'Scaled', 1, 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('slvl_online_masters', 'sgrp_online_qualifier_2026', 'Masters 40+', 2, 1, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Online Competition - competitionType = 'online'
+-- Registration is open now, competition runs for 2 weeks
+INSERT OR IGNORE INTO competitions (id, organizingTeamId, competitionTeamId, groupId, slug, name, description, startDate, endDate, registrationOpensAt, registrationClosesAt, timezone, settings, defaultRegistrationFeeCents, visibility, status, competitionType, createdAt, updatedAt, updateCounter) VALUES
+('comp_online_qualifier_2026',
+ 'team_cokkpu1klwo0ulfhl1iwzpvnbox1',
+ 'team_online_qualifier_2026',
+ 'cgrp_box1_throwdowns_2025',
+ 'online-qualifier-2026',
+ 'Online Qualifier 2026',
+ 'Complete the workouts on your own time and submit your video for verification. Athletes have a 7-day window to complete each event and submit their video.',
+ strftime('%Y-%m-%d', 'now'),
+ strftime('%Y-%m-%d', datetime('now', '+14 days')),
+ strftime('%Y-%m-%d', datetime('now', '-7 days')),
+ strftime('%Y-%m-%d', datetime('now', '+7 days')),
+ 'America/Denver',
+ '{"divisions": {"scalingGroupId": "sgrp_online_qualifier_2026"}}',
+ 5000,
+ 'public',
+ 'published',
+ 'online',
+ strftime('%s', 'now'),
+ strftime('%s', 'now'),
+ 0);
+
+-- Programming Track for Online Qualifier
+INSERT OR IGNORE INTO programming_track (id, name, description, type, ownerTeamId, scalingGroupId, isPublic, competitionId, createdAt, updatedAt, updateCounter) VALUES
+('track_online_qualifier_2026', 'Online Qualifier 2026 - Events', 'Competition events for Online Qualifier 2026', 'team_owned', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'sgrp_online_qualifier_2026', 0, 'comp_online_qualifier_2026', strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Team memberships for online competition team (athletes need these to be registered)
+INSERT OR IGNORE INTO team_membership (id, teamId, userId, roleId, isSystemRole, createdAt, updatedAt, updateCounter) VALUES
+('tmem_john_online', 'team_online_qualifier_2026', 'usr_demo3member', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tmem_jane_online', 'team_online_qualifier_2026', 'usr_demo4member', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tmem_mike_online', 'team_online_qualifier_2026', 'usr_athlete_mike', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tmem_sarah_online', 'team_online_qualifier_2026', 'usr_athlete_sarah', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tmem_alex_online', 'team_online_qualifier_2026', 'usr_athlete_alex', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Competition Registrations for Online Qualifier
+INSERT OR IGNORE INTO competition_registrations (id, eventId, userId, teamMemberId, divisionId, registeredAt, paymentStatus, paidAt, createdAt, updatedAt, updateCounter) VALUES
+-- John (demo3member) - RX Division - use this account to test video submission
+('creg_john_online', 'comp_online_qualifier_2026', 'usr_demo3member', 'tmem_john_online', 'slvl_online_rx', strftime('%s', 'now'), 'PAID', strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Jane (demo4member) - Scaled Division
+('creg_jane_online', 'comp_online_qualifier_2026', 'usr_demo4member', 'tmem_jane_online', 'slvl_online_scaled', strftime('%s', 'now'), 'PAID', strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Mike - RX Division
+('creg_mike_online', 'comp_online_qualifier_2026', 'usr_athlete_mike', 'tmem_mike_online', 'slvl_online_rx', strftime('%s', 'now'), 'PAID', strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Sarah - RX Division
+('creg_sarah_online', 'comp_online_qualifier_2026', 'usr_athlete_sarah', 'tmem_sarah_online', 'slvl_online_rx', strftime('%s', 'now'), 'PAID', strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Alex - Masters Division
+('creg_alex_online', 'comp_online_qualifier_2026', 'usr_athlete_alex', 'tmem_alex_online', 'slvl_online_masters', strftime('%s', 'now'), 'PAID', strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Workouts for Online Qualifier (remixed versions owned by organizing team)
+INSERT OR IGNORE INTO workouts (id, name, description, scheme, scope, team_id, rounds_to_score, time_cap, source_workout_id, createdAt, updatedAt, updateCounter) VALUES
+-- Event 1: Online Fran
+('wod_online_fran', 'Online Qualifier Event 1 - Fran', 'For time:
+
+21-15-9 reps of:
+• Thrusters (95/65 lb)
+• Pull-ups
+
+Time cap: 10 minutes
+
+Movement Standards:
+- Thrusters: Full depth squat, bar finishes overhead with hips and knees fully extended
+- Pull-ups: Chin must break the horizontal plane of the bar', 'time-with-cap', 'private', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 1, 600, 'wod_fran', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Event 2: Online Karen
+('wod_online_karen', 'Online Qualifier Event 2 - Karen', 'For time:
+
+150 Wall Ball Shots (20/14 lb to 10/9 ft)
+
+Time cap: 15 minutes
+
+Movement Standards:
+- Wall Ball: Hip crease must pass below knee at bottom
+- Ball must hit target at or above required height', 'time-with-cap', 'private', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 1, 900, 'wod_karen', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Event 3: Online AMRAP
+('wod_online_amrap', 'Online Qualifier Event 3 - Chipper AMRAP', 'AMRAP 12 minutes:
+
+5 Deadlifts (225/155 lb)
+10 Box Jump Overs (24/20 in)
+15 Toes-to-Bar
+
+Movement Standards:
+- Deadlifts: Full hip and knee extension at top
+- Box Jump Overs: Two-foot takeoff, both feet must touch top of box
+- Toes-to-Bar: Both feet must touch the bar simultaneously', 'rounds-reps', 'private', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 1, NULL, NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Track Workouts (Competition Events) for Online Qualifier
+-- eventStatus: 'published' makes them visible to athletes
+INSERT OR IGNORE INTO track_workout (id, trackId, workoutId, trackOrder, notes, pointsMultiplier, heatStatus, eventStatus, createdAt, updatedAt, updateCounter) VALUES
+('tw_online_event1', 'track_online_qualifier_2026', 'wod_online_fran', 1, 'Event 1: Complete Fran and submit your video within the submission window.', 100, 'draft', 'published', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tw_online_event2', 'track_online_qualifier_2026', 'wod_online_karen', 2, 'Event 2: Complete Karen and submit your video within the submission window.', 100, 'draft', 'published', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tw_online_event3', 'track_online_qualifier_2026', 'wod_online_amrap', 3, 'Event 3: Complete the AMRAP and submit your video within the submission window.', 150, 'draft', 'published', strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Competition Events (Submission Windows) for Online Qualifier
+-- Event 1: Open now for 7 days
+-- Event 2: Opens in 3 days, closes in 10 days
+-- Event 3: Opens in 7 days, closes in 14 days
+INSERT OR IGNORE INTO competition_events (id, competitionId, trackWorkoutId, submissionOpensAt, submissionClosesAt, createdAt, updatedAt, updateCounter) VALUES
+-- Event 1: Submission window is OPEN NOW (for testing)
+('cevt_online_event1', 'comp_online_qualifier_2026', 'tw_online_event1',
+ datetime('now', '-1 day'),
+ datetime('now', '+6 days'),
+ strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Event 2: Opens in 3 days (for testing "window not open yet")
+('cevt_online_event2', 'comp_online_qualifier_2026', 'tw_online_event2',
+ datetime('now', '+3 days'),
+ datetime('now', '+10 days'),
+ strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Event 3: Opens in 7 days
+('cevt_online_event3', 'comp_online_qualifier_2026', 'tw_online_event3',
+ datetime('now', '+7 days'),
+ datetime('now', '+14 days'),
+ strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- ============================================
+-- END ONLINE COMPETITION SEED DATA
+-- 
+-- To test video submission:
+-- 1. Log in as john@example.com (demo user, registered for online comp)
+-- 2. Go to /compete/online-qualifier-2026/workouts/tw_online_event1
+-- 3. You should see the Video Submission card in the sidebar
+-- 4. Event 1 submission window is open - you can submit
+-- 5. Event 2 window not open yet - shows when it opens
+-- 6. Event 3 window not open yet - shows when it opens
+--
+-- To test "not registered" scenario:
+-- 1. Log in as admin@example.com (not registered)
+-- 2. Go to same URL - should see "Registration Required"
+-- ============================================

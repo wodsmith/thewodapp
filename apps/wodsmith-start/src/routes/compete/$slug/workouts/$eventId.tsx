@@ -13,6 +13,7 @@ import {
 	Trophy,
 } from "lucide-react"
 import { z } from "zod"
+import { VideoSubmissionForm } from "@/components/compete/video-submission-form"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -32,6 +33,7 @@ import {
 	getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
 import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
+import { getVideoSubmissionFn } from "@/server-fns/video-submission-fns"
 import { getSessionFromCookie } from "@/utils/auth"
 
 const eventSearchSchema = z.object({
@@ -71,14 +73,30 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 			throw notFound()
 		}
 
-		// Fetch event details, divisions, judging sheets, and athlete's division in parallel
-		const [eventResult, divisionsResult, judgingSheetsResult, athleteDivisionResult] = await Promise.all([
-			getPublicEventDetailsFn({ data: { eventId, competitionId: competition.id } }),
+		// Fetch event details, divisions, judging sheets, athlete's division, and video submission in parallel
+		const [
+			eventResult,
+			divisionsResult,
+			judgingSheetsResult,
+			athleteDivisionResult,
+			videoSubmissionResult,
+		] = await Promise.all([
+			getPublicEventDetailsFn({
+				data: { eventId, competitionId: competition.id },
+			}),
 			getPublicCompetitionDivisionsFn({
 				data: { competitionId: competition.id },
 			}),
 			getEventJudgingSheetsFn({ data: { trackWorkoutId: eventId } }),
-			getAthleteRegisteredDivisionFn({ data: { competitionId: competition.id } }),
+			getAthleteRegisteredDivisionFn({
+				data: { competitionId: competition.id },
+			}),
+			// Only fetch video submission for online competitions
+			competition.competitionType === "online"
+				? getVideoSubmissionFn({
+						data: { trackWorkoutId: eventId, competitionId: competition.id },
+					})
+				: Promise.resolve(null),
 		])
 
 		if (!eventResult.event) {
@@ -114,6 +132,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 			divisionDescriptions,
 			divisions,
 			athleteRegisteredDivisionId: athleteDivisionResult.divisionId,
+			videoSubmission: videoSubmissionResult,
 		}
 	},
 })
@@ -183,6 +202,7 @@ function EventDetailsPage() {
 		divisionDescriptions,
 		divisions,
 		athleteRegisteredDivisionId,
+		videoSubmission,
 	} = Route.useLoaderData()
 	const { slug } = Route.useParams()
 	const search = Route.useSearch()
@@ -209,8 +229,7 @@ function EventDetailsPage() {
 		(d) => d.divisionId === selectedDivisionId,
 	)
 	const divisionDescription = selectedDivision?.description?.trim()
-	const displayDescription =
-		divisionDescription || workout.description || null
+	const displayDescription = divisionDescription || workout.description || null
 
 	const eventDate = formatEventDate(competition.startDate, competition.endDate)
 
@@ -247,7 +266,9 @@ function EventDetailsPage() {
 										</span>
 									)}
 								</div>
-								<h1 className="text-2xl font-bold tracking-tight">{workout.name}</h1>
+								<h1 className="text-2xl font-bold tracking-tight">
+									{workout.name}
+								</h1>
 							</div>
 
 							{divisions && divisions.length > 0 && (
@@ -280,12 +301,71 @@ function EventDetailsPage() {
 						<div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
 							{displayDescription || "Details coming soon."}
 						</div>
+
+						{/* Video & Score Submission Form - Below description for online competitions */}
+						{competition.competitionType === "online" && videoSubmission && (
+							<VideoSubmissionForm
+								trackWorkoutId={event.id}
+								competitionId={competition.id}
+								timezone={competition.timezone}
+								initialData={videoSubmission}
+							/>
+						)}
 					</div>
 				</div>
 			</div>
 
 			{/* Sidebar */}
 			<aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+				{/* Submission Info Card - For online competitions */}
+				{competition.competitionType === "online" &&
+					videoSubmission?.submissionWindow && (
+						<Card>
+							<CardHeader className="pb-3">
+								<CardTitle className="text-lg">Submission Window</CardTitle>
+							</CardHeader>
+							<CardContent className="space-y-3">
+								<div className="flex items-start gap-3">
+									<Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+									<div>
+										<p className="text-xs text-muted-foreground uppercase tracking-wider">
+											Opens
+										</p>
+										<p className="font-medium text-sm">
+											{formatHeatTime(
+												new Date(videoSubmission.submissionWindow.opensAt),
+												competition.timezone,
+											)}
+										</p>
+									</div>
+								</div>
+								<div className="flex items-start gap-3">
+									<Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
+									<div>
+										<p className="text-xs text-muted-foreground uppercase tracking-wider">
+											Closes
+										</p>
+										<p className="font-medium text-sm">
+											{formatHeatTime(
+												new Date(videoSubmission.submissionWindow.closesAt),
+												competition.timezone,
+											)}
+										</p>
+									</div>
+								</div>
+								{videoSubmission.canSubmit ? (
+									<p className="text-xs text-green-600 dark:text-green-400 font-medium">
+										Submission window is open
+									</p>
+								) : (
+									<p className="text-xs text-muted-foreground">
+										{videoSubmission.reason}
+									</p>
+								)}
+							</CardContent>
+						</Card>
+					)}
+
 				{/* Event Info Card - Metadata */}
 				<Card>
 					<CardContent className="pt-6 space-y-4">

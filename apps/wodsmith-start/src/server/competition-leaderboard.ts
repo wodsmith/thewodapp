@@ -368,6 +368,7 @@ export async function getCompetitionLeaderboard(params: {
 				userId: s.userId,
 				value: s.scoreValue ?? 0,
 				status: mapScoreStatus(s.status),
+				sortKey: s.sortKey,
 			}))
 
 			// Calculate points using the factory
