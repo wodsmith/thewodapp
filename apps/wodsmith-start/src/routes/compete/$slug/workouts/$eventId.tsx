@@ -13,7 +13,6 @@ import {
 	Trophy,
 } from "lucide-react"
 import { z } from "zod"
-import { AthleteScoreSubmission } from "@/components/compete/athlete-score-submission"
 import { VideoSubmissionForm } from "@/components/compete/video-submission-form"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import { Badge } from "@/components/ui/badge"
@@ -302,30 +301,70 @@ function EventDetailsPage() {
 						<div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
 							{displayDescription || "Details coming soon."}
 						</div>
+
+						{/* Video & Score Submission Form - Below description for online competitions */}
+						{competition.competitionType === "online" && videoSubmission && (
+							<VideoSubmissionForm
+								trackWorkoutId={event.id}
+								competitionId={competition.id}
+								timezone={competition.timezone}
+								initialData={videoSubmission}
+							/>
+						)}
 					</div>
 				</div>
 			</div>
 
 			{/* Sidebar */}
 			<aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
-				{/* Video Submission Card - Only for online competitions */}
-				{competition.competitionType === "online" && videoSubmission && (
-					<VideoSubmissionForm
-						trackWorkoutId={event.id}
-						competitionId={competition.id}
-						timezone={competition.timezone}
-						initialData={videoSubmission}
-					/>
-				)}
-
-				{/* Score Submission Card (Online Competitions Only) */}
-				{competition.competitionType === "online" && (
-					<AthleteScoreSubmission
-						competitionId={competition.id}
-						trackWorkoutId={event.id}
-						competitionTimezone={competition.timezone}
-					/>
-				)}
+				{/* Submission Info Card - For online competitions */}
+				{competition.competitionType === "online" &&
+					videoSubmission?.submissionWindow && (
+						<Card>
+							<CardHeader className="pb-3">
+								<CardTitle className="text-lg">Submission Window</CardTitle>
+							</CardHeader>
+							<CardContent className="space-y-3">
+								<div className="flex items-start gap-3">
+									<Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+									<div>
+										<p className="text-xs text-muted-foreground uppercase tracking-wider">
+											Opens
+										</p>
+										<p className="font-medium text-sm">
+											{formatHeatTime(
+												new Date(videoSubmission.submissionWindow.opensAt),
+												competition.timezone,
+											)}
+										</p>
+									</div>
+								</div>
+								<div className="flex items-start gap-3">
+									<Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
+									<div>
+										<p className="text-xs text-muted-foreground uppercase tracking-wider">
+											Closes
+										</p>
+										<p className="font-medium text-sm">
+											{formatHeatTime(
+												new Date(videoSubmission.submissionWindow.closesAt),
+												competition.timezone,
+											)}
+										</p>
+									</div>
+								</div>
+								{videoSubmission.canSubmit ? (
+									<p className="text-xs text-green-600 dark:text-green-400 font-medium">
+										Submission window is open
+									</p>
+								) : (
+									<p className="text-xs text-muted-foreground">
+										{videoSubmission.reason}
+									</p>
+								)}
+							</CardContent>
+						</Card>
+					)}
 
 				{/* Event Info Card - Metadata */}
 				<Card>
