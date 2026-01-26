@@ -450,7 +450,6 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 			const scheme = workout.scheme as WorkoutScheme
 			const scoreType =
 				(workout.scoreType as ScoreType) || getDefaultScoreType(scheme)
-			const status = data.scoreStatus || "scored"
 
 			// Parse and validate the score
 			const parseResult = parseScore(data.score, scheme)
@@ -463,17 +462,30 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 			// Encode the score
 			let encodedValue: number | null = encodeScore(data.score, scheme)
 
-			// Handle CAP status for time-with-cap workouts
-			if (status === "cap" && scheme === "time-with-cap" && workout.timeCap) {
-				encodedValue = workout.timeCap * 1000 // Time cap in milliseconds
-			}
-
-			// Parse secondary score (reps at cap)
+			// Derive status server-side (ignore client-provided scoreStatus)
+			// For time-with-cap, any time >= cap is treated as capped
+			let status: "scored" | "cap" = "scored"
 			let secondaryValue: number | null = null
-			if (data.secondaryScore && status === "cap") {
-				const parsed = Number.parseInt(data.secondaryScore.trim(), 10)
-				if (!Number.isNaN(parsed) && parsed >= 0) {
-					secondaryValue = parsed
+
+			if (scheme === "time-with-cap" && workout.timeCap && encodedValue !== null) {
+				const capMs = workout.timeCap * 1000
+				if (encodedValue >= capMs) {
+					status = "cap"
+					// Normalize over-cap submissions to exactly the cap time
+					encodedValue = capMs
+
+					// Parse secondary score (reps at cap) only when capped
+					if (data.secondaryScore) {
+						const trimmed = data.secondaryScore.trim()
+						if (trimmed) {
+							const parsed = Number.parseInt(trimmed, 10)
+							// Validate: must be a non-negative integer
+							if (!Number.isNaN(parsed) && parsed >= 0) {
+								secondaryValue = parsed
+							}
+							// Invalid values are silently ignored (clamped to null)
+						}
+					}
 				}
 			}
 

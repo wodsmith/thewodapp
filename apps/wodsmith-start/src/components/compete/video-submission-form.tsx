@@ -200,7 +200,7 @@ export function VideoSubmissionForm({
 		setParseResult(result)
 	}, [scoreInput, workout])
 
-	// Derive status from whether time equals time cap
+	// Derive status from whether time meets or exceeds time cap
 	const scoreStatus: "scored" | "cap" = (() => {
 		// First check if we can derive from current parse result
 		if (
@@ -210,7 +210,7 @@ export function VideoSubmissionForm({
 			workout?.timeCap
 		) {
 			const timeCapMs = workout.timeCap * 1000
-			if (parseResult.encoded === timeCapMs) {
+			if (parseResult.encoded >= timeCapMs) {
 				return "cap"
 			}
 		}
