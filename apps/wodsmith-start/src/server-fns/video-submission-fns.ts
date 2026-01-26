@@ -13,7 +13,12 @@ import {
 	competitionRegistrationsTable,
 	competitionsTable,
 } from "@/db/schemas/competitions"
-import { programmingTracksTable, trackWorkoutsTable } from "@/db/schemas/programming"
+import { scalingLevelsTable } from "@/db/schemas/scaling"
+import { userTable } from "@/db/schemas/users"
+import {
+	programmingTracksTable,
+	trackWorkoutsTable,
+} from "@/db/schemas/programming"
 import { scoresTable } from "@/db/schemas/scores"
 import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
 import { workouts } from "@/db/schemas/workouts"
@@ -38,6 +43,13 @@ import { getSessionFromCookie } from "@/utils/auth"
 const getVideoSubmissionInputSchema = z.object({
 	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
 	competitionId: z.string().min(1, "Competition ID is required"),
+})
+
+const getOrganizerSubmissionsInputSchema = z.object({
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+	competitionId: z.string().min(1, "Competition ID is required"),
+	divisionFilter: z.string().optional(),
+	statusFilter: z.enum(["all", "pending", "reviewed"]).optional(),
 })
 
 const submitVideoInputSchema = z.object({
@@ -467,7 +479,11 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 			let status: "scored" | "cap" = "scored"
 			let secondaryValue: number | null = null
 
-			if (scheme === "time-with-cap" && workout.timeCap && encodedValue !== null) {
+			if (
+				scheme === "time-with-cap" &&
+				workout.timeCap &&
+				encodedValue !== null
+			) {
 				const capMs = workout.timeCap * 1000
 				if (encodedValue >= capMs) {
 					status = "cap"
@@ -584,5 +600,154 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 			success: true,
 			submissionId,
 			isUpdate: !!existingSubmission,
+		}
+	})
+
+/**
+ * Get all video submissions for an event (organizer view).
+ * Includes athlete info, division, and review status (based on whether a verified score exists).
+ */
+export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		getOrganizerSubmissionsInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Get all video submissions for this event with athlete and registration info
+		const submissions = await db
+			.select({
+				id: videoSubmissionsTable.id,
+				videoUrl: videoSubmissionsTable.videoUrl,
+				notes: videoSubmissionsTable.notes,
+				submittedAt: videoSubmissionsTable.submittedAt,
+				registrationId: videoSubmissionsTable.registrationId,
+				userId: videoSubmissionsTable.userId,
+				// Athlete info
+				athleteFirstName: userTable.firstName,
+				athleteLastName: userTable.lastName,
+				athleteEmail: userTable.email,
+				athleteAvatar: userTable.avatar,
+				// Division info
+				divisionId: competitionRegistrationsTable.divisionId,
+				divisionLabel: scalingLevelsTable.label,
+				// Team name (for team divisions)
+				teamName: competitionRegistrationsTable.teamName,
+			})
+			.from(videoSubmissionsTable)
+			.innerJoin(
+				competitionRegistrationsTable,
+				eq(
+					videoSubmissionsTable.registrationId,
+					competitionRegistrationsTable.id,
+				),
+			)
+			.innerJoin(userTable, eq(videoSubmissionsTable.userId, userTable.id))
+			.leftJoin(
+				scalingLevelsTable,
+				eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
+			)
+			.where(eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId))
+
+		// Get scores for all submissions to determine review status
+		// A submission is "reviewed" if there's a corresponding score entry
+		const submissionUserIds = submissions.map((s) => s.userId)
+
+		const scoresMap: Record<
+			string,
+			{ scoreValue: number | null; status: string; displayScore: string | null }
+		> = {}
+
+		if (submissionUserIds.length > 0) {
+			const scores = await db
+				.select({
+					userId: scoresTable.userId,
+					scoreValue: scoresTable.scoreValue,
+					status: scoresTable.status,
+					scheme: scoresTable.scheme,
+				})
+				.from(scoresTable)
+				.where(eq(scoresTable.competitionEventId, data.trackWorkoutId))
+
+			for (const score of scores) {
+				let displayScore: string | null = null
+				if (score.scoreValue !== null && score.scheme) {
+					displayScore = decodeScore(
+						score.scoreValue,
+						score.scheme as WorkoutScheme,
+						{ compact: false },
+					)
+				}
+				scoresMap[score.userId] = {
+					scoreValue: score.scoreValue,
+					status: score.status,
+					displayScore,
+				}
+			}
+		}
+
+		// Combine submissions with scores
+		const result = submissions.map((submission) => {
+			const score = scoresMap[submission.userId]
+			return {
+				id: submission.id,
+				videoUrl: submission.videoUrl,
+				notes: submission.notes,
+				submittedAt: submission.submittedAt,
+				registrationId: submission.registrationId,
+				athlete: {
+					id: submission.userId,
+					firstName: submission.athleteFirstName,
+					lastName: submission.athleteLastName,
+					email: submission.athleteEmail,
+					avatar: submission.athleteAvatar,
+				},
+				division: submission.divisionId
+					? {
+							id: submission.divisionId,
+							label: submission.divisionLabel,
+						}
+					: null,
+				teamName: submission.teamName,
+				score: score
+					? {
+							value: score.scoreValue,
+							displayScore: score.displayScore,
+							status: score.status,
+						}
+					: null,
+				// Review status: "reviewed" if score exists, "pending" otherwise
+				// In the future, this could be more nuanced (e.g., "verified", "disputed")
+				reviewStatus: score ? ("reviewed" as const) : ("pending" as const),
+			}
+		})
+
+		// Apply filters
+		let filtered = result
+
+		// Division filter
+		if (data.divisionFilter) {
+			filtered = filtered.filter((s) => s.division?.id === data.divisionFilter)
+		}
+
+		// Status filter
+		if (data.statusFilter && data.statusFilter !== "all") {
+			filtered = filtered.filter((s) => s.reviewStatus === data.statusFilter)
+		}
+
+		// Calculate totals
+		const totalSubmissions = result.length
+		const reviewedCount = result.filter(
+			(s) => s.reviewStatus === "reviewed",
+		).length
+		const pendingCount = totalSubmissions - reviewedCount
+
+		return {
+			submissions: filtered,
+			totals: {
+				total: totalSubmissions,
+				reviewed: reviewedCount,
+				pending: pendingCount,
+			},
 		}
 	})

@@ -6,7 +6,8 @@
  */
 
 import { useState } from "react"
-import { createFileRoute, getRouteApi } from "@tanstack/react-router"
+import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
+import { Video } from "lucide-react"
 import {
 	EVENT_DETAILS_FORM_ID,
 	EventDetailsForm,
@@ -16,6 +17,13 @@ import { EventSubmissionWindowCard } from "@/components/organizer/event-submissi
 import { HeatSchedulePublishingCard } from "@/components/organizer/heat-schedule-publishing-card"
 import { EventJudgingSheets } from "@/components/organizer/event-judging-sheets"
 import { Button } from "@/components/ui/button"
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionEventsFn } from "@/server-fns/competition-event-fns"
@@ -202,13 +210,39 @@ function EventEditPage() {
 
 			{/* Submission Window (online) or Heat Schedule Publishing (in-person) */}
 			{isOnline ? (
-				<EventSubmissionWindowCard
-					competitionId={competition.id}
-					eventName={event.workout.name}
-					submissionOpensAt={submissionOpensAt}
-					submissionClosesAt={submissionClosesAt}
-					timezone={timezone}
-				/>
+				<>
+					<EventSubmissionWindowCard
+						competitionId={competition.id}
+						eventName={event.workout.name}
+						submissionOpensAt={submissionOpensAt}
+						submissionClosesAt={submissionClosesAt}
+						timezone={timezone}
+					/>
+
+					{/* Video Submissions Review Link */}
+					<Card>
+						<CardHeader>
+							<CardTitle className="flex items-center gap-2">
+								<Video className="h-5 w-5" />
+								Video Submissions
+							</CardTitle>
+							<CardDescription>
+								Review athlete video submissions for this event
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<Link
+								to="/compete/organizer/$competitionId/events/$eventId/submissions"
+								params={{
+									competitionId: competition.id,
+									eventId: event.id,
+								}}
+							>
+								<Button variant="outline">View Submissions</Button>
+							</Link>
+						</CardContent>
+					</Card>
+				</>
 			) : (
 				<HeatSchedulePublishingCard
 					trackWorkoutId={event.id}
