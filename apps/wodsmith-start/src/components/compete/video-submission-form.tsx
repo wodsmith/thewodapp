@@ -22,8 +22,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import type { ScoreType, WorkoutScheme } from "@/lib/scoring"
-import { parseScore, type ParseResult } from "@/lib/scoring"
+import type { ParseResult, ScoreType, WorkoutScheme } from "@/lib/scoring"
+import { decodeScore, parseScore } from "@/lib/scoring"
 import { cn } from "@/lib/utils"
 import { submitVideoFn } from "@/server-fns/video-submission-fns"
 
@@ -174,7 +174,15 @@ export function VideoSubmissionForm({
 	const [secondaryScore, setSecondaryScore] = useState(
 		initialData?.existingScore?.secondaryValue?.toString() ?? "",
 	)
-	const [tiebreakScore, setTiebreakScore] = useState("")
+	const [tiebreakScore, setTiebreakScore] = useState(() => {
+		const tiebreakValue = initialData?.existingScore?.tiebreakValue
+		const tiebreakScheme = initialData?.workout?.tiebreakScheme
+		if (tiebreakValue === null || tiebreakValue === undefined) return ""
+		if (tiebreakScheme === "time") {
+			return decodeScore(tiebreakValue, "time", { compact: true })
+		}
+		return tiebreakValue.toString()
+	})
 	const [parseResult, setParseResult] = useState<ParseResult | null>(null)
 
 	const submitVideo = useServerFn(submitVideoFn)

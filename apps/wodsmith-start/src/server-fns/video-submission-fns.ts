@@ -484,6 +484,11 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 					data.tiebreakScore,
 					workout.tiebreakScheme as WorkoutScheme,
 				)
+				if (tiebreakValue === null) {
+					throw new Error(
+						`Invalid tiebreak score format: "${data.tiebreakScore}". Please check your entry.`,
+					)
+				}
 			}
 
 			// Time cap in milliseconds
