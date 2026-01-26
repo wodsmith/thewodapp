@@ -126,9 +126,7 @@ export const competitionsTable = sqliteTable(
 		// Capacity: default max spots per division (null = unlimited)
 		defaultMaxSpotsPerDivision: integer(),
 		// Primary address for the competition
-		primaryAddressId: text("primary_address_id").references(
-			() => addressesTable.id,
-		),
+		primaryAddressId: text().references(() => addressesTable.id),
 	},
 	(table) => [
 		// slug unique index is already created by .unique() on the column
@@ -226,7 +224,7 @@ export const competitionVenuesTable = sqliteTable(
 		transitionMinutes: integer().notNull().default(3),
 		sortOrder: integer().default(0).notNull(),
 		// Address for this venue
-		addressId: text("address_id").references(() => addressesTable.id),
+		addressId: text().references(() => addressesTable.id),
 	},
 	(table) => [
 		index("competition_venues_competition_idx").on(table.competitionId),
