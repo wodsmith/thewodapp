@@ -194,6 +194,7 @@ export function VideoSubmissionForm({
 
 	// Derive status from whether time equals time cap
 	const scoreStatus: "scored" | "cap" = (() => {
+		// First check if we can derive from current parse result
 		if (
 			parseResult?.isValid &&
 			parseResult.encoded !== null &&
@@ -205,6 +206,16 @@ export function VideoSubmissionForm({
 				return "cap"
 			}
 		}
+
+		// Fall back to existing score's status on initial load (before parseResult is ready)
+		if (
+			!parseResult &&
+			initialData?.existingScore?.status === "cap" &&
+			workout?.scheme === "time-with-cap"
+		) {
+			return "cap"
+		}
+
 		return "scored"
 	})()
 
