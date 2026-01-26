@@ -3,6 +3,7 @@
  *
  * Stores athlete video submissions for online competition events.
  * Athletes can submit a video URL for their workout performance.
+ * Includes review status tracking for transparency during the verification process.
  */
 
 import { createId } from "@paralleldrive/cuid2"
@@ -17,6 +18,23 @@ import {
 import { commonColumns } from "./common"
 import { competitionRegistrationsTable } from "./competitions"
 import { userTable } from "./users"
+
+/**
+ * Review status values for video submissions
+ * - pending: Submitted and awaiting review
+ * - under_review: Currently being reviewed by an organizer
+ * - verified: Score has been confirmed as correct
+ * - adjusted: Score was modified during review
+ * - penalized: Penalties were applied to the submission
+ */
+export const reviewStatuses = [
+	"pending",
+	"under_review",
+	"verified",
+	"adjusted",
+	"penalized",
+] as const
+export type ReviewStatus = (typeof reviewStatuses)[number]
 
 // ID generator
 export const createVideoSubmissionId = () => `vsub_${createId()}`
@@ -57,6 +75,19 @@ export const videoSubmissionsTable = sqliteTable(
 
 		// When the video was submitted
 		submittedAt: integer("submitted_at", { mode: "timestamp" }).notNull(),
+
+		// Review status tracking for transparency
+		// Defaults to "pending" when submission is created
+		reviewStatus: text("review_status", { enum: reviewStatuses })
+			.notNull()
+			.default("pending"),
+
+		// When the review status was last updated
+		// Null until status changes from initial pending state
+		statusUpdatedAt: integer("status_updated_at", { mode: "timestamp" }),
+
+		// Optional notes from the reviewer explaining status changes
+		reviewerNotes: text("reviewer_notes", { length: 1000 }),
 	},
 	(table) => [
 		// One video submission per registration per event

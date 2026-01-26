@@ -265,6 +265,9 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
 				notes: videoSubmissionsTable.notes,
 				submittedAt: videoSubmissionsTable.submittedAt,
 				updatedAt: videoSubmissionsTable.updatedAt,
+				reviewStatus: videoSubmissionsTable.reviewStatus,
+				statusUpdatedAt: videoSubmissionsTable.statusUpdatedAt,
+				reviewerNotes: videoSubmissionsTable.reviewerNotes,
 			})
 			.from(videoSubmissionsTable)
 			.where(

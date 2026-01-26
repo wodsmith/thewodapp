@@ -22,10 +22,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
+import type { ReviewStatus } from "@/db/schemas/video-submissions"
 import type { ParseResult, ScoreType, WorkoutScheme } from "@/lib/scoring"
 import { decodeScore, parseScore } from "@/lib/scoring"
 import { cn } from "@/lib/utils"
 import { submitVideoFn } from "@/server-fns/video-submission-fns"
+import { SubmissionStatusBadge } from "./submission-status-badge"
 
 interface VideoSubmissionFormProps {
 	trackWorkoutId: string
@@ -38,6 +40,9 @@ interface VideoSubmissionFormProps {
 			notes: string | null
 			submittedAt: Date
 			updatedAt: Date
+			reviewStatus: ReviewStatus
+			statusUpdatedAt: Date | null
+			reviewerNotes: string | null
 		} | null
 		canSubmit: boolean
 		reason?: string
@@ -279,7 +284,18 @@ export function VideoSubmissionForm({
 						</div>
 					)}
 					{(hasSubmitted || initialData?.existingScore?.displayScore) && (
-						<div className="pt-2 border-t space-y-2">
+						<div className="pt-2 border-t space-y-3">
+							{/* Review Status Badge */}
+							{initialData?.submission?.reviewStatus && (
+								<div className="flex items-center gap-2">
+									<span className="text-sm font-medium">Status:</span>
+									<SubmissionStatusBadge
+										status={initialData.submission.reviewStatus}
+										statusUpdatedAt={initialData.submission.statusUpdatedAt}
+										reviewerNotes={initialData.submission.reviewerNotes}
+									/>
+								</div>
+							)}
 							{initialData?.existingScore?.displayScore && (
 								<div>
 									<p className="text-sm font-medium">Your claimed score:</p>
@@ -377,12 +393,23 @@ export function VideoSubmissionForm({
 	return (
 		<Card>
 			<CardHeader className="pb-3">
-				<CardTitle className="text-lg">Submit Your Result</CardTitle>
-				<CardDescription>
-					{hasSubmitted
-						? "Update your submission below"
-						: "Submit your score and video for this event"}
-				</CardDescription>
+				<div className="flex items-start justify-between gap-2">
+					<div className="space-y-1">
+						<CardTitle className="text-lg">Submit Your Result</CardTitle>
+						<CardDescription>
+							{hasSubmitted
+								? "Update your submission below"
+								: "Submit your score and video for this event"}
+						</CardDescription>
+					</div>
+					{hasSubmitted && initialData?.submission?.reviewStatus && (
+						<SubmissionStatusBadge
+							status={initialData.submission.reviewStatus}
+							statusUpdatedAt={initialData.submission.statusUpdatedAt}
+							reviewerNotes={initialData.submission.reviewerNotes}
+						/>
+					)}
+				</div>
 			</CardHeader>
 			<CardContent>
 				<form onSubmit={handleSubmit} className="space-y-4">
