@@ -26,6 +26,7 @@ import type { ParseResult, ScoreType, WorkoutScheme } from "@/lib/scoring"
 import { decodeScore, parseScore } from "@/lib/scoring"
 import { cn } from "@/lib/utils"
 import { submitVideoFn } from "@/server-fns/video-submission-fns"
+import { VideoSubmissionPreview } from "./video-submission-preview"
 
 interface VideoSubmissionFormProps {
 	trackWorkoutId: string
@@ -152,6 +153,31 @@ function getHelpText(scheme: WorkoutScheme, timeCap?: number | null): string {
 	}
 }
 
+function parseTiebreakValue(
+	input: string,
+	scheme: string | null,
+): number | null {
+	if (!input.trim()) return null
+	if (scheme === "time") {
+		// Parse time input (M:SS or total seconds) to milliseconds
+		const timeParts = input.split(":")
+		if (timeParts.length === 2) {
+			const minutes = Number.parseInt(timeParts[0], 10)
+			const seconds = Number.parseInt(timeParts[1], 10)
+			if (!Number.isNaN(minutes) && !Number.isNaN(seconds)) {
+				return (minutes * 60 + seconds) * 1000
+			}
+		}
+		const totalSeconds = Number.parseInt(input, 10)
+		if (!Number.isNaN(totalSeconds)) {
+			return totalSeconds * 1000
+		}
+		return null
+	}
+	const value = Number.parseInt(input, 10)
+	return Number.isNaN(value) ? null : value
+}
+
 export function VideoSubmissionForm({
 	trackWorkoutId,
 	competitionId,
@@ -166,6 +192,8 @@ export function VideoSubmissionForm({
 	const [error, setError] = useState<string | null>(null)
 	const [success, setSuccess] = useState<string | null>(null)
 	const [hasSubmitted, setHasSubmitted] = useState(!!initialData?.submission)
+	// Show preview by default if there's an existing submission
+	const [isEditing, setIsEditing] = useState(!initialData?.submission)
 
 	// Score form state
 	const [scoreInput, setScoreInput] = useState(
@@ -291,7 +319,9 @@ export function VideoSubmissionForm({
 							)}
 							{initialData?.submission && (
 								<div>
-									<p className="text-sm font-medium mb-1">Your submitted video:</p>
+									<p className="text-sm font-medium mb-1">
+										Your submitted video:
+									</p>
 									<a
 										href={initialData.submission.videoUrl}
 										target="_blank"
@@ -351,7 +381,9 @@ export function VideoSubmissionForm({
 					score: scoreInput.trim() || undefined,
 					scoreStatus: scoreInput.trim() ? scoreStatus : undefined,
 					secondaryScore:
-						scoreStatus === "cap" ? secondaryScore.trim() || undefined : undefined,
+						scoreStatus === "cap"
+							? secondaryScore.trim() || undefined
+							: undefined,
 					tiebreakScore: tiebreakScore.trim() || undefined,
 				},
 			})
@@ -363,6 +395,30 @@ export function VideoSubmissionForm({
 						: "Submitted successfully!",
 				)
 				setHasSubmitted(true)
+				// Update initialData with new submission info and switch to preview
+				if (initialData) {
+					initialData.submission = {
+						id: result.submissionId ?? initialData.submission?.id ?? "",
+						videoUrl: videoUrl.trim(),
+						notes: notes.trim() || null,
+						submittedAt: initialData.submission?.submittedAt ?? new Date(),
+						updatedAt: new Date(),
+					}
+					if (scoreInput.trim() && workout) {
+						const parsed = parseScore(scoreInput, workout.scheme)
+						initialData.existingScore = {
+							scoreValue: parsed.encoded,
+							displayScore: parsed.formatted ?? scoreInput,
+							status: scoreStatus,
+							secondaryValue: secondaryScore ? Number(secondaryScore) : null,
+							tiebreakValue: tiebreakScore
+								? parseTiebreakValue(tiebreakScore, workout.tiebreakScheme)
+								: null,
+						}
+					}
+				}
+				// Switch to preview mode after successful submission
+				setTimeout(() => setIsEditing(false), 1500)
 			}
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to submit")
@@ -374,15 +430,56 @@ export function VideoSubmissionForm({
 	const isTimeCapped = workout?.scheme === "time-with-cap"
 	const showSecondaryInput = isTimeCapped && scoreStatus === "cap"
 
+	// Show preview when there's a submission and we're not editing
+	if (hasSubmitted && initialData?.submission && !isEditing) {
+		return (
+			<VideoSubmissionPreview
+				submission={initialData.submission}
+				score={initialData.existingScore}
+				workout={
+					workout
+						? {
+								name: workout.name,
+								scheme: workout.scheme,
+								scoreType: workout.scoreType,
+								timeCap: workout.timeCap,
+								tiebreakScheme: workout.tiebreakScheme,
+							}
+						: undefined
+				}
+				canEdit={initialData.canSubmit}
+				editReason={initialData.reason}
+				timezone={timezone}
+				onEdit={() => setIsEditing(true)}
+			/>
+		)
+	}
+
 	return (
 		<Card>
 			<CardHeader className="pb-3">
-				<CardTitle className="text-lg">Submit Your Result</CardTitle>
-				<CardDescription>
-					{hasSubmitted
-						? "Update your submission below"
-						: "Submit your score and video for this event"}
-				</CardDescription>
+				<div className="flex items-center justify-between">
+					<div>
+						<CardTitle className="text-lg">
+							{hasSubmitted ? "Update Your Result" : "Submit Your Result"}
+						</CardTitle>
+						<CardDescription>
+							{hasSubmitted
+								? "Update your submission below"
+								: "Submit your score and video for this event"}
+						</CardDescription>
+					</div>
+					{hasSubmitted && (
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							onClick={() => setIsEditing(false)}
+						>
+							Cancel
+						</Button>
+					)}
+				</div>
 			</CardHeader>
 			<CardContent>
 				<form onSubmit={handleSubmit} className="space-y-4">
@@ -418,7 +515,9 @@ export function VideoSubmissionForm({
 									</p>
 								)}
 								{parseResult?.error && (
-									<p className="text-xs text-destructive">{parseResult.error}</p>
+									<p className="text-xs text-destructive">
+										{parseResult.error}
+									</p>
 								)}
 							</div>
 
@@ -547,7 +646,10 @@ export function VideoSubmissionForm({
 					{hasSubmitted && initialData?.submission && (
 						<div className="pt-2 border-t text-xs text-muted-foreground">
 							Last submitted:{" "}
-							{formatSubmissionTime(initialData.submission.submittedAt, timezone)}
+							{formatSubmissionTime(
+								initialData.submission.submittedAt,
+								timezone,
+							)}
 						</div>
 					)}
 				</form>
