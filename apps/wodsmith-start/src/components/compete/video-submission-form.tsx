@@ -20,13 +20,6 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import type { ScoreType, WorkoutScheme } from "@/lib/scoring"
@@ -178,9 +171,6 @@ export function VideoSubmissionForm({
 	const [scoreInput, setScoreInput] = useState(
 		initialData?.existingScore?.displayScore ?? "",
 	)
-	const [scoreStatus, setScoreStatus] = useState<"scored" | "cap">(
-		(initialData?.existingScore?.status as "scored" | "cap") ?? "scored",
-	)
 	const [secondaryScore, setSecondaryScore] = useState(
 		initialData?.existingScore?.secondaryValue?.toString() ?? "",
 	)
@@ -201,6 +191,22 @@ export function VideoSubmissionForm({
 		const result = parseScore(scoreInput, workout.scheme)
 		setParseResult(result)
 	}, [scoreInput, workout])
+
+	// Derive status from whether time equals time cap
+	const scoreStatus: "scored" | "cap" = (() => {
+		if (
+			parseResult?.isValid &&
+			parseResult.encoded !== null &&
+			workout?.scheme === "time-with-cap" &&
+			workout?.timeCap
+		) {
+			const timeCapMs = workout.timeCap * 1000
+			if (parseResult.encoded === timeCapMs) {
+				return "cap"
+			}
+		}
+		return "scored"
+	})()
 
 	// If user is not registered, show message
 	if (!initialData?.isRegistered) {
@@ -389,6 +395,7 @@ export function VideoSubmissionForm({
 								{parseResult?.isValid && (
 									<p className="text-xs text-green-600 dark:text-green-400">
 										Parsed as: {parseResult.formatted}
+										{scoreStatus === "cap" && " (Time Cap)"}
 									</p>
 								)}
 								{parseResult?.error && (
@@ -396,27 +403,12 @@ export function VideoSubmissionForm({
 								)}
 							</div>
 
-							{/* Status for time-capped workouts */}
-							{isTimeCapped && (
-								<div className="space-y-2">
-									<Label>Status</Label>
-									<Select
-										value={scoreStatus}
-										onValueChange={(v) => setScoreStatus(v as "scored" | "cap")}
-										disabled={isSubmitting}
-									>
-										<SelectTrigger>
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="scored">Finished</SelectItem>
-											<SelectItem value="cap">Capped (Time Cap)</SelectItem>
-										</SelectContent>
-									</Select>
-								</div>
+							{/* Secondary Score (reps at cap) - shown when time equals time cap */}
+							{scoreStatus === "cap" && (
+								<p className="text-xs text-amber-600 dark:text-amber-400">
+									You hit the time cap. Enter the reps you completed below.
+								</p>
 							)}
-
-							{/* Secondary Score (reps at cap) */}
 							{showSecondaryInput && (
 								<div className="space-y-2">
 									<Label htmlFor="secondary-input">Reps Completed at Cap</Label>
