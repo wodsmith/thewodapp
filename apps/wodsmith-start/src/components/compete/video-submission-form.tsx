@@ -1,5 +1,3 @@
-"use client"
-
 import { useServerFn } from "@tanstack/react-start"
 import { AlertCircle, CheckCircle2, ExternalLink, Loader2, Video, Youtube } from "lucide-react"
 import { useState } from "react"
