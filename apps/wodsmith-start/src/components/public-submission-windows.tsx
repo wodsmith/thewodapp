@@ -1,6 +1,14 @@
 "use client"
 
-import { Calendar, Clock, CheckCircle2, AlertCircle, Timer } from "lucide-react"
+import { Link } from "@tanstack/react-router"
+import {
+	Calendar,
+	Clock,
+	CheckCircle2,
+	AlertCircle,
+	Timer,
+	ChevronRight,
+} from "lucide-react"
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -20,6 +28,7 @@ interface PublicSubmissionWindowsProps {
 	submissionWindows: SubmissionWindowEvent[]
 	competitionStarted: boolean
 	timezone?: string
+	slug: string
 }
 
 function formatDateOnly(isoString: string, timezone?: string): string {
@@ -40,6 +49,29 @@ function formatShortDate(isoString: string, timezone?: string): string {
 		day: "numeric",
 		timeZone: timezone,
 	})
+}
+
+function formatDateRange(
+	opensAt: string,
+	closesAt: string,
+	timezone?: string,
+): string {
+	const openDate = new Date(opensAt)
+	const closeDate = new Date(closesAt)
+	const openKey = openDate.toLocaleDateString("en-CA", { timeZone: timezone })
+	const closeKey = closeDate.toLocaleDateString("en-CA", { timeZone: timezone })
+
+	const formatDate = (date: Date) =>
+		date.toLocaleDateString("en-US", {
+			month: "short",
+			day: "numeric",
+			timeZone: timezone,
+		})
+
+	if (openKey === closeKey) {
+		return formatDate(openDate)
+	}
+	return `${formatDate(openDate)} - ${formatDate(closeDate)}`
 }
 
 function formatTimeOnly(isoString: string, timezone?: string): string {
@@ -91,6 +123,26 @@ function getTimeUntil(dateString: string): string {
 	return `in ${minutes}m`
 }
 
+function getTimeRemaining(dateString: string): string {
+	const now = new Date()
+	const target = new Date(dateString)
+	const diff = target.getTime() - now.getTime()
+
+	if (diff < 0) return "closed"
+
+	const hours = Math.floor(diff / (1000 * 60 * 60))
+	const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+
+	if (hours >= 24) {
+		const days = Math.floor(hours / 24)
+		return `${days} day${days !== 1 ? "s" : ""} left to submit`
+	}
+	if (hours > 0) {
+		return `${hours}h ${minutes}m left to submit`
+	}
+	return `${minutes}m left to submit`
+}
+
 interface WindowGroup {
 	dateKey: string
 	label: string
@@ -107,6 +159,7 @@ export function PublicSubmissionWindows({
 	submissionWindows,
 	competitionStarted,
 	timezone,
+	slug,
 }: PublicSubmissionWindowsProps) {
 	// State must be declared before any early returns (React hooks rules)
 	const [selectedTab, setSelectedTab] = useState<string>("all")
@@ -294,6 +347,7 @@ export function PublicSubmissionWindows({
 										window={window}
 										status={status}
 										timezone={timezone}
+										slug={slug}
 									/>
 								))}
 							</div>
@@ -310,6 +364,7 @@ interface SubmissionWindowRowProps {
 	window: SubmissionWindowEvent | null
 	status: WindowStatus
 	timezone?: string
+	slug: string
 }
 
 function SubmissionWindowRow({
@@ -317,6 +372,7 @@ function SubmissionWindowRow({
 	window,
 	status,
 	timezone,
+	slug,
 }: SubmissionWindowRowProps) {
 	// Check if window spans multiple days (timezone-aware)
 	const getDateKey = (isoString: string): string => {
@@ -331,9 +387,11 @@ function SubmissionWindowRow({
 			getDateKey(window.submissionClosesAt)
 
 	return (
-		<div
+		<Link
+			to="/compete/$slug/workouts/$eventId"
+			params={{ slug, eventId: event.id }}
 			className={cn(
-				"px-4 py-4 flex items-center justify-between hover:bg-muted/30 transition-colors",
+				"px-4 py-4 flex items-center justify-between hover:bg-muted/30 transition-colors group",
 				status === "open" && "bg-orange-500/5",
 			)}
 		>
@@ -364,7 +422,7 @@ function SubmissionWindowRow({
 				<div className="flex-1 min-w-0">
 					<h4
 						className={cn(
-							"font-semibold truncate",
+							"font-semibold truncate group-hover:text-orange-500 transition-colors",
 							status === "closed" && "text-muted-foreground",
 						)}
 					>
@@ -372,21 +430,31 @@ function SubmissionWindowRow({
 					</h4>
 					<div className="flex items-center gap-3 mt-1 flex-wrap text-sm text-muted-foreground">
 						{window?.submissionOpensAt && window?.submissionClosesAt && (
-							<span className="flex items-center gap-1">
-								<Timer className="h-3 w-3" />
-								{spansMultipleDays ? (
-									<>
-										{formatTimeOnly(window.submissionOpensAt, timezone)} -{" "}
-										{formatShortDate(window.submissionClosesAt, timezone)}{" "}
-										{formatTimeOnly(window.submissionClosesAt, timezone)}
-									</>
-								) : (
-									<>
-										{formatTimeOnly(window.submissionOpensAt, timezone)} -{" "}
-										{formatTimeOnly(window.submissionClosesAt, timezone)}
-									</>
-								)}
-							</span>
+							<>
+								<span className="flex items-center gap-1">
+									<Calendar className="h-3 w-3" />
+									{formatDateRange(
+										window.submissionOpensAt,
+										window.submissionClosesAt,
+										timezone,
+									)}
+								</span>
+								<span className="flex items-center gap-1">
+									<Timer className="h-3 w-3" />
+									{spansMultipleDays ? (
+										<>
+											{formatTimeOnly(window.submissionOpensAt, timezone)} -{" "}
+											{formatShortDate(window.submissionClosesAt, timezone)}{" "}
+											{formatTimeOnly(window.submissionClosesAt, timezone)}
+										</>
+									) : (
+										<>
+											{formatTimeOnly(window.submissionOpensAt, timezone)} -{" "}
+											{formatTimeOnly(window.submissionClosesAt, timezone)}
+										</>
+									)}
+								</span>
+							</>
 						)}
 					</div>
 				</div>
@@ -397,8 +465,9 @@ function SubmissionWindowRow({
 					opensAt={window?.submissionOpensAt ?? null}
 					closesAt={window?.submissionClosesAt ?? null}
 				/>
+				<ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-orange-500 transition-colors" />
 			</div>
-		</div>
+		</Link>
 	)
 }
 
@@ -412,22 +481,31 @@ function StatusBadge({ status, opensAt, closesAt }: StatusBadgeProps) {
 	switch (status) {
 		case "open":
 			return (
-				<Badge className="bg-orange-500 text-white gap-1">
-					<CheckCircle2 className="h-3 w-3" />
-					Open Now
+				<div className="flex flex-col items-end gap-1">
+					<Badge className="bg-orange-500 text-white gap-1">
+						<CheckCircle2 className="h-3 w-3" />
+						Open
+					</Badge>
 					{closesAt && (
-						<span className="opacity-75">
-							(closes {getTimeUntil(closesAt)})
+						<span className="text-xs text-muted-foreground">
+							{getTimeRemaining(closesAt)}
 						</span>
 					)}
-				</Badge>
+				</div>
 			)
 		case "upcoming":
 			return (
-				<Badge variant="outline" className="gap-1">
-					<Clock className="h-3 w-3" />
-					Opens {opensAt ? getTimeUntil(opensAt) : "soon"}
-				</Badge>
+				<div className="flex flex-col items-end gap-1">
+					<Badge variant="outline" className="gap-1">
+						<Clock className="h-3 w-3" />
+						Upcoming
+					</Badge>
+					{opensAt && (
+						<span className="text-xs text-muted-foreground">
+							Opens {getTimeUntil(opensAt)}
+						</span>
+					)}
+				</div>
 			)
 		case "closed":
 			return (

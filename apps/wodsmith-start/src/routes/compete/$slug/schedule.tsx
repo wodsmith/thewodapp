@@ -89,6 +89,7 @@ function CompetitionSchedulePage() {
 				submissionWindows={submissionWindows}
 				competitionStarted={competitionStarted}
 				timezone={timezone}
+				slug={competition.slug}
 			/>
 		)
 	}
