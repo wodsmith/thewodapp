@@ -494,7 +494,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 			// Time cap in milliseconds
 			const timeCapMs = workout.timeCap ? workout.timeCap * 1000 : null
 
-			// Compute sort key
+			// Compute sort key (includes secondary_value and tiebreak for proper ordering)
 			const sortKey =
 				encodedValue !== null
 					? computeSortKey({
@@ -502,6 +502,17 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 							status,
 							scheme,
 							scoreType,
+							timeCap:
+								status === "cap" && secondaryValue !== null
+									? { ms: timeCapMs ?? 0, secondaryValue }
+									: undefined,
+							tiebreak:
+								tiebreakValue !== null && workout.tiebreakScheme
+									? {
+											scheme: workout.tiebreakScheme as "time" | "reps",
+											value: tiebreakValue,
+										}
+									: undefined,
 						})
 					: null
 
