@@ -6,7 +6,6 @@ import {
 	CheckCircle2,
 	ExternalLink,
 	Loader2,
-	Youtube,
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -22,9 +21,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
+import {
+	VideoUrlInput,
+	type VideoUrlValidationState,
+} from "@/components/ui/video-url-input"
 import type { ParseResult, ScoreType, WorkoutScheme } from "@/lib/scoring"
 import { decodeScore, parseScore } from "@/lib/scoring"
 import { cn } from "@/lib/utils"
+import { getSupportedPlatformsText } from "@/schemas/video-url"
 import { submitVideoFn } from "@/server-fns/video-submission-fns"
 
 interface VideoSubmissionFormProps {
@@ -161,6 +165,13 @@ export function VideoSubmissionForm({
 	const [videoUrl, setVideoUrl] = useState(
 		initialData?.submission?.videoUrl ?? "",
 	)
+	const [videoValidation, setVideoValidation] =
+		useState<VideoUrlValidationState>({
+			isValid: false,
+			isPending: false,
+			error: null,
+			parsedUrl: null,
+		})
 	const [notes, setNotes] = useState(initialData?.submission?.notes ?? "")
 	const [isSubmitting, setIsSubmitting] = useState(false)
 	const [error, setError] = useState<string | null>(null)
@@ -320,11 +331,9 @@ export function VideoSubmissionForm({
 			return
 		}
 
-		// Basic URL validation
-		try {
-			new URL(videoUrl)
-		} catch {
-			setError("Please enter a valid URL")
+		// Use video URL validation from the component
+		if (!videoValidation.isValid) {
+			setError(videoValidation.error ?? "Please enter a valid video URL")
 			return
 		}
 
@@ -480,22 +489,18 @@ export function VideoSubmissionForm({
 					{/* Video URL Input */}
 					<div className="space-y-2">
 						<Label htmlFor="videoUrl">Video URL</Label>
-						<div className="flex gap-2">
-							<div className="relative flex-1">
-								<Youtube className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-								<Input
-									id="videoUrl"
-									type="url"
-									placeholder="https://www.youtube.com/watch?v=..."
-									value={videoUrl}
-									onChange={(e) => setVideoUrl(e.target.value)}
-									className="pl-10"
-									disabled={isSubmitting}
-								/>
-							</div>
-						</div>
+						<VideoUrlInput
+							id="videoUrl"
+							value={videoUrl}
+							onChange={setVideoUrl}
+							onValidationChange={setVideoValidation}
+							required
+							disabled={isSubmitting}
+							showPlatformBadge
+							showPreviewLink
+						/>
 						<p className="text-xs text-muted-foreground">
-							Upload your video to YouTube (unlisted is fine) and paste the link
+							Upload your video to {getSupportedPlatformsText()} (unlisted is fine) and paste the link
 						</p>
 					</div>
 

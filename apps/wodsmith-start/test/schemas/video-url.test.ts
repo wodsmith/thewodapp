@@ -137,6 +137,71 @@ describe("Video URL Validation", () => {
 				expect(result).not.toBeNull()
 				expect(result?.videoId).toBe("123456789")
 			})
+
+		it("parses unlisted URL with privacy hash", () => {
+			const result = parseVideoUrl(
+				"https://vimeo.com/1070507470/3ef796e429?fl=pl&fe=vl",
+			)
+			expect(result).not.toBeNull()
+			expect(result?.platform).toBe("vimeo")
+			expect(result?.videoId).toBe("1070507470")
+			expect(result?.privacyHash).toBe("3ef796e429")
+			expect(result?.embedUrl).toBe(
+				"https://player.vimeo.com/video/1070507470?h=3ef796e429",
+			)
+		})
+
+		it("parses unlisted URL without query params", () => {
+			const result = parseVideoUrl("https://vimeo.com/123456789/abcdef1234")
+			expect(result).not.toBeNull()
+			expect(result?.videoId).toBe("123456789")
+			expect(result?.privacyHash).toBe("abcdef1234")
+		})
+
+		it("parses player embed URL with hash parameter", () => {
+			const result = parseVideoUrl(
+				"https://player.vimeo.com/video/123456789?h=abc123def",
+			)
+			expect(result).not.toBeNull()
+			expect(result?.videoId).toBe("123456789")
+			expect(result?.privacyHash).toBe("abc123def")
+		})
+		})
+
+		describe("Streamable URLs", () => {
+			it("parses standard Streamable URL", () => {
+				const result = parseVideoUrl("https://streamable.com/abc123")
+				expect(result).not.toBeNull()
+				expect(result?.platform).toBe("streamable")
+				expect(result?.videoId).toBe("abc123")
+				expect(result?.embedUrl).toBe("https://streamable.com/e/abc123")
+			})
+
+			it("parses Streamable URL with www", () => {
+				const result = parseVideoUrl("https://www.streamable.com/xyz789")
+				expect(result).not.toBeNull()
+				expect(result?.platform).toBe("streamable")
+				expect(result?.videoId).toBe("xyz789")
+			})
+
+			it("parses Streamable embed URL", () => {
+				const result = parseVideoUrl("https://streamable.com/e/abc123")
+				expect(result).not.toBeNull()
+				expect(result?.platform).toBe("streamable")
+				expect(result?.videoId).toBe("abc123")
+			})
+
+			it("parses Streamable URL with query params", () => {
+				const result = parseVideoUrl("https://streamable.com/abc123?autoplay=1")
+				expect(result).not.toBeNull()
+				expect(result?.videoId).toBe("abc123")
+			})
+
+			it("parses URL without https prefix", () => {
+				const result = parseVideoUrl("streamable.com/abc123")
+				expect(result).not.toBeNull()
+				expect(result?.videoId).toBe("abc123")
+			})
 		})
 
 		describe("Invalid URLs", () => {
@@ -178,6 +243,10 @@ describe("Video URL Validation", () => {
 
 		it("returns true for valid Vimeo URLs", () => {
 			expect(isSupportedVideoUrl("https://vimeo.com/123456789")).toBe(true)
+		})
+
+		it("returns true for valid Streamable URLs", () => {
+			expect(isSupportedVideoUrl("https://streamable.com/abc123")).toBe(true)
 		})
 
 		it("returns false for unsupported URLs", () => {
@@ -334,6 +403,17 @@ describe("Video URL Validation", () => {
 				originalUrl: "https://vimeo.com/123456789",
 				embedUrl: "https://player.vimeo.com/video/123456789",
 				thumbnailUrl: "https://vumbnail.com/123456789.jpg",
+			})
+		})
+
+		it("includes all expected fields for Streamable", () => {
+			const result = parseVideoUrl("https://streamable.com/abc123")
+			expect(result).toMatchObject({
+				platform: "streamable",
+				videoId: "abc123",
+				originalUrl: "https://streamable.com/abc123",
+				embedUrl: "https://streamable.com/e/abc123",
+				thumbnailUrl: "https://cdn-cf-east.streamable.com/image/abc123.jpg",
 			})
 		})
 	})

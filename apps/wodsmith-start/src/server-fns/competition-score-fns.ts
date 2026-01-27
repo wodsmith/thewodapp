@@ -45,11 +45,6 @@ import {
 	STATUS_ORDER,
 	sortKeyToString,
 } from "@/lib/scoring"
-import {
-	parseVideoUrl,
-	type ParsedVideoUrl,
-	VIDEO_URL_ERRORS,
-} from "@/schemas/video-url"
 import { autochunk, chunk, SQL_BATCH_SIZE } from "@/utils/batch-query"
 
 const BATCH_SIZE = SQL_BATCH_SIZE
@@ -98,12 +93,6 @@ export interface EventScoreEntryAthlete {
 		scoreStatus: ScoreStatus | null
 		tieBreakScore: string | null
 		secondaryScore: string | null
-		/** Video URL for online submissions */
-		videoUrl: string | null
-		/** Video platform (youtube, vimeo) */
-		videoPlatform: string | null
-		/** Video ID for embedding */
-		videoId: string | null
 		/** Existing sets for multi-round workouts */
 		sets: ExistingSetData[]
 	} | null
@@ -311,8 +300,6 @@ const saveCompetitionScoreInputSchema = z.object({
 	scoreStatus: z.enum(SCORE_STATUS_VALUES),
 	tieBreakScore: z.string().nullable().optional(),
 	secondaryScore: z.string().nullable().optional(),
-	/** Video URL for online competition submissions */
-	videoUrl: z.string().nullable().optional(),
 	/** Round scores for multi-round workouts */
 	roundScores: z.array(roundScoreSchema).optional(),
 	/** Workout info for proper score processing */
@@ -333,8 +320,6 @@ const saveCompetitionScoresInputSchema = z.object({
 			scoreStatus: z.enum(SCORE_STATUS_VALUES),
 			tieBreakScore: z.string().nullable().optional(),
 			secondaryScore: z.string().nullable().optional(),
-			/** Video URL for online competition submissions */
-			videoUrl: z.string().nullable().optional(),
 		}),
 	),
 })
@@ -753,9 +738,6 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
 								scoreStatus: existingScore.status as ScoreStatus | null,
 								tieBreakScore,
 								secondaryScore,
-								videoUrl: existingScore.videoUrl ?? null,
-								videoPlatform: existingScore.videoPlatform ?? null,
-								videoId: existingScore.videoId ?? null,
 								sets: scoreSets,
 							}
 						: null,
@@ -962,15 +944,6 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 				}
 			}
 
-			// Parse and validate video URL if provided
-			let parsedVideo: ParsedVideoUrl | null = null
-			if (data.videoUrl && data.videoUrl.trim() !== "") {
-				parsedVideo = parseVideoUrl(data.videoUrl)
-				if (!parsedVideo) {
-					throw new Error(VIDEO_URL_ERRORS.UNSUPPORTED_PLATFORM)
-				}
-			}
-
 			// Insert/update scores table
 			await db
 				.insert(scoresTable)
@@ -993,10 +966,6 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 					scalingLevelId: data.divisionId,
 					asRx: true,
 					recordedAt: new Date(),
-					// Video URL fields for online competitions
-					videoUrl: parsedVideo?.originalUrl ?? null,
-					videoPlatform: parsedVideo?.platform ?? null,
-					videoId: parsedVideo?.videoId ?? null,
 				})
 				.onConflictDoUpdate({
 					target: [scoresTable.competitionEventId, scoresTable.userId],
@@ -1011,10 +980,6 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 						timeCapMs,
 						secondaryValue,
 						scalingLevelId: data.divisionId,
-						// Video URL fields for online competitions
-						videoUrl: parsedVideo?.originalUrl ?? null,
-						videoPlatform: parsedVideo?.platform ?? null,
-						videoId: parsedVideo?.videoId ?? null,
 						updatedAt: new Date(),
 					},
 				})
@@ -1150,7 +1115,6 @@ export const saveCompetitionScoresFn = createServerFn({ method: "POST" })
 							scoreStatus: scoreData.scoreStatus,
 							tieBreakScore: scoreData.tieBreakScore,
 							secondaryScore: scoreData.secondaryScore,
-							videoUrl: scoreData.videoUrl,
 							workout: workoutResult,
 						},
 					})

@@ -2,7 +2,7 @@
  * Video URL Validation Schema
  *
  * Validates video URLs for online competition submissions.
- * Supports YouTube and Vimeo URL formats with video ID extraction.
+ * Supports YouTube, Vimeo, and Streamable URL formats with video ID extraction.
  */
 
 import { z } from "zod"
@@ -10,7 +10,7 @@ import { z } from "zod"
 /**
  * Supported video platforms
  */
-export const VIDEO_PLATFORMS = ["youtube", "vimeo"] as const
+export const VIDEO_PLATFORMS = ["youtube", "vimeo", "streamable"] as const
 export type VideoPlatform = (typeof VIDEO_PLATFORMS)[number]
 
 /**
@@ -22,6 +22,8 @@ export interface ParsedVideoUrl {
 	originalUrl: string
 	embedUrl: string
 	thumbnailUrl: string
+	/** Privacy hash for unlisted Vimeo videos */
+	privacyHash?: string
 }
 
 /**
@@ -53,20 +55,41 @@ const YOUTUBE_PATTERNS = [
  * Vimeo URL patterns:
  * - vimeo.com/VIDEO_ID
  * - vimeo.com/VIDEO_ID?share=copy (with params)
+ * - vimeo.com/VIDEO_ID/HASH (unlisted videos with privacy hash)
  * - player.vimeo.com/video/VIDEO_ID
+ * - player.vimeo.com/video/VIDEO_ID?h=HASH (unlisted embed)
  * - www.vimeo.com/VIDEO_ID
  * - vimeo.com/channels/CHANNEL/VIDEO_ID
  * - vimeo.com/groups/GROUP/videos/VIDEO_ID
  */
 const VIMEO_PATTERNS = [
+	// Unlisted URL with privacy hash (must be before standard pattern)
+	/^(?:https?:\/\/)?(?:www\.)?vimeo\.com\/(\d+)\/([a-zA-Z0-9]+)(?:\?.*)?$/,
 	// Standard URL
 	/^(?:https?:\/\/)?(?:www\.)?vimeo\.com\/(\d+)(?:\?.*)?$/,
-	// Player embed URL
+	// Player embed URL with hash
+	/^(?:https?:\/\/)?player\.vimeo\.com\/video\/(\d+)\?(?:.*&)?h=([a-zA-Z0-9]+)(?:&.*)?$/,
+	// Player embed URL without hash
 	/^(?:https?:\/\/)?player\.vimeo\.com\/video\/(\d+)(?:\?.*)?$/,
 	// Channel video URL
 	/^(?:https?:\/\/)?(?:www\.)?vimeo\.com\/channels\/[^/]+\/(\d+)(?:\?.*)?$/,
 	// Group video URL
 	/^(?:https?:\/\/)?(?:www\.)?vimeo\.com\/groups\/[^/]+\/videos\/(\d+)(?:\?.*)?$/,
+] as const
+
+/**
+ * Streamable URL patterns:
+ * - streamable.com/VIDEO_ID
+ * - www.streamable.com/VIDEO_ID
+ * - streamable.com/e/VIDEO_ID (embed URL)
+ *
+ * Streamable video IDs are alphanumeric, typically 5-7 characters
+ */
+const STREAMABLE_PATTERNS = [
+	// Standard URL
+	/^(?:https?:\/\/)?(?:www\.)?streamable\.com\/([a-zA-Z0-9]+)(?:\?.*)?$/,
+	// Embed URL
+	/^(?:https?:\/\/)?(?:www\.)?streamable\.com\/e\/([a-zA-Z0-9]+)(?:\?.*)?$/,
 ] as const
 
 /**
@@ -83,10 +106,26 @@ function extractYouTubeId(url: string): string | null {
 }
 
 /**
- * Extract video ID from Vimeo URL
+ * Extract video ID and optional privacy hash from Vimeo URL
  */
-function extractVimeoId(url: string): string | null {
+function extractVimeoId(url: string): { id: string; hash?: string } | null {
 	for (const pattern of VIMEO_PATTERNS) {
+		const match = url.match(pattern)
+		if (match?.[1]) {
+			return {
+				id: match[1],
+				hash: match[2] || undefined,
+			}
+		}
+	}
+	return null
+}
+
+/**
+ * Extract video ID from Streamable URL
+ */
+function extractStreamableId(url: string): string | null {
+	for (const pattern of STREAMABLE_PATTERNS) {
 		const match = url.match(pattern)
 		if (match?.[1]) {
 			return match[1]
@@ -115,15 +154,33 @@ export function parseVideoUrl(url: string): ParsedVideoUrl | null {
 	}
 
 	// Try Vimeo
-	const vimeoId = extractVimeoId(trimmedUrl)
-	if (vimeoId) {
+	const vimeoResult = extractVimeoId(trimmedUrl)
+	if (vimeoResult) {
+		// For unlisted videos, include the privacy hash in the embed URL
+		const embedUrl = vimeoResult.hash
+			? `https://player.vimeo.com/video/${vimeoResult.id}?h=${vimeoResult.hash}`
+			: `https://player.vimeo.com/video/${vimeoResult.id}`
 		return {
 			platform: "vimeo",
-			videoId: vimeoId,
+			videoId: vimeoResult.id,
 			originalUrl: trimmedUrl,
-			embedUrl: `https://player.vimeo.com/video/${vimeoId}`,
+			embedUrl,
 			// Vimeo thumbnails require API access, use placeholder
-			thumbnailUrl: `https://vumbnail.com/${vimeoId}.jpg`,
+			thumbnailUrl: `https://vumbnail.com/${vimeoResult.id}.jpg`,
+			privacyHash: vimeoResult.hash,
+		}
+	}
+
+	// Try Streamable
+	const streamableId = extractStreamableId(trimmedUrl)
+	if (streamableId) {
+		return {
+			platform: "streamable",
+			videoId: streamableId,
+			originalUrl: trimmedUrl,
+			embedUrl: `https://streamable.com/e/${streamableId}`,
+			// Streamable thumbnails via their CDN
+			thumbnailUrl: `https://cdn-cf-east.streamable.com/image/${streamableId}.jpg`,
 		}
 	}
 
@@ -141,7 +198,7 @@ export function isSupportedVideoUrl(url: string): boolean {
  * Get a human-readable list of supported platforms
  */
 export function getSupportedPlatformsText(): string {
-	return "YouTube or Vimeo"
+	return "YouTube, Vimeo, or Streamable"
 }
 
 /**

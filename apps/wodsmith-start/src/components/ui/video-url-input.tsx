@@ -28,7 +28,9 @@ export interface VideoUrlInputProps
 	onValidationChange?: (state: VideoUrlValidationState) => void
 	/** Whether the field is required */
 	required?: boolean
-	/** Debounce delay in ms for validation (default: 300) */
+	/** When to validate: 'blur' (default) or 'change' */
+	validateOn?: "blur" | "change"
+	/** Debounce delay in ms for validation when validateOn='change' (default: 300) */
 	debounceMs?: number
 	/** Show platform badge when valid */
 	showPlatformBadge?: boolean
@@ -50,6 +52,7 @@ const VideoUrlInput = React.forwardRef<HTMLInputElement, VideoUrlInputProps>(
 			onChange,
 			onValidationChange,
 			required = false,
+			validateOn = "blur",
 			debounceMs = 300,
 			showPlatformBadge = true,
 			showPreviewLink = true,
@@ -59,6 +62,7 @@ const VideoUrlInput = React.forwardRef<HTMLInputElement, VideoUrlInputProps>(
 		ref,
 	) => {
 		const [localValue, setLocalValue] = React.useState(value)
+		const [hasBlurred, setHasBlurred] = React.useState(false)
 		const [validationState, setValidationState] =
 			React.useState<VideoUrlValidationState>({
 				isValid: false,
@@ -72,27 +76,24 @@ const VideoUrlInput = React.forwardRef<HTMLInputElement, VideoUrlInputProps>(
 			setLocalValue(value)
 		}, [value])
 
-		// Debounced validation
-		React.useEffect(() => {
-			const trimmedValue = localValue.trim()
+		// Validation function
+		const validateUrl = React.useCallback(
+			(urlToValidate: string) => {
+				const trimmedValue = urlToValidate.trim()
 
-			// Handle empty value
-			if (!trimmedValue) {
-				const newState: VideoUrlValidationState = {
-					isValid: !required,
-					isPending: false,
-					error: required ? VIDEO_URL_ERRORS.EMPTY_URL : null,
-					parsedUrl: null,
+				// Handle empty value
+				if (!trimmedValue) {
+					const newState: VideoUrlValidationState = {
+						isValid: !required,
+						isPending: false,
+						error: required ? VIDEO_URL_ERRORS.EMPTY_URL : null,
+						parsedUrl: null,
+					}
+					setValidationState(newState)
+					onValidationChange?.(newState)
+					return
 				}
-				setValidationState(newState)
-				onValidationChange?.(newState)
-				return
-			}
 
-			// Set pending state during debounce
-			setValidationState((prev) => ({ ...prev, isPending: true }))
-
-			const timeoutId = setTimeout(() => {
 				// Check if it's a valid URL format first
 				try {
 					new URL(trimmedValue)
@@ -129,10 +130,29 @@ const VideoUrlInput = React.forwardRef<HTMLInputElement, VideoUrlInputProps>(
 					setValidationState(newState)
 					onValidationChange?.(newState)
 				}
+			},
+			[required, onValidationChange],
+		)
+
+		// Debounced validation for 'change' mode
+		React.useEffect(() => {
+			if (validateOn !== "change") return
+
+			// Set pending state during debounce
+			setValidationState((prev) => ({ ...prev, isPending: true }))
+
+			const timeoutId = setTimeout(() => {
+				validateUrl(localValue)
 			}, debounceMs)
 
 			return () => clearTimeout(timeoutId)
-		}, [localValue, required, debounceMs, onValidationChange])
+		}, [localValue, validateOn, debounceMs, validateUrl])
+
+		// Re-validate on blur if already blurred (for 'blur' mode)
+		React.useEffect(() => {
+			if (validateOn !== "blur" || !hasBlurred) return
+			validateUrl(localValue)
+		}, [localValue, validateOn, hasBlurred, validateUrl])
 
 		const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 			const newValue = e.target.value
@@ -140,11 +160,18 @@ const VideoUrlInput = React.forwardRef<HTMLInputElement, VideoUrlInputProps>(
 			onChange?.(newValue)
 		}
 
+		const handleBlur = () => {
+			if (validateOn === "blur") {
+				setHasBlurred(true)
+				validateUrl(localValue)
+			}
+		}
+
 		const { isValid, isPending, error, parsedUrl } = validationState
 		const hasValue = localValue.trim().length > 0
 		const showValidIcon = hasValue && isValid && !isPending
-		const showErrorIcon = hasValue && !isValid && !isPending && error
-		const showPendingIcon = isPending
+		const showErrorIcon = hasValue && !isValid && !isPending && error && hasBlurred
+		const showPendingIcon = isPending && validateOn === "change"
 
 		return (
 			<div className="space-y-2">
@@ -157,15 +184,16 @@ const VideoUrlInput = React.forwardRef<HTMLInputElement, VideoUrlInputProps>(
 						type="url"
 						value={localValue}
 						onChange={handleChange}
+						onBlur={handleBlur}
 						className={cn(
 							"pl-9 pr-10",
-							error && hasValue && "border-destructive focus-visible:ring-destructive",
+							error && hasValue && hasBlurred && "border-destructive focus-visible:ring-destructive",
 							isValid && hasValue && "border-green-500 focus-visible:ring-green-500",
 							className,
 						)}
-						placeholder="Paste YouTube or Vimeo URL..."
+						placeholder="Paste video URL..."
 						disabled={disabled}
-						aria-invalid={!!error && hasValue}
+						aria-invalid={!!error && hasValue && hasBlurred}
 						{...props}
 					/>
 					<div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -188,7 +216,11 @@ const VideoUrlInput = React.forwardRef<HTMLInputElement, VideoUrlInputProps>(
 							<>
 								{showPlatformBadge && (
 									<span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
-										{parsedUrl.platform === "youtube" ? "YouTube" : "Vimeo"}
+										{parsedUrl.platform === "youtube"
+											? "YouTube"
+											: parsedUrl.platform === "vimeo"
+												? "Vimeo"
+												: "Streamable"}
 									</span>
 								)}
 								{showPreviewLink && (
@@ -204,7 +236,7 @@ const VideoUrlInput = React.forwardRef<HTMLInputElement, VideoUrlInputProps>(
 								)}
 							</>
 						)}
-						{error && (
+						{error && hasBlurred && (
 							<div className="flex items-center gap-1 text-destructive">
 								<AlertCircle className="h-3 w-3" />
 								<span className="text-xs">{error}</span>
@@ -227,8 +259,16 @@ VideoUrlInput.displayName = "VideoUrlInput"
 
 /**
  * Simple video URL validation hook for use outside the component
+ *
+ * @param url - The video URL to validate
+ * @param required - Whether the URL is required (default: false).
+ *                   When false, empty URLs are considered valid.
+ *                   When true, empty URLs return isValid: false with an error.
  */
-export function useVideoUrlValidation(url: string): VideoUrlValidationState {
+export function useVideoUrlValidation(
+	url: string,
+	required = false,
+): VideoUrlValidationState {
 	const [state, setState] = React.useState<VideoUrlValidationState>({
 		isValid: false,
 		isPending: true,
@@ -241,9 +281,9 @@ export function useVideoUrlValidation(url: string): VideoUrlValidationState {
 
 		if (!trimmedUrl) {
 			setState({
-				isValid: true, // Empty is valid for optional fields
+				isValid: !required,
 				isPending: false,
-				error: null,
+				error: required ? VIDEO_URL_ERRORS.EMPTY_URL : null,
 				parsedUrl: null,
 			})
 			return
@@ -279,7 +319,7 @@ export function useVideoUrlValidation(url: string): VideoUrlValidationState {
 				parsedUrl: null,
 			})
 		}
-	}, [url])
+	}, [url, required])
 
 	return state
 }
