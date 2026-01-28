@@ -45,6 +45,39 @@ function getAthleteName(user: {
 }
 
 /**
+ * Check if a datetime string already has a timezone indicator.
+ * Matches: 'Z', 'z', '+HH:MM', '+HHMM', '+HH', '-HH:MM', '-HHMM', '-HH'
+ */
+function hasTimezoneIndicator(datetime: string): boolean {
+	const trimmed = datetime.trim()
+	// Check for Z/z suffix
+	if (trimmed.endsWith("Z") || trimmed.endsWith("z")) {
+		return true
+	}
+	// Check for numeric offset like +05:30, -0800, +05, etc.
+	// Pattern: ends with + or - followed by 2-4 digits, optionally with colon
+	const offsetPattern = /[+-]\d{2}(:\d{2}|\d{2})?$/
+	return offsetPattern.test(trimmed)
+}
+
+/**
+ * Normalize a datetime string to a UTC-aware ISO format.
+ * - Replaces space with 'T' for ISO 8601 compliance
+ * - Appends 'Z' only if no timezone indicator exists
+ * - Handles SQLite datetime format (e.g., "2026-01-27 00:36:37")
+ */
+function normalizeToUtcDatetime(datetime: string): string {
+	const trimmed = datetime.trim()
+	// Replace space with T for ISO 8601 format
+	const normalized = trimmed.replace(" ", "T")
+	// Only append Z if no timezone indicator exists
+	if (hasTimezoneIndicator(normalized)) {
+		return normalized
+	}
+	return normalized + "Z"
+}
+
+/**
  * Format an ISO 8601 datetime string for display in the user's timezone.
  * Example: "Saturday, March 15, 2025 at 5:00 PM"
  */
@@ -536,10 +569,11 @@ export async function processSubmissionWindowNotifications(): Promise<ProcessedN
 		for (const { event, competition, workout } of events) {
 			if (!event.submissionOpensAt) continue
 
-			// Append 'Z' to indicate UTC since SQLite datetime strings don't include timezone
-			const opensAt = new Date(event.submissionOpensAt.replace(" ", "T") + "Z")
+			// Normalize datetime strings to UTC-aware ISO format
+			// Handles both SQLite format ("2026-01-27 00:36:37") and ISO with timezone
+			const opensAt = new Date(normalizeToUtcDatetime(event.submissionOpensAt))
 			const closesAt = event.submissionClosesAt
-				? new Date(event.submissionClosesAt.replace(" ", "T") + "Z")
+				? new Date(normalizeToUtcDatetime(event.submissionClosesAt))
 				: null
 
 			const timezone = competition.timezone || "America/Denver"

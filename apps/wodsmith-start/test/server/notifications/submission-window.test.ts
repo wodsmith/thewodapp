@@ -316,6 +316,82 @@ describe("Submission Window Notifications", () => {
 	})
 })
 
+describe("Datetime Timezone Normalization", () => {
+	/**
+	 * Helper to check if a datetime string has a timezone indicator.
+	 * Mirrors the logic in submission-window.ts
+	 */
+	function hasTimezoneIndicator(datetime: string): boolean {
+		const trimmed = datetime.trim()
+		if (trimmed.endsWith("Z") || trimmed.endsWith("z")) {
+			return true
+		}
+		const offsetPattern = /[+-]\d{2}(:\d{2}|\d{2})?$/
+		return offsetPattern.test(trimmed)
+	}
+
+	/**
+	 * Normalize datetime to UTC-aware ISO format.
+	 * Mirrors the logic in submission-window.ts
+	 */
+	function normalizeToUtcDatetime(datetime: string): string {
+		const trimmed = datetime.trim()
+		const normalized = trimmed.replace(" ", "T")
+		if (hasTimezoneIndicator(normalized)) {
+			return normalized
+		}
+		return normalized + "Z"
+	}
+
+	describe("hasTimezoneIndicator", () => {
+		it("returns true for Z suffix", () => {
+			expect(hasTimezoneIndicator("2026-01-27T00:36:37Z")).toBe(true)
+			expect(hasTimezoneIndicator("2026-01-27T00:36:37z")).toBe(true)
+		})
+
+		it("returns true for numeric offsets", () => {
+			expect(hasTimezoneIndicator("2026-01-27T00:36:37+00:00")).toBe(true)
+			expect(hasTimezoneIndicator("2026-01-27T00:36:37-05:00")).toBe(true)
+			expect(hasTimezoneIndicator("2026-01-27T00:36:37+0530")).toBe(true)
+			expect(hasTimezoneIndicator("2026-01-27T00:36:37-0800")).toBe(true)
+			expect(hasTimezoneIndicator("2026-01-27T00:36:37+05")).toBe(true)
+			expect(hasTimezoneIndicator("2026-01-27T00:36:37-08")).toBe(true)
+		})
+
+		it("returns false for SQLite datetime format without timezone", () => {
+			expect(hasTimezoneIndicator("2026-01-27 00:36:37")).toBe(false)
+			expect(hasTimezoneIndicator("2026-01-27T00:36:37")).toBe(false)
+		})
+
+		it("handles whitespace", () => {
+			expect(hasTimezoneIndicator("  2026-01-27T00:36:37Z  ")).toBe(true)
+			expect(hasTimezoneIndicator("  2026-01-27 00:36:37  ")).toBe(false)
+		})
+	})
+
+	describe("normalizeToUtcDatetime", () => {
+		it("appends Z to SQLite datetime format", () => {
+			expect(normalizeToUtcDatetime("2026-01-27 00:36:37")).toBe("2026-01-27T00:36:37Z")
+		})
+
+		it("does not double-append Z to already timezone-aware strings", () => {
+			expect(normalizeToUtcDatetime("2026-01-27T00:36:37Z")).toBe("2026-01-27T00:36:37Z")
+			expect(normalizeToUtcDatetime("2026-01-27T00:36:37z")).toBe("2026-01-27T00:36:37z")
+		})
+
+		it("preserves numeric timezone offsets", () => {
+			expect(normalizeToUtcDatetime("2026-01-27T00:36:37+05:30")).toBe("2026-01-27T00:36:37+05:30")
+			expect(normalizeToUtcDatetime("2026-01-27T00:36:37-08:00")).toBe("2026-01-27T00:36:37-08:00")
+		})
+
+		it("replaces space with T", () => {
+			expect(normalizeToUtcDatetime("2026-01-27 00:36:37")).toBe("2026-01-27T00:36:37Z")
+			// Already has T, should not affect it
+			expect(normalizeToUtcDatetime("2026-01-27T00:36:37")).toBe("2026-01-27T00:36:37Z")
+		})
+	})
+})
+
 describe("SQLite Datetime UTC Parsing", () => {
 	/**
 	 * SQLite stores datetime without timezone info (e.g., "2026-01-27 00:36:37").
