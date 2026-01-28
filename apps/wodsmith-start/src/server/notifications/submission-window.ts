@@ -14,6 +14,7 @@ import {
 	competitionEventsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
+	scoresTable,
 	submissionWindowNotificationsTable,
 	trackWorkoutsTable,
 	userTable,
@@ -69,44 +70,84 @@ function formatDateTimeForDisplay(
 }
 
 /**
- * Check if a notification has already been sent
+ * Reserve a notification slot using the unique constraint as a lock.
+ * This prevents race conditions in concurrent cron runs by inserting first.
+ * Returns true if reservation succeeded (notification not yet sent), false if already reserved.
  */
-async function hasNotificationBeenSent(params: {
-	competitionEventId: string
-	registrationId: string
-	type: SubmissionWindowNotificationType
-}): Promise<boolean> {
-	const db = getDb()
-	const existing = await db.query.submissionWindowNotificationsTable.findFirst({
-		where: and(
-			eq(submissionWindowNotificationsTable.competitionEventId, params.competitionEventId),
-			eq(submissionWindowNotificationsTable.registrationId, params.registrationId),
-			eq(submissionWindowNotificationsTable.type, params.type),
-		),
-	})
-	return !!existing
-}
-
-/**
- * Record that a notification was sent
- */
-async function recordNotificationSent(params: {
+async function reserveNotification(params: {
 	competitionId: string
 	competitionEventId: string
 	registrationId: string
 	userId: string
 	type: SubmissionWindowNotificationType
 	sentToEmail: string
+}): Promise<boolean> {
+	const db = getDb()
+	try {
+		// Use onConflictDoNothing - if the unique constraint is violated,
+		// the insert silently does nothing and returns no rows
+		const result = await db
+			.insert(submissionWindowNotificationsTable)
+			.values({
+				competitionId: params.competitionId,
+				competitionEventId: params.competitionEventId,
+				registrationId: params.registrationId,
+				userId: params.userId,
+				type: params.type,
+				sentToEmail: params.sentToEmail,
+			})
+			.onConflictDoNothing()
+			.returning({ id: submissionWindowNotificationsTable.id })
+
+		// If we got a result back, the insert succeeded (notification reserved)
+		return result.length > 0
+	} catch (err) {
+		// Log unexpected errors but treat as "already reserved"
+		logError({
+			message: "[Submission Notification] Error reserving notification",
+			error: err,
+			attributes: params,
+		})
+		return false
+	}
+}
+
+/**
+ * Delete a notification reservation (used when email send fails to allow retry)
+ */
+async function deleteNotificationReservation(params: {
+	competitionEventId: string
+	registrationId: string
+	type: SubmissionWindowNotificationType
 }): Promise<void> {
 	const db = getDb()
-	await db.insert(submissionWindowNotificationsTable).values({
-		competitionId: params.competitionId,
-		competitionEventId: params.competitionEventId,
-		registrationId: params.registrationId,
-		userId: params.userId,
-		type: params.type,
-		sentToEmail: params.sentToEmail,
+	await db
+		.delete(submissionWindowNotificationsTable)
+		.where(
+			and(
+				eq(submissionWindowNotificationsTable.competitionEventId, params.competitionEventId),
+				eq(submissionWindowNotificationsTable.registrationId, params.registrationId),
+				eq(submissionWindowNotificationsTable.type, params.type),
+			),
+		)
+}
+
+/**
+ * Check if a user has submitted a score for a competition event
+ */
+async function hasUserSubmittedScore(params: {
+	userId: string
+	competitionEventId: string
+}): Promise<boolean> {
+	const db = getDb()
+	const score = await db.query.scoresTable.findFirst({
+		where: and(
+			eq(scoresTable.userId, params.userId),
+			eq(scoresTable.competitionEventId, params.competitionEventId),
+		),
+		columns: { id: true },
 	})
+	return !!score
 }
 
 // ============================================================================
@@ -141,29 +182,35 @@ export async function sendWindowOpensNotification(params: {
 		timezone,
 	} = params
 
-	try {
-		// Check if already sent
-		if (await hasNotificationBeenSent({
-			competitionEventId,
-			registrationId,
-			type: SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_OPENS,
-		})) {
-			return false
-		}
+	const db = getDb()
+	const user = await db.query.userTable.findFirst({
+		where: eq(userTable.id, userId),
+	})
 
-		const db = getDb()
-		const user = await db.query.userTable.findFirst({
-			where: eq(userTable.id, userId),
+	if (!user?.email) {
+		logError({
+			message: "[Submission Notification] Cannot send window opens - no email",
+			attributes: { userId, registrationId, competitionEventId },
 		})
+		return false
+	}
 
-		if (!user?.email) {
-			logError({
-				message: "[Submission Notification] Cannot send window opens - no email",
-				attributes: { userId, registrationId, competitionEventId },
-			})
-			return false
-		}
+	// Reserve the notification slot first (prevents race conditions)
+	const reserved = await reserveNotification({
+		competitionId,
+		competitionEventId,
+		registrationId,
+		userId,
+		type: SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_OPENS,
+		sentToEmail: user.email,
+	})
 
+	if (!reserved) {
+		// Already sent by another process
+		return false
+	}
+
+	try {
 		const athleteName = getAthleteName(user)
 		const formattedCloseTime = submissionClosesAt
 			? formatDateTimeForDisplay(submissionClosesAt, timezone)
@@ -184,16 +231,6 @@ export async function sendWindowOpensNotification(params: {
 			tags: [{ name: "type", value: "submission-window-opens" }],
 		})
 
-		// Record that we sent this notification
-		await recordNotificationSent({
-			competitionId,
-			competitionEventId,
-			registrationId,
-			userId,
-			type: SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_OPENS,
-			sentToEmail: user.email,
-		})
-
 		logInfo({
 			message: "[Submission Notification] Sent window opens notification",
 			attributes: {
@@ -207,6 +244,12 @@ export async function sendWindowOpensNotification(params: {
 
 		return true
 	} catch (err) {
+		// Email failed - delete reservation to allow retry on next cron run
+		await deleteNotificationReservation({
+			competitionEventId,
+			registrationId,
+			type: SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_OPENS,
+		})
 		logError({
 			message: "[Submission Notification] Failed to send window opens notification",
 			error: err,
@@ -248,29 +291,35 @@ export async function sendWindowClosesReminderNotification(params: {
 		notificationType,
 	} = params
 
-	try {
-		// Check if already sent
-		if (await hasNotificationBeenSent({
-			competitionEventId,
-			registrationId,
-			type: notificationType,
-		})) {
-			return false
-		}
+	const db = getDb()
+	const user = await db.query.userTable.findFirst({
+		where: eq(userTable.id, userId),
+	})
 
-		const db = getDb()
-		const user = await db.query.userTable.findFirst({
-			where: eq(userTable.id, userId),
+	if (!user?.email) {
+		logError({
+			message: "[Submission Notification] Cannot send reminder - no email",
+			attributes: { userId, registrationId, competitionEventId, notificationType },
 		})
+		return false
+	}
 
-		if (!user?.email) {
-			logError({
-				message: "[Submission Notification] Cannot send reminder - no email",
-				attributes: { userId, registrationId, competitionEventId, notificationType },
-			})
-			return false
-		}
+	// Reserve the notification slot first (prevents race conditions)
+	const reserved = await reserveNotification({
+		competitionId,
+		competitionEventId,
+		registrationId,
+		userId,
+		type: notificationType,
+		sentToEmail: user.email,
+	})
 
+	if (!reserved) {
+		// Already sent by another process
+		return false
+	}
+
+	try {
 		const athleteName = getAthleteName(user)
 		const formattedCloseTime = formatDateTimeForDisplay(submissionClosesAt, timezone)
 
@@ -290,16 +339,6 @@ export async function sendWindowClosesReminderNotification(params: {
 			tags: [{ name: "type", value: `submission-window-reminder-${timeRemaining.replace(" ", "-")}` }],
 		})
 
-		// Record that we sent this notification
-		await recordNotificationSent({
-			competitionId,
-			competitionEventId,
-			registrationId,
-			userId,
-			type: notificationType,
-			sentToEmail: user.email,
-		})
-
 		logInfo({
 			message: "[Submission Notification] Sent window reminder notification",
 			attributes: {
@@ -314,6 +353,12 @@ export async function sendWindowClosesReminderNotification(params: {
 
 		return true
 	} catch (err) {
+		// Email failed - delete reservation to allow retry on next cron run
+		await deleteNotificationReservation({
+			competitionEventId,
+			registrationId,
+			type: notificationType,
+		})
 		logError({
 			message: "[Submission Notification] Failed to send reminder notification",
 			error: err,
@@ -347,29 +392,35 @@ export async function sendWindowClosedNotification(params: {
 		hasSubmitted,
 	} = params
 
-	try {
-		// Check if already sent
-		if (await hasNotificationBeenSent({
-			competitionEventId,
-			registrationId,
-			type: SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSED,
-		})) {
-			return false
-		}
+	const db = getDb()
+	const user = await db.query.userTable.findFirst({
+		where: eq(userTable.id, userId),
+	})
 
-		const db = getDb()
-		const user = await db.query.userTable.findFirst({
-			where: eq(userTable.id, userId),
+	if (!user?.email) {
+		logError({
+			message: "[Submission Notification] Cannot send window closed - no email",
+			attributes: { userId, registrationId, competitionEventId },
 		})
+		return false
+	}
 
-		if (!user?.email) {
-			logError({
-				message: "[Submission Notification] Cannot send window closed - no email",
-				attributes: { userId, registrationId, competitionEventId },
-			})
-			return false
-		}
+	// Reserve the notification slot first (prevents race conditions)
+	const reserved = await reserveNotification({
+		competitionId,
+		competitionEventId,
+		registrationId,
+		userId,
+		type: SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSED,
+		sentToEmail: user.email,
+	})
 
+	if (!reserved) {
+		// Already sent by another process
+		return false
+	}
+
+	try {
 		const athleteName = getAthleteName(user)
 
 		await sendEmail({
@@ -387,16 +438,6 @@ export async function sendWindowClosedNotification(params: {
 			tags: [{ name: "type", value: "submission-window-closed" }],
 		})
 
-		// Record that we sent this notification
-		await recordNotificationSent({
-			competitionId,
-			competitionEventId,
-			registrationId,
-			userId,
-			type: SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSED,
-			sentToEmail: user.email,
-		})
-
 		logInfo({
 			message: "[Submission Notification] Sent window closed notification",
 			attributes: {
@@ -411,6 +452,12 @@ export async function sendWindowClosedNotification(params: {
 
 		return true
 	} catch (err) {
+		// Email failed - delete reservation to allow retry on next cron run
+		await deleteNotificationReservation({
+			competitionEventId,
+			registrationId,
+			type: SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSED,
+		})
 		logError({
 			message: "[Submission Notification] Failed to send window closed notification",
 			error: err,
@@ -583,9 +630,11 @@ export async function processSubmissionWindowNotifications(): Promise<ProcessedN
 
 					// 5. Window just closed (within last 15 minutes)
 					if (closesAt <= now && closesAt > fifteenMinutesAgo) {
-						// TODO: Check if user has submitted a score
-						// For now, we'll assume they haven't (can be enhanced later)
-						const hasSubmitted = false
+						// Check if user has actually submitted a score for this event
+						const hasSubmitted = await hasUserSubmittedScore({
+							userId: user.id,
+							competitionEventId: event.id,
+						})
 
 						const sent = await sendWindowClosedNotification({
 							...baseParams,
