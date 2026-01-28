@@ -44,12 +44,13 @@ describe("Submission Window Notifications", () => {
 			expect(SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_OPENS).toBe("window_opens")
 			expect(SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_24H).toBe("window_closes_24h")
 			expect(SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_1H).toBe("window_closes_1h")
+			expect(SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_15M).toBe("window_closes_15m")
 			expect(SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSED).toBe("window_closed")
 		})
 
-		it("has exactly 4 notification types", () => {
+		it("has exactly 5 notification types", () => {
 			const types = Object.keys(SUBMISSION_WINDOW_NOTIFICATION_TYPES)
-			expect(types).toHaveLength(4)
+			expect(types).toHaveLength(5)
 		})
 	})
 
@@ -124,6 +125,7 @@ describe("Submission Window Notifications", () => {
 				windowOpens: 0,
 				windowCloses24h: 0,
 				windowCloses1h: 0,
+				windowCloses15m: 0,
 				windowClosed: 0,
 				errors: 0,
 			})
@@ -175,6 +177,7 @@ describe("Submission Window Notifications", () => {
 			expect(result).toHaveProperty("windowOpens")
 			expect(result).toHaveProperty("windowCloses24h")
 			expect(result).toHaveProperty("windowCloses1h")
+			expect(result).toHaveProperty("windowCloses15m")
 			expect(result).toHaveProperty("windowClosed")
 			expect(result).toHaveProperty("errors")
 
@@ -182,6 +185,7 @@ describe("Submission Window Notifications", () => {
 			expect(typeof result.windowOpens).toBe("number")
 			expect(typeof result.windowCloses24h).toBe("number")
 			expect(typeof result.windowCloses1h).toBe("number")
+			expect(typeof result.windowCloses15m).toBe("number")
 			expect(typeof result.windowClosed).toBe("number")
 			expect(typeof result.errors).toBe("number")
 		})
