@@ -64,12 +64,136 @@ describe("Submission Window Notifications", () => {
 		})
 	})
 
-	describe("Notification Deduplication", () => {
-		it("prevents duplicate notifications via unique constraint", () => {
-			// The unique index on (competitionEventId, registrationId, type)
-			// ensures that the same notification is not sent twice
-			// This is enforced at the database level
-			expect(true).toBe(true)
+	describe("Notification Deduplication (Reserve-Then-Send Pattern)", () => {
+		it("sends notification when reservation succeeds (first time)", async () => {
+			// Arrange - user exists with email
+			const mockUser = { id: "user_123", email: "athlete@example.com", firstName: "John" }
+			mockDb.registerTable("userTable")
+			mockDb.setMockSingleValue(mockUser) // For user lookup via db.query.userTable.findFirst()
+
+			// Mock successful reservation (insert returns a row)
+			mockDb.setMockReturnValue([{ id: "notif_123" }])
+
+			const { sendWindowOpensNotification } = await import(
+				"@/server/notifications/submission-window"
+			)
+
+			// Act
+			const result = await sendWindowOpensNotification({
+				userId: "user_123",
+				registrationId: "reg_123",
+				competitionId: "comp_123",
+				competitionEventId: "event_123",
+				competitionName: "Test Competition",
+				competitionSlug: "test-comp",
+				workoutName: "Test Workout",
+				timezone: "America/Denver",
+			})
+
+			// Assert
+			expect(result).toBe(true)
+			expect(mockSendEmail).toHaveBeenCalledTimes(1)
+			expect(mockSendEmail).toHaveBeenCalledWith(
+				expect.objectContaining({
+					to: "athlete@example.com",
+					subject: expect.stringContaining("Submission Window Open"),
+				}),
+			)
+		})
+
+		it("does not send notification when reservation fails (already sent)", async () => {
+			// Arrange - user exists with email
+			const mockUser = { id: "user_123", email: "athlete@example.com", firstName: "John" }
+			mockDb.registerTable("userTable")
+			mockDb.setMockSingleValue(mockUser)
+
+			// Mock failed reservation (insert returns empty array due to conflict)
+			mockDb.setMockReturnValue([])
+
+			const { sendWindowOpensNotification } = await import(
+				"@/server/notifications/submission-window"
+			)
+
+			// Act
+			const result = await sendWindowOpensNotification({
+				userId: "user_123",
+				registrationId: "reg_123",
+				competitionId: "comp_123",
+				competitionEventId: "event_123",
+				competitionName: "Test Competition",
+				competitionSlug: "test-comp",
+				workoutName: "Test Workout",
+				timezone: "America/Denver",
+			})
+
+			// Assert
+			expect(result).toBe(false)
+			expect(mockSendEmail).not.toHaveBeenCalled()
+		})
+
+		it("deletes reservation when email send fails to allow retry", async () => {
+			// Arrange - user exists with email
+			const mockUser = { id: "user_123", email: "athlete@example.com", firstName: "John" }
+			mockDb.registerTable("userTable")
+			mockDb.setMockSingleValue(mockUser)
+
+			// Mock successful reservation
+			mockDb.setMockReturnValue([{ id: "notif_123" }])
+
+			// Mock email failure
+			mockSendEmail.mockRejectedValueOnce(new Error("Email service unavailable"))
+
+			// Track delete calls
+			const deleteSpy = vi.spyOn(mockDb, "delete", "get")
+
+			const { sendWindowOpensNotification } = await import(
+				"@/server/notifications/submission-window"
+			)
+
+			// Act
+			const result = await sendWindowOpensNotification({
+				userId: "user_123",
+				registrationId: "reg_123",
+				competitionId: "comp_123",
+				competitionEventId: "event_123",
+				competitionName: "Test Competition",
+				competitionSlug: "test-comp",
+				workoutName: "Test Workout",
+				timezone: "America/Denver",
+			})
+
+			// Assert
+			expect(result).toBe(false)
+			expect(mockSendEmail).toHaveBeenCalledTimes(1)
+			// Reservation should be deleted to allow retry
+			expect(deleteSpy).toHaveBeenCalled()
+		})
+
+		it("returns false when user has no email", async () => {
+			// Arrange - user exists but no email
+			const mockUser = { id: "user_123", email: null, firstName: "John" }
+			mockDb.registerTable("userTable")
+			mockDb.setMockSingleValue(mockUser)
+
+			const { sendWindowOpensNotification } = await import(
+				"@/server/notifications/submission-window"
+			)
+
+			// Act
+			const result = await sendWindowOpensNotification({
+				userId: "user_123",
+				registrationId: "reg_123",
+				competitionId: "comp_123",
+				competitionEventId: "event_123",
+				competitionName: "Test Competition",
+				competitionSlug: "test-comp",
+				workoutName: "Test Workout",
+				timezone: "America/Denver",
+			})
+
+			// Assert
+			expect(result).toBe(false)
+			expect(mockSendEmail).not.toHaveBeenCalled()
 		})
 	})
 
