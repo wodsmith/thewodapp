@@ -168,11 +168,24 @@ export const getSiteUrl = createServerOnlyFn((): string => {
 // Cron configuration accessors
 
 /**
+ * Default cron secret for local development.
+ * In production, CRON_SECRET must be set as an environment variable.
+ */
+const LOCAL_DEV_CRON_SECRET = "local-dev-cron-secret"
+
+/**
  * Get the cron secret for authenticating scheduled job requests.
  * This is a server-only function that will throw if called from the client.
  *
- * @returns The CRON_SECRET environment variable or undefined if not set
+ * @returns The CRON_SECRET environment variable, or a default value in development
  */
 export const getCronSecret = createServerOnlyFn((): string | undefined => {
-	return extendedEnv.CRON_SECRET
+	if (extendedEnv.CRON_SECRET) {
+		return extendedEnv.CRON_SECRET
+	}
+	// Use default secret in development for easier local testing
+	if (extendedEnv.NODE_ENV !== "production") {
+		return LOCAL_DEV_CRON_SECRET
+	}
+	return undefined
 })

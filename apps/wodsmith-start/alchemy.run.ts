@@ -458,6 +458,17 @@ function getDomains(currentStage: string): string[] | undefined {
  */
 const website = await TanStackStart("app", {
 	/**
+	 * Cron triggers for scheduled jobs.
+	 *
+	 * The scheduled handler in src/server.ts processes these triggers.
+	 * Currently runs submission window notifications every 15 minutes.
+	 *
+	 * @see src/server.ts for the scheduled handler implementation
+	 * @see https://developers.cloudflare.com/workers/configuration/cron-triggers/
+	 */
+	crons: ["*/15 * * * *"],
+
+	/**
 	 * Cloudflare resource bindings available to the application.
 	 *
 	 * These bindings inject Cloudflare services into the Worker's environment.

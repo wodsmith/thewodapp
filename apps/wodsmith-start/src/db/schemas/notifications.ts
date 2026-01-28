@@ -17,6 +17,8 @@ export const SUBMISSION_WINDOW_NOTIFICATION_TYPES = {
 	WINDOW_CLOSES_24H: "window_closes_24h",
 	/** Reminder sent 1 hour before window closes */
 	WINDOW_CLOSES_1H: "window_closes_1h",
+	/** Reminder sent 15 minutes before window closes (last chance) */
+	WINDOW_CLOSES_15M: "window_closes_15m",
 	/** Notification sent after window has closed */
 	WINDOW_CLOSED: "window_closed",
 } as const

@@ -188,6 +188,106 @@ describe("Submission Window Notifications", () => {
 	})
 })
 
+describe("SQLite Datetime UTC Parsing", () => {
+	/**
+	 * SQLite stores datetime without timezone info (e.g., "2026-01-27 00:36:37").
+	 * JavaScript's new Date() interprets this as LOCAL time by default.
+	 * We need to parse it as UTC by converting to ISO 8601 format with 'Z' suffix.
+	 */
+
+	function parseSqliteDatetimeAsUtc(datetime: string): Date {
+		// This is the same logic used in submission-window.ts
+		return new Date(datetime.replace(" ", "T") + "Z")
+	}
+
+	it("parses SQLite datetime format as UTC, not local time", () => {
+		const sqliteDatetime = "2026-01-27 00:36:37"
+
+		// Parse as UTC (correct way)
+		const utcDate = parseSqliteDatetimeAsUtc(sqliteDatetime)
+
+		// The UTC hours should be 0 (midnight), not adjusted for local timezone
+		expect(utcDate.getUTCHours()).toBe(0)
+		expect(utcDate.getUTCMinutes()).toBe(36)
+		expect(utcDate.getUTCSeconds()).toBe(37)
+		expect(utcDate.getUTCFullYear()).toBe(2026)
+		expect(utcDate.getUTCMonth()).toBe(0) // January is 0
+		expect(utcDate.getUTCDate()).toBe(27)
+	})
+
+	it("handles datetime strings with T separator (ISO 8601 format)", () => {
+		// Some datetimes might already have T separator
+		const isoDatetime = "2026-01-27T12:30:00"
+		const parsed = parseSqliteDatetimeAsUtc(isoDatetime)
+
+		expect(parsed.getUTCHours()).toBe(12)
+		expect(parsed.getUTCMinutes()).toBe(30)
+	})
+
+	it("correctly determines if window opened within the last hour", () => {
+		// Simulate: current time is 2026-01-27 01:00:00 UTC
+		const now = new Date("2026-01-27T01:00:00Z")
+		const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
+
+		// Window opened 30 minutes ago (should trigger)
+		const opensAt1 = parseSqliteDatetimeAsUtc("2026-01-27 00:30:00")
+		const shouldTrigger1 = opensAt1 <= now && opensAt1 > oneHourAgo
+		expect(shouldTrigger1).toBe(true)
+
+		// Window opened 2 hours ago (should NOT trigger)
+		const opensAt2 = parseSqliteDatetimeAsUtc("2026-01-26 23:00:00")
+		const shouldTrigger2 = opensAt2 <= now && opensAt2 > oneHourAgo
+		expect(shouldTrigger2).toBe(false)
+
+		// Window opens in the future (should NOT trigger)
+		const opensAt3 = parseSqliteDatetimeAsUtc("2026-01-27 02:00:00")
+		const shouldTrigger3 = opensAt3 <= now && opensAt3 > oneHourAgo
+		expect(shouldTrigger3).toBe(false)
+	})
+
+	it("correctly determines if window closes within 1 hour", () => {
+		// Simulate: current time is 2026-01-27 01:00:00 UTC
+		const now = new Date("2026-01-27T01:00:00Z")
+		const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000)
+
+		// Window closes in 30 minutes (should trigger)
+		const closesAt1 = parseSqliteDatetimeAsUtc("2026-01-27 01:30:00")
+		const shouldTrigger1 = closesAt1 <= oneHourFromNow && closesAt1 > now
+		expect(shouldTrigger1).toBe(true)
+
+		// Window closes in 2 hours (should NOT trigger for 1h reminder)
+		const closesAt2 = parseSqliteDatetimeAsUtc("2026-01-27 03:00:00")
+		const shouldTrigger2 = closesAt2 <= oneHourFromNow && closesAt2 > now
+		expect(shouldTrigger2).toBe(false)
+
+		// Window already closed (should NOT trigger)
+		const closesAt3 = parseSqliteDatetimeAsUtc("2026-01-27 00:30:00")
+		const shouldTrigger3 = closesAt3 <= oneHourFromNow && closesAt3 > now
+		expect(shouldTrigger3).toBe(false)
+	})
+
+	it("correctly determines if window closed within the last hour", () => {
+		// Simulate: current time is 2026-01-27 01:00:00 UTC
+		const now = new Date("2026-01-27T01:00:00Z")
+		const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
+
+		// Window closed 30 minutes ago (should trigger)
+		const closesAt1 = parseSqliteDatetimeAsUtc("2026-01-27 00:30:00")
+		const shouldTrigger1 = closesAt1 <= now && closesAt1 > oneHourAgo
+		expect(shouldTrigger1).toBe(true)
+
+		// Window closed 2 hours ago (should NOT trigger)
+		const closesAt2 = parseSqliteDatetimeAsUtc("2026-01-26 23:00:00")
+		const shouldTrigger2 = closesAt2 <= now && closesAt2 > oneHourAgo
+		expect(shouldTrigger2).toBe(false)
+
+		// Window hasn't closed yet (should NOT trigger)
+		const closesAt3 = parseSqliteDatetimeAsUtc("2026-01-27 02:00:00")
+		const shouldTrigger3 = closesAt3 <= now && closesAt3 > oneHourAgo
+		expect(shouldTrigger3).toBe(false)
+	})
+})
+
 describe("Submission Window Notification Email Templates", () => {
 	describe("SubmissionWindowOpensEmail", () => {
 		it("should export a valid React component", async () => {

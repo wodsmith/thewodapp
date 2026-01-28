@@ -1,16 +1,17 @@
 /**
- * Submission Window Notifications Cron API
+ * Submission Window Notifications Cron API (Manual Trigger)
  *
- * This endpoint processes submission window notifications for online competitions.
- * It should be called by a scheduled job (e.g., Cloudflare Cron Trigger or external scheduler)
- * approximately every hour.
+ * NOTE: The primary cron trigger is now native Cloudflare scheduled events,
+ * configured in alchemy.run.ts and handled by src/server.ts.
+ * This HTTP endpoint is kept for manual testing and development.
  *
  * Security: Requires CRON_SECRET header for authentication.
  *
  * Notifications sent:
  * - Window opens: When a submission window becomes active
  * - Window closes soon (24h): Reminder 24 hours before window closes
- * - Window closes soon (1h): Final reminder 1 hour before window closes
+ * - Window closes soon (1h): Reminder 1 hour before window closes
+ * - Window closes soon (15m): LAST CHANCE reminder 15 minutes before close
  * - Window closed: Notification when window has closed
  */
 
@@ -20,9 +21,7 @@ import { getCronSecret } from "@/lib/env"
 import { logError, logInfo, logWarning } from "@/lib/logging/posthog-otel-logger"
 import { processSubmissionWindowNotifications } from "@/server/notifications"
 
-// Note: Route type will be auto-generated when running build/dev
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const Route = (createFileRoute as any)("/api/cron/submission-window-notifications")({
+export const Route = createFileRoute("/api/cron/submission-window-notifications")({
 	server: {
 		handlers: {
 			/**
@@ -68,6 +67,7 @@ export const Route = (createFileRoute as any)("/api/cron/submission-window-notif
 							windowOpens: result.windowOpens,
 							windowCloses24h: result.windowCloses24h,
 							windowCloses1h: result.windowCloses1h,
+							windowCloses15m: result.windowCloses15m,
 							windowClosed: result.windowClosed,
 							errors: result.errors,
 						},
@@ -79,6 +79,7 @@ export const Route = (createFileRoute as any)("/api/cron/submission-window-notif
 							windowOpens: result.windowOpens,
 							windowCloses24h: result.windowCloses24h,
 							windowCloses1h: result.windowCloses1h,
+							windowCloses15m: result.windowCloses15m,
 							windowClosed: result.windowClosed,
 						},
 						errors: result.errors,

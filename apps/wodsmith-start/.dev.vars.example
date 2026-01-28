@@ -38,3 +38,6 @@ ALCHEMY_PASSWORD=your-secure-password-here
 
 ### Logging (Optional)
 # LOG_LEVEL=info
+
+
+CRON_SECRET=secret

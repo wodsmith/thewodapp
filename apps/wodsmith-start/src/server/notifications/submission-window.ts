@@ -230,8 +230,8 @@ export async function sendWindowClosesReminderNotification(params: {
 	workoutDescription?: string
 	submissionClosesAt: string
 	timezone: string
-	timeRemaining: "24 hours" | "1 hour"
-	notificationType: typeof SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_24H | typeof SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_1H
+	timeRemaining: "24 hours" | "1 hour" | "15 minutes"
+	notificationType: typeof SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_24H | typeof SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_1H | typeof SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_15M
 }): Promise<boolean> {
 	const {
 		userId,
@@ -428,19 +428,21 @@ export interface ProcessedNotificationResult {
 	windowOpens: number
 	windowCloses24h: number
 	windowCloses1h: number
+	windowCloses15m: number
 	windowClosed: number
 	errors: number
 }
 
 /**
  * Process all pending submission window notifications.
- * This is the main entry point called by the scheduled job.
+ * This is the main entry point called by the scheduled job (every 15 minutes).
  *
  * It checks for:
- * 1. Windows that just opened (within the last hour)
- * 2. Windows closing in 24 hours
- * 3. Windows closing in 1 hour
- * 4. Windows that just closed (within the last hour)
+ * 1. Windows that just opened (within the last 15 minutes)
+ * 2. Windows closing in 24 hours (23h45m - 24h window)
+ * 3. Windows closing in 1 hour (45m - 1h window)
+ * 4. Windows closing in 15 minutes (0 - 15m window) - LAST CHANCE!
+ * 5. Windows that just closed (within the last 15 minutes)
  */
 export async function processSubmissionWindowNotifications(): Promise<ProcessedNotificationResult> {
 	const db = getDb()
@@ -449,6 +451,7 @@ export async function processSubmissionWindowNotifications(): Promise<ProcessedN
 		windowOpens: 0,
 		windowCloses24h: 0,
 		windowCloses1h: 0,
+		windowCloses15m: 0,
 		windowClosed: 0,
 		errors: 0,
 	}
@@ -486,9 +489,10 @@ export async function processSubmissionWindowNotifications(): Promise<ProcessedN
 		for (const { event, competition, workout } of events) {
 			if (!event.submissionOpensAt) continue
 
-			const opensAt = new Date(event.submissionOpensAt)
+			// Append 'Z' to indicate UTC since SQLite datetime strings don't include timezone
+			const opensAt = new Date(event.submissionOpensAt.replace(" ", "T") + "Z")
 			const closesAt = event.submissionClosesAt
-				? new Date(event.submissionClosesAt)
+				? new Date(event.submissionClosesAt.replace(" ", "T") + "Z")
 				: null
 
 			const timezone = competition.timezone || "America/Denver"
@@ -506,11 +510,17 @@ export async function processSubmissionWindowNotifications(): Promise<ProcessedN
 				)
 				.where(eq(competitionRegistrationsTable.eventId, competition.id))
 
-			// Check what notifications to send
-			const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
-			const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000)
-			const twentyFourHoursFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-			const twentyThreeHoursFromNow = new Date(now.getTime() + 23 * 60 * 60 * 1000)
+			// Time window calculations for 15-minute cron intervals
+			const fifteenMinutesMs = 15 * 60 * 1000
+			const oneHourMs = 60 * 60 * 1000
+			const twentyFourHoursMs = 24 * 60 * 60 * 1000
+
+			const fifteenMinutesAgo = new Date(now.getTime() - fifteenMinutesMs)
+			const fifteenMinutesFromNow = new Date(now.getTime() + fifteenMinutesMs)
+			const fortyFiveMinutesFromNow = new Date(now.getTime() + 45 * 60 * 1000)
+			const oneHourFromNow = new Date(now.getTime() + oneHourMs)
+			const twentyThreeHours45mFromNow = new Date(now.getTime() + twentyFourHoursMs - fifteenMinutesMs)
+			const twentyFourHoursFromNow = new Date(now.getTime() + twentyFourHoursMs)
 
 			for (const { registration, user } of registrations) {
 				if (!user.email) continue
@@ -527,8 +537,8 @@ export async function processSubmissionWindowNotifications(): Promise<ProcessedN
 					timezone,
 				}
 
-				// 1. Window just opened (within last hour to now)
-				if (opensAt <= now && opensAt > oneHourAgo) {
+				// 1. Window just opened (within last 15 minutes)
+				if (opensAt <= now && opensAt > fifteenMinutesAgo) {
 					const sent = await sendWindowOpensNotification({
 						...baseParams,
 						submissionClosesAt: event.submissionClosesAt || undefined,
@@ -538,8 +548,8 @@ export async function processSubmissionWindowNotifications(): Promise<ProcessedN
 
 				// Only process closing notifications if we have a close time
 				if (closesAt) {
-					// 2. Window closes in ~24 hours (between 23-24 hours from now)
-					if (closesAt <= twentyFourHoursFromNow && closesAt > twentyThreeHoursFromNow) {
+					// 2. Window closes in ~24 hours (23h45m - 24h window)
+					if (closesAt <= twentyFourHoursFromNow && closesAt > twentyThreeHours45mFromNow) {
 						const sent = await sendWindowClosesReminderNotification({
 							...baseParams,
 							submissionClosesAt: event.submissionClosesAt!,
@@ -549,8 +559,8 @@ export async function processSubmissionWindowNotifications(): Promise<ProcessedN
 						if (sent) result.windowCloses24h++
 					}
 
-					// 3. Window closes in ~1 hour (between now and 1 hour from now)
-					if (closesAt <= oneHourFromNow && closesAt > now) {
+					// 3. Window closes in ~1 hour (45m - 1h window)
+					if (closesAt <= oneHourFromNow && closesAt > fortyFiveMinutesFromNow) {
 						const sent = await sendWindowClosesReminderNotification({
 							...baseParams,
 							submissionClosesAt: event.submissionClosesAt!,
@@ -560,8 +570,19 @@ export async function processSubmissionWindowNotifications(): Promise<ProcessedN
 						if (sent) result.windowCloses1h++
 					}
 
-					// 4. Window just closed (within last hour)
-					if (closesAt <= now && closesAt > oneHourAgo) {
+					// 4. Window closes in ~15 minutes (0 - 15m window) - LAST CHANCE!
+					if (closesAt <= fifteenMinutesFromNow && closesAt > now) {
+						const sent = await sendWindowClosesReminderNotification({
+							...baseParams,
+							submissionClosesAt: event.submissionClosesAt!,
+							timeRemaining: "15 minutes",
+							notificationType: SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_15M,
+						})
+						if (sent) result.windowCloses15m++
+					}
+
+					// 5. Window just closed (within last 15 minutes)
+					if (closesAt <= now && closesAt > fifteenMinutesAgo) {
 						// TODO: Check if user has submitted a score
 						// For now, we'll assume they haven't (can be enhanced later)
 						const hasSubmitted = false
@@ -582,6 +603,7 @@ export async function processSubmissionWindowNotifications(): Promise<ProcessedN
 				windowOpens: result.windowOpens,
 				windowCloses24h: result.windowCloses24h,
 				windowCloses1h: result.windowCloses1h,
+				windowCloses15m: result.windowCloses15m,
 				windowClosed: result.windowClosed,
 			},
 		})
