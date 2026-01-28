@@ -143,8 +143,8 @@ describe("Submission Window Notifications", () => {
 			// Mock email failure
 			mockSendEmail.mockRejectedValueOnce(new Error("Email service unavailable"))
 
-			// Track delete calls
-			const deleteSpy = vi.spyOn(mockDb, "delete", "get")
+			// Get the chain mock to spy on delete
+			const chainMock = mockDb.getChainMock()
 
 			const { sendWindowOpensNotification } = await import(
 				"@/server/notifications/submission-window"
@@ -166,7 +166,7 @@ describe("Submission Window Notifications", () => {
 			expect(result).toBe(false)
 			expect(mockSendEmail).toHaveBeenCalledTimes(1)
 			// Reservation should be deleted to allow retry
-			expect(deleteSpy).toHaveBeenCalled()
+			expect(chainMock.delete).toHaveBeenCalled()
 		})
 
 		it("returns false when user has no email", async () => {
