@@ -1,29 +1,16 @@
 /**
  * Address TypeScript types for location management
+ * Re-exports Address from DB schema as source of truth
  */
 
-/**
- * Complete Address interface matching database schema
- */
-export interface Address {
-	id: string
-	addressType: string | null
-	name: string | null
-	streetLine1: string | null
-	streetLine2: string | null
-	city: string | null
-	stateProvince: string | null
-	postalCode: string | null
-	countryCode: string | null
-	notes: string | null
-	createdAt: Date
-	updatedAt: Date
-}
+// Re-export Address type from DB schema (single source of truth)
+export type { Address } from '@/db/schemas/addresses'
 
 /**
  * Address input type for creating/updating addresses
- * Omits auto-generated fields (id, timestamps)
+ * Uses DB type with auto-generated fields omitted
  */
+import type { Address } from '@/db/schemas/addresses'
 export type AddressInput = Omit<Address, 'id' | 'createdAt' | 'updatedAt'>
 
 /**

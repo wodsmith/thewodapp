@@ -15,7 +15,7 @@ export const addressSchema = z.object({
 	countryCode: z.string().max(2).nullable(),
 	notes: z.string().max(1000).nullable(),
 	addressType: z
-		.enum(["competition", "venue", "gym", "team"])
+		.enum(["billing", "shipping", "venue", "gym", "other"])
 		.nullable(),
 })
 
@@ -29,7 +29,7 @@ export const addressInputSchema = z.object({
 	countryCode: z.string().max(2).optional(),
 	notes: z.string().max(1000).optional(),
 	addressType: z
-		.enum(["competition", "venue", "gym", "team"])
+		.enum(["billing", "shipping", "venue", "gym", "other"])
 		.optional(),
 })
 

@@ -1,6 +1,6 @@
 "use client"
 
-import type { UseFormReturn } from "react-hook-form"
+import type { FieldValues, Path, UseFormReturn } from "react-hook-form"
 import {
 	FormControl,
 	FormField,
@@ -11,14 +11,14 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 
-interface AddressFieldsProps {
-	form: UseFormReturn<any>
+interface AddressFieldsProps<T extends FieldValues> {
+	form: UseFormReturn<T>
 	prefix?: string
 }
 
-export function AddressFields({ form, prefix = "" }: AddressFieldsProps) {
-	const getFieldName = (fieldName: string) => {
-		return prefix ? `${prefix}.${fieldName}` : fieldName
+export function AddressFields<T extends FieldValues>({ form, prefix = "" }: AddressFieldsProps<T>) {
+	const getFieldName = (fieldName: string): Path<T> => {
+		return (prefix ? `${prefix}.${fieldName}` : fieldName) as Path<T>
 	}
 
 	return (

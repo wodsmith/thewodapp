@@ -9,7 +9,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
-import { addressesTable } from "@/db/schemas/addresses"
+import { addressesTable, type AddressType } from "@/db/schemas/addresses"
 import { addressInputSchema } from "@/schemas/address"
 import { normalizeAddressInput } from "@/utils/address"
 
@@ -56,7 +56,7 @@ export const createAddressFn = createServerFn({ method: "POST" })
 				postalCode: normalized.postalCode ?? null,
 				countryCode: normalized.countryCode ?? null,
 				notes: normalized.notes ?? null,
-				addressType: (normalized.addressType as any) ?? "venue",
+				addressType: (normalized.addressType ?? "venue") as AddressType,
 			})
 			.returning()
 
