@@ -95,15 +95,24 @@ export function AddCompetitionsToSeriesDialog({
 				}),
 			)
 
-			await Promise.all(updates)
+			const results = await Promise.allSettled(updates)
+			const successCount = results.filter((r) => r.status === "fulfilled").length
+			const failureCount = results.length - successCount
 
-			toast.success(
-				`Added ${selectedIds.size} competition${selectedIds.size > 1 ? "s" : ""} to ${groupName}`,
-			)
+			if (successCount > 0) {
+				toast.success(
+					`Added ${successCount} competition${successCount > 1 ? "s" : ""} to ${groupName}`,
+				)
+				await router.invalidate()
+				setSelectedIds(new Set())
+				onOpenChange(false)
+			}
 
-			await router.invalidate()
-			setSelectedIds(new Set())
-			onOpenChange(false)
+			if (failureCount > 0) {
+				toast.error(
+					`${failureCount} competition${failureCount !== 1 ? "s" : ""} failed to add`,
+				)
+			}
 		} catch (error) {
 			console.error("Failed to add competitions to series:", error)
 			toast.error(
