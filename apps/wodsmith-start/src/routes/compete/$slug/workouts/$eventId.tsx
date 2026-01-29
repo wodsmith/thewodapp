@@ -520,9 +520,13 @@ function EventDetailsPage() {
 													{venue.address.streetLine2}
 												</>
 											)}
-											<br />
-											{venue.address.city}, {venue.address.stateProvince}{" "}
-											{venue.address.postalCode}
+											{(venue.address.city || venue.address.stateProvince || venue.address.postalCode) && (
+												<>
+													<br />
+													{[venue.address.city, venue.address.stateProvince].filter(Boolean).join(", ")}{" "}
+													{venue.address.postalCode}
+												</>
+											)}
 											{venue.address.countryCode && venue.address.countryCode !== "US" && (
 												<>
 													<br />

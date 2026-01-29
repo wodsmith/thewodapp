@@ -176,21 +176,28 @@ export function CompetitionWorkoutCard({
 					{/* Venue Section */}
 					<div className="mb-6">
 						{venue && venue.address && hasAddressData(venue.address) ? (
-							<div className="flex items-center gap-3">
-								<div className="flex items-center gap-2 text-sm text-muted-foreground">
-									<MapPin className="h-4 w-4" />
-									<span className="font-medium">{venue.name}</span>
-								</div>
-								<Button variant="outline" size="sm" asChild>
-									<a
-										href={getGoogleMapsUrl(venue.address) || "#"}
-										target="_blank"
-										rel="noopener noreferrer"
-									>
-										Get Directions
-									</a>
-								</Button>
-							</div>
+							(() => {
+								const mapsUrl = getGoogleMapsUrl(venue.address)
+								return (
+									<div className="flex items-center gap-3">
+										<div className="flex items-center gap-2 text-sm text-muted-foreground">
+											<MapPin className="h-4 w-4" />
+											<span className="font-medium">{venue.name}</span>
+										</div>
+										{mapsUrl && (
+											<Button variant="outline" size="sm" asChild>
+												<a
+													href={mapsUrl}
+													target="_blank"
+													rel="noopener noreferrer"
+												>
+													Get Directions
+												</a>
+											</Button>
+										)}
+									</div>
+								)
+							})()
 						) : (
 							<div className="flex items-center gap-2 text-sm text-muted-foreground italic">
 								<MapPin className="h-4 w-4" />

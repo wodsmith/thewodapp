@@ -1,5 +1,3 @@
-"use client"
-
 import { Link } from "@tanstack/react-router"
 import { MapPin, Plus } from "lucide-react"
 import { Badge } from "@/components/ui/badge"

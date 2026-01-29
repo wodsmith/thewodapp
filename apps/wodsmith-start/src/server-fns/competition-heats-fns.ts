@@ -97,7 +97,7 @@ const createVenueInputSchema = z.object({
 	laneCount: z.number().int().min(1).max(100).default(3),
 	transitionMinutes: z.number().int().min(0).max(120).default(3),
 	sortOrder: z.number().int().min(0).optional(),
-	addressId: z.string().optional(),
+	addressId: z.string().min(1).optional(),
 })
 
 const updateVenueInputSchema = z.object({
@@ -106,7 +106,7 @@ const updateVenueInputSchema = z.object({
 	laneCount: z.number().int().min(1).max(100).optional(),
 	transitionMinutes: z.number().int().min(0).max(120).optional(),
 	sortOrder: z.number().int().min(0).optional(),
-	addressId: z.string().optional(),
+	addressId: z.string().min(1).optional(),
 })
 
 const deleteVenueInputSchema = z.object({
