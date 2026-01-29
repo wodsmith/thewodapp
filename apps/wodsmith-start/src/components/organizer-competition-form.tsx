@@ -113,6 +113,7 @@ interface OrganizerCompetitionFormProps {
 	selectedTeamId: string
 	groups?: CompetitionGroup[]
 	competition?: Competition
+	defaultGroupId?: string
 	onSuccess?: (competitionId: string) => void
 	onCancel?: () => void
 }
@@ -122,6 +123,7 @@ export function OrganizerCompetitionForm({
 	selectedTeamId,
 	groups = [],
 	competition,
+	defaultGroupId,
 	onSuccess,
 	onCancel,
 }: OrganizerCompetitionFormProps) {
@@ -156,7 +158,7 @@ export function OrganizerCompetitionForm({
 			registrationClosesAt: competition?.registrationClosesAt
 				? formatDateForInput(competition.registrationClosesAt)
 				: "",
-			groupId: competition?.groupId ?? "",
+			groupId: competition?.groupId ?? defaultGroupId ?? "",
 			visibility: competition?.visibility ?? "public",
 			status: competition?.status ?? "draft",
 			timezone: competition?.timezone ?? DEFAULT_TIMEZONE,
