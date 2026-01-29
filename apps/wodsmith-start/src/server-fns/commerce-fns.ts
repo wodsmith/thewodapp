@@ -17,6 +17,7 @@ import {
 	TEAM_PERMISSIONS,
 	teamTable,
 } from "@/db/schema"
+import { ROLES_ENUM } from "@/db/schemas/users"
 import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
 import { getCompetitionRevenueStats } from "@/server/commerce/fee-calculator"
 
@@ -28,7 +29,7 @@ export type { CompetitionRevenueStats } from "@/server/commerce/fee-calculator"
 // ============================================================================
 
 /**
- * Check if user has permission for a team
+ * Check if user has permission for a team (or is a site admin)
  */
 async function hasTeamPermission(
 	teamId: string,
@@ -36,6 +37,9 @@ async function hasTeamPermission(
 ): Promise<boolean> {
 	const session = await getSessionFromCookie()
 	if (!session?.userId) return false
+
+	// Site admins have all permissions
+	if (session.user?.role === ROLES_ENUM.ADMIN) return true
 
 	const team = session.teams?.find((t) => t.id === teamId)
 	if (!team) return false

@@ -12,6 +12,7 @@ import {
 	competitionsTable,
 } from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { ROLES_ENUM } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"
 
 // ============================================================================
@@ -47,6 +48,7 @@ const deleteCompetitionEventInputSchema = z.object({
 
 /**
  * Require team permission or throw error
+ * Site admins bypass this check
  */
 async function requireTeamPermission(
 	teamId: string,
@@ -56,6 +58,9 @@ async function requireTeamPermission(
 	if (!session?.userId) {
 		throw new Error("Not authenticated")
 	}
+
+	// Site admins have all permissions
+	if (session.user?.role === ROLES_ENUM.ADMIN) return
 
 	const team = session.teams?.find((t) => t.id === teamId)
 	if (!team) {
