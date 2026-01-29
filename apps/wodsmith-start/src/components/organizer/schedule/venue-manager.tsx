@@ -5,6 +5,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
 	Dialog,
 	DialogContent,
@@ -15,6 +16,18 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { CompetitionVenue } from "@/db/schemas/competitions"
+import { formatCityLine } from "@/utils/address"
+
+interface VenueWithAddress extends CompetitionVenue {
+	address?: {
+		id: string
+		name: string | null
+		city: string | null
+		stateProvince: string | null
+		countryCode: string | null
+	} | null
+}
+import { createAddressFn } from "@/server-fns/address-fns"
 import {
 	createVenueFn,
 	deleteVenueFn,
@@ -24,10 +37,19 @@ import {
 
 interface VenueManagerProps {
 	competitionId: string
-	venues: CompetitionVenue[]
-	onVenueUpdate?: (venue: CompetitionVenue) => void
-	onVenueCreate?: (venue: CompetitionVenue) => void
+	venues: VenueWithAddress[]
+	onVenueUpdate?: (venue: VenueWithAddress) => void
+	onVenueCreate?: (venue: VenueWithAddress) => void
 	onVenueDelete?: (venueId: string) => void
+	primaryAddressId?: string | null
+	primaryAddress?:
+		| {
+				name: string | null
+				streetLine1: string | null
+				city: string | null
+				stateProvince: string | null
+		  }
+		| null
 }
 
 export function VenueManager({
@@ -36,17 +58,29 @@ export function VenueManager({
 	onVenueUpdate,
 	onVenueCreate,
 	onVenueDelete,
+	primaryAddressId,
+	primaryAddress,
 }: VenueManagerProps) {
 	// Use controlled state if callbacks provided, otherwise internal state
 	const [internalVenues, setInternalVenues] = useState(venues)
 	const displayVenues = onVenueUpdate ? venues : internalVenues
 	const [isCreateOpen, setIsCreateOpen] = useState(false)
-	const [editingVenue, setEditingVenue] = useState<CompetitionVenue | null>(
+	const [editingVenue, setEditingVenue] = useState<VenueWithAddress | null>(
 		null,
 	)
 	const [newVenueName, setNewVenueName] = useState("")
 	const [newLaneCount, setNewLaneCount] = useState(3)
 	const [newTransitionMinutes, setNewTransitionMinutes] = useState(3)
+	const [usePrimaryAddress, setUsePrimaryAddress] = useState(!!primaryAddressId)
+	const [newAddressName, setNewAddressName] = useState("")
+	const [newAddressCity, setNewAddressCity] = useState("")
+	const [newAddressState, setNewAddressState] = useState("")
+	const [newAddressCountry, setNewAddressCountry] = useState("US")
+	const [editUsePrimaryAddress, setEditUsePrimaryAddress] = useState(false)
+	const [editAddressName, setEditAddressName] = useState("")
+	const [editAddressCity, setEditAddressCity] = useState("")
+	const [editAddressState, setEditAddressState] = useState("")
+	const [editAddressCountry, setEditAddressCountry] = useState("US")
 
 	// Loading states (for when server functions are connected)
 	const [isCreating, setIsCreating] = useState(false)
@@ -58,12 +92,32 @@ export function VenueManager({
 
 		setIsCreating(true)
 		try {
+			let addressId: string | undefined
+
+			if (usePrimaryAddress && primaryAddressId) {
+				// Use the competition's primary address
+				addressId = primaryAddressId
+			} else if (newAddressCity.trim()) {
+				// Create a new address for this venue
+				const newAddress = await createAddressFn({
+					data: {
+						name: newAddressName.trim() || null,
+						city: newAddressCity.trim(),
+						stateProvince: newAddressState.trim() || null,
+						countryCode: newAddressCountry.trim() || "US",
+						addressType: "venue",
+					},
+				})
+				addressId = newAddress.id
+			}
+
 			const result = await createVenueFn({
 				data: {
 					competitionId,
 					name: newVenueName.trim(),
 					laneCount: newLaneCount,
 					transitionMinutes: newTransitionMinutes,
+					addressId,
 				},
 			})
 
@@ -79,6 +133,11 @@ export function VenueManager({
 			setNewVenueName("")
 			setNewLaneCount(3)
 			setNewTransitionMinutes(3)
+			setUsePrimaryAddress(!!primaryAddressId)
+			setNewAddressName("")
+			setNewAddressCity("")
+			setNewAddressState("")
+			setNewAddressCountry("US")
 			setIsCreateOpen(false)
 		} catch (error) {
 			const message =
@@ -94,12 +153,32 @@ export function VenueManager({
 
 		setIsUpdating(true)
 		try {
+			let addressId: string | undefined
+
+			if (editUsePrimaryAddress && primaryAddressId) {
+				// Use the competition's primary address
+				addressId = primaryAddressId
+			} else if (editAddressCity.trim()) {
+				// Create a new address for this venue
+				const newAddress = await createAddressFn({
+					data: {
+						name: editAddressName.trim() || null,
+						city: editAddressCity.trim(),
+						stateProvince: editAddressState.trim() || null,
+						countryCode: editAddressCountry.trim() || "US",
+						addressType: "venue",
+					},
+				})
+				addressId = newAddress.id
+			}
+
 			await updateVenueFn({
 				data: {
 					venueId: editingVenue.id,
 					name: editingVenue.name.trim(),
 					laneCount: editingVenue.laneCount,
 					transitionMinutes: editingVenue.transitionMinutes,
+					addressId,
 				},
 			})
 
@@ -115,6 +194,7 @@ export function VenueManager({
 
 			toast.success("Venue updated")
 			setEditingVenue(null)
+			resetEditAddressState()
 		} catch (error) {
 			const message =
 				error instanceof Error ? error.message : "Failed to update venue"
@@ -122,6 +202,14 @@ export function VenueManager({
 		} finally {
 			setIsUpdating(false)
 		}
+	}
+
+	function resetEditAddressState() {
+		setEditUsePrimaryAddress(false)
+		setEditAddressName("")
+		setEditAddressCity("")
+		setEditAddressState("")
+		setEditAddressCountry("US")
 	}
 
 	async function handleDelete(venue: CompetitionVenue) {
@@ -188,12 +276,25 @@ export function VenueManager({
 										<p className="text-sm text-muted-foreground">
 											{venue.laneCount} lanes • {venue.transitionMinutes}min
 										</p>
+										{venue.address && (
+											<p className="text-xs text-muted-foreground">
+												{venue.address.name || formatCityLine(venue.address) || "Address set"}
+											</p>
+										)}
 									</div>
 									<div className="flex gap-2">
 										<Button
 											variant="ghost"
 											size="icon"
-											onClick={() => setEditingVenue(venue)}
+											onClick={() => {
+												setEditingVenue(venue)
+												// Initialize edit address state based on venue's current address
+												if (venue.addressId === primaryAddressId && primaryAddressId) {
+													setEditUsePrimaryAddress(true)
+												} else {
+													setEditUsePrimaryAddress(false)
+												}
+											}}
 										>
 											<Pencil className="h-4 w-4" />
 										</Button>
@@ -267,6 +368,74 @@ export function VenueManager({
 								Time between heats for setup/teardown
 							</p>
 						</div>
+						{/* Primary Address Option */}
+						{primaryAddressId && primaryAddress && (
+							<div className="flex items-center space-x-2">
+								<Checkbox
+									id="use-primary-address"
+									checked={usePrimaryAddress}
+									onCheckedChange={(checked) =>
+										setUsePrimaryAddress(checked === true)
+									}
+								/>
+								<Label
+									htmlFor="use-primary-address"
+									className="text-sm font-normal"
+								>
+									Use primary address:{" "}
+									<span className="text-muted-foreground">
+										{primaryAddress.name ||
+											`${primaryAddress.city}, ${primaryAddress.stateProvince}`}
+									</span>
+								</Label>
+							</div>
+						)}
+
+						{/* Custom Address Fields */}
+						{!usePrimaryAddress && (
+							<div className="space-y-3 rounded-md border p-3">
+								<p className="text-sm font-medium">Venue Address</p>
+								<div>
+									<Label htmlFor="address-name">Location Name</Label>
+									<Input
+										id="address-name"
+										value={newAddressName}
+										onChange={(e) => setNewAddressName(e.target.value)}
+										placeholder="e.g., CrossFit Gym"
+									/>
+								</div>
+								<div className="grid grid-cols-2 gap-3">
+									<div>
+										<Label htmlFor="address-city">City</Label>
+										<Input
+											id="address-city"
+											value={newAddressCity}
+											onChange={(e) => setNewAddressCity(e.target.value)}
+											placeholder="Austin"
+										/>
+									</div>
+									<div>
+										<Label htmlFor="address-state">State/Province</Label>
+										<Input
+											id="address-state"
+											value={newAddressState}
+											onChange={(e) => setNewAddressState(e.target.value)}
+											placeholder="TX"
+										/>
+									</div>
+								</div>
+								<div>
+									<Label htmlFor="address-country">Country Code</Label>
+									<Input
+										id="address-country"
+										value={newAddressCountry}
+										onChange={(e) => setNewAddressCountry(e.target.value)}
+										placeholder="US"
+										maxLength={2}
+									/>
+								</div>
+							</div>
+						)}
 						<div className="flex justify-end gap-2">
 							<Button variant="outline" onClick={() => setIsCreateOpen(false)}>
 								Cancel
@@ -285,7 +454,12 @@ export function VenueManager({
 			{/* Edit Venue Dialog */}
 			<Dialog
 				open={!!editingVenue}
-				onOpenChange={(open) => !open && setEditingVenue(null)}
+				onOpenChange={(open) => {
+					if (!open) {
+						setEditingVenue(null)
+						resetEditAddressState()
+					}
+				}}
 			>
 				<DialogContent>
 					<DialogHeader>
@@ -337,6 +511,74 @@ export function VenueManager({
 									}
 								/>
 							</div>
+							{/* Primary Address Option */}
+							{primaryAddressId && primaryAddress && (
+								<div className="flex items-center space-x-2">
+									<Checkbox
+										id="edit-use-primary-address"
+										checked={editUsePrimaryAddress}
+										onCheckedChange={(checked) =>
+											setEditUsePrimaryAddress(checked === true)
+										}
+									/>
+									<Label
+										htmlFor="edit-use-primary-address"
+										className="text-sm font-normal"
+									>
+										Use primary address:{" "}
+										<span className="text-muted-foreground">
+											{primaryAddress.name ||
+												`${primaryAddress.city}, ${primaryAddress.stateProvince}`}
+										</span>
+									</Label>
+								</div>
+							)}
+
+							{/* Custom Address Fields */}
+							{!editUsePrimaryAddress && (
+								<div className="space-y-3 rounded-md border p-3">
+									<p className="text-sm font-medium">Venue Address</p>
+									<div>
+										<Label htmlFor="edit-address-name">Location Name</Label>
+										<Input
+											id="edit-address-name"
+											value={editAddressName}
+											onChange={(e) => setEditAddressName(e.target.value)}
+											placeholder="e.g., CrossFit Gym"
+										/>
+									</div>
+									<div className="grid grid-cols-2 gap-3">
+										<div>
+											<Label htmlFor="edit-address-city">City</Label>
+											<Input
+												id="edit-address-city"
+												value={editAddressCity}
+												onChange={(e) => setEditAddressCity(e.target.value)}
+												placeholder="Austin"
+											/>
+										</div>
+										<div>
+											<Label htmlFor="edit-address-state">State/Province</Label>
+											<Input
+												id="edit-address-state"
+												value={editAddressState}
+												onChange={(e) => setEditAddressState(e.target.value)}
+												placeholder="TX"
+											/>
+										</div>
+									</div>
+									<div>
+										<Label htmlFor="edit-address-country">Country Code</Label>
+										<Input
+											id="edit-address-country"
+											value={editAddressCountry}
+											onChange={(e) => setEditAddressCountry(e.target.value)}
+											placeholder="US"
+											maxLength={2}
+										/>
+									</div>
+								</div>
+							)}
 							<div className="flex justify-end gap-2">
 								<Button variant="outline" onClick={() => setEditingVenue(null)}>
 									Cancel

@@ -42,7 +42,12 @@ function LocationsPage() {
 				</p>
 			</div>
 
-			<VenueManager competitionId={competitionId} venues={venues} />
+			<VenueManager
+			competitionId={competitionId}
+			venues={venues}
+			primaryAddressId={competition.primaryAddressId}
+			primaryAddress={competition.primaryAddress}
+		/>
 		</div>
 	)
 }

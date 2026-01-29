@@ -25,9 +25,9 @@ export function CompetitionHero({
 
   const hasBanner = !!competition.bannerImageUrl
 
-  // Format location badge
+  // Format location badge using address from competition
   const locationBadge = formatLocationBadge(
-    null, // primaryAddress not loaded in current query
+    competition.address,
     competition.competitionType,
     competition.organizingTeam?.name
   )

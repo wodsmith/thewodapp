@@ -258,7 +258,9 @@ export function hasAddressData(
 }
 
 /**
- * Format city and state/country line (e.g., "Austin, TX" or "London, UK")
+ * Format city and state/country line
+ * - US addresses: "Austin, TX" (city + state)
+ * - Non-US addresses: "London, UK" (city + country)
  * @param address - Address object (can be partial or null)
  * @returns Formatted city line or null if insufficient data
  */
@@ -269,19 +271,26 @@ export function formatCityLine(
 
 	const city = address.city.trim()
 	const state = address.stateProvince?.trim()
-	const country = address.countryCode?.trim()
+	const country = address.countryCode?.trim()?.toUpperCase()
 
-	// If we have state, use city + state (e.g., "Austin, TX")
-	if (state) {
-		return `${city}, ${state}`
+	// For US addresses, show city + state
+	if (country === "US" || (!country && state)) {
+		if (state) {
+			return `${city}, ${state}`
+		}
+		return city
 	}
 
-	// If we have country, use city + country (e.g., "London, UK")
+	// For non-US addresses, show city + country
 	if (country) {
 		return `${city}, ${country}`
 	}
 
-	// Just city
+	// Fallback: city + state if available, otherwise just city
+	if (state) {
+		return `${city}, ${state}`
+	}
+
 	return city
 }
 

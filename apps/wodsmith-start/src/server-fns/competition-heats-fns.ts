@@ -9,6 +9,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import { addressesTable } from "@/db/schemas/addresses"
 import {
 	type CompetitionHeat,
 	type CompetitionVenue,
@@ -96,6 +97,7 @@ const createVenueInputSchema = z.object({
 	laneCount: z.number().int().min(1).max(100).default(3),
 	transitionMinutes: z.number().int().min(0).max(120).default(3),
 	sortOrder: z.number().int().min(0).optional(),
+	addressId: z.string().optional(),
 })
 
 const updateVenueInputSchema = z.object({
@@ -104,6 +106,7 @@ const updateVenueInputSchema = z.object({
 	laneCount: z.number().int().min(1).max(100).optional(),
 	transitionMinutes: z.number().int().min(0).max(120).optional(),
 	sortOrder: z.number().int().min(0).optional(),
+	addressId: z.string().optional(),
 })
 
 const deleteVenueInputSchema = z.object({
@@ -410,7 +413,7 @@ export const getHeatsForCompetitionFn = createServerFn({ method: "GET" })
 
 /**
  * Get all venues for a competition
- * Returns venues sorted by sortOrder
+ * Returns venues sorted by sortOrder with address data
  */
 export const getCompetitionVenuesFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) =>
@@ -419,11 +422,23 @@ export const getCompetitionVenuesFn = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
-		const venues = await db
-			.select()
+		const venuesWithAddresses = await db
+			.select({
+				venue: competitionVenuesTable,
+				address: addressesTable,
+			})
 			.from(competitionVenuesTable)
+			.leftJoin(
+				addressesTable,
+				eq(competitionVenuesTable.addressId, addressesTable.id),
+			)
 			.where(eq(competitionVenuesTable.competitionId, data.competitionId))
 			.orderBy(asc(competitionVenuesTable.sortOrder))
+
+		const venues = venuesWithAddresses.map(({ venue, address }) => ({
+			...venue,
+			address,
+		}))
 
 		return { venues }
 	})
@@ -456,6 +471,7 @@ export const createVenueFn = createServerFn({ method: "POST" })
 				laneCount: data.laneCount,
 				transitionMinutes: data.transitionMinutes,
 				sortOrder,
+				addressId: data.addressId ?? null,
 			})
 			.returning()
 
@@ -484,6 +500,7 @@ export const updateVenueFn = createServerFn({ method: "POST" })
 		if (data.transitionMinutes !== undefined)
 			updateData.transitionMinutes = data.transitionMinutes
 		if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder
+		if (data.addressId !== undefined) updateData.addressId = data.addressId
 
 		await db
 			.update(competitionVenuesTable)

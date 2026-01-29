@@ -39,9 +39,9 @@ export function CompetitionRow({
 }: CompetitionRowProps) {
 	const [isOpen, setIsOpen] = useState(false)
 
-	// Note: primaryAddress not available in list queries yet
+	// Use address from competition (already loaded in list queries)
 	const locationBadge = formatLocationBadge(
-		null,
+		competition.address,
 		competition.competitionType,
 		competition.organizingTeam?.name,
 	)
