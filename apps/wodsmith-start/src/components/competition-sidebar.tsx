@@ -16,6 +16,7 @@ import {
 	DollarSign,
 	Home,
 	Layers,
+	MapPin,
 	Medal,
 	ReceiptText,
 	Settings,
@@ -86,6 +87,7 @@ const getNavigation = (
 			label: "Run Competition",
 			items: [
 				{ label: "Schedule", href: `${basePath}/schedule`, icon: Calendar },
+				{ label: "Locations", href: `${basePath}/locations`, icon: MapPin },
 				{
 					label: "Volunteers",
 					href: `${basePath}/volunteers`,
