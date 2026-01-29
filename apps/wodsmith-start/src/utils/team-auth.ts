@@ -70,6 +70,11 @@ export async function hasTeamPermission(
 		return false
 	}
 
+	// Admin bypass - site admins have all permissions
+	if (session.user.role === ROLES_ENUM.ADMIN) {
+		return true
+	}
+
 	const team = session.teams?.find((t) => t.id === teamId)
 
 	if (!team) {
@@ -90,6 +95,11 @@ export async function requireTeamPermission(
 
 	if (!session) {
 		throw new Error("NOT_AUTHORIZED: Not authenticated")
+	}
+
+	// Admin bypass - site admins have all permissions
+	if (session.user.role === ROLES_ENUM.ADMIN) {
+		return
 	}
 
 	const hasPermission = await hasTeamPermission(teamId, permission)
