@@ -1,5 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
-import { ArrowLeft, Pencil, Plus } from "lucide-react"
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
+import { ArrowLeft, ListPlus, Pencil, Plus } from "lucide-react"
+import { useState } from "react"
+import { toast } from "sonner"
+import { AddCompetitionsToSeriesDialog } from "@/components/add-competitions-to-series-dialog"
 import { OrganizerCompetitionsList } from "@/components/organizer-competitions-list"
 import { Button } from "@/components/ui/button"
 import {
@@ -12,6 +16,7 @@ import {
 import {
 	getCompetitionGroupByIdFn,
 	getOrganizerCompetitionsFn,
+	updateCompetitionFn,
 } from "@/server-fns/competition-fns"
 
 export const Route = createFileRoute(
@@ -27,6 +32,7 @@ export const Route = createFileRoute(
 			return {
 				group: null,
 				seriesCompetitions: [],
+				allCompetitions: [],
 				allGroups: [],
 				teamId: null,
 			}
@@ -39,6 +45,7 @@ export const Route = createFileRoute(
 			return {
 				group: null,
 				seriesCompetitions: [],
+				allCompetitions: [],
 				allGroups: [],
 				teamId,
 			}
@@ -57,6 +64,7 @@ export const Route = createFileRoute(
 		return {
 			group: groupResult.group,
 			seriesCompetitions,
+			allCompetitions: competitionsResult.competitions,
 			allGroups: [
 				{ ...groupResult.group, competitionCount: seriesCompetitions.length },
 			],
@@ -66,7 +74,32 @@ export const Route = createFileRoute(
 })
 
 function SeriesDetailPage() {
-	const { group, seriesCompetitions, allGroups, teamId } = Route.useLoaderData()
+	const { group, seriesCompetitions, allCompetitions, allGroups, teamId } =
+		Route.useLoaderData()
+	const router = useRouter()
+	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+
+	const updateCompetition = useServerFn(updateCompetitionFn)
+
+	const handleRemoveFromSeries = async (competitionId: string) => {
+		try {
+			await updateCompetition({
+				data: {
+					competitionId,
+					groupId: null,
+				},
+			})
+			toast.success("Competition removed from series")
+			await router.invalidate()
+		} catch (error) {
+			console.error("Failed to remove competition from series:", error)
+			toast.error(
+				error instanceof Error
+					? error.message
+					: "Failed to remove competition from series",
+			)
+		}
+	}
 
 	if (!teamId) {
 		return (
@@ -134,13 +167,17 @@ function SeriesDetailPage() {
 									Edit Series
 								</Link>
 							</Button>
+							<Button variant="outline" onClick={() => setIsAddDialogOpen(true)}>
+								<ListPlus className="h-4 w-4 mr-2" />
+								Add Existing
+							</Button>
 							<Button asChild>
 								<Link
 									to="/compete/organizer/new"
 									search={{ groupId: group.id }}
 								>
 									<Plus className="h-4 w-4 mr-2" />
-									Add Competition
+									Create New
 								</Link>
 							</Button>
 						</div>
@@ -182,9 +219,20 @@ function SeriesDetailPage() {
 						groups={allGroups}
 						teamId={teamId}
 						currentGroupId={group.id}
+						onRemoveFromSeries={handleRemoveFromSeries}
 					/>
 				</div>
 			</div>
+
+			{/* Add Existing Competitions Dialog */}
+			<AddCompetitionsToSeriesDialog
+				open={isAddDialogOpen}
+				onOpenChange={setIsAddDialogOpen}
+				groupId={group.id}
+				groupName={group.name}
+				allCompetitions={allCompetitions}
+				currentSeriesCompetitions={seriesCompetitions}
+			/>
 		</div>
 	)
 }

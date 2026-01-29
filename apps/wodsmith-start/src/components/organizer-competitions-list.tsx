@@ -1,16 +1,14 @@
 "use client"
 
 import { useNavigate, useSearch } from "@tanstack/react-router"
-import { useServerFn } from "@tanstack/react-start"
 import {
 	Calendar,
 	ExternalLink,
 	Filter,
-	Loader2,
 	Pencil,
 	Plus,
-	Trash2,
 	Trophy,
+	X,
 } from "lucide-react"
 import { useMemo, useState } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -23,7 +21,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { deleteCompetitionFn } from "@/server-fns/competition-detail-fns"
 import type { CompetitionWithRelations } from "@/server-fns/competition-fns"
 import { isSameUTCDay } from "@/utils/date-utils"
 
@@ -38,6 +35,8 @@ interface OrganizerCompetitionsListProps {
 	groups: CompetitionGroup[]
 	teamId: string
 	currentGroupId?: string
+	/** When provided, shows "Remove from series" instead of delete */
+	onRemoveFromSeries?: (competitionId: string) => void
 }
 
 type StatusFilter = "all" | "current" | "past"
@@ -57,41 +56,16 @@ function formatDateFull(date: Date | string | number): string {
 export function OrganizerCompetitionsList({
 	competitions,
 	groups,
-	teamId,
+	teamId: _teamId,
 	currentGroupId,
+	onRemoveFromSeries,
 }: OrganizerCompetitionsListProps) {
 	const navigate = useNavigate()
 	const searchParams = useSearch({ strict: false }) as any
-	const [deleteCompetitionId, setDeleteCompetitionId] = useState<string | null>(
-		null,
-	)
 	const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
-	const [isDeleting, setIsDeleting] = useState(false)
 
-	const deleteCompetition = useServerFn(deleteCompetitionFn)
-
-	const handleDelete = async (competitionId: string) => {
-		setIsDeleting(true)
-		try {
-			await deleteCompetition({
-				data: {
-					competitionId,
-					organizingTeamId: teamId,
-				},
-			})
-			setDeleteCompetitionId(null)
-			// Navigate to refresh the page with updated data
-			navigate({ to: "/compete/organizer" })
-		} catch (error) {
-			console.error("Failed to delete competition:", error)
-			alert(
-				error instanceof Error
-					? error.message
-					: "Failed to delete competition. Please try again.",
-			)
-			setIsDeleting(false)
-		}
-	}
+	// Series mode: show remove action instead of delete
+	const isSeriesMode = !!onRemoveFromSeries
 
 	const handleGroupFilter = (value: string) => {
 		const newParams = { ...searchParams }
@@ -135,8 +109,7 @@ export function OrganizerCompetitionsList({
 	}, [competitions, statusFilter])
 
 	return (
-		<>
-			<div className="flex flex-col gap-6">
+		<div className="flex flex-col gap-6">
 				{/* Filters section */}
 				<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					{/* Status filter tabs */}
@@ -245,7 +218,7 @@ export function OrganizerCompetitionsList({
 										</div>
 									</div>
 
-									{/* Actions dropdown - simplified without dropdown menu for now */}
+									{/* Actions */}
 									<div className="ml-4 flex-shrink-0 flex gap-2">
 										<a href={`/compete/${competition.slug}`}>
 											<Button
@@ -261,15 +234,16 @@ export function OrganizerCompetitionsList({
 												<Pencil className="h-4 w-4" />
 											</Button>
 										</a>
-										<Button
-											variant="ghost"
-											size="sm"
-											onClick={() => setDeleteCompetitionId(competition.id)}
-											className="text-destructive hover:text-destructive"
-											title="Delete"
-										>
-											<Trash2 className="h-4 w-4" />
-										</Button>
+										{isSeriesMode && (
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() => onRemoveFromSeries(competition.id)}
+												title="Remove from series"
+											>
+												<X className="h-4 w-4" />
+											</Button>
+										)}
 									</div>
 								</div>
 							)
@@ -293,45 +267,6 @@ export function OrganizerCompetitionsList({
 							</p>
 						</div>
 					)}
-			</div>
-
-			{/* Simple delete confirmation - using browser confirm for now */}
-			{deleteCompetitionId && (
-				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-					<div className="bg-card p-6 rounded-lg max-w-md">
-						<h2 className="text-lg font-semibold mb-2">Delete Competition?</h2>
-						<p className="text-sm text-muted-foreground mb-4">
-							This action cannot be undone. This will permanently delete the
-							competition and all associated data.
-						</p>
-						<div className="flex justify-end gap-2">
-							<Button
-								variant="outline"
-								onClick={() => setDeleteCompetitionId(null)}
-								disabled={isDeleting}
-							>
-								Cancel
-							</Button>
-							<Button
-								variant="destructive"
-								onClick={() =>
-									deleteCompetitionId && handleDelete(deleteCompetitionId)
-								}
-								disabled={isDeleting}
-							>
-								{isDeleting ? (
-									<>
-										<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-										Deleting...
-									</>
-								) : (
-									"Delete"
-								)}
-							</Button>
-						</div>
-					</div>
-				</div>
-			)}
-		</>
+		</div>
 	)
 }
