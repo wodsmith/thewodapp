@@ -109,7 +109,10 @@ function OrganizerDashboard() {
 					<div className="flex flex-col sm:flex-row gap-2">
 						{activeTeamSlug && (
 							<Button variant="outline" className="w-full sm:w-auto" asChild>
-								<Link to={`/compete/organizer/settings/payouts/${activeTeamSlug}`}>
+								<Link
+									to="/compete/organizer/settings/payouts/$teamSlug"
+									params={{ teamSlug: activeTeamSlug }}
+								>
 									<CreditCard className="h-4 w-4 mr-2" />
 									Payout Settings
 								</Link>
