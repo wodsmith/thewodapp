@@ -111,7 +111,9 @@ export function EventJudgingSheets({
 		} catch (error) {
 			console.error("Failed to create judging sheet:", error)
 			toast.error(
-				error instanceof Error ? error.message : "Failed to upload judging sheet",
+				error instanceof Error
+					? error.message
+					: "Failed to upload judging sheet",
 			)
 		} finally {
 			setIsUploading(false)
@@ -158,7 +160,9 @@ export function EventJudgingSheets({
 
 				onSheetsChange(
 					sheets.map((s) =>
-						s.id === sheetId ? { ...s, title: result.sheet?.title ?? s.title } : s,
+						s.id === sheetId
+							? { ...s, title: result.sheet?.title ?? s.title }
+							: s,
 					),
 				)
 				setEditingId(null)
@@ -167,7 +171,9 @@ export function EventJudgingSheets({
 			} catch (error) {
 				console.error("Failed to update judging sheet:", error)
 				toast.error(
-					error instanceof Error ? error.message : "Failed to update judging sheet",
+					error instanceof Error
+						? error.message
+						: "Failed to update judging sheet",
 				)
 			}
 		},
@@ -188,7 +194,9 @@ export function EventJudgingSheets({
 			} catch (error) {
 				console.error("Failed to delete judging sheet:", error)
 				toast.error(
-					error instanceof Error ? error.message : "Failed to delete judging sheet",
+					error instanceof Error
+						? error.message
+						: "Failed to delete judging sheet",
 				)
 			}
 		},

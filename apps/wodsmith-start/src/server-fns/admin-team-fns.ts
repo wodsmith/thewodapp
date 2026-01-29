@@ -378,9 +378,10 @@ export const updateOrganizerFeeFn = createServerFn({ method: "POST" })
 
 		return {
 			success: true,
-			message: data.organizerFeePercentage !== null
-				? `Updated ${team.name} to founding organizer fee: ${(data.organizerFeePercentage / 100).toFixed(1)}% + $${((data.organizerFeeFixed ?? 0) / 100).toFixed(2)}`
-				: `Reset ${team.name} to standard platform fee`,
+			message:
+				data.organizerFeePercentage !== null
+					? `Updated ${team.name} to founding organizer fee: ${(data.organizerFeePercentage / 100).toFixed(1)}% + $${((data.organizerFeeFixed ?? 0) / 100).toFixed(2)}`
+					: `Reset ${team.name} to standard platform fee`,
 		}
 	})
 
@@ -417,6 +418,7 @@ export const getOrganizerFeeFn = createServerFn({ method: "GET" })
 			teamName: team.name,
 			organizerFeePercentage: team.organizerFeePercentage,
 			organizerFeeFixed: team.organizerFeeFixed,
-			hasCustomFee: team.organizerFeePercentage !== null || team.organizerFeeFixed !== null,
+			hasCustomFee:
+				team.organizerFeePercentage !== null || team.organizerFeeFixed !== null,
 		}
 	})

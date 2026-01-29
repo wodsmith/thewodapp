@@ -88,7 +88,14 @@ export const Route = createFileRoute(
 		}
 
 		// Parallel fetch: registrations, divisions, questions, answers, waivers, and signatures
-		const [registrationsResult, divisionsResult, questionsResult, answersResult, waiversResult, signaturesResult] = await Promise.all([
+		const [
+			registrationsResult,
+			divisionsResult,
+			questionsResult,
+			answersResult,
+			waiversResult,
+			signaturesResult,
+		] = await Promise.all([
 			getOrganizerRegistrationsFn({
 				data: { competitionId, divisionFilter },
 			}),
@@ -175,7 +182,7 @@ function AthletesPage() {
 
 				if (currentValues.includes(value)) {
 					// Remove the value
-					const filtered = currentValues.filter(v => v !== value)
+					const filtered = currentValues.filter((v) => v !== value)
 					if (filtered.length === 0) {
 						delete newFilters[questionId]
 					} else {
@@ -188,7 +195,8 @@ function AthletesPage() {
 
 				return {
 					...prev,
-					questionFilters: Object.keys(newFilters).length > 0 ? newFilters : undefined,
+					questionFilters:
+						Object.keys(newFilters).length > 0 ? newFilters : undefined,
 				}
 			},
 			resetScroll: false,
@@ -203,7 +211,7 @@ function AthletesPage() {
 			search: (prev) => {
 				const newFilters = { ...prev.questionFilters }
 				const currentValues = newFilters[questionId] || []
-				const filtered = currentValues.filter(v => v !== value)
+				const filtered = currentValues.filter((v) => v !== value)
 
 				if (filtered.length === 0) {
 					delete newFilters[questionId]
@@ -213,7 +221,8 @@ function AthletesPage() {
 
 				return {
 					...prev,
-					questionFilters: Object.keys(newFilters).length > 0 ? newFilters : undefined,
+					questionFilters:
+						Object.keys(newFilters).length > 0 ? newFilters : undefined,
 				}
 			},
 			resetScroll: false,
@@ -229,7 +238,7 @@ function AthletesPage() {
 				const currentFilters = prev.waiverFilters || []
 
 				if (currentFilters.includes(filterValue)) {
-					const filtered = currentFilters.filter(v => v !== filterValue)
+					const filtered = currentFilters.filter((v) => v !== filterValue)
 					return {
 						...prev,
 						waiverFilters: filtered.length > 0 ? filtered : undefined,
@@ -251,7 +260,9 @@ function AthletesPage() {
 			to: "/compete/organizer/$competitionId/athletes",
 			params: { competitionId: competition.id },
 			search: (prev) => {
-				const filtered = (prev.waiverFilters || []).filter(v => v !== filterValue)
+				const filtered = (prev.waiverFilters || []).filter(
+					(v) => v !== filterValue,
+				)
 				return {
 					...prev,
 					waiverFilters: filtered.length > 0 ? filtered : undefined,
@@ -277,7 +288,7 @@ function AthletesPage() {
 
 	const getAnswersForUser = (registrationId: string, userId: string) => {
 		const answers = answersByRegistration[registrationId] || []
-		return answers.filter(a => a.userId === userId)
+		return answers.filter((a) => a.userId === userId)
 	}
 
 	// Flatten registrations into individual athlete rows
@@ -323,7 +334,9 @@ function AthletesPage() {
 
 		// Get all team members (captain first, then teammates)
 		const allMembers: Array<{
-			user: NonNullable<NonNullable<typeof athleteTeamWithMemberships>["memberships"]>[number]["user"]
+			user: NonNullable<
+				NonNullable<typeof athleteTeamWithMemberships>["memberships"]
+			>[number]["user"]
 			isCaptain: boolean
 			joinedAt: Date | null
 		}> = []
@@ -340,8 +353,8 @@ function AthletesPage() {
 		// Add teammates
 		if (isTeamDivision && athleteTeamWithMemberships?.memberships) {
 			athleteTeamWithMemberships.memberships
-				.filter(m => m.userId !== registration.userId && m.user)
-				.forEach(m => {
+				.filter((m) => m.userId !== registration.userId && m.user)
+				.forEach((m) => {
 					allMembers.push({
 						user: m.user!,
 						isCaptain: false,
@@ -373,7 +386,10 @@ function AthletesPage() {
 	})
 
 	// Get waiver signed date for a user
-	const getWaiverSignedDate = (userId: string, waiverId: string): Date | null => {
+	const getWaiverSignedDate = (
+		userId: string,
+		waiverId: string,
+	): Date | null => {
 		const key = `${userId}-${waiverId}`
 		return signaturesByUser[key] || null
 	}
@@ -382,8 +398,8 @@ function AthletesPage() {
 	const questionFilterOptions = questions.reduce(
 		(acc, question) => {
 			const values = new Set<string>()
-			Object.values(answersByRegistration).forEach(answers => {
-				answers.forEach(a => {
+			Object.values(answersByRegistration).forEach((answers) => {
+				answers.forEach((a) => {
 					if (a.questionId === question.id && a.answer) {
 						values.add(a.answer)
 					}
@@ -396,12 +412,14 @@ function AthletesPage() {
 	)
 
 	// Filter athlete rows based on question and waiver filters (all OR logic)
-	const filteredAthleteRows = athleteRows.filter(row => {
+	const filteredAthleteRows = athleteRows.filter((row) => {
 		// Apply question filters (match ANY of the selected values per question)
-		for (const [questionId, filterValues] of Object.entries(currentQuestionFilters)) {
+		for (const [questionId, filterValues] of Object.entries(
+			currentQuestionFilters,
+		)) {
 			if (filterValues && filterValues.length > 0) {
 				const answers = getAnswersForUser(row.registrationId, row.athlete.id)
-				const answer = answers.find(a => a.questionId === questionId)
+				const answer = answers.find((a) => a.questionId === questionId)
 				if (!answer?.answer || !filterValues.includes(answer.answer)) {
 					return false
 				}
@@ -410,13 +428,15 @@ function AthletesPage() {
 
 		// Apply waiver filters (match ANY of the selected waiver conditions - OR logic)
 		if (currentWaiverFilters.length > 0) {
-			const matchesAnyWaiverFilter = currentWaiverFilters.some(waiverFilter => {
-				const [waiverId, status] = waiverFilter.split(":")
-				const signedDate = getWaiverSignedDate(row.athlete.id, waiverId)
-				if (status === "signed") return !!signedDate
-				if (status === "unsigned") return !signedDate
-				return false
-			})
+			const matchesAnyWaiverFilter = currentWaiverFilters.some(
+				(waiverFilter) => {
+					const [waiverId, status] = waiverFilter.split(":")
+					const signedDate = getWaiverSignedDate(row.athlete.id, waiverId)
+					if (status === "signed") return !!signedDate
+					if (status === "unsigned") return !signedDate
+					return false
+				},
+			)
 			if (!matchesAnyWaiverFilter) return false
 		}
 
@@ -425,9 +445,17 @@ function AthletesPage() {
 
 	const handleExportCSV = () => {
 		// Build CSV header
-		const headers = ["#", "Athlete Name", "Email", "Division", "Team Name", "Registered", "Joined"]
-		questions.forEach(q => headers.push(q.label))
-		waivers.forEach(w => headers.push(`${w.title} (Signed)`))
+		const headers = [
+			"#",
+			"Athlete Name",
+			"Email",
+			"Division",
+			"Team Name",
+			"Registered",
+			"Joined",
+		]
+		questions.forEach((q) => headers.push(q.label))
+		waivers.forEach((w) => headers.push(`${w.title} (Signed)`))
 
 		// Build CSV rows from filtered athlete rows
 		const rows = filteredAthleteRows.map((row) => {
@@ -443,13 +471,13 @@ function AthletesPage() {
 
 			// Add answer columns for this specific athlete
 			const answers = getAnswersForUser(row.registrationId, row.athlete.id)
-			questions.forEach(question => {
-				const answer = answers.find(a => a.questionId === question.id)
+			questions.forEach((question) => {
+				const answer = answers.find((a) => a.questionId === question.id)
 				csvRow.push(answer?.answer ?? "")
 			})
 
 			// Add waiver columns
-			waivers.forEach(waiver => {
+			waivers.forEach((waiver) => {
 				const signedDate = getWaiverSignedDate(row.athlete.id, waiver.id)
 				csvRow.push(signedDate ? formatDate(signedDate) : "Not signed")
 			})
@@ -466,8 +494,10 @@ function AthletesPage() {
 
 		// Generate CSV content
 		const csvContent = [
-			headers.map(h => `"${sanitizeCell(h)}"`).join(","),
-			...rows.map(row => row.map(cell => `"${sanitizeCell(String(cell))}"`).join(",")),
+			headers.map((h) => `"${sanitizeCell(h)}"`).join(","),
+			...rows.map((row) =>
+				row.map((cell) => `"${sanitizeCell(String(cell))}"`).join(","),
+			),
 		].join("\n")
 
 		// Download CSV
@@ -475,7 +505,10 @@ function AthletesPage() {
 		const link = document.createElement("a")
 		const url = URL.createObjectURL(blob)
 		link.setAttribute("href", url)
-		link.setAttribute("download", `${competition.slug}-athletes-${new Date().toISOString().split("T")[0]}.csv`)
+		link.setAttribute(
+			"download",
+			`${competition.slug}-athletes-${new Date().toISOString().split("T")[0]}.csv`,
+		)
 		link.style.visibility = "hidden"
 		document.body.appendChild(link)
 		link.click()
@@ -547,8 +580,11 @@ function AthletesPage() {
 							{questions.map((question) => {
 								const options = questionFilterOptions[question.id] || []
 								const selectedValues = currentQuestionFilters[question.id] || []
-								const availableOptions = options.filter(o => !selectedValues.includes(o))
-								if (options.length === 0 || availableOptions.length === 0) return null
+								const availableOptions = options.filter(
+									(o) => !selectedValues.includes(o),
+								)
+								if (options.length === 0 || availableOptions.length === 0)
+									return null
 								return (
 									<Select
 										key={question.id}
@@ -579,79 +615,93 @@ function AthletesPage() {
 							})}
 
 							{/* Waiver filter (multi-select via dropdown) */}
-							{waivers.length > 0 && (() => {
-								const availableWaiverOptions = waivers.flatMap((waiver) => {
-									const items = []
-									const signedKey = `${waiver.id}:signed`
-									const unsignedKey = `${waiver.id}:unsigned`
-									if (!currentWaiverFilters.includes(signedKey)) {
-										items.push({ key: signedKey, label: `${waiver.title}: Signed` })
-									}
-									if (!currentWaiverFilters.includes(unsignedKey)) {
-										items.push({ key: unsignedKey, label: `${waiver.title}: Not Signed` })
-									}
-									return items
-								})
-								if (availableWaiverOptions.length === 0) return null
-								return (
-									<Select
-										value="__placeholder__"
-										onValueChange={(value) => {
-											if (value !== "__placeholder__") {
-												toggleWaiverFilter(value)
-											}
-										}}
-									>
-										<SelectTrigger className="w-[200px]">
-											<span className="text-muted-foreground">
-												+ Waiver Status
-											</span>
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="__placeholder__" className="hidden">
-												Select...
-											</SelectItem>
-											{availableWaiverOptions.map((option) => (
-												<SelectItem key={option.key} value={option.key}>
-													{option.label}
+							{waivers.length > 0 &&
+								(() => {
+									const availableWaiverOptions = waivers.flatMap((waiver) => {
+										const items = []
+										const signedKey = `${waiver.id}:signed`
+										const unsignedKey = `${waiver.id}:unsigned`
+										if (!currentWaiverFilters.includes(signedKey)) {
+											items.push({
+												key: signedKey,
+												label: `${waiver.title}: Signed`,
+											})
+										}
+										if (!currentWaiverFilters.includes(unsignedKey)) {
+											items.push({
+												key: unsignedKey,
+												label: `${waiver.title}: Not Signed`,
+											})
+										}
+										return items
+									})
+									if (availableWaiverOptions.length === 0) return null
+									return (
+										<Select
+											value="__placeholder__"
+											onValueChange={(value) => {
+												if (value !== "__placeholder__") {
+													toggleWaiverFilter(value)
+												}
+											}}
+										>
+											<SelectTrigger className="w-[200px]">
+												<span className="text-muted-foreground">
+													+ Waiver Status
+												</span>
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="__placeholder__" className="hidden">
+													Select...
 												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								)
-							})()}
+												{availableWaiverOptions.map((option) => (
+													<SelectItem key={option.key} value={option.key}>
+														{option.label}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									)
+								})()}
 						</div>
 
 						{/* Active filter pills */}
-						{(Object.keys(currentQuestionFilters).length > 0 || currentWaiverFilters.length > 0) && (
+						{(Object.keys(currentQuestionFilters).length > 0 ||
+							currentWaiverFilters.length > 0) && (
 							<div className="flex flex-wrap items-center gap-2">
 								{/* Question filter pills */}
-								{Object.entries(currentQuestionFilters).flatMap(([questionId, values]) => {
-									const question = questions.find(q => q.id === questionId)
-									if (!question || !values) return []
-									return values.map(value => (
-										<Badge
-											key={`${questionId}-${value}`}
-											variant="secondary"
-											className="pl-2 pr-1 py-1 flex items-center gap-1"
-										>
-											<span className="text-xs text-muted-foreground">{question.label}:</span>
-											<span>{value}</span>
-											<button
-												type="button"
-												onClick={() => removeQuestionFilter(questionId, value)}
-												className="ml-1 hover:bg-muted rounded-full p-0.5"
+								{Object.entries(currentQuestionFilters).flatMap(
+									([questionId, values]) => {
+										const question = questions.find((q) => q.id === questionId)
+										if (!question || !values) return []
+										return values.map((value) => (
+											<Badge
+												key={`${questionId}-${value}`}
+												variant="secondary"
+												className="pl-2 pr-1 py-1 flex items-center gap-1"
 											>
-												<X className="h-3 w-3" />
-											</button>
-										</Badge>
-									))
-								})}
+												<span className="text-xs text-muted-foreground">
+													{question.label}:
+												</span>
+												<span>{value}</span>
+												<button
+													type="button"
+													onClick={() =>
+														removeQuestionFilter(questionId, value)
+													}
+													className="ml-1 hover:bg-muted rounded-full p-0.5"
+												>
+													<X className="h-3 w-3" />
+												</button>
+											</Badge>
+										))
+									},
+								)}
 
 								{/* Waiver filter pills */}
-								{currentWaiverFilters.map(filterValue => {
+								{currentWaiverFilters.map((filterValue) => {
 									const [waiverId, status] = filterValue.split(":")
-									const waiver = waivers.find(w => w.id === waiverId)
+									const waiver = waivers.find((w) => w.id === waiverId)
 									if (!waiver) return null
 									return (
 										<Badge
@@ -659,8 +709,12 @@ function AthletesPage() {
 											variant="secondary"
 											className="pl-2 pr-1 py-1 flex items-center gap-1"
 										>
-											<span className="text-xs text-muted-foreground">{waiver.title}:</span>
-											<span>{status === "signed" ? "Signed" : "Not Signed"}</span>
+											<span className="text-xs text-muted-foreground">
+												{waiver.title}:
+											</span>
+											<span>
+												{status === "signed" ? "Signed" : "Not Signed"}
+											</span>
 											<button
 												type="button"
 												onClick={() => removeWaiverFilter(filterValue)}
@@ -695,7 +749,9 @@ function AthletesPage() {
 											<TableHead>Division</TableHead>
 											<TableHead>Team Name</TableHead>
 											{questions.map((question) => (
-												<TableHead key={question.id}>{question.label}</TableHead>
+												<TableHead key={question.id}>
+													{question.label}
+												</TableHead>
 											))}
 											{waivers.map((waiver) => (
 												<TableHead key={waiver.id}>{waiver.title}</TableHead>
@@ -728,7 +784,10 @@ function AthletesPage() {
 																alt={`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`}
 															/>
 															<AvatarFallback className="text-xs">
-																{getInitials(row.athlete.firstName, row.athlete.lastName)}
+																{getInitials(
+																	row.athlete.firstName,
+																	row.athlete.lastName,
+																)}
 															</AvatarFallback>
 														</Avatar>
 														<div className="flex flex-col">
@@ -765,8 +824,13 @@ function AthletesPage() {
 													)}
 												</TableCell>
 												{questions.map((question) => {
-													const answers = getAnswersForUser(row.registrationId, row.athlete.id)
-													const answer = answers.find(a => a.questionId === question.id)
+													const answers = getAnswersForUser(
+														row.registrationId,
+														row.athlete.id,
+													)
+													const answer = answers.find(
+														(a) => a.questionId === question.id,
+													)
 													return (
 														<TableCell key={question.id} className="text-sm">
 															{answer?.answer ?? "—"}
@@ -774,19 +838,28 @@ function AthletesPage() {
 													)
 												})}
 												{waivers.map((waiver) => {
-													const signedDate = getWaiverSignedDate(row.athlete.id, waiver.id)
+													const signedDate = getWaiverSignedDate(
+														row.athlete.id,
+														waiver.id,
+													)
 													return (
 														<TableCell key={waiver.id} className="text-sm">
 															{signedDate ? (
-																<span className="text-green-600">{formatDate(signedDate)}</span>
+																<span className="text-green-600">
+																	{formatDate(signedDate)}
+																</span>
 															) : (
-																<span className="text-muted-foreground">Not signed</span>
+																<span className="text-muted-foreground">
+																	Not signed
+																</span>
 															)}
 														</TableCell>
 													)
 												})}
 												<TableCell className="text-muted-foreground text-sm">
-													{row.registeredAt ? formatDate(row.registeredAt) : null}
+													{row.registeredAt
+														? formatDate(row.registeredAt)
+														: null}
 												</TableCell>
 												<TableCell className="text-muted-foreground text-sm">
 													{row.joinedAt ? formatDate(row.joinedAt) : null}

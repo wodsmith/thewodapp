@@ -300,7 +300,9 @@ export function OrganizerDivisionItem({
 										}
 									}}
 									placeholder={
-										defaultMaxSpots ? `${defaultMaxSpots} (default)` : "Unlimited"
+										defaultMaxSpots
+											? `${defaultMaxSpots} (default)`
+											: "Unlimited"
 									}
 									className="w-32 text-sm"
 								/>

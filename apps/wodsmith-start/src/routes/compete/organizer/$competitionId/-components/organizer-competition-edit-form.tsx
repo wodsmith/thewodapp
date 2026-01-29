@@ -38,10 +38,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
 import { updateCompetitionFn } from "@/server-fns/competition-fns"
-import {
-	COMMON_US_TIMEZONES,
-	DEFAULT_TIMEZONE,
-} from "@/utils/timezone-utils"
+import { COMMON_US_TIMEZONES, DEFAULT_TIMEZONE } from "@/utils/timezone-utils"
 
 /**
  * Format a date value for HTML date inputs.
@@ -201,9 +198,7 @@ export function OrganizerCompetitionEditForm({
 			startDate: formatDateForInput(competition.startDate),
 			endDate: formatDateForInput(competition.endDate),
 			description: competition.description || "",
-			registrationOpensAt: formatDateForInput(
-				competition.registrationOpensAt,
-			),
+			registrationOpensAt: formatDateForInput(competition.registrationOpensAt),
 			registrationClosesAt: formatDateForInput(
 				competition.registrationClosesAt,
 			),

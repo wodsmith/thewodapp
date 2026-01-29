@@ -192,16 +192,15 @@ export const Route = createFileRoute("/compete/$slug/register")({
 
 		// 6. Get scaling group and levels for divisions (via server function)
 		// Also get public divisions for capacity info
-		const [{ scalingGroup }, { divisions: publicDivisions }] = await Promise.all(
-			[
+		const [{ scalingGroup }, { divisions: publicDivisions }] =
+			await Promise.all([
 				getScalingGroupWithLevelsFn({
 					data: { scalingGroupId: settings.divisions.scalingGroupId },
 				}),
 				getPublicCompetitionDivisionsFn({
 					data: { competitionId: competition.id },
 				}),
-			],
-		)
+			])
 
 		if (
 			!scalingGroup ||

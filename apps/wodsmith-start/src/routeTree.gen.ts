@@ -57,6 +57,7 @@ import { Route as CompeteSlugMyScheduleRouteImport } from './routes/compete/$slu
 import { Route as CompeteSlugLeaderboardRouteImport } from './routes/compete/$slug/leaderboard'
 import { Route as ApiWorkoutsSearchRouteImport } from './routes/api/workouts/search'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
+import { Route as ApiCronSubmissionWindowNotificationsRouteImport } from './routes/api/cron/submission-window-notifications'
 import { Route as AdminTeamsScheduleRouteImport } from './routes/admin/teams/schedule'
 import { Route as AdminTeamsTeamIdRouteImport } from './routes/admin/teams/$teamId'
 import { Route as DemoStartSsrIndexRouteImport } from './routes/demo/start.ssr.index'
@@ -89,6 +90,7 @@ import { Route as CompeteOrganizerOnboardPendingRouteImport } from './routes/com
 import { Route as CompeteOrganizerDashboardNewRouteImport } from './routes/compete/organizer/_dashboard/new'
 import { Route as CompeteOrganizerCompetitionIdWaiversRouteImport } from './routes/compete/organizer/$competitionId/waivers'
 import { Route as CompeteOrganizerCompetitionIdVolunteersRouteImport } from './routes/compete/organizer/$competitionId/volunteers'
+import { Route as CompeteOrganizerCompetitionIdSubmissionWindowsRouteImport } from './routes/compete/organizer/$competitionId/submission-windows'
 import { Route as CompeteOrganizerCompetitionIdSponsorsRouteImport } from './routes/compete/organizer/$competitionId/sponsors'
 import { Route as CompeteOrganizerCompetitionIdSettingsRouteImport } from './routes/compete/organizer/$competitionId/settings'
 import { Route as CompeteOrganizerCompetitionIdScoringRouteImport } from './routes/compete/organizer/$competitionId/scoring'
@@ -375,6 +377,12 @@ const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
   path: '/api/webhooks/stripe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCronSubmissionWindowNotificationsRoute =
+  ApiCronSubmissionWindowNotificationsRouteImport.update({
+    id: '/api/cron/submission-window-notifications',
+    path: '/api/cron/submission-window-notifications',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminTeamsScheduleRoute = AdminTeamsScheduleRouteImport.update({
   id: '/teams/schedule',
   path: '/teams/schedule',
@@ -555,6 +563,12 @@ const CompeteOrganizerCompetitionIdVolunteersRoute =
   CompeteOrganizerCompetitionIdVolunteersRouteImport.update({
     id: '/volunteers',
     path: '/volunteers',
+    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+  } as any)
+const CompeteOrganizerCompetitionIdSubmissionWindowsRoute =
+  CompeteOrganizerCompetitionIdSubmissionWindowsRouteImport.update({
+    id: '/submission-windows',
+    path: '/submission-windows',
     getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
   } as any)
 const CompeteOrganizerCompetitionIdSponsorsRoute =
@@ -837,6 +851,7 @@ export interface FileRoutesByFullPath {
   '/compete/': typeof CompeteIndexRoute
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
   '/admin/teams/schedule': typeof AdminTeamsScheduleRouteWithChildren
+  '/api/cron/submission-window-notifications': typeof ApiCronSubmissionWindowNotificationsRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
@@ -886,6 +901,7 @@ export interface FileRoutesByFullPath {
   '/compete/organizer/$competitionId/scoring': typeof CompeteOrganizerCompetitionIdScoringRoute
   '/compete/organizer/$competitionId/settings': typeof CompeteOrganizerCompetitionIdSettingsRoute
   '/compete/organizer/$competitionId/sponsors': typeof CompeteOrganizerCompetitionIdSponsorsRoute
+  '/compete/organizer/$competitionId/submission-windows': typeof CompeteOrganizerCompetitionIdSubmissionWindowsRoute
   '/compete/organizer/$competitionId/volunteers': typeof CompeteOrganizerCompetitionIdVolunteersRoute
   '/compete/organizer/$competitionId/waivers': typeof CompeteOrganizerCompetitionIdWaiversRoute
   '/compete/organizer/new': typeof CompeteOrganizerDashboardNewRoute
@@ -953,6 +969,7 @@ export interface FileRoutesByTo {
   '/compete/organizer': typeof CompeteOrganizerDashboardIndexRoute
   '/admin': typeof AdminIndexRoute
   '/compete': typeof CompeteIndexRoute
+  '/api/cron/submission-window-notifications': typeof ApiCronSubmissionWindowNotificationsRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
@@ -1001,6 +1018,7 @@ export interface FileRoutesByTo {
   '/compete/organizer/$competitionId/scoring': typeof CompeteOrganizerCompetitionIdScoringRoute
   '/compete/organizer/$competitionId/settings': typeof CompeteOrganizerCompetitionIdSettingsRoute
   '/compete/organizer/$competitionId/sponsors': typeof CompeteOrganizerCompetitionIdSponsorsRoute
+  '/compete/organizer/$competitionId/submission-windows': typeof CompeteOrganizerCompetitionIdSubmissionWindowsRoute
   '/compete/organizer/$competitionId/volunteers': typeof CompeteOrganizerCompetitionIdVolunteersRoute
   '/compete/organizer/$competitionId/waivers': typeof CompeteOrganizerCompetitionIdWaiversRoute
   '/compete/organizer/new': typeof CompeteOrganizerDashboardNewRoute
@@ -1075,6 +1093,7 @@ export interface FileRoutesById {
   '/compete/': typeof CompeteIndexRoute
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
   '/admin/teams/schedule': typeof AdminTeamsScheduleRouteWithChildren
+  '/api/cron/submission-window-notifications': typeof ApiCronSubmissionWindowNotificationsRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
@@ -1125,6 +1144,7 @@ export interface FileRoutesById {
   '/compete/organizer/$competitionId/scoring': typeof CompeteOrganizerCompetitionIdScoringRoute
   '/compete/organizer/$competitionId/settings': typeof CompeteOrganizerCompetitionIdSettingsRoute
   '/compete/organizer/$competitionId/sponsors': typeof CompeteOrganizerCompetitionIdSponsorsRoute
+  '/compete/organizer/$competitionId/submission-windows': typeof CompeteOrganizerCompetitionIdSubmissionWindowsRoute
   '/compete/organizer/$competitionId/volunteers': typeof CompeteOrganizerCompetitionIdVolunteersRoute
   '/compete/organizer/$competitionId/waivers': typeof CompeteOrganizerCompetitionIdWaiversRoute
   '/compete/organizer/_dashboard/new': typeof CompeteOrganizerDashboardNewRoute
@@ -1200,6 +1220,7 @@ export interface FileRouteTypes {
     | '/compete/'
     | '/admin/teams/$teamId'
     | '/admin/teams/schedule'
+    | '/api/cron/submission-window-notifications'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
     | '/compete/$slug/leaderboard'
@@ -1249,6 +1270,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/scoring'
     | '/compete/organizer/$competitionId/settings'
     | '/compete/organizer/$competitionId/sponsors'
+    | '/compete/organizer/$competitionId/submission-windows'
     | '/compete/organizer/$competitionId/volunteers'
     | '/compete/organizer/$competitionId/waivers'
     | '/compete/organizer/new'
@@ -1316,6 +1338,7 @@ export interface FileRouteTypes {
     | '/compete/organizer'
     | '/admin'
     | '/compete'
+    | '/api/cron/submission-window-notifications'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
     | '/compete/$slug/leaderboard'
@@ -1364,6 +1387,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/scoring'
     | '/compete/organizer/$competitionId/settings'
     | '/compete/organizer/$competitionId/sponsors'
+    | '/compete/organizer/$competitionId/submission-windows'
     | '/compete/organizer/$competitionId/volunteers'
     | '/compete/organizer/$competitionId/waivers'
     | '/compete/organizer/new'
@@ -1437,6 +1461,7 @@ export interface FileRouteTypes {
     | '/compete/'
     | '/admin/teams/$teamId'
     | '/admin/teams/schedule'
+    | '/api/cron/submission-window-notifications'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
     | '/compete/$slug/leaderboard'
@@ -1487,6 +1512,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/scoring'
     | '/compete/organizer/$competitionId/settings'
     | '/compete/organizer/$competitionId/sponsors'
+    | '/compete/organizer/$competitionId/submission-windows'
     | '/compete/organizer/$competitionId/volunteers'
     | '/compete/organizer/$competitionId/waivers'
     | '/compete/organizer/_dashboard/new'
@@ -1549,6 +1575,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   ApiGetSessionRoute: typeof ApiGetSessionRoute
   ApiUploadRoute: typeof ApiUploadRoute
+  ApiCronSubmissionWindowNotificationsRoute: typeof ApiCronSubmissionWindowNotificationsRoute
   ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
   ApiWorkoutsSearchRoute: typeof ApiWorkoutsSearchRoute
   DemoApiNamesRoute: typeof DemoApiNamesRoute
@@ -1899,6 +1926,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWebhooksStripeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cron/submission-window-notifications': {
+      id: '/api/cron/submission-window-notifications'
+      path: '/api/cron/submission-window-notifications'
+      fullPath: '/api/cron/submission-window-notifications'
+      preLoaderRoute: typeof ApiCronSubmissionWindowNotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/teams/schedule': {
       id: '/admin/teams/schedule'
       path: '/teams/schedule'
@@ -2121,6 +2155,13 @@ declare module '@tanstack/react-router' {
       path: '/volunteers'
       fullPath: '/compete/organizer/$competitionId/volunteers'
       preLoaderRoute: typeof CompeteOrganizerCompetitionIdVolunteersRouteImport
+      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+    }
+    '/compete/organizer/$competitionId/submission-windows': {
+      id: '/compete/organizer/$competitionId/submission-windows'
+      path: '/submission-windows'
+      fullPath: '/compete/organizer/$competitionId/submission-windows'
+      preLoaderRoute: typeof CompeteOrganizerCompetitionIdSubmissionWindowsRouteImport
       parentRoute: typeof CompeteOrganizerCompetitionIdRoute
     }
     '/compete/organizer/$competitionId/sponsors': {
@@ -2656,6 +2697,7 @@ interface CompeteOrganizerCompetitionIdRouteChildren {
   CompeteOrganizerCompetitionIdScoringRoute: typeof CompeteOrganizerCompetitionIdScoringRoute
   CompeteOrganizerCompetitionIdSettingsRoute: typeof CompeteOrganizerCompetitionIdSettingsRoute
   CompeteOrganizerCompetitionIdSponsorsRoute: typeof CompeteOrganizerCompetitionIdSponsorsRoute
+  CompeteOrganizerCompetitionIdSubmissionWindowsRoute: typeof CompeteOrganizerCompetitionIdSubmissionWindowsRoute
   CompeteOrganizerCompetitionIdVolunteersRoute: typeof CompeteOrganizerCompetitionIdVolunteersRoute
   CompeteOrganizerCompetitionIdWaiversRoute: typeof CompeteOrganizerCompetitionIdWaiversRoute
   CompeteOrganizerCompetitionIdIndexRoute: typeof CompeteOrganizerCompetitionIdIndexRoute
@@ -2689,6 +2731,8 @@ const CompeteOrganizerCompetitionIdRouteChildren: CompeteOrganizerCompetitionIdR
       CompeteOrganizerCompetitionIdSettingsRoute,
     CompeteOrganizerCompetitionIdSponsorsRoute:
       CompeteOrganizerCompetitionIdSponsorsRoute,
+    CompeteOrganizerCompetitionIdSubmissionWindowsRoute:
+      CompeteOrganizerCompetitionIdSubmissionWindowsRoute,
     CompeteOrganizerCompetitionIdVolunteersRoute:
       CompeteOrganizerCompetitionIdVolunteersRoute,
     CompeteOrganizerCompetitionIdWaiversRoute:
@@ -2807,6 +2851,8 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   ApiGetSessionRoute: ApiGetSessionRoute,
   ApiUploadRoute: ApiUploadRoute,
+  ApiCronSubmissionWindowNotificationsRoute:
+    ApiCronSubmissionWindowNotificationsRoute,
   ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
   ApiWorkoutsSearchRoute: ApiWorkoutsSearchRoute,
   DemoApiNamesRoute: DemoApiNamesRoute,

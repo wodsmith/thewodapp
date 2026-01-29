@@ -150,25 +150,28 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 		let fullCompetition: { registrationClosesAt: string | null } | null = null
 
 		if (registration.competition?.id) {
-			const [questionsResult, answersResult, competitionData] = await Promise.all([
-				getCompetitionQuestionsFn({
-					data: { competitionId: registration.competition.id },
-				}).catch(() => ({ questions: [] })),
-				getRegistrationAnswersFn({
-					data: { registrationId, userId: session.userId },
-				}).catch(() => ({ answers: [] })),
-				// Fetch full competition data for registrationClosesAt
-				(async () => {
-					const { getDb } = await import("@/db")
-					const { competitionsTable } = await import("@/db/schemas/competitions")
-					const db = getDb()
-					const comp = await db.query.competitionsTable.findFirst({
-						where: eq(competitionsTable.id, registration.competition!.id),
-						columns: { registrationClosesAt: true },
-					})
-					return comp
-				})().catch(() => null),
-			])
+			const [questionsResult, answersResult, competitionData] =
+				await Promise.all([
+					getCompetitionQuestionsFn({
+						data: { competitionId: registration.competition.id },
+					}).catch(() => ({ questions: [] })),
+					getRegistrationAnswersFn({
+						data: { registrationId, userId: session.userId },
+					}).catch(() => ({ answers: [] })),
+					// Fetch full competition data for registrationClosesAt
+					(async () => {
+						const { getDb } = await import("@/db")
+						const { competitionsTable } = await import(
+							"@/db/schemas/competitions"
+						)
+						const db = getDb()
+						const comp = await db.query.competitionsTable.findFirst({
+							where: eq(competitionsTable.id, registration.competition!.id),
+							columns: { registrationClosesAt: true },
+						})
+						return comp
+					})().catch(() => null),
+				])
 
 			registrationQuestions = questionsResult.questions
 			registrationAnswers = answersResult.answers

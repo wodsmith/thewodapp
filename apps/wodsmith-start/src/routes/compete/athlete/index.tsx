@@ -80,7 +80,9 @@ function parseAthleteProfile(json: string | null): AthleteProfileData | null {
 	}
 }
 
-function calculateAge(dateOfBirth: Date | number | string | null): number | null {
+function calculateAge(
+	dateOfBirth: Date | number | string | null,
+): number | null {
 	if (!dateOfBirth) return null
 	const dob = new Date(dateOfBirth)
 	if (Number.isNaN(dob.getTime())) return null

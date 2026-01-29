@@ -92,10 +92,19 @@ function PaymentStatusBadge({ status }: { status: string | null }) {
 	}
 }
 
-export function RegistrationDetailsCard({ details, isTeamRegistration }: Props) {
+export function RegistrationDetailsCard({
+	details,
+	isTeamRegistration,
+}: Props) {
 	const location = useLocation()
-	const { competition, division, purchase, paymentStatus, registeredAt, teamName } =
-		details
+	const {
+		competition,
+		division,
+		purchase,
+		paymentStatus,
+		registeredAt,
+		teamName,
+	} = details
 
 	return (
 		<div className="space-y-4">
@@ -141,14 +150,13 @@ export function RegistrationDetailsCard({ details, isTeamRegistration }: Props) 
 						<div className="flex items-center justify-between">
 							<span className="font-medium">{division?.label || "—"}</span>
 							{division?.teamSize && division.teamSize > 1 && (
-								<Badge variant="outline">
-									Team of {division.teamSize}
-								</Badge>
+								<Badge variant="outline">Team of {division.teamSize}</Badge>
 							)}
 						</div>
 						{isTeamRegistration && teamName && (
 							<div className="text-sm text-muted-foreground">
-								Team: <span className="font-medium text-foreground">{teamName}</span>
+								Team:{" "}
+								<span className="font-medium text-foreground">{teamName}</span>
 							</div>
 						)}
 						{division?.description && (
@@ -177,7 +185,9 @@ export function RegistrationDetailsCard({ details, isTeamRegistration }: Props) 
 								<span className="font-medium text-muted-foreground">$0.00</span>
 							) : (purchase?.totalCents ?? division?.feeCents) != null ? (
 								<span className="font-semibold">
-									{formatCurrency(purchase?.totalCents ?? division?.feeCents ?? 0)}
+									{formatCurrency(
+										purchase?.totalCents ?? division?.feeCents ?? 0,
+									)}
 								</span>
 							) : null}
 						</div>

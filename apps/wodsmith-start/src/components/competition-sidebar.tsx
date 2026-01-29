@@ -13,6 +13,7 @@ import {
 	Calculator,
 	Calendar,
 	ClipboardSignature,
+	Clock,
 	DollarSign,
 	Home,
 	Layers,
@@ -45,6 +46,7 @@ import { cn } from "@/utils/cn"
 
 interface CompetitionSidebarProps {
 	competitionId: string
+	competitionType?: "in-person" | "online"
 	children: React.ReactNode
 }
 
@@ -62,6 +64,7 @@ interface NavGroup {
 
 const getNavigation = (
 	basePath: string,
+	competitionType?: "in-person" | "online",
 ): { overview: NavItem; groups: NavGroup[] } => ({
 	overview: {
 		label: "Overview",
@@ -74,6 +77,16 @@ const getNavigation = (
 			items: [
 				{ label: "Divisions", href: `${basePath}/divisions`, icon: Layers },
 				{ label: "Events", href: `${basePath}/events`, icon: Trophy },
+				// Submission Windows only for online competitions
+				...(competitionType === "online"
+					? [
+							{
+								label: "Submission Windows",
+								href: `${basePath}/submission-windows`,
+								icon: Clock,
+							},
+						]
+					: []),
 				{ label: "Scoring", href: `${basePath}/scoring`, icon: Calculator },
 				{ label: "Registrations", href: `${basePath}/athletes`, icon: Users },
 				{
@@ -86,7 +99,16 @@ const getNavigation = (
 		{
 			label: "Run Competition",
 			items: [
-				{ label: "Schedule", href: `${basePath}/schedule`, icon: Calendar },
+				// Schedule only for in-person competitions
+				...(competitionType !== "online"
+					? [
+							{
+								label: "Schedule",
+								href: `${basePath}/schedule`,
+								icon: Calendar,
+							},
+						]
+					: []),
 				{ label: "Locations", href: `${basePath}/locations`, icon: MapPin },
 				{
 					label: "Volunteers",
@@ -200,12 +222,13 @@ function CompetitionSidebarFooter() {
 
 export function CompetitionSidebar({
 	competitionId,
+	competitionType,
 	children,
 }: CompetitionSidebarProps) {
 	const router = useRouterState()
 	const pathname = router.location.pathname
 	const basePath = `/compete/organizer/${competitionId}`
-	const navigation = getNavigation(basePath)
+	const navigation = getNavigation(basePath, competitionType)
 
 	const isActive = (href: string) => {
 		if (href === basePath) {

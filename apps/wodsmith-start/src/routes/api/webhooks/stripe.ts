@@ -232,7 +232,10 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 							)
 
 						// Store registration answers if present
-						if (registrationData.answers && registrationData.answers.length > 0) {
+						if (
+							registrationData.answers &&
+							registrationData.answers.length > 0
+						) {
 							for (const answer of registrationData.answers) {
 								await db.insert(competitionRegistrationAnswersTable).values({
 									questionId: answer.questionId,

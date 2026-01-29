@@ -285,14 +285,15 @@ function ScoringBadges({ workout }: { workout: WorkoutDetails }) {
 			seconds > 0
 				? `${minutes}:${seconds.toString().padStart(2, "0")}`
 				: `${minutes} min`
-		
+
 		badges.push(
 			<Badge
 				key="timecap"
 				variant="outline"
 				className={cn(
 					"px-3 py-1 text-sm flex gap-2 items-center font-normal",
-					["time", "time-with-cap"].includes(workout.scheme) && "border-red-200 bg-red-50 text-red-700 dark:bg-red-950/30 dark:border-red-800 dark:text-red-400"
+					["time", "time-with-cap"].includes(workout.scheme) &&
+						"border-red-200 bg-red-50 text-red-700 dark:bg-red-950/30 dark:border-red-800 dark:text-red-400",
 				)}
 			>
 				<Clock className="h-4 w-4" />

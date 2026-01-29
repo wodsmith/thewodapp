@@ -30,10 +30,7 @@ import {
 	createCompetitionFn,
 	updateCompetitionFn,
 } from "@/server-fns/competition-fns"
-import {
-	COMMON_US_TIMEZONES,
-	DEFAULT_TIMEZONE,
-} from "@/utils/timezone-utils"
+import { COMMON_US_TIMEZONES, DEFAULT_TIMEZONE } from "@/utils/timezone-utils"
 
 const formSchema = z
 	.object({
@@ -116,6 +113,7 @@ interface OrganizerCompetitionFormProps {
 	selectedTeamId: string
 	groups?: CompetitionGroup[]
 	competition?: Competition
+	defaultGroupId?: string
 	onSuccess?: (competitionId: string) => void
 	onCancel?: () => void
 }
@@ -125,6 +123,7 @@ export function OrganizerCompetitionForm({
 	selectedTeamId,
 	groups = [],
 	competition,
+	defaultGroupId,
 	onSuccess,
 	onCancel,
 }: OrganizerCompetitionFormProps) {
@@ -159,7 +158,7 @@ export function OrganizerCompetitionForm({
 			registrationClosesAt: competition?.registrationClosesAt
 				? formatDateForInput(competition.registrationClosesAt)
 				: "",
-			groupId: competition?.groupId ?? "",
+			groupId: competition?.groupId ?? defaultGroupId ?? "",
 			visibility: competition?.visibility ?? "public",
 			status: competition?.status ?? "draft",
 			timezone: competition?.timezone ?? DEFAULT_TIMEZONE,
@@ -643,7 +642,9 @@ export function OrganizerCompetitionForm({
  * Format a date for HTML input. Now that dates are stored as YYYY-MM-DD strings,
  * this is just a passthrough for strings. Kept for backwards compatibility with Date objects.
  */
-function formatDateForInput(date: Date | string | number | null | undefined): string {
+function formatDateForInput(
+	date: Date | string | number | null | undefined,
+): string {
 	if (!date) return ""
 	// If already a YYYY-MM-DD string, return as-is
 	if (typeof date === "string") {

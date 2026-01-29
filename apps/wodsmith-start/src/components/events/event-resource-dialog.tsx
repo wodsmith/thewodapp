@@ -124,7 +124,8 @@ export function EventResourceDialog({
 							render={({ field }) => (
 								<FormItem>
 									<FormLabel>
-										URL <span className="text-muted-foreground">(optional)</span>
+										URL{" "}
+										<span className="text-muted-foreground">(optional)</span>
 									</FormLabel>
 									<FormControl>
 										<Input
@@ -175,7 +176,11 @@ export function EventResourceDialog({
 								Cancel
 							</Button>
 							<Button type="submit" disabled={isSaving}>
-								{isSaving ? "Saving..." : isEditing ? "Save Changes" : "Add Resource"}
+								{isSaving
+									? "Saving..."
+									: isEditing
+										? "Save Changes"
+										: "Add Resource"}
 							</Button>
 						</DialogFooter>
 					</form>

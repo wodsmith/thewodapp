@@ -8,7 +8,10 @@ import { and, asc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { eventJudgingSheetsTable } from "@/db/schemas/judging-sheets"
-import { programmingTracksTable, trackWorkoutsTable } from "@/db/schemas/programming"
+import {
+	programmingTracksTable,
+	trackWorkoutsTable,
+} from "@/db/schemas/programming"
 import { competitionsTable } from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { getSessionFromCookie } from "@/utils/auth"
@@ -163,7 +166,10 @@ export const createJudgingSheetFn = createServerFn({ method: "POST" })
 			.where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
 			.limit(1)
 
-		if (trackWorkoutResult.length === 0 || trackWorkoutResult[0].competitionId !== data.competitionId) {
+		if (
+			trackWorkoutResult.length === 0 ||
+			trackWorkoutResult[0].competitionId !== data.competitionId
+		) {
 			throw new Error("Event not found or does not belong to this competition")
 		}
 

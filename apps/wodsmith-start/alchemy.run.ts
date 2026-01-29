@@ -458,6 +458,17 @@ function getDomains(currentStage: string): string[] | undefined {
  */
 const website = await TanStackStart("app", {
 	/**
+	 * Cron triggers for scheduled jobs.
+	 *
+	 * The scheduled handler in src/server.ts processes these triggers.
+	 * Currently runs submission window notifications every 15 minutes.
+	 *
+	 * @see src/server.ts for the scheduled handler implementation
+	 * @see https://developers.cloudflare.com/workers/configuration/cron-triggers/
+	 */
+	crons: ["*/15 * * * *"],
+
+	/**
 	 * Cloudflare resource bindings available to the application.
 	 *
 	 * These bindings inject Cloudflare services into the Worker's environment.
@@ -483,7 +494,8 @@ const website = await TanStackStart("app", {
 		 * Must be "production" for emails to be sent via Resend.
 		 * In dev mode, emails are logged to console only.
 		 */
-		NODE_ENV: stage === "prod" || stage === "demo" ? "production" : "development",
+		NODE_ENV:
+			stage === "prod" || stage === "demo" ? "production" : "development",
 
 		/**
 		 * Site URL used in email templates for links (verify email, reset password, etc.)
@@ -510,6 +522,11 @@ const website = await TanStackStart("app", {
 		// Secrets
 		TURNSTILE_SECRET_KEY: alchemy.secret(process.env.TURNSTILE_SECRET_KEY!),
 		RESEND_API_KEY: alchemy.secret(process.env.RESEND_API_KEY!),
+
+		// Cron secret for scheduled job authentication
+		...(process.env.CRON_SECRET && {
+			CRON_SECRET: alchemy.secret(process.env.CRON_SECRET),
+		}),
 
 		// AI configuration (optional - only include if available)
 		...(process.env.OPENAI_API_KEY && {

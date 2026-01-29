@@ -30,7 +30,8 @@
 		"db:seed:pr": "tsx scripts/seed-pr.ts",
 		"e2e": "playwright test",
 		"e2e:ui": "playwright test --ui",
-		"stripe:listen": "stripe listen --forward-to localhost:3000/api/webhooks/stripe --forward-connect-to localhost:3000/api/webhooks/stripe"
+		"stripe:listen": "stripe listen --forward-to localhost:3000/api/webhooks/stripe --forward-connect-to localhost:3000/api/webhooks/stripe",
+		"email:dev": "pnpm dlx react-email@latest dev -d src/react-email"
 	},
 	"dependencies": {
 		"@atlaskit/pragmatic-drag-and-drop": "^1.7.4",
@@ -113,7 +114,8 @@
 		"tailwindcss": "^4.0.6",
 		"tailwindcss-animate": "^1.0.7",
 		"ua-parser-js": "^2.0.3",
-		"zod": "^4.2.1"
+		"zod": "^4.2.1",
+		"zustand": "^5.0.5"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.0.6",

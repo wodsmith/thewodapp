@@ -5,13 +5,14 @@ import {
 	CheckCircle2,
 	Clock,
 	Mail,
+	MapPin,
 	Users,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
 import type { Team } from "@/db/schemas/teams"
-import { formatDateStringFull } from "@/utils/date-utils"
+import { formatDateStringFull, isSameDateString } from "@/utils/date-utils"
 import {
 	getEndOfDayInTimezone,
 	hasDateStartedInTimezone,
@@ -307,6 +308,32 @@ export function RegistrationSidebar({
 					</CardContent>
 				</Card>
 			)}
+
+			{/* Date & Location Card */}
+			<Card className="border-white/10 bg-white/5 backdrop-blur-md">
+				<CardContent className="p-4 space-y-3">
+					<div className="flex items-start gap-3">
+						<Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
+						<div>
+							<p className="font-medium">
+								{formatDateShort(competition.startDate)}
+								{!isSameDateString(
+									competition.startDate,
+									competition.endDate,
+								) && <> - {formatDateShort(competition.endDate)}</>}
+							</p>
+						</div>
+					</div>
+					<div className="flex items-start gap-3">
+						<MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
+						<div>
+							<p className="font-medium">
+								{competition.organizingTeam?.name || "Location TBA"}
+							</p>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
 
 			{/* Contact Card */}
 			{competition.organizingTeam && (

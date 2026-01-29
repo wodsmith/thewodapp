@@ -59,7 +59,20 @@ function formatDate(date: string | Date | null): string {
 			const day = Number(dayStr)
 			// Validate month range to prevent undefined access
 			if (month < 1 || month > 12) return "-"
-			const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+			const months = [
+				"January",
+				"February",
+				"March",
+				"April",
+				"May",
+				"June",
+				"July",
+				"August",
+				"September",
+				"October",
+				"November",
+				"December",
+			]
 			return `${months[month - 1]} ${day}, ${year}`
 		}
 		return "-"

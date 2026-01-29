@@ -58,7 +58,8 @@ export function OrganizerFeeCard({ team }: Props) {
 
 	// Get effective fee display values
 	const effectivePercentage =
-		team.organizerFeePercentage ?? PLATFORM_DEFAULTS.platformPercentageBasisPoints
+		team.organizerFeePercentage ??
+		PLATFORM_DEFAULTS.platformPercentageBasisPoints
 	const effectiveFixed =
 		team.organizerFeeFixed ?? PLATFORM_DEFAULTS.platformFixedCents
 
@@ -100,7 +101,9 @@ export function OrganizerFeeCard({ team }: Props) {
 				},
 			})
 			setPercentage(
-				(FOUNDING_ORGANIZER_DEFAULTS.platformPercentageBasisPoints / 100).toString(),
+				(
+					FOUNDING_ORGANIZER_DEFAULTS.platformPercentageBasisPoints / 100
+				).toString(),
 			)
 			setFixed(
 				(FOUNDING_ORGANIZER_DEFAULTS.platformFixedCents / 100).toFixed(2),
@@ -191,7 +194,11 @@ export function OrganizerFeeCard({ team }: Props) {
 					x {(effectivePercentage / 100).toFixed(1)}% + $
 					{(effectiveFixed / 100).toFixed(2)} ={" "}
 					<strong>
-						${((50 * effectivePercentage) / 10000 + effectiveFixed / 100).toFixed(2)}
+						$
+						{(
+							(50 * effectivePercentage) / 10000 +
+							effectiveFixed / 100
+						).toFixed(2)}
 					</strong>
 				</div>
 
@@ -209,8 +216,14 @@ export function OrganizerFeeCard({ team }: Props) {
 								<Star className="h-4 w-4 mr-2" />
 							)}
 							Apply Founding Organizer Rate (
-							{(FOUNDING_ORGANIZER_DEFAULTS.platformPercentageBasisPoints / 100).toFixed(1)}%
-							+ ${(FOUNDING_ORGANIZER_DEFAULTS.platformFixedCents / 100).toFixed(2)})
+							{(
+								FOUNDING_ORGANIZER_DEFAULTS.platformPercentageBasisPoints / 100
+							).toFixed(1)}
+							% + $
+							{(FOUNDING_ORGANIZER_DEFAULTS.platformFixedCents / 100).toFixed(
+								2,
+							)}
+							)
 						</Button>
 					) : (
 						<Button
@@ -222,8 +235,10 @@ export function OrganizerFeeCard({ team }: Props) {
 								<Loader2 className="h-4 w-4 mr-2 animate-spin" />
 							) : null}
 							Reset to Standard Rate (
-							{(PLATFORM_DEFAULTS.platformPercentageBasisPoints / 100).toFixed(1)}% + $
-							{(PLATFORM_DEFAULTS.platformFixedCents / 100).toFixed(2)})
+							{(PLATFORM_DEFAULTS.platformPercentageBasisPoints / 100).toFixed(
+								1,
+							)}
+							% + ${(PLATFORM_DEFAULTS.platformFixedCents / 100).toFixed(2)})
 						</Button>
 					)}
 				</div>

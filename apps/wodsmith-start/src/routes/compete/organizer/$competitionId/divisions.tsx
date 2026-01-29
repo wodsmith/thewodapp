@@ -58,8 +58,12 @@ export const Route = createFileRoute(
 })
 
 function DivisionsPage() {
-	const { divisions, scalingGroupId, scalingGroups, defaultMaxSpotsPerDivision } =
-		Route.useLoaderData()
+	const {
+		divisions,
+		scalingGroupId,
+		scalingGroups,
+		defaultMaxSpotsPerDivision,
+	} = Route.useLoaderData()
 	// Get competition from parent layout loader data
 	const { competition } = parentRoute.useLoaderData()
 

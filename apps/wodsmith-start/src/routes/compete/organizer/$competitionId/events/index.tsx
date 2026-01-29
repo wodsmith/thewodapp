@@ -34,7 +34,7 @@ export const Route = createFileRoute(
 			throw new Error("Competition not found")
 		}
 
-		// Parallel fetch events, divisions, movements, and sponsors
+		// Parallel fetch events, divisions, movements, sponsors
 		const [eventsResult, divisionsResult, movementsResult, sponsorsResult] =
 			await Promise.all([
 				getCompetitionWorkoutsFn({
@@ -96,6 +96,7 @@ export const Route = createFileRoute(
 			movements: movementsResult.movements,
 			sponsors: allSponsors,
 			divisionDescriptionsByWorkout,
+			competition,
 		}
 	},
 })
@@ -108,7 +109,7 @@ function EventsPage() {
 		sponsors,
 		divisionDescriptionsByWorkout,
 	} = Route.useLoaderData()
-	// Get competition from parent layout loader data
+	// Get competition from parent layout loader data (for consistency with other pages)
 	const { competition } = parentRoute.useLoaderData()
 
 	return (

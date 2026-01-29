@@ -13,7 +13,10 @@ import { z } from "zod"
 import { getDb } from "@/db"
 import { competitionsTable } from "@/db/schemas/competitions"
 import { competitionRegistrationsTable } from "@/db/schemas/competitions"
-import { programmingTracksTable, trackWorkoutsTable } from "@/db/schemas/programming"
+import {
+	programmingTracksTable,
+	trackWorkoutsTable,
+} from "@/db/schemas/programming"
 import {
 	getCompetitionLeaderboard,
 	getEventLeaderboard,
