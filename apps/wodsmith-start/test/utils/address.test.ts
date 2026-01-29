@@ -8,6 +8,7 @@ import {
 	normalizeCountry,
 	getCountryDisplayName,
 	normalizeAddressInput,
+	getGoogleMapsUrl,
 } from "@/utils/address"
 import type { Address } from "@/types/address"
 
@@ -607,6 +608,129 @@ describe("address utilities", () => {
 				stateProvince: null,
 				countryCode: null,
 			})
+		})
+	})
+
+	// ==========================================================================
+	// getGoogleMapsUrl
+	// ==========================================================================
+
+	describe("getGoogleMapsUrl", () => {
+		it("generates URL for complete address", () => {
+			const address: Partial<Address> = {
+				streetLine1: "123 Main St",
+				city: "Austin",
+				stateProvince: "TX",
+				postalCode: "78701",
+				countryCode: "US",
+			}
+
+			const result = getGoogleMapsUrl(address)
+
+			expect(result).toBe(
+				"https://www.google.com/maps/search/?api=1&query=123%20Main%20St%2C%20Austin%2C%20TX%2C%2078701%2C%20United%20States",
+			)
+		})
+
+		it("generates URL for city and state only", () => {
+			const address: Partial<Address> = {
+				city: "Austin",
+				stateProvince: "TX",
+			}
+
+			const result = getGoogleMapsUrl(address)
+
+			expect(result).toBe(
+				"https://www.google.com/maps/search/?api=1&query=Austin%2C%20TX",
+			)
+		})
+
+		it("generates URL for city and country", () => {
+			const address: Partial<Address> = {
+				city: "London",
+				countryCode: "GB",
+			}
+
+			const result = getGoogleMapsUrl(address)
+
+			expect(result).toBe(
+				"https://www.google.com/maps/search/?api=1&query=London%2C%20United%20Kingdom",
+			)
+		})
+
+		it("generates URL for partial address", () => {
+			const address: Partial<Address> = {
+				city: "Austin",
+				postalCode: "78701",
+			}
+
+			const result = getGoogleMapsUrl(address)
+
+			expect(result).toBe(
+				"https://www.google.com/maps/search/?api=1&query=Austin%2C%2078701",
+			)
+		})
+
+		it("returns null for null address", () => {
+			expect(getGoogleMapsUrl(null)).toBeNull()
+		})
+
+		it("returns null for undefined address", () => {
+			expect(getGoogleMapsUrl(undefined)).toBeNull()
+		})
+
+		it("returns null for empty address", () => {
+			expect(getGoogleMapsUrl({})).toBeNull()
+		})
+
+		it("returns null for whitespace-only fields", () => {
+			const address: Partial<Address> = {
+				city: "   ",
+				stateProvince: "",
+			}
+
+			expect(getGoogleMapsUrl(address)).toBeNull()
+		})
+
+		it("URL-encodes special characters", () => {
+			const address: Partial<Address> = {
+				streetLine1: "123 Main St #5",
+				city: "New York",
+			}
+
+			const result = getGoogleMapsUrl(address)
+
+			expect(result).toBe(
+				"https://www.google.com/maps/search/?api=1&query=123%20Main%20St%20%235%2C%20New%20York",
+			)
+		})
+
+		it("handles street address without city", () => {
+			const address: Partial<Address> = {
+				streetLine1: "123 Main St",
+				postalCode: "78701",
+			}
+
+			const result = getGoogleMapsUrl(address)
+
+			expect(result).toBe(
+				"https://www.google.com/maps/search/?api=1&query=123%20Main%20St%2C%2078701",
+			)
+		})
+
+		it("ignores name field in URL generation", () => {
+			const address: Partial<Address> = {
+				name: "CrossFit Central",
+				city: "Austin",
+				stateProvince: "TX",
+			}
+
+			const result = getGoogleMapsUrl(address)
+
+			// Name should not be included in the URL
+			expect(result).toBe(
+				"https://www.google.com/maps/search/?api=1&query=Austin%2C%20TX",
+			)
 		})
 	})
 })

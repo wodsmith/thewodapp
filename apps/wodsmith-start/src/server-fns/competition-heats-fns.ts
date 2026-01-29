@@ -6,7 +6,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { asc, eq, inArray } from "drizzle-orm"
+import { and, asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { addressesTable } from "@/db/schemas/addresses"
@@ -201,6 +201,15 @@ const getEventsWithHeatsInputSchema = z.object({
 
 const getHeatPublishStatusInputSchema = z.object({
 	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+})
+
+const getVenueForTrackWorkoutInputSchema = z.object({
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+})
+
+const getVenueForTrackWorkoutByDivisionInputSchema = z.object({
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+	divisionId: z.string().optional(),
 })
 
 const publishHeatScheduleInputSchema = z.object({
@@ -1618,6 +1627,130 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 // ============================================================================
 // Heat Publishing Server Functions
 // ============================================================================
+
+/**
+ * Get venue information for a track workout
+ * Finds the first heat for this workout and returns its venue with address
+ * Note: Does not filter by schedulePublishedAt - returns venue even if heats aren't published
+ */
+export const getVenueForTrackWorkoutFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		getVenueForTrackWorkoutInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Find first heat for this workout (no schedulePublishedAt filter)
+		const heat = await db
+			.select({ venueId: competitionHeatsTable.venueId })
+			.from(competitionHeatsTable)
+			.where(eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId))
+			.orderBy(asc(competitionHeatsTable.heatNumber))
+			.get()
+
+		if (!heat?.venueId) {
+			return { venue: null }
+		}
+
+		// Fetch venue with address
+		const venueWithAddress = await db
+			.select({
+				venue: competitionVenuesTable,
+				address: addressesTable,
+			})
+			.from(competitionVenuesTable)
+			.leftJoin(
+				addressesTable,
+				eq(competitionVenuesTable.addressId, addressesTable.id),
+			)
+			.where(eq(competitionVenuesTable.id, heat.venueId))
+			.get()
+
+		if (!venueWithAddress) {
+			return { venue: null }
+		}
+
+		return {
+			venue: {
+				id: venueWithAddress.venue.id,
+				name: venueWithAddress.venue.name,
+				address: venueWithAddress.address,
+			},
+		}
+	})
+
+/**
+ * Get venue information for a track workout, optionally filtered by division
+ * Finds the first heat for this workout (optionally for a specific division) and returns its venue with address
+ * Falls back to any heat if no division-specific heat is found
+ * Note: Does not filter by schedulePublishedAt - returns venue even if heats aren't published
+ */
+export const getVenueForTrackWorkoutByDivisionFn = createServerFn({
+	method: "GET",
+})
+	.inputValidator((data: unknown) =>
+		getVenueForTrackWorkoutByDivisionInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		let heat: { venueId: string | null } | undefined
+
+		// Try to find heat with division filter first
+		if (data.divisionId) {
+			heat = await db
+				.select({ venueId: competitionHeatsTable.venueId })
+				.from(competitionHeatsTable)
+				.where(
+					and(
+						eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId),
+						eq(competitionHeatsTable.divisionId, data.divisionId),
+					),
+				)
+				.orderBy(asc(competitionHeatsTable.heatNumber))
+				.get()
+		}
+
+		// Fallback: find any heat for this workout if no division-specific one found
+		if (!heat?.venueId) {
+			heat = await db
+				.select({ venueId: competitionHeatsTable.venueId })
+				.from(competitionHeatsTable)
+				.where(eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId))
+				.orderBy(asc(competitionHeatsTable.heatNumber))
+				.get()
+		}
+
+		if (!heat?.venueId) {
+			return { venue: null }
+		}
+
+		// Fetch venue with address
+		const venueWithAddress = await db
+			.select({
+				venue: competitionVenuesTable,
+				address: addressesTable,
+			})
+			.from(competitionVenuesTable)
+			.leftJoin(
+				addressesTable,
+				eq(competitionVenuesTable.addressId, addressesTable.id),
+			)
+			.where(eq(competitionVenuesTable.id, heat.venueId))
+			.get()
+
+		if (!venueWithAddress) {
+			return { venue: null }
+		}
+
+		return {
+			venue: {
+				id: venueWithAddress.venue.id,
+				name: venueWithAddress.venue.name,
+				address: venueWithAddress.address,
+			},
+		}
+	})
 
 /**
  * Get publish status for all heats of an event (track workout)

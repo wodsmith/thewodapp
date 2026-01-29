@@ -1,11 +1,12 @@
 "use client"
 
 import { Link } from "@tanstack/react-router"
-import { ArrowRight, Dumbbell, Hash, Target, Timer, Trophy } from "lucide-react"
+import { ArrowRight, Dumbbell, Hash, MapPin, Target, Timer, Trophy } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import { getGoogleMapsUrl, hasAddressData } from "@/utils/address"
 import type { DivisionDescription } from "@/server-fns/competition-workouts-fns"
 
 interface CompetitionWorkoutCardProps {
@@ -24,6 +25,17 @@ interface CompetitionWorkoutCardProps {
 	sponsorLogoUrl?: string | null
 	selectedDivisionId?: string
 	timeCap?: number | null // in seconds
+	venue?: {
+		id: string
+		name: string
+		address: {
+			streetLine1?: string
+			city?: string
+			stateProvince?: string
+			postalCode?: string
+			countryCode?: string
+		} | null
+	} | null
 }
 
 function formatTime(seconds: number): string {
@@ -58,6 +70,7 @@ export function CompetitionWorkoutCard({
 	sponsorLogoUrl,
 	selectedDivisionId,
 	timeCap,
+	venue,
 }: CompetitionWorkoutCardProps) {
 	// Find RX division (position 0 is typically RX/hardest)
 	const sortedDivisions = [...divisionDescriptions].sort(
@@ -156,6 +169,32 @@ export function CompetitionWorkoutCard({
 							<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-secondary text-secondary-foreground">
 								<Hash className="h-4 w-4" />
 								{roundsToScore} Rounds
+							</div>
+						)}
+					</div>
+
+					{/* Venue Section */}
+					<div className="mb-6">
+						{venue && venue.address && hasAddressData(venue.address) ? (
+							<div className="flex items-center gap-3">
+								<div className="flex items-center gap-2 text-sm text-muted-foreground">
+									<MapPin className="h-4 w-4" />
+									<span className="font-medium">{venue.name}</span>
+								</div>
+								<Button variant="outline" size="sm" asChild>
+									<a
+										href={getGoogleMapsUrl(venue.address) || "#"}
+										target="_blank"
+										rel="noopener noreferrer"
+									>
+										Get Directions
+									</a>
+								</Button>
+							</div>
+						) : (
+							<div className="flex items-center gap-2 text-sm text-muted-foreground italic">
+								<MapPin className="h-4 w-4" />
+								<span>Venue to be announced</span>
 							</div>
 						)}
 					</div>

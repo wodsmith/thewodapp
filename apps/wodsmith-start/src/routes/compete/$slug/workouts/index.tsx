@@ -15,6 +15,7 @@ import { CompetitionWorkoutCard } from "@/components/competition-workout-card"
 import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
+import { getVenueForTrackWorkoutFn } from "@/server-fns/competition-heats-fns"
 import {
 	getPublishedCompetitionWorkoutsWithDetailsFn,
 	getWorkoutDivisionDescriptionsFn,
@@ -59,6 +60,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
 				workouts: [],
 				divisions: [],
 				divisionDescriptionsMap: {},
+				venueMap: {},
 				athleteRegisteredDivisionId: null,
 			}
 		}
@@ -83,12 +85,25 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
 		const workouts = workoutsResult.workouts
 		const athleteRegisteredDivisionId = athleteDivisionResult.divisionId
 
-		// Fetch division descriptions for all workouts in parallel
+		// Fetch division descriptions and venues for all workouts in parallel
 		const divisionIds = divisions?.map((d) => d.id) ?? []
 		const divisionDescriptionsMap: Record<
 			string,
 			Awaited<ReturnType<typeof getWorkoutDivisionDescriptionsFn>>
 		> = {}
+
+		type VenueInfo = {
+			id: string
+			name: string
+			address: {
+				streetLine1?: string
+				city?: string
+				stateProvince?: string
+				postalCode?: string
+				countryCode?: string
+			} | null
+		}
+		const venueMap: Record<string, VenueInfo | null> = {}
 
 		if (divisionIds.length > 0 && workouts.length > 0) {
 			const descriptionsPromises = workouts.map(async (event) => {
@@ -107,10 +122,44 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
 			}
 		}
 
+		// Fetch venue data for each workout
+		if (workouts.length > 0) {
+			const venuePromises = workouts.map(async (event) => {
+				const result = await getVenueForTrackWorkoutFn({
+					data: { trackWorkoutId: event.id },
+				})
+				return { trackWorkoutId: event.id, venueData: result }
+			})
+
+			const venueResults = await Promise.all(venuePromises)
+			for (const { trackWorkoutId, venueData } of venueResults) {
+				if (venueData.venue) {
+					// Transform database address to simplified format
+					venueMap[trackWorkoutId] = {
+						id: venueData.venue.id,
+						name: venueData.venue.name,
+						address: venueData.venue.address
+							? {
+									streetLine1: venueData.venue.address.streetLine1 ?? undefined,
+									city: venueData.venue.address.city ?? undefined,
+									stateProvince:
+										venueData.venue.address.stateProvince ?? undefined,
+									postalCode: venueData.venue.address.postalCode ?? undefined,
+									countryCode: venueData.venue.address.countryCode ?? undefined,
+								}
+							: null,
+					}
+				} else {
+					venueMap[trackWorkoutId] = null
+				}
+			}
+		}
+
 		return {
 			workouts,
 			divisions,
 			divisionDescriptionsMap,
+			venueMap,
 			athleteRegisteredDivisionId,
 		}
 	},
@@ -121,6 +170,7 @@ function CompetitionWorkoutsPage() {
 		workouts,
 		divisions,
 		divisionDescriptionsMap,
+		venueMap,
 		athleteRegisteredDivisionId,
 	} = Route.useLoaderData()
 	const { competition } = parentRoute.useLoaderData()
@@ -210,7 +260,7 @@ function CompetitionWorkoutsPage() {
 					{/* Workouts List */}
 					<div className="space-y-6">
 						{workouts.map((event) => {
-							const divisionDescriptionsResult = divisionDescriptionsMap[event.workoutId]
+							const divisionDescriptionsResult = divisionDescriptionsMap?.[event.workoutId]
 							return (
 								<CompetitionWorkoutCard
 									key={event.id}
@@ -231,6 +281,7 @@ function CompetitionWorkoutsPage() {
 									sponsorLogoUrl={event.sponsorLogoUrl}
 									selectedDivisionId={selectedDivisionId}
 									timeCap={event.workout.timeCap}
+									venue={venueMap?.[event.id]}
 								/>
 							)
 						})}

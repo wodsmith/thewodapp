@@ -8,6 +8,7 @@ import {
 	FileText,
 	Filter,
 	Link as LinkIcon,
+	MapPin,
 	Target,
 	Timer,
 	Trophy,
@@ -15,6 +16,7 @@ import {
 import { z } from "zod"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
 	Select,
@@ -27,12 +29,14 @@ import { Separator } from "@/components/ui/separator"
 import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
+import { getVenueForTrackWorkoutByDivisionFn } from "@/server-fns/competition-heats-fns"
 import {
 	getPublicEventDetailsFn,
 	getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
 import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
 import { getSessionFromCookie } from "@/utils/auth"
+import { getGoogleMapsUrl, hasAddressData } from "@/utils/address"
 
 const eventSearchSchema = z.object({
 	division: z.string().optional(),
@@ -104,6 +108,14 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 			divisionDescriptions = descResult.descriptions
 		}
 
+		// Fetch venue for the first division (default)
+		const defaultDivisionId = divisions.length > 0 ? divisions[0].id : null
+		const venueResult = defaultDivisionId
+			? await getVenueForTrackWorkoutByDivisionFn({
+					data: { trackWorkoutId: eventId, divisionId: defaultDivisionId },
+			  })
+			: { venue: null }
+
 		return {
 			competition,
 			event: eventResult.event,
@@ -114,6 +126,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 			divisionDescriptions,
 			divisions,
 			athleteRegisteredDivisionId: athleteDivisionResult.divisionId,
+			venue: venueResult.venue,
 		}
 	},
 })
@@ -183,6 +196,7 @@ function EventDetailsPage() {
 		divisionDescriptions,
 		divisions,
 		athleteRegisteredDivisionId,
+		venue,
 	} = Route.useLoaderData()
 	const { slug } = Route.useParams()
 	const search = Route.useSearch()
@@ -405,6 +419,65 @@ function EventDetailsPage() {
 						</CardContent>
 					</Card>
 				)}
+
+				{/* Venue Card */}
+				<Card>
+					<CardHeader className="pb-3">
+						<CardTitle className="text-lg">Venue</CardTitle>
+					</CardHeader>
+					<CardContent>
+						{venue?.address && hasAddressData(venue.address) ? (
+							<div className="space-y-3">
+								<div className="flex items-start gap-3">
+									<MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+									<div className="flex-1">
+										<p className="font-medium text-sm">{venue.name}</p>
+										<p className="text-sm text-muted-foreground mt-1">
+											{venue.address.streetLine1}
+											{venue.address.streetLine2 && (
+												<>
+													<br />
+													{venue.address.streetLine2}
+												</>
+											)}
+											<br />
+											{venue.address.city}, {venue.address.stateProvince}{" "}
+											{venue.address.postalCode}
+											{venue.address.countryCode && venue.address.countryCode !== "US" && (
+												<>
+													<br />
+													{venue.address.countryCode}
+												</>
+											)}
+										</p>
+									</div>
+								</div>
+								<Button
+									variant="outline"
+									size="sm"
+									className="w-full"
+									asChild
+								>
+									<a
+										href={getGoogleMapsUrl(venue.address) ?? undefined}
+										target="_blank"
+										rel="noopener noreferrer"
+									>
+										<MapPin className="h-4 w-4 mr-2" />
+										Get Directions
+									</a>
+								</Button>
+							</div>
+						) : (
+							<div className="flex items-start gap-3">
+								<MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+								<p className="text-sm text-muted-foreground">
+									Venue to be announced
+								</p>
+							</div>
+						)}
+					</CardContent>
+				</Card>
 
 				{/* Event Resources Card */}
 				{resources && resources.length > 0 && (

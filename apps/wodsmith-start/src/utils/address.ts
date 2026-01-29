@@ -427,3 +427,42 @@ export function normalizeAddressInput(
 		countryCode: normalizeCountry(input.countryCode),
 	}
 }
+
+/**
+ * Generate a Google Maps navigation URL from an address
+ * @param address - Address object (can be partial or null)
+ * @returns Google Maps search URL or null if no meaningful address data
+ */
+export function getGoogleMapsUrl(
+	address: Partial<Address> | null | undefined,
+): string | null {
+	if (!hasAddressData(address)) return null
+
+	const parts: string[] = []
+
+	// Build address string from available components
+	if (address.streetLine1?.trim()) {
+		parts.push(address.streetLine1.trim())
+	}
+	if (address.city?.trim()) {
+		parts.push(address.city.trim())
+	}
+	if (address.stateProvince?.trim()) {
+		parts.push(address.stateProvince.trim())
+	}
+	if (address.postalCode?.trim()) {
+		parts.push(address.postalCode.trim())
+	}
+	if (address.countryCode?.trim()) {
+		const countryDisplay = getCountryDisplayName(address.countryCode.trim())
+		if (countryDisplay) {
+			parts.push(countryDisplay)
+		}
+	}
+
+	if (parts.length === 0) return null
+
+	const addressString = parts.join(", ")
+	const encodedAddress = encodeURIComponent(addressString)
+	return `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`
+}
