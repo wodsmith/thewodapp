@@ -26,7 +26,7 @@ export function CompetitionLocationCard({
 	const hasAddress = hasAddressData(address)
 
 	return (
-		<Card>
+		<Card className="border-white/10 bg-white/5 backdrop-blur-md">
 			<CardHeader>
 				<CardTitle className="flex items-center gap-2">
 					{isOnline ? (
@@ -58,7 +58,7 @@ export function CompetitionLocationCard({
 				)}
 
 				{address?.notes && (
-					<div className="rounded-md bg-muted p-4">
+					<div className="rounded-md bg-white/5 p-4">
 						<div className="flex gap-2">
 							<InfoIcon className="h-4 w-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
 							<p className="text-sm text-muted-foreground">{address.notes}</p>

@@ -144,8 +144,21 @@ const formSchema = z
 
 type FormValues = z.infer<typeof formSchema>
 
+interface CompetitionWithAddress extends Competition {
+	primaryAddress?: {
+		name: string | null
+		streetLine1: string | null
+		streetLine2: string | null
+		city: string | null
+		stateProvince: string | null
+		postalCode: string | null
+		countryCode: string | null
+		notes: string | null
+	} | null
+}
+
 interface OrganizerCompetitionEditFormProps {
-	competition: Competition
+	competition: CompetitionWithAddress
 	groups: Array<CompetitionGroup & { competitionCount: number }>
 	isPendingApproval?: boolean
 }
@@ -163,7 +176,12 @@ export function OrganizerCompetitionEditForm({
 	const [bannerImageUrl, setBannerImageUrl] = useState<string | null>(
 		competition.bannerImageUrl ?? null,
 	)
-	const [isLocationOpen, setIsLocationOpen] = useState(false)
+	// Open location section by default if address exists
+	const hasExistingAddress = Boolean(
+		competition.primaryAddress?.streetLine1 ||
+			competition.primaryAddress?.city,
+	)
+	const [isLocationOpen, setIsLocationOpen] = useState(hasExistingAddress)
 
 	// Use useServerFn hook for client-side server function calls
 	const updateCompetition = useServerFn(updateCompetitionFn)
@@ -194,14 +212,14 @@ export function OrganizerCompetitionEditForm({
 			status: competition.status ?? "draft",
 			timezone: competition.timezone ?? DEFAULT_TIMEZONE,
 			address: {
-				name: "",
-				streetLine1: "",
-				streetLine2: "",
-				city: "",
-				stateProvince: "",
-				postalCode: "",
-				countryCode: "",
-				notes: "",
+				name: competition.primaryAddress?.name ?? "",
+				streetLine1: competition.primaryAddress?.streetLine1 ?? "",
+				streetLine2: competition.primaryAddress?.streetLine2 ?? "",
+				city: competition.primaryAddress?.city ?? "",
+				stateProvince: competition.primaryAddress?.stateProvince ?? "",
+				postalCode: competition.primaryAddress?.postalCode ?? "",
+				countryCode: competition.primaryAddress?.countryCode ?? "",
+				notes: competition.primaryAddress?.notes ?? "",
 			},
 		},
 	})
@@ -245,6 +263,7 @@ export function OrganizerCompetitionEditForm({
 					profileImageUrl,
 					bannerImageUrl,
 					timezone: data.timezone,
+					address: data.address,
 				},
 			})
 			toast.success("Competition updated successfully")

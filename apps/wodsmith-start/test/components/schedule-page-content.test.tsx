@@ -153,6 +153,7 @@ describe('SchedulePageContent', () => {
           laneCount: 8,
           transitionMinutes: 3,
           sortOrder: 0,
+          addressId: null,
           createdAt: new Date(),
           updatedAt: new Date(),
           updateCounter: null,

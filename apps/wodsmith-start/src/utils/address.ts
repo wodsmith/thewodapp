@@ -243,7 +243,7 @@ export function getCountryDisplayName(
  */
 export function hasAddressData(
 	address: Partial<Address> | null | undefined,
-): boolean {
+): address is Partial<Address> {
 	if (!address) return false
 
 	return Boolean(

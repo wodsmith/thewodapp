@@ -173,7 +173,7 @@ function CompetitionOverviewPage() {
 					isVolunteer={isVolunteer}
 				/>
 				<CompetitionLocationCard
-					address={competition.primaryAddress}
+					address={competition.address}
 					competitionType={competition.competitionType}
 					organizingTeamName={competition.organizingTeam?.name}
 				/>
