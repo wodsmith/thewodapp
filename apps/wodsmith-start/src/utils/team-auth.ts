@@ -113,12 +113,18 @@ export async function requireTeamPermission(
 
 /**
  * Check if the user is a member of a specific team
+ * Site admins are considered members of all teams
  */
 export async function isTeamMember(teamId: string): Promise<boolean> {
 	const session = await getSessionFromCookie()
 
 	if (!session) {
 		return false
+	}
+
+	// Admin bypass - site admins are members of all teams
+	if (session.user.role === ROLES_ENUM.ADMIN) {
+		return true
 	}
 
 	return session.teams?.some((team) => team.id === teamId) || false
