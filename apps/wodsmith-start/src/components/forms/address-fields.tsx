@@ -150,11 +150,14 @@ const CA_PROVINCES = [
 interface AddressFieldsProps<T extends FieldValues> {
 	form: UseFormReturn<T>
 	prefix?: string
+	/** Hide the venue/location name field (useful when parent form already has a name) */
+	hideName?: boolean
 }
 
 export function AddressFields<T extends FieldValues>({
 	form,
 	prefix = "",
+	hideName = false,
 }: AddressFieldsProps<T>) {
 	const getFieldName = (fieldName: string): Path<T> => {
 		return (prefix ? `${prefix}.${fieldName}` : fieldName) as Path<T>
@@ -178,23 +181,25 @@ export function AddressFields<T extends FieldValues>({
 
 	return (
 		<div className="space-y-4">
-			<FormField
-				control={form.control}
-				name={getFieldName("name")}
-				render={({ field }) => (
-					<FormItem>
-						<FormLabel>Venue/Location Name</FormLabel>
-						<FormControl>
-							<Input
-								{...field}
-								value={field.value ?? ""}
-								placeholder="Enter venue or location name"
-							/>
-						</FormControl>
-						<FormMessage />
-					</FormItem>
-				)}
-			/>
+			{!hideName && (
+				<FormField
+					control={form.control}
+					name={getFieldName("name")}
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Venue/Location Name</FormLabel>
+							<FormControl>
+								<Input
+									{...field}
+									value={field.value ?? ""}
+									placeholder="Enter venue or location name"
+								/>
+							</FormControl>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+			)}
 
 			<FormField
 				control={form.control}

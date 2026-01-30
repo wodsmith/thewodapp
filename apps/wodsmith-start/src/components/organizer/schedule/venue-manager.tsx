@@ -508,7 +508,7 @@ export function VenueManager({
 							{!usePrimaryAddressCreate && (
 								<div className="rounded-lg border p-4">
 									<p className="text-sm font-medium mb-4">Venue Address</p>
-									<AddressFields form={createForm} prefix="address" />
+									<AddressFields form={createForm} prefix="address" hideName />
 								</div>
 							)}
 
@@ -642,7 +642,7 @@ export function VenueManager({
 							{!usePrimaryAddressEdit && (
 								<div className="rounded-lg border p-4">
 									<p className="text-sm font-medium mb-4">Venue Address</p>
-									<AddressFields form={editForm} prefix="address" />
+									<AddressFields form={editForm} prefix="address" hideName />
 								</div>
 							)}
 
