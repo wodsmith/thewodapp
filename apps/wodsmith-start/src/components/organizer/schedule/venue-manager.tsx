@@ -15,6 +15,44 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+
+/**
+ * Common countries for competitions
+ */
+const COUNTRY_OPTIONS = [
+	{ code: "US", name: "United States" },
+	{ code: "CA", name: "Canada" },
+	{ code: "GB", name: "United Kingdom" },
+	{ code: "AU", name: "Australia" },
+	{ code: "NZ", name: "New Zealand" },
+	{ code: "IE", name: "Ireland" },
+	{ code: "MX", name: "Mexico" },
+	{ code: "DE", name: "Germany" },
+	{ code: "FR", name: "France" },
+	{ code: "ES", name: "Spain" },
+	{ code: "IT", name: "Italy" },
+	{ code: "NL", name: "Netherlands" },
+	{ code: "BE", name: "Belgium" },
+	{ code: "CH", name: "Switzerland" },
+	{ code: "AT", name: "Austria" },
+	{ code: "DK", name: "Denmark" },
+	{ code: "SE", name: "Sweden" },
+	{ code: "NO", name: "Norway" },
+	{ code: "FI", name: "Finland" },
+	{ code: "PL", name: "Poland" },
+	{ code: "PT", name: "Portugal" },
+	{ code: "BR", name: "Brazil" },
+	{ code: "JP", name: "Japan" },
+	{ code: "ZA", name: "South Africa" },
+] as const
 import type { CompetitionVenue } from "@/db/schemas/competitions"
 import { formatCityLine } from "@/utils/address"
 
@@ -73,14 +111,22 @@ export function VenueManager({
 	const [newTransitionMinutes, setNewTransitionMinutes] = useState(3)
 	const [usePrimaryAddress, setUsePrimaryAddress] = useState(!!primaryAddressId)
 	const [newAddressName, setNewAddressName] = useState("")
+	const [newAddressStreetLine1, setNewAddressStreetLine1] = useState("")
+	const [newAddressStreetLine2, setNewAddressStreetLine2] = useState("")
 	const [newAddressCity, setNewAddressCity] = useState("")
 	const [newAddressState, setNewAddressState] = useState("")
+	const [newAddressPostalCode, setNewAddressPostalCode] = useState("")
 	const [newAddressCountry, setNewAddressCountry] = useState("US")
+	const [newAddressNotes, setNewAddressNotes] = useState("")
 	const [editUsePrimaryAddress, setEditUsePrimaryAddress] = useState(false)
 	const [editAddressName, setEditAddressName] = useState("")
+	const [editAddressStreetLine1, setEditAddressStreetLine1] = useState("")
+	const [editAddressStreetLine2, setEditAddressStreetLine2] = useState("")
 	const [editAddressCity, setEditAddressCity] = useState("")
 	const [editAddressState, setEditAddressState] = useState("")
+	const [editAddressPostalCode, setEditAddressPostalCode] = useState("")
 	const [editAddressCountry, setEditAddressCountry] = useState("US")
+	const [editAddressNotes, setEditAddressNotes] = useState("")
 
 	// Loading states (for when server functions are connected)
 	const [isCreating, setIsCreating] = useState(false)
@@ -97,14 +143,18 @@ export function VenueManager({
 			if (usePrimaryAddress && primaryAddressId) {
 				// Use the competition's primary address
 				addressId = primaryAddressId
-			} else if (newAddressCity.trim()) {
+			} else if (newAddressCity.trim() || newAddressStreetLine1.trim()) {
 				// Create a new address for this venue
 				const newAddress = await createAddressFn({
 					data: {
 						name: newAddressName.trim() || null,
-						city: newAddressCity.trim(),
+						streetLine1: newAddressStreetLine1.trim() || null,
+						streetLine2: newAddressStreetLine2.trim() || null,
+						city: newAddressCity.trim() || null,
 						stateProvince: newAddressState.trim() || null,
+						postalCode: newAddressPostalCode.trim() || null,
 						countryCode: newAddressCountry.trim() || "US",
+						notes: newAddressNotes.trim() || null,
 						addressType: "venue",
 					},
 				})
@@ -135,9 +185,13 @@ export function VenueManager({
 			setNewTransitionMinutes(3)
 			setUsePrimaryAddress(!!primaryAddressId)
 			setNewAddressName("")
+			setNewAddressStreetLine1("")
+			setNewAddressStreetLine2("")
 			setNewAddressCity("")
 			setNewAddressState("")
+			setNewAddressPostalCode("")
 			setNewAddressCountry("US")
+			setNewAddressNotes("")
 			setIsCreateOpen(false)
 		} catch (error) {
 			const message =
@@ -158,14 +212,18 @@ export function VenueManager({
 			if (editUsePrimaryAddress && primaryAddressId) {
 				// Use the competition's primary address
 				addressId = primaryAddressId
-			} else if (editAddressCity.trim()) {
+			} else if (editAddressCity.trim() || editAddressStreetLine1.trim()) {
 				// Create a new address for this venue
 				const newAddress = await createAddressFn({
 					data: {
 						name: editAddressName.trim() || null,
-						city: editAddressCity.trim(),
+						streetLine1: editAddressStreetLine1.trim() || null,
+						streetLine2: editAddressStreetLine2.trim() || null,
+						city: editAddressCity.trim() || null,
 						stateProvince: editAddressState.trim() || null,
+						postalCode: editAddressPostalCode.trim() || null,
 						countryCode: editAddressCountry.trim() || "US",
+						notes: editAddressNotes.trim() || null,
 						addressType: "venue",
 					},
 				})
@@ -207,9 +265,13 @@ export function VenueManager({
 	function resetEditAddressState() {
 		setEditUsePrimaryAddress(false)
 		setEditAddressName("")
+		setEditAddressStreetLine1("")
+		setEditAddressStreetLine2("")
 		setEditAddressCity("")
 		setEditAddressState("")
+		setEditAddressPostalCode("")
 		setEditAddressCountry("US")
+		setEditAddressNotes("")
 	}
 
 	async function handleDelete(venue: CompetitionVenue) {
@@ -404,8 +466,26 @@ export function VenueManager({
 										placeholder="e.g., CrossFit Gym"
 									/>
 								</div>
-								<div className="grid grid-cols-2 gap-3">
-									<div>
+								<div>
+									<Label htmlFor="address-street1">Street Address</Label>
+									<Input
+										id="address-street1"
+										value={newAddressStreetLine1}
+										onChange={(e) => setNewAddressStreetLine1(e.target.value)}
+										placeholder="123 Main St"
+									/>
+								</div>
+								<div>
+									<Label htmlFor="address-street2">Address Line 2</Label>
+									<Input
+										id="address-street2"
+										value={newAddressStreetLine2}
+										onChange={(e) => setNewAddressStreetLine2(e.target.value)}
+										placeholder="Suite 100 (optional)"
+									/>
+								</div>
+								<div className="grid grid-cols-6 gap-3">
+									<div className="col-span-3">
 										<Label htmlFor="address-city">City</Label>
 										<Input
 											id="address-city"
@@ -414,8 +494,8 @@ export function VenueManager({
 											placeholder="Austin"
 										/>
 									</div>
-									<div>
-										<Label htmlFor="address-state">State/Province</Label>
+									<div className="col-span-1">
+										<Label htmlFor="address-state">State</Label>
 										<Input
 											id="address-state"
 											value={newAddressState}
@@ -423,15 +503,42 @@ export function VenueManager({
 											placeholder="TX"
 										/>
 									</div>
+									<div className="col-span-2">
+										<Label htmlFor="address-postal">Postal Code</Label>
+										<Input
+											id="address-postal"
+											value={newAddressPostalCode}
+											onChange={(e) => setNewAddressPostalCode(e.target.value)}
+											placeholder="78701"
+										/>
+									</div>
 								</div>
 								<div>
-									<Label htmlFor="address-country">Country Code</Label>
-									<Input
-										id="address-country"
+									<Label htmlFor="address-country">Country</Label>
+									<Select
 										value={newAddressCountry}
-										onChange={(e) => setNewAddressCountry(e.target.value)}
-										placeholder="US"
-										maxLength={2}
+										onValueChange={setNewAddressCountry}
+									>
+										<SelectTrigger id="address-country">
+											<SelectValue placeholder="Select country" />
+										</SelectTrigger>
+										<SelectContent>
+											{COUNTRY_OPTIONS.map((country) => (
+												<SelectItem key={country.code} value={country.code}>
+													{country.name}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+								<div>
+									<Label htmlFor="address-notes">Additional Directions</Label>
+									<Textarea
+										id="address-notes"
+										value={newAddressNotes}
+										onChange={(e) => setNewAddressNotes(e.target.value)}
+										placeholder="Parking instructions, entry points, etc. (optional)"
+										rows={2}
 									/>
 								</div>
 							</div>
@@ -547,8 +654,26 @@ export function VenueManager({
 											placeholder="e.g., CrossFit Gym"
 										/>
 									</div>
-									<div className="grid grid-cols-2 gap-3">
-										<div>
+									<div>
+										<Label htmlFor="edit-address-street1">Street Address</Label>
+										<Input
+											id="edit-address-street1"
+											value={editAddressStreetLine1}
+											onChange={(e) => setEditAddressStreetLine1(e.target.value)}
+											placeholder="123 Main St"
+										/>
+									</div>
+									<div>
+										<Label htmlFor="edit-address-street2">Address Line 2</Label>
+										<Input
+											id="edit-address-street2"
+											value={editAddressStreetLine2}
+											onChange={(e) => setEditAddressStreetLine2(e.target.value)}
+											placeholder="Suite 100 (optional)"
+										/>
+									</div>
+									<div className="grid grid-cols-6 gap-3">
+										<div className="col-span-3">
 											<Label htmlFor="edit-address-city">City</Label>
 											<Input
 												id="edit-address-city"
@@ -557,8 +682,8 @@ export function VenueManager({
 												placeholder="Austin"
 											/>
 										</div>
-										<div>
-											<Label htmlFor="edit-address-state">State/Province</Label>
+										<div className="col-span-1">
+											<Label htmlFor="edit-address-state">State</Label>
 											<Input
 												id="edit-address-state"
 												value={editAddressState}
@@ -566,15 +691,42 @@ export function VenueManager({
 												placeholder="TX"
 											/>
 										</div>
+										<div className="col-span-2">
+											<Label htmlFor="edit-address-postal">Postal Code</Label>
+											<Input
+												id="edit-address-postal"
+												value={editAddressPostalCode}
+												onChange={(e) => setEditAddressPostalCode(e.target.value)}
+												placeholder="78701"
+											/>
+										</div>
 									</div>
 									<div>
-										<Label htmlFor="edit-address-country">Country Code</Label>
-										<Input
-											id="edit-address-country"
+										<Label htmlFor="edit-address-country">Country</Label>
+										<Select
 											value={editAddressCountry}
-											onChange={(e) => setEditAddressCountry(e.target.value)}
-											placeholder="US"
-											maxLength={2}
+											onValueChange={setEditAddressCountry}
+										>
+											<SelectTrigger id="edit-address-country">
+												<SelectValue placeholder="Select country" />
+											</SelectTrigger>
+											<SelectContent>
+												{COUNTRY_OPTIONS.map((country) => (
+													<SelectItem key={country.code} value={country.code}>
+														{country.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+									<div>
+										<Label htmlFor="edit-address-notes">Additional Directions</Label>
+										<Textarea
+											id="edit-address-notes"
+											value={editAddressNotes}
+											onChange={(e) => setEditAddressNotes(e.target.value)}
+											placeholder="Parking instructions, entry points, etc. (optional)"
+											rows={2}
 										/>
 									</div>
 								</div>
