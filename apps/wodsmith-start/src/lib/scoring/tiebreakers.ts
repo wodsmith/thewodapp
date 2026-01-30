@@ -73,14 +73,6 @@ export function applyTiebreakers(input: TiebreakerInput): RankedAthlete[] {
 		return []
 	}
 
-	// Validate config
-	if (config.primary === "head_to_head" && !config.headToHeadEventId) {
-		throw new Error("headToHeadEventId is required for head_to_head tiebreaker")
-	}
-	if (config.secondary === "head_to_head" && !config.headToHeadEventId) {
-		throw new Error("headToHeadEventId is required for head_to_head tiebreaker")
-	}
-
 	// For online scoring, lower points = better (ascending sort)
 	// For all other algorithms, higher points = better (descending sort)
 	const lowerIsBetter = scoringAlgorithm === "online"
@@ -207,7 +199,11 @@ function applyTiebreakerMethod(
 		case "countback":
 			return applyCountback(athletes)
 		case "head_to_head":
-			return applyHeadToHead(athletes, config.headToHeadEventId!)
+			// If no headToHeadEventId is configured, fall back to no tiebreaker
+			if (!config.headToHeadEventId) {
+				return athletes
+			}
+			return applyHeadToHead(athletes, config.headToHeadEventId)
 	}
 }
 

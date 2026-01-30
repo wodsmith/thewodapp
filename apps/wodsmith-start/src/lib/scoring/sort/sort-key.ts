@@ -6,38 +6,121 @@
  *
  * Structure (64-bit signed integer):
  * - Bits 62-60: status_order (0-7)
- * - Bits 59-0: normalized score value
+ * - Bits 59-40: primary score value (20 bits, ~1M max)
+ * - Bits 39-20: secondary value / inverted reps at cap (20 bits)
+ * - Bits 19-0: tiebreak value (20 bits)
  */
 
 import { MAX_SCORE_VALUE, STATUS_ORDER } from "../constants"
 import type { Score, ScoreStatus, SortDirection } from "../types"
 import { getSortDirection } from "./direction"
 
+/** Max value for each 20-bit segment */
+const SEGMENT_MAX = 2n ** 20n - 1n
+
+/** Bit positions for each segment */
+const SECONDARY_SHIFT = 20n
+const PRIMARY_SHIFT = 40n
+
 /**
  * Compute a sort key for database storage.
  *
- * The sort key encodes both status and score value into a single integer
- * that can be used for efficient index-based sorting.
+ * The sort key encodes status, score value, secondary value (reps at cap),
+ * and tiebreak into a single integer for efficient index-based sorting.
  *
  * @param score - Score object or partial with required fields
  *
  * @example
  * // Time workout (lower is better)
  * computeSortKey({ value: 510000, status: "scored", scheme: "time", scoreType: "min" })
- * // → 510000n (status 0, value as-is)
+ * // → encodes status 0 + normalized value
  *
- * computeSortKey({ value: null, status: "cap", scheme: "time", scoreType: "min" })
- * // → 1152921504606846975n (status 1 << 60 + MAX_VALUE)
+ * // Capped with secondary value
+ * computeSortKey({ value: 600000, status: "cap", scheme: "time-with-cap", scoreType: "min",
+ *   timeCap: { ms: 600000, secondaryValue: 100 } })
+ * // → encodes status 1 + primary + inverted secondary (higher reps = lower key)
  */
 export function computeSortKey(
-	score: Pick<Score, "value" | "status" | "scheme" | "scoreType">,
+	score: Pick<Score, "value" | "status" | "scheme" | "scoreType"> &
+		Partial<Pick<Score, "timeCap" | "tiebreak">>,
 ): bigint {
 	const direction = getSortDirection(score.scheme, score.scoreType)
-	return computeSortKeyWithDirection(score.value, score.status, direction)
+
+	// Extract secondary value (reps at cap) if present
+	const secondaryValue = score.timeCap?.secondaryValue ?? 0
+
+	// Extract tiebreak value if present
+	// For time-based tiebreaks, lower is better (use as-is)
+	// For reps-based tiebreaks, higher is better (invert)
+	let tiebreakValue = 0n
+	if (score.tiebreak) {
+		const tbDirection =
+			score.tiebreak.scheme === "time" ? "asc" : "desc"
+		tiebreakValue =
+			tbDirection === "asc"
+				? BigInt(score.tiebreak.value)
+				: SEGMENT_MAX - BigInt(score.tiebreak.value)
+	}
+
+	return computeSortKeyWithComponents(
+		score.value,
+		score.status,
+		direction,
+		secondaryValue,
+		tiebreakValue,
+	)
 }
 
 /**
- * Compute sort key with explicit direction.
+ * Compute sort key with all components.
+ *
+ * @param value - Primary score value (null for incomplete)
+ * @param status - Score status
+ * @param direction - Sort direction for primary value
+ * @param secondaryValue - Secondary value (reps at cap), higher is better
+ * @param tiebreakValue - Pre-normalized tiebreak value
+ */
+function computeSortKeyWithComponents(
+	value: number | null,
+	status: ScoreStatus,
+	direction: SortDirection,
+	secondaryValue: number,
+	tiebreakValue: bigint,
+): bigint {
+	// Status order occupies the top 3 bits (shifted left 60 positions)
+	const statusBits = BigInt(STATUS_ORDER[status]) << 60n
+
+	// Handle null values - they sort last within their status group
+	if (value === null) {
+		return statusBits | MAX_SCORE_VALUE
+	}
+
+	// Normalize primary value based on sort direction
+	// For ascending (lower is better): use value as-is
+	// For descending (higher is better): invert so higher values get lower sort keys
+	const normalizedPrimary =
+		direction === "asc"
+			? BigInt(value) & SEGMENT_MAX
+			: SEGMENT_MAX - (BigInt(value) & SEGMENT_MAX)
+
+	// For capped status, secondary value (reps) matters - higher is better, so invert
+	// For scored status, secondary doesn't matter (use 0)
+	const normalizedSecondary =
+		status === "cap"
+			? SEGMENT_MAX - (BigInt(secondaryValue) & SEGMENT_MAX)
+			: 0n
+
+	// Combine: status | primary | secondary | tiebreak
+	return (
+		statusBits |
+		(normalizedPrimary << PRIMARY_SHIFT) |
+		(normalizedSecondary << SECONDARY_SHIFT) |
+		(tiebreakValue & SEGMENT_MAX)
+	)
+}
+
+/**
+ * Compute sort key with explicit direction (legacy compatibility).
  *
  * @param value - Score value (null for incomplete)
  * @param status - Score status
@@ -48,21 +131,7 @@ export function computeSortKeyWithDirection(
 	status: ScoreStatus,
 	direction: SortDirection,
 ): bigint {
-	// Status order occupies the top 3 bits (shifted left 60 positions)
-	const statusBits = BigInt(STATUS_ORDER[status]) << 60n
-
-	// Handle null values - they sort last within their status group
-	if (value === null) {
-		return statusBits | MAX_SCORE_VALUE
-	}
-
-	// Normalize the value based on sort direction
-	// For ascending (lower is better): use value as-is
-	// For descending (higher is better): invert so higher values get lower sort keys
-	const normalizedValue =
-		direction === "asc" ? BigInt(value) : MAX_SCORE_VALUE - BigInt(value)
-
-	return statusBits | normalizedValue
+	return computeSortKeyWithComponents(value, status, direction, 0, 0n)
 }
 
 /**

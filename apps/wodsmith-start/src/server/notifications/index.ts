@@ -8,3 +8,11 @@ export {
 	notifyRegistrationConfirmed,
 	notifyTeammateJoined,
 } from "./compete"
+
+export {
+	processSubmissionWindowNotifications,
+	sendWindowOpensNotification,
+	sendWindowClosesReminderNotification,
+	sendWindowClosedNotification,
+	type ProcessedNotificationResult,
+} from "./submission-window"

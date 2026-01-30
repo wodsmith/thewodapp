@@ -26,15 +26,17 @@ import {
 	TEAM_PERMISSIONS,
 	teamInvitationTable,
 	teamMembershipTable,
+	teamRoleTable,
 	teamTable,
 } from "@/db/schemas/teams"
+import { ROLES_ENUM } from "@/db/schemas/users"
+import type { LaneShiftPattern } from "@/db/schemas/volunteers"
+import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
 import {
 	DEFAULT_TIMEZONE,
 	hasDateStartedInTimezone,
 	isDeadlinePassedInTimezone,
 } from "@/utils/timezone-utils"
-import type { LaneShiftPattern } from "@/db/schemas/volunteers"
-import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
 
 // ============================================================================
 // Input Schemas
@@ -392,11 +394,17 @@ export const getPendingTeamInvitesFn = createServerFn({ method: "GET" })
 
 /**
  * Check if user can manage/organize a competition
- * Checks team membership and permissions
+ * Checks team membership and permissions, or site admin status
  */
 export const checkCanManageCompetitionFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) => checkCanManageInputSchema.parse(data))
 	.handler(async ({ data }) => {
+		// First check if user is a site admin - they can manage any competition
+		const session = await getSessionFromCookie()
+		if (session?.user?.role === ROLES_ENUM.ADMIN) {
+			return { canManage: true }
+		}
+
 		const db = getDb()
 
 		// Check if user is a member of the organizing team
@@ -422,11 +430,11 @@ export const checkCanManageCompetitionFn = createServerFn({ method: "GET" })
 
 		// Check if user has admin or owner role
 		// System roles: ADMIN, OWNER would allow management
-		const isAdmin =
+		const isTeamAdmin =
 			membership[0].roleId === SYSTEM_ROLES_ENUM.ADMIN ||
 			membership[0].roleId === SYSTEM_ROLES_ENUM.OWNER
 
-		return { canManage: isAdmin }
+		return { canManage: isTeamAdmin }
 	})
 
 /**
@@ -718,6 +726,20 @@ export const deleteCompetitionFn = createServerFn({ method: "POST" })
 		await db
 			.delete(competitionsTable)
 			.where(eq(competitionsTable.id, input.competitionId))
+
+		// Clean up competition_event team related records before deleting the team
+		// These tables don't have onDelete cascade, so we must delete manually
+		await db
+			.delete(teamMembershipTable)
+			.where(eq(teamMembershipTable.teamId, competition.competitionTeamId))
+
+		await db
+			.delete(teamRoleTable)
+			.where(eq(teamRoleTable.teamId, competition.competitionTeamId))
+
+		await db
+			.delete(teamInvitationTable)
+			.where(eq(teamInvitationTable.teamId, competition.competitionTeamId))
 
 		// Delete the competition_event team
 		await db

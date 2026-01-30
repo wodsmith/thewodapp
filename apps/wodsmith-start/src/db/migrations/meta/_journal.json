@@ -554,6 +554,20 @@
       "when": 1768061400000,
       "tag": "0079_add-competition-events",
       "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "6",
+      "when": 1769385813243,
+      "tag": "0080_video-submissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "6",
+      "when": 1769400000000,
+      "tag": "0081_add-submission-window-notifications",
+      "breakpoints": true
     }
   ]
 }

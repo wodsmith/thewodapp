@@ -57,6 +57,7 @@ import { Route as CompeteSlugMyScheduleRouteImport } from './routes/compete/$slu
 import { Route as CompeteSlugLeaderboardRouteImport } from './routes/compete/$slug/leaderboard'
 import { Route as ApiWorkoutsSearchRouteImport } from './routes/api/workouts/search'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
+import { Route as ApiCronSubmissionWindowNotificationsRouteImport } from './routes/api/cron/submission-window-notifications'
 import { Route as AdminTeamsScheduleRouteImport } from './routes/admin/teams/schedule'
 import { Route as AdminTeamsTeamIdRouteImport } from './routes/admin/teams/$teamId'
 import { Route as DemoStartSsrIndexRouteImport } from './routes/demo/start.ssr.index'
@@ -377,6 +378,12 @@ const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
   path: '/api/webhooks/stripe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCronSubmissionWindowNotificationsRoute =
+  ApiCronSubmissionWindowNotificationsRouteImport.update({
+    id: '/api/cron/submission-window-notifications',
+    path: '/api/cron/submission-window-notifications',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminTeamsScheduleRoute = AdminTeamsScheduleRouteImport.update({
   id: '/teams/schedule',
   path: '/teams/schedule',
@@ -851,6 +858,7 @@ export interface FileRoutesByFullPath {
   '/compete/': typeof CompeteIndexRoute
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
   '/admin/teams/schedule': typeof AdminTeamsScheduleRouteWithChildren
+  '/api/cron/submission-window-notifications': typeof ApiCronSubmissionWindowNotificationsRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
@@ -969,6 +977,7 @@ export interface FileRoutesByTo {
   '/compete/organizer': typeof CompeteOrganizerDashboardIndexRoute
   '/admin': typeof AdminIndexRoute
   '/compete': typeof CompeteIndexRoute
+  '/api/cron/submission-window-notifications': typeof ApiCronSubmissionWindowNotificationsRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
@@ -1093,6 +1102,7 @@ export interface FileRoutesById {
   '/compete/': typeof CompeteIndexRoute
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
   '/admin/teams/schedule': typeof AdminTeamsScheduleRouteWithChildren
+  '/api/cron/submission-window-notifications': typeof ApiCronSubmissionWindowNotificationsRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
@@ -1220,6 +1230,7 @@ export interface FileRouteTypes {
     | '/compete/'
     | '/admin/teams/$teamId'
     | '/admin/teams/schedule'
+    | '/api/cron/submission-window-notifications'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
     | '/compete/$slug/leaderboard'
@@ -1336,6 +1347,7 @@ export interface FileRouteTypes {
     | '/compete/organizer'
     | '/admin'
     | '/compete'
+    | '/api/cron/submission-window-notifications'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
     | '/compete/$slug/leaderboard'
@@ -1457,6 +1469,7 @@ export interface FileRouteTypes {
     | '/compete/'
     | '/admin/teams/$teamId'
     | '/admin/teams/schedule'
+    | '/api/cron/submission-window-notifications'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
     | '/compete/$slug/leaderboard'
@@ -1569,6 +1582,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   ApiGetSessionRoute: typeof ApiGetSessionRoute
   ApiUploadRoute: typeof ApiUploadRoute
+  ApiCronSubmissionWindowNotificationsRoute: typeof ApiCronSubmissionWindowNotificationsRoute
   ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
   ApiWorkoutsSearchRoute: typeof ApiWorkoutsSearchRoute
   DemoApiNamesRoute: typeof DemoApiNamesRoute
@@ -1917,6 +1931,13 @@ declare module '@tanstack/react-router' {
       path: '/api/webhooks/stripe'
       fullPath: '/api/webhooks/stripe'
       preLoaderRoute: typeof ApiWebhooksStripeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/submission-window-notifications': {
+      id: '/api/cron/submission-window-notifications'
+      path: '/api/cron/submission-window-notifications'
+      fullPath: '/api/cron/submission-window-notifications'
+      preLoaderRoute: typeof ApiCronSubmissionWindowNotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/teams/schedule': {
@@ -2827,6 +2848,8 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   ApiGetSessionRoute: ApiGetSessionRoute,
   ApiUploadRoute: ApiUploadRoute,
+  ApiCronSubmissionWindowNotificationsRoute:
+    ApiCronSubmissionWindowNotificationsRoute,
   ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
   ApiWorkoutsSearchRoute: ApiWorkoutsSearchRoute,
   DemoApiNamesRoute: DemoApiNamesRoute,
