@@ -13,7 +13,10 @@ import {
 	competitionRegistrationsTable,
 	competitionsTable,
 } from "@/db/schemas/competitions"
-import { programmingTracksTable, trackWorkoutsTable } from "@/db/schemas/programming"
+import {
+	programmingTracksTable,
+	trackWorkoutsTable,
+} from "@/db/schemas/programming"
 import { scoresTable } from "@/db/schemas/scores"
 import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
 import { workouts } from "@/db/schemas/workouts"
@@ -467,7 +470,11 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 			let status: "scored" | "cap" = "scored"
 			let secondaryValue: number | null = null
 
-			if (scheme === "time-with-cap" && workout.timeCap && encodedValue !== null) {
+			if (
+				scheme === "time-with-cap" &&
+				workout.timeCap &&
+				encodedValue !== null
+			) {
 				const capMs = workout.timeCap * 1000
 				if (encodedValue >= capMs) {
 					status = "cap"
