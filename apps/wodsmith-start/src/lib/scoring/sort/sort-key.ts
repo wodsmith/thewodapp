@@ -54,8 +54,7 @@ export function computeSortKey(
 	// For reps-based tiebreaks, higher is better (invert)
 	let tiebreakValue = 0n
 	if (score.tiebreak) {
-		const tbDirection =
-			score.tiebreak.scheme === "time" ? "asc" : "desc"
+		const tbDirection = score.tiebreak.scheme === "time" ? "asc" : "desc"
 		tiebreakValue =
 			tbDirection === "asc"
 				? BigInt(score.tiebreak.value)
@@ -106,9 +105,7 @@ function computeSortKeyWithComponents(
 	// For capped status, secondary value (reps) matters - higher is better, so invert
 	// For scored status, secondary doesn't matter (use 0)
 	const normalizedSecondary =
-		status === "cap"
-			? SEGMENT_MAX - (BigInt(secondaryValue) & SEGMENT_MAX)
-			: 0n
+		status === "cap" ? SEGMENT_MAX - (BigInt(secondaryValue) & SEGMENT_MAX) : 0n
 
 	// Combine: status | primary | secondary | tiebreak
 	return (

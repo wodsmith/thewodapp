@@ -2,6 +2,7 @@ import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import { EventDetailsContent } from "@/components/event-details-content"
 import { RegistrationSidebar } from "@/components/registration-sidebar"
+import { CompetitionLocationCard } from "@/components/competition-location-card"
 import { Card, CardContent } from "@/components/ui/card"
 import {
 	getPublishedCompetitionWorkoutsWithDetailsFn,
@@ -96,63 +97,63 @@ function CompetitionOverviewPage() {
 				{/* Content Panel */}
 				<div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
 					<EventDetailsContent
-				competition={competition}
-				divisions={divisions.length > 0 ? divisions : undefined}
-				sponsors={sponsors}
-				workoutsContent={
-					workouts.length > 0 ? (
-						<div className="space-y-6">
-							<h2 className="text-xl font-semibold mb-4">Workouts</h2>
-							<div className="space-y-6">
-								{workouts.map((event) => {
-									const divisionDescriptionsResult =
-										divisionDescriptionsMap[event.workoutId]
-									return (
-										<CompetitionWorkoutCard
-											key={event.id}
-											eventId={event.id}
-											slug={slug}
-											trackOrder={event.trackOrder}
-											name={event.workout.name}
-											scheme={event.workout.scheme}
-											description={event.workout.description}
-											roundsToScore={event.workout.roundsToScore}
-											pointsMultiplier={event.pointsMultiplier}
-											movements={event.workout.movements}
-											tags={event.workout.tags}
-											divisionDescriptions={
-												divisionDescriptionsResult?.descriptions ?? []
-											}
-											sponsorName={event.sponsorName}
-											sponsorLogoUrl={event.sponsorLogoUrl}
-											selectedDivisionId="default"
-											timeCap={event.workout.timeCap}
-										/>
-									)
-								})}
-							</div>
-						</div>
-					) : (
-						<section>
+						competition={competition}
+						divisions={divisions.length > 0 ? divisions : undefined}
+						sponsors={sponsors}
+						workoutsContent={
+							workouts.length > 0 ? (
+								<div className="space-y-6">
+									<h2 className="text-xl font-semibold mb-4">Workouts</h2>
+									<div className="space-y-6">
+										{workouts.map((event) => {
+											const divisionDescriptionsResult =
+												divisionDescriptionsMap[event.workoutId]
+											return (
+												<CompetitionWorkoutCard
+													key={event.id}
+													eventId={event.id}
+													slug={slug}
+													trackOrder={event.trackOrder}
+													name={event.workout.name}
+													scheme={event.workout.scheme}
+													description={event.workout.description}
+													roundsToScore={event.workout.roundsToScore}
+													pointsMultiplier={event.pointsMultiplier}
+													movements={event.workout.movements}
+													tags={event.workout.tags}
+													divisionDescriptions={
+														divisionDescriptionsResult?.descriptions ?? []
+													}
+													sponsorName={event.sponsorName}
+													sponsorLogoUrl={event.sponsorLogoUrl}
+													selectedDivisionId="default"
+													timeCap={event.workout.timeCap}
+												/>
+											)
+										})}
+									</div>
+								</div>
+							) : (
+								<section>
+									<Card className="border-dashed">
+										<CardContent className="py-6 text-center">
+											<p className="text-muted-foreground">
+												Workouts will be announced by the event organizer.
+											</p>
+										</CardContent>
+									</Card>
+								</section>
+							)
+						}
+						scheduleContent={
 							<Card className="border-dashed">
 								<CardContent className="py-6 text-center">
 									<p className="text-muted-foreground">
-										Workouts will be announced by the event organizer.
+										Schedule information coming soon.
 									</p>
 								</CardContent>
 							</Card>
-						</section>
-					)
-				}
-				scheduleContent={
-					<Card className="border-dashed">
-						<CardContent className="py-6 text-center">
-							<p className="text-muted-foreground">
-								Schedule information coming soon.
-							</p>
-						</CardContent>
-					</Card>
-				}
+						}
 					/>
 				</div>
 			</div>
@@ -170,6 +171,11 @@ function CompetitionOverviewPage() {
 					isTeamRegistration={isTeamRegistration}
 					isCaptain={userRegistration?.userId === session?.userId}
 					isVolunteer={isVolunteer}
+				/>
+				<CompetitionLocationCard
+					address={competition.address}
+					competitionType={competition.competitionType}
+					organizingTeamName={competition.organizingTeam?.name}
 				/>
 			</aside>
 		</div>

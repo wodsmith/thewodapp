@@ -395,239 +395,243 @@ export function JudgeSchedulingContainer({
 
 			{/* Published Assignments Section - Only for in-person competitions */}
 			{!isOnline && (
-			<section className="space-y-6">
-				<h3 className="text-lg font-semibold">Published Assignments</h3>
+				<section className="space-y-6">
+					<h3 className="text-lg font-semibold">Published Assignments</h3>
 
-				{/* Version Selector */}
-				{eventVersionHistory.length > 0 && (
-					<Card>
-						<CardContent className="p-4">
-							<div className="flex items-center gap-4">
-								<div className="flex-1">
-									<label
-										htmlFor="version-selector"
-										className="mb-1 block text-sm font-medium"
-									>
-										Assignment Version
-									</label>
-									<Select
-										value={selectedVersionId ?? ""}
-										onValueChange={handleVersionChange}
-										disabled={isRollingBack || isFetchingAssignments}
-									>
-										<SelectTrigger id="version-selector" className="w-full">
-											<SelectValue placeholder="Select version" />
-										</SelectTrigger>
-										<SelectContent>
-											{eventVersionHistory.map((version) => (
-												<SelectItem key={version.id} value={version.id}>
-													Version {version.version} - Published{" "}
-													{new Date(version.publishedAt).toLocaleDateString()}
-													{version.isActive && " (Active)"}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-									{selectedVersionId &&
-										eventVersionHistory.find((v) => v.id === selectedVersionId)
-											?.notes && (
-											<p className="mt-1 text-xs text-muted-foreground">
-												{
-													eventVersionHistory.find(
-														(v) => v.id === selectedVersionId,
-													)?.notes
-												}
+					{/* Version Selector */}
+					{eventVersionHistory.length > 0 && (
+						<Card>
+							<CardContent className="p-4">
+								<div className="flex items-center gap-4">
+									<div className="flex-1">
+										<label
+											htmlFor="version-selector"
+											className="mb-1 block text-sm font-medium"
+										>
+											Assignment Version
+										</label>
+										<Select
+											value={selectedVersionId ?? ""}
+											onValueChange={handleVersionChange}
+											disabled={isRollingBack || isFetchingAssignments}
+										>
+											<SelectTrigger id="version-selector" className="w-full">
+												<SelectValue placeholder="Select version" />
+											</SelectTrigger>
+											<SelectContent>
+												{eventVersionHistory.map((version) => (
+													<SelectItem key={version.id} value={version.id}>
+														Version {version.version} - Published{" "}
+														{new Date(version.publishedAt).toLocaleDateString()}
+														{version.isActive && " (Active)"}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+										{selectedVersionId &&
+											eventVersionHistory.find(
+												(v) => v.id === selectedVersionId,
+											)?.notes && (
+												<p className="mt-1 text-xs text-muted-foreground">
+													{
+														eventVersionHistory.find(
+															(v) => v.id === selectedVersionId,
+														)?.notes
+													}
+												</p>
+											)}
+									</div>
+								</div>
+							</CardContent>
+						</Card>
+					)}
+
+					{/* Empty State when no version */}
+					{!eventActiveVersion && (
+						<Card>
+							<CardContent className="py-12 text-center">
+								<FileWarning className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+								<h4 className="mb-2 text-lg font-semibold">
+									No assignments published yet
+								</h4>
+								<p className="mb-4 text-muted-foreground">
+									Create rotations in the Rotations section below, then publish
+									them to generate assignments.
+								</p>
+							</CardContent>
+						</Card>
+					)}
+
+					{/* Show content when there's an active version */}
+					{eventActiveVersion && (
+						<>
+							{/* Overview */}
+							<JudgeOverview
+								events={events}
+								heats={heats}
+								judgeAssignments={assignments}
+							/>
+
+							{/* Main content: judges panel + heats */}
+							<div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+								{/* Available Judges Panel */}
+								<Card className="lg:sticky lg:top-4 lg:self-start">
+									<CardContent className="p-4">
+										<div className="mb-3 flex items-center justify-between">
+											<h4 className="text-sm font-medium">Available Judges</h4>
+											{selectedJudgeIds.size > 0 && (
+												<button
+													type="button"
+													onClick={clearSelection}
+													className="text-xs text-muted-foreground hover:text-foreground"
+												>
+													Clear ({selectedJudgeIds.size})
+												</button>
+											)}
+										</div>
+										{judges.length === 0 ? (
+											<p className="py-4 text-center text-sm text-muted-foreground">
+												No judges have been added yet. Add volunteers with the
+												Judge role type in the Volunteers section above.
 											</p>
+										) : (
+											<div className="max-h-[60vh] space-y-1.5 overflow-y-auto">
+												{judgesByAssignmentCount.map((judge) => (
+													<DraggableJudge
+														key={judge.membershipId}
+														volunteer={judge}
+														isSelected={selectedJudgeIds.has(
+															judge.membershipId,
+														)}
+														onToggleSelect={handleToggleSelect}
+														selectedIds={selectedJudgeIds}
+														assignmentCount={judge.assignmentCount}
+														isAssignedToCurrentEvent={assignedJudgeIds.has(
+															judge.membershipId,
+														)}
+													/>
+												))}
+											</div>
 										)}
+									</CardContent>
+								</Card>
+
+								{/* Heats Grid */}
+								<div className="space-y-4">
+									{eventHeats.length === 0 ? (
+										<Card>
+											<CardContent className="py-8 text-center">
+												<p className="text-muted-foreground">
+													No heats scheduled for this event yet.
+												</p>
+												<p className="mt-2 text-sm text-muted-foreground">
+													Create heats in the Schedule section first.
+												</p>
+											</CardContent>
+										</Card>
+									) : (
+										eventHeats.map((heat) => (
+											<JudgeHeatCard
+												key={heat.id}
+												heat={heat}
+												competitionId={competitionId}
+												organizingTeamId={organizingTeamId}
+												unassignedVolunteers={unassignedJudges}
+												judgeAssignments={assignments.filter(
+													(a) => a.heatId === heat.id,
+												)}
+												maxLanes={maxLanes}
+												onDelete={() => {
+													// No-op: Heat deletion should be done in Schedule section
+													console.debug(
+														"Heat deletion is handled in Schedule section",
+													)
+												}}
+												onAssignmentChange={(newAssignments) =>
+													handleAssignmentChange(heat.id, newAssignments)
+												}
+												onMoveAssignment={handleMoveAssignment}
+												selectedJudgeIds={selectedJudgeIds}
+												onClearSelection={clearSelection}
+											/>
+										))
+									)}
 								</div>
 							</div>
-						</CardContent>
-					</Card>
-				)}
-
-				{/* Empty State when no version */}
-				{!eventActiveVersion && (
-					<Card>
-						<CardContent className="py-12 text-center">
-							<FileWarning className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-							<h4 className="mb-2 text-lg font-semibold">
-								No assignments published yet
-							</h4>
-							<p className="mb-4 text-muted-foreground">
-								Create rotations in the Rotations section below, then publish
-								them to generate assignments.
-							</p>
-						</CardContent>
-					</Card>
-				)}
-
-				{/* Show content when there's an active version */}
-				{eventActiveVersion && (
-					<>
-						{/* Overview */}
-						<JudgeOverview
-							events={events}
-							heats={heats}
-							judgeAssignments={assignments}
-						/>
-
-						{/* Main content: judges panel + heats */}
-						<div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
-							{/* Available Judges Panel */}
-							<Card className="lg:sticky lg:top-4 lg:self-start">
-								<CardContent className="p-4">
-									<div className="mb-3 flex items-center justify-between">
-										<h4 className="text-sm font-medium">Available Judges</h4>
-										{selectedJudgeIds.size > 0 && (
-											<button
-												type="button"
-												onClick={clearSelection}
-												className="text-xs text-muted-foreground hover:text-foreground"
-											>
-												Clear ({selectedJudgeIds.size})
-											</button>
-										)}
-									</div>
-									{judges.length === 0 ? (
-										<p className="py-4 text-center text-sm text-muted-foreground">
-											No judges have been added yet. Add volunteers with the
-											Judge role type in the Volunteers section above.
-										</p>
-									) : (
-										<div className="max-h-[60vh] space-y-1.5 overflow-y-auto">
-											{judgesByAssignmentCount.map((judge) => (
-												<DraggableJudge
-													key={judge.membershipId}
-													volunteer={judge}
-													isSelected={selectedJudgeIds.has(judge.membershipId)}
-													onToggleSelect={handleToggleSelect}
-													selectedIds={selectedJudgeIds}
-													assignmentCount={judge.assignmentCount}
-													isAssignedToCurrentEvent={assignedJudgeIds.has(
-														judge.membershipId,
-													)}
-												/>
-											))}
-										</div>
-									)}
-								</CardContent>
-							</Card>
-
-							{/* Heats Grid */}
-							<div className="space-y-4">
-								{eventHeats.length === 0 ? (
-									<Card>
-										<CardContent className="py-8 text-center">
-											<p className="text-muted-foreground">
-												No heats scheduled for this event yet.
-											</p>
-											<p className="mt-2 text-sm text-muted-foreground">
-												Create heats in the Schedule section first.
-											</p>
-										</CardContent>
-									</Card>
-								) : (
-									eventHeats.map((heat) => (
-										<JudgeHeatCard
-											key={heat.id}
-											heat={heat}
-											competitionId={competitionId}
-											organizingTeamId={organizingTeamId}
-											unassignedVolunteers={unassignedJudges}
-											judgeAssignments={assignments.filter(
-												(a) => a.heatId === heat.id,
-											)}
-											maxLanes={maxLanes}
-											onDelete={() => {
-												// No-op: Heat deletion should be done in Schedule section
-												console.debug(
-													"Heat deletion is handled in Schedule section",
-												)
-											}}
-											onAssignmentChange={(newAssignments) =>
-												handleAssignmentChange(heat.id, newAssignments)
-											}
-											onMoveAssignment={handleMoveAssignment}
-											selectedJudgeIds={selectedJudgeIds}
-											onClearSelection={clearSelection}
-										/>
-									))
-								)}
-							</div>
-						</div>
-					</>
-				)}
-			</section>
+						</>
+					)}
+				</section>
 			)}
 
 			{/* Rotations Section - Only for in-person competitions */}
 			{!isOnline && (
-			<section className="space-y-6">
-				<h3 className="text-lg font-semibold">Rotations</h3>
+				<section className="space-y-6">
+					<h3 className="text-lg font-semibold">Rotations</h3>
 
-				{/* Event Defaults Editor */}
-				<EventDefaultsEditor
-					teamId={organizingTeamId}
-					competitionId={competitionId}
-					trackWorkoutId={selectedEventId}
-					defaultHeatsCount={selectedEventDefaults.rawDefaultHeatsCount}
-					defaultLaneShiftPattern={
-						selectedEventDefaults.rawDefaultLaneShiftPattern
-					}
-					minHeatBuffer={selectedEventDefaults.rawMinHeatBuffer}
-					competitionDefaultHeats={competitionDefaultHeats}
-					competitionDefaultPattern={competitionDefaultPattern}
-				/>
-
-				{/* Rotation Overview */}
-				<RotationOverview
-					rotations={eventRotations}
-					coverage={rotationCoverage}
-					eventName={selectedEvent?.workout.name ?? "Event"}
-					teamId={organizingTeamId}
-					trackWorkoutId={selectedEventId}
-					hasActiveVersion={!!eventActiveVersion}
-					nextVersionNumber={
-						eventVersionHistory.length > 0
-							? (eventVersionHistory[0]?.version ?? 0) + 1
-							: 1
-					}
-				/>
-
-				{/* Rotation Timeline */}
-				{eventHeats.length > 0 ? (
-					<RotationTimeline
-						key={selectedEventId}
+					{/* Event Defaults Editor */}
+					<EventDefaultsEditor
+						teamId={organizingTeamId}
 						competitionId={competitionId}
+						trackWorkoutId={selectedEventId}
+						defaultHeatsCount={selectedEventDefaults.rawDefaultHeatsCount}
+						defaultLaneShiftPattern={
+							selectedEventDefaults.rawDefaultLaneShiftPattern
+						}
+						minHeatBuffer={selectedEventDefaults.rawMinHeatBuffer}
+						competitionDefaultHeats={competitionDefaultHeats}
+						competitionDefaultPattern={competitionDefaultPattern}
+					/>
+
+					{/* Rotation Overview */}
+					<RotationOverview
+						rotations={eventRotations}
+						coverage={rotationCoverage}
+						eventName={selectedEvent?.workout.name ?? "Event"}
 						teamId={organizingTeamId}
 						trackWorkoutId={selectedEventId}
-						eventName={selectedEvent?.workout.name ?? "Event"}
-						heatsList={eventHeats.map((h) => ({
-							heatNumber: h.heatNumber,
-							scheduledTime: h.scheduledTime,
-						}))}
-						laneCount={maxLanes}
-						availableJudges={judges}
-						initialRotations={eventRotations}
-						eventLaneShiftPattern={
-							selectedEventDefaults.defaultLaneShiftPattern
+						hasActiveVersion={!!eventActiveVersion}
+						nextVersionNumber={
+							eventVersionHistory.length > 0
+								? (eventVersionHistory[0]?.version ?? 0) + 1
+								: 1
 						}
-						eventDefaultHeatsCount={selectedEventDefaults.defaultHeatsCount}
-						minHeatBuffer={selectedEventDefaults.minHeatBuffer}
 					/>
-				) : (
-					<Card>
-						<CardContent className="py-8 text-center">
-							<p className="text-muted-foreground">
-								No heats scheduled for this event yet.
-							</p>
-							<p className="mt-2 text-sm text-muted-foreground">
-								Create heats in the Schedule section before creating rotations.
-							</p>
-						</CardContent>
-					</Card>
-				)}
-			</section>
+
+					{/* Rotation Timeline */}
+					{eventHeats.length > 0 ? (
+						<RotationTimeline
+							key={selectedEventId}
+							competitionId={competitionId}
+							teamId={organizingTeamId}
+							trackWorkoutId={selectedEventId}
+							eventName={selectedEvent?.workout.name ?? "Event"}
+							heatsList={eventHeats.map((h) => ({
+								heatNumber: h.heatNumber,
+								scheduledTime: h.scheduledTime,
+							}))}
+							laneCount={maxLanes}
+							availableJudges={judges}
+							initialRotations={eventRotations}
+							eventLaneShiftPattern={
+								selectedEventDefaults.defaultLaneShiftPattern
+							}
+							eventDefaultHeatsCount={selectedEventDefaults.defaultHeatsCount}
+							minHeatBuffer={selectedEventDefaults.minHeatBuffer}
+						/>
+					) : (
+						<Card>
+							<CardContent className="py-8 text-center">
+								<p className="text-muted-foreground">
+									No heats scheduled for this event yet.
+								</p>
+								<p className="mt-2 text-sm text-muted-foreground">
+									Create heats in the Schedule section before creating
+									rotations.
+								</p>
+							</CardContent>
+						</Card>
+					)}
+				</section>
 			)}
 		</section>
 	)

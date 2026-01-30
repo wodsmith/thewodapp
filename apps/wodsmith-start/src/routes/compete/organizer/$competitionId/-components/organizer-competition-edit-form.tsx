@@ -7,8 +7,15 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
+import { ChevronDownIcon, MapPinIcon } from "lucide-react"
+import { AddressFields } from "@/components/forms/address-fields"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import {
 	Form,
 	FormControl,
@@ -79,6 +86,18 @@ const formSchema = z
 		visibility: z.enum(["public", "private"]),
 		status: z.enum(["draft", "published"]),
 		timezone: z.string().min(1, "Timezone is required"),
+		address: z
+			.object({
+				name: z.string().optional(),
+				streetLine1: z.string().optional(),
+				streetLine2: z.string().optional(),
+				city: z.string().optional(),
+				stateProvince: z.string().optional(),
+				postalCode: z.string().optional(),
+				countryCode: z.string().optional(),
+				notes: z.string().optional(),
+			})
+			.optional(),
 	})
 	.refine(
 		(data) => {
@@ -122,8 +141,21 @@ const formSchema = z
 
 type FormValues = z.infer<typeof formSchema>
 
+interface CompetitionWithAddress extends Competition {
+	primaryAddress?: {
+		name: string | null
+		streetLine1: string | null
+		streetLine2: string | null
+		city: string | null
+		stateProvince: string | null
+		postalCode: string | null
+		countryCode: string | null
+		notes: string | null
+	} | null
+}
+
 interface OrganizerCompetitionEditFormProps {
-	competition: Competition
+	competition: CompetitionWithAddress
 	groups: Array<CompetitionGroup & { competitionCount: number }>
 	isPendingApproval?: boolean
 }
@@ -141,6 +173,11 @@ export function OrganizerCompetitionEditForm({
 	const [bannerImageUrl, setBannerImageUrl] = useState<string | null>(
 		competition.bannerImageUrl ?? null,
 	)
+	// Open location section by default if address exists
+	const hasExistingAddress = Boolean(
+		competition.primaryAddress?.streetLine1 || competition.primaryAddress?.city,
+	)
+	const [isLocationOpen, setIsLocationOpen] = useState(hasExistingAddress)
 
 	// Use useServerFn hook for client-side server function calls
 	const updateCompetition = useServerFn(updateCompetitionFn)
@@ -168,10 +205,21 @@ export function OrganizerCompetitionEditForm({
 			visibility: competition.visibility ?? "public",
 			status: competition.status ?? "draft",
 			timezone: competition.timezone ?? DEFAULT_TIMEZONE,
+			address: {
+				name: competition.primaryAddress?.name ?? "",
+				streetLine1: competition.primaryAddress?.streetLine1 ?? "",
+				streetLine2: competition.primaryAddress?.streetLine2 ?? "",
+				city: competition.primaryAddress?.city ?? "",
+				stateProvince: competition.primaryAddress?.stateProvince ?? "",
+				postalCode: competition.primaryAddress?.postalCode ?? "",
+				countryCode: competition.primaryAddress?.countryCode ?? "",
+				notes: competition.primaryAddress?.notes ?? "",
+			},
 		},
 	})
 
 	const isMultiDay = form.watch("isMultiDay")
+	const competitionType = form.watch("competitionType")
 
 	// Auto-generate slug from name
 	const handleNameChange = (name: string) => {
@@ -209,6 +257,7 @@ export function OrganizerCompetitionEditForm({
 					profileImageUrl,
 					bannerImageUrl,
 					timezone: data.timezone,
+					address: data.address,
 				},
 			})
 			toast.success("Competition updated successfully")
@@ -311,6 +360,26 @@ export function OrganizerCompetitionEditForm({
 						</FormItem>
 					)}
 				/>
+
+				{/* Location Section - Only shown for in-person competitions */}
+				{competitionType === "in-person" && (
+					<Collapsible open={isLocationOpen} onOpenChange={setIsLocationOpen}>
+						<div className="rounded-lg border p-4">
+							<CollapsibleTrigger className="flex w-full items-center justify-between">
+								<div className="flex items-center gap-2">
+									<MapPinIcon className="h-5 w-5 text-muted-foreground" />
+									<h3 className="text-lg font-semibold">Location</h3>
+								</div>
+								<ChevronDownIcon
+									className={`h-5 w-5 transition-transform ${isLocationOpen ? "rotate-180" : ""}`}
+								/>
+							</CollapsibleTrigger>
+							<CollapsibleContent className="mt-4">
+								<AddressFields form={form} prefix="address" />
+							</CollapsibleContent>
+						</div>
+					</Collapsible>
+				)}
 
 				<div className="grid gap-6 md:grid-cols-2">
 					<div className="space-y-2">

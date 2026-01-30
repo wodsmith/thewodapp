@@ -1,12 +1,7 @@
 "use client"
 
 import { useServerFn } from "@tanstack/react-start"
-import {
-	AlertCircle,
-	CheckCircle2,
-	ExternalLink,
-	Loader2,
-} from "lucide-react"
+import { AlertCircle, CheckCircle2, ExternalLink, Loader2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -302,7 +297,9 @@ export function VideoSubmissionForm({
 							)}
 							{initialData?.submission && (
 								<div>
-									<p className="text-sm font-medium mb-1">Your submitted video:</p>
+									<p className="text-sm font-medium mb-1">
+										Your submitted video:
+									</p>
 									<a
 										href={initialData.submission.videoUrl}
 										target="_blank"
@@ -360,7 +357,9 @@ export function VideoSubmissionForm({
 					score: scoreInput.trim() || undefined,
 					scoreStatus: scoreInput.trim() ? scoreStatus : undefined,
 					secondaryScore:
-						scoreStatus === "cap" ? secondaryScore.trim() || undefined : undefined,
+						scoreStatus === "cap"
+							? secondaryScore.trim() || undefined
+							: undefined,
 					tiebreakScore: tiebreakScore.trim() || undefined,
 				},
 			})
@@ -427,7 +426,9 @@ export function VideoSubmissionForm({
 									</p>
 								)}
 								{parseResult?.error && (
-									<p className="text-xs text-destructive">{parseResult.error}</p>
+									<p className="text-xs text-destructive">
+										{parseResult.error}
+									</p>
 								)}
 							</div>
 
@@ -500,7 +501,8 @@ export function VideoSubmissionForm({
 							showPreviewLink
 						/>
 						<p className="text-xs text-muted-foreground">
-							Upload your video to {getSupportedPlatformsText()} (unlisted is fine) and paste the link
+							Upload your video to {getSupportedPlatformsText()} (unlisted is
+							fine) and paste the link
 						</p>
 					</div>
 
@@ -552,7 +554,10 @@ export function VideoSubmissionForm({
 					{hasSubmitted && initialData?.submission && (
 						<div className="pt-2 border-t text-xs text-muted-foreground">
 							Last submitted:{" "}
-							{formatSubmissionTime(initialData.submission.submittedAt, timezone)}
+							{formatSubmissionTime(
+								initialData.submission.submittedAt,
+								timezone,
+							)}
 						</div>
 					)}
 				</form>

@@ -17,6 +17,7 @@ import {
 	DollarSign,
 	Home,
 	Layers,
+	MapPin,
 	Medal,
 	ReceiptText,
 	Settings,
@@ -108,6 +109,7 @@ const getNavigation = (
 							},
 						]
 					: []),
+				{ label: "Locations", href: `${basePath}/locations`, icon: MapPin },
 				{
 					label: "Volunteers",
 					href: `${basePath}/volunteers`,

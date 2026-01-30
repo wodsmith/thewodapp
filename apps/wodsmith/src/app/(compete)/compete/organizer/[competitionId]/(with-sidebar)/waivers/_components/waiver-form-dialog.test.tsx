@@ -408,14 +408,7 @@ describe("WaiverFormDialog", () => {
 		// Make the action hang so we can check loading state
 		mockCreate.mockReturnValue(
 			new Promise((resolve) => {
-				setTimeout(
-					() =>
-						resolve([
-							{ data: mockWaiver },
-							null,
-						] as any),
-					100,
-				)
+				setTimeout(() => resolve([{ data: mockWaiver }, null] as any), 100)
 			}) as any,
 		)
 

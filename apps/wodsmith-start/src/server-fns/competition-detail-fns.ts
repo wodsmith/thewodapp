@@ -17,6 +17,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, count, eq, isNull, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import { addressesTable } from "@/db/schemas/addresses"
 import {
 	competitionRegistrationsTable,
 	competitionsTable,
@@ -189,11 +190,25 @@ export const getCompetitionByIdFn = createServerFn({ method: "GET" })
 				defaultLaneShiftPattern: competitionsTable.defaultLaneShiftPattern,
 				defaultMaxSpotsPerDivision:
 					competitionsTable.defaultMaxSpotsPerDivision,
+				primaryAddressId: competitionsTable.primaryAddressId,
 				createdAt: competitionsTable.createdAt,
 				updatedAt: competitionsTable.updatedAt,
 				updateCounter: competitionsTable.updateCounter,
+				// Address fields
+				addressName: addressesTable.name,
+				addressStreetLine1: addressesTable.streetLine1,
+				addressStreetLine2: addressesTable.streetLine2,
+				addressCity: addressesTable.city,
+				addressStateProvince: addressesTable.stateProvince,
+				addressPostalCode: addressesTable.postalCode,
+				addressCountryCode: addressesTable.countryCode,
+				addressNotes: addressesTable.notes,
 			})
 			.from(competitionsTable)
+			.leftJoin(
+				addressesTable,
+				eq(competitionsTable.primaryAddressId, addressesTable.id),
+			)
 			.where(eq(competitionsTable.id, data.competitionId))
 			.limit(1)
 
@@ -201,7 +216,33 @@ export const getCompetitionByIdFn = createServerFn({ method: "GET" })
 			return { competition: null }
 		}
 
-		return { competition: result[0] }
+		// Reshape to include address as nested object
+		const {
+			addressName,
+			addressStreetLine1,
+			addressStreetLine2,
+			addressCity,
+			addressStateProvince,
+			addressPostalCode,
+			addressCountryCode,
+			addressNotes,
+			...competition
+		} = result[0]
+
+		const primaryAddress = competition.primaryAddressId
+			? {
+					name: addressName,
+					streetLine1: addressStreetLine1,
+					streetLine2: addressStreetLine2,
+					city: addressCity,
+					stateProvince: addressStateProvince,
+					postalCode: addressPostalCode,
+					countryCode: addressCountryCode,
+					notes: addressNotes,
+				}
+			: null
+
+		return { competition: { ...competition, primaryAddress } }
 	})
 
 /**
