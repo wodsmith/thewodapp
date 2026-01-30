@@ -127,6 +127,10 @@ const deleteCompetitionInputSchema = z.object({
 // Permission Helpers
 // ============================================================================
 
+/**
+ * Require team permission or throw error
+ * Site admins bypass this check
+ */
 async function requireTeamPermission(
 	teamId: string,
 	permission: string,
@@ -135,6 +139,9 @@ async function requireTeamPermission(
 	if (!session?.userId) {
 		throw new Error("Unauthorized")
 	}
+
+	// Site admins have all permissions
+	if (session.user?.role === ROLES_ENUM.ADMIN) return
 
 	const team = session.teams?.find((t) => t.id === teamId)
 	if (!team) {

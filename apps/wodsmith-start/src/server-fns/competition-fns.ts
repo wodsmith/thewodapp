@@ -16,9 +16,14 @@ import {
 	competitionGroupsTable,
 	competitionsTable,
 } from "@/db/schemas/competitions"
+import {
+	TEAM_PERMISSIONS,
+	type Team,
+	teamTable,
+} from "@/db/schemas/teams"
+import { ROLES_ENUM } from "@/db/schemas/users"
 import { addressInputSchema } from "@/schemas/address"
 import { normalizeAddressInput } from "@/utils/address"
-import { TEAM_PERMISSIONS, type Team, teamTable } from "@/db/schemas/teams"
 import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 import {
 	createCompetition,
@@ -633,17 +638,22 @@ export const updateCompetitionFn = createServerFn({ method: "POST" })
 			throw new Error("Competition not found")
 		}
 
-		// Permission check: user must have MANAGE_COMPETITION permission on organizing team
-		const organizingTeam = session.teams?.find(
-			(t) => t.id === existingCompetition[0].organizingTeamId,
-		)
-		if (
-			!organizingTeam ||
-			!organizingTeam.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS)
-		) {
-			throw new Error(
-				"You do not have permission to manage this competition. Please contact the organizing team.",
+		// Admin bypass - site admins can manage any competition
+		const isAdmin = session.user.role === ROLES_ENUM.ADMIN
+
+		if (!isAdmin) {
+			// Permission check: user must have MANAGE_COMPETITION permission on organizing team
+			const organizingTeam = session.teams?.find(
+				(t) => t.id === existingCompetition[0].organizingTeamId,
 			)
+			if (
+				!organizingTeam ||
+				!organizingTeam.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS)
+			) {
+				throw new Error(
+					"You do not have permission to manage this competition. Please contact the organizing team.",
+				)
+			}
 		}
 
 		try {

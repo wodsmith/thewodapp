@@ -24,7 +24,7 @@ import {
 } from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { userTable } from "@/db/schemas/users"
+import { ROLES_ENUM, userTable } from "@/db/schemas/users"
 import { workouts } from "@/db/schemas/workouts"
 import { getSessionFromCookie } from "@/utils/auth"
 import { chunk, SQL_BATCH_SIZE } from "@/utils/batch-query"
@@ -1798,9 +1798,10 @@ export const publishHeatScheduleFn = createServerFn({ method: "POST" })
 			throw new Error("Not authenticated")
 		}
 
-		// Check permission
+		// Check permission (site admins bypass)
+		const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
 		const team = session.teams?.find((t) => t.id === data.organizingTeamId)
-		if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
+		if (!isSiteAdmin && !team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
 			throw new Error("Missing required permission")
 		}
 
@@ -1837,9 +1838,10 @@ export const publishAllHeatsForEventFn = createServerFn({ method: "POST" })
 			throw new Error("Not authenticated")
 		}
 
-		// Check permission
+		// Check permission (site admins bypass)
+		const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
 		const team = session.teams?.find((t) => t.id === data.organizingTeamId)
-		if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
+		if (!isSiteAdmin && !team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
 			throw new Error("Missing required permission")
 		}
 
