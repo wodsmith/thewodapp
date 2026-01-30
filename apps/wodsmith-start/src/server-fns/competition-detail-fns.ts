@@ -14,7 +14,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, count, eq, isNull, sql } from "drizzle-orm"
+import { and, count, eq, inArray, isNull, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { addressesTable } from "@/db/schemas/addresses"
@@ -22,6 +22,12 @@ import {
 	competitionRegistrationsTable,
 	competitionsTable,
 } from "@/db/schemas/competitions"
+import {
+	programmingTracksTable,
+	scheduledWorkoutInstancesTable,
+	teamProgrammingTracksTable,
+	trackWorkoutsTable,
+} from "@/db/schemas/programming"
 import {
 	SYSTEM_ROLES_ENUM,
 	TEAM_PERMISSIONS,
@@ -770,7 +776,48 @@ export const deleteCompetitionFn = createServerFn({ method: "POST" })
 			)
 		}
 
-		// Delete the competition (will cascade delete registrations due to schema)
+		// Delete programming track-related records before deleting the competition
+		// These tables don't have onDelete cascade on the track FK, so we must delete manually
+		const competitionTracks = await db
+			.select({ id: programmingTracksTable.id })
+			.from(programmingTracksTable)
+			.where(eq(programmingTracksTable.competitionId, input.competitionId))
+
+		if (competitionTracks.length > 0) {
+			const trackIds = competitionTracks.map((t) => t.id)
+
+			// Get all track_workout IDs for these tracks
+			const trackWorkouts = await db
+				.select({ id: trackWorkoutsTable.id })
+				.from(trackWorkoutsTable)
+				.where(inArray(trackWorkoutsTable.trackId, trackIds))
+
+			if (trackWorkouts.length > 0) {
+				const trackWorkoutIds = trackWorkouts.map((tw) => tw.id)
+
+				// Delete scheduled_workout_instances referencing these track_workouts
+				await db
+					.delete(scheduledWorkoutInstancesTable)
+					.where(
+						inArray(
+							scheduledWorkoutInstancesTable.trackWorkoutId,
+							trackWorkoutIds,
+						),
+					)
+			}
+
+			// Delete track_workouts for these tracks
+			await db
+				.delete(trackWorkoutsTable)
+				.where(inArray(trackWorkoutsTable.trackId, trackIds))
+
+			// Delete team_programming_tracks for these tracks
+			await db
+				.delete(teamProgrammingTracksTable)
+				.where(inArray(teamProgrammingTracksTable.trackId, trackIds))
+		}
+
+		// Delete the competition (will cascade delete programming tracks and registrations due to schema)
 		await db
 			.delete(competitionsTable)
 			.where(eq(competitionsTable.id, input.competitionId))
