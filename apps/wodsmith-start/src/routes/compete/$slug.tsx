@@ -123,7 +123,7 @@ function CompetitionDetailLayout() {
 			/>
 
 			{/* Content Area */}
-			<div className="container mx-auto px-4 py-4">
+			<div className="container mx-auto px-3 py-4 sm:px-4">
 				<Outlet />
 			</div>
 		</div>

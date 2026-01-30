@@ -95,7 +95,7 @@ function CompetitionOverviewPage() {
 				</div>
 
 				{/* Content Panel */}
-				<div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
+				<div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 backdrop-blur-md">
 					<EventDetailsContent
 						competition={competition}
 						divisions={divisions.length > 0 ? divisions : undefined}
@@ -133,17 +133,7 @@ function CompetitionOverviewPage() {
 										})}
 									</div>
 								</div>
-							) : (
-								<section>
-									<Card className="border-dashed">
-										<CardContent className="py-6 text-center">
-											<p className="text-muted-foreground">
-												Workouts will be announced by the event organizer.
-											</p>
-										</CardContent>
-									</Card>
-								</section>
-							)
+							) : undefined
 						}
 						scheduleContent={
 							<Card className="border-dashed">
