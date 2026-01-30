@@ -152,14 +152,14 @@ export function VenueManager({
 			) {
 				const newAddress = await createAddressFn({
 					data: {
-						name: data.address.name?.trim() || null,
-						streetLine1: data.address.streetLine1?.trim() || null,
-						streetLine2: data.address.streetLine2?.trim() || null,
-						city: data.address.city?.trim() || null,
-						stateProvince: data.address.stateProvince?.trim() || null,
-						postalCode: data.address.postalCode?.trim() || null,
+						name: data.address.name?.trim() || undefined,
+						streetLine1: data.address.streetLine1?.trim() || undefined,
+						streetLine2: data.address.streetLine2?.trim() || undefined,
+						city: data.address.city?.trim() || undefined,
+						stateProvince: data.address.stateProvince?.trim() || undefined,
+						postalCode: data.address.postalCode?.trim() || undefined,
 						countryCode: data.address.countryCode?.trim() || "US",
-						notes: data.address.notes?.trim() || null,
+						notes: data.address.notes?.trim() || undefined,
 						addressType: "venue",
 					},
 				})
@@ -214,14 +214,14 @@ export function VenueManager({
 			) {
 				const newAddress = await createAddressFn({
 					data: {
-						name: data.address.name?.trim() || null,
-						streetLine1: data.address.streetLine1?.trim() || null,
-						streetLine2: data.address.streetLine2?.trim() || null,
-						city: data.address.city?.trim() || null,
-						stateProvince: data.address.stateProvince?.trim() || null,
-						postalCode: data.address.postalCode?.trim() || null,
+						name: data.address.name?.trim() || undefined,
+						streetLine1: data.address.streetLine1?.trim() || undefined,
+						streetLine2: data.address.streetLine2?.trim() || undefined,
+						city: data.address.city?.trim() || undefined,
+						stateProvince: data.address.stateProvince?.trim() || undefined,
+						postalCode: data.address.postalCode?.trim() || undefined,
 						countryCode: data.address.countryCode?.trim() || "US",
-						notes: data.address.notes?.trim() || null,
+						notes: data.address.notes?.trim() || undefined,
 						addressType: "venue",
 					},
 				})
