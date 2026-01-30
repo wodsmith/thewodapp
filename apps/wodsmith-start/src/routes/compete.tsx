@@ -63,14 +63,20 @@ function CompeteLayout() {
 	for (const match of matches) {
 		const loaderData = match.loaderData as Record<string, unknown> | undefined
 		if (loaderData?.event && typeof loaderData.event === "object") {
-			const event = loaderData.event as { id?: string; workout?: { name?: string } }
+			const event = loaderData.event as {
+				id?: string
+				workout?: { name?: string }
+			}
 			if (event.id && event.workout?.name) {
 				dynamicLabels[event.id] = event.workout.name
 			}
 		}
 		// Add competition name for slug
 		if (loaderData?.competition && typeof loaderData.competition === "object") {
-			const competition = loaderData.competition as { slug?: string; name?: string }
+			const competition = loaderData.competition as {
+				slug?: string
+				name?: string
+			}
 			if (competition.slug && competition.name) {
 				dynamicLabels[competition.slug] = competition.name
 			}

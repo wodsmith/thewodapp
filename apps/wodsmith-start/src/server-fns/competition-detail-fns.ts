@@ -218,9 +218,14 @@ export const getCompetitionByIdFn = createServerFn({ method: "GET" })
 
 		// Reshape to include address as nested object
 		const {
-			addressName, addressStreetLine1, addressStreetLine2,
-			addressCity, addressStateProvince, addressPostalCode,
-			addressCountryCode, addressNotes,
+			addressName,
+			addressStreetLine1,
+			addressStreetLine2,
+			addressCity,
+			addressStateProvince,
+			addressPostalCode,
+			addressCountryCode,
+			addressNotes,
 			...competition
 		} = result[0]
 

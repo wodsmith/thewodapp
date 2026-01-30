@@ -111,11 +111,7 @@ export const Route = createFileRoute("/compete/$slug")({
 })
 
 function CompetitionDetailLayout() {
-	const {
-		competition,
-		registrationCount,
-		canManage,
-	} = Route.useLoaderData()
+	const { competition, registrationCount, canManage } = Route.useLoaderData()
 
 	return (
 		<div className="min-h-screen bg-background">

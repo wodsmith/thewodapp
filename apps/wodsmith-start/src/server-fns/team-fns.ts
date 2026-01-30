@@ -391,7 +391,12 @@ export const getOrganizerTeamsFn = createServerFn({ method: "GET" }).handler(
 		}
 
 		// Filter teams that can organize
-		const organizerTeams: Array<{ id: string; name: string; slug: string; type: string }> = []
+		const organizerTeams: Array<{
+			id: string
+			name: string
+			slug: string
+			type: string
+		}> = []
 		const seenTeamIds = new Set<string>()
 
 		for (const team of session.teams) {

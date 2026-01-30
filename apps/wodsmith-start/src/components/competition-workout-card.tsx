@@ -1,7 +1,15 @@
 "use client"
 
 import { Link } from "@tanstack/react-router"
-import { ArrowRight, Dumbbell, Hash, MapPin, Target, Timer, Trophy } from "lucide-react"
+import {
+	ArrowRight,
+	Dumbbell,
+	Hash,
+	MapPin,
+	Target,
+	Timer,
+	Trophy,
+} from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"

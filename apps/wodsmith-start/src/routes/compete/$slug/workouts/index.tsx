@@ -1,4 +1,8 @@
-import { createFileRoute, getRouteApi, useNavigate } from "@tanstack/react-router"
+import {
+	createFileRoute,
+	getRouteApi,
+	useNavigate,
+} from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
 import { Dumbbell, Filter } from "lucide-react"
 import { z } from "zod"
@@ -204,8 +208,8 @@ function CompetitionWorkoutsPage() {
 							<Dumbbell className="h-4 w-4" />
 							<AlertTitle>Workouts not yet released</AlertTitle>
 							<AlertDescription>
-								Competition workouts will be announced closer to the event. Check
-								back soon or follow the event organizer for updates.
+								Competition workouts will be announced closer to the event.
+								Check back soon or follow the event organizer for updates.
 							</AlertDescription>
 						</Alert>
 					</div>
@@ -231,7 +235,11 @@ function CompetitionWorkoutsPage() {
 								</span>
 							</h2>
 							<p className="text-sm text-muted-foreground hidden sm:block">
-								Viewing variations for <span className="font-medium text-foreground">{divisions?.find(d => d.id === selectedDivisionId)?.label || "All Divisions"}</span>
+								Viewing variations for{" "}
+								<span className="font-medium text-foreground">
+									{divisions?.find((d) => d.id === selectedDivisionId)?.label ||
+										"All Divisions"}
+								</span>
 							</p>
 						</div>
 
@@ -247,7 +255,11 @@ function CompetitionWorkoutsPage() {
 									</SelectTrigger>
 									<SelectContent>
 										{divisions.map((division) => (
-											<SelectItem key={division.id} value={division.id} className="cursor-pointer">
+											<SelectItem
+												key={division.id}
+												value={division.id}
+												className="cursor-pointer"
+											>
 												{division.label}
 											</SelectItem>
 										))}
@@ -260,7 +272,8 @@ function CompetitionWorkoutsPage() {
 					{/* Workouts List */}
 					<div className="space-y-6">
 						{workouts.map((event) => {
-							const divisionDescriptionsResult = divisionDescriptionsMap?.[event.workoutId]
+							const divisionDescriptionsResult =
+								divisionDescriptionsMap?.[event.workoutId]
 							return (
 								<CompetitionWorkoutCard
 									key={event.id}

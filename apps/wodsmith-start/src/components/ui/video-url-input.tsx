@@ -1,7 +1,13 @@
 "use client"
 
 import * as React from "react"
-import { Video, CheckCircle2, XCircle, AlertCircle, ExternalLink } from "lucide-react"
+import {
+	Video,
+	CheckCircle2,
+	XCircle,
+	AlertCircle,
+	ExternalLink,
+} from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/utils/cn"
 import {
@@ -170,7 +176,8 @@ const VideoUrlInput = React.forwardRef<HTMLInputElement, VideoUrlInputProps>(
 		const { isValid, isPending, error, parsedUrl } = validationState
 		const hasValue = localValue.trim().length > 0
 		const showValidIcon = hasValue && isValid && !isPending
-		const showErrorIcon = hasValue && !isValid && !isPending && error && hasBlurred
+		const showErrorIcon =
+			hasValue && !isValid && !isPending && error && hasBlurred
 		const showPendingIcon = isPending && validateOn === "change"
 
 		return (
@@ -187,8 +194,13 @@ const VideoUrlInput = React.forwardRef<HTMLInputElement, VideoUrlInputProps>(
 						onBlur={handleBlur}
 						className={cn(
 							"pl-9 pr-10",
-							error && hasValue && hasBlurred && "border-destructive focus-visible:ring-destructive",
-							isValid && hasValue && "border-green-500 focus-visible:ring-green-500",
+							error &&
+								hasValue &&
+								hasBlurred &&
+								"border-destructive focus-visible:ring-destructive",
+							isValid &&
+								hasValue &&
+								"border-green-500 focus-visible:ring-green-500",
 							className,
 						)}
 						placeholder="Paste video URL..."
@@ -203,9 +215,7 @@ const VideoUrlInput = React.forwardRef<HTMLInputElement, VideoUrlInputProps>(
 						{showValidIcon && (
 							<CheckCircle2 className="h-4 w-4 text-green-500" />
 						)}
-						{showErrorIcon && (
-							<XCircle className="h-4 w-4 text-destructive" />
-						)}
+						{showErrorIcon && <XCircle className="h-4 w-4 text-destructive" />}
 					</div>
 				</div>
 

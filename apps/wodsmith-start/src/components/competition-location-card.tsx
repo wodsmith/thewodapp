@@ -1,15 +1,7 @@
 import type { Address } from "@/types/address"
-import {
-	formatFullAddress,
-	hasAddressData,
-} from "@/utils/address"
+import { formatFullAddress, hasAddressData } from "@/utils/address"
 import { GlobeIcon, InfoIcon, MapPinIcon } from "lucide-react"
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface CompetitionLocationCardProps {
 	address: Partial<Address> | null
@@ -48,7 +40,9 @@ export function CompetitionLocationCard({
 						This is an online competition. No physical location required.
 					</p>
 				) : hasAddress ? (
-					<div className="whitespace-pre-line">{formatFullAddress(address)}</div>
+					<div className="whitespace-pre-line">
+						{formatFullAddress(address)}
+					</div>
 				) : (
 					<p className="text-muted-foreground">
 						{organizingTeamName

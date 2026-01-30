@@ -279,7 +279,9 @@ async function validateSingleUrl(
  * overwhelming external services or server resources.
  */
 export const batchValidateVideoUrlsFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => batchValidateVideoUrlsInputSchema.parse(data))
+	.inputValidator((data: unknown) =>
+		batchValidateVideoUrlsInputSchema.parse(data),
+	)
 	.handler(
 		async ({
 			data,

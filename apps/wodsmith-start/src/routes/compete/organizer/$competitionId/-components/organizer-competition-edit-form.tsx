@@ -175,8 +175,7 @@ export function OrganizerCompetitionEditForm({
 	)
 	// Open location section by default if address exists
 	const hasExistingAddress = Boolean(
-		competition.primaryAddress?.streetLine1 ||
-			competition.primaryAddress?.city,
+		competition.primaryAddress?.streetLine1 || competition.primaryAddress?.city,
 	)
 	const [isLocationOpen, setIsLocationOpen] = useState(hasExistingAddress)
 

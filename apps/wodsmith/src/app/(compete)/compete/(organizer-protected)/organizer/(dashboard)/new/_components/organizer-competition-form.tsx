@@ -190,7 +190,8 @@ export function OrganizerCompetitionForm({
 		}
 
 		// For single-day competitions, endDate = startDate
-		const effectiveEndDate = data.isMultiDay && data.endDate ? data.endDate : data.startDate
+		const effectiveEndDate =
+			data.isMultiDay && data.endDate ? data.endDate : data.startDate
 
 		createCompetition({
 			organizingTeamId: data.teamId,

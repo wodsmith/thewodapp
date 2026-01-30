@@ -94,7 +94,9 @@ export function AddCompetitionsToSeriesDialog({
 			)
 
 			const results = await Promise.allSettled(updates)
-			const successCount = results.filter((r) => r.status === "fulfilled").length
+			const successCount = results.filter(
+				(r) => r.status === "fulfilled",
+			).length
 			const failureCount = results.length - successCount
 
 			if (successCount > 0) {
@@ -212,7 +214,11 @@ export function AddCompetitionsToSeriesDialog({
 				)}
 
 				<DialogFooter>
-					<Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
+					<Button
+						variant="outline"
+						onClick={handleClose}
+						disabled={isSubmitting}
+					>
 						Cancel
 					</Button>
 					<Button

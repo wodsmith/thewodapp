@@ -131,7 +131,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 		const venueResult = defaultDivisionId
 			? await getVenueForTrackWorkoutByDivisionFn({
 					data: { trackWorkoutId: eventId, divisionId: defaultDivisionId },
-			  })
+				})
 			: { venue: null }
 
 		return {
@@ -520,28 +520,28 @@ function EventDetailsPage() {
 													{venue.address.streetLine2}
 												</>
 											)}
-											{(venue.address.city || venue.address.stateProvince || venue.address.postalCode) && (
+											{(venue.address.city ||
+												venue.address.stateProvince ||
+												venue.address.postalCode) && (
 												<>
 													<br />
-													{[venue.address.city, venue.address.stateProvince].filter(Boolean).join(", ")}{" "}
+													{[venue.address.city, venue.address.stateProvince]
+														.filter(Boolean)
+														.join(", ")}{" "}
 													{venue.address.postalCode}
 												</>
 											)}
-											{venue.address.countryCode && venue.address.countryCode !== "US" && (
-												<>
-													<br />
-													{venue.address.countryCode}
-												</>
-											)}
+											{venue.address.countryCode &&
+												venue.address.countryCode !== "US" && (
+													<>
+														<br />
+														{venue.address.countryCode}
+													</>
+												)}
 										</p>
 									</div>
 								</div>
-								<Button
-									variant="outline"
-									size="sm"
-									className="w-full"
-									asChild
-								>
+								<Button variant="outline" size="sm" className="w-full" asChild>
 									<a
 										href={getGoogleMapsUrl(venue.address) ?? undefined}
 										target="_blank"

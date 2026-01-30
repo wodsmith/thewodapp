@@ -56,14 +56,14 @@ function LocationsPage() {
 			</div>
 
 			<VenueManager
-			competitionId={competitionId}
-			venues={venues}
-			primaryAddressId={competition.primaryAddressId}
-			primaryAddress={competition.primaryAddress}
-			onVenueCreate={handleVenueCreate}
-			onVenueUpdate={handleVenueUpdate}
-			onVenueDelete={handleVenueDelete}
-		/>
+				competitionId={competitionId}
+				venues={venues}
+				primaryAddressId={competition.primaryAddressId}
+				primaryAddress={competition.primaryAddress}
+				onVenueCreate={handleVenueCreate}
+				onVenueUpdate={handleVenueUpdate}
+				onVenueDelete={handleVenueDelete}
+			/>
 		</div>
 	)
 }

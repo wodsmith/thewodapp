@@ -180,7 +180,9 @@ const COUNTRY_DISPLAY_NAMES: Record<string, string> = {
  * @param state - State name or abbreviation
  * @returns State abbreviation or original value if not found
  */
-export function normalizeState(state: string | null | undefined): string | null {
+export function normalizeState(
+	state: string | null | undefined,
+): string | null {
 	if (!state) return null
 
 	const trimmed = state.trim()
@@ -331,7 +333,8 @@ export function formatFullAddress(
 	// Add postal code to the last part (state or city)
 	if (address.postalCode?.trim() && cityParts.length > 0) {
 		const lastIndex = cityParts.length - 1
-		cityParts[lastIndex] = `${cityParts[lastIndex]} ${address.postalCode.trim()}`
+		cityParts[lastIndex] =
+			`${cityParts[lastIndex]} ${address.postalCode.trim()}`
 	} else if (address.postalCode?.trim()) {
 		// No city or state, just postal code
 		cityParts.push(address.postalCode.trim())
