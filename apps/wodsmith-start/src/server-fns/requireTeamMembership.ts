@@ -47,11 +47,17 @@ export async function requireTeamPermission(
 }
 /**
  * Require team membership (any role)
+ * Site admins bypass this check
  */
 export async function requireTeamMembership(teamId: string): Promise<void> {
 	const session = await getSessionFromCookie()
 	if (!session?.userId) {
 		throw new Error("Not authenticated")
+	}
+
+	// Site admins bypass membership check
+	if (session.user?.role === ROLES_ENUM.ADMIN) {
+		return
 	}
 
 	const team = session.teams?.find((t) => t.id === teamId)
