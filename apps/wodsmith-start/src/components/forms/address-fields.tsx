@@ -10,6 +10,10 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import {
+	SearchableSelect,
+	type SearchableSelectOption,
+} from "@/components/ui/searchable-select"
+import {
 	Select,
 	SelectContent,
 	SelectItem,
@@ -166,10 +170,14 @@ export function AddressFields<T extends FieldValues>({
 	// Watch country to determine state/province options
 	const countryCode = form.watch(getFieldName("countryCode"))
 
-	// Get state/province options based on country
-	const getStateOptions = () => {
-		if (countryCode === "US") return US_STATES
-		if (countryCode === "CA") return CA_PROVINCES
+	// Get state/province options based on country (formatted for SearchableSelect)
+	const getStateOptions = (): SearchableSelectOption[] | null => {
+		if (countryCode === "US") {
+			return US_STATES.map((s) => ({ value: s.code, label: s.name }))
+		}
+		if (countryCode === "CA") {
+			return CA_PROVINCES.map((s) => ({ value: s.code, label: s.name }))
+		}
 		return null // Use text input for other countries
 	}
 
@@ -284,25 +292,13 @@ export function AddressFields<T extends FieldValues>({
 								{countryCode === "CA" ? "Province" : "State"}
 							</FormLabel>
 							{stateOptions ? (
-								<Select
-									onValueChange={field.onChange}
+								<SearchableSelect
+									options={stateOptions}
 									value={field.value ?? ""}
-								>
-									<FormControl>
-										<SelectTrigger>
-											<SelectValue
-												placeholder={`Select ${countryCode === "CA" ? "province" : "state"}`}
-											/>
-										</SelectTrigger>
-									</FormControl>
-									<SelectContent>
-										{stateOptions.map((state) => (
-											<SelectItem key={state.code} value={state.code}>
-												{state.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
+									onValueChange={field.onChange}
+									placeholder={`Select ${countryCode === "CA" ? "province" : "state"}`}
+									searchPlaceholder="Search..."
+								/>
 							) : (
 								<FormControl>
 									<Input
