@@ -1801,7 +1801,10 @@ export const publishHeatScheduleFn = createServerFn({ method: "POST" })
 		// Check permission (site admins bypass)
 		const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
 		const team = session.teams?.find((t) => t.id === data.organizingTeamId)
-		if (!isSiteAdmin && !team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
+		if (
+			!isSiteAdmin &&
+			!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+		) {
 			throw new Error("Missing required permission")
 		}
 
@@ -1841,7 +1844,10 @@ export const publishAllHeatsForEventFn = createServerFn({ method: "POST" })
 		// Check permission (site admins bypass)
 		const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
 		const team = session.teams?.find((t) => t.id === data.organizingTeamId)
-		if (!isSiteAdmin && !team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
+		if (
+			!isSiteAdmin &&
+			!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+		) {
 			throw new Error("Missing required permission")
 		}
 

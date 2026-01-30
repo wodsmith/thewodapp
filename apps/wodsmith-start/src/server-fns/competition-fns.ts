@@ -16,11 +16,7 @@ import {
 	competitionGroupsTable,
 	competitionsTable,
 } from "@/db/schemas/competitions"
-import {
-	TEAM_PERMISSIONS,
-	type Team,
-	teamTable,
-} from "@/db/schemas/teams"
+import { TEAM_PERMISSIONS, type Team, teamTable } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
 import { addressInputSchema } from "@/schemas/address"
 import { normalizeAddressInput } from "@/utils/address"
@@ -648,7 +644,9 @@ export const updateCompetitionFn = createServerFn({ method: "POST" })
 			)
 			if (
 				!organizingTeam ||
-				!organizingTeam.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS)
+				!organizingTeam.permissions.includes(
+					TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+				)
 			) {
 				throw new Error(
 					"You do not have permission to manage this competition. Please contact the organizing team.",

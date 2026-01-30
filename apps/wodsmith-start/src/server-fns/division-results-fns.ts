@@ -190,7 +190,10 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 			// Check permission (site admins bypass)
 			const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
 			const team = session.teams?.find((t) => t.id === data.organizingTeamId)
-			if (!isSiteAdmin && !team?.permissions.includes(TEAM_PERMISSIONS.ACCESS_DASHBOARD)) {
+			if (
+				!isSiteAdmin &&
+				!team?.permissions.includes(TEAM_PERMISSIONS.ACCESS_DASHBOARD)
+			) {
 				throw new Error("Missing required permission")
 			}
 
@@ -485,7 +488,10 @@ export const publishDivisionResultsFn = createServerFn({ method: "POST" })
 			// Check permission (site admins bypass)
 			const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
 			const team = session.teams?.find((t) => t.id === data.organizingTeamId)
-			if (!isSiteAdmin && !team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
+			if (
+				!isSiteAdmin &&
+				!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+			) {
 				throw new Error("Missing required permission")
 			}
 
@@ -559,7 +565,10 @@ export const publishAllDivisionResultsFn = createServerFn({ method: "POST" })
 			// Check permission (site admins bypass)
 			const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
 			const team = session.teams?.find((t) => t.id === data.organizingTeamId)
-			if (!isSiteAdmin && !team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
+			if (
+				!isSiteAdmin &&
+				!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+			) {
 				throw new Error("Missing required permission")
 			}
 
