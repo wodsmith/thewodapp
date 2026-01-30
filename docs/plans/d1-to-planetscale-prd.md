@@ -101,8 +101,24 @@ These requirements are blocking for production launch.
 - All `integer({ mode: 'boolean' })` converted to `boolean()` (TINYINT)
 - All `text()` columns evaluated for appropriate MySQL type (VARCHAR/TEXT)
 - All `real()` columns converted to appropriate MySQL numeric type
-- All date columns use proper MySQL datetime types
+- All epoch timestamp columns (stored as integers) converted to `datetime` with UTC ISO 8601 format
 - Type tests pass with MySQL column definitions
+
+#### 4.1.2.1 Timestamp Format Standardization
+
+**Requirement**: All epoch/integer timestamps must be converted to UTC ISO 8601 datetime format.
+
+**Rationale**:
+- Epoch timestamps (Unix integers) are human-unreadable in database tools
+- ISO 8601 (`YYYY-MM-DDTHH:MM:SSZ`) is the international standard for date interchange
+- MySQL's `datetime` type stores in ISO 8601 format natively
+- Consistent UTC storage eliminates timezone ambiguity
+
+**Acceptance Criteria**:
+- All `integer({ mode: 'timestamp' })` columns converted to `datetime` in MySQL
+- All existing epoch values transformed to UTC ISO 8601 during ETL
+- Application code updated to work with Date objects instead of Unix integers
+- Database queries return proper Date types via Drizzle
 
 #### 4.1.3 ULID Primary Key Adoption
 

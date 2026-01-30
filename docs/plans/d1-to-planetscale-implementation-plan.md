@@ -195,11 +195,19 @@ export const commonColumns = {
     .$onUpdate(() => sql`updateCounter + 1`),
 }
 
-// AFTER (MySQL with ULIDs)
+// AFTER (MySQL with ULIDs and UTC ISO 8601 datetimes)
 import { ulid } from "ulid"
 import { sql } from "drizzle-orm"
 import { datetime, int } from "drizzle-orm/mysql-core"
 
+/**
+ * All timestamps are stored as UTC ISO 8601 datetime
+ * Format: 'YYYY-MM-DD HH:MM:SS' (e.g., '2024-01-15 14:30:00')
+ *
+ * Migration: Epoch integers → UTC ISO 8601 datetime
+ * - Epoch seconds: value * 1000 → new Date() → toISOString()
+ * - Stored in MySQL datetime column (not timestamp)
+ */
 export const commonColumns = {
   createdAt: datetime("created_at")
     .$defaultFn(() => new Date())
@@ -280,7 +288,7 @@ export const userTable = mysqlTable(
 | `text({ length: N })` | `varchar({ length: N })` | Direct mapping |
 | `integer()` | `int()` | Standard integers |
 | `integer({ mode: 'boolean' })` | `boolean()` | MySQL boolean (tinyint) |
-| `integer({ mode: 'timestamp' })` | `datetime()` | MySQL datetime |
+| `integer({ mode: 'timestamp' })` | `datetime()` | UTC ISO 8601 datetime |
 | `text({ mode: 'json' })` | `json()` | MySQL native JSON |
 | `blob()` | `blob()` or `varbinary({ length: N })` | Binary data |
 
@@ -809,7 +817,7 @@ main().catch(console.error)
 #!/usr/bin/env tsx
 /**
  * Transform extracted D1 data for PlanetScale
- * - Convert integer timestamps to Date objects
+ * - Convert epoch integer timestamps to UTC ISO 8601 datetime strings
  * - Convert integer booleans to actual booleans
  * - Map old CUID2 IDs to new ULIDs (if needed)
  */
@@ -824,7 +832,8 @@ const transformedDir = path.join(__dirname, "transformed-data")
 // ID mapping for foreign key consistency
 const idMapping = new Map<string, string>()
 
-// Columns that are timestamps (stored as integer seconds in SQLite)
+// Columns that are timestamps (stored as epoch integer seconds in SQLite)
+// Will be converted to UTC ISO 8601 format: 'YYYY-MM-DD HH:MM:SS'
 const TIMESTAMP_COLUMNS = [
   "createdAt",
   "updatedAt",
@@ -837,6 +846,10 @@ const TIMESTAMP_COLUMNS = [
   "acceptedAt",
   "stripeOnboardingCompletedAt",
   "planExpiresAt",
+  "recordedAt",
+  "completedAt",
+  "expirationDate",
+  "expirationDateProcessedAt",
 ]
 
 // Columns that are booleans (stored as 0/1 in SQLite)
@@ -848,11 +861,22 @@ const BOOLEAN_COLUMNS = [
   "passStripeFeeToCustomer",
 ]
 
-function transformTimestamp(value: unknown): Date | null {
+/**
+ * Convert epoch timestamp to UTC ISO 8601 datetime string
+ * Output format: 'YYYY-MM-DD HH:MM:SS' (MySQL datetime compatible)
+ */
+function transformEpochToISO8601(value: unknown): string | null {
   if (value === null || value === undefined) return null
   if (typeof value === "number") {
-    // SQLite stores as Unix timestamp (seconds)
-    return new Date(value * 1000)
+    // Detect if milliseconds (value > year 2100 in seconds)
+    const isMilliseconds = value > 4102444800
+    const date = new Date(isMilliseconds ? value : value * 1000)
+
+    // Validate the date is reasonable (1970-2100)
+    if (isNaN(date.getTime())) return null
+
+    // Return MySQL datetime format (UTC ISO 8601 without T and Z)
+    return date.toISOString().slice(0, 19).replace("T", " ")
   }
   return null
 }
@@ -887,7 +911,8 @@ function transformRow(
       // Only regenerate if we want fresh ULIDs
       transformed[key] = value
     } else if (TIMESTAMP_COLUMNS.includes(key)) {
-      transformed[key] = transformTimestamp(value)
+      // Convert epoch to UTC ISO 8601: 'YYYY-MM-DD HH:MM:SS'
+      transformed[key] = transformEpochToISO8601(value)
     } else if (BOOLEAN_COLUMNS.includes(key)) {
       transformed[key] = transformBoolean(value)
     } else {
@@ -994,10 +1019,8 @@ async function loadTable(
     for (const row of batch) {
       const values = columns.map((col) => {
         const val = row[col]
-        // Convert Date objects to MySQL datetime format
-        if (val instanceof Date) {
-          return val.toISOString().slice(0, 19).replace("T", " ")
-        }
+        // Datetime values are already in 'YYYY-MM-DD HH:MM:SS' format
+        // from the transform step (UTC ISO 8601)
         return val
       })
 

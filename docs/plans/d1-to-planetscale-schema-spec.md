@@ -126,38 +126,63 @@ SQLite's `integer()` is flexible (1-8 bytes). MySQL requires precision:
 - **Counters**: `updateCounter` - use `int()`
 - **Timestamps**: Use `timestamp()` for audit columns, `datetime()` for user-specified times
 
-### 2.4 Timestamp Handling
+### 2.4 Timestamp Handling (Epoch to UTC ISO 8601)
+
+**Critical Change**: All epoch/integer timestamps must be converted to UTC ISO 8601 format using MySQL `datetime` columns.
 
 **SQLite (Current)**
 ```typescript
+// Stored as Unix epoch integers (seconds or milliseconds since 1970)
 integer({ mode: 'timestamp' }).$defaultFn(() => new Date())
 ```
 
-**MySQL (Target)**
+**MySQL (Target) - UTC ISO 8601**
 ```typescript
-timestamp().defaultNow()
-// or for nullable timestamps:
-datetime()
+// Stored as 'YYYY-MM-DD HH:MM:SS' in UTC
+datetime("column_name").$defaultFn(() => new Date())
 ```
+
+**Why `datetime` over `timestamp`:**
+- `datetime` range: 1000-01-01 to 9999-12-31 (ISO 8601 compatible)
+- `timestamp` range: 1970-01-01 to 2038-01-19 (Unix epoch limitation)
+- `datetime` stores the literal value; `timestamp` converts based on server timezone
+- For UTC storage, `datetime` provides more predictable behavior
 
 **Common Columns Pattern:**
 ```typescript
-// SQLite
+// SQLite (epoch integers)
 export const commonColumns = {
   createdAt: integer({ mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer({ mode: 'timestamp' }).$onUpdateFn(() => new Date()).notNull(),
   updateCounter: integer().default(0).$onUpdate(() => sql`updateCounter + 1`),
 }
 
-// MySQL
+// MySQL (UTC ISO 8601 datetime)
 export const commonColumns = {
-  createdAt: timestamp().defaultNow().notNull(),
-  updatedAt: timestamp().defaultNow().onUpdateNow().notNull(),
-  updateCounter: int().default(0), // $onUpdate needs application handling
+  createdAt: datetime("created_at").$defaultFn(() => new Date()).notNull(),
+  updatedAt: datetime("updated_at").$defaultFn(() => new Date()).$onUpdateFn(() => new Date()).notNull(),
+  updateCounter: int("update_counter").default(0),
 }
 ```
 
-**Note:** The `$onUpdate` for `updateCounter` using raw SQL may need adjustment. MySQL's `ON UPDATE CURRENT_TIMESTAMP` only works for timestamp columns.
+**ISO 8601 Format Examples:**
+- Database storage: `2024-01-15 14:30:00` (UTC)
+- JavaScript Date: `new Date('2024-01-15T14:30:00Z')`
+- API response: `"2024-01-15T14:30:00.000Z"`
+
+**Migration Transformation:**
+```typescript
+// Convert epoch (seconds) to ISO 8601 datetime
+const epochSeconds = 1705329000  // from D1
+const isoDate = new Date(epochSeconds * 1000).toISOString()
+// Result: "2024-01-15T14:30:00.000Z"
+
+// For MySQL datetime format (without 'T' and 'Z')
+const mysqlDatetime = isoDate.slice(0, 19).replace('T', ' ')
+// Result: "2024-01-15 14:30:00"
+```
+
+**Note:** The `$onUpdate` for `updateCounter` using raw SQL may need adjustment. Drizzle's `$onUpdateFn` handles this at the application layer.
 
 ### 2.5 Real/Float Columns
 
@@ -444,12 +469,12 @@ export const commonColumns = {
 | `email` | `text({ length: 255 }).unique()` | `varchar(255).unique()` |
 | `passwordHash` | `text()` | `varchar(255)` |
 | `role` | `text({ enum: [...] })` | `varchar(20)` |
-| `emailVerified` | `integer({ mode: 'timestamp' })` | `timestamp()` |
+| `emailVerified` | `integer({ mode: 'timestamp' })` | `datetime()` |
 | `signUpIpAddress` | `text({ length: 128 })` | `varchar(128)` |
 | `googleAccountId` | `text({ length: 255 })` | `varchar(255)` |
 | `avatar` | `text({ length: 600 })` | `varchar(600)` |
 | `currentCredits` | `integer().default(0)` | `int().default(0)` |
-| `lastCreditRefreshAt` | `integer({ mode: 'timestamp' })` | `timestamp()` |
+| `lastCreditRefreshAt` | `integer({ mode: 'timestamp' })` | `datetime()` |
 | `gender` | `text({ enum: [...] })` | `varchar(10)` |
 | `dateOfBirth` | `integer({ mode: 'timestamp' })` | `date()` |
 | `affiliateName` | `text({ length: 255 })` | `varchar(255)` |
@@ -483,7 +508,7 @@ export const commonColumns = {
 | `settings` | `text({ length: 10000 })` | `json()` |
 | `billingEmail` | `text({ length: 255 })` | `varchar(255)` |
 | `planId` | `text({ length: 100 })` | `varchar(100)` |
-| `planExpiresAt` | `integer({ mode: 'timestamp' })` | `timestamp()` |
+| `planExpiresAt` | `integer({ mode: 'timestamp' })` | `datetime()` |
 | `creditBalance` | `integer().default(0)` | `int().default(0)` |
 | `currentPlanId` | `text({ length: 100 })` | `varchar(100)` |
 | `defaultTrackId` | `text()` | `varchar(32)` |
@@ -496,7 +521,7 @@ export const commonColumns = {
 | `stripeConnectedAccountId` | `text()` | `varchar(255)` |
 | `stripeAccountStatus` | `text({ length: 20 })` | `varchar(20)` |
 | `stripeAccountType` | `text({ length: 20 })` | `varchar(20)` |
-| `stripeOnboardingCompletedAt` | `integer({ mode: 'timestamp' })` | `timestamp()` |
+| `stripeOnboardingCompletedAt` | `integer({ mode: 'timestamp' })` | `datetime()` |
 | `organizerFeePercentage` | `integer()` | `int()` |
 | `organizerFeeFixed` | `integer()` | `int()` |
 
@@ -510,9 +535,9 @@ export const commonColumns = {
 | `roleId` | `text()` | `varchar(32)` |
 | `isSystemRole` | `integer().default(1)` | `boolean().default(true)` |
 | `invitedBy` | `text()` | `varchar(32)` |
-| `invitedAt` | `integer({ mode: 'timestamp' })` | `timestamp()` |
-| `joinedAt` | `integer({ mode: 'timestamp' })` | `timestamp()` |
-| `expiresAt` | `integer({ mode: 'timestamp' })` | `timestamp()` |
+| `invitedAt` | `integer({ mode: 'timestamp' })` | `datetime()` |
+| `joinedAt` | `integer({ mode: 'timestamp' })` | `datetime()` |
+| `expiresAt` | `integer({ mode: 'timestamp' })` | `datetime()` |
 | `isActive` | `integer().default(1)` | `boolean().default(true)` |
 | `metadata` | `text({ length: 5000 })` | `json()` |
 
@@ -596,7 +621,7 @@ export const commonColumns = {
 | `scalingLevelId` | `text()` | `varchar(32)` |
 | `asRx` | `integer({ mode: 'boolean' })` | `boolean().default(false)` |
 | `notes` | `text()` | `text()` |
-| `recordedAt` | `integer({ mode: 'timestamp' })` | `timestamp()` |
+| `recordedAt` | `integer({ mode: 'timestamp' })` | `datetime()` |
 
 ### 6.7 Billing Schema (`billing.ts`)
 
@@ -610,8 +635,8 @@ export const commonColumns = {
 | `remainingAmount` | `integer().default(0)` | `int().default(0)` |
 | `type` | `text({ enum: [...] })` | `varchar(20)` |
 | `description` | `text({ length: 255 })` | `varchar(255)` |
-| `expirationDate` | `integer({ mode: 'timestamp' })` | `timestamp()` |
-| `expirationDateProcessedAt` | `integer({ mode: 'timestamp' })` | `timestamp()` |
+| `expirationDate` | `integer({ mode: 'timestamp' })` | `datetime()` |
+| `expirationDateProcessedAt` | `integer({ mode: 'timestamp' })` | `datetime()` |
 | `paymentIntentId` | `text({ length: 255 })` | `varchar(255)` |
 
 ### 6.8 Commerce Schema (`commerce.ts`)
@@ -633,7 +658,7 @@ export const commonColumns = {
 | `stripeCheckoutSessionId` | `text()` | `varchar(255)` |
 | `stripePaymentIntentId` | `text()` | `varchar(255)` |
 | `metadata` | `text({ length: 10000 })` | `json()` |
-| `completedAt` | `integer({ mode: 'timestamp' })` | `timestamp()` |
+| `completedAt` | `integer({ mode: 'timestamp' })` | `datetime()` |
 
 ### 6.9 Remaining Tables Summary
 
@@ -659,18 +684,36 @@ The following tables follow similar transformation patterns:
 
 ## 7. Migration Data Transformations
 
-### 7.1 Timestamp Conversion
+### 7.1 Timestamp Conversion (Epoch to UTC ISO 8601)
 
-**SQLite Storage:** Unix timestamps as integers (seconds or milliseconds)
-**MySQL Storage:** Native `TIMESTAMP` or `DATETIME`
+**SQLite Storage:** Unix epoch timestamps as integers (seconds or milliseconds since 1970-01-01)
+**MySQL Storage:** `DATETIME` in UTC ISO 8601 format (`YYYY-MM-DD HH:MM:SS`)
 
-**Transformation:**
+**Transformation Strategy:**
+
 ```typescript
-// During ETL
-const mysqlTimestamp = new Date(sqliteIntegerTimestamp * 1000) // if seconds
-// or
-const mysqlTimestamp = new Date(sqliteIntegerTimestamp) // if milliseconds
+// During ETL - Convert epoch to UTC ISO 8601
+
+// Detect if timestamp is seconds or milliseconds
+function convertEpochToISO8601(epochValue: number): string {
+  // If value > year 2100 in seconds, it's likely milliseconds
+  const isMilliseconds = epochValue > 4102444800
+  const date = new Date(isMilliseconds ? epochValue : epochValue * 1000)
+
+  // Return MySQL datetime format (UTC)
+  return date.toISOString().slice(0, 19).replace('T', ' ')
+}
+
+// Examples:
+// convertEpochToISO8601(1705329000)     → "2024-01-15 14:30:00"
+// convertEpochToISO8601(1705329000000)  → "2024-01-15 14:30:00"
 ```
+
+**Validation Rules:**
+- Epoch value must be > 0 (dates after 1970-01-01)
+- Epoch value must be < 4102444800000 (year 2100 in ms, sanity check)
+- Null values remain null
+- Invalid values logged for review
 
 ### 7.2 Boolean Conversion
 
@@ -776,7 +819,7 @@ const migrationOrder = [
 | `text({ enum: [...] })` | `varchar(N)` | Enums as strings |
 | `integer()` | `int()` | Standard integer |
 | `integer({ mode: 'boolean' })` | `boolean()` | Maps to TINYINT(1) |
-| `integer({ mode: 'timestamp' })` | `timestamp()` | Date/time |
+| `integer({ mode: 'timestamp' })` | `datetime()` | Date/time (UTC ISO 8601) |
 | `real()` | `double()` | Floating point |
 | `blob()` | `blob()` | Binary data |
 
