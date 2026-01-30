@@ -9,12 +9,29 @@
  * the parent /compete/organizer route returns session: null for all onboard routes
  * to allow the onboard index page to handle inline auth. This caused a redirect
  * loop when using context.session (which was always null for onboard routes).
+ *
+ * NOTE: Due to Cloudflare KV eventual consistency, the session's teams list
+ * may be stale after team creation or feature grant. If no pending request
+ * is found from cached session, we fallback to querying the database directly.
  */
 
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
+import { eq } from "drizzle-orm"
 import { formatDistanceToNow } from "date-fns"
 import { CheckCircle, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { getDb } from "@/db"
+import {
+	teamMembershipTable,
+	TEAM_TYPE_ENUM,
+	type Team,
+	type TeamMembership,
+} from "@/db/schema"
+
+/** Membership with team relation included */
+type TeamMembershipWithTeam = TeamMembership & {
+	team: Team | null
+}
 import { getOptionalSession } from "@/server-fns/middleware/auth"
 import {
 	getOrganizerRequest,
@@ -71,6 +88,7 @@ export const Route = createFileRoute("/compete/organizer/onboard/pending")({
 		let pendingRequest: PendingRequestInfo | null = null
 		let pendingTeam: TeamInfo | null = null
 
+		// First, check teams from cached session
 		for (const team of gymTeams) {
 			const approved = await fetchIsApprovedOrganizer(team.id)
 			if (approved) {
@@ -91,6 +109,55 @@ export const Route = createFileRoute("/compete/organizer/onboard/pending")({
 						name: team.name,
 					}
 					break
+				}
+			}
+		}
+
+		// If no pending request found in cached session, fallback to database query
+		// This handles the case where KV session hasn't been updated yet
+		// (e.g., after team creation due to eventual consistency)
+		if (!pendingRequest || !pendingTeam) {
+			const db = getDb()
+
+			// Query user's team memberships directly from database
+			const memberships = (await db.query.teamMembershipTable.findMany({
+				where: eq(teamMembershipTable.userId, session.userId),
+				with: {
+					team: true,
+				},
+			})) as TeamMembershipWithTeam[]
+
+			// Filter to gym teams and check for pending requests
+			const dbGymTeams = memberships.filter((m) => {
+				return (
+					m.team && m.team.type === TEAM_TYPE_ENUM.GYM && !m.team.isPersonalTeam
+				)
+			})
+
+			for (const membership of dbGymTeams) {
+				if (!membership.team) continue
+
+				const approved = await fetchIsApprovedOrganizer(membership.teamId)
+				if (approved) {
+					throw redirect({ to: "/compete/organizer" })
+				}
+
+				const isPending = await fetchHasPendingOrganizerRequest(
+					membership.teamId,
+				)
+				if (isPending) {
+					const request = await fetchGetOrganizerRequest(membership.teamId)
+					if (request) {
+						pendingRequest = {
+							reason: request.reason,
+							createdAt: request.createdAt,
+						}
+						pendingTeam = {
+							id: membership.teamId,
+							name: membership.team.name,
+						}
+						break
+					}
 				}
 			}
 		}

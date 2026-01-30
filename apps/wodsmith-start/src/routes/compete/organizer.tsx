@@ -3,8 +3,21 @@
  */
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
+import { eq } from "drizzle-orm"
 import { FEATURES } from "@/config/features"
 import { LIMITS } from "@/config/limits"
+import { getDb } from "@/db"
+import {
+	teamMembershipTable,
+	TEAM_TYPE_ENUM,
+	type Team,
+	type TeamMembership,
+} from "@/db/schema"
+
+/** Membership with team relation included */
+type TeamMembershipWithTeam = TeamMembership & {
+	team: Team | null
+}
 import {
 	hasFeature,
 	isTeamPendingOrganizer,
@@ -36,11 +49,16 @@ export interface OrganizerEntitlementState {
  * 1. Cookie value (if that team has HOST_COMPETITIONS)
  * 2. First team with HOST_COMPETITIONS
  * 3. null (redirect to onboarding)
+ *
+ * NOTE: Due to Cloudflare KV eventual consistency, the session's teams list
+ * may be stale after team creation or feature grant. If no teams with
+ * HOST_COMPETITIONS are found in the cached session, we fallback to
+ * querying the database directly.
  */
 const checkOrganizerEntitlements = createServerFn({ method: "GET" }).handler(
 	async (): Promise<OrganizerEntitlementState> => {
 		const session = await getSessionFromCookie()
-		if (!session?.teams?.length) {
+		if (!session?.userId) {
 			return {
 				hasHostCompetitions: false,
 				isPendingApproval: false,
@@ -52,12 +70,50 @@ const checkOrganizerEntitlements = createServerFn({ method: "GET" }).handler(
 		// Get the active team from cookie
 		const cookieTeamId = await getActiveTeamId()
 
-		// Find all teams that have HOST_COMPETITIONS
-		const teamsWithHostCompetitions: string[] = []
-		for (const team of session.teams) {
-			const hasHost = await hasFeature(team.id, FEATURES.HOST_COMPETITIONS)
-			if (hasHost) {
-				teamsWithHostCompetitions.push(team.id)
+		// Find all teams that have HOST_COMPETITIONS from cached session
+		let teamsWithHostCompetitions: string[] = []
+
+		// First, check teams from cached session
+		if (session.teams?.length) {
+			for (const team of session.teams) {
+				const hasHost = await hasFeature(team.id, FEATURES.HOST_COMPETITIONS)
+				if (hasHost) {
+					teamsWithHostCompetitions.push(team.id)
+				}
+			}
+		}
+
+		// If no teams found in cached session, fallback to database query
+		// This handles the case where KV session hasn't been updated yet
+		// (e.g., after team creation or feature grant due to eventual consistency)
+		if (teamsWithHostCompetitions.length === 0) {
+			const db = getDb()
+
+			// Query user's team memberships directly from database
+			const memberships = (await db.query.teamMembershipTable.findMany({
+				where: eq(teamMembershipTable.userId, session.userId),
+				with: {
+					team: true,
+				},
+			})) as TeamMembershipWithTeam[]
+
+			// Filter to gym teams (same logic as session.teams filtering)
+			const gymTeamIds = memberships
+				.filter((m) => {
+					return (
+						m.team &&
+						m.team.type === TEAM_TYPE_ENUM.GYM &&
+						!m.team.isPersonalTeam
+					)
+				})
+				.map((m) => m.teamId)
+
+			// Check each team from DB for HOST_COMPETITIONS
+			for (const teamId of gymTeamIds) {
+				const hasHost = await hasFeature(teamId, FEATURES.HOST_COMPETITIONS)
+				if (hasHost) {
+					teamsWithHostCompetitions.push(teamId)
+				}
 			}
 		}
 
