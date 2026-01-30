@@ -13,13 +13,6 @@ import {
 	SearchableSelect,
 	type SearchableSelectOption,
 } from "@/components/ui/searchable-select"
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 
 /**
@@ -245,20 +238,16 @@ export function AddressFields<T extends FieldValues>({
 				render={({ field }) => (
 					<FormItem>
 						<FormLabel>Country</FormLabel>
-						<Select onValueChange={field.onChange} value={field.value ?? ""}>
-							<FormControl>
-								<SelectTrigger>
-									<SelectValue placeholder="Select country" />
-								</SelectTrigger>
-							</FormControl>
-							<SelectContent>
-								{COUNTRY_OPTIONS.map((country) => (
-									<SelectItem key={country.code} value={country.code}>
-										{country.name}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+						<SearchableSelect
+							options={COUNTRY_OPTIONS.map((c) => ({
+								value: c.code,
+								label: c.name,
+							}))}
+							value={field.value ?? ""}
+							onValueChange={field.onChange}
+							placeholder="Select country"
+							searchPlaceholder="Search countries..."
+						/>
 						<FormMessage />
 					</FormItem>
 				)}
