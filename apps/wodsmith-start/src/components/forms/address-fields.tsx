@@ -69,15 +69,111 @@ const COUNTRY_OPTIONS = [
 	{ code: "UA", name: "Ukraine" },
 ] as const
 
+/**
+ * US States and territories
+ */
+const US_STATES = [
+	{ code: "AL", name: "Alabama" },
+	{ code: "AK", name: "Alaska" },
+	{ code: "AZ", name: "Arizona" },
+	{ code: "AR", name: "Arkansas" },
+	{ code: "CA", name: "California" },
+	{ code: "CO", name: "Colorado" },
+	{ code: "CT", name: "Connecticut" },
+	{ code: "DE", name: "Delaware" },
+	{ code: "DC", name: "District of Columbia" },
+	{ code: "FL", name: "Florida" },
+	{ code: "GA", name: "Georgia" },
+	{ code: "HI", name: "Hawaii" },
+	{ code: "ID", name: "Idaho" },
+	{ code: "IL", name: "Illinois" },
+	{ code: "IN", name: "Indiana" },
+	{ code: "IA", name: "Iowa" },
+	{ code: "KS", name: "Kansas" },
+	{ code: "KY", name: "Kentucky" },
+	{ code: "LA", name: "Louisiana" },
+	{ code: "ME", name: "Maine" },
+	{ code: "MD", name: "Maryland" },
+	{ code: "MA", name: "Massachusetts" },
+	{ code: "MI", name: "Michigan" },
+	{ code: "MN", name: "Minnesota" },
+	{ code: "MS", name: "Mississippi" },
+	{ code: "MO", name: "Missouri" },
+	{ code: "MT", name: "Montana" },
+	{ code: "NE", name: "Nebraska" },
+	{ code: "NV", name: "Nevada" },
+	{ code: "NH", name: "New Hampshire" },
+	{ code: "NJ", name: "New Jersey" },
+	{ code: "NM", name: "New Mexico" },
+	{ code: "NY", name: "New York" },
+	{ code: "NC", name: "North Carolina" },
+	{ code: "ND", name: "North Dakota" },
+	{ code: "OH", name: "Ohio" },
+	{ code: "OK", name: "Oklahoma" },
+	{ code: "OR", name: "Oregon" },
+	{ code: "PA", name: "Pennsylvania" },
+	{ code: "RI", name: "Rhode Island" },
+	{ code: "SC", name: "South Carolina" },
+	{ code: "SD", name: "South Dakota" },
+	{ code: "TN", name: "Tennessee" },
+	{ code: "TX", name: "Texas" },
+	{ code: "UT", name: "Utah" },
+	{ code: "VT", name: "Vermont" },
+	{ code: "VA", name: "Virginia" },
+	{ code: "WA", name: "Washington" },
+	{ code: "WV", name: "West Virginia" },
+	{ code: "WI", name: "Wisconsin" },
+	{ code: "WY", name: "Wyoming" },
+	{ code: "AS", name: "American Samoa" },
+	{ code: "GU", name: "Guam" },
+	{ code: "MP", name: "Northern Mariana Islands" },
+	{ code: "PR", name: "Puerto Rico" },
+	{ code: "VI", name: "U.S. Virgin Islands" },
+] as const
+
+/**
+ * Canadian provinces and territories
+ */
+const CA_PROVINCES = [
+	{ code: "AB", name: "Alberta" },
+	{ code: "BC", name: "British Columbia" },
+	{ code: "MB", name: "Manitoba" },
+	{ code: "NB", name: "New Brunswick" },
+	{ code: "NL", name: "Newfoundland and Labrador" },
+	{ code: "NS", name: "Nova Scotia" },
+	{ code: "NT", name: "Northwest Territories" },
+	{ code: "NU", name: "Nunavut" },
+	{ code: "ON", name: "Ontario" },
+	{ code: "PE", name: "Prince Edward Island" },
+	{ code: "QC", name: "Quebec" },
+	{ code: "SK", name: "Saskatchewan" },
+	{ code: "YT", name: "Yukon" },
+] as const
+
 interface AddressFieldsProps<T extends FieldValues> {
 	form: UseFormReturn<T>
 	prefix?: string
 }
 
-export function AddressFields<T extends FieldValues>({ form, prefix = "" }: AddressFieldsProps<T>) {
+export function AddressFields<T extends FieldValues>({
+	form,
+	prefix = "",
+}: AddressFieldsProps<T>) {
 	const getFieldName = (fieldName: string): Path<T> => {
 		return (prefix ? `${prefix}.${fieldName}` : fieldName) as Path<T>
 	}
+
+	// Watch country to determine state/province options
+	const countryCode = form.watch(getFieldName("countryCode"))
+
+	// Get state/province options based on country
+	const getStateOptions = () => {
+		if (countryCode === "US") return US_STATES
+		if (countryCode === "CA") return CA_PROVINCES
+		return null // Use text input for other countries
+	}
+
+	const stateOptions = getStateOptions()
 
 	return (
 		<div className="space-y-4">
@@ -135,12 +231,37 @@ export function AddressFields<T extends FieldValues>({ form, prefix = "" }: Addr
 				)}
 			/>
 
+			<FormField
+				control={form.control}
+				name={getFieldName("countryCode")}
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>Country</FormLabel>
+						<Select onValueChange={field.onChange} value={field.value ?? ""}>
+							<FormControl>
+								<SelectTrigger>
+									<SelectValue placeholder="Select country" />
+								</SelectTrigger>
+							</FormControl>
+							<SelectContent>
+								{COUNTRY_OPTIONS.map((country) => (
+									<SelectItem key={country.code} value={country.code}>
+										{country.name}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
+
 			<div className="grid grid-cols-6 gap-4">
 				<FormField
 					control={form.control}
 					name={getFieldName("city")}
 					render={({ field }) => (
-						<FormItem className="col-span-3">
+						<FormItem className="col-span-2">
 							<FormLabel>City</FormLabel>
 							<FormControl>
 								<Input
@@ -158,15 +279,39 @@ export function AddressFields<T extends FieldValues>({ form, prefix = "" }: Addr
 					control={form.control}
 					name={getFieldName("stateProvince")}
 					render={({ field }) => (
-						<FormItem className="col-span-1">
-							<FormLabel>State</FormLabel>
-							<FormControl>
-								<Input
-									{...field}
+						<FormItem className="col-span-2">
+							<FormLabel>
+								{countryCode === "CA" ? "Province" : "State"}
+							</FormLabel>
+							{stateOptions ? (
+								<Select
+									onValueChange={field.onChange}
 									value={field.value ?? ""}
-									placeholder="State"
-								/>
-							</FormControl>
+								>
+									<FormControl>
+										<SelectTrigger>
+											<SelectValue
+												placeholder={`Select ${countryCode === "CA" ? "province" : "state"}`}
+											/>
+										</SelectTrigger>
+									</FormControl>
+									<SelectContent>
+										{stateOptions.map((state) => (
+											<SelectItem key={state.code} value={state.code}>
+												{state.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							) : (
+								<FormControl>
+									<Input
+										{...field}
+										value={field.value ?? ""}
+										placeholder="State/Province"
+									/>
+								</FormControl>
+							)}
 							<FormMessage />
 						</FormItem>
 					)}
@@ -190,34 +335,6 @@ export function AddressFields<T extends FieldValues>({ form, prefix = "" }: Addr
 					)}
 				/>
 			</div>
-
-			<FormField
-				control={form.control}
-				name={getFieldName("countryCode")}
-				render={({ field }) => (
-					<FormItem>
-						<FormLabel>Country</FormLabel>
-						<Select
-							onValueChange={field.onChange}
-							value={field.value ?? ""}
-						>
-							<FormControl>
-								<SelectTrigger>
-									<SelectValue placeholder="Select country" />
-								</SelectTrigger>
-							</FormControl>
-							<SelectContent>
-								{COUNTRY_OPTIONS.map((country) => (
-									<SelectItem key={country.code} value={country.code}>
-										{country.name}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-						<FormMessage />
-					</FormItem>
-				)}
-			/>
 
 			<FormField
 				control={form.control}
