@@ -27,6 +27,7 @@ import {
 	scalingLevelsTable,
 	workoutScalingDescriptionsTable,
 } from "@/db/schemas/scaling"
+import { sponsorsTable } from "@/db/schemas/sponsors"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
 import {
@@ -40,7 +41,6 @@ import {
 	workouts,
 	workoutTags,
 } from "@/db/schemas/workouts"
-import { sponsorsTable } from "@/db/schemas/sponsors"
 import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk, chunk } from "@/utils/batch-query"
 
@@ -480,7 +480,7 @@ export const getPublishedCompetitionWorkoutsWithDetailsFn = createServerFn({
 			if (!movementsByWorkout.has(wid)) {
 				movementsByWorkout.set(wid, [])
 			}
-			movementsByWorkout.get(wid)!.push({
+			movementsByWorkout.get(wid)?.push({
 				id: m.movementId,
 				name: m.movementName,
 			})
@@ -493,7 +493,7 @@ export const getPublishedCompetitionWorkoutsWithDetailsFn = createServerFn({
 			if (!tagsByWorkout.has(wid)) {
 				tagsByWorkout.set(wid, [])
 			}
-			tagsByWorkout.get(wid)!.push({
+			tagsByWorkout.get(wid)?.push({
 				id: t.tagId,
 				name: t.tagName,
 			})
@@ -658,14 +658,14 @@ export const getPublicEventDetailsFn = createServerFn({
 		if (publishedHeats.length > 0) {
 			const sortedHeats = publishedHeats
 				.filter((h) => h.scheduledTime !== null)
-				.sort((a, b) => a.scheduledTime!.getTime() - b.scheduledTime!.getTime())
+				.sort((a, b) => a.scheduledTime?.getTime() - b.scheduledTime?.getTime())
 
 			if (sortedHeats.length > 0) {
 				const firstHeat = sortedHeats[0]!
 				const lastHeat = sortedHeats[sortedHeats.length - 1]!
 
 				// Calculate last heat end time (start time + duration)
-				const lastHeatEndTime = new Date(lastHeat.scheduledTime!.getTime())
+				const lastHeatEndTime = new Date(lastHeat.scheduledTime?.getTime())
 				if (lastHeat.durationMinutes) {
 					lastHeatEndTime.setMinutes(
 						lastHeatEndTime.getMinutes() + lastHeat.durationMinutes,

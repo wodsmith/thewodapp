@@ -7,12 +7,12 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, asc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import { competitionsTable } from "@/db/schemas/competitions"
 import { eventJudgingSheetsTable } from "@/db/schemas/judging-sheets"
 import {
 	programmingTracksTable,
 	trackWorkoutsTable,
 } from "@/db/schemas/programming"
-import { competitionsTable } from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"

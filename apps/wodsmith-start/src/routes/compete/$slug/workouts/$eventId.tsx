@@ -37,8 +37,8 @@ import {
 } from "@/server-fns/competition-workouts-fns"
 import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
 import { getVideoSubmissionFn } from "@/server-fns/video-submission-fns"
-import { getSessionFromCookie } from "@/utils/auth"
 import { getGoogleMapsUrl, hasAddressData } from "@/utils/address"
+import { getSessionFromCookie } from "@/utils/auth"
 
 const eventSearchSchema = z.object({
 	division: z.string().optional(),

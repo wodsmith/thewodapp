@@ -16,8 +16,8 @@ import {
 	teamTable,
 	userTable,
 } from "@/db/schema"
-import { addToCompetitionEventTeam } from "@/server/registration"
 import { notifyTeammateJoined } from "@/server/notifications"
+import { addToCompetitionEventTeam } from "@/server/registration"
 import { getSessionFromCookie } from "@/utils/auth"
 import { sendTeamInvitationEmail } from "@/utils/email"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"

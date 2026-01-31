@@ -11,8 +11,10 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
-import { competitionsTable } from "@/db/schemas/competitions"
-import { competitionRegistrationsTable } from "@/db/schemas/competitions"
+import {
+	competitionRegistrationsTable,
+	competitionsTable,
+} from "@/db/schemas/competitions"
 import {
 	programmingTracksTable,
 	trackWorkoutsTable,
@@ -20,8 +22,8 @@ import {
 import {
 	getCompetitionLeaderboard,
 	getEventLeaderboard,
-	type CompetitionLeaderboardEntry as ServerLeaderboardEntry,
 	type EventLeaderboardEntry as ServerEventLeaderboardEntry,
+	type CompetitionLeaderboardEntry as ServerLeaderboardEntry,
 	type TeamMemberInfo as ServerTeamMemberInfo,
 } from "@/server/competition-leaderboard"
 import type { ScoringAlgorithm } from "@/types/scoring"

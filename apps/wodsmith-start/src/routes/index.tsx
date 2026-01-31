@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router"
+import { Footer } from "@/components/footer"
 import { InsightsFeatures } from "@/components/landing/insights-features"
 import { MissionHero } from "@/components/landing/mission-hero"
 import { ProductCards } from "@/components/landing/product-cards"
-import { Footer } from "@/components/footer"
 
 export const Route = createFileRoute("/")({
 	head: () => ({

@@ -14,9 +14,9 @@ import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
 import type { Team } from "@/db/schemas/teams"
 import { formatDateStringFull, isSameDateString } from "@/utils/date-utils"
 import {
+	DEFAULT_TIMEZONE,
 	getEndOfDayInTimezone,
 	hasDateStartedInTimezone,
-	DEFAULT_TIMEZONE,
 } from "@/utils/timezone-utils"
 
 /**

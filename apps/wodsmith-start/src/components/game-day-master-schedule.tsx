@@ -161,6 +161,7 @@ function processHeatsForVenue(
 	}
 
 	// Sort by scheduled time
+	// biome-ignore lint/style/noNonNullAssertion: filter above guarantees scheduledTime exists
 	processed.sort((a, b) => {
 		const aTime = toDate(a.heat.scheduledTime!).getTime()
 		const bTime = toDate(b.heat.scheduledTime!).getTime()
@@ -170,6 +171,7 @@ function processHeatsForVenue(
 	// Mark the first "upcoming" as "next"
 	const firstUpcomingIndex = processed.findIndex((h) => h.status === "upcoming")
 	if (firstUpcomingIndex > -1) {
+		// biome-ignore lint/style/noNonNullAssertion: findIndex guarantees valid index
 		processed[firstUpcomingIndex]!.status = "next"
 	}
 
@@ -521,13 +523,12 @@ function HeatRow({ heat, event, status, laneCount, timezone }: HeatRowProps) {
 				)}
 			>
 				<div className="flex items-center gap-2">
-					{status === "past" && (
-						isExpanded ? (
+					{status === "past" &&
+						(isExpanded ? (
 							<ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
 						) : (
 							<ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-						)
-					)}
+						))}
 					<div className="flex flex-col">
 						<span className="font-semibold">
 							Event {event.trackOrder}: {event.workout.name}
@@ -557,8 +558,8 @@ function HeatRow({ heat, event, status, laneCount, timezone }: HeatRowProps) {
 			</button>
 
 			{/* Lane Assignments - only show when expanded */}
-			{isExpanded && (
-				heat.assignments.length > 0 ? (
+			{isExpanded &&
+				(heat.assignments.length > 0 ? (
 					<div className="grid gap-1 sm:grid-cols-2">
 						{Array.from({ length: laneCount }, (_, i) => i + 1).map(
 							(laneNumber) => {
@@ -619,8 +620,7 @@ function HeatRow({ heat, event, status, laneCount, timezone }: HeatRowProps) {
 						<Users className="h-4 w-4" />
 						<span>No lane assignments yet</span>
 					</div>
-				)
-			)}
+				))}
 		</div>
 	)
 }

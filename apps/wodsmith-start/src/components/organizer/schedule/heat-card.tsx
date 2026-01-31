@@ -39,6 +39,8 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
 	Select,
 	SelectContent,
@@ -46,8 +48,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
 	assignToHeatFn,
 	bulkAssignToHeatFn,
@@ -791,6 +791,7 @@ export function HeatCard({
 							{onReorder && (
 								// Stop propagation to prevent Card onClick from firing during drag
 								// biome-ignore lint/a11y/useKeyWithClickEvents: wrapper only stops propagation
+								// biome-ignore lint/a11y/noStaticElementInteractions: wrapper only stops propagation
 								<div onClick={(e) => e.stopPropagation()}>
 									<DragHandleButton
 										ref={dragHandleRef}
@@ -883,10 +884,7 @@ export function HeatCard({
 								/>
 							</div>
 							<div className="flex justify-end gap-2">
-								<Button
-									variant="outline"
-									onClick={() => setIsEditOpen(false)}
-								>
+								<Button variant="outline" onClick={() => setIsEditOpen(false)}>
 									Cancel
 								</Button>
 								<Button onClick={handleUpdateHeat} disabled={isUpdating}>

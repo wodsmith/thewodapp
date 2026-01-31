@@ -1,16 +1,16 @@
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
+import { CompetitionLocationCard } from "@/components/competition-location-card"
 import { CompetitionTabs } from "@/components/competition-tabs"
+import { CompetitionWorkoutCard } from "@/components/competition-workout-card"
 import { EventDetailsContent } from "@/components/event-details-content"
 import { RegistrationSidebar } from "@/components/registration-sidebar"
-import { CompetitionLocationCard } from "@/components/competition-location-card"
 import { Card, CardContent } from "@/components/ui/card"
+import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
+import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import {
 	getPublishedCompetitionWorkoutsWithDetailsFn,
 	getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
-import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
-import { CompetitionWorkoutCard } from "@/components/competition-workout-card"
-import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 
 const parentRoute = getRouteApi("/compete/$slug")
 

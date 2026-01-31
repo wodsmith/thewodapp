@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
+import { MovementsList } from "@/components/movements-list"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -41,7 +42,6 @@ import {
 	WORKOUT_SCHEME_VALUES,
 } from "@/db/schemas/workouts"
 import { saveCompetitionEventFn } from "@/server-fns/competition-workouts-fns"
-import { MovementsList } from "@/components/movements-list"
 
 // Form ID for external submit buttons
 export const EVENT_DETAILS_FORM_ID = "event-details-form"

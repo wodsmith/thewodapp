@@ -487,6 +487,7 @@ const website = await TanStackStart("app", {
 		R2_BUCKET: r2Bucket,
 
 		// App configuration
+		// biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
 		APP_URL: process.env.APP_URL!,
 
 		/**
@@ -520,7 +521,9 @@ const website = await TanStackStart("app", {
 		TURNSTILE_SITE_KEY: "0x4AAAAAACF8K4v1TmFMOmtk",
 
 		// Secrets
+		// biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
 		TURNSTILE_SECRET_KEY: alchemy.secret(process.env.TURNSTILE_SECRET_KEY!),
+		// biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
 		RESEND_API_KEY: alchemy.secret(process.env.RESEND_API_KEY!),
 
 		// Cron secret for scheduled job authentication
@@ -539,10 +542,13 @@ const website = await TanStackStart("app", {
 		// Stripe env vars are populated for all environments when available
 		...(hasStripeEnv && {
 			/** Stripe publishable key for client-side Stripe.js initialization */
+			// biome-ignore lint/style/noNonNullAssertion: hasStripeEnv check guarantees this exists
 			STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY!,
 			/** Stripe Connect OAuth client ID */
+			// biome-ignore lint/style/noNonNullAssertion: hasStripeEnv check guarantees this exists
 			STRIPE_CLIENT_ID: process.env.STRIPE_CLIENT_ID!,
 			/** Stripe secret key for server-side API calls */
+			// biome-ignore lint/style/noNonNullAssertion: hasStripeEnv check guarantees this exists
 			STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY!),
 		}),
 		// Webhook secret: use Alchemy-managed webhook for demo/prod, or .dev.vars for local dev

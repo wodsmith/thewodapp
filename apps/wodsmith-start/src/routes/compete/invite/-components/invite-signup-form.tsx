@@ -18,7 +18,7 @@ import {
 	FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { signUpSchema, type SignUpInput } from "@/schemas/auth.schema"
+import { type SignUpInput, signUpSchema } from "@/schemas/auth.schema"
 import { signUpFn } from "@/server-fns/auth-fns"
 
 interface InviteSignUpFormProps {

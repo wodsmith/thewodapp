@@ -7,9 +7,9 @@
  */
 
 import { env } from "cloudflare:workers"
-import { eq } from "drizzle-orm"
 import { init } from "@paralleldrive/cuid2"
 import { createServerFn } from "@tanstack/react-start"
+import { eq } from "drizzle-orm"
 import { z } from "zod"
 import {
 	EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS,
@@ -18,11 +18,11 @@ import {
 import { getDb } from "@/db"
 import { teamMembershipTable, teamTable, userTable } from "@/db/schema"
 import {
+	resetPasswordSchema,
 	signInSchema,
 	signUpSchema,
-	resetPasswordSchema,
-	verifyEmailSchema,
 	type VerifyEmailInput,
+	verifyEmailSchema,
 } from "@/schemas/auth.schema"
 import {
 	canSignUp,
@@ -38,15 +38,15 @@ import { validateTurnstileToken } from "@/utils/validate-captcha"
 // Re-export schemas and types for backwards compatibility
 // But consumers should prefer importing from @/schemas/auth.schema
 export {
-	signInSchema,
-	signUpSchema,
+	type ForgotPasswordInput,
+	type ResetPasswordInput,
 	resetPasswordSchema,
-	verifyEmailSchema,
 	type SignInInput,
 	type SignUpInput,
-	type ResetPasswordInput,
+	signInSchema,
+	signUpSchema,
 	type VerifyEmailInput,
-	type ForgotPasswordInput,
+	verifyEmailSchema,
 } from "@/schemas/auth.schema"
 
 // Create a CUID2 generator with 32 character length for tokens

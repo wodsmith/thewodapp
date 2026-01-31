@@ -18,9 +18,8 @@ import {
 } from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS, type Team, teamTable } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
-import { addressInputSchema } from "@/schemas/address"
-import { normalizeAddressInput } from "@/utils/address"
 import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
+import { addressInputSchema } from "@/schemas/address"
 import {
 	createCompetition,
 	createCompetitionGroup,
@@ -28,6 +27,7 @@ import {
 	updateCompetition,
 	updateCompetitionGroup,
 } from "@/server-fns/competition-server-logic"
+import { normalizeAddressInput } from "@/utils/address"
 import { getSessionFromCookie } from "@/utils/auth"
 
 // ============================================================================

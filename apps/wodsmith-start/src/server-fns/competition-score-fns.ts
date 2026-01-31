@@ -26,7 +26,6 @@ import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
 import { teamMembershipTable } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
-import { getSessionFromCookie } from "@/utils/auth"
 import {
 	SCORE_STATUS_VALUES,
 	type ScoreStatus,
@@ -45,6 +44,7 @@ import {
 	STATUS_ORDER,
 	sortKeyToString,
 } from "@/lib/scoring"
+import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk, chunk, SQL_BATCH_SIZE } from "@/utils/batch-query"
 
 const BATCH_SIZE = SQL_BATCH_SIZE

@@ -15,8 +15,8 @@ import { and, eq, inArray, isNotNull, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
-	competitionsTable,
 	competitionRegistrationsTable,
+	competitionsTable,
 } from "@/db/schemas/competitions"
 import {
 	programmingTracksTable,
