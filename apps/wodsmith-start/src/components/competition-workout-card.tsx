@@ -108,7 +108,7 @@ export function CompetitionWorkoutCard({
 		<Card className="overflow-hidden border-l-4 border-l-primary/40 hover:border-l-primary transition-all">
 			<div className="flex flex-col md:flex-row">
 				{/* Hero Number & Header Section */}
-				<div className="flex-1 p-6">
+				<div className="flex-1 p-4 sm:p-6">
 					{/* Header */}
 					<div className="flex items-start justify-between gap-4 mb-6">
 						<div className="flex items-start gap-4">
@@ -133,11 +133,31 @@ export function CompetitionWorkoutCard({
 										)}
 									</div>
 								)}
+								{/* Mobile View Details Button */}
+								<Button
+									variant="outline"
+									size="sm"
+									asChild
+									className="mt-3 sm:hidden"
+								>
+									<Link
+										to="/compete/$slug/workouts/$eventId"
+										params={{ slug, eventId }}
+									>
+										View Details
+										<ArrowRight className="ml-2 h-4 w-4" />
+									</Link>
+								</Button>
 							</div>
 						</div>
 
-						{/* View Details Button */}
-						<Button variant="outline" size="sm" asChild className="shrink-0">
+						{/* Desktop View Details Button */}
+						<Button
+							variant="outline"
+							size="sm"
+							asChild
+							className="hidden shrink-0 sm:flex"
+						>
 							<Link
 								to="/compete/$slug/workouts/$eventId"
 								params={{ slug, eventId }}

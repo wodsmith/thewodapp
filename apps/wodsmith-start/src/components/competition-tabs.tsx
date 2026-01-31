@@ -67,21 +67,15 @@ export function CompetitionTabs({ slug }: CompetitionTabsProps) {
 						</div>
 					</SelectTrigger>
 					<SelectContent>
-						{tabs.map((tab) => {
-							const Icon = tab.icon
-							return (
-								<SelectItem
-									key={tab.href || "/"}
-									value={tab.href || "/"}
-									className="cursor-pointer"
-								>
-									<div className="flex items-center gap-2">
-										<Icon className="h-4 w-4" />
-										{tab.label}
-									</div>
-								</SelectItem>
-							)
-						})}
+						{tabs.map((tab) => (
+							<SelectItem
+								key={tab.href || "/"}
+								value={tab.href || "/"}
+								className="cursor-pointer"
+							>
+								{tab.label}
+							</SelectItem>
+						))}
 					</SelectContent>
 				</Select>
 			</div>
