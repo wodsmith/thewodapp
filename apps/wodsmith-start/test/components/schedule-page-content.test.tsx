@@ -257,7 +257,7 @@ describe('SchedulePageContent', () => {
       const workoutButton = screen.getByRole('button', {name: /Event 1/i})
       fireEvent.click(workoutButton)
 
-      expect(screen.getByText('Assignments coming soon')).toBeInTheDocument()
+      expect(screen.getByText('Coming soon')).toBeInTheDocument()
     })
   })
 
