@@ -62,6 +62,16 @@ function formatTime(date: Date): string {
 	})
 }
 
+function formatDateAndTime(date: Date): string {
+	const dateStr = date.toLocaleDateString("en-US", {
+		weekday: "short",
+		month: "short",
+		day: "numeric",
+	})
+	const timeStr = formatTime(date)
+	return `${dateStr}, ${timeStr}`
+}
+
 function formatTimeRange(start: Date | null, end: Date | null): string {
 	if (!start || !end) return ""
 	return `${formatTime(start)} - ${formatTime(end)}`
@@ -352,7 +362,7 @@ export function SchedulePageContent({
 											</div>
 											{heat.scheduledTime && (
 												<Badge variant="secondary">
-													{formatTime(toDate(heat.scheduledTime))}
+													{formatDateAndTime(toDate(heat.scheduledTime))}
 												</Badge>
 											)}
 										</div>
