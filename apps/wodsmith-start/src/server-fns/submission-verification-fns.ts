@@ -17,6 +17,7 @@ import { trackWorkoutsTable } from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoresTable } from "@/db/schemas/scores"
 import { userTable } from "@/db/schemas/users"
+import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
 import { workouts } from "@/db/schemas/workouts"
 import { decodeScore, type WorkoutScheme } from "@/lib/scoring"
 import { autochunk } from "@/utils/batch-query"
@@ -122,7 +123,6 @@ export const getSubmissionDetailFn = createServerFn({ method: "GET" })
 					tiebreakValue: scoresTable.tiebreakValue,
 					tiebreakScheme: scoresTable.tiebreakScheme,
 					secondaryValue: scoresTable.secondaryValue,
-					videoUrl: scoresTable.videoUrl,
 					notes: scoresTable.notes,
 					recordedAt: scoresTable.recordedAt,
 					scalingLevelId: scoresTable.scalingLevelId,
@@ -236,6 +236,24 @@ export const getSubmissionDetailFn = createServerFn({ method: "GET" })
 				)
 				.limit(1)
 
+			// Get video submission from video_submissions table
+			let videoUrl: string | null = null
+			if (registration) {
+				const [videoSubmission] = await db
+					.select({ videoUrl: videoSubmissionsTable.videoUrl })
+					.from(videoSubmissionsTable)
+					.where(
+						and(
+							eq(videoSubmissionsTable.registrationId, registration.id),
+							eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
+						),
+					)
+					.limit(1)
+				if (videoSubmission) {
+					videoUrl = videoSubmission.videoUrl
+				}
+			}
+
 			// Decode score for display
 			let displayValue = ""
 			if (score.scoreValue !== null) {
@@ -276,7 +294,7 @@ export const getSubmissionDetailFn = createServerFn({ method: "GET" })
 					tiebreakValue: tiebreakDisplay,
 					secondaryValue: score.secondaryValue,
 				},
-				videoUrl: score.videoUrl,
+				videoUrl,
 				submittedAt: score.recordedAt,
 				notes: score.notes,
 			}
@@ -304,7 +322,6 @@ export const getEventSubmissionsFn = createServerFn({ method: "GET" })
 					scoreValue: scoresTable.scoreValue,
 					status: scoresTable.status,
 					scheme: scoresTable.scheme,
-					videoUrl: scoresTable.videoUrl,
 					scalingLevelId: scoresTable.scalingLevelId,
 				})
 				.from(scoresTable)
@@ -363,6 +380,13 @@ export const getEventSubmissionsFn = createServerFn({ method: "GET" })
 			)
 			const registrationMap = new Map(registrations.map((r) => [r.userId, r]))
 
+			// Get video submissions for this event
+			const videoSubmissions = await db
+				.select({ userId: videoSubmissionsTable.userId })
+				.from(videoSubmissionsTable)
+				.where(eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId))
+			const usersWithVideo = new Set(videoSubmissions.map((vs) => vs.userId))
+
 			// Build submission list
 			const submissions: SubmissionListItem[] = scores.map((score) => {
 				const user = userMap.get(score.userId)
@@ -389,7 +413,7 @@ export const getEventSubmissionsFn = createServerFn({ method: "GET" })
 						: "Unknown",
 					teamName: registration?.teamName ?? null,
 					divisionLabel: division?.label ?? "Open",
-					hasVideo: !!score.videoUrl,
+					hasVideo: usersWithVideo.has(score.userId),
 					scoreDisplay,
 					status: score.status,
 				}

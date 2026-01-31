@@ -75,6 +75,7 @@ export function VideoEmbed({
 	className = "",
 	aspectRatio = "16/9",
 }: VideoEmbedProps) {
+	console.log("[VideoEmbed] url prop:", url, "type:", typeof url)
 	const videoInfo = useMemo(() => {
 		if (!url) return null
 		return parseVideoUrl(url)

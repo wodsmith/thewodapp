@@ -97,8 +97,6 @@ export const scoresTable = sqliteTable(
 
 		// Metadata
 		notes: text("notes"),
-		// Video submission URL for online competition verification (YouTube/Vimeo link)
-		videoUrl: text("video_url"),
 		// When the workout was performed (Unix timestamp ms)
 		recordedAt: integer("recorded_at", { mode: "timestamp" }).notNull(),
 	},

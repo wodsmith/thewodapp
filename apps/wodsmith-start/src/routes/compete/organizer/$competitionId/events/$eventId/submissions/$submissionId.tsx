@@ -116,6 +116,10 @@ function SubmissionDetailPage() {
 	const { competition } = parentRoute.useLoaderData()
 	const params = Route.useParams()
 
+	console.log("[SubmissionDetailPage] submission:", submission)
+	console.log("[SubmissionDetailPage] submission.videoUrl:", submission.videoUrl)
+	console.log("[SubmissionDetailPage] params:", params)
+
 	return (
 		<>
 			{/* Header with Navigation */}
