@@ -43,6 +43,8 @@ const ROLE_TYPE_LABELS: Record<VolunteerRoleType, string> = {
 	medical: "Medical",
 	check_in: "Check-In",
 	staff: "Staff",
+	athlete_control: "Athlete Control",
+	equipment_team: "Equipment Team",
 }
 
 function formatTime(date: Date): string {

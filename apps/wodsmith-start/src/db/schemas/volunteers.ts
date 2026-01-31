@@ -33,6 +33,8 @@ export const VOLUNTEER_ROLE_TYPES = {
 	FLOOR_MANAGER: "floor_manager",
 	MEDIA: "media",
 	GENERAL: "general",
+	ATHLETE_CONTROL: "athlete_control",
+	EQUIPMENT_TEAM: "equipment_team",
 } as const
 
 export type VolunteerRoleType =

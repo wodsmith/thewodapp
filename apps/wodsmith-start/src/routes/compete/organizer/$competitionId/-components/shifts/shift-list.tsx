@@ -52,6 +52,8 @@ const ROLE_TYPE_LABELS: Record<VolunteerRoleType, string> = {
 	medical: "Medical",
 	check_in: "Check-In",
 	staff: "Staff",
+	athlete_control: "Athlete Control",
+	equipment_team: "Equipment Team",
 }
 
 // Get badge variant based on capacity fill

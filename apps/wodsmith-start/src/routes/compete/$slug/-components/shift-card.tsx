@@ -27,6 +27,8 @@ function formatRoleType(role: VolunteerRoleType): string {
 		medical: "Medical",
 		check_in: "Check-in",
 		staff: "Staff",
+		athlete_control: "Athlete Control",
+		equipment_team: "Equipment Team",
 	}
 	return roleLabels[role] || role
 }
@@ -53,6 +55,10 @@ function getRoleBadgeClasses(role: VolunteerRoleType): string {
 		check_in:
 			"bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
 		staff: "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100",
+		athlete_control:
+			"bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-100",
+		equipment_team:
+			"bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100",
 	}
 	return roleColors[role] || roleColors.general
 }
