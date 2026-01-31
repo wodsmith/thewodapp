@@ -657,15 +657,15 @@ export const getPublicEventDetailsFn = createServerFn({
 		} | null = null
 		if (publishedHeats.length > 0) {
 			const sortedHeats = publishedHeats
-				.filter((h) => h.scheduledTime !== null)
-				.sort((a, b) => a.scheduledTime?.getTime() - b.scheduledTime?.getTime())
+				.filter((h): h is typeof h & { scheduledTime: Date } => h.scheduledTime !== null)
+				.sort((a, b) => a.scheduledTime.getTime() - b.scheduledTime.getTime())
 
 			if (sortedHeats.length > 0) {
 				const firstHeat = sortedHeats[0]!
 				const lastHeat = sortedHeats[sortedHeats.length - 1]!
 
 				// Calculate last heat end time (start time + duration)
-				const lastHeatEndTime = new Date(lastHeat.scheduledTime?.getTime())
+				const lastHeatEndTime = new Date(lastHeat.scheduledTime.getTime())
 				if (lastHeat.durationMinutes) {
 					lastHeatEndTime.setMinutes(
 						lastHeatEndTime.getMinutes() + lastHeat.durationMinutes,
