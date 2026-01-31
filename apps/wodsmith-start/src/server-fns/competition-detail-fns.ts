@@ -594,6 +594,7 @@ export const getOrganizerRegistrationsFn = createServerFn({ method: "GET" })
 							avatar: true,
 							gender: true,
 							dateOfBirth: true,
+							affiliateName: true,
 						},
 					},
 					division: {
@@ -620,6 +621,7 @@ export const getOrganizerRegistrationsFn = createServerFn({ method: "GET" })
 											lastName: true,
 											email: true,
 											avatar: true,
+											affiliateName: true,
 										},
 									},
 								},
