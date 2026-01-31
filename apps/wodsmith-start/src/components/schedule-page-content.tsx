@@ -36,8 +36,8 @@ function toDate(value: Date | string | number): Date {
 }
 
 function getDateKey(date: Date, timezone: string): string {
-	// Use timezone-aware date parts for grouping
-	const formatter = new Intl.DateTimeFormat("en-US", {
+	// Use timezone-aware YYYY-MM-DD format for correct lexicographic sorting
+	const formatter = new Intl.DateTimeFormat("sv-SE", {
 		timeZone: timezone,
 		year: "numeric",
 		month: "2-digit",
