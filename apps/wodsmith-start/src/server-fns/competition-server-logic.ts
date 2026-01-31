@@ -374,6 +374,7 @@ export async function updateCompetition(
 		profileImageUrl: string | null
 		bannerImageUrl: string | null
 		timezone: string // IANA timezone string
+		primaryAddressId: string | null
 	}>,
 ): Promise<Competition> {
 	const db = getDb()
@@ -444,6 +445,8 @@ export async function updateCompetition(
 	if (updates.bannerImageUrl !== undefined)
 		updateData.bannerImageUrl = updates.bannerImageUrl
 	if (updates.timezone !== undefined) updateData.timezone = updates.timezone
+	if (updates.primaryAddressId !== undefined)
+		updateData.primaryAddressId = updates.primaryAddressId
 
 	const result = await db
 		.update(competitionsTable)

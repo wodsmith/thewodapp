@@ -25,6 +25,7 @@ import {
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoresTable } from "@/db/schemas/scores"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { ROLES_ENUM } from "@/db/schemas/users"
 import { workouts as workoutsTable } from "@/db/schemas/workouts"
 import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk } from "@/utils/batch-query"
@@ -186,9 +187,10 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 				throw new Error("Not authenticated")
 			}
 
-			// Check permission
+			// Check permission (site admins bypass)
+			const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
 			const team = session.teams?.find((t) => t.id === data.organizingTeamId)
-			if (!team?.permissions.includes(TEAM_PERMISSIONS.ACCESS_DASHBOARD)) {
+			if (!isSiteAdmin && !team?.permissions.includes(TEAM_PERMISSIONS.ACCESS_DASHBOARD)) {
 				throw new Error("Missing required permission")
 			}
 
@@ -480,9 +482,10 @@ export const publishDivisionResultsFn = createServerFn({ method: "POST" })
 				throw new Error("Not authenticated")
 			}
 
-			// Check permission
+			// Check permission (site admins bypass)
+			const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
 			const team = session.teams?.find((t) => t.id === data.organizingTeamId)
-			if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
+			if (!isSiteAdmin && !team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
 				throw new Error("Missing required permission")
 			}
 
@@ -553,9 +556,10 @@ export const publishAllDivisionResultsFn = createServerFn({ method: "POST" })
 				throw new Error("Not authenticated")
 			}
 
-			// Check permission
+			// Check permission (site admins bypass)
+			const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
 			const team = session.teams?.find((t) => t.id === data.organizingTeamId)
-			if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
+			if (!isSiteAdmin && !team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
 				throw new Error("Missing required permission")
 			}
 

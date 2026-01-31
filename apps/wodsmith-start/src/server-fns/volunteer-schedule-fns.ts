@@ -334,7 +334,8 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 		// Group judging sheets by trackWorkoutId
 		const judgingSheetsByTrackWorkout = new Map<string, JudgingSheet[]>()
 		for (const sheet of judgingSheetsData) {
-			const existing = judgingSheetsByTrackWorkout.get(sheet.trackWorkoutId) || []
+			const existing =
+				judgingSheetsByTrackWorkout.get(sheet.trackWorkoutId) || []
 			existing.push({
 				id: sheet.id,
 				title: sheet.title,

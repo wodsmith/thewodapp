@@ -18,10 +18,16 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
 import { getCronSecret } from "@/lib/env"
-import { logError, logInfo, logWarning } from "@/lib/logging/posthog-otel-logger"
+import {
+	logError,
+	logInfo,
+	logWarning,
+} from "@/lib/logging/posthog-otel-logger"
 import { processSubmissionWindowNotifications } from "@/server/notifications"
 
-export const Route = createFileRoute("/api/cron/submission-window-notifications")({
+export const Route = createFileRoute(
+	"/api/cron/submission-window-notifications",
+)({
 	server: {
 		handlers: {
 			/**
@@ -56,13 +62,15 @@ export const Route = createFileRoute("/api/cron/submission-window-notifications"
 				// Process notifications
 				try {
 					logInfo({
-						message: "[Cron] Starting submission window notification processing",
+						message:
+							"[Cron] Starting submission window notification processing",
 					})
 
 					const result = await processSubmissionWindowNotifications()
 
 					logInfo({
-						message: "[Cron] Completed submission window notification processing",
+						message:
+							"[Cron] Completed submission window notification processing",
 						attributes: {
 							windowOpens: result.windowOpens,
 							windowCloses24h: result.windowCloses24h,

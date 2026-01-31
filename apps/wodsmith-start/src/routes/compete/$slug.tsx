@@ -10,6 +10,7 @@ import {
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
+import { getTeamContactEmailFn } from "@/server-fns/team-fns"
 
 export const Route = createFileRoute("/compete/$slug")({
 	component: CompetitionDetailLayout,
@@ -34,6 +35,7 @@ export const Route = createFileRoute("/compete/$slug")({
 			divisionsResult,
 			sponsorsResult,
 			registrationStatus,
+			organizerContactEmail,
 			userRegResult,
 			canManageResult,
 			isVolunteerResult,
@@ -54,6 +56,9 @@ export const Route = createFileRoute("/compete/$slug")({
 					registrationClosesAt: competition.registrationClosesAt,
 					timezone: competition.timezone,
 				},
+			}),
+			getTeamContactEmailFn({
+				data: { teamId: competition.organizingTeamId },
 			}),
 			// User-specific data - returns null/false if no session
 			session
@@ -106,16 +111,13 @@ export const Route = createFileRoute("/compete/$slug")({
 			sponsors,
 			userDivision,
 			maxSpots: undefined as number | undefined,
+			organizerContactEmail,
 		}
 	},
 })
 
 function CompetitionDetailLayout() {
-	const {
-		competition,
-		registrationCount,
-		canManage,
-	} = Route.useLoaderData()
+	const { competition, registrationCount, canManage } = Route.useLoaderData()
 
 	return (
 		<div className="min-h-screen bg-background">
@@ -127,7 +129,7 @@ function CompetitionDetailLayout() {
 			/>
 
 			{/* Content Area */}
-			<div className="container mx-auto px-4 py-4">
+			<div className="container mx-auto px-3 py-4 sm:px-4">
 				<Outlet />
 			</div>
 		</div>

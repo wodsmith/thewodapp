@@ -17,6 +17,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, count, eq, isNull, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import { addressesTable } from "@/db/schemas/addresses"
 import {
 	competitionRegistrationsTable,
 	competitionsTable,
@@ -126,6 +127,10 @@ const deleteCompetitionInputSchema = z.object({
 // Permission Helpers
 // ============================================================================
 
+/**
+ * Require team permission or throw error
+ * Site admins bypass this check
+ */
 async function requireTeamPermission(
 	teamId: string,
 	permission: string,
@@ -134,6 +139,9 @@ async function requireTeamPermission(
 	if (!session?.userId) {
 		throw new Error("Unauthorized")
 	}
+
+	// Site admins have all permissions
+	if (session.user?.role === ROLES_ENUM.ADMIN) return
 
 	const team = session.teams?.find((t) => t.id === teamId)
 	if (!team) {
@@ -189,11 +197,25 @@ export const getCompetitionByIdFn = createServerFn({ method: "GET" })
 				defaultLaneShiftPattern: competitionsTable.defaultLaneShiftPattern,
 				defaultMaxSpotsPerDivision:
 					competitionsTable.defaultMaxSpotsPerDivision,
+				primaryAddressId: competitionsTable.primaryAddressId,
 				createdAt: competitionsTable.createdAt,
 				updatedAt: competitionsTable.updatedAt,
 				updateCounter: competitionsTable.updateCounter,
+				// Address fields
+				addressName: addressesTable.name,
+				addressStreetLine1: addressesTable.streetLine1,
+				addressStreetLine2: addressesTable.streetLine2,
+				addressCity: addressesTable.city,
+				addressStateProvince: addressesTable.stateProvince,
+				addressPostalCode: addressesTable.postalCode,
+				addressCountryCode: addressesTable.countryCode,
+				addressNotes: addressesTable.notes,
 			})
 			.from(competitionsTable)
+			.leftJoin(
+				addressesTable,
+				eq(competitionsTable.primaryAddressId, addressesTable.id),
+			)
 			.where(eq(competitionsTable.id, data.competitionId))
 			.limit(1)
 
@@ -201,7 +223,33 @@ export const getCompetitionByIdFn = createServerFn({ method: "GET" })
 			return { competition: null }
 		}
 
-		return { competition: result[0] }
+		// Reshape to include address as nested object
+		const {
+			addressName,
+			addressStreetLine1,
+			addressStreetLine2,
+			addressCity,
+			addressStateProvince,
+			addressPostalCode,
+			addressCountryCode,
+			addressNotes,
+			...competition
+		} = result[0]
+
+		const primaryAddress = competition.primaryAddressId
+			? {
+					name: addressName,
+					streetLine1: addressStreetLine1,
+					streetLine2: addressStreetLine2,
+					city: addressCity,
+					stateProvince: addressStateProvince,
+					postalCode: addressPostalCode,
+					countryCode: addressCountryCode,
+					notes: addressNotes,
+				}
+			: null
+
+		return { competition: { ...competition, primaryAddress } }
 	})
 
 /**
@@ -546,6 +594,7 @@ export const getOrganizerRegistrationsFn = createServerFn({ method: "GET" })
 							avatar: true,
 							gender: true,
 							dateOfBirth: true,
+							affiliateName: true,
 						},
 					},
 					division: {
@@ -572,6 +621,7 @@ export const getOrganizerRegistrationsFn = createServerFn({ method: "GET" })
 											lastName: true,
 											email: true,
 											avatar: true,
+											affiliateName: true,
 										},
 									},
 								},

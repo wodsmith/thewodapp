@@ -3,11 +3,16 @@ import { relations } from "drizzle-orm"
 import { index, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core"
 import { commonColumns } from "./common"
 import { createId } from "@paralleldrive/cuid2"
-import { competitionsTable, competitionEventsTable, competitionRegistrationsTable } from "./competitions"
+import {
+	competitionsTable,
+	competitionEventsTable,
+	competitionRegistrationsTable,
+} from "./competitions"
 import { userTable } from "./users"
 
 // ID generator for submission window notifications
-export const createSubmissionWindowNotificationId = () => `swnotif_${createId()}`
+export const createSubmissionWindowNotificationId = () =>
+	`swnotif_${createId()}`
 
 // Notification types for submission windows
 export const SUBMISSION_WINDOW_NOTIFICATION_TYPES = {
@@ -53,15 +58,15 @@ export const submissionWindowNotificationsTable = sqliteTable(
 		// The athlete's registration
 		registrationId: text()
 			.notNull()
-			.references(() => competitionRegistrationsTable.id, { onDelete: "cascade" }),
+			.references(() => competitionRegistrationsTable.id, {
+				onDelete: "cascade",
+			}),
 		// The user who received the notification
 		userId: text()
 			.notNull()
 			.references(() => userTable.id, { onDelete: "cascade" }),
 		// Type of notification
-		type: text()
-			.$type<SubmissionWindowNotificationType>()
-			.notNull(),
+		type: text().$type<SubmissionWindowNotificationType>().notNull(),
 		// Email address the notification was sent to (for logging/debugging)
 		sentToEmail: text(),
 	},

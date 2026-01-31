@@ -72,6 +72,7 @@ const routeLabels: Record<string, string> = {
 	events: "Events",
 	"submission-windows": "Submission Windows",
 	schedule: "Schedule",
+	locations: "Locations",
 	volunteers: "Volunteers",
 	results: "Results",
 	pricing: "Pricing",

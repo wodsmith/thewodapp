@@ -350,6 +350,26 @@ export const getTeamFeeSettingsFn = createServerFn({ method: "GET" })
 	})
 
 /**
+ * Get team public contact email
+ * Only returns billingEmail if explicitly configured by the team.
+ * Does NOT fall back to owner's personal email to avoid PII exposure
+ * on public competition pages.
+ */
+export const getTeamContactEmailFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) => getTeamSlugInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		const team = await db.query.teamTable.findFirst({
+			where: eq(teamTable.id, data.teamId),
+			columns: { billingEmail: true },
+		})
+
+		// Only return explicitly configured contact email
+		return team?.billingEmail ?? null
+	})
+
+/**
  * Get the active team ID from cookie or fallback to first team
  *
  * This is the server function wrapper for getActiveTeamId from team-auth.ts.
@@ -391,7 +411,12 @@ export const getOrganizerTeamsFn = createServerFn({ method: "GET" }).handler(
 		}
 
 		// Filter teams that can organize
-		const organizerTeams: Array<{ id: string; name: string; slug: string; type: string }> = []
+		const organizerTeams: Array<{
+			id: string
+			name: string
+			slug: string
+			type: string
+		}> = []
 		const seenTeamIds = new Set<string>()
 
 		for (const team of session.teams) {

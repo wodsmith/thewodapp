@@ -88,6 +88,7 @@ describe('SchedulePageContent', () => {
           events={[]}
           heats={[]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -131,6 +132,7 @@ describe('SchedulePageContent', () => {
           events={[event1]}
           heats={[heat1]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -153,6 +155,7 @@ describe('SchedulePageContent', () => {
           laneCount: 8,
           transitionMinutes: 3,
           sortOrder: 0,
+          addressId: null,
           createdAt: new Date(),
           updatedAt: new Date(),
           updateCounter: null,
@@ -164,6 +167,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -215,6 +219,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -250,13 +255,14 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
       const workoutButton = screen.getByRole('button', {name: /Event 1/i})
       fireEvent.click(workoutButton)
 
-      expect(screen.getByText('Assignments coming soon')).toBeInTheDocument()
+      expect(screen.getByText('Coming soon')).toBeInTheDocument()
     })
   })
 
@@ -284,6 +290,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -320,6 +327,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -360,6 +368,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -405,6 +414,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId="current-user"
+          timezone="America/Denver"
         />,
       )
 
@@ -436,6 +446,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId="current-user"
+          timezone="America/Denver"
         />,
       )
 
@@ -469,6 +480,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId="current-user"
+          timezone="America/Denver"
         />,
       )
 
@@ -515,6 +527,7 @@ describe('SchedulePageContent', () => {
           events={[event1, event2]}
           heats={[heat1, heat2]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -541,6 +554,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat1, heat2]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -564,6 +578,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -603,6 +618,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -644,6 +660,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -694,6 +711,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
