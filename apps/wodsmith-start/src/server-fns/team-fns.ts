@@ -350,39 +350,23 @@ export const getTeamFeeSettingsFn = createServerFn({ method: "GET" })
 	})
 
 /**
- * Get team owner/admin contact email
- * Returns billingEmail if set, otherwise falls back to the team owner's email
+ * Get team public contact email
+ * Only returns billingEmail if explicitly configured by the team.
+ * Does NOT fall back to owner's personal email to avoid PII exposure
+ * on public competition pages.
  */
 export const getTeamContactEmailFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) => getTeamSlugInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		const db = getDb()
 
-		// First check if team has billingEmail
 		const team = await db.query.teamTable.findFirst({
 			where: eq(teamTable.id, data.teamId),
 			columns: { billingEmail: true },
 		})
 
-		if (team?.billingEmail) {
-			return team.billingEmail
-		}
-
-		// Fall back to team owner's email using a join
-		const ownerResult = await db
-			.select({ email: userTable.email })
-			.from(teamMembershipTable)
-			.innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
-			.where(
-				and(
-					eq(teamMembershipTable.teamId, data.teamId),
-					eq(teamMembershipTable.roleId, "owner"),
-					eq(teamMembershipTable.isSystemRole, 1),
-				),
-			)
-			.limit(1)
-
-		return ownerResult[0]?.email ?? null
+		// Only return explicitly configured contact email
+		return team?.billingEmail ?? null
 	})
 
 /**
