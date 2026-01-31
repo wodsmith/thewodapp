@@ -115,7 +115,11 @@ const getNavigation = (
 					href: `${basePath}/volunteers`,
 					icon: UserCheck,
 				},
-				{ label: "Results", href: `${basePath}/results`, icon: Medal },
+				{
+					label: competitionType === "online" ? "Submissions" : "Results",
+					href: `${basePath}/results`,
+					icon: Medal,
+				},
 			],
 		},
 		{

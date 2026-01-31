@@ -1,16 +1,15 @@
 /**
  * Competition Results Route
  *
- * Organizer page for entering competition results/scores.
- * Fetches events, divisions, and score entry data.
- * Uses ResultsEntryForm component for score entry UI.
+ * For in-person competitions: Organizer page for entering competition results/scores.
+ * For online competitions: Shows submissions overview with links to video verification.
  *
  * Port from apps/wodsmith/src/app/(compete)/compete/organizer/[competitionId]/(with-sidebar)/results/page.tsx
  */
 
-import { createFileRoute, getRouteApi, useRouter } from "@tanstack/react-router"
+import { createFileRoute, getRouteApi, Link, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { AlertTriangle, Eye, EyeOff, Loader2 } from "lucide-react"
+import { AlertTriangle, Eye, EyeOff, Loader2, Video, VideoOff } from "lucide-react"
 import { useCallback, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -18,6 +17,21 @@ import { ResultsEntryForm } from "@/components/organizer/results/results-entry-f
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card"
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@/components/ui/table"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import {
@@ -30,6 +44,7 @@ import {
 	publishDivisionResultsFn,
 	type AllEventsResultsStatusResponse,
 } from "@/server-fns/division-results-fns"
+import { getEventSubmissionsFn } from "@/server-fns/submission-verification-fns"
 
 // Get parent route API to access competition data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -59,31 +74,63 @@ export const Route = createFileRoute(
 			throw new Error("Competition not found")
 		}
 
-		// Fetch events, divisions, and division results status in parallel
-		const [eventsResult, divisionsResult, divisionResultsStatus] =
-			await Promise.all([
-				getCompetitionWorkoutsFn({
-					data: {
-						competitionId: params.competitionId,
-						teamId: competition.organizingTeamId,
-					},
-				}),
-				getCompetitionDivisionsWithCountsFn({
-					data: {
-						competitionId: params.competitionId,
-						teamId: competition.organizingTeamId,
-					},
-				}),
-				getDivisionResultsStatusFn({
-					data: {
-						competitionId: params.competitionId,
-						organizingTeamId: competition.organizingTeamId,
-					},
-				}),
-			])
+		const isOnline = competition.competitionType === "online"
+
+		// Fetch events and divisions in parallel
+		const [eventsResult, divisionsResult] = await Promise.all([
+			getCompetitionWorkoutsFn({
+				data: {
+					competitionId: params.competitionId,
+					teamId: competition.organizingTeamId,
+				},
+			}),
+			getCompetitionDivisionsWithCountsFn({
+				data: {
+					competitionId: params.competitionId,
+					teamId: competition.organizingTeamId,
+				},
+			}),
+		])
 
 		const events = eventsResult.workouts
 		const divisions = divisionsResult.divisions
+
+		// For online competitions, fetch submission stats for each event
+		if (isOnline) {
+			const eventSubmissionStats = await Promise.all(
+				events.map(async (event) => {
+					const { submissions } = await getEventSubmissionsFn({
+						data: {
+							competitionId: params.competitionId,
+							trackWorkoutId: event.id,
+						},
+					})
+					const withVideo = submissions.filter((s) => s.hasVideo).length
+					return {
+						eventId: event.id,
+						eventName: event.workout.name,
+						trackOrder: event.trackOrder,
+						totalSubmissions: submissions.length,
+						withVideo,
+						withoutVideo: submissions.length - withVideo,
+					}
+				}),
+			)
+
+			return {
+				isOnline: true as const,
+				events,
+				eventSubmissionStats,
+			}
+		}
+
+		// For in-person competitions, fetch score entry data
+		const divisionResultsStatus = await getDivisionResultsStatusFn({
+			data: {
+				competitionId: params.competitionId,
+				organizingTeamId: competition.organizingTeamId,
+			},
+		})
 
 		// Determine which event to show (from URL or first event)
 		const selectedEventId = deps.eventId || events[0]?.id
@@ -103,6 +150,7 @@ export const Route = createFileRoute(
 		}
 
 		return {
+			isOnline: false as const,
 			events,
 			divisions,
 			selectedEventId,
@@ -116,6 +164,195 @@ export const Route = createFileRoute(
 })
 
 function ResultsPage() {
+	const loaderData = Route.useLoaderData()
+
+	// Route to appropriate component based on competition type
+	if (loaderData.isOnline) {
+		return <OnlineSubmissionsOverview data={loaderData} />
+	}
+
+	return <InPersonResultsEntry data={loaderData} />
+}
+
+/**
+ * Online competition submissions overview
+ * Shows all events with submission counts and links to verification pages
+ */
+function OnlineSubmissionsOverview({
+	data,
+}: {
+	data: {
+		isOnline: true
+		events: Array<{
+			id: string
+			workout: { name: string }
+			trackOrder: number
+		}>
+		eventSubmissionStats: Array<{
+			eventId: string
+			eventName: string
+			trackOrder: number
+			totalSubmissions: number
+			withVideo: number
+			withoutVideo: number
+		}>
+	}
+}) {
+	const { competitionId } = Route.useParams()
+
+	// Calculate totals
+	const totals = data.eventSubmissionStats.reduce(
+		(acc, stat) => ({
+			totalSubmissions: acc.totalSubmissions + stat.totalSubmissions,
+			withVideo: acc.withVideo + stat.withVideo,
+			withoutVideo: acc.withoutVideo + stat.withoutVideo,
+		}),
+		{ totalSubmissions: 0, withVideo: 0, withoutVideo: 0 },
+	)
+
+	if (data.events.length === 0) {
+		return (
+			<div className="flex flex-col gap-4">
+				<div>
+					<h2 className="text-xl font-semibold">Submissions</h2>
+					<p className="text-muted-foreground text-sm">
+						Review athlete video submissions
+					</p>
+				</div>
+				<div className="text-center py-12 text-muted-foreground">
+					No events found for this competition. Add events first.
+				</div>
+			</div>
+		)
+	}
+
+	return (
+		<div className="flex flex-col gap-6">
+			<div>
+				<h2 className="text-xl font-semibold">Submissions</h2>
+				<p className="text-muted-foreground text-sm">
+					Review athlete video submissions for each event
+				</p>
+			</div>
+
+			{/* Summary Stats */}
+			<div className="grid gap-4 md:grid-cols-3">
+				<Card>
+					<CardHeader className="pb-2">
+						<CardDescription>Total Submissions</CardDescription>
+						<CardTitle className="text-4xl">{totals.totalSubmissions}</CardTitle>
+					</CardHeader>
+				</Card>
+				<Card>
+					<CardHeader className="pb-2">
+						<CardDescription>With Video</CardDescription>
+						<CardTitle className="text-4xl text-green-600">
+							{totals.withVideo}
+						</CardTitle>
+					</CardHeader>
+				</Card>
+				<Card>
+					<CardHeader className="pb-2">
+						<CardDescription>Without Video</CardDescription>
+						<CardTitle className="text-4xl text-yellow-600">
+							{totals.withoutVideo}
+						</CardTitle>
+					</CardHeader>
+				</Card>
+			</div>
+
+			{/* Events Table */}
+			<Card>
+				<CardHeader>
+					<CardTitle>Events</CardTitle>
+					<CardDescription>
+						Click on an event to review submissions
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead className="w-[80px]">Event</TableHead>
+								<TableHead>Name</TableHead>
+								<TableHead className="text-center">Submissions</TableHead>
+								<TableHead className="text-center">With Video</TableHead>
+								<TableHead className="text-center">Without Video</TableHead>
+								<TableHead className="w-[120px]">Action</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{data.eventSubmissionStats
+								.sort((a, b) => a.trackOrder - b.trackOrder)
+								.map((stat) => (
+									<TableRow key={stat.eventId}>
+										<TableCell className="font-medium">
+											#{stat.trackOrder}
+										</TableCell>
+										<TableCell>{stat.eventName}</TableCell>
+										<TableCell className="text-center">
+											{stat.totalSubmissions}
+										</TableCell>
+										<TableCell className="text-center">
+											<div className="flex items-center justify-center gap-1">
+												<Video className="h-4 w-4 text-green-600" />
+												<span className="text-green-600">{stat.withVideo}</span>
+											</div>
+										</TableCell>
+										<TableCell className="text-center">
+											<div className="flex items-center justify-center gap-1">
+												<VideoOff className="h-4 w-4 text-yellow-600" />
+												<span className="text-yellow-600">
+													{stat.withoutVideo}
+												</span>
+											</div>
+										</TableCell>
+										<TableCell>
+											<Button variant="outline" size="sm" asChild>
+												<Link
+													to="/compete/organizer/$competitionId/events/$eventId/submissions"
+													params={{
+														competitionId,
+														eventId: stat.eventId,
+													}}
+												>
+													Review
+												</Link>
+											</Button>
+										</TableCell>
+									</TableRow>
+								))}
+						</TableBody>
+					</Table>
+				</CardContent>
+			</Card>
+		</div>
+	)
+}
+
+/**
+ * In-person competition results entry
+ * Original results entry form for manual score input
+ */
+function InPersonResultsEntry({
+	data,
+}: {
+	data: {
+		isOnline: false
+		events: Array<{
+			id: string
+			workout: { name: string }
+			trackOrder: number
+		}>
+		divisions: Array<{ id: string; label: string }>
+		selectedEventId: string | undefined
+		selectedDivisionId: string | undefined
+		scoreEntryData: Awaited<
+			ReturnType<typeof getEventScoreEntryDataWithHeatsFn>
+		> | null
+		divisionResultsStatus: AllEventsResultsStatusResponse
+	}
+}) {
 	const {
 		events,
 		divisions,
@@ -123,7 +360,7 @@ function ResultsPage() {
 		selectedDivisionId,
 		scoreEntryData,
 		divisionResultsStatus,
-	} = Route.useLoaderData()
+	} = data
 	const { competitionId } = Route.useParams()
 	const router = useRouter()
 

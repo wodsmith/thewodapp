@@ -32,7 +32,7 @@ import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 
 export const Route = createFileRoute(
-	"/compete/organizer/$competitionId/events/$eventId",
+	"/compete/organizer/$competitionId/events/$eventId/",
 )({
 	component: EventEditPage,
 	loader: async ({ params }) => {
