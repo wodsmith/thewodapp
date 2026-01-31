@@ -1,7 +1,7 @@
 /**
  * Payout Settings Route
  * Allows organizers to configure Stripe Connect payouts for their team.
- * Supports both Express and Standard Stripe Connect account types.
+ * Uses Express Stripe Connect account type for streamlined onboarding.
  *
  * Port from apps/wodsmith/src/app/(compete)/compete/(organizer-protected)/organizer/settings/payouts/[teamSlug]/page.tsx
  */
@@ -36,7 +36,6 @@ import {
 	getStripeConnectionStatusFn,
 	getStripeDashboardUrlFn,
 	initiateExpressOnboardingFn,
-	initiateStandardOAuthFn,
 	refreshOnboardingLinkFn,
 	syncStripeAccountStatusFn,
 } from "@/server-fns/stripe-connect-fns"
@@ -124,7 +123,6 @@ function PayoutSettingsPage() {
 
 	// Server function hooks
 	const initiateExpress = useServerFn(initiateExpressOnboardingFn)
-	const initiateStandard = useServerFn(initiateStandardOAuthFn)
 	const refreshOnboarding = useServerFn(refreshOnboardingLinkFn)
 	const syncStatus = useServerFn(syncStripeAccountStatusFn)
 	const getDashboardUrl = useServerFn(getStripeDashboardUrlFn)
@@ -148,24 +146,6 @@ function PayoutSettingsPage() {
 				error instanceof Error
 					? error.message
 					: "Failed to start Stripe onboarding",
-			)
-		} finally {
-			setIsLoading(null)
-		}
-	}
-
-	const handleStartStandard = async () => {
-		setIsLoading("standard")
-		try {
-			const result = await initiateStandard({ data: { teamId: team.id } })
-			if (result.authorizationUrl) {
-				window.location.href = result.authorizationUrl
-			}
-		} catch (error) {
-			toast.error(
-				error instanceof Error
-					? error.message
-					: "Failed to start Stripe connection",
 			)
 		} finally {
 			setIsLoading(null)
@@ -331,65 +311,20 @@ function PayoutSettingsPage() {
 								competition registrations. Your earnings will be automatically
 								transferred to your bank account.
 							</p>
-							<div className="grid gap-4 sm:grid-cols-2">
-								{/* Express Account (Recommended) */}
-								<Card className="border-2 border-primary">
-									<CardHeader className="pb-2">
-										<CardTitle className="text-lg flex items-center justify-between">
-											Express
-											<Badge>Recommended</Badge>
-										</CardTitle>
-									</CardHeader>
-									<CardContent className="space-y-3">
-										<p className="text-sm text-muted-foreground">
-											Quickest setup. Stripe handles compliance and support.
-											Perfect for most organizers.
-										</p>
-										<Button
-											onClick={handleStartExpress}
-											disabled={isLoading !== null}
-											className="w-full"
-										>
-											{isLoading === "express" ? (
-												<>
-													<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-													Starting...
-												</>
-											) : (
-												"Connect with Express"
-											)}
-										</Button>
-									</CardContent>
-								</Card>
-
-								{/* Standard Account */}
-								<Card>
-									<CardHeader className="pb-2">
-										<CardTitle className="text-lg">Standard</CardTitle>
-									</CardHeader>
-									<CardContent className="space-y-3">
-										<p className="text-sm text-muted-foreground">
-											Use your existing Stripe account. Full access to your
-											Stripe Dashboard.
-										</p>
-										<Button
-											variant="outline"
-											onClick={handleStartStandard}
-											disabled={isLoading !== null}
-											className="w-full"
-										>
-											{isLoading === "standard" ? (
-												<>
-													<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-													Starting...
-												</>
-											) : (
-												"Connect Existing Account"
-											)}
-										</Button>
-									</CardContent>
-								</Card>
-							</div>
+							<Button
+								onClick={handleStartExpress}
+								disabled={isLoading !== null}
+								size="lg"
+							>
+								{isLoading === "express" ? (
+									<>
+										<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+										Starting...
+									</>
+								) : (
+									"Connect with Stripe"
+								)}
+							</Button>
 						</div>
 					) : stripeStatus.status === "PENDING" ? (
 						// Pending - show continue setup button
