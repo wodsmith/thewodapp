@@ -62,6 +62,10 @@ type VolunteerRoleType =
 	| "floor_manager"
 	| "media"
 	| "general"
+	| "medical"
+	| "staff"
+	| "equipment_team"
+	| "athlete_control"
 
 const ROLE_TYPE_LABELS: Record<VolunteerRoleType, string> = {
 	judge: "Judge",
@@ -71,6 +75,10 @@ const ROLE_TYPE_LABELS: Record<VolunteerRoleType, string> = {
 	floor_manager: "Floor Manager",
 	media: "Media",
 	general: "General",
+	medical: "Medical",
+	staff: "Staff",
+	equipment_team: "Equipment Team",
+	athlete_control: "Athlete Control",
 }
 
 function getAvailabilityLabel(availability?: string): string | null {
