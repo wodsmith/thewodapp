@@ -77,6 +77,7 @@ function CompetitionOverviewPage() {
 		sponsors,
 		userDivision,
 		maxSpots,
+		organizerContactEmail,
 	} = parentRoute.useLoaderData()
 
 	const { slug } = Route.useParams()
@@ -161,6 +162,7 @@ function CompetitionOverviewPage() {
 					isTeamRegistration={isTeamRegistration}
 					isCaptain={userRegistration?.userId === session?.userId}
 					isVolunteer={isVolunteer}
+					organizerContactEmail={organizerContactEmail}
 				/>
 				<CompetitionLocationCard
 					address={competition.address}
