@@ -789,10 +789,14 @@ export function HeatCard({
 					<CardHeader className="py-3">
 						<div className="flex items-center gap-3">
 							{onReorder && (
-								<DragHandleButton
-									ref={dragHandleRef}
-									label={`Reorder Heat ${heat.heatNumber}`}
-								/>
+								// Stop propagation to prevent Card onClick from firing during drag
+								// biome-ignore lint/a11y/useKeyWithClickEvents: wrapper only stops propagation
+								<div onClick={(e) => e.stopPropagation()}>
+									<DragHandleButton
+										ref={dragHandleRef}
+										label={`Reorder Heat ${heat.heatNumber}`}
+									/>
+								</div>
 							)}
 							<ChevronRight className="h-4 w-4 text-muted-foreground" />
 							<CardTitle className="text-base">
