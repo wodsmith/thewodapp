@@ -257,6 +257,7 @@ function VolunteersPage() {
 			{/* Judging Schedule Section */}
 			<JudgeSchedulingContainer
 				competitionId={competition.id}
+				competitionSlug={competition.slug}
 				organizingTeamId={competition.organizingTeamId}
 				competitionType={competition.competitionType}
 				events={events}
