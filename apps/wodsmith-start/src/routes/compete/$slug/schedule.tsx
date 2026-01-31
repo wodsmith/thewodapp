@@ -99,7 +99,7 @@ function CompetitionSchedulePage() {
 			<div className="sticky top-4 z-10">
 				<CompetitionTabs slug={competition.slug} />
 			</div>
-			<div className="rounded-2xl border border-black/10 bg-black/5 p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
+			<div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
 				<SchedulePageContent
 					events={events}
 					heats={heats}

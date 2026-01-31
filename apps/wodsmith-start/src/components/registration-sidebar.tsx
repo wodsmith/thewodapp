@@ -121,6 +121,7 @@ interface RegistrationSidebarProps {
 	isTeamRegistration?: boolean
 	isCaptain?: boolean
 	isVolunteer?: boolean
+	organizerContactEmail?: string | null
 }
 
 function formatDateShort(date: string | Date | number): string {
@@ -151,6 +152,7 @@ export function RegistrationSidebar({
 	isTeamRegistration,
 	isCaptain,
 	isVolunteer = false,
+	organizerContactEmail,
 }: RegistrationSidebarProps) {
 	const regClosesAt = competition.registrationClosesAt
 	const regOpensAt = competition.registrationOpensAt
@@ -345,12 +347,16 @@ export function RegistrationSidebar({
 						<p className="font-medium text-sm">
 							{competition.organizingTeam.name}
 						</p>
-						<div className="mt-2 flex gap-2">
-							<Button variant="outline" size="sm" className="h-8" disabled>
-								<Mail className="mr-1 h-3 w-3" />
-								Email
-							</Button>
-						</div>
+						{organizerContactEmail && (
+							<div className="mt-2 flex gap-2">
+								<Button variant="outline" size="sm" className="h-8" asChild>
+									<a href={`mailto:${organizerContactEmail}`}>
+										<Mail className="mr-1 h-3 w-3" />
+										Email
+									</a>
+								</Button>
+							</div>
+						)}
 					</CardContent>
 				</Card>
 			)}
