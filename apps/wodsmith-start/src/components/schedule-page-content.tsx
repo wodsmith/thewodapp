@@ -570,60 +570,64 @@ export function SchedulePageContent({
 																		}
 																		disabled={!hasLaneAssignments}
 																		className={cn(
-																			"w-full px-6 py-3 flex items-center justify-between text-left transition-colors",
+																			"w-full px-4 sm:px-6 py-3 flex items-center justify-between text-left transition-colors gap-2",
 																			hasLaneAssignments
 																				? "hover:bg-muted/50 cursor-pointer"
 																				: "cursor-default opacity-75",
 																			userInHeat && "bg-orange-500/10",
 																		)}
 																	>
-																		<div className="flex items-center gap-3">
-																			<span className="font-medium tabular-nums w-16">
+																		<div className="flex flex-wrap items-center gap-x-3 gap-y-1 flex-1 min-w-0">
+																			{/* Primary info - always visible */}
+																			<span className="font-medium tabular-nums shrink-0">
 																				Heat {heat.heatNumber}
 																			</span>
 																			{heat.scheduledTime && (
-																				<span className="text-sm text-muted-foreground tabular-nums">
+																				<span className="text-sm text-muted-foreground tabular-nums shrink-0">
 																					{formatTime(
 																						toDate(heat.scheduledTime),
 																					)}
 																				</span>
 																			)}
 																			{heat.venue && (
-																				<span className="text-sm text-muted-foreground flex items-center gap-1">
+																				<span className="text-sm text-muted-foreground flex items-center gap-1 shrink-0">
 																					<MapPin className="h-3 w-3" />
-																					{heat.venue.name}
+																					<span className="truncate max-w-[100px] sm:max-w-none">
+																						{heat.venue.name}
+																					</span>
 																				</span>
 																			)}
+																			{/* Secondary info - badges */}
 																			{divisionSummary &&
 																				heat.assignments.length > 0 && (
 																					<Badge
 																						variant="outline"
-																						className="text-xs tabular-nums"
+																						className="text-[10px] sm:text-xs tabular-nums shrink-0"
 																					>
 																						{divisionSummary}
 																					</Badge>
 																				)}
 																			{userInHeat && (
-																				<Badge className="bg-orange-500 text-xs">
+																				<Badge className="bg-orange-500 text-[10px] sm:text-xs shrink-0">
 																					You're here
 																				</Badge>
 																			)}
 																			{!hasLaneAssignments && (
 																				<Badge
 																					variant="outline"
-																					className="text-xs text-amber-500 border-amber-500"
+																					className="text-[10px] sm:text-xs text-amber-500 border-amber-500 shrink-0"
 																				>
 																					{workout.event.heatStatus !==
 																					"published"
-																						? "Assignments coming soon"
-																						: "Assignments pending"}
+																						? "Coming soon"
+																						: "Pending"}
 																				</Badge>
 																			)}
 																		</div>
 																		{hasLaneAssignments && (
 																			<ChevronDown
 																				className={cn(
-																					"h-4 w-4 text-muted-foreground transition-transform",
+																					"h-4 w-4 text-muted-foreground transition-transform shrink-0",
 																					isHeatExpanded && "rotate-180",
 																				)}
 																			/>
@@ -634,7 +638,7 @@ export function SchedulePageContent({
 																	{isHeatExpanded &&
 																		heat.assignments.length > 0 && (
 																			<div className="px-6 py-3 bg-background/50">
-																				{/* Mobile View */}
+																				{/* Mobile View - compact horizontal layout */}
 																				<div className="grid gap-2 md:hidden">
 																					{heat.assignments
 																						.sort(
@@ -663,7 +667,7 @@ export function SchedulePageContent({
 																								<div
 																									key={assignment.id}
 																									className={cn(
-																										"rounded-lg p-3 border",
+																										"rounded-lg px-3 py-2 border flex items-center gap-3",
 																										isMatch
 																											? "bg-orange-500/10 border-orange-500"
 																											: isUser
@@ -671,39 +675,41 @@ export function SchedulePageContent({
 																												: "bg-card",
 																									)}
 																								>
-																									<div className="flex items-center gap-2 mb-2">
-																										<div
-																											className={cn(
-																												"w-8 h-8 rounded flex items-center justify-center text-sm font-bold tabular-nums",
-																												isMatch || isUser
-																													? "bg-orange-500 text-white"
-																													: "bg-muted",
-																											)}
-																										>
-																											{assignment.laneNumber}
-																										</div>
-																										<span className="text-xs text-muted-foreground">
-																											Lane
-																										</span>
+																									{/* Lane number */}
+																									<div
+																										className={cn(
+																											"w-8 h-8 rounded flex items-center justify-center text-sm font-bold tabular-nums shrink-0",
+																											isMatch || isUser
+																												? "bg-orange-500 text-white"
+																												: "bg-muted",
+																										)}
+																									>
+																										{assignment.laneNumber}
 																									</div>
-																									<div className="space-y-1">
-																										<p className="font-medium text-sm">
-																											{name}
-																										</p>
-																										<p className="text-xs text-muted-foreground">
-																											{assignment.registration
-																												.affiliate ||
-																												"Independent"}
-																										</p>
+																									{/* Info */}
+																									<div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+																										<div className="min-w-0">
+																											<p className="font-medium text-sm truncate">
+																												{name}
+																											</p>
+																											<p className="text-xs text-muted-foreground truncate">
+																												{assignment.registration
+																													.affiliate ||
+																													"Independent"}
+																											</p>
+																										</div>
 																										{assignment.registration
 																											.division && (
-																											<p className="text-xs text-orange-500">
+																											<Badge
+																												variant="outline"
+																												className="text-[10px] px-1.5 py-0 h-4 shrink-0 border-orange-500/50 text-orange-500"
+																											>
 																												{
 																													assignment
 																														.registration
 																														.division.label
 																												}
-																											</p>
+																											</Badge>
 																										)}
 																									</div>
 																								</div>
