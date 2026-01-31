@@ -42,48 +42,26 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { VolunteerShift } from "@/db/schemas/volunteers"
+import {
+	VOLUNTEER_ROLE_OPTIONS,
+	VOLUNTEER_ROLE_TYPE_VALUES,
+	type VolunteerRoleType,
+	type VolunteerShift,
+} from "@/db/schemas/volunteers"
 import {
 	createShiftFn,
 	updateShiftFn,
 } from "@/server-fns/volunteer-shift-fns"
 import { cn } from "@/utils/cn"
 
-// Shift role type enum values (excluding equipment per VS-011 requirements)
-const shiftRoleTypeEnum = z.enum([
-	"judge",
-	"head_judge",
-	"medical",
-	"check_in",
-	"staff",
-	"scorekeeper",
-	"emcee",
-	"floor_manager",
-	"media",
-	"general",
-])
-
-type ShiftRoleType = z.infer<typeof shiftRoleTypeEnum>
-
-// Role type options for the select dropdown
-const SHIFT_ROLE_TYPES: { value: ShiftRoleType; label: string }[] = [
-	{ value: "judge", label: "Judge" },
-	{ value: "head_judge", label: "Head Judge" },
-	{ value: "medical", label: "Medical" },
-	{ value: "check_in", label: "Check-In" },
-	{ value: "staff", label: "Staff" },
-	{ value: "scorekeeper", label: "Scorekeeper" },
-	{ value: "emcee", label: "Emcee" },
-	{ value: "floor_manager", label: "Floor Manager" },
-	{ value: "media", label: "Media" },
-	{ value: "general", label: "General" },
-]
+// Zod enum from shared volunteer role types
+const volunteerRoleTypeEnum = z.enum(VOLUNTEER_ROLE_TYPE_VALUES)
 
 // Form validation schema
 const shiftFormSchema = z
 	.object({
 		name: z.string().min(1, "Name is required").max(200, "Name is too long"),
-		roleType: shiftRoleTypeEnum,
+		roleType: volunteerRoleTypeEnum,
 		date: z.date(),
 		startTime: z
 			.string()
@@ -182,7 +160,7 @@ export function ShiftFormDialog({
 				const endDate = new Date(shift.endTime)
 				form.reset({
 					name: shift.name,
-					roleType: shift.roleType as ShiftFormValues["roleType"],
+					roleType: shift.roleType as VolunteerRoleType,
 					date: startDate,
 					startTime: formatTimeFromDate(startDate),
 					endTime: formatTimeFromDate(endDate),
@@ -316,7 +294,7 @@ export function ShiftFormDialog({
 											</SelectTrigger>
 										</FormControl>
 										<SelectContent>
-											{SHIFT_ROLE_TYPES.map((role) => (
+											{VOLUNTEER_ROLE_OPTIONS.map((role) => (
 												<SelectItem key={role.value} value={role.value}>
 													{role.label}
 												</SelectItem>

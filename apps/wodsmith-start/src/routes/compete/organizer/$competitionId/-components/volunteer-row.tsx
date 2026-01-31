@@ -18,7 +18,12 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { TableCell, TableRow } from "@/components/ui/table"
 import type { User } from "@/db/schema"
-import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
+import {
+	VOLUNTEER_AVAILABILITY,
+	VOLUNTEER_ROLE_LABELS,
+	VOLUNTEER_ROLE_TYPE_VALUES,
+	type VolunteerRoleType,
+} from "@/db/schemas/volunteers"
 import {
 	addVolunteerRoleTypeFn,
 	grantScoreAccessFn,
@@ -54,32 +59,6 @@ interface VolunteerRowProps {
 	onToggleSelect?: (shiftKey: boolean) => void
 }
 
-type VolunteerRoleType =
-	| "judge"
-	| "head_judge"
-	| "scorekeeper"
-	| "emcee"
-	| "floor_manager"
-	| "media"
-	| "general"
-	| "medical"
-	| "staff"
-	| "equipment_team"
-	| "athlete_control"
-
-const ROLE_TYPE_LABELS: Record<VolunteerRoleType, string> = {
-	judge: "Judge",
-	head_judge: "Head Judge",
-	scorekeeper: "Scorekeeper",
-	emcee: "Emcee",
-	floor_manager: "Floor Manager",
-	media: "Media",
-	general: "General",
-	medical: "Medical",
-	staff: "Staff",
-	equipment_team: "Equipment Team",
-	athlete_control: "Athlete Control",
-}
 
 function getAvailabilityLabel(availability?: string): string | null {
 	switch (availability) {
@@ -384,7 +363,7 @@ export function VolunteerRow({
 				<div className="flex flex-wrap gap-1">
 					{Array.from(selectedRoles).map((roleType) => (
 						<Badge key={roleType} variant="outline">
-							{ROLE_TYPE_LABELS[roleType]}
+							{VOLUNTEER_ROLE_LABELS[roleType]}
 						</Badge>
 					))}
 					{selectedRoles.size === 0 && (
@@ -427,7 +406,7 @@ export function VolunteerRow({
 						<DropdownMenuContent align="end">
 							<DropdownMenuLabel>Role Types</DropdownMenuLabel>
 							<DropdownMenuSeparator />
-							{(Object.keys(ROLE_TYPE_LABELS) as VolunteerRoleType[]).map(
+							{VOLUNTEER_ROLE_TYPE_VALUES.map(
 								(roleType) => (
 									<DropdownMenuCheckboxItem
 										key={roleType}
@@ -437,7 +416,7 @@ export function VolunteerRow({
 										}
 										disabled={isPending}
 									>
-										{ROLE_TYPE_LABELS[roleType]}
+										{VOLUNTEER_ROLE_LABELS[roleType]}
 									</DropdownMenuCheckboxItem>
 								),
 							)}

@@ -31,7 +31,10 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
-import type { VolunteerRoleType, VolunteerShift } from "@/db/schemas/volunteers"
+import {
+	VOLUNTEER_ROLE_LABELS,
+	type VolunteerShift,
+} from "@/db/schemas/volunteers"
 import { deleteShiftFn, getCompetitionShiftsFn } from "@/server-fns/volunteer-shift-fns"
 import { ShiftAssignmentPanel } from "./shift-assignment-panel"
 import { ShiftFormDialog } from "./shift-form-dialog"
@@ -39,22 +42,6 @@ import { ShiftFormDialog } from "./shift-form-dialog"
 // Type inferred from getCompetitionShiftsFn return type
 type ShiftWithAssignments = Awaited<ReturnType<typeof getCompetitionShiftsFn>>[number]
 
-// Role type display labels
-const ROLE_TYPE_LABELS: Record<VolunteerRoleType, string> = {
-	judge: "Judge",
-	head_judge: "Head Judge",
-	scorekeeper: "Scorekeeper",
-	emcee: "Emcee",
-	floor_manager: "Floor Manager",
-	media: "Media",
-	general: "General",
-	equipment: "Equipment",
-	medical: "Medical",
-	check_in: "Check-In",
-	staff: "Staff",
-	athlete_control: "Athlete Control",
-	equipment_team: "Equipment Team",
-}
 
 // Get badge variant based on capacity fill
 function getCapacityBadgeVariant(
@@ -289,7 +276,7 @@ export function ShiftList({
 											</TableCell>
 											<TableCell>
 												<Badge variant="outline">
-													{ROLE_TYPE_LABELS[shift.roleType] || shift.roleType}
+													{VOLUNTEER_ROLE_LABELS[shift.roleType] || shift.roleType}
 												</Badge>
 											</TableCell>
 											<TableCell>

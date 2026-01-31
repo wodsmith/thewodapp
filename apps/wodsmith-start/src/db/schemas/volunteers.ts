@@ -40,6 +40,37 @@ export const VOLUNTEER_ROLE_TYPES = {
 export type VolunteerRoleType =
 	(typeof VOLUNTEER_ROLE_TYPES)[keyof typeof VOLUNTEER_ROLE_TYPES]
 
+// Human-readable labels for volunteer role types
+export const VOLUNTEER_ROLE_LABELS: Record<VolunteerRoleType, string> = {
+	judge: "Judge",
+	head_judge: "Head Judge",
+	equipment: "Equipment",
+	medical: "Medical",
+	check_in: "Check-In",
+	staff: "Staff",
+	scorekeeper: "Scorekeeper",
+	emcee: "Emcee",
+	floor_manager: "Floor Manager",
+	media: "Media",
+	general: "General",
+	athlete_control: "Athlete Control",
+	equipment_team: "Equipment Team",
+}
+
+// All role type values as an array (for zod schemas, dropdowns, etc.)
+export const VOLUNTEER_ROLE_TYPE_VALUES = Object.values(
+	VOLUNTEER_ROLE_TYPES,
+) as [VolunteerRoleType, ...VolunteerRoleType[]]
+
+// Role type options for dropdowns (value + label pairs)
+export const VOLUNTEER_ROLE_OPTIONS: {
+	value: VolunteerRoleType
+	label: string
+}[] = VOLUNTEER_ROLE_TYPE_VALUES.map((value) => ({
+	value,
+	label: VOLUNTEER_ROLE_LABELS[value],
+}))
+
 // Lane shift pattern for judge rotations
 export const LANE_SHIFT_PATTERN = {
 	STAY: "stay",

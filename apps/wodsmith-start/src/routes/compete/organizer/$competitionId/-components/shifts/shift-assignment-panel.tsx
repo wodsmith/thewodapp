@@ -14,8 +14,10 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@/components/ui/sheet"
-import type { VolunteerRoleType } from "@/db/schemas/volunteers"
-import type { VolunteerMembershipMetadata } from "@/db/schemas/volunteers"
+import {
+	VOLUNTEER_ROLE_LABELS,
+	type VolunteerMembershipMetadata,
+} from "@/db/schemas/volunteers"
 import {
 	assignVolunteerToShiftFn,
 	getCompetitionShiftsFn,
@@ -30,22 +32,6 @@ import {
 type ShiftWithAssignments = Awaited<ReturnType<typeof getCompetitionShiftsFn>>[number]
 type ShiftAssignment = ShiftWithAssignments["assignments"][number]
 
-// Role type display labels
-const ROLE_TYPE_LABELS: Record<VolunteerRoleType, string> = {
-	judge: "Judge",
-	head_judge: "Head Judge",
-	scorekeeper: "Scorekeeper",
-	emcee: "Emcee",
-	floor_manager: "Floor Manager",
-	media: "Media",
-	general: "General",
-	equipment: "Equipment",
-	medical: "Medical",
-	check_in: "Check-In",
-	staff: "Staff",
-	athlete_control: "Athlete Control",
-	equipment_team: "Equipment Team",
-}
 
 function formatTime(date: Date): string {
 	return date.toLocaleTimeString("en-US", {
@@ -144,11 +130,15 @@ export function ShiftAssignmentPanel({
 	const unassignVolunteer = useServerFn(unassignVolunteerFromShiftFn)
 
 	// Fetch all volunteers when panel opens
+	// Note: getVolunteers is excluded from deps since it's a stable hook reference
+	// and including it can cause unnecessary refetches
 	useEffect(() => {
 		if (open && competitionTeamId) {
+			console.log("[ShiftPanel] Fetching volunteers for team:", competitionTeamId)
 			setLoadingVolunteers(true)
 			getVolunteers({ data: { competitionTeamId } })
 				.then((volunteers) => {
+					console.log("[ShiftPanel] Received volunteers:", volunteers.length, volunteers.map(v => v.id))
 					setAllVolunteers(volunteers)
 				})
 				.catch((error) => {
@@ -159,7 +149,7 @@ export function ShiftAssignmentPanel({
 					setLoadingVolunteers(false)
 				})
 		}
-	}, [open, competitionTeamId, getVolunteers])
+	}, [open, competitionTeamId])
 
 	// Get assigned membership IDs for filtering
 	const assignedMembershipIds = useMemo(() => {
@@ -170,12 +160,27 @@ export function ShiftAssignmentPanel({
 	// Filter available volunteers by roleType and exclude already assigned
 	const availableVolunteers = useMemo(() => {
 		if (!shift) return []
+
+		// Debug: log all volunteers and filter results
+		console.log("[ShiftPanel] Filtering volunteers:", {
+			totalVolunteers: allVolunteers.length,
+			shiftRoleType: shift.roleType,
+			assignedIds: Array.from(assignedMembershipIds),
+		})
+
 		return allVolunteers.filter((volunteer) => {
 			// Exclude already assigned volunteers
-			if (assignedMembershipIds.has(volunteer.id)) return false
+			if (assignedMembershipIds.has(volunteer.id)) {
+				console.log(`[ShiftPanel] ${volunteer.id} excluded: already assigned`)
+				return false
+			}
 			// Filter by roleType
 			const roleTypes = parseVolunteerRoleTypes(volunteer.metadata)
-			return roleTypes.includes(shift.roleType)
+			const matches = roleTypes.includes(shift.roleType)
+			if (!matches) {
+				console.log(`[ShiftPanel] ${volunteer.id} excluded: roleTypes=${JSON.stringify(roleTypes)} doesn't include ${shift.roleType}`)
+			}
+			return matches
 		})
 	}, [allVolunteers, shift, assignedMembershipIds])
 
@@ -296,7 +301,7 @@ export function ShiftAssignmentPanel({
 				<div className="mt-4 space-y-3 rounded-lg border bg-muted/30 p-4">
 					<div className="flex items-center gap-2">
 						<Badge variant="outline">
-							{ROLE_TYPE_LABELS[shift.roleType] || shift.roleType}
+							{VOLUNTEER_ROLE_LABELS[shift.roleType] || shift.roleType}
 						</Badge>
 						<Badge
 							variant={isAtCapacity ? "default" : "secondary"}
@@ -380,7 +385,7 @@ export function ShiftAssignmentPanel({
 				{/* Available Volunteers */}
 				<div className="mt-6 flex-1">
 					<h3 className="mb-3 text-sm font-medium">
-						Available Volunteers ({ROLE_TYPE_LABELS[shift.roleType]})
+						Available Volunteers ({VOLUNTEER_ROLE_LABELS[shift.roleType]})
 					</h3>
 					{loadingVolunteers ? (
 						<p className="text-sm text-muted-foreground">
@@ -388,7 +393,7 @@ export function ShiftAssignmentPanel({
 						</p>
 					) : availableVolunteers.length === 0 ? (
 						<p className="text-sm text-muted-foreground">
-							No available volunteers with the {ROLE_TYPE_LABELS[shift.roleType]}{" "}
+							No available volunteers with the {VOLUNTEER_ROLE_LABELS[shift.roleType]}{" "}
 							role type
 						</p>
 					) : (
