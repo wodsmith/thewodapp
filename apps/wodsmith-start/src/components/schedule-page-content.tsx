@@ -42,32 +42,41 @@ function toDate(value: Date | string | number): Date {
 	return new Date(value)
 }
 
-function getDateKey(date: Date): string {
-	return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+function getDateKey(date: Date, timezone: string): string {
+	// Use timezone-aware YYYY-MM-DD format for correct lexicographic sorting
+	const formatter = new Intl.DateTimeFormat("sv-SE", {
+		timeZone: timezone,
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+	})
+	return formatter.format(date)
 }
 
-function formatDayLabel(date: Date): string {
+function formatDayLabel(date: Date, timezone: string): string {
 	return date.toLocaleDateString("en-US", {
+		timeZone: timezone,
 		weekday: "long",
 		month: "short",
 		day: "numeric",
 	})
 }
 
-function formatShortDayLabel(date: Date): string {
+function formatShortDayLabel(date: Date, timezone: string): string {
 	return date.toLocaleDateString("en-US", {
+		timeZone: timezone,
 		weekday: "short",
 		month: "short",
 		day: "numeric",
 	})
 }
 
-function formatTime(date: Date, timezone?: string): string {
+function formatTime(date: Date, timezone: string): string {
 	return date.toLocaleTimeString("en-US", {
+		timeZone: timezone,
 		hour: "numeric",
 		minute: "2-digit",
 		hour12: true,
-		timeZone: timezone,
 	})
 }
 
@@ -79,6 +88,17 @@ function formatCurrentTime(date: Date, timezone: string): string {
 		hour12: true,
 		timeZone: timezone,
 	})
+}
+
+function formatDateAndTime(date: Date, timezone: string): string {
+	const dateStr = date.toLocaleDateString("en-US", {
+		timeZone: timezone,
+		weekday: "short",
+		month: "short",
+		day: "numeric",
+	})
+	const timeStr = formatTime(date, timezone)
+	return `${dateStr}, ${timeStr}`
 }
 
 type HeatStatus = "past" | "current" | "next" | "upcoming"
@@ -103,7 +123,7 @@ function calculateHeatStatus(
 function formatTimeRange(
 	start: Date | null,
 	end: Date | null,
-	timezone?: string,
+	timezone: string,
 ): string {
 	if (!start || !end) return ""
 	return `${formatTime(start, timezone)} - ${formatTime(end, timezone)}`
@@ -240,13 +260,13 @@ export function SchedulePageContent({
 
 		for (const workout of workoutSchedules) {
 			const dateKey = workout.startTime
-				? getDateKey(workout.startTime)
+				? getDateKey(workout.startTime, timezone)
 				: "unscheduled"
 			const label = workout.startTime
-				? formatDayLabel(workout.startTime)
+				? formatDayLabel(workout.startTime, timezone)
 				: "Unscheduled"
 			const shortLabel = workout.startTime
-				? formatShortDayLabel(workout.startTime)
+				? formatShortDayLabel(workout.startTime, timezone)
 				: "TBD"
 
 			const existing = groups.get(dateKey)
@@ -280,7 +300,7 @@ export function SchedulePageContent({
 			dayGroups: sortedGroups,
 			allDays: sortedGroups.filter((g) => g.dateKey !== "unscheduled"),
 		}
-	}, [events, heats])
+	}, [events, heats, timezone])
 
 	// Filter workouts and heats based on search term, division, and affiliate
 	const hasFilters =
@@ -485,7 +505,7 @@ export function SchedulePageContent({
 											</div>
 											{heat.scheduledTime && (
 												<Badge variant="secondary">
-													{formatTime(toDate(heat.scheduledTime), timezone)}
+													{formatDateAndTime(toDate(heat.scheduledTime), timezone)}
 												</Badge>
 											)}
 										</div>
@@ -784,7 +804,7 @@ export function SchedulePageContent({
 																		}
 																		disabled={!hasLaneAssignments}
 																		className={cn(
-																			"w-full px-6 py-3 flex items-center justify-between text-left transition-colors",
+																			"w-full px-4 sm:px-6 py-3 flex items-center justify-between text-left transition-colors gap-2",
 																			hasLaneAssignments
 																				? "hover:bg-muted/50 cursor-pointer"
 																				: "cursor-default opacity-75",
@@ -797,12 +817,13 @@ export function SchedulePageContent({
 																				"text-muted-foreground",
 																		)}
 																	>
-																		<div className="flex items-center gap-3">
-																			<span className="font-medium tabular-nums w-16">
+																		<div className="flex flex-wrap items-center gap-x-3 gap-y-1 flex-1 min-w-0">
+																			{/* Primary info - always visible */}
+																			<span className="font-medium tabular-nums shrink-0">
 																				Heat {heat.heatNumber}
 																			</span>
 																			{heat.scheduledTime && (
-																				<span className="text-sm text-muted-foreground tabular-nums">
+																				<span className="text-sm text-muted-foreground tabular-nums shrink-0">
 																					{formatTime(
 																						toDate(heat.scheduledTime),
 																						timezone,
@@ -810,22 +831,25 @@ export function SchedulePageContent({
 																				</span>
 																			)}
 																			{heat.venue && (
-																				<span className="text-sm text-muted-foreground flex items-center gap-1">
+																				<span className="text-sm text-muted-foreground flex items-center gap-1 shrink-0">
 																					<MapPin className="h-3 w-3" />
-																					{heat.venue.name}
+																					<span className="truncate max-w-[100px] sm:max-w-none">
+																						{heat.venue.name}
+																					</span>
 																				</span>
 																			)}
+																			{/* Secondary info - badges */}
 																			{divisionSummary &&
 																				heat.assignments.length > 0 && (
 																					<Badge
 																						variant="outline"
-																						className="text-xs tabular-nums"
+																						className="text-[10px] sm:text-xs tabular-nums shrink-0"
 																					>
 																						{divisionSummary}
 																					</Badge>
 																				)}
 																			{userInHeat && (
-																				<Badge className="bg-orange-500 text-xs">
+																				<Badge className="bg-orange-500 text-[10px] sm:text-xs shrink-0">
 																					You're here
 																				</Badge>
 																			)}
@@ -842,19 +866,19 @@ export function SchedulePageContent({
 																			{!hasLaneAssignments && (
 																				<Badge
 																					variant="outline"
-																					className="text-xs text-amber-500 border-amber-500"
+																					className="text-[10px] sm:text-xs text-amber-500 border-amber-500 shrink-0"
 																				>
 																					{workout.event.heatStatus !==
 																					"published"
-																						? "Assignments coming soon"
-																						: "Assignments pending"}
+																						? "Coming soon"
+																						: "Pending"}
 																				</Badge>
 																			)}
 																		</div>
 																		{hasLaneAssignments && (
 																			<ChevronDown
 																				className={cn(
-																					"h-4 w-4 text-muted-foreground transition-transform",
+																					"h-4 w-4 text-muted-foreground transition-transform shrink-0",
 																					isHeatExpanded && "rotate-180",
 																				)}
 																			/>
@@ -865,7 +889,7 @@ export function SchedulePageContent({
 																	{isHeatExpanded &&
 																		heat.assignments.length > 0 && (
 																			<div className="px-6 py-3 bg-background/50">
-																				{/* Mobile View */}
+																				{/* Mobile View - compact horizontal layout */}
 																				<div className="grid gap-2 md:hidden">
 																					{heat.assignments
 																						.filter((assignment) => {
@@ -912,7 +936,7 @@ export function SchedulePageContent({
 																								<div
 																									key={assignment.id}
 																									className={cn(
-																										"rounded-lg p-3 border",
+																										"rounded-lg px-3 py-2 border flex items-center gap-3",
 																										isMatch
 																											? "bg-orange-500/10 border-orange-500"
 																											: isUser
@@ -920,39 +944,41 @@ export function SchedulePageContent({
 																												: "bg-card",
 																									)}
 																								>
-																									<div className="flex items-center gap-2 mb-2">
-																										<div
-																											className={cn(
-																												"w-8 h-8 rounded flex items-center justify-center text-sm font-bold tabular-nums",
-																												isMatch || isUser
-																													? "bg-orange-500 text-white"
-																													: "bg-muted",
-																											)}
-																										>
-																											{assignment.laneNumber}
-																										</div>
-																										<span className="text-xs text-muted-foreground">
-																											Lane
-																										</span>
+																									{/* Lane number */}
+																									<div
+																										className={cn(
+																											"w-8 h-8 rounded flex items-center justify-center text-sm font-bold tabular-nums shrink-0",
+																											isMatch || isUser
+																												? "bg-orange-500 text-white"
+																												: "bg-muted",
+																										)}
+																									>
+																										{assignment.laneNumber}
 																									</div>
-																									<div className="space-y-1">
-																										<p className="font-medium text-sm">
-																											{name}
-																										</p>
-																										<p className="text-xs text-muted-foreground">
-																											{assignment.registration
-																												.affiliate ||
-																												"Independent"}
-																										</p>
+																									{/* Info */}
+																									<div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+																										<div className="min-w-0">
+																											<p className="font-medium text-sm truncate">
+																												{name}
+																											</p>
+																											<p className="text-xs text-muted-foreground truncate">
+																												{assignment.registration
+																													.affiliate ||
+																													"Independent"}
+																											</p>
+																										</div>
 																										{assignment.registration
 																											.division && (
-																											<p className="text-xs text-orange-500">
+																											<Badge
+																												variant="outline"
+																												className="text-[10px] px-1.5 py-0 h-4 shrink-0 border-orange-500/50 text-orange-500"
+																											>
 																												{
 																													assignment
 																														.registration
 																														.division.label
 																												}
-																											</p>
+																											</Badge>
 																										)}
 																									</div>
 																								</div>

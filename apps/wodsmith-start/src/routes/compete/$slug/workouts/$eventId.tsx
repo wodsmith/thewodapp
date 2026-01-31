@@ -264,7 +264,7 @@ function EventDetailsPage() {
 				</div>
 
 				{/* Glassmorphism Content Container */}
-				<div className="rounded-2xl border border-black/10 bg-black/5 p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
+				<div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
 					<div className="space-y-8">
 						{/* Header with Division Switcher */}
 						<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

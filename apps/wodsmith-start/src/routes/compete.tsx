@@ -87,7 +87,7 @@ function CompeteLayout() {
 		<div className="flex min-h-screen flex-col">
 			<CompeteNav session={session} canOrganize={canOrganize} />
 
-			<main className="container mx-auto flex-1 pt-4 sm:p-4">
+			<main className="container mx-auto flex-1 px-3 py-4 sm:px-4">
 				<CompeteBreadcrumb dynamicLabels={dynamicLabels} />
 				<Outlet />
 			</main>

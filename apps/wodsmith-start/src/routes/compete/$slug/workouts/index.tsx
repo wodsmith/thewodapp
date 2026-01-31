@@ -201,7 +201,7 @@ function CompetitionWorkoutsPage() {
 				<div className="sticky top-4 z-10">
 					<CompetitionTabs slug={competition.slug} />
 				</div>
-				<div className="rounded-2xl border border-black/10 bg-black/5 p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
+				<div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
 					<div className="space-y-8">
 						<h2 className="text-3xl font-bold tracking-tight">Workouts</h2>
 						<Alert variant="default" className="border-dashed">

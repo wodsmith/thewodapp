@@ -58,7 +58,7 @@ export function CompetitionHero({
 			<div className="container relative mx-auto px-4 py-4 md:py-12">
 				<div
 					className={cn(
-						"rounded-2xl border p-6 shadow-2xl backdrop-blur-xl md:p-8",
+						"rounded-2xl border p-4 shadow-2xl backdrop-blur-xl sm:p-6 md:p-8",
 						hasBanner
 							? "border-white/10 bg-white/5 shadow-black/20"
 							: "border-black/10 bg-black/5 shadow-black/5 dark:border-white/10 dark:bg-white/5 dark:shadow-black/20",
@@ -123,7 +123,8 @@ export function CompetitionHero({
 										</span>
 									</div>
 								</div>
-								<div className="flex shrink-0 items-center gap-2">
+								{/* Desktop action buttons */}
+								<div className="hidden shrink-0 items-center gap-2 sm:flex">
 									{canManage && (
 										<a href={`/compete/organizer/${competition.id}`}>
 											<Button
@@ -166,6 +167,35 @@ export function CompetitionHero({
 									<Users className="mr-1 h-3 w-3" />
 									{registrationCount} Athletes
 								</Badge>
+							</div>
+
+							{/* Mobile action buttons */}
+							<div className="flex items-center gap-2 sm:hidden">
+								{canManage && (
+									<a href={`/compete/organizer/${competition.id}`}>
+										<Button
+											variant="secondary"
+											size="sm"
+											className="bg-orange-600 text-white hover:bg-orange-500"
+										>
+											<Settings className="mr-1 h-4 w-4" />
+											Manage
+										</Button>
+									</a>
+								)}
+								<Button
+									variant="ghost"
+									size="icon"
+									className={cn(
+										"border",
+										hasBanner
+											? "border-white/10 text-slate-300 hover:bg-white/10 hover:text-white"
+											: "border-black/10 text-muted-foreground hover:bg-black/5 hover:text-foreground dark:border-white/10 dark:hover:bg-white/10",
+									)}
+								>
+									<Share2 className="h-5 w-5" />
+									<span className="sr-only">Share</span>
+								</Button>
 							</div>
 						</div>
 					</div>
