@@ -2,7 +2,7 @@
 
 import { useServerFn } from "@tanstack/react-start"
 import { CalendarDays, Clock, Edit2, MapPin, Plus, Trash2, Users } from "lucide-react"
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import {
 	AlertDialog,
@@ -113,6 +113,12 @@ export function ShiftList({
 	shifts: initialShifts,
 }: ShiftListProps) {
 	const [shifts, setShifts] = useState(initialShifts)
+
+	// Sync local state when initialShifts changes (e.g., after router.invalidate())
+	useEffect(() => {
+		setShifts(initialShifts)
+	}, [initialShifts])
+
 	const [deletingShiftId, setDeletingShiftId] = useState<string | null>(null)
 	const [isDeleting, setIsDeleting] = useState(false)
 	const [formDialogOpen, setFormDialogOpen] = useState(false)
