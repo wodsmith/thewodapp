@@ -5,6 +5,13 @@ import { useEffect, useMemo, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
 import type { HeatWithAssignments } from "@/server-fns/competition-heats-fns"
 import type { CompetitionWorkout } from "@/server-fns/competition-workouts-fns"
 import { cn } from "@/utils/cn"
@@ -13,6 +20,7 @@ interface SchedulePageContentProps {
 	events: CompetitionWorkout[]
 	heats: HeatWithAssignments[]
 	currentUserId?: string
+	timezone: string
 }
 
 interface WorkoutSchedule {
@@ -54,17 +62,51 @@ function formatShortDayLabel(date: Date): string {
 	})
 }
 
-function formatTime(date: Date): string {
+function formatTime(date: Date, timezone?: string): string {
 	return date.toLocaleTimeString("en-US", {
 		hour: "numeric",
 		minute: "2-digit",
 		hour12: true,
+		timeZone: timezone,
 	})
 }
 
-function formatTimeRange(start: Date | null, end: Date | null): string {
+function formatCurrentTime(date: Date, timezone: string): string {
+	return date.toLocaleTimeString("en-US", {
+		hour: "numeric",
+		minute: "2-digit",
+		second: "2-digit",
+		hour12: true,
+		timeZone: timezone,
+	})
+}
+
+type HeatStatus = "past" | "current" | "next" | "upcoming"
+
+function calculateHeatStatus(
+	scheduledTime: Date,
+	durationMinutes: number,
+	currentTime: Date,
+): HeatStatus {
+	const heatTime = toDate(scheduledTime)
+	const endTime = new Date(heatTime.getTime() + durationMinutes * 60 * 1000)
+
+	if (currentTime >= endTime) {
+		return "past"
+	}
+	if (currentTime >= heatTime && currentTime < endTime) {
+		return "current"
+	}
+	return "upcoming"
+}
+
+function formatTimeRange(
+	start: Date | null,
+	end: Date | null,
+	timezone?: string,
+): string {
 	if (!start || !end) return ""
-	return `${formatTime(start)} - ${formatTime(end)}`
+	return `${formatTime(start, timezone)} - ${formatTime(end, timezone)}`
 }
 
 function getCompetitorName(
@@ -80,13 +122,82 @@ export function SchedulePageContent({
 	events,
 	heats,
 	currentUserId,
+	timezone,
 }: SchedulePageContentProps) {
 	const [selectedTab, setSelectedTab] = useState<string>("all")
 	const [searchTerm, setSearchTerm] = useState("")
+	const [selectedDivision, setSelectedDivision] = useState<string>("all")
+	const [selectedAffiliate, setSelectedAffiliate] = useState<string>("all")
 	const [expandedWorkouts, setExpandedWorkouts] = useState<Set<string>>(
 		new Set(),
 	)
 	const [expandedHeats, setExpandedHeats] = useState<Set<string>>(new Set())
+	const [currentTime, setCurrentTime] = useState(new Date())
+
+	// Update time every second
+	useEffect(() => {
+		const timer = setInterval(() => {
+			setCurrentTime(new Date())
+		}, 1000)
+		return () => clearInterval(timer)
+	}, [])
+
+	// Calculate heat statuses - find current and next heats
+	const heatStatuses = useMemo(() => {
+		const statuses = new Map<string, HeatStatus>()
+
+		// First pass: calculate raw statuses
+		const allScheduledHeats = heats
+			.filter((h) => h.scheduledTime)
+			.map((heat) => ({
+				heat,
+				status: calculateHeatStatus(
+					toDate(heat.scheduledTime as Date | string),
+					heat.durationMinutes ?? 10,
+					currentTime,
+				),
+			}))
+			.sort((a, b) => {
+				const aTime = toDate(a.heat.scheduledTime as Date | string).getTime()
+				const bTime = toDate(b.heat.scheduledTime as Date | string).getTime()
+				return aTime - bTime
+			})
+
+		// Find the first "upcoming" heat to mark as "next"
+		let foundNext = false
+		for (const { heat, status } of allScheduledHeats) {
+			if (status === "upcoming" && !foundNext) {
+				statuses.set(heat.id, "next")
+				foundNext = true
+			} else {
+				statuses.set(heat.id, status)
+			}
+		}
+
+		return statuses
+	}, [heats, currentTime])
+
+	// Extract unique divisions and affiliates for filter dropdowns
+	const { divisions, affiliates } = useMemo(() => {
+		const divisionSet = new Set<string>()
+		const affiliateSet = new Set<string>()
+
+		for (const heat of heats) {
+			for (const assignment of heat.assignments) {
+				if (assignment.registration.division?.label) {
+					divisionSet.add(assignment.registration.division.label)
+				}
+				if (assignment.registration.affiliate) {
+					affiliateSet.add(assignment.registration.affiliate)
+				}
+			}
+		}
+
+		return {
+			divisions: Array.from(divisionSet).sort(),
+			affiliates: Array.from(affiliateSet).sort(),
+		}
+	}, [heats])
 
 	// Build day groups with workouts and their heats
 	const { dayGroups, allDays } = useMemo(() => {
@@ -171,21 +282,25 @@ export function SchedulePageContent({
 		}
 	}, [events, heats])
 
-	// Filter workouts and heats based on search term
+	// Filter workouts and heats based on search term, division, and affiliate
+	const hasFilters =
+		searchTerm.trim() ||
+		selectedDivision !== "all" ||
+		selectedAffiliate !== "all"
+
 	const filteredDayGroups = useMemo(() => {
-		if (!searchTerm.trim()) {
-			return selectedTab === "all"
+		const baseDayGroups =
+			selectedTab === "all"
 				? dayGroups
 				: dayGroups.filter((g) => g.dateKey === selectedTab)
+
+		if (!hasFilters) {
+			return baseDayGroups
 		}
 
 		const term = searchTerm.toLowerCase()
 
-		const filtered = (
-			selectedTab === "all"
-				? dayGroups
-				: dayGroups.filter((g) => g.dateKey === selectedTab)
-		)
+		const filtered = baseDayGroups
 			.map((group) => {
 				const filteredWorkouts = group.workouts
 					.map((workout) => {
@@ -198,11 +313,23 @@ export function SchedulePageContent({
 								const name = getCompetitorName(a.registration)
 								const division = a.registration.division?.label ?? ""
 								const affiliate = a.registration.affiliate ?? ""
-								return (
+
+								// Check search term match
+								const matchesSearch =
+									!searchTerm.trim() ||
 									name.toLowerCase().includes(term) ||
 									division.toLowerCase().includes(term) ||
 									affiliate.toLowerCase().includes(term)
-								)
+
+								// Check division filter
+								const matchesDivision =
+									selectedDivision === "all" || division === selectedDivision
+
+								// Check affiliate filter
+								const matchesAffiliate =
+									selectedAffiliate === "all" || affiliate === selectedAffiliate
+
+								return matchesSearch && matchesDivision && matchesAffiliate
 							}),
 						)
 
@@ -217,9 +344,9 @@ export function SchedulePageContent({
 			.filter((g): g is DayGroup => g !== null)
 
 		return filtered
-	}, [dayGroups, selectedTab, searchTerm])
+	}, [dayGroups, selectedTab, searchTerm, selectedDivision, selectedAffiliate, hasFilters])
 
-	// Auto-expand when searching
+	// Auto-expand when searching (but not when filtering by division/affiliate)
 	useEffect(() => {
 		if (searchTerm.trim()) {
 			const workoutIds = new Set<string>()
@@ -314,7 +441,13 @@ export function SchedulePageContent({
 
 	return (
 		<div className="space-y-6">
-			<h2 className="text-2xl font-bold">Schedule</h2>
+			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+				<h2 className="text-2xl font-bold">Schedule</h2>
+				<div className="flex items-center gap-2 font-mono text-lg tabular-nums text-muted-foreground">
+					<Clock className="h-5 w-5" />
+					{formatCurrentTime(currentTime, timezone)}
+				</div>
+			</div>
 
 			{/* My Heats Section */}
 			{userHeats.length > 0 && (
@@ -352,7 +485,7 @@ export function SchedulePageContent({
 											</div>
 											{heat.scheduledTime && (
 												<Badge variant="secondary">
-													{formatTime(toDate(heat.scheduledTime))}
+													{formatTime(toDate(heat.scheduledTime), timezone)}
 												</Badge>
 											)}
 										</div>
@@ -370,15 +503,16 @@ export function SchedulePageContent({
 				</section>
 			)}
 
-			{/* Search Bar */}
-			<div className="max-w-xl mx-auto">
-				<div className="relative">
+			{/* Search and Filters */}
+			<div className="flex flex-col sm:flex-row gap-3">
+				{/* Search Box */}
+				<div className="relative flex-1 max-w-sm">
 					<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 					<Input
 						type="text"
 						value={searchTerm}
 						onChange={(e) => setSearchTerm(e.target.value)}
-						placeholder="Search competitor, division, or affiliate..."
+						placeholder="Search competitor..."
 						className="pl-10 pr-10"
 					/>
 					{searchTerm && (
@@ -391,32 +525,66 @@ export function SchedulePageContent({
 						</button>
 					)}
 				</div>
-				{searchTerm && (
-					<p className="text-sm text-muted-foreground mt-2 text-center">
-						{filteredDayGroups.reduce(
-							(acc, g) => acc + g.workouts.length,
-							0,
-						) === 0 ? (
-							<span>No matches found for "{searchTerm}"</span>
-						) : (
-							<span className="text-orange-500">
-								Found matches in{" "}
-								{filteredDayGroups.reduce(
-									(acc, g) => acc + g.workouts.length,
-									0,
-								)}{" "}
-								workout
-								{filteredDayGroups.reduce(
-									(acc, g) => acc + g.workouts.length,
-									0,
-								) !== 1
-									? "s"
-									: ""}
-							</span>
-						)}
-					</p>
+
+				{/* Division Filter */}
+				{divisions.length > 0 && (
+					<Select value={selectedDivision} onValueChange={setSelectedDivision}>
+						<SelectTrigger className="w-full sm:w-[180px]">
+							<SelectValue placeholder="Division" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="all">All Divisions</SelectItem>
+							{divisions.map((division) => (
+								<SelectItem key={division} value={division}>
+									{division}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				)}
+
+				{/* Affiliate Filter */}
+				{affiliates.length > 0 && (
+					<Select value={selectedAffiliate} onValueChange={setSelectedAffiliate}>
+						<SelectTrigger className="w-full sm:w-[200px]">
+							<SelectValue placeholder="Affiliate" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="all">All Affiliates</SelectItem>
+							{affiliates.map((affiliate) => (
+								<SelectItem key={affiliate} value={affiliate}>
+									{affiliate}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 				)}
 			</div>
+
+			{/* Filter Results Summary */}
+			{hasFilters && (
+				<p className="text-sm text-muted-foreground">
+					{filteredDayGroups.reduce((acc, g) => acc + g.workouts.length, 0) ===
+					0 ? (
+						<span>No matches found</span>
+					) : (
+						<span className="text-orange-500">
+							Found matches in{" "}
+							{filteredDayGroups.reduce(
+								(acc, g) => acc + g.workouts.length,
+								0,
+							)}{" "}
+							workout
+							{filteredDayGroups.reduce(
+								(acc, g) => acc + g.workouts.length,
+								0,
+							) !== 1
+								? "s"
+								: ""}
+						</span>
+					)}
+				</p>
+			)}
 
 			{/* Day Tabs */}
 			{allDays.length > 1 && (
@@ -465,15 +633,48 @@ export function SchedulePageContent({
 
 							{/* Workouts */}
 							<div className="divide-y">
-								{dayGroup.workouts.map((workout) => {
+								{dayGroup.workouts.map((workout, workoutIndex) => {
 									const isExpanded = expandedWorkouts.has(workout.event.id)
 									// Only show lane assignments if event is published and has assignments
 									const hasLaneAssignments =
 										workout.event.heatStatus === "published" &&
 										workout.heats.some((h) => h.assignments.length > 0)
 
+									// Check if current time is within the event's time range (including transitions)
+									const eventInProgress =
+										workout.startTime &&
+										workout.endTime &&
+										currentTime >= workout.startTime &&
+										currentTime < workout.endTime
+
+									// Check if this event is "up next" - first upcoming event after an in-progress or completed event
+									const isUpcomingEvent =
+										workout.startTime && currentTime < workout.startTime
+									const previousWorkout =
+										workoutIndex > 0
+											? dayGroup.workouts[workoutIndex - 1]
+											: null
+									const previousEventEnded =
+										previousWorkout?.endTime &&
+										currentTime >= previousWorkout.endTime
+									const previousEventInProgress =
+										previousWorkout?.startTime &&
+										previousWorkout?.endTime &&
+										currentTime >= previousWorkout.startTime &&
+										currentTime < previousWorkout.endTime
+
+									const eventUpNext =
+										isUpcomingEvent &&
+										(previousEventInProgress || previousEventEnded)
+
 									return (
-										<div key={workout.event.id}>
+										<div
+											key={workout.event.id}
+											className={cn(
+												eventInProgress && "bg-green-500/5",
+												eventUpNext && "bg-orange-500/5",
+											)}
+										>
 											{/* Workout Header */}
 											<button
 												type="button"
@@ -500,6 +701,7 @@ export function SchedulePageContent({
 																	{formatTimeRange(
 																		workout.startTime,
 																		workout.endTime,
+																		timezone,
 																	)}
 																</span>
 															)}
@@ -511,6 +713,16 @@ export function SchedulePageContent({
 																{workout.heats.length !== 1 ? "s" : ""}
 																{searchTerm ? " (filtered)" : ""}
 															</Badge>
+															{eventInProgress && (
+																<Badge className="animate-pulse bg-green-500 text-white text-xs">
+																	In Progress
+																</Badge>
+															)}
+															{eventUpNext && (
+																<Badge className="bg-orange-500 text-white text-xs">
+																	Up Next
+																</Badge>
+															)}
 														</div>
 													</div>
 												</div>
@@ -534,6 +746,8 @@ export function SchedulePageContent({
 															const userInHeat =
 																workout.event.heatStatus === "published" &&
 																isUserInHeat(heat)
+															// Get heat status (current, next, past, upcoming)
+															const heatStatus = heatStatuses.get(heat.id)
 
 															// Calculate division breakdown
 															const divisionCounts = heat.assignments.reduce(
@@ -575,6 +789,12 @@ export function SchedulePageContent({
 																				? "hover:bg-muted/50 cursor-pointer"
 																				: "cursor-default opacity-75",
 																			userInHeat && "bg-orange-500/10",
+																			heatStatus === "current" &&
+																				"border-l-4 border-l-green-500 bg-green-500/10",
+																			heatStatus === "next" &&
+																				"border-l-4 border-l-orange-500 bg-orange-500/10",
+																			heatStatus === "past" &&
+																				"text-muted-foreground",
 																		)}
 																	>
 																		<div className="flex items-center gap-3">
@@ -585,6 +805,7 @@ export function SchedulePageContent({
 																				<span className="text-sm text-muted-foreground tabular-nums">
 																					{formatTime(
 																						toDate(heat.scheduledTime),
+																						timezone,
 																					)}
 																				</span>
 																			)}
@@ -606,6 +827,16 @@ export function SchedulePageContent({
 																			{userInHeat && (
 																				<Badge className="bg-orange-500 text-xs">
 																					You're here
+																				</Badge>
+																			)}
+																			{heatStatus === "current" && (
+																				<Badge className="animate-pulse bg-green-500 text-white text-xs">
+																					Now
+																				</Badge>
+																			)}
+																			{heatStatus === "next" && (
+																				<Badge className="bg-orange-500 text-white text-xs">
+																					Up Next
 																				</Badge>
 																			)}
 																			{!hasLaneAssignments && (
@@ -637,6 +868,24 @@ export function SchedulePageContent({
 																				{/* Mobile View */}
 																				<div className="grid gap-2 md:hidden">
 																					{heat.assignments
+																						.filter((assignment) => {
+																							// When searching, only show matching assignments
+																							if (!searchTerm.trim()) return true
+																							const name = getCompetitorName(
+																								assignment.registration,
+																							)
+																							return (
+																								checkMatch(name) ||
+																								checkMatch(
+																									assignment.registration
+																										.division?.label ?? "",
+																								) ||
+																								checkMatch(
+																									assignment.registration
+																										.affiliate ?? "",
+																								)
+																							)
+																						})
 																						.sort(
 																							(a, b) =>
 																								a.laneNumber - b.laneNumber,
@@ -723,6 +972,24 @@ export function SchedulePageContent({
 																						<span>Division</span>
 																					</div>
 																					{heat.assignments
+																						.filter((assignment) => {
+																							// When searching, only show matching assignments
+																							if (!searchTerm.trim()) return true
+																							const name = getCompetitorName(
+																								assignment.registration,
+																							)
+																							return (
+																								checkMatch(name) ||
+																								checkMatch(
+																									assignment.registration
+																										.division?.label ?? "",
+																								) ||
+																								checkMatch(
+																									assignment.registration
+																										.affiliate ?? "",
+																								)
+																							)
+																						})
 																						.sort(
 																							(a, b) =>
 																								a.laneNumber - b.laneNumber,

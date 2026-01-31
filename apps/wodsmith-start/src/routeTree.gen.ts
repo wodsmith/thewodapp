@@ -55,7 +55,6 @@ import { Route as CompeteSlugScheduleRouteImport } from './routes/compete/$slug/
 import { Route as CompeteSlugRegisterRouteImport } from './routes/compete/$slug/register'
 import { Route as CompeteSlugMyScheduleRouteImport } from './routes/compete/$slug/my-schedule'
 import { Route as CompeteSlugLeaderboardRouteImport } from './routes/compete/$slug/leaderboard'
-import { Route as CompeteSlugGameDayRouteImport } from './routes/compete/$slug/game-day'
 import { Route as ApiWorkoutsSearchRouteImport } from './routes/api/workouts/search'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
 import { Route as ApiCronSubmissionWindowNotificationsRouteImport } from './routes/api/cron/submission-window-notifications'
@@ -366,11 +365,6 @@ const CompeteSlugMyScheduleRoute = CompeteSlugMyScheduleRouteImport.update({
 const CompeteSlugLeaderboardRoute = CompeteSlugLeaderboardRouteImport.update({
   id: '/leaderboard',
   path: '/leaderboard',
-  getParentRoute: () => CompeteSlugRoute,
-} as any)
-const CompeteSlugGameDayRoute = CompeteSlugGameDayRouteImport.update({
-  id: '/game-day',
-  path: '/game-day',
   getParentRoute: () => CompeteSlugRoute,
 } as any)
 const ApiWorkoutsSearchRoute = ApiWorkoutsSearchRouteImport.update({
@@ -860,7 +854,6 @@ export interface FileRoutesByFullPath {
   '/api/cron/submission-window-notifications': typeof ApiCronSubmissionWindowNotificationsRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
-  '/compete/$slug/game-day': typeof CompeteSlugGameDayRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
   '/compete/$slug/my-schedule': typeof CompeteSlugMyScheduleRoute
   '/compete/$slug/register': typeof CompeteSlugRegisterRouteWithChildren
@@ -979,7 +972,6 @@ export interface FileRoutesByTo {
   '/api/cron/submission-window-notifications': typeof ApiCronSubmissionWindowNotificationsRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
-  '/compete/$slug/game-day': typeof CompeteSlugGameDayRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
   '/compete/$slug/my-schedule': typeof CompeteSlugMyScheduleRoute
   '/compete/$slug/register': typeof CompeteSlugRegisterRouteWithChildren
@@ -1104,7 +1096,6 @@ export interface FileRoutesById {
   '/api/cron/submission-window-notifications': typeof ApiCronSubmissionWindowNotificationsRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
-  '/compete/$slug/game-day': typeof CompeteSlugGameDayRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
   '/compete/$slug/my-schedule': typeof CompeteSlugMyScheduleRoute
   '/compete/$slug/register': typeof CompeteSlugRegisterRouteWithChildren
@@ -1232,7 +1223,6 @@ export interface FileRouteTypes {
     | '/api/cron/submission-window-notifications'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
-    | '/compete/$slug/game-day'
     | '/compete/$slug/leaderboard'
     | '/compete/$slug/my-schedule'
     | '/compete/$slug/register'
@@ -1351,7 +1341,6 @@ export interface FileRouteTypes {
     | '/api/cron/submission-window-notifications'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
-    | '/compete/$slug/game-day'
     | '/compete/$slug/leaderboard'
     | '/compete/$slug/my-schedule'
     | '/compete/$slug/register'
@@ -1475,7 +1464,6 @@ export interface FileRouteTypes {
     | '/api/cron/submission-window-notifications'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
-    | '/compete/$slug/game-day'
     | '/compete/$slug/leaderboard'
     | '/compete/$slug/my-schedule'
     | '/compete/$slug/register'
@@ -1922,13 +1910,6 @@ declare module '@tanstack/react-router' {
       path: '/leaderboard'
       fullPath: '/compete/$slug/leaderboard'
       preLoaderRoute: typeof CompeteSlugLeaderboardRouteImport
-      parentRoute: typeof CompeteSlugRoute
-    }
-    '/compete/$slug/game-day': {
-      id: '/compete/$slug/game-day'
-      path: '/game-day'
-      fullPath: '/compete/$slug/game-day'
-      preLoaderRoute: typeof CompeteSlugGameDayRouteImport
       parentRoute: typeof CompeteSlugRoute
     }
     '/api/workouts/search': {
@@ -2673,7 +2654,6 @@ const CompeteSlugRegisterRouteWithChildren =
   CompeteSlugRegisterRoute._addFileChildren(CompeteSlugRegisterRouteChildren)
 
 interface CompeteSlugRouteChildren {
-  CompeteSlugGameDayRoute: typeof CompeteSlugGameDayRoute
   CompeteSlugLeaderboardRoute: typeof CompeteSlugLeaderboardRoute
   CompeteSlugMyScheduleRoute: typeof CompeteSlugMyScheduleRoute
   CompeteSlugRegisterRoute: typeof CompeteSlugRegisterRouteWithChildren
@@ -2687,7 +2667,6 @@ interface CompeteSlugRouteChildren {
 }
 
 const CompeteSlugRouteChildren: CompeteSlugRouteChildren = {
-  CompeteSlugGameDayRoute: CompeteSlugGameDayRoute,
   CompeteSlugLeaderboardRoute: CompeteSlugLeaderboardRoute,
   CompeteSlugMyScheduleRoute: CompeteSlugMyScheduleRoute,
   CompeteSlugRegisterRoute: CompeteSlugRegisterRouteWithChildren,
