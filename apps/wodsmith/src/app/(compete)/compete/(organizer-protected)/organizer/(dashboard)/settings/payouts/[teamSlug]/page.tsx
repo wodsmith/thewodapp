@@ -137,7 +137,7 @@ export default async function PayoutsPage({
 
 			<div className="space-y-6">
 				<div>
-					<h1 className="text-2xl font-bold">{team.name} - Payout Settings</h1>
+					<h1 className="text-2xl font-bold pb-2">{team.name} - Payout Settings</h1>
 					<p className="text-muted-foreground">
 						Connect your Stripe account to receive payouts from competition
 						registrations.
