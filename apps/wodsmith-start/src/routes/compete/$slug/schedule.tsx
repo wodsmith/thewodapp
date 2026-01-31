@@ -104,6 +104,7 @@ function CompetitionSchedulePage() {
 					events={events}
 					heats={heats}
 					currentUserId={session?.userId}
+					timezone={timezone}
 				/>
 			</div>
 		</div>
