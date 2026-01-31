@@ -22,6 +22,7 @@ import {
 	GripVertical,
 	Loader2,
 	MapPin,
+	Pencil,
 	Plus,
 	Trash2,
 	X,
@@ -45,12 +46,15 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
 	assignToHeatFn,
 	bulkAssignToHeatFn,
 	type HeatWithAssignments,
 	moveAssignmentFn,
 	removeFromHeatFn,
+	updateHeatFn,
 } from "@/server-fns/competition-heats-fns"
 
 interface Registration {
@@ -316,6 +320,11 @@ interface HeatCardProps {
 	maxLanes: number
 	onDelete: () => void
 	onAssignmentChange: (assignments: HeatWithAssignments["assignments"]) => void
+	onHeatUpdate?: (updates: {
+		heatNumber?: number
+		scheduledTime?: Date | null
+		durationMinutes?: number | null
+	}) => void
 	onMoveAssignment?: (
 		assignmentId: string,
 		sourceHeatId: string,
@@ -338,6 +347,7 @@ export function HeatCard({
 	maxLanes,
 	onDelete,
 	onAssignmentChange,
+	onHeatUpdate,
 	onMoveAssignment,
 	selectedAthleteIds,
 	onClearSelection,
@@ -350,10 +360,17 @@ export function HeatCard({
 		useState<string>("")
 	const [selectedLane, setSelectedLane] = useState<number>(1)
 
+	// Edit heat state
+	const [isEditOpen, setIsEditOpen] = useState(false)
+	const [editHeatNumber, setEditHeatNumber] = useState<string>("")
+	const [editScheduledTime, setEditScheduledTime] = useState<string>("")
+	const [editDuration, setEditDuration] = useState<string>("")
+
 	// Loading states
 	const [isAssigning, setIsAssigning] = useState(false)
 	const [isRemoving, setIsRemoving] = useState(false)
 	const [_isMoving, setIsMoving] = useState(false)
+	const [isUpdating, setIsUpdating] = useState(false)
 
 	// Drag-and-drop refs and state for heat reordering
 	const heatRef = useRef<HTMLDivElement>(null)
@@ -585,6 +602,56 @@ export function HeatCard({
 		}
 	}
 
+	function openEditDialog() {
+		setEditHeatNumber(heat.heatNumber.toString())
+		// Format the current scheduled time for datetime-local input
+		if (heat.scheduledTime) {
+			const date = new Date(heat.scheduledTime)
+			// Format as YYYY-MM-DDTHH:mm for datetime-local input
+			const localDateTime = new Date(
+				date.getTime() - date.getTimezoneOffset() * 60000,
+			)
+				.toISOString()
+				.slice(0, 16)
+			setEditScheduledTime(localDateTime)
+		} else {
+			setEditScheduledTime("")
+		}
+		setEditDuration(heat.durationMinutes?.toString() ?? "")
+		setIsEditOpen(true)
+	}
+
+	async function handleUpdateHeat() {
+		setIsUpdating(true)
+		try {
+			const heatNumber = editHeatNumber ? Number(editHeatNumber) : undefined
+			const scheduledTime = editScheduledTime
+				? new Date(editScheduledTime)
+				: null
+			const durationMinutes = editDuration ? Number(editDuration) : null
+
+			await updateHeatFn({
+				data: {
+					heatId: heat.id,
+					heatNumber,
+					scheduledTime,
+					durationMinutes,
+				},
+			})
+
+			// Call parent callback to update local state
+			onHeatUpdate?.({ heatNumber, scheduledTime, durationMinutes })
+			setIsEditOpen(false)
+			toast.success("Heat updated")
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Failed to update heat"
+			toast.error(message)
+		} finally {
+			setIsUpdating(false)
+		}
+	}
+
 	// Heat reordering drag-drop effect
 	useEffect(() => {
 		const element = heatRef.current
@@ -759,9 +826,75 @@ export function HeatCard({
 									</Badge>
 								),
 							)}
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-6 w-6"
+								onClick={(e) => {
+									e.stopPropagation()
+									openEditDialog()
+								}}
+							>
+								<Pencil className="h-3 w-3" />
+							</Button>
 						</div>
 					</CardHeader>
 				</Card>
+				{/* Edit Heat Dialog for collapsed view */}
+				<Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+					<DialogContent>
+						<DialogHeader>
+							<DialogTitle>Edit Heat {heat.heatNumber}</DialogTitle>
+						</DialogHeader>
+						<div className="space-y-4">
+							<div className="space-y-2">
+								<Label htmlFor="heatNumber-collapsed">Heat Number</Label>
+								<Input
+									id="heatNumber-collapsed"
+									type="number"
+									min="1"
+									value={editHeatNumber}
+									onChange={(e) => setEditHeatNumber(e.target.value)}
+								/>
+							</div>
+							<div className="space-y-2">
+								<Label htmlFor="scheduledTime-collapsed">Scheduled Time</Label>
+								<Input
+									id="scheduledTime-collapsed"
+									type="datetime-local"
+									value={editScheduledTime}
+									onChange={(e) => setEditScheduledTime(e.target.value)}
+								/>
+							</div>
+							<div className="space-y-2">
+								<Label htmlFor="duration-collapsed">Duration (minutes)</Label>
+								<Input
+									id="duration-collapsed"
+									type="number"
+									min="1"
+									max="180"
+									placeholder="e.g. 10"
+									value={editDuration}
+									onChange={(e) => setEditDuration(e.target.value)}
+								/>
+							</div>
+							<div className="flex justify-end gap-2">
+								<Button
+									variant="outline"
+									onClick={() => setIsEditOpen(false)}
+								>
+									Cancel
+								</Button>
+								<Button onClick={handleUpdateHeat} disabled={isUpdating}>
+									{isUpdating && (
+										<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+									)}
+									Save
+								</Button>
+							</div>
+						</div>
+					</DialogContent>
+				</Dialog>
 			</div>
 		)
 	}
@@ -801,6 +934,9 @@ export function HeatCard({
 							{heat.division && (
 								<Badge variant="secondary">{heat.division.label}</Badge>
 							)}
+							<Button variant="ghost" size="icon" onClick={openEditDialog}>
+								<Pencil className="h-4 w-4" />
+							</Button>
 							<Button variant="ghost" size="icon" onClick={onDelete}>
 								<Trash2 className="h-4 w-4" />
 							</Button>
@@ -941,6 +1077,62 @@ export function HeatCard({
 							</DialogContent>
 						</Dialog>
 					)}
+
+					{/* Edit Heat Dialog */}
+					<Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle>Edit Heat {heat.heatNumber}</DialogTitle>
+							</DialogHeader>
+							<div className="space-y-4">
+								<div className="space-y-2">
+									<Label htmlFor="heatNumber">Heat Number</Label>
+									<Input
+										id="heatNumber"
+										type="number"
+										min="1"
+										value={editHeatNumber}
+										onChange={(e) => setEditHeatNumber(e.target.value)}
+									/>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="scheduledTime">Scheduled Time</Label>
+									<Input
+										id="scheduledTime"
+										type="datetime-local"
+										value={editScheduledTime}
+										onChange={(e) => setEditScheduledTime(e.target.value)}
+									/>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="duration">Duration (minutes)</Label>
+									<Input
+										id="duration"
+										type="number"
+										min="1"
+										max="180"
+										placeholder="e.g. 10"
+										value={editDuration}
+										onChange={(e) => setEditDuration(e.target.value)}
+									/>
+								</div>
+								<div className="flex justify-end gap-2">
+									<Button
+										variant="outline"
+										onClick={() => setIsEditOpen(false)}
+									>
+										Cancel
+									</Button>
+									<Button onClick={handleUpdateHeat} disabled={isUpdating}>
+										{isUpdating && (
+											<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+										)}
+										Save
+									</Button>
+								</div>
+							</div>
+						</DialogContent>
+					</Dialog>
 				</CardContent>
 			</Card>
 		</div>

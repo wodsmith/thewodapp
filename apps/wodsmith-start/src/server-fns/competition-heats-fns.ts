@@ -142,6 +142,7 @@ const createHeatInputSchema = z.object({
 
 const updateHeatInputSchema = z.object({
 	heatId: z.string().min(1, "Heat ID is required"),
+	heatNumber: z.number().int().min(1).optional(),
 	scheduledTime: z.coerce.date().nullable().optional(),
 	venueId: z.string().nullable().optional(),
 	divisionId: z.string().nullable().optional(),
@@ -689,6 +690,7 @@ export const updateHeatFn = createServerFn({ method: "POST" })
 			updatedAt: new Date(),
 		}
 
+		if (data.heatNumber !== undefined) updateData.heatNumber = data.heatNumber
 		if (data.scheduledTime !== undefined)
 			updateData.scheduledTime = data.scheduledTime
 		if (data.venueId !== undefined) updateData.venueId = data.venueId

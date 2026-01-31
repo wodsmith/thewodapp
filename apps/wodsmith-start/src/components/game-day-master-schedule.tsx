@@ -1,6 +1,6 @@
 "use client"
 
-import { Clock, MapPin, Users } from "lucide-react"
+import { ChevronDown, ChevronRight, Clock, MapPin, Users } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -52,40 +52,55 @@ function toDate(value: Date | string | number): Date {
 	return new Date(value)
 }
 
-function getDateKey(date: Date): string {
-	return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+function getDateKey(date: Date, timezone: string): string {
+	// Use Intl.DateTimeFormat to get date parts in the correct timezone
+	const formatter = new Intl.DateTimeFormat("en-US", {
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+		timeZone: timezone,
+	})
+	const parts = formatter.formatToParts(date)
+	const year = parts.find((p) => p.type === "year")?.value
+	const month = parts.find((p) => p.type === "month")?.value
+	const day = parts.find((p) => p.type === "day")?.value
+	return `${year}-${month}-${day}`
 }
 
-function formatDayLabel(date: Date): string {
+function formatDayLabel(date: Date, timezone: string): string {
 	return date.toLocaleDateString("en-US", {
 		weekday: "long",
 		month: "short",
 		day: "numeric",
+		timeZone: timezone,
 	})
 }
 
-function formatShortDayLabel(date: Date): string {
+function formatShortDayLabel(date: Date, timezone: string): string {
 	return date.toLocaleDateString("en-US", {
 		weekday: "short",
 		month: "short",
 		day: "numeric",
+		timeZone: timezone,
 	})
 }
 
-function formatTime(date: Date): string {
+function formatTime(date: Date, timezone: string): string {
 	return date.toLocaleTimeString("en-US", {
 		hour: "numeric",
 		minute: "2-digit",
 		hour12: true,
+		timeZone: timezone,
 	})
 }
 
-function formatCurrentTime(date: Date): string {
+function formatCurrentTime(date: Date, timezone: string): string {
 	return date.toLocaleTimeString("en-US", {
 		hour: "numeric",
 		minute: "2-digit",
 		second: "2-digit",
 		hour12: true,
+		timeZone: timezone,
 	})
 }
 
@@ -120,6 +135,7 @@ function processHeatsForVenue(
 	events: CompetitionWorkout[],
 	currentTime: Date,
 	effectiveDateKey: string | null,
+	timezone: string,
 ): HeatWithStatus[] {
 	const processed: HeatWithStatus[] = []
 
@@ -128,7 +144,7 @@ function processHeatsForVenue(
 
 		// Apply date filter
 		if (effectiveDateKey) {
-			const heatDateKey = getDateKey(toDate(heat.scheduledTime))
+			const heatDateKey = getDateKey(toDate(heat.scheduledTime), timezone)
 			if (heatDateKey !== effectiveDateKey) continue
 		}
 
@@ -164,6 +180,7 @@ export function GameDayMasterSchedule({
 	events,
 	heats,
 	venues,
+	timezone,
 }: GameDayMasterScheduleProps) {
 	const [currentTime, setCurrentTime] = useState(new Date())
 	const [selectedDay, setSelectedDay] = useState<string>("today")
@@ -183,12 +200,12 @@ export function GameDayMasterSchedule({
 		for (const heat of heats) {
 			if (heat.scheduledTime) {
 				const date = toDate(heat.scheduledTime)
-				const dateKey = getDateKey(date)
+				const dateKey = getDateKey(date, timezone)
 				if (!daysMap.has(dateKey)) {
 					daysMap.set(dateKey, {
 						dateKey,
-						label: formatDayLabel(date),
-						shortLabel: formatShortDayLabel(date),
+						label: formatDayLabel(date, timezone),
+						shortLabel: formatShortDayLabel(date, timezone),
 					})
 				}
 			}
@@ -197,10 +214,13 @@ export function GameDayMasterSchedule({
 		return Array.from(daysMap.values()).sort((a, b) =>
 			a.dateKey.localeCompare(b.dateKey),
 		)
-	}, [heats])
+	}, [heats, timezone])
 
-	// Get today's date key for "today" filter
-	const todayDateKey = useMemo(() => getDateKey(currentTime), [currentTime])
+	// Get today's date key for "today" filter (in competition timezone)
+	const todayDateKey = useMemo(
+		() => getDateKey(currentTime, timezone),
+		[currentTime, timezone],
+	)
 
 	// Build venue schedules
 	const venueSchedules = useMemo(() => {
@@ -224,6 +244,7 @@ export function GameDayMasterSchedule({
 				events,
 				currentTime,
 				effectiveDateKey,
+				timezone,
 			)
 
 			if (processedHeats.length > 0) {
@@ -238,6 +259,7 @@ export function GameDayMasterSchedule({
 			events,
 			currentTime,
 			effectiveDateKey,
+			timezone,
 		)
 
 		if (processedNoVenueHeats.length > 0) {
@@ -254,7 +276,7 @@ export function GameDayMasterSchedule({
 		}
 
 		return schedules.sort((a, b) => a.venue.sortOrder - b.venue.sortOrder)
-	}, [heats, events, venues, currentTime, selectedDay, todayDateKey])
+	}, [heats, events, venues, currentTime, selectedDay, todayDateKey, timezone])
 
 	// Empty state
 	if (heats.length === 0) {
@@ -285,7 +307,7 @@ export function GameDayMasterSchedule({
 								onSelectDay={setSelectedDay}
 							/>
 						)}
-						<CurrentTimeDisplay time={currentTime} />
+						<CurrentTimeDisplay time={currentTime} timezone={timezone} />
 					</div>
 				</div>
 				<div className="py-12 text-center">
@@ -314,12 +336,21 @@ export function GameDayMasterSchedule({
 							onSelectDay={setSelectedDay}
 						/>
 					)}
-					<CurrentTimeDisplay time={currentTime} />
+					<CurrentTimeDisplay time={currentTime} timezone={timezone} />
 				</div>
 			</div>
 
 			{/* Venue Columns */}
-			<div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+			<div
+				className={cn(
+					"grid gap-6",
+					venueSchedules.length === 1
+						? "mx-auto grid-cols-1 lg:max-w-3xl"
+						: venueSchedules.length === 2
+							? "grid-cols-1 md:grid-cols-2"
+							: "grid-cols-1 md:grid-cols-2 xl:grid-cols-3",
+				)}
+			>
 				{venueSchedules.map(({ venue, heats: venueHeats }) => (
 					<Card key={venue.id} className="overflow-hidden">
 						<CardHeader className="bg-gradient-to-r from-orange-600 to-orange-500 py-4 text-white">
@@ -351,6 +382,7 @@ export function GameDayMasterSchedule({
 										event={event}
 										status={status}
 										laneCount={venue.laneCount}
+										timezone={timezone}
 									/>
 								))}
 							</div>
@@ -418,13 +450,14 @@ function DaySelector({
 
 interface CurrentTimeDisplayProps {
 	time: Date
+	timezone: string
 }
 
-function CurrentTimeDisplay({ time }: CurrentTimeDisplayProps) {
+function CurrentTimeDisplay({ time, timezone }: CurrentTimeDisplayProps) {
 	return (
 		<div className="flex items-center gap-2 font-mono text-lg tabular-nums">
 			<Clock className="h-5 w-5" />
-			{formatCurrentTime(time)}
+			{formatCurrentTime(time, timezone)}
 		</div>
 	)
 }
@@ -434,9 +467,13 @@ interface HeatRowProps {
 	event: CompetitionWorkout
 	status: HeatStatus
 	laneCount: number
+	timezone: string
 }
 
-function HeatRow({ heat, event, status, laneCount }: HeatRowProps) {
+function HeatRow({ heat, event, status, laneCount, timezone }: HeatRowProps) {
+	// Past heats are collapsed by default
+	const [isExpanded, setIsExpanded] = useState(status !== "past")
+
 	const statusStyles: Record<HeatStatus, string> = {
 		past: "opacity-50",
 		current: "border-l-4 border-l-green-500 bg-green-500/10",
@@ -475,8 +512,22 @@ function HeatRow({ heat, event, status, laneCount }: HeatRowProps) {
 	return (
 		<div className={cn("p-4", statusStyles[status])}>
 			{/* Heat Header */}
-			<div className="mb-3 flex items-center justify-between">
-				<div className="flex items-center gap-3">
+			<button
+				type="button"
+				onClick={() => setIsExpanded(!isExpanded)}
+				className={cn(
+					"flex w-full items-center justify-between text-left",
+					isExpanded && "mb-3",
+				)}
+			>
+				<div className="flex items-center gap-2">
+					{status === "past" && (
+						isExpanded ? (
+							<ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+						) : (
+							<ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+						)
+					)}
 					<div className="flex flex-col">
 						<span className="font-semibold">
 							Event {event.trackOrder}: {event.workout.name}
@@ -488,7 +539,7 @@ function HeatRow({ heat, event, status, laneCount }: HeatRowProps) {
 									{" "}
 									&middot;{" "}
 									<span className="tabular-nums">
-										{formatTime(toDate(heat.scheduledTime))}
+										{formatTime(toDate(heat.scheduledTime), timezone)}
 									</span>
 								</>
 							)}
@@ -503,70 +554,72 @@ function HeatRow({ heat, event, status, laneCount }: HeatRowProps) {
 					)}
 					{statusBadge[status]}
 				</div>
-			</div>
+			</button>
 
-			{/* Lane Assignments */}
-			{heat.assignments.length > 0 ? (
-				<div className="grid gap-1">
-					{Array.from({ length: laneCount }, (_, i) => i + 1).map(
-						(laneNumber) => {
-							const assignment = heat.assignments.find(
-								(a) => a.laneNumber === laneNumber,
-							)
+			{/* Lane Assignments - only show when expanded */}
+			{isExpanded && (
+				heat.assignments.length > 0 ? (
+					<div className="grid gap-1 sm:grid-cols-2">
+						{Array.from({ length: laneCount }, (_, i) => i + 1).map(
+							(laneNumber) => {
+								const assignment = heat.assignments.find(
+									(a) => a.laneNumber === laneNumber,
+								)
 
-							if (!assignment) {
+								if (!assignment) {
+									return (
+										<div
+											key={laneNumber}
+											className="flex items-center gap-2 rounded bg-muted/30 px-2 py-1"
+										>
+											<div className="flex h-6 w-6 items-center justify-center rounded bg-muted text-xs font-bold tabular-nums text-muted-foreground">
+												{laneNumber}
+											</div>
+											<span className="text-sm italic text-muted-foreground">
+												Empty
+											</span>
+										</div>
+									)
+								}
+
+								const name = getCompetitorName(assignment.registration)
+
 								return (
 									<div
 										key={laneNumber}
-										className="flex items-center gap-2 rounded bg-muted/30 px-2 py-1"
+										className="flex items-center gap-2 rounded border bg-card px-2 py-1"
 									>
-										<div className="flex h-6 w-6 items-center justify-center rounded bg-muted text-xs font-bold tabular-nums text-muted-foreground">
+										<div
+											className={cn(
+												"flex h-6 w-6 items-center justify-center rounded text-xs font-bold tabular-nums",
+												status === "current" || status === "next"
+													? "bg-orange-500 text-white"
+													: "bg-muted",
+											)}
+										>
 											{laneNumber}
 										</div>
-										<span className="text-sm italic text-muted-foreground">
-											Empty
-										</span>
+										<div className="min-w-0 flex-1">
+											<span className="block truncate text-sm font-medium">
+												{name}
+											</span>
+										</div>
+										{assignment.registration.division && (
+											<Badge variant="outline" className="shrink-0 text-xs">
+												{assignment.registration.division.label}
+											</Badge>
+										)}
 									</div>
 								)
-							}
-
-							const name = getCompetitorName(assignment.registration)
-
-							return (
-								<div
-									key={laneNumber}
-									className="flex items-center gap-2 rounded border bg-card px-2 py-1"
-								>
-									<div
-										className={cn(
-											"flex h-6 w-6 items-center justify-center rounded text-xs font-bold tabular-nums",
-											status === "current" || status === "next"
-												? "bg-orange-500 text-white"
-												: "bg-muted",
-										)}
-									>
-										{laneNumber}
-									</div>
-									<div className="min-w-0 flex-1">
-										<span className="block truncate text-sm font-medium">
-											{name}
-										</span>
-									</div>
-									{assignment.registration.division && (
-										<Badge variant="outline" className="shrink-0 text-xs">
-											{assignment.registration.division.label}
-										</Badge>
-									)}
-								</div>
-							)
-						},
-					)}
-				</div>
-			) : (
-				<div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
-					<Users className="h-4 w-4" />
-					<span>No lane assignments yet</span>
-				</div>
+							},
+						)}
+					</div>
+				) : (
+					<div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
+						<Users className="h-4 w-4" />
+						<span>No lane assignments yet</span>
+					</div>
+				)
 			)}
 		</div>
 	)
