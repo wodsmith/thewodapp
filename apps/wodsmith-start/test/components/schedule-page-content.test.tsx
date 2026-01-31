@@ -88,6 +88,7 @@ describe('SchedulePageContent', () => {
           events={[]}
           heats={[]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -131,6 +132,7 @@ describe('SchedulePageContent', () => {
           events={[event1]}
           heats={[heat1]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -165,6 +167,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -216,6 +219,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -251,6 +255,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -285,6 +290,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -321,6 +327,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -361,6 +368,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -406,6 +414,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId="current-user"
+          timezone="America/Denver"
         />,
       )
 
@@ -437,6 +446,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId="current-user"
+          timezone="America/Denver"
         />,
       )
 
@@ -470,6 +480,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId="current-user"
+          timezone="America/Denver"
         />,
       )
 
@@ -516,6 +527,7 @@ describe('SchedulePageContent', () => {
           events={[event1, event2]}
           heats={[heat1, heat2]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -542,6 +554,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat1, heat2]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -565,6 +578,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -604,6 +618,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -645,6 +660,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 
@@ -695,6 +711,7 @@ describe('SchedulePageContent', () => {
           events={[event]}
           heats={[heat]}
           currentUserId={undefined}
+          timezone="America/Denver"
         />,
       )
 

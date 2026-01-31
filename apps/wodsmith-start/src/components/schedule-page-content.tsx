@@ -13,6 +13,7 @@ interface SchedulePageContentProps {
 	events: CompetitionWorkout[]
 	heats: HeatWithAssignments[]
 	currentUserId?: string
+	timezone: string
 }
 
 interface WorkoutSchedule {
@@ -34,37 +35,62 @@ function toDate(value: Date | string | number): Date {
 	return new Date(value)
 }
 
-function getDateKey(date: Date): string {
-	return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+function getDateKey(date: Date, timezone: string): string {
+	// Use timezone-aware YYYY-MM-DD format for correct lexicographic sorting
+	const formatter = new Intl.DateTimeFormat("sv-SE", {
+		timeZone: timezone,
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+	})
+	return formatter.format(date)
 }
 
-function formatDayLabel(date: Date): string {
+function formatDayLabel(date: Date, timezone: string): string {
 	return date.toLocaleDateString("en-US", {
+		timeZone: timezone,
 		weekday: "long",
 		month: "short",
 		day: "numeric",
 	})
 }
 
-function formatShortDayLabel(date: Date): string {
+function formatShortDayLabel(date: Date, timezone: string): string {
 	return date.toLocaleDateString("en-US", {
+		timeZone: timezone,
 		weekday: "short",
 		month: "short",
 		day: "numeric",
 	})
 }
 
-function formatTime(date: Date): string {
+function formatTime(date: Date, timezone: string): string {
 	return date.toLocaleTimeString("en-US", {
+		timeZone: timezone,
 		hour: "numeric",
 		minute: "2-digit",
 		hour12: true,
 	})
 }
 
-function formatTimeRange(start: Date | null, end: Date | null): string {
+function formatDateAndTime(date: Date, timezone: string): string {
+	const dateStr = date.toLocaleDateString("en-US", {
+		timeZone: timezone,
+		weekday: "short",
+		month: "short",
+		day: "numeric",
+	})
+	const timeStr = formatTime(date, timezone)
+	return `${dateStr}, ${timeStr}`
+}
+
+function formatTimeRange(
+	start: Date | null,
+	end: Date | null,
+	timezone: string,
+): string {
 	if (!start || !end) return ""
-	return `${formatTime(start)} - ${formatTime(end)}`
+	return `${formatTime(start, timezone)} - ${formatTime(end, timezone)}`
 }
 
 function getCompetitorName(
@@ -80,6 +106,7 @@ export function SchedulePageContent({
 	events,
 	heats,
 	currentUserId,
+	timezone,
 }: SchedulePageContentProps) {
 	const [selectedTab, setSelectedTab] = useState<string>("all")
 	const [searchTerm, setSearchTerm] = useState("")
@@ -129,13 +156,13 @@ export function SchedulePageContent({
 
 		for (const workout of workoutSchedules) {
 			const dateKey = workout.startTime
-				? getDateKey(workout.startTime)
+				? getDateKey(workout.startTime, timezone)
 				: "unscheduled"
 			const label = workout.startTime
-				? formatDayLabel(workout.startTime)
+				? formatDayLabel(workout.startTime, timezone)
 				: "Unscheduled"
 			const shortLabel = workout.startTime
-				? formatShortDayLabel(workout.startTime)
+				? formatShortDayLabel(workout.startTime, timezone)
 				: "TBD"
 
 			const existing = groups.get(dateKey)
@@ -169,7 +196,7 @@ export function SchedulePageContent({
 			dayGroups: sortedGroups,
 			allDays: sortedGroups.filter((g) => g.dateKey !== "unscheduled"),
 		}
-	}, [events, heats])
+	}, [events, heats, timezone])
 
 	// Filter workouts and heats based on search term
 	const filteredDayGroups = useMemo(() => {
@@ -352,7 +379,7 @@ export function SchedulePageContent({
 											</div>
 											{heat.scheduledTime && (
 												<Badge variant="secondary">
-													{formatTime(toDate(heat.scheduledTime))}
+													{formatDateAndTime(toDate(heat.scheduledTime), timezone)}
 												</Badge>
 											)}
 										</div>
@@ -500,6 +527,7 @@ export function SchedulePageContent({
 																	{formatTimeRange(
 																		workout.startTime,
 																		workout.endTime,
+																		timezone,
 																	)}
 																</span>
 															)}
@@ -586,6 +614,7 @@ export function SchedulePageContent({
 																				<span className="text-sm text-muted-foreground tabular-nums shrink-0">
 																					{formatTime(
 																						toDate(heat.scheduledTime),
+																						timezone,
 																					)}
 																				</span>
 																			)}
