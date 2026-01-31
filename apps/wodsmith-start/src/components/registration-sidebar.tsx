@@ -345,12 +345,16 @@ export function RegistrationSidebar({
 						<p className="font-medium text-sm">
 							{competition.organizingTeam.name}
 						</p>
-						<div className="mt-2 flex gap-2">
-							<Button variant="outline" size="sm" className="h-8" disabled>
-								<Mail className="mr-1 h-3 w-3" />
-								Email
-							</Button>
-						</div>
+						{competition.organizingTeam.billingEmail && (
+							<div className="mt-2 flex gap-2">
+								<Button variant="outline" size="sm" className="h-8" asChild>
+									<a href={`mailto:${competition.organizingTeam.billingEmail}`}>
+										<Mail className="mr-1 h-3 w-3" />
+										Email
+									</a>
+								</Button>
+							</div>
+						)}
 					</CardContent>
 				</Card>
 			)}
