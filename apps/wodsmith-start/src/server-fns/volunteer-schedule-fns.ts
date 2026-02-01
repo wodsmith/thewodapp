@@ -20,6 +20,8 @@ import {
 	scalingLevelsTable,
 	teamMembershipTable,
 	trackWorkoutsTable,
+	volunteerShiftAssignmentsTable,
+	volunteerShiftsTable,
 	workoutScalingDescriptionsTable,
 	workouts,
 } from "@/db/schema"
@@ -27,6 +29,7 @@ import { eventJudgingSheetsTable } from "@/db/schemas/judging-sheets"
 import type {
 	LaneShiftPattern,
 	VolunteerMembershipMetadata,
+	VolunteerRoleType,
 } from "@/db/schemas/volunteers"
 import type {
 	ScoreType,
@@ -109,6 +112,21 @@ export interface EventWithRotations {
 	divisionDescriptions: DivisionDescription[]
 	judgingSheets: JudgingSheet[]
 	rotations: EnrichedRotation[]
+}
+
+export interface VolunteerShiftData {
+	id: string
+	name: string
+	roleType: VolunteerRoleType
+	startTime: Date
+	endTime: Date
+	location: string | null
+	notes: string | null
+}
+
+export interface VolunteerScheduleData {
+	events: EventWithRotations[]
+	shifts: VolunteerShiftData[]
 }
 
 // ============================================================================
@@ -232,13 +250,14 @@ export const getVolunteerMembershipFn = createServerFn({ method: "GET" })
 
 /**
  * Get enriched schedule data for a volunteer
- * Returns events with rotations grouped and enriched with workout/heat info
+ * Returns events with rotations grouped and enriched with workout/heat info,
+ * plus time-based shift assignments
  */
 export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) =>
 		getVolunteerScheduleDataInputSchema.parse(data),
 	)
-	.handler(async ({ data }): Promise<{ events: EventWithRotations[] }> => {
+	.handler(async ({ data }): Promise<VolunteerScheduleData> => {
 		const db = getDb()
 
 		// Get competition divisions for scaling level descriptions
@@ -260,8 +279,47 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 				),
 			)
 
+		// Query volunteer's shift assignments with shift details
+		const shiftAssignments = await db
+			.select({
+				shift: {
+					id: volunteerShiftsTable.id,
+					name: volunteerShiftsTable.name,
+					roleType: volunteerShiftsTable.roleType,
+					startTime: volunteerShiftsTable.startTime,
+					endTime: volunteerShiftsTable.endTime,
+					location: volunteerShiftsTable.location,
+					notes: volunteerShiftsTable.notes,
+				},
+			})
+			.from(volunteerShiftAssignmentsTable)
+			.innerJoin(
+				volunteerShiftsTable,
+				eq(volunteerShiftAssignmentsTable.shiftId, volunteerShiftsTable.id),
+			)
+			.where(
+				and(
+					eq(volunteerShiftAssignmentsTable.membershipId, data.membershipId),
+					eq(volunteerShiftsTable.competitionId, data.competitionId),
+				),
+			)
+
+		// Build shifts array, ordered by startTime
+		const shifts: VolunteerShiftData[] = shiftAssignments
+			.map((sa) => ({
+				id: sa.shift.id,
+				name: sa.shift.name,
+				roleType: sa.shift.roleType,
+				startTime: sa.shift.startTime,
+				endTime: sa.shift.endTime,
+				location: sa.shift.location,
+				notes: sa.shift.notes,
+			}))
+			.sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
+
+		// If no rotations, return just the shifts with empty events
 		if (rotations.length === 0) {
-			return { events: [] }
+			return { events: [], shifts }
 		}
 
 		// Extract unique track workout IDs
@@ -684,5 +742,5 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 		// Group rotations by event
 		const events = groupRotationsByEvent(enriched)
 
-		return { events }
+		return { events, shifts }
 	})

@@ -35,29 +35,16 @@ import {
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { TeamInvitation, User } from "@/db/schema"
-import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
+import {
+	VOLUNTEER_AVAILABILITY,
+	VOLUNTEER_ROLE_LABELS,
+	VOLUNTEER_ROLE_TYPE_VALUES,
+	type VolunteerRoleType,
+} from "@/db/schemas/volunteers"
 import { bulkAssignVolunteerRoleFn } from "@/server-fns/volunteer-fns"
 import { InviteVolunteerDialog } from "./invite-volunteer-dialog"
 import { VolunteerRow } from "./volunteer-row"
 
-type VolunteerRoleType =
-	| "judge"
-	| "head_judge"
-	| "scorekeeper"
-	| "emcee"
-	| "floor_manager"
-	| "media"
-	| "general"
-
-const ROLE_TYPE_LABELS: Record<VolunteerRoleType, string> = {
-	judge: "Judge",
-	head_judge: "Head Judge",
-	scorekeeper: "Scorekeeper",
-	emcee: "Emcee",
-	floor_manager: "Floor Manager",
-	media: "Media",
-	general: "General",
-}
 
 interface VolunteerWithAccess {
 	id: string
@@ -348,13 +335,13 @@ export function VolunteersList({
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="start">
-							{(Object.keys(ROLE_TYPE_LABELS) as VolunteerRoleType[]).map(
+							{VOLUNTEER_ROLE_TYPE_VALUES.map(
 								(roleType) => (
 									<DropdownMenuItem
 										key={roleType}
 										onClick={() => handleBulkAssignRole(roleType)}
 									>
-										{ROLE_TYPE_LABELS[roleType]}
+										{VOLUNTEER_ROLE_LABELS[roleType]}
 									</DropdownMenuItem>
 								),
 							)}
