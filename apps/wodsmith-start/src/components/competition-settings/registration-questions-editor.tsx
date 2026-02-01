@@ -14,14 +14,14 @@ import {
 	extractClosestEdge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge"
 import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box"
-import { useServerFn } from "@tanstack/react-start"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useServerFn } from "@tanstack/react-start"
 import {
+	CheckCircle2,
 	Edit2,
 	GripVertical,
 	Plus,
 	Trash2,
-	CheckCircle2,
 	Users,
 	XCircle,
 } from "lucide-react"
@@ -29,6 +29,16 @@ import { useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -66,22 +76,12 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import {
 	createQuestionFn,
-	updateQuestionFn,
 	deleteQuestionFn,
-	reorderQuestionsFn,
-	type RegistrationQuestion,
 	QUESTION_TYPES,
+	type RegistrationQuestion,
+	reorderQuestionsFn,
+	updateQuestionFn,
 } from "@/server-fns/registration-questions-fns"
 
 // ============================================================================
@@ -571,6 +571,7 @@ function QuestionFormDialog({
 								</div>
 								{options.length > 0 && (
 									<div className="space-y-1 mt-2">
+										{/* biome-ignore lint/suspicious/noArrayIndexKey: options are user-editable strings, index is the stable key */}
 										{options.map((option, index) => (
 											<div
 												key={index}
@@ -698,7 +699,7 @@ export function RegistrationQuestionsEditor({
 					},
 				})
 				onQuestionsChange()
-			} catch (error) {
+			} catch (_error) {
 				toast.error("Failed to reorder questions")
 				setQuestions(questions) // Revert on error
 			}

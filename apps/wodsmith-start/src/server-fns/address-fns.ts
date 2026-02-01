@@ -9,7 +9,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
-import { addressesTable, type AddressType } from "@/db/schemas/addresses"
+import { type AddressType, addressesTable } from "@/db/schemas/addresses"
 import { addressInputSchema } from "@/schemas/address"
 import { normalizeAddressInput } from "@/utils/address"
 

@@ -14,7 +14,7 @@ import {
 	parseCompetitionSettings,
 } from "@/server-fns/competition-divisions-fns"
 import { getStripeConnectionStatusFn } from "@/server-fns/stripe-connect-fns"
-import { getTeamSlugFn, getTeamFeeSettingsFn } from "@/server-fns/team-fns"
+import { getTeamFeeSettingsFn, getTeamSlugFn } from "@/server-fns/team-fns"
 
 import { PricingSettingsForm } from "./-components/pricing-settings-form"
 import { StripeConnectionRequired } from "./-components/stripe-connection-required"

@@ -6,16 +6,16 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
+import { desc, eq, inArray, sql } from "drizzle-orm"
 import { z } from "zod"
-import { desc, sql, eq, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
-import { teamTable, teamMembershipTable } from "@/db/schemas/teams"
-import type { Team, TeamMembership } from "@/db/schemas/teams"
 import { competitionsTable } from "@/db/schemas/competitions"
 import {
 	scheduledWorkoutInstancesTable,
 	trackWorkoutsTable,
 } from "@/db/schemas/programming"
+import type { Team, TeamMembership } from "@/db/schemas/teams"
+import { teamMembershipTable, teamTable } from "@/db/schemas/teams"
 import { workouts } from "@/db/schemas/workouts"
 import { requireAdmin } from "@/utils/auth"
 

@@ -1,7 +1,7 @@
-import type { Address } from "@/types/address"
-import { formatFullAddress, hasAddressData } from "@/utils/address"
 import { GlobeIcon, InfoIcon, MapPinIcon } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import type { Address } from "@/types/address"
+import { formatFullAddress, hasAddressData } from "@/utils/address"
 
 interface CompetitionLocationCardProps {
 	address: Partial<Address> | null

@@ -16,17 +16,15 @@ export type {
 
 // Re-export functions
 export {
-	getRegistrationFee,
 	getCompetitionRevenueStats,
+	getRegistrationFee,
 } from "@/server/commerce/fee-calculator"
-
+export type { TeamFeeOverrides } from "@/server/commerce/utils"
 export {
 	buildFeeConfig,
 	calculateCompetitionFees,
+	FOUNDING_ORGANIZER_DEFAULTS,
 	formatCents,
 	getTeamPlatformFee,
-	FOUNDING_ORGANIZER_DEFAULTS,
 	PLATFORM_DEFAULTS,
 } from "@/server/commerce/utils"
-
-export type { TeamFeeOverrides } from "@/server/commerce/utils"

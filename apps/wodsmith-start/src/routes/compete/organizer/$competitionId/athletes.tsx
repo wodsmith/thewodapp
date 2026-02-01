@@ -49,8 +49,8 @@ import {
 	getCompetitionRegistrationAnswersFn,
 } from "@/server-fns/registration-questions-fns"
 import {
-	getCompetitionWaiversFn,
 	getCompetitionWaiverSignaturesFn,
+	getCompetitionWaiversFn,
 } from "@/server-fns/waiver-fns"
 
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")

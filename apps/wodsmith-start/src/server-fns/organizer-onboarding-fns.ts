@@ -13,8 +13,8 @@ import { LIMITS } from "@/config/limits"
 import { getDb } from "@/db"
 import {
 	ORGANIZER_REQUEST_STATUS,
-	organizerRequestTable,
 	type OrganizerRequest,
+	organizerRequestTable,
 } from "@/db/schemas/organizer-requests"
 import {
 	SYSTEM_ROLES_ENUM,

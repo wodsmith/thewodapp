@@ -5,8 +5,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { CompetitionWithOrganizingTeam } from "@/server-fns/competition-fns"
-import { formatUTCDateRange } from "@/utils/date-utils"
 import { formatLocationBadge } from "@/utils/address"
+import { formatUTCDateRange } from "@/utils/date-utils"
 
 interface CompetitionHeroProps {
 	competition: CompetitionWithOrganizingTeam
@@ -41,6 +41,7 @@ export function CompetitionHero({
 			)}
 		>
 			{/* Banner Image or Glassmorphism Background */}
+			{/* biome-ignore lint/style/noNonNullAssertion: hasBanner check guarantees bannerImageUrl exists */}
 			{hasBanner ? (
 				<>
 					<img

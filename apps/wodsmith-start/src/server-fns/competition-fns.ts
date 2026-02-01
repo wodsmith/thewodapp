@@ -16,15 +16,10 @@ import {
 	competitionGroupsTable,
 	competitionsTable,
 } from "@/db/schemas/competitions"
-import {
-	TEAM_PERMISSIONS,
-	type Team,
-	teamTable,
-} from "@/db/schemas/teams"
+import { TEAM_PERMISSIONS, type Team, teamTable } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
-import { addressInputSchema } from "@/schemas/address"
-import { normalizeAddressInput } from "@/utils/address"
 import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
+import { addressInputSchema } from "@/schemas/address"
 import {
 	createCompetition,
 	createCompetitionGroup,
@@ -32,6 +27,7 @@ import {
 	updateCompetition,
 	updateCompetitionGroup,
 } from "@/server-fns/competition-server-logic"
+import { normalizeAddressInput } from "@/utils/address"
 import { getSessionFromCookie } from "@/utils/auth"
 
 // ============================================================================
@@ -648,7 +644,9 @@ export const updateCompetitionFn = createServerFn({ method: "POST" })
 			)
 			if (
 				!organizingTeam ||
-				!organizingTeam.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS)
+				!organizingTeam.permissions.includes(
+					TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+				)
 			) {
 				throw new Error(
 					"You do not have permission to manage this competition. Please contact the organizing team.",

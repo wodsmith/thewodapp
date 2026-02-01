@@ -33,10 +33,10 @@ import {
 } from "@/components/ui/select"
 import { GENDER_ENUM } from "@/db/schemas/users"
 import {
+	type AthleteProfileFormValues,
 	athleteProfileExtendedSchema,
 	getAthleteEditDataFn,
 	updateAthleteExtendedProfileFn,
-	type AthleteProfileFormValues,
 } from "@/server-fns/athlete-profile-fns"
 
 // ============================================================================

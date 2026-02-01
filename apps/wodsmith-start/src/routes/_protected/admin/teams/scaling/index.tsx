@@ -7,6 +7,7 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { GripVertical, Plus, Settings, Star, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
+import { ScalingGroupDialog } from "@/components/scaling-group-dialog"
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -27,12 +28,11 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import {
-	getScalingGroupsFn,
 	deleteScalingGroupFn,
-	setDefaultScalingGroupFn,
+	getScalingGroupsFn,
 	type ScalingGroupWithLevels,
+	setDefaultScalingGroupFn,
 } from "@/server-fns/scaling-fns"
-import { ScalingGroupDialog } from "@/components/scaling-group-dialog"
 
 export const Route = createFileRoute("/_protected/admin/teams/scaling/")({
 	component: AdminScalingPage,

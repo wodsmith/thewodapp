@@ -7,6 +7,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { Dumbbell, Filter } from "lucide-react"
 import { z } from "zod"
 import { CompetitionTabs } from "@/components/competition-tabs"
+import { CompetitionWorkoutCard } from "@/components/competition-workout-card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
 	Select,
@@ -15,7 +16,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { CompetitionWorkoutCard } from "@/components/competition-workout-card"
 import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"

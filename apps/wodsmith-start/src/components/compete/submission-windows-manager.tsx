@@ -1,15 +1,15 @@
 "use client"
 
 import { monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
+import { useServerFn } from "@tanstack/react-start"
 import { Plus, Save } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useServerFn } from "@tanstack/react-start"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { upsertCompetitionEventsFn } from "@/server-fns/competition-event-fns"
 import { useSubmissionWindowsStore } from "@/state/submission-windows"
-import { UnassignedWorkoutsPool } from "./unassigned-workouts-pool"
 import { SubmissionWindow } from "./submission-window"
+import { UnassignedWorkoutsPool } from "./unassigned-workouts-pool"
 
 interface WorkoutWithType {
 	id: string
@@ -276,6 +276,7 @@ export function SubmissionWindowsManager({
 					<div className="space-y-4">
 						<Skeleton className="h-10 w-full" />
 						<div className="space-y-2">
+							{/* biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton array, items never reorder */}
 							{Array.from({ length: workouts.length || 3 }).map((_, i) => (
 								<Skeleton key={i} className="h-10 w-full" />
 							))}

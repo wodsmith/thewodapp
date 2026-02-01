@@ -2,7 +2,6 @@
 
 import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 import { ChevronLeft, Pencil, Plus, User } from "lucide-react"
-import { toast } from "sonner"
 import {
 	Fragment,
 	useCallback,
@@ -11,6 +10,7 @@ import {
 	useRef,
 	useState,
 } from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"

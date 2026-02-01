@@ -832,6 +832,38 @@ export function HeatScheduleManager({
 		}
 	}
 
+	// Handle heat update (number, time, duration)
+	function handleHeatUpdate(
+		heatId: string,
+		updates: {
+			heatNumber?: number
+			scheduledTime?: Date | null
+			durationMinutes?: number | null
+		},
+	) {
+		setHeats(
+			heats.map((h) =>
+				h.id === heatId
+					? {
+							...h,
+							heatNumber:
+								updates.heatNumber !== undefined
+									? updates.heatNumber
+									: h.heatNumber,
+							scheduledTime:
+								updates.scheduledTime !== undefined
+									? updates.scheduledTime
+									: h.scheduledTime,
+							durationMinutes:
+								updates.durationMinutes !== undefined
+									? updates.durationMinutes
+									: h.durationMinutes,
+						}
+					: h,
+			),
+		)
+	}
+
 	// Open bulk create dialog and initialize times
 	function openBulkCreateDialog() {
 		if (!selectedEventId || heatCalculation.remainingHeats <= 0) return
@@ -1556,6 +1588,7 @@ export function HeatScheduleManager({
 								onAssignmentChange={(assignments) =>
 									handleAssignmentChange(heat.id, assignments)
 								}
+								onHeatUpdate={(updates) => handleHeatUpdate(heat.id, updates)}
 								onMoveAssignment={handleMoveAssignment}
 								selectedAthleteIds={selectedAthleteIds}
 								onClearSelection={clearSelection}

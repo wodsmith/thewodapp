@@ -29,9 +29,9 @@ import { sendCompetitionTeamInviteEmail, sendEmail } from "@/utils/email"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { generateSlug } from "@/utils/slugify"
 import {
+	DEFAULT_TIMEZONE,
 	hasDateStartedInTimezone,
 	isDeadlinePassedInTimezone,
-	DEFAULT_TIMEZONE,
 } from "@/utils/timezone-utils"
 
 // ============================================================================
