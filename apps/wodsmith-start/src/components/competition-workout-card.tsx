@@ -80,18 +80,12 @@ export function CompetitionWorkoutCard({
 	timeCap,
 	venue,
 }: CompetitionWorkoutCardProps) {
-	// Sort divisions by position for display (0 = RX/hardest)
-	const sortedDivisions = [...divisionDescriptions].sort(
-		(a, b) => a.position - b.position,
-	)
-
 	// Get the selected division's scale info (if any)
-	// If selectedDivisionId is provided (and not "default"), show that division's scale.
-	// Otherwise, show the RX division's scale (position 0).
+	// Only show scale for the explicitly selected division - no fallback
 	const targetDivision =
 		selectedDivisionId && selectedDivisionId !== "default"
 			? divisionDescriptions.find((d) => d.divisionId === selectedDivisionId)
-			: sortedDivisions.find((d) => d.position === 0)
+			: null
 
 	// Division scale is shown separately from base description
 	const divisionScale = targetDivision?.description?.trim() || null
