@@ -379,6 +379,7 @@ export function ShiftList({
 			{/* Assignment Panel */}
 			<ShiftAssignmentPanel
 				shift={selectedShift}
+				allShifts={shifts}
 				competitionTeamId={competitionTeamId}
 				open={assignmentPanelOpen}
 				onOpenChange={setAssignmentPanelOpen}

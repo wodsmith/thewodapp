@@ -19,9 +19,11 @@ DELETE FROM class_catalog;
 DELETE FROM skills;
 DELETE FROM locations;
 -- Delete competition tables (must be before team due to FK)
+DELETE FROM competition_venues;
 DELETE FROM competition_registrations;
 DELETE FROM competitions;
 DELETE FROM competition_groups;
+DELETE FROM addresses;
 DELETE FROM affiliates;
 DELETE FROM organizer_request;
 DELETE FROM team_invitation;
@@ -312,10 +314,14 @@ INSERT OR IGNORE INTO scaling_levels (id, scalingGroupId, label, position, teamS
 ('slvl_winter_masters_40', 'sgrp_winter_throwdown_2025', 'Masters 40+', 3, 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('slvl_winter_teens', 'sgrp_winter_throwdown_2025', 'Teens 14-17', 4, 1, strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
+-- Address for Winter Throwdown 2025
+INSERT OR IGNORE INTO addresses (id, addressType, name, streetLine1, city, stateProvince, postalCode, countryCode, createdAt, updatedAt, updateCounter) VALUES
+('addr_winter_throwdown_2025', 'venue', 'CrossFit Box One', '1234 Fitness Lane', 'Denver', 'CO', '80202', 'US', strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
 -- Competitions - Winter Throwdown 2025
 -- Registration opens 30 days before, closes 7 days before the event
 -- defaultRegistrationFeeCents: 7500 = $75.00
-INSERT OR IGNORE INTO competitions (id, organizingTeamId, competitionTeamId, groupId, slug, name, description, startDate, endDate, registrationOpensAt, registrationClosesAt, timezone, settings, defaultRegistrationFeeCents, visibility, status, competitionType, createdAt, updatedAt, updateCounter) VALUES
+INSERT OR IGNORE INTO competitions (id, organizingTeamId, competitionTeamId, groupId, slug, name, description, startDate, endDate, registrationOpensAt, registrationClosesAt, timezone, settings, defaultRegistrationFeeCents, visibility, status, competitionType, primaryAddressId, createdAt, updatedAt, updateCounter) VALUES
 ('comp_winter_throwdown_2025',
  'team_cokkpu1klwo0ulfhl1iwzpvnbox1',
  'team_winter_throwdown_2025',
@@ -333,9 +339,15 @@ INSERT OR IGNORE INTO competitions (id, organizingTeamId, competitionTeamId, gro
  'public',
  'published',
  'in-person',
+ 'addr_winter_throwdown_2025',
  strftime('%s', 'now'),
  strftime('%s', 'now'),
  0);
+
+-- Competition Venues for Winter Throwdown 2025
+INSERT OR IGNORE INTO competition_venues (id, competitionId, name, laneCount, transitionMinutes, sortOrder, addressId, createdAt, updatedAt, updateCounter) VALUES
+('cvenue_winter_main', 'comp_winter_throwdown_2025', 'Main Floor', 10, 3, 0, 'addr_winter_throwdown_2025', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('cvenue_winter_outside', 'comp_winter_throwdown_2025', 'Outside Rig', 6, 5, 1, 'addr_winter_throwdown_2025', strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Competition Registrations
 -- Athletes registered for Winter Throwdown 2025

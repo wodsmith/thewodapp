@@ -1,12 +1,16 @@
 "use client"
 
 import { useServerFn } from "@tanstack/react-start"
-import { Clock, MapPin, Minus, Plus, User, Users } from "lucide-react"
+import { Calendar, Clock, MapPin, Minus, Plus, User, Users } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover"
 import {
 	Sheet,
 	SheetContent,
@@ -77,6 +81,15 @@ function getVolunteerName(volunteer: TeamMembershipWithUser): string {
 	return name || volunteer.user.email || "Unknown"
 }
 
+function formatShiftTimeCompact(startTime: Date | string, endTime: Date | string): string {
+	const start = toDate(startTime)
+	const end = toDate(endTime)
+	const dateStr = start.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+	const startStr = start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).replace(":00", "").toLowerCase()
+	const endStr = end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).replace(":00", "").toLowerCase()
+	return `${dateStr} ${startStr}-${endStr}`
+}
+
 /**
  * Get display name from an assignment's membership with user relation.
  * The user property comes from the Drizzle relation query.
@@ -103,6 +116,7 @@ function getAssignmentVolunteerEmail(
 
 interface ShiftAssignmentPanelProps {
 	shift: ShiftWithAssignments | null
+	allShifts: ShiftWithAssignments[]
 	competitionTeamId: string
 	open: boolean
 	onOpenChange: (open: boolean) => void
@@ -115,6 +129,7 @@ interface ShiftAssignmentPanelProps {
  */
 export function ShiftAssignmentPanel({
 	shift,
+	allShifts,
 	competitionTeamId,
 	open,
 	onOpenChange,
@@ -134,11 +149,9 @@ export function ShiftAssignmentPanel({
 	// and including it can cause unnecessary refetches
 	useEffect(() => {
 		if (open && competitionTeamId) {
-			console.log("[ShiftPanel] Fetching volunteers for team:", competitionTeamId)
 			setLoadingVolunteers(true)
 			getVolunteers({ data: { competitionTeamId } })
 				.then((volunteers) => {
-					console.log("[ShiftPanel] Received volunteers:", volunteers.length, volunteers.map(v => v.id))
 					setAllVolunteers(volunteers)
 				})
 				.catch((error) => {
@@ -160,29 +173,29 @@ export function ShiftAssignmentPanel({
 	// Filter available volunteers by roleType and exclude already assigned
 	const availableVolunteers = useMemo(() => {
 		if (!shift) return []
-
-		// Debug: log all volunteers and filter results
-		console.log("[ShiftPanel] Filtering volunteers:", {
-			totalVolunteers: allVolunteers.length,
-			shiftRoleType: shift.roleType,
-			assignedIds: Array.from(assignedMembershipIds),
-		})
-
 		return allVolunteers.filter((volunteer) => {
 			// Exclude already assigned volunteers
-			if (assignedMembershipIds.has(volunteer.id)) {
-				console.log(`[ShiftPanel] ${volunteer.id} excluded: already assigned`)
-				return false
-			}
+			if (assignedMembershipIds.has(volunteer.id)) return false
 			// Filter by roleType
 			const roleTypes = parseVolunteerRoleTypes(volunteer.metadata)
-			const matches = roleTypes.includes(shift.roleType)
-			if (!matches) {
-				console.log(`[ShiftPanel] ${volunteer.id} excluded: roleTypes=${JSON.stringify(roleTypes)} doesn't include ${shift.roleType}`)
-			}
-			return matches
+			return roleTypes.includes(shift.roleType)
 		})
 	}, [allVolunteers, shift, assignedMembershipIds])
+
+	// Build a map of membershipId -> other shifts they're assigned to (excluding current shift)
+	const volunteerOtherShifts = useMemo(() => {
+		if (!shift) return new Map<string, ShiftWithAssignments[]>()
+		const map = new Map<string, ShiftWithAssignments[]>()
+		for (const s of allShifts) {
+			if (s.id === shift.id) continue // Exclude current shift
+			for (const assignment of s.assignments) {
+				const existing = map.get(assignment.membershipId) ?? []
+				existing.push(s)
+				map.set(assignment.membershipId, existing)
+			}
+		}
+		return map
+	}, [allShifts, shift])
 
 	// Calculate capacity info
 	const assignedCount = shift?.assignments.length ?? 0
@@ -297,8 +310,10 @@ export function ShiftAssignmentPanel({
 					</SheetDescription>
 				</SheetHeader>
 
+				{/* Scrollable content area */}
+				<div className="mt-4 flex-1 overflow-y-auto">
 				{/* Shift Details */}
-				<div className="mt-4 space-y-3 rounded-lg border bg-muted/30 p-4">
+				<div className="space-y-3 rounded-lg border bg-muted/30 p-4">
 					<div className="flex items-center gap-2">
 						<Badge variant="outline">
 							{VOLUNTEER_ROLE_LABELS[shift.roleType] || shift.roleType}
@@ -337,48 +352,46 @@ export function ShiftAssignmentPanel({
 							No volunteers assigned yet
 						</p>
 					) : (
-						<ScrollArea className="max-h-[200px]">
-							<div className="space-y-2">
-								{shift.assignments.map((assignment) => {
-									const volunteerName = getAssignmentVolunteerName(
-										assignment.membership,
-									)
-									const volunteerEmail = getAssignmentVolunteerEmail(
-										assignment.membership,
-									)
+						<div className="space-y-2">
+							{shift.assignments.map((assignment) => {
+								const volunteerName = getAssignmentVolunteerName(
+									assignment.membership,
+								)
+								const volunteerEmail = getAssignmentVolunteerEmail(
+									assignment.membership,
+								)
 
-									return (
-										<div
-											key={assignment.id}
-											className="flex items-center justify-between rounded-md border bg-card p-2"
-										>
-											<div className="flex items-center gap-2">
-												<div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-													<User className="h-4 w-4 text-primary" />
-												</div>
-												<div>
-													<p className="text-sm font-medium">{volunteerName}</p>
-													{volunteerEmail && (
-														<p className="text-xs text-muted-foreground">
-															{volunteerEmail}
-														</p>
-													)}
-												</div>
+								return (
+									<div
+										key={assignment.id}
+										className="flex items-center justify-between rounded-md border bg-card p-2"
+									>
+										<div className="flex items-center gap-2">
+											<div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+												<User className="h-4 w-4 text-primary" />
 											</div>
-											<Button
-												variant="ghost"
-												size="sm"
-												onClick={() => handleUnassign(assignment.membershipId)}
-												disabled={unassigningId === assignment.membershipId}
-												aria-label={`Remove ${volunteerName}`}
-											>
-												<Minus className="h-4 w-4 text-destructive" />
-											</Button>
+											<div>
+												<p className="text-sm font-medium">{volunteerName}</p>
+												{volunteerEmail && (
+													<p className="text-xs text-muted-foreground">
+														{volunteerEmail}
+													</p>
+												)}
+											</div>
 										</div>
-									)
-								})}
-							</div>
-						</ScrollArea>
+										<Button
+											variant="ghost"
+											size="sm"
+											onClick={() => handleUnassign(assignment.membershipId)}
+											disabled={unassigningId === assignment.membershipId}
+											aria-label={`Remove ${volunteerName}`}
+										>
+											<Minus className="h-4 w-4 text-destructive" />
+										</Button>
+									</div>
+								)
+							})}
+						</div>
 					)}
 				</div>
 
@@ -397,48 +410,75 @@ export function ShiftAssignmentPanel({
 							role type
 						</p>
 					) : (
-						<ScrollArea className="max-h-[250px]">
-							<div className="space-y-2">
-								{availableVolunteers.map((volunteer) => {
-									const volunteerName = getVolunteerName(volunteer)
+						<div className="space-y-2">
+							{availableVolunteers.map((volunteer) => {
+								const volunteerName = getVolunteerName(volunteer)
+								const otherShifts = volunteerOtherShifts.get(volunteer.id) ?? []
 
-									return (
-										<div
-											key={volunteer.id}
-											className="flex items-center justify-between rounded-md border bg-card p-2"
-										>
-											<div className="flex items-center gap-2">
-												<div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-													<User className="h-4 w-4 text-muted-foreground" />
-												</div>
-												<div>
-													<p className="text-sm font-medium">{volunteerName}</p>
-													{volunteer.user?.email && (
-														<p className="text-xs text-muted-foreground">
-															{volunteer.user.email}
-														</p>
-													)}
-												</div>
+								return (
+									<div
+										key={volunteer.id}
+										className="flex items-center justify-between rounded-md border bg-card p-2"
+									>
+										<div className="flex items-center gap-2">
+											<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
+												<User className="h-4 w-4 text-muted-foreground" />
 											</div>
-											<Button
-												variant="ghost"
-												size="sm"
-												onClick={() => handleAssign(volunteer.id)}
-												disabled={isAtCapacity || assigningId === volunteer.id}
-												aria-label={`Add ${volunteerName}`}
-												title={
-													isAtCapacity
-														? "Shift is at capacity"
-														: `Add ${volunteerName}`
-												}
-											>
-												<Plus className="h-4 w-4 text-primary" />
-											</Button>
+											<div className="min-w-0">
+												<p className="text-sm font-medium">{volunteerName}</p>
+												{volunteer.user?.email && (
+													<p className="truncate text-xs text-muted-foreground">
+														{volunteer.user.email}
+													</p>
+												)}
+												{otherShifts.length > 0 && (
+													<Popover>
+														<PopoverTrigger asChild>
+															<button
+																type="button"
+																className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+															>
+																<Calendar className="h-3 w-3 shrink-0" />
+																<span className="underline decoration-dotted">
+																	{otherShifts.length} other shift{otherShifts.length !== 1 ? "s" : ""}
+																</span>
+															</button>
+														</PopoverTrigger>
+														<PopoverContent className="w-64 p-2" align="start">
+															<p className="mb-2 text-xs font-medium text-muted-foreground">Assigned Shifts</p>
+															<div className="space-y-1.5">
+																{otherShifts.map((s) => (
+																	<div key={s.id} className="text-sm">
+																		<p className="font-medium">{s.name}</p>
+																		<p className="text-xs text-muted-foreground">
+																			{formatShiftTimeCompact(s.startTime, s.endTime)}
+																		</p>
+																	</div>
+																))}
+															</div>
+														</PopoverContent>
+													</Popover>
+												)}
+											</div>
 										</div>
-									)
-								})}
-							</div>
-						</ScrollArea>
+										<Button
+											variant="ghost"
+											size="sm"
+											onClick={() => handleAssign(volunteer.id)}
+											disabled={isAtCapacity || assigningId === volunteer.id}
+											aria-label={`Add ${volunteerName}`}
+											title={
+												isAtCapacity
+													? "Shift is at capacity"
+													: `Add ${volunteerName}`
+											}
+										>
+											<Plus className="h-4 w-4 text-primary" />
+										</Button>
+									</div>
+								)
+							})}
+						</div>
 					)}
 					{isAtCapacity && availableVolunteers.length > 0 && (
 						<p className="mt-2 text-xs text-muted-foreground">
@@ -446,6 +486,7 @@ export function ShiftAssignmentPanel({
 						</p>
 					)}
 				</div>
+				</div>{/* End scrollable content area */}
 			</SheetContent>
 		</Sheet>
 	)
