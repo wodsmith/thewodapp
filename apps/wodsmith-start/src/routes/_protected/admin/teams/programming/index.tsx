@@ -10,8 +10,8 @@ import { ProgrammingTrackRow } from "@/components/programming-track-row"
 import { ProgrammingTracksClient } from "@/components/programming-tracks-client"
 import { Button } from "@/components/ui/button"
 import {
-	getTeamProgrammingTracksFn,
 	getPublicTracksWithSubscriptionsFn,
+	getTeamProgrammingTracksFn,
 	type TeamProgrammingTrack,
 } from "@/server-fns/programming-fns"
 

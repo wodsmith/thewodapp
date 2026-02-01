@@ -9,19 +9,19 @@ import { createFileRoute, notFound, redirect } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
+import { RegistrationForm } from "@/components/registration/registration-form"
 import {
 	competitionRegistrationsTable,
 	scalingGroupsTable,
 	userTable,
 } from "@/db/schema"
-import { RegistrationForm } from "@/components/registration/registration-form"
 import {
 	getPublicCompetitionDivisionsFn,
 	parseCompetitionSettings,
 } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
-import { getCompetitionQuestionsFn } from "@/server-fns/registration-questions-fns"
 import { cancelPendingPurchaseFn } from "@/server-fns/registration-fns"
+import { getCompetitionQuestionsFn } from "@/server-fns/registration-questions-fns"
 import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
 import { getLocalDateKey } from "@/utils/date-utils"
 

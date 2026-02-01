@@ -2,7 +2,6 @@
 
 import { Check, ChevronsUpDown } from "lucide-react"
 import { useState } from "react"
-import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -11,6 +10,7 @@ import {
 	PopoverTrigger,
 } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { cn } from "@/lib/utils"
 
 export interface SearchableSelectOption {
 	value: string

@@ -13,6 +13,7 @@
 
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
+import { and, eq } from "drizzle-orm"
 import type Stripe from "stripe"
 import { getDb } from "@/db"
 import {
@@ -23,19 +24,18 @@ import {
 	competitionRegistrationsTable,
 	teamTable,
 } from "@/db/schema"
-import { and, eq } from "drizzle-orm"
+import { getStripeWebhookSecret } from "@/lib/env"
 import {
 	logError,
 	logInfo,
 	logWarning,
 } from "@/lib/logging/posthog-otel-logger"
 import { getStripe } from "@/lib/stripe"
-import { getStripeWebhookSecret } from "@/lib/env"
-import {
-	registerForCompetition,
-	notifyRegistrationConfirmed,
-} from "@/server/registration"
 import { notifyPaymentExpired } from "@/server/notifications"
+import {
+	notifyRegistrationConfirmed,
+	registerForCompetition,
+} from "@/server/registration"
 import { getDivisionSpotsAvailableFn } from "@/server-fns/competition-divisions-fns"
 
 export const Route = createFileRoute("/api/webhooks/stripe")({

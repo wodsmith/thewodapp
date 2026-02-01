@@ -14,8 +14,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { getGoogleMapsUrl, hasAddressData } from "@/utils/address"
 import type { DivisionDescription } from "@/server-fns/competition-workouts-fns"
+import { getGoogleMapsUrl, hasAddressData } from "@/utils/address"
 
 interface CompetitionWorkoutCardProps {
 	eventId: string
@@ -193,7 +193,7 @@ export function CompetitionWorkoutCard({
 
 					{/* Venue Section */}
 					<div className="mb-4 sm:mb-6">
-						{venue && venue.address && hasAddressData(venue.address) ? (
+						{venue?.address && hasAddressData(venue.address) ? (
 							(() => {
 								const mapsUrl = getGoogleMapsUrl(venue.address)
 								return (

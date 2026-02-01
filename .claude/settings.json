@@ -47,17 +47,4 @@
     ],
     "deny": []
   }
-  // "hooks": {
-  //   "Stop": [
-  //     {
-  //       "matcher": "",
-  //       "hooks": [
-  //         {
-  //           "type": "command",
-  //           "command": "bun run \"$CLAUDE_PROJECT_DIR\"/hooks/STOP.ts"
-  //         }
-  //       ]
-  //     }
-  //   ]
-  // }
 }

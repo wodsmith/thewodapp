@@ -4,7 +4,7 @@
  * Design principle: Competition dates are stored as YYYY-MM-DD strings.
  * When checking deadlines, we interpret them in the competition's timezone.
  */
-import { fromZonedTime, toZonedTime, format } from "date-fns-tz"
+import { format, fromZonedTime, toZonedTime } from "date-fns-tz"
 
 // Default timezone for existing competitions without one set
 export const DEFAULT_TIMEZONE = "America/Denver"

@@ -43,9 +43,9 @@ import {
 import { getStripe } from "@/lib/stripe"
 import { requireVerifiedEmail } from "@/utils/auth"
 import {
+	DEFAULT_TIMEZONE,
 	hasDateStartedInTimezone,
 	isDeadlinePassedInTimezone,
-	DEFAULT_TIMEZONE,
 } from "@/utils/timezone-utils"
 import { getDivisionSpotsAvailableFn } from "./competition-divisions-fns"
 

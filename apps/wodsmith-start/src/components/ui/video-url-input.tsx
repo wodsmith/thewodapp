@@ -1,21 +1,21 @@
 "use client"
 
-import * as React from "react"
 import {
-	Video,
-	CheckCircle2,
-	XCircle,
 	AlertCircle,
+	CheckCircle2,
 	ExternalLink,
+	Video,
+	XCircle,
 } from "lucide-react"
+import * as React from "react"
 import { Input } from "@/components/ui/input"
-import { cn } from "@/utils/cn"
 import {
-	parseVideoUrl,
 	getSupportedPlatformsText,
 	type ParsedVideoUrl,
+	parseVideoUrl,
 	VIDEO_URL_ERRORS,
 } from "@/schemas/video-url"
+import { cn } from "@/utils/cn"
 
 export interface VideoUrlValidationState {
 	isValid: boolean

@@ -1,6 +1,5 @@
 import { encodeHexLowerCase } from "@oslojs/encoding"
 import { init } from "@paralleldrive/cuid2"
-import { AppError } from "@/utils/errors"
 import { getCookie, setCookie } from "@tanstack/react-start/server"
 import { eq } from "drizzle-orm"
 import ms from "ms"
@@ -16,6 +15,7 @@ import {
 	teamMembershipTable,
 	userTable,
 } from "@/db/schema"
+import { AppError } from "@/utils/errors"
 
 /** Membership with team relation included */
 type TeamMembershipWithTeam = TeamMembership & {

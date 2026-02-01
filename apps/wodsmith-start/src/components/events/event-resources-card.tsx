@@ -131,6 +131,7 @@ export function EventResourcesCard({
 				if (result.resource) {
 					setResources((prev) =>
 						prev.map((r) =>
+							// biome-ignore lint/style/noNonNullAssertion: if check guarantees resource exists
 							r.id === editingResource.id ? result.resource! : r,
 						),
 					)

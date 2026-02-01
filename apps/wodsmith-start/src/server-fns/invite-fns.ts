@@ -21,9 +21,9 @@ import {
 	userTable,
 } from "@/db/schema"
 import { competitionRegistrationAnswersTable } from "@/db/schemas/competitions"
-import { waiversTable } from "@/db/schemas/waivers"
 import type { VolunteerMembershipMetadata } from "@/db/schemas/volunteers"
 import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
+import { waiversTable } from "@/db/schemas/waivers"
 import { getSessionFromCookie } from "@/utils/auth"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 

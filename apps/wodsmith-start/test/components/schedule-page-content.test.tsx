@@ -295,7 +295,7 @@ describe('SchedulePageContent', () => {
       )
 
       const searchInput = screen.getByPlaceholderText(
-        /search competitor, division, or affiliate/i,
+        /search competitor/i,
       )
       fireEvent.change(searchInput, {target: {value: 'John'}})
 
@@ -332,13 +332,11 @@ describe('SchedulePageContent', () => {
       )
 
       const searchInput = screen.getByPlaceholderText(
-        /search competitor, division, or affiliate/i,
+        /search competitor/i,
       )
       fireEvent.change(searchInput, {target: {value: 'nonexistent'}})
 
-      expect(
-        screen.getByText(/no matches found for "nonexistent"/i),
-      ).toBeInTheDocument()
+      expect(screen.getByText(/no matches found/i)).toBeInTheDocument()
     })
 
     it('auto-expands workouts and heats when searching', () => {
@@ -373,7 +371,7 @@ describe('SchedulePageContent', () => {
       )
 
       const searchInput = screen.getByPlaceholderText(
-        /search competitor, division, or affiliate/i,
+        /search competitor/i,
       )
       fireEvent.change(searchInput, {target: {value: 'SearchableAthlete'}})
 
@@ -719,6 +717,180 @@ describe('SchedulePageContent', () => {
       fireEvent.click(workoutButton)
 
       expect(screen.getByText('RX')).toBeInTheDocument()
+    })
+  })
+
+  describe('Division and Affiliate Filters', () => {
+    it('shows division filter dropdown when divisions exist', () => {
+      const event = createMockEvent({id: 'tw-1', heatStatus: 'published'})
+      const heat = createMockHeat({
+        id: 'heat-1',
+        trackWorkoutId: 'tw-1',
+        assignments: [
+          createMockAssignment({
+            id: 'a-1',
+            laneNumber: 1,
+            registration: {
+              id: 'reg-1',
+              teamName: null,
+              user: {id: 'user-1', firstName: 'John', lastName: 'Doe'},
+              division: {id: 'div-1', label: 'RX'},
+              affiliate: 'CrossFit ABC',
+            },
+          }),
+          createMockAssignment({
+            id: 'a-2',
+            laneNumber: 2,
+            registration: {
+              id: 'reg-2',
+              teamName: null,
+              user: {id: 'user-2', firstName: 'Jane', lastName: 'Smith'},
+              division: {id: 'div-2', label: 'Scaled'},
+              affiliate: 'CrossFit XYZ',
+            },
+          }),
+        ],
+      })
+
+      render(
+        <SchedulePageContent
+          events={[event]}
+          heats={[heat]}
+          currentUserId={undefined}
+          timezone="America/Denver"
+        />,
+      )
+
+      // Division dropdown should be visible (check for "All Divisions" text in trigger)
+      expect(screen.getByText('All Divisions')).toBeInTheDocument()
+    })
+
+    it('shows affiliate filter dropdown when affiliates exist', () => {
+      const event = createMockEvent({id: 'tw-1', heatStatus: 'published'})
+      const heat = createMockHeat({
+        id: 'heat-1',
+        trackWorkoutId: 'tw-1',
+        assignments: [
+          createMockAssignment({
+            id: 'a-1',
+            laneNumber: 1,
+            registration: {
+              id: 'reg-1',
+              teamName: null,
+              user: {id: 'user-1', firstName: 'John', lastName: 'Doe'},
+              division: {id: 'div-1', label: 'RX'},
+              affiliate: 'CrossFit ABC',
+            },
+          }),
+        ],
+      })
+
+      render(
+        <SchedulePageContent
+          events={[event]}
+          heats={[heat]}
+          currentUserId={undefined}
+          timezone="America/Denver"
+        />,
+      )
+
+      // Affiliate dropdown should be visible (check for "All Affiliates" text in trigger)
+      expect(screen.getByText('All Affiliates')).toBeInTheDocument()
+    })
+
+    it('does not show division dropdown when no divisions exist', () => {
+      const event = createMockEvent({id: 'tw-1', heatStatus: 'published'})
+      const heat = createMockHeat({
+        id: 'heat-1',
+        trackWorkoutId: 'tw-1',
+        assignments: [
+          createMockAssignment({
+            id: 'a-1',
+            laneNumber: 1,
+            registration: {
+              id: 'reg-1',
+              teamName: null,
+              user: {id: 'user-1', firstName: 'John', lastName: 'Doe'},
+              division: null,
+              affiliate: null,
+            },
+          }),
+        ],
+      })
+
+      render(
+        <SchedulePageContent
+          events={[event]}
+          heats={[heat]}
+          currentUserId={undefined}
+          timezone="America/Denver"
+        />,
+      )
+
+      // Division dropdown should not be visible
+      expect(screen.queryByText('All Divisions')).not.toBeInTheDocument()
+    })
+
+    it('auto-expands when using search but not division filter', () => {
+      const event = createMockEvent({id: 'tw-1', heatStatus: 'published'})
+      const heat = createMockHeat({
+        id: 'heat-1',
+        trackWorkoutId: 'tw-1',
+        assignments: [
+          createMockAssignment({
+            id: 'a-1',
+            laneNumber: 1,
+            registration: {
+              id: 'reg-1',
+              teamName: null,
+              user: {id: 'user-1', firstName: 'UniqueSearchName', lastName: 'TestUser'},
+              division: {id: 'div-1', label: 'RX'},
+              affiliate: null,
+            },
+          }),
+        ],
+      })
+
+      render(
+        <SchedulePageContent
+          events={[event]}
+          heats={[heat]}
+          currentUserId={undefined}
+          timezone="America/Denver"
+        />,
+      )
+
+      // Search for the unique name
+      const searchInput = screen.getByPlaceholderText(/search competitor/i)
+      fireEvent.change(searchInput, {target: {value: 'UniqueSearchName'}})
+
+      // Workout should be auto-expanded and show the name (may appear in both mobile/desktop views)
+      const matches = screen.getAllByText('UniqueSearchName TestUser')
+      expect(matches.length).toBeGreaterThan(0)
+    })
+  })
+
+  describe('Current Time Display', () => {
+    it('shows current time in the header', () => {
+      const event = createMockEvent({id: 'tw-1'})
+      const heat = createMockHeat({
+        id: 'heat-1',
+        trackWorkoutId: 'tw-1',
+      })
+
+      render(
+        <SchedulePageContent
+          events={[event]}
+          heats={[heat]}
+          currentUserId={undefined}
+          timezone="America/Denver"
+        />,
+      )
+
+      // Should show time display (clock icon is present)
+      expect(screen.getByText('Schedule')).toBeInTheDocument()
+      // Time format like "12:00:00 PM" should be visible
+      expect(screen.getByText(/\d{1,2}:\d{2}:\d{2}\s*(AM|PM)/i)).toBeInTheDocument()
     })
   })
 })

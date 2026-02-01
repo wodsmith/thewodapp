@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers"
-import { eq } from "drizzle-orm"
 import { getRequestHeaders } from "@tanstack/react-start/server"
+import { eq } from "drizzle-orm"
 import { MAX_SESSIONS_PER_USER } from "@/constants"
 import { getDb } from "@/db"
 import { teamMembershipTable } from "@/db/schema"
