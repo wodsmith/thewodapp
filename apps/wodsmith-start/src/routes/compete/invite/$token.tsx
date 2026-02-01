@@ -313,16 +313,22 @@ function InvitePage() {
 				<Card>
 					<CardContent className="space-y-4 py-8 text-center">
 						<AlertCircle className="mx-auto h-12 w-12 text-yellow-500" />
-						<h2 className="text-xl font-semibold">Wrong Account</h2>
+						<h2 className="text-xl font-semibold">Different Account</h2>
 						<p className="text-muted-foreground">
 							This invite was sent to <strong>{invite.email}</strong>.
 							You&apos;re currently logged in as{" "}
 							<strong>{session.email}</strong>.
 						</p>
 						<p className="text-sm text-muted-foreground">
-							Please sign out and sign in with the correct account.
+							You can claim this invite with your current account, which will update the registration email.
 						</p>
 						<div className="flex justify-center gap-3">
+							<AcceptInviteButton
+								token={token}
+								competitionSlug={invite.competition?.slug}
+								competitionId={invite.competition?.id}
+								teamName={invite.team.name}
+							/>
 							<Button asChild variant="outline">
 								<a href="/api/auth/sign-out">Sign Out</a>
 							</Button>
@@ -675,18 +681,32 @@ function DirectVolunteerInvite({
 		return (
 			<div className="container mx-auto max-w-lg py-16">
 				<Card>
-					<CardContent className="space-y-4 py-8 text-center">
-						<AlertCircle className="mx-auto h-12 w-12 text-yellow-500" />
-						<h2 className="text-xl font-semibold">Wrong Account</h2>
-						<p className="text-muted-foreground">
+					<CardHeader className="text-center">
+						<div className="mx-auto mb-4 w-fit rounded-full bg-yellow-500/10 p-3">
+							<AlertCircle className="h-8 w-8 text-yellow-500" />
+						</div>
+						<CardTitle className="text-2xl">Different Account</CardTitle>
+						<CardDescription>
 							This invite was sent to <strong>{invite.email}</strong>.
 							You&apos;re currently logged in as{" "}
 							<strong>{session.email}</strong>.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-6">
+						<p className="text-center text-sm text-muted-foreground">
+							You can claim this invite with your current account, which will update the volunteer email.
 						</p>
-						<p className="text-sm text-muted-foreground">
-							Please sign out and sign in with the correct account.
-						</p>
-						<div className="flex justify-center gap-3">
+
+						<VolunteerInviteDetails invite={invite} />
+
+						<AcceptVolunteerInviteForm
+							token={token}
+							competitionSlug={invite.competition?.slug}
+							competitionId={invite.competition?.id}
+							competitionName={invite.competition?.name}
+						/>
+
+						<div className="flex justify-center">
 							<Button asChild variant="outline">
 								<a href="/api/auth/sign-out">Sign Out</a>
 							</Button>
