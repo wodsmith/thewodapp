@@ -634,47 +634,50 @@ export const getPublicEventDetailsFn = createServerFn({
 			.where(eq(eventResourcesTable.eventId, data.eventId))
 			.orderBy(asc(eventResourcesTable.sortOrder))
 
-		// Fetch heats for this event to get first and last heat times
-		const heats = await db
-			.select({
-				scheduledTime: competitionHeatsTable.scheduledTime,
-				schedulePublishedAt: competitionHeatsTable.schedulePublishedAt,
-				durationMinutes: competitionHeatsTable.durationMinutes,
-			})
-			.from(competitionHeatsTable)
-			.where(eq(competitionHeatsTable.trackWorkoutId, data.eventId))
-			.orderBy(asc(competitionHeatsTable.scheduledTime))
-
-		// Only include heats that are published (have schedulePublishedAt set)
-		const publishedHeats = heats.filter(
-			(h) => h.schedulePublishedAt !== null && h.scheduledTime !== null,
-		)
-
-		// Get first heat start time and last heat end time from published heats
+		// Only fetch heat times if the event's heatStatus is published
 		let heatTimes: {
 			firstHeatStartTime: Date
 			lastHeatEndTime: Date
 		} | null = null
-		if (publishedHeats.length > 0) {
-			const sortedHeats = publishedHeats
-				.filter((h): h is typeof h & { scheduledTime: Date } => h.scheduledTime !== null)
-				.sort((a, b) => a.scheduledTime.getTime() - b.scheduledTime.getTime())
 
-			if (sortedHeats.length > 0) {
-				const firstHeat = sortedHeats[0]!
-				const lastHeat = sortedHeats[sortedHeats.length - 1]!
+		if (event.heatStatus === "published") {
+			// Fetch heats for this event to get first and last heat times
+			const heats = await db
+				.select({
+					scheduledTime: competitionHeatsTable.scheduledTime,
+					durationMinutes: competitionHeatsTable.durationMinutes,
+				})
+				.from(competitionHeatsTable)
+				.where(eq(competitionHeatsTable.trackWorkoutId, data.eventId))
+				.orderBy(asc(competitionHeatsTable.scheduledTime))
 
-				// Calculate last heat end time (start time + duration)
-				const lastHeatEndTime = new Date(lastHeat.scheduledTime.getTime())
-				if (lastHeat.durationMinutes) {
-					lastHeatEndTime.setMinutes(
-						lastHeatEndTime.getMinutes() + lastHeat.durationMinutes,
+			// Only include heats that have a scheduled time
+			const scheduledHeats = heats.filter((h) => h.scheduledTime !== null)
+
+			if (scheduledHeats.length > 0) {
+				const sortedHeats = scheduledHeats
+					.filter(
+						(h): h is typeof h & { scheduledTime: Date } =>
+							h.scheduledTime !== null,
 					)
-				}
+					.sort((a, b) => a.scheduledTime.getTime() - b.scheduledTime.getTime())
 
-				heatTimes = {
-					firstHeatStartTime: firstHeat.scheduledTime!,
-					lastHeatEndTime,
+				if (sortedHeats.length > 0) {
+					const firstHeat = sortedHeats[0]!
+					const lastHeat = sortedHeats[sortedHeats.length - 1]!
+
+					// Calculate last heat end time (start time + duration)
+					const lastHeatEndTime = new Date(lastHeat.scheduledTime.getTime())
+					if (lastHeat.durationMinutes) {
+						lastHeatEndTime.setMinutes(
+							lastHeatEndTime.getMinutes() + lastHeat.durationMinutes,
+						)
+					}
+
+					heatTimes = {
+						firstHeatStartTime: firstHeat.scheduledTime!,
+						lastHeatEndTime,
+					}
 				}
 			}
 		}

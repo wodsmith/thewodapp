@@ -177,31 +177,16 @@ function formatHeatTime(date: Date, timezone?: string | null): string {
 	}).format(new Date(date))
 }
 
-function formatEventDate(
-	startDate: string | null,
-	endDate: string | null,
-): string | null {
-	if (!startDate) return null
-
-	const start = new Date(startDate)
-	const formatOptions: Intl.DateTimeFormatOptions = {
+function formatEventDateFromHeatTime(
+	heatTime: Date,
+	timezone?: string | null,
+): string {
+	return new Intl.DateTimeFormat("en-US", {
 		month: "short",
 		day: "numeric",
 		year: "numeric",
-	}
-
-	if (!endDate || start.toDateString() === new Date(endDate).toDateString()) {
-		return new Intl.DateTimeFormat("en-US", formatOptions).format(start)
-	}
-
-	const end = new Date(endDate)
-	const startStr = new Intl.DateTimeFormat("en-US", {
-		month: "short",
-		day: "numeric",
-	}).format(start)
-	const endStr = new Intl.DateTimeFormat("en-US", formatOptions).format(end)
-
-	return `${startStr} - ${endStr}`
+		timeZone: timezone ?? undefined,
+	}).format(new Date(heatTime))
 }
 
 function EventDetailsPage() {
@@ -243,8 +228,6 @@ function EventDetailsPage() {
 	)
 	const divisionScale = selectedDivision?.description?.trim() || null
 	const divisionLabel = selectedDivision?.divisionLabel || null
-
-	const eventDate = formatEventDate(competition.startDate, competition.endDate)
 
 	const handleDivisionChange = (divisionId: string) => {
 		navigate({
@@ -443,14 +426,19 @@ function EventDetailsPage() {
 							</div>
 						)}
 
-						{eventDate && (
+						{heatTimes && (
 							<div className="flex items-start gap-3">
 								<Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
 								<div>
 									<p className="text-xs text-muted-foreground uppercase tracking-wider">
 										Date
 									</p>
-									<p className="font-medium text-sm">{eventDate}</p>
+									<p className="font-medium text-sm">
+										{formatEventDateFromHeatTime(
+											heatTimes.firstHeatStartTime,
+											competition.timezone,
+										)}
+									</p>
 								</div>
 							</div>
 						)}
