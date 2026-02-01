@@ -272,11 +272,11 @@ export function JudgesScheduleContent({
 															)}
 														</div>
 
-														{/* Lane grid - no card wrapper */}
+														{/* Lane grid - wraps automatically */}
 														<div
 															className="grid gap-1 px-1 pb-2"
 															style={{
-																gridTemplateColumns: `repeat(${maxLanes}, minmax(0, 1fr))`,
+																gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))",
 															}}
 														>
 															{Array.from({ length: maxLanes }, (_, i) => {
