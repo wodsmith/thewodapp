@@ -683,6 +683,7 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
 			columns: {
 				id: true,
 				athleteTeamId: true,
+				pendingTeammates: true,
 			},
 		})
 
@@ -698,11 +699,33 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
 			return { pendingInvites: [] }
 		}
 
-		// Create a map of athleteTeamId -> registrationId
+		// Create maps for registration data
 		const teamToRegistration = new Map<string, string>()
+		// Map of "teamId-email" -> teammate name from captain's registration
+		const teammateNames = new Map<string, string>()
+
 		for (const reg of registrations) {
 			if (reg.athleteTeamId) {
 				teamToRegistration.set(reg.athleteTeamId, reg.id)
+
+				// Parse pendingTeammates to get names entered by captain
+				if (reg.pendingTeammates) {
+					try {
+						const teammates = JSON.parse(reg.pendingTeammates) as Array<{
+							email: string
+							firstName?: string
+							lastName?: string
+						}>
+						for (const tm of teammates) {
+							const name = [tm.firstName, tm.lastName].filter(Boolean).join(" ").trim()
+							if (name && tm.email) {
+								teammateNames.set(`${reg.athleteTeamId}-${tm.email.toLowerCase()}`, name)
+							}
+						}
+					} catch {
+						// Invalid JSON, ignore
+					}
+				}
 			}
 		}
 
@@ -731,7 +754,6 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
 
 			for (const inv of invitations) {
 				// Parse metadata to check for pending data
-				let guestName: string | undefined
 				let pendingAnswers: PendingTeammateInvite["pendingAnswers"]
 				let pendingSignatures: PendingTeammateInvite["pendingSignatures"]
 				let submittedAt: string | undefined
@@ -739,9 +761,6 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
 				if (inv.metadata) {
 					try {
 						const meta = JSON.parse(inv.metadata) as Record<string, unknown>
-						if (typeof meta.guestName === "string") {
-							guestName = meta.guestName
-						}
 						if (Array.isArray(meta.pendingAnswers)) {
 							pendingAnswers = meta.pendingAnswers as PendingTeammateInvite["pendingAnswers"]
 						}
@@ -755,6 +774,9 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
 						// Invalid JSON, ignore
 					}
 				}
+
+				// Get teammate name from captain's registration (pendingTeammates)
+				const guestName = teammateNames.get(`${teamId}-${inv.email.toLowerCase()}`)
 
 				pendingInvites.push({
 					id: inv.id,

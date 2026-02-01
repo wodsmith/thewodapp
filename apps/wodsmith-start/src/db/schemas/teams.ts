@@ -358,7 +358,6 @@ export interface PendingWaiverSignature {
 }
 
 export interface PendingInviteData {
-	guestName?: string // Name entered by guest when accepting invite
 	pendingAnswers?: PendingInviteAnswer[]
 	pendingSignatures?: PendingWaiverSignature[]
 	submittedAt?: string // ISO date when guest submitted

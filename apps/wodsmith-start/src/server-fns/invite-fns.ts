@@ -125,7 +125,6 @@ const acceptVolunteerInviteSchema = z.object({
 
 const submitPendingInviteDataSchema = z.object({
 	token: z.string().min(1, "Token is required"),
-	guestName: z.string().min(1, "Name is required"),
 	answers: z
 		.array(
 			z.object({
@@ -975,7 +974,6 @@ export const submitPendingInviteDataFn = createServerFn({ method: "POST" })
 
 		// Build pending data
 		const pendingData: PendingInviteData = {
-			guestName: data.guestName,
 			submittedAt: new Date().toISOString(),
 		}
 
