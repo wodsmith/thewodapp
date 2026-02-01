@@ -25,7 +25,7 @@ export const OrganizerSignupWelcomeEmail = ({
 					</Text>
 
 					<Text style={paragraph}>
-						My name is Zac, I am the founder of WODsmith. This is an automated
+						My name is Zac, I am a co-founder of WODsmith. This is an automated
 						email, but if you reply it will go straight to me.
 					</Text>
 
