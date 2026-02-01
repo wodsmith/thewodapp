@@ -49,6 +49,8 @@ const volunteerRoleTypeSchema = z.enum([
 	VOLUNTEER_ROLE_TYPES.MEDICAL,
 	VOLUNTEER_ROLE_TYPES.CHECK_IN,
 	VOLUNTEER_ROLE_TYPES.STAFF,
+	VOLUNTEER_ROLE_TYPES.ATHLETE_CONTROL,
+	VOLUNTEER_ROLE_TYPES.EQUIPMENT_TEAM,
 ])
 
 // ============================================================================
