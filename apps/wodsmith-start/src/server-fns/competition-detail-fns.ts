@@ -669,6 +669,7 @@ export interface PendingTeammateInvite {
 /**
  * Get pending teammate invitations for a competition (not yet accepted).
  * Includes invitations that have pending data from the guest form.
+ * Requires organizer permission on the competition.
  */
 export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) =>
@@ -676,6 +677,22 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
 	)
 	.handler(async ({ data }): Promise<{ pendingInvites: PendingTeammateInvite[] }> => {
 		const db = getDb()
+
+		// Get competition to find organizing team
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, data.competitionId),
+			columns: { organizingTeamId: true },
+		})
+
+		if (!competition) {
+			throw new Error("Competition not found")
+		}
+
+		// Require permission to manage this competition's team
+		await requireTeamPermission(
+			competition.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		)
 
 		// Get all registrations for this competition to find their athlete teams
 		const registrations = await db.query.competitionRegistrationsTable.findMany({
