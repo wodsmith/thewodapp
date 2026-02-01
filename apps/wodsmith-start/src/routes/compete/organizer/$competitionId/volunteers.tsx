@@ -20,6 +20,7 @@ import {
 	getCompetitionVolunteersFn,
 	getDirectVolunteerInvitesFn,
 	getPendingVolunteerInvitationsFn,
+	getVolunteerAssignmentsFn,
 } from "@/server-fns/volunteer-fns"
 import { getCompetitionShiftsFn } from "@/server-fns/volunteer-shift-fns"
 import { InvitedVolunteersList } from "./-components/invited-volunteers-list"
@@ -59,8 +60,8 @@ export const Route = createFileRoute(
 
 		const competitionTeamId = competition.competitionTeamId
 
-		// Parallel fetch: invitations, volunteers, events, direct invites, judges, shifts
-		const [invitations, volunteers, eventsResult, directInvites, judges, shifts] =
+		// Parallel fetch: invitations, volunteers, events, direct invites, judges, shifts, assignments
+		const [invitations, volunteers, eventsResult, directInvites, judges, shifts, volunteerAssignments] =
 			await Promise.all([
 				getPendingVolunteerInvitationsFn({
 					data: { competitionTeamId },
@@ -81,6 +82,9 @@ export const Route = createFileRoute(
 					data: { competitionTeamId },
 				}),
 				getCompetitionShiftsFn({
+					data: { competitionId: competition.id },
+				}),
+				getVolunteerAssignmentsFn({
 					data: { competitionId: competition.id },
 				}),
 			])
@@ -191,6 +195,7 @@ export const Route = createFileRoute(
 			versionHistoryMap,
 			activeVersionMap,
 			shifts,
+			volunteerAssignments,
 		}
 	},
 	component: VolunteersPage,
@@ -213,6 +218,7 @@ function VolunteersPage() {
 		versionHistoryMap,
 		activeVersionMap,
 		shifts,
+		volunteerAssignments,
 	} = Route.useLoaderData()
 
 	const { tab } = Route.useSearch()
@@ -270,6 +276,7 @@ function VolunteersPage() {
 								organizingTeamId={competition.organizingTeamId}
 								invitations={invitations}
 								volunteers={volunteersWithAccess}
+								volunteerAssignments={volunteerAssignments}
 							/>
 						</section>
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "@tanstack/react-router"
-import { Check, X } from "lucide-react"
+import { Calendar, Check, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -16,6 +16,11 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover"
 import { TableCell, TableRow } from "@/components/ui/table"
 import type { User } from "@/db/schema"
 import {
@@ -57,6 +62,26 @@ interface VolunteerRowProps {
 	organizingTeamId: string
 	isSelected?: boolean
 	onToggleSelect?: (shiftKey: boolean) => void
+	assignments: {
+		shifts: Array<{
+			id: string
+			shiftId: string
+			name: string
+			roleType: string
+			startTime: Date
+			endTime: Date
+			location: string | null
+			notes: string | null
+		}>
+		judgeHeats: Array<{
+			id: string
+			heatId: string
+			eventName: string
+			heatNumber: number
+			laneNumber: number | null
+			position: string | null
+		}>
+	}
 }
 
 
@@ -125,6 +150,14 @@ function getInitials(
 	return (first + last).toUpperCase() || "?"
 }
 
+function formatShiftTimeCompact(startTime: Date, endTime: Date): string {
+	const start = new Date(startTime)
+	const end = new Date(endTime)
+	const startStr = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+	const endStr = end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+	return `${startStr} - ${endStr}`
+}
+
 export function VolunteerRow({
 	volunteer,
 	competitionId,
@@ -132,6 +165,7 @@ export function VolunteerRow({
 	organizingTeamId,
 	isSelected = false,
 	onToggleSelect,
+	assignments,
 }: VolunteerRowProps) {
 	const router = useRouter()
 	const metadata = parseMetadata(volunteer.metadata)
@@ -370,6 +404,77 @@ export function VolunteerRow({
 						<span className="text-sm text-muted-foreground">—</span>
 					)}
 				</div>
+			</TableCell>
+			<TableCell>
+				{assignments.shifts.length === 0 && assignments.judgeHeats.length === 0 ? (
+					<span className="text-sm text-muted-foreground">—</span>
+				) : (
+					<div className="flex flex-wrap gap-1">
+						{assignments.shifts.length > 0 && (
+							<Popover>
+								<PopoverTrigger asChild>
+									<button
+										type="button"
+										className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+									>
+										<Calendar className="h-3 w-3 shrink-0" />
+										<span className="underline decoration-dotted">
+											{assignments.shifts.length} shift{assignments.shifts.length !== 1 ? 's' : ''}
+										</span>
+									</button>
+								</PopoverTrigger>
+								<PopoverContent className="w-64 p-2" align="start">
+									<p className="mb-2 text-xs font-medium text-muted-foreground">Assigned Shifts</p>
+									<div className="space-y-1.5">
+										{assignments.shifts.map((shift) => (
+											<div key={shift.id} className="text-sm">
+												<p className="font-medium">{shift.name}</p>
+												<p className="text-xs text-muted-foreground">
+													{formatShiftTimeCompact(shift.startTime, shift.endTime)}
+												</p>
+											</div>
+										))}
+									</div>
+								</PopoverContent>
+							</Popover>
+						)}
+						{assignments.judgeHeats.length > 0 && (
+							<Popover>
+								<PopoverTrigger asChild>
+									<button
+										type="button"
+										className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+									>
+										<Calendar className="h-3 w-3 shrink-0" />
+										<span className="underline decoration-dotted">
+											{assignments.judgeHeats.length} heat{assignments.judgeHeats.length !== 1 ? 's' : ''}
+										</span>
+									</button>
+								</PopoverTrigger>
+								<PopoverContent className="w-64 p-2" align="start">
+									<p className="mb-2 text-xs font-medium text-muted-foreground">Judge Assignments</p>
+									<div className="space-y-1.5">
+										{assignments.judgeHeats.map((heat) => (
+											<div key={heat.id} className="text-sm">
+												<p className="font-medium">{heat.eventName} - Heat {heat.heatNumber}</p>
+												{heat.laneNumber !== null && (
+													<p className="text-xs text-muted-foreground">
+														Lane {heat.laneNumber}
+													</p>
+												)}
+												{heat.position && (
+													<p className="text-xs text-muted-foreground">
+														{heat.position}
+													</p>
+												)}
+											</div>
+										))}
+									</div>
+								</PopoverContent>
+							</Popover>
+						)}
+					</div>
+				)}
 			</TableCell>
 			<TableCell>
 				<Checkbox

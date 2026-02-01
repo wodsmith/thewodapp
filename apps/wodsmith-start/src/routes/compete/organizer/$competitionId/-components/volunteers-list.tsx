@@ -71,6 +71,26 @@ interface VolunteersListProps {
 	organizingTeamId: string
 	invitations: TeamInvitation[]
 	volunteers: VolunteerWithAccess[]
+	volunteerAssignments: Record<string, {
+		shifts: Array<{
+			id: string
+			shiftId: string
+			name: string
+			roleType: string
+			startTime: Date
+			endTime: Date
+			location: string | null
+			notes: string | null
+		}>
+		judgeHeats: Array<{
+			id: string
+			heatId: string
+			eventName: string
+			heatNumber: number
+			laneNumber: number | null
+			position: string | null
+		}>
+	}>
 }
 
 /**
@@ -84,6 +104,7 @@ export function VolunteersList({
 	organizingTeamId,
 	invitations,
 	volunteers,
+	volunteerAssignments,
 }: VolunteersListProps) {
 	const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
 	const [filter, setFilter] = useState<"all" | "pending" | "approved">("all")
@@ -446,6 +467,7 @@ export function VolunteersList({
 										<TableHead>Name</TableHead>
 										<TableHead>Email</TableHead>
 										<TableHead>Role Types</TableHead>
+										<TableHead>Assignments</TableHead>
 										<TableHead>Score Access</TableHead>
 										<TableHead className="text-right">Actions</TableHead>
 									</TableRow>
@@ -497,6 +519,7 @@ export function VolunteersList({
 													onToggleSelect={(shiftKey) =>
 														toggleSelection(invitation.id, shiftKey)
 													}
+													assignments={volunteerAssignments[invitation.id] || { shifts: [], judgeHeats: [] }}
 												/>
 											)
 										}
@@ -513,6 +536,7 @@ export function VolunteersList({
 												onToggleSelect={(shiftKey) =>
 													toggleSelection(volunteer.id, shiftKey)
 												}
+												assignments={volunteerAssignments[volunteer.id] || { shifts: [], judgeHeats: [] }}
 											/>
 										)
 									})}
