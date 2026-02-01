@@ -1,0 +1,81 @@
+# Ralph Progress: Notification System Migration
+
+## Session Start
+Date: 2026-01-18
+Branch: claude/ralph-skill-notifications-ROOOp
+
+## Project Context
+Migrating notification system from WODsmith legacy app (Next.js) to WODsmith-start (TanStack Start on Cloudflare Workers).
+
+## Key Files Reference
+### Legacy App (apps/wodsmith)
+- src/server/notifications/compete.ts - Full notification service with 6 functions
+- src/server/notifications/helpers.ts - Helper utilities (7 functions)
+- src/react-email/compete/*.tsx - Email templates (team-invite, volunteer-signup-confirmation, volunteer-approved)
+- src/react-email/organizer/request-submitted.tsx - Admin notification
+- src/components/nav/notification-bell.tsx - In-app notification UI
+- src/components/ui/sonner.tsx, toast.tsx, toaster.tsx - Toast components
+
+### TanStack Start (apps/wodsmith-start) - COMPLETED
+- src/server/notifications/compete.ts - All 6 notification functions migrated
+- src/server/notifications/helpers.ts - Helper utilities extracted
+- src/server/notifications/index.ts - All functions exported
+- src/react-email/compete/team-invite.tsx - Competition team invite template
+- src/react-email/compete/volunteer-signup-confirmation.tsx - Volunteer signup template
+- src/react-email/compete/volunteer-approved.tsx - Volunteer approval template
+- src/react-email/organizer/request-submitted.tsx - Admin notification template
+- src/components/nav/notification-bell.tsx - In-app notification bell UI
+- Toast: Already integrated via sonner in __root.tsx
+
+## Architecture Notes
+- TanStack Start uses createServerOnlyFn for server-only env access
+- Email uses Resend API via src/utils/email.tsx
+- Database: Cloudflare D1 with Drizzle ORM
+- Logging: PostHog with logInfo/logError from @/lib/logging/posthog-otel-logger
+- Toast notifications: Using sonner (already installed and integrated)
+- Link component: TanStack Router's Link instead of Next.js Link
+
+## Codebase Patterns
+- React Email templates use @react-email/components
+- Notification functions follow pattern: fetch data, validate, build template, send email, log
+- All notification functions are async and return Promise<void>
+- Errors are caught and logged, not rethrown (fire-and-forget)
+- SITE_DOMAIN constant used for email links instead of env vars
+- buildInviteLink helper uses getAppUrl() from @/lib/env
+
+## Completed Tasks
+1. US-001: Extract helpers.ts from compete.ts - DONE
+2. US-002: Create competition team invite email template - DONE
+3. US-003: Add notifyCompetitionTeamInvite function - DONE
+4. US-004: Create volunteer signup confirmation email template - DONE
+5. US-005: Create volunteer approved email template - DONE
+6. US-006: Add volunteer notification functions - DONE
+7. US-007: Create notification index export - DONE
+8. US-008: Add Sonner toast component - ALREADY IN PLACE
+9. US-009: Add Radix UI toast components - SKIPPED (not needed, sonner handles all)
+10. US-010: Integrate Toaster in app layout - ALREADY IN PLACE
+11. US-011: Create NotificationBell component - DONE
+12. US-012: Create organizer request submitted email template - DONE
+13. US-013: Run all tests to verify - DONE (type-check, lint, tests pass)
+
+## Files Created/Modified
+### Created
+- apps/wodsmith-start/src/server/notifications/helpers.ts
+- apps/wodsmith-start/src/react-email/compete/team-invite.tsx
+- apps/wodsmith-start/src/react-email/compete/volunteer-signup-confirmation.tsx
+- apps/wodsmith-start/src/react-email/compete/volunteer-approved.tsx
+- apps/wodsmith-start/src/react-email/organizer/request-submitted.tsx
+- apps/wodsmith-start/src/components/nav/notification-bell.tsx
+
+### Modified
+- apps/wodsmith-start/src/server/notifications/compete.ts (added 3 functions, refactored imports)
+- apps/wodsmith-start/src/server/notifications/index.ts (added new exports)
+
+---
+
+## Session Complete
+All 13 user stories marked as PASSED.
+- Type-check: PASS
+- Lint: PASS (28 pre-existing warnings, none from new code)
+- Tests: PASS (1186 tests)
+- Build: Requires Alchemy infrastructure (not available in this environment)
