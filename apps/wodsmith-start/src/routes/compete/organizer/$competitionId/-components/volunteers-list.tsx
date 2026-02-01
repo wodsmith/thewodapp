@@ -87,6 +87,7 @@ interface VolunteersListProps {
 			heatId: string
 			eventName: string
 			heatNumber: number
+			scheduledTime: Date | null
 			laneNumber: number | null
 			position: string | null
 		}>

@@ -78,6 +78,7 @@ interface VolunteerRowProps {
 			heatId: string
 			eventName: string
 			heatNumber: number
+			scheduledTime: Date | null
 			laneNumber: number | null
 			position: string | null
 		}>
@@ -426,7 +427,9 @@ export function VolunteerRow({
 								<PopoverContent className="w-64 p-2" align="start">
 									<p className="mb-2 text-xs font-medium text-muted-foreground">Assigned Shifts</p>
 									<div className="space-y-1.5">
-										{assignments.shifts.map((shift) => (
+										{[...assignments.shifts]
+											.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+											.map((shift) => (
 											<div key={shift.id} className="text-sm">
 												<p className="font-medium">{shift.name}</p>
 												<p className="text-xs text-muted-foreground">
@@ -454,9 +457,22 @@ export function VolunteerRow({
 								<PopoverContent className="w-64 p-2" align="start">
 									<p className="mb-2 text-xs font-medium text-muted-foreground">Judge Assignments</p>
 									<div className="space-y-1.5">
-										{assignments.judgeHeats.map((heat) => (
+										{[...assignments.judgeHeats]
+											.sort((a, b) => {
+												if (a.scheduledTime && b.scheduledTime) {
+													return new Date(a.scheduledTime).getTime() - new Date(b.scheduledTime).getTime()
+												}
+												return a.heatNumber - b.heatNumber
+											})
+											.map((heat) => (
 											<div key={heat.id} className="text-sm">
 												<p className="font-medium">{heat.eventName} - Heat {heat.heatNumber}</p>
+												{heat.scheduledTime && (
+													<p className="text-xs text-muted-foreground">
+														{new Date(heat.scheduledTime).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}{" "}
+														{new Date(heat.scheduledTime).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+													</p>
+												)}
 												{heat.laneNumber !== null && (
 													<p className="text-xs text-muted-foreground">
 														Lane {heat.laneNumber}

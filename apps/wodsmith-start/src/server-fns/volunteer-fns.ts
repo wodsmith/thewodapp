@@ -949,7 +949,7 @@ export const getVolunteerAssignmentsFn = createServerFn({ method: "GET" })
 		const heatDetailsMap = new Map(
 			heats.map((h) => [
 				h.id,
-				{ heatNumber: h.heatNumber, trackWorkoutId: h.trackWorkoutId },
+				{ heatNumber: h.heatNumber, trackWorkoutId: h.trackWorkoutId, scheduledTime: h.scheduledTime },
 			]),
 		)
 
@@ -1025,6 +1025,7 @@ export const getVolunteerAssignmentsFn = createServerFn({ method: "GET" })
 					heatId: string
 					eventName: string
 					heatNumber: number
+					scheduledTime: Date | null
 					laneNumber: number | null
 					position: string | null
 				}>
@@ -1064,6 +1065,7 @@ export const getVolunteerAssignmentsFn = createServerFn({ method: "GET" })
 				heatId: assignment.heatId,
 				eventName,
 				heatNumber: heatDetails.heatNumber,
+				scheduledTime: heatDetails.scheduledTime,
 				laneNumber: assignment.laneNumber,
 				position: assignment.position,
 			})
