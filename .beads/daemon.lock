@@ -1,7 +1,7 @@
 {
-  "pid": 60110,
-  "parent_pid": 60062,
+  "pid": 53174,
+  "parent_pid": 53119,
   "database": "/Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/.beads/beads.db",
   "version": "0.29.0",
-  "started_at": "2026-01-22T05:00:24.28145Z"
+  "started_at": "2026-02-01T20:18:53.860567Z"
 }
