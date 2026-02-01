@@ -90,25 +90,46 @@ export function JudgesScheduleContent({
 	events,
 	timezone,
 }: JudgesScheduleContentProps) {
-	// Group events by day
+	// Group events by day, splitting events that span multiple days
 	const dayGroups = useMemo(() => {
 		const groups = new Map<string, DayGroup>()
 
 		for (const event of events) {
-			// Find the first heat's scheduled time for grouping
-			const firstHeat = event.heats.find((h) => h.scheduledTime)
-			const dateKey = firstHeat?.scheduledTime
-				? getDateKey(toDate(firstHeat.scheduledTime), timezone)
-				: "unscheduled"
-			const label = firstHeat?.scheduledTime
-				? formatDayLabel(toDate(firstHeat.scheduledTime), timezone)
-				: "Unscheduled"
+			// Group this event's heats by their scheduled day
+			const heatsByDay = new Map<
+				string,
+				{ label: string; heats: typeof event.heats }
+			>()
 
-			const existing = groups.get(dateKey)
-			if (existing) {
-				existing.events.push(event)
-			} else {
-				groups.set(dateKey, { dateKey, label, events: [event] })
+			for (const heat of event.heats) {
+				const dateKey = heat.scheduledTime
+					? getDateKey(toDate(heat.scheduledTime), timezone)
+					: "unscheduled"
+				const label = heat.scheduledTime
+					? formatDayLabel(toDate(heat.scheduledTime), timezone)
+					: "Unscheduled"
+
+				const existing = heatsByDay.get(dateKey)
+				if (existing) {
+					existing.heats.push(heat)
+				} else {
+					heatsByDay.set(dateKey, { label, heats: [heat] })
+				}
+			}
+
+			// Create an event slice for each day that has heats
+			for (const [dateKey, { label, heats }] of heatsByDay) {
+				const eventSlice: JudgesScheduleEvent = {
+					...event,
+					heats,
+				}
+
+				const existingGroup = groups.get(dateKey)
+				if (existingGroup) {
+					existingGroup.events.push(eventSlice)
+				} else {
+					groups.set(dateKey, { dateKey, label, events: [eventSlice] })
+				}
 			}
 		}
 

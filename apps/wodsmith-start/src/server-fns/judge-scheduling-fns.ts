@@ -24,12 +24,14 @@ import {
 	VOLUNTEER_ROLE_TYPES,
 	workouts,
 } from "@/db/schema"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { SYSTEM_ROLES_ENUM, TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { ROLES_ENUM } from "@/db/schemas/users"
 import type {
 	VolunteerAvailability,
 	VolunteerMembershipMetadata,
 } from "@/db/schemas/volunteers"
 import { autochunk, chunk } from "@/utils/batch-query"
+import { getSessionFromCookie } from "@/utils/auth"
 import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
@@ -875,11 +877,78 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
 		z
 			.object({
 				competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
+				organizingTeamId: z
+					.string()
+					.startsWith("team_", "Invalid organizing team ID"),
+				competitionTeamId: z
+					.string()
+					.startsWith("team_", "Invalid competition team ID")
+					.nullable(),
 			})
 			.parse(data),
 	)
 	.handler(async ({ data }): Promise<{ events: JudgesScheduleEvent[] }> => {
 		const db = getDb()
+
+		// Authorization: user must be an organizer or a volunteer for this competition
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Unauthorized: Must be logged in")
+		}
+
+		// Site admins can always access
+		const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
+
+		let canAccess = isSiteAdmin
+		if (!canAccess) {
+			// Check if user is an admin/owner of the organizing team
+			const organizerMembership = await db
+				.select({ id: teamMembershipTable.id, roleId: teamMembershipTable.roleId })
+				.from(teamMembershipTable)
+				.where(
+					and(
+						eq(teamMembershipTable.teamId, data.organizingTeamId),
+						eq(teamMembershipTable.userId, session.userId),
+						eq(teamMembershipTable.isActive, 1),
+					),
+				)
+				.limit(1)
+
+			const isTeamAdmin =
+				organizerMembership[0]?.roleId === SYSTEM_ROLES_ENUM.ADMIN ||
+				organizerMembership[0]?.roleId === SYSTEM_ROLES_ENUM.OWNER
+
+			if (isTeamAdmin) {
+				canAccess = true
+			}
+		}
+
+		if (!canAccess && data.competitionTeamId) {
+			// Check if user is a volunteer for the competition
+			const volunteerMembership = await db
+				.select({ id: teamMembershipTable.id })
+				.from(teamMembershipTable)
+				.where(
+					and(
+						eq(teamMembershipTable.teamId, data.competitionTeamId),
+						eq(teamMembershipTable.userId, session.userId),
+						eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+						eq(teamMembershipTable.isSystemRole, 1),
+						eq(teamMembershipTable.isActive, 1),
+					),
+				)
+				.limit(1)
+
+			if (volunteerMembership[0]) {
+				canAccess = true
+			}
+		}
+
+		if (!canAccess) {
+			throw new Error(
+				"Unauthorized: Must be an organizer or volunteer for this competition",
+			)
+		}
 
 		// Get all heats for this competition with venues and divisions
 		const heats = await db
@@ -1056,9 +1125,13 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
 				.where(inArray(competitionHeatAssignmentsTable.heatId, chunk)),
 		)
 
-		// Get registration divisions
+		// Get registration divisions (filter out null registrationIds)
 		const registrationIds = [
-			...new Set(heatAssignments.map((a) => a.registrationId)),
+			...new Set(
+				heatAssignments
+					.map((a) => a.registrationId)
+					.filter((id): id is string => !!id),
+			),
 		]
 		const registrations =
 			registrationIds.length > 0

@@ -65,7 +65,11 @@ export const Route = createFileRoute("/compete/$slug/judges-schedule")({
 
 		// Fetch judges schedule data
 		const { events } = await getJudgesScheduleDataFn({
-			data: { competitionId: competition.id },
+			data: {
+				competitionId: competition.id,
+				organizingTeamId: competition.organizingTeamId,
+				competitionTeamId: competition.competitionTeamId,
+			},
 		})
 
 		return {
