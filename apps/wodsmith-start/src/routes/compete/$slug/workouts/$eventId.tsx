@@ -237,13 +237,12 @@ function EventDetailsPage() {
 		(divisions && divisions.length > 0 ? divisions[0].id : undefined)
 	const selectedDivisionId = search.division || defaultDivisionId
 
-	// Get the selected division's description, fallback to workout description
-	// Only use division description if it exists and is not empty
+	// Get the selected division's scale info (separate from base description)
 	const selectedDivision = sortedDivisions.find(
 		(d) => d.divisionId === selectedDivisionId,
 	)
-	const divisionDescription = selectedDivision?.description?.trim()
-	const displayDescription = divisionDescription || workout.description || null
+	const divisionScale = selectedDivision?.description?.trim() || null
+	const divisionLabel = selectedDivision?.divisionLabel || null
 
 	const eventDate = formatEventDate(competition.startDate, competition.endDate)
 
@@ -312,8 +311,28 @@ function EventDetailsPage() {
 						</div>
 
 						{/* Event Description */}
-						<div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
-							{displayDescription || "Details coming soon."}
+						<div className="space-y-4">
+							{/* Base workout description */}
+							<div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
+								{workout.description || "Details coming soon."}
+							</div>
+
+							{/* Division-specific scale info */}
+							{divisionScale && (
+								<div className="border-t pt-4 mt-4">
+									<div className="flex items-start gap-3">
+										<Badge
+											variant="secondary"
+											className="shrink-0 text-xs font-medium"
+										>
+											{divisionLabel || "Division"}
+										</Badge>
+										<p className="font-mono text-sm whitespace-pre-wrap leading-relaxed text-muted-foreground">
+											{divisionScale}
+										</p>
+									</div>
+								</div>
+							)}
 						</div>
 
 						{/* Video & Score Submission Form - Below description for online competitions */}
