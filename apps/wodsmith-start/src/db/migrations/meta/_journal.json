@@ -575,6 +575,13 @@
       "when": 1769500000000,
       "tag": "0082_add-addresses-table",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "6",
+      "when": 1769984444340,
+      "tag": "0083_perpetual_penance",
+      "breakpoints": true
     }
   ]
 }
