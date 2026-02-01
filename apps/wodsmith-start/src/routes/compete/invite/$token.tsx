@@ -1,4 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
+import {
+	createFileRoute,
+	Link,
+} from "@tanstack/react-router"
 import {
 	AlertCircle,
 	Calendar,
@@ -30,6 +33,7 @@ import {
 } from "@/components/ui/select"
 import {
 	checkEmailExistsFn,
+	getPendingInviteDataFn,
 	getSessionInfoFn,
 	getTeammateInviteFn,
 	getVolunteerInviteFn,
@@ -40,9 +44,13 @@ import {
 	getCompetitionQuestionsFn,
 	type RegistrationQuestion,
 } from "@/server-fns/registration-questions-fns"
+import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
+import type { Waiver } from "@/db/schemas/waivers"
 import { AcceptInviteButton } from "./-components/accept-invite-button"
 import { AcceptVolunteerInviteForm } from "./-components/accept-volunteer-invite-form"
+import { GuestInviteForm } from "./-components/guest-invite-form"
 import { InviteSignUpForm } from "./-components/invite-signup-form"
+import { SuccessClaimPrompt } from "./-components/success-claim-prompt"
 
 export const Route = createFileRoute("/compete/invite/$token")({
 	loader: async ({ params }) => {
@@ -73,6 +81,17 @@ export const Route = createFileRoute("/compete/invite/$token")({
 			)
 		}
 
+		let waivers: Waiver[] = []
+		if (teammateInvite?.competition?.id) {
+			const waiversResult = await getCompetitionWaiversFn({
+				data: { competitionId: teammateInvite.competition.id },
+			})
+			waivers = waiversResult.waivers
+		}
+
+		const pendingData = await getPendingInviteDataFn({ data: { token: params.token } })
+		const hasPendingData = !!(pendingData?.pendingAnswers?.length || pendingData?.pendingSignatures?.length)
+
 		return {
 			volunteerInvite,
 			teammateInvite,
@@ -80,6 +99,8 @@ export const Route = createFileRoute("/compete/invite/$token")({
 			emailHasAccount,
 			token: params.token,
 			teammateQuestions,
+			waivers,
+			hasPendingData,
 		}
 	},
 	component: InvitePage,
@@ -132,7 +153,11 @@ function InvitePage() {
 		emailHasAccount,
 		token,
 		teammateQuestions,
+		waivers,
+		hasPendingData,
 	} = Route.useLoaderData()
+	const [guestSubmitComplete, setGuestSubmitComplete] = useState(false)
+	const showSuccess = guestSubmitComplete || hasPendingData
 
 	// First check if this is a volunteer invite
 	if (volunteerInvite) {
@@ -222,6 +247,9 @@ function InvitePage() {
 		)
 	}
 
+	// Note: Pending data transfer now happens automatically in acceptTeamInvitationFn
+	// when the user accepts the invite - no need for separate transfer logic
+
 	// Auth State 1: Logged in, email matches
 	if (session && session.email?.toLowerCase() === invite.email.toLowerCase()) {
 		return (
@@ -243,8 +271,8 @@ function InvitePage() {
 						{/* Invite Details */}
 						<InviteDetails invite={invite} />
 
-						{/* Registration Questions */}
-						{teammateQuestions && teammateQuestions.length > 0 && (
+						{/* Registration Questions - only show if no pending data (guest already filled them) */}
+						{teammateQuestions && teammateQuestions.length > 0 && !hasPendingData && (
 							<TeammateQuestionsForm
 								questions={teammateQuestions}
 								token={token}
@@ -254,14 +282,23 @@ function InvitePage() {
 							/>
 						)}
 
-						{/* Simple accept button if no questions */}
-						{(!teammateQuestions || teammateQuestions.length === 0) && (
-							<AcceptInviteButton
-								token={token}
-								competitionSlug={invite.competition?.slug}
-								competitionId={invite.competition?.id}
-								teamName={invite.team.name}
-							/>
+						{/* Simple accept button if no questions OR if pending data exists (will be transferred on accept) */}
+						{((!teammateQuestions || teammateQuestions.length === 0) || hasPendingData) && (
+							<>
+								{hasPendingData && (
+									<div className="rounded-lg bg-green-50 dark:bg-green-900/20 p-4 text-center">
+										<p className="text-sm text-green-700 dark:text-green-300">
+											Your registration answers have been saved. Click below to join the team.
+										</p>
+									</div>
+								)}
+								<AcceptInviteButton
+									token={token}
+									competitionSlug={invite.competition?.slug}
+									competitionId={invite.competition?.id}
+									teamName={invite.team.name}
+								/>
+							</>
 						)}
 					</CardContent>
 				</Card>
@@ -315,12 +352,29 @@ function InvitePage() {
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-6">
-					{/* Invite Details */}
-					<InviteDetails invite={invite} />
-
-					{emailHasAccount ? (
+					{showSuccess ? (
+						<SuccessClaimPrompt
+							teamName={invite.team.name}
+							competitionName={invite.competition?.name || "Competition"}
+							inviteToken={token}
+							emailHasAccount={emailHasAccount}
+						/>
+					) : (teammateQuestions.length > 0 || waivers.length > 0) ? (
+						<>
+							<InviteDetails invite={invite} />
+							<GuestInviteForm
+								token={token}
+								questions={teammateQuestions}
+								waivers={waivers}
+								teamName={invite.team.name}
+								competitionName={invite.competition?.name || "Competition"}
+								onSuccess={() => setGuestSubmitComplete(true)}
+							/>
+						</>
+					) : emailHasAccount ? (
 						// Email has account - show sign in button
 						<>
+							<InviteDetails invite={invite} />
 							<div className="space-y-2">
 								<p className="text-center text-sm text-muted-foreground">
 									Invitation for <strong>{invite.email}</strong>
@@ -336,6 +390,7 @@ function InvitePage() {
 					) : (
 						// No account - show inline sign up form
 						<>
+							<InviteDetails invite={invite} />
 							<div className="space-y-2">
 								<p className="text-center text-sm text-muted-foreground">
 									Create an account to join the team
