@@ -348,6 +348,15 @@ function AthletesPage() {
 		return (first + last).toUpperCase() || "?"
 	}
 
+	// Get initials from a full name string (e.g., "John Doe" -> "JD")
+	const getInitialsFromName = (fullName: string | null | undefined) => {
+		if (!fullName) return "?"
+		const parts = fullName.trim().split(/\s+/)
+		const first = parts[0]?.[0] || ""
+		const last = parts.length > 1 ? parts[parts.length - 1]?.[0] || "" : ""
+		return (first + last).toUpperCase() || "?"
+	}
+
 	const getAnswersForUser = (registrationId: string, userId: string) => {
 		const answers = answersByRegistration[registrationId] || []
 		return answers.filter((a) => a.userId === userId)
@@ -610,7 +619,9 @@ function AthletesPage() {
 			if (row.status === "pending") {
 				athleteName = `(Pending) ${row.athlete.email}`
 			} else if (row.status === "accepted") {
-				athleteName = `(Accepted) ${row.athlete.email}`
+				// Use signature name if available for accepted invites
+				const signatureName = row.pendingInvite?.pendingSignatures?.[0]?.signatureName
+				athleteName = signatureName || `(Accepted) ${row.athlete.email}`
 			} else {
 				athleteName = `${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim()
 			}
@@ -1006,10 +1017,9 @@ function AthletesPage() {
 																alt={`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`}
 															/>
 															<AvatarFallback className="text-xs">
-																{getInitials(
-																	row.athlete.firstName,
-																	row.athlete.lastName,
-																)}
+																{row.status === "accepted" && row.pendingInvite?.pendingSignatures?.[0]?.signatureName
+																	? getInitialsFromName(row.pendingInvite.pendingSignatures[0].signatureName)
+																	: getInitials(row.athlete.firstName, row.athlete.lastName)}
 															</AvatarFallback>
 														</Avatar>
 														<div className="flex flex-col">
@@ -1023,7 +1033,12 @@ function AthletesPage() {
 																	</>
 																) : row.status === "accepted" ? (
 																	<>
-																		<span className="italic text-muted-foreground">Invited</span>
+																		{/* Show name from waiver signature if available */}
+																		{row.pendingInvite?.pendingSignatures?.[0]?.signatureName ? (
+																			<span>{row.pendingInvite.pendingSignatures[0].signatureName}</span>
+																		) : (
+																			<span className="italic text-muted-foreground">Invited</span>
+																		)}
 																		<Badge variant="outline" className="ml-2 text-xs bg-green-50 text-green-700 border-green-300">
 																			Accepted
 																		</Badge>
