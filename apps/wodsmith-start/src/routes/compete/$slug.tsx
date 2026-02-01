@@ -63,27 +63,27 @@ export const Route = createFileRoute("/compete/$slug")({
 			// User-specific data - returns null/false if no session
 			session
 				? getUserCompetitionRegistrationFn({
-						data: {
-							competitionId: competition.id,
-							userId: session.userId,
-						},
-					})
+					data: {
+						competitionId: competition.id,
+						userId: session.userId,
+					},
+				})
 				: Promise.resolve({ registration: null }),
 			session
 				? checkCanManageCompetitionFn({
-						data: {
-							organizingTeamId: competition.organizingTeamId,
-							userId: session.userId,
-						},
-					})
+					data: {
+						organizingTeamId: competition.organizingTeamId,
+						userId: session.userId,
+					},
+				})
 				: Promise.resolve({ canManage: false }),
 			session
 				? checkIsVolunteerFn({
-						data: {
-							competitionTeamId: competition.competitionTeamId,
-							userId: session.userId,
-						},
-					})
+					data: {
+						competitionTeamId: competition.competitionTeamId,
+						userId: session.userId,
+					},
+				})
 				: Promise.resolve({ isVolunteer: false }),
 		])
 
@@ -129,7 +129,7 @@ function CompetitionDetailLayout() {
 			/>
 
 			{/* Content Area */}
-			<div className="py-4">
+			<div className="px-0 pb-4">
 				<Outlet />
 			</div>
 		</div>
