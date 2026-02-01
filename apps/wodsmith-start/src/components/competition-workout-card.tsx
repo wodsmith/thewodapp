@@ -80,23 +80,22 @@ export function CompetitionWorkoutCard({
 	timeCap,
 	venue,
 }: CompetitionWorkoutCardProps) {
-	// Find RX division (position 0 is typically RX/hardest)
+	// Sort divisions by position for display (0 = RX/hardest)
 	const sortedDivisions = [...divisionDescriptions].sort(
 		(a, b) => a.position - b.position,
 	)
-	const rxDivision = sortedDivisions.find((d) => d.position === 0)
-	const rxDescription = rxDivision?.description
 
-	// Determine description to display
-	// If selectedDivisionId is provided (and not "default"), try to find that specific description.
-	// If not found, fallback to RX description, then base description.
-	const targetDivisionDesc =
+	// Get the selected division's scale info (if any)
+	// If selectedDivisionId is provided (and not "default"), show that division's scale.
+	// Otherwise, show the RX division's scale (position 0).
+	const targetDivision =
 		selectedDivisionId && selectedDivisionId !== "default"
 			? divisionDescriptions.find((d) => d.divisionId === selectedDivisionId)
-			: null
+			: sortedDivisions.find((d) => d.position === 0)
 
-	const displayDescription =
-		targetDivisionDesc?.description || rxDescription || description
+	// Division scale is shown separately from base description
+	const divisionScale = targetDivision?.description?.trim() || null
+	const divisionLabel = targetDivision?.divisionLabel || null
 
 	const formattedTimeCap = timeCap ? formatTime(timeCap) : null
 
@@ -242,14 +241,32 @@ export function CompetitionWorkoutCard({
 								hasMovementsOrTags ? "md:col-span-8" : "col-span-1",
 							)}
 						>
-							<div className="prose prose-sm max-w-none dark:prose-invert">
+							<div className="prose prose-sm max-w-none dark:prose-invert space-y-4">
+								{/* Base workout description */}
 								<p className="whitespace-pre-wrap text-sm sm:text-base leading-relaxed">
-									{displayDescription || (
+									{description || (
 										<span className="italic text-muted-foreground">
 											Details to be announced.
 										</span>
 									)}
 								</p>
+
+								{/* Division-specific scale info */}
+								{divisionScale && (
+									<div className="border-t pt-3 mt-3">
+										<div className="flex items-start gap-2">
+											<Badge
+												variant="secondary"
+												className="shrink-0 text-xs font-medium"
+											>
+												{divisionLabel || "Division"}
+											</Badge>
+											<p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+												{divisionScale}
+											</p>
+										</div>
+									</div>
+								)}
 							</div>
 						</div>
 
