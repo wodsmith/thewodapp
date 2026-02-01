@@ -53,6 +53,7 @@ export function GuestInviteForm({
 	competitionName,
 	onSuccess,
 }: GuestInviteFormProps) {
+	const [guestName, setGuestName] = useState("")
 	const [answers, setAnswers] = useState<Record<string, string>>({})
 	const [signatures, setSignatures] = useState<
 		Record<string, { signatureName: string; agreed: boolean }>
@@ -86,6 +87,8 @@ export function GuestInviteForm({
 	}
 
 	// Validate all required fields
+	const hasValidName = guestName.trim().length > 0
+
 	const requiredQuestions = questions.filter((q) => q.required)
 	const allRequiredAnswered = requiredQuestions.every(
 		(q) => answers[q.id] && answers[q.id].trim() !== "",
@@ -98,7 +101,7 @@ export function GuestInviteForm({
 			signatures[w.id]?.agreed === true,
 	)
 
-	const canSubmit = allRequiredAnswered && allRequiredWaiversSigned
+	const canSubmit = hasValidName && allRequiredAnswered && allRequiredWaiversSigned
 
 	const handleSubmit = async () => {
 		setIsSubmitting(true)
@@ -124,6 +127,7 @@ export function GuestInviteForm({
 			const result = await submitPendingData({
 				data: {
 					token,
+					guestName: guestName.trim(),
 					answers: answersArray.length > 0 ? answersArray : undefined,
 					signatures: signaturesArray.length > 0 ? signaturesArray : undefined,
 				},
@@ -151,6 +155,30 @@ export function GuestInviteForm({
 
 	return (
 		<div className="space-y-6">
+			{/* Name Field - Always Required */}
+			<Card>
+				<CardHeader>
+					<CardTitle>Your Information</CardTitle>
+					<CardDescription>
+						Enter your name to complete registration
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<div className="space-y-2">
+						<Label htmlFor="guest-name">
+							Full Name
+							<span className="text-destructive ml-1">*</span>
+						</Label>
+						<Input
+							id="guest-name"
+							value={guestName}
+							onChange={(e) => setGuestName(e.target.value)}
+							placeholder="Enter your full name"
+						/>
+					</div>
+				</CardContent>
+			</Card>
+
 			{/* Questions Section */}
 			{hasQuestions && (
 				<Card>

@@ -655,6 +655,7 @@ export interface PendingTeammateInvite {
 	athleteTeamId: string
 	registrationId: string | null
 	status: InvitationStatus
+	guestName?: string
 	pendingAnswers?: Array<{ questionId: string; answer: string }>
 	pendingSignatures?: Array<{
 		waiverId: string
@@ -730,6 +731,7 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
 
 			for (const inv of invitations) {
 				// Parse metadata to check for pending data
+				let guestName: string | undefined
 				let pendingAnswers: PendingTeammateInvite["pendingAnswers"]
 				let pendingSignatures: PendingTeammateInvite["pendingSignatures"]
 				let submittedAt: string | undefined
@@ -737,6 +739,9 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
 				if (inv.metadata) {
 					try {
 						const meta = JSON.parse(inv.metadata) as Record<string, unknown>
+						if (typeof meta.guestName === "string") {
+							guestName = meta.guestName
+						}
 						if (Array.isArray(meta.pendingAnswers)) {
 							pendingAnswers = meta.pendingAnswers as PendingTeammateInvite["pendingAnswers"]
 						}
@@ -757,6 +762,7 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
 					athleteTeamId: teamId,
 					registrationId: teamToRegistration.get(teamId) || null,
 					status: (inv.status as InvitationStatus) || INVITATION_STATUS.PENDING,
+					guestName,
 					pendingAnswers,
 					pendingSignatures,
 					submittedAt,

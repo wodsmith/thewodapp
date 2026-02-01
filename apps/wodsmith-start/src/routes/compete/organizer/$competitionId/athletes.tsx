@@ -619,9 +619,8 @@ function AthletesPage() {
 			if (row.status === "pending") {
 				athleteName = `(Pending) ${row.athlete.email}`
 			} else if (row.status === "accepted") {
-				// Use signature name if available for accepted invites
-				const signatureName = row.pendingInvite?.pendingSignatures?.[0]?.signatureName
-				athleteName = signatureName || `(Accepted) ${row.athlete.email}`
+				// Use guest name if available for accepted invites
+				athleteName = row.pendingInvite?.guestName || `(Accepted) ${row.athlete.email}`
 			} else {
 				athleteName = `${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim()
 			}
@@ -1017,8 +1016,8 @@ function AthletesPage() {
 																alt={`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`}
 															/>
 															<AvatarFallback className="text-xs">
-																{row.status === "accepted" && row.pendingInvite?.pendingSignatures?.[0]?.signatureName
-																	? getInitialsFromName(row.pendingInvite.pendingSignatures[0].signatureName)
+																{row.status === "accepted" && row.pendingInvite?.guestName
+																	? getInitialsFromName(row.pendingInvite.guestName)
 																	: getInitials(row.athlete.firstName, row.athlete.lastName)}
 															</AvatarFallback>
 														</Avatar>
@@ -1033,9 +1032,9 @@ function AthletesPage() {
 																	</>
 																) : row.status === "accepted" ? (
 																	<>
-																		{/* Show name from waiver signature if available */}
-																		{row.pendingInvite?.pendingSignatures?.[0]?.signatureName ? (
-																			<span>{row.pendingInvite.pendingSignatures[0].signatureName}</span>
+																		{/* Show guest name if available */}
+																		{row.pendingInvite?.guestName ? (
+																			<span>{row.pendingInvite.guestName}</span>
 																		) : (
 																			<span className="italic text-muted-foreground">Invited</span>
 																		)}

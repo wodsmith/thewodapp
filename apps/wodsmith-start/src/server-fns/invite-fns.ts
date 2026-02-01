@@ -125,6 +125,7 @@ const acceptVolunteerInviteSchema = z.object({
 
 const submitPendingInviteDataSchema = z.object({
 	token: z.string().min(1, "Token is required"),
+	guestName: z.string().min(1, "Name is required"),
 	answers: z
 		.array(
 			z.object({
@@ -428,10 +429,11 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 			throw new Error("CONFLICT: Invitation has already been accepted")
 		}
 
-		// Check if user's email matches the invitation email (case-insensitive)
+		// Log email mismatch for tracking, but allow the operation to proceed
+		// The acceptedBy field tracks who actually accepted regardless of invite email
 		if (session.user.email?.toLowerCase() !== invitation.email?.toLowerCase()) {
-			throw new Error(
-				"FORBIDDEN: This invitation is for a different email address",
+			console.log(
+				`Team invite email mismatch: invited=${invitation.email}, acceptedBy=${session.user.email}`,
 			)
 		}
 
@@ -821,10 +823,11 @@ export const acceptVolunteerInviteFn = createServerFn({ method: "POST" })
 			throw new Error("CONFLICT: Invitation has already been accepted")
 		}
 
-		// Check if user's email matches the invitation email (case-insensitive)
+		// Log email mismatch for tracking, but allow the operation to proceed
+		// The acceptedBy field tracks who actually accepted regardless of invite email
 		if (session.user.email?.toLowerCase() !== invitation.email?.toLowerCase()) {
-			throw new Error(
-				"FORBIDDEN: This invitation is for a different email address",
+			console.log(
+				`Volunteer invite email mismatch: invited=${invitation.email}, acceptedBy=${session.user.email}`,
 			)
 		}
 
@@ -972,6 +975,7 @@ export const submitPendingInviteDataFn = createServerFn({ method: "POST" })
 
 		// Build pending data
 		const pendingData: PendingInviteData = {
+			guestName: data.guestName,
 			submittedAt: new Date().toISOString(),
 		}
 
@@ -1085,10 +1089,11 @@ export const transferPendingDataToUserFn = createServerFn({ method: "POST" })
 			throw new Error("NOT_FOUND: Invitation not found")
 		}
 
-		// Check if user's email matches the invitation email (case-insensitive)
+		// Log email mismatch for tracking, but allow the operation to proceed
+		// The acceptedBy field tracks who actually accepted regardless of invite email
 		if (session.user.email?.toLowerCase() !== invitation.email?.toLowerCase()) {
-			throw new Error(
-				"FORBIDDEN: This invitation is for a different email address",
+			console.log(
+				`Transfer pending data email mismatch: invited=${invitation.email}, acceptedBy=${session.user.email}`,
 			)
 		}
 
