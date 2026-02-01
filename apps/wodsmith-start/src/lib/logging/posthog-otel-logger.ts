@@ -12,10 +12,16 @@
  * - Configuration is initialized once and assumed to remain stable throughout the module's lifetime.
  * - In Cloudflare Workers, modules are cached across requests, so environment variables
  *   must remain consistent between deployments.
+ *
+ * PREVENTING LOG LOSS:
+ * - Automatically uses cloudflare:workers' waitUntil to ensure logs complete
+ * - This ensures logs complete even after the response is sent
+ * - No manual configuration needed - just call logInfo(), logWarning(), or logError()
  */
 
-// Import env from cloudflare:workers for server-side access to bindings
-import { env } from "cloudflare:workers"
+// Import env and waitUntil from cloudflare:workers for server-side access to bindings
+// waitUntil ensures log requests complete even after the response is sent
+import { env, waitUntil } from "cloudflare:workers"
 
 /**
  * OpenTelemetry severity numbers
@@ -70,21 +76,17 @@ function initConfig() {
 /**
  * Send log directly to PostHog using fetch (Cloudflare Workers compatible)
  * Uses OTLP JSON format: https://opentelemetry.io/docs/specs/otlp/#json-protobuf-encoding
+ * Automatically uses cloudflare:workers waitUntil to ensure logs complete
  *
  * @param params - Log parameters including message, severity, and attributes
- * @param ctx - Optional Cloudflare Workers ExecutionContext for reliable delivery
- * @returns Promise that resolves when the log is sent (or undefined if logging is disabled)
  */
-function sendLogToPostHog(
-	params: {
-		message: string
-		severityNumber: SeverityNumberType
-		severityText: string
-		attributes: Record<string, unknown>
-	},
-	ctx?: ExecutionContext,
-): Promise<void> | undefined {
-	if (!isPostHogEnabled || !posthogToken) return undefined
+function sendLogToPostHog(params: {
+	message: string
+	severityNumber: SeverityNumberType
+	severityText: string
+	attributes: Record<string, unknown>
+}): void {
+	if (!isPostHogEnabled || !posthogToken) return
 
 	const now = Date.now()
 	const body = {
@@ -131,35 +133,44 @@ function sendLogToPostHog(
 	const controller = new AbortController()
 	const timeoutId = setTimeout(() => controller.abort(), 5000)
 
-	const fetchPromise = fetch(endpoint, {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-			Authorization: `Bearer ${posthogToken}`,
-		},
-		body: JSON.stringify(body),
-		signal: controller.signal,
-	})
-		.then(() => {
-			// Discard response, we only care about success
-		})
-		.catch((err) => {
+	const fetchPromise = (async () => {
+		try {
+			const response = await fetch(endpoint, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${posthogToken}`,
+				},
+				body: JSON.stringify(body),
+				signal: controller.signal,
+			})
+
+			if (!response.ok) {
+				console.error(
+					"[posthog-otel] Failed to send log:",
+					response.status,
+					await response.text(),
+				)
+			}
+		} catch (err) {
 			if (err instanceof Error && err.name === "AbortError") {
 				console.error("[posthog-otel] Request timed out after 5s")
 			} else {
 				console.error("[posthog-otel] Error sending log:", err)
 			}
-		})
-		.finally(() => {
+		} finally {
 			clearTimeout(timeoutId)
-		})
+		}
+	})()
 
-	// Use ctx.waitUntil to ensure the request completes in serverless environments
-	if (ctx) {
-		ctx.waitUntil(fetchPromise)
+	// Use cloudflare:workers waitUntil to ensure the request completes
+	// This is equivalent to OpenNext's getCloudflareContext().ctx.waitUntil
+	try {
+		waitUntil(fetchPromise)
+	} catch (_err) {
+		// waitUntil may not be available in some contexts (e.g., local dev without workers)
+		// The fetch will still be attempted but may not complete if execution terminates early
 	}
-
-	return fetchPromise
 }
 
 function formatAttributeValue(value: unknown): Record<string, unknown> {
@@ -272,33 +283,24 @@ function emitToConsole(
  * @param params.message - The log message
  * @param params.attributes - Optional key-value pairs for structured data
  * @param params.error - Optional error object to include
- * @param ctx - Optional Cloudflare Workers ExecutionContext for reliable delivery
- * @returns Promise that resolves when the log is sent (or undefined if logging is disabled)
  */
-export function logInfo(
-	params: LogParams,
-	ctx?: ExecutionContext,
-): Promise<void> | undefined {
+export function logInfo(params: LogParams): void {
 	initConfig()
 	const severityNumber = params.severityNumber ?? SeverityNumber.INFO
 	const severityText = params.severityText ?? "INFO"
 
-	const result = sendLogToPostHog(
-		{
-			message: params.message,
-			severityNumber,
+	sendLogToPostHog({
+		message: params.message,
+		severityNumber,
+		severityText,
+		attributes: enrichAttributes({
+			attributes: params.attributes,
+			error: params.error,
 			severityText,
-			attributes: enrichAttributes({
-				attributes: params.attributes,
-				error: params.error,
-				severityText,
-			}),
-		},
-		ctx,
-	)
+		}),
+	})
 
 	emitToConsole(severityText, params.message, params.attributes, params.error)
-	return result
 }
 
 /**
@@ -309,33 +311,24 @@ export function logInfo(
  * @param params.message - The log message
  * @param params.attributes - Optional key-value pairs for structured data
  * @param params.error - Optional error object to include
- * @param ctx - Optional Cloudflare Workers ExecutionContext for reliable delivery
- * @returns Promise that resolves when the log is sent (or undefined if logging is disabled)
  */
-export function logWarning(
-	params: LogParams,
-	ctx?: ExecutionContext,
-): Promise<void> | undefined {
+export function logWarning(params: LogParams): void {
 	initConfig()
 	const severityText = params.severityText ?? "WARN"
 	const severityNumber = params.severityNumber ?? SeverityNumber.WARN
 
-	const result = sendLogToPostHog(
-		{
-			message: params.message,
-			severityNumber,
+	sendLogToPostHog({
+		message: params.message,
+		severityNumber,
+		severityText,
+		attributes: enrichAttributes({
+			attributes: params.attributes,
+			error: params.error,
 			severityText,
-			attributes: enrichAttributes({
-				attributes: params.attributes,
-				error: params.error,
-				severityText,
-			}),
-		},
-		ctx,
-	)
+		}),
+	})
 
 	emitToConsole(severityText, params.message, params.attributes, params.error)
-	return result
 }
 
 /**
@@ -346,33 +339,24 @@ export function logWarning(
  * @param params.message - The log message
  * @param params.attributes - Optional key-value pairs for structured data
  * @param params.error - Optional error object to include (recommended)
- * @param ctx - Optional Cloudflare Workers ExecutionContext for reliable delivery
- * @returns Promise that resolves when the log is sent (or undefined if logging is disabled)
  */
-export function logError(
-	params: LogParams,
-	ctx?: ExecutionContext,
-): Promise<void> | undefined {
+export function logError(params: LogParams): void {
 	initConfig()
 	const severityText = params.severityText ?? "ERROR"
 	const severityNumber = params.severityNumber ?? SeverityNumber.ERROR
 
-	const result = sendLogToPostHog(
-		{
-			message: params.message,
-			severityNumber,
+	sendLogToPostHog({
+		message: params.message,
+		severityNumber,
+		severityText,
+		attributes: enrichAttributes({
+			attributes: params.attributes,
+			error: params.error,
 			severityText,
-			attributes: enrichAttributes({
-				attributes: params.attributes,
-				error: params.error,
-				severityText,
-			}),
-		},
-		ctx,
-	)
+		}),
+	})
 
 	emitToConsole(severityText, params.message, params.attributes, params.error)
-	return result
 }
 
 /**
