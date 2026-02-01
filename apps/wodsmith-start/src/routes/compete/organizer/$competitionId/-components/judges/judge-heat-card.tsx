@@ -552,16 +552,6 @@ export function JudgeHeatCard({
 		}
 	}
 
-	// Group assignments by credential for collapsed view
-	const assignmentsByCredential = heatAssignments.reduce(
-		(acc, assignment) => {
-			const credLabel = assignment.volunteer.credentials ?? "No Credential"
-			acc[credLabel] = (acc[credLabel] ?? 0) + 1
-			return acc
-		},
-		{} as Record<string, number>,
-	)
-
 	// Collapsed view for full heats
 	if (!isExpanded) {
 		return (
@@ -575,6 +565,11 @@ export function JudgeHeatCard({
 						<CardTitle className="text-base">
 							Heat <span className="tabular-nums">{heat.heatNumber}</span>
 						</CardTitle>
+						{heat.division && (
+							<Badge variant="secondary" className="text-xs">
+								{heat.division.label}
+							</Badge>
+						)}
 						<div className="flex items-center gap-2 text-sm text-muted-foreground">
 							{heat.scheduledTime && (
 								<span className="flex items-center gap-1">
@@ -595,14 +590,6 @@ export function JudgeHeatCard({
 						>
 							{heatAssignments.length}/{maxLanes}
 						</Badge>
-						<div className="flex-1" />
-						{Object.entries(assignmentsByCredential).map(
-							([credLabel, count]) => (
-								<Badge key={credLabel} variant="secondary" className="text-xs">
-									{credLabel}: {count}
-								</Badge>
-							),
-						)}
 					</div>
 				</CardHeader>
 			</Card>
