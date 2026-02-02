@@ -17,6 +17,10 @@ type ExtendedEnv = typeof env & {
 	NODE_ENV?: string
 	SITE_URL?: string
 	CRON_SECRET?: string
+	// Slack integration
+	SLACK_WEBHOOK_URL?: string
+	SLACK_PURCHASE_NOTIFICATIONS_ENABLED?: string
+	SLACK_PURCHASE_NOTIFICATION_TYPES?: string
 }
 
 const extendedEnv = env as ExtendedEnv
