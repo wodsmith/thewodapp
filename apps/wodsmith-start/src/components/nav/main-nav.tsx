@@ -21,8 +21,8 @@ export default function MainNav({ session, activeTeamId }: MainNavProps) {
 		) ?? []
 
 	return (
-		<header className="border-b-2 border-black bg-background p-4 dark:border-dark-border dark:bg-dark-background">
-			<div className="container relative mx-auto flex items-center justify-between">
+		<header className="border-b-2 border-black bg-background dark:border-dark-border dark:bg-dark-background">
+			<div className="container mx-auto relative flex items-center justify-between p-4">
 				{/* Left: Logo */}
 				<a
 					href={session?.user ? "/workouts" : "/"}

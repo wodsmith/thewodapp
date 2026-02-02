@@ -55,7 +55,7 @@ export function CompetitionHero({
 			) : null}
 
 			{/* Glassmorphism content container */}
-			<div className="relative py-4 md:py-8">
+			<div className="relative pb-4 md:pb-8">
 				<div
 					className={cn(
 						"rounded-2xl border p-4 shadow-2xl backdrop-blur-xl sm:p-6 md:p-8",
