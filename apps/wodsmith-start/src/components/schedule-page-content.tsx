@@ -37,9 +37,18 @@ interface DayGroup {
 	workouts: WorkoutSchedule[]
 }
 
-function toDate(value: Date | string | number): Date {
-	if (value instanceof Date) return new Date(value.getTime())
-	return new Date(value)
+function toDate(value: Date | string | number): Date | null {
+	let date: Date
+	if (value instanceof Date) {
+		date = new Date(value.getTime())
+	} else {
+		date = new Date(value)
+	}
+	// Return null for invalid dates
+	if (Number.isNaN(date.getTime())) {
+		return null
+	}
+	return date
 }
 
 function getDateKey(date: Date, timezone: string): string {
@@ -109,6 +118,7 @@ function calculateHeatStatus(
 	currentTime: Date,
 ): HeatStatus {
 	const heatTime = toDate(scheduledTime)
+	if (!heatTime) return "upcoming"
 	const endTime = new Date(heatTime.getTime() + durationMinutes * 60 * 1000)
 
 	if (currentTime >= endTime) {
@@ -168,18 +178,18 @@ export function SchedulePageContent({
 
 		// First pass: calculate raw statuses
 		const allScheduledHeats = heats
-			.filter((h) => h.scheduledTime)
+			.filter((h) => h.scheduledTime && toDate(h.scheduledTime) !== null)
 			.map((heat) => ({
 				heat,
 				status: calculateHeatStatus(
-					toDate(heat.scheduledTime as Date | string),
+					toDate(heat.scheduledTime as Date | string) as Date,
 					heat.durationMinutes ?? 10,
 					currentTime,
 				),
 			}))
 			.sort((a, b) => {
-				const aTime = toDate(a.heat.scheduledTime as Date | string).getTime()
-				const bTime = toDate(b.heat.scheduledTime as Date | string).getTime()
+				const aTime = toDate(a.heat.scheduledTime as Date | string)?.getTime() ?? 0
+				const bTime = toDate(b.heat.scheduledTime as Date | string)?.getTime() ?? 0
 				return aTime - bTime
 			})
 
@@ -226,14 +236,16 @@ export function SchedulePageContent({
 			const eventHeats = heats.filter((h) => h.trackWorkoutId === event.id)
 
 			// Get time range from heats
-			const scheduledHeats = eventHeats.filter((h) => h.scheduledTime)
+			const scheduledHeats = eventHeats.filter(
+				(h) => h.scheduledTime && toDate(h.scheduledTime) !== null,
+			)
 			let startTime: Date | null = null
 			let endTime: Date | null = null
 
 			if (scheduledHeats.length > 0) {
 				const sortedHeats = scheduledHeats.sort((a, b) => {
-					const aTime = a.scheduledTime ? toDate(a.scheduledTime).getTime() : 0
-					const bTime = b.scheduledTime ? toDate(b.scheduledTime).getTime() : 0
+					const aTime = a.scheduledTime ? toDate(a.scheduledTime)?.getTime() ?? 0 : 0
+					const bTime = b.scheduledTime ? toDate(b.scheduledTime)?.getTime() ?? 0 : 0
 					return aTime - bTime
 				})
 				const firstHeat = sortedHeats[0]
@@ -503,9 +515,9 @@ export function SchedulePageContent({
 													{laneNumber && ` • Lane ${laneNumber}`}
 												</p>
 											</div>
-											{heat.scheduledTime && (
+											{heat.scheduledTime && toDate(heat.scheduledTime) && (
 												<Badge variant="secondary">
-													{formatDateAndTime(toDate(heat.scheduledTime), timezone)}
+													{formatDateAndTime(toDate(heat.scheduledTime) as Date, timezone)}
 												</Badge>
 											)}
 										</div>
@@ -822,10 +834,10 @@ export function SchedulePageContent({
 																			<span className="font-medium tabular-nums shrink-0">
 																				Heat {heat.heatNumber}
 																			</span>
-																			{heat.scheduledTime && (
+																			{heat.scheduledTime && toDate(heat.scheduledTime) && (
 																				<span className="text-sm text-muted-foreground tabular-nums shrink-0">
 																					{formatTime(
-																						toDate(heat.scheduledTime),
+																						toDate(heat.scheduledTime) as Date,
 																						timezone,
 																					)}
 																				</span>
