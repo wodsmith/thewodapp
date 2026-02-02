@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
+import { trackEvent } from "@/lib/posthog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -88,6 +89,12 @@ function SubscriptionsPage() {
 
 		try {
 			await unsubscribeFromTrack({ data: { teamId, trackId } })
+			trackEvent("track_subscription_changed", {
+				action: "unsubscribe",
+				team_id: teamId,
+				track_id: trackId,
+				track_name: trackName,
+			})
 			toast.success(`Unsubscribed from "${trackName}"`)
 			router.invalidate()
 		} catch (error) {

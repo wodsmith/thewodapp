@@ -8,6 +8,8 @@ import {
 	Edit,
 	ListChecks,
 } from "lucide-react"
+import { useEffect } from "react"
+import { trackEvent } from "@/lib/posthog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -69,6 +71,18 @@ function WorkoutDetailPage() {
 		sourceWorkout,
 		remixCount,
 	} = Route.useLoaderData()
+
+	// Track workout view
+	useEffect(() => {
+		if (workout) {
+			trackEvent("workout_viewed", {
+				workout_id: workout.id,
+				workout_name: workout.name,
+				workout_scheme: workout.scheme,
+				is_remixed: !!sourceWorkout,
+			})
+		}
+	}, [workout, sourceWorkout])
 
 	if (!workout) {
 		return (
