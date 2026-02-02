@@ -21,8 +21,8 @@ const getCompeteNavDataFn = createServerFn({ method: "GET" }).handler(
 		// Check if user has MANAGE_COMPETITIONS permission in any team
 		const canOrganize = session?.teams
 			? session.teams.some((team) =>
-					team.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS),
-				)
+				team.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS),
+			)
 			: false
 
 		return { session, canOrganize }
@@ -87,7 +87,7 @@ function CompeteLayout() {
 		<div className="flex min-h-screen flex-col">
 			<CompeteNav session={session} canOrganize={canOrganize} />
 
-			<main className="container mx-auto flex-1 px-4 py-4">
+			<main className="container mx-auto flex-1 p-4">
 				<CompeteBreadcrumb dynamicLabels={dynamicLabels} />
 				<Outlet />
 			</main>
