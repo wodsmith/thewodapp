@@ -35,7 +35,7 @@ export default function MobileNav({ session, activeTeamId }: MobileNavProps) {
 					<span className="sr-only">Toggle navigation menu</span>
 				</Button>
 			</SheetTrigger>
-			<SheetContent side="left" className="bg-white dark:bg-black">
+			<SheetContent side="left" background="sidebar">
 				<SheetTitle className="sr-only">Navigation Menu</SheetTitle>
 				<nav className="grid gap-6 font-medium text-lg">
 					<Link
@@ -93,10 +93,8 @@ export default function MobileNav({ session, activeTeamId }: MobileNavProps) {
 								Compete
 							</a>
 							<hr className="my-2" />
-							<div className="flex items-center gap-4">
-								<LogoutButton />
-								<DarkModeToggle />
-							</div>
+							<LogoutButton showText />
+							<DarkModeToggle />
 						</>
 					) : (
 						<>

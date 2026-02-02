@@ -19,8 +19,8 @@ export default function CompeteNav({ session, canOrganize }: CompeteNavProps) {
 	const missingProfileFields = null
 
 	return (
-		<header className="border-black border-b-2 bg-background p-4 dark:border-dark-border dark:bg-dark-background">
-			<div className="container mx-auto flex items-center">
+		<header className="border-black border-b-2 bg-background dark:border-dark-border dark:bg-dark-background">
+			<div className="container mx-auto flex items-center p-4">
 				<CompeteNavBrand />
 				<nav className="ml-auto hidden items-center gap-4 md:flex">
 					{session?.user ? (
