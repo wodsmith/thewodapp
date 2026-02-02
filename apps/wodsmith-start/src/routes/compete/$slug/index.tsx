@@ -149,8 +149,8 @@ function CompetitionOverviewPage() {
 				</div>
 			</div>
 
-			{/* Sidebar */}
-			<aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+			{/* Sidebar - Order first on mobile/tablet for prominent Register button */}
+			<aside className="order-first space-y-4 lg:order-none lg:sticky lg:top-4 lg:self-start">
 				<RegistrationSidebar
 					competition={competition}
 					isRegistered={isRegistered}
