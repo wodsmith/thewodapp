@@ -35,6 +35,7 @@ import { Route as CompeteSlugIndexRouteImport } from './routes/compete/$slug/ind
 import { Route as AdminTeamsIndexRouteImport } from './routes/admin/teams/index'
 import { Route as AdminOrganizerRequestsIndexRouteImport } from './routes/admin/organizer-requests/index'
 import { Route as AdminEntitlementsIndexRouteImport } from './routes/admin/entitlements/index'
+import { Route as AdminDemoCompetitionsIndexRouteImport } from './routes/admin/demo-competitions/index'
 import { Route as AdminCompetitionsIndexRouteImport } from './routes/admin/competitions/index'
 import { Route as ProtectedWorkoutsIndexRouteImport } from './routes/_protected/workouts/index'
 import { Route as ProtectedTeamIndexRouteImport } from './routes/_protected/team/index'
@@ -264,6 +265,12 @@ const AdminEntitlementsIndexRoute = AdminEntitlementsIndexRouteImport.update({
   path: '/entitlements/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminDemoCompetitionsIndexRoute =
+  AdminDemoCompetitionsIndexRouteImport.update({
+    id: '/demo-competitions/',
+    path: '/demo-competitions/',
+    getParentRoute: () => AdminRoute,
+  } as any)
 const AdminCompetitionsIndexRoute = AdminCompetitionsIndexRouteImport.update({
   id: '/competitions/',
   path: '/competitions/',
@@ -873,6 +880,7 @@ export interface FileRoutesByFullPath {
   '/team': typeof ProtectedTeamIndexRoute
   '/workouts': typeof ProtectedWorkoutsIndexRoute
   '/admin/competitions': typeof AdminCompetitionsIndexRoute
+  '/admin/demo-competitions': typeof AdminDemoCompetitionsIndexRoute
   '/admin/entitlements': typeof AdminEntitlementsIndexRoute
   '/admin/organizer-requests': typeof AdminOrganizerRequestsIndexRoute
   '/admin/teams': typeof AdminTeamsIndexRoute
@@ -990,6 +998,7 @@ export interface FileRoutesByTo {
   '/team': typeof ProtectedTeamIndexRoute
   '/workouts': typeof ProtectedWorkoutsIndexRoute
   '/admin/competitions': typeof AdminCompetitionsIndexRoute
+  '/admin/demo-competitions': typeof AdminDemoCompetitionsIndexRoute
   '/admin/entitlements': typeof AdminEntitlementsIndexRoute
   '/admin/organizer-requests': typeof AdminOrganizerRequestsIndexRoute
   '/admin/teams': typeof AdminTeamsIndexRoute
@@ -1116,6 +1125,7 @@ export interface FileRoutesById {
   '/_protected/team/': typeof ProtectedTeamIndexRoute
   '/_protected/workouts/': typeof ProtectedWorkoutsIndexRoute
   '/admin/competitions/': typeof AdminCompetitionsIndexRoute
+  '/admin/demo-competitions/': typeof AdminDemoCompetitionsIndexRoute
   '/admin/entitlements/': typeof AdminEntitlementsIndexRoute
   '/admin/organizer-requests/': typeof AdminOrganizerRequestsIndexRoute
   '/admin/teams/': typeof AdminTeamsIndexRoute
@@ -1242,6 +1252,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/workouts'
     | '/admin/competitions'
+    | '/admin/demo-competitions'
     | '/admin/entitlements'
     | '/admin/organizer-requests'
     | '/admin/teams'
@@ -1359,6 +1370,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/workouts'
     | '/admin/competitions'
+    | '/admin/demo-competitions'
     | '/admin/entitlements'
     | '/admin/organizer-requests'
     | '/admin/teams'
@@ -1484,6 +1496,7 @@ export interface FileRouteTypes {
     | '/_protected/team/'
     | '/_protected/workouts/'
     | '/admin/competitions/'
+    | '/admin/demo-competitions/'
     | '/admin/entitlements/'
     | '/admin/organizer-requests/'
     | '/admin/teams/'
@@ -1770,6 +1783,13 @@ declare module '@tanstack/react-router' {
       path: '/entitlements'
       fullPath: '/admin/entitlements'
       preLoaderRoute: typeof AdminEntitlementsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/demo-competitions/': {
+      id: '/admin/demo-competitions/'
+      path: '/demo-competitions'
+      fullPath: '/admin/demo-competitions'
+      preLoaderRoute: typeof AdminDemoCompetitionsIndexRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/competitions/': {
@@ -2625,6 +2645,7 @@ interface AdminRouteChildren {
   AdminTeamsTeamIdRoute: typeof AdminTeamsTeamIdRouteWithChildren
   AdminTeamsScheduleRoute: typeof AdminTeamsScheduleRouteWithChildren
   AdminCompetitionsIndexRoute: typeof AdminCompetitionsIndexRoute
+  AdminDemoCompetitionsIndexRoute: typeof AdminDemoCompetitionsIndexRoute
   AdminEntitlementsIndexRoute: typeof AdminEntitlementsIndexRoute
   AdminOrganizerRequestsIndexRoute: typeof AdminOrganizerRequestsIndexRoute
   AdminTeamsIndexRoute: typeof AdminTeamsIndexRoute
@@ -2635,6 +2656,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminTeamsTeamIdRoute: AdminTeamsTeamIdRouteWithChildren,
   AdminTeamsScheduleRoute: AdminTeamsScheduleRouteWithChildren,
   AdminCompetitionsIndexRoute: AdminCompetitionsIndexRoute,
+  AdminDemoCompetitionsIndexRoute: AdminDemoCompetitionsIndexRoute,
   AdminEntitlementsIndexRoute: AdminEntitlementsIndexRoute,
   AdminOrganizerRequestsIndexRoute: AdminOrganizerRequestsIndexRoute,
   AdminTeamsIndexRoute: AdminTeamsIndexRoute,
