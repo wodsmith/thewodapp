@@ -7,7 +7,8 @@
  * OBSERVABILITY:
  * - All HTTP requests are wrapped with request context for tracing
  * - Each request gets a unique requestId that flows through all logs
- * - Request/response logging provides visibility into traffic
+ * - HTTP-level logging only for errors and slow requests (reduces noise)
+ * - Business-level logging in server functions provides the real visibility
  *
  * @see https://tanstack.com/start/latest/docs/framework/react/hosting#custom-server-entry
  */
@@ -21,10 +22,12 @@ import {
 	extractRequestInfo,
 	logError,
 	logInfo,
-	logRequest,
-	logResponse,
+	logWarning,
 	withRequestContext,
 } from "./lib/logging"
+
+// Threshold for logging slow requests (in ms)
+const SLOW_REQUEST_THRESHOLD_MS = 2000
 
 // Create the base TanStack Start entry with default fetch handling
 const startEntry = createServerEntry({
@@ -34,8 +37,9 @@ const startEntry = createServerEntry({
 })
 
 /**
- * Wrap fetch handler with request context and logging.
- * Establishes a unique requestId for each request that flows through all logs.
+ * Wrap fetch handler with request context.
+ * Only logs errors and slow requests to reduce noise - business logic
+ * in server functions handles the meaningful logging.
  */
 async function fetchWithLogging(
 	request: Request,
@@ -45,7 +49,7 @@ async function fetchWithLogging(
 	const requestInfo = extractRequestInfo(request)
 	const startTime = Date.now()
 
-	// Skip detailed logging for static assets and health checks
+	// Skip request context for static assets
 	const isStaticAsset =
 		requestInfo.path.startsWith("/_build/") ||
 		requestInfo.path.startsWith("/assets/") ||
@@ -57,33 +61,41 @@ async function fetchWithLogging(
 		requestInfo.path.endsWith(".svg") ||
 		requestInfo.path.endsWith(".woff2")
 
+	// Static assets don't need request context overhead
+	if (isStaticAsset) {
+		return startEntry.fetch(request)
+	}
+
 	return withRequestContext(
 		{
 			method: requestInfo.method,
 			path: requestInfo.path,
 		},
 		async () => {
-			// Log request entry (skip for static assets)
-			if (!isStaticAsset) {
-				logRequest({
-					method: requestInfo.method,
-					path: requestInfo.path,
-					userAgent: requestInfo.userAgent,
-				})
-			}
-
 			try {
-				// Call the original fetch handler
 				const response = await startEntry.fetch(request)
 				const durationMs = Date.now() - startTime
 
-				// Log response (skip for static assets unless error)
-				if (!isStaticAsset || response.status >= 400) {
-					logResponse({
-						method: requestInfo.method,
-						path: requestInfo.path,
-						status: response.status,
-						durationMs,
+				// Only log errors or slow requests
+				if (response.status >= 400) {
+					logWarning({
+						message: `[HTTP] ${requestInfo.method} ${requestInfo.path} -> ${response.status}`,
+						attributes: {
+							httpMethod: requestInfo.method,
+							httpPath: requestInfo.path,
+							status: response.status,
+							durationMs,
+						},
+					})
+				} else if (durationMs >= SLOW_REQUEST_THRESHOLD_MS) {
+					logWarning({
+						message: `[HTTP] Slow request: ${requestInfo.method} ${requestInfo.path}`,
+						attributes: {
+							httpMethod: requestInfo.method,
+							httpPath: requestInfo.path,
+							status: response.status,
+							durationMs,
+						},
 					})
 				}
 
@@ -101,7 +113,6 @@ async function fetchWithLogging(
 					},
 				})
 
-				// Re-throw to let the framework handle the error
 				throw error
 			}
 		},
