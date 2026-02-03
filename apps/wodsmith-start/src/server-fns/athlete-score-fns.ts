@@ -3,12 +3,25 @@
  *
  * Server functions for athletes to submit their own scores in online competitions.
  * Includes validation for submission windows and score format based on workout scheme.
+ *
+ * OBSERVABILITY:
+ * - All athlete score submissions are logged with user and event IDs
+ * - Submission window status checks are logged
+ * - Validation failures tracked for debugging
  */
 
 import { createServerFn } from "@tanstack/react-start"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import {
+	addRequestContextAttribute,
+	logEntityUpdated,
+	logError,
+	logInfo,
+	logWarning,
+	updateRequestContext,
+} from "@/lib/logging"
 import {
 	competitionEventsTable,
 	competitionRegistrationsTable,
@@ -228,8 +241,20 @@ export const getAthleteEventScoreFn = createServerFn({ method: "GET" })
 	.handler(async ({ data }): Promise<AthleteEventScore> => {
 		const session = await getSessionFromCookie()
 		if (!session?.userId) {
+			logWarning({
+				message: "[AthleteScore] Get score denied - not authenticated",
+				attributes: {
+					competitionId: data.competitionId,
+					trackWorkoutId: data.trackWorkoutId,
+				},
+			})
 			throw new Error("Not authenticated")
 		}
+
+		// Update request context
+		updateRequestContext({ userId: session.userId })
+		addRequestContextAttribute("competitionId", data.competitionId)
+		addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
 
 		const db = getDb()
 
@@ -302,10 +327,32 @@ export const submitAthleteScoreFn = createServerFn({ method: "POST" })
 		}> => {
 			const session = await getSessionFromCookie()
 			if (!session?.userId) {
+				logWarning({
+					message: "[AthleteScore] Submission denied - not authenticated",
+					attributes: {
+						competitionId: data.competitionId,
+						trackWorkoutId: data.trackWorkoutId,
+					},
+				})
 				throw new Error("Not authenticated")
 			}
 
 			const db = getDb()
+
+			// Update request context
+			updateRequestContext({ userId: session.userId })
+			addRequestContextAttribute("competitionId", data.competitionId)
+			addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
+
+			logInfo({
+				message: "[AthleteScore] Score submission started",
+				attributes: {
+					competitionId: data.competitionId,
+					trackWorkoutId: data.trackWorkoutId,
+					userId: session.userId,
+					status: data.status,
+				},
+			})
 
 			// 1. Check that user is registered for this competition
 			const [registration] = await db
@@ -323,8 +370,18 @@ export const submitAthleteScoreFn = createServerFn({ method: "POST" })
 				.limit(1)
 
 			if (!registration) {
+				logWarning({
+					message: "[AthleteScore] Submission denied - not registered",
+					attributes: {
+						competitionId: data.competitionId,
+						trackWorkoutId: data.trackWorkoutId,
+						userId: session.userId,
+					},
+				})
 				throw new Error("You are not registered for this competition")
 			}
+
+			addRequestContextAttribute("registrationId", registration.id)
 
 			// 2. Check submission window
 			const windowStatus = await checkSubmissionWindow(
@@ -333,6 +390,17 @@ export const submitAthleteScoreFn = createServerFn({ method: "POST" })
 			)
 
 			if (!windowStatus.isOpen) {
+				logWarning({
+					message: "[AthleteScore] Submission window blocked",
+					attributes: {
+						competitionId: data.competitionId,
+						trackWorkoutId: data.trackWorkoutId,
+						userId: session.userId,
+						reason: windowStatus.reason,
+						opensAt: windowStatus.opensAt,
+						closesAt: windowStatus.closesAt,
+					},
+				})
 				throw new Error(windowStatus.reason || "Submission window is not open")
 			}
 
@@ -372,6 +440,17 @@ export const submitAthleteScoreFn = createServerFn({ method: "POST" })
 			// 4. Parse and validate the score
 			const parseResult = parseScore(data.score, scheme)
 			if (!parseResult.isValid) {
+				logWarning({
+					message: "[AthleteScore] Invalid score format",
+					attributes: {
+						competitionId: data.competitionId,
+						trackWorkoutId: data.trackWorkoutId,
+						userId: session.userId,
+						score: data.score,
+						scheme,
+						error: parseResult.error,
+					},
+				})
 				throw new Error(
 					`Invalid score format: ${parseResult.error || "Please check your entry"}`,
 				)
@@ -485,8 +564,40 @@ export const submitAthleteScoreFn = createServerFn({ method: "POST" })
 				.limit(1)
 
 			if (!finalScore) {
+				logError({
+					message: "[AthleteScore] Failed to retrieve score after upsert",
+					attributes: {
+						competitionId: data.competitionId,
+						trackWorkoutId: data.trackWorkoutId,
+						userId: session.userId,
+					},
+				})
 				throw new Error("Failed to save score")
 			}
+
+			addRequestContextAttribute("scoreId", finalScore.id)
+			logEntityUpdated({
+				entity: "athleteScore",
+				id: finalScore.id,
+				attributes: {
+					competitionId: data.competitionId,
+					trackWorkoutId: data.trackWorkoutId,
+					userId: session.userId,
+					registrationId: registration.id,
+					status: data.status,
+				},
+			})
+
+			logInfo({
+				message: "[AthleteScore] Score submitted successfully",
+				attributes: {
+					scoreId: finalScore.id,
+					competitionId: data.competitionId,
+					trackWorkoutId: data.trackWorkoutId,
+					userId: session.userId,
+					status: data.status,
+				},
+			})
 
 			return {
 				success: true,
