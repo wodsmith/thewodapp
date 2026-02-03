@@ -8,6 +8,11 @@
  * 2. Session validation - user must still be logged in
  * 3. Team permission validation - user must have EDIT_TEAM_SETTINGS on the team
  * 4. Proper cookie handling on redirect
+ *
+ * OBSERVABILITY:
+ * - All OAuth callback states are logged with request context
+ * - Security failures are logged for monitoring
+ * - Successful connections are tracked with team and account IDs
  */
 
 import { createFileRoute } from "@tanstack/react-router"
@@ -15,10 +20,12 @@ import { deleteCookie, getCookie } from "@tanstack/react-start/server"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getAppUrl } from "@/lib/env"
 import {
+	addRequestContextAttribute,
 	logError,
 	logInfo,
 	logWarning,
-} from "@/lib/logging/posthog-otel-logger"
+	updateRequestContext,
+} from "@/lib/logging"
 import { handleOAuthCallback } from "@/server/stripe-connect/accounts"
 import {
 	parseOAuthState,
@@ -110,7 +117,7 @@ export const Route = createFileRoute("/api/stripe/connect/callback")({
 				if (!session) {
 					logWarning({
 						message: "[Stripe OAuth] No valid session found on callback",
-						attributes: { teamSlug: stateData.teamSlug },
+						attributes: { teamSlug: stateData.teamSlug, teamId: stateData.teamId },
 					})
 					const returnUrl = `/compete/organizer/settings/payouts/${stateData.teamSlug}`
 					return createRedirect(
@@ -118,6 +125,12 @@ export const Route = createFileRoute("/api/stripe/connect/callback")({
 						appUrl,
 					)
 				}
+
+				// Update request context with user and team info
+				updateRequestContext({
+					userId: session.userId,
+					teamId: stateData.teamId,
+				})
 
 				// Verify the callback is for the same user who initiated OAuth
 				if (session.userId !== stateData.userId) {
@@ -157,34 +170,36 @@ export const Route = createFileRoute("/api/stripe/connect/callback")({
 				}
 
 				try {
-					console.log("[Stripe OAuth] Processing callback with code and state")
+					logInfo({
+						message: "[Stripe OAuth] Processing callback",
+						attributes: { teamId: stateData.teamId, teamSlug: stateData.teamSlug },
+					})
+
 					const result = await handleOAuthCallback(code, state)
 
+					// Add connected account info to request context
+					addRequestContextAttribute("stripeAccountId", result.accountId)
+
 					logInfo({
-						message: "[Stripe OAuth] Successfully connected account",
+						message: "[Stripe OAuth] Account connected successfully",
 						attributes: {
 							teamId: result.teamId,
-							accountId: result.accountId,
-							userId: session.userId,
+							stripeAccountId: result.accountId,
+							accountStatus: result.status,
 						},
 					})
-					console.log(
-						"[Stripe OAuth] Success - redirecting to team page",
-						result,
-					)
 
 					return createRedirect(
 						`/compete/organizer/settings/payouts/${result.teamSlug}?stripe_connected=true`,
 						appUrl,
 					)
 				} catch (err) {
-					console.error("[Stripe OAuth] Callback failed:", err)
 					logError({
-						message: "[Stripe OAuth] Callback failed",
+						message: "[Stripe OAuth] Callback processing failed",
 						error: err,
 						attributes: {
 							teamSlug: stateData.teamSlug,
-							userId: session.userId,
+							teamId: stateData.teamId,
 						},
 					})
 
