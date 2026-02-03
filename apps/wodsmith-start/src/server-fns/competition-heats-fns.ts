@@ -3,12 +3,23 @@
  * Port from apps/wodsmith/src/server/competition-heats.ts
  *
  * This file uses top-level imports for server-only modules.
+ *
+ * OBSERVABILITY:
+ * - Heat creation/deletion operations are logged with entity IDs
+ * - Bulk operations include counts
+ * - Heat assignments track athlete placement
  */
 
 import { createServerFn } from "@tanstack/react-start"
 import { and, asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import {
+	addRequestContextAttribute,
+	logEntityCreated,
+	logEntityDeleted,
+	logInfo,
+} from "@/lib/logging"
 import { addressesTable } from "@/db/schemas/addresses"
 import {
 	type CompetitionHeat,
@@ -657,6 +668,10 @@ export const createHeatFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
+		// Update request context
+		addRequestContextAttribute("competitionId", data.competitionId)
+		addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
+
 		const now = new Date()
 		const [heat] = await db
 			.insert(competitionHeatsTable)
@@ -677,6 +692,20 @@ export const createHeatFn = createServerFn({ method: "POST" })
 		if (!heat) {
 			throw new Error("Failed to create heat")
 		}
+
+		addRequestContextAttribute("heatId", heat.id)
+		logEntityCreated({
+			entity: "heat",
+			id: heat.id,
+			parentEntity: "competition",
+			parentId: data.competitionId,
+			attributes: {
+				trackWorkoutId: data.trackWorkoutId,
+				heatNumber: data.heatNumber,
+				venueId: data.venueId,
+				divisionId: data.divisionId,
+			},
+		})
 
 		return { heat }
 	})
@@ -723,9 +752,16 @@ export const deleteHeatFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
+		addRequestContextAttribute("heatId", data.heatId)
+
 		await db
 			.delete(competitionHeatsTable)
 			.where(eq(competitionHeatsTable.id, data.heatId))
+
+		logEntityDeleted({
+			entity: "heat",
+			id: data.heatId,
+		})
 
 		return { success: true }
 	})
@@ -887,6 +923,8 @@ export const assignToHeatFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
+		addRequestContextAttribute("heatId", data.heatId)
+
 		const [assignment] = await db
 			.insert(competitionHeatAssignmentsTable)
 			.values({
@@ -900,6 +938,17 @@ export const assignToHeatFn = createServerFn({ method: "POST" })
 			throw new Error("Failed to create heat assignment")
 		}
 
+		logEntityCreated({
+			entity: "heatAssignment",
+			id: assignment.id,
+			parentEntity: "heat",
+			parentId: data.heatId,
+			attributes: {
+				registrationId: data.registrationId,
+				laneNumber: data.laneNumber,
+			},
+		})
+
 		return { assignment }
 	})
 
@@ -911,6 +960,8 @@ export const bulkAssignToHeatFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => bulkAssignToHeatInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		const db = getDb()
+
+		addRequestContextAttribute("heatId", data.heatId)
 
 		if (data.registrationIds.length === 0) {
 			return { assignments: [] }
@@ -935,7 +986,18 @@ export const bulkAssignToHeatFn = createServerFn({ method: "POST" })
 			),
 		)
 
-		return { assignments: results.flat() }
+		const createdAssignments = results.flat()
+
+		logInfo({
+			message: "[Heat] Bulk heat assignments created",
+			attributes: {
+				heatId: data.heatId,
+				assignmentCount: createdAssignments.length,
+				startingLane: data.startingLane,
+			},
+		})
+
+		return { assignments: createdAssignments }
 	})
 
 /**
@@ -1172,6 +1234,10 @@ export const bulkCreateHeatsFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
+		// Update request context
+		addRequestContextAttribute("competitionId", data.competitionId)
+		addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
+
 		if (data.heats.length === 0) {
 			return { heats: [] }
 		}
@@ -1204,7 +1270,19 @@ export const bulkCreateHeatsFn = createServerFn({ method: "POST" })
 			),
 		)
 
-		return { heats: results.flat() }
+		const createdHeats = results.flat()
+
+		logInfo({
+			message: "[Heat] Bulk heats created",
+			attributes: {
+				competitionId: data.competitionId,
+				trackWorkoutId: data.trackWorkoutId,
+				heatCount: createdHeats.length,
+				heatIds: createdHeats.map((h) => h.id),
+			},
+		})
+
+		return { heats: createdHeats }
 	})
 
 /**
@@ -1500,6 +1578,19 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
+		// Update request context
+		addRequestContextAttribute("sourceTrackWorkoutId", data.sourceTrackWorkoutId)
+		addRequestContextAttribute("targetTrackWorkoutId", data.targetTrackWorkoutId)
+
+		logInfo({
+			message: "[Heat] Copy heats from event started",
+			attributes: {
+				sourceTrackWorkoutId: data.sourceTrackWorkoutId,
+				targetTrackWorkoutId: data.targetTrackWorkoutId,
+				copyAssignments: data.copyAssignments,
+			},
+		})
+
 		// Fetch source heats with assignments (sorted by heat number)
 		const sourceHeats = await getHeatsForWorkoutInternal(
 			data.sourceTrackWorkoutId,
@@ -1637,6 +1728,17 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 
 		// Return the newly created heats with assignments
 		const result = await getHeatsForWorkoutInternal(data.targetTrackWorkoutId)
+
+		logInfo({
+			message: "[Heat] Copy heats from event completed",
+			attributes: {
+				sourceTrackWorkoutId: data.sourceTrackWorkoutId,
+				targetTrackWorkoutId: data.targetTrackWorkoutId,
+				heatsCreated: result.length,
+				copyAssignments: data.copyAssignments,
+			},
+		})
+
 		return { heats: result }
 	})
 
