@@ -1083,6 +1083,15 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 				}
 			}
 
+			// Try to clean up created teams
+			for (const teamId of createdTeamIds) {
+				try {
+					await db.delete(teamTable).where(eq(teamTable.id, teamId))
+				} catch {
+					// Ignore cleanup errors
+				}
+			}
+
 			throw error
 		}
 	})
