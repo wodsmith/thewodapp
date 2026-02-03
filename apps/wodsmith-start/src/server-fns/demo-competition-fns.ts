@@ -7,7 +7,7 @@
 
 import { createId } from "@paralleldrive/cuid2"
 import { createServerFn } from "@tanstack/react-start"
-import { eq, like } from "drizzle-orm"
+import { and, eq, inArray, like } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -250,6 +250,16 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 		const createdUserIds: string[] = []
 		const createdTeamIds: string[] = []
 
+		// Track if we patched an existing team's Stripe fields for rollback
+		let stripePatched = false
+		let originalStripeFields: {
+			teamId: string
+			stripeConnectedAccountId: string | null
+			stripeAccountStatus: string | null
+			stripeAccountType: string | null
+			stripeOnboardingCompletedAt: Date | null
+		} | null = null
+
 		try {
 			// 1. Get or create organizing team with Stripe Connect setup
 			let organizingTeamId = data.organizingTeamId
@@ -282,6 +292,15 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 				})
 
 				if (existingTeam && !existingTeam.stripeConnectedAccountId) {
+					// Store original values for rollback on failure
+					originalStripeFields = {
+						teamId: organizingTeamId,
+						stripeConnectedAccountId: existingTeam.stripeConnectedAccountId,
+						stripeAccountStatus: existingTeam.stripeAccountStatus,
+						stripeAccountType: existingTeam.stripeAccountType,
+						stripeOnboardingCompletedAt: existingTeam.stripeOnboardingCompletedAt,
+					}
+
 					await db
 						.update(teamTable)
 						.set({
@@ -291,6 +310,8 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 							stripeOnboardingCompletedAt: new Date(),
 						})
 						.where(eq(teamTable.id, organizingTeamId))
+
+					stripePatched = true
 				}
 			}
 
@@ -1092,6 +1113,25 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 				}
 			}
 
+			// Rollback Stripe fields if we patched an existing team
+			if (stripePatched && originalStripeFields) {
+				try {
+					await db
+						.update(teamTable)
+						.set({
+							stripeConnectedAccountId:
+								originalStripeFields.stripeConnectedAccountId,
+							stripeAccountStatus: originalStripeFields.stripeAccountStatus,
+							stripeAccountType: originalStripeFields.stripeAccountType,
+							stripeOnboardingCompletedAt:
+								originalStripeFields.stripeOnboardingCompletedAt,
+						})
+						.where(eq(teamTable.id, originalStripeFields.teamId))
+				} catch {
+					// Ignore rollback errors
+				}
+			}
+
 			throw error
 		}
 	})
@@ -1386,21 +1426,36 @@ export const deleteDemoCompetitionFn = createServerFn({ method: "POST" })
 			}
 
 			// 13. Also delete any users with demo email domain as fallback
-			const demoEmailUsers = await db.query.userTable.findMany({
-				where: like(userTable.email, `%@${DEMO_EMAIL_DOMAIN}`),
-			})
+			// Constrain to users who were actually registered in this competition
+			// to avoid deleting users from other demo competitions
+			const competitionRegistrations =
+				await db.query.competitionRegistrationsTable.findMany({
+					where: eq(competitionRegistrationsTable.eventId, data.competitionId),
+					columns: { userId: true },
+				})
+			const registeredUserIds = competitionRegistrations.map((r) => r.userId)
 
-			for (const user of demoEmailUsers) {
-				if (!demoUserIds.includes(user.id)) {
-					try {
-						// Delete their memberships first
-						await db
-							.delete(teamMembershipTable)
-							.where(eq(teamMembershipTable.userId, user.id))
-						await db.delete(userTable).where(eq(userTable.id, user.id))
-						deletedCounts.users++
-					} catch {
-						// Ignore
+			if (registeredUserIds.length > 0) {
+				// Find demo email users who were registered in this specific competition
+				const demoEmailUsers = await db.query.userTable.findMany({
+					where: and(
+						like(userTable.email, `%@${DEMO_EMAIL_DOMAIN}`),
+						inArray(userTable.id, registeredUserIds),
+					),
+				})
+
+				for (const user of demoEmailUsers) {
+					if (!demoUserIds.includes(user.id)) {
+						try {
+							// Delete their memberships first
+							await db
+								.delete(teamMembershipTable)
+								.where(eq(teamMembershipTable.userId, user.id))
+							await db.delete(userTable).where(eq(userTable.id, user.id))
+							deletedCounts.users++
+						} catch {
+							// Ignore
+						}
 					}
 				}
 			}
