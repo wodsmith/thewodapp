@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as MaintenanceRouteImport } from './routes/maintenance'
 import { Route as CompeteRouteImport } from './routes/compete'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ProtectedRouteImport } from './routes/_protected'
@@ -143,6 +144,11 @@ const TermsRoute = TermsRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MaintenanceRoute = MaintenanceRouteImport.update({
+  id: '/maintenance',
+  path: '/maintenance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompeteRoute = CompeteRouteImport.update({
@@ -833,6 +839,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/compete': typeof CompeteRouteWithChildren
+  '/maintenance': typeof MaintenanceRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
@@ -955,6 +962,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/maintenance': typeof MaintenanceRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
@@ -1075,6 +1083,7 @@ export interface FileRoutesById {
   '/_protected': typeof ProtectedRouteWithChildren
   '/admin': typeof AdminRouteWithChildren
   '/compete': typeof CompeteRouteWithChildren
+  '/maintenance': typeof MaintenanceRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
@@ -1202,6 +1211,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/compete'
+    | '/maintenance'
     | '/privacy'
     | '/terms'
     | '/forgot-password'
@@ -1324,6 +1334,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/maintenance'
     | '/privacy'
     | '/terms'
     | '/forgot-password'
@@ -1443,6 +1454,7 @@ export interface FileRouteTypes {
     | '/_protected'
     | '/admin'
     | '/compete'
+    | '/maintenance'
     | '/privacy'
     | '/terms'
     | '/_auth/forgot-password'
@@ -1571,6 +1583,7 @@ export interface RootRouteChildren {
   ProtectedRoute: typeof ProtectedRouteWithChildren
   AdminRoute: typeof AdminRouteWithChildren
   CompeteRoute: typeof CompeteRouteWithChildren
+  MaintenanceRoute: typeof MaintenanceRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
   ApiGetSessionRoute: typeof ApiGetSessionRoute
@@ -1602,6 +1615,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/maintenance': {
+      id: '/maintenance'
+      path: '/maintenance'
+      fullPath: '/maintenance'
+      preLoaderRoute: typeof MaintenanceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/compete': {
@@ -2847,6 +2867,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProtectedRoute: ProtectedRouteWithChildren,
   AdminRoute: AdminRouteWithChildren,
   CompeteRoute: CompeteRouteWithChildren,
+  MaintenanceRoute: MaintenanceRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
   ApiGetSessionRoute: ApiGetSessionRoute,

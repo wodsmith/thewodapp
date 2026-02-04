@@ -10,6 +10,7 @@ import { eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { addressesTable, type AddressType } from "@/db/schemas/addresses"
+import { createAddressId } from "@/db/schemas/common"
 import { addressInputSchema } from "@/schemas/address"
 import { normalizeAddressInput } from "@/utils/address"
 
@@ -44,21 +45,31 @@ export const createAddressFn = createServerFn({ method: "POST" })
 		// Normalize state/country codes
 		const normalized = normalizeAddressInput(data)
 
+		// Generate ID upfront for MySQL compatibility
+		const id = createAddressId()
+
 		// Insert address with default addressType if not provided
-		const [address] = await db
-			.insert(addressesTable)
-			.values({
-				name: normalized.name ?? null,
-				streetLine1: normalized.streetLine1 ?? null,
-				streetLine2: normalized.streetLine2 ?? null,
-				city: normalized.city ?? null,
-				stateProvince: normalized.stateProvince ?? null,
-				postalCode: normalized.postalCode ?? null,
-				countryCode: normalized.countryCode ?? null,
-				notes: normalized.notes ?? null,
-				addressType: (normalized.addressType ?? "venue") as AddressType,
-			})
-			.returning()
+		await db.insert(addressesTable).values({
+			id,
+			name: normalized.name ?? null,
+			streetLine1: normalized.streetLine1 ?? null,
+			streetLine2: normalized.streetLine2 ?? null,
+			city: normalized.city ?? null,
+			stateProvince: normalized.stateProvince ?? null,
+			postalCode: normalized.postalCode ?? null,
+			countryCode: normalized.countryCode ?? null,
+			notes: normalized.notes ?? null,
+			addressType: (normalized.addressType ?? "venue") as AddressType,
+		})
+
+		// Fetch the created address
+		const address = await db.query.addressesTable.findFirst({
+			where: eq(addressesTable.id, id),
+		})
+
+		if (!address) {
+			throw new Error("Failed to create address")
+		}
 
 		return address
 	})
@@ -97,11 +108,15 @@ export const updateAddressFn = createServerFn({ method: "POST" })
 			updateData.addressType = normalized.addressType
 
 		// Update address with updatedAt timestamp
-		const [address] = await db
+		await db
 			.update(addressesTable)
 			.set(updateData)
 			.where(eq(addressesTable.id, data.id))
-			.returning()
+
+		// Fetch the updated address
+		const address = await db.query.addressesTable.findFirst({
+			where: eq(addressesTable.id, data.id),
+		})
 
 		if (!address) {
 			throw new Error(`Address not found: ${data.id}`)

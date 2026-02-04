@@ -8,6 +8,10 @@ import { and, asc, count, eq, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+	createScalingGroupId,
+	createScalingLevelId,
+} from "@/db/schemas/common"
+import {
 	COMMERCE_PURCHASE_STATUS,
 	commercePurchaseTable,
 	competitionDivisionsTable,
@@ -115,7 +119,7 @@ export interface ScalingGroupForTemplate {
 	title: string
 	description: string | null
 	teamId: string | null
-	isSystem: number
+	isSystem: boolean
 	levels: Array<{
 		id: string
 		label: string
@@ -220,16 +224,24 @@ async function createScalingGroup({
 }) {
 	const db = getDb()
 
-	const [created] = await db
-		.insert(scalingGroupsTable)
-		.values({
-			title,
-			description: description ?? null,
-			teamId,
-			isDefault: 0,
-			isSystem: 0,
-		})
-		.returning()
+	const id = createScalingGroupId()
+
+	await db.insert(scalingGroupsTable).values({
+		id,
+		title,
+		description: description ?? null,
+		teamId,
+		isDefault: false,
+		isSystem: false,
+	})
+
+	const created = await db.query.scalingGroupsTable.findFirst({
+		where: eq(scalingGroupsTable.id, id),
+	})
+
+	if (!created) {
+		throw new Error("Failed to create scaling group")
+	}
 
 	return created
 }
@@ -263,15 +275,19 @@ async function createScalingLevel({
 		newPosition = (maxPos ?? -1) + 1
 	}
 
-	const [created] = await db
-		.insert(scalingLevelsTable)
-		.values({
-			scalingGroupId,
-			label,
-			position: newPosition,
-			teamSize,
-		})
-		.returning()
+	const id = createScalingLevelId()
+
+	await db.insert(scalingLevelsTable).values({
+		id,
+		scalingGroupId,
+		label,
+		position: newPosition,
+		teamSize,
+	})
+
+	const created = await db.query.scalingLevelsTable.findFirst({
+		where: eq(scalingLevelsTable.id, id),
+	})
 
 	if (!created) {
 		throw new Error("Failed to create scaling level")

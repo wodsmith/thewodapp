@@ -193,7 +193,7 @@ export const getAdminTeamStatsFn = createServerFn({
 	const [personalResult] = await db
 		.select({ count: sql<number>`COUNT(*)` })
 		.from(teamTable)
-		.where(eq(teamTable.isPersonalTeam, 1))
+		.where(eq(teamTable.isPersonalTeam, true))
 
 	// Get competition event team count
 	const [competitionEventResult] = await db

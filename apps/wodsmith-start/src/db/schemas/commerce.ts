@@ -2,11 +2,12 @@ import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
 import {
 	index,
-	integer,
-	sqliteTable,
-	text,
+	int,
+	mysqlTable,
+	varchar,
 	uniqueIndex,
-} from "drizzle-orm/sqlite-core"
+	datetime,
+} from "drizzle-orm/mysql-core"
 import {
 	commonColumns,
 	createCommerceProductId,
@@ -52,22 +53,22 @@ export type CommercePaymentStatus =
  * Commerce Product Table
  * Represents purchasable products (competition registrations, add-ons, etc.)
  */
-export const commerceProductTable = sqliteTable(
+export const commerceProductTable = mysqlTable(
 	"commerce_product",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createCommerceProductId())
 			.notNull(),
 		// Product display name (e.g., "Competition Registration - Summer Throwdown 2025")
-		name: text({ length: 255 }).notNull(),
+		name: varchar({ length: 255 }).notNull(),
 		// Product type for categorization
-		type: text({ length: 50 }).$type<CommerceProductType>().notNull(),
+		type: varchar({ length: 50 }).$type<CommerceProductType>().notNull(),
 		// Reference to the resource (e.g., competitionId for registration products)
-		resourceId: text().notNull(),
+		resourceId: varchar({ length: 255 }).notNull(),
 		// Base price in cents
-		priceCents: integer().notNull(),
+		priceCents: int().notNull(),
 	},
 	(table) => [
 		// Prevent duplicate products for the same resource
@@ -82,44 +83,42 @@ export const commerceProductTable = sqliteTable(
  * Commerce Purchase Table
  * Records all purchase transactions
  */
-export const commercePurchaseTable = sqliteTable(
+export const commercePurchaseTable = mysqlTable(
 	"commerce_purchase",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createCommercePurchaseId())
 			.notNull(),
 		// The user making the purchase
-		userId: text()
-			.notNull()
-			.references(() => userTable.id, { onDelete: "cascade" }),
+		userId: varchar({ length: 255 })
+			.notNull(),
 		// The product being purchased
-		productId: text()
-			.notNull()
-			.references(() => commerceProductTable.id, { onDelete: "cascade" }),
+		productId: varchar({ length: 255 })
+			.notNull(),
 		// Purchase status
-		status: text({ length: 20 }).$type<CommercePurchaseStatus>().notNull(),
+		status: varchar({ length: 20 }).$type<CommercePurchaseStatus>().notNull(),
 
 		// Context for competition registrations (stored directly for efficient queries)
-		competitionId: text(),
-		divisionId: text(),
+		competitionId: varchar({ length: 255 }),
+		divisionId: varchar({ length: 255 }),
 
 		// Amounts (all in cents)
-		totalCents: integer().notNull(), // Amount charged to customer
-		platformFeeCents: integer().notNull(), // Wodsmith revenue
-		stripeFeeCents: integer().notNull(), // Stripe's fee
-		organizerNetCents: integer().notNull(), // What organizer receives
+		totalCents: int().notNull(), // Amount charged to customer
+		platformFeeCents: int().notNull(), // Wodsmith revenue
+		stripeFeeCents: int().notNull(), // Stripe's fee
+		organizerNetCents: int().notNull(), // What organizer receives
 
 		// Stripe references (using Checkout Sessions)
-		stripeCheckoutSessionId: text(), // Checkout Session ID
-		stripePaymentIntentId: text(), // Set after checkout completes (from session.payment_intent)
+		stripeCheckoutSessionId: varchar({ length: 255 }), // Checkout Session ID
+		stripePaymentIntentId: varchar({ length: 255 }), // Set after checkout completes (from session.payment_intent)
 
 		// Extensibility (JSON for team registration data, etc.)
-		metadata: text({ length: 10000 }), // JSON
+		metadata: varchar({ length: 10000 }), // JSON
 
 		// Completion timestamp
-		completedAt: integer({ mode: "timestamp" }),
+		completedAt: datetime(),
 	},
 	(table) => [
 		index("commerce_purchase_user_idx").on(table.userId),
@@ -137,28 +136,26 @@ export const commercePurchaseTable = sqliteTable(
  * Stores per-division configuration for competitions including fees and descriptions
  * (e.g., Individual RX: $200 - "Athletes who can perform movements as prescribed")
  */
-export const competitionDivisionsTable = sqliteTable(
+export const competitionDivisionsTable = mysqlTable(
 	"competition_divisions",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createCompetitionDivisionFeeId())
 			.notNull(),
 		// The competition this division config applies to
-		competitionId: text()
-			.notNull()
-			.references(() => competitionsTable.id, { onDelete: "cascade" }),
+		competitionId: varchar({ length: 255 })
+			.notNull(),
 		// The division (scaling level) this config applies to
-		divisionId: text()
-			.notNull()
-			.references(() => scalingLevelsTable.id, { onDelete: "cascade" }),
+		divisionId: varchar({ length: 255 })
+			.notNull(),
 		// Fee in cents (e.g., 20000 = $200, 35000 = $350)
-		feeCents: integer().notNull(),
+		feeCents: int().notNull(),
 		// Markdown description explaining who this division is for
-		description: text({ length: 2000 }),
+		description: varchar({ length: 2000 }),
 		// Max spots for this division (null = use competition default)
-		maxSpots: integer(),
+		maxSpots: int(),
 	},
 	(table) => [
 		// Each division can only have one config per competition

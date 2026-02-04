@@ -19,6 +19,7 @@ import {
 	userTable,
 	VOLUNTEER_ROLE_TYPES,
 } from "@/db/schema"
+import { createHeatVolunteerId } from "@/db/schemas/common"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import type {
 	VolunteerAvailability,
@@ -513,16 +514,21 @@ export const assignJudgeToHeatFn = createServerFn({ method: "POST" })
 		)
 
 		const db = getDb()
+		const assignmentId = createHeatVolunteerId()
+		await db.insert(judgeHeatAssignmentsTable).values({
+			id: assignmentId,
+			heatId: data.heatId,
+			membershipId: data.membershipId,
+			laneNumber: data.laneNumber,
+			position: data.position ?? null,
+			instructions: data.instructions ?? null,
+		})
+
+		// Select back the created record
 		const [assignment] = await db
-			.insert(judgeHeatAssignmentsTable)
-			.values({
-				heatId: data.heatId,
-				membershipId: data.membershipId,
-				laneNumber: data.laneNumber,
-				position: data.position ?? null,
-				instructions: data.instructions ?? null,
-			})
-			.returning()
+			.select()
+			.from(judgeHeatAssignmentsTable)
+			.where(eq(judgeHeatAssignmentsTable.id, assignmentId))
 
 		if (!assignment) {
 			throw new Error("Failed to assign judge to heat")
@@ -569,24 +575,35 @@ export const bulkAssignJudgesToHeatFn = createServerFn({ method: "POST" })
 		// Use 10 to be safe
 		const INSERT_BATCH_SIZE = 10
 
-		const results = await Promise.all(
+		const insertedIds: string[] = []
+		await Promise.all(
 			chunk(data.assignments, INSERT_BATCH_SIZE).map((batch) =>
-				db
-					.insert(judgeHeatAssignmentsTable)
-					.values(
-						batch.map((a) => ({
+				db.insert(judgeHeatAssignmentsTable).values(
+					batch.map((a) => {
+						const id = createHeatVolunteerId()
+						insertedIds.push(id)
+						return {
+							id,
 							heatId: data.heatId,
 							membershipId: a.membershipId,
 							laneNumber: a.laneNumber,
 							position: a.position ?? null,
 							instructions: a.instructions ?? null,
-						})),
-					)
-					.returning(),
+						}
+					}),
+				),
 			),
 		)
 
-		return { success: true, data: results.flat() }
+		// Select back the created records in batches
+		const results = await autochunk({ items: insertedIds }, async (idChunk) =>
+			db
+				.select()
+				.from(judgeHeatAssignmentsTable)
+				.where(inArray(judgeHeatAssignmentsTable.id, idChunk)),
+		)
+
+		return { success: true, data: results }
 	})
 
 /**
@@ -684,24 +701,35 @@ export const copyJudgeAssignmentsToHeatFn = createServerFn({ method: "POST" })
 
 		// Insert into target heat in batches
 		const INSERT_BATCH_SIZE = 10
-		const results = await Promise.all(
+		const insertedIds: string[] = []
+		await Promise.all(
 			chunk(sourceAssignments, INSERT_BATCH_SIZE).map((batch) =>
-				db
-					.insert(judgeHeatAssignmentsTable)
-					.values(
-						batch.map((a) => ({
+				db.insert(judgeHeatAssignmentsTable).values(
+					batch.map((a) => {
+						const id = createHeatVolunteerId()
+						insertedIds.push(id)
+						return {
+							id,
 							heatId: data.targetHeatId,
 							membershipId: a.membershipId,
 							laneNumber: a.laneNumber,
 							position: a.position,
 							instructions: a.instructions,
-						})),
-					)
-					.returning(),
+						}
+					}),
+				),
 			),
 		)
 
-		return { success: true, data: results.flat() }
+		// Select back the created records in batches
+		const results = await autochunk({ items: insertedIds }, async (idChunk) =>
+			db
+				.select()
+				.from(judgeHeatAssignmentsTable)
+				.where(inArray(judgeHeatAssignmentsTable.id, idChunk)),
+		)
+
+		return { success: true, data: results }
 	})
 
 /**
@@ -770,26 +798,39 @@ export const copyJudgeAssignmentsToRemainingHeatsFn = createServerFn({
 		const INSERT_BATCH_SIZE = 10
 		const results = await Promise.all(
 			targetHeats.map(async (heat) => {
-				const batchResults = await Promise.all(
+				const insertedIds: string[] = []
+				await Promise.all(
 					chunk(sourceAssignments, INSERT_BATCH_SIZE).map((batch) =>
-						db
-							.insert(judgeHeatAssignmentsTable)
-							.values(
-								batch.map((a) => ({
+						db.insert(judgeHeatAssignmentsTable).values(
+							batch.map((a) => {
+								const id = createHeatVolunteerId()
+								insertedIds.push(id)
+								return {
+									id,
 									heatId: heat.id,
 									membershipId: a.membershipId,
 									laneNumber: a.laneNumber,
 									position: a.position,
 									instructions: a.instructions,
-								})),
-							)
-							.returning(),
+								}
+							}),
+						),
 					),
+				)
+
+				// Select back the created records for this heat
+				const assignments = await autochunk(
+					{ items: insertedIds },
+					async (idChunk) =>
+						db
+							.select()
+							.from(judgeHeatAssignmentsTable)
+							.where(inArray(judgeHeatAssignmentsTable.id, idChunk)),
 				)
 
 				return {
 					heatId: heat.id,
-					assignments: batchResults.flat(),
+					assignments,
 				}
 			}),
 		)

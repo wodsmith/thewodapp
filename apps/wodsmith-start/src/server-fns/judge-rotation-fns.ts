@@ -480,19 +480,27 @@ async function createRotationInternal(params: {
 		}
 	}
 
-	const [rotation] = await db
-		.insert(competitionJudgeRotationsTable)
-		.values({
-			competitionId: params.competitionId,
-			trackWorkoutId: params.trackWorkoutId,
-			membershipId: params.membershipId,
-			startingHeat: params.startingHeat,
-			startingLane: params.startingLane,
-			heatsCount: params.heatsCount,
-			laneShiftPattern,
-			notes: params.notes ?? null,
-		})
-		.returning()
+	// Generate ID first
+	const { createJudgeRotationId } = await import("@/db/schemas/common")
+	const id = createJudgeRotationId()
+
+	// Insert without returning
+	await db.insert(competitionJudgeRotationsTable).values({
+		id,
+		competitionId: params.competitionId,
+		trackWorkoutId: params.trackWorkoutId,
+		membershipId: params.membershipId,
+		startingHeat: params.startingHeat,
+		startingLane: params.startingLane,
+		heatsCount: params.heatsCount,
+		laneShiftPattern,
+		notes: params.notes ?? null,
+	})
+
+	// Select back
+	const rotation = await db.query.competitionJudgeRotationsTable.findFirst({
+		where: eq(competitionJudgeRotationsTable.id, id),
+	})
 
 	if (!rotation) {
 		throw new Error("Failed to create judge rotation")
@@ -836,11 +844,16 @@ export const updateJudgeRotationFn = createServerFn({ method: "POST" })
 			updateData.notes = data.notes
 		}
 
-		const [updated] = await db
+		// Update without returning
+		await db
 			.update(competitionJudgeRotationsTable)
 			.set(updateData)
 			.where(eq(competitionJudgeRotationsTable.id, data.rotationId))
-			.returning()
+
+		// Select back
+		const updated = await db.query.competitionJudgeRotationsTable.findFirst({
+			where: eq(competitionJudgeRotationsTable.id, data.rotationId),
+		})
 
 		if (!updated) {
 			throw new Error("Rotation not found or update failed")
@@ -1146,8 +1159,22 @@ export const deleteVolunteerRotationsFn = createServerFn({ method: "POST" })
 			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
 
-		// Delete all rotations for this volunteer in this event
-		const result = await db
+		// Select first to get count
+		const toDelete = await db
+			.select({ id: competitionJudgeRotationsTable.id })
+			.from(competitionJudgeRotationsTable)
+			.where(
+				and(
+					eq(competitionJudgeRotationsTable.membershipId, data.membershipId),
+					eq(
+						competitionJudgeRotationsTable.trackWorkoutId,
+						data.trackWorkoutId,
+					),
+				),
+			)
+
+		// Then delete
+		await db
 			.delete(competitionJudgeRotationsTable)
 			.where(
 				and(
@@ -1158,10 +1185,9 @@ export const deleteVolunteerRotationsFn = createServerFn({ method: "POST" })
 					),
 				),
 			)
-			.returning({ id: competitionJudgeRotationsTable.id })
 
 		return {
 			success: true,
-			data: { deletedCount: result.length },
+			data: { deletedCount: toDelete.length },
 		}
 	})

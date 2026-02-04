@@ -8,6 +8,7 @@ import { and, asc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { eventJudgingSheetsTable } from "@/db/schemas/judging-sheets"
+import { createEventJudgingSheetId } from "@/db/schemas/common"
 import {
 	programmingTracksTable,
 	trackWorkoutsTable,
@@ -189,9 +190,11 @@ export const createJudgingSheetFn = createServerFn({ method: "POST" })
 				: 0
 
 		// Create the judging sheet
-		const [sheet] = await db
+		const id = createEventJudgingSheetId()
+		await db
 			.insert(eventJudgingSheetsTable)
 			.values({
+				id,
 				competitionId: data.competitionId,
 				trackWorkoutId: data.trackWorkoutId,
 				title: data.title,
@@ -203,7 +206,10 @@ export const createJudgingSheetFn = createServerFn({ method: "POST" })
 				uploadedBy: session.userId,
 				sortOrder: nextSortOrder,
 			})
-			.returning()
+
+		const sheet = await db.query.eventJudgingSheetsTable.findFirst({
+			where: eq(eventJudgingSheetsTable.id, id),
+		})
 
 		if (!sheet) {
 			throw new Error("Failed to create judging sheet")
@@ -246,14 +252,21 @@ export const updateJudgingSheetFn = createServerFn({ method: "POST" })
 		)
 
 		// Update the title
-		const [updated] = await db
+		await db
 			.update(eventJudgingSheetsTable)
 			.set({
 				title: data.title,
 				updatedAt: new Date(),
 			})
 			.where(eq(eventJudgingSheetsTable.id, data.judgingSheetId))
-			.returning()
+
+		const updated = await db.query.eventJudgingSheetsTable.findFirst({
+			where: eq(eventJudgingSheetsTable.id, data.judgingSheetId),
+		})
+
+		if (!updated) {
+			throw new Error("Failed to retrieve updated judging sheet")
+		}
 
 		return { sheet: updated }
 	})

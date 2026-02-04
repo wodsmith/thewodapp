@@ -1,24 +1,23 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import { index, int, mysqlTable, varchar } from "drizzle-orm/mysql-core"
 import { commonColumns, createSponsorGroupId, createSponsorId } from "./common"
 import { competitionsTable } from "./competitions"
 import { userTable } from "./users"
 
 // Sponsor Groups table (for competitions only - Gold, Silver, Title Sponsor, etc.)
-export const sponsorGroupsTable = sqliteTable(
+export const sponsorGroupsTable = mysqlTable(
 	"sponsor_groups",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createSponsorGroupId())
 			.notNull(),
-		competitionId: text()
-			.notNull()
-			.references(() => competitionsTable.id, { onDelete: "cascade" }),
-		name: text({ length: 100 }).notNull(),
-		displayOrder: integer().default(0).notNull(),
+		competitionId: varchar({ length: 255 })
+			.notNull(),
+		name: varchar({ length: 100 }).notNull(),
+		displayOrder: int().default(0).notNull(),
 	},
 	(table) => [
 		index("sponsor_groups_competition_idx").on(table.competitionId),
@@ -30,27 +29,23 @@ export const sponsorGroupsTable = sqliteTable(
 )
 
 // Unified Sponsors table (for both athletes and competitions)
-export const sponsorsTable = sqliteTable(
+export const sponsorsTable = mysqlTable(
 	"sponsors",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createSponsorId())
 			.notNull(),
 		// One of these must be set (enforced in app logic)
-		competitionId: text().references(() => competitionsTable.id, {
-			onDelete: "cascade",
-		}),
-		userId: text().references(() => userTable.id, { onDelete: "cascade" }),
+		competitionId: varchar({ length: 255 }),
+		userId: varchar({ length: 255 }),
 		// Group is optional - null means ungrouped (only applicable for competition sponsors)
-		groupId: text().references(() => sponsorGroupsTable.id, {
-			onDelete: "set null",
-		}),
-		name: text({ length: 255 }).notNull(),
-		logoUrl: text({ length: 600 }),
-		website: text({ length: 600 }),
-		displayOrder: integer().default(0).notNull(),
+		groupId: varchar({ length: 255 }),
+		name: varchar({ length: 255 }).notNull(),
+		logoUrl: varchar({ length: 600 }),
+		website: varchar({ length: 600 }),
+		displayOrder: int().default(0).notNull(),
 	},
 	(table) => [
 		index("sponsors_competition_idx").on(table.competitionId),

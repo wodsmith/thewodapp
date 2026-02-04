@@ -1,16 +1,16 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
 import {
+	boolean,
+	datetime,
 	foreignKey,
 	index,
-	integer,
-	sqliteTable,
-	text,
+	int,
+	mysqlTable,
 	uniqueIndex,
-} from "drizzle-orm/sqlite-core"
+	varchar,
+} from "drizzle-orm/mysql-core"
 import { commonColumns } from "./common"
-import { competitionRegistrationsTable } from "./competitions"
-import { programmingTracksTable, trackWorkoutsTable } from "./programming"
 import { teamTable } from "./teams"
 import { userTable } from "./users"
 
@@ -66,58 +66,55 @@ export type TiebreakScheme = (typeof TIEBREAK_SCHEME_VALUES)[number]
 // Note: Secondary scheme values removed - when time-capped, score is always reps
 
 // Movements table
-export const movements = sqliteTable("movements", {
+export const movements = mysqlTable("movements", {
 	...commonColumns,
-	id: text("id").primaryKey(),
-	name: text("name").notNull(),
-	type: text("type", {
+	id: varchar("id", { length: 255 }).primaryKey(),
+	name: varchar("name", { length: 255 }).notNull(),
+	type: varchar("type", {
+		length: 255,
 		enum: ["weightlifting", "gymnastic", "monostructural"],
 	}).notNull(),
 })
 
 // Tags table
-export const tags = sqliteTable("spicy_tags", {
+export const tags = mysqlTable("spicy_tags", {
 	...commonColumns,
-	id: text("id").primaryKey(),
-	name: text("name").notNull().unique(),
+	id: varchar("id", { length: 255 }).primaryKey(),
+	name: varchar("name", { length: 255 }).notNull().unique(),
 })
 
 // Workouts table - using third argument for self-referencing foreign key
-export const workouts = sqliteTable(
+export const workouts = mysqlTable(
 	"workouts",
 	{
 		...commonColumns,
-		id: text("id").primaryKey(),
-		name: text("name").notNull(),
-		description: text("description").notNull(),
-		scope: text("scope", {
+		id: varchar("id", { length: 255 }).primaryKey(),
+		name: varchar("name", { length: 255 }).notNull(),
+		description: varchar("description", { length: 255 }).notNull(),
+		scope: varchar("scope", {
+			length: 255,
 			enum: ["private", "public"],
 		})
 			.default("private")
 			.notNull(),
-		scheme: text("scheme", {
+		scheme: varchar("scheme", {
+			length: 255,
 			enum: WORKOUT_SCHEME_VALUES,
 		}).notNull(),
-		scoreType: text("score_type", {
+		scoreType: varchar("score_type", {
+			length: 255,
 			enum: SCORE_TYPE_VALUES,
 		}),
-		repsPerRound: integer("reps_per_round"),
-		roundsToScore: integer("rounds_to_score").default(1),
-		teamId: text("team_id").references(() => teamTable.id, {
-			onDelete: "set null",
-		}),
-		sugarId: text("sugar_id"),
-		tiebreakScheme: text("tiebreak_scheme", { enum: TIEBREAK_SCHEME_VALUES }),
-		timeCap: integer("time_cap"), // Time cap in seconds (for time-with-cap workouts)
+		repsPerRound: int("reps_per_round"),
+		roundsToScore: int("rounds_to_score").default(1),
+		teamId: varchar("team_id", { length: 255 }),
+		sugarId: varchar("sugar_id", { length: 255 }),
+		tiebreakScheme: varchar("tiebreak_scheme", { length: 255, enum: TIEBREAK_SCHEME_VALUES }),
+		timeCap: int("time_cap"), // Time cap in seconds (for time-with-cap workouts)
 		// Note: secondaryScheme removed - when capped, score is always reps
-		sourceTrackId: text("source_track_id").references(
-			() => programmingTracksTable.id,
-			{
-				onDelete: "set null",
-			},
-		),
-		sourceWorkoutId: text("source_workout_id"),
-		scalingGroupId: text("scaling_group_id"), // Optional scaling group for this workout
+		sourceTrackId: varchar("source_track_id", { length: 255 }),
+		sourceWorkoutId: varchar("source_workout_id", { length: 255 }),
+		scalingGroupId: varchar("scaling_group_id", { length: 255 }), // Optional scaling group for this workout
 	},
 	(workouts) => ({
 		scalingGroupIdx: index("workouts_scaling_group_idx").on(
@@ -136,85 +133,60 @@ export const workouts = sqliteTable(
 )
 
 // Workout Tags junction table
-export const workoutTags = sqliteTable("workout_tags", {
+export const workoutTags = mysqlTable("workout_tags", {
 	...commonColumns,
-	id: text("id").primaryKey(),
-	workoutId: text("workout_id")
-		.references(() => workouts.id, {
-			onDelete: "cascade",
-		})
-		.notNull(),
-	tagId: text("tag_id")
-		.references(() => tags.id, {
-			onDelete: "cascade",
-		})
-		.notNull(),
+	id: varchar("id", { length: 255 }).primaryKey(),
+	workoutId: varchar("workout_id", { length: 255 }).notNull(),
+	tagId: varchar("tag_id", { length: 255 }).notNull(),
 })
 
 // Workout Movements junction table
-export const workoutMovements = sqliteTable("workout_movements", {
+export const workoutMovements = mysqlTable("workout_movements", {
 	...commonColumns,
-	id: text("id").primaryKey(),
-	workoutId: text("workout_id").references(() => workouts.id, {
-		onDelete: "cascade",
-	}),
-	movementId: text("movement_id").references(() => movements.id, {
-		onDelete: "cascade",
-	}),
+	id: varchar("id", { length: 255 }).primaryKey(),
+	workoutId: varchar("workout_id", { length: 255 }),
+	movementId: varchar("movement_id", { length: 255 }),
 })
 
 // Results base table (consolidated)
-export const results = sqliteTable(
+export const results = mysqlTable(
 	"results",
 	{
 		...commonColumns,
-		id: text("id").primaryKey(),
-		userId: text("user_id")
-			.references(() => userTable.id, {
-				onDelete: "cascade",
-			})
-			.notNull(),
-		date: integer("date", { mode: "timestamp" }).notNull(),
-		workoutId: text("workout_id").references(() => workouts.id, {
-			onDelete: "set null",
-		}), // Optional, for WOD results
-		type: text("type", {
+		id: varchar("id", { length: 255 }).primaryKey(),
+		userId: varchar("user_id", { length: 255 }).notNull(),
+		date: datetime("date").notNull(),
+		workoutId: varchar("workout_id", { length: 255 }), // Optional, for WOD results
+		type: varchar("type", {
+			length: 255,
 			enum: ["wod", "strength", "monostructural"],
 		}).notNull(),
-		notes: text("notes"),
+		notes: varchar("notes", { length: 255 }),
 		// Will be set as foreign key reference in main schema file
-		programmingTrackId: text("programming_track_id"),
+		programmingTrackId: varchar("programming_track_id", { length: 255 }),
 		// References to scheduled workout instances (team-based)
-		scheduledWorkoutInstanceId: text("scheduled_workout_instance_id"),
+		scheduledWorkoutInstanceId: varchar("scheduled_workout_instance_id", { length: 255 }),
 
 		// WOD specific results
-		scale: text("scale", { enum: ["rx", "scaled", "rx+"] }), // Deprecated - will be removed after migration
-		scalingLevelId: text("scaling_level_id"), // New: References scaling_levels.id
-		asRx: integer("as_rx", { mode: "boolean" }).default(false).notNull(), // New: true if performed as prescribed at that level
-		wodScore: text("wod_score"), // e.g., "3:15", "10 rounds + 5 reps"
+		scale: varchar("scale", { length: 255, enum: ["rx", "scaled", "rx+"] }), // Deprecated - will be removed after migration
+		scalingLevelId: varchar("scaling_level_id", { length: 255 }), // New: References scaling_levels.id
+		asRx: boolean("as_rx").default(false).notNull(), // New: true if performed as prescribed at that level
+		wodScore: varchar("wod_score", { length: 255 }), // e.g., "3:15", "10 rounds + 5 reps"
 
 		// Strength specific results
-		setCount: integer("set_count"),
+		setCount: int("set_count"),
 
 		// Monostructural specific results
-		distance: integer("distance"),
-		time: integer("time"),
+		distance: int("distance"),
+		time: int("time"),
 
 		// Competition-specific fields
-		competitionEventId: text("competition_event_id").references(
-			() => trackWorkoutsTable.id,
-			{ onDelete: "set null" },
-		), // References trackWorkoutsTable.id
-		competitionRegistrationId: text("competition_registration_id").references(
-			() => competitionRegistrationsTable.id,
-			{ onDelete: "set null" },
-		), // References competitionRegistrationsTable.id
-		scoreStatus: text("score_status", { enum: SCORE_STATUS_VALUES }), // DNS, DNF, CAP, etc.
-		tieBreakScore: text("tie_break_score"), // Raw tie-break value (e.g., "120" for reps or seconds)
-		secondaryScore: text("secondary_score"), // For time-capped workouts: score achieved when capped (e.g., rounds+reps)
-		enteredBy: text("entered_by").references(() => userTable.id, {
-			onDelete: "set null",
-		}),
+		competitionEventId: varchar("competition_event_id", { length: 255 }), // References trackWorkoutsTable.id
+		competitionRegistrationId: varchar("competition_registration_id", { length: 255 }), // References competitionRegistrationsTable.id
+		scoreStatus: varchar("score_status", { length: 255, enum: SCORE_STATUS_VALUES }), // DNS, DNF, CAP, etc.
+		tieBreakScore: varchar("tie_break_score", { length: 255 }), // Raw tie-break value (e.g., "120" for reps or seconds)
+		secondaryScore: varchar("secondary_score", { length: 255 }), // For time-capped workouts: score achieved when capped (e.g., rounds+reps)
+		enteredBy: varchar("entered_by", { length: 255 }),
 	},
 	(table) => [
 		index("results_scaling_level_idx").on(table.scalingLevelId),
@@ -244,24 +216,20 @@ export const results = sqliteTable(
 )
 
 // Sets table (unified for all result types)
-export const sets = sqliteTable("sets", {
+export const sets = mysqlTable("sets", {
 	...commonColumns,
-	id: text("id").primaryKey(),
-	resultId: text("result_id")
-		.references(() => results.id, {
-			onDelete: "cascade",
-		})
-		.notNull(),
-	setNumber: integer("set_number").notNull(),
-	notes: text("notes"),
+	id: varchar("id", { length: 255 }).primaryKey(),
+	resultId: varchar("result_id", { length: 255 }).notNull(),
+	setNumber: int("set_number").notNull(),
+	notes: varchar("notes", { length: 255 }),
 
 	// Generic set data - only one of these will typically be populated
-	reps: integer("reps"),
-	weight: integer("weight"),
-	status: text("status", { enum: ["pass", "fail"] }),
-	distance: integer("distance"),
-	time: integer("time"),
-	score: integer("score"), // For sets within a WOD (e.g., rounds completed in an AMRAP)
+	reps: int("reps"),
+	weight: int("weight"),
+	status: varchar("status", { length: 255, enum: ["pass", "fail"] }),
+	distance: int("distance"),
+	time: int("time"),
+	score: int("score"), // For sets within a WOD (e.g., rounds completed in an AMRAP)
 })
 
 // Relations

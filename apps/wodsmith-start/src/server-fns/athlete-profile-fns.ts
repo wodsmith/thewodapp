@@ -337,7 +337,7 @@ export const getAthleteProfileDataFn = createServerFn({
 	const userTeamMemberships = await db.query.teamMembershipTable.findMany({
 		where: and(
 			eq(teamMembershipTable.userId, session.userId),
-			eq(teamMembershipTable.isActive, 1),
+			eq(teamMembershipTable.isActive, true),
 		),
 		columns: { teamId: true },
 	})

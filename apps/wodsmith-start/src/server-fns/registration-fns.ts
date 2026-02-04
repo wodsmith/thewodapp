@@ -26,6 +26,8 @@ import {
 	teamMembershipTable,
 	teamTable,
 	userTable,
+	createCommerceProductId,
+	createCommercePurchaseId,
 } from "@/db/schema"
 import {
 	buildFeeConfig,
@@ -360,16 +362,19 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 		})
 
 		if (!product) {
-			const [newProduct] = await db
+			const productId = createCommerceProductId()
+			await db
 				.insert(commerceProductTable)
 				.values({
+					id: productId,
 					name: `Competition Registration - ${competition.name}`,
 					type: COMMERCE_PRODUCT_TYPE.COMPETITION_REGISTRATION,
 					resourceId: input.competitionId,
 					priceCents: registrationFeeCents,
 				})
-				.returning()
-			product = newProduct
+			product = await db.query.commerceProductTable.findFirst({
+				where: eq(commerceProductTable.id, productId),
+			})
 		}
 
 		if (!product) {
@@ -377,9 +382,11 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 		}
 
 		// 9. Create purchase record
-		const purchaseResult = await db
+		const purchaseId = createCommercePurchaseId()
+		await db
 			.insert(commercePurchaseTable)
 			.values({
+				id: purchaseId,
 				userId,
 				productId: product.id,
 				status: COMMERCE_PURCHASE_STATUS.PENDING,
@@ -397,9 +404,10 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 					answers: input.answers,
 				}),
 			})
-			.returning()
 
-		const purchase = purchaseResult[0]
+		const purchase = await db.query.commercePurchaseTable.findFirst({
+			where: eq(commercePurchaseTable.id, purchaseId),
+		})
 		if (!purchase) {
 			throw new Error("Failed to create purchase record")
 		}

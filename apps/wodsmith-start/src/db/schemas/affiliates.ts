@@ -1,6 +1,6 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { index, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import { index, mysqlTable, varchar } from "drizzle-orm/mysql-core"
 import { commonColumns, createAffiliateId } from "./common"
 import { teamTable } from "./teams"
 
@@ -14,25 +14,23 @@ export type AffiliateVerificationStatus =
 	(typeof affiliateVerificationStatus)[number]
 
 // Affiliates Table - Normalized gym/affiliate data
-export const affiliatesTable = sqliteTable(
+export const affiliatesTable = mysqlTable(
 	"affiliates",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createAffiliateId())
 			.notNull(),
-		name: text({ length: 255 }).notNull().unique(), // "CrossFit Downtown"
+		name: varchar({ length: 255 }).notNull().unique(), // "CrossFit Downtown"
 		// Optional metadata
-		location: text({ length: 255 }), // "Austin, TX"
+		location: varchar({ length: 255 }), // "Austin, TX"
 		// Verification status: unverified (default), verified (admin verified), claimed (gym owner linked)
-		verificationStatus: text({ enum: affiliateVerificationStatus })
+		verificationStatus: varchar({ enum: affiliateVerificationStatus, length: 255 })
 			.default("unverified")
 			.notNull(),
 		// When claimed, links to the team that owns this affiliate
-		ownerTeamId: text().references(() => teamTable.id, {
-			onDelete: "set null",
-		}),
+		ownerTeamId: varchar({ length: 255 }),
 	},
 	(table) => [
 		index("affiliates_name_idx").on(table.name),

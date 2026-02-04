@@ -400,7 +400,7 @@ export const createWorkoutFn = createServerFn({ method: "POST" })
 
 		// Create the workout
 		const workoutId = `workout_${createId()}`
-		const newWorkout = await db
+		await db
 			.insert(workouts)
 			.values({
 				id: workoutId,
@@ -414,9 +414,16 @@ export const createWorkoutFn = createServerFn({ method: "POST" })
 				teamId: data.teamId,
 				sourceWorkoutId: data.sourceWorkoutId ?? null, // For remix tracking
 			})
-			.returning()
 
-		return { workout: newWorkout[0] }
+		const newWorkout = await db.query.workouts.findFirst({
+			where: eq(workouts.id, workoutId),
+		})
+
+		if (!newWorkout) {
+			throw new Error("Failed to create workout")
+		}
+
+		return { workout: newWorkout }
 	})
 
 // Schema for updating a workout
@@ -448,7 +455,7 @@ export const updateWorkoutFn = createServerFn({ method: "POST" })
 		}
 
 		// Update the workout
-		const updatedWorkout = await db
+		await db
 			.update(workouts)
 			.set({
 				name: data.name,
@@ -461,13 +468,16 @@ export const updateWorkoutFn = createServerFn({ method: "POST" })
 				updatedAt: new Date(),
 			})
 			.where(eq(workouts.id, data.id))
-			.returning()
 
-		if (!updatedWorkout[0]) {
+		const updatedWorkout = await db.query.workouts.findFirst({
+			where: eq(workouts.id, data.id),
+		})
+
+		if (!updatedWorkout) {
 			throw new Error("Workout not found")
 		}
 
-		return { workout: updatedWorkout[0] }
+		return { workout: updatedWorkout }
 	})
 
 // Schema for scheduling a workout
@@ -498,16 +508,20 @@ export const scheduleWorkoutFn = createServerFn({ method: "POST" })
 		scheduledDate.setUTCHours(12, 0, 0, 0)
 
 		// Create the scheduled workout instance
-		const [instance] = await db
+		const instanceId = createScheduledWorkoutInstanceId()
+		await db
 			.insert(scheduledWorkoutInstancesTable)
 			.values({
-				id: createScheduledWorkoutInstanceId(),
+				id: instanceId,
 				teamId: data.teamId,
 				trackWorkoutId: null, // No track workout for standalone
 				workoutId: data.workoutId, // Direct workout reference
 				scheduledDate: scheduledDate,
 			})
-			.returning()
+
+		const instance = await db.query.scheduledWorkoutInstancesTable.findFirst({
+			where: eq(scheduledWorkoutInstancesTable.id, instanceId),
+		})
 
 		if (!instance) {
 			throw new Error("Failed to schedule workout")

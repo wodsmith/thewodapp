@@ -64,8 +64,8 @@ interface VolunteerWithAccess {
 	userId: string
 	teamId: string
 	roleId: string
-	isSystemRole: number
-	isActive: number
+	isSystemRole: boolean
+	isActive: boolean
 	metadata: string | null
 	joinedAt: Date | null
 	createdAt: Date
@@ -487,7 +487,7 @@ export function VolunteersList({
 												teamId: invitation.teamId,
 												roleId: invitation.roleId,
 												isSystemRole: invitation.isSystemRole,
-												isActive: 0,
+												isActive: false,
 												metadata: invitation.metadata,
 												joinedAt: null,
 												createdAt: invitation.createdAt,

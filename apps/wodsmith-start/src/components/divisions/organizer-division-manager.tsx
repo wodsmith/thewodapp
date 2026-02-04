@@ -49,7 +49,7 @@ interface ScalingGroupWithLevels {
 	title: string
 	description: string | null
 	teamId?: string | null
-	isSystem: number
+	isSystem: boolean
 	levels: Array<{
 		id: string
 		label: string

@@ -267,7 +267,7 @@ export const getVolunteerInviteFn = createServerFn({ method: "GET" })
 		// Check if this is a volunteer invite
 		if (
 			invitation.roleId !== SYSTEM_ROLES_ENUM.VOLUNTEER ||
-			invitation.isSystemRole !== 1
+			invitation.isSystemRole !== true
 		) {
 			return null // Not a volunteer invite
 		}
@@ -445,14 +445,14 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 			teamId: invitation.teamId,
 			userId: session.userId,
 			roleId: invitation.roleId,
-			isSystemRole: Number(invitation.isSystemRole),
-			invitedBy: invitation.invitedBy,
+			isSystemRole: invitation.isSystemRole,
+			invitedBy: invitation.invitedBy ?? undefined,
 			invitedAt: invitation.createdAt
 				? new Date(invitation.createdAt)
 				: new Date(),
 			joinedAt: new Date(),
-			isActive: 1,
-			metadata: invitation.metadata,
+			isActive: true,
+			metadata: invitation.metadata ?? undefined,
 		})
 
 		// Mark invitation as accepted
@@ -519,9 +519,9 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 								teamId: competition.competitionTeamId,
 								userId: session.userId,
 								roleId: SYSTEM_ROLES_ENUM.MEMBER,
-								isSystemRole: 1,
+								isSystemRole: true,
 								joinedAt: new Date(),
-								isActive: 1,
+								isActive: true,
 							})
 						}
 
@@ -693,7 +693,7 @@ export const acceptVolunteerInviteFn = createServerFn({ method: "POST" })
 		// Verify this is a volunteer invitation
 		if (
 			invitation.roleId !== SYSTEM_ROLES_ENUM.VOLUNTEER ||
-			invitation.isSystemRole !== 1
+			invitation.isSystemRole !== true
 		) {
 			throw new Error("This is not a volunteer invitation")
 		}
@@ -779,13 +779,13 @@ export const acceptVolunteerInviteFn = createServerFn({ method: "POST" })
 			teamId: invitation.teamId,
 			userId: session.userId,
 			roleId: invitation.roleId,
-			isSystemRole: Number(invitation.isSystemRole),
-			invitedBy: invitation.invitedBy,
+			isSystemRole: invitation.isSystemRole,
+			invitedBy: invitation.invitedBy ?? undefined,
 			invitedAt: invitation.createdAt
 				? new Date(invitation.createdAt)
 				: new Date(),
 			joinedAt: new Date(),
-			isActive: 1,
+			isActive: true,
 			metadata: JSON.stringify(mergedMetadata),
 		})
 

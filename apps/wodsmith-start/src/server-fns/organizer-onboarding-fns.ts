@@ -11,6 +11,7 @@ import { z } from "zod"
 import { FEATURES } from "@/config/features"
 import { LIMITS } from "@/config/limits"
 import { getDb } from "@/db"
+import { createOrganizerRequestId } from "@/db/schemas/common"
 import {
 	ORGANIZER_REQUEST_STATUS,
 	organizerRequestTable,
@@ -67,7 +68,7 @@ async function isTeamOwnerFromDb(
 			eq(teamMembershipTable.userId, userId),
 			eq(teamMembershipTable.teamId, teamId),
 			eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.OWNER),
-			eq(teamMembershipTable.isSystemRole, 1),
+			eq(teamMembershipTable.isSystemRole, true),
 		),
 	})
 	return !!membership
@@ -118,15 +119,18 @@ async function submitOrganizerRequestInternal({
 	}
 
 	// Create the request
-	const [request] = await db
-		.insert(organizerRequestTable)
-		.values({
-			teamId,
-			userId,
-			reason,
-			status: ORGANIZER_REQUEST_STATUS.PENDING,
-		})
-		.returning()
+	const id = createOrganizerRequestId()
+	await db.insert(organizerRequestTable).values({
+		id,
+		teamId,
+		userId,
+		reason,
+		status: ORGANIZER_REQUEST_STATUS.PENDING,
+	})
+
+	const request = await db.query.organizerRequestTable.findFirst({
+		where: eq(organizerRequestTable.id, id),
+	})
 
 	if (!request) {
 		throw new Error("Failed to create organizer request")

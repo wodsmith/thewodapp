@@ -26,7 +26,7 @@ interface ScalingGroupWithLevels {
 	id: string
 	title: string
 	description: string | null
-	isSystem: number
+	isSystem: boolean
 	levels: Array<{
 		id: string
 		label: string
@@ -132,7 +132,7 @@ export function OrganizerTemplateSelector({
 										<SelectItem key={group.id} value={group.id}>
 											<div className="flex items-center gap-2">
 												{group.title}
-												{group.isSystem === 1 && (
+												{group.isSystem && (
 													<Badge variant="secondary" className="text-xs">
 														System
 													</Badge>

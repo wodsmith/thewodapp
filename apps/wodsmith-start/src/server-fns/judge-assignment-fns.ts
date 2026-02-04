@@ -362,17 +362,21 @@ export const publishRotationsFn = createServerFn({ method: "POST" })
 				eq(judgeAssignmentVersionsTable.trackWorkoutId, data.trackWorkoutId),
 			)
 
-		// Create new version
-		const [newVersion] = await db
-			.insert(judgeAssignmentVersionsTable)
-			.values({
-				trackWorkoutId: data.trackWorkoutId,
-				version: nextVersion,
-				publishedBy: data.publishedBy,
-				notes: data.notes ?? null,
-				isActive: true,
-			})
-			.returning()
+		// Create new version - generate ID, insert, select back
+		const { createJudgeAssignmentVersionId } = await import("@/db/schema")
+		const newVersionId = createJudgeAssignmentVersionId()
+		await db.insert(judgeAssignmentVersionsTable).values({
+			id: newVersionId,
+			trackWorkoutId: data.trackWorkoutId,
+			version: nextVersion,
+			publishedBy: data.publishedBy,
+			notes: data.notes ?? null,
+			isActive: true,
+		})
+
+		const newVersion = await db.query.judgeAssignmentVersionsTable.findFirst({
+			where: eq(judgeAssignmentVersionsTable.id, newVersionId),
+		})
 
 		if (!newVersion) {
 			throw new Error("Failed to create version")
@@ -455,12 +459,17 @@ export const rollbackToVersionFn = createServerFn({ method: "POST" })
 				),
 			)
 
-		// Activate the target version
-		const [updatedVersion] = await db
+		// Activate the target version - update, then select
+		await db
 			.update(judgeAssignmentVersionsTable)
 			.set({ isActive: true, updatedAt: new Date() })
 			.where(eq(judgeAssignmentVersionsTable.id, data.versionId))
-			.returning()
+
+		const updatedVersion = await db.query.judgeAssignmentVersionsTable.findFirst(
+			{
+				where: eq(judgeAssignmentVersionsTable.id, data.versionId),
+			},
+		)
 
 		if (!updatedVersion) {
 			throw new Error("Failed to activate version")

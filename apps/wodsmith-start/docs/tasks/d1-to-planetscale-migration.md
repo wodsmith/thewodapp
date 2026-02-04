@@ -6,6 +6,66 @@ This document outlines the migration strategy from Cloudflare D1 (SQLite) to Pla
 
 ---
 
+## CURRENT PROGRESS (Updated: 2026-01-31)
+
+### Approach Change
+Instead of the dual-write approach outlined below, we've opted for a **direct cutover approach**:
+1. Convert all schema files from SQLite to MySQL in-place
+2. Update `getDb()` to use PlanetScale directly
+3. Fix type mismatches in application code
+4. Test thoroughly before deployment
+
+### Completed
+- [x] **Schema Conversion**: 22/22 schema files converted to MySQL (`mysqlTable`, `varchar`, `boolean`, etc.)
+- [x] **Database Connection**: Updated `src/db/index.ts` to use `@planetscale/database` + `drizzle-orm/planetscale-serverless`
+- [x] **Drizzle Config**: Updated `drizzle.config.ts` for MySQL dialect with `mysql-migrations` output
+- [x] **Dependencies**: Added `@planetscale/database` and `mysql2` packages
+- [x] **Env Type Declaration**: Added `DATABASE_URL` to Cloudflare Env interface
+
+### In Progress
+- [ ] **Boolean Type Fixes**: ~195 type errors remaining
+  - Schema now uses native `boolean` instead of SQLite's `integer` (0/1)
+  - Application code needs updating: `=== 1` → `=== true` or just truthy check
+  - Interface definitions need updating: `isSystem: number` → `isSystem: boolean`
+
+- [ ] **`.returning()` Refactor**: ~25 files affected
+  - MySQL/PlanetScale doesn't support RETURNING clause like SQLite
+  - Pattern change required:
+    ```typescript
+    // SQLite (old)
+    const [result] = await db.insert(table).values(data).returning()
+
+    // MySQL (new) - since we generate IDs client-side with ULID:
+    await db.insert(table).values(data)
+    const [result] = await db.select().from(table).where(eq(table.id, data.id))
+    ```
+  - Alternative: Use `.$returningId()` for auto-increment IDs
+
+### Files with Boolean Type Issues
+| File | Errors | Issue |
+|------|--------|-------|
+| `test/server/volunteers.test.ts` | 16 | Test mocks expect number booleans |
+| `src/server-fns/competition-heats-fns.ts` | 14 | Boolean comparisons |
+| `src/server/registration.ts` | 11 | Boolean comparisons |
+| `src/server-fns/volunteer-fns.ts` | 9 | Boolean comparisons |
+| `src/server-fns/admin-gym-setup-fns.ts` | 9 | Boolean comparisons |
+
+### Remaining Tasks
+1. Fix remaining ~198 type errors (boolean comparisons)
+2. Add `DATABASE_URL` to `.dev.vars` and production secrets
+3. Run `pnpm db:generate --name=planetscale-initial` to create initial MySQL migration
+4. Set up PlanetScale database in staging
+5. Run migration and test
+6. Deploy to production
+
+### Environment Variables Needed
+```bash
+# .dev.vars
+DATABASE_URL=mysql://user:pass@host/database?ssl={"rejectUnauthorized":true}
+```
+
+---
+
 ## 1. Current State Assessment
 
 ### 1.1 Database Overview

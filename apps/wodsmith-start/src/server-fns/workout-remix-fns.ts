@@ -290,8 +290,7 @@ export const createWorkoutRemixFn = createServerFn({ method: "POST" })
 				teamId: data.teamId,
 				sourceWorkoutId: data.sourceWorkoutId, // Reference to the original workout
 			})
-			.returning()
-
+	
 		// Insert workout-tag relationships (batched for D1 limits)
 		if (tagIds.length > 0) {
 			// D1 has 100 param limit. workoutTags table has 5 columns per insert.

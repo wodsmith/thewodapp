@@ -293,18 +293,22 @@ export const createProgrammingTrackFn = createServerFn({ method: "POST" })
 
 		// Create the programming track
 		const trackId = createProgrammingTrackId()
-		const [newTrack] = await db
-			.insert(programmingTracksTable)
-			.values({
-				id: trackId,
-				name: data.name,
-				description: data.description ?? null,
-				type: data.type,
-				ownerTeamId: data.ownerTeamId,
-				isPublic: data.isPublic ? 1 : 0,
-				scalingGroupId: data.scalingGroupId ?? null,
-			})
-			.returning()
+		await db.insert(programmingTracksTable).values({
+			id: trackId,
+			name: data.name,
+			description: data.description ?? null,
+			type: data.type,
+			ownerTeamId: data.ownerTeamId,
+			isPublic: data.isPublic ? 1 : 0,
+			scalingGroupId: data.scalingGroupId ?? null,
+		})
+
+		const newTrack = await db
+			.select()
+			.from(programmingTracksTable)
+			.where(eq(programmingTracksTable.id, trackId))
+			.limit(1)
+			.then((rows) => rows[0])
 
 		if (!newTrack) {
 			throw new Error("Failed to create programming track")
@@ -358,11 +362,17 @@ export const updateProgrammingTrackFn = createServerFn({ method: "POST" })
 		}
 
 		// Update the track
-		const [updatedTrack] = await db
+		await db
 			.update(programmingTracksTable)
 			.set(updateData)
 			.where(eq(programmingTracksTable.id, data.trackId))
-			.returning()
+
+		const updatedTrack = await db
+			.select()
+			.from(programmingTracksTable)
+			.where(eq(programmingTracksTable.id, data.trackId))
+			.limit(1)
+			.then((rows) => rows[0])
 
 		if (!updatedTrack) {
 			throw new Error("Programming track not found")
@@ -388,15 +398,22 @@ export const deleteProgrammingTrackFn = createServerFn({ method: "POST" })
 			throw new Error("Not authenticated")
 		}
 
-		// Delete the track (cascades to track_workouts)
-		const result = await db
-			.delete(programmingTracksTable)
+		// Check track exists before deleting
+		const trackToDelete = await db
+			.select()
+			.from(programmingTracksTable)
 			.where(eq(programmingTracksTable.id, data.trackId))
-			.returning()
+			.limit(1)
+			.then((rows) => rows[0])
 
-		if (!result[0]) {
+		if (!trackToDelete) {
 			throw new Error("Programming track not found")
 		}
+
+		// Delete the track (cascades to track_workouts)
+		await db
+			.delete(programmingTracksTable)
+			.where(eq(programmingTracksTable.id, data.trackId))
 
 		return { success: true }
 	})
@@ -456,16 +473,20 @@ export const addWorkoutToTrackFn = createServerFn({ method: "POST" })
 
 		// Create the track workout
 		const trackWorkoutId = createTrackWorkoutId()
-		const [newTrackWorkout] = await db
-			.insert(trackWorkoutsTable)
-			.values({
-				id: trackWorkoutId,
-				trackId: data.trackId,
-				workoutId: data.workoutId,
-				trackOrder: data.trackOrder,
-				notes: data.notes ?? null,
-			})
-			.returning()
+		await db.insert(trackWorkoutsTable).values({
+			id: trackWorkoutId,
+			trackId: data.trackId,
+			workoutId: data.workoutId,
+			trackOrder: data.trackOrder,
+			notes: data.notes ?? null,
+		})
+
+		const newTrackWorkout = await db
+			.select()
+			.from(trackWorkoutsTable)
+			.where(eq(trackWorkoutsTable.id, trackWorkoutId))
+			.limit(1)
+			.then((rows) => rows[0])
 
 		if (!newTrackWorkout) {
 			throw new Error("Failed to add workout to track")
@@ -490,15 +511,22 @@ export const removeWorkoutFromTrackFn = createServerFn({ method: "POST" })
 			throw new Error("Not authenticated")
 		}
 
-		// Delete the track workout
-		const result = await db
-			.delete(trackWorkoutsTable)
+		// Check track workout exists before deleting
+		const trackWorkoutToDelete = await db
+			.select()
+			.from(trackWorkoutsTable)
 			.where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
-			.returning()
+			.limit(1)
+			.then((rows) => rows[0])
 
-		if (!result[0]) {
+		if (!trackWorkoutToDelete) {
 			throw new Error("Track workout not found")
 		}
+
+		// Delete the track workout
+		await db
+			.delete(trackWorkoutsTable)
+			.where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
 
 		return { success: true }
 	})
@@ -520,14 +548,20 @@ export const updateTrackVisibilityFn = createServerFn({ method: "POST" })
 		}
 
 		// Update the track visibility
-		const [updatedTrack] = await db
+		await db
 			.update(programmingTracksTable)
 			.set({
 				isPublic: data.isPublic ? 1 : 0,
 				updatedAt: new Date(),
 			})
 			.where(eq(programmingTracksTable.id, data.trackId))
-			.returning()
+
+		const updatedTrack = await db
+			.select()
+			.from(programmingTracksTable)
+			.where(eq(programmingTracksTable.id, data.trackId))
+			.limit(1)
+			.then((rows) => rows[0])
 
 		if (!updatedTrack) {
 			throw new Error("Programming track not found")
@@ -570,7 +604,8 @@ export const subscribeToTrackFn = createServerFn({ method: "POST" })
 			.select()
 			.from(programmingTracksTable)
 			.where(eq(programmingTracksTable.id, data.trackId))
-			.get()
+			.limit(1)
+			.then((rows) => rows[0])
 
 		if (!track) {
 			throw new Error("Programming track not found")
@@ -595,7 +630,8 @@ export const subscribeToTrackFn = createServerFn({ method: "POST" })
 					eq(teamProgrammingTracksTable.trackId, data.trackId),
 				),
 			)
-			.get()
+			.limit(1)
+			.then((rows) => rows[0])
 
 		if (existing) {
 			if (existing.isActive) {

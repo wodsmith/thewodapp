@@ -1,6 +1,6 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { index, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core"
+import { index, mysqlTable, varchar, uniqueIndex } from "drizzle-orm/mysql-core"
 import { commonColumns } from "./common"
 import { createId } from "@paralleldrive/cuid2"
 import {
@@ -39,36 +39,30 @@ export type SubmissionWindowNotificationType =
  * - registrationId (the athlete's registration)
  * - type (the notification trigger type)
  */
-export const submissionWindowNotificationsTable = sqliteTable(
+export const submissionWindowNotificationsTable = mysqlTable(
 	"submission_window_notifications",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createSubmissionWindowNotificationId())
 			.notNull(),
 		// The competition this notification is for
-		competitionId: text()
-			.notNull()
-			.references(() => competitionsTable.id, { onDelete: "cascade" }),
+		competitionId: varchar({ length: 255 })
+			.notNull(),
 		// The specific event (workout) with the submission window
-		competitionEventId: text()
-			.notNull()
-			.references(() => competitionEventsTable.id, { onDelete: "cascade" }),
+		competitionEventId: varchar({ length: 255 })
+			.notNull(),
 		// The athlete's registration
-		registrationId: text()
-			.notNull()
-			.references(() => competitionRegistrationsTable.id, {
-				onDelete: "cascade",
-			}),
+		registrationId: varchar({ length: 255 })
+			.notNull(),
 		// The user who received the notification
-		userId: text()
-			.notNull()
-			.references(() => userTable.id, { onDelete: "cascade" }),
+		userId: varchar({ length: 255 })
+			.notNull(),
 		// Type of notification
-		type: text().$type<SubmissionWindowNotificationType>().notNull(),
+		type: varchar({ length: 255 }).$type<SubmissionWindowNotificationType>().notNull(),
 		// Email address the notification was sent to (for logging/debugging)
-		sentToEmail: text(),
+		sentToEmail: varchar({ length: 255 }),
 	},
 	(table) => [
 		// Index for finding notifications by competition

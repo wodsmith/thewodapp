@@ -1,12 +1,13 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
 import {
+	boolean,
 	index,
-	integer,
-	sqliteTable,
-	text,
+	int,
+	mysqlTable,
 	uniqueIndex,
-} from "drizzle-orm/sqlite-core"
+	varchar,
+} from "drizzle-orm/mysql-core"
 import {
 	commonColumns,
 	createScalingGroupId,
@@ -17,21 +18,19 @@ import { teamTable } from "./teams"
 import { workouts } from "./workouts"
 
 // Scaling Groups table
-export const scalingGroupsTable = sqliteTable(
+export const scalingGroupsTable = mysqlTable(
 	"scaling_groups",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createScalingGroupId())
 			.notNull(),
-		title: text({ length: 255 }).notNull(),
-		description: text({ length: 1000 }),
-		teamId: text().references(() => teamTable.id, {
-			onDelete: "cascade",
-		}), // Nullable for system groups
-		isDefault: integer().default(0).notNull(),
-		isSystem: integer().default(0).notNull(), // Marks global default group
+		title: varchar({ length: 255 }).notNull(),
+		description: varchar({ length: 1000 }),
+		teamId: varchar({ length: 255 }), // Nullable for system groups
+		isDefault: boolean().default(false).notNull(),
+		isSystem: boolean().default(false).notNull(), // Marks global default group
 	},
 	(table) => [
 		index("scaling_groups_team_idx").on(table.teamId),
@@ -41,22 +40,19 @@ export const scalingGroupsTable = sqliteTable(
 )
 
 // Scaling Levels table
-export const scalingLevelsTable = sqliteTable(
+export const scalingLevelsTable = mysqlTable(
 	"scaling_levels",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createScalingLevelId())
 			.notNull(),
-		scalingGroupId: text()
-			.notNull()
-			.references(() => scalingGroupsTable.id, {
-				onDelete: "cascade",
-			}),
-		label: text({ length: 100 }).notNull(),
-		position: integer().notNull(), // 0 = hardest, increasing numbers = easier
-		teamSize: integer().default(1).notNull(), // 1 = individual, 2+ = team
+		scalingGroupId: varchar({ length: 255 })
+			.notNull(),
+		label: varchar({ length: 100 }).notNull(),
+		position: int().notNull(), // 0 = hardest, increasing numbers = easier
+		teamSize: int().default(1).notNull(), // 1 = individual, 2+ = team
 	},
 	(table) => [
 		index("scaling_levels_group_idx").on(table.scalingGroupId),
@@ -68,25 +64,19 @@ export const scalingLevelsTable = sqliteTable(
 )
 
 // Workout Scaling Descriptions table (optional descriptions for each scaling level in a workout)
-export const workoutScalingDescriptionsTable = sqliteTable(
+export const workoutScalingDescriptionsTable = mysqlTable(
 	"workout_scaling_descriptions",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createWorkoutScalingDescriptionId())
 			.notNull(),
-		workoutId: text()
-			.notNull()
-			.references(() => workouts.id, {
-				onDelete: "cascade",
-			}),
-		scalingLevelId: text()
-			.notNull()
-			.references(() => scalingLevelsTable.id, {
-				onDelete: "cascade",
-			}),
-		description: text({ length: 2000 }), // Optional workout-specific description for this scaling level
+		workoutId: varchar({ length: 255 })
+			.notNull(),
+		scalingLevelId: varchar({ length: 255 })
+			.notNull(),
+		description: varchar({ length: 2000 }), // Optional workout-specific description for this scaling level
 	},
 	(table) => [
 		index("workout_scaling_desc_workout_idx").on(table.workoutId),

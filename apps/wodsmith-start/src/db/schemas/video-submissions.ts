@@ -8,12 +8,12 @@
 import { createId } from "@paralleldrive/cuid2"
 import { relations } from "drizzle-orm"
 import {
+	datetime,
 	index,
-	integer,
-	sqliteTable,
-	text,
+	mysqlTable,
 	uniqueIndex,
-} from "drizzle-orm/sqlite-core"
+	varchar,
+} from "drizzle-orm/mysql-core"
 import { commonColumns } from "./common"
 import { competitionRegistrationsTable } from "./competitions"
 import { userTable } from "./users"
@@ -27,36 +27,32 @@ export const createVideoSubmissionId = () => `vsub_${createId()}`
  * Stores video submissions from athletes for online competition events.
  * Each athlete can only have one video submission per event.
  */
-export const videoSubmissionsTable = sqliteTable(
+export const videoSubmissionsTable = mysqlTable(
 	"video_submissions",
 	{
 		...commonColumns,
-		id: text("id").primaryKey().$defaultFn(createVideoSubmissionId),
+		id: varchar({ length: 255 }).primaryKey().$defaultFn(createVideoSubmissionId),
 
 		// The registration this submission belongs to
-		registrationId: text("registration_id")
-			.notNull()
-			.references(() => competitionRegistrationsTable.id, {
-				onDelete: "cascade",
-			}),
+		registrationId: varchar({ length: 255 })
+			.notNull(),
 
 		// The competition event (track workout) this submission is for
 		// Uses trackWorkoutId to match the competitionEventsTable pattern
-		trackWorkoutId: text("track_workout_id").notNull(),
+		trackWorkoutId: varchar({ length: 255 }).notNull(),
 
 		// The user who submitted the video
-		userId: text("user_id")
-			.notNull()
-			.references(() => userTable.id, { onDelete: "cascade" }),
+		userId: varchar({ length: 255 })
+			.notNull(),
 
 		// The video URL (typically YouTube, but can be other platforms)
-		videoUrl: text("video_url", { length: 2000 }).notNull(),
+		videoUrl: varchar({ length: 2000 }).notNull(),
 
 		// Optional notes from the athlete
-		notes: text("notes", { length: 1000 }),
+		notes: varchar({ length: 1000 }),
 
 		// When the video was submitted
-		submittedAt: integer("submitted_at", { mode: "timestamp" }).notNull(),
+		submittedAt: datetime().notNull(),
 	},
 	(table) => [
 		// One video submission per registration per event

@@ -193,10 +193,10 @@ export const upsertCompetitionEventsFn = createServerFn({ method: "POST" })
 			throw new Error("Competition not found or access denied")
 		}
 
-		// Upsert each event (D1 doesn't support batch upsert well)
-		const upsertedIds: string[] = []
+		// Upsert each event
+		let upsertCount = 0
 		for (const event of data.events) {
-			const [result] = await db
+			await db
 				.insert(competitionEventsTable)
 				.values({
 					competitionId: data.competitionId,
@@ -204,25 +204,17 @@ export const upsertCompetitionEventsFn = createServerFn({ method: "POST" })
 					submissionOpensAt: event.submissionOpensAt ?? null,
 					submissionClosesAt: event.submissionClosesAt ?? null,
 				})
-				.onConflictDoUpdate({
-					target: [
-						competitionEventsTable.competitionId,
-						competitionEventsTable.trackWorkoutId,
-					],
+				.onDuplicateKeyUpdate({
 					set: {
 						submissionOpensAt: event.submissionOpensAt ?? null,
 						submissionClosesAt: event.submissionClosesAt ?? null,
 						updatedAt: new Date(),
 					},
 				})
-				.returning({ id: competitionEventsTable.id })
-
-			if (result) {
-				upsertedIds.push(result.id)
-			}
+			upsertCount++
 		}
 
-		return { success: true, upsertedCount: upsertedIds.length }
+		return { success: true, upsertedCount: upsertCount }
 	})
 
 /**

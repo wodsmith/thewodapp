@@ -19,6 +19,11 @@ import {
 	competitionVenuesTable,
 } from "@/db/schemas/competitions"
 import {
+	createCompetitionHeatAssignmentId,
+	createCompetitionHeatId,
+	createCompetitionVenueId,
+} from "@/db/schemas/common"
+import {
 	programmingTracksTable,
 	trackWorkoutsTable,
 } from "@/db/schemas/programming"
@@ -472,17 +477,20 @@ export const createVenueFn = createServerFn({ method: "POST" })
 			sortOrder = existingVenues.length
 		}
 
-		const [venue] = await db
-			.insert(competitionVenuesTable)
-			.values({
-				competitionId: data.competitionId,
-				name: data.name,
-				laneCount: data.laneCount,
-				transitionMinutes: data.transitionMinutes,
-				sortOrder,
-				addressId: data.addressId ?? null,
-			})
-			.returning()
+		const venueId = createCompetitionVenueId()
+		await db.insert(competitionVenuesTable).values({
+			id: venueId,
+			competitionId: data.competitionId,
+			name: data.name,
+			laneCount: data.laneCount,
+			transitionMinutes: data.transitionMinutes,
+			sortOrder,
+			addressId: data.addressId ?? null,
+		})
+
+		const venue = await db.query.competitionVenuesTable.findFirst({
+			where: eq(competitionVenuesTable.id, venueId),
+		})
 
 		if (!venue) {
 			throw new Error("Failed to create venue")
@@ -656,19 +664,22 @@ export const createHeatFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
-		const [heat] = await db
-			.insert(competitionHeatsTable)
-			.values({
-				competitionId: data.competitionId,
-				trackWorkoutId: data.trackWorkoutId,
-				heatNumber: data.heatNumber,
-				scheduledTime: data.scheduledTime ?? null,
-				venueId: data.venueId ?? null,
-				divisionId: data.divisionId ?? null,
-				durationMinutes: data.durationMinutes ?? null,
-				notes: data.notes ?? null,
-			})
-			.returning()
+		const heatId = createCompetitionHeatId()
+		await db.insert(competitionHeatsTable).values({
+			id: heatId,
+			competitionId: data.competitionId,
+			trackWorkoutId: data.trackWorkoutId,
+			heatNumber: data.heatNumber,
+			scheduledTime: data.scheduledTime ?? null,
+			venueId: data.venueId ?? null,
+			divisionId: data.divisionId ?? null,
+			durationMinutes: data.durationMinutes ?? null,
+			notes: data.notes ?? null,
+		})
+
+		const heat = await db.query.competitionHeatsTable.findFirst({
+			where: eq(competitionHeatsTable.id, heatId),
+		})
 
 		if (!heat) {
 			throw new Error("Failed to create heat")
@@ -878,14 +889,19 @@ export const assignToHeatFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
-		const [assignment] = await db
-			.insert(competitionHeatAssignmentsTable)
-			.values({
-				heatId: data.heatId,
-				registrationId: data.registrationId,
-				laneNumber: data.laneNumber,
-			})
-			.returning()
+		const assignmentId = createCompetitionHeatAssignmentId()
+		await db.insert(competitionHeatAssignmentsTable).values({
+			id: assignmentId,
+			heatId: data.heatId,
+			registrationId: data.registrationId,
+			laneNumber: data.laneNumber,
+		})
+
+		const assignment = await db.query.competitionHeatAssignmentsTable.findFirst(
+			{
+				where: eq(competitionHeatAssignmentsTable.id, assignmentId),
+			},
+		)
 
 		if (!assignment) {
 			throw new Error("Failed to create heat assignment")
@@ -914,19 +930,31 @@ export const bulkAssignToHeatFn = createServerFn({ method: "POST" })
 
 		const assignmentsToCreate = data.registrationIds.map(
 			(registrationId, index) => ({
+				id: createCompetitionHeatAssignmentId(),
 				heatId: data.heatId,
 				registrationId,
 				laneNumber: data.startingLane + index,
 			}),
 		)
 
-		const results = await Promise.all(
+		await Promise.all(
 			chunk(assignmentsToCreate, INSERT_BATCH_SIZE).map((batch) =>
-				db.insert(competitionHeatAssignmentsTable).values(batch).returning(),
+				db.insert(competitionHeatAssignmentsTable).values(batch),
 			),
 		)
 
-		return { assignments: results.flat() }
+		// Fetch created assignments
+		const assignmentIds = assignmentsToCreate.map((a) => a.id)
+		const assignmentBatches = await Promise.all(
+			chunk(assignmentIds, BATCH_SIZE).map((batch) =>
+				db
+					.select()
+					.from(competitionHeatAssignmentsTable)
+					.where(inArray(competitionHeatAssignmentsTable.id, batch)),
+			),
+		)
+
+		return { assignments: assignmentBatches.flat() }
 	})
 
 /**
@@ -972,11 +1000,10 @@ export const moveAssignmentFn = createServerFn({ method: "POST" })
 		const db = getDb()
 
 		// Get current assignment to find registrationId and current heatId
-		const currentAssignment = await db
-			.select()
-			.from(competitionHeatAssignmentsTable)
-			.where(eq(competitionHeatAssignmentsTable.id, data.assignmentId))
-			.get()
+		const currentAssignment =
+			await db.query.competitionHeatAssignmentsTable.findFirst({
+				where: eq(competitionHeatAssignmentsTable.id, data.assignmentId),
+			})
 
 		if (!currentAssignment) {
 			throw new Error("Assignment not found")
@@ -995,6 +1022,7 @@ export const moveAssignmentFn = createServerFn({ method: "POST" })
 				.where(eq(competitionHeatAssignmentsTable.id, data.assignmentId))
 
 			await db.insert(competitionHeatAssignmentsTable).values({
+				id: createCompetitionHeatAssignmentId(),
 				heatId: data.targetHeatId,
 				registrationId: currentAssignment.registrationId,
 				laneNumber: data.targetLaneNumber,
@@ -1172,6 +1200,7 @@ export const bulkCreateHeatsFn = createServerFn({ method: "POST" })
 
 		// Prepare heats to create
 		const heatsToCreate = data.heats.map((heat, index) => ({
+			id: createCompetitionHeatId(),
 			competitionId: data.competitionId,
 			trackWorkoutId: data.trackWorkoutId,
 			heatNumber: startNumber + index,
@@ -1186,13 +1215,24 @@ export const bulkCreateHeatsFn = createServerFn({ method: "POST" })
 		// Max rows per batch = floor(100/12) = 8
 		const INSERT_BATCH_SIZE = 8
 
-		const results = await Promise.all(
+		await Promise.all(
 			chunk(heatsToCreate, INSERT_BATCH_SIZE).map((batch) =>
-				db.insert(competitionHeatsTable).values(batch).returning(),
+				db.insert(competitionHeatsTable).values(batch),
 			),
 		)
 
-		return { heats: results.flat() }
+		// Fetch created heats
+		const heatIds = heatsToCreate.map((h) => h.id)
+		const heatBatches = await Promise.all(
+			chunk(heatIds, BATCH_SIZE).map((batch) =>
+				db
+					.select()
+					.from(competitionHeatsTable)
+					.where(inArray(competitionHeatsTable.id, batch)),
+			),
+		)
+
+		return { heats: heatBatches.flat() }
 	})
 
 /**
@@ -1501,26 +1541,20 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 		sourceHeats.sort((a, b) => a.heatNumber - b.heatNumber)
 
 		// Get the target workout's competition ID
-		const targetWorkout = await db
-			.select({
-				trackId: trackWorkoutsTable.trackId,
-			})
-			.from(trackWorkoutsTable)
-			.where(eq(trackWorkoutsTable.id, data.targetTrackWorkoutId))
-			.get()
+		const targetWorkout = await db.query.trackWorkoutsTable.findFirst({
+			where: eq(trackWorkoutsTable.id, data.targetTrackWorkoutId),
+			columns: { trackId: true },
+		})
 
 		if (!targetWorkout) {
 			throw new Error("Target track workout not found")
 		}
 
 		// Get competition ID from the track
-		const track = await db
-			.select({
-				competitionId: programmingTracksTable.competitionId,
-			})
-			.from(programmingTracksTable)
-			.where(eq(programmingTracksTable.id, targetWorkout.trackId))
-			.get()
+		const track = await db.query.programmingTracksTable.findFirst({
+			where: eq(programmingTracksTable.id, targetWorkout.trackId),
+			columns: { competitionId: true },
+		})
 
 		if (!track || !track.competitionId) {
 			throw new Error("Competition not found for target track")
@@ -1537,6 +1571,7 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 
 		// Create new heats with calculated times
 		const heatsToCreate: Array<{
+			id: string
 			competitionId: string
 			trackWorkoutId: string
 			heatNumber: number
@@ -1558,6 +1593,7 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 			)
 
 			heatsToCreate.push({
+				id: createCompetitionHeatId(),
 				competitionId,
 				trackWorkoutId: data.targetTrackWorkoutId,
 				heatNumber: sourceHeat.heatNumber,
@@ -1572,9 +1608,20 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 		// Bulk insert heats in batches (competitionHeatsTable has 12 columns)
 		const INSERT_BATCH_SIZE = 8
 
-		const createdHeatBatches = await Promise.all(
+		await Promise.all(
 			chunk(heatsToCreate, INSERT_BATCH_SIZE).map((batch) =>
-				db.insert(competitionHeatsTable).values(batch).returning(),
+				db.insert(competitionHeatsTable).values(batch),
+			),
+		)
+
+		// Fetch created heats
+		const createdHeatIds = heatsToCreate.map((h) => h.id)
+		const createdHeatBatches = await Promise.all(
+			chunk(createdHeatIds, BATCH_SIZE).map((batch) =>
+				db
+					.select()
+					.from(competitionHeatsTable)
+					.where(inArray(competitionHeatsTable.id, batch)),
 			),
 		)
 		const createdHeats = createdHeatBatches.flat()
@@ -1589,6 +1636,7 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 
 			// Copy assignments
 			const assignmentsToCreate: Array<{
+				id: string
 				heatId: string
 				registrationId: string
 				laneNumber: number
@@ -1600,6 +1648,7 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 
 				for (const assignment of sourceHeat.assignments) {
 					assignmentsToCreate.push({
+						id: createCompetitionHeatAssignmentId(),
 						heatId: newHeatId,
 						registrationId: assignment.registration.id,
 						laneNumber: assignment.laneNumber,
@@ -1641,19 +1690,21 @@ export const getVenueForTrackWorkoutFn = createServerFn({ method: "GET" })
 		const db = getDb()
 
 		// Find first heat for this workout (no schedulePublishedAt filter)
-		const heat = await db
+		const heats = await db
 			.select({ venueId: competitionHeatsTable.venueId })
 			.from(competitionHeatsTable)
 			.where(eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId))
 			.orderBy(asc(competitionHeatsTable.heatNumber))
-			.get()
+			.limit(1)
+
+		const heat = heats[0]
 
 		if (!heat?.venueId) {
 			return { venue: null }
 		}
 
 		// Fetch venue with address
-		const venueWithAddress = await db
+		const venuesWithAddress = await db
 			.select({
 				venue: competitionVenuesTable,
 				address: addressesTable,
@@ -1664,7 +1715,9 @@ export const getVenueForTrackWorkoutFn = createServerFn({ method: "GET" })
 				eq(competitionVenuesTable.addressId, addressesTable.id),
 			)
 			.where(eq(competitionVenuesTable.id, heat.venueId))
-			.get()
+			.limit(1)
+
+		const venueWithAddress = venuesWithAddress[0]
 
 		if (!venueWithAddress) {
 			return { venue: null }
@@ -1698,7 +1751,7 @@ export const getVenueForTrackWorkoutByDivisionFn = createServerFn({
 
 		// Try to find heat with division filter first
 		if (data.divisionId) {
-			heat = await db
+			const divisionHeats = await db
 				.select({ venueId: competitionHeatsTable.venueId })
 				.from(competitionHeatsTable)
 				.where(
@@ -1708,17 +1761,21 @@ export const getVenueForTrackWorkoutByDivisionFn = createServerFn({
 					),
 				)
 				.orderBy(asc(competitionHeatsTable.heatNumber))
-				.get()
+				.limit(1)
+
+			heat = divisionHeats[0]
 		}
 
 		// Fallback: find any heat for this workout if no division-specific one found
 		if (!heat?.venueId) {
-			heat = await db
+			const heats = await db
 				.select({ venueId: competitionHeatsTable.venueId })
 				.from(competitionHeatsTable)
 				.where(eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId))
 				.orderBy(asc(competitionHeatsTable.heatNumber))
-				.get()
+				.limit(1)
+
+			heat = heats[0]
 		}
 
 		if (!heat?.venueId) {
@@ -1726,7 +1783,7 @@ export const getVenueForTrackWorkoutByDivisionFn = createServerFn({
 		}
 
 		// Fetch venue with address
-		const venueWithAddress = await db
+		const venuesWithAddress = await db
 			.select({
 				venue: competitionVenuesTable,
 				address: addressesTable,
@@ -1737,7 +1794,9 @@ export const getVenueForTrackWorkoutByDivisionFn = createServerFn({
 				eq(competitionVenuesTable.addressId, addressesTable.id),
 			)
 			.where(eq(competitionVenuesTable.id, heat.venueId))
-			.get()
+			.limit(1)
+
+		const venueWithAddress = venuesWithAddress[0]
 
 		if (!venueWithAddress) {
 			return { venue: null }

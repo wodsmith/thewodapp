@@ -1,6 +1,6 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { sqliteTable, text } from "drizzle-orm/sqlite-core"
+import { mysqlTable, varchar } from "drizzle-orm/mysql-core"
 import { commonColumns, createAddressId } from "./common"
 
 // Address type enum for different use cases
@@ -15,54 +15,31 @@ export const ADDRESS_TYPE_ENUM = {
 export type AddressType =
 	(typeof ADDRESS_TYPE_ENUM)[keyof typeof ADDRESS_TYPE_ENUM]
 
-const addressTypeTuple = Object.values(ADDRESS_TYPE_ENUM) as [
-	string,
-	...string[],
-]
-
 // Addresses table
-export const addressesTable = sqliteTable("addresses", {
+export const addressesTable = mysqlTable("addresses", {
 	...commonColumns,
-	id: text()
+	id: varchar({ length: 255 })
 		.primaryKey()
 		.$defaultFn(() => createAddressId())
 		.notNull(),
 	// Type of address (billing, shipping, venue, etc.)
-	addressType: text({
-		enum: addressTypeTuple,
-	}).$type<AddressType>(),
+	addressType: varchar({ length: 20 }).$type<AddressType>(),
 	// Optional name for the address (e.g., "Main Gym", "Downtown Location")
-	name: text({
-		length: 255,
-	}),
+	name: varchar({ length: 255 }),
 	// Street address line 1
-	streetLine1: text({
-		length: 500,
-	}),
+	streetLine1: varchar({ length: 500 }),
 	// Street address line 2 (optional)
-	streetLine2: text({
-		length: 500,
-	}),
+	streetLine2: varchar({ length: 500 }),
 	// City
-	city: text({
-		length: 255,
-	}),
+	city: varchar({ length: 255 }),
 	// State or province
-	stateProvince: text({
-		length: 255,
-	}),
+	stateProvince: varchar({ length: 255 }),
 	// Postal/zip code
-	postalCode: text({
-		length: 50,
-	}),
+	postalCode: varchar({ length: 50 }),
 	// Country code (ISO 3166-1 alpha-2, e.g., "US", "CA")
-	countryCode: text({
-		length: 2,
-	}),
+	countryCode: varchar({ length: 2 }),
 	// Optional notes or additional information
-	notes: text({
-		length: 1000,
-	}),
+	notes: varchar({ length: 1000 }),
 })
 
 // Address relations

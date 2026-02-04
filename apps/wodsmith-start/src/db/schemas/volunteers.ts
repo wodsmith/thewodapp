@@ -2,11 +2,13 @@ import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
 import {
 	index,
-	integer,
-	sqliteTable,
-	text,
+	int,
+	mysqlTable,
+	varchar,
+	boolean,
+	datetime,
 	uniqueIndex,
-} from "drizzle-orm/sqlite-core"
+} from "drizzle-orm/mysql-core"
 import {
 	commonColumns,
 	createHeatVolunteerId,
@@ -101,34 +103,29 @@ export interface VolunteerMembershipMetadata {
 
 // Judge Assignment Versions Table
 // Tracks published versions of judge assignments for each event
-export const judgeAssignmentVersionsTable = sqliteTable(
+export const judgeAssignmentVersionsTable = mysqlTable(
 	"judge_assignment_versions",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createJudgeAssignmentVersionId())
 			.notNull(),
 		// The event/workout this version is for
-		trackWorkoutId: text()
-			.notNull()
-			.references(() => trackWorkoutsTable.id, { onDelete: "cascade" }),
+		trackWorkoutId: varchar({ length: 255 })
+			.notNull(),
 		// Version number (auto-increments per event)
-		version: integer().notNull(),
+		version: int().notNull(),
 		// When this version was published
-		publishedAt: integer({
-			mode: "timestamp",
-		})
+		publishedAt: datetime()
 			.$defaultFn(() => new Date())
 			.notNull(),
 		// Who published this version (nullable for system-generated)
-		publishedBy: text().references(() => userTable.id, {
-			onDelete: "set null",
-		}),
+		publishedBy: varchar({ length: 255 }),
 		// Optional notes about this version
-		notes: text({ length: 1000 }),
+		notes: varchar({ length: 1000 }),
 		// Whether this is the currently active version for this event
-		isActive: integer({ mode: "boolean" }).notNull().default(false),
+		isActive: boolean().notNull().default(false),
 	},
 	(table) => [
 		index("judge_assignment_versions_workout_idx").on(table.trackWorkoutId),
@@ -146,41 +143,35 @@ export const judgeAssignmentVersionsTable = sqliteTable(
 
 // Judge Heat Assignments Table (formerly Competition Heat Volunteers)
 // Maps volunteers (team memberships with volunteer role) to specific heats
-export const judgeHeatAssignmentsTable = sqliteTable(
+export const judgeHeatAssignmentsTable = mysqlTable(
 	"judge_heat_assignments",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createHeatVolunteerId())
 			.notNull(),
 		// The heat this volunteer is assigned to
-		heatId: text()
-			.notNull()
-			.references(() => competitionHeatsTable.id, { onDelete: "cascade" }),
+		heatId: varchar({ length: 255 })
+			.notNull(),
 		// The team membership (must have volunteer role)
-		membershipId: text()
-			.notNull()
-			.references(() => teamMembershipTable.id, { onDelete: "cascade" }),
+		membershipId: varchar({ length: 255 })
+			.notNull(),
 		// Optional reference to the rotation that generated this assignment
 		// (null for manually created assignments)
 		// IMPORTANT: Keep this - it tracks which rotation generated an assignment
-		rotationId: text().references(() => competitionJudgeRotationsTable.id, {
-			onDelete: "set null",
-		}),
+		rotationId: varchar({ length: 255 }),
 		// Optional reference to the version this assignment belongs to
 		// (nullable for migration - assignments created before versioning)
-		versionId: text().references(() => judgeAssignmentVersionsTable.id, {
-			onDelete: "set null",
-		}),
+		versionId: varchar({ length: 255 }),
 		// Optional lane assignment (for lane judges)
-		laneNumber: integer(),
+		laneNumber: int(),
 		// Position/role for this specific heat (overrides default from metadata)
-		position: text({ length: 50 }).$type<VolunteerRoleType>(),
+		position: varchar({ length: 50 }).$type<VolunteerRoleType>(),
 		// Heat-specific instructions for this volunteer
-		instructions: text({ length: 500 }),
+		instructions: varchar({ length: 500 }),
 		// Whether this assignment was manually overridden (not from rotation/version)
-		isManualOverride: integer({ mode: "boolean" }).notNull().default(false),
+		isManualOverride: boolean().notNull().default(false),
 	},
 	(table) => [
 		index("judge_heat_assignments_heat_idx").on(table.heatId),
@@ -196,39 +187,36 @@ export const judgeHeatAssignmentsTable = sqliteTable(
 
 // Judge Rotations Table
 // Defines rotation patterns for judges across multiple heats
-export const competitionJudgeRotationsTable = sqliteTable(
+export const competitionJudgeRotationsTable = mysqlTable(
 	"competition_judge_rotations",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createJudgeRotationId())
 			.notNull(),
 		// The competition this rotation belongs to
-		competitionId: text()
-			.notNull()
-			.references(() => competitionsTable.id, { onDelete: "cascade" }),
+		competitionId: varchar({ length: 255 })
+			.notNull(),
 		// The event/workout this rotation is for
-		trackWorkoutId: text()
-			.notNull()
-			.references(() => trackWorkoutsTable.id, { onDelete: "cascade" }),
+		trackWorkoutId: varchar({ length: 255 })
+			.notNull(),
 		// The judge (team membership with volunteer role)
-		membershipId: text()
-			.notNull()
-			.references(() => teamMembershipTable.id, { onDelete: "cascade" }),
+		membershipId: varchar({ length: 255 })
+			.notNull(),
 		// Starting heat number (1-indexed)
-		startingHeat: integer().notNull(),
+		startingHeat: int().notNull(),
 		// Starting lane number (1-indexed)
-		startingLane: integer().notNull(),
+		startingLane: int().notNull(),
 		// How many consecutive heats they judge
-		heatsCount: integer().notNull(),
+		heatsCount: int().notNull(),
 		// Lane shift pattern ('stay', 'shift_right')
-		laneShiftPattern: text({ length: 20 })
+		laneShiftPattern: varchar({ length: 20 })
 			.$type<LaneShiftPattern>()
 			.notNull()
 			.default("stay"),
 		// Optional notes/instructions for this rotation
-		notes: text({ length: 500 }),
+		notes: varchar({ length: 500 }),
 	},
 	(table) => [
 		index("competition_judge_rotations_competition_idx").on(
