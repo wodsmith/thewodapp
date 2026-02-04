@@ -123,7 +123,7 @@ function JudgesSchedulePage() {
 			</div>
 
 			{/* Main content */}
-			<div className="mx-auto max-w-7xl py-8 px-4 print:py-2 print:px-0 print:max-w-none">
+			<div className="mx-auto max-w-7xl py-8 px-4 print:py-0 print:px-0 print:mx-0 print:max-w-none">
 				<JudgesScheduleContent
 					competitionName={competition.name}
 					events={events}

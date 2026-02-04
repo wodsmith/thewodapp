@@ -117,19 +117,23 @@ export const Route = createFileRoute("/compete/$slug")({
 })
 
 function CompetitionDetailLayout() {
-	const { competition, registrationCount, canManage } = Route.useLoaderData()
+	const { competition, registrationCount, canManage, isVolunteer } =
+		Route.useLoaderData()
 
 	return (
-		<div className="min-h-screen bg-background">
-			{/* Hero Section */}
-			<CompetitionHero
-				competition={competition}
-				registrationCount={registrationCount}
-				canManage={canManage}
-			/>
+		<div className="min-h-screen bg-background print:min-h-0 print:bg-white">
+			{/* Hero Section - hidden on print */}
+			<div className="print:hidden">
+				<CompetitionHero
+					competition={competition}
+					registrationCount={registrationCount}
+					canManage={canManage}
+					isVolunteer={isVolunteer}
+				/>
+			</div>
 
 			{/* Content Area */}
-			<div className="px-0 pb-4">
+			<div className="container mx-auto px-0 pb-4 print:p-0 print:max-w-none">
 				<Outlet />
 			</div>
 		</div>

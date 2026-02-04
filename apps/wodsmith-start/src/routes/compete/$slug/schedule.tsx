@@ -1,6 +1,4 @@
-import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
-import { ClipboardList } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import { PublicSubmissionWindows } from "@/components/public-submission-windows"
 import { SchedulePageContent } from "@/components/schedule-page-content"
@@ -81,11 +79,7 @@ function CompetitionSchedulePage() {
 		isOnline,
 		timezone,
 	} = Route.useLoaderData()
-	const { competition, session, canManage, isVolunteer } =
-		parentRoute.useLoaderData()
-
-	// Show judges schedule link for organizers and volunteers
-	const showJudgesScheduleLink = canManage || isVolunteer
+	const { competition, session } = parentRoute.useLoaderData()
 
 	// For online competitions, show submission windows
 	if (isOnline) {
@@ -102,22 +96,8 @@ function CompetitionSchedulePage() {
 	// For in-person competitions, show heat schedule
 	return (
 		<div className="space-y-4">
-			<div className="sticky top-4 z-10 flex items-center gap-2">
-				<div className="flex-1">
-					<CompetitionTabs slug={competition.slug} />
-				</div>
-				{showJudgesScheduleLink && (
-					<Button variant="outline" size="sm" asChild>
-						<Link
-							to="/compete/$slug/judges-schedule"
-							params={{ slug: competition.slug }}
-						>
-							<ClipboardList className="mr-2 h-4 w-4" />
-							<span className="hidden sm:inline">Judges Schedule</span>
-							<span className="sm:hidden">Judges</span>
-						</Link>
-					</Button>
-				)}
+			<div className="sticky top-4 z-10">
+				<CompetitionTabs slug={competition.slug} />
 			</div>
 			<div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
 				<SchedulePageContent
