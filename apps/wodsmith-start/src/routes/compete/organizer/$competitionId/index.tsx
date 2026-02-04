@@ -210,6 +210,7 @@ function CompetitionOverviewPage() {
 							events={events}
 							heats={heats}
 							organizingTeamId={organizingTeamId}
+							competitionSlug={competition.slug}
 						/>
 					)}
 

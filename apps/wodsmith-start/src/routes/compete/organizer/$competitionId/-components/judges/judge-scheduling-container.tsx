@@ -1,8 +1,10 @@
 "use client"
 
-import { FileWarning } from "lucide-react"
+import { Link } from "@tanstack/react-router"
+import { ClipboardList, FileWarning } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
 	Select,
@@ -44,6 +46,7 @@ interface EventDefaults {
 
 interface JudgeSchedulingContainerProps {
 	competitionId: string
+	competitionSlug: string
 	organizingTeamId: string
 	competitionType: "in-person" | "online"
 	events: CompetitionWorkout[]
@@ -69,6 +72,7 @@ interface JudgeSchedulingContainerProps {
  */
 export function JudgeSchedulingContainer({
 	competitionId,
+	competitionSlug,
 	organizingTeamId,
 	competitionType,
 	events,
@@ -366,11 +370,24 @@ export function JudgeSchedulingContainer({
 	return (
 		<section className="space-y-8">
 			{/* Header */}
-			<div>
-				<h2 className="text-xl font-semibold">Judging Schedule</h2>
-				<p className="text-sm text-muted-foreground">
-					Manage judge assignments with manual or rotation-based scheduling
-				</p>
+			<div className="flex items-start justify-between gap-4">
+				<div>
+					<h2 className="text-xl font-semibold">Judging Schedule</h2>
+					<p className="text-sm text-muted-foreground">
+						Manage judge assignments with manual or rotation-based scheduling
+					</p>
+				</div>
+				{heats.length > 0 && (
+					<Button variant="outline" size="sm" asChild>
+						<Link
+							to="/compete/$slug/judges-schedule"
+							params={{ slug: competitionSlug }}
+						>
+							<ClipboardList className="mr-2 h-4 w-4" />
+							View Printable Schedule
+						</Link>
+					</Button>
+				)}
 			</div>
 
 			{/* Event Selector - Prominent placement */}
