@@ -2,12 +2,27 @@
  * Competition Score Server Functions for TanStack Start
  * Port from apps/wodsmith/src/server/competition-scores.ts and
  * apps/wodsmith/src/actions/competition-score-actions.ts
+ *
+ * OBSERVABILITY:
+ * - All score operations are logged with entity IDs for tracing
+ * - Score saves/updates track competitionId, userId, scoreId
+ * - Permission checks are logged for audit trails
+ * - Batch operations include counts and error summaries
  */
 
 import { createServerFn } from "@tanstack/react-start"
 import { and, eq, gt, inArray, isNull, or } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import {
+	addRequestContextAttribute,
+	logEntityDeleted,
+	logEntityUpdated,
+	logError,
+	logInfo,
+	logWarning,
+	updateRequestContext,
+} from "@/lib/logging"
 import {
 	type CompetitionHeat,
 	competitionEventsTable,
@@ -841,6 +856,23 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 		}> => {
 			const db = getDb()
 
+			// Update request context for tracing
+			addRequestContextAttribute("competitionId", data.competitionId)
+			addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
+			addRequestContextAttribute("athleteUserId", data.userId)
+
+			logInfo({
+				message: "[Score] Save competition score started",
+				attributes: {
+					competitionId: data.competitionId,
+					trackWorkoutId: data.trackWorkoutId,
+					userId: data.userId,
+					registrationId: data.registrationId,
+					divisionId: data.divisionId,
+					scoreStatus: data.scoreStatus,
+				},
+			})
+
 			// Check submission window for online competitions
 			const submissionCheck = await isWithinSubmissionWindow(
 				data.competitionId,
@@ -848,6 +880,15 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 			)
 
 			if (!submissionCheck.allowed) {
+				logWarning({
+					message: "[Score] Submission window blocked",
+					attributes: {
+						competitionId: data.competitionId,
+						trackWorkoutId: data.trackWorkoutId,
+						userId: data.userId,
+						reason: submissionCheck.reason,
+					},
+				})
 				throw new Error(
 					submissionCheck.reason || "Score submission not allowed at this time",
 				)
@@ -1002,6 +1043,22 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 
 			const scoreId = finalScore.id
 
+			// Log score entity creation/update
+			addRequestContextAttribute("scoreId", scoreId)
+			logEntityUpdated({
+				entity: "score",
+				id: scoreId,
+				attributes: {
+					competitionId: data.competitionId,
+					trackWorkoutId: data.trackWorkoutId,
+					userId: data.userId,
+					registrationId: data.registrationId,
+					divisionId: data.divisionId,
+					scoreStatus: data.scoreStatus,
+					hasRoundScores: !!(data.roundScores && data.roundScores.length > 0),
+				},
+			})
+
 			// Handle score_rounds - delete existing and insert new
 			if (data.roundScores && data.roundScores.length > 0) {
 				// Delete existing rounds
@@ -1043,7 +1100,26 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 						db.insert(scoreRoundsTable).values(batch),
 					),
 				)
+
+				logInfo({
+					message: "[Score] Round scores saved",
+					attributes: {
+						scoreId,
+						roundCount: data.roundScores.length,
+					},
+				})
 			}
+
+			logInfo({
+				message: "[Score] Competition score saved successfully",
+				attributes: {
+					scoreId,
+					competitionId: data.competitionId,
+					trackWorkoutId: data.trackWorkoutId,
+					userId: data.userId,
+					scoreStatus: data.scoreStatus,
+				},
+			})
 
 			return { success: true, data: { resultId: scoreId, isNew: true } }
 		},
@@ -1069,6 +1145,19 @@ export const saveCompetitionScoresFn = createServerFn({ method: "POST" })
 			const errors: Array<{ userId: string; error: string }> = []
 			let savedCount = 0
 
+			// Update request context
+			addRequestContextAttribute("competitionId", data.competitionId)
+			addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
+
+			logInfo({
+				message: "[Score] Batch save competition scores started",
+				attributes: {
+					competitionId: data.competitionId,
+					trackWorkoutId: data.trackWorkoutId,
+					scoreCount: data.scores.length,
+				},
+			})
+
 			// Check submission window for online competitions
 			const submissionCheck = await isWithinSubmissionWindow(
 				data.competitionId,
@@ -1076,6 +1165,14 @@ export const saveCompetitionScoresFn = createServerFn({ method: "POST" })
 			)
 
 			if (!submissionCheck.allowed) {
+				logWarning({
+					message: "[Score] Batch submission window blocked",
+					attributes: {
+						competitionId: data.competitionId,
+						trackWorkoutId: data.trackWorkoutId,
+						reason: submissionCheck.reason,
+					},
+				})
 				throw new Error(
 					submissionCheck.reason || "Score submission not allowed at this time",
 				)
@@ -1120,12 +1217,32 @@ export const saveCompetitionScoresFn = createServerFn({ method: "POST" })
 					})
 					savedCount++
 				} catch (error) {
+					const errorMessage =
+						error instanceof Error ? error.message : "Unknown error"
 					errors.push({
 						userId: scoreData.userId,
-						error: error instanceof Error ? error.message : "Unknown error",
+						error: errorMessage,
+					})
+					logError({
+						message: "[Score] Failed to save individual score in batch",
+						error,
+						attributes: {
+							userId: scoreData.userId,
+							registrationId: scoreData.registrationId,
+						},
 					})
 				}
 			}
+
+			logInfo({
+				message: "[Score] Batch save competition scores completed",
+				attributes: {
+					competitionId: data.competitionId,
+					trackWorkoutId: data.trackWorkoutId,
+					savedCount,
+					errorCount: errors.length,
+				},
+			})
 
 			return { success: true, data: { savedCount, errors } }
 		},
@@ -1141,6 +1258,20 @@ export const deleteCompetitionScoreFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }): Promise<{ success: boolean }> => {
 		const db = getDb()
 
+		// Update request context
+		addRequestContextAttribute("competitionId", data.competitionId)
+		addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
+		addRequestContextAttribute("targetUserId", data.userId)
+
+		logInfo({
+			message: "[Score] Delete competition score started",
+			attributes: {
+				competitionId: data.competitionId,
+				trackWorkoutId: data.trackWorkoutId,
+				userId: data.userId,
+			},
+		})
+
 		// Delete from scores table (score_rounds are cascade deleted)
 		await db
 			.delete(scoresTable)
@@ -1150,6 +1281,16 @@ export const deleteCompetitionScoreFn = createServerFn({ method: "POST" })
 					eq(scoresTable.userId, data.userId),
 				),
 			)
+
+		logEntityDeleted({
+			entity: "score",
+			id: `${data.trackWorkoutId}:${data.userId}`,
+			attributes: {
+				competitionId: data.competitionId,
+				trackWorkoutId: data.trackWorkoutId,
+				userId: data.userId,
+			},
+		})
 
 		return { success: true }
 	})
@@ -1165,8 +1306,15 @@ export const deleteCompetitionScoreFn = createServerFn({ method: "POST" })
 async function requireScoreAccess(competitionTeamId: string): Promise<void> {
 	const session = await getSessionFromCookie()
 	if (!session?.userId) {
+		logWarning({
+			message: "[Score] Volunteer access denied - not authenticated",
+			attributes: { competitionTeamId },
+		})
 		throw new Error("Not authenticated")
 	}
+
+	updateRequestContext({ userId: session.userId })
+	addRequestContextAttribute("competitionTeamId", competitionTeamId)
 
 	const db = getDb()
 	const entitlements = await db.query.entitlementTable.findMany({
@@ -1183,8 +1331,24 @@ async function requireScoreAccess(competitionTeamId: string): Promise<void> {
 	})
 
 	if (entitlements.length === 0) {
+		logWarning({
+			message: "[Score] Volunteer access denied - missing entitlement",
+			attributes: {
+				userId: session.userId,
+				competitionTeamId,
+				entitlementType: "competition_score_input",
+			},
+		})
 		throw new Error("Missing score access permission")
 	}
+
+	logInfo({
+		message: "[Score] Volunteer access granted",
+		attributes: {
+			userId: session.userId,
+			competitionTeamId,
+		},
+	})
 }
 
 const volunteerScoreAccessInputSchema = z.object({
