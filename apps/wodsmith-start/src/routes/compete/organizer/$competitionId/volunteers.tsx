@@ -289,6 +289,7 @@ function VolunteersPage() {
 				<TabsContent value="schedule">
 					<JudgeSchedulingContainer
 						competitionId={competition.id}
+						competitionSlug={competition.slug}
 						organizingTeamId={competition.organizingTeamId}
 						competitionType={competition.competitionType}
 						events={events}
