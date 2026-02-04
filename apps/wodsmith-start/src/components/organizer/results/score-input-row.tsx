@@ -140,10 +140,10 @@ export const ScoreInputRow = forwardRef<
 				"grid items-center gap-3 border-b p-3 transition-colors",
 				gridColsClass,
 				isInvalidWarning &&
-					"bg-yellow-50 dark:bg-yellow-950/20 border-yellow-300",
+					"bg-yellow-50 dark:bg-yellow-950/20 border-yellow-300 dark:border-yellow-700",
 				hasWarning &&
 					!isInvalidWarning &&
-					"bg-amber-50 dark:bg-amber-950/20 border-amber-300",
+					"bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700",
 				isSaved &&
 					!isInvalidWarning &&
 					!hasWarning &&
@@ -343,10 +343,10 @@ export const ScoreInputRow = forwardRef<
 							}
 							className={cn(
 								"h-10 text-base font-mono",
-								isInvalidWarning && "border-yellow-400 focus:ring-yellow-400",
+								isInvalidWarning && "border-yellow-400 focus:ring-yellow-400 dark:border-yellow-600 dark:focus:ring-yellow-600",
 								hasWarning &&
 									!isInvalidWarning &&
-									"border-amber-400 focus:ring-amber-400",
+									"border-amber-400 focus:ring-amber-400 dark:border-amber-600 dark:focus:ring-amber-600",
 							)}
 						/>
 						{parseResult?.isValid && !showSecondaryInput && (
@@ -388,7 +388,7 @@ export const ScoreInputRow = forwardRef<
 				{/* Warning Message (only for invalid scores) */}
 				{isInvalidWarning && parseResult?.error && (
 					<div className="flex items-start gap-2 rounded-md bg-yellow-100 dark:bg-yellow-900/30 p-2 text-sm">
-						<AlertTriangle className="h-4 w-4 shrink-0 text-yellow-600" />
+						<AlertTriangle className="h-4 w-4 shrink-0 text-yellow-600 dark:text-yellow-400" />
 						<div className="flex-1">
 							<p className="font-medium text-yellow-800 dark:text-yellow-200">
 								{parseResult.error}
@@ -434,7 +434,7 @@ export const ScoreInputRow = forwardRef<
 							(showTieBreakWarning ||
 								(tieBreakParseResult?.error &&
 									!tieBreakParseResult?.isValid)) &&
-								"border-yellow-400 focus:ring-yellow-400",
+								"border-yellow-400 focus:ring-yellow-400 dark:border-yellow-600 dark:focus:ring-yellow-600",
 						)}
 					/>
 					{tieBreakParseResult?.isValid && !showTieBreakWarning && (
@@ -451,7 +451,7 @@ export const ScoreInputRow = forwardRef<
 					{/* Tiebreak Warning Message */}
 					{showTieBreakWarning && tieBreakParseResult?.error && (
 						<div className="flex items-start gap-2 rounded-md bg-yellow-100 dark:bg-yellow-900/30 p-2 text-sm">
-							<AlertTriangle className="h-4 w-4 shrink-0 text-yellow-600" />
+							<AlertTriangle className="h-4 w-4 shrink-0 text-yellow-600 dark:text-yellow-400" />
 							<div className="flex-1">
 								<p className="font-medium text-yellow-800 dark:text-yellow-200">
 									{tieBreakParseResult.error}
@@ -499,7 +499,7 @@ export const ScoreInputRow = forwardRef<
 					}
 					if (isSaved || hasExistingResult) {
 						return (
-							<div className="flex items-center justify-center gap-1.5 text-sm text-green-600">
+							<div className="flex items-center justify-center gap-1.5 text-sm text-green-600 dark:text-green-400">
 								<Check className="h-4 w-4" />
 								<span className="hidden sm:inline">Saved</span>
 							</div>
