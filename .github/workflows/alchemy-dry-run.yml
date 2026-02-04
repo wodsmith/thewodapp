@@ -27,6 +27,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -44,10 +46,14 @@ jobs:
         run: pnpm install --frozen-lockfile
         working-directory: .
 
+      - name: Fetch base branch
+        run: git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
+        working-directory: .
+
       - name: Run Alchemy dry run
         id: dry-run
         run: |
-          set -o pipefail
+          set +e  # Don't exit on error
 
           # Run alchemy in read mode and capture output
           echo "Running Alchemy in dry-run mode (--read)..."
@@ -56,26 +62,41 @@ jobs:
           OUTPUT_FILE=$(mktemp)
 
           # Run alchemy with --read flag and capture both stdout and stderr
-          if bun ./alchemy.run.ts --read 2>&1 | tee "$OUTPUT_FILE"; then
+          bun ./alchemy.run.ts --read 2>&1 | tee "$OUTPUT_FILE"
+          EXIT_CODE=${PIPESTATUS[0]}
+
+          # Check if it's a "not found" error (new environment with no state)
+          if grep -q "not found and running in 'read' phase" "$OUTPUT_FILE"; then
+            echo "is_new_environment=true" >> $GITHUB_OUTPUT
             echo "dry_run_success=true" >> $GITHUB_OUTPUT
+            echo "creates=all" >> $GITHUB_OUTPUT
+            echo "updates=0" >> $GITHUB_OUTPUT
+            echo "deletes=0" >> $GITHUB_OUTPUT
+          elif [ $EXIT_CODE -eq 0 ]; then
+            echo "is_new_environment=false" >> $GITHUB_OUTPUT
+            echo "dry_run_success=true" >> $GITHUB_OUTPUT
+
+            # Parse the output to extract resource changes
+            CREATES=$(grep -c "Create" "$OUTPUT_FILE" 2>/dev/null || echo "0")
+            UPDATES=$(grep -c "Update" "$OUTPUT_FILE" 2>/dev/null || echo "0")
+            DELETES=$(grep -c "Delete" "$OUTPUT_FILE" 2>/dev/null || echo "0")
+
+            echo "creates=$CREATES" >> $GITHUB_OUTPUT
+            echo "updates=$UPDATES" >> $GITHUB_OUTPUT
+            echo "deletes=$DELETES" >> $GITHUB_OUTPUT
           else
+            echo "is_new_environment=false" >> $GITHUB_OUTPUT
             echo "dry_run_success=false" >> $GITHUB_OUTPUT
+            echo "creates=?" >> $GITHUB_OUTPUT
+            echo "updates=?" >> $GITHUB_OUTPUT
+            echo "deletes=?" >> $GITHUB_OUTPUT
           fi
 
-          # Parse the output to extract resource changes
-          CREATES=$(grep -c "Create" "$OUTPUT_FILE" 2>/dev/null || echo "0")
-          UPDATES=$(grep -c "Update" "$OUTPUT_FILE" 2>/dev/null || echo "0")
-          DELETES=$(grep -c "Delete" "$OUTPUT_FILE" 2>/dev/null || echo "0")
-
-          echo "creates=$CREATES" >> $GITHUB_OUTPUT
-          echo "updates=$UPDATES" >> $GITHUB_OUTPUT
-          echo "deletes=$DELETES" >> $GITHUB_OUTPUT
-
-          # Save full output for the comment
+          # Save full output for the comment (escape for multiline)
           {
-            echo 'output<<EOF'
-            cat "$OUTPUT_FILE" | head -200
-            echo 'EOF'
+            echo 'output<<ALCHEMYEOF'
+            head -100 "$OUTPUT_FILE"
+            echo 'ALCHEMYEOF'
           } >> $GITHUB_OUTPUT
 
           rm -f "$OUTPUT_FILE"
@@ -86,54 +107,101 @@ jobs:
           ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
           ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
           APP_URL: https://wodsmith-app-${{ env.STAGE }}.zacjones93.workers.dev
-          # Secrets for all environments
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          # AI configuration (optional)
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
+
+      - name: Analyze infrastructure file changes
+        id: file-diff
+        run: |
+          # Get the diff for alchemy.run.ts
+          DIFF=$(git diff origin/${{ github.base_ref }}...HEAD -- alchemy.run.ts 2>/dev/null | head -200 || echo "")
+
+          if [ -n "$DIFF" ]; then
+            {
+              echo 'diff<<DIFFEOF'
+              echo "$DIFF"
+              echo 'DIFFEOF'
+            } >> $GITHUB_OUTPUT
+            echo "has_diff=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_diff=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Generate report
         id: report
         run: |
-          cat > /tmp/report.md << 'EOF'
+          cat > /tmp/report.md << 'HEADER'
           ## Alchemy Infrastructure Preview
 
-          This PR modifies infrastructure configuration. Below is the dry-run output showing what would change when deployed.
+          This PR modifies infrastructure configuration.
 
-          EOF
+          HEADER
 
-          # Add summary
-          echo "### Summary" >> /tmp/report.md
-          echo "" >> /tmp/report.md
-          echo "| Action | Count |" >> /tmp/report.md
-          echo "|--------|-------|" >> /tmp/report.md
-          echo "| Create | ${{ steps.dry-run.outputs.creates }} |" >> /tmp/report.md
-          echo "| Update | ${{ steps.dry-run.outputs.updates }} |" >> /tmp/report.md
-          echo "| Delete | ${{ steps.dry-run.outputs.deletes }} |" >> /tmp/report.md
-          echo "" >> /tmp/report.md
+          # Check if this is a new environment
+          if [ "${{ steps.dry-run.outputs.is_new_environment }}" = "true" ]; then
+            cat >> /tmp/report.md << 'NEWENV'
+          ### New PR Environment
 
-          # Add status indicator
-          if [ "${{ steps.dry-run.outputs.dry_run_success }}" = "true" ]; then
-            echo "> **Status:** Dry run completed successfully" >> /tmp/report.md
+          This is a **new PR environment** (`pr-${{ github.event.pull_request.number }}`) that hasn't been deployed yet.
+
+          When this PR is deployed, Alchemy will create all infrastructure resources:
+          - D1 Database
+          - KV Namespace (sessions)
+          - R2 Bucket (uploads)
+          - TanStack Start Worker
+          - GitHub PR Comment
+
+          > **Note:** To see what would change in an *existing* environment (like prod), the dry-run would need to target that stage.
+
+          NEWENV
           else
-            echo "> **Warning:** Dry run encountered errors - review output below" >> /tmp/report.md
+            # Add summary table for existing environments
+            echo "### Summary" >> /tmp/report.md
+            echo "" >> /tmp/report.md
+            echo "| Action | Count |" >> /tmp/report.md
+            echo "|--------|-------|" >> /tmp/report.md
+            echo "| Create | ${{ steps.dry-run.outputs.creates }} |" >> /tmp/report.md
+            echo "| Update | ${{ steps.dry-run.outputs.updates }} |" >> /tmp/report.md
+            echo "| Delete | ${{ steps.dry-run.outputs.deletes }} |" >> /tmp/report.md
+            echo "" >> /tmp/report.md
+
+            if [ "${{ steps.dry-run.outputs.dry_run_success }}" = "true" ]; then
+              echo "> **Status:** Dry run completed successfully" >> /tmp/report.md
+            else
+              echo "> **Warning:** Dry run encountered errors - review output below" >> /tmp/report.md
+            fi
+            echo "" >> /tmp/report.md
+
+            # Add Alchemy output
+            echo "### Alchemy Output" >> /tmp/report.md
+            echo "" >> /tmp/report.md
+            echo "<details>" >> /tmp/report.md
+            echo "<summary>View dry-run output</summary>" >> /tmp/report.md
+            echo "" >> /tmp/report.md
+            echo '```' >> /tmp/report.md
+            echo "${{ steps.dry-run.outputs.output }}" >> /tmp/report.md
+            echo '```' >> /tmp/report.md
+            echo "</details>" >> /tmp/report.md
+            echo "" >> /tmp/report.md
           fi
-          echo "" >> /tmp/report.md
 
-          # Add the full output in a collapsible section
-          echo "### Alchemy Output" >> /tmp/report.md
-          echo "" >> /tmp/report.md
-          echo "<details>" >> /tmp/report.md
-          echo "<summary>View full dry-run output</summary>" >> /tmp/report.md
-          echo "" >> /tmp/report.md
-          echo '```' >> /tmp/report.md
-          echo "${{ steps.dry-run.outputs.output }}" >> /tmp/report.md
-          echo '```' >> /tmp/report.md
-          echo "</details>" >> /tmp/report.md
-          echo "" >> /tmp/report.md
+          # Add file diff section if there are changes
+          if [ "${{ steps.file-diff.outputs.has_diff }}" = "true" ]; then
+            echo "### Configuration Changes" >> /tmp/report.md
+            echo "" >> /tmp/report.md
+            echo "<details>" >> /tmp/report.md
+            echo "<summary>View alchemy.run.ts diff</summary>" >> /tmp/report.md
+            echo "" >> /tmp/report.md
+            echo '```diff' >> /tmp/report.md
+            echo "${{ steps.file-diff.outputs.diff }}" >> /tmp/report.md
+            echo '```' >> /tmp/report.md
+            echo "</details>" >> /tmp/report.md
+            echo "" >> /tmp/report.md
+          fi
 
-          # Add stage info
+          # Add footer
           echo "---" >> /tmp/report.md
           echo "" >> /tmp/report.md
           echo "*Stage:* \`${{ env.STAGE }}\` | *Commit:* \`${{ github.sha }}\`" >> /tmp/report.md
