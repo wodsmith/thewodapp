@@ -1,3 +1,4 @@
+import { useEffect } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { z } from "zod"
 import type { JudgeAssignmentVersion } from "@/db/schema"
@@ -192,7 +193,6 @@ export const Route = createFileRoute(
 			invitations,
 			volunteersWithAccess,
 			events,
-			directInvites,
 			pendingDirectInvites,
 			judges,
 			heats,
@@ -213,7 +213,6 @@ function VolunteersPage() {
 		invitations,
 		volunteersWithAccess,
 		events,
-		directInvites,
 		pendingDirectInvites,
 		judges,
 		heats,
@@ -238,8 +237,22 @@ function VolunteersPage() {
 	// Check if schedule tab should be available (in-person competitions only)
 	const isInPerson = competition.competitionType === "in-person"
 
+	// Derive effective tab - fall back to roster if schedule isn't allowed
+	const effectiveTab = !isInPerson && tab === "schedule" ? "roster" : tab
+
+	// Sync URL/state when competition type changes and schedule tab is no longer valid
+	useEffect(() => {
+		if (!isInPerson && tab === "schedule") {
+			navigate({
+				to: ".",
+				search: { tab: "roster" },
+				replace: true,
+			})
+		}
+	}, [isInPerson, tab, navigate])
+
 	return (
-		<Tabs value={tab} onValueChange={handleTabChange} className="w-full">
+		<Tabs value={effectiveTab} onValueChange={handleTabChange} className="w-full">
 			<TabsList className="mb-6">
 				<TabsTrigger value="roster">Roster</TabsTrigger>
 				{isInPerson && <TabsTrigger value="schedule">Judge Schedule</TabsTrigger>}
@@ -257,7 +270,7 @@ function VolunteersPage() {
 								{pendingDirectInvites.length === 1 ? "invite" : "invites"}
 							</p>
 						</div>
-						<InvitedVolunteersList invites={directInvites} />
+						<InvitedVolunteersList invites={pendingDirectInvites} />
 					</section>
 				)}
 
