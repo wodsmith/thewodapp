@@ -16,6 +16,7 @@ import {
 	competitionDivisionsTable,
 } from "@/db/schemas/commerce"
 import {
+	createAddressId,
 	createCommerceProductId,
 	createCommercePurchaseId,
 	createCompetitionHeatAssignmentId,
@@ -23,6 +24,8 @@ import {
 	createCompetitionRegistrationId,
 	createCompetitionVenueId,
 	createHeatVolunteerId,
+	createJudgeAssignmentVersionId,
+	createJudgeRotationId,
 	createProgrammingTrackId,
 	createScalingGroupId,
 	createScalingLevelId,
@@ -33,6 +36,7 @@ import {
 	createUserId,
 	createWorkoutScalingDescriptionId,
 } from "@/db/schemas/common"
+import { addressesTable } from "@/db/schemas/addresses"
 import {
 	competitionHeatAssignmentsTable,
 	competitionHeatsTable,
@@ -53,12 +57,17 @@ import { scoresTable, scoreRoundsTable } from "@/db/schemas/scores"
 import { sponsorsTable } from "@/db/schemas/sponsors"
 import { teamMembershipTable, teamTable } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
-import { judgeHeatAssignmentsTable } from "@/db/schemas/volunteers"
+import {
+	competitionJudgeRotationsTable,
+	judgeAssignmentVersionsTable,
+	judgeHeatAssignmentsTable,
+} from "@/db/schemas/volunteers"
 import { waiversTable } from "@/db/schemas/waivers"
 import { workouts as workoutsTable } from "@/db/schemas/workouts"
 import {
 	DEMO_DIVISIONS,
 	DEMO_EMAIL_DOMAIN,
+	DEMO_PRIMARY_ADDRESS,
 	DEMO_SPONSORS,
 	DEMO_WAIVER_CONTENT,
 	DEMO_WORKOUTS,
@@ -71,6 +80,7 @@ import {
 	MALE_FIRST_NAMES,
 	shuffleArray,
 } from "@/lib/demo-data"
+import { computeSortKey, sortKeyToString } from "@/lib/scoring"
 import { requireAdmin } from "@/utils/auth"
 import { chunk } from "@/utils/batch-query"
 import { generateSlug } from "@/utils/slugify"
@@ -348,6 +358,13 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 
 			// Keep as draft/unpublished - organizer can publish when ready
 			// Set up fee configuration for revenue demo
+			// Create primary address for the competition
+			const primaryAddressId = createAddressId()
+			await db.insert(addressesTable).values({
+				id: primaryAddressId,
+				...DEMO_PRIMARY_ADDRESS,
+			})
+
 			await db
 				.update(competitionsTable)
 				.set({
@@ -360,6 +377,8 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 					// Pass platform fees to customer, organizer absorbs Stripe fees
 					passPlatformFeesToCustomer: true,
 					passStripeFeesToCustomer: false,
+					// Link primary address
+					primaryAddressId,
 				})
 				.where(eq(competitionsTable.id, competitionId))
 
@@ -906,6 +925,11 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 			const scoreInserts: Array<typeof scoresTable.$inferInsert> = []
 			const scoreRoundInserts: Array<typeof scoreRoundsTable.$inferInsert> = []
 
+			// Get the first division ID (heat 1) for creating a tie
+			const heat1DivisionId = divisionIds[DEMO_DIVISIONS[0]!.label]!
+			let heat1ScoreCount = 0
+			let tiedScoreValue: number | null = null // Store the tied score value
+
 			// Only create scores for workout 0 (Event 1)
 			for (let workoutIdx = 0; workoutIdx < 1; workoutIdx++) {
 				const trackWorkoutId = trackWorkoutIds[workoutIdx]!
@@ -931,7 +955,49 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 
 					if (workoutTemplate.scheme === "time-with-cap") {
 						const timeCapMs = (workoutTemplate.timeCap || 720) * 1000
-						const score = generateTimeScore(timeCapMs, 0.7)
+						let score = generateTimeScore(timeCapMs, 0.7)
+
+						// For heat 1 (first division), create a tie between first 2 athletes
+						const isHeat1 = reg.divisionId === heat1DivisionId
+						if (isHeat1) {
+							heat1ScoreCount++
+							if (heat1ScoreCount === 1) {
+								// First athlete - store their score for the tie
+								// Make sure they finished (not capped) for a clean tie demo
+								score = generateTimeScore(timeCapMs, 1.0) // 100% chance to finish
+								tiedScoreValue = score.scoreValue
+							} else if (heat1ScoreCount === 2 && tiedScoreValue !== null) {
+								// Second athlete - use the same score as first (create tie)
+								score = {
+									scoreValue: tiedScoreValue,
+									status: "scored",
+								}
+							}
+						}
+
+						// Generate tiebreak time: 2-3 minutes faster than total time
+						// Tiebreak is at completion of round of 15 (after 36 reps of 45)
+						// So tiebreak should be roughly 80% of total time, minus 2-3 min
+						const tiebreakOffset = (120 + Math.random() * 60) * 1000 // 2-3 min in ms
+						const tiebreakValue =
+							score.status === "scored"
+								? Math.max(60000, score.scoreValue - tiebreakOffset) // At least 1 min
+								: Math.max(60000, timeCapMs * 0.7 - tiebreakOffset) // For capped
+
+						// Compute sortKey for proper ranking with tiebreaks
+						const sortKey = sortKeyToString(
+							computeSortKey({
+								value: score.scoreValue,
+								status: score.status,
+								scheme: "time-with-cap",
+								scoreType: "min",
+								timeCap:
+									score.status === "cap"
+										? { ms: timeCapMs, secondaryValue: score.secondaryValue ?? 0 }
+										: undefined,
+								tiebreak: { scheme: "time", value: Math.floor(tiebreakValue) },
+							}),
+						)
 
 						scoreInserts.push({
 							id: scoreId,
@@ -944,8 +1010,11 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 							scoreValue: score.scoreValue,
 							status: score.status,
 							statusOrder: score.status === "scored" ? 0 : 1,
+							sortKey,
 							timeCapMs,
 							secondaryValue: score.secondaryValue,
+							tiebreakScheme: "time",
+							tiebreakValue: Math.floor(tiebreakValue),
 							scalingLevelId: reg.divisionId,
 							asRx: true,
 							recordedAt: new Date(),
@@ -954,6 +1023,16 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 						const score = generateLoadScore(
 							division.gender,
 							workoutTemplate.roundsToScore || 5,
+						)
+
+						// Compute sortKey for load scores (no tiebreak)
+						const sortKey = sortKeyToString(
+							computeSortKey({
+								value: score.scoreValue,
+								status: "scored",
+								scheme: "load",
+								scoreType: "sum",
+							}),
 						)
 
 						scoreInserts.push({
@@ -967,6 +1046,7 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 							scoreValue: score.scoreValue,
 							status: "scored",
 							statusOrder: 0,
+							sortKey,
 							scalingLevelId: reg.divisionId,
 							asRx: true,
 							recordedAt: new Date(),
@@ -1018,31 +1098,74 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 				volunteerMetadata,
 			)
 
-			// 15. Create judge heat assignments for workouts 1-2
-			for (let workoutIdx = 0; workoutIdx < 2; workoutIdx++) {
-				// Get heats for this workout (4 heats)
-				const workoutHeats = heatsCreated.slice(
-					workoutIdx * 4,
-					(workoutIdx + 1) * 4,
-				)
+			// 15. Create judge rotations and publish for Event 1 (completed event)
+			// Event 1 has 4 heats (one per division), numbered 1-4
+			// Assign 10 judges to lanes 1-10, each covering all 4 heats
+			const event1TrackWorkoutId = trackWorkoutIds[0]!
+			const event1Heats = heatsCreated.slice(0, 4) // First 4 heats are Event 1
 
-				for (const heatId of workoutHeats) {
-					// Assign 10 judges (1 per lane)
-					const shuffledMembershipIds = shuffleArray(volunteerMembershipIds)
-					for (
-						let laneIdx = 0;
-						laneIdx < 10 && laneIdx < shuffledMembershipIds.length;
-						laneIdx++
-					) {
-						await db.insert(judgeHeatAssignmentsTable).values({
-							id: createHeatVolunteerId(),
-							heatId,
-							membershipId: shuffledMembershipIds[laneIdx]!,
-							laneNumber: laneIdx + 1,
-							position: "judge",
-						})
-					}
+			// Create rotations for Event 1 - each volunteer judges all 4 heats on their assigned lane
+			const rotationInserts: Array<
+				typeof competitionJudgeRotationsTable.$inferInsert
+			> = []
+			for (
+				let laneIdx = 0;
+				laneIdx < 10 && laneIdx < volunteerMembershipIds.length;
+				laneIdx++
+			) {
+				rotationInserts.push({
+					id: createJudgeRotationId(),
+					competitionId,
+					trackWorkoutId: event1TrackWorkoutId,
+					membershipId: volunteerMembershipIds[laneIdx]!,
+					startingHeat: 1, // Start at heat 1
+					startingLane: laneIdx + 1, // Lane 1-10
+					heatsCount: 4, // Cover all 4 heats
+					laneShiftPattern: "stay", // Stay on same lane
+				})
+			}
+
+			// Insert rotations in batches (~10 columns, batch of 8)
+			for (const batch of chunk(rotationInserts, 8)) {
+				await db.insert(competitionJudgeRotationsTable).values(batch)
+			}
+
+			// Create a published version for Event 1
+			const versionId = createJudgeAssignmentVersionId()
+			await db.insert(judgeAssignmentVersionsTable).values({
+				id: versionId,
+				trackWorkoutId: event1TrackWorkoutId,
+				version: 1,
+				publishedAt: new Date(),
+				publishedBy: null, // System generated
+				notes: "Demo competition initial assignment",
+				isActive: true,
+			})
+
+			// Materialize the rotations into actual heat assignments
+			// For each rotation, create assignments for all 4 heats
+			const assignmentInserts: Array<
+				typeof judgeHeatAssignmentsTable.$inferInsert
+			> = []
+			for (const rotation of rotationInserts) {
+				for (let heatIdx = 0; heatIdx < 4; heatIdx++) {
+					const heatId = event1Heats[heatIdx]!
+					assignmentInserts.push({
+						id: createHeatVolunteerId(),
+						heatId,
+						membershipId: rotation.membershipId,
+						rotationId: rotation.id,
+						versionId,
+						laneNumber: rotation.startingLane,
+						position: "judge",
+						isManualOverride: false,
+					})
 				}
+			}
+
+			// Insert assignments in batches (~11 columns, batch of 8)
+			for (const batch of chunk(assignmentInserts, 8)) {
+				await db.insert(judgeHeatAssignmentsTable).values(batch)
 			}
 
 			// 16. Create waiver
@@ -1059,7 +1182,7 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 			settings.demoTeamIds = createdTeamIds
 
 			// Publish results for Event 1 (it's completed in the past)
-			const event1TrackWorkoutId = trackWorkoutIds[0]!
+			// event1TrackWorkoutId already defined above in judge rotation section
 			const publishedAt = Date.now()
 			settings.divisionResults = {
 				[event1TrackWorkoutId]: {},
@@ -1254,7 +1377,12 @@ export const deleteDemoCompetitionFn = createServerFn({ method: "POST" })
 				await db.delete(scoresTable).where(eq(scoresTable.id, score.id))
 			}
 
-			// 2. Delete heat-related data
+			// 2. Delete judge rotations for this competition
+			await db
+				.delete(competitionJudgeRotationsTable)
+				.where(eq(competitionJudgeRotationsTable.competitionId, data.competitionId))
+
+			// 2.5 Delete heat-related data
 			const heats = await db.query.competitionHeatsTable.findMany({
 				where: eq(competitionHeatsTable.competitionId, data.competitionId),
 			})
@@ -1314,6 +1442,13 @@ export const deleteDemoCompetitionFn = createServerFn({ method: "POST" })
 				})
 
 				const workoutIds = trackWorkouts.map((tw) => tw.workoutId)
+
+				// Delete judge assignment versions for each track workout
+				for (const tw of trackWorkouts) {
+					await db
+						.delete(judgeAssignmentVersionsTable)
+						.where(eq(judgeAssignmentVersionsTable.trackWorkoutId, tw.id))
+				}
 
 				// Delete track workouts first (references trackId, workoutId, sponsorId)
 				await db
@@ -1409,9 +1544,22 @@ export const deleteDemoCompetitionFn = createServerFn({ method: "POST" })
 			}
 
 			// 11. Delete competition (now that all references are removed)
+			// Store primaryAddressId before deletion
+			const primaryAddressId = competition.primaryAddressId
 			await db
 				.delete(competitionsTable)
 				.where(eq(competitionsTable.id, data.competitionId))
+
+			// 11.5 Delete primary address if exists
+			if (primaryAddressId) {
+				try {
+					await db
+						.delete(addressesTable)
+						.where(eq(addressesTable.id, primaryAddressId))
+				} catch {
+					// Ignore if already deleted
+				}
+			}
 
 			// 12. Delete demo users
 			if (demoUserIds.length > 0) {

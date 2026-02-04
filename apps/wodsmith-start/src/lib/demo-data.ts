@@ -215,6 +215,21 @@ export const DEMO_DIVISIONS: DivisionConfig[] = [
 ]
 
 // ============================================================================
+// Primary Address
+// ============================================================================
+
+export const DEMO_PRIMARY_ADDRESS = {
+	name: "CrossFit Demo Gym",
+	streetLine1: "123 Barbell Way",
+	streetLine2: "Suite 100",
+	city: "Austin",
+	stateProvince: "TX",
+	postalCode: "78701",
+	countryCode: "US",
+	addressType: "venue" as const,
+}
+
+// ============================================================================
 // Sponsor Templates
 // ============================================================================
 
@@ -393,12 +408,13 @@ export function generateTimeScore(
 		const scoreValue = Math.floor(minTime + Math.random() * (maxTime - minTime))
 		return { scoreValue, status: "scored" }
 	}
-	// Capped - score is reps completed (out of 45 for 21-15-9)
+	// Capped - score is the time cap (they used all the time)
+	// secondaryValue is reps completed (out of 45 for 21-15-9)
 	const repsCompleted = Math.floor(Math.random() * 45) + 1
 	return {
-		scoreValue: repsCompleted,
+		scoreValue: timeCapMs, // Score is the time cap
 		status: "cap",
-		secondaryValue: repsCompleted,
+		secondaryValue: repsCompleted, // Reps they actually completed
 	}
 }
 
