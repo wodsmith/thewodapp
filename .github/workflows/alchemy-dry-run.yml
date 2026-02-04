@@ -1,0 +1,193 @@
+name: Alchemy Infrastructure Preview
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+    paths:
+      - 'apps/wodsmith-start/alchemy.run.ts'
+      - 'apps/wodsmith-start/wrangler.jsonc'
+      - 'apps/docs/alchemy.run.ts'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  preview-changes:
+    runs-on: ubuntu-latest
+    name: Preview Infrastructure Changes
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch
+        run: git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
+
+      - name: Analyze infrastructure changes
+        id: analyze
+        run: |
+          set -e
+
+          # Start building the report
+          cat > /tmp/report.md << 'HEADER'
+          ## Alchemy Infrastructure Preview
+
+          This PR modifies infrastructure configuration. Here's a preview of what will change when deployed.
+
+          > **Note:** This is a static analysis of the configuration files. Actual changes depend on the current deployed state.
+
+          ---
+
+          HEADER
+
+          # Files to analyze
+          ALCHEMY_FILES=(
+            "apps/wodsmith-start/alchemy.run.ts"
+            "apps/docs/alchemy.run.ts"
+          )
+
+          CHANGES_FOUND=false
+
+          for FILE in "${ALCHEMY_FILES[@]}"; do
+            # Check if file changed
+            if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "^${FILE}$"; then
+              CHANGES_FOUND=true
+              APP_NAME=$(dirname "$FILE" | xargs basename)
+
+              echo "### \`${APP_NAME}/alchemy.run.ts\`" >> /tmp/report.md
+              echo "" >> /tmp/report.md
+
+              # Check if file exists in base branch
+              if git show origin/${{ github.base_ref }}:"$FILE" > /tmp/base_file.ts 2>/dev/null; then
+                cp "$FILE" /tmp/head_file.ts
+
+                # Extract resource definitions from both versions
+                BASE_RESOURCES=$(grep -oP 'await (D1Database|KVNamespace|R2Bucket|TanStackStart|WebhookEndpoint|Website|GitHubComment)\s*\(\s*"[^"]+' /tmp/base_file.ts 2>/dev/null | sed 's/await //' | sed 's/(/: /' || echo "")
+                HEAD_RESOURCES=$(grep -oP 'await (D1Database|KVNamespace|R2Bucket|TanStackStart|WebhookEndpoint|Website|GitHubComment)\s*\(\s*"[^"]+' /tmp/head_file.ts 2>/dev/null | sed 's/await //' | sed 's/(/: /' || echo "")
+
+                # Extract just resource names for comparison
+                BASE_NAMES=$(echo "$BASE_RESOURCES" | grep -oP '(?<=: ")[^"]+' | sort -u || echo "")
+                HEAD_NAMES=$(echo "$HEAD_RESOURCES" | grep -oP '(?<=: ")[^"]+' | sort -u || echo "")
+
+                # Find added resources
+                ADDED=""
+                while IFS= read -r name; do
+                  if [ -n "$name" ] && ! echo "$BASE_NAMES" | grep -qx "$name"; then
+                    TYPE=$(echo "$HEAD_RESOURCES" | grep "\"$name\"" | grep -oP '^[^:]+' | head -1)
+                    ADDED="${ADDED}- \`${name}\` (${TYPE})\n"
+                  fi
+                done <<< "$HEAD_NAMES"
+
+                # Find removed resources
+                REMOVED=""
+                while IFS= read -r name; do
+                  if [ -n "$name" ] && ! echo "$HEAD_NAMES" | grep -qx "$name"; then
+                    TYPE=$(echo "$BASE_RESOURCES" | grep "\"$name\"" | grep -oP '^[^:]+' | head -1)
+                    REMOVED="${REMOVED}- \`${name}\` (${TYPE})\n"
+                  fi
+                done <<< "$BASE_NAMES"
+
+                # Find common resources (potential updates)
+                COMMON=""
+                while IFS= read -r name; do
+                  if [ -n "$name" ] && echo "$BASE_NAMES" | grep -qx "$name"; then
+                    TYPE=$(echo "$HEAD_RESOURCES" | grep "\"$name\"" | grep -oP '^[^:]+' | head -1)
+                    COMMON="${COMMON}- \`${name}\` (${TYPE})\n"
+                  fi
+                done <<< "$HEAD_NAMES"
+
+                if [ -n "$ADDED" ]; then
+                  echo "**Resources to be created:**" >> /tmp/report.md
+                  echo -e "$ADDED" >> /tmp/report.md
+                fi
+
+                if [ -n "$REMOVED" ]; then
+                  echo "**Resources to be removed:**" >> /tmp/report.md
+                  echo -e "$REMOVED" >> /tmp/report.md
+                fi
+
+                if [ -n "$COMMON" ]; then
+                  echo "**Resources that may be updated:**" >> /tmp/report.md
+                  echo -e "$COMMON" >> /tmp/report.md
+                fi
+
+                # Check for binding/environment variable changes
+                BASE_BINDINGS=$(grep -E '^\s*(DB|KV_SESSION|R2_BUCKET|APP_URL|NODE_ENV|SITE_URL|EMAIL_FROM|EMAIL_FROM_NAME|EMAIL_REPLY_TO|POSTHOG_KEY|TURNSTILE_SITE_KEY|TURNSTILE_SECRET_KEY|STRIPE_|OPENAI_API_KEY|BRAINTRUST_API_KEY|CRON_SECRET|R2_PUBLIC_URL|RESEND_API_KEY):' /tmp/base_file.ts 2>/dev/null | sort || echo "")
+                HEAD_BINDINGS=$(grep -E '^\s*(DB|KV_SESSION|R2_BUCKET|APP_URL|NODE_ENV|SITE_URL|EMAIL_FROM|EMAIL_FROM_NAME|EMAIL_REPLY_TO|POSTHOG_KEY|TURNSTILE_SITE_KEY|TURNSTILE_SECRET_KEY|STRIPE_|OPENAI_API_KEY|BRAINTRUST_API_KEY|CRON_SECRET|R2_PUBLIC_URL|RESEND_API_KEY):' /tmp/head_file.ts 2>/dev/null | sort || echo "")
+
+                if [ "$BASE_BINDINGS" != "$HEAD_BINDINGS" ]; then
+                  echo "**Environment variable/binding changes detected**" >> /tmp/report.md
+                  echo "" >> /tmp/report.md
+                fi
+
+              else
+                echo "**New infrastructure file** - all resources will be created on first deploy." >> /tmp/report.md
+                echo "" >> /tmp/report.md
+
+                # List all resources in new file
+                HEAD_RESOURCES=$(grep -oP 'await (D1Database|KVNamespace|R2Bucket|TanStackStart|WebhookEndpoint|Website|GitHubComment)\s*\(\s*"[^"]+' "$FILE" 2>/dev/null | sed 's/await //' | sed 's/(/: /' || echo "")
+                if [ -n "$HEAD_RESOURCES" ]; then
+                  echo "**Resources to be created:**" >> /tmp/report.md
+                  echo "$HEAD_RESOURCES" | while IFS= read -r line; do
+                    NAME=$(echo "$line" | grep -oP '(?<=: ")[^"]+')
+                    TYPE=$(echo "$line" | grep -oP '^[^:]+')
+                    echo "- \`${NAME}\` (${TYPE})" >> /tmp/report.md
+                  done
+                  echo "" >> /tmp/report.md
+                fi
+              fi
+
+              # Show the actual diff
+              echo "<details>" >> /tmp/report.md
+              echo "<summary>View full diff</summary>" >> /tmp/report.md
+              echo "" >> /tmp/report.md
+              echo '```diff' >> /tmp/report.md
+              git diff origin/${{ github.base_ref }}...HEAD -- "$FILE" | head -300 >> /tmp/report.md || echo "Unable to generate diff" >> /tmp/report.md
+              echo '```' >> /tmp/report.md
+              echo "</details>" >> /tmp/report.md
+              echo "" >> /tmp/report.md
+            fi
+          done
+
+          # Check wrangler.jsonc separately
+          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "^apps/wodsmith-start/wrangler.jsonc$"; then
+            CHANGES_FOUND=true
+            echo "### \`wrangler.jsonc\`" >> /tmp/report.md
+            echo "" >> /tmp/report.md
+            echo "Base Cloudflare Worker configuration has been modified." >> /tmp/report.md
+            echo "" >> /tmp/report.md
+            echo "<details>" >> /tmp/report.md
+            echo "<summary>View full diff</summary>" >> /tmp/report.md
+            echo "" >> /tmp/report.md
+            echo '```diff' >> /tmp/report.md
+            git diff origin/${{ github.base_ref }}...HEAD -- "apps/wodsmith-start/wrangler.jsonc" | head -150 >> /tmp/report.md || echo "Unable to generate diff" >> /tmp/report.md
+            echo '```' >> /tmp/report.md
+            echo "</details>" >> /tmp/report.md
+            echo "" >> /tmp/report.md
+          fi
+
+          if [ "$CHANGES_FOUND" = false ]; then
+            echo "No infrastructure changes detected in this PR." > /tmp/report.md
+          fi
+
+          echo "changes_found=$CHANGES_FOUND" >> $GITHUB_OUTPUT
+
+      - name: Find existing comment
+        uses: peter-evans/find-comment@v3
+        id: find-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '## Alchemy Infrastructure Preview'
+
+      - name: Create or update comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          edit-mode: replace
+          body-path: /tmp/report.md
