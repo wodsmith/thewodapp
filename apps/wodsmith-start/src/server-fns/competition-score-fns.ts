@@ -942,7 +942,21 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 				? data.workout.timeCap * 1000
 				: null
 
+			// Encode tiebreak if provided (needed for sortKey computation)
+			let tiebreakValue: number | null = null
+			if (data.tieBreakScore && data.workout.tiebreakScheme) {
+				try {
+					tiebreakValue = encodeScore(
+						data.tieBreakScore,
+						data.workout.tiebreakScheme as ScoringWorkoutScheme,
+					)
+				} catch (_error) {
+					// Silently ignore tiebreak encoding errors
+				}
+			}
+
 			// Compute sort key for efficient leaderboard queries
+			// Include tiebreak in sortKey so tied scores can be differentiated
 			const sortKey =
 				encodedValue !== null
 					? computeSortKey({
@@ -950,6 +964,19 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 							status: newStatus,
 							scheme,
 							scoreType,
+							// Include time cap info for capped scores
+							timeCap:
+								newStatus === "cap" && timeCapMs && secondaryValue !== null
+									? { ms: timeCapMs, secondaryValue }
+									: undefined,
+							// Include tiebreak for proper tie-breaking in rankings
+							tiebreak:
+								tiebreakValue !== null && data.workout.tiebreakScheme
+									? {
+											scheme: data.workout.tiebreakScheme as "time" | "reps",
+											value: tiebreakValue,
+										}
+									: undefined,
 						})
 					: null
 
@@ -971,19 +998,6 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 			}
 
 			const teamId = teamResult.ownerTeamId
-
-			// Encode tiebreak if provided
-			let tiebreakValue: number | null = null
-			if (data.tieBreakScore && data.workout.tiebreakScheme) {
-				try {
-					tiebreakValue = encodeScore(
-						data.tieBreakScore,
-						data.workout.tiebreakScheme as ScoringWorkoutScheme,
-					)
-				} catch (_error) {
-					// Silently ignore tiebreak encoding errors
-				}
-			}
 
 			// Insert/update scores table
 			await db
