@@ -65,6 +65,8 @@ export function InviteSignUpForm({
 
 			// After successful signup, redirect back to the invite page
 			// The user is now authenticated and can accept the invite
+			// Note: Pending data (answers/waivers) will be transferred automatically
+			// when they accept the invite in acceptTeamInvitationFn
 			router.navigate({ to: `/compete/invite/${inviteToken}` })
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : "Sign-up failed"

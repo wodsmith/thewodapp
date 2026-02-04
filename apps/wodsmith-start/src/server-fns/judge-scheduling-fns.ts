@@ -10,21 +10,28 @@ import { z } from "zod"
 import { getDb } from "@/db"
 import {
 	type CompetitionHeatVolunteer,
+	competitionHeatAssignmentsTable,
 	competitionHeatsTable,
 	competitionJudgeRotationsTable,
+	competitionRegistrationsTable,
+	competitionVenuesTable,
 	judgeAssignmentVersionsTable,
 	judgeHeatAssignmentsTable,
+	scalingLevelsTable,
 	teamMembershipTable,
 	trackWorkoutsTable,
 	userTable,
 	VOLUNTEER_ROLE_TYPES,
+	workouts,
 } from "@/db/schema"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { SYSTEM_ROLES_ENUM, TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { ROLES_ENUM } from "@/db/schemas/users"
 import type {
 	VolunteerAvailability,
 	VolunteerMembershipMetadata,
 } from "@/db/schemas/volunteers"
 import { autochunk, chunk } from "@/utils/batch-query"
+import { getSessionFromCookie } from "@/utils/auth"
 import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
@@ -822,4 +829,455 @@ export const clearHeatJudgeAssignmentsFn = createServerFn({ method: "POST" })
 			.where(eq(judgeHeatAssignmentsTable.heatId, data.heatId))
 
 		return { success: true }
+	})
+
+// ============================================================================
+// Judges Schedule Types
+// ============================================================================
+
+export interface JudgesScheduleHeat {
+	id: string
+	heatNumber: number
+	scheduledTime: Date | null
+	durationMinutes: number | null
+	venue: { id: string; name: string; laneCount: number } | null
+	division: { id: string; label: string } | null
+	judges: Array<{
+		assignmentId: string
+		laneNumber: number | null
+		membershipId: string
+		userId: string
+		firstName: string | null
+		lastName: string | null
+		position: string | null
+	}>
+	laneAssignments: Array<{
+		laneNumber: number
+		division: { id: string; label: string } | null
+	}>
+}
+
+export interface JudgesScheduleEvent {
+	trackWorkoutId: string
+	eventName: string
+	trackOrder: number
+	heats: JudgesScheduleHeat[]
+}
+
+// ============================================================================
+// Judges Schedule Server Functions
+// ============================================================================
+
+/**
+ * Get all heats with judge assignments for the judges schedule view.
+ * Returns events with heats sorted by time, including judge and lane assignments.
+ */
+export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
+				organizingTeamId: z
+					.string()
+					.startsWith("team_", "Invalid organizing team ID"),
+				competitionTeamId: z
+					.string()
+					.startsWith("team_", "Invalid competition team ID")
+					.nullable(),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }): Promise<{ events: JudgesScheduleEvent[] }> => {
+		const db = getDb()
+
+		// Authorization: user must be an organizer or a volunteer for this competition
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Unauthorized: Must be logged in")
+		}
+
+		// Site admins can always access
+		const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
+
+		let canAccess = isSiteAdmin
+		if (!canAccess) {
+			// Check if user is an admin/owner of the organizing team
+			const organizerMembership = await db
+				.select({ id: teamMembershipTable.id, roleId: teamMembershipTable.roleId })
+				.from(teamMembershipTable)
+				.where(
+					and(
+						eq(teamMembershipTable.teamId, data.organizingTeamId),
+						eq(teamMembershipTable.userId, session.userId),
+						eq(teamMembershipTable.isActive, 1),
+					),
+				)
+				.limit(1)
+
+			const isTeamAdmin =
+				organizerMembership[0]?.roleId === SYSTEM_ROLES_ENUM.ADMIN ||
+				organizerMembership[0]?.roleId === SYSTEM_ROLES_ENUM.OWNER
+
+			if (isTeamAdmin) {
+				canAccess = true
+			}
+		}
+
+		if (!canAccess && data.competitionTeamId) {
+			// Check if user is a volunteer for the competition
+			const volunteerMembership = await db
+				.select({ id: teamMembershipTable.id })
+				.from(teamMembershipTable)
+				.where(
+					and(
+						eq(teamMembershipTable.teamId, data.competitionTeamId),
+						eq(teamMembershipTable.userId, session.userId),
+						eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+						eq(teamMembershipTable.isSystemRole, 1),
+						eq(teamMembershipTable.isActive, 1),
+					),
+				)
+				.limit(1)
+
+			if (volunteerMembership[0]) {
+				canAccess = true
+			}
+		}
+
+		if (!canAccess) {
+			throw new Error(
+				"Unauthorized: Must be an organizer or volunteer for this competition",
+			)
+		}
+
+		// Get all heats for this competition with venues and divisions
+		const heats = await db
+			.select({
+				id: competitionHeatsTable.id,
+				trackWorkoutId: competitionHeatsTable.trackWorkoutId,
+				heatNumber: competitionHeatsTable.heatNumber,
+				scheduledTime: competitionHeatsTable.scheduledTime,
+				durationMinutes: competitionHeatsTable.durationMinutes,
+				venueId: competitionHeatsTable.venueId,
+				divisionId: competitionHeatsTable.divisionId,
+			})
+			.from(competitionHeatsTable)
+			.where(eq(competitionHeatsTable.competitionId, data.competitionId))
+
+		if (heats.length === 0) {
+			return { events: [] }
+		}
+
+		// Collect IDs for batch fetching
+		const heatIds = heats.map((h) => h.id)
+		const trackWorkoutIds = [...new Set(heats.map((h) => h.trackWorkoutId))]
+		const venueIds = [
+			...new Set(
+				heats.map((h) => h.venueId).filter((id): id is string => !!id),
+			),
+		]
+		const divisionIds = [
+			...new Set(
+				heats.map((h) => h.divisionId).filter((id): id is string => !!id),
+			),
+		]
+
+		// Get active versions for all events
+		const activeVersions = await autochunk(
+			{ items: trackWorkoutIds },
+			async (chunk) =>
+				db
+					.select()
+					.from(judgeAssignmentVersionsTable)
+					.where(
+						and(
+							inArray(judgeAssignmentVersionsTable.trackWorkoutId, chunk),
+							eq(judgeAssignmentVersionsTable.isActive, true),
+						),
+					),
+		)
+		// Get judge assignments for active versions
+		const versionIds = [...new Set(activeVersions.map((v) => v.id))]
+		const judgeAssignments =
+			versionIds.length > 0
+				? await autochunk(
+						{ items: heatIds, otherParametersCount: versionIds.length },
+						async (chunk) =>
+							db
+								.select()
+								.from(judgeHeatAssignmentsTable)
+								.where(
+									and(
+										inArray(judgeHeatAssignmentsTable.heatId, chunk),
+										inArray(judgeHeatAssignmentsTable.versionId, versionIds),
+									),
+								),
+					)
+				: []
+
+		// Get membership and user info for judges
+		const membershipIds = [
+			...new Set(judgeAssignments.map((a) => a.membershipId)),
+		]
+		const memberships =
+			membershipIds.length > 0
+				? await autochunk({ items: membershipIds }, async (chunk) =>
+						db
+							.select({
+								id: teamMembershipTable.id,
+								userId: teamMembershipTable.userId,
+							})
+							.from(teamMembershipTable)
+							.where(inArray(teamMembershipTable.id, chunk)),
+					)
+				: []
+		const membershipMap = new Map(memberships.map((m) => [m.id, m]))
+
+		const userIds = [...new Set(memberships.map((m) => m.userId))]
+		const users =
+			userIds.length > 0
+				? await autochunk({ items: userIds }, async (chunk) =>
+						db
+							.select({
+								id: userTable.id,
+								firstName: userTable.firstName,
+								lastName: userTable.lastName,
+							})
+							.from(userTable)
+							.where(inArray(userTable.id, chunk)),
+					)
+				: []
+		const userMap = new Map(users.map((u) => [u.id, u]))
+
+		// Get venues
+		const venues =
+			venueIds.length > 0
+				? await autochunk({ items: venueIds }, async (chunk) =>
+						db
+							.select({
+								id: competitionVenuesTable.id,
+								name: competitionVenuesTable.name,
+								laneCount: competitionVenuesTable.laneCount,
+							})
+							.from(competitionVenuesTable)
+							.where(inArray(competitionVenuesTable.id, chunk)),
+					)
+				: []
+		const venueMap = new Map(venues.map((v) => [v.id, v]))
+
+		// Get divisions (scaling levels)
+		const divisions =
+			divisionIds.length > 0
+				? await autochunk({ items: divisionIds }, async (chunk) =>
+						db
+							.select({
+								id: scalingLevelsTable.id,
+								label: scalingLevelsTable.label,
+							})
+							.from(scalingLevelsTable)
+							.where(inArray(scalingLevelsTable.id, chunk)),
+					)
+				: []
+		const divisionMap = new Map(divisions.map((d) => [d.id, d]))
+
+		// Get track workouts with workout names
+		const trackWorkouts = await autochunk(
+			{ items: trackWorkoutIds },
+			async (chunk) =>
+				db
+					.select({
+						id: trackWorkoutsTable.id,
+						workoutId: trackWorkoutsTable.workoutId,
+						trackOrder: trackWorkoutsTable.trackOrder,
+					})
+					.from(trackWorkoutsTable)
+					.where(inArray(trackWorkoutsTable.id, chunk)),
+		)
+		const trackWorkoutMap = new Map(trackWorkouts.map((tw) => [tw.id, tw]))
+
+		// Get workout names
+		const workoutIds = [
+			...new Set(trackWorkouts.map((tw) => tw.workoutId).filter(Boolean)),
+		]
+		const workoutsData =
+			workoutIds.length > 0
+				? await autochunk({ items: workoutIds }, async (chunk) =>
+						db
+							.select({
+								id: workouts.id,
+								name: workouts.name,
+							})
+							.from(workouts)
+							.where(inArray(workouts.id, chunk)),
+					)
+				: []
+		const workoutMap = new Map(workoutsData.map((w) => [w.id, w]))
+
+		// Get heat lane assignments for division info
+		const heatAssignments = await autochunk({ items: heatIds }, async (chunk) =>
+			db
+				.select({
+					heatId: competitionHeatAssignmentsTable.heatId,
+					laneNumber: competitionHeatAssignmentsTable.laneNumber,
+					registrationId: competitionHeatAssignmentsTable.registrationId,
+				})
+				.from(competitionHeatAssignmentsTable)
+				.where(inArray(competitionHeatAssignmentsTable.heatId, chunk)),
+		)
+
+		// Get registration divisions (filter out null registrationIds)
+		const registrationIds = [
+			...new Set(
+				heatAssignments
+					.map((a) => a.registrationId)
+					.filter((id): id is string => !!id),
+			),
+		]
+		const registrations =
+			registrationIds.length > 0
+				? await autochunk({ items: registrationIds }, async (chunk) =>
+						db
+							.select({
+								id: competitionRegistrationsTable.id,
+								divisionId: competitionRegistrationsTable.divisionId,
+							})
+							.from(competitionRegistrationsTable)
+							.where(inArray(competitionRegistrationsTable.id, chunk)),
+					)
+				: []
+		const registrationDivisionMap = new Map(
+			registrations.map((r) => [r.id, r.divisionId]),
+		)
+
+		// Fetch division labels for registration divisions
+		const regDivisionIds = [
+			...new Set(
+				registrations
+					.map((r) => r.divisionId)
+					.filter((id): id is string => !!id),
+			),
+		]
+		const regDivisions =
+			regDivisionIds.length > 0
+				? await autochunk({ items: regDivisionIds }, async (chunk) =>
+						db
+							.select({
+								id: scalingLevelsTable.id,
+								label: scalingLevelsTable.label,
+							})
+							.from(scalingLevelsTable)
+							.where(inArray(scalingLevelsTable.id, chunk)),
+					)
+				: []
+		for (const div of regDivisions) {
+			if (!divisionMap.has(div.id)) {
+				divisionMap.set(div.id, div)
+			}
+		}
+
+		// Group judge assignments by heat
+		const judgesByHeat = new Map<string, Array<(typeof judgeAssignments)[0]>>()
+		for (const assignment of judgeAssignments) {
+			const existing = judgesByHeat.get(assignment.heatId) || []
+			existing.push(assignment)
+			judgesByHeat.set(assignment.heatId, existing)
+		}
+
+		// Group lane assignments by heat
+		const lanesByHeat = new Map<string, Array<(typeof heatAssignments)[0]>>()
+		for (const assignment of heatAssignments) {
+			const existing = lanesByHeat.get(assignment.heatId) || []
+			existing.push(assignment)
+			lanesByHeat.set(assignment.heatId, existing)
+		}
+
+		// Build result grouped by event
+		const eventMap = new Map<string, JudgesScheduleEvent>()
+
+		for (const heat of heats) {
+			const trackWorkout = trackWorkoutMap.get(heat.trackWorkoutId)
+			if (!trackWorkout) continue
+
+			const workout = trackWorkout.workoutId
+				? workoutMap.get(trackWorkout.workoutId)
+				: null
+			const eventName = workout?.name || "Unknown Event"
+
+			// Get or create event entry
+			let event = eventMap.get(heat.trackWorkoutId)
+			if (!event) {
+				event = {
+					trackWorkoutId: heat.trackWorkoutId,
+					eventName,
+					trackOrder: trackWorkout.trackOrder,
+					heats: [],
+				}
+				eventMap.set(heat.trackWorkoutId, event)
+			}
+
+			// Build judge list for this heat
+			const heatJudges = judgesByHeat.get(heat.id) || []
+			const judges = heatJudges.map((ja) => {
+				const membership = membershipMap.get(ja.membershipId)
+				const user = membership ? userMap.get(membership.userId) : null
+				return {
+					assignmentId: ja.id,
+					laneNumber: ja.laneNumber,
+					membershipId: ja.membershipId,
+					userId: membership?.userId || "",
+					firstName: user?.firstName || null,
+					lastName: user?.lastName || null,
+					position: ja.position,
+				}
+			})
+
+			// Build lane assignments with division info
+			const heatLanes = lanesByHeat.get(heat.id) || []
+			const laneAssignments = heatLanes.map((la) => {
+				const regDivisionId = registrationDivisionMap.get(la.registrationId)
+				const division = regDivisionId ? divisionMap.get(regDivisionId) : null
+				return {
+					laneNumber: la.laneNumber,
+					division: division || null,
+				}
+			})
+
+			// Add heat to event
+			event.heats.push({
+				id: heat.id,
+				heatNumber: heat.heatNumber,
+				scheduledTime: heat.scheduledTime,
+				durationMinutes: heat.durationMinutes,
+				venue: heat.venueId ? venueMap.get(heat.venueId) || null : null,
+				division: heat.divisionId
+					? divisionMap.get(heat.divisionId) || null
+					: null,
+				judges: judges.sort(
+					(a, b) => (a.laneNumber || 0) - (b.laneNumber || 0),
+				),
+				laneAssignments: laneAssignments.sort(
+					(a, b) => a.laneNumber - b.laneNumber,
+				),
+			})
+		}
+
+		// Sort heats within each event
+		for (const event of eventMap.values()) {
+			event.heats.sort((a, b) => {
+				if (a.scheduledTime && b.scheduledTime) {
+					return (
+						new Date(a.scheduledTime).getTime() -
+						new Date(b.scheduledTime).getTime()
+					)
+				}
+				return a.heatNumber - b.heatNumber
+			})
+		}
+
+		// Sort events by track order
+		const events = Array.from(eventMap.values()).sort(
+			(a, b) => a.trackOrder - b.trackOrder,
+		)
+
+		return { events }
 	})

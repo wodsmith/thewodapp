@@ -1,6 +1,11 @@
 /**
  * Stripe Connect Server Functions for TanStack Start
  * Handles Stripe Connect account onboarding and management
+ *
+ * OBSERVABILITY:
+ * - Stripe Connect operations are logged with team and account context
+ * - OAuth flow states are tracked for security monitoring
+ * - Account status changes are logged
  */
 
 import { createServerFn } from "@tanstack/react-start"
@@ -10,6 +15,13 @@ import { z } from "zod"
 import { getDb } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
 import { getAppUrl, getStripeClientId } from "@/lib/env"
+import {
+	addRequestContextAttribute,
+	logEntityUpdated,
+	logInfo,
+	logWarning,
+	updateRequestContext,
+} from "@/lib/logging"
 import { getStripe } from "@/lib/stripe"
 import { requireVerifiedEmail } from "@/utils/auth"
 import isProd from "@/utils/is-prod"
@@ -111,6 +123,11 @@ async function createExpressAccount(
 	const db = getDb()
 	const stripe = getStripe()
 
+	logInfo({
+		message: "[Stripe Connect] Creating Express account",
+		attributes: { teamId, teamName },
+	})
+
 	// Create Express account
 	const account = await stripe.accounts.create({
 		type: "express",
@@ -126,6 +143,8 @@ async function createExpressAccount(
 		},
 	})
 
+	addRequestContextAttribute("stripeAccountId", account.id)
+
 	// Save to database
 	await db
 		.update(teamTable)
@@ -136,8 +155,20 @@ async function createExpressAccount(
 		})
 		.where(eq(teamTable.id, teamId))
 
+	logEntityUpdated({
+		entity: "team",
+		id: teamId,
+		fields: ["stripeConnectedAccountId", "stripeAccountStatus", "stripeAccountType"],
+		attributes: { stripeAccountId: account.id, accountType: "express" },
+	})
+
 	// Create onboarding link
 	const accountLink = await createExpressAccountLink(account.id, teamId)
+
+	logInfo({
+		message: "[Stripe Connect] Express account created",
+		attributes: { teamId, stripeAccountId: account.id },
+	})
 
 	return {
 		accountId: account.id,
@@ -286,6 +317,11 @@ async function syncStripeAccountStatusInternal(teamId: string): Promise<void> {
 async function disconnectAccountInternal(teamId: string): Promise<void> {
 	const db = getDb()
 
+	logInfo({
+		message: "[Stripe Connect] Disconnecting account",
+		attributes: { teamId },
+	})
+
 	await db
 		.update(teamTable)
 		.set({
@@ -295,6 +331,13 @@ async function disconnectAccountInternal(teamId: string): Promise<void> {
 			stripeOnboardingCompletedAt: null,
 		})
 		.where(eq(teamTable.id, teamId))
+
+	logEntityUpdated({
+		entity: "team",
+		id: teamId,
+		fields: ["stripeConnectedAccountId", "stripeAccountStatus", "stripeAccountType", "stripeOnboardingCompletedAt"],
+		attributes: { action: "disconnected" },
+	})
 }
 
 /**
@@ -476,6 +519,9 @@ export const initiateStandardOAuthFn = createServerFn({ method: "POST" })
 		const session = await requireVerifiedEmail()
 		if (!session) throw new Error("Unauthorized")
 
+		// Update request context
+		updateRequestContext({ userId: session.userId, teamId: input.teamId })
+
 		await requireTeamPermission(
 			input.teamId,
 			TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS,
@@ -488,6 +534,10 @@ export const initiateStandardOAuthFn = createServerFn({ method: "POST" })
 		})
 
 		if (!team) {
+			logWarning({
+				message: "[Stripe Connect] OAuth initiation failed - team not found",
+				attributes: { teamId: input.teamId },
+			})
 			throw new Error("Team not found")
 		}
 
@@ -510,6 +560,11 @@ export const initiateStandardOAuthFn = createServerFn({ method: "POST" })
 			session.userId,
 			csrfState,
 		)
+
+		logInfo({
+			message: "[Stripe Connect] Standard OAuth flow initiated",
+			attributes: { teamId: team.id, teamSlug: team.slug },
+		})
 
 		return { authorizationUrl }
 	})

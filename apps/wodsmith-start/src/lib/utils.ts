@@ -1,15 +1,12 @@
-import { type ClassValue, clsx } from "clsx"
 import type { DrizzleD1Database } from "drizzle-orm/d1"
 import type {
 	SQLiteInsertValue,
 	SQLiteTable,
 	TableConfig,
 } from "drizzle-orm/sqlite-core"
-import { twMerge } from "tailwind-merge"
 
-export function cn(...inputs: ClassValue[]) {
-	return twMerge(clsx(inputs))
-}
+// Re-export cn from the canonical location to avoid duplication
+export { cn } from "@/utils/cn"
 
 export type Prettify<T> = {
 	[K in keyof T]: T[K]

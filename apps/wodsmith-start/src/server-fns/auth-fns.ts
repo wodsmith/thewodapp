@@ -4,6 +4,11 @@
  *
  * This file uses top-level imports for server-only modules.
  * See: .claude/skills/tanstack-start-server-only/SKILL.md
+ *
+ * OBSERVABILITY:
+ * - All auth operations are logged with request context
+ * - User IDs and created entity IDs are tracked
+ * - Failures are logged with appropriate error details (no sensitive data)
  */
 
 import { env } from "cloudflare:workers"
@@ -17,6 +22,15 @@ import {
 } from "@/constants"
 import { getDb } from "@/db"
 import { teamMembershipTable, teamTable, userTable } from "@/db/schema"
+import {
+	addRequestContextAttribute,
+	logEntityCreated,
+	logEntityUpdated,
+	logError,
+	logInfo,
+	logWarning,
+	updateRequestContext,
+} from "@/lib/logging"
 import {
 	resetPasswordSchema,
 	signInSchema,
@@ -69,6 +83,11 @@ const forgotPasswordInputSchema = z.object({
 export const signInFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => signInSchema.parse(data))
 	.handler(async ({ data }) => {
+		logInfo({
+			message: "[Auth] Sign-in attempt",
+			attributes: { email: data.email.toLowerCase() },
+		})
+
 		const db = getDb()
 
 		// Find user by email (case-insensitive, like forgotPasswordFn)
@@ -77,15 +96,27 @@ export const signInFn = createServerFn({ method: "POST" })
 		})
 
 		if (!user) {
+			logWarning({
+				message: "[Auth] Sign-in failed - user not found",
+				attributes: { email: data.email.toLowerCase() },
+			})
 			throw new Error("Invalid email or password")
 		}
 
 		// Check if user has only Google SSO
 		if (!user.passwordHash && user.googleAccountId) {
+			logWarning({
+				message: "[Auth] Sign-in failed - Google SSO account",
+				attributes: { userId: user.id },
+			})
 			throw new Error("Please sign in with your Google account instead.")
 		}
 
 		if (!user.passwordHash) {
+			logWarning({
+				message: "[Auth] Sign-in failed - no password hash",
+				attributes: { userId: user.id },
+			})
 			throw new Error("Invalid email or password")
 		}
 
@@ -96,11 +127,23 @@ export const signInFn = createServerFn({ method: "POST" })
 		})
 
 		if (!isValid) {
+			logWarning({
+				message: "[Auth] Sign-in failed - invalid password",
+				attributes: { userId: user.id },
+			})
 			throw new Error("Invalid email or password")
 		}
 
 		// Create session and set cookie
 		await createAndStoreSession(user.id, "password")
+
+		// Update request context with user info for downstream logs
+		updateRequestContext({ userId: user.id })
+
+		logInfo({
+			message: "[Auth] Sign-in successful",
+			attributes: { userId: user.id },
+		})
 
 		return { success: true, userId: user.id }
 	})
@@ -111,12 +154,21 @@ export const signInFn = createServerFn({ method: "POST" })
 export const signUpFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => signUpSchema.parse(data))
 	.handler(async ({ data }) => {
+		logInfo({
+			message: "[Auth] Sign-up attempt",
+			attributes: { email: data.email },
+		})
+
 		const db = getDb()
 
 		// Validate CAPTCHA token if provided
 		if (data.captchaToken) {
 			const isValidCaptcha = await validateTurnstileToken(data.captchaToken)
 			if (!isValidCaptcha) {
+				logWarning({
+					message: "[Auth] Sign-up failed - CAPTCHA verification failed",
+					attributes: { email: data.email },
+				})
 				throw new Error("CAPTCHA verification failed. Please try again.")
 			}
 		}
@@ -130,6 +182,10 @@ export const signUpFn = createServerFn({ method: "POST" })
 		})
 
 		if (existingUser) {
+			logWarning({
+				message: "[Auth] Sign-up failed - email already taken",
+				attributes: { email: data.email },
+			})
 			throw new Error("Email already taken")
 		}
 
@@ -149,8 +205,22 @@ export const signUpFn = createServerFn({ method: "POST" })
 			.returning()
 
 		if (!user || !user.email) {
+			logError({
+				message: "[Auth] Sign-up failed - user creation failed",
+				attributes: { email: data.email },
+			})
 			throw new Error("Failed to create user")
 		}
+
+		// Update request context with new user ID
+		updateRequestContext({ userId: user.id })
+		addRequestContextAttribute("createdUserId", user.id)
+
+		logEntityCreated({
+			entity: "user",
+			id: user.id,
+			attributes: { email: user.email },
+		})
 
 		// Create a personal team for the user (inline logic)
 		const personalTeamName = `${user.firstName || "Personal"}'s Team (personal)`
@@ -172,8 +242,20 @@ export const signUpFn = createServerFn({ method: "POST" })
 		const personalTeam = personalTeamResult[0]
 
 		if (!personalTeam) {
+			logError({
+				message: "[Auth] Sign-up failed - personal team creation failed",
+				attributes: { userId: user.id },
+			})
 			throw new Error("Failed to create personal team")
 		}
+
+		logEntityCreated({
+			entity: "team",
+			id: personalTeam.id,
+			parentEntity: "user",
+			parentId: user.id,
+			attributes: { isPersonalTeam: true },
+		})
 
 		// Add the user as a member of their personal team
 		await db.insert(teamMembershipTable).values({
@@ -187,6 +269,14 @@ export const signUpFn = createServerFn({ method: "POST" })
 
 		// Create session and set cookie
 		await createAndStoreSession(user.id, "password")
+
+		logInfo({
+			message: "[Auth] Sign-up successful",
+			attributes: {
+				userId: user.id,
+				personalTeamId: personalTeam.id,
+			},
+		})
 
 		return { success: true, userId: user.id }
 	})
@@ -238,12 +328,15 @@ export const validateResetTokenFn = createServerFn({ method: "GET" })
 export const resetPasswordFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => resetPasswordSchema.parse(data))
 	.handler(async ({ data }) => {
+		logInfo({ message: "[Auth] Password reset attempt" })
+
 		const db = getDb()
 
 		// Find valid reset token
 		const resetTokenStr = await env.KV_SESSION.get(getResetTokenKey(data.token))
 
 		if (!resetTokenStr) {
+			logWarning({ message: "[Auth] Password reset failed - invalid token" })
 			throw new Error("Invalid or expired reset token")
 		}
 
@@ -252,8 +345,15 @@ export const resetPasswordFn = createServerFn({ method: "POST" })
 			expiresAt: string
 		}
 
+		// Update context with user ID from token
+		updateRequestContext({ userId: resetToken.userId })
+
 		// Check if token is expired (although KV should have auto-deleted it)
 		if (new Date() > new Date(resetToken.expiresAt)) {
+			logWarning({
+				message: "[Auth] Password reset failed - token expired",
+				attributes: { userId: resetToken.userId },
+			})
 			throw new Error("Reset token has expired")
 		}
 
@@ -263,6 +363,10 @@ export const resetPasswordFn = createServerFn({ method: "POST" })
 		})
 
 		if (!user) {
+			logError({
+				message: "[Auth] Password reset failed - user not found",
+				attributes: { userId: resetToken.userId },
+			})
 			throw new Error("User not found")
 		}
 
@@ -276,6 +380,17 @@ export const resetPasswordFn = createServerFn({ method: "POST" })
 		// Delete the used token
 		await env.KV_SESSION.delete(getResetTokenKey(data.token))
 
+		logEntityUpdated({
+			entity: "user",
+			id: user.id,
+			fields: ["passwordHash"],
+		})
+
+		logInfo({
+			message: "[Auth] Password reset successful",
+			attributes: { userId: user.id },
+		})
+
 		return { success: true }
 	})
 
@@ -287,9 +402,12 @@ export const verifyEmailFn = createServerFn({ method: "POST" })
 		(data: unknown): VerifyEmailInput => verifyEmailSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
+		logInfo({ message: "[Auth] Email verification attempt" })
+
 		const kv = env.KV_SESSION
 
 		if (!kv) {
+			logError({ message: "[Auth] Email verification failed - KV unavailable" })
 			throw new Error("Can't connect to KV store")
 		}
 
@@ -298,6 +416,7 @@ export const verifyEmailFn = createServerFn({ method: "POST" })
 		)
 
 		if (!verificationTokenStr) {
+			logWarning({ message: "[Auth] Email verification failed - invalid token" })
 			throw new Error("Verification token not found or expired")
 		}
 
@@ -306,8 +425,15 @@ export const verifyEmailFn = createServerFn({ method: "POST" })
 			expiresAt: string
 		}
 
+		// Update context with user ID from token
+		updateRequestContext({ userId: verificationToken.userId })
+
 		// Check if token is expired (although KV should have auto-deleted it)
 		if (new Date() > new Date(verificationToken.expiresAt)) {
+			logWarning({
+				message: "[Auth] Email verification failed - token expired",
+				attributes: { userId: verificationToken.userId },
+			})
 			throw new Error("Verification token not found or expired")
 		}
 
@@ -319,6 +445,10 @@ export const verifyEmailFn = createServerFn({ method: "POST" })
 		})
 
 		if (!user) {
+			logError({
+				message: "[Auth] Email verification failed - user not found",
+				attributes: { userId: verificationToken.userId },
+			})
 			throw new Error("User not found")
 		}
 
@@ -329,6 +459,12 @@ export const verifyEmailFn = createServerFn({ method: "POST" })
 				.set({ emailVerified: new Date() })
 				.where(eq(userTable.id, verificationToken.userId))
 
+			logEntityUpdated({
+				entity: "user",
+				id: user.id,
+				fields: ["emailVerified"],
+			})
+
 			// Update all sessions of the user to reflect the new email verification status
 			await updateAllSessionsOfUser(verificationToken.userId)
 
@@ -338,9 +474,18 @@ export const verifyEmailFn = createServerFn({ method: "POST" })
 			// Add a small delay to ensure all updates are processed
 			await new Promise((resolve) => setTimeout(resolve, 500))
 
+			logInfo({
+				message: "[Auth] Email verification successful",
+				attributes: { userId: user.id },
+			})
+
 			return { success: true }
 		} catch (error) {
-			console.error(error)
+			logError({
+				message: "[Auth] Email verification failed - unexpected error",
+				error,
+				attributes: { userId: user.id },
+			})
 			throw new Error("An unexpected error occurred")
 		}
 	})
@@ -352,12 +497,16 @@ export const verifyEmailFn = createServerFn({ method: "POST" })
 export const forgotPasswordFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => forgotPasswordInputSchema.parse(data))
 	.handler(async ({ data }) => {
+		// Note: We log the attempt but not the email to avoid leaking info about valid emails
+		logInfo({ message: "[Auth] Password reset request received" })
+
 		const db = getDb()
 
 		// Validate CAPTCHA token if provided
 		if (data.captchaToken) {
 			const isValidCaptcha = await validateTurnstileToken(data.captchaToken)
 			if (!isValidCaptcha) {
+				logWarning({ message: "[Auth] Password reset - CAPTCHA verification failed" })
 				throw new Error("CAPTCHA verification failed. Please try again.")
 			}
 		}
@@ -370,8 +519,12 @@ export const forgotPasswordFn = createServerFn({ method: "POST" })
 
 			// Even if user is not found, return success to prevent email enumeration
 			if (!user) {
+				logInfo({ message: "[Auth] Password reset - user not found (returning success)" })
 				return { success: true }
 			}
+
+			// Update context with user ID
+			updateRequestContext({ userId: user.id })
 
 			// Generate reset token
 			const token = createToken()
@@ -381,7 +534,7 @@ export const forgotPasswordFn = createServerFn({ method: "POST" })
 
 			// Verify KV is available
 			if (!env?.KV_SESSION) {
-				console.error("[ForgotPassword] KV_SESSION binding not available")
+				logError({ message: "[Auth] Password reset failed - KV_SESSION unavailable" })
 				throw new Error("Service temporarily unavailable")
 			}
 
@@ -406,9 +559,17 @@ export const forgotPasswordFn = createServerFn({ method: "POST" })
 				})
 			}
 
+			logInfo({
+				message: "[Auth] Password reset email sent",
+				attributes: { userId: user.id },
+			})
+
 			return { success: true }
 		} catch (error) {
-			console.error("[ForgotPassword] Error:", error)
+			logError({
+				message: "[Auth] Password reset failed - unexpected error",
+				error,
+			})
 
 			// Still return success to prevent information leakage
 			// The error is logged for debugging purposes
@@ -425,16 +586,32 @@ export const resendVerificationFn = createServerFn({ method: "POST" }).handler(
 		const session = await getSessionFromCookie()
 
 		if (!session?.user?.email) {
+			logWarning({ message: "[Auth] Resend verification failed - not authenticated" })
 			throw new Error("Not authenticated")
 		}
 
+		// Update context with user ID
+		updateRequestContext({ userId: session.user.id })
+
+		logInfo({
+			message: "[Auth] Resend verification requested",
+			attributes: { userId: session.user.id },
+		})
+
 		if (session.user.emailVerified) {
+			logWarning({
+				message: "[Auth] Resend verification failed - already verified",
+				attributes: { userId: session.user.id },
+			})
 			throw new Error("Email is already verified")
 		}
 
 		// Verify KV is available
 		if (!env?.KV_SESSION) {
-			console.error("[ResendVerification] KV_SESSION binding not available")
+			logError({
+				message: "[Auth] Resend verification failed - KV_SESSION unavailable",
+				attributes: { userId: session.user.id },
+			})
 			throw new Error("Service temporarily unavailable")
 		}
 
@@ -464,9 +641,18 @@ export const resendVerificationFn = createServerFn({ method: "POST" }).handler(
 				username: session.user.firstName || session.user.email,
 			})
 
+			logInfo({
+				message: "[Auth] Verification email sent",
+				attributes: { userId: session.user.id },
+			})
+
 			return { success: true }
 		} catch (error) {
-			console.error("[ResendVerification] Error:", error)
+			logError({
+				message: "[Auth] Resend verification failed - unexpected error",
+				error,
+				attributes: { userId: session.user.id },
+			})
 			throw new Error("Failed to send verification email. Please try again.")
 		}
 	},

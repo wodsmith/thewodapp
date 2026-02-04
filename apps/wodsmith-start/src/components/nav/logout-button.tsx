@@ -46,7 +46,11 @@ const logoutServerFn = createServerFn({ method: "POST" }).handler(async () => {
 	return { success: true }
 })
 
-export default function LogoutButton() {
+interface LogoutButtonProps {
+	showText?: boolean
+}
+
+export default function LogoutButton({ showText = false }: LogoutButtonProps) {
 	const handleLogout = async () => {
 		try {
 			await logoutServerFn()
@@ -57,6 +61,19 @@ export default function LogoutButton() {
 		} catch (error) {
 			console.error("Logout error:", error)
 		}
+	}
+
+	if (showText) {
+		return (
+			<button
+				type="button"
+				onClick={handleLogout}
+				className="flex items-center gap-2 hover:text-primary"
+			>
+				<LogOut className="h-5 w-5" />
+				<span>Log out</span>
+			</button>
+		)
 	}
 
 	return (

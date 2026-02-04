@@ -35,6 +35,7 @@ import { Route as CompeteSlugIndexRouteImport } from './routes/compete/$slug/ind
 import { Route as AdminTeamsIndexRouteImport } from './routes/admin/teams/index'
 import { Route as AdminOrganizerRequestsIndexRouteImport } from './routes/admin/organizer-requests/index'
 import { Route as AdminEntitlementsIndexRouteImport } from './routes/admin/entitlements/index'
+import { Route as AdminDemoCompetitionsIndexRouteImport } from './routes/admin/demo-competitions/index'
 import { Route as AdminCompetitionsIndexRouteImport } from './routes/admin/competitions/index'
 import { Route as ProtectedWorkoutsIndexRouteImport } from './routes/_protected/workouts/index'
 import { Route as ProtectedTeamIndexRouteImport } from './routes/_protected/team/index'
@@ -55,6 +56,7 @@ import { Route as CompeteSlugScheduleRouteImport } from './routes/compete/$slug/
 import { Route as CompeteSlugRegisterRouteImport } from './routes/compete/$slug/register'
 import { Route as CompeteSlugMyScheduleRouteImport } from './routes/compete/$slug/my-schedule'
 import { Route as CompeteSlugLeaderboardRouteImport } from './routes/compete/$slug/leaderboard'
+import { Route as CompeteSlugJudgesScheduleRouteImport } from './routes/compete/$slug/judges-schedule'
 import { Route as ApiWorkoutsSearchRouteImport } from './routes/api/workouts/search'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
 import { Route as ApiCronSubmissionWindowNotificationsRouteImport } from './routes/api/cron/submission-window-notifications'
@@ -264,6 +266,12 @@ const AdminEntitlementsIndexRoute = AdminEntitlementsIndexRouteImport.update({
   path: '/entitlements/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminDemoCompetitionsIndexRoute =
+  AdminDemoCompetitionsIndexRouteImport.update({
+    id: '/demo-competitions/',
+    path: '/demo-competitions/',
+    getParentRoute: () => AdminRoute,
+  } as any)
 const AdminCompetitionsIndexRoute = AdminCompetitionsIndexRouteImport.update({
   id: '/competitions/',
   path: '/competitions/',
@@ -367,6 +375,12 @@ const CompeteSlugLeaderboardRoute = CompeteSlugLeaderboardRouteImport.update({
   path: '/leaderboard',
   getParentRoute: () => CompeteSlugRoute,
 } as any)
+const CompeteSlugJudgesScheduleRoute =
+  CompeteSlugJudgesScheduleRouteImport.update({
+    id: '/judges-schedule',
+    path: '/judges-schedule',
+    getParentRoute: () => CompeteSlugRoute,
+  } as any)
 const ApiWorkoutsSearchRoute = ApiWorkoutsSearchRouteImport.update({
   id: '/api/workouts/search',
   path: '/api/workouts/search',
@@ -854,6 +868,7 @@ export interface FileRoutesByFullPath {
   '/api/cron/submission-window-notifications': typeof ApiCronSubmissionWindowNotificationsRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
+  '/compete/$slug/judges-schedule': typeof CompeteSlugJudgesScheduleRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
   '/compete/$slug/my-schedule': typeof CompeteSlugMyScheduleRoute
   '/compete/$slug/register': typeof CompeteSlugRegisterRouteWithChildren
@@ -873,6 +888,7 @@ export interface FileRoutesByFullPath {
   '/team': typeof ProtectedTeamIndexRoute
   '/workouts': typeof ProtectedWorkoutsIndexRoute
   '/admin/competitions': typeof AdminCompetitionsIndexRoute
+  '/admin/demo-competitions': typeof AdminDemoCompetitionsIndexRoute
   '/admin/entitlements': typeof AdminEntitlementsIndexRoute
   '/admin/organizer-requests': typeof AdminOrganizerRequestsIndexRoute
   '/admin/teams': typeof AdminTeamsIndexRoute
@@ -972,6 +988,7 @@ export interface FileRoutesByTo {
   '/api/cron/submission-window-notifications': typeof ApiCronSubmissionWindowNotificationsRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
+  '/compete/$slug/judges-schedule': typeof CompeteSlugJudgesScheduleRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
   '/compete/$slug/my-schedule': typeof CompeteSlugMyScheduleRoute
   '/compete/$slug/register': typeof CompeteSlugRegisterRouteWithChildren
@@ -990,6 +1007,7 @@ export interface FileRoutesByTo {
   '/team': typeof ProtectedTeamIndexRoute
   '/workouts': typeof ProtectedWorkoutsIndexRoute
   '/admin/competitions': typeof AdminCompetitionsIndexRoute
+  '/admin/demo-competitions': typeof AdminDemoCompetitionsIndexRoute
   '/admin/entitlements': typeof AdminEntitlementsIndexRoute
   '/admin/organizer-requests': typeof AdminOrganizerRequestsIndexRoute
   '/admin/teams': typeof AdminTeamsIndexRoute
@@ -1096,6 +1114,7 @@ export interface FileRoutesById {
   '/api/cron/submission-window-notifications': typeof ApiCronSubmissionWindowNotificationsRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
+  '/compete/$slug/judges-schedule': typeof CompeteSlugJudgesScheduleRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
   '/compete/$slug/my-schedule': typeof CompeteSlugMyScheduleRoute
   '/compete/$slug/register': typeof CompeteSlugRegisterRouteWithChildren
@@ -1116,6 +1135,7 @@ export interface FileRoutesById {
   '/_protected/team/': typeof ProtectedTeamIndexRoute
   '/_protected/workouts/': typeof ProtectedWorkoutsIndexRoute
   '/admin/competitions/': typeof AdminCompetitionsIndexRoute
+  '/admin/demo-competitions/': typeof AdminDemoCompetitionsIndexRoute
   '/admin/entitlements/': typeof AdminEntitlementsIndexRoute
   '/admin/organizer-requests/': typeof AdminOrganizerRequestsIndexRoute
   '/admin/teams/': typeof AdminTeamsIndexRoute
@@ -1223,6 +1243,7 @@ export interface FileRouteTypes {
     | '/api/cron/submission-window-notifications'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
+    | '/compete/$slug/judges-schedule'
     | '/compete/$slug/leaderboard'
     | '/compete/$slug/my-schedule'
     | '/compete/$slug/register'
@@ -1242,6 +1263,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/workouts'
     | '/admin/competitions'
+    | '/admin/demo-competitions'
     | '/admin/entitlements'
     | '/admin/organizer-requests'
     | '/admin/teams'
@@ -1341,6 +1363,7 @@ export interface FileRouteTypes {
     | '/api/cron/submission-window-notifications'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
+    | '/compete/$slug/judges-schedule'
     | '/compete/$slug/leaderboard'
     | '/compete/$slug/my-schedule'
     | '/compete/$slug/register'
@@ -1359,6 +1382,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/workouts'
     | '/admin/competitions'
+    | '/admin/demo-competitions'
     | '/admin/entitlements'
     | '/admin/organizer-requests'
     | '/admin/teams'
@@ -1464,6 +1488,7 @@ export interface FileRouteTypes {
     | '/api/cron/submission-window-notifications'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
+    | '/compete/$slug/judges-schedule'
     | '/compete/$slug/leaderboard'
     | '/compete/$slug/my-schedule'
     | '/compete/$slug/register'
@@ -1484,6 +1509,7 @@ export interface FileRouteTypes {
     | '/_protected/team/'
     | '/_protected/workouts/'
     | '/admin/competitions/'
+    | '/admin/demo-competitions/'
     | '/admin/entitlements/'
     | '/admin/organizer-requests/'
     | '/admin/teams/'
@@ -1772,6 +1798,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminEntitlementsIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/demo-competitions/': {
+      id: '/admin/demo-competitions/'
+      path: '/demo-competitions'
+      fullPath: '/admin/demo-competitions'
+      preLoaderRoute: typeof AdminDemoCompetitionsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/competitions/': {
       id: '/admin/competitions/'
       path: '/competitions'
@@ -1910,6 +1943,13 @@ declare module '@tanstack/react-router' {
       path: '/leaderboard'
       fullPath: '/compete/$slug/leaderboard'
       preLoaderRoute: typeof CompeteSlugLeaderboardRouteImport
+      parentRoute: typeof CompeteSlugRoute
+    }
+    '/compete/$slug/judges-schedule': {
+      id: '/compete/$slug/judges-schedule'
+      path: '/judges-schedule'
+      fullPath: '/compete/$slug/judges-schedule'
+      preLoaderRoute: typeof CompeteSlugJudgesScheduleRouteImport
       parentRoute: typeof CompeteSlugRoute
     }
     '/api/workouts/search': {
@@ -2625,6 +2665,7 @@ interface AdminRouteChildren {
   AdminTeamsTeamIdRoute: typeof AdminTeamsTeamIdRouteWithChildren
   AdminTeamsScheduleRoute: typeof AdminTeamsScheduleRouteWithChildren
   AdminCompetitionsIndexRoute: typeof AdminCompetitionsIndexRoute
+  AdminDemoCompetitionsIndexRoute: typeof AdminDemoCompetitionsIndexRoute
   AdminEntitlementsIndexRoute: typeof AdminEntitlementsIndexRoute
   AdminOrganizerRequestsIndexRoute: typeof AdminOrganizerRequestsIndexRoute
   AdminTeamsIndexRoute: typeof AdminTeamsIndexRoute
@@ -2635,6 +2676,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminTeamsTeamIdRoute: AdminTeamsTeamIdRouteWithChildren,
   AdminTeamsScheduleRoute: AdminTeamsScheduleRouteWithChildren,
   AdminCompetitionsIndexRoute: AdminCompetitionsIndexRoute,
+  AdminDemoCompetitionsIndexRoute: AdminDemoCompetitionsIndexRoute,
   AdminEntitlementsIndexRoute: AdminEntitlementsIndexRoute,
   AdminOrganizerRequestsIndexRoute: AdminOrganizerRequestsIndexRoute,
   AdminTeamsIndexRoute: AdminTeamsIndexRoute,
@@ -2654,6 +2696,7 @@ const CompeteSlugRegisterRouteWithChildren =
   CompeteSlugRegisterRoute._addFileChildren(CompeteSlugRegisterRouteChildren)
 
 interface CompeteSlugRouteChildren {
+  CompeteSlugJudgesScheduleRoute: typeof CompeteSlugJudgesScheduleRoute
   CompeteSlugLeaderboardRoute: typeof CompeteSlugLeaderboardRoute
   CompeteSlugMyScheduleRoute: typeof CompeteSlugMyScheduleRoute
   CompeteSlugRegisterRoute: typeof CompeteSlugRegisterRouteWithChildren
@@ -2667,6 +2710,7 @@ interface CompeteSlugRouteChildren {
 }
 
 const CompeteSlugRouteChildren: CompeteSlugRouteChildren = {
+  CompeteSlugJudgesScheduleRoute: CompeteSlugJudgesScheduleRoute,
   CompeteSlugLeaderboardRoute: CompeteSlugLeaderboardRoute,
   CompeteSlugMyScheduleRoute: CompeteSlugMyScheduleRoute,
   CompeteSlugRegisterRoute: CompeteSlugRegisterRouteWithChildren,

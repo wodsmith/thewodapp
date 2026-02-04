@@ -32,9 +32,9 @@ export function initPostHog(): void {
 	}
 
 	// Don't initialize in development to avoid polluting analytics
-	// if (import.meta.env.DEV) {
-	// 	return
-	// }
+	if (import.meta.env.DEV) {
+		return
+	}
 
 	posthog.init(POSTHOG_KEY, {
 		api_host: POSTHOG_HOST,

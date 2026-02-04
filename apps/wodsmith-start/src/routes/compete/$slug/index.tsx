@@ -96,7 +96,7 @@ function CompetitionOverviewPage() {
 				</div>
 
 				{/* Content Panel */}
-				<div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 backdrop-blur-md">
+				<div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
 					<EventDetailsContent
 						competition={competition}
 						divisions={divisions.length > 0 ? divisions : undefined}
@@ -149,8 +149,8 @@ function CompetitionOverviewPage() {
 				</div>
 			</div>
 
-			{/* Sidebar */}
-			<aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+			{/* Sidebar - Order first on mobile/tablet for prominent Register button */}
+			<aside className="order-first space-y-4 lg:order-none lg:sticky lg:top-4 lg:self-start">
 				<RegistrationSidebar
 					competition={competition}
 					isRegistered={isRegistered}

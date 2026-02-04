@@ -63,27 +63,27 @@ export const Route = createFileRoute("/compete/$slug")({
 			// User-specific data - returns null/false if no session
 			session
 				? getUserCompetitionRegistrationFn({
-						data: {
-							competitionId: competition.id,
-							userId: session.userId,
-						},
-					})
+					data: {
+						competitionId: competition.id,
+						userId: session.userId,
+					},
+				})
 				: Promise.resolve({ registration: null }),
 			session
 				? checkCanManageCompetitionFn({
-						data: {
-							organizingTeamId: competition.organizingTeamId,
-							userId: session.userId,
-						},
-					})
+					data: {
+						organizingTeamId: competition.organizingTeamId,
+						userId: session.userId,
+					},
+				})
 				: Promise.resolve({ canManage: false }),
 			session
 				? checkIsVolunteerFn({
-						data: {
-							competitionTeamId: competition.competitionTeamId,
-							userId: session.userId,
-						},
-					})
+					data: {
+						competitionTeamId: competition.competitionTeamId,
+						userId: session.userId,
+					},
+				})
 				: Promise.resolve({ isVolunteer: false }),
 		])
 
@@ -117,19 +117,23 @@ export const Route = createFileRoute("/compete/$slug")({
 })
 
 function CompetitionDetailLayout() {
-	const { competition, registrationCount, canManage } = Route.useLoaderData()
+	const { competition, registrationCount, canManage, isVolunteer } =
+		Route.useLoaderData()
 
 	return (
-		<div className="min-h-screen bg-background">
-			{/* Hero Section */}
-			<CompetitionHero
-				competition={competition}
-				registrationCount={registrationCount}
-				canManage={canManage}
-			/>
+		<div className="min-h-screen bg-background print:min-h-0 print:bg-white">
+			{/* Hero Section - hidden on print */}
+			<div className="print:hidden">
+				<CompetitionHero
+					competition={competition}
+					registrationCount={registrationCount}
+					canManage={canManage}
+					isVolunteer={isVolunteer}
+				/>
+			</div>
 
 			{/* Content Area */}
-			<div className="container mx-auto px-3 py-4 sm:px-4">
+			<div className="container mx-auto px-0 pb-4 print:p-0 print:max-w-none">
 				<Outlet />
 			</div>
 		</div>

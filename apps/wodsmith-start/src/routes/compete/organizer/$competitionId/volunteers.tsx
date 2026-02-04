@@ -103,11 +103,11 @@ export const Route = createFileRoute(
 			volunteers.map(async (volunteer) => {
 				const hasScoreAccess = volunteer.user
 					? await canInputScoresFn({
-							data: {
-								userId: volunteer.user.id,
-								competitionTeamId,
-							},
-						})
+						data: {
+							userId: volunteer.user.id,
+							competitionTeamId,
+						},
+					})
 					: false
 
 				return {
@@ -242,7 +242,7 @@ function VolunteersPage() {
 		<Tabs value={tab} onValueChange={handleTabChange} className="w-full">
 			<TabsList className="mb-6">
 				<TabsTrigger value="roster">Roster</TabsTrigger>
-				{isInPerson && <TabsTrigger value="schedule">Schedule</TabsTrigger>}
+				{isInPerson && <TabsTrigger value="schedule">Judge Schedule</TabsTrigger>}
 			</TabsList>
 
 			{/* Roster Tab - Volunteer Management */}
