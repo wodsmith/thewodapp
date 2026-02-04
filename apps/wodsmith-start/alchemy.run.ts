@@ -161,25 +161,38 @@ const app = await alchemy("wodsmith", {
 	stage,
 
 	/**
-	 * Deployment phase: create/update (`up`) or tear down (`destroy`).
+	 * Deployment phase: create/update (`up`), tear down (`destroy`), or dry-run (`read`).
 	 *
-	 * When `destroy` is specified, Alchemy will delete all resources for the
-	 * current stage. This is irreversible - use with caution in production!
+	 * - `up`: Create or update resources (default)
+	 * - `destroy`: Delete all resources for the stage (irreversible!)
+	 * - `read`: Dry-run mode - shows what would change without applying
 	 *
 	 * @remarks
 	 * The destroy phase stops execution after the alchemy() call - no resources
 	 * are created, only deleted. This prevents accidental recreation of resources.
 	 *
+	 * The read phase compares current configuration against existing state and
+	 * shows what would be created, updated, or deleted - without making changes.
+	 *
 	 * @example
 	 * ```bash
-	 * # Destroy via CLI flag (recommended)
-	 * npx alchemy deploy --destroy
+	 * # Deploy (create/update)
+	 * pnpm deploy
 	 *
-	 * # Programmatic destroy (for scripts)
-	 * const app = await alchemy("my-app", { phase: "destroy" });
+	 * # Dry-run to preview changes
+	 * pnpm deploy:preview
+	 * # or: bun alchemy.run.ts --read
+	 *
+	 * # Destroy resources
+	 * pnpm deploy:destroy
+	 * # or: bun alchemy.run.ts --destroy
 	 * ```
 	 */
-	phase: process.argv.includes("--destroy") ? "destroy" : "up",
+	phase: process.argv.includes("--destroy")
+		? "destroy"
+		: process.argv.includes("--read")
+			? "read"
+			: "up",
 
 	/**
 	 * State storage backend for tracking infrastructure state.
