@@ -10,7 +10,7 @@ import {
 	Trash2,
 } from "lucide-react"
 import { toast } from "sonner"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useFieldArray, useForm, useWatch } from "react-hook-form"
 import { z } from "zod"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -213,6 +213,34 @@ export function MultiRotationEditor({
 		maxHeats,
 	])
 
+	/**
+	 * Calculate the lane for a given heat iteration.
+	 * Returns null if filtering is enabled and the natural lane has no athlete.
+	 * Uses the same logic as expandRotationToAssignments in judge-rotation-utils.ts
+	 */
+	const calculateLane = useCallback(
+		(startingLane: number, iteration: number, heat: number): number | null => {
+			let lane: number
+			if (eventLaneShiftPattern === LANE_SHIFT_PATTERN.STAY) {
+				lane = startingLane
+			} else {
+				// shift_right: calculate natural lane
+				lane = ((startingLane - 1 + iteration) % maxLanes) + 1
+			}
+
+			// If filtering by occupied lanes and this lane has no athlete, return null (skip)
+			if (filterEmptyLanes && occupiedLanesByHeat) {
+				const occupiedLanes = occupiedLanesByHeat.get(heat)
+				if (occupiedLanes && occupiedLanes.size > 0 && !occupiedLanes.has(lane)) {
+					return null // Skip this heat - no athlete in the natural lane
+				}
+			}
+
+			return lane
+		},
+		[eventLaneShiftPattern, maxLanes, filterEmptyLanes, occupiedLanesByHeat],
+	)
+
 	// Calculate preview cells for ALL rotations
 	// Using useMemo ensures preview updates whenever watchedRotations changes
 	const previewCells = useMemo(() => {
@@ -232,22 +260,16 @@ export function MultiRotationEditor({
 				const heat = rotation.startingHeat + i
 				if (heat > maxHeats) break
 
-				let lane: number
-				if (eventLaneShiftPattern === LANE_SHIFT_PATTERN.STAY) {
-					lane = rotation.startingLane
-				} else {
-					// shift_right
-					lane = ((rotation.startingLane - 1 + i) % maxLanes) + 1
-				}
-
+				const lane = calculateLane(rotation.startingLane, i, heat)
+				if (lane === null) continue // Skip heats where natural lane has no athlete
 				allCells.push({ heat, lane, blockIndex })
 			}
 		}
 
 		return allCells
-	}, [watchedRotations, eventLaneShiftPattern, maxHeats, maxLanes])
+	}, [watchedRotations, maxHeats, calculateLane])
 
-	// Calculate which heats will be skipped due to no athletes
+	// Calculate which heats will be skipped due to no athletes in the natural lane
 	const skippedHeatsInfo = useMemo(() => {
 		if (!filterEmptyLanes || !occupiedLanesByHeat || !watchedRotations) {
 			return { hasSkippedHeats: false, skippedCount: 0, totalCount: 0 }
@@ -263,17 +285,10 @@ export function MultiRotationEditor({
 				const heat = rotation.startingHeat + i
 				if (heat > maxHeats) break
 
-				let lane: number
-				if (eventLaneShiftPattern === LANE_SHIFT_PATTERN.STAY) {
-					lane = rotation.startingLane
-				} else {
-					lane = ((rotation.startingLane - 1 + i) % maxLanes) + 1
-				}
-
 				totalCount++
-				const occupiedLanes = occupiedLanesByHeat.get(heat)
-				if (!occupiedLanes?.has(lane)) {
-					skippedCount++
+				const lane = calculateLane(rotation.startingLane, i, heat)
+				if (lane === null) {
+					skippedCount++ // Lane has no athlete, will be skipped
 				}
 			}
 		}
@@ -283,14 +298,7 @@ export function MultiRotationEditor({
 			skippedCount,
 			totalCount,
 		}
-	}, [
-		filterEmptyLanes,
-		occupiedLanesByHeat,
-		watchedRotations,
-		maxHeats,
-		maxLanes,
-		eventLaneShiftPattern,
-	])
+	}, [filterEmptyLanes, occupiedLanesByHeat, watchedRotations, maxHeats, calculateLane])
 
 	// Notify parent of preview changes
 	useEffect(() => {
@@ -348,7 +356,8 @@ export function MultiRotationEditor({
 
 	/**
 	 * Split a rotation into multiple rotations based on occupied lanes.
-	 * Only heats with athletes in the target lane will be included.
+	 * Only heats where the natural lane has an athlete will be included.
+	 * Heats are grouped into contiguous runs.
 	 */
 	function splitRotationByOccupiedLanes(rotation: {
 		startingHeat: number
@@ -372,49 +381,45 @@ export function MultiRotationEditor({
 			notes?: string
 		}> = []
 		let currentStart: number | null = null
+		let currentStartLane: number | null = null
 		let currentCount = 0
 
 		for (let i = 0; i < rotation.heatsCount; i++) {
 			const heat = rotation.startingHeat + i
 			if (heat > maxHeats) break
 
-			let lane: number
-			if (eventLaneShiftPattern === LANE_SHIFT_PATTERN.STAY) {
-				lane = rotation.startingLane
-			} else {
-				lane = ((rotation.startingLane - 1 + i) % maxLanes) + 1
-			}
+			const lane = calculateLane(rotation.startingLane, i, heat)
 
-			const occupiedLanes = occupiedLanesByHeat.get(heat)
-			const hasAthlete = occupiedLanes?.has(lane) ?? false
-
-			if (hasAthlete) {
+			if (lane !== null) {
+				// This heat has an athlete in the natural lane
 				if (currentStart === null) {
 					currentStart = heat
+					currentStartLane = lane
 					currentCount = 1
 				} else {
 					currentCount++
 				}
 			} else {
-				// End current streak if any
-				if (currentStart !== null) {
+				// No athlete in natural lane - end current streak if any
+				if (currentStart !== null && currentStartLane !== null) {
 					result.push({
 						startingHeat: currentStart,
-						startingLane: rotation.startingLane,
+						startingLane: currentStartLane,
 						heatsCount: currentCount,
 						notes: rotation.notes,
 					})
 					currentStart = null
+					currentStartLane = null
 					currentCount = 0
 				}
 			}
 		}
 
 		// Don't forget the last streak
-		if (currentStart !== null) {
+		if (currentStart !== null && currentStartLane !== null) {
 			result.push({
 				startingHeat: currentStart,
-				startingLane: rotation.startingLane,
+				startingLane: currentStartLane,
 				heatsCount: currentCount,
 				notes: rotation.notes,
 			})

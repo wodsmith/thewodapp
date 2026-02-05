@@ -200,6 +200,9 @@ export function RotationTimeline({
 	)
 
 	// Find rotations that have assignments on lanes without athletes
+	// NOTE: This uses the OLD expansion (without respectOccupiedLanes) to identify
+	// rotations that WOULD have assignments on unassigned lanes if shift pattern
+	// were applied naively. This is intentional - it shows what needs adjustment.
 	const rotationsOnUnassignedLanes = useMemo(() => {
 		if (!filterEmptyLanes) return []
 
@@ -210,6 +213,7 @@ export function RotationTimeline({
 		}> = []
 
 		for (const rotation of rotations) {
+			// Use naive expansion to detect what would land on unassigned lanes
 			const assignments = expandRotationToAssignments(rotation, heats)
 			const unassignedSlots: Array<{ heat: number; lane: number }> = []
 
@@ -332,8 +336,11 @@ export function RotationTimeline({
 		}
 
 		// Mark covered slots with rotation IDs
+		// Use respectOccupiedLanes when filtering so shift pattern cycles through occupied lanes only
 		for (const rotation of rotations) {
-			const assignments = expandRotationToAssignments(rotation, heats)
+			const assignments = expandRotationToAssignments(rotation, heats, {
+				respectOccupiedLanes: filterEmptyLanes,
+			})
 			for (const assignment of assignments) {
 				const key = `${assignment.heatNumber}:${assignment.laneNumber}`
 				const current = grid.get(key)
@@ -355,7 +362,9 @@ export function RotationTimeline({
 			const volunteerRotations = rotationsByVolunteer.get(editingVolunteerId)
 			if (volunteerRotations) {
 				for (const rotation of volunteerRotations) {
-					const assignments = expandRotationToAssignments(rotation, heats)
+					const assignments = expandRotationToAssignments(rotation, heats, {
+						respectOccupiedLanes: filterEmptyLanes,
+					})
 					if (assignments.length === 0) continue
 
 					// Get the heat range of this rotation
@@ -426,13 +435,15 @@ export function RotationTimeline({
 
 		const cellKeys = new Set<string>()
 		for (const rotation of volunteerRotations) {
-			const assignments = expandRotationToAssignments(rotation, heats)
+			const assignments = expandRotationToAssignments(rotation, heats, {
+				respectOccupiedLanes: filterEmptyLanes,
+			})
 			for (const assignment of assignments) {
 				cellKeys.add(`${assignment.heatNumber}:${assignment.laneNumber}`)
 			}
 		}
 		return cellKeys
-	}, [selectedVolunteerId, rotationsByVolunteer, heats])
+	}, [selectedVolunteerId, rotationsByVolunteer, heats, filterEmptyLanes])
 
 	// Color palette for multiple blocks
 	const BLOCK_COLORS = [
@@ -544,7 +555,9 @@ export function RotationTimeline({
 		// Calculate cells covered by ALL rotations being edited
 		const cellKeys = new Set<string>()
 		for (const rotation of volunteerRotations) {
-			const assignments = expandRotationToAssignments(rotation, heats)
+			const assignments = expandRotationToAssignments(rotation, heats, {
+				respectOccupiedLanes: filterEmptyLanes,
+			})
 			for (const assignment of assignments) {
 				cellKeys.add(`${assignment.heatNumber}:${assignment.laneNumber}`)
 			}
@@ -565,7 +578,9 @@ export function RotationTimeline({
 		// Calculate cells covered by existing rotations
 		const cellKeys = new Set<string>()
 		for (const rotation of volunteerRotations) {
-			const assignments = expandRotationToAssignments(rotation, heats)
+			const assignments = expandRotationToAssignments(rotation, heats, {
+				respectOccupiedLanes: filterEmptyLanes,
+			})
 			for (const assignment of assignments) {
 				cellKeys.add(`${assignment.heatNumber}:${assignment.laneNumber}`)
 			}
