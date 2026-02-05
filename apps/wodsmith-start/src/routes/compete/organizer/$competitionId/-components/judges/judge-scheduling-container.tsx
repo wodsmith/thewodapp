@@ -64,6 +64,10 @@ interface JudgeSchedulingContainerProps {
 	competitionDefaultHeats: number
 	/** Competition-level default lane shift pattern */
 	competitionDefaultPattern: LaneShiftPattern
+	/** Currently selected event ID (from URL) */
+	selectedEventId: string
+	/** Callback when event selection changes */
+	onEventChange: (eventId: string) => void
 }
 
 /**
@@ -85,11 +89,10 @@ export function JudgeSchedulingContainer({
 	activeVersionMap,
 	competitionDefaultHeats,
 	competitionDefaultPattern,
+	selectedEventId,
+	onEventChange,
 }: JudgeSchedulingContainerProps) {
 	const isOnline = competitionType === "online"
-	const [selectedEventId, setSelectedEventId] = useState<string>(
-		events[0]?.id ?? "",
-	)
 	const [assignments, setAssignments] =
 		useState<JudgeHeatAssignment[]>(initialAssignments)
 	const [selectedJudgeIds, setSelectedJudgeIds] = useState<Set<string>>(
@@ -396,7 +399,7 @@ export function JudgeSchedulingContainer({
 				<label htmlFor="event-selector" className="text-sm font-medium">
 					Event:
 				</label>
-				<Select value={selectedEventId} onValueChange={setSelectedEventId}>
+				<Select value={selectedEventId} onValueChange={onEventChange}>
 					<SelectTrigger id="event-selector" className="w-80">
 						<SelectValue placeholder="Select event" />
 					</SelectTrigger>
