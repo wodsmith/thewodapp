@@ -100,6 +100,7 @@ export function JudgeSchedulingContainer({
 	)
 	const [isRollingBack, setIsRollingBack] = useState(false)
 	const [isFetchingAssignments, setIsFetchingAssignments] = useState(false)
+	const [filterEmptyLanes, setFilterEmptyLanes] = useState(false)
 
 	// Get heats for selected event
 	const eventHeats = useMemo(
@@ -622,10 +623,7 @@ export function JudgeSchedulingContainer({
 							teamId={organizingTeamId}
 							trackWorkoutId={selectedEventId}
 							eventName={selectedEvent?.workout.name ?? "Event"}
-							heatsList={eventHeats.map((h) => ({
-								heatNumber: h.heatNumber,
-								scheduledTime: h.scheduledTime,
-							}))}
+							heatsWithAssignments={eventHeats}
 							laneCount={maxLanes}
 							availableJudges={judges}
 							initialRotations={eventRotations}
@@ -634,6 +632,8 @@ export function JudgeSchedulingContainer({
 							}
 							eventDefaultHeatsCount={selectedEventDefaults.defaultHeatsCount}
 							minHeatBuffer={selectedEventDefaults.minHeatBuffer}
+							filterEmptyLanes={filterEmptyLanes}
+							onFilterEmptyLanesChange={setFilterEmptyLanes}
 						/>
 					) : (
 						<Card>

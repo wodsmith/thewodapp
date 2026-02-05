@@ -46,6 +46,7 @@ export interface CoverageStats {
 export interface HeatInfo {
 	heatNumber: number
 	laneCount: number
+	occupiedLanes?: Set<number>
 }
 
 // ============================================================================
@@ -127,7 +128,13 @@ export function calculateCoverage(
 	// Initialize grid with all heat/lane combinations
 	let totalSlots = 0
 	for (const heat of heats) {
-		for (let lane = 1; lane <= heat.laneCount; lane++) {
+		// If occupiedLanes is defined, only count those lanes
+		// Otherwise, count all lanes (backward compatible)
+		const lanesToCount = heat.occupiedLanes
+			? Array.from(heat.occupiedLanes)
+			: Array.from({length: heat.laneCount}, (_, i) => i + 1)
+
+		for (const lane of lanesToCount) {
 			const key = `${heat.heatNumber}:${lane}`
 			coverageGrid.set(key, [])
 			totalSlots++

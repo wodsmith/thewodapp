@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ToggleGroup } from "@/components/ui/toggle-group"
 import type { CompetitionJudgeRotation, LaneShiftPattern } from "@/db/schema"
@@ -28,24 +29,20 @@ import {
 	getEventRotationsFn,
 	updateJudgeRotationFn,
 } from "@/server-fns/judge-rotation-fns"
+import type { HeatWithAssignments } from "@/server-fns/competition-heats-fns"
 import type { JudgeVolunteerInfo } from "@/server-fns/judge-scheduling-fns"
 import {
 	type MultiPreviewCell,
 	MultiRotationEditor,
 } from "./multi-rotation-editor"
 
-interface HeatInfo {
-	heatNumber: number
-	scheduledTime: Date | null
-}
-
 interface RotationTimelineProps {
 	competitionId: string
 	teamId: string
 	trackWorkoutId: string
 	eventName: string
-	/** Array of heats with scheduled times for display in the header */
-	heatsList: HeatInfo[]
+	/** Array of heats with assignments for display and lane filtering */
+	heatsWithAssignments: HeatWithAssignments[]
 	laneCount: number
 	availableJudges: JudgeVolunteerInfo[]
 	initialRotations: CompetitionJudgeRotation[]
@@ -55,6 +52,10 @@ interface RotationTimelineProps {
 	eventDefaultHeatsCount: number
 	/** Minimum heat buffer between rotations for the same judge (default 2) */
 	minHeatBuffer: number
+	/** Whether to filter out empty lanes (lanes with no athletes) */
+	filterEmptyLanes: boolean
+	/** Callback when filter state changes */
+	onFilterEmptyLanesChange: (value: boolean) => void
 }
 
 /**
@@ -67,15 +68,17 @@ export function RotationTimeline({
 	teamId,
 	trackWorkoutId,
 	eventName,
-	heatsList,
+	heatsWithAssignments,
 	laneCount,
 	availableJudges,
 	initialRotations,
 	eventLaneShiftPattern,
 	eventDefaultHeatsCount,
 	minHeatBuffer,
+	filterEmptyLanes,
+	onFilterEmptyLanesChange,
 }: RotationTimelineProps) {
-	const heatsCount = heatsList.length
+	const heatsCount = heatsWithAssignments.length
 	const [availabilityFilter, setAvailabilityFilter] = useState<
 		"all" | VolunteerAvailability
 	>("all")
@@ -129,14 +132,38 @@ export function RotationTimeline({
 		new Set(),
 	)
 
+	// Compute occupied lanes per heat from athlete assignments
+	const occupiedLanesByHeat = useMemo(() => {
+		const map = new Map<number, Set<number>>()
+		for (const heat of heatsWithAssignments) {
+			const occupiedLanes = new Set<number>()
+			for (const assignment of heat.assignments) {
+				occupiedLanes.add(assignment.laneNumber)
+			}
+			map.set(heat.heatNumber, occupiedLanes)
+		}
+		return map
+	}, [heatsWithAssignments])
+
 	// Build heats array for coverage calculation
 	const heats = useMemo(
 		() =>
-			Array.from({ length: heatsCount }, (_, i) => ({
-				heatNumber: i + 1,
-				laneCount,
-			})),
-		[heatsCount, laneCount],
+			Array.from({ length: heatsCount }, (_, i) => {
+				const heatNumber = i + 1
+				// Include occupiedLanes if filtering is enabled
+				if (filterEmptyLanes) {
+					return {
+						heatNumber,
+						laneCount,
+						occupiedLanes: occupiedLanesByHeat.get(heatNumber),
+					}
+				}
+				return {
+					heatNumber,
+					laneCount,
+				}
+			}),
+		[heatsCount, laneCount, filterEmptyLanes, occupiedLanesByHeat],
 	)
 
 	// Calculate coverage
@@ -178,14 +205,27 @@ export function RotationTimeline({
 		const grid = new Map<
 			string,
 			{
-				status: "empty" | "covered" | "overlap" | "buffer-blocked"
+				status: "empty" | "covered" | "overlap" | "buffer-blocked" | "unavailable"
 				rotationIds: string[]
 			}
 		>()
 
-		// Initialize all slots as empty
+		// Initialize all slots
 		for (let heat = 1; heat <= heatsCount; heat++) {
 			for (let lane = 1; lane <= laneCount; lane++) {
+				// Mark as unavailable if filtering is enabled and lane has no athlete
+				if (filterEmptyLanes) {
+					const occupiedLanes = occupiedLanesByHeat.get(heat)
+					const hasAthlete = occupiedLanes?.has(lane) ?? false
+					if (!hasAthlete) {
+						grid.set(`${heat}:${lane}`, {
+							status: "unavailable",
+							rotationIds: [],
+						})
+						continue
+					}
+				}
+				// Default to empty
 				grid.set(`${heat}:${lane}`, { status: "empty", rotationIds: [] })
 			}
 		}
@@ -264,6 +304,8 @@ export function RotationTimeline({
 		editingVolunteerId,
 		rotationsByVolunteer,
 		minHeatBuffer,
+		filterEmptyLanes,
+		occupiedLanesByHeat,
 	])
 
 	// Build preview cell lookup for fast checking with block colors
@@ -497,6 +539,21 @@ export function RotationTimeline({
 					<p className="text-sm text-muted-foreground">
 						{eventName} - {heatsCount} heats x {laneCount} lanes
 					</p>
+				</div>
+				<div className="flex items-center gap-2">
+					<Checkbox
+						id="filter-empty-lanes"
+						checked={filterEmptyLanes}
+						onCheckedChange={(checked) =>
+							onFilterEmptyLanesChange(checked === true)
+						}
+					/>
+					<label
+						htmlFor="filter-empty-lanes"
+						className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+					>
+						Only show lanes with athletes
+					</label>
 				</div>
 			</div>
 
@@ -799,7 +856,7 @@ export function RotationTimeline({
 
 									{/* Header Row - Heat Times */}
 									<div className="sticky left-0 z-20 border-b border-r bg-muted" />
-									{heatsList.map((heat) => {
+									{heatsWithAssignments.map((heat) => {
 										const timeText = heat.scheduledTime
 											? heat.scheduledTime.toLocaleTimeString("en-US", {
 													hour: "numeric",
@@ -895,6 +952,10 @@ export function RotationTimeline({
 								<span className="text-muted-foreground">Overlap</span>
 							</div>
 							<div className="flex items-center gap-2">
+								<div className="h-4 w-4 rounded border bg-neutral-200 dark:bg-neutral-800 bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,rgba(0,0,0,0.15)_2px,rgba(0,0,0,0.15)_4px)]" />
+								<span className="text-muted-foreground">No Athlete</span>
+							</div>
+							<div className="flex items-center gap-2">
 								<div className="h-4 w-4 rounded border bg-primary/60 ring-2 ring-primary" />
 								<span className="text-muted-foreground">Selected</span>
 							</div>
@@ -951,7 +1012,7 @@ export function RotationTimeline({
 interface TimelineCellProps {
 	heat: number
 	lane: number
-	status: "empty" | "covered" | "overlap" | "buffer-blocked"
+	status: "empty" | "covered" | "overlap" | "buffer-blocked" | "unavailable"
 	isHighlighted: boolean
 	isPreview: boolean
 	/** Block index for preview cells (used for coloring) */
@@ -986,7 +1047,12 @@ function TimelineCell({
 	const ref = useRef<HTMLButtonElement>(null)
 	const [isDraggedOver, setIsDraggedOver] = useState(false)
 
+	// Skip drop target registration and interaction for unavailable cells
+	const isUnavailable = status === "unavailable"
+
 	useEffect(() => {
+		if (isUnavailable) return
+
 		const element = ref.current
 		if (!element) return
 
@@ -1005,13 +1071,18 @@ function TimelineCell({
 				}
 			},
 		})
-	}, [onRotationDrop])
+	}, [onRotationDrop, isUnavailable])
 
 	// Determine background class based on status, highlight, preview, and editing state
 	let bgClass: string
 	let title: string | undefined
 
-	if (isPreviewConflict) {
+	if (isUnavailable) {
+		// Unavailable cell - dark with diagonal stripes, non-interactive
+		bgClass =
+			"bg-neutral-200 dark:bg-neutral-800 bg-[repeating-linear-gradient(45deg,transparent,transparent_4px,rgba(0,0,0,0.1)_4px,rgba(0,0,0,0.1)_8px)] dark:bg-[repeating-linear-gradient(45deg,transparent,transparent_4px,rgba(255,255,255,0.1)_4px,rgba(255,255,255,0.1)_8px)] cursor-not-allowed"
+		title = "No athlete assigned"
+	} else if (isPreviewConflict) {
 		// Preview cell that conflicts with existing assignment - RED
 		bgClass = "bg-red-500/40 border-dashed border-2 border-red-500"
 		title = "Conflict: Heat already assigned"
@@ -1048,11 +1119,12 @@ function TimelineCell({
 		<button
 			ref={ref}
 			type="button"
-			onClick={onClick}
+			onClick={isUnavailable ? undefined : onClick}
 			title={title}
-			className={`cursor-pointer border-b border-r transition-colors last:border-r-0 ${bgClass} ${
+			disabled={isUnavailable}
+			className={`border-b border-r transition-colors last:border-r-0 ${bgClass} ${
 				isDraggedOver ? "ring-2 ring-inset ring-blue-500" : ""
-			}`}
+			} ${isUnavailable ? "" : "cursor-pointer"}`}
 		/>
 	)
 }
