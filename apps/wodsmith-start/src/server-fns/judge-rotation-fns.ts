@@ -1174,9 +1174,11 @@ export const deleteVolunteerRotationsFn = createServerFn({ method: "POST" })
 			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
 
-		// Delete all rotations for this volunteer in this event
-		const result = await db
-			.delete(competitionJudgeRotationsTable)
+		// Find rotations to delete, then use deleteRotationInternal which
+		// handles clearing FK references in judge_heat_assignments
+		const rotationsToDelete = await db
+			.select({ id: competitionJudgeRotationsTable.id })
+			.from(competitionJudgeRotationsTable)
 			.where(
 				and(
 					eq(competitionJudgeRotationsTable.membershipId, data.membershipId),
@@ -1186,7 +1188,12 @@ export const deleteVolunteerRotationsFn = createServerFn({ method: "POST" })
 					),
 				),
 			)
-			.returning({ id: competitionJudgeRotationsTable.id })
+
+		for (const rotation of rotationsToDelete) {
+			await deleteRotationInternal(rotation.id, data.teamId)
+		}
+
+		const result = rotationsToDelete
 
 		return {
 			success: true,
