@@ -157,11 +157,17 @@ export function JudgeSchedulingContainer({
 			.sort((a, b) => a.assignmentCount - b.assignmentCount)
 	}, [judges, assignments])
 
-	// Get rotations for selected event
-	const eventRotations = useMemo(
+	// Get rotations for selected event - track locally to update on changes
+	const initialEventRotations = useMemo(
 		() => initialRotations.filter((r) => r.trackWorkoutId === selectedEventId),
 		[initialRotations, selectedEventId],
 	)
+	const [eventRotations, setEventRotations] = useState(initialEventRotations)
+
+	// Sync when event changes or initial data changes
+	useEffect(() => {
+		setEventRotations(initialEventRotations)
+	}, [initialEventRotations])
 
 	// Get selected event details
 	const selectedEvent = useMemo(
@@ -265,6 +271,19 @@ export function JudgeSchedulingContainer({
 		competitionDefaultPattern,
 	])
 
+	// Compute occupied lanes per heat from athlete assignments
+	const occupiedLanesByHeat = useMemo(() => {
+		const map = new Map<number, Set<number>>()
+		for (const heat of eventHeats) {
+			const occupiedLanes = new Set<number>()
+			for (const assignment of heat.assignments) {
+				occupiedLanes.add(assignment.laneNumber)
+			}
+			map.set(heat.heatNumber, occupiedLanes)
+		}
+		return map
+	}, [eventHeats])
+
 	// Calculate rotation coverage for selected event
 	const rotationCoverage = useMemo(() => {
 		if (eventHeats.length === 0) {
@@ -277,13 +296,23 @@ export function JudgeSchedulingContainer({
 			}
 		}
 
-		const heatsData = eventHeats.map((h) => ({
-			heatNumber: h.heatNumber,
-			laneCount: h.venue?.laneCount ?? maxLanes,
-		}))
+		const heatsData = eventHeats.map((h) => {
+			const base = {
+				heatNumber: h.heatNumber,
+				laneCount: h.venue?.laneCount ?? maxLanes,
+			}
+			// Include occupiedLanes if filtering is enabled
+			if (filterEmptyLanes) {
+				return {
+					...base,
+					occupiedLanes: occupiedLanesByHeat.get(h.heatNumber),
+				}
+			}
+			return base
+		})
 
 		return calculateCoverage(eventRotations, heatsData)
-	}, [eventRotations, eventHeats, maxLanes])
+	}, [eventRotations, eventHeats, maxLanes, filterEmptyLanes, occupiedLanesByHeat])
 
 	// Handle multi-select toggle
 	function handleToggleSelect(membershipId: string, shiftKey: boolean) {
@@ -637,6 +666,7 @@ export function JudgeSchedulingContainer({
 							minHeatBuffer={selectedEventDefaults.minHeatBuffer}
 							filterEmptyLanes={filterEmptyLanes}
 							onFilterEmptyLanesChange={setFilterEmptyLanes}
+							onRotationsChange={setEventRotations}
 						/>
 					) : (
 						<Card>
