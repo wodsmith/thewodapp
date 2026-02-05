@@ -17,6 +17,7 @@ import {
 	competitionJudgeRotationsTable,
 	competitionsTable,
 	competitionVenuesTable,
+	judgeHeatAssignmentsTable,
 	LANE_SHIFT_PATTERN,
 	trackWorkoutsTable,
 	workouts,
@@ -519,6 +520,10 @@ async function createRotationInternal(params: {
 
 /**
  * Delete a judge rotation (internal helper)
+ *
+ * Note: The rotationId FK on judge_heat_assignments was created without
+ * ON DELETE SET NULL (migration 0060), so we must manually null it out
+ * before deleting the rotation to avoid FK constraint violations.
  */
 async function deleteRotationInternal(
 	rotationId: string,
@@ -528,6 +533,13 @@ async function deleteRotationInternal(
 
 	// Permission check
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.MANAGE_COMPETITIONS)
+
+	// Clear rotationId references in judge_heat_assignments before deleting
+	// (the DB FK lacks ON DELETE SET NULL due to migration 0060)
+	await db
+		.update(judgeHeatAssignmentsTable)
+		.set({ rotationId: null })
+		.where(eq(judgeHeatAssignmentsTable.rotationId, rotationId))
 
 	await db
 		.delete(competitionJudgeRotationsTable)
