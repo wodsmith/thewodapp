@@ -1,11 +1,12 @@
 "use client"
 
 import { Link } from "@tanstack/react-router"
-import { ClipboardList, FileWarning } from "lucide-react"
+import { ClipboardList, FileWarning, Search } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import {
 	Select,
 	SelectContent,
@@ -22,7 +23,9 @@ import { calculateCoverage } from "@/lib/judge-rotation-utils"
 import type { HeatWithAssignments } from "@/server-fns/competition-heats-fns"
 import type { CompetitionWorkout } from "@/server-fns/competition-workouts-fns"
 import {
+	getActiveVersionFn,
 	getAssignmentsForVersionFn,
+	getVersionHistoryFn,
 	rollbackToVersionFn,
 } from "@/server-fns/judge-assignment-fns"
 import type {
@@ -64,6 +67,10 @@ interface JudgeSchedulingContainerProps {
 	competitionDefaultHeats: number
 	/** Competition-level default lane shift pattern */
 	competitionDefaultPattern: LaneShiftPattern
+	/** Currently selected event ID (from URL) */
+	selectedEventId: string
+	/** Callback when event selection changes */
+	onEventChange: (eventId: string) => void
 }
 
 /**
@@ -85,11 +92,10 @@ export function JudgeSchedulingContainer({
 	activeVersionMap,
 	competitionDefaultHeats,
 	competitionDefaultPattern,
+	selectedEventId,
+	onEventChange,
 }: JudgeSchedulingContainerProps) {
 	const isOnline = competitionType === "online"
-	const [selectedEventId, setSelectedEventId] = useState<string>(
-		events[0]?.id ?? "",
-	)
 	const [assignments, setAssignments] =
 		useState<JudgeHeatAssignment[]>(initialAssignments)
 	const [selectedJudgeIds, setSelectedJudgeIds] = useState<Set<string>>(
@@ -100,6 +106,8 @@ export function JudgeSchedulingContainer({
 	)
 	const [isRollingBack, setIsRollingBack] = useState(false)
 	const [isFetchingAssignments, setIsFetchingAssignments] = useState(false)
+	const [filterEmptyLanes, setFilterEmptyLanes] = useState(false)
+	const [availableJudgeSearch, setAvailableJudgeSearch] = useState("")
 
 	// Get heats for selected event
 	const eventHeats = useMemo(
@@ -153,11 +161,27 @@ export function JudgeSchedulingContainer({
 			.sort((a, b) => a.assignmentCount - b.assignmentCount)
 	}, [judges, assignments])
 
-	// Get rotations for selected event
-	const eventRotations = useMemo(
+	// Filter judges by search query
+	const filteredJudgesByAssignmentCount = useMemo(() => {
+		if (!availableJudgeSearch.trim()) return judgesByAssignmentCount
+		const query = availableJudgeSearch.toLowerCase().trim()
+		return judgesByAssignmentCount.filter((judge) => {
+			const fullName = `${judge.firstName ?? ""} ${judge.lastName ?? ""}`.toLowerCase()
+			return fullName.includes(query)
+		})
+	}, [judgesByAssignmentCount, availableJudgeSearch])
+
+	// Get rotations for selected event - track locally to update on changes
+	const initialEventRotations = useMemo(
 		() => initialRotations.filter((r) => r.trackWorkoutId === selectedEventId),
 		[initialRotations, selectedEventId],
 	)
+	const [eventRotations, setEventRotations] = useState(initialEventRotations)
+
+	// Sync when event changes or initial data changes
+	useEffect(() => {
+		setEventRotations(initialEventRotations)
+	}, [initialEventRotations])
 
 	// Get selected event details
 	const selectedEvent = useMemo(
@@ -165,16 +189,23 @@ export function JudgeSchedulingContainer({
 		[events, selectedEventId],
 	)
 
-	// Get version data for selected event
-	const eventVersionHistory = useMemo(
+	// Get version data for selected event - track locally to update on publish
+	const initialVersionHistory = useMemo(
 		() => versionHistoryMap.get(selectedEventId) ?? [],
 		[versionHistoryMap, selectedEventId],
 	)
-
-	const eventActiveVersion = useMemo(
+	const initialActiveVersion = useMemo(
 		() => activeVersionMap.get(selectedEventId) ?? null,
 		[activeVersionMap, selectedEventId],
 	)
+	const [eventVersionHistory, setEventVersionHistory] = useState(initialVersionHistory)
+	const [eventActiveVersion, setEventActiveVersion] = useState(initialActiveVersion)
+
+	// Sync when event changes
+	useEffect(() => {
+		setEventVersionHistory(initialVersionHistory)
+		setEventActiveVersion(initialActiveVersion)
+	}, [initialVersionHistory, initialActiveVersion])
 
 	// Auto-select active version when event changes
 	useEffect(() => {
@@ -184,6 +215,41 @@ export function JudgeSchedulingContainer({
 			setSelectedVersionId(null)
 		}
 	}, [eventActiveVersion])
+
+	// Refresh version data after publishing
+	async function refreshVersionData() {
+		try {
+			const [historyResult, activeResult] = await Promise.all([
+				getVersionHistoryFn({ data: { trackWorkoutId: selectedEventId } }),
+				getActiveVersionFn({ data: { trackWorkoutId: selectedEventId } }),
+			])
+			if (historyResult) {
+				setEventVersionHistory(historyResult)
+			}
+			setEventActiveVersion(activeResult)
+
+			// Also fetch assignments for the new active version
+			if (activeResult) {
+				setSelectedVersionId(activeResult.id)
+				const assignmentsResult = await getAssignmentsForVersionFn({
+					data: { versionId: activeResult.id },
+				})
+				if (assignmentsResult) {
+					setAssignments((prev) => {
+						// Remove old assignments for this event, add new ones
+						const eventHeatIds = new Set(eventHeats.map((h) => h.id))
+						const withoutEvent = prev.filter((a) => !eventHeatIds.has(a.heatId))
+						return [
+							...withoutEvent,
+							...(assignmentsResult as unknown as JudgeHeatAssignment[]),
+						]
+					})
+				}
+			}
+		} catch (err) {
+			console.error("Failed to refresh version data:", err)
+		}
+	}
 
 	// Handle version change
 	async function handleVersionChange(versionId: string) {
@@ -261,7 +327,21 @@ export function JudgeSchedulingContainer({
 		competitionDefaultPattern,
 	])
 
+	// Compute occupied lanes per heat from athlete assignments
+	const occupiedLanesByHeat = useMemo(() => {
+		const map = new Map<number, Set<number>>()
+		for (const heat of eventHeats) {
+			const occupiedLanes = new Set<number>()
+			for (const assignment of heat.assignments) {
+				occupiedLanes.add(assignment.laneNumber)
+			}
+			map.set(heat.heatNumber, occupiedLanes)
+		}
+		return map
+	}, [eventHeats])
+
 	// Calculate rotation coverage for selected event
+	// Use initialEventRotations directly to avoid stale state timing issues when switching events
 	const rotationCoverage = useMemo(() => {
 		if (eventHeats.length === 0) {
 			return {
@@ -273,13 +353,30 @@ export function JudgeSchedulingContainer({
 			}
 		}
 
-		const heatsData = eventHeats.map((h) => ({
-			heatNumber: h.heatNumber,
-			laneCount: h.venue?.laneCount ?? maxLanes,
-		}))
+		const heatsData = eventHeats.map((h) => {
+			const base = {
+				heatNumber: h.heatNumber,
+				laneCount: h.venue?.laneCount ?? maxLanes,
+			}
+			// Include occupiedLanes if filtering is enabled
+			if (filterEmptyLanes) {
+				// Compute occupied lanes directly from heat assignments to ensure consistency
+				const occupiedLanes = new Set<number>()
+				for (const assignment of h.assignments) {
+					occupiedLanes.add(assignment.laneNumber)
+				}
+				return {
+					...base,
+					occupiedLanes,
+				}
+			}
+			return base
+		})
 
-		return calculateCoverage(eventRotations, heatsData)
-	}, [eventRotations, eventHeats, maxLanes])
+		// Use fresh rotations for the selected event to avoid stale state on event switch
+		// eventRotations state may lag behind when selectedEventId changes
+		return calculateCoverage(initialEventRotations, heatsData)
+	}, [initialEventRotations, eventHeats, maxLanes, filterEmptyLanes])
 
 	// Handle multi-select toggle
 	function handleToggleSelect(membershipId: string, shiftKey: boolean) {
@@ -395,7 +492,7 @@ export function JudgeSchedulingContainer({
 				<label htmlFor="event-selector" className="text-sm font-medium">
 					Event:
 				</label>
-				<Select value={selectedEventId} onValueChange={setSelectedEventId}>
+				<Select value={selectedEventId} onValueChange={onEventChange}>
 					<SelectTrigger id="event-selector" className="w-80">
 						<SelectValue placeholder="Select event" />
 					</SelectTrigger>
@@ -487,6 +584,8 @@ export function JudgeSchedulingContainer({
 								events={events}
 								heats={heats}
 								judgeAssignments={assignments}
+								filterEmptyLanes={filterEmptyLanes}
+								onFilterEmptyLanesChange={setFilterEmptyLanes}
 							/>
 
 							{/* Main content: judges panel + heats */}
@@ -512,23 +611,41 @@ export function JudgeSchedulingContainer({
 												Judge role type in the Volunteers section above.
 											</p>
 										) : (
-											<div className="max-h-[60vh] space-y-1.5 overflow-y-auto">
-												{judgesByAssignmentCount.map((judge) => (
-													<DraggableJudge
-														key={judge.membershipId}
-														volunteer={judge}
-														isSelected={selectedJudgeIds.has(
-															judge.membershipId,
-														)}
-														onToggleSelect={handleToggleSelect}
-														selectedIds={selectedJudgeIds}
-														assignmentCount={judge.assignmentCount}
-														isAssignedToCurrentEvent={assignedJudgeIds.has(
-															judge.membershipId,
-														)}
+											<>
+												{/* Search Input */}
+												<div className="relative mb-3">
+													<Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+													<Input
+														type="text"
+														placeholder="Search judges..."
+														value={availableJudgeSearch}
+														onChange={(e) => setAvailableJudgeSearch(e.target.value)}
+														className="h-8 pl-8 text-sm"
 													/>
-												))}
-											</div>
+												</div>
+												<div className="max-h-[55vh] space-y-1.5 overflow-y-auto">
+													{filteredJudgesByAssignmentCount.map((judge) => (
+														<DraggableJudge
+															key={judge.membershipId}
+															volunteer={judge}
+															isSelected={selectedJudgeIds.has(
+																judge.membershipId,
+															)}
+															onToggleSelect={handleToggleSelect}
+															selectedIds={selectedJudgeIds}
+															assignmentCount={judge.assignmentCount}
+															isAssignedToCurrentEvent={assignedJudgeIds.has(
+																judge.membershipId,
+															)}
+														/>
+													))}
+													{filteredJudgesByAssignmentCount.length === 0 && availableJudgeSearch && (
+														<p className="py-4 text-center text-sm text-muted-foreground">
+															No judges match "{availableJudgeSearch}"
+														</p>
+													)}
+												</div>
+											</>
 										)}
 									</CardContent>
 								</Card>
@@ -570,6 +687,8 @@ export function JudgeSchedulingContainer({
 												onMoveAssignment={handleMoveAssignment}
 												selectedJudgeIds={selectedJudgeIds}
 												onClearSelection={clearSelection}
+												filterEmptyLanes={filterEmptyLanes}
+												athleteOccupiedLanes={occupiedLanesByHeat.get(heat.heatNumber)}
 											/>
 										))
 									)}
@@ -601,7 +720,7 @@ export function JudgeSchedulingContainer({
 
 					{/* Rotation Overview */}
 					<RotationOverview
-						rotations={eventRotations}
+						rotations={initialEventRotations}
 						coverage={rotationCoverage}
 						eventName={selectedEvent?.workout.name ?? "Event"}
 						teamId={organizingTeamId}
@@ -612,6 +731,7 @@ export function JudgeSchedulingContainer({
 								? (eventVersionHistory[0]?.version ?? 0) + 1
 								: 1
 						}
+						onPublishSuccess={refreshVersionData}
 					/>
 
 					{/* Rotation Timeline */}
@@ -622,10 +742,7 @@ export function JudgeSchedulingContainer({
 							teamId={organizingTeamId}
 							trackWorkoutId={selectedEventId}
 							eventName={selectedEvent?.workout.name ?? "Event"}
-							heatsList={eventHeats.map((h) => ({
-								heatNumber: h.heatNumber,
-								scheduledTime: h.scheduledTime,
-							}))}
+							heatsWithAssignments={eventHeats}
 							laneCount={maxLanes}
 							availableJudges={judges}
 							initialRotations={eventRotations}
@@ -634,6 +751,9 @@ export function JudgeSchedulingContainer({
 							}
 							eventDefaultHeatsCount={selectedEventDefaults.defaultHeatsCount}
 							minHeatBuffer={selectedEventDefaults.minHeatBuffer}
+							filterEmptyLanes={filterEmptyLanes}
+							onFilterEmptyLanesChange={setFilterEmptyLanes}
+							onRotationsChange={setEventRotations}
 						/>
 					) : (
 						<Card>

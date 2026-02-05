@@ -26,9 +26,10 @@ import { InvitedVolunteersList } from "./-components/invited-volunteers-list"
 import { JudgeSchedulingContainer } from "./-components/judges"
 import { VolunteersList } from "./-components/volunteers-list"
 
-// Search params schema for tab navigation
+// Search params schema for tab navigation and event selection
 const searchParamsSchema = z.object({
 	tab: z.enum(["roster", "schedule"]).optional().default("roster"),
+	event: z.string().optional(),
 })
 
 /** Per-event defaults for judge rotations */
@@ -223,16 +224,31 @@ function VolunteersPage() {
 		activeVersionMap,
 	} = Route.useLoaderData()
 
-	const { tab } = Route.useSearch()
+	const { tab, event: eventFromUrl } = Route.useSearch()
 	const navigate = useNavigate()
 
 	const handleTabChange = (value: string) => {
 		navigate({
 			to: ".",
-			search: { tab: value as "roster" | "schedule" },
+			search: (prev) => ({ ...prev, tab: value as "roster" | "schedule" }),
 			replace: true,
 		})
 	}
+
+	const handleEventChange = (eventId: string) => {
+		navigate({
+			to: ".",
+			search: (prev) => ({ ...prev, event: eventId }),
+			replace: true,
+		})
+	}
+
+	// Determine selected event - from URL or first event
+	// Validate eventFromUrl exists in events before using it
+	const selectedEventId =
+		eventFromUrl && events.some((event) => event.id === eventFromUrl)
+			? eventFromUrl
+			: events[0]?.id || ""
 
 	// Check if schedule tab should be available (in-person competitions only)
 	const isInPerson = competition.competitionType === "in-person"
@@ -318,6 +334,8 @@ function VolunteersPage() {
 							(competition.defaultLaneShiftPattern as "stay" | "shift_right") ??
 							"shift_right"
 						}
+						selectedEventId={selectedEventId}
+						onEventChange={handleEventChange}
 					/>
 				</TabsContent>
 			)}

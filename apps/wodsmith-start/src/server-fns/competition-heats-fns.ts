@@ -189,6 +189,16 @@ const bulkCreateHeatsInputSchema = z.object({
 	),
 })
 
+const bulkUpdateHeatsInputSchema = z.object({
+	heats: z.array(
+		z.object({
+			heatId: z.string().min(1, "Heat ID is required"),
+			scheduledTime: z.coerce.date().nullable().optional(),
+			durationMinutes: z.number().int().min(1).max(180).nullable().optional(),
+		}),
+	),
+})
+
 const copyHeatsFromEventInputSchema = z.object({
 	sourceTrackWorkoutId: z
 		.string()
@@ -1283,6 +1293,55 @@ export const bulkCreateHeatsFn = createServerFn({ method: "POST" })
 		})
 
 		return { heats: createdHeats }
+	})
+
+/**
+ * Bulk update existing heats' scheduled times and durations
+ * Updates multiple heats at once, useful for adjusting heat schedules
+ */
+export const bulkUpdateHeatsFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => bulkUpdateHeatsInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		if (data.heats.length === 0) {
+			return { success: true, updatedCount: 0 }
+		}
+
+		const now = new Date()
+
+		// Update each heat individually (D1 doesn't support batch updates with different values)
+		await Promise.all(
+			data.heats.map((heat) => {
+				const updateData: Record<string, unknown> = {
+					updatedAt: now,
+				}
+
+				if (heat.scheduledTime !== undefined) {
+					updateData.scheduledTime = heat.scheduledTime
+					// Auto-publish when scheduledTime is set, unpublish when cleared
+					updateData.schedulePublishedAt = heat.scheduledTime ? now : null
+				}
+				if (heat.durationMinutes !== undefined) {
+					updateData.durationMinutes = heat.durationMinutes
+				}
+
+				return db
+					.update(competitionHeatsTable)
+					.set(updateData)
+					.where(eq(competitionHeatsTable.id, heat.heatId))
+			}),
+		)
+
+		logInfo({
+			message: "[Heat] Bulk heats updated",
+			attributes: {
+				heatCount: data.heats.length,
+				heatIds: data.heats.map((h) => h.heatId),
+			},
+		})
+
+		return { success: true, updatedCount: data.heats.length }
 	})
 
 /**

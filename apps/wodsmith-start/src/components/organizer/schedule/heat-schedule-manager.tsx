@@ -9,6 +9,7 @@ import {
 	EyeOff,
 	GripVertical,
 	Loader2,
+	Pencil,
 	Plus,
 	Users,
 } from "lucide-react"
@@ -43,6 +44,7 @@ import type { CompetitionVenue } from "@/db/schemas/competitions"
 import type { HeatWithAssignments } from "@/server-fns/competition-heats-fns"
 import {
 	bulkCreateHeatsFn,
+	bulkUpdateHeatsFn,
 	copyHeatsFromEventFn,
 	createHeatFn,
 	deleteHeatFn,
@@ -400,6 +402,13 @@ export function HeatScheduleManager({
 	// Bulk create dialog state
 	const [isBulkCreateOpen, setIsBulkCreateOpen] = useState(false)
 	const [bulkHeatTimes, setBulkHeatTimes] = useState<string[]>([])
+	// Bulk edit dialog state
+	const [isBulkEditOpen, setIsBulkEditOpen] = useState(false)
+	const [bulkEditTimes, setBulkEditTimes] = useState<
+		Array<{ heatId: string; heatNumber: number; time: string }>
+	>([])
+	const [bulkEditDuration, setBulkEditDuration] = useState(11) // Default cap + transition
+	const [isBulkEditing, setIsBulkEditing] = useState(false)
 	const [bulkCreateTab, setBulkCreateTab] = useState<"new" | "copy">("new")
 	// Copy from previous event state
 	const [copySourceEventId, setCopySourceEventId] = useState<string>("")
@@ -900,6 +909,134 @@ export function HeatScheduleManager({
 		setCopyStartTime(getDefaultCopyStartTime(newGap))
 	}
 
+	// Open bulk edit dialog and initialize times from existing heats
+	function openBulkEditDialog() {
+		if (eventHeats.length === 0) return
+
+		const times = eventHeats.map((heat) => ({
+			heatId: heat.id,
+			heatNumber: heat.heatNumber,
+			time: heat.scheduledTime
+				? formatDatetimeLocal(new Date(heat.scheduledTime))
+				: getDefaultHeatTime(),
+		}))
+
+		// Get duration from first heat or use default
+		const firstHeat = eventHeats[0]
+		const initialDuration =
+			firstHeat?.durationMinutes ?? workoutCapMinutes + (selectedVenue?.transitionMinutes ?? 3)
+
+		setBulkEditTimes(times)
+		setBulkEditDuration(initialDuration)
+		setIsBulkEditOpen(true)
+	}
+
+	// Recalculate all times when duration changes in bulk edit
+	function handleBulkEditDurationChange(newDuration: number) {
+		setBulkEditDuration(newDuration)
+
+		// Recalculate times from the first heat
+		setBulkEditTimes((prev) => {
+			if (prev.length === 0) return prev
+
+			const updated = [...prev]
+			const firstItem = updated[0]
+			if (!firstItem?.time) return prev
+
+			// Guard against invalid datetime values
+			const baseTime = new Date(firstItem.time)
+			if (Number.isNaN(baseTime.getTime())) return prev
+
+			// Keep first heat time, cascade the rest
+			let currentTime = baseTime
+			for (let i = 1; i < updated.length; i++) {
+				currentTime = new Date(currentTime)
+				currentTime.setMinutes(currentTime.getMinutes() + newDuration)
+				const existingItem = updated[i]
+				if (existingItem) {
+					updated[i] = { ...existingItem, time: formatDatetimeLocal(currentTime) }
+				}
+			}
+
+			return updated
+		})
+	}
+
+	// Update a heat time in bulk edit and cascade to subsequent heats
+	function updateBulkEditTime({
+		index,
+		newTime,
+	}: {
+		index: number
+		newTime: string
+	}) {
+		setBulkEditTimes((prev) => {
+			const updated = [...prev]
+			const item = updated[index]
+			if (item) {
+				updated[index] = { ...item, time: newTime }
+			}
+
+			// Guard against empty/invalid datetime values before cascading
+			if (!newTime) return updated
+			const baseTime = new Date(newTime)
+			if (Number.isNaN(baseTime.getTime())) return updated
+
+			// Cascade time changes to all subsequent heats using bulkEditDuration
+			let currentTime = baseTime
+			for (let i = index + 1; i < updated.length; i++) {
+				currentTime = new Date(currentTime)
+				currentTime.setMinutes(currentTime.getMinutes() + bulkEditDuration)
+				const existingItem = updated[i]
+				if (existingItem) {
+					updated[i] = { ...existingItem, time: formatDatetimeLocal(currentTime) }
+				}
+			}
+
+			return updated
+		})
+	}
+
+	async function handleBulkEditHeats() {
+		if (bulkEditTimes.length === 0) return
+
+		setIsBulkEditing(true)
+		try {
+			// Prepare updates using the editable duration
+			const heatsData = bulkEditTimes.map((item) => ({
+				heatId: item.heatId,
+				scheduledTime: item.time ? new Date(item.time) : null,
+				durationMinutes: bulkEditDuration,
+			}))
+
+			await bulkUpdateHeatsFn({ data: { heats: heatsData } })
+
+			// Update local state
+			setHeats(
+				heats.map((h) => {
+					const editItem = bulkEditTimes.find((e) => e.heatId === h.id)
+					if (editItem) {
+						return {
+							...h,
+							scheduledTime: editItem.time ? new Date(editItem.time) : null,
+							durationMinutes: bulkEditDuration,
+						}
+					}
+					return h
+				}),
+			)
+
+			toast.success(`Updated ${bulkEditTimes.length} heats`)
+			setIsBulkEditOpen(false)
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Failed to update heats"
+			toast.error(message)
+		} finally {
+			setIsBulkEditing(false)
+		}
+	}
+
 	// Handle copying heats from another event
 	async function handleCopyHeats() {
 		if (!selectedEventId || !copySourceEventId) return
@@ -1267,6 +1404,18 @@ export function HeatScheduleManager({
 					</DialogContent>
 				</Dialog>
 
+				{/* Bulk Edit Button */}
+				{eventHeats.length > 0 && (
+					<Button
+						size="sm"
+						variant="outline"
+						onClick={openBulkEditDialog}
+					>
+						<Pencil className="h-4 w-4 mr-2" />
+						Edit All Heats
+					</Button>
+				)}
+
 				{/* Heat Calculation & Bulk Add */}
 				{heatCalculation.remainingHeats > 0 && selectedVenue && (
 					<TooltipProvider>
@@ -1549,6 +1698,78 @@ export function HeatScheduleManager({
 							)}
 						</TabsContent>
 					</Tabs>
+				</DialogContent>
+			</Dialog>
+
+			{/* Bulk Edit Heats Dialog */}
+			<Dialog open={isBulkEditOpen} onOpenChange={setIsBulkEditOpen}>
+				<DialogContent className="max-w-md">
+					<DialogHeader>
+						<DialogTitle>Edit Heat Times</DialogTitle>
+					</DialogHeader>
+					<div className="space-y-4">
+						<div className="text-sm text-muted-foreground">
+							{selectedVenue ? (
+								<>
+									Venue: {selectedVenue.name} (
+									<span className="tabular-nums">{selectedVenue.laneCount}</span>{" "}
+									lanes)
+								</>
+							) : (
+								"No venue selected"
+							)}
+						</div>
+						<div className="flex items-center gap-3">
+							<Label htmlFor="bulk-edit-duration" className="whitespace-nowrap">
+								Heat Duration:
+							</Label>
+							<Input
+								id="bulk-edit-duration"
+								type="number"
+								min={1}
+								max={180}
+								value={bulkEditDuration}
+								onChange={(e) => handleBulkEditDurationChange(Number(e.target.value))}
+								className="w-20"
+							/>
+							<span className="text-sm text-muted-foreground">min (applies to all)</span>
+						</div>
+						<div className="max-h-[300px] overflow-y-auto space-y-3">
+							{bulkEditTimes.map((item, index) => (
+								<div key={item.heatId} className="flex items-center gap-3">
+									<span className="text-sm font-medium w-16 tabular-nums">
+										Heat {item.heatNumber}
+									</span>
+									<Input
+										type="datetime-local"
+										value={item.time}
+										onChange={(e) =>
+											updateBulkEditTime({ index, newTime: e.target.value })
+										}
+										className="flex-1"
+									/>
+								</div>
+							))}
+						</div>
+						<div className="flex justify-end gap-2">
+							<Button
+								variant="outline"
+								onClick={() => setIsBulkEditOpen(false)}
+							>
+								Cancel
+							</Button>
+							<Button
+								onClick={handleBulkEditHeats}
+								disabled={isBulkEditing}
+							>
+								{isBulkEditing && (
+									<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+								)}
+								Save {bulkEditTimes.length} Heat
+								{bulkEditTimes.length !== 1 ? "s" : ""}
+							</Button>
+						</div>
+					</div>
 				</DialogContent>
 			</Dialog>
 
