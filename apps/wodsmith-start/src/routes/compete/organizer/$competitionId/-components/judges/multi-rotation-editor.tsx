@@ -38,6 +38,7 @@ import {
 import {
 	batchCreateRotationsFn,
 	batchUpdateVolunteerRotationsFn,
+	deleteVolunteerRotationsFn,
 } from "@/server-fns/judge-rotation-fns"
 import type { JudgeVolunteerInfo } from "@/server-fns/judge-scheduling-fns"
 
@@ -73,25 +74,18 @@ interface MultiRotationEditorProps {
 /**
  * Form schema for multiple rotations.
  * Judge selected once, multiple rotation blocks managed with useFieldArray.
+ * When editing, 0 rotations is allowed (deletes all rotations for the volunteer).
  */
 const multiRotationSchema = z.object({
 	membershipId: z.string().min(1, "Judge is required"),
-	rotations: z
-		.array(
-			z.object({
-				startingHeat: z
-					.number()
-					.int()
-					.min(1, "Starting heat must be at least 1"),
-				startingLane: z
-					.number()
-					.int()
-					.min(1, "Starting lane must be at least 1"),
-				heatsCount: z.number().int().min(1, "Must cover at least 1 heat"),
-				notes: z.string().max(500, "Notes too long").optional(),
-			}),
-		)
-		.min(1, "At least one rotation required"),
+	rotations: z.array(
+		z.object({
+			startingHeat: z.number().int().min(1, "Starting heat must be at least 1"),
+			startingLane: z.number().int().min(1, "Starting lane must be at least 1"),
+			heatsCount: z.number().int().min(1, "Must cover at least 1 heat"),
+			notes: z.string().max(500, "Notes too long").optional(),
+		}),
+	),
 })
 
 type MultiRotationFormValues = z.infer<typeof multiRotationSchema>
@@ -134,6 +128,7 @@ export function MultiRotationEditor({
 
 	const [isCreating, setIsCreating] = useState(false)
 	const [isUpdating, setIsUpdating] = useState(false)
+	const [isDeleting, setIsDeleting] = useState(false)
 
 	const form = useForm<MultiRotationFormValues>({
 		resolver: standardSchemaResolver(multiRotationSchema),
@@ -290,6 +285,35 @@ export function MultiRotationEditor({
 	])
 
 	async function onSubmit(values: MultiRotationFormValues) {
+		// Handle case where all rotations are removed (delete all)
+		if (values.rotations.length === 0) {
+			if (!isEditing) {
+				// Can't create with no rotations - this shouldn't happen with proper validation
+				console.error("Cannot create with no rotations")
+				return
+			}
+
+			setIsDeleting(true)
+			try {
+				const result = await deleteVolunteerRotationsFn({
+					data: {
+						teamId,
+						membershipId: values.membershipId,
+						trackWorkoutId,
+					},
+				})
+
+				if (result?.success) {
+					onSuccess()
+				}
+			} catch (err) {
+				console.error("Failed to delete rotations:", err)
+			} finally {
+				setIsDeleting(false)
+			}
+			return
+		}
+
 		// Clamp heatsCount so rotations don't extend beyond maxHeats
 		const clampedRotations = values.rotations.map((r) => ({
 			startingHeat: r.startingHeat,
@@ -375,19 +399,17 @@ export function MultiRotationEditor({
 	}
 
 	const removeRotation = (index: number) => {
-		if (fields.length > 1) {
-			remove(index)
-			// If the removed block was active, reset active index
-			if (activeBlockIndex === index) {
-				onActiveBlockChange(Math.max(0, index - 1))
-			} else if (activeBlockIndex > index) {
-				// Adjust active index if a block before it was removed
-				onActiveBlockChange(activeBlockIndex - 1)
-			}
+		remove(index)
+		// If the removed block was active, reset active index
+		if (activeBlockIndex === index) {
+			onActiveBlockChange(Math.max(0, index - 1))
+		} else if (activeBlockIndex > index) {
+			// Adjust active index if a block before it was removed
+			onActiveBlockChange(activeBlockIndex - 1)
 		}
 	}
 
-	const isPending = isCreating || isUpdating
+	const isPending = isCreating || isUpdating || isDeleting
 
 	return (
 		<Form {...form}>
@@ -512,16 +534,15 @@ export function MultiRotationEditor({
 												)}
 											</button>
 										</CollapsibleTrigger>
-										{fields.length > 1 && (
-											<Button
-												type="button"
-												variant="ghost"
-												size="sm"
-												onClick={() => removeRotation(index)}
-											>
-												<Trash2 className="h-4 w-4" />
-											</Button>
-										)}
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											onClick={() => removeRotation(index)}
+											className="text-muted-foreground hover:text-destructive"
+										>
+											<Trash2 className="h-4 w-4" />
+										</Button>
 									</div>
 
 									{/* Block Content */}
@@ -672,6 +693,16 @@ export function MultiRotationEditor({
 						<Plus className="mr-2 h-4 w-4" />
 						Add Rotation
 					</Button>
+
+					{/* Empty state when all rotations removed */}
+					{isEditing && fields.length === 0 && (
+						<Alert variant="destructive">
+							<AlertDescription>
+								All rotations have been removed. Click "Delete All Rotations" to
+								remove this judge from the schedule.
+							</AlertDescription>
+						</Alert>
+					)}
 				</div>
 
 				{/* Actions */}
@@ -679,9 +710,19 @@ export function MultiRotationEditor({
 					<Button type="button" variant="outline" onClick={onCancel}>
 						Cancel
 					</Button>
-					<Button type="submit" disabled={isPending}>
+					<Button
+						type="submit"
+						disabled={isPending || (!isEditing && fields.length === 0)}
+						variant={
+							isEditing && fields.length === 0 ? "destructive" : "default"
+						}
+					>
 						{isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-						{isEditing ? "Update Rotations" : "Create Rotations"}
+						{isEditing && fields.length === 0
+							? "Delete All Rotations"
+							: isEditing
+								? "Update Rotations"
+								: "Create Rotations"}
 					</Button>
 				</div>
 			</form>

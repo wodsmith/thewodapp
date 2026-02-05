@@ -1,7 +1,7 @@
 "use client"
 
 import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
-import { ChevronLeft, Pencil, Plus, User } from "lucide-react"
+import { ChevronLeft, Pencil, Plus, Trash2, User } from "lucide-react"
 import {
 	Fragment,
 	useCallback,
@@ -25,6 +25,7 @@ import {
 	filterRotationsByAvailability,
 } from "@/lib/judge-rotation-utils"
 import {
+	deleteJudgeRotationFn,
 	getEventRotationsFn,
 	updateJudgeRotationFn,
 } from "@/server-fns/judge-rotation-fns"
@@ -431,6 +432,22 @@ export function RotationTimeline({
 		setIsEditorOpen(true)
 	}
 
+	async function handleDeleteRotation(rotationId: string) {
+		try {
+			await deleteJudgeRotationFn({
+				data: {
+					teamId,
+					rotationId,
+				},
+			})
+			toast.success("Rotation deleted")
+			await refreshRotations()
+		} catch (error) {
+			console.error("Failed to delete rotation:", error)
+			toast.error("Failed to delete rotation")
+		}
+	}
+
 	function handleEditorSuccess() {
 		setIsEditorOpen(false)
 		setEditingVolunteerId(null)
@@ -723,32 +740,48 @@ export function RotationTimeline({
 																	selectedRotationId === rotation.id
 
 																return (
-																	<button
+																	<div
 																		key={rotation.id}
-																		type="button"
-																		onClick={() =>
-																			toggleRotationSelection(rotation.id)
-																		}
-																		className={`flex w-full items-center gap-2 rounded border p-2 text-left transition-all ${
+																		className={`flex w-full items-center gap-2 rounded border p-2 transition-all ${
 																			isSelected
 																				? "border-primary bg-primary/10"
 																				: "border-border bg-background hover:bg-muted/50"
 																		}`}
 																	>
-																		<span className="text-xs">
-																			<span className="font-medium">
-																				Rotation {idx + 1}:
-																			</span>{" "}
-																			<span className="tabular-nums text-muted-foreground">
-																				H{rotation.startingHeat}-{endHeat}, L
-																				{rotation.startingLane}
-																				{rotation.laneShiftPattern ===
-																				"shift_right"
-																					? " (shift)"
-																					: " (stay)"}
+																		<button
+																			type="button"
+																			onClick={() =>
+																				toggleRotationSelection(rotation.id)
+																			}
+																			className="flex-1 text-left"
+																		>
+																			<span className="text-xs">
+																				<span className="font-medium">
+																					Rotation {idx + 1}:
+																				</span>{" "}
+																				<span className="tabular-nums text-muted-foreground">
+																					H{rotation.startingHeat}-{endHeat}, L
+																					{rotation.startingLane}
+																					{rotation.laneShiftPattern ===
+																					"shift_right"
+																						? " (shift)"
+																						: " (stay)"}
+																				</span>
 																			</span>
-																		</span>
-																	</button>
+																		</button>
+																		<Button
+																			type="button"
+																			variant="ghost"
+																			size="sm"
+																			className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+																			onClick={(e) => {
+																				e.stopPropagation()
+																				handleDeleteRotation(rotation.id)
+																			}}
+																		>
+																			<Trash2 className="h-3.5 w-3.5" />
+																		</Button>
+																	</div>
 																)
 															})}
 														</div>
