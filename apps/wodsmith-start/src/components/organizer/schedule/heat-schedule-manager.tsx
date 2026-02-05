@@ -941,10 +941,14 @@ export function HeatScheduleManager({
 
 			const updated = [...prev]
 			const firstItem = updated[0]
-			if (!firstItem) return prev
+			if (!firstItem?.time) return prev
+
+			// Guard against invalid datetime values
+			const baseTime = new Date(firstItem.time)
+			if (Number.isNaN(baseTime.getTime())) return prev
 
 			// Keep first heat time, cascade the rest
-			let currentTime = new Date(firstItem.time)
+			let currentTime = baseTime
 			for (let i = 1; i < updated.length; i++) {
 				currentTime = new Date(currentTime)
 				currentTime.setMinutes(currentTime.getMinutes() + newDuration)
@@ -959,7 +963,13 @@ export function HeatScheduleManager({
 	}
 
 	// Update a heat time in bulk edit and cascade to subsequent heats
-	function updateBulkEditTime(index: number, newTime: string) {
+	function updateBulkEditTime({
+		index,
+		newTime,
+	}: {
+		index: number
+		newTime: string
+	}) {
 		setBulkEditTimes((prev) => {
 			const updated = [...prev]
 			const item = updated[index]
@@ -967,8 +977,13 @@ export function HeatScheduleManager({
 				updated[index] = { ...item, time: newTime }
 			}
 
+			// Guard against empty/invalid datetime values before cascading
+			if (!newTime) return updated
+			const baseTime = new Date(newTime)
+			if (Number.isNaN(baseTime.getTime())) return updated
+
 			// Cascade time changes to all subsequent heats using bulkEditDuration
-			let currentTime = new Date(newTime)
+			let currentTime = baseTime
 			for (let i = index + 1; i < updated.length; i++) {
 				currentTime = new Date(currentTime)
 				currentTime.setMinutes(currentTime.getMinutes() + bulkEditDuration)
@@ -1728,7 +1743,9 @@ export function HeatScheduleManager({
 									<Input
 										type="datetime-local"
 										value={item.time}
-										onChange={(e) => updateBulkEditTime(index, e.target.value)}
+										onChange={(e) =>
+											updateBulkEditTime({ index, newTime: e.target.value })
+										}
 										className="flex-1"
 									/>
 								</div>

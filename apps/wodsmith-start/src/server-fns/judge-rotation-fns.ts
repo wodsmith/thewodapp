@@ -209,6 +209,7 @@ const deleteVolunteerRotationsSchema = z.object({
 
 const batchDeleteRotationsSchema = z.object({
 	teamId: teamIdSchema,
+	competitionId: z.string().min(1, "Competition ID is required"),
 	rotationIds: z.array(z.string().min(1)).min(1, "At least one rotation ID required"),
 })
 
@@ -1187,11 +1188,24 @@ export const deleteVolunteerRotationsFn = createServerFn({ method: "POST" })
 export const batchDeleteRotationsFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => batchDeleteRotationsSchema.parse(data))
 	.handler(async ({ data }) => {
+		const db = getDb()
+
 		// Permission check
 		await requireTeamPermission(
 			data.teamId,
 			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
+
+		// Verify all rotations belong to this competition before deleting
+		const rotations = await db.query.competitionJudgeRotationsTable.findMany({
+			where: (table, { inArray }) => inArray(table.id, data.rotationIds),
+		})
+
+		for (const rotation of rotations) {
+			if (rotation.competitionId !== data.competitionId) {
+				throw new Error("Rotation does not belong to this competition")
+			}
+		}
 
 		// Delete each rotation
 		let deletedCount = 0
@@ -1257,6 +1271,14 @@ export const adjustRotationsForOccupiedLanesFn = createServerFn({ method: "POST"
 
 			if (!rotation) continue
 
+			// Validate rotation belongs to this event
+			if (
+				rotation.trackWorkoutId !== data.trackWorkoutId ||
+				rotation.competitionId !== data.competitionId
+			) {
+				throw new Error("Rotation does not belong to this event")
+			}
+
 			// Expand to assignments
 			const assignments = expandRotationToAssignments(rotation, heats)
 
@@ -1320,11 +1342,8 @@ export const adjustRotationsForOccupiedLanesFn = createServerFn({ method: "POST"
 				})
 			}
 
-			// Delete old rotation
-			await deleteRotationInternal(rotationId, data.teamId)
-			deletedCount++
-
-			// Create new rotations
+			// Create new rotations FIRST to avoid data loss if creation fails
+			// (D1 doesn't support transactions, so we build replacements before deleting)
 			for (const newRot of newRotations) {
 				await createRotationInternal({
 					teamId: data.teamId,
@@ -1339,6 +1358,10 @@ export const adjustRotationsForOccupiedLanesFn = createServerFn({ method: "POST"
 				})
 				createdCount++
 			}
+
+			// Delete old rotation only after new ones are created successfully
+			await deleteRotationInternal(rotationId, data.teamId)
+			deletedCount++
 		}
 
 		return {

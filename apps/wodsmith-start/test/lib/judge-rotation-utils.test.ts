@@ -924,122 +924,6 @@ describe('filterRotationsByAvailability', () => {
     })
   })
 
-  describe('occupiedLanes feature', () => {
-    it('counts only occupied lanes when occupiedLanes is provided', () => {
-      // 3 heats with 5 lanes each, but only lanes 1, 3, 5 have athletes
-      const heats: HeatInfo[] = [
-        {heatNumber: 1, laneCount: 5, occupiedLanes: new Set([1, 3, 5])},
-        {heatNumber: 2, laneCount: 5, occupiedLanes: new Set([1, 3, 5])},
-        {heatNumber: 3, laneCount: 5, occupiedLanes: new Set([1, 3, 5])},
-      ]
-      // Total slots should be 3 occupied lanes × 3 heats = 9 slots
-      // Not 5 lanes × 3 heats = 15 slots
-
-      const rotations = [
-        createRotation({
-          startingHeat: 1,
-          startingLane: 1,
-          heatsCount: 3,
-          laneShiftPattern: LANE_SHIFT_PATTERN.STAY,
-        }),
-      ]
-
-      const stats = calculateCoverage(rotations, heats)
-
-      expect(stats.totalSlots).toBe(9) // Only occupied lanes
-      expect(stats.coveredSlots).toBe(3) // Lane 1 covered in all heats
-      expect(stats.coveragePercent).toBe(33) // 3/9 = 33.33% -> 33%
-      expect(stats.gaps).toHaveLength(6) // Lanes 3 and 5 in all 3 heats
-    })
-
-    it('falls back to all lanes when occupiedLanes is undefined', () => {
-      // Backward compatibility: heats without occupiedLanes count all lanes
-      const heats: HeatInfo[] = [
-        {heatNumber: 1, laneCount: 5},
-        {heatNumber: 2, laneCount: 5},
-      ]
-
-      const rotations = [
-        createRotation({
-          startingHeat: 1,
-          startingLane: 1,
-          heatsCount: 2,
-        }),
-      ]
-
-      const stats = calculateCoverage(rotations, heats)
-
-      expect(stats.totalSlots).toBe(10) // All 5 lanes × 2 heats
-      expect(stats.coveredSlots).toBe(2)
-      expect(stats.gaps).toHaveLength(8)
-    })
-
-    it('handles mixed heats with and without occupiedLanes', () => {
-      const heats: HeatInfo[] = [
-        {heatNumber: 1, laneCount: 4, occupiedLanes: new Set([1, 2])}, // 2 slots
-        {heatNumber: 2, laneCount: 4}, // 4 slots (all lanes)
-        {heatNumber: 3, laneCount: 4, occupiedLanes: new Set([3, 4])}, // 2 slots
-      ]
-
-      const stats = calculateCoverage([], heats)
-
-      expect(stats.totalSlots).toBe(8) // 2 + 4 + 2
-      expect(stats.coveredSlots).toBe(0)
-      expect(stats.gaps).toHaveLength(8)
-    })
-
-    it('only creates gaps for occupied lanes', () => {
-      const heats: HeatInfo[] = [
-        {heatNumber: 1, laneCount: 5, occupiedLanes: new Set([2, 4])},
-      ]
-
-      const stats = calculateCoverage([], heats)
-
-      // Should only report gaps for lanes 2 and 4, not lanes 1, 3, 5
-      expect(stats.gaps).toHaveLength(2)
-      expect(stats.gaps).toEqual(
-        expect.arrayContaining([
-          {heatNumber: 1, laneNumber: 2},
-          {heatNumber: 1, laneNumber: 4},
-        ]),
-      )
-    })
-
-    it('handles occupiedLanes with SHIFT_RIGHT pattern', () => {
-      const heats: HeatInfo[] = [
-        {heatNumber: 1, laneCount: 5, occupiedLanes: new Set([1, 2, 3])},
-        {heatNumber: 2, laneCount: 5, occupiedLanes: new Set([1, 2, 3])},
-        {heatNumber: 3, laneCount: 5, occupiedLanes: new Set([1, 2, 3])},
-      ]
-
-      const rotations = [
-        createRotation({
-          startingHeat: 1,
-          startingLane: 1,
-          heatsCount: 3,
-          laneShiftPattern: LANE_SHIFT_PATTERN.SHIFT_RIGHT, // 1, 2, 3
-        }),
-      ]
-
-      const stats = calculateCoverage(rotations, heats)
-
-      expect(stats.totalSlots).toBe(9) // 3 occupied lanes × 3 heats
-      expect(stats.coveredSlots).toBe(3) // All assigned lanes are occupied
-      expect(stats.coveragePercent).toBe(33)
-    })
-
-    it('handles empty occupiedLanes set', () => {
-      const heats: HeatInfo[] = [
-        {heatNumber: 1, laneCount: 5, occupiedLanes: new Set()},
-      ]
-
-      const stats = calculateCoverage([], heats)
-
-      expect(stats.totalSlots).toBe(0) // No occupied lanes
-      expect(stats.gaps).toHaveLength(0)
-    })
-  })
-
   describe('edge cases', () => {
     it('handles empty rotationsByVolunteer map', () => {
       const result = filterRotationsByAvailability(
@@ -1083,5 +967,125 @@ describe('filterRotationsByAvailability', () => {
       expect(result.get('judge-multi')).toEqual(multiRotations)
       expect(result.get('judge-multi')?.length).toBe(2)
     })
+  })
+})
+
+// ============================================================================
+// calculateCoverage with occupiedLanes Tests
+// ============================================================================
+
+describe('calculateCoverage with occupiedLanes', () => {
+  it('counts only occupied lanes when occupiedLanes is provided', () => {
+    // 3 heats with 5 lanes each, but only lanes 1, 3, 5 have athletes
+    const heats: HeatInfo[] = [
+      {heatNumber: 1, laneCount: 5, occupiedLanes: new Set([1, 3, 5])},
+      {heatNumber: 2, laneCount: 5, occupiedLanes: new Set([1, 3, 5])},
+      {heatNumber: 3, laneCount: 5, occupiedLanes: new Set([1, 3, 5])},
+    ]
+    // Total slots should be 3 occupied lanes × 3 heats = 9 slots
+    // Not 5 lanes × 3 heats = 15 slots
+
+    const rotations = [
+      createRotation({
+        startingHeat: 1,
+        startingLane: 1,
+        heatsCount: 3,
+        laneShiftPattern: LANE_SHIFT_PATTERN.STAY,
+      }),
+    ]
+
+    const stats = calculateCoverage(rotations, heats)
+
+    expect(stats.totalSlots).toBe(9) // Only occupied lanes
+    expect(stats.coveredSlots).toBe(3) // Lane 1 covered in all heats
+    expect(stats.coveragePercent).toBe(33) // 3/9 = 33.33% -> 33%
+    expect(stats.gaps).toHaveLength(6) // Lanes 3 and 5 in all 3 heats
+  })
+
+  it('falls back to all lanes when occupiedLanes is undefined', () => {
+    // Backward compatibility: heats without occupiedLanes count all lanes
+    const heats: HeatInfo[] = [
+      {heatNumber: 1, laneCount: 5},
+      {heatNumber: 2, laneCount: 5},
+    ]
+
+    const rotations = [
+      createRotation({
+        startingHeat: 1,
+        startingLane: 1,
+        heatsCount: 2,
+      }),
+    ]
+
+    const stats = calculateCoverage(rotations, heats)
+
+    expect(stats.totalSlots).toBe(10) // All 5 lanes × 2 heats
+    expect(stats.coveredSlots).toBe(2)
+    expect(stats.gaps).toHaveLength(8)
+  })
+
+  it('handles mixed heats with and without occupiedLanes', () => {
+    const heats: HeatInfo[] = [
+      {heatNumber: 1, laneCount: 4, occupiedLanes: new Set([1, 2])}, // 2 slots
+      {heatNumber: 2, laneCount: 4}, // 4 slots (all lanes)
+      {heatNumber: 3, laneCount: 4, occupiedLanes: new Set([3, 4])}, // 2 slots
+    ]
+
+    const stats = calculateCoverage([], heats)
+
+    expect(stats.totalSlots).toBe(8) // 2 + 4 + 2
+    expect(stats.coveredSlots).toBe(0)
+    expect(stats.gaps).toHaveLength(8)
+  })
+
+  it('only creates gaps for occupied lanes', () => {
+    const heats: HeatInfo[] = [
+      {heatNumber: 1, laneCount: 5, occupiedLanes: new Set([2, 4])},
+    ]
+
+    const stats = calculateCoverage([], heats)
+
+    // Should only report gaps for lanes 2 and 4, not lanes 1, 3, 5
+    expect(stats.gaps).toHaveLength(2)
+    expect(stats.gaps).toEqual(
+      expect.arrayContaining([
+        {heatNumber: 1, laneNumber: 2},
+        {heatNumber: 1, laneNumber: 4},
+      ]),
+    )
+  })
+
+  it('handles occupiedLanes with SHIFT_RIGHT pattern', () => {
+    const heats: HeatInfo[] = [
+      {heatNumber: 1, laneCount: 5, occupiedLanes: new Set([1, 2, 3])},
+      {heatNumber: 2, laneCount: 5, occupiedLanes: new Set([1, 2, 3])},
+      {heatNumber: 3, laneCount: 5, occupiedLanes: new Set([1, 2, 3])},
+    ]
+
+    const rotations = [
+      createRotation({
+        startingHeat: 1,
+        startingLane: 1,
+        heatsCount: 3,
+        laneShiftPattern: LANE_SHIFT_PATTERN.SHIFT_RIGHT, // 1, 2, 3
+      }),
+    ]
+
+    const stats = calculateCoverage(rotations, heats)
+
+    expect(stats.totalSlots).toBe(9) // 3 occupied lanes × 3 heats
+    expect(stats.coveredSlots).toBe(3) // All assigned lanes are occupied
+    expect(stats.coveragePercent).toBe(33)
+  })
+
+  it('handles empty occupiedLanes set', () => {
+    const heats: HeatInfo[] = [
+      {heatNumber: 1, laneCount: 5, occupiedLanes: new Set()},
+    ]
+
+    const stats = calculateCoverage([], heats)
+
+    expect(stats.totalSlots).toBe(0) // No occupied lanes
+    expect(stats.gaps).toHaveLength(0)
   })
 })

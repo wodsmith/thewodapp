@@ -244,7 +244,11 @@ function VolunteersPage() {
 	}
 
 	// Determine selected event - from URL or first event
-	const selectedEventId = eventFromUrl || events[0]?.id || ""
+	// Validate eventFromUrl exists in events before using it
+	const selectedEventId =
+		eventFromUrl && events.some((event) => event.id === eventFromUrl)
+			? eventFromUrl
+			: events[0]?.id || ""
 
 	// Check if schedule tab should be available (in-person competitions only)
 	const isInPerson = competition.competitionType === "in-person"
