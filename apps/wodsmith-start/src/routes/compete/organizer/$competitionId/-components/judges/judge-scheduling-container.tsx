@@ -22,7 +22,9 @@ import { calculateCoverage } from "@/lib/judge-rotation-utils"
 import type { HeatWithAssignments } from "@/server-fns/competition-heats-fns"
 import type { CompetitionWorkout } from "@/server-fns/competition-workouts-fns"
 import {
+	getActiveVersionFn,
 	getAssignmentsForVersionFn,
+	getVersionHistoryFn,
 	rollbackToVersionFn,
 } from "@/server-fns/judge-assignment-fns"
 import type {
@@ -175,16 +177,23 @@ export function JudgeSchedulingContainer({
 		[events, selectedEventId],
 	)
 
-	// Get version data for selected event
-	const eventVersionHistory = useMemo(
+	// Get version data for selected event - track locally to update on publish
+	const initialVersionHistory = useMemo(
 		() => versionHistoryMap.get(selectedEventId) ?? [],
 		[versionHistoryMap, selectedEventId],
 	)
-
-	const eventActiveVersion = useMemo(
+	const initialActiveVersion = useMemo(
 		() => activeVersionMap.get(selectedEventId) ?? null,
 		[activeVersionMap, selectedEventId],
 	)
+	const [eventVersionHistory, setEventVersionHistory] = useState(initialVersionHistory)
+	const [eventActiveVersion, setEventActiveVersion] = useState(initialActiveVersion)
+
+	// Sync when event changes
+	useEffect(() => {
+		setEventVersionHistory(initialVersionHistory)
+		setEventActiveVersion(initialActiveVersion)
+	}, [initialVersionHistory, initialActiveVersion])
 
 	// Auto-select active version when event changes
 	useEffect(() => {
@@ -194,6 +203,41 @@ export function JudgeSchedulingContainer({
 			setSelectedVersionId(null)
 		}
 	}, [eventActiveVersion])
+
+	// Refresh version data after publishing
+	async function refreshVersionData() {
+		try {
+			const [historyResult, activeResult] = await Promise.all([
+				getVersionHistoryFn({ data: { trackWorkoutId: selectedEventId } }),
+				getActiveVersionFn({ data: { trackWorkoutId: selectedEventId } }),
+			])
+			if (historyResult) {
+				setEventVersionHistory(historyResult)
+			}
+			setEventActiveVersion(activeResult)
+
+			// Also fetch assignments for the new active version
+			if (activeResult) {
+				setSelectedVersionId(activeResult.id)
+				const assignmentsResult = await getAssignmentsForVersionFn({
+					data: { versionId: activeResult.id },
+				})
+				if (assignmentsResult) {
+					setAssignments((prev) => {
+						// Remove old assignments for this event, add new ones
+						const eventHeatIds = new Set(eventHeats.map((h) => h.id))
+						const withoutEvent = prev.filter((a) => !eventHeatIds.has(a.heatId))
+						return [
+							...withoutEvent,
+							...(assignmentsResult as unknown as JudgeHeatAssignment[]),
+						]
+					})
+				}
+			}
+		} catch (err) {
+			console.error("Failed to refresh version data:", err)
+		}
+	}
 
 	// Handle version change
 	async function handleVersionChange(versionId: string) {
@@ -645,6 +689,7 @@ export function JudgeSchedulingContainer({
 								? (eventVersionHistory[0]?.version ?? 0) + 1
 								: 1
 						}
+						onPublishSuccess={refreshVersionData}
 					/>
 
 					{/* Rotation Timeline */}
