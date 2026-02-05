@@ -23,7 +23,6 @@ import {
 import {
 	Form,
 	FormControl,
-	FormDescription,
 	FormField,
 	FormItem,
 	FormLabel,
@@ -34,7 +33,6 @@ import {
 	SearchableSelect,
 	type SearchableSelectOption,
 } from "@/components/ui/searchable-select"
-import { Textarea } from "@/components/ui/textarea"
 import {
 	type CompetitionJudgeRotation,
 	LANE_SHIFT_PATTERN,
@@ -498,10 +496,6 @@ export function MultiRotationEditor({
 		}
 	}
 
-	const selectedJudge = availableJudges.find(
-		(j) => j.membershipId === formValues.membershipId,
-	)
-
 	const toggleBlock = (index: number) => {
 		setOpenBlocks((prev) => {
 			const next = new Set(prev)
@@ -691,134 +685,96 @@ export function MultiRotationEditor({
 
 									{/* Block Content */}
 									<CollapsibleContent>
-										<div className="space-y-4 border-t p-4 pt-0">
-											{/* Starting Heat */}
-											<FormField
-												control={form.control}
-												name={`rotations.${index}.startingHeat`}
-												render={({ field }) => (
-													<FormItem>
-														<FormLabel>Starting Heat</FormLabel>
-														<FormControl>
-															<Input
-																type="number"
-																min={1}
-																max={maxHeats}
-																{...field}
-																onChange={(e) =>
-																	field.onChange(Number(e.target.value))
-																}
-															/>
-														</FormControl>
-														<FormDescription>
-															Heat number (1-{maxHeats})
-														</FormDescription>
-														<FormMessage />
-													</FormItem>
-												)}
-											/>
+										<div className="space-y-3 border-t p-3">
+											{/* Heat, Lane, Count - inline */}
+											<div className="grid grid-cols-3 gap-2">
+												<FormField
+													control={form.control}
+													name={`rotations.${index}.startingHeat`}
+													render={({ field }) => (
+														<FormItem>
+															<FormLabel className="text-xs">Heat</FormLabel>
+															<FormControl>
+																<Input
+																	type="number"
+																	min={1}
+																	max={maxHeats}
+																	className="h-8"
+																	{...field}
+																	onChange={(e) =>
+																		field.onChange(Number(e.target.value))
+																	}
+																/>
+															</FormControl>
+															<FormMessage />
+														</FormItem>
+													)}
+												/>
+												<FormField
+													control={form.control}
+													name={`rotations.${index}.startingLane`}
+													render={({ field }) => (
+														<FormItem>
+															<FormLabel className="text-xs">Lane</FormLabel>
+															<FormControl>
+																<Input
+																	type="number"
+																	min={1}
+																	max={maxLanes}
+																	className="h-8"
+																	{...field}
+																	onChange={(e) =>
+																		field.onChange(Number(e.target.value))
+																	}
+																/>
+															</FormControl>
+															<FormMessage />
+														</FormItem>
+													)}
+												/>
+												<FormField
+													control={form.control}
+													name={`rotations.${index}.heatsCount`}
+													render={({ field }) => (
+														<FormItem>
+															<FormLabel className="text-xs"># Heats</FormLabel>
+															<FormControl>
+																<Input
+																	type="number"
+																	min={1}
+																	max={maxHeats}
+																	className="h-8"
+																	{...field}
+																	onChange={(e) =>
+																		field.onChange(Number(e.target.value))
+																	}
+																/>
+															</FormControl>
+															<FormMessage />
+														</FormItem>
+													)}
+												/>
+											</div>
 
-											{/* Starting Lane */}
-											<FormField
-												control={form.control}
-												name={`rotations.${index}.startingLane`}
-												render={({ field }) => (
-													<FormItem>
-														<FormLabel>Starting Lane</FormLabel>
-														<FormControl>
-															<Input
-																type="number"
-																min={1}
-																max={maxLanes}
-																{...field}
-																onChange={(e) =>
-																	field.onChange(Number(e.target.value))
-																}
-															/>
-														</FormControl>
-														<FormDescription>
-															Lane number (1-{maxLanes})
-														</FormDescription>
-														<FormMessage />
-													</FormItem>
-												)}
-											/>
-
-											{/* Heats Count */}
-											<FormField
-												control={form.control}
-												name={`rotations.${index}.heatsCount`}
-												render={({ field }) => (
-													<FormItem>
-														<FormLabel>Number of Heats</FormLabel>
-														<FormControl>
-															<Input
-																type="number"
-																min={1}
-																max={maxHeats}
-																{...field}
-																onChange={(e) =>
-																	field.onChange(Number(e.target.value))
-																}
-															/>
-														</FormControl>
-														<FormDescription>
-															How many consecutive heats (1-{maxHeats})
-														</FormDescription>
-														<FormMessage />
-													</FormItem>
-												)}
-											/>
-
-											{/* Notes */}
+											{/* Notes - compact */}
 											<FormField
 												control={form.control}
 												name={`rotations.${index}.notes`}
 												render={({ field }) => (
 													<FormItem>
-														<FormLabel>Notes (Optional)</FormLabel>
+														<FormLabel className="text-xs">Notes</FormLabel>
 														<FormControl>
-															<Textarea {...field} maxLength={500} rows={2} />
+															<Input
+																{...field}
+																placeholder="Optional notes..."
+																maxLength={500}
+																className="h-8"
+															/>
 														</FormControl>
-														<FormDescription>
-															Special instructions or notes
-														</FormDescription>
 														<FormMessage />
 													</FormItem>
 												)}
 											/>
-
-											{/* Block Preview */}
-											{rotation && selectedJudge && (
-												<Alert>
-													<AlertDescription>
-														<div className="space-y-1 text-sm">
-															<p className="font-medium">Preview:</p>
-															<p>
-																{`${selectedJudge.firstName ?? ""} ${selectedJudge.lastName ?? ""}`.trim()}{" "}
-																will judge heats {rotation.startingHeat} through{" "}
-																{rotation.startingHeat +
-																	rotation.heatsCount -
-																	1}
-															</p>
-															{eventLaneShiftPattern ===
-																LANE_SHIFT_PATTERN.STAY && (
-																<p>
-																	Starting and staying in lane{" "}
-																	{rotation.startingLane}
-																</p>
-															)}
-															{eventLaneShiftPattern ===
-																LANE_SHIFT_PATTERN.SHIFT_RIGHT && (
-																<p>
-																	Starting at lane {rotation.startingLane},
-																	shifting lanes each heat
-																</p>
-															)}
-														</div>
-													</AlertDescription>
-												</Alert>
-											)}
 										</div>
 									</CollapsibleContent>
 								</div>
