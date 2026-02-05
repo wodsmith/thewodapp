@@ -14,6 +14,7 @@ import {
 	competitionHeatsTable,
 	competitionJudgeRotationsTable,
 	competitionRegistrationsTable,
+	competitionsTable,
 	competitionVenuesTable,
 	judgeAssignmentVersionsTable,
 	judgeHeatAssignmentsTable,
@@ -888,9 +889,27 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
 	.handler(async ({ data }): Promise<{ events: JudgesScheduleEvent[] }> => {
 		const db = getDb()
 
-		// No auth required - this page is accessible to anyone with the direct link.
-		// The navigation link is only shown to organizers and volunteers,
-		// but the data itself is not sensitive (heat times + judge names).
+		// No auth required - accessible to anyone with the direct link.
+		// Validate that the provided team IDs match the competition to prevent
+		// using arbitrary team context to access unrelated competition data.
+		const [competition] = await db
+			.select({
+				organizingTeamId: competitionsTable.organizingTeamId,
+				competitionTeamId: competitionsTable.competitionTeamId,
+			})
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+
+		if (!competition) {
+			return { events: [] }
+		}
+
+		if (
+			competition.organizingTeamId !== data.organizingTeamId ||
+			competition.competitionTeamId !== data.competitionTeamId
+		) {
+			return { events: [] }
+		}
 
 		// Get all heats for this competition with venues and divisions
 		const heats = await db
