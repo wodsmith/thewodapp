@@ -160,9 +160,14 @@ export function calculateCoverage(
 		}
 	}
 
+	// Check if we should respect occupied lanes (when any heat has occupiedLanes defined)
+	const hasOccupiedLanes = heats.some((h) => h.occupiedLanes && h.occupiedLanes.size > 0)
+
 	// Expand all rotations and populate grid
 	for (const rotation of rotations) {
-		const assignments = expandRotationToAssignments(rotation, heats)
+		const assignments = expandRotationToAssignments(rotation, heats, {
+			respectOccupiedLanes: hasOccupiedLanes,
+		})
 		for (const assignment of assignments) {
 			const key = `${assignment.heatNumber}:${assignment.laneNumber}`
 			const existing = coverageGrid.get(key) || []

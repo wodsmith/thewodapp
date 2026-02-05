@@ -341,6 +341,7 @@ export function JudgeSchedulingContainer({
 	}, [eventHeats])
 
 	// Calculate rotation coverage for selected event
+	// Use initialEventRotations directly to avoid stale state timing issues when switching events
 	const rotationCoverage = useMemo(() => {
 		if (eventHeats.length === 0) {
 			return {
@@ -359,16 +360,23 @@ export function JudgeSchedulingContainer({
 			}
 			// Include occupiedLanes if filtering is enabled
 			if (filterEmptyLanes) {
+				// Compute occupied lanes directly from heat assignments to ensure consistency
+				const occupiedLanes = new Set<number>()
+				for (const assignment of h.assignments) {
+					occupiedLanes.add(assignment.laneNumber)
+				}
 				return {
 					...base,
-					occupiedLanes: occupiedLanesByHeat.get(h.heatNumber),
+					occupiedLanes,
 				}
 			}
 			return base
 		})
 
-		return calculateCoverage(eventRotations, heatsData)
-	}, [eventRotations, eventHeats, maxLanes, filterEmptyLanes, occupiedLanesByHeat])
+		// Use fresh rotations for the selected event to avoid stale state on event switch
+		// eventRotations state may lag behind when selectedEventId changes
+		return calculateCoverage(initialEventRotations, heatsData)
+	}, [initialEventRotations, eventHeats, maxLanes, filterEmptyLanes])
 
 	// Handle multi-select toggle
 	function handleToggleSelect(membershipId: string, shiftKey: boolean) {
@@ -576,6 +584,8 @@ export function JudgeSchedulingContainer({
 								events={events}
 								heats={heats}
 								judgeAssignments={assignments}
+								filterEmptyLanes={filterEmptyLanes}
+								onFilterEmptyLanesChange={setFilterEmptyLanes}
 							/>
 
 							{/* Main content: judges panel + heats */}
@@ -677,6 +687,8 @@ export function JudgeSchedulingContainer({
 												onMoveAssignment={handleMoveAssignment}
 												selectedJudgeIds={selectedJudgeIds}
 												onClearSelection={clearSelection}
+												filterEmptyLanes={filterEmptyLanes}
+												athleteOccupiedLanes={occupiedLanesByHeat.get(heat.heatNumber)}
 											/>
 										))
 									)}
@@ -708,7 +720,7 @@ export function JudgeSchedulingContainer({
 
 					{/* Rotation Overview */}
 					<RotationOverview
-						rotations={eventRotations}
+						rotations={initialEventRotations}
 						coverage={rotationCoverage}
 						eventName={selectedEvent?.workout.name ?? "Event"}
 						teamId={organizingTeamId}

@@ -173,24 +173,29 @@ export function RotationTimeline({
 	}, [heatsWithAssignments])
 
 	// Build heats array for coverage calculation
+	// Use actual heat numbers from heatsWithAssignments
 	const heats = useMemo(
 		() =>
-			Array.from({ length: heatsCount }, (_, i) => {
-				const heatNumber = i + 1
+			heatsWithAssignments.map((heat) => {
 				// Include occupiedLanes if filtering is enabled
 				if (filterEmptyLanes) {
+					// Compute occupied lanes directly from heat assignments to ensure consistency
+					const occupiedLanes = new Set<number>()
+					for (const assignment of heat.assignments) {
+						occupiedLanes.add(assignment.laneNumber)
+					}
 					return {
-						heatNumber,
+						heatNumber: heat.heatNumber,
 						laneCount,
-						occupiedLanes: occupiedLanesByHeat.get(heatNumber),
+						occupiedLanes,
 					}
 				}
 				return {
-					heatNumber,
+					heatNumber: heat.heatNumber,
 					laneCount,
 				}
 			}),
-		[heatsCount, laneCount, filterEmptyLanes, occupiedLanesByHeat],
+		[heatsWithAssignments, laneCount, filterEmptyLanes],
 	)
 
 	// Calculate coverage
@@ -300,6 +305,17 @@ export function RotationTimeline({
 		return filtered
 	}, [rotationsByVolunteer, availabilityFilter, availableJudges, judgeSearchQuery])
 
+	// Build maps between display index (1-based) and actual heat number
+	const { displayToHeatNumber, heatNumberToDisplay } = useMemo(() => {
+		const displayToHeat = new Map<number, number>()
+		const heatToDisplay = new Map<number, number>()
+		heatsWithAssignments.forEach((heat, idx) => {
+			displayToHeat.set(idx + 1, heat.heatNumber)
+			heatToDisplay.set(heat.heatNumber, idx + 1)
+		})
+		return { displayToHeatNumber: displayToHeat, heatNumberToDisplay: heatToDisplay }
+	}, [heatsWithAssignments])
+
 	// Build coverage grid with rotation IDs for highlighting and buffer zones
 	const coverageGrid = useMemo(() => {
 		const grid = new Map<
@@ -315,15 +331,16 @@ export function RotationTimeline({
 			}
 		>()
 
-		// Initialize all slots
-		for (let heat = 1; heat <= heatsCount; heat++) {
+		// Initialize all slots using display indices but looking up by actual heat number
+		for (let displayIdx = 1; displayIdx <= heatsCount; displayIdx++) {
+			const actualHeatNumber = displayToHeatNumber.get(displayIdx) ?? displayIdx
 			for (let lane = 1; lane <= laneCount; lane++) {
 				// Mark as unavailable if filtering is enabled and lane has no athlete
 				if (filterEmptyLanes) {
-					const occupiedLanes = occupiedLanesByHeat.get(heat)
+					const occupiedLanes = occupiedLanesByHeat.get(actualHeatNumber)
 					const hasAthlete = occupiedLanes?.has(lane) ?? false
 					if (!hasAthlete) {
-						grid.set(`${heat}:${lane}`, {
+						grid.set(`${displayIdx}:${lane}`, {
 							status: "unavailable",
 							rotationIds: [],
 						})
@@ -331,7 +348,7 @@ export function RotationTimeline({
 					}
 				}
 				// Default to empty
-				grid.set(`${heat}:${lane}`, { status: "empty", rotationIds: [] })
+				grid.set(`${displayIdx}:${lane}`, { status: "empty", rotationIds: [] })
 			}
 		}
 
@@ -342,7 +359,10 @@ export function RotationTimeline({
 				respectOccupiedLanes: filterEmptyLanes,
 			})
 			for (const assignment of assignments) {
-				const key = `${assignment.heatNumber}:${assignment.laneNumber}`
+				// Convert actual heat number to display index for grid lookup
+				const displayIdx = heatNumberToDisplay.get(assignment.heatNumber)
+				if (displayIdx === undefined) continue
+				const key = `${displayIdx}:${assignment.laneNumber}`
 				const current = grid.get(key)
 				if (!current) continue
 
@@ -367,12 +387,15 @@ export function RotationTimeline({
 					})
 					if (assignments.length === 0) continue
 
-					// Get the heat range of this rotation
-					const heatNumbers = assignments.map((a) => a.heatNumber)
-					const rotationStart = Math.min(...heatNumbers)
-					const rotationEnd = Math.max(...heatNumbers)
+					// Get the heat range of this rotation (using display indices)
+					const displayIndices = assignments
+						.map((a) => heatNumberToDisplay.get(a.heatNumber))
+						.filter((idx): idx is number => idx !== undefined)
+					if (displayIndices.length === 0) continue
+					const rotationStart = Math.min(...displayIndices)
+					const rotationEnd = Math.max(...displayIndices)
 
-					// Calculate buffer zones
+					// Calculate buffer zones (in display indices)
 					// Buffer after: (rotationEnd, rotationEnd + minHeatBuffer]
 					const bufferAfterEnd = rotationEnd + minHeatBuffer
 
@@ -380,14 +403,14 @@ export function RotationTimeline({
 					const bufferBeforeStart = rotationStart - minHeatBuffer
 
 					// Mark buffer zone cells (all lanes in buffer heats)
-					for (let heat = bufferBeforeStart; heat <= bufferAfterEnd; heat++) {
+					for (let displayIdx = bufferBeforeStart; displayIdx <= bufferAfterEnd; displayIdx++) {
 						// Skip heats within the rotation itself
-						if (heat >= rotationStart && heat <= rotationEnd) continue
+						if (displayIdx >= rotationStart && displayIdx <= rotationEnd) continue
 						// Skip heats outside valid range
-						if (heat < 1 || heat > heatsCount) continue
+						if (displayIdx < 1 || displayIdx > heatsCount) continue
 
 						for (let lane = 1; lane <= laneCount; lane++) {
-							const key = `${heat}:${lane}`
+							const key = `${displayIdx}:${lane}`
 							const current = grid.get(key)
 							if (!current) continue
 
@@ -416,6 +439,8 @@ export function RotationTimeline({
 		minHeatBuffer,
 		filterEmptyLanes,
 		occupiedLanesByHeat,
+		displayToHeatNumber,
+		heatNumberToDisplay,
 	])
 
 	// Build preview cell lookup for fast checking with block colors
@@ -439,11 +464,14 @@ export function RotationTimeline({
 				respectOccupiedLanes: filterEmptyLanes,
 			})
 			for (const assignment of assignments) {
-				cellKeys.add(`${assignment.heatNumber}:${assignment.laneNumber}`)
+				// Convert actual heat number to display index for grid lookup
+				const displayIdx = heatNumberToDisplay.get(assignment.heatNumber)
+				if (displayIdx === undefined) continue
+				cellKeys.add(`${displayIdx}:${assignment.laneNumber}`)
 			}
 		}
 		return cellKeys
-	}, [selectedVolunteerId, rotationsByVolunteer, heats, filterEmptyLanes])
+	}, [selectedVolunteerId, rotationsByVolunteer, heats, filterEmptyLanes, heatNumberToDisplay])
 
 	// Color palette for multiple blocks
 	const BLOCK_COLORS = [
@@ -552,14 +580,16 @@ export function RotationTimeline({
 	function handleEditVolunteerRotations(membershipId: string) {
 		const volunteerRotations = rotationsByVolunteer.get(membershipId) || []
 
-		// Calculate cells covered by ALL rotations being edited
+		// Calculate cells covered by ALL rotations being edited (using display indices)
 		const cellKeys = new Set<string>()
 		for (const rotation of volunteerRotations) {
 			const assignments = expandRotationToAssignments(rotation, heats, {
 				respectOccupiedLanes: filterEmptyLanes,
 			})
 			for (const assignment of assignments) {
-				cellKeys.add(`${assignment.heatNumber}:${assignment.laneNumber}`)
+				const displayIdx = heatNumberToDisplay.get(assignment.heatNumber)
+				if (displayIdx === undefined) continue
+				cellKeys.add(`${displayIdx}:${assignment.laneNumber}`)
 			}
 		}
 		setEditingRotationCells(cellKeys)
@@ -575,14 +605,16 @@ export function RotationTimeline({
 	function handleAddRotationForVolunteer(membershipId: string) {
 		const volunteerRotations = rotationsByVolunteer.get(membershipId) || []
 
-		// Calculate cells covered by existing rotations
+		// Calculate cells covered by existing rotations (using display indices)
 		const cellKeys = new Set<string>()
 		for (const rotation of volunteerRotations) {
 			const assignments = expandRotationToAssignments(rotation, heats, {
 				respectOccupiedLanes: filterEmptyLanes,
 			})
 			for (const assignment of assignments) {
-				cellKeys.add(`${assignment.heatNumber}:${assignment.laneNumber}`)
+				const displayIdx = heatNumberToDisplay.get(assignment.heatNumber)
+				if (displayIdx === undefined) continue
+				cellKeys.add(`${displayIdx}:${assignment.laneNumber}`)
 			}
 		}
 		setEditingRotationCells(cellKeys)
