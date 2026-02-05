@@ -1,11 +1,12 @@
 "use client"
 
 import { Link } from "@tanstack/react-router"
-import { ClipboardList, FileWarning } from "lucide-react"
+import { ClipboardList, FileWarning, Search } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import {
 	Select,
 	SelectContent,
@@ -106,6 +107,7 @@ export function JudgeSchedulingContainer({
 	const [isRollingBack, setIsRollingBack] = useState(false)
 	const [isFetchingAssignments, setIsFetchingAssignments] = useState(false)
 	const [filterEmptyLanes, setFilterEmptyLanes] = useState(false)
+	const [availableJudgeSearch, setAvailableJudgeSearch] = useState("")
 
 	// Get heats for selected event
 	const eventHeats = useMemo(
@@ -158,6 +160,16 @@ export function JudgeSchedulingContainer({
 			}))
 			.sort((a, b) => a.assignmentCount - b.assignmentCount)
 	}, [judges, assignments])
+
+	// Filter judges by search query
+	const filteredJudgesByAssignmentCount = useMemo(() => {
+		if (!availableJudgeSearch.trim()) return judgesByAssignmentCount
+		const query = availableJudgeSearch.toLowerCase().trim()
+		return judgesByAssignmentCount.filter((judge) => {
+			const fullName = `${judge.firstName ?? ""} ${judge.lastName ?? ""}`.toLowerCase()
+			return fullName.includes(query)
+		})
+	}, [judgesByAssignmentCount, availableJudgeSearch])
 
 	// Get rotations for selected event - track locally to update on changes
 	const initialEventRotations = useMemo(
@@ -589,23 +601,41 @@ export function JudgeSchedulingContainer({
 												Judge role type in the Volunteers section above.
 											</p>
 										) : (
-											<div className="max-h-[60vh] space-y-1.5 overflow-y-auto">
-												{judgesByAssignmentCount.map((judge) => (
-													<DraggableJudge
-														key={judge.membershipId}
-														volunteer={judge}
-														isSelected={selectedJudgeIds.has(
-															judge.membershipId,
-														)}
-														onToggleSelect={handleToggleSelect}
-														selectedIds={selectedJudgeIds}
-														assignmentCount={judge.assignmentCount}
-														isAssignedToCurrentEvent={assignedJudgeIds.has(
-															judge.membershipId,
-														)}
+											<>
+												{/* Search Input */}
+												<div className="relative mb-3">
+													<Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+													<Input
+														type="text"
+														placeholder="Search judges..."
+														value={availableJudgeSearch}
+														onChange={(e) => setAvailableJudgeSearch(e.target.value)}
+														className="h-8 pl-8 text-sm"
 													/>
-												))}
-											</div>
+												</div>
+												<div className="max-h-[55vh] space-y-1.5 overflow-y-auto">
+													{filteredJudgesByAssignmentCount.map((judge) => (
+														<DraggableJudge
+															key={judge.membershipId}
+															volunteer={judge}
+															isSelected={selectedJudgeIds.has(
+																judge.membershipId,
+															)}
+															onToggleSelect={handleToggleSelect}
+															selectedIds={selectedJudgeIds}
+															assignmentCount={judge.assignmentCount}
+															isAssignedToCurrentEvent={assignedJudgeIds.has(
+																judge.membershipId,
+															)}
+														/>
+													))}
+													{filteredJudgesByAssignmentCount.length === 0 && availableJudgeSearch && (
+														<p className="py-4 text-center text-sm text-muted-foreground">
+															No judges match "{availableJudgeSearch}"
+														</p>
+													)}
+												</div>
+											</>
 										)}
 									</CardContent>
 								</Card>

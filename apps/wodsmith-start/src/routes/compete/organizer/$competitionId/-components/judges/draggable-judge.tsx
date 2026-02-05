@@ -163,10 +163,10 @@ export function DraggableJudge({
 			) : (
 				<GripVertical className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
 			)}
-			<span className="flex-1 truncate">{displayName}</span>
+			<span className="min-w-0 flex-1" title={displayName}>{displayName}</span>
 			{assignmentCount !== undefined && (
 				<span
-					className="flex-shrink-0 text-xs tabular-nums text-muted-foreground"
+					className="shrink-0 text-xs tabular-nums text-muted-foreground"
 					title={`Assigned to ${assignmentCount} heat${assignmentCount === 1 ? "" : "s"}`}
 				>
 					{assignmentCount}
@@ -174,7 +174,8 @@ export function DraggableJudge({
 			)}
 			<CredentialBadge
 				credentials={volunteer.credentials}
-				className="flex-shrink-0 text-xs"
+				className="shrink-0 text-xs"
+				compact
 			/>
 		</div>
 	)
