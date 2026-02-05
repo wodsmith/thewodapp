@@ -1,7 +1,7 @@
 "use client"
 
 import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
-import { ChevronLeft, Pencil, Plus, User } from "lucide-react"
+import { ChevronLeft, Loader2, Pencil, Plus, Trash2, User } from "lucide-react"
 import {
 	Fragment,
 	useCallback,
@@ -11,6 +11,16 @@ import {
 	useState,
 } from "react"
 import { toast } from "sonner"
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -25,11 +35,12 @@ import {
 	expandRotationToAssignments,
 	filterRotationsByAvailability,
 } from "@/lib/judge-rotation-utils"
+import type { HeatWithAssignments } from "@/server-fns/competition-heats-fns"
 import {
+	deleteVolunteerRotationsFn,
 	getEventRotationsFn,
 	updateJudgeRotationFn,
 } from "@/server-fns/judge-rotation-fns"
-import type { HeatWithAssignments } from "@/server-fns/competition-heats-fns"
 import type { JudgeVolunteerInfo } from "@/server-fns/judge-scheduling-fns"
 import {
 	type MultiPreviewCell,
@@ -131,6 +142,12 @@ export function RotationTimeline({
 	const [editingRotationCells, setEditingRotationCells] = useState<Set<string>>(
 		new Set(),
 	)
+	// Delete confirmation dialog state
+	const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+	const [deletingVolunteerId, setDeletingVolunteerId] = useState<string | null>(
+		null,
+	)
+	const [isDeleting, setIsDeleting] = useState(false)
 
 	// Compute occupied lanes per heat from athlete assignments
 	const occupiedLanesByHeat = useMemo(() => {
@@ -205,7 +222,12 @@ export function RotationTimeline({
 		const grid = new Map<
 			string,
 			{
-				status: "empty" | "covered" | "overlap" | "buffer-blocked" | "unavailable"
+				status:
+					| "empty"
+					| "covered"
+					| "overlap"
+					| "buffer-blocked"
+					| "unavailable"
 				rotationIds: string[]
 			}
 		>()
@@ -375,6 +397,14 @@ export function RotationTimeline({
 	}
 
 	function handleCellClick(heat: number, lane: number) {
+		// Block clicks on unavailable cells (no athlete assigned)
+		if (filterEmptyLanes) {
+			const occupiedLanes = occupiedLanesByHeat.get(heat)
+			if (!occupiedLanes?.has(lane)) {
+				return
+			}
+		}
+
 		if (isEditorOpen) {
 			// Editor is already open - update external position to shift the ACTIVE block
 			// Include timestamp to ensure React sees each click as a new value
@@ -530,6 +560,35 @@ export function RotationTimeline({
 		setSelectedRotationId((prev) => (prev === rotationId ? null : rotationId))
 	}
 
+	function handleDeleteVolunteerRotations(membershipId: string) {
+		setDeletingVolunteerId(membershipId)
+		setDeleteConfirmOpen(true)
+	}
+
+	async function confirmDeleteVolunteerRotations() {
+		if (!deletingVolunteerId) return
+
+		setIsDeleting(true)
+		try {
+			await deleteVolunteerRotationsFn({
+				data: {
+					teamId,
+					membershipId: deletingVolunteerId,
+					trackWorkoutId,
+				},
+			})
+			toast.success("Rotations deleted")
+			await refreshRotations()
+		} catch (err) {
+			console.error("Failed to delete rotations:", err)
+			toast.error("Failed to delete rotations")
+		} finally {
+			setIsDeleting(false)
+			setDeleteConfirmOpen(false)
+			setDeletingVolunteerId(null)
+		}
+	}
+
 	return (
 		<div className="space-y-4">
 			{/* Header */}
@@ -615,6 +674,8 @@ export function RotationTimeline({
 								onActiveBlockChange={setActiveBlockIndex}
 								eventLaneShiftPattern={eventLaneShiftPattern}
 								eventDefaultHeatsCount={eventDefaultHeatsCount}
+								filterEmptyLanes={filterEmptyLanes}
+								occupiedLanesByHeat={occupiedLanesByHeat}
 								onSuccess={handleEditorSuccess}
 								onCancel={handleEditorCancel}
 								onPreviewChange={setPreviewCells}
@@ -762,6 +823,17 @@ export function RotationTimeline({
 															>
 																<Plus className="mr-1 h-3 w-3" />
 																Add Rotation
+															</Button>
+															<Button
+																variant="outline"
+																size="icon"
+																className="h-7 w-7 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+																onClick={() =>
+																	handleDeleteVolunteerRotations(membershipId)
+																}
+																title="Delete all rotations"
+															>
+																<Trash2 className="h-3.5 w-3.5" />
 															</Button>
 														</div>
 													</div>
@@ -1005,6 +1077,33 @@ export function RotationTimeline({
 					</CardContent>
 				</Card>
 			</div>
+
+			{/* Delete Confirmation Dialog */}
+			<AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete all rotations?</AlertDialogTitle>
+						<AlertDialogDescription>
+							This will remove all rotations for{" "}
+							{deletingVolunteerId
+								? getJudgeName(deletingVolunteerId)
+								: "this judge"}{" "}
+							from this event. This action cannot be undone.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={confirmDeleteVolunteerRotations}
+							disabled={isDeleting}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							{isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+							Delete
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	)
 }

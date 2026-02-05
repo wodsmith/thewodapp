@@ -1,7 +1,14 @@
 "use client"
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
-import { ChevronDown, Loader2, MousePointer2, Plus, Trash2 } from "lucide-react"
+import {
+	AlertTriangle,
+	ChevronDown,
+	Loader2,
+	MousePointer2,
+	Plus,
+	Trash2,
+} from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useFieldArray, useForm, useWatch } from "react-hook-form"
 import { z } from "zod"
@@ -65,6 +72,10 @@ interface MultiRotationEditorProps {
 	onActiveBlockChange: (index: number) => void
 	eventLaneShiftPattern: LaneShiftPattern
 	eventDefaultHeatsCount: number
+	/** Whether to filter out empty lanes (lanes with no athletes) */
+	filterEmptyLanes?: boolean
+	/** Map of heat number to set of occupied lane numbers */
+	occupiedLanesByHeat?: Map<number, Set<number>>
 	onSuccess: () => void
 	onCancel: () => void
 	onPreviewChange?: (cells: MultiPreviewCell[]) => void
@@ -118,6 +129,8 @@ export function MultiRotationEditor({
 	onActiveBlockChange,
 	eventLaneShiftPattern,
 	eventDefaultHeatsCount,
+	filterEmptyLanes,
+	occupiedLanesByHeat,
 	onSuccess,
 	onCancel,
 	onPreviewChange,
@@ -235,6 +248,51 @@ export function MultiRotationEditor({
 		return allCells
 	}, [watchedRotations, eventLaneShiftPattern, maxHeats, maxLanes])
 
+	// Calculate which heats will be skipped due to no athletes
+	const skippedHeatsInfo = useMemo(() => {
+		if (!filterEmptyLanes || !occupiedLanesByHeat || !watchedRotations) {
+			return { hasSkippedHeats: false, skippedCount: 0, totalCount: 0 }
+		}
+
+		let skippedCount = 0
+		let totalCount = 0
+
+		for (const rotation of watchedRotations) {
+			if (!rotation) continue
+
+			for (let i = 0; i < rotation.heatsCount; i++) {
+				const heat = rotation.startingHeat + i
+				if (heat > maxHeats) break
+
+				let lane: number
+				if (eventLaneShiftPattern === LANE_SHIFT_PATTERN.STAY) {
+					lane = rotation.startingLane
+				} else {
+					lane = ((rotation.startingLane - 1 + i) % maxLanes) + 1
+				}
+
+				totalCount++
+				const occupiedLanes = occupiedLanesByHeat.get(heat)
+				if (!occupiedLanes?.has(lane)) {
+					skippedCount++
+				}
+			}
+		}
+
+		return {
+			hasSkippedHeats: skippedCount > 0,
+			skippedCount,
+			totalCount,
+		}
+	}, [
+		filterEmptyLanes,
+		occupiedLanesByHeat,
+		watchedRotations,
+		maxHeats,
+		maxLanes,
+		eventLaneShiftPattern,
+	])
+
 	// Notify parent of preview changes
 	useEffect(() => {
 		onPreviewChange?.(previewCells)
@@ -289,6 +347,83 @@ export function MultiRotationEditor({
 		maxHeats,
 	])
 
+	/**
+	 * Split a rotation into multiple rotations based on occupied lanes.
+	 * Only heats with athletes in the target lane will be included.
+	 */
+	function splitRotationByOccupiedLanes(rotation: {
+		startingHeat: number
+		startingLane: number
+		heatsCount: number
+		notes?: string
+	}): Array<{
+		startingHeat: number
+		startingLane: number
+		heatsCount: number
+		notes?: string
+	}> {
+		if (!filterEmptyLanes || !occupiedLanesByHeat) {
+			return [rotation]
+		}
+
+		const result: Array<{
+			startingHeat: number
+			startingLane: number
+			heatsCount: number
+			notes?: string
+		}> = []
+		let currentStart: number | null = null
+		let currentCount = 0
+
+		for (let i = 0; i < rotation.heatsCount; i++) {
+			const heat = rotation.startingHeat + i
+			if (heat > maxHeats) break
+
+			let lane: number
+			if (eventLaneShiftPattern === LANE_SHIFT_PATTERN.STAY) {
+				lane = rotation.startingLane
+			} else {
+				lane = ((rotation.startingLane - 1 + i) % maxLanes) + 1
+			}
+
+			const occupiedLanes = occupiedLanesByHeat.get(heat)
+			const hasAthlete = occupiedLanes?.has(lane) ?? false
+
+			if (hasAthlete) {
+				if (currentStart === null) {
+					currentStart = heat
+					currentCount = 1
+				} else {
+					currentCount++
+				}
+			} else {
+				// End current streak if any
+				if (currentStart !== null) {
+					result.push({
+						startingHeat: currentStart,
+						startingLane: rotation.startingLane,
+						heatsCount: currentCount,
+						notes: rotation.notes,
+					})
+					currentStart = null
+					currentCount = 0
+				}
+			}
+		}
+
+		// Don't forget the last streak
+		if (currentStart !== null) {
+			result.push({
+				startingHeat: currentStart,
+				startingLane: rotation.startingLane,
+				heatsCount: currentCount,
+				notes: rotation.notes,
+			})
+		}
+
+		return result
+	}
+
 	async function onSubmit(values: MultiRotationFormValues) {
 		// Clamp heatsCount so rotations don't extend beyond maxHeats
 		const clampedRotations = values.rotations.map((r) => ({
@@ -297,6 +432,17 @@ export function MultiRotationEditor({
 			heatsCount: Math.min(r.heatsCount, maxHeats - r.startingHeat + 1),
 			notes: r.notes,
 		}))
+
+		// Split rotations if filterEmptyLanes is enabled
+		const finalRotations = filterEmptyLanes
+			? clampedRotations.flatMap(splitRotationByOccupiedLanes)
+			: clampedRotations
+
+		// If no rotations after filtering, show error
+		if (finalRotations.length === 0) {
+			console.error("No heats with athletes in the selected lanes")
+			return
+		}
 
 		if (isEditing) {
 			setIsUpdating(true)
@@ -307,7 +453,7 @@ export function MultiRotationEditor({
 						competitionId,
 						trackWorkoutId,
 						membershipId: values.membershipId,
-						rotations: clampedRotations,
+						rotations: finalRotations,
 						laneShiftPattern: eventLaneShiftPattern,
 					},
 				})
@@ -329,7 +475,7 @@ export function MultiRotationEditor({
 						competitionId,
 						trackWorkoutId,
 						membershipId: values.membershipId,
-						rotations: clampedRotations,
+						rotations: finalRotations,
 						laneShiftPattern: eventLaneShiftPattern,
 					},
 				})
@@ -457,6 +603,22 @@ export function MultiRotationEditor({
 						)
 					}}
 				/>
+
+				{/* Warning when heats will be skipped */}
+				{skippedHeatsInfo.hasSkippedHeats && (
+					<Alert className="border-amber-500/50 bg-amber-500/10">
+						<AlertTriangle className="h-4 w-4 text-amber-500" />
+						<AlertDescription className="text-sm">
+							<span className="font-medium">
+								{skippedHeatsInfo.skippedCount} of {skippedHeatsInfo.totalCount}{" "}
+								heats will be skipped
+							</span>{" "}
+							because they have no athletes in the selected lane. Only heats
+							with athletes will be assigned. Disable "Only show lanes with
+							athletes" to schedule all heats.
+						</AlertDescription>
+					</Alert>
+				)}
 
 				{/* Rotation Blocks - Accordion/Collapsible */}
 				<div className="space-y-2">
