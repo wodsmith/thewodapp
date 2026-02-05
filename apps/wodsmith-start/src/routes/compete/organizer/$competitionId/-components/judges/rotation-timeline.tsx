@@ -679,6 +679,7 @@ export function RotationTimeline({
 								onSuccess={handleEditorSuccess}
 								onCancel={handleEditorCancel}
 								onPreviewChange={setPreviewCells}
+								onJudgeSelect={setSelectedVolunteerId}
 							/>
 						) : rotations.length === 0 ? (
 							/* Empty State */

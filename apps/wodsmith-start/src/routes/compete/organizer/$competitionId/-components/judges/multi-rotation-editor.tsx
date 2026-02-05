@@ -9,6 +9,7 @@ import {
 	Plus,
 	Trash2,
 } from "lucide-react"
+import { toast } from "sonner"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useFieldArray, useForm, useWatch } from "react-hook-form"
 import { z } from "zod"
@@ -30,12 +31,9 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select"
+	SearchableSelect,
+	type SearchableSelectOption,
+} from "@/components/ui/searchable-select"
 import { Textarea } from "@/components/ui/textarea"
 import {
 	type CompetitionJudgeRotation,
@@ -79,6 +77,8 @@ interface MultiRotationEditorProps {
 	onSuccess: () => void
 	onCancel: () => void
 	onPreviewChange?: (cells: MultiPreviewCell[]) => void
+	/** Called when judge selection changes (for highlighting existing rotations) */
+	onJudgeSelect?: (membershipId: string | null) => void
 }
 
 /**
@@ -134,6 +134,7 @@ export function MultiRotationEditor({
 	onSuccess,
 	onCancel,
 	onPreviewChange,
+	onJudgeSelect,
 }: MultiRotationEditorProps) {
 	const isEditing = !!existingRotations && existingRotations.length > 0
 	// When adding a new rotation (activeBlockIndex >= existingRotations length),
@@ -440,7 +441,7 @@ export function MultiRotationEditor({
 
 		// If no rotations after filtering, show error
 		if (finalRotations.length === 0) {
-			console.error("No heats with athletes in the selected lanes")
+			toast.error("No heats with athletes in the selected lanes")
 			return
 		}
 
@@ -463,6 +464,9 @@ export function MultiRotationEditor({
 				}
 			} catch (err) {
 				console.error("Failed to update rotations:", err)
+				const message =
+					err instanceof Error ? err.message : "Failed to update rotations"
+				toast.error(message)
 			} finally {
 				setIsUpdating(false)
 			}
@@ -485,6 +489,9 @@ export function MultiRotationEditor({
 				}
 			} catch (err) {
 				console.error("Failed to create rotations:", err)
+				const message =
+					err instanceof Error ? err.message : "Failed to create rotations"
+				toast.error(message)
 			} finally {
 				setIsCreating(false)
 			}
@@ -552,52 +559,48 @@ export function MultiRotationEditor({
 							return aCount - bCount
 						})
 
+						// Build options for SearchableSelect
+						const judgeOptions: SearchableSelectOption[] = sortedJudges.map(
+							(judge) => {
+								const rotationCount =
+									rotationsByVolunteer.get(judge.membershipId)?.length ?? 0
+								const judgeName =
+									`${judge.firstName ?? ""} ${judge.lastName ?? ""}`.trim() ||
+									"Unknown"
+								const labelWithCredentials = judge.credentials
+									? `${judgeName} (${judge.credentials})`
+									: judgeName
+								const description =
+									rotationCount === 0
+										? "No rotations"
+										: rotationCount === 1
+											? "1 rotation"
+											: `${rotationCount} rotations`
+
+								return {
+									value: judge.membershipId,
+									label: labelWithCredentials,
+									description,
+								}
+							},
+						)
+
 						return (
 							<FormItem>
 								<FormLabel>Judge</FormLabel>
-								<Select onValueChange={field.onChange} value={field.value}>
-									<FormControl>
-										<SelectTrigger>
-											<SelectValue placeholder="Select a judge" />
-										</SelectTrigger>
-									</FormControl>
-									<SelectContent>
-										{sortedJudges.map((judge) => {
-											const rotationCount =
-												rotationsByVolunteer.get(judge.membershipId)?.length ??
-												0
-											const judgeName =
-												`${judge.firstName ?? ""} ${judge.lastName ?? ""}`.trim() ||
-												"Unknown"
-
-											return (
-												<SelectItem
-													key={judge.membershipId}
-													value={judge.membershipId}
-												>
-													<div className="flex flex-col">
-														<span>
-															{judgeName}
-															{judge.credentials && (
-																<span className="text-muted-foreground">
-																	{" "}
-																	({judge.credentials})
-																</span>
-															)}
-														</span>
-														<span className="text-xs text-muted-foreground">
-															{rotationCount === 0
-																? "No rotations"
-																: rotationCount === 1
-																	? "1 rotation"
-																	: `${rotationCount} rotations`}
-														</span>
-													</div>
-												</SelectItem>
-											)
-										})}
-									</SelectContent>
-								</Select>
+								<FormControl>
+									<SearchableSelect
+										options={judgeOptions}
+										value={field.value}
+										onValueChange={(value) => {
+											field.onChange(value)
+											onJudgeSelect?.(value || null)
+										}}
+										placeholder="Select a judge"
+										searchPlaceholder="Search judges..."
+										emptyMessage="No judges found."
+									/>
+								</FormControl>
 								<FormMessage />
 							</FormItem>
 						)
