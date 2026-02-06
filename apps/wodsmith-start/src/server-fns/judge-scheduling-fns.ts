@@ -14,6 +14,7 @@ import {
 	competitionHeatsTable,
 	competitionJudgeRotationsTable,
 	competitionRegistrationsTable,
+	competitionsTable,
 	competitionVenuesTable,
 	judgeAssignmentVersionsTable,
 	judgeHeatAssignmentsTable,
@@ -24,14 +25,12 @@ import {
 	VOLUNTEER_ROLE_TYPES,
 	workouts,
 } from "@/db/schema"
-import { SYSTEM_ROLES_ENUM, TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { ROLES_ENUM } from "@/db/schemas/users"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import type {
 	VolunteerAvailability,
 	VolunteerMembershipMetadata,
 } from "@/db/schemas/volunteers"
 import { autochunk, chunk } from "@/utils/batch-query"
-import { getSessionFromCookie } from "@/utils/auth"
 import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
@@ -890,64 +889,26 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
 	.handler(async ({ data }): Promise<{ events: JudgesScheduleEvent[] }> => {
 		const db = getDb()
 
-		// Authorization: user must be an organizer or a volunteer for this competition
-		const session = await getSessionFromCookie()
-		if (!session?.userId) {
-			throw new Error("Unauthorized: Must be logged in")
+		// No auth required - accessible to anyone with the direct link.
+		// Validate that the provided team IDs match the competition to prevent
+		// using arbitrary team context to access unrelated competition data.
+		const [competition] = await db
+			.select({
+				organizingTeamId: competitionsTable.organizingTeamId,
+				competitionTeamId: competitionsTable.competitionTeamId,
+			})
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+
+		if (!competition) {
+			return { events: [] }
 		}
 
-		// Site admins can always access
-		const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
-
-		let canAccess = isSiteAdmin
-		if (!canAccess) {
-			// Check if user is an admin/owner of the organizing team
-			const organizerMembership = await db
-				.select({ id: teamMembershipTable.id, roleId: teamMembershipTable.roleId })
-				.from(teamMembershipTable)
-				.where(
-					and(
-						eq(teamMembershipTable.teamId, data.organizingTeamId),
-						eq(teamMembershipTable.userId, session.userId),
-						eq(teamMembershipTable.isActive, 1),
-					),
-				)
-				.limit(1)
-
-			const isTeamAdmin =
-				organizerMembership[0]?.roleId === SYSTEM_ROLES_ENUM.ADMIN ||
-				organizerMembership[0]?.roleId === SYSTEM_ROLES_ENUM.OWNER
-
-			if (isTeamAdmin) {
-				canAccess = true
-			}
-		}
-
-		if (!canAccess && data.competitionTeamId) {
-			// Check if user is a volunteer for the competition
-			const volunteerMembership = await db
-				.select({ id: teamMembershipTable.id })
-				.from(teamMembershipTable)
-				.where(
-					and(
-						eq(teamMembershipTable.teamId, data.competitionTeamId),
-						eq(teamMembershipTable.userId, session.userId),
-						eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
-						eq(teamMembershipTable.isSystemRole, 1),
-						eq(teamMembershipTable.isActive, 1),
-					),
-				)
-				.limit(1)
-
-			if (volunteerMembership[0]) {
-				canAccess = true
-			}
-		}
-
-		if (!canAccess) {
-			throw new Error(
-				"Unauthorized: Must be an organizer or volunteer for this competition",
-			)
+		if (
+			competition.organizingTeamId !== data.organizingTeamId ||
+			competition.competitionTeamId !== data.competitionTeamId
+		) {
+			return { events: [] }
 		}
 
 		// Get all heats for this competition with venues and divisions

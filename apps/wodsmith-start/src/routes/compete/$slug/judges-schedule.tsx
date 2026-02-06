@@ -2,32 +2,20 @@
  * Judges Schedule Page
  *
  * A printable page showing all heats with their assigned judges.
- * Only accessible to judges and organizers.
+ * Accessible to anyone with the direct link (security through obscurity).
+ * The navigation link to this page is only shown to judges and organizers.
  */
 
-import { createFileRoute, Link, redirect } from "@tanstack/react-router"
+import { createFileRoute, Link } from "@tanstack/react-router"
 import { ArrowLeft, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-	checkCanManageCompetitionFn,
-	checkIsVolunteerFn,
-} from "@/server-fns/competition-detail-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { getJudgesScheduleDataFn } from "@/server-fns/judge-scheduling-fns"
 import { JudgesScheduleContent } from "./-components/judges-schedule-content"
 
 export const Route = createFileRoute("/compete/$slug/judges-schedule")({
-	loader: async ({ params, context }) => {
+	loader: async ({ params }) => {
 		const { slug } = params
-
-		// Check for session - redirect to sign-in if not authenticated
-		const session = context.session ?? null
-		if (!session) {
-			throw redirect({
-				to: "/sign-in",
-				search: { redirect: `/compete/${slug}/judges-schedule` },
-			})
-		}
 
 		// Fetch competition by slug
 		const { competition } = await getCompetitionBySlugFn({ data: { slug } })
@@ -36,34 +24,7 @@ export const Route = createFileRoute("/compete/$slug/judges-schedule")({
 			throw new Error("Competition not found")
 		}
 
-		// Check if user is an organizer or volunteer (judge)
-		const [canManageResult, isVolunteerResult] = await Promise.all([
-			checkCanManageCompetitionFn({
-				data: {
-					organizingTeamId: competition.organizingTeamId,
-					userId: session.userId,
-				},
-			}),
-			checkIsVolunteerFn({
-				data: {
-					competitionTeamId: competition.competitionTeamId,
-					userId: session.userId,
-				},
-			}),
-		])
-
-		const canManage = canManageResult.canManage
-		const isVolunteer = isVolunteerResult.isVolunteer
-
-		// Only allow organizers and volunteers to access this page
-		if (!canManage && !isVolunteer) {
-			throw redirect({
-				to: "/compete/$slug",
-				params: { slug },
-			})
-		}
-
-		// Fetch judges schedule data
+		// Fetch judges schedule data (no auth required - accessible via direct link)
 		const { events } = await getJudgesScheduleDataFn({
 			data: {
 				competitionId: competition.id,
@@ -75,8 +36,6 @@ export const Route = createFileRoute("/compete/$slug/judges-schedule")({
 		return {
 			competition,
 			events,
-			canManage,
-			isVolunteer,
 		}
 	},
 	component: JudgesSchedulePage,
