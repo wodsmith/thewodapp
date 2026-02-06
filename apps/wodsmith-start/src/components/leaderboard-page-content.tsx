@@ -2,10 +2,16 @@
 
 import { getRouteApi, useNavigate, useSearch } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { BarChart3 } from "lucide-react"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { BarChart3, Eye, EyeOff } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { CompetitionLeaderboardTable } from "@/components/competition-leaderboard-table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import {
+	Collapsible,
+	CollapsibleContent,
+} from "@/components/ui/collapsible"
 import {
 	Select,
 	SelectContent,
@@ -13,11 +19,23 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
+import {
+	Sheet,
+	SheetContent,
+	SheetHeader,
+	SheetTitle,
+} from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
 	type CompetitionLeaderboardEntry,
 	getCompetitionLeaderboardFn,
 } from "@/server-fns/leaderboard-fns"
+import {
+	type DivisionDescription,
+	getPublicEventDetailsFn,
+	getWorkoutDivisionDescriptionsFn,
+} from "@/server-fns/competition-workouts-fns"
+import { WorkoutPreview } from "@/components/workout-preview"
 import type { ScoringAlgorithm } from "@/types/scoring"
 
 // Get parent route API to access divisions from loader
@@ -40,14 +58,15 @@ export function LeaderboardPageContent({
 	competitionId,
 }: LeaderboardPageContentProps) {
 	const navigate = useNavigate()
+	const isMobile = useIsMobile()
 	// Get search params from URL - using strict: false since we're in a child component
 	const searchParams = useSearch({ strict: false }) as {
 		division?: string
 		event?: string
 	}
 
-	// Get divisions from parent route loader
-	const { divisions } = parentRoute.useLoaderData()
+	// Get divisions and competition from parent route loader
+	const { divisions, competition } = parentRoute.useLoaderData()
 
 	// Default to first division if available
 	const defaultDivision = divisions?.[0]?.id ?? ""
@@ -63,6 +82,112 @@ export function LeaderboardPageContent({
 		useState<ScoringAlgorithm>("traditional")
 	const [isLoading, setIsLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
+
+	// Workout preview state
+	const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+	const [previewData, setPreviewData] = useState<{
+		name: string
+		description: string | null
+		scheme: string
+		timeCap: number | null
+		movements: Array<{ id: string; name: string }>
+		tags: Array<{ id: string; name: string }>
+		workoutId: string
+		divisionDescriptions: DivisionDescription[]
+	} | null>(null)
+	const [isPreviewLoading, setIsPreviewLoading] = useState(false)
+	const [previewError, setPreviewError] = useState<string | null>(null)
+	const previewCache = useRef(
+		new Map<
+			string,
+			{
+				name: string
+				description: string | null
+				scheme: string
+				timeCap: number | null
+				movements: Array<{ id: string; name: string }>
+				tags: Array<{ id: string; name: string }>
+				workoutId: string
+				divisionDescriptions: DivisionDescription[]
+			}
+		>(),
+	)
+	const getEventDetails = useServerFn(getPublicEventDetailsFn)
+	const getDivisionDescriptions = useServerFn(getWorkoutDivisionDescriptionsFn)
+
+	// Close preview when event changes
+	// biome-ignore lint/correctness/useExhaustiveDependencies: selectedEventId triggers reset intentionally
+	useEffect(() => {
+		setIsPreviewOpen(false)
+		setPreviewData(null)
+		setPreviewError(null)
+	}, [selectedEventId])
+
+	const handleTogglePreview = useCallback(async () => {
+		if (isPreviewOpen) {
+			setIsPreviewOpen(false)
+			return
+		}
+
+		if (!selectedEventId) return
+
+		// Check cache first
+		const cached = previewCache.current.get(selectedEventId)
+		if (cached) {
+			setPreviewData(cached)
+			setIsPreviewOpen(true)
+			return
+		}
+
+		// Fetch workout details
+		setIsPreviewLoading(true)
+		setPreviewError(null)
+		setIsPreviewOpen(true)
+
+		try {
+			const result = await getEventDetails({
+				data: {
+					eventId: selectedEventId,
+					competitionId,
+				},
+			})
+
+			if (result.event) {
+				// Fetch division descriptions in parallel if divisions exist
+				const divisionIds = divisions?.map((d) => d.id) ?? []
+				let divisionDescriptions: DivisionDescription[] = []
+
+				if (divisionIds.length > 0) {
+					const descResult = await getDivisionDescriptions({
+						data: {
+							workoutId: result.event.workout.id,
+							divisionIds,
+						},
+					})
+					divisionDescriptions = descResult.descriptions
+				}
+
+				const data = {
+					name: result.event.workout.name,
+					description: result.event.workout.description,
+					scheme: result.event.workout.scheme,
+					timeCap: result.event.workout.timeCap,
+					movements: result.event.workout.movements ?? [],
+					tags: result.event.workout.tags ?? [],
+					workoutId: result.event.workout.id,
+					divisionDescriptions,
+				}
+				previewCache.current.set(selectedEventId, data)
+				setPreviewData(data)
+			} else {
+				setPreviewError("Workout details not found.")
+			}
+		} catch {
+			setPreviewError("Failed to load workout details.")
+		} finally {
+			setIsPreviewLoading(false)
+		}
+	}, [isPreviewOpen, selectedEventId, competitionId, divisions, getEventDetails, getDivisionDescriptions])
 
 	// Server function for fetching leaderboard
 	const getLeaderboard = useServerFn(getCompetitionLeaderboardFn)
@@ -163,6 +288,14 @@ export function LeaderboardPageContent({
 			}))
 			.sort((a, b) => a.trackOrder - b.trackOrder)
 	}, [leaderboard])
+
+	// Derive division-specific description for preview
+	const selectedDivisionDesc = useMemo(() => {
+		if (!previewData?.divisionDescriptions || !selectedDivision) return null
+		return previewData.divisionDescriptions.find(
+			(d) => d.divisionId === selectedDivision,
+		) ?? null
+	}, [previewData?.divisionDescriptions, selectedDivision])
 
 	// Loading state - initial load
 	if (isLoading && leaderboard.length === 0) {
@@ -300,6 +433,22 @@ export function LeaderboardPageContent({
 						</Select>
 					)}
 
+					{/* View Workout button */}
+					{selectedEventId && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={handleTogglePreview}
+						>
+							{isPreviewOpen ? (
+								<EyeOff className="h-4 w-4 mr-1.5" />
+							) : (
+								<Eye className="h-4 w-4 mr-1.5" />
+							)}
+							{isPreviewOpen ? "Hide Workout" : "View Workout"}
+						</Button>
+					)}
+
 					{/* Loading indicator for background refetches */}
 					{isLoading && leaderboard.length > 0 && (
 						<span className="text-sm text-muted-foreground animate-pulse">
@@ -309,6 +458,35 @@ export function LeaderboardPageContent({
 				</div>
 			</div>
 
+			{/* Desktop: Collapsible workout preview */}
+			{selectedEventId && !isMobile && (
+				<Collapsible open={isPreviewOpen}>
+					<CollapsibleContent>
+						{previewError ? (
+							<div className="p-4 rounded-lg border bg-muted/30 text-sm text-muted-foreground">
+								{previewError}
+							</div>
+						) : (
+							<WorkoutPreview
+								name={previewData?.name ?? ""}
+								description={previewData?.description ?? null}
+								scheme={previewData?.scheme ?? ""}
+								timeCap={previewData?.timeCap ?? null}
+								movements={previewData?.movements ?? []}
+								tags={previewData?.tags ?? []}
+								eventDetailUrl={{
+									slug: competition.slug,
+									eventId: selectedEventId,
+								}}
+								isLoading={isPreviewLoading}
+								divisionScale={selectedDivisionDesc?.description}
+								divisionLabel={selectedDivisionDesc?.divisionLabel}
+							/>
+						)}
+					</CollapsibleContent>
+				</Collapsible>
+			)}
+
 			<div className="rounded-md border">
 				<CompetitionLeaderboardTable
 					leaderboard={leaderboard}
@@ -317,6 +495,41 @@ export function LeaderboardPageContent({
 					scoringAlgorithm={scoringAlgorithm}
 				/>
 			</div>
+
+			{/* Mobile: Bottom Sheet workout preview */}
+			{selectedEventId && isMobile && (
+				<Sheet open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+					<SheetContent
+						side="bottom"
+						className="max-h-[70vh] overflow-y-auto rounded-t-2xl"
+					>
+						<SheetHeader>
+							<SheetTitle>Workout Details</SheetTitle>
+						</SheetHeader>
+						{previewError ? (
+							<div className="p-4 text-sm text-muted-foreground">
+								{previewError}
+							</div>
+						) : (
+							<WorkoutPreview
+								name={previewData?.name ?? ""}
+								description={previewData?.description ?? null}
+								scheme={previewData?.scheme ?? ""}
+								timeCap={previewData?.timeCap ?? null}
+								movements={previewData?.movements ?? []}
+								tags={previewData?.tags ?? []}
+								eventDetailUrl={{
+									slug: competition.slug,
+									eventId: selectedEventId,
+								}}
+								isLoading={isPreviewLoading}
+								divisionScale={selectedDivisionDesc?.description}
+								divisionLabel={selectedDivisionDesc?.divisionLabel}
+							/>
+						)}
+					</SheetContent>
+				</Sheet>
+			)}
 		</div>
 	)
 }
