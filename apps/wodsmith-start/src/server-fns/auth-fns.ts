@@ -416,7 +416,9 @@ export const verifyEmailFn = createServerFn({ method: "POST" })
 		)
 
 		if (!verificationTokenStr) {
-			logWarning({ message: "[Auth] Email verification failed - invalid token" })
+			logWarning({
+				message: "[Auth] Email verification failed - invalid token",
+			})
 			throw new Error("Verification token not found or expired")
 		}
 
@@ -506,7 +508,9 @@ export const forgotPasswordFn = createServerFn({ method: "POST" })
 		if (data.captchaToken) {
 			const isValidCaptcha = await validateTurnstileToken(data.captchaToken)
 			if (!isValidCaptcha) {
-				logWarning({ message: "[Auth] Password reset - CAPTCHA verification failed" })
+				logWarning({
+					message: "[Auth] Password reset - CAPTCHA verification failed",
+				})
 				throw new Error("CAPTCHA verification failed. Please try again.")
 			}
 		}
@@ -519,7 +523,9 @@ export const forgotPasswordFn = createServerFn({ method: "POST" })
 
 			// Even if user is not found, return success to prevent email enumeration
 			if (!user) {
-				logInfo({ message: "[Auth] Password reset - user not found (returning success)" })
+				logInfo({
+					message: "[Auth] Password reset - user not found (returning success)",
+				})
 				return { success: true }
 			}
 
@@ -534,7 +540,9 @@ export const forgotPasswordFn = createServerFn({ method: "POST" })
 
 			// Verify KV is available
 			if (!env?.KV_SESSION) {
-				logError({ message: "[Auth] Password reset failed - KV_SESSION unavailable" })
+				logError({
+					message: "[Auth] Password reset failed - KV_SESSION unavailable",
+				})
 				throw new Error("Service temporarily unavailable")
 			}
 
@@ -586,7 +594,9 @@ export const resendVerificationFn = createServerFn({ method: "POST" }).handler(
 		const session = await getSessionFromCookie()
 
 		if (!session?.user?.email) {
-			logWarning({ message: "[Auth] Resend verification failed - not authenticated" })
+			logWarning({
+				message: "[Auth] Resend verification failed - not authenticated",
+			})
 			throw new Error("Not authenticated")
 		}
 

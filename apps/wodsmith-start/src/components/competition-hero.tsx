@@ -53,7 +53,6 @@ export function CompetitionHero({
 			)}
 		>
 			{/* Banner Image or Glassmorphism Background */}
-			{/* biome-ignore lint/style/noNonNullAssertion: hasBanner check guarantees bannerImageUrl exists */}
 			{hasBanner ? (
 				<>
 					<img

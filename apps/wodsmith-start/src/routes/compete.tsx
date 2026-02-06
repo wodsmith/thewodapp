@@ -21,8 +21,8 @@ const getCompeteNavDataFn = createServerFn({ method: "GET" }).handler(
 		// Check if user has MANAGE_COMPETITIONS permission in any team
 		const canOrganize = session?.teams
 			? session.teams.some((team) =>
-				team.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS),
-			)
+					team.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS),
+				)
 			: false
 
 		return { session, canOrganize }

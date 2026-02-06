@@ -8,10 +8,7 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { CompetitionLeaderboardTable } from "@/components/competition-leaderboard-table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import {
-	Collapsible,
-	CollapsibleContent,
-} from "@/components/ui/collapsible"
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible"
 import {
 	Select,
 	SelectContent,
@@ -187,7 +184,14 @@ export function LeaderboardPageContent({
 		} finally {
 			setIsPreviewLoading(false)
 		}
-	}, [isPreviewOpen, selectedEventId, competitionId, divisions, getEventDetails, getDivisionDescriptions])
+	}, [
+		isPreviewOpen,
+		selectedEventId,
+		competitionId,
+		divisions,
+		getEventDetails,
+		getDivisionDescriptions,
+	])
 
 	// Server function for fetching leaderboard
 	const getLeaderboard = useServerFn(getCompetitionLeaderboardFn)
@@ -292,9 +296,11 @@ export function LeaderboardPageContent({
 	// Derive division-specific description for preview
 	const selectedDivisionDesc = useMemo(() => {
 		if (!previewData?.divisionDescriptions || !selectedDivision) return null
-		return previewData.divisionDescriptions.find(
-			(d) => d.divisionId === selectedDivision,
-		) ?? null
+		return (
+			previewData.divisionDescriptions.find(
+				(d) => d.divisionId === selectedDivision,
+			) ?? null
+		)
 	}, [previewData?.divisionDescriptions, selectedDivision])
 
 	// Loading state - initial load
@@ -435,11 +441,7 @@ export function LeaderboardPageContent({
 
 					{/* View Workout button */}
 					{selectedEventId && (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={handleTogglePreview}
-						>
+						<Button variant="outline" size="sm" onClick={handleTogglePreview}>
 							{isPreviewOpen ? (
 								<EyeOff className="h-4 w-4 mr-1.5" />
 							) : (

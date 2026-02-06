@@ -106,10 +106,7 @@ export function updateRequestContext(
  * addRequestContextAttribute("registrationId", registration.id)
  * ```
  */
-export function addRequestContextAttribute(
-	key: string,
-	value: unknown,
-): void {
+export function addRequestContextAttribute(key: string, value: unknown): void {
 	const store = requestContextStorage.getStore()
 	if (store) {
 		store.attributes = store.attributes ?? {}

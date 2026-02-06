@@ -163,7 +163,9 @@ export function DraggableJudge({
 			) : (
 				<GripVertical className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
 			)}
-			<span className="min-w-0 flex-1" title={displayName}>{displayName}</span>
+			<span className="min-w-0 flex-1" title={displayName}>
+				{displayName}
+			</span>
 			{assignmentCount !== undefined && (
 				<span
 					className="shrink-0 text-xs tabular-nums text-muted-foreground"

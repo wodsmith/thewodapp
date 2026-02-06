@@ -103,7 +103,11 @@ export function expandRotationToAssignments(
 		}
 
 		// If respecting occupied lanes and this lane has no athlete, skip this heat entirely
-		if (respectOccupiedLanes && heat.occupiedLanes && heat.occupiedLanes.size > 0) {
+		if (
+			respectOccupiedLanes &&
+			heat.occupiedLanes &&
+			heat.occupiedLanes.size > 0
+		) {
 			if (!heat.occupiedLanes.has(laneNumber)) {
 				continue // Skip this heat - no athlete in the natural lane
 			}
@@ -151,7 +155,7 @@ export function calculateCoverage(
 		// Otherwise, count all lanes (backward compatible)
 		const lanesToCount = heat.occupiedLanes
 			? Array.from(heat.occupiedLanes)
-			: Array.from({length: heat.laneCount}, (_, i) => i + 1)
+			: Array.from({ length: heat.laneCount }, (_, i) => i + 1)
 
 		for (const lane of lanesToCount) {
 			const key = `${heat.heatNumber}:${lane}`
@@ -161,7 +165,9 @@ export function calculateCoverage(
 	}
 
 	// Check if we should respect occupied lanes (when any heat has occupiedLanes defined)
-	const hasOccupiedLanes = heats.some((h) => h.occupiedLanes && h.occupiedLanes.size > 0)
+	const hasOccupiedLanes = heats.some(
+		(h) => h.occupiedLanes && h.occupiedLanes.size > 0,
+	)
 
 	// Expand all rotations and populate grid
 	for (const rotation of rotations) {

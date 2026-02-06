@@ -1638,8 +1638,14 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 		const db = getDb()
 
 		// Update request context
-		addRequestContextAttribute("sourceTrackWorkoutId", data.sourceTrackWorkoutId)
-		addRequestContextAttribute("targetTrackWorkoutId", data.targetTrackWorkoutId)
+		addRequestContextAttribute(
+			"sourceTrackWorkoutId",
+			data.sourceTrackWorkoutId,
+		)
+		addRequestContextAttribute(
+			"targetTrackWorkoutId",
+			data.targetTrackWorkoutId,
+		)
 
 		logInfo({
 			message: "[Heat] Copy heats from event started",
@@ -2098,9 +2104,7 @@ const getPublicEventHeatsInputSchema = z.object({
  * Returns heats with venue and division info, ordered by heat number.
  */
 export const getPublicEventHeatsFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
-		getPublicEventHeatsInputSchema.parse(data),
-	)
+	.inputValidator((data: unknown) => getPublicEventHeatsInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		const db = getDb()
 
@@ -2123,9 +2127,7 @@ export const getPublicEventHeatsFn = createServerFn({ method: "GET" })
 		// Collect unique IDs for batch lookups
 		const venueIds = [
 			...new Set(
-				heats
-					.map((h) => h.venueId)
-					.filter((id): id is string => id !== null),
+				heats.map((h) => h.venueId).filter((id): id is string => id !== null),
 			),
 		]
 		const divisionIds = [
@@ -2219,9 +2221,7 @@ export const getPublicScheduleDataFn = createServerFn({ method: "GET" })
 		// Collect unique IDs for batch lookups
 		const venueIds = [
 			...new Set(
-				heats
-					.map((h) => h.venueId)
-					.filter((id): id is string => id !== null),
+				heats.map((h) => h.venueId).filter((id): id is string => id !== null),
 			),
 		]
 		const divisionIds = [
@@ -2231,9 +2231,7 @@ export const getPublicScheduleDataFn = createServerFn({ method: "GET" })
 					.filter((id): id is string => id !== null),
 			),
 		]
-		const trackWorkoutIds = [
-			...new Set(heats.map((h) => h.trackWorkoutId)),
-		]
+		const trackWorkoutIds = [...new Set(heats.map((h) => h.trackWorkoutId))]
 
 		// Fetch venues
 		const venues =
@@ -2278,9 +2276,7 @@ export const getPublicScheduleDataFn = createServerFn({ method: "GET" })
 		const trackWorkoutMap = new Map(trackWorkouts.map((tw) => [tw.id, tw]))
 
 		// Fetch workout names
-		const workoutIds = [
-			...new Set(trackWorkouts.map((tw) => tw.workoutId)),
-		]
+		const workoutIds = [...new Set(trackWorkouts.map((tw) => tw.workoutId))]
 		const workoutBatches =
 			workoutIds.length > 0
 				? await Promise.all(

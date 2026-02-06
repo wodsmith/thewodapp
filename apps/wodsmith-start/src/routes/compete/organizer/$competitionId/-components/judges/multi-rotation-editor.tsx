@@ -231,7 +231,11 @@ export function MultiRotationEditor({
 			// If filtering by occupied lanes and this lane has no athlete, return null (skip)
 			if (filterEmptyLanes && occupiedLanesByHeat) {
 				const occupiedLanes = occupiedLanesByHeat.get(heat)
-				if (occupiedLanes && occupiedLanes.size > 0 && !occupiedLanes.has(lane)) {
+				if (
+					occupiedLanes &&
+					occupiedLanes.size > 0 &&
+					!occupiedLanes.has(lane)
+				) {
 					return null // Skip this heat - no athlete in the natural lane
 				}
 			}
@@ -298,7 +302,13 @@ export function MultiRotationEditor({
 			skippedCount,
 			totalCount,
 		}
-	}, [filterEmptyLanes, occupiedLanesByHeat, watchedRotations, maxHeats, calculateLane])
+	}, [
+		filterEmptyLanes,
+		occupiedLanesByHeat,
+		watchedRotations,
+		maxHeats,
+		calculateLane,
+	])
 
 	// Notify parent of preview changes
 	useEffect(() => {

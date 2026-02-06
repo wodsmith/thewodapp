@@ -18,11 +18,7 @@ import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoresTable } from "@/db/schemas/scores"
 import { teamMembershipTable, teamTable } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
-import {
-	logInfo,
-	logWarning,
-	updateRequestContext,
-} from "@/lib/logging"
+import { logInfo, logWarning, updateRequestContext } from "@/lib/logging"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getActiveTeamId } from "@/utils/team-auth"
 
@@ -268,7 +264,9 @@ export const getActiveTeamFn = createServerFn({ method: "GET" })
 		// Get session to verify user is authenticated
 		const session = await getSessionFromCookie()
 		if (!session?.userId) {
-			logWarning({ message: "[Team] Get active team failed - not authenticated" })
+			logWarning({
+				message: "[Team] Get active team failed - not authenticated",
+			})
 			throw new Error("Not authenticated")
 		}
 

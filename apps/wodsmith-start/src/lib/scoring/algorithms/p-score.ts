@@ -177,7 +177,6 @@ function calculateMedian(
  *             This athlete gets exactly 50 points.
  * - all: Statistical median of all athlete values
  */
-// biome-ignore lint/style/noNonNullAssertion: length checks guarantee index exists
 function getMedianValue(
 	values: number[],
 	medianField: "top_half" | "all",
@@ -200,7 +199,6 @@ function getMedianValue(
 /**
  * Find statistical median of an array
  */
-// biome-ignore lint/style/noNonNullAssertion: length check guarantees index exists
 function findStatisticalMedian(values: number[]): number {
 	if (values.length === 0) return 0
 	if (values.length === 1) return values[0]!

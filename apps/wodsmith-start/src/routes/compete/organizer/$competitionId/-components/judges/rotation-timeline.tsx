@@ -1,7 +1,15 @@
 "use client"
 
 import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
-import { ChevronLeft, Loader2, Pencil, Plus, Search, Trash2, User } from "lucide-react"
+import {
+	ChevronLeft,
+	Loader2,
+	Pencil,
+	Plus,
+	Search,
+	Trash2,
+	User,
+} from "lucide-react"
 import {
 	Fragment,
 	useCallback,
@@ -249,13 +257,7 @@ export function RotationTimeline({
 		}
 
 		return affectedRotations
-	}, [
-		filterEmptyLanes,
-		rotations,
-		heats,
-		occupiedLanesByHeat,
-		availableJudges,
-	])
+	}, [filterEmptyLanes, rotations, heats, occupiedLanesByHeat, availableJudges])
 
 	// Group rotations by volunteer
 	const rotationsByVolunteer = useMemo(() => {
@@ -303,7 +305,12 @@ export function RotationTimeline({
 		}
 
 		return filtered
-	}, [rotationsByVolunteer, availabilityFilter, availableJudges, judgeSearchQuery])
+	}, [
+		rotationsByVolunteer,
+		availabilityFilter,
+		availableJudges,
+		judgeSearchQuery,
+	])
 
 	// Build maps between display index (1-based) and actual heat number
 	const { displayToHeatNumber, heatNumberToDisplay } = useMemo(() => {
@@ -313,7 +320,10 @@ export function RotationTimeline({
 			displayToHeat.set(idx + 1, heat.heatNumber)
 			heatToDisplay.set(heat.heatNumber, idx + 1)
 		})
-		return { displayToHeatNumber: displayToHeat, heatNumberToDisplay: heatToDisplay }
+		return {
+			displayToHeatNumber: displayToHeat,
+			heatNumberToDisplay: heatToDisplay,
+		}
 	}, [heatsWithAssignments])
 
 	// Build coverage grid with rotation IDs for highlighting and buffer zones
@@ -403,9 +413,14 @@ export function RotationTimeline({
 					const bufferBeforeStart = rotationStart - minHeatBuffer
 
 					// Mark buffer zone cells (all lanes in buffer heats)
-					for (let displayIdx = bufferBeforeStart; displayIdx <= bufferAfterEnd; displayIdx++) {
+					for (
+						let displayIdx = bufferBeforeStart;
+						displayIdx <= bufferAfterEnd;
+						displayIdx++
+					) {
 						// Skip heats within the rotation itself
-						if (displayIdx >= rotationStart && displayIdx <= rotationEnd) continue
+						if (displayIdx >= rotationStart && displayIdx <= rotationEnd)
+							continue
 						// Skip heats outside valid range
 						if (displayIdx < 1 || displayIdx > heatsCount) continue
 
@@ -471,7 +486,13 @@ export function RotationTimeline({
 			}
 		}
 		return cellKeys
-	}, [selectedVolunteerId, rotationsByVolunteer, heats, filterEmptyLanes, heatNumberToDisplay])
+	}, [
+		selectedVolunteerId,
+		rotationsByVolunteer,
+		heats,
+		filterEmptyLanes,
+		heatNumberToDisplay,
+	])
 
 	// Color palette for multiple blocks
 	const BLOCK_COLORS = [
@@ -1299,7 +1320,9 @@ export function RotationTimeline({
 			>
 				<AlertDialogContent className="max-w-lg">
 					<AlertDialogHeader>
-						<AlertDialogTitle>Adjust rotations to skip unassigned lanes?</AlertDialogTitle>
+						<AlertDialogTitle>
+							Adjust rotations to skip unassigned lanes?
+						</AlertDialogTitle>
 						<AlertDialogDescription asChild>
 							<div className="space-y-3">
 								<p>
@@ -1319,8 +1342,8 @@ export function RotationTimeline({
 												</div>
 												<div className="text-xs text-muted-foreground">
 													Heats {rotation.startingHeat}-
-													{rotation.startingHeat + rotation.heatsCount - 1}, Lane{" "}
-													{rotation.startingLane}
+													{rotation.startingHeat + rotation.heatsCount - 1},
+													Lane {rotation.startingLane}
 												</div>
 												<div className="mt-1 text-xs text-orange-600 dark:text-orange-400">
 													Will skip:{" "}

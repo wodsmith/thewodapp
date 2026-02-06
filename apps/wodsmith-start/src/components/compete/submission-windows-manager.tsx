@@ -276,7 +276,6 @@ export function SubmissionWindowsManager({
 					<div className="space-y-4">
 						<Skeleton className="h-10 w-full" />
 						<div className="space-y-2">
-							{/* biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton array, items never reorder */}
 							{Array.from({ length: workouts.length || 3 }).map((_, i) => (
 								<Skeleton key={i} className="h-10 w-full" />
 							))}
