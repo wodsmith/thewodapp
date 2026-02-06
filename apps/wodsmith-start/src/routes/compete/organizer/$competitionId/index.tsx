@@ -9,6 +9,8 @@
 
 import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
 import { FileText, TrendingUp, Users } from "lucide-react"
+import { useEffect } from "react"
+import { SetupChecklist } from "@/components/setup-checklist"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -17,6 +19,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import { getChecklistStatusFn } from "@/server-fns/checklist-fns"
 import { getCompetitionRevenueStatsFn } from "@/server-fns/commerce-fns"
 import {
 	getCompetitionByIdFn,
@@ -29,6 +32,8 @@ import {
 	type AllEventsResultsStatusResponse,
 	getDivisionResultsStatusFn,
 } from "@/server-fns/division-results-fns"
+import { getOnboardingStateFn } from "@/server-fns/onboarding-fns"
+import { useOnboardingStore } from "@/state/onboarding"
 import {
 	formatUTCDateFull,
 	getLocalDateKey,
@@ -57,7 +62,7 @@ export const Route = createFileRoute("/compete/organizer/$competitionId/")({
 
 		const isOnline = competition.competitionType === "online"
 
-		// Parallel fetch: registrations, revenue stats, events, heats/submission windows, and division results
+		// Parallel fetch: registrations, revenue stats, events, heats/submission windows, division results, checklist, and onboarding state
 		const [
 			registrationsResult,
 			revenueResult,
@@ -65,6 +70,8 @@ export const Route = createFileRoute("/compete/organizer/$competitionId/")({
 			heatsResult,
 			divisionResultsResult,
 			competitionEventsResult,
+			checklistStatus,
+			onboardingResult,
 		] = await Promise.all([
 			getCompetitionRegistrationsFn({
 				data: { competitionId: params.competitionId },
@@ -96,6 +103,18 @@ export const Route = createFileRoute("/compete/organizer/$competitionId/")({
 						data: { competitionId: params.competitionId },
 					})
 				: Promise.resolve({ events: [] }),
+			getChecklistStatusFn({
+				data: {
+					competitionId: params.competitionId,
+					organizingTeamId: competition.organizingTeamId,
+				},
+			}),
+			getOnboardingStateFn({
+				data: {
+					teamId: competition.organizingTeamId,
+					competitionId: params.competitionId,
+				},
+			}),
 		])
 
 		return {
@@ -109,6 +128,8 @@ export const Route = createFileRoute("/compete/organizer/$competitionId/")({
 			competitionEvents: competitionEventsResult.events,
 			isOnline,
 			timezone: competition.timezone || "America/Denver",
+			checklistStatus,
+			onboardingStates: onboardingResult.states,
 		}
 	},
 })
@@ -128,9 +149,20 @@ function CompetitionOverviewPage() {
 		competitionEvents,
 		isOnline,
 		timezone,
+		checklistStatus,
+		onboardingStates,
 	} = Route.useLoaderData()
 	// Get competition from parent layout loader data
 	const { competition } = parentRoute.useLoaderData()
+
+	// Hydrate onboarding store from server data
+	const hydrate = useOnboardingStore((s) => s.hydrate)
+	const isLoaded = useOnboardingStore((s) => s.isLoaded)
+	useEffect(() => {
+		if (!isLoaded) {
+			hydrate(onboardingStates)
+		}
+	}, [hydrate, isLoaded, onboardingStates])
 
 	// Format datetime for display (local time for timestamps, or YYYY-MM-DD strings)
 	const formatDateTime = (date: string | Date) => {
@@ -185,6 +217,14 @@ function CompetitionOverviewPage() {
 
 	return (
 		<>
+			{/* Setup Checklist */}
+			<SetupChecklist
+				competitionId={competition.id}
+				teamId={organizingTeamId}
+				checklistStatus={checklistStatus}
+				competitionSlug={competition.slug}
+			/>
+
 			{/* Publishing Controls - Full Width Stacked Layout */}
 			{events.length > 0 && (
 				<div className="space-y-4">

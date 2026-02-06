@@ -8,9 +8,14 @@
  * Port from apps/wodsmith/src/app/(compete)/compete/organizer/[competitionId]/(with-sidebar)/results/page.tsx
  */
 
-import { createFileRoute, getRouteApi, useRouter } from "@tanstack/react-router"
+import {
+	createFileRoute,
+	getRouteApi,
+	Link,
+	useRouter,
+} from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { AlertTriangle, Eye, EyeOff, Loader2 } from "lucide-react"
+import { AlertTriangle, Eye, EyeOff, Loader2, Medal } from "lucide-react"
 import { useCallback, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -234,9 +239,21 @@ function ResultsPage() {
 						Enter scores for competition events
 					</p>
 				</div>
-				<div className="text-center py-12 text-muted-foreground">
-					No events found for this competition. Add events first before entering
-					results.
+				<div className="flex flex-col items-center justify-center py-12 text-center">
+					<Medal className="h-10 w-10 text-muted-foreground/50 mb-4" />
+					<h3 className="text-lg font-medium mb-1">No events yet</h3>
+					<p className="text-sm text-muted-foreground max-w-md mb-4">
+						Add events to your competition before entering results. Each event
+						needs workouts and scoring configured.
+					</p>
+					<Link
+						to="/compete/organizer/$competitionId/events"
+						params={{ competitionId }}
+					>
+						<Button variant="outline" size="sm">
+							Go to Events
+						</Button>
+					</Link>
 				</div>
 			</div>
 		)

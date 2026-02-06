@@ -11,19 +11,22 @@ import {
 	useNavigate,
 	useRouter,
 } from "@tanstack/react-router"
-import { ArrowDown, ArrowUp, ArrowUpDown, Calendar, Download, Mail, X } from "lucide-react"
+import {
+	ArrowDown,
+	ArrowUp,
+	ArrowUpDown,
+	Calendar,
+	Download,
+	Mail,
+	Users,
+	X,
+} from "lucide-react"
 import { z } from "zod"
 import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import {
 	Select,
 	SelectContent,
@@ -452,7 +455,9 @@ function AthletesPage() {
 					lastName: member.user?.lastName ?? null,
 					email: member.user?.email ?? null,
 					avatar: member.user?.avatar ?? null,
-					affiliateName: (member.user as { affiliateName?: string | null })?.affiliateName ?? null,
+					affiliateName:
+						(member.user as { affiliateName?: string | null })?.affiliateName ??
+						null,
 				},
 				isCaptain: member.isCaptain,
 				status: "registered",
@@ -466,7 +471,9 @@ function AthletesPage() {
 		// Add pending/accepted invites for this registration's athlete team
 		if (isTeamDivision && registration.athleteTeam) {
 			const teamPendingInvites = pendingInvites.filter(
-				(inv) => inv.athleteTeamId === (registration.athleteTeam as { id?: string })?.id,
+				(inv) =>
+					inv.athleteTeamId ===
+					(registration.athleteTeam as { id?: string })?.id,
 			)
 			teamPendingInvites.forEach((invite) => {
 				// Map invitation status to athlete row status
@@ -563,8 +570,12 @@ function AthletesPage() {
 
 		switch (currentSortBy) {
 			case "name": {
-				const nameA = `${a.athlete.firstName ?? ""} ${a.athlete.lastName ?? ""}`.toLowerCase().trim()
-				const nameB = `${b.athlete.firstName ?? ""} ${b.athlete.lastName ?? ""}`.toLowerCase().trim()
+				const nameA = `${a.athlete.firstName ?? ""} ${a.athlete.lastName ?? ""}`
+					.toLowerCase()
+					.trim()
+				const nameB = `${b.athlete.firstName ?? ""} ${b.athlete.lastName ?? ""}`
+					.toLowerCase()
+					.trim()
 				return nameA.localeCompare(nameB) * direction
 			}
 			case "division": {
@@ -620,9 +631,11 @@ function AthletesPage() {
 				athleteName = `(Pending) ${row.athlete.email}`
 			} else if (row.status === "accepted") {
 				// Use guest name if available for accepted invites
-				athleteName = row.pendingInvite?.guestName || `(Accepted) ${row.athlete.email}`
+				athleteName =
+					row.pendingInvite?.guestName || `(Accepted) ${row.athlete.email}`
 			} else {
-				athleteName = `${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim()
+				athleteName =
+					`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim()
 			}
 
 			const csvRow = [
@@ -658,7 +671,9 @@ function AthletesPage() {
 					const pendingSig = row.pendingInvite?.pendingSignatures?.find(
 						(s) => s.waiverId === waiver.id,
 					)
-					csvRow.push(pendingSig ? formatDate(pendingSig.signedAt) : "Not signed")
+					csvRow.push(
+						pendingSig ? formatDate(pendingSig.signedAt) : "Not signed",
+					)
 				})
 			} else {
 				waivers.forEach((waiver) => {
@@ -729,13 +744,15 @@ function AthletesPage() {
 			</div>
 
 			{registrations.length === 0 && !currentDivisionFilter ? (
-				<Card>
-					<CardHeader>
-						<CardTitle>No Registrations</CardTitle>
-						<CardDescription>
-							No athletes have registered for this competition yet.
-						</CardDescription>
-					</CardHeader>
+				<Card className="border-dashed">
+					<div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+						<Users className="h-10 w-10 text-muted-foreground/50 mb-4" />
+						<h3 className="text-lg font-medium mb-1">No registrations yet</h3>
+						<p className="text-sm text-muted-foreground max-w-md">
+							No athletes have registered for this competition yet. Share your
+							competition page to get started.
+						</p>
+					</div>
 				</Card>
 			) : (
 				<div className="flex flex-col gap-4">
@@ -915,13 +932,14 @@ function AthletesPage() {
 					</div>
 
 					{registrations.length === 0 ? (
-						<Card>
-							<CardHeader>
-								<CardTitle>No Registrations</CardTitle>
-								<CardDescription>
+						<Card className="border-dashed">
+							<div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+								<Users className="h-10 w-10 text-muted-foreground/50 mb-4" />
+								<h3 className="text-lg font-medium mb-1">No registrations</h3>
+								<p className="text-sm text-muted-foreground max-w-md">
 									No athletes are registered in this division.
-								</CardDescription>
-							</CardHeader>
+								</p>
+							</div>
 						</Card>
 					) : (
 						<Card>
@@ -1016,17 +1034,28 @@ function AthletesPage() {
 																alt={`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`}
 															/>
 															<AvatarFallback className="text-xs">
-																{row.status === "accepted" && row.pendingInvite?.guestName
-																	? getInitialsFromName(row.pendingInvite.guestName)
-																	: getInitials(row.athlete.firstName, row.athlete.lastName)}
+																{row.status === "accepted" &&
+																row.pendingInvite?.guestName
+																	? getInitialsFromName(
+																			row.pendingInvite.guestName,
+																		)
+																	: getInitials(
+																			row.athlete.firstName,
+																			row.athlete.lastName,
+																		)}
 															</AvatarFallback>
 														</Avatar>
 														<div className="flex flex-col">
 															<span className="font-medium">
 																{row.status === "pending" ? (
 																	<>
-																		<span className="italic text-muted-foreground">Invited</span>
-																		<Badge variant="outline" className="ml-2 text-xs bg-yellow-50 text-yellow-700 border-yellow-300">
+																		<span className="italic text-muted-foreground">
+																			Invited
+																		</span>
+																		<Badge
+																			variant="outline"
+																			className="ml-2 text-xs bg-yellow-50 text-yellow-700 border-yellow-300"
+																		>
 																			Pending
 																		</Badge>
 																	</>
@@ -1036,9 +1065,14 @@ function AthletesPage() {
 																		{row.pendingInvite?.guestName ? (
 																			<span>{row.pendingInvite.guestName}</span>
 																		) : (
-																			<span className="italic text-muted-foreground">Invited</span>
+																			<span className="italic text-muted-foreground">
+																				Invited
+																			</span>
 																		)}
-																		<Badge variant="outline" className="ml-2 text-xs bg-green-50 text-green-700 border-green-300">
+																		<Badge
+																			variant="outline"
+																			className="ml-2 text-xs bg-green-50 text-green-700 border-green-300"
+																		>
 																			Accepted
 																		</Badge>
 																	</>
@@ -1086,10 +1120,14 @@ function AthletesPage() {
 												</TableCell>
 												{questions.map((question) => {
 													// For pending/accepted invites, get answer from pending data
-													if (row.status !== "registered" && row.pendingInvite) {
-														const pendingAnswer = row.pendingInvite.pendingAnswers?.find(
-															(a) => a.questionId === question.id,
-														)
+													if (
+														row.status !== "registered" &&
+														row.pendingInvite
+													) {
+														const pendingAnswer =
+															row.pendingInvite.pendingAnswers?.find(
+																(a) => a.questionId === question.id,
+															)
 														return (
 															<TableCell key={question.id} className="text-sm">
 																{pendingAnswer?.answer ?? "—"}
@@ -1112,10 +1150,14 @@ function AthletesPage() {
 												})}
 												{waivers.map((waiver) => {
 													// For pending/accepted invites, check pending signatures
-													if (row.status !== "registered" && row.pendingInvite) {
-														const pendingSig = row.pendingInvite.pendingSignatures?.find(
-															(s) => s.waiverId === waiver.id,
-														)
+													if (
+														row.status !== "registered" &&
+														row.pendingInvite
+													) {
+														const pendingSig =
+															row.pendingInvite.pendingSignatures?.find(
+																(s) => s.waiverId === waiver.id,
+															)
 														return (
 															<TableCell key={waiver.id} className="text-sm">
 																{pendingSig ? (
