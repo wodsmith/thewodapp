@@ -3,6 +3,11 @@ import { describe, expect, it, vi, beforeEach } from "vitest"
 import type { CompetitionLeaderboardEntry, CompetitionLeaderboardResponse } from "@/server-fns/leaderboard-fns"
 import type { ScoringAlgorithm } from "@/types/scoring"
 
+// Mock use-mobile hook (jsdom doesn't implement matchMedia)
+vi.mock("@/hooks/use-mobile", () => ({
+	useIsMobile: () => false,
+}))
+
 /**
  * Helper to wrap entries in the leaderboard response format
  */
@@ -29,9 +34,20 @@ vi.mock("@tanstack/react-router", () => ({
 }))
 
 // Mock TanStack Start useServerFn - returns the function directly
-vi.mock("@tanstack/react-start", () => ({
-	useServerFn: (fn: unknown) => fn,
-}))
+vi.mock("@tanstack/react-start", () => {
+	const createChainable = () => {
+		const fn = vi.fn()
+		fn.inputValidator = () => createChainable()
+		fn.handler = () => createChainable()
+		fn.middleware = () => createChainable()
+		fn.validator = () => createChainable()
+		return fn
+	}
+	return {
+		useServerFn: (fn: unknown) => fn,
+		createServerFn: () => createChainable(),
+	}
+})
 
 // Mock the server functions
 vi.mock("@/server-fns/competition-divisions-fns", () => ({
