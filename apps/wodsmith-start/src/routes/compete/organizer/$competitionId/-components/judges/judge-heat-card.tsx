@@ -689,7 +689,9 @@ export function JudgeHeatCard({
 										}
 									}}
 									disabled={
-										filterEmptyLanes ? !athleteOccupiedLanes?.has(laneNum) : false
+										filterEmptyLanes
+											? !athleteOccupiedLanes?.has(laneNum)
+											: false
 									}
 								/>
 							)

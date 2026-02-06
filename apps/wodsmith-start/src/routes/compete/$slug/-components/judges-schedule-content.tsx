@@ -171,9 +171,7 @@ export function JudgesScheduleContent({
 		<div className="space-y-8 print:space-y-0">
 			{/* Screen Header - hidden on print */}
 			<div className="text-center print:hidden">
-				<h1 className="text-3xl font-bold mb-2">
-					Judges Schedule
-				</h1>
+				<h1 className="text-3xl font-bold mb-2">Judges Schedule</h1>
 				<p className="text-muted-foreground">{competitionName}</p>
 			</div>
 
@@ -185,10 +183,7 @@ export function JudgesScheduleContent({
 
 			{/* Schedule by day */}
 			{dayGroups.map((dayGroup) => (
-				<div
-					key={dayGroup.dateKey}
-					className="space-y-6 print:space-y-0"
-				>
+				<div key={dayGroup.dateKey} className="space-y-6 print:space-y-0">
 					{/* Events for this day */}
 					{dayGroup.events.map((event, eventIndex) => {
 						// Find max lane count across all heats for this event
@@ -209,7 +204,8 @@ export function JudgesScheduleContent({
 						)
 
 						// Check if this is the first event overall (to not add page break)
-						const isFirstEvent = dayGroup.dateKey === dayGroups[0]?.dateKey && eventIndex === 0
+						const isFirstEvent =
+							dayGroup.dateKey === dayGroups[0]?.dateKey && eventIndex === 0
 
 						return (
 							<div
@@ -297,7 +293,8 @@ export function JudgesScheduleContent({
 														<div
 															className="grid gap-1 px-1 pb-2"
 															style={{
-																gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))",
+																gridTemplateColumns:
+																	"repeat(auto-fill, minmax(80px, 1fr))",
 															}}
 														>
 															{Array.from({ length: maxLanes }, (_, i) => {
@@ -443,7 +440,10 @@ export function JudgesScheduleContent({
 										}
 
 										// Chunk lanes into rows for print
-										const allLanes = Array.from({ length: maxLanes }, (_, i) => i + 1)
+										const allLanes = Array.from(
+											{ length: maxLanes },
+											(_, i) => i + 1,
+										)
 										const laneChunks = chunkArray(allLanes, PRINT_LANES_PER_ROW)
 
 										return (
@@ -453,19 +453,25 @@ export function JudgesScheduleContent({
 													Heat {heat.heatNumber}
 													{heat.scheduledTime && (
 														<span className="font-normal text-gray-600">
-															{" "}— {formatTime(toDate(heat.scheduledTime), timezone)}
+															{" "}
+															—{" "}
+															{formatTime(toDate(heat.scheduledTime), timezone)}
 														</span>
 													)}
 													{heat.venue && (
 														<span className="font-normal text-gray-600">
-															{" "}— {heat.venue.name}
+															{" "}
+															— {heat.venue.name}
 														</span>
 													)}
 												</div>
 
 												{/* Lane tables - chunked into rows */}
 												{laneChunks.map((laneChunk, chunkIndex) => (
-													<table key={chunkIndex} className="w-full border-collapse text-sm mb-2">
+													<table
+														key={chunkIndex}
+														className="w-full border-collapse text-sm mb-2"
+													>
 														<thead>
 															<tr className="bg-gray-100">
 																{laneChunk.map((lane) => (
@@ -527,21 +533,20 @@ export function JudgesScheduleContent({
 									) && (
 										<div className="mt-2 pt-2 border-t border-gray-300 text-xs">
 											<span className="font-semibold">Floating Judges: </span>
-											{event.heats
-												.flatMap((heat) =>
-													heat.judges
-														.filter((j) => !j.laneNumber)
-														.map((judge) => (
-															<span key={judge.assignmentId} className="mr-3">
-																H{heat.heatNumber}:{" "}
-																{getFullJudgeName(
-																	judge.firstName,
-																	judge.lastName,
-																)}
-																{judge.position && ` (${judge.position})`}
-															</span>
-														)),
-												)}
+											{event.heats.flatMap((heat) =>
+												heat.judges
+													.filter((j) => !j.laneNumber)
+													.map((judge) => (
+														<span key={judge.assignmentId} className="mr-3">
+															H{heat.heatNumber}:{" "}
+															{getFullJudgeName(
+																judge.firstName,
+																judge.lastName,
+															)}
+															{judge.position && ` (${judge.position})`}
+														</span>
+													)),
+											)}
 										</div>
 									)}
 								</div>
@@ -550,7 +555,6 @@ export function JudgesScheduleContent({
 					})}
 				</div>
 			))}
-
 		</div>
 	)
 }

@@ -531,8 +531,10 @@ export function logResponse(params: {
 	status: number
 	durationMs?: number
 }): void {
-	const level = params.status >= 500 ? "error" : params.status >= 400 ? "warn" : "info"
-	const logFn = level === "error" ? logError : level === "warn" ? logWarning : logInfo
+	const level =
+		params.status >= 500 ? "error" : params.status >= 400 ? "warn" : "info"
+	const logFn =
+		level === "error" ? logError : level === "warn" ? logWarning : logInfo
 
 	logFn({
 		message: `[HTTP] ${params.method} ${params.path} -> ${params.status}`,
@@ -540,7 +542,9 @@ export function logResponse(params: {
 			httpMethod: params.method,
 			httpPath: params.path,
 			httpStatus: params.status,
-			...(params.durationMs !== undefined ? { durationMs: params.durationMs } : {}),
+			...(params.durationMs !== undefined
+				? { durationMs: params.durationMs }
+				: {}),
 		},
 	})
 }
@@ -561,7 +565,9 @@ export function logDbOperation(params: {
 		attributes: {
 			dbOperation: params.operation,
 			dbTable: params.table,
-			...(params.durationMs !== undefined ? { durationMs: params.durationMs } : {}),
+			...(params.durationMs !== undefined
+				? { durationMs: params.durationMs }
+				: {}),
 			...(params.rowCount !== undefined ? { rowCount: params.rowCount } : {}),
 			...(params.ids?.length ? { affectedIds: params.ids } : {}),
 		},
@@ -635,7 +641,9 @@ export function logEntityDeleted(params: {
  * Sanitize input data by removing sensitive fields.
  * Used to prevent logging passwords, tokens, etc.
  */
-function sanitizeInput(input: Record<string, unknown>): Record<string, unknown> {
+function sanitizeInput(
+	input: Record<string, unknown>,
+): Record<string, unknown> {
 	const sensitiveFields = [
 		"password",
 		"passwordHash",
@@ -651,9 +659,15 @@ function sanitizeInput(input: Record<string, unknown>): Record<string, unknown> 
 	const sanitized: Record<string, unknown> = {}
 	for (const [key, value] of Object.entries(input)) {
 		const lowerKey = key.toLowerCase()
-		if (sensitiveFields.some((field) => lowerKey.includes(field.toLowerCase()))) {
+		if (
+			sensitiveFields.some((field) => lowerKey.includes(field.toLowerCase()))
+		) {
 			sanitized[key] = "[REDACTED]"
-		} else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+		} else if (
+			typeof value === "object" &&
+			value !== null &&
+			!Array.isArray(value)
+		) {
 			sanitized[key] = sanitizeInput(value as Record<string, unknown>)
 		} else {
 			sanitized[key] = value

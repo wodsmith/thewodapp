@@ -638,10 +638,9 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 						// Check for pending answers in invitation metadata (from guest form)
 						if (invitation.metadata) {
 							try {
-								const inviteMetadata = JSON.parse(invitation.metadata) as Record<
-									string,
-									unknown
-								>
+								const inviteMetadata = JSON.parse(
+									invitation.metadata,
+								) as Record<string, unknown>
 								if (Array.isArray(inviteMetadata.pendingAnswers)) {
 									const pendingAnswers =
 										inviteMetadata.pendingAnswers as PendingInviteAnswer[]
@@ -714,10 +713,9 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 						// Transfer pending waiver signatures from invitation metadata
 						if (invitation.metadata && registrationId) {
 							try {
-								const inviteMetadata = JSON.parse(invitation.metadata) as Record<
-									string,
-									unknown
-								>
+								const inviteMetadata = JSON.parse(
+									invitation.metadata,
+								) as Record<string, unknown>
 								if (Array.isArray(inviteMetadata.pendingSignatures)) {
 									const pendingSignatures =
 										inviteMetadata.pendingSignatures as PendingWaiverSignature[]

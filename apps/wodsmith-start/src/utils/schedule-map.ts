@@ -67,7 +67,10 @@ export function buildScheduleMap(
 		const divisions = [
 			...new Map(
 				scheduledHeats
-					.filter((h): h is typeof h & { division: NonNullable<typeof h.division> } => h.division != null)
+					.filter(
+						(h): h is typeof h & { division: NonNullable<typeof h.division> } =>
+							h.division != null,
+					)
 					.map((h) => [h.division.id, h.division.label]),
 			).values(),
 		]

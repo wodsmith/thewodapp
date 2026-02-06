@@ -211,7 +211,9 @@ const deleteVolunteerRotationsSchema = z.object({
 const batchDeleteRotationsSchema = z.object({
 	teamId: teamIdSchema,
 	competitionId: z.string().min(1, "Competition ID is required"),
-	rotationIds: z.array(z.string().min(1)).min(1, "At least one rotation ID required"),
+	rotationIds: z
+		.array(z.string().min(1))
+		.min(1, "At least one rotation ID required"),
 })
 
 const adjustRotationsForOccupiedLanesSchema = z.object({
@@ -221,7 +223,9 @@ const adjustRotationsForOccupiedLanesSchema = z.object({
 	/** Map of heatNumber -> array of occupied lane numbers */
 	occupiedLanesByHeat: z.record(z.string(), z.array(z.number())),
 	/** Rotation IDs to adjust */
-	rotationIds: z.array(z.string().min(1)).min(1, "At least one rotation ID required"),
+	rotationIds: z
+		.array(z.string().min(1))
+		.min(1, "At least one rotation ID required"),
 })
 
 // ============================================================================
@@ -1243,8 +1247,12 @@ export const batchDeleteRotationsFn = createServerFn({ method: "POST" })
  * Adjust rotations to only cover lanes with athletes.
  * Splits rotations as needed to skip unoccupied lanes.
  */
-export const adjustRotationsForOccupiedLanesFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => adjustRotationsForOccupiedLanesSchema.parse(data))
+export const adjustRotationsForOccupiedLanesFn = createServerFn({
+	method: "POST",
+})
+	.inputValidator((data: unknown) =>
+		adjustRotationsForOccupiedLanesSchema.parse(data),
+	)
 	.handler(async ({ data }) => {
 		const db = getDb()
 

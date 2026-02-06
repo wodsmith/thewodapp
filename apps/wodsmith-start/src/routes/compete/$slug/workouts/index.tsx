@@ -144,13 +144,13 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
 						name: venueData.venue.name,
 						address: venueData.venue.address
 							? {
-								streetLine1: venueData.venue.address.streetLine1 ?? undefined,
-								city: venueData.venue.address.city ?? undefined,
-								stateProvince:
-									venueData.venue.address.stateProvince ?? undefined,
-								postalCode: venueData.venue.address.postalCode ?? undefined,
-								countryCode: venueData.venue.address.countryCode ?? undefined,
-							}
+									streetLine1: venueData.venue.address.streetLine1 ?? undefined,
+									city: venueData.venue.address.city ?? undefined,
+									stateProvince:
+										venueData.venue.address.stateProvince ?? undefined,
+									postalCode: venueData.venue.address.postalCode ?? undefined,
+									countryCode: venueData.venue.address.countryCode ?? undefined,
+								}
 							: null,
 					}
 				} else {

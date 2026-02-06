@@ -1,7 +1,4 @@
-import {
-	createFileRoute,
-	Link,
-} from "@tanstack/react-router"
+import { createFileRoute, Link } from "@tanstack/react-router"
 import {
 	AlertCircle,
 	Calendar,
@@ -89,8 +86,13 @@ export const Route = createFileRoute("/compete/invite/$token")({
 			waivers = waiversResult.waivers
 		}
 
-		const pendingData = await getPendingInviteDataFn({ data: { token: params.token } })
-		const hasPendingData = !!(pendingData?.pendingAnswers?.length || pendingData?.pendingSignatures?.length)
+		const pendingData = await getPendingInviteDataFn({
+			data: { token: params.token },
+		})
+		const hasPendingData = !!(
+			pendingData?.pendingAnswers?.length ||
+			pendingData?.pendingSignatures?.length
+		)
 
 		return {
 			volunteerInvite,
@@ -272,23 +274,28 @@ function InvitePage() {
 						<InviteDetails invite={invite} />
 
 						{/* Registration Questions - only show if no pending data (guest already filled them) */}
-						{teammateQuestions && teammateQuestions.length > 0 && !hasPendingData && (
-							<TeammateQuestionsForm
-								questions={teammateQuestions}
-								token={token}
-								competitionSlug={invite.competition?.slug}
-								competitionId={invite.competition?.id}
-								teamName={invite.team.name}
-							/>
-						)}
+						{teammateQuestions &&
+							teammateQuestions.length > 0 &&
+							!hasPendingData && (
+								<TeammateQuestionsForm
+									questions={teammateQuestions}
+									token={token}
+									competitionSlug={invite.competition?.slug}
+									competitionId={invite.competition?.id}
+									teamName={invite.team.name}
+								/>
+							)}
 
 						{/* Simple accept button if no questions OR if pending data exists (will be transferred on accept) */}
-						{((!teammateQuestions || teammateQuestions.length === 0) || hasPendingData) && (
+						{(!teammateQuestions ||
+							teammateQuestions.length === 0 ||
+							hasPendingData) && (
 							<>
 								{hasPendingData && (
 									<div className="rounded-lg bg-green-50 dark:bg-green-900/20 p-4 text-center">
 										<p className="text-sm text-green-700 dark:text-green-300">
-											Your registration answers have been saved. Click below to join the team.
+											Your registration answers have been saved. Click below to
+											join the team.
 										</p>
 									</div>
 								)}
@@ -320,7 +327,8 @@ function InvitePage() {
 							<strong>{session.email}</strong>.
 						</p>
 						<p className="text-sm text-muted-foreground">
-							You can claim this invite with your current account, which will update the registration email.
+							You can claim this invite with your current account, which will
+							update the registration email.
 						</p>
 						<div className="flex justify-center gap-3">
 							<AcceptInviteButton
@@ -365,7 +373,7 @@ function InvitePage() {
 							inviteToken={token}
 							emailHasAccount={emailHasAccount}
 						/>
-					) : (teammateQuestions.length > 0 || waivers.length > 0) ? (
+					) : teammateQuestions.length > 0 || waivers.length > 0 ? (
 						<>
 							<InviteDetails invite={invite} />
 							<GuestInviteForm
@@ -694,7 +702,8 @@ function DirectVolunteerInvite({
 					</CardHeader>
 					<CardContent className="space-y-6">
 						<p className="text-center text-sm text-muted-foreground">
-							You can claim this invite with your current account, which will update the volunteer email.
+							You can claim this invite with your current account, which will
+							update the volunteer email.
 						</p>
 
 						<VolunteerInviteDetails invite={invite} />

@@ -364,7 +364,14 @@ export function SchedulePageContent({
 			.filter((g): g is DayGroup => g !== null)
 
 		return filtered
-	}, [dayGroups, selectedTab, searchTerm, selectedDivision, selectedAffiliate, hasFilters])
+	}, [
+		dayGroups,
+		selectedTab,
+		searchTerm,
+		selectedDivision,
+		selectedAffiliate,
+		hasFilters,
+	])
 
 	// Auto-expand when searching (but not when filtering by division/affiliate)
 	useEffect(() => {
@@ -505,7 +512,10 @@ export function SchedulePageContent({
 											</div>
 											{heat.scheduledTime && (
 												<Badge variant="secondary">
-													{formatDateAndTime(toDate(heat.scheduledTime), timezone)}
+													{formatDateAndTime(
+														toDate(heat.scheduledTime),
+														timezone,
+													)}
 												</Badge>
 											)}
 										</div>
@@ -565,7 +575,10 @@ export function SchedulePageContent({
 
 				{/* Affiliate Filter */}
 				{affiliates.length > 0 && (
-					<Select value={selectedAffiliate} onValueChange={setSelectedAffiliate}>
+					<Select
+						value={selectedAffiliate}
+						onValueChange={setSelectedAffiliate}
+					>
 						<SelectTrigger className="w-full sm:w-[200px]">
 							<SelectValue placeholder="Affiliate" />
 						</SelectTrigger>
@@ -590,10 +603,7 @@ export function SchedulePageContent({
 					) : (
 						<span className="text-orange-500">
 							Found matches in{" "}
-							{filteredDayGroups.reduce(
-								(acc, g) => acc + g.workouts.length,
-								0,
-							)}{" "}
+							{filteredDayGroups.reduce((acc, g) => acc + g.workouts.length, 0)}{" "}
 							workout
 							{filteredDayGroups.reduce(
 								(acc, g) => acc + g.workouts.length,
@@ -894,7 +904,8 @@ export function SchedulePageContent({
 																					{heat.assignments
 																						.filter((assignment) => {
 																							// When searching, only show matching assignments
-																							if (!searchTerm.trim()) return true
+																							if (!searchTerm.trim())
+																								return true
 																							const name = getCompetitorName(
 																								assignment.registration,
 																							)
@@ -1000,7 +1011,8 @@ export function SchedulePageContent({
 																					{heat.assignments
 																						.filter((assignment) => {
 																							// When searching, only show matching assignments
-																							if (!searchTerm.trim()) return true
+																							if (!searchTerm.trim())
+																								return true
 																							const name = getCompetitorName(
 																								assignment.registration,
 																							)

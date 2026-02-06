@@ -309,8 +309,16 @@ export function CompetitionWorkoutCard({
 					</div>
 
 					{/* Mobile CTA - full width at bottom */}
-					<Button variant="default" size="lg" asChild className="w-full mt-4 sm:hidden">
-						<Link to="/compete/$slug/workouts/$eventId" params={{ slug, eventId }}>
+					<Button
+						variant="default"
+						size="lg"
+						asChild
+						className="w-full mt-4 sm:hidden"
+					>
+						<Link
+							to="/compete/$slug/workouts/$eventId"
+							params={{ slug, eventId }}
+						>
 							View Details
 							<ArrowRight className="ml-2 h-4 w-4" />
 						</Link>

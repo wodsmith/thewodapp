@@ -69,10 +69,7 @@ export function WorkoutPreview({
 			<div className="flex items-start justify-between gap-4">
 				<h3 className="text-lg font-bold tracking-tight">{name}</h3>
 				<Button variant="outline" size="sm" asChild className="shrink-0">
-					<Link
-						to="/compete/$slug/workouts/$eventId"
-						params={eventDetailUrl}
-					>
+					<Link to="/compete/$slug/workouts/$eventId" params={eventDetailUrl}>
 						View Full Details
 						<ArrowRight className="ml-1.5 h-3.5 w-3.5" />
 					</Link>
@@ -91,7 +88,11 @@ export function WorkoutPreview({
 					</div>
 				)}
 				{tags.map((tag) => (
-					<Badge key={tag.id} variant="secondary" className="text-xs font-normal">
+					<Badge
+						key={tag.id}
+						variant="secondary"
+						className="text-xs font-normal"
+					>
 						{tag.name}
 					</Badge>
 				))}
@@ -106,10 +107,7 @@ export function WorkoutPreview({
 			{divisionScale && (
 				<div className="border-t pt-3 mt-1">
 					<div className="flex items-start gap-2">
-						<Badge
-							variant="secondary"
-							className="shrink-0 text-xs font-medium"
-						>
+						<Badge variant="secondary" className="shrink-0 text-xs font-medium">
 							{divisionLabel || "Division"}
 						</Badge>
 						<p className="font-mono text-sm whitespace-pre-wrap leading-relaxed text-muted-foreground">

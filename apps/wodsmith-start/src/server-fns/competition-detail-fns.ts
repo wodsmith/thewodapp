@@ -675,143 +675,157 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) =>
 		getPendingTeammateInvitationsInputSchema.parse(data),
 	)
-	.handler(async ({ data }): Promise<{ pendingInvites: PendingTeammateInvite[] }> => {
-		const db = getDb()
+	.handler(
+		async ({ data }): Promise<{ pendingInvites: PendingTeammateInvite[] }> => {
+			const db = getDb()
 
-		// Get competition to find organizing team
-		const competition = await db.query.competitionsTable.findFirst({
-			where: eq(competitionsTable.id, data.competitionId),
-			columns: { organizingTeamId: true },
-		})
-
-		if (!competition) {
-			throw new Error("Competition not found")
-		}
-
-		// Require permission to manage this competition's team
-		await requireTeamPermission(
-			competition.organizingTeamId,
-			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-		)
-
-		// Get all registrations for this competition to find their athlete teams
-		const registrations = await db.query.competitionRegistrationsTable.findMany({
-			where: eq(competitionRegistrationsTable.eventId, data.competitionId),
-			columns: {
-				id: true,
-				athleteTeamId: true,
-				pendingTeammates: true,
-			},
-		})
-
-		if (registrations.length === 0) {
-			return { pendingInvites: [] }
-		}
-
-		const athleteTeamIds = registrations
-			.map((r) => r.athleteTeamId)
-			.filter((id): id is string => id !== null)
-
-		if (athleteTeamIds.length === 0) {
-			return { pendingInvites: [] }
-		}
-
-		// Create maps for registration data
-		const teamToRegistration = new Map<string, string>()
-		// Map of "teamId-email" -> teammate name from captain's registration
-		const teammateNames = new Map<string, string>()
-
-		for (const reg of registrations) {
-			if (reg.athleteTeamId) {
-				teamToRegistration.set(reg.athleteTeamId, reg.id)
-
-				// Parse pendingTeammates to get names entered by captain
-				if (reg.pendingTeammates) {
-					try {
-						const teammates = JSON.parse(reg.pendingTeammates) as Array<{
-							email: string
-							firstName?: string
-							lastName?: string
-						}>
-						for (const tm of teammates) {
-							const name = [tm.firstName, tm.lastName].filter(Boolean).join(" ").trim()
-							if (name && tm.email) {
-								teammateNames.set(`${reg.athleteTeamId}-${tm.email.toLowerCase()}`, name)
-							}
-						}
-					} catch {
-						// Invalid JSON, ignore
-					}
-				}
-			}
-		}
-
-		// Get invitations for these athlete teams that haven't been claimed by a user
-		// Include both 'pending' and 'accepted' status (accepted = guest submitted form without account)
-		// Exclude those with acceptedAt set (user with account has claimed the invite)
-		const pendingInvites: PendingTeammateInvite[] = []
-
-		// Query each team's invitations (D1 doesn't support large IN arrays well)
-		for (const teamId of athleteTeamIds) {
-			const invitations = await db.query.teamInvitationTable.findMany({
-				where: and(
-					eq(teamInvitationTable.teamId, teamId),
-					eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.MEMBER),
-					isNull(teamInvitationTable.acceptedAt), // Not yet claimed by user with account
-				),
-				columns: {
-					id: true,
-					email: true,
-					teamId: true,
-					status: true,
-					metadata: true,
-					createdAt: true,
-				},
+			// Get competition to find organizing team
+			const competition = await db.query.competitionsTable.findFirst({
+				where: eq(competitionsTable.id, data.competitionId),
+				columns: { organizingTeamId: true },
 			})
 
-			for (const inv of invitations) {
-				// Parse metadata to check for pending data
-				let pendingAnswers: PendingTeammateInvite["pendingAnswers"]
-				let pendingSignatures: PendingTeammateInvite["pendingSignatures"]
-				let submittedAt: string | undefined
+			if (!competition) {
+				throw new Error("Competition not found")
+			}
 
-				if (inv.metadata) {
-					try {
-						const meta = JSON.parse(inv.metadata) as Record<string, unknown>
-						if (Array.isArray(meta.pendingAnswers)) {
-							pendingAnswers = meta.pendingAnswers as PendingTeammateInvite["pendingAnswers"]
+			// Require permission to manage this competition's team
+			await requireTeamPermission(
+				competition.organizingTeamId,
+				TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+			)
+
+			// Get all registrations for this competition to find their athlete teams
+			const registrations =
+				await db.query.competitionRegistrationsTable.findMany({
+					where: eq(competitionRegistrationsTable.eventId, data.competitionId),
+					columns: {
+						id: true,
+						athleteTeamId: true,
+						pendingTeammates: true,
+					},
+				})
+
+			if (registrations.length === 0) {
+				return { pendingInvites: [] }
+			}
+
+			const athleteTeamIds = registrations
+				.map((r) => r.athleteTeamId)
+				.filter((id): id is string => id !== null)
+
+			if (athleteTeamIds.length === 0) {
+				return { pendingInvites: [] }
+			}
+
+			// Create maps for registration data
+			const teamToRegistration = new Map<string, string>()
+			// Map of "teamId-email" -> teammate name from captain's registration
+			const teammateNames = new Map<string, string>()
+
+			for (const reg of registrations) {
+				if (reg.athleteTeamId) {
+					teamToRegistration.set(reg.athleteTeamId, reg.id)
+
+					// Parse pendingTeammates to get names entered by captain
+					if (reg.pendingTeammates) {
+						try {
+							const teammates = JSON.parse(reg.pendingTeammates) as Array<{
+								email: string
+								firstName?: string
+								lastName?: string
+							}>
+							for (const tm of teammates) {
+								const name = [tm.firstName, tm.lastName]
+									.filter(Boolean)
+									.join(" ")
+									.trim()
+								if (name && tm.email) {
+									teammateNames.set(
+										`${reg.athleteTeamId}-${tm.email.toLowerCase()}`,
+										name,
+									)
+								}
+							}
+						} catch {
+							// Invalid JSON, ignore
 						}
-						if (Array.isArray(meta.pendingSignatures)) {
-							pendingSignatures = meta.pendingSignatures as PendingTeammateInvite["pendingSignatures"]
-						}
-						if (typeof meta.submittedAt === "string") {
-							submittedAt = meta.submittedAt
-						}
-					} catch {
-						// Invalid JSON, ignore
 					}
 				}
-
-				// Get teammate name from captain's registration (pendingTeammates)
-				const guestName = teammateNames.get(`${teamId}-${inv.email.toLowerCase()}`)
-
-				pendingInvites.push({
-					id: inv.id,
-					email: inv.email,
-					athleteTeamId: teamId,
-					registrationId: teamToRegistration.get(teamId) || null,
-					status: (inv.status as InvitationStatus) || INVITATION_STATUS.PENDING,
-					guestName,
-					pendingAnswers,
-					pendingSignatures,
-					submittedAt,
-					createdAt: inv.createdAt,
-				})
 			}
-		}
 
-		return { pendingInvites }
-	})
+			// Get invitations for these athlete teams that haven't been claimed by a user
+			// Include both 'pending' and 'accepted' status (accepted = guest submitted form without account)
+			// Exclude those with acceptedAt set (user with account has claimed the invite)
+			const pendingInvites: PendingTeammateInvite[] = []
+
+			// Query each team's invitations (D1 doesn't support large IN arrays well)
+			for (const teamId of athleteTeamIds) {
+				const invitations = await db.query.teamInvitationTable.findMany({
+					where: and(
+						eq(teamInvitationTable.teamId, teamId),
+						eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.MEMBER),
+						isNull(teamInvitationTable.acceptedAt), // Not yet claimed by user with account
+					),
+					columns: {
+						id: true,
+						email: true,
+						teamId: true,
+						status: true,
+						metadata: true,
+						createdAt: true,
+					},
+				})
+
+				for (const inv of invitations) {
+					// Parse metadata to check for pending data
+					let pendingAnswers: PendingTeammateInvite["pendingAnswers"]
+					let pendingSignatures: PendingTeammateInvite["pendingSignatures"]
+					let submittedAt: string | undefined
+
+					if (inv.metadata) {
+						try {
+							const meta = JSON.parse(inv.metadata) as Record<string, unknown>
+							if (Array.isArray(meta.pendingAnswers)) {
+								pendingAnswers =
+									meta.pendingAnswers as PendingTeammateInvite["pendingAnswers"]
+							}
+							if (Array.isArray(meta.pendingSignatures)) {
+								pendingSignatures =
+									meta.pendingSignatures as PendingTeammateInvite["pendingSignatures"]
+							}
+							if (typeof meta.submittedAt === "string") {
+								submittedAt = meta.submittedAt
+							}
+						} catch {
+							// Invalid JSON, ignore
+						}
+					}
+
+					// Get teammate name from captain's registration (pendingTeammates)
+					const guestName = teammateNames.get(
+						`${teamId}-${inv.email.toLowerCase()}`,
+					)
+
+					pendingInvites.push({
+						id: inv.id,
+						email: inv.email,
+						athleteTeamId: teamId,
+						registrationId: teamToRegistration.get(teamId) || null,
+						status:
+							(inv.status as InvitationStatus) || INVITATION_STATUS.PENDING,
+						guestName,
+						pendingAnswers,
+						pendingSignatures,
+						submittedAt,
+						createdAt: inv.createdAt,
+					})
+				}
+			}
+
+			return { pendingInvites }
+		},
+	)
 
 /**
  * Update competition rotation settings

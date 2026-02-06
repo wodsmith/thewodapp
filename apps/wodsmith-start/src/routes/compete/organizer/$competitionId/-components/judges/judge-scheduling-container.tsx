@@ -166,7 +166,8 @@ export function JudgeSchedulingContainer({
 		if (!availableJudgeSearch.trim()) return judgesByAssignmentCount
 		const query = availableJudgeSearch.toLowerCase().trim()
 		return judgesByAssignmentCount.filter((judge) => {
-			const fullName = `${judge.firstName ?? ""} ${judge.lastName ?? ""}`.toLowerCase()
+			const fullName =
+				`${judge.firstName ?? ""} ${judge.lastName ?? ""}`.toLowerCase()
 			return fullName.includes(query)
 		})
 	}, [judgesByAssignmentCount, availableJudgeSearch])
@@ -198,8 +199,11 @@ export function JudgeSchedulingContainer({
 		() => activeVersionMap.get(selectedEventId) ?? null,
 		[activeVersionMap, selectedEventId],
 	)
-	const [eventVersionHistory, setEventVersionHistory] = useState(initialVersionHistory)
-	const [eventActiveVersion, setEventActiveVersion] = useState(initialActiveVersion)
+	const [eventVersionHistory, setEventVersionHistory] = useState(
+		initialVersionHistory,
+	)
+	const [eventActiveVersion, setEventActiveVersion] =
+		useState(initialActiveVersion)
 
 	// Sync when event changes
 	useEffect(() => {
@@ -619,7 +623,9 @@ export function JudgeSchedulingContainer({
 														type="text"
 														placeholder="Search judges..."
 														value={availableJudgeSearch}
-														onChange={(e) => setAvailableJudgeSearch(e.target.value)}
+														onChange={(e) =>
+															setAvailableJudgeSearch(e.target.value)
+														}
 														className="h-8 pl-8 text-sm"
 													/>
 												</div>
@@ -639,11 +645,12 @@ export function JudgeSchedulingContainer({
 															)}
 														/>
 													))}
-													{filteredJudgesByAssignmentCount.length === 0 && availableJudgeSearch && (
-														<p className="py-4 text-center text-sm text-muted-foreground">
-															No judges match "{availableJudgeSearch}"
-														</p>
-													)}
+													{filteredJudgesByAssignmentCount.length === 0 &&
+														availableJudgeSearch && (
+															<p className="py-4 text-center text-sm text-muted-foreground">
+																No judges match "{availableJudgeSearch}"
+															</p>
+														)}
 												</div>
 											</>
 										)}
@@ -688,7 +695,9 @@ export function JudgeSchedulingContainer({
 												selectedJudgeIds={selectedJudgeIds}
 												onClearSelection={clearSelection}
 												filterEmptyLanes={filterEmptyLanes}
-												athleteOccupiedLanes={occupiedLanesByHeat.get(heat.heatNumber)}
+												athleteOccupiedLanes={occupiedLanesByHeat.get(
+													heat.heatNumber,
+												)}
 											/>
 										))
 									)}

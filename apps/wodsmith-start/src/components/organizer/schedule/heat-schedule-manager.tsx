@@ -924,7 +924,8 @@ export function HeatScheduleManager({
 		// Get duration from first heat or use default
 		const firstHeat = eventHeats[0]
 		const initialDuration =
-			firstHeat?.durationMinutes ?? workoutCapMinutes + (selectedVenue?.transitionMinutes ?? 3)
+			firstHeat?.durationMinutes ??
+			workoutCapMinutes + (selectedVenue?.transitionMinutes ?? 3)
 
 		setBulkEditTimes(times)
 		setBulkEditDuration(initialDuration)
@@ -954,7 +955,10 @@ export function HeatScheduleManager({
 				currentTime.setMinutes(currentTime.getMinutes() + newDuration)
 				const existingItem = updated[i]
 				if (existingItem) {
-					updated[i] = { ...existingItem, time: formatDatetimeLocal(currentTime) }
+					updated[i] = {
+						...existingItem,
+						time: formatDatetimeLocal(currentTime),
+					}
 				}
 			}
 
@@ -989,7 +993,10 @@ export function HeatScheduleManager({
 				currentTime.setMinutes(currentTime.getMinutes() + bulkEditDuration)
 				const existingItem = updated[i]
 				if (existingItem) {
-					updated[i] = { ...existingItem, time: formatDatetimeLocal(currentTime) }
+					updated[i] = {
+						...existingItem,
+						time: formatDatetimeLocal(currentTime),
+					}
 				}
 			}
 
@@ -1406,11 +1413,7 @@ export function HeatScheduleManager({
 
 				{/* Bulk Edit Button */}
 				{eventHeats.length > 0 && (
-					<Button
-						size="sm"
-						variant="outline"
-						onClick={openBulkEditDialog}
-					>
+					<Button size="sm" variant="outline" onClick={openBulkEditDialog}>
 						<Pencil className="h-4 w-4 mr-2" />
 						Edit All Heats
 					</Button>
@@ -1712,7 +1715,9 @@ export function HeatScheduleManager({
 							{selectedVenue ? (
 								<>
 									Venue: {selectedVenue.name} (
-									<span className="tabular-nums">{selectedVenue.laneCount}</span>{" "}
+									<span className="tabular-nums">
+										{selectedVenue.laneCount}
+									</span>{" "}
 									lanes)
 								</>
 							) : (
@@ -1729,10 +1734,14 @@ export function HeatScheduleManager({
 								min={1}
 								max={180}
 								value={bulkEditDuration}
-								onChange={(e) => handleBulkEditDurationChange(Number(e.target.value))}
+								onChange={(e) =>
+									handleBulkEditDurationChange(Number(e.target.value))
+								}
 								className="w-20"
 							/>
-							<span className="text-sm text-muted-foreground">min (applies to all)</span>
+							<span className="text-sm text-muted-foreground">
+								min (applies to all)
+							</span>
 						</div>
 						<div className="max-h-[300px] overflow-y-auto space-y-3">
 							{bulkEditTimes.map((item, index) => (
@@ -1758,10 +1767,7 @@ export function HeatScheduleManager({
 							>
 								Cancel
 							</Button>
-							<Button
-								onClick={handleBulkEditHeats}
-								disabled={isBulkEditing}
-							>
+							<Button onClick={handleBulkEditHeats} disabled={isBulkEditing}>
 								{isBulkEditing && (
 									<Loader2 className="h-4 w-4 mr-2 animate-spin" />
 								)}
