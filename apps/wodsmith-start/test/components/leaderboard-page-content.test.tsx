@@ -35,8 +35,8 @@ vi.mock("@tanstack/react-router", () => ({
 
 // Mock TanStack Start useServerFn - returns the function directly
 vi.mock("@tanstack/react-start", () => {
-	const createChainable = () => {
-		const fn = vi.fn()
+	const createChainable = (): Record<string, unknown> => {
+		const fn = vi.fn() as unknown as Record<string, unknown>
 		fn.inputValidator = () => createChainable()
 		fn.handler = () => createChainable()
 		fn.middleware = () => createChainable()
