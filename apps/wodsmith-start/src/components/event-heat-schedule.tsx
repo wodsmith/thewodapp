@@ -25,11 +25,15 @@ export function EventHeatSchedule({
 
 	useEffect(() => {
 		let cancelled = false
-		deferredHeats.then((data) => {
-			if (!cancelled) {
-				setHeats(data.heats)
-			}
-		})
+		deferredHeats
+			.then((data) => {
+				if (!cancelled) {
+					setHeats(data.heats)
+				}
+			})
+			.catch(() => {
+				// Silently fail – component will render nothing
+			})
 		return () => {
 			cancelled = true
 		}
@@ -61,7 +65,7 @@ export function EventHeatSchedule({
 							</span>
 						)}
 
-						{heat.durationMinutes && (
+						{heat.durationMinutes != null && (
 							<span className="text-muted-foreground">
 								{heat.durationMinutes} min
 							</span>
