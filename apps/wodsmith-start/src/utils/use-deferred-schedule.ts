@@ -5,10 +5,13 @@ import {
 	type WorkoutScheduleInfo,
 } from "@/utils/schedule-map"
 
-export function useDeferredSchedule(
-	deferredSchedule: Promise<{ events: PublicScheduleEvent[] }>,
-	timezone: string,
-): Map<string, WorkoutScheduleInfo> | null {
+export function useDeferredSchedule({
+	deferredSchedule,
+	timezone,
+}: {
+	deferredSchedule: Promise<{ events: PublicScheduleEvent[] }>
+	timezone: string
+}): Map<string, WorkoutScheduleInfo> | null {
 	const [scheduleMap, setScheduleMap] = useState<Map<
 		string,
 		WorkoutScheduleInfo
@@ -16,11 +19,15 @@ export function useDeferredSchedule(
 
 	useEffect(() => {
 		let cancelled = false
-		deferredSchedule.then((data) => {
-			if (!cancelled && data.events.length > 0) {
-				setScheduleMap(buildScheduleMap(data.events, timezone))
-			}
-		})
+		deferredSchedule
+			.then((data) => {
+				if (!cancelled && data.events.length > 0) {
+					setScheduleMap(buildScheduleMap(data.events, timezone))
+				}
+			})
+			.catch(() => {
+				// Silently swallow – scheduleMap stays null
+			})
 		return () => {
 			cancelled = true
 		}

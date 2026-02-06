@@ -102,7 +102,7 @@ function CompetitionOverviewPage() {
 	const isRegistered = !!userRegistration
 	const isTeamRegistration = (userDivision?.teamSize ?? 1) > 1
 	const timezone = competition.timezone ?? "America/Denver"
-	const scheduleMap = useDeferredSchedule(deferredSchedule, timezone)
+	const scheduleMap = useDeferredSchedule({ deferredSchedule, timezone })
 
 	return (
 		<div className="grid gap-6 lg:grid-cols-[1fr_320px]">

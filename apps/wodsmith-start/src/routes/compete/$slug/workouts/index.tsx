@@ -197,7 +197,7 @@ function CompetitionWorkoutsPage() {
 	const search = Route.useSearch()
 	const navigate = useNavigate({ from: Route.fullPath })
 	const timezone = competition.timezone ?? "America/Denver"
-	const scheduleMap = useDeferredSchedule(deferredSchedule, timezone)
+	const scheduleMap = useDeferredSchedule({ deferredSchedule, timezone })
 
 	// Default to athlete's registered division if logged in, otherwise first division
 	const defaultDivisionId =
