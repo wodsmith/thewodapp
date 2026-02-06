@@ -1,7 +1,7 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useNavigate } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { Loader2, User, Users } from "lucide-react"
+import { Check, ChevronDown, Loader2, User, Users } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useFieldArray, useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -29,6 +29,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover"
+import {
 	Select,
 	SelectContent,
 	SelectItem,
@@ -46,6 +51,7 @@ import type { PublicCompetitionDivision } from "@/server-fns/competition-divisio
 import { initiateRegistrationPaymentFn } from "@/server-fns/registration-fns"
 import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
 import { signWaiverFn } from "@/server-fns/waiver-fns"
+import { cn } from "@/utils/cn"
 import { getLocalDateKey, isSameDateString } from "@/utils/date-utils"
 import { AffiliateCombobox } from "./affiliate-combobox"
 import { FeeBreakdown } from "./fee-breakdown"
@@ -470,95 +476,118 @@ export function RegistrationForm({
 							<FormField
 								control={form.control}
 								name="divisionId"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>Division</FormLabel>
-										<Select
-											onValueChange={handleDivisionChange}
-											defaultValue={field.value}
-											disabled={isSubmitting || !registrationOpen}
-										>
-											<FormControl>
-												<SelectTrigger>
-													<SelectValue placeholder="Select a division" />
-												</SelectTrigger>
-											</FormControl>
-											<SelectContent>
-												{scalingGroup.scalingLevels.map((level) => {
-													// Get capacity info from publicDivisions
-													const divisionInfo = publicDivisions.find(
-														(d) => d.id === level.id,
-													)
-													const isFull = divisionInfo?.isFull ?? false
-													const spotsAvailable = divisionInfo?.spotsAvailable
-													const maxSpots = divisionInfo?.maxSpots
-
-													return (
-														<SelectItem
-															key={level.id}
-															value={level.id}
-															disabled={isFull}
+								render={({ field }) => {
+									const selectedLevel = scalingGroup.scalingLevels.find(
+										(l) => l.id === field.value,
+									)
+									return (
+										<FormItem>
+											<FormLabel>Division</FormLabel>
+											<Popover>
+												<PopoverTrigger asChild>
+													<FormControl>
+														<Button
+															variant="outline"
+															role="combobox"
+															disabled={isSubmitting || !registrationOpen}
+															className="w-full justify-between font-normal"
 														>
-															<div className="flex items-center gap-2">
-																<span
-																	className={
-																		isFull
-																			? "line-through text-muted-foreground"
-																			: ""
-																	}
+															{selectedLevel?.label || "Select a division"}
+															<ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+														</Button>
+													</FormControl>
+												</PopoverTrigger>
+												<PopoverContent
+													className="min-w-[250px] w-[--radix-popover-trigger-width] p-0"
+													align="start"
+												>
+													<div className="max-h-[300px] overflow-y-auto p-1">
+														{scalingGroup.scalingLevels.map((level) => {
+															const divisionInfo = publicDivisions.find(
+																(d) => d.id === level.id,
+															)
+															const isFull = divisionInfo?.isFull ?? false
+															const spotsAvailable =
+																divisionInfo?.spotsAvailable
+															const maxSpots = divisionInfo?.maxSpots
+															const isSelected = field.value === level.id
+
+															return (
+																<button
+																	key={level.id}
+																	type="button"
+																	disabled={isFull}
+																	onClick={() => {
+																		handleDivisionChange(level.id)
+																	}}
+																	className={cn(
+																		"relative flex w-full cursor-pointer select-none items-center justify-between gap-2 rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+																		isSelected && "bg-accent",
+																		isFull &&
+																			"pointer-events-none opacity-50",
+																	)}
 																>
-																	{level.label}
-																</span>
-																{(level.teamSize ?? 1) > 1 ? (
-																	<Badge
-																		variant="secondary"
-																		className="ml-1 text-xs"
+																	<span
+																		className={
+																			isFull
+																				? "line-through text-muted-foreground"
+																				: ""
+																		}
 																	>
-																		<Users className="w-3 h-3 mr-1" />
-																		{level.teamSize}
-																	</Badge>
-																) : (
-																	<Badge
-																		variant="outline"
-																		className="ml-1 text-xs"
-																	>
-																		<User className="w-3 h-3 mr-1" />
-																		Individual
-																	</Badge>
-																)}
-																{/* Show capacity info */}
-																{isFull ? (
-																	<Badge
-																		variant="destructive"
-																		className="ml-1 text-xs"
-																	>
-																		SOLD OUT
-																	</Badge>
-																) : maxSpots !== null &&
-																	spotsAvailable !== null &&
-																	spotsAvailable !== undefined &&
-																	spotsAvailable <= 5 ? (
-																	<Badge
-																		variant="secondary"
-																		className="ml-1 text-xs text-amber-600 dark:text-amber-400"
-																	>
-																		{spotsAvailable} left
-																	</Badge>
-																) : null}
-															</div>
-														</SelectItem>
-													)
-												})}
-											</SelectContent>
-										</Select>
-										<FormDescription>
-											{isTeamDivision
-												? `Team division - requires ${teamSize} athletes (you + ${teammatesNeeded} teammate${teammatesNeeded > 1 ? "s" : ""})`
-												: "Individual division - compete on your own"}
-										</FormDescription>
-										<FormMessage />
-									</FormItem>
-								)}
+																		{level.label}
+																	</span>
+																	<div className="flex items-center gap-1">
+																		{(level.teamSize ?? 1) > 1 ? (
+																			<Badge
+																				variant="secondary"
+																				className="text-xs"
+																			>
+																				<Users className="w-3 h-3 mr-1" />
+																				{level.teamSize}
+																			</Badge>
+																		) : (
+																			<Badge
+																				variant="outline"
+																				className="text-xs"
+																			>
+																				<User className="w-3 h-3 mr-1" />
+																				Indy
+																			</Badge>
+																		)}
+																		{isFull ? (
+																			<Badge
+																				variant="destructive"
+																				className="text-xs"
+																			>
+																				SOLD OUT
+																			</Badge>
+																		) : maxSpots !== null &&
+																			spotsAvailable !== null &&
+																			spotsAvailable !== undefined &&
+																			spotsAvailable <= 5 ? (
+																			<Badge
+																				variant="secondary"
+																				className="text-xs text-amber-600 dark:text-amber-400"
+																			>
+																				{spotsAvailable} left
+																			</Badge>
+																		) : null}
+																	</div>
+																</button>
+															)
+														})}
+													</div>
+												</PopoverContent>
+											</Popover>
+											<FormDescription>
+												{isTeamDivision
+													? `Team division - requires ${teamSize} athletes (you + ${teammatesNeeded} teammate${teammatesNeeded > 1 ? "s" : ""})`
+													: "Individual division - compete on your own"}
+											</FormDescription>
+											<FormMessage />
+										</FormItem>
+									)
+								}}
 							/>
 						</CardContent>
 					</Card>
