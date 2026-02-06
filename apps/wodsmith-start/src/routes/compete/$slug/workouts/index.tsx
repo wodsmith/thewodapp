@@ -19,12 +19,17 @@ import {
 import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
-import { getVenueForTrackWorkoutFn } from "@/server-fns/competition-heats-fns"
+import {
+	getPublicScheduleDataFn,
+	getVenueForTrackWorkoutFn,
+	type PublicScheduleEvent,
+} from "@/server-fns/competition-heats-fns"
 import {
 	getPublishedCompetitionWorkoutsWithDetailsFn,
 	getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
 import { getSessionFromCookie } from "@/utils/auth"
+import { useDeferredSchedule } from "@/utils/use-deferred-schedule"
 
 // Server function to get athlete's registered division for this competition
 const getAthleteRegisteredDivisionFn = createServerFn({ method: "GET" })
@@ -66,10 +71,18 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
 				divisionDescriptionsMap: {},
 				venueMap: {},
 				athleteRegisteredDivisionId: null,
+				deferredSchedule: Promise.resolve({
+					events: [] as PublicScheduleEvent[],
+				}),
 			}
 		}
 
 		const competitionId = competition.id
+
+		// Defer schedule data - not needed for initial render
+		const deferredSchedule = getPublicScheduleDataFn({
+			data: { competitionId },
+		})
 
 		// Fetch divisions, workouts, and optionally user's registered division in parallel
 		const [divisionsResult, workoutsResult, athleteDivisionResult] =
@@ -165,6 +178,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
 			divisionDescriptionsMap,
 			venueMap,
 			athleteRegisteredDivisionId,
+			deferredSchedule,
 		}
 	},
 })
@@ -176,11 +190,14 @@ function CompetitionWorkoutsPage() {
 		divisionDescriptionsMap,
 		venueMap,
 		athleteRegisteredDivisionId,
+		deferredSchedule,
 	} = Route.useLoaderData()
 	const { competition } = parentRoute.useLoaderData()
 	const { slug } = Route.useParams()
 	const search = Route.useSearch()
 	const navigate = useNavigate({ from: Route.fullPath })
+	const timezone = competition.timezone ?? "America/Denver"
+	const scheduleMap = useDeferredSchedule({ deferredSchedule, timezone })
 
 	// Default to athlete's registered division if logged in, otherwise first division
 	const defaultDivisionId =
@@ -295,6 +312,7 @@ function CompetitionWorkoutsPage() {
 									selectedDivisionId={selectedDivisionId}
 									timeCap={event.workout.timeCap}
 									venue={venueMap?.[event.id]}
+									schedule={scheduleMap?.get(event.id) ?? null}
 								/>
 							)
 						})}
