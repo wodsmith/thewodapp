@@ -99,6 +99,139 @@ type Props = {
 	questions: RegistrationQuestion[]
 }
 
+function DivisionField({
+	form,
+	scalingGroup,
+	publicDivisions,
+	isSubmitting,
+	registrationOpen,
+	handleDivisionChange,
+	isTeamDivision,
+	teamSize,
+	teammatesNeeded,
+}: {
+	form: ReturnType<typeof useForm<FormValues>>
+	scalingGroup: ScalingGroup & { scalingLevels: ScalingLevel[] }
+	publicDivisions: PublicCompetitionDivision[]
+	isSubmitting: boolean
+	registrationOpen: boolean
+	handleDivisionChange: (divisionId: string) => void
+	isTeamDivision: boolean
+	teamSize: number
+	teammatesNeeded: number
+}) {
+	const [divisionOpen, setDivisionOpen] = useState(false)
+	const divisionId = form.watch("divisionId")
+	const selectedLevel = scalingGroup.scalingLevels.find(
+		(l) => l.id === divisionId,
+	)
+
+	return (
+		<FormField
+			control={form.control}
+			name="divisionId"
+			render={({ field }) => (
+				<FormItem>
+					<FormLabel>Division</FormLabel>
+					<Popover open={divisionOpen} onOpenChange={setDivisionOpen}>
+						<PopoverTrigger asChild>
+							<FormControl>
+								{/* biome-ignore lint/a11y/useSemanticElements: Popover-based combobox pattern */}
+								<Button
+									variant="outline"
+									role="combobox"
+									disabled={isSubmitting || !registrationOpen}
+									className="w-full justify-between font-normal"
+								>
+									{selectedLevel?.label || "Select a division"}
+									<ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+								</Button>
+							</FormControl>
+						</PopoverTrigger>
+						<PopoverContent
+							className="min-w-[250px] w-[var(--radix-popover-trigger-width)] p-0"
+							align="start"
+						>
+							<div className="max-h-[300px] overflow-y-auto p-1">
+								{scalingGroup.scalingLevels.map((level) => {
+									const divisionInfo = publicDivisions.find(
+										(d) => d.id === level.id,
+									)
+									const isFull = divisionInfo?.isFull ?? false
+									const spotsAvailable = divisionInfo?.spotsAvailable
+									const maxSpots = divisionInfo?.maxSpots
+									const isSelected = field.value === level.id
+
+									return (
+										<button
+											key={level.id}
+											type="button"
+											disabled={isFull}
+											onClick={() => {
+												handleDivisionChange(level.id)
+												setDivisionOpen(false)
+											}}
+											className={cn(
+												"relative flex w-full cursor-pointer select-none items-center justify-between gap-2 rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+												isSelected && "bg-accent",
+												isFull && "pointer-events-none opacity-50",
+											)}
+										>
+											<span
+												className={
+													isFull
+														? "line-through text-muted-foreground"
+														: ""
+												}
+											>
+												{level.label}
+											</span>
+											<div className="flex items-center gap-1">
+												{(level.teamSize ?? 1) > 1 ? (
+													<Badge variant="secondary" className="text-xs">
+														<Users className="w-3 h-3 mr-1" />
+														{level.teamSize}
+													</Badge>
+												) : (
+													<Badge variant="outline" className="text-xs">
+														<User className="w-3 h-3 mr-1" />
+														Indy
+													</Badge>
+												)}
+												{isFull ? (
+													<Badge variant="destructive" className="text-xs">
+														SOLD OUT
+													</Badge>
+												) : maxSpots !== null &&
+													spotsAvailable !== null &&
+													spotsAvailable !== undefined &&
+													spotsAvailable <= 5 ? (
+													<Badge
+														variant="secondary"
+														className="text-xs text-amber-600 dark:text-amber-400"
+													>
+														{spotsAvailable} left
+													</Badge>
+												) : null}
+											</div>
+										</button>
+									)
+								})}
+							</div>
+						</PopoverContent>
+					</Popover>
+					<FormDescription>
+						{isTeamDivision
+							? `Team division - requires ${teamSize} athletes (you + ${teammatesNeeded} teammate${teammatesNeeded > 1 ? "s" : ""})`
+							: "Individual division - compete on your own"}
+					</FormDescription>
+					<FormMessage />
+				</FormItem>
+			)}
+		/>
+	)
+}
+
 export function RegistrationForm({
 	competition,
 	scalingGroup,
@@ -473,126 +606,16 @@ export function RegistrationForm({
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
-							<FormField
-								control={form.control}
-								name="divisionId"
-								render={({ field }) => {
-									const [divisionOpen, setDivisionOpen] = useState(false)
-									const selectedLevel = scalingGroup.scalingLevels.find(
-										(l) => l.id === field.value,
-									)
-									return (
-										<FormItem>
-											<FormLabel>Division</FormLabel>
-											<Popover
-												open={divisionOpen}
-												onOpenChange={setDivisionOpen}
-											>
-												<PopoverTrigger asChild>
-													<FormControl>
-														{/* biome-ignore lint/a11y/useSemanticElements: Popover-based combobox pattern */}
-														<Button
-															variant="outline"
-															role="combobox"
-															disabled={isSubmitting || !registrationOpen}
-															className="w-full justify-between font-normal"
-														>
-															{selectedLevel?.label || "Select a division"}
-															<ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-														</Button>
-													</FormControl>
-												</PopoverTrigger>
-												<PopoverContent
-													className="min-w-[250px] w-[var(--radix-popover-trigger-width)] p-0"
-													align="start"
-												>
-													<div className="max-h-[300px] overflow-y-auto p-1">
-														{scalingGroup.scalingLevels.map((level) => {
-															const divisionInfo = publicDivisions.find(
-																(d) => d.id === level.id,
-															)
-															const isFull = divisionInfo?.isFull ?? false
-															const spotsAvailable =
-																divisionInfo?.spotsAvailable
-															const maxSpots = divisionInfo?.maxSpots
-															const isSelected = field.value === level.id
-
-															return (
-																<button
-																	key={level.id}
-																	type="button"
-																	disabled={isFull}
-																	onClick={() => {
-																		handleDivisionChange(level.id)
-																		setDivisionOpen(false)
-																	}}
-																	className={cn(
-																		"relative flex w-full cursor-pointer select-none items-center justify-between gap-2 rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
-																		isSelected && "bg-accent",
-																		isFull && "pointer-events-none opacity-50",
-																	)}
-																>
-																	<span
-																		className={
-																			isFull
-																				? "line-through text-muted-foreground"
-																				: ""
-																		}
-																	>
-																		{level.label}
-																	</span>
-																	<div className="flex items-center gap-1">
-																		{(level.teamSize ?? 1) > 1 ? (
-																			<Badge
-																				variant="secondary"
-																				className="text-xs"
-																			>
-																				<Users className="w-3 h-3 mr-1" />
-																				{level.teamSize}
-																			</Badge>
-																		) : (
-																			<Badge
-																				variant="outline"
-																				className="text-xs"
-																			>
-																				<User className="w-3 h-3 mr-1" />
-																				Indy
-																			</Badge>
-																		)}
-																		{isFull ? (
-																			<Badge
-																				variant="destructive"
-																				className="text-xs"
-																			>
-																				SOLD OUT
-																			</Badge>
-																		) : maxSpots !== null &&
-																			spotsAvailable !== null &&
-																			spotsAvailable !== undefined &&
-																			spotsAvailable <= 5 ? (
-																			<Badge
-																				variant="secondary"
-																				className="text-xs text-amber-600 dark:text-amber-400"
-																			>
-																				{spotsAvailable} left
-																			</Badge>
-																		) : null}
-																	</div>
-																</button>
-															)
-														})}
-													</div>
-												</PopoverContent>
-											</Popover>
-											<FormDescription>
-												{isTeamDivision
-													? `Team division - requires ${teamSize} athletes (you + ${teammatesNeeded} teammate${teammatesNeeded > 1 ? "s" : ""})`
-													: "Individual division - compete on your own"}
-											</FormDescription>
-											<FormMessage />
-										</FormItem>
-									)
-								}}
+							<DivisionField
+								form={form}
+								scalingGroup={scalingGroup}
+								publicDivisions={publicDivisions}
+								isSubmitting={isSubmitting}
+								registrationOpen={registrationOpen}
+								handleDivisionChange={handleDivisionChange}
+								isTeamDivision={isTeamDivision}
+								teamSize={teamSize}
+								teammatesNeeded={teammatesNeeded}
 							/>
 						</CardContent>
 					</Card>
