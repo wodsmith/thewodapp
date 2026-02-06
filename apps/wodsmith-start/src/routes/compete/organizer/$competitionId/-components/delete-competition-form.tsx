@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start"
 import { Trash2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
+import { trackEvent } from "@/lib/posthog"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -46,12 +47,21 @@ export function DeleteCompetitionForm({
 			await deleteCompetition({
 				data: { competitionId, organizingTeamId },
 			})
+			trackEvent("competition_deleted", {
+				competition_id: competitionId,
+				competition_name: competitionName,
+				registration_count: registrationCount,
+			})
 			toast.success("Competition deleted successfully")
 			navigate({ to: "/compete/organizer" })
 		} catch (err) {
-			toast.error(
-				err instanceof Error ? err.message : "Failed to delete competition",
-			)
+			const message =
+				err instanceof Error ? err.message : "Failed to delete competition"
+			trackEvent("competition_deleted_failed", {
+				competition_id: competitionId,
+				error_message: message,
+			})
+			toast.error(message)
 			setIsDeleting(false)
 		}
 	}

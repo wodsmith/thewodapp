@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import { useFieldArray, useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
+import { trackEvent } from "@/lib/posthog"
 import { WaiverViewer } from "@/components/compete/waiver-viewer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -260,6 +261,15 @@ export function RegistrationForm({
 		agreedWaivers.has(w.id),
 	)
 
+	// Track registration started on mount
+	useEffect(() => {
+		trackEvent("competition_registration_started", {
+			competition_id: competition.id,
+			competition_name: competition.name,
+			competition_slug: competition.slug,
+		})
+	}, [competition.id, competition.name, competition.slug])
+
 	// Show toast if returning from canceled payment
 	useEffect(() => {
 		if (paymentCanceled) {
@@ -403,6 +413,11 @@ export function RegistrationForm({
 
 			// FREE registration - redirect to competition page
 			if (result.isFree) {
+				trackEvent("competition_registration_completed", {
+					competition_id: competition.id,
+					competition_name: competition.name,
+					competition_slug: competition.slug,
+				})
 				toast.success("Successfully registered!")
 				navigate({ to: `/compete/${competition.slug}` })
 				return
@@ -410,6 +425,12 @@ export function RegistrationForm({
 
 			// PAID registration - redirect to Stripe Checkout
 			if (result.checkoutUrl) {
+				trackEvent("competition_registration_payment_started", {
+					competition_id: competition.id,
+					competition_name: competition.name,
+					competition_slug: competition.slug,
+					division_id: data.divisionId,
+				})
 				// Use window.location for external redirect
 				window.location.href = result.checkoutUrl
 				return
@@ -419,6 +440,14 @@ export function RegistrationForm({
 		} catch (err) {
 			const errorMessage =
 				err instanceof Error ? err.message : "Registration failed"
+
+			trackEvent("competition_registration_failed", {
+				competition_id: competition.id,
+				competition_name: competition.name,
+				competition_slug: competition.slug,
+				division_id: data.divisionId,
+				error_message: errorMessage,
+			})
 
 			// Check if error is about team name being taken
 			// Error message follows pattern: 'Team name "X" is already taken...'
