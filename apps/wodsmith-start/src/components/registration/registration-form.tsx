@@ -1,7 +1,7 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useNavigate } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { Check, ChevronDown, Loader2, User, Users } from "lucide-react"
+import { ChevronDown, Loader2, User, Users } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useFieldArray, useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -477,15 +477,20 @@ export function RegistrationForm({
 								control={form.control}
 								name="divisionId"
 								render={({ field }) => {
+									const [divisionOpen, setDivisionOpen] = useState(false)
 									const selectedLevel = scalingGroup.scalingLevels.find(
 										(l) => l.id === field.value,
 									)
 									return (
 										<FormItem>
 											<FormLabel>Division</FormLabel>
-											<Popover>
+											<Popover
+												open={divisionOpen}
+												onOpenChange={setDivisionOpen}
+											>
 												<PopoverTrigger asChild>
 													<FormControl>
+														{/* biome-ignore lint/a11y/useSemanticElements: Popover-based combobox pattern */}
 														<Button
 															variant="outline"
 															role="combobox"
@@ -498,7 +503,7 @@ export function RegistrationForm({
 													</FormControl>
 												</PopoverTrigger>
 												<PopoverContent
-													className="min-w-[250px] w-[--radix-popover-trigger-width] p-0"
+													className="min-w-[250px] w-[var(--radix-popover-trigger-width)] p-0"
 													align="start"
 												>
 													<div className="max-h-[300px] overflow-y-auto p-1">
@@ -519,12 +524,12 @@ export function RegistrationForm({
 																	disabled={isFull}
 																	onClick={() => {
 																		handleDivisionChange(level.id)
+																		setDivisionOpen(false)
 																	}}
 																	className={cn(
 																		"relative flex w-full cursor-pointer select-none items-center justify-between gap-2 rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
 																		isSelected && "bg-accent",
-																		isFull &&
-																			"pointer-events-none opacity-50",
+																		isFull && "pointer-events-none opacity-50",
 																	)}
 																>
 																	<span

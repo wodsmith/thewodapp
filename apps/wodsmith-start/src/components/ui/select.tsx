@@ -49,19 +49,11 @@ const SelectContent = React.forwardRef<
 			{/* No scroll buttons — they hijack touch events on mobile */}
 			<SelectPrimitive.Viewport
 				className={cn(
-					"p-1",
+					"p-1 !overflow-y-scroll overscroll-contain",
 					position === "popper" &&
 						"h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]",
 				)}
-				// Radix sets inline overflow:hidden on the viewport.
-				// We must use !important to force native scroll.
-				style={{
-					overflowY: "scroll",
-					// @ts-expect-error -- CSS !important not in CSSProperties type
-					"overflow-y": "scroll !important",
-					WebkitOverflowScrolling: "touch",
-					maxHeight: "inherit",
-				}}
+				style={{ maxHeight: "inherit" }}
 			>
 				{children}
 			</SelectPrimitive.Viewport>
