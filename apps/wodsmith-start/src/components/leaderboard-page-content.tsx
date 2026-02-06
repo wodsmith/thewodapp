@@ -116,6 +116,7 @@ export function LeaderboardPageContent({
 	const getDivisionDescriptions = useServerFn(getWorkoutDivisionDescriptionsFn)
 
 	// Close preview when event changes
+	// biome-ignore lint/correctness/useExhaustiveDependencies: selectedEventId triggers reset intentionally
 	useEffect(() => {
 		setIsPreviewOpen(false)
 		setPreviewData(null)
