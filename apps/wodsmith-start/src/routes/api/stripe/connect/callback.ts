@@ -117,7 +117,10 @@ export const Route = createFileRoute("/api/stripe/connect/callback")({
 				if (!session) {
 					logWarning({
 						message: "[Stripe OAuth] No valid session found on callback",
-						attributes: { teamSlug: stateData.teamSlug, teamId: stateData.teamId },
+						attributes: {
+							teamSlug: stateData.teamSlug,
+							teamId: stateData.teamId,
+						},
 					})
 					const returnUrl = `/compete/organizer/settings/payouts/${stateData.teamSlug}`
 					return createRedirect(
@@ -172,7 +175,10 @@ export const Route = createFileRoute("/api/stripe/connect/callback")({
 				try {
 					logInfo({
 						message: "[Stripe OAuth] Processing callback",
-						attributes: { teamId: stateData.teamId, teamSlug: stateData.teamSlug },
+						attributes: {
+							teamId: stateData.teamId,
+							teamSlug: stateData.teamSlug,
+						},
 					})
 
 					const result = await handleOAuthCallback(code, state)

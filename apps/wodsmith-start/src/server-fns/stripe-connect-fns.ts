@@ -158,7 +158,11 @@ async function createExpressAccount(
 	logEntityUpdated({
 		entity: "team",
 		id: teamId,
-		fields: ["stripeConnectedAccountId", "stripeAccountStatus", "stripeAccountType"],
+		fields: [
+			"stripeConnectedAccountId",
+			"stripeAccountStatus",
+			"stripeAccountType",
+		],
 		attributes: { stripeAccountId: account.id, accountType: "express" },
 	})
 
@@ -335,7 +339,12 @@ async function disconnectAccountInternal(teamId: string): Promise<void> {
 	logEntityUpdated({
 		entity: "team",
 		id: teamId,
-		fields: ["stripeConnectedAccountId", "stripeAccountStatus", "stripeAccountType", "stripeOnboardingCompletedAt"],
+		fields: [
+			"stripeConnectedAccountId",
+			"stripeAccountStatus",
+			"stripeAccountType",
+			"stripeOnboardingCompletedAt",
+		],
 		attributes: { action: "disconnected" },
 	})
 }

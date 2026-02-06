@@ -56,10 +56,7 @@ export function CompetitionTabs({ slug }: CompetitionTabsProps) {
 		<div className="rounded-2xl border border-black/10 bg-black/5 p-2 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
 			{/* Mobile: Select menu */}
 			<div className="sm:hidden">
-				<Select
-					value={getActiveTabValue()}
-					onValueChange={handleSelectChange}
-				>
+				<Select value={getActiveTabValue()} onValueChange={handleSelectChange}>
 					<SelectTrigger className="w-full bg-transparent border-0 h-10 font-medium">
 						<div className="flex items-center gap-2">
 							<ActiveIcon className="h-4 w-4" />

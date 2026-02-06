@@ -264,7 +264,9 @@ export function logExternalCall(params: {
 			externalService: params.service,
 			externalOperation: params.operation,
 			success: params.success,
-			...(params.durationMs !== undefined ? { durationMs: params.durationMs } : {}),
+			...(params.durationMs !== undefined
+				? { durationMs: params.durationMs }
+				: {}),
 			...(params.attributes ?? {}),
 		},
 	})

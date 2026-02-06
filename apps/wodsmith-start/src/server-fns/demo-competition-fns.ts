@@ -308,7 +308,8 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 						stripeConnectedAccountId: existingTeam.stripeConnectedAccountId,
 						stripeAccountStatus: existingTeam.stripeAccountStatus,
 						stripeAccountType: existingTeam.stripeAccountType,
-						stripeOnboardingCompletedAt: existingTeam.stripeOnboardingCompletedAt,
+						stripeOnboardingCompletedAt:
+							existingTeam.stripeOnboardingCompletedAt,
 					}
 
 					await db
@@ -354,7 +355,9 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 			})
 
 			// Parse demo time for event scheduling
-			const demoDateTime = new Date(`${data.competitionDate}T${data.demoTime}:00`)
+			const demoDateTime = new Date(
+				`${data.competitionDate}T${data.demoTime}:00`,
+			)
 
 			// Keep as draft/unpublished - organizer can publish when ready
 			// Set up fee configuration for revenue demo
@@ -804,7 +807,9 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 					organizerNetCents,
 					stripeCheckoutSessionId: `cs_demo_${createId()}`,
 					stripePaymentIntentId: `pi_demo_${createId()}`,
-					completedAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000), // Random time in past week
+					completedAt: new Date(
+						Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000,
+					), // Random time in past week
 					metadata: JSON.stringify({
 						demo: true,
 						affiliateName: "Demo CrossFit",
@@ -844,9 +849,7 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 				demoDateTime.getTime() - 2 * 60 * 60 * 1000,
 			)
 			// Event 2 starts 30 minutes after demo time
-			const event2StartTime = new Date(
-				demoDateTime.getTime() + 30 * 60 * 1000,
-			)
+			const event2StartTime = new Date(demoDateTime.getTime() + 30 * 60 * 1000)
 
 			const eventStartTimes = [event1StartTime, event2StartTime]
 
@@ -993,7 +996,10 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 								scoreType: "min",
 								timeCap:
 									score.status === "cap"
-										? { ms: timeCapMs, secondaryValue: score.secondaryValue ?? 0 }
+										? {
+												ms: timeCapMs,
+												secondaryValue: score.secondaryValue ?? 0,
+											}
 										: undefined,
 								tiebreak: { scheme: "time", value: Math.floor(tiebreakValue) },
 							}),
@@ -1380,7 +1386,9 @@ export const deleteDemoCompetitionFn = createServerFn({ method: "POST" })
 			// 2. Delete judge rotations for this competition
 			await db
 				.delete(competitionJudgeRotationsTable)
-				.where(eq(competitionJudgeRotationsTable.competitionId, data.competitionId))
+				.where(
+					eq(competitionJudgeRotationsTable.competitionId, data.competitionId),
+				)
 
 			// 2.5 Delete heat-related data
 			const heats = await db.query.competitionHeatsTable.findMany({
@@ -1505,7 +1513,9 @@ export const deleteDemoCompetitionFn = createServerFn({ method: "POST" })
 				// Delete competition divisions (references competitionId, divisionId)
 				await db
 					.delete(competitionDivisionsTable)
-					.where(eq(competitionDivisionsTable.competitionId, data.competitionId))
+					.where(
+						eq(competitionDivisionsTable.competitionId, data.competitionId),
+					)
 
 				// Delete scaling levels (references scalingGroupId)
 				await db
