@@ -486,7 +486,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 				divisionId: input.divisionId,
 				type: COMMERCE_PRODUCT_TYPE.COMPETITION_REGISTRATION,
 			},
-			success_url: `${appUrl}/compete/${competition.slug}/register/success?session_id={CHECKOUT_SESSION_ID}`,
+			success_url: `${appUrl}/compete/${competition.slug}/registered?session_id={CHECKOUT_SESSION_ID}`,
 			cancel_url: `${appUrl}/compete/${competition.slug}/register?canceled=true`,
 			expires_at: Math.floor(Date.now() / 1000) + 30 * 60, // 30 minutes (Stripe minimum)
 			customer_email: session.user.email ?? undefined, // Pre-fill email
