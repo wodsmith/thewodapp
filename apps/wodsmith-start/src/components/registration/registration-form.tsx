@@ -401,10 +401,13 @@ export function RegistrationForm({
 				},
 			})
 
-			// FREE registration - redirect to competition page
+			// FREE registration - redirect to registered page
 			if (result.isFree) {
 				toast.success("Successfully registered!")
-				navigate({ to: `/compete/${competition.slug}` })
+				navigate({
+					to: `/compete/${competition.slug}/registered`,
+					search: { registration_id: result.registrationId },
+				})
 				return
 			}
 

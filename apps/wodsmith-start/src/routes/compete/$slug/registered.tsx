@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
+import { getUserAffiliateNameFn } from "@/server-fns/registration-fns"
 
 const parentRoute = getRouteApi("/compete/$slug")
 
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/compete/$slug/registered")({
 	component: RegisteredPage,
 	validateSearch: z.object({
 		session_id: z.string().optional(),
+		registration_id: z.string().optional(),
 	}),
 	loader: async ({ params, context }) => {
 		const { slug } = params
@@ -36,17 +38,21 @@ export const Route = createFileRoute("/compete/$slug/registered")({
 			throw redirect({ to: "/compete" })
 		}
 
-		const [{ registration }, { divisions }] = await Promise.all([
-			getUserCompetitionRegistrationFn({
-				data: {
-					competitionId: competition.id,
-					userId: session.userId,
-				},
-			}),
-			getPublicCompetitionDivisionsFn({
-				data: { competitionId: competition.id },
-			}),
-		])
+		const [{ registration }, { divisions }, affiliateResult] =
+			await Promise.all([
+				getUserCompetitionRegistrationFn({
+					data: {
+						competitionId: competition.id,
+						userId: session.userId,
+					},
+				}),
+				getPublicCompetitionDivisionsFn({
+					data: { competitionId: competition.id },
+				}),
+				getUserAffiliateNameFn({
+					data: { userId: session.userId },
+				}),
+			])
 
 		if (!registration) {
 			throw redirect({
@@ -62,6 +68,7 @@ export const Route = createFileRoute("/compete/$slug/registered")({
 		return {
 			athleteName: `${session.user.firstName} ${session.user.lastName}`,
 			divisionLabel: userDivision?.label ?? null,
+			affiliateName: affiliateResult.affiliateName ?? "Independent",
 			registrationId: registration.id,
 		}
 	},
@@ -69,7 +76,7 @@ export const Route = createFileRoute("/compete/$slug/registered")({
 
 function RegisteredPage() {
 	const { competition } = parentRoute.useLoaderData()
-	const { athleteName, divisionLabel, registrationId } =
+	const { athleteName, divisionLabel, affiliateName, registrationId } =
 		Route.useLoaderData()
 	const { slug } = Route.useParams()
 
@@ -89,6 +96,7 @@ function RegisteredPage() {
 					competitionName={competition.name}
 					athleteName={athleteName}
 					division={divisionLabel ?? undefined}
+					affiliateName={affiliateName}
 					competitionLogoUrl={profileImage ?? undefined}
 				/>
 				<Button variant="ghost" size="sm" asChild className="text-slate-400">
@@ -107,6 +115,7 @@ function RegisteredPage() {
 					competitionName={competition.name}
 					athleteName={athleteName}
 					division={divisionLabel ?? undefined}
+					affiliateName={affiliateName}
 					competitionLogoUrl={profileImage ?? undefined}
 				/>
 				<Button variant="ghost" size="sm" asChild className="text-slate-400">

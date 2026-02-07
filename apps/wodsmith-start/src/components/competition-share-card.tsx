@@ -4,6 +4,7 @@ export interface CompetitionShareCardProps {
 	competitionName: string
 	athleteName: string
 	division?: string
+	affiliateName?: string
 	competitionLogoUrl?: string
 }
 
@@ -11,6 +12,7 @@ export function CompetitionShareCard({
 	competitionName,
 	athleteName,
 	division,
+	affiliateName,
 	competitionLogoUrl,
 }: CompetitionShareCardProps) {
 	return (
@@ -67,12 +69,17 @@ export function CompetitionShareCard({
 				{/* Thin separator */}
 				<div className="h-px w-16 bg-[#2a2a2e]" />
 
-				{/* Athlete name + division */}
-				{(athleteName || division) && (
+				{/* Athlete name + affiliate + division */}
+				{(athleteName || division || affiliateName) && (
 					<div className="flex flex-col items-center gap-1">
 						{athleteName && (
 							<p className="text-xl font-bold uppercase tracking-tight text-white">
 								{athleteName}
+							</p>
+						)}
+						{affiliateName && (
+							<p className="text-sm font-medium text-slate-400">
+								{affiliateName}
 							</p>
 						)}
 						{division && (
