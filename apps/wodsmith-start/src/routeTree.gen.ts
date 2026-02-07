@@ -53,6 +53,7 @@ import { Route as CompeteInviteTokenRouteImport } from './routes/compete/invite/
 import { Route as CompeteSlugVolunteerRouteImport } from './routes/compete/$slug/volunteer'
 import { Route as CompeteSlugScoresRouteImport } from './routes/compete/$slug/scores'
 import { Route as CompeteSlugScheduleRouteImport } from './routes/compete/$slug/schedule'
+import { Route as CompeteSlugRegisteredRouteImport } from './routes/compete/$slug/registered'
 import { Route as CompeteSlugRegisterRouteImport } from './routes/compete/$slug/register'
 import { Route as CompeteSlugMyScheduleRouteImport } from './routes/compete/$slug/my-schedule'
 import { Route as CompeteSlugLeaderboardRouteImport } from './routes/compete/$slug/leaderboard'
@@ -358,6 +359,11 @@ const CompeteSlugScoresRoute = CompeteSlugScoresRouteImport.update({
 const CompeteSlugScheduleRoute = CompeteSlugScheduleRouteImport.update({
   id: '/schedule',
   path: '/schedule',
+  getParentRoute: () => CompeteSlugRoute,
+} as any)
+const CompeteSlugRegisteredRoute = CompeteSlugRegisteredRouteImport.update({
+  id: '/registered',
+  path: '/registered',
   getParentRoute: () => CompeteSlugRoute,
 } as any)
 const CompeteSlugRegisterRoute = CompeteSlugRegisterRouteImport.update({
@@ -872,6 +878,7 @@ export interface FileRoutesByFullPath {
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
   '/compete/$slug/my-schedule': typeof CompeteSlugMyScheduleRoute
   '/compete/$slug/register': typeof CompeteSlugRegisterRouteWithChildren
+  '/compete/$slug/registered': typeof CompeteSlugRegisteredRoute
   '/compete/$slug/schedule': typeof CompeteSlugScheduleRoute
   '/compete/$slug/scores': typeof CompeteSlugScoresRoute
   '/compete/$slug/volunteer': typeof CompeteSlugVolunteerRoute
@@ -992,6 +999,7 @@ export interface FileRoutesByTo {
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
   '/compete/$slug/my-schedule': typeof CompeteSlugMyScheduleRoute
   '/compete/$slug/register': typeof CompeteSlugRegisterRouteWithChildren
+  '/compete/$slug/registered': typeof CompeteSlugRegisteredRoute
   '/compete/$slug/schedule': typeof CompeteSlugScheduleRoute
   '/compete/$slug/scores': typeof CompeteSlugScoresRoute
   '/compete/$slug/volunteer': typeof CompeteSlugVolunteerRoute
@@ -1118,6 +1126,7 @@ export interface FileRoutesById {
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
   '/compete/$slug/my-schedule': typeof CompeteSlugMyScheduleRoute
   '/compete/$slug/register': typeof CompeteSlugRegisterRouteWithChildren
+  '/compete/$slug/registered': typeof CompeteSlugRegisteredRoute
   '/compete/$slug/schedule': typeof CompeteSlugScheduleRoute
   '/compete/$slug/scores': typeof CompeteSlugScoresRoute
   '/compete/$slug/volunteer': typeof CompeteSlugVolunteerRoute
@@ -1247,6 +1256,7 @@ export interface FileRouteTypes {
     | '/compete/$slug/leaderboard'
     | '/compete/$slug/my-schedule'
     | '/compete/$slug/register'
+    | '/compete/$slug/registered'
     | '/compete/$slug/schedule'
     | '/compete/$slug/scores'
     | '/compete/$slug/volunteer'
@@ -1367,6 +1377,7 @@ export interface FileRouteTypes {
     | '/compete/$slug/leaderboard'
     | '/compete/$slug/my-schedule'
     | '/compete/$slug/register'
+    | '/compete/$slug/registered'
     | '/compete/$slug/schedule'
     | '/compete/$slug/scores'
     | '/compete/$slug/volunteer'
@@ -1492,6 +1503,7 @@ export interface FileRouteTypes {
     | '/compete/$slug/leaderboard'
     | '/compete/$slug/my-schedule'
     | '/compete/$slug/register'
+    | '/compete/$slug/registered'
     | '/compete/$slug/schedule'
     | '/compete/$slug/scores'
     | '/compete/$slug/volunteer'
@@ -1922,6 +1934,13 @@ declare module '@tanstack/react-router' {
       path: '/schedule'
       fullPath: '/compete/$slug/schedule'
       preLoaderRoute: typeof CompeteSlugScheduleRouteImport
+      parentRoute: typeof CompeteSlugRoute
+    }
+    '/compete/$slug/registered': {
+      id: '/compete/$slug/registered'
+      path: '/registered'
+      fullPath: '/compete/$slug/registered'
+      preLoaderRoute: typeof CompeteSlugRegisteredRouteImport
       parentRoute: typeof CompeteSlugRoute
     }
     '/compete/$slug/register': {
@@ -2700,6 +2719,7 @@ interface CompeteSlugRouteChildren {
   CompeteSlugLeaderboardRoute: typeof CompeteSlugLeaderboardRoute
   CompeteSlugMyScheduleRoute: typeof CompeteSlugMyScheduleRoute
   CompeteSlugRegisterRoute: typeof CompeteSlugRegisterRouteWithChildren
+  CompeteSlugRegisteredRoute: typeof CompeteSlugRegisteredRoute
   CompeteSlugScheduleRoute: typeof CompeteSlugScheduleRoute
   CompeteSlugScoresRoute: typeof CompeteSlugScoresRoute
   CompeteSlugVolunteerRoute: typeof CompeteSlugVolunteerRoute
@@ -2714,6 +2734,7 @@ const CompeteSlugRouteChildren: CompeteSlugRouteChildren = {
   CompeteSlugLeaderboardRoute: CompeteSlugLeaderboardRoute,
   CompeteSlugMyScheduleRoute: CompeteSlugMyScheduleRoute,
   CompeteSlugRegisterRoute: CompeteSlugRegisterRouteWithChildren,
+  CompeteSlugRegisteredRoute: CompeteSlugRegisteredRoute,
   CompeteSlugScheduleRoute: CompeteSlugScheduleRoute,
   CompeteSlugScoresRoute: CompeteSlugScoresRoute,
   CompeteSlugVolunteerRoute: CompeteSlugVolunteerRoute,
