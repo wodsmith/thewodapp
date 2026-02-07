@@ -63,8 +63,8 @@ export function CompetitionHero({
 					className={cn(
 						"rounded-2xl border p-4 shadow-2xl backdrop-blur-xl sm:p-6 md:p-8",
 						hasBanner
-							? "border-white/10 bg-black/20 shadow-black/20"
-							: "border-black/10 bg-black/5 shadow-black/5 dark:border-white/10 dark:bg-white/5 dark:shadow-black/20",
+							? "border-white/10 bg-black/10 shadow-black/10"
+							: "border-black/5 bg-black/[0.03] shadow-black/5 dark:border-white/10 dark:bg-white/[0.03] dark:shadow-black/10",
 					)}
 				>
 					<div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-8">
@@ -73,8 +73,8 @@ export function CompetitionHero({
 							className={cn(
 								"hidden h-36 w-36 shrink-0 items-center justify-center overflow-hidden rounded-xl border shadow-lg backdrop-blur-md md:flex",
 								hasBanner
-									? "border-white/20 bg-white/10 shadow-black/10"
-									: "border-black/10 bg-black/5 shadow-black/5 dark:border-white/20 dark:bg-white/10 dark:shadow-black/10",
+									? "border-white/15 bg-white/5 shadow-black/5"
+									: "border-black/5 bg-black/[0.03] shadow-black/5 dark:border-white/15 dark:bg-white/5 dark:shadow-black/5",
 							)}
 						>
 							{profileImage ? (
