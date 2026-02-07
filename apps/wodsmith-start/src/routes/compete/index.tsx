@@ -7,7 +7,7 @@ import {
 	type CompetitionWithOrganizingTeam,
 	getPublicCompetitionsFn,
 } from "@/server-fns/competition-fns"
-import { getLocalDateKey } from "@/utils/date-utils"
+import { getTodayInTimezone } from "@/utils/date-utils"
 
 type CompeteSearch = {
 	q?: string
@@ -34,13 +34,12 @@ export const Route = createFileRoute("/compete/")({
 })
 
 // Helper to determine competition status
-// Compares YYYY-MM-DD date strings directly to avoid timezone/UTC parsing issues
-function getCompetitionStatus(
-	comp: CompetitionWithOrganizingTeam,
-	today: string,
-) {
+// Compares YYYY-MM-DD date strings using the competition's timezone
+// so registration closes at 11:59pm in the competition's local time
+function getCompetitionStatus(comp: CompetitionWithOrganizingTeam) {
 	const { startDate, endDate, registrationOpensAt, registrationClosesAt } =
 		comp
+	const today = getTodayInTimezone(comp.timezone ?? "America/Denver")
 
 	// Past if already ended (end date is before today)
 	if (endDate < today) {
@@ -58,7 +57,7 @@ function getCompetitionStatus(
 		registrationOpensAt &&
 		registrationClosesAt &&
 		registrationOpensAt <= today &&
-		registrationClosesAt > today
+		registrationClosesAt >= today
 	) {
 		return "registration-open"
 	}
@@ -68,7 +67,7 @@ function getCompetitionStatus(
 		startDate > today &&
 		registrationOpensAt &&
 		registrationClosesAt &&
-		registrationClosesAt <= today
+		registrationClosesAt < today
 	) {
 		return "registration-closed"
 	}
@@ -94,7 +93,6 @@ function CompetePage() {
 	const { q: searchQuery, past } = Route.useSearch()
 	const navigate = useNavigate({ from: Route.fullPath })
 	const showPast = past === true
-	const today = getLocalDateKey(new Date())
 
 	// Handlers for search state updates
 	const handleSearchChange = (value: string) => {
@@ -125,7 +123,7 @@ function CompetePage() {
 	const visibleCompetitions = showPast
 		? filteredCompetitions
 		: filteredCompetitions.filter(
-				(comp) => getCompetitionStatus(comp, today) !== "past",
+				(comp) => getCompetitionStatus(comp) !== "past",
 			)
 
 	// Sort competitions by start date
@@ -169,7 +167,7 @@ function CompetePage() {
 						<CompetitionRow
 							key={comp.id}
 							competition={comp}
-							status={getCompetitionStatus(comp, today) as CompetitionStatus}
+							status={getCompetitionStatus(comp) as CompetitionStatus}
 							isAuthenticated={isAuthenticated}
 						/>
 					))}
