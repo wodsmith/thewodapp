@@ -377,6 +377,15 @@ export function getTodayStringUTC(): string {
 }
 
 /**
+ * Get today's date as a YYYY-MM-DD string in a specific IANA timezone.
+ * Useful for comparing dates against a competition's local timezone.
+ * @param timezone - IANA timezone string (e.g., "America/Denver")
+ */
+export function getTodayInTimezone(timezone: string): string {
+	return formatInTimeZone(new Date(), timezone, "yyyy-MM-dd")
+}
+
+/**
  * Compare a YYYY-MM-DD deadline string against the current time.
  * Returns true if the deadline has passed (current time is after end of day UTC).
  */
