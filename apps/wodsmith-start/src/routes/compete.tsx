@@ -84,7 +84,7 @@ function CompeteLayout() {
 	}
 
 	return (
-		<div className="flex min-h-screen flex-col print:min-h-0 print:block">
+		<div className="flex min-h-screen flex-col overflow-x-clip print:min-h-0 print:block">
 			<div className="print:hidden">
 				<CompeteNav session={session} canOrganize={canOrganize} />
 			</div>

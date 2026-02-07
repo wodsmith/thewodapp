@@ -48,30 +48,22 @@ export function CompetitionHero({
 	return (
 		<div
 			className={cn(
-				"relative overflow-hidden",
+				"relative",
 				hasBanner ? "text-white" : "text-foreground",
 			)}
 		>
-			{/* Banner Image or Glassmorphism Background */}
-			{hasBanner ? (
-				<>
-					<img
-						src={competition.bannerImageUrl!}
-						alt=""
-						className="absolute inset-0 h-full w-full object-cover"
-					/>
-					{/* Overlay for text readability */}
-					<div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/60 to-slate-900/40" />
-				</>
-			) : null}
-
-			{/* Glassmorphism content container */}
-			<div className="relative pb-4 md:pb-8">
+			{/* Glassmorphism content container - pushed down into banner area */}
+			<div
+				className={cn(
+					"pb-4 md:pb-8",
+					hasBanner ? "pt-12 md:pt-16 lg:pt-20" : "",
+				)}
+			>
 				<div
 					className={cn(
 						"rounded-2xl border p-4 shadow-2xl backdrop-blur-xl sm:p-6 md:p-8",
 						hasBanner
-							? "border-white/10 bg-white/5 shadow-black/20"
+							? "border-white/10 bg-black/20 shadow-black/20"
 							: "border-black/10 bg-black/5 shadow-black/5 dark:border-white/10 dark:bg-white/5 dark:shadow-black/20",
 					)}
 				>
