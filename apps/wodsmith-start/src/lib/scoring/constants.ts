@@ -27,10 +27,10 @@ export const STATUS_ORDER: Record<ScoreStatus, number> = {
 export const ROUNDS_REPS_MULTIPLIER = 100_000
 
 /**
- * Maximum score value that fits in 60 bits.
- * Used for sort key computation.
+ * Maximum score value that fits in the data segment (100 bits).
+ * Used for sort key computation to represent null/missing values.
  */
-export const MAX_SCORE_VALUE = 2n ** 60n - 1n
+export const MAX_SCORE_VALUE = 2n ** 100n - 1n
 
 // ============ Unit Conversions ============
 
