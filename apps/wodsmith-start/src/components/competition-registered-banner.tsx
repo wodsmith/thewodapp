@@ -53,19 +53,23 @@ export function CompetitionRegisteredBanner({
 						<h2 className="text-left text-2xl font-bold uppercase tracking-tight text-white">
 							{competitionName}
 						</h2>
-						<div className="flex items-center gap-3">
-							<p className="text-lg font-semibold text-slate-300">
-								{athleteName}
-							</p>
-							{division && (
-								<>
-									<span className="text-slate-600">·</span>
-									<p className="text-base font-medium text-slate-400">
-										{division}
+						{(athleteName || division) && (
+							<div className="flex items-center gap-3">
+								{athleteName && (
+									<p className="text-lg font-semibold text-slate-300">
+										{athleteName}
 									</p>
-								</>
-							)}
-						</div>
+								)}
+								{division && (
+									<>
+										<span className="text-slate-600">·</span>
+										<p className="text-base font-medium text-slate-400">
+											{division}
+										</p>
+									</>
+								)}
+							</div>
+						)}
 					</div>
 
 					{/* Branding */}

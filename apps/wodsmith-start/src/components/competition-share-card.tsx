@@ -68,14 +68,18 @@ export function CompetitionShareCard({
 				<div className="h-px w-16 bg-[#2a2a2e]" />
 
 				{/* Athlete name + division */}
-				<div className="flex flex-col items-center gap-1">
-					<p className="text-xl font-bold uppercase tracking-tight text-white">
-						{athleteName}
-					</p>
-					{division && (
-						<p className="text-sm font-medium text-amber-500">{division}</p>
-					)}
-				</div>
+				{(athleteName || division) && (
+					<div className="flex flex-col items-center gap-1">
+						{athleteName && (
+							<p className="text-xl font-bold uppercase tracking-tight text-white">
+								{athleteName}
+							</p>
+						)}
+						{division && (
+							<p className="text-sm font-medium text-amber-500">{division}</p>
+						)}
+					</div>
+				)}
 			</div>
 		</div>
 	)
