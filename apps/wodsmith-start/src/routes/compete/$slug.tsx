@@ -128,7 +128,7 @@ function CompetitionDetailLayout() {
 		<div className="relative min-h-screen bg-background print:min-h-0 print:bg-white">
 			{/* Full-bleed banner - absolutely positioned to extend behind the glass card */}
 			{hasBanner && (
-				<div className="absolute left-1/2 top-0 h-[22rem] w-screen -translate-x-1/2 md:h-[26rem] lg:h-[28rem] print:hidden">
+				<div className="absolute left-1/2 top-0 h-[16rem] w-screen -translate-x-1/2 md:h-[20rem] lg:h-[22rem] print:hidden">
 					{/* Profile image on mobile for better portrait fit */}
 					{profileImage && (
 						<img

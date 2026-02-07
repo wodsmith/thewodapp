@@ -55,15 +55,15 @@ export function CompetitionHero({
 			{/* Glassmorphism content container - pushed down into banner area */}
 			<div
 				className={cn(
-					"pb-4 md:px-4 md:pb-8",
-					hasBanner ? "pt-20 md:pt-24 lg:pt-28" : "",
+					"pb-4 md:pb-8",
+					hasBanner ? "pt-12 md:pt-16 lg:pt-20" : "",
 				)}
 			>
 				<div
 					className={cn(
 						"rounded-2xl border p-4 shadow-2xl backdrop-blur-xl sm:p-6 md:p-8",
 						hasBanner
-							? "border-white/10 bg-white/5 shadow-black/20"
+							? "border-white/10 bg-black/20 shadow-black/20"
 							: "border-black/10 bg-black/5 shadow-black/5 dark:border-white/10 dark:bg-white/5 dark:shadow-black/20",
 					)}
 				>
