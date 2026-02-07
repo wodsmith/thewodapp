@@ -4,6 +4,7 @@ export interface CompetitionRegisteredBannerProps {
 	competitionName: string
 	athleteName: string
 	division?: string
+	affiliateName?: string
 	competitionLogoUrl?: string
 }
 
@@ -11,10 +12,11 @@ export function CompetitionRegisteredBanner({
 	competitionName,
 	athleteName,
 	division,
+	affiliateName,
 	competitionLogoUrl,
 }: CompetitionRegisteredBannerProps) {
 	return (
-		<div className="relative mx-auto w-full overflow-hidden rounded-2xl bg-linear-to-br from-[#141416] to-[#0e0e10] shadow-2xl shadow-black/40">
+		<div className="relative mx-auto w-full max-w-2xl overflow-hidden rounded-2xl bg-linear-to-br from-[#141416] to-[#0e0e10] shadow-2xl shadow-black/40">
 			{/* Ambient glow behind logo */}
 			<div className="pointer-events-none absolute -left-12 -top-12 h-48 w-48 rounded-full bg-amber-500/[0.07] blur-3xl" />
 
@@ -53,7 +55,7 @@ export function CompetitionRegisteredBanner({
 						<h2 className="text-left text-2xl font-bold uppercase tracking-tight text-white">
 							{competitionName}
 						</h2>
-						{(athleteName || division) && (
+						{(athleteName || division || affiliateName) && (
 							<div className="flex items-center gap-3">
 								{athleteName && (
 									<p className="text-lg font-semibold text-slate-300">
@@ -65,6 +67,14 @@ export function CompetitionRegisteredBanner({
 										<span className="text-slate-600">·</span>
 										<p className="text-base font-medium text-slate-400">
 											{division}
+										</p>
+									</>
+								)}
+								{affiliateName && (
+									<>
+										<span className="text-slate-600">·</span>
+										<p className="text-base font-medium text-slate-400">
+											{affiliateName}
 										</p>
 									</>
 								)}
