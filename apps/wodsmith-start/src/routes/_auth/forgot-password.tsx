@@ -95,7 +95,7 @@ function ForgotPasswordPage() {
 							onClick={() =>
 								router.navigate({
 									to: "/sign-in",
-									search: { redirect: "/dashboard" },
+									search: { redirect: "/" },
 								})
 							}
 						>
@@ -169,7 +169,7 @@ function ForgotPasswordPage() {
 			<div className="mt-4 w-full max-w-md">
 				<Link
 					to="/sign-in"
-					search={{ redirect: "/dashboard" }}
+					search={{ redirect: "/" }}
 					className="block w-full text-center font-mono uppercase text-sm text-primary underline hover:no-underline"
 				>
 					Back to login
