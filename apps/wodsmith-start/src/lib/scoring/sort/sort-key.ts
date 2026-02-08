@@ -204,7 +204,10 @@ export function statusFromOrder(order: number): ScoreStatus {
  * Since SQLite stores sortKey as text, we need zero-padding to ensure
  * lexicographic string comparison produces the same ordering as numeric comparison.
  *
- * Max value with 103 bits is 31 digits, so we pad to 32 characters.
+ * A 103-bit value can require up to 32 decimal digits (log10(2^103) ≈ 31.006),
+ * so we pad to 32 characters to guarantee all possible values fit. In practice,
+ * the highest status_order is 3 (withdrawn), so the current max is well under
+ * 31 digits — but padding to 32 provides safety for the full 3-bit status range.
  *
  * @param sortKey - The bigint sort key to convert
  * @returns Zero-padded string representation
