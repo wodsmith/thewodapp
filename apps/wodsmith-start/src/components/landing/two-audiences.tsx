@@ -19,14 +19,14 @@ import type { SessionValidationResult } from "@/types"
 const athleteFeatures = [
 	{
 		icon: Filter,
-		title: "My Division view",
+		title: "My Division View",
 		description:
 			"See only your division's workouts and heats. No hunting through dropdowns.",
 		available: true,
 	},
 	{
 		icon: Bell,
-		title: "Push notifications",
+		title: "Push Notifications",
 		description:
 			"Get alerts 60, 30, and 10 minutes before your heat. Know when your lane changes.",
 		available: false,
@@ -34,7 +34,7 @@ const athleteFeatures = [
 	},
 	{
 		icon: Calculator,
-		title: "Tie-breaker transparency",
+		title: "Tie-breaker Transparency",
 		description:
 			"See the math behind your ranking. Tie-breaker values are displayed.",
 		available: true,
@@ -45,7 +45,7 @@ const athleteFeatures = [
 const organizerFeatures = [
 	{
 		icon: ClipboardCheck,
-		title: "Score verification",
+		title: "Score Verification",
 		description:
 			"Validation checks catch common mistakes. Publish controls per event/division.",
 		available: true,
@@ -53,7 +53,7 @@ const organizerFeatures = [
 	},
 	{
 		icon: Users,
-		title: "Judge scheduling",
+		title: "Volunteer and Judge scheduling",
 		description:
 			"Assign judges by availability with conflict detection. Rotation patterns built in.",
 		available: true,
@@ -61,7 +61,7 @@ const organizerFeatures = [
 	},
 	{
 		icon: FileText,
-		title: "Audit trail",
+		title: "Audit Trail",
 		description:
 			"Track who entered, edited, and verified scores. Complete history of changes.",
 		available: false,
@@ -90,7 +90,7 @@ export function TwoAudiences({ session }: TwoAudiencesProps) {
 
 				<div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-2">
 					{/* Athletes */}
-					<div className="rounded-2xl border border-border bg-card p-8">
+					<div className="flex flex-col rounded-2xl border border-border bg-card p-8">
 						<div className="mb-6 flex items-center gap-3">
 							<div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
 								<Trophy className="h-6 w-6 text-primary" />
@@ -135,7 +135,7 @@ export function TwoAudiences({ session }: TwoAudiencesProps) {
 							))}
 						</div>
 
-						<div className="mt-8 pt-6 border-t border-border">
+						<div className="mt-auto pt-6 border-t border-border">
 							<Button variant="outline" className="w-full" asChild>
 								<Link to="/compete">
 									Browse Competitions
@@ -146,7 +146,7 @@ export function TwoAudiences({ session }: TwoAudiencesProps) {
 					</div>
 
 					{/* Organizers */}
-					<div className="rounded-2xl border border-foreground/20 bg-foreground p-8 text-background dark:border-border dark:bg-card dark:text-foreground">
+					<div className="flex flex-col rounded-2xl border border-foreground/20 bg-foreground p-8 text-background dark:border-border dark:bg-card dark:text-foreground">
 						<div className="mb-6 flex items-center gap-3">
 							<div className="flex h-12 w-12 items-center justify-center rounded-xl border border-background/20 bg-background/10 dark:border-border dark:bg-secondary">
 								<Users className="h-6 w-6" />
@@ -194,7 +194,7 @@ export function TwoAudiences({ session }: TwoAudiencesProps) {
 							))}
 						</div>
 
-						<div className="mt-8 pt-6 border-t border-background/20 dark:border-border">
+						<div className="mt-auto pt-6 border-t border-background/20 dark:border-border">
 							<Button
 								className="w-full bg-background text-foreground hover:bg-background/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90"
 								asChild

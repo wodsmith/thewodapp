@@ -28,7 +28,7 @@ export function FinalCTA({ session }: FinalCTAProps) {
 
 					{/* Promise */}
 					<p className="mb-8 text-lg text-background/70 dark:text-muted-foreground">
-						Get started with a demo, or run your first event free. We'll help
+						Get started with a demo. We'll help
 						you migrate from spreadsheets and make sure your athletes trust the
 						results.
 					</p>
@@ -47,7 +47,7 @@ export function FinalCTA({ session }: FinalCTAProps) {
 										: "/compete/organizer/onboard"
 								}
 							>
-								Book a Demo
+								Request Access
 								<ArrowRight className="ml-2 h-4 w-4" />
 							</Link>
 						</Button>
@@ -63,7 +63,7 @@ export function FinalCTA({ session }: FinalCTAProps) {
 
 					{/* Friction clarifier */}
 					<p className="mt-6 text-sm text-background/50 dark:text-muted-foreground">
-						No credit card required. First event free. Concierge onboarding
+						No credit card required. Platform fee applies to paid registrations. Concierge onboarding
 						included.
 					</p>
 				</div>

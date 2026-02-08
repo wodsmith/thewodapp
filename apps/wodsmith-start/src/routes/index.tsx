@@ -52,13 +52,13 @@ function HomePage() {
 				<SeriesTeaser />
 
 				{/* 7. Reliability - Uptime and resilience */}
-				<ReliabilitySection />
+				{/* <ReliabilitySection /> */}
 
 				{/* 8. Proof - Testimonials and endorsements */}
-				<ProofSection />
+				{/* <ProofSection /> */}
 
 				{/* 9. FAQ - Common questions */}
-				<FAQSection />
+				{/* <FAQSection /> */}
 
 				{/* 10. Final CTA - Repeat primary conversion */}
 				<FinalCTA session={session} />

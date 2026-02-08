@@ -14,8 +14,8 @@ const painPoints = [
 	{
 		icon: MessageSquareX,
 		quote:
-			"Paper appeals get lost. Email threads go nowhere. No one explains the decision.",
-		pain: "Broken appeals",
+			"I found out my heat was moved up and now I have to head on to the floor cold.",
+		pain: "Changes go unnoticed",
 	},
 	{
 		icon: Search,

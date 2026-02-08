@@ -28,17 +28,16 @@ export function CompeteHero({ session }: CompeteHeroProps) {
 				</div>
 
 				{/* Headline - names the villain */}
-				<h1 className="mb-6 font-mono text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-balance">
-					Run a comp athletes trust
+				<h1 className="my-12 font-mono text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-balance">
+					Run a smooth competition
 					<br className="hidden md:block" />
 					<span className="text-primary">without spreadsheet ops</span>
 				</h1>
 
 				{/* Subheadline - the promise */}
 				<p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground md:text-xl text-balance">
-					No more typos deciding podiums. No more paper appeals. No more
-					volunteer scheduling chaos. WODsmith Compete handles the backend
-					nightmare so you can focus on game day.
+					No more volunteer scheduling chaos. WODsmith Compete handles the backend
+					nightmare so you can focus on what matters.
 				</p>
 
 				{/* CTAs */}
@@ -49,7 +48,7 @@ export function CompeteHero({ session }: CompeteHeroProps) {
 								isLoggedIn ? "/compete/organizer" : "/compete/organizer/onboard"
 							}
 						>
-							Book a Demo
+							Request Access
 							<ArrowRight className="ml-2 h-4 w-4" />
 						</Link>
 					</Button>
@@ -68,7 +67,7 @@ export function CompeteHero({ session }: CompeteHeroProps) {
 
 				{/* Friction clarifier */}
 				<p className="mt-4 text-sm text-muted-foreground">
-					No credit card required. Free to try with your first event.
+					No credit card required. Platform fee applies to paid registrations.
 				</p>
 			</div>
 		</section>

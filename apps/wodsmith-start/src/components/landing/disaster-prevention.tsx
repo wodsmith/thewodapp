@@ -40,11 +40,11 @@ const preventionFeatures = [
 	},
 	{
 		icon: MessageSquare,
-		title: "Digital appeals",
+		title: "Volunteer Schedule",
 		description:
-			"Submit appeals with evidence. Track status. Get decisions with explanations and rule references.",
-		painSolved: "Paper appeal chaos",
-		available: false,
+			"Each Volunteer will have their schedule emailed to them, when updates occur they will be notified immediately.",
+		painSolved: "Schedule confusion",
+		available: true,
 		label: "Coming soon",
 	},
 ]

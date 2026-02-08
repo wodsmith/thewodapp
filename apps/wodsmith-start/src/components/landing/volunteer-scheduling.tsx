@@ -51,7 +51,7 @@ const comingFeatures = [
 	{
 		icon: Users,
 		title: "Role enforcement",
-		description: "Only certified judges can score certain events or divisions.",
+		description: "Fine-grain controls based on volunteer assigned roles.",
 	},
 ]
 
@@ -123,7 +123,7 @@ export function VolunteerScheduling() {
 
 							<div className="mt-8 flex items-center gap-2 text-sm text-muted-foreground">
 								<ArrowRight className="h-4 w-4" />
-								<span>Printable/exportable schedules available now</span>
+								<span>Viewable/exportable schedules available now</span>
 							</div>
 						</div>
 					</div>
