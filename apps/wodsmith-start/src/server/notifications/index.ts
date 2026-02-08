@@ -4,9 +4,12 @@
  */
 
 export {
+	notifyCompetitionTeamInvite,
 	notifyPaymentExpired,
 	notifyRegistrationConfirmed,
 	notifyTeammateJoined,
+	notifyVolunteerApproved,
+	notifyVolunteerSignupReceived,
 } from "./compete"
 
 export {
