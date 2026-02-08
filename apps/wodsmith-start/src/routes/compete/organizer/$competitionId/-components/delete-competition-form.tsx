@@ -47,20 +47,24 @@ export function DeleteCompetitionForm({
 			await deleteCompetition({
 				data: { competitionId, organizingTeamId },
 			})
-			trackEvent("competition_deleted", {
-				competition_id: competitionId,
-				competition_name: competitionName,
-				registration_count: registrationCount,
-			})
+			try {
+				trackEvent("competition_deleted", {
+					competition_id: competitionId,
+					competition_name: competitionName,
+					registration_count: registrationCount,
+				})
+			} catch {}
 			toast.success("Competition deleted successfully")
 			navigate({ to: "/compete/organizer" })
 		} catch (err) {
 			const message =
 				err instanceof Error ? err.message : "Failed to delete competition"
-			trackEvent("competition_deleted_failed", {
-				competition_id: competitionId,
-				error_message: message,
-			})
+			try {
+				trackEvent("competition_deleted_failed", {
+					competition_id: competitionId,
+					error_message: message,
+				})
+			} catch {}
 			toast.error(message)
 			setIsDeleting(false)
 		}

@@ -302,12 +302,25 @@ export function RegistrationForm({
 			const errorMessage =
 				err instanceof Error ? err.message : "Registration failed"
 
+			// Classify error to avoid sending PII (emails) to analytics
+			const errorType = /is already on a team/i.test(errorMessage)
+				? "email_already_on_team"
+				: /has already been invited/i.test(errorMessage)
+					? "email_already_invited"
+					: /is your own email/i.test(errorMessage)
+						? "own_email"
+						: /Team name ".+" is already taken/i.test(errorMessage)
+							? "team_name_taken"
+							: /Failed to create checkout/i.test(errorMessage)
+								? "checkout_failed"
+								: "unknown"
+
 			trackEvent("competition_registration_failed", {
 				competition_id: competition.id,
 				competition_name: competition.name,
 				competition_slug: competition.slug,
 				division_id: data.divisionId,
-				error_message: errorMessage,
+				error_type: errorType,
 			})
 
 			// Check if error is about team name being taken
