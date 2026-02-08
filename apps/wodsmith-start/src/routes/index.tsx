@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router"
+import { createFileRoute } from "@tanstack/react-router"
 import { Footer } from "@/components/footer"
 import { CompeteHero } from "@/components/landing/compete-hero"
 import { DisasterPrevention } from "@/components/landing/disaster-prevention"
@@ -9,12 +9,6 @@ import { TwoAudiences } from "@/components/landing/two-audiences"
 import { VolunteerScheduling } from "@/components/landing/volunteer-scheduling"
 
 export const Route = createFileRoute("/")({
-	beforeLoad: async ({ context }) => {
-		// Redirect authenticated users without workout tracking to compete
-		if (context.session?.user && !context.hasWorkoutTracking) {
-			throw redirect({ to: "/compete" })
-		}
-	},
 	head: () => ({
 		meta: [
 			{

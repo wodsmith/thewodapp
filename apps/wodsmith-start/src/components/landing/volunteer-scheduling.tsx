@@ -65,7 +65,7 @@ export function VolunteerScheduling() {
 						<div>
 							<div className="mb-4 inline-flex items-center gap-2 rounded-full bg-amber-500/10 px-4 py-2 text-amber-700 dark:text-amber-400">
 								<Users className="h-4 w-4" />
-								<span className="font-medium text-sm">Staff Management</span>
+								<span className="font-medium text-sm">Volunteer Management</span>
 							</div>
 
 							<h2 className="mb-4 font-mono text-3xl font-bold tracking-tight sm:text-4xl">
