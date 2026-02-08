@@ -14,9 +14,9 @@ export const checkAuthFn = createServerFn().handler(async () => {
 export const loginFn = createServerFn()
 	.validator(z.object({ password: z.string() }))
 	.handler(async ({ data }) => {
-		const correctPassword = env.AUTH_PASSWORD
+		const correctPassword = env.LEDGER_AUTH_PASSWORD
 		if (!correctPassword) {
-			throw new Error("AUTH_PASSWORD not configured")
+			throw new Error("LEDGER_AUTH_PASSWORD not configured")
 		}
 
 		if (data.password !== correctPassword) {

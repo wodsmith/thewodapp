@@ -23,6 +23,13 @@ const r2Bucket = await R2Bucket("ledger-documents", {
 	devDomain: stage !== "prod",
 })
 
+function getDomains(currentStage: string): string[] | undefined {
+	if (currentStage === "prod") {
+		return ["ledger.wodsmith.com"]
+	}
+	return undefined
+}
+
 const website = await TanStackStart("app", {
 	bindings: {
 		DB: db,
@@ -30,10 +37,12 @@ const website = await TanStackStart("app", {
 		// biome-ignore lint/style/noNonNullAssertion: Set at deploy time
 		APP_URL: process.env.APP_URL!,
 		NODE_ENV: stage === "prod" ? "production" : "development",
-		// Password for accessing the app - set via environment variable
 		// biome-ignore lint/style/noNonNullAssertion: Required
-		AUTH_PASSWORD: alchemy.secret(process.env.AUTH_PASSWORD!),
+		LEDGER_AUTH_PASSWORD: alchemy.secret(process.env.LEDGER_AUTH_PASSWORD!),
+		// biome-ignore lint/style/noNonNullAssertion: Required for doc analyzer
+		OPENAI_API_KEY: alchemy.secret(process.env.OPENAI_API_KEY!),
 	},
+	domains: getDomains(stage),
 	adopt: true,
 })
 

@@ -1,11 +1,12 @@
 import { useServerFn } from "@tanstack/react-start"
-import { Upload, X } from "lucide-react"
+import { Sparkles, Upload, X } from "lucide-react"
 import { useRef, useState } from "react"
 import {
 	DOCUMENT_CATEGORIES,
 	PAYMENT_STATUSES,
 	SUBSCRIPTION_TERMS,
 } from "@/db/schema"
+import { analyzeDocumentFn } from "@/server-fns/analyzer"
 import { uploadDocumentFn } from "@/server-fns/documents"
 
 interface UploadDialogProps {
@@ -20,8 +21,10 @@ export function UploadDialog({
 	onUploadComplete,
 }: UploadDialogProps) {
 	const uploadFn = useServerFn(uploadDocumentFn)
+	const analyzeFn = useServerFn(analyzeDocumentFn)
 	const fileInputRef = useRef<HTMLInputElement>(null)
 	const [uploading, setUploading] = useState(false)
+	const [analyzing, setAnalyzing] = useState(false)
 	const [error, setError] = useState("")
 	const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
@@ -55,6 +58,57 @@ export function UploadDialog({
 		onOpenChange(false)
 	}
 
+	const readFileAsBase64 = async (file: File): Promise<string> => {
+		const arrayBuffer = await file.arrayBuffer()
+		const bytes = new Uint8Array(arrayBuffer)
+		let binary = ""
+		for (let i = 0; i < bytes.length; i++) {
+			binary += String.fromCharCode(bytes[i])
+		}
+		return btoa(binary)
+	}
+
+	const handleAnalyze = async () => {
+		if (!selectedFile) {
+			setError("Please select a file first")
+			return
+		}
+
+		setError("")
+		setAnalyzing(true)
+
+		try {
+			const fileBase64 = await readFileAsBase64(selectedFile)
+			const result = await analyzeFn({
+				data: {
+					fileBase64,
+					fileName: selectedFile.name,
+					contentType: selectedFile.type || "application/octet-stream",
+				},
+			})
+
+			if (result) {
+				if (result.vendor) setVendor(result.vendor)
+				if (result.description) setDescription(result.description)
+				if (result.amountCents)
+					setAmount((result.amountCents / 100).toFixed(2))
+				if (result.currency) setCurrency(result.currency)
+				if (result.subscriptionTerm)
+					setSubscriptionTerm(result.subscriptionTerm)
+				if (result.category) setCategory(result.category)
+				if (result.invoiceDate) setInvoiceDate(result.invoiceDate)
+				if (result.dueDate) setDueDate(result.dueDate)
+				if (result.status) setStatus(result.status)
+			}
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : "Analysis failed",
+			)
+		} finally {
+			setAnalyzing(false)
+		}
+	}
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
 		if (!selectedFile) {
@@ -70,14 +124,7 @@ export function UploadDialog({
 		setUploading(true)
 
 		try {
-			// Read file as base64
-			const arrayBuffer = await selectedFile.arrayBuffer()
-			const bytes = new Uint8Array(arrayBuffer)
-			let binary = ""
-			for (let i = 0; i < bytes.length; i++) {
-				binary += String.fromCharCode(bytes[i])
-			}
-			const fileBase64 = btoa(binary)
+			const fileBase64 = await readFileAsBase64(selectedFile)
 
 			await uploadFn({
 				data: {
@@ -166,6 +213,19 @@ export function UploadDialog({
 								setSelectedFile(e.target.files?.[0] || null)
 							}
 						/>
+						{selectedFile && (
+							<button
+								type="button"
+								onClick={handleAnalyze}
+								disabled={analyzing}
+								className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-primary/20 bg-primary/5 px-3 text-sm font-medium text-primary hover:bg-primary/10 disabled:opacity-50 transition-colors"
+							>
+								<Sparkles className="h-4 w-4" />
+								{analyzing
+									? "Analyzing document..."
+									: "Auto-fill with AI"}
+							</button>
+						)}
 					</div>
 
 					{/* Vendor */}
