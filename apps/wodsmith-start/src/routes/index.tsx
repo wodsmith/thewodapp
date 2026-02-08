@@ -12,7 +12,7 @@ export const Route = createFileRoute("/")({
 	head: () => ({
 		meta: [
 			{
-				title: "WODsmith Compete - Run a comp athletes trust",
+				title: "WODsmith Compete - Run comps athletes trust",
 			},
 			{
 				name: "description",

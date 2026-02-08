@@ -36,8 +36,8 @@ export function CompeteHero({ session }: CompeteHeroProps) {
 
 				{/* Subheadline - the promise */}
 				<p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground md:text-xl text-balance">
-					No more volunteer scheduling chaos. WODsmith Compete handles the backend
-					nightmare so you can focus on what matters.
+					No more volunteer scheduling chaos. WODsmith Compete handles the
+					backend nightmare so you can focus on what matters.
 				</p>
 
 				{/* CTAs */}
@@ -55,6 +55,7 @@ export function CompeteHero({ session }: CompeteHeroProps) {
 					<Button
 						variant="outline"
 						size="lg"
+						type="button"
 						onClick={() => {
 							document
 								.getElementById("pain-points")

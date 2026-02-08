@@ -38,18 +38,21 @@ const faqs = [
 ]
 
 interface FAQItemProps {
+	id: string
 	question: string
 	answer: string
 	isOpen: boolean
 	onToggle: () => void
 }
 
-function FAQItem({ question, answer, isOpen, onToggle }: FAQItemProps) {
+function FAQItem({ id, question, answer, isOpen, onToggle }: FAQItemProps) {
 	return (
 		<div className="border-b border-border">
 			<button
 				type="button"
 				onClick={onToggle}
+				aria-expanded={isOpen}
+				aria-controls={id}
 				className="flex w-full items-center justify-between py-6 text-left"
 			>
 				<span className="font-medium">{question}</span>
@@ -60,7 +63,9 @@ function FAQItem({ question, answer, isOpen, onToggle }: FAQItemProps) {
 					)}
 				/>
 			</button>
-			<div
+			<section
+				id={id}
+				aria-hidden={!isOpen}
 				className={cn(
 					"grid transition-all",
 					isOpen ? "grid-rows-[1fr] pb-6" : "grid-rows-[0fr]",
@@ -69,7 +74,7 @@ function FAQItem({ question, answer, isOpen, onToggle }: FAQItemProps) {
 				<div className="overflow-hidden">
 					<p className="text-muted-foreground">{answer}</p>
 				</div>
-			</div>
+			</section>
 		</div>
 	)
 }
@@ -102,6 +107,7 @@ export function FAQSection() {
 						<div className="px-6">
 							{faqs.map((faq, index) => (
 								<FAQItem
+									id={`faq-${index}`}
 									key={faq.question}
 									question={faq.question}
 									answer={faq.answer}

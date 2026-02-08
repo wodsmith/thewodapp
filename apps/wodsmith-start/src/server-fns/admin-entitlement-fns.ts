@@ -44,8 +44,7 @@ export interface TeamWithWorkoutTracking {
 export const getTeamsWithWorkoutTrackingFn = createServerFn({
 	method: "GET",
 }).handler(async () => {
-	const session = await requireAdmin()
-	if (!session) throw new Error("Not authorized")
+	await requireAdmin()
 
 	const db = getDb()
 
@@ -70,9 +69,7 @@ export const getTeamsWithWorkoutTrackingFn = createServerFn({
 		})
 		.from(teamTable)
 		.where(
-			and(
-				sql`${teamTable.type} NOT IN ('competition_event', 'competition_team')`,
-			),
+			sql`${teamTable.type} NOT IN ('competition_event', 'competition_team')`,
 		)
 		.orderBy(desc(teamTable.createdAt))
 
@@ -114,8 +111,7 @@ export const toggleWorkoutTrackingFn = createServerFn({ method: "POST" })
 			.parse(data),
 	)
 	.handler(async ({ data }) => {
-		const session = await requireAdmin()
-		if (!session) throw new Error("Not authorized")
+		await requireAdmin()
 
 		if (data.enabled) {
 			await grantTeamFeature(data.teamId, FEATURES.WORKOUT_TRACKING)
