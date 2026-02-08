@@ -48,7 +48,8 @@ VALUES
   ('feat_ai_workout_generation', 'ai_workout_generation', 'AI Workout Generation', 'Generate workouts using AI', 'ai', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
   ('feat_ai_programming_assistant', 'ai_programming_assistant', 'AI Programming Assistant', 'AI assistant for programming strategy', 'ai', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
   ('feat_multi_team_management', 'multi_team_management', 'Multi-Team Management', 'Manage multiple teams from one account', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
-  ('feat_host_competitions', 'host_competitions', 'Host Competitions', 'Create and manage competitions and events', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+  ('feat_host_competitions', 'host_competitions', 'Host Competitions', 'Create and manage competitions and events', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('feat_workout_tracking', 'workout_tracking', 'Workout Tracking', 'Access to personal workout tracking features', 'workouts', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- Insert limits
 INSERT OR IGNORE INTO "limit" (id, "key", name, description, unit, resetPeriod, isActive, createdAt, updatedAt, updateCounter)
@@ -351,3 +352,10 @@ INSERT OR IGNORE INTO team_limit_entitlement (id, teamId, limitId, value, source
 ('tle_pr_gym_tracks', 'team_pr_demo_gym', 'lmt_max_programming_tracks', -1, 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 ('tle_pr_gym_ai', 'team_pr_demo_gym', 'lmt_ai_messages_per_month', 200, 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 ('tle_pr_gym_admins', 'team_pr_demo_gym', 'lmt_max_admins', 5, 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+
+-- ============================================================================
+-- TEAM ENTITLEMENT OVERRIDES
+-- ============================================================================
+INSERT OR IGNORE INTO team_entitlement_override (id, teamId, type, key, value, reason, expiresAt, createdBy, createdAt, updatedAt, updateCounter) VALUES
+('teo_pr_gym_workout_tracking', 'team_pr_demo_gym', 'feature', 'workout_tracking', 'true', 'Early access grant', NULL, 'usr_pr_demo_user', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('teo_pr_personal_workout_tracking', 'team_pr_personal_demo', 'feature', 'workout_tracking', 'true', 'Early access grant', NULL, 'usr_pr_demo_user', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);

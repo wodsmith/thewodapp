@@ -74,7 +74,8 @@ VALUES
   ('feat_ai_workout_generation', 'ai_workout_generation', 'AI Workout Generation', 'Generate workouts using AI', 'ai', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
   ('feat_ai_programming_assistant', 'ai_programming_assistant', 'AI Programming Assistant', 'AI assistant for programming strategy', 'ai', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
   ('feat_multi_team_management', 'multi_team_management', 'Multi-Team Management', 'Manage multiple teams from one account', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
-  ('feat_host_competitions', 'host_competitions', 'Host Competitions', 'Create and manage competitions and events', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+  ('feat_host_competitions', 'host_competitions', 'Host Competitions', 'Create and manage competitions and events', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('feat_workout_tracking', 'workout_tracking', 'Workout Tracking', 'Access to personal workout tracking features', 'workouts', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- Insert limits
 INSERT OR IGNORE INTO "limit" (id, "key", name, description, unit, resetPeriod, isActive, createdAt, updatedAt, updateCounter)
@@ -508,7 +509,9 @@ INSERT OR IGNORE INTO organizer_request (id, teamId, userId, reason, status, adm
 -- Team entitlement override for unlimited published competitions
 -- This is set when an organizer request is approved (value -1 = unlimited)
 INSERT OR IGNORE INTO team_entitlement_override (id, teamId, type, key, value, reason, expiresAt, createdBy, createdAt, updatedAt, updateCounter) VALUES
-('teo_box1_competitions', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'limit', 'max_published_competitions', '-1', 'Organizer request approved', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+('teo_box1_competitions', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'limit', 'max_published_competitions', '-1', 'Organizer request approved', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('teo_box1_workout_tracking', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feature', 'workout_tracking', 'true', 'Early access grant', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('teo_personaladmin_workout_tracking', 'team_personaladmin', 'feature', 'workout_tracking', 'true', 'Early access grant', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- Create Girls programming track
 INSERT INTO programming_track (id, name, description, type, ownerTeamId, isPublic, createdAt, updatedAt, updateCounter) VALUES 

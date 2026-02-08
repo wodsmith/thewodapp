@@ -1,17 +1,20 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, redirect } from "@tanstack/react-router"
 import { Footer } from "@/components/footer"
 import { CompeteHero } from "@/components/landing/compete-hero"
 import { DisasterPrevention } from "@/components/landing/disaster-prevention"
-import { FAQSection } from "@/components/landing/faq-section"
 import { FinalCTA } from "@/components/landing/final-cta"
 import { PainStrip } from "@/components/landing/pain-strip"
-import { ProofSection } from "@/components/landing/proof-section"
-import { ReliabilitySection } from "@/components/landing/reliability-section"
 import { SeriesTeaser } from "@/components/landing/series-teaser"
 import { TwoAudiences } from "@/components/landing/two-audiences"
 import { VolunteerScheduling } from "@/components/landing/volunteer-scheduling"
 
 export const Route = createFileRoute("/")({
+	beforeLoad: async ({ context }) => {
+		// Redirect authenticated users without workout tracking to compete
+		if (context.session?.user && !context.hasWorkoutTracking) {
+			throw redirect({ to: "/compete" })
+		}
+	},
 	head: () => ({
 		meta: [
 			{

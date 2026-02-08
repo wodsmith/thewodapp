@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, redirect } from "@tanstack/react-router"
 import { LogCalendar } from "@/components/log-calendar"
 import { LogRowCard } from "@/components/log-row-card"
 import { Button } from "@/components/ui/button"
@@ -6,6 +6,11 @@ import { getLogsByUserFn } from "@/server-fns/log-fns"
 
 export const Route = createFileRoute("/_protected/log/")({
 	component: LogPage,
+	beforeLoad: async ({ context }) => {
+		if (!context.hasWorkoutTracking) {
+			throw redirect({ to: "/compete" })
+		}
+	},
 	loader: async ({ context }) => {
 		const session = context.session
 
