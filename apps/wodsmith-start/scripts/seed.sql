@@ -1,45 +1,91 @@
-DELETE FROM purchased_item;
-DELETE FROM credit_transaction;
-DELETE FROM passkey_credential;
+-- Competition deep children
+DELETE FROM score_rounds;
+DELETE FROM scores;
+DELETE FROM judge_heat_assignments;
+DELETE FROM judge_assignment_versions;
+DELETE FROM competition_judge_rotations;
+DELETE FROM video_submissions;
+DELETE FROM submission_window_notifications;
+DELETE FROM event_judging_sheets;
+DELETE FROM event_resources;
+DELETE FROM competition_events;
+DELETE FROM competition_heat_assignments;
+DELETE FROM competition_heats;
+DELETE FROM competition_registration_answers;
+DELETE FROM competition_registration_questions;
+DELETE FROM competition_registrations;
+DELETE FROM competition_venues;
+DELETE FROM competition_divisions;
+DELETE FROM competitions;
+DELETE FROM competition_groups;
+DELETE FROM addresses;
+-- Scheduling
+DELETE FROM scheduled_classes;
+DELETE FROM generated_schedules;
+DELETE FROM schedule_template_class_required_skills;
+DELETE FROM schedule_template_classes;
+DELETE FROM schedule_templates;
+-- Programming
 DELETE FROM scheduled_workout_instance;
 DELETE FROM team_programming_track;
 DELETE FROM track_workout;
 DELETE FROM programming_track;
+-- Workouts and related
 DELETE FROM sets;
 DELETE FROM results;
+DELETE FROM workout_scaling_descriptions;
 DELETE FROM workout_movements;
 DELETE FROM workout_tags;
 DELETE FROM workouts;
 DELETE FROM spicy_tags;
 DELETE FROM movements;
+-- Scaling
+DELETE FROM scaling_levels;
+DELETE FROM scaling_groups;
+-- Coaches / Classes
 DELETE FROM coach_to_skills;
 DELETE FROM class_catalog_to_skills;
+DELETE FROM coach_blackout_dates;
+DELETE FROM coach_recurring_unavailability;
 DELETE FROM coaches;
 DELETE FROM class_catalog;
 DELETE FROM skills;
 DELETE FROM locations;
--- Delete competition tables (must be before team due to FK)
-DELETE FROM competition_registrations;
-DELETE FROM competitions;
-DELETE FROM competition_groups;
+-- Sponsors
+DELETE FROM sponsors;
+DELETE FROM sponsor_groups;
+-- Commerce
+DELETE FROM purchased_item;
+DELETE FROM credit_transaction;
+DELETE FROM commerce_purchase;
+DELETE FROM commerce_product;
+-- Auth
+DELETE FROM passkey_credential;
+DELETE FROM waiver_signatures;
+DELETE FROM waivers;
+-- Team hierarchy (children before parents)
 DELETE FROM affiliates;
 DELETE FROM organizer_request;
 DELETE FROM team_invitation;
 DELETE FROM team_membership;
 DELETE FROM team_role;
--- Delete entitlements tables (must be before team due to FK)
 DELETE FROM team_entitlement_override;
+DELETE FROM team_feature_entitlement;
+DELETE FROM team_limit_entitlement;
 DELETE FROM team_usage;
 DELETE FROM team_addon;
 DELETE FROM team_subscription;
 DELETE FROM entitlement;
-DELETE FROM team;
-DELETE FROM user;
--- Delete entitlements metadata tables
+-- Plans and features (before team due to currentPlanId FK)
+DELETE FROM plan_limit;
+DELETE FROM plan_feature;
 DELETE FROM plan;
 DELETE FROM "limit";
 DELETE FROM feature;
 DELETE FROM entitlement_type;
+-- Core entities
+DELETE FROM team;
+DELETE FROM user;
 
 -- Seed global default scaling group (system-wide default)
 -- This must be seeded first as it's used as the ultimate fallback for all workouts
@@ -74,7 +120,8 @@ VALUES
   ('feat_ai_workout_generation', 'ai_workout_generation', 'AI Workout Generation', 'Generate workouts using AI', 'ai', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
   ('feat_ai_programming_assistant', 'ai_programming_assistant', 'AI Programming Assistant', 'AI assistant for programming strategy', 'ai', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
   ('feat_multi_team_management', 'multi_team_management', 'Multi-Team Management', 'Manage multiple teams from one account', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
-  ('feat_host_competitions', 'host_competitions', 'Host Competitions', 'Create and manage competitions and events', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+  ('feat_host_competitions', 'host_competitions', 'Host Competitions', 'Create and manage competitions and events', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('feat_workout_tracking', 'workout_tracking', 'Workout Tracking', 'Access to personal workout tracking features', 'workouts', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- Insert limits
 INSERT OR IGNORE INTO "limit" (id, "key", name, description, unit, resetPeriod, isActive, createdAt, updatedAt, updateCounter)
@@ -218,7 +265,18 @@ INSERT OR IGNORE INTO user (id, firstName, lastName, email, emailVerified, passw
 ('usr_athlete_lauren', 'Lauren', 'Adams', 'lauren.adams@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1997-01-11'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('usr_athlete_nicole', 'Nicole', 'Roberts', 'nicole.roberts@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1995-08-19'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('usr_athlete_amanda', 'Amanda', 'Nelson', 'amanda.nelson@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1992-12-07'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_athlete_kaitlyn', 'Kaitlyn', 'Hill', 'kaitlyn.hill@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1999-03-24'), strftime('%s', 'now'), strftime('%s', 'now'), 0);
+('usr_athlete_kaitlyn', 'Kaitlyn', 'Hill', 'kaitlyn.hill@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1999-03-24'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Volunteers for Winter Throwdown 2025
+('usr_volunteer_dave', 'Dave', 'Martinez', 'dave.martinez@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1985-04-12'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_lisa', 'Lisa', 'Chen', 'lisa.chen@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1990-08-25'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_tom', 'Tom', 'Wilson', 'tom.wilson@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1988-01-17'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_rachel', 'Rachel', 'Kim', 'rachel.kim@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1992-11-30'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_james', 'James', 'Rodriguez', 'james.rodriguez@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1987-06-08'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_emily', 'Emily', 'Thompson', 'emily.thompson@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1994-02-14'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_kevin', 'Kevin', 'Patel', 'kevin.patel@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1991-09-22'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_maria', 'Maria', 'Garcia', 'maria.garcia@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1989-12-03'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_brian', 'Brian', 'Lee', 'brian.lee@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1993-07-19'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_sandra', 'Sandra', 'Nguyen', 'sandra.nguyen@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1995-05-11'), strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Seed teams table (with different plans for testing)
 -- type: 'gym' (default), 'competition_event', or 'personal'
@@ -291,6 +349,20 @@ INSERT OR IGNORE INTO team_membership (id, teamId, userId, roleId, isSystemRole,
 ('tmem_amanda_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_amanda', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
 ('tmem_kaitlyn_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_kaitlyn', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1);
 
+-- Volunteers for Winter Throwdown 2025
+-- Volunteer memberships include metadata JSON with volunteer-specific info
+INSERT OR IGNORE INTO team_membership (id, teamId, userId, roleId, isSystemRole, joinedAt, createdAt, updatedAt, updateCounter, isActive, metadata) VALUES
+('tmem_volunteer_dave', 'team_winter_throwdown_2025', 'usr_volunteer_dave', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","head_judge"],"credentials":"L1 Judge Certified","shirtSize":"L","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+('tmem_volunteer_lisa', 'team_winter_throwdown_2025', 'usr_volunteer_lisa', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","scorekeeper"],"credentials":"CrossFit L2","shirtSize":"S","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+('tmem_volunteer_tom', 'team_winter_throwdown_2025', 'usr_volunteer_tom', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","equipment"],"shirtSize":"XL","availability":"morning","availabilityNotes":"Available 6am-12pm only","status":"approved","inviteSource":"application"}'),
+('tmem_volunteer_rachel', 'team_winter_throwdown_2025', 'usr_volunteer_rachel', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","check_in","medical"],"credentials":"EMT Certified","shirtSize":"M","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+('tmem_volunteer_james', 'team_winter_throwdown_2025', 'usr_volunteer_james', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","floor_manager"],"credentials":"5 years judging experience","shirtSize":"L","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+('tmem_volunteer_emily', 'team_winter_throwdown_2025', 'usr_volunteer_emily', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","media"],"shirtSize":"S","availability":"afternoon","availabilityNotes":"Available after 12pm","status":"approved","inviteSource":"application"}'),
+('tmem_volunteer_kevin', 'team_winter_throwdown_2025', 'usr_volunteer_kevin', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","scorekeeper"],"credentials":"L1 Trainer","shirtSize":"M","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+('tmem_volunteer_maria', 'team_winter_throwdown_2025', 'usr_volunteer_maria', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","emcee"],"credentials":"Former competitor","shirtSize":"S","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+('tmem_volunteer_brian', 'team_winter_throwdown_2025', 'usr_volunteer_brian', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","equipment","staff"],"shirtSize":"XL","availability":"morning","status":"approved","inviteSource":"application"}'),
+('tmem_volunteer_sandra', 'team_winter_throwdown_2025', 'usr_volunteer_sandra', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","general"],"credentials":"L1 Trainer","shirtSize":"M","availability":"all_day","status":"approved","inviteSource":"direct"}');
+
 -- Affiliates (gyms that athletes can select when registering)
 INSERT OR IGNORE INTO affiliates (id, name, location, verificationStatus, ownerTeamId, createdAt, updatedAt, updateCounter) VALUES
 ('aff_crossfit_canvas', 'CrossFit Canvas', 'Austin, TX', 'verified', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
@@ -315,7 +387,7 @@ INSERT OR IGNORE INTO scaling_levels (id, scalingGroupId, label, position, teamS
 -- Competitions - Winter Throwdown 2025
 -- Registration opens 30 days before, closes 7 days before the event
 -- defaultRegistrationFeeCents: 7500 = $75.00
-INSERT OR IGNORE INTO competitions (id, organizingTeamId, competitionTeamId, groupId, slug, name, description, startDate, endDate, registrationOpensAt, registrationClosesAt, settings, defaultRegistrationFeeCents, createdAt, updatedAt, updateCounter) VALUES
+INSERT OR IGNORE INTO competitions (id, organizingTeamId, competitionTeamId, groupId, slug, name, description, startDate, endDate, registrationOpensAt, registrationClosesAt, timezone, settings, defaultRegistrationFeeCents, visibility, status, competitionType, createdAt, updatedAt, updateCounter) VALUES
 ('comp_winter_throwdown_2025',
  'team_cokkpu1klwo0ulfhl1iwzpvnbox1',
  'team_winter_throwdown_2025',
@@ -323,12 +395,16 @@ INSERT OR IGNORE INTO competitions (id, organizingTeamId, competitionTeamId, gro
  'winter-throwdown-2025',
  'Winter Throwdown 2025',
  'Kick off the new year with CrossFit Box One''s signature winter competition! Four challenging workouts testing your strength, endurance, and mental toughness. Open to all skill levels with RX, RX Male Partner (teams of 2), Scaled, Masters 40+, and Teen divisions.',
- strftime('%s', datetime('now', '+14 days', 'start of day', '+8 hours')),
- strftime('%s', datetime('now', '+14 days', 'start of day', '+18 hours')),
- strftime('%s', 'now'),
- strftime('%s', datetime('now', '+7 days', '+23 hours', '+59 minutes')),
+ strftime('%Y-%m-%d', datetime('now', '+14 days')),
+ strftime('%Y-%m-%d', datetime('now', '+14 days')),
+ strftime('%Y-%m-%d', 'now'),
+ strftime('%Y-%m-%d', datetime('now', '+7 days')),
+ 'America/Denver',
  '{"divisions": {"scalingGroupId": "sgrp_winter_throwdown_2025"}}',
  7500,
+ 'public',
+ 'published',
+ 'in-person',
  strftime('%s', 'now'),
  strftime('%s', 'now'),
  0);
@@ -367,7 +443,7 @@ INSERT OR IGNORE INTO competition_registrations (id, eventId, userId, teamMember
 -- Creates the track that holds competition events (workouts)
 -- NOTE: Competition events (track_workout) are inserted AFTER workouts table is populated below
 INSERT OR IGNORE INTO programming_track (id, name, description, type, ownerTeamId, scalingGroupId, isPublic, competitionId, createdAt, updatedAt, updateCounter) VALUES
-('track_winter_throwdown_2025', 'Winter Throwdown 2025 - Events', 'Competition events for Winter Throwdown 2025', 'team_owned', 'team_winter_throwdown_2025', 'sgrp_winter_throwdown_2025', 0, 'comp_winter_throwdown_2025', strftime('%s', 'now'), strftime('%s', 'now'), 0);
+('track_winter_throwdown_2025', 'Winter Throwdown 2025 - Events', 'Competition events for Winter Throwdown 2025', 'team_owned', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'sgrp_winter_throwdown_2025', 0, 'comp_winter_throwdown_2025', strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- ============================================
 -- END COMPETITION PLATFORM SEED DATA
@@ -479,7 +555,9 @@ INSERT OR IGNORE INTO organizer_request (id, teamId, userId, reason, status, adm
 -- Team entitlement override for unlimited published competitions
 -- This is set when an organizer request is approved (value -1 = unlimited)
 INSERT OR IGNORE INTO team_entitlement_override (id, teamId, type, key, value, reason, expiresAt, createdBy, createdAt, updatedAt, updateCounter) VALUES
-('teo_box1_competitions', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'limit', 'max_published_competitions', '-1', 'Organizer request approved', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+('teo_box1_competitions', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'limit', 'max_published_competitions', '-1', 'Organizer request approved', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('teo_box1_workout_tracking', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feature', 'workout_tracking', 'true', 'Early access grant', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('teo_personaladmin_workout_tracking', 'team_personaladmin', 'feature', 'workout_tracking', 'true', 'Early access grant', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- Create Girls programming track
 INSERT INTO programming_track (id, name, description, type, ownerTeamId, isPublic, createdAt, updatedAt, updateCounter) VALUES 
@@ -1195,3 +1273,151 @@ INSERT OR IGNORE INTO credit_transaction (id, userId, amount, remainingAmount, t
 ('ctxn_admin_monthly', 'usr_demo1admin', 100, 90, 'MONTHLY_REFRESH', 'Monthly admin credit refresh', strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('ctxn_coach_purchase', 'usr_demo2coach', 50, 35, 'PURCHASE', 'Credit purchase - starter pack', strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('ctxn_john_usage', 'usr_demo3member', -5, 0, 'USAGE', 'Used credits for premium workout', strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- ============================================
+-- ONLINE COMPETITION SEED DATA
+-- For testing video submission feature (WOD-105)
+-- ============================================
+
+-- Online Competition Team (athletes become members when they register)
+INSERT OR IGNORE INTO team (id, name, slug, type, description, createdAt, updatedAt, updateCounter) VALUES
+('team_online_qualifier_2026', 'Online Qualifier 2026 Athletes', 'online-qualifier-2026-athletes', 'competition_event', 'Athlete team for the Online Qualifier 2026', strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Scaling Group for Online Qualifier 2026 divisions
+INSERT OR IGNORE INTO scaling_groups (id, title, description, teamId, isDefault, isSystem, createdAt, updatedAt, updateCounter) VALUES
+('sgrp_online_qualifier_2026', 'Online Qualifier 2026 Divisions', 'Divisions for Online Qualifier 2026', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 0, 0, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Divisions for Online Qualifier
+INSERT OR IGNORE INTO scaling_levels (id, scalingGroupId, label, position, teamSize, createdAt, updatedAt, updateCounter) VALUES
+('slvl_online_rx', 'sgrp_online_qualifier_2026', 'RX', 0, 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('slvl_online_scaled', 'sgrp_online_qualifier_2026', 'Scaled', 1, 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('slvl_online_masters', 'sgrp_online_qualifier_2026', 'Masters 40+', 2, 1, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Online Competition - competitionType = 'online'
+-- Registration is open now, competition runs for 2 weeks
+INSERT OR IGNORE INTO competitions (id, organizingTeamId, competitionTeamId, groupId, slug, name, description, startDate, endDate, registrationOpensAt, registrationClosesAt, timezone, settings, defaultRegistrationFeeCents, visibility, status, competitionType, createdAt, updatedAt, updateCounter) VALUES
+('comp_online_qualifier_2026',
+ 'team_cokkpu1klwo0ulfhl1iwzpvnbox1',
+ 'team_online_qualifier_2026',
+ 'cgrp_box1_throwdowns_2025',
+ 'online-qualifier-2026',
+ 'Online Qualifier 2026',
+ 'Complete the workouts on your own time and submit your video for verification. Athletes have a 7-day window to complete each event and submit their video.',
+ strftime('%Y-%m-%d', 'now'),
+ strftime('%Y-%m-%d', datetime('now', '+14 days')),
+ strftime('%Y-%m-%d', datetime('now', '-7 days')),
+ strftime('%Y-%m-%d', datetime('now', '+7 days')),
+ 'America/Denver',
+ '{"divisions": {"scalingGroupId": "sgrp_online_qualifier_2026"}}',
+ 5000,
+ 'public',
+ 'published',
+ 'online',
+ strftime('%s', 'now'),
+ strftime('%s', 'now'),
+ 0);
+
+-- Programming Track for Online Qualifier
+INSERT OR IGNORE INTO programming_track (id, name, description, type, ownerTeamId, scalingGroupId, isPublic, competitionId, createdAt, updatedAt, updateCounter) VALUES
+('track_online_qualifier_2026', 'Online Qualifier 2026 - Events', 'Competition events for Online Qualifier 2026', 'team_owned', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'sgrp_online_qualifier_2026', 0, 'comp_online_qualifier_2026', strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Team memberships for online competition team (athletes need these to be registered)
+INSERT OR IGNORE INTO team_membership (id, teamId, userId, roleId, isSystemRole, createdAt, updatedAt, updateCounter) VALUES
+('tmem_john_online', 'team_online_qualifier_2026', 'usr_demo3member', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tmem_jane_online', 'team_online_qualifier_2026', 'usr_demo4member', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tmem_mike_online', 'team_online_qualifier_2026', 'usr_athlete_mike', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tmem_sarah_online', 'team_online_qualifier_2026', 'usr_athlete_sarah', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tmem_alex_online', 'team_online_qualifier_2026', 'usr_athlete_alex', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Competition Registrations for Online Qualifier
+INSERT OR IGNORE INTO competition_registrations (id, eventId, userId, teamMemberId, divisionId, registeredAt, paymentStatus, paidAt, createdAt, updatedAt, updateCounter) VALUES
+-- John (demo3member) - RX Division - use this account to test video submission
+('creg_john_online', 'comp_online_qualifier_2026', 'usr_demo3member', 'tmem_john_online', 'slvl_online_rx', strftime('%s', 'now'), 'PAID', strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Jane (demo4member) - Scaled Division
+('creg_jane_online', 'comp_online_qualifier_2026', 'usr_demo4member', 'tmem_jane_online', 'slvl_online_scaled', strftime('%s', 'now'), 'PAID', strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Mike - RX Division
+('creg_mike_online', 'comp_online_qualifier_2026', 'usr_athlete_mike', 'tmem_mike_online', 'slvl_online_rx', strftime('%s', 'now'), 'PAID', strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Sarah - RX Division
+('creg_sarah_online', 'comp_online_qualifier_2026', 'usr_athlete_sarah', 'tmem_sarah_online', 'slvl_online_rx', strftime('%s', 'now'), 'PAID', strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Alex - Masters Division
+('creg_alex_online', 'comp_online_qualifier_2026', 'usr_athlete_alex', 'tmem_alex_online', 'slvl_online_masters', strftime('%s', 'now'), 'PAID', strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Workouts for Online Qualifier (remixed versions owned by organizing team)
+INSERT OR IGNORE INTO workouts (id, name, description, scheme, scope, team_id, rounds_to_score, time_cap, source_workout_id, createdAt, updatedAt, updateCounter) VALUES
+-- Event 1: Online Fran
+('wod_online_fran', 'Online Qualifier Event 1 - Fran', 'For time:
+
+21-15-9 reps of:
+• Thrusters (95/65 lb)
+• Pull-ups
+
+Time cap: 10 minutes
+
+Movement Standards:
+- Thrusters: Full depth squat, bar finishes overhead with hips and knees fully extended
+- Pull-ups: Chin must break the horizontal plane of the bar', 'time-with-cap', 'private', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 1, 600, 'wod_fran', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Event 2: Online Karen
+('wod_online_karen', 'Online Qualifier Event 2 - Karen', 'For time:
+
+150 Wall Ball Shots (20/14 lb to 10/9 ft)
+
+Time cap: 15 minutes
+
+Movement Standards:
+- Wall Ball: Hip crease must pass below knee at bottom
+- Ball must hit target at or above required height', 'time-with-cap', 'private', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 1, 900, 'wod_karen', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Event 3: Online AMRAP
+('wod_online_amrap', 'Online Qualifier Event 3 - Chipper AMRAP', 'AMRAP 12 minutes:
+
+5 Deadlifts (225/155 lb)
+10 Box Jump Overs (24/20 in)
+15 Toes-to-Bar
+
+Movement Standards:
+- Deadlifts: Full hip and knee extension at top
+- Box Jump Overs: Two-foot takeoff, both feet must touch top of box
+- Toes-to-Bar: Both feet must touch the bar simultaneously', 'rounds-reps', 'private', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 1, NULL, NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Track Workouts (Competition Events) for Online Qualifier
+-- eventStatus: 'published' makes them visible to athletes
+INSERT OR IGNORE INTO track_workout (id, trackId, workoutId, trackOrder, notes, pointsMultiplier, heatStatus, eventStatus, createdAt, updatedAt, updateCounter) VALUES
+('tw_online_event1', 'track_online_qualifier_2026', 'wod_online_fran', 1, 'Event 1: Complete Fran and submit your video within the submission window.', 100, 'draft', 'published', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tw_online_event2', 'track_online_qualifier_2026', 'wod_online_karen', 2, 'Event 2: Complete Karen and submit your video within the submission window.', 100, 'draft', 'published', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tw_online_event3', 'track_online_qualifier_2026', 'wod_online_amrap', 3, 'Event 3: Complete the AMRAP and submit your video within the submission window.', 150, 'draft', 'published', strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Competition Events (Submission Windows) for Online Qualifier
+-- Event 1: Open now for 7 days
+-- Event 2: Opens in 3 days, closes in 10 days
+-- Event 3: Opens in 7 days, closes in 14 days
+INSERT OR IGNORE INTO competition_events (id, competitionId, trackWorkoutId, submissionOpensAt, submissionClosesAt, createdAt, updatedAt, updateCounter) VALUES
+-- Event 1: Submission window is OPEN NOW (for testing)
+('cevt_online_event1', 'comp_online_qualifier_2026', 'tw_online_event1',
+ datetime('now', '-1 day'),
+ datetime('now', '+6 days'),
+ strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Event 2: Opens in 3 days (for testing "window not open yet")
+('cevt_online_event2', 'comp_online_qualifier_2026', 'tw_online_event2',
+ datetime('now', '+3 days'),
+ datetime('now', '+10 days'),
+ strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Event 3: Opens in 7 days
+('cevt_online_event3', 'comp_online_qualifier_2026', 'tw_online_event3',
+ datetime('now', '+7 days'),
+ datetime('now', '+14 days'),
+ strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- ============================================
+-- END ONLINE COMPETITION SEED DATA
+-- 
+-- To test video submission:
+-- 1. Log in as john@example.com (demo user, registered for online comp)
+-- 2. Go to /compete/online-qualifier-2026/workouts/tw_online_event1
+-- 3. You should see the Video Submission card in the sidebar
+-- 4. Event 1 submission window is open - you can submit
+-- 5. Event 2 window not open yet - shows when it opens
+-- 6. Event 3 window not open yet - shows when it opens
+--
+-- To test "not registered" scenario:
+-- 1. Log in as admin@example.com (not registered)
+-- 2. Go to same URL - should see "Registration Required"
+-- ============================================

@@ -3,12 +3,24 @@
  * Port from apps/wodsmith/src/server/competition-heats.ts
  *
  * This file uses top-level imports for server-only modules.
+ *
+ * OBSERVABILITY:
+ * - Heat creation/deletion operations are logged with entity IDs
+ * - Bulk operations include counts
+ * - Heat assignments track athlete placement
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { asc, eq, inArray } from "drizzle-orm"
+import { and, asc, eq, inArray, isNotNull } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import {
+	addRequestContextAttribute,
+	logEntityCreated,
+	logEntityDeleted,
+	logInfo,
+} from "@/lib/logging"
+import { addressesTable } from "@/db/schemas/addresses"
 import {
 	type CompetitionHeat,
 	type CompetitionVenue,
@@ -23,7 +35,7 @@ import {
 } from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { userTable } from "@/db/schemas/users"
+import { ROLES_ENUM, userTable } from "@/db/schemas/users"
 import { workouts } from "@/db/schemas/workouts"
 import { getSessionFromCookie } from "@/utils/auth"
 import { chunk, SQL_BATCH_SIZE } from "@/utils/batch-query"
@@ -96,6 +108,7 @@ const createVenueInputSchema = z.object({
 	laneCount: z.number().int().min(1).max(100).default(3),
 	transitionMinutes: z.number().int().min(0).max(120).default(3),
 	sortOrder: z.number().int().min(0).optional(),
+	addressId: z.string().min(1).optional(),
 })
 
 const updateVenueInputSchema = z.object({
@@ -104,6 +117,7 @@ const updateVenueInputSchema = z.object({
 	laneCount: z.number().int().min(1).max(100).optional(),
 	transitionMinutes: z.number().int().min(0).max(120).optional(),
 	sortOrder: z.number().int().min(0).optional(),
+	addressId: z.string().min(1).optional(),
 })
 
 const deleteVenueInputSchema = z.object({
@@ -139,6 +153,7 @@ const createHeatInputSchema = z.object({
 
 const updateHeatInputSchema = z.object({
 	heatId: z.string().min(1, "Heat ID is required"),
+	heatNumber: z.number().int().min(1).optional(),
 	scheduledTime: z.coerce.date().nullable().optional(),
 	venueId: z.string().nullable().optional(),
 	divisionId: z.string().nullable().optional(),
@@ -174,6 +189,16 @@ const bulkCreateHeatsInputSchema = z.object({
 	),
 })
 
+const bulkUpdateHeatsInputSchema = z.object({
+	heats: z.array(
+		z.object({
+			heatId: z.string().min(1, "Heat ID is required"),
+			scheduledTime: z.coerce.date().nullable().optional(),
+			durationMinutes: z.number().int().min(1).max(180).nullable().optional(),
+		}),
+	),
+})
+
 const copyHeatsFromEventInputSchema = z.object({
 	sourceTrackWorkoutId: z
 		.string()
@@ -198,6 +223,15 @@ const getEventsWithHeatsInputSchema = z.object({
 
 const getHeatPublishStatusInputSchema = z.object({
 	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+})
+
+const getVenueForTrackWorkoutInputSchema = z.object({
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+})
+
+const getVenueForTrackWorkoutByDivisionInputSchema = z.object({
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+	divisionId: z.string().optional(),
 })
 
 const publishHeatScheduleInputSchema = z.object({
@@ -410,7 +444,7 @@ export const getHeatsForCompetitionFn = createServerFn({ method: "GET" })
 
 /**
  * Get all venues for a competition
- * Returns venues sorted by sortOrder
+ * Returns venues sorted by sortOrder with address data
  */
 export const getCompetitionVenuesFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) =>
@@ -419,11 +453,23 @@ export const getCompetitionVenuesFn = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
-		const venues = await db
-			.select()
+		const venuesWithAddresses = await db
+			.select({
+				venue: competitionVenuesTable,
+				address: addressesTable,
+			})
 			.from(competitionVenuesTable)
+			.leftJoin(
+				addressesTable,
+				eq(competitionVenuesTable.addressId, addressesTable.id),
+			)
 			.where(eq(competitionVenuesTable.competitionId, data.competitionId))
 			.orderBy(asc(competitionVenuesTable.sortOrder))
+
+		const venues = venuesWithAddresses.map(({ venue, address }) => ({
+			...venue,
+			address,
+		}))
 
 		return { venues }
 	})
@@ -456,6 +502,7 @@ export const createVenueFn = createServerFn({ method: "POST" })
 				laneCount: data.laneCount,
 				transitionMinutes: data.transitionMinutes,
 				sortOrder,
+				addressId: data.addressId ?? null,
 			})
 			.returning()
 
@@ -484,6 +531,7 @@ export const updateVenueFn = createServerFn({ method: "POST" })
 		if (data.transitionMinutes !== undefined)
 			updateData.transitionMinutes = data.transitionMinutes
 		if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder
+		if (data.addressId !== undefined) updateData.addressId = data.addressId
 
 		await db
 			.update(competitionVenuesTable)
@@ -630,6 +678,11 @@ export const createHeatFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
+		// Update request context
+		addRequestContextAttribute("competitionId", data.competitionId)
+		addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
+
+		const now = new Date()
 		const [heat] = await db
 			.insert(competitionHeatsTable)
 			.values({
@@ -641,12 +694,28 @@ export const createHeatFn = createServerFn({ method: "POST" })
 				divisionId: data.divisionId ?? null,
 				durationMinutes: data.durationMinutes ?? null,
 				notes: data.notes ?? null,
+				// Auto-publish when scheduledTime is set
+				schedulePublishedAt: data.scheduledTime ? now : null,
 			})
 			.returning()
 
 		if (!heat) {
 			throw new Error("Failed to create heat")
 		}
+
+		addRequestContextAttribute("heatId", heat.id)
+		logEntityCreated({
+			entity: "heat",
+			id: heat.id,
+			parentEntity: "competition",
+			parentId: data.competitionId,
+			attributes: {
+				trackWorkoutId: data.trackWorkoutId,
+				heatNumber: data.heatNumber,
+				venueId: data.venueId,
+				divisionId: data.divisionId,
+			},
+		})
 
 		return { heat }
 	})
@@ -659,12 +728,17 @@ export const updateHeatFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
+		const now = new Date()
 		const updateData: Record<string, unknown> = {
-			updatedAt: new Date(),
+			updatedAt: now,
 		}
 
-		if (data.scheduledTime !== undefined)
+		if (data.heatNumber !== undefined) updateData.heatNumber = data.heatNumber
+		if (data.scheduledTime !== undefined) {
 			updateData.scheduledTime = data.scheduledTime
+			// Auto-publish when scheduledTime is set, unpublish when cleared
+			updateData.schedulePublishedAt = data.scheduledTime ? now : null
+		}
 		if (data.venueId !== undefined) updateData.venueId = data.venueId
 		if (data.divisionId !== undefined) updateData.divisionId = data.divisionId
 		if (data.durationMinutes !== undefined)
@@ -688,9 +762,16 @@ export const deleteHeatFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
+		addRequestContextAttribute("heatId", data.heatId)
+
 		await db
 			.delete(competitionHeatsTable)
 			.where(eq(competitionHeatsTable.id, data.heatId))
+
+		logEntityDeleted({
+			entity: "heat",
+			id: data.heatId,
+		})
 
 		return { success: true }
 	})
@@ -852,6 +933,8 @@ export const assignToHeatFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
+		addRequestContextAttribute("heatId", data.heatId)
+
 		const [assignment] = await db
 			.insert(competitionHeatAssignmentsTable)
 			.values({
@@ -865,6 +948,17 @@ export const assignToHeatFn = createServerFn({ method: "POST" })
 			throw new Error("Failed to create heat assignment")
 		}
 
+		logEntityCreated({
+			entity: "heatAssignment",
+			id: assignment.id,
+			parentEntity: "heat",
+			parentId: data.heatId,
+			attributes: {
+				registrationId: data.registrationId,
+				laneNumber: data.laneNumber,
+			},
+		})
+
 		return { assignment }
 	})
 
@@ -876,6 +970,8 @@ export const bulkAssignToHeatFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => bulkAssignToHeatInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		const db = getDb()
+
+		addRequestContextAttribute("heatId", data.heatId)
 
 		if (data.registrationIds.length === 0) {
 			return { assignments: [] }
@@ -900,7 +996,18 @@ export const bulkAssignToHeatFn = createServerFn({ method: "POST" })
 			),
 		)
 
-		return { assignments: results.flat() }
+		const createdAssignments = results.flat()
+
+		logInfo({
+			message: "[Heat] Bulk heat assignments created",
+			attributes: {
+				heatId: data.heatId,
+				assignmentCount: createdAssignments.length,
+				startingLane: data.startingLane,
+			},
+		})
+
+		return { assignments: createdAssignments }
 	})
 
 /**
@@ -1137,6 +1244,10 @@ export const bulkCreateHeatsFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
+		// Update request context
+		addRequestContextAttribute("competitionId", data.competitionId)
+		addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
+
 		if (data.heats.length === 0) {
 			return { heats: [] }
 		}
@@ -1145,6 +1256,7 @@ export const bulkCreateHeatsFn = createServerFn({ method: "POST" })
 		const startNumber = await getNextHeatNumberInternal(data.trackWorkoutId)
 
 		// Prepare heats to create
+		const now = new Date()
 		const heatsToCreate = data.heats.map((heat, index) => ({
 			competitionId: data.competitionId,
 			trackWorkoutId: data.trackWorkoutId,
@@ -1154,6 +1266,8 @@ export const bulkCreateHeatsFn = createServerFn({ method: "POST" })
 			durationMinutes: heat.durationMinutes ?? null,
 			divisionId: heat.divisionId ?? null,
 			notes: null,
+			// Auto-publish when scheduledTime is set
+			schedulePublishedAt: heat.scheduledTime ? now : null,
 		}))
 
 		// D1 has a 100 param limit, competitionHeatsTable has ~12 columns
@@ -1166,7 +1280,68 @@ export const bulkCreateHeatsFn = createServerFn({ method: "POST" })
 			),
 		)
 
-		return { heats: results.flat() }
+		const createdHeats = results.flat()
+
+		logInfo({
+			message: "[Heat] Bulk heats created",
+			attributes: {
+				competitionId: data.competitionId,
+				trackWorkoutId: data.trackWorkoutId,
+				heatCount: createdHeats.length,
+				heatIds: createdHeats.map((h) => h.id),
+			},
+		})
+
+		return { heats: createdHeats }
+	})
+
+/**
+ * Bulk update existing heats' scheduled times and durations
+ * Updates multiple heats at once, useful for adjusting heat schedules
+ */
+export const bulkUpdateHeatsFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => bulkUpdateHeatsInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		if (data.heats.length === 0) {
+			return { success: true, updatedCount: 0 }
+		}
+
+		const now = new Date()
+
+		// Update each heat individually (D1 doesn't support batch updates with different values)
+		await Promise.all(
+			data.heats.map((heat) => {
+				const updateData: Record<string, unknown> = {
+					updatedAt: now,
+				}
+
+				if (heat.scheduledTime !== undefined) {
+					updateData.scheduledTime = heat.scheduledTime
+					// Auto-publish when scheduledTime is set, unpublish when cleared
+					updateData.schedulePublishedAt = heat.scheduledTime ? now : null
+				}
+				if (heat.durationMinutes !== undefined) {
+					updateData.durationMinutes = heat.durationMinutes
+				}
+
+				return db
+					.update(competitionHeatsTable)
+					.set(updateData)
+					.where(eq(competitionHeatsTable.id, heat.heatId))
+			}),
+		)
+
+		logInfo({
+			message: "[Heat] Bulk heats updated",
+			attributes: {
+				heatCount: data.heats.length,
+				heatIds: data.heats.map((h) => h.heatId),
+			},
+		})
+
+		return { success: true, updatedCount: data.heats.length }
 	})
 
 /**
@@ -1462,6 +1637,25 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
+		// Update request context
+		addRequestContextAttribute(
+			"sourceTrackWorkoutId",
+			data.sourceTrackWorkoutId,
+		)
+		addRequestContextAttribute(
+			"targetTrackWorkoutId",
+			data.targetTrackWorkoutId,
+		)
+
+		logInfo({
+			message: "[Heat] Copy heats from event started",
+			attributes: {
+				sourceTrackWorkoutId: data.sourceTrackWorkoutId,
+				targetTrackWorkoutId: data.targetTrackWorkoutId,
+				copyAssignments: data.copyAssignments,
+			},
+		})
+
 		// Fetch source heats with assignments (sorted by heat number)
 		const sourceHeats = await getHeatsForWorkoutInternal(
 			data.sourceTrackWorkoutId,
@@ -1510,6 +1704,7 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 		const timeSlotMinutes = durationMinutes + data.transitionMinutes
 
 		// Create new heats with calculated times
+		const now = new Date()
 		const heatsToCreate: Array<{
 			competitionId: string
 			trackWorkoutId: string
@@ -1519,6 +1714,7 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 			durationMinutes: number | null
 			divisionId: string | null
 			notes: string | null
+			schedulePublishedAt: Date
 		}> = []
 
 		for (let i = 0; i < sourceHeats.length; i++) {
@@ -1540,6 +1736,8 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 				durationMinutes: durationMinutes,
 				divisionId: sourceHeat.divisionId,
 				notes: sourceHeat.notes,
+				// Auto-publish since scheduledTime is always set when copying
+				schedulePublishedAt: now,
 			})
 		}
 
@@ -1595,12 +1793,147 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 
 		// Return the newly created heats with assignments
 		const result = await getHeatsForWorkoutInternal(data.targetTrackWorkoutId)
+
+		logInfo({
+			message: "[Heat] Copy heats from event completed",
+			attributes: {
+				sourceTrackWorkoutId: data.sourceTrackWorkoutId,
+				targetTrackWorkoutId: data.targetTrackWorkoutId,
+				heatsCreated: result.length,
+				copyAssignments: data.copyAssignments,
+			},
+		})
+
 		return { heats: result }
 	})
 
 // ============================================================================
 // Heat Publishing Server Functions
 // ============================================================================
+
+/**
+ * Get venue information for a track workout
+ * Finds the first heat for this workout and returns its venue with address
+ * Note: Does not filter by schedulePublishedAt - returns venue even if heats aren't published
+ */
+export const getVenueForTrackWorkoutFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		getVenueForTrackWorkoutInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Find first heat for this workout (no schedulePublishedAt filter)
+		const heat = await db
+			.select({ venueId: competitionHeatsTable.venueId })
+			.from(competitionHeatsTable)
+			.where(eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId))
+			.orderBy(asc(competitionHeatsTable.heatNumber))
+			.get()
+
+		if (!heat?.venueId) {
+			return { venue: null }
+		}
+
+		// Fetch venue with address
+		const venueWithAddress = await db
+			.select({
+				venue: competitionVenuesTable,
+				address: addressesTable,
+			})
+			.from(competitionVenuesTable)
+			.leftJoin(
+				addressesTable,
+				eq(competitionVenuesTable.addressId, addressesTable.id),
+			)
+			.where(eq(competitionVenuesTable.id, heat.venueId))
+			.get()
+
+		if (!venueWithAddress) {
+			return { venue: null }
+		}
+
+		return {
+			venue: {
+				id: venueWithAddress.venue.id,
+				name: venueWithAddress.venue.name,
+				address: venueWithAddress.address,
+			},
+		}
+	})
+
+/**
+ * Get venue information for a track workout, optionally filtered by division
+ * Finds the first heat for this workout (optionally for a specific division) and returns its venue with address
+ * Falls back to any heat if no division-specific heat is found
+ * Note: Does not filter by schedulePublishedAt - returns venue even if heats aren't published
+ */
+export const getVenueForTrackWorkoutByDivisionFn = createServerFn({
+	method: "GET",
+})
+	.inputValidator((data: unknown) =>
+		getVenueForTrackWorkoutByDivisionInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		let heat: { venueId: string | null } | undefined
+
+		// Try to find heat with division filter first
+		if (data.divisionId) {
+			heat = await db
+				.select({ venueId: competitionHeatsTable.venueId })
+				.from(competitionHeatsTable)
+				.where(
+					and(
+						eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId),
+						eq(competitionHeatsTable.divisionId, data.divisionId),
+					),
+				)
+				.orderBy(asc(competitionHeatsTable.heatNumber))
+				.get()
+		}
+
+		// Fallback: find any heat for this workout if no division-specific one found
+		if (!heat?.venueId) {
+			heat = await db
+				.select({ venueId: competitionHeatsTable.venueId })
+				.from(competitionHeatsTable)
+				.where(eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId))
+				.orderBy(asc(competitionHeatsTable.heatNumber))
+				.get()
+		}
+
+		if (!heat?.venueId) {
+			return { venue: null }
+		}
+
+		// Fetch venue with address
+		const venueWithAddress = await db
+			.select({
+				venue: competitionVenuesTable,
+				address: addressesTable,
+			})
+			.from(competitionVenuesTable)
+			.leftJoin(
+				addressesTable,
+				eq(competitionVenuesTable.addressId, addressesTable.id),
+			)
+			.where(eq(competitionVenuesTable.id, heat.venueId))
+			.get()
+
+		if (!venueWithAddress) {
+			return { venue: null }
+		}
+
+		return {
+			venue: {
+				id: venueWithAddress.venue.id,
+				name: venueWithAddress.venue.name,
+				address: venueWithAddress.address,
+			},
+		}
+	})
 
 /**
  * Get publish status for all heats of an event (track workout)
@@ -1648,9 +1981,13 @@ export const publishHeatScheduleFn = createServerFn({ method: "POST" })
 			throw new Error("Not authenticated")
 		}
 
-		// Check permission
+		// Check permission (site admins bypass)
+		const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
 		const team = session.teams?.find((t) => t.id === data.organizingTeamId)
-		if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
+		if (
+			!isSiteAdmin &&
+			!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+		) {
 			throw new Error("Missing required permission")
 		}
 
@@ -1687,9 +2024,13 @@ export const publishAllHeatsForEventFn = createServerFn({ method: "POST" })
 			throw new Error("Not authenticated")
 		}
 
-		// Check permission
+		// Check permission (site admins bypass)
+		const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
 		const team = session.teams?.find((t) => t.id === data.organizingTeamId)
-		if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
+		if (
+			!isSiteAdmin &&
+			!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+		) {
 			throw new Error("Missing required permission")
 		}
 
@@ -1727,4 +2068,270 @@ export const publishAllHeatsForEventFn = createServerFn({ method: "POST" })
 			updatedCount: heats.length,
 			schedulePublishedAt: data.publish ? now : null,
 		}
+	})
+
+// ============================================================================
+// Public Schedule Types
+// ============================================================================
+
+export interface PublicScheduleHeat {
+	id: string
+	heatNumber: number
+	scheduledTime: Date | null
+	durationMinutes: number | null
+	venue: { id: string; name: string } | null
+	division: { id: string; label: string } | null
+}
+
+export interface PublicScheduleEvent {
+	trackWorkoutId: string
+	eventName: string
+	trackOrder: number
+	heats: PublicScheduleHeat[]
+}
+
+// ============================================================================
+// Public Event Heats Server Function
+// ============================================================================
+
+const getPublicEventHeatsInputSchema = z.object({
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+})
+
+/**
+ * Get published heats for a single event (track workout).
+ * Only returns heats where schedulePublishedAt is set.
+ * Returns heats with venue and division info, ordered by heat number.
+ */
+export const getPublicEventHeatsFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) => getPublicEventHeatsInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Fetch only published heats for this event
+		const heats = await db
+			.select()
+			.from(competitionHeatsTable)
+			.where(
+				and(
+					eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId),
+					isNotNull(competitionHeatsTable.schedulePublishedAt),
+				),
+			)
+			.orderBy(asc(competitionHeatsTable.heatNumber))
+
+		if (heats.length === 0) {
+			return { heats: [] as PublicScheduleHeat[] }
+		}
+
+		// Collect unique IDs for batch lookups
+		const venueIds = [
+			...new Set(
+				heats.map((h) => h.venueId).filter((id): id is string => id !== null),
+			),
+		]
+		const divisionIds = [
+			...new Set(
+				heats
+					.map((h) => h.divisionId)
+					.filter((id): id is string => id !== null),
+			),
+		]
+
+		// Fetch venues
+		const venues =
+			venueIds.length > 0
+				? await db
+						.select({
+							id: competitionVenuesTable.id,
+							name: competitionVenuesTable.name,
+						})
+						.from(competitionVenuesTable)
+						.where(inArray(competitionVenuesTable.id, venueIds))
+				: []
+		const venueMap = new Map(venues.map((v) => [v.id, v]))
+
+		// Fetch divisions
+		const divisions =
+			divisionIds.length > 0
+				? await db
+						.select({
+							id: scalingLevelsTable.id,
+							label: scalingLevelsTable.label,
+						})
+						.from(scalingLevelsTable)
+						.where(inArray(scalingLevelsTable.id, divisionIds))
+				: []
+		const divisionMap = new Map(divisions.map((d) => [d.id, d]))
+
+		// Build result
+		const result: PublicScheduleHeat[] = heats.map((heat) => ({
+			id: heat.id,
+			heatNumber: heat.heatNumber,
+			scheduledTime: heat.scheduledTime,
+			durationMinutes: heat.durationMinutes,
+			venue: heat.venueId ? (venueMap.get(heat.venueId) ?? null) : null,
+			division: heat.divisionId
+				? (divisionMap.get(heat.divisionId) ?? null)
+				: null,
+		}))
+
+		return { heats: result }
+	})
+
+// ============================================================================
+// Public Schedule Server Function
+// ============================================================================
+
+const getPublicScheduleDataInputSchema = z.object({
+	competitionId: z.string().min(1, "Competition ID is required"),
+})
+
+/**
+ * Get published schedule data for the public event home page.
+ * Only returns heats where schedulePublishedAt is set (published heats).
+ * Groups heats by event (trackWorkout) with venue and division info.
+ */
+export const getPublicScheduleDataFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		getPublicScheduleDataInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Fetch only published heats
+		const heats = await db
+			.select()
+			.from(competitionHeatsTable)
+			.where(
+				and(
+					eq(competitionHeatsTable.competitionId, data.competitionId),
+					isNotNull(competitionHeatsTable.schedulePublishedAt),
+				),
+			)
+			.orderBy(
+				asc(competitionHeatsTable.scheduledTime),
+				asc(competitionHeatsTable.heatNumber),
+			)
+
+		if (heats.length === 0) {
+			return { events: [] }
+		}
+
+		// Collect unique IDs for batch lookups
+		const venueIds = [
+			...new Set(
+				heats.map((h) => h.venueId).filter((id): id is string => id !== null),
+			),
+		]
+		const divisionIds = [
+			...new Set(
+				heats
+					.map((h) => h.divisionId)
+					.filter((id): id is string => id !== null),
+			),
+		]
+		const trackWorkoutIds = [...new Set(heats.map((h) => h.trackWorkoutId))]
+
+		// Fetch venues
+		const venues =
+			venueIds.length > 0
+				? await db
+						.select({
+							id: competitionVenuesTable.id,
+							name: competitionVenuesTable.name,
+						})
+						.from(competitionVenuesTable)
+						.where(inArray(competitionVenuesTable.id, venueIds))
+				: []
+		const venueMap = new Map(venues.map((v) => [v.id, v]))
+
+		// Fetch divisions
+		const divisions =
+			divisionIds.length > 0
+				? await db
+						.select({
+							id: scalingLevelsTable.id,
+							label: scalingLevelsTable.label,
+						})
+						.from(scalingLevelsTable)
+						.where(inArray(scalingLevelsTable.id, divisionIds))
+				: []
+		const divisionMap = new Map(divisions.map((d) => [d.id, d]))
+
+		// Fetch trackWorkouts with workout names
+		const trackWorkoutBatches = await Promise.all(
+			chunk(trackWorkoutIds, BATCH_SIZE).map((batch) =>
+				db
+					.select({
+						id: trackWorkoutsTable.id,
+						workoutId: trackWorkoutsTable.workoutId,
+						trackOrder: trackWorkoutsTable.trackOrder,
+					})
+					.from(trackWorkoutsTable)
+					.where(inArray(trackWorkoutsTable.id, batch)),
+			),
+		)
+		const trackWorkouts = trackWorkoutBatches.flat()
+		const trackWorkoutMap = new Map(trackWorkouts.map((tw) => [tw.id, tw]))
+
+		// Fetch workout names
+		const workoutIds = [...new Set(trackWorkouts.map((tw) => tw.workoutId))]
+		const workoutBatches =
+			workoutIds.length > 0
+				? await Promise.all(
+						chunk(workoutIds, BATCH_SIZE).map((batch) =>
+							db
+								.select({
+									id: workouts.id,
+									name: workouts.name,
+								})
+								.from(workouts)
+								.where(inArray(workouts.id, batch)),
+						),
+					)
+				: []
+		const workoutNameMap = new Map(
+			workoutBatches.flat().map((w) => [w.id, w.name]),
+		)
+
+		// Group heats by event
+		const eventMap = new Map<string, PublicScheduleEvent>()
+
+		for (const heat of heats) {
+			const trackWorkout = trackWorkoutMap.get(heat.trackWorkoutId)
+			if (!trackWorkout) continue
+
+			const eventName =
+				workoutNameMap.get(trackWorkout.workoutId) || "Unknown Event"
+
+			let event = eventMap.get(heat.trackWorkoutId)
+			if (!event) {
+				event = {
+					trackWorkoutId: heat.trackWorkoutId,
+					eventName,
+					trackOrder: trackWorkout.trackOrder,
+					heats: [],
+				}
+				eventMap.set(heat.trackWorkoutId, event)
+			}
+
+			event.heats.push({
+				id: heat.id,
+				heatNumber: heat.heatNumber,
+				scheduledTime: heat.scheduledTime,
+				durationMinutes: heat.durationMinutes,
+				venue: heat.venueId ? (venueMap.get(heat.venueId) ?? null) : null,
+				division: heat.divisionId
+					? (divisionMap.get(heat.divisionId) ?? null)
+					: null,
+			})
+		}
+
+		// Sort events by trackOrder
+		const events = Array.from(eventMap.values()).sort(
+			(a, b) => a.trackOrder - b.trackOrder,
+		)
+
+		return { events }
 	})

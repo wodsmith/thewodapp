@@ -12,7 +12,7 @@ import {CloudflareStateStore} from 'alchemy/state'
 
 const stage = process.env.STAGE ?? 'dev'
 
-const app = await alchemy('wodsmith', {
+const app = await alchemy('wodsmith-docs', {
   stage,
   phase: process.argv.includes('--destroy') ? 'destroy' : 'up',
   stateStore: process.env.CI
@@ -29,9 +29,9 @@ const app = await alchemy('wodsmith', {
  */
 function getDomains(
   currentStage: string,
-): Array<{domainName: string; adopt: boolean}> | undefined {
+): Array<{domainName: string; adopt: boolean; override: boolean}> | undefined {
   if (currentStage === 'prod') {
-    return [{domainName: 'docs.wodsmith.com', adopt: true}]
+    return [{domainName: 'docs.wodsmith.com', adopt: true, override: true}]
   }
   return undefined
 }

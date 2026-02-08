@@ -11,3 +11,11 @@ export {
 	notifyVolunteerApproved,
 	notifyVolunteerSignupReceived,
 } from "./compete"
+
+export {
+	type ProcessedNotificationResult,
+	processSubmissionWindowNotifications,
+	sendWindowClosedNotification,
+	sendWindowClosesReminderNotification,
+	sendWindowOpensNotification,
+} from "./submission-window"

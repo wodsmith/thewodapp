@@ -225,16 +225,15 @@ describe("Waiver Server Functions", () => {
 
 			await getWaiver("specific-waiver-id")
 
-			const findFirstCall = mockDb.query.waiversTable.findFirst.mock.calls[0]![0]
+			const findFirstCall =
+				mockDb.query.waiversTable.findFirst.mock.calls[0]![0]
 			expect(findFirstCall).toHaveProperty("where")
 		})
 	})
 
 	describe("getWaiverSignaturesForRegistration", () => {
 		it("should return signatures with waiver relation", async () => {
-			const mockSignatures: Array<
-				WaiverSignature & { waiver: Waiver }
-			> = [
+			const mockSignatures: Array<WaiverSignature & { waiver: Waiver }> = [
 				{
 					id: "sig-1",
 					waiverId: "waiver-1",
@@ -272,8 +271,10 @@ describe("Waiver Server Functions", () => {
 			const result = await getWaiverSignaturesForRegistration("reg-456")
 
 			expect(result).toEqual(mockSignatures)
-			expect((result[0] as typeof mockSignatures[0])!.waiver).toBeDefined()
-			expect((result[0] as typeof mockSignatures[0])!.waiver?.title).toBe("Liability Waiver")
+			expect((result[0] as (typeof mockSignatures)[0])!.waiver).toBeDefined()
+			expect((result[0] as (typeof mockSignatures)[0])!.waiver?.title).toBe(
+				"Liability Waiver",
+			)
 			expect(mockDb.query.waiverSignaturesTable.findMany).toHaveBeenCalledWith({
 				where: expect.anything(),
 				with: { waiver: true },
@@ -317,9 +318,7 @@ describe("Waiver Server Functions", () => {
 		})
 
 		it("should include waiver relation for each signature", async () => {
-			const mockSignatures: Array<
-				WaiverSignature & { waiver: Waiver }
-			> = [
+			const mockSignatures: Array<WaiverSignature & { waiver: Waiver }> = [
 				{
 					id: "sig-1",
 					waiverId: "waiver-1",
@@ -379,10 +378,14 @@ describe("Waiver Server Functions", () => {
 			const result = await getWaiverSignaturesForRegistration("reg-456")
 
 			expect(result).toHaveLength(2)
-			expect((result[0] as typeof mockSignatures[0])!.waiver).toBeDefined()
-			expect((result[1] as typeof mockSignatures[1])!.waiver).toBeDefined()
-			expect((result[0] as typeof mockSignatures[0])!.waiver?.id).toBe("waiver-1")
-			expect((result[1] as typeof mockSignatures[1])!.waiver?.id).toBe("waiver-2")
+			expect((result[0] as (typeof mockSignatures)[0])!.waiver).toBeDefined()
+			expect((result[1] as (typeof mockSignatures)[1])!.waiver).toBeDefined()
+			expect((result[0] as (typeof mockSignatures)[0])!.waiver?.id).toBe(
+				"waiver-1",
+			)
+			expect((result[1] as (typeof mockSignatures)[1])!.waiver?.id).toBe(
+				"waiver-2",
+			)
 		})
 	})
 
@@ -402,9 +405,7 @@ describe("Waiver Server Functions", () => {
 				},
 			]
 
-			const mockSignatures: Array<
-				WaiverSignature & { waiver: Waiver }
-			> = [
+			const mockSignatures: Array<WaiverSignature & { waiver: Waiver }> = [
 				{
 					id: "sig-1",
 					waiverId: "waiver-1",
@@ -435,7 +436,7 @@ describe("Waiver Server Functions", () => {
 			const result = await getWaiverSignaturesForUser("user-123", "comp-123")
 
 			expect(result).toEqual(mockSignatures)
-			expect((result[0] as typeof mockSignatures[0])!.waiver).toBeDefined()
+			expect((result[0] as (typeof mockSignatures)[0])!.waiver).toBeDefined()
 		})
 
 		it("should return empty array when no waivers exist for competition", async () => {
@@ -611,9 +612,7 @@ describe("Waiver Server Functions", () => {
 				},
 			]
 
-			const mockSignatures: Array<
-				WaiverSignature & { waiver: Waiver }
-			> = [
+			const mockSignatures: Array<WaiverSignature & { waiver: Waiver }> = [
 				{
 					id: "sig-1",
 					waiverId: "waiver-1",

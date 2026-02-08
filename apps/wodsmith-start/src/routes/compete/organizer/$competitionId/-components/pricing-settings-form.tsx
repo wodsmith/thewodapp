@@ -298,7 +298,9 @@ export function PricingSettingsForm({
 						Example: For a $50 registration, platform fee is $50 x{" "}
 						{(platformPercentage / 100).toFixed(1)}% + $
 						{(platformFixed / 100).toFixed(2)} = $
-						{((50 * platformPercentage) / 10000 + platformFixed / 100).toFixed(2)}
+						{((50 * platformPercentage) / 10000 + platformFixed / 100).toFixed(
+							2,
+						)}
 					</p>
 				</CardContent>
 			</Card>

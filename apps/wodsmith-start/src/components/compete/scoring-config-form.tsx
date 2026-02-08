@@ -1,6 +1,8 @@
 "use client"
 
+import { RotateCcw } from "lucide-react"
 import { useState } from "react"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -13,13 +15,11 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
-import type { ScoringConfig, ScoringAlgorithm } from "@/types/scoring"
 import {
 	generatePointsTable,
 	WINNER_TAKES_MORE_TABLE,
 } from "@/lib/scoring/algorithms/custom"
-import { RotateCcw } from "lucide-react"
+import type { ScoringAlgorithm, ScoringConfig } from "@/types/scoring"
 
 /**
  * Editable points preview panel - click to edit values inline
@@ -34,7 +34,7 @@ function EditablePointsPreview({
 	disabled,
 }: {
 	algorithm: ScoringAlgorithm
-	baseTemplate: "traditional" | "winner_takes_more"
+	baseTemplate: "traditional" | "winner_takes_more" | "online"
 	basePoints: number[] | null
 	overrides: Record<string, number>
 	onPointEdit: (position: number, value: number) => void
@@ -45,7 +45,7 @@ function EditablePointsPreview({
 	const [editValue, setEditValue] = useState("")
 
 	// P-Score is dynamic, show explanation instead
-	if (!basePoints) {
+	if (!basePoints && algorithm === "p_score") {
 		return (
 			<div className="rounded-lg border bg-muted/20 p-6">
 				<h3 className="font-semibold mb-4">Points Preview</h3>
@@ -56,6 +56,42 @@ function EditablePointsPreview({
 				</p>
 			</div>
 		)
+	}
+
+	// Online scoring - static display, no customization
+	if (algorithm === "online" || baseTemplate === "online") {
+		return (
+			<div className="rounded-lg border bg-muted/20 p-6">
+				<h3 className="font-semibold mb-4">Points Preview</h3>
+				<p className="text-xs text-muted-foreground mb-3">
+					Points equal finishing position. Lowest total wins.
+				</p>
+				<div className="grid grid-cols-5 gap-2">
+					{Array.from({ length: 20 }, (_, idx) => {
+						const position = idx + 1
+						return (
+							<div
+								key={position}
+								className="flex flex-col items-center justify-center rounded-lg border bg-background h-14 w-full"
+							>
+								<span className="text-xs text-muted-foreground">
+									{position}.
+								</span>
+								<span className="text-lg font-semibold">{position}</span>
+							</div>
+						)
+					})}
+				</div>
+				<p className="text-xs text-muted-foreground mt-3">
+					Pattern continues: 21st = 21 pts, 22nd = 22 pts, etc.
+				</p>
+			</div>
+		)
+	}
+
+	// Other algorithms with null basePoints
+	if (!basePoints) {
+		return null
 	}
 
 	const hasOverrides = Object.keys(overrides).length > 0
@@ -69,7 +105,7 @@ function EditablePointsPreview({
 	const handleSaveEdit = () => {
 		if (editingPosition === null) return
 		const newValue = parseInt(editValue, 10)
-		if (!isNaN(newValue) && newValue >= 0) {
+		if (!Number.isNaN(newValue) && newValue >= 0) {
 			onPointEdit(editingPosition, newValue)
 		}
 		setEditingPosition(null)
@@ -208,7 +244,9 @@ interface ScoringConfigFormProps {
 }
 
 /**
- * Determine the base template from the current algorithm
+ * Determine the base template from the current algorithm (for custom table base)
+ * Note: Only traditional and winner_takes_more can be used as base templates
+ * Online and P-Score are not customizable
  */
 function getBaseTemplateFromAlgorithm(
 	algorithm: ScoringAlgorithm,
@@ -217,9 +255,28 @@ function getBaseTemplateFromAlgorithm(
 		case "traditional":
 		case "custom":
 		case "p_score":
+		case "online":
 			return "traditional"
 		case "winner_takes_more":
 			return "winner_takes_more"
+	}
+}
+
+/**
+ * Determine the preview template type (includes online for display purposes)
+ */
+function getPreviewTemplateFromAlgorithm(
+	algorithm: ScoringAlgorithm,
+): "traditional" | "winner_takes_more" | "online" {
+	switch (algorithm) {
+		case "traditional":
+		case "custom":
+		case "p_score":
+			return "traditional"
+		case "winner_takes_more":
+			return "winner_takes_more"
+		case "online":
+			return "online"
 	}
 }
 
@@ -417,6 +474,8 @@ export function ScoringConfigForm({
 				return [...WINNER_TAKES_MORE_TABLE]
 			case "p_score":
 				return null // P-Score is dynamic
+			case "online":
+				return null // Online is handled separately in preview
 			default:
 				return generatePointsTable("traditional", 100)
 		}
@@ -580,6 +639,34 @@ export function ScoringConfigForm({
 												median get more points proportional to their margin,
 												athletes below get fewer points (or negative if
 												enabled).
+											</p>
+										</div>
+									</div>
+								)}
+							</div>
+
+							{/* Online Option */}
+							<div className="space-y-2">
+								<div className="flex items-center space-x-2">
+									<RadioGroupItem value="online" id="algo-online" />
+									<Label htmlFor="algo-online">Online</Label>
+								</div>
+								{displayAlgorithm === "online" && (
+									<div className="ml-6 space-y-3">
+										<p className="text-xs text-muted-foreground">
+											Points equal finishing position (1st = 1 pt, 2nd = 2 pts,
+											etc.). Ideal for online competitions where the total
+											number of participants is unknown. Lowest total score
+											wins, similar to golf scoring.
+										</p>
+										<div className="rounded bg-muted/50 p-3 text-xs text-muted-foreground">
+											<p className="font-medium">How Online scoring works:</p>
+											<p className="mt-1">
+												Each event awards points equal to the athlete's
+												finishing position. Athletes aim for the lowest total
+												across all events. This system works well for any field
+												size since points are determined by relative
+												performance, not a fixed table.
 											</p>
 										</div>
 									</div>
@@ -796,9 +883,7 @@ export function ScoringConfigForm({
 					baseTemplate={
 						value.algorithm === "custom"
 							? (value.customTable?.baseTemplate ?? "traditional")
-							: value.algorithm === "winner_takes_more"
-								? "winner_takes_more"
-								: "traditional"
+							: getPreviewTemplateFromAlgorithm(value.algorithm)
 					}
 					basePoints={basePoints}
 					overrides={overrides}

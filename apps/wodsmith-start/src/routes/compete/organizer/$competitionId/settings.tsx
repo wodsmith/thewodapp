@@ -8,15 +8,15 @@ export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/settings",
 )({
 	loader: async ({ params }) => {
-		const result = await getCompetitionByIdFn({
+		const { competition } = await getCompetitionByIdFn({
 			data: { competitionId: params.competitionId },
 		})
 
-		if (!result.competition) {
+		if (!competition) {
 			throw new Error("Competition not found")
 		}
 
-		return { competition: result.competition }
+		return { competition }
 	},
 	component: SettingsPage,
 	head: ({ loaderData }) => {

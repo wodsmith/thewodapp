@@ -6,16 +6,16 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
+import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
-import { eq, and, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
 import { competitionsTable } from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { waiversTable, waiverSignaturesTable } from "@/db/schemas/waivers"
 import type { Waiver, WaiverSignature } from "@/db/schemas/waivers"
+import { waiverSignaturesTable, waiversTable } from "@/db/schemas/waivers"
 import { getSessionFromCookie } from "@/utils/auth"
-import { hasTeamPermission } from "@/utils/team-auth"
 import { autochunk } from "@/utils/batch-query"
+import { hasTeamPermission } from "@/utils/team-auth"
 
 // Re-export types for consumers
 export type { Waiver, WaiverSignature }
@@ -229,6 +229,82 @@ export const getWaiverSignaturesForUserFn = createServerFn({ method: "GET" })
 
 		return { signatures }
 	})
+
+/**
+ * Get all waiver signatures for a competition (organizer view)
+ * Returns signatures grouped by waiverId and userId for easy lookup
+ * Requires MANAGE_PROGRAMMING permission
+ */
+export const getCompetitionWaiverSignaturesFn = createServerFn({
+	method: "GET",
+})
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				competitionId: z.string().min(1),
+				teamId: z.string().min(1),
+			})
+			.parse(data),
+	)
+	.handler(
+		async ({
+			data,
+		}): Promise<{
+			signatures: Array<{
+				id: string
+				waiverId: string
+				userId: string
+				signedAt: Date
+			}>
+		}> => {
+			const session = await getSessionFromCookie()
+			if (!session) {
+				throw new Error("Authentication required")
+			}
+
+			// Check permission
+			const hasAccess = await hasTeamPermission(
+				data.teamId,
+				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			)
+			if (!hasAccess) {
+				throw new Error("Permission denied")
+			}
+
+			// Validate competition belongs to team
+			await validateCompetitionOwnership(data.competitionId, data.teamId)
+
+			const db = getDb()
+
+			// Get all waivers for this competition
+			const waivers = await db.query.waiversTable.findMany({
+				where: eq(waiversTable.competitionId, data.competitionId),
+			})
+
+			if (waivers.length === 0) {
+				return { signatures: [] }
+			}
+
+			const waiverIds = waivers.map((w) => w.id)
+
+			// Get all signatures for these waivers
+			const signatures = await autochunk(
+				{ items: waiverIds, otherParametersCount: 0 },
+				async (chunk) =>
+					db.query.waiverSignaturesTable.findMany({
+						columns: {
+							id: true,
+							waiverId: true,
+							userId: true,
+							signedAt: true,
+						},
+						where: inArray(waiverSignaturesTable.waiverId, chunk),
+					}),
+			)
+
+			return { signatures }
+		},
+	)
 
 /**
  * Create a new waiver for a competition

@@ -1,7 +1,6 @@
 "use client"
 
 import {
-	Calendar,
 	ChevronDown,
 	ExternalLink,
 	Trophy,
@@ -47,7 +46,6 @@ interface EventDetailsContentProps {
 	divisions?: DivisionWithDetails[]
 	sponsors?: SponsorsData
 	workoutsContent?: React.ReactNode
-	scheduleContent?: React.ReactNode
 }
 
 function formatPrice(cents: number): string {
@@ -60,7 +58,6 @@ export function EventDetailsContent({
 	divisions,
 	sponsors,
 	workoutsContent,
-	scheduleContent,
 }: EventDetailsContentProps) {
 	const hasDivisions = divisions && divisions.length > 0
 	const hasSponsors =
@@ -157,16 +154,6 @@ export function EventDetailsContent({
 				)}
 			</section>
 
-			{/* Schedule Section */}
-			<section>
-				<div className="flex items-center gap-2 mb-4">
-					<Calendar className="h-5 w-5 text-muted-foreground" />
-					<h2 className="text-xl font-semibold">Schedule</h2>
-				</div>
-				<Separator className="mb-4" />
-				{scheduleContent}
-			</section>
-
 			{/* Workouts Section */}
 			{workoutsContent}
 		</div>
@@ -176,7 +163,9 @@ export function EventDetailsContent({
 // Helper component for grouping divisions by price
 function DivisionsGroupedByPrice({
 	divisions,
-}: { divisions: DivisionWithDetails[] }) {
+}: {
+	divisions: DivisionWithDetails[]
+}) {
 	// Group divisions by price
 	const freeDivisions = divisions.filter((d) => d.feeCents === 0)
 	const paidDivisionsMap = new Map<number, DivisionWithDetails[]>()

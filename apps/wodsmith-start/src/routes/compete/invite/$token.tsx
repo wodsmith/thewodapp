@@ -10,6 +10,7 @@ import {
 	UserPlus,
 	Users,
 } from "lucide-react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -18,17 +19,35 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
 import {
 	checkEmailExistsFn,
+	getPendingInviteDataFn,
 	getSessionInfoFn,
 	getTeammateInviteFn,
 	getVolunteerInviteFn,
 	type TeammateInvite,
 	type VolunteerInvite,
 } from "@/server-fns/invite-fns"
+import {
+	getCompetitionQuestionsFn,
+	type RegistrationQuestion,
+} from "@/server-fns/registration-questions-fns"
+import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
+import type { Waiver } from "@/db/schemas/waivers"
 import { AcceptInviteButton } from "./-components/accept-invite-button"
 import { AcceptVolunteerInviteForm } from "./-components/accept-volunteer-invite-form"
+import { GuestInviteForm } from "./-components/guest-invite-form"
 import { InviteSignUpForm } from "./-components/invite-signup-form"
+import { SuccessClaimPrompt } from "./-components/success-claim-prompt"
 
 export const Route = createFileRoute("/compete/invite/$token")({
 	loader: async ({ params }) => {
@@ -47,12 +66,43 @@ export const Route = createFileRoute("/compete/invite/$token")({
 			})
 		}
 
+		// Fetch questions for teammate invites
+		let teammateQuestions: RegistrationQuestion[] = []
+		if (teammateInvite?.competition?.id) {
+			const questionsResult = await getCompetitionQuestionsFn({
+				data: { competitionId: teammateInvite.competition.id },
+			})
+			// Filter to questions that are for teammates or required
+			teammateQuestions = questionsResult.questions.filter(
+				(q) => q.forTeammates || q.required,
+			)
+		}
+
+		let waivers: Waiver[] = []
+		if (teammateInvite?.competition?.id) {
+			const waiversResult = await getCompetitionWaiversFn({
+				data: { competitionId: teammateInvite.competition.id },
+			})
+			waivers = waiversResult.waivers
+		}
+
+		const pendingData = await getPendingInviteDataFn({
+			data: { token: params.token },
+		})
+		const hasPendingData = !!(
+			pendingData?.pendingAnswers?.length ||
+			pendingData?.pendingSignatures?.length
+		)
+
 		return {
 			volunteerInvite,
 			teammateInvite,
 			session,
 			emailHasAccount,
 			token: params.token,
+			teammateQuestions,
+			waivers,
+			hasPendingData,
 		}
 	},
 	component: InvitePage,
@@ -98,8 +148,18 @@ export const Route = createFileRoute("/compete/invite/$token")({
 })
 
 function InvitePage() {
-	const { volunteerInvite, teammateInvite, session, emailHasAccount, token } =
-		Route.useLoaderData()
+	const {
+		volunteerInvite,
+		teammateInvite,
+		session,
+		emailHasAccount,
+		token,
+		teammateQuestions,
+		waivers,
+		hasPendingData,
+	} = Route.useLoaderData()
+	const [guestSubmitComplete, setGuestSubmitComplete] = useState(false)
+	const showSuccess = guestSubmitComplete || hasPendingData
 
 	// First check if this is a volunteer invite
 	if (volunteerInvite) {
@@ -189,6 +249,9 @@ function InvitePage() {
 		)
 	}
 
+	// Note: Pending data transfer now happens automatically in acceptTeamInvitationFn
+	// when the user accepts the invite - no need for separate transfer logic
+
 	// Auth State 1: Logged in, email matches
 	if (session && session.email?.toLowerCase() === invite.email.toLowerCase()) {
 		return (
@@ -210,12 +273,40 @@ function InvitePage() {
 						{/* Invite Details */}
 						<InviteDetails invite={invite} />
 
-						<AcceptInviteButton
-							token={token}
-							competitionSlug={invite.competition?.slug}
-							competitionId={invite.competition?.id}
-							teamName={invite.team.name}
-						/>
+						{/* Registration Questions - only show if no pending data (guest already filled them) */}
+						{teammateQuestions &&
+							teammateQuestions.length > 0 &&
+							!hasPendingData && (
+								<TeammateQuestionsForm
+									questions={teammateQuestions}
+									token={token}
+									competitionSlug={invite.competition?.slug}
+									competitionId={invite.competition?.id}
+									teamName={invite.team.name}
+								/>
+							)}
+
+						{/* Simple accept button if no questions OR if pending data exists (will be transferred on accept) */}
+						{(!teammateQuestions ||
+							teammateQuestions.length === 0 ||
+							hasPendingData) && (
+							<>
+								{hasPendingData && (
+									<div className="rounded-lg bg-green-50 dark:bg-green-900/20 p-4 text-center">
+										<p className="text-sm text-green-700 dark:text-green-300">
+											Your registration answers have been saved. Click below to
+											join the team.
+										</p>
+									</div>
+								)}
+								<AcceptInviteButton
+									token={token}
+									competitionSlug={invite.competition?.slug}
+									competitionId={invite.competition?.id}
+									teamName={invite.team.name}
+								/>
+							</>
+						)}
 					</CardContent>
 				</Card>
 			</div>
@@ -229,16 +320,23 @@ function InvitePage() {
 				<Card>
 					<CardContent className="space-y-4 py-8 text-center">
 						<AlertCircle className="mx-auto h-12 w-12 text-yellow-500" />
-						<h2 className="text-xl font-semibold">Wrong Account</h2>
+						<h2 className="text-xl font-semibold">Different Account</h2>
 						<p className="text-muted-foreground">
 							This invite was sent to <strong>{invite.email}</strong>.
 							You&apos;re currently logged in as{" "}
 							<strong>{session.email}</strong>.
 						</p>
 						<p className="text-sm text-muted-foreground">
-							Please sign out and sign in with the correct account.
+							You can claim this invite with your current account, which will
+							update the registration email.
 						</p>
 						<div className="flex justify-center gap-3">
+							<AcceptInviteButton
+								token={token}
+								competitionSlug={invite.competition?.slug}
+								competitionId={invite.competition?.id}
+								teamName={invite.team.name}
+							/>
 							<Button asChild variant="outline">
 								<a href="/api/auth/sign-out">Sign Out</a>
 							</Button>
@@ -268,12 +366,29 @@ function InvitePage() {
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-6">
-					{/* Invite Details */}
-					<InviteDetails invite={invite} />
-
-					{emailHasAccount ? (
+					{showSuccess ? (
+						<SuccessClaimPrompt
+							teamName={invite.team.name}
+							competitionName={invite.competition?.name || "Competition"}
+							inviteToken={token}
+							emailHasAccount={emailHasAccount}
+						/>
+					) : teammateQuestions.length > 0 || waivers.length > 0 ? (
+						<>
+							<InviteDetails invite={invite} />
+							<GuestInviteForm
+								token={token}
+								questions={teammateQuestions}
+								waivers={waivers}
+								teamName={invite.team.name}
+								competitionName={invite.competition?.name || "Competition"}
+								onSuccess={() => setGuestSubmitComplete(true)}
+							/>
+						</>
+					) : emailHasAccount ? (
 						// Email has account - show sign in button
 						<>
+							<InviteDetails invite={invite} />
 							<div className="space-y-2">
 								<p className="text-center text-sm text-muted-foreground">
 									Invitation for <strong>{invite.email}</strong>
@@ -289,6 +404,7 @@ function InvitePage() {
 					) : (
 						// No account - show inline sign up form
 						<>
+							<InviteDetails invite={invite} />
 							<div className="space-y-2">
 								<p className="text-center text-sm text-muted-foreground">
 									Create an account to join the team
@@ -573,18 +689,33 @@ function DirectVolunteerInvite({
 		return (
 			<div className="container mx-auto max-w-lg py-16">
 				<Card>
-					<CardContent className="space-y-4 py-8 text-center">
-						<AlertCircle className="mx-auto h-12 w-12 text-yellow-500" />
-						<h2 className="text-xl font-semibold">Wrong Account</h2>
-						<p className="text-muted-foreground">
+					<CardHeader className="text-center">
+						<div className="mx-auto mb-4 w-fit rounded-full bg-yellow-500/10 p-3">
+							<AlertCircle className="h-8 w-8 text-yellow-500" />
+						</div>
+						<CardTitle className="text-2xl">Different Account</CardTitle>
+						<CardDescription>
 							This invite was sent to <strong>{invite.email}</strong>.
 							You&apos;re currently logged in as{" "}
 							<strong>{session.email}</strong>.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-6">
+						<p className="text-center text-sm text-muted-foreground">
+							You can claim this invite with your current account, which will
+							update the volunteer email.
 						</p>
-						<p className="text-sm text-muted-foreground">
-							Please sign out and sign in with the correct account.
-						</p>
-						<div className="flex justify-center gap-3">
+
+						<VolunteerInviteDetails invite={invite} />
+
+						<AcceptVolunteerInviteForm
+							token={token}
+							competitionSlug={invite.competition?.slug}
+							competitionId={invite.competition?.id}
+							competitionName={invite.competition?.name}
+						/>
+
+						<div className="flex justify-center">
 							<Button asChild variant="outline">
 								<a href="/api/auth/sign-out">Sign Out</a>
 							</Button>
@@ -652,6 +783,126 @@ function DirectVolunteerInvite({
 				</CardContent>
 			</Card>
 		</div>
+	)
+}
+
+/**
+ * Teammate questions form component
+ * Handles rendering questions and accepting invitation with answers
+ */
+function TeammateQuestionsForm({
+	questions,
+	token,
+	competitionSlug,
+	competitionId,
+	teamName,
+}: {
+	questions: RegistrationQuestion[]
+	token: string
+	competitionSlug?: string
+	competitionId?: string
+	teamName?: string
+}) {
+	const [answers, setAnswers] = useState<Record<string, string>>({})
+
+	const handleAnswerChange = (questionId: string, value: string) => {
+		setAnswers((prev) => ({ ...prev, [questionId]: value }))
+	}
+
+	// Check if all required questions are answered
+	const requiredQuestions = questions.filter((q) => q.required)
+	const allRequiredAnswered = requiredQuestions.every(
+		(q) => answers[q.id] && answers[q.id].trim() !== "",
+	)
+
+	// Convert answers to array format for submission
+	const answersArray = Object.entries(answers)
+		.filter(([_, value]) => value && value.trim() !== "")
+		.map(([questionId, answer]) => ({
+			questionId,
+			answer,
+		}))
+
+	return (
+		<>
+			<Card>
+				<CardHeader>
+					<CardTitle>Registration Questions</CardTitle>
+					<CardDescription>
+						Please answer these questions to complete your team registration
+					</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-6">
+					{questions.map((question) => (
+						<div key={question.id} className="space-y-2">
+							<Label htmlFor={`question-${question.id}`}>
+								{question.label}
+								{question.required && (
+									<span className="text-destructive ml-1">*</span>
+								)}
+							</Label>
+							{question.helpText && (
+								<p className="text-sm text-muted-foreground">
+									{question.helpText}
+								</p>
+							)}
+
+							{question.type === "text" && (
+								<Input
+									id={`question-${question.id}`}
+									value={answers[question.id] || ""}
+									onChange={(e) =>
+										handleAnswerChange(question.id, e.target.value)
+									}
+									placeholder="Enter your answer"
+								/>
+							)}
+
+							{question.type === "number" && (
+								<Input
+									id={`question-${question.id}`}
+									type="number"
+									value={answers[question.id] || ""}
+									onChange={(e) =>
+										handleAnswerChange(question.id, e.target.value)
+									}
+									placeholder="Enter a number"
+								/>
+							)}
+
+							{question.type === "select" && question.options && (
+								<Select
+									value={answers[question.id] || ""}
+									onValueChange={(value) =>
+										handleAnswerChange(question.id, value)
+									}
+								>
+									<SelectTrigger id={`question-${question.id}`}>
+										<SelectValue placeholder="Select an option" />
+									</SelectTrigger>
+									<SelectContent>
+										{question.options.map((option) => (
+											<SelectItem key={option} value={option}>
+												{option}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							)}
+						</div>
+					))}
+				</CardContent>
+			</Card>
+
+			<AcceptInviteButton
+				token={token}
+				competitionSlug={competitionSlug}
+				competitionId={competitionId}
+				teamName={teamName}
+				answers={answersArray}
+				disabled={!allRequiredAnswered}
+			/>
+		</>
 	)
 }
 

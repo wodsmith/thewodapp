@@ -13,28 +13,29 @@
 
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
+import { and, eq } from "drizzle-orm"
 import type Stripe from "stripe"
 import { getDb } from "@/db"
 import {
 	COMMERCE_PAYMENT_STATUS,
 	COMMERCE_PURCHASE_STATUS,
 	commercePurchaseTable,
+	competitionRegistrationAnswersTable,
 	competitionRegistrationsTable,
 	teamTable,
 } from "@/db/schema"
-import { and, eq } from "drizzle-orm"
+import { getStripeWebhookSecret } from "@/lib/env"
 import {
 	logError,
 	logInfo,
 	logWarning,
 } from "@/lib/logging/posthog-otel-logger"
 import { getStripe } from "@/lib/stripe"
-import { getStripeWebhookSecret } from "@/lib/env"
-import {
-	registerForCompetition,
-	notifyRegistrationConfirmed,
-} from "@/server/registration"
 import { notifyPaymentExpired } from "@/server/notifications"
+import {
+	notifyRegistrationConfirmed,
+	registerForCompetition,
+} from "@/server/registration"
 import { getDivisionSpotsAvailableFn } from "@/server-fns/competition-divisions-fns"
 
 export const Route = createFileRoute("/api/webhooks/stripe")({
@@ -128,6 +129,10 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 							firstName?: string
 							lastName?: string
 							affiliateName?: string
+						}>
+						answers?: Array<{
+							questionId: string
+							answer: string
 						}>
 					} = {}
 
@@ -225,6 +230,21 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 							.where(
 								eq(competitionRegistrationsTable.id, result.registrationId),
 							)
+
+						// Store registration answers if present
+						if (
+							registrationData.answers &&
+							registrationData.answers.length > 0
+						) {
+							for (const answer of registrationData.answers) {
+								await db.insert(competitionRegistrationAnswersTable).values({
+									questionId: answer.questionId,
+									registrationId: result.registrationId,
+									userId,
+									answer: answer.answer,
+								})
+							}
+						}
 
 						// Mark purchase as completed
 						await db

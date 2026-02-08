@@ -101,7 +101,7 @@ export function calculatePScore(input: PScoreInput): PScoreResult[] {
 	})
 
 	// Get best score
-	const best = sortedActive[0]!.value
+	const best = sortedActive[0]?.value
 
 	// Calculate median value
 	const median = calculateMedian(sortedActive, config.medianField)
@@ -207,10 +207,12 @@ function findStatisticalMedian(values: number[]): number {
 
 	if (values.length % 2 === 0) {
 		// Even number: average of two middle values
+		// biome-ignore lint/style/noNonNullAssertion: mid calculated from length guarantees valid indices
 		return (values[mid - 1]! + values[mid]!) / 2
 	}
 
 	// Odd number: middle value
+	// biome-ignore lint/style/noNonNullAssertion: mid calculated from length guarantees valid index
 	return values[mid]!
 }
 

@@ -23,6 +23,7 @@ import {
 	workoutScalingDescriptionsTable,
 	workouts,
 } from "@/db/schema"
+import { eventJudgingSheetsTable } from "@/db/schemas/judging-sheets"
 import type {
 	LaneShiftPattern,
 	VolunteerMembershipMetadata,
@@ -63,6 +64,14 @@ export interface DivisionDescription {
 	position: number
 }
 
+export interface JudgingSheet {
+	id: string
+	title: string
+	url: string
+	originalFilename: string
+	fileSize: number
+}
+
 export interface EnrichedRotation {
 	rotation: {
 		id: string
@@ -84,6 +93,7 @@ export interface EnrichedRotation {
 	estimatedDuration: number | null
 	isUpcoming: boolean
 	divisionDescriptions: DivisionDescription[]
+	judgingSheets: JudgingSheet[]
 	workout: WorkoutDetails
 	heats: HeatAssignment[]
 	lane: number
@@ -97,6 +107,7 @@ export interface EventWithRotations {
 	eventNotes: string | null
 	workout: WorkoutDetails
 	divisionDescriptions: DivisionDescription[]
+	judgingSheets: JudgingSheet[]
 	rotations: EnrichedRotation[]
 }
 
@@ -153,6 +164,7 @@ function groupRotationsByEvent(
 				eventNotes: rotation.eventNotes,
 				workout: rotation.workout,
 				divisionDescriptions: rotation.divisionDescriptions,
+				judgingSheets: rotation.judgingSheets,
 				rotations: [rotation],
 			})
 		}
@@ -300,6 +312,39 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 		)
 
 		const workoutMap = new Map(workoutsList.map((w) => [w.id, w]))
+
+		// Batch-fetch judging sheets for all trackWorkouts
+		const judgingSheetsData = await autochunk(
+			{ items: trackWorkoutIds },
+			async (chunk) => {
+				return db
+					.select({
+						id: eventJudgingSheetsTable.id,
+						trackWorkoutId: eventJudgingSheetsTable.trackWorkoutId,
+						title: eventJudgingSheetsTable.title,
+						url: eventJudgingSheetsTable.url,
+						originalFilename: eventJudgingSheetsTable.originalFilename,
+						fileSize: eventJudgingSheetsTable.fileSize,
+					})
+					.from(eventJudgingSheetsTable)
+					.where(inArray(eventJudgingSheetsTable.trackWorkoutId, chunk))
+			},
+		)
+
+		// Group judging sheets by trackWorkoutId
+		const judgingSheetsByTrackWorkout = new Map<string, JudgingSheet[]>()
+		for (const sheet of judgingSheetsData) {
+			const existing =
+				judgingSheetsByTrackWorkout.get(sheet.trackWorkoutId) || []
+			existing.push({
+				id: sheet.id,
+				title: sheet.title,
+				url: sheet.url,
+				originalFilename: sheet.originalFilename,
+				fileSize: sheet.fileSize,
+			})
+			judgingSheetsByTrackWorkout.set(sheet.trackWorkoutId, existing)
+		}
 
 		// Batch-fetch heats for all trackWorkouts
 		const heatsData = await autochunk(
@@ -523,6 +568,8 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 			const divisionDescriptions = workout
 				? divisionDescriptionsByWorkout.get(workout.id) || []
 				: []
+			const judgingSheets =
+				judgingSheetsByTrackWorkout.get(rotation.trackWorkoutId) || []
 
 			// Skip if event is not published
 			if (trackWorkout?.eventStatus !== "published") {
@@ -619,6 +666,7 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 				estimatedDuration,
 				isUpcoming,
 				divisionDescriptions,
+				judgingSheets,
 				lane: rotation.startingLane,
 				heatsCount: rotation.heatsCount,
 				startingHeat: rotation.startingHeat,

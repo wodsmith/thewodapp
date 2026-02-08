@@ -1,6 +1,5 @@
 import { createFileRoute, notFound, Outlet } from "@tanstack/react-router"
 import { CompetitionHero } from "@/components/competition-hero"
-import { CompetitionTabs } from "@/components/competition-tabs"
 import {
 	checkCanManageCompetitionFn,
 	checkIsVolunteerFn,
@@ -11,6 +10,7 @@ import {
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
+import { getTeamContactEmailFn } from "@/server-fns/team-fns"
 
 export const Route = createFileRoute("/compete/$slug")({
 	component: CompetitionDetailLayout,
@@ -35,6 +35,7 @@ export const Route = createFileRoute("/compete/$slug")({
 			divisionsResult,
 			sponsorsResult,
 			registrationStatus,
+			organizerContactEmail,
 			userRegResult,
 			canManageResult,
 			isVolunteerResult,
@@ -55,6 +56,9 @@ export const Route = createFileRoute("/compete/$slug")({
 					registrationClosesAt: competition.registrationClosesAt,
 					timezone: competition.timezone,
 				},
+			}),
+			getTeamContactEmailFn({
+				data: { teamId: competition.organizingTeamId },
 			}),
 			// User-specific data - returns null/false if no session
 			session
@@ -107,40 +111,54 @@ export const Route = createFileRoute("/compete/$slug")({
 			sponsors,
 			userDivision,
 			maxSpots: undefined as number | undefined,
+			organizerContactEmail,
 		}
 	},
 })
 
 function CompetitionDetailLayout() {
-	const {
-		competition,
-		registrationCount,
-		userRegistration,
-		canManage,
-		registrationStatus,
-	} = Route.useLoaderData()
-	const { slug } = Route.useParams()
+	const { competition, registrationCount, canManage, isVolunteer } =
+		Route.useLoaderData()
+
+	const hasBanner = !!competition.bannerImageUrl
+	const profileImage =
+		competition.profileImageUrl ?? competition.organizingTeam?.avatarUrl
 
 	return (
-		<div className="min-h-screen bg-background">
-			{/* Hero Section */}
-			<CompetitionHero
-				competition={competition}
-				registrationCount={registrationCount}
-				canManage={canManage}
-			/>
+		<div className="relative min-h-screen bg-background print:min-h-0 print:bg-white">
+			{/* Full-bleed banner - absolutely positioned to extend behind the glass card */}
+			{hasBanner && (
+				<div className="absolute left-1/2 top-0 h-[16rem] w-screen -translate-x-1/2 md:h-[20rem] lg:h-[22rem] print:hidden">
+					{/* Profile image on mobile for better portrait fit */}
+					{profileImage && (
+						<img
+							src={profileImage}
+							alt=""
+							className="absolute inset-0 h-full w-full object-cover md:hidden"
+						/>
+					)}
+					{/* Banner image on desktop (or all screens if no profile image) */}
+					<img
+						src={competition.bannerImageUrl!}
+						alt=""
+						className={`absolute inset-0 h-full w-full object-cover ${profileImage ? "hidden md:block" : ""}`}
+					/>
+					<div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/60 to-slate-900/40" />
+				</div>
+			)}
 
-			{/* Tabbed Navigation */}
-			<CompetitionTabs
-				slug={slug}
-				isRegistered={!!userRegistration}
-				registrationOpen={registrationStatus.registrationOpen}
-				registrationClosed={registrationStatus.registrationClosed}
-				registrationNotYetOpen={registrationStatus.registrationNotYetOpen}
-			/>
+			{/* Hero Section - hidden on print */}
+			<div className="relative print:hidden">
+				<CompetitionHero
+					competition={competition}
+					registrationCount={registrationCount}
+					canManage={canManage}
+					isVolunteer={isVolunteer}
+				/>
+			</div>
 
 			{/* Content Area */}
-			<div className="container mx-auto px-4 py-8">
+			<div className="relative container mx-auto px-0 pb-4 print:p-0 print:max-w-none">
 				<Outlet />
 			</div>
 		</div>

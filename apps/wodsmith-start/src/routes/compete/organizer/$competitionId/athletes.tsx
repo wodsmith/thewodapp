@@ -9,11 +9,22 @@ import {
 	createFileRoute,
 	getRouteApi,
 	useNavigate,
+	useRouter,
 } from "@tanstack/react-router"
-import { Calendar, Mail, Users } from "lucide-react"
+import {
+	ArrowDown,
+	ArrowUp,
+	ArrowUpDown,
+	Calendar,
+	Download,
+	Mail,
+	X,
+} from "lucide-react"
 import { z } from "zod"
+import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
 	Card,
 	CardContent,
@@ -36,16 +47,45 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
+import { INVITATION_STATUS } from "@/db/schemas/teams"
 import {
 	getCompetitionByIdFn,
 	getOrganizerRegistrationsFn,
+	getPendingTeammateInvitationsFn,
+	type PendingTeammateInvite,
 } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
+import {
+	getCompetitionQuestionsFn,
+	getCompetitionRegistrationAnswersFn,
+} from "@/server-fns/registration-questions-fns"
+import {
+	getCompetitionWaiverSignaturesFn,
+	getCompetitionWaiversFn,
+} from "@/server-fns/waiver-fns"
 
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 
+const sortColumns = [
+	"name",
+	"division",
+	"teamName",
+	"affiliate",
+	"registeredAt",
+	"joinedAt",
+] as const
+type SortColumn = (typeof sortColumns)[number]
+type SortDirection = "asc" | "desc"
+
 const athletesSearchSchema = z.object({
 	division: z.string().optional(),
+	// questionFilters: { questionId: ["value1", "value2"] }
+	questionFilters: z.record(z.string(), z.array(z.string())).optional(),
+	// waiverFilters: ["waiverId:signed", "waiverId:unsigned"]
+	waiverFilters: z.array(z.string()).optional(),
+	// Sorting
+	sortBy: z.enum(sortColumns).optional(),
+	sortDir: z.enum(["asc", "desc"]).optional(),
 })
 
 export const Route = createFileRoute(
@@ -53,7 +93,13 @@ export const Route = createFileRoute(
 )({
 	component: AthletesPage,
 	validateSearch: athletesSearchSchema,
-	loaderDeps: ({ search }) => ({ division: search?.division }),
+	loaderDeps: ({ search }) => ({
+		division: search?.division,
+		questionFilters: search?.questionFilters,
+		waiverFilters: search?.waiverFilters,
+		sortBy: search?.sortBy,
+		sortDir: search?.sortDir,
+	}),
 	loader: async ({ params, deps }) => {
 		const { competitionId } = params
 		const divisionFilter = deps?.division
@@ -68,36 +114,232 @@ export const Route = createFileRoute(
 			throw new Error("Competition not found")
 		}
 
-		// Parallel fetch: registrations and divisions for filtering
-		const [registrationsResult, divisionsResult] = await Promise.all([
+		// Parallel fetch: registrations, divisions, questions, answers, waivers, signatures, and pending invites
+		const [
+			registrationsResult,
+			divisionsResult,
+			questionsResult,
+			answersResult,
+			waiversResult,
+			signaturesResult,
+			pendingInvitesResult,
+		] = await Promise.all([
 			getOrganizerRegistrationsFn({
 				data: { competitionId, divisionFilter },
 			}),
 			getCompetitionDivisionsWithCountsFn({
 				data: { competitionId, teamId: competition.organizingTeamId },
 			}),
+			getCompetitionQuestionsFn({
+				data: { competitionId },
+			}),
+			getCompetitionRegistrationAnswersFn({
+				data: { competitionId, teamId: competition.organizingTeamId },
+			}),
+			getCompetitionWaiversFn({
+				data: { competitionId },
+			}),
+			getCompetitionWaiverSignaturesFn({
+				data: { competitionId, teamId: competition.organizingTeamId },
+			}),
+			getPendingTeammateInvitationsFn({
+				data: { competitionId },
+			}),
 		])
 
 		return {
 			registrations: registrationsResult.registrations,
 			divisions: divisionsResult.divisions,
+			questions: questionsResult.questions,
+			answersByRegistration: answersResult.answersByRegistration,
+			waivers: waiversResult.waivers,
+			signaturesByUser: signaturesResult.signatures.reduce(
+				(acc, sig) => {
+					const key = `${sig.userId}-${sig.waiverId}`
+					acc[key] = sig.signedAt
+					return acc
+				},
+				{} as Record<string, Date>,
+			),
+			pendingInvites: pendingInvitesResult.pendingInvites,
 			currentDivisionFilter: divisionFilter,
+			currentQuestionFilters: deps?.questionFilters || {},
+			currentWaiverFilters: deps?.waiverFilters || [],
+			currentSortBy: deps?.sortBy as SortColumn | undefined,
+			currentSortDir: deps?.sortDir as SortDirection | undefined,
+			teamId: competition.organizingTeamId,
 		}
 	},
 })
 
 function AthletesPage() {
 	const { competition } = parentRoute.useLoaderData()
-	const { registrations, divisions, currentDivisionFilter } =
-		Route.useLoaderData()
+	const {
+		registrations,
+		divisions,
+		questions,
+		answersByRegistration,
+		waivers,
+		signaturesByUser,
+		pendingInvites,
+		currentDivisionFilter,
+		currentQuestionFilters,
+		currentWaiverFilters,
+		currentSortBy,
+		currentSortDir,
+		teamId,
+	} = Route.useLoaderData()
 	const navigate = useNavigate()
+	const router = useRouter()
+
+	const handleQuestionsChange = () => {
+		router.invalidate()
+	}
 
 	const handleDivisionChange = (value: string) => {
 		navigate({
 			to: "/compete/organizer/$competitionId/athletes",
 			params: { competitionId: competition.id },
-			search: value === "all" ? {} : { division: value },
+			search: (prev) => ({
+				...prev,
+				division: value === "all" ? undefined : value,
+			}),
+			resetScroll: false,
 		})
+	}
+
+	// Toggle a question filter value (add if not present, remove if present)
+	const toggleQuestionFilter = (questionId: string, value: string) => {
+		navigate({
+			to: "/compete/organizer/$competitionId/athletes",
+			params: { competitionId: competition.id },
+			search: (prev) => {
+				const newFilters = { ...prev.questionFilters }
+				const currentValues = newFilters[questionId] || []
+
+				if (currentValues.includes(value)) {
+					// Remove the value
+					const filtered = currentValues.filter((v) => v !== value)
+					if (filtered.length === 0) {
+						delete newFilters[questionId]
+					} else {
+						newFilters[questionId] = filtered
+					}
+				} else {
+					// Add the value
+					newFilters[questionId] = [...currentValues, value]
+				}
+
+				return {
+					...prev,
+					questionFilters:
+						Object.keys(newFilters).length > 0 ? newFilters : undefined,
+				}
+			},
+			resetScroll: false,
+		})
+	}
+
+	// Remove a specific question filter value
+	const removeQuestionFilter = (questionId: string, value: string) => {
+		navigate({
+			to: "/compete/organizer/$competitionId/athletes",
+			params: { competitionId: competition.id },
+			search: (prev) => {
+				const newFilters = { ...prev.questionFilters }
+				const currentValues = newFilters[questionId] || []
+				const filtered = currentValues.filter((v) => v !== value)
+
+				if (filtered.length === 0) {
+					delete newFilters[questionId]
+				} else {
+					newFilters[questionId] = filtered
+				}
+
+				return {
+					...prev,
+					questionFilters:
+						Object.keys(newFilters).length > 0 ? newFilters : undefined,
+				}
+			},
+			resetScroll: false,
+		})
+	}
+
+	// Toggle a waiver filter (add if not present, remove if present)
+	const toggleWaiverFilter = (filterValue: string) => {
+		navigate({
+			to: "/compete/organizer/$competitionId/athletes",
+			params: { competitionId: competition.id },
+			search: (prev) => {
+				const currentFilters = prev.waiverFilters || []
+
+				if (currentFilters.includes(filterValue)) {
+					const filtered = currentFilters.filter((v) => v !== filterValue)
+					return {
+						...prev,
+						waiverFilters: filtered.length > 0 ? filtered : undefined,
+					}
+				} else {
+					return {
+						...prev,
+						waiverFilters: [...currentFilters, filterValue],
+					}
+				}
+			},
+			resetScroll: false,
+		})
+	}
+
+	// Remove a specific waiver filter
+	const removeWaiverFilter = (filterValue: string) => {
+		navigate({
+			to: "/compete/organizer/$competitionId/athletes",
+			params: { competitionId: competition.id },
+			search: (prev) => {
+				const filtered = (prev.waiverFilters || []).filter(
+					(v) => v !== filterValue,
+				)
+				return {
+					...prev,
+					waiverFilters: filtered.length > 0 ? filtered : undefined,
+				}
+			},
+			resetScroll: false,
+		})
+	}
+
+	// Handle column sorting
+	const handleSort = (column: SortColumn) => {
+		navigate({
+			to: "/compete/organizer/$competitionId/athletes",
+			params: { competitionId: competition.id },
+			search: (prev) => {
+				// If clicking the same column, toggle direction or clear
+				if (prev.sortBy === column) {
+					if (prev.sortDir === "asc") {
+						return { ...prev, sortDir: "desc" as const }
+					}
+					// Clear sort
+					return { ...prev, sortBy: undefined, sortDir: undefined }
+				}
+				// New column, default to ascending
+				return { ...prev, sortBy: column, sortDir: "asc" as const }
+			},
+			resetScroll: false,
+		})
+	}
+
+	// Render sort icon for a column header
+	const SortIcon = ({ column }: { column: SortColumn }) => {
+		if (currentSortBy !== column) {
+			return <ArrowUpDown className="h-3.5 w-3.5 ml-1 opacity-50" />
+		}
+		return currentSortDir === "asc" ? (
+			<ArrowUp className="h-3.5 w-3.5 ml-1" />
+		) : (
+			<ArrowDown className="h-3.5 w-3.5 ml-1" />
+		)
 	}
 
 	const formatDate = (date: Date | string) => {
@@ -114,24 +356,396 @@ function AthletesPage() {
 		return (first + last).toUpperCase() || "?"
 	}
 
-	const getPendingCount = (pendingTeammates: string | null): number => {
-		if (!pendingTeammates) return 0
-		try {
-			const pending = JSON.parse(pendingTeammates) as unknown[]
-			return pending.length
-		} catch {
-			return 0
+	// Get initials from a full name string (e.g., "John Doe" -> "JD")
+	const getInitialsFromName = (fullName: string | null | undefined) => {
+		if (!fullName) return "?"
+		const parts = fullName.trim().split(/\s+/)
+		const first = parts[0]?.[0] || ""
+		const last = parts.length > 1 ? parts[parts.length - 1]?.[0] || "" : ""
+		return (first + last).toUpperCase() || "?"
+	}
+
+	const getAnswersForUser = (registrationId: string, userId: string) => {
+		const answers = answersByRegistration[registrationId] || []
+		return answers.filter((a) => a.userId === userId)
+	}
+
+	// Athlete status: 'registered' = has account, 'pending' = invited but not responded, 'accepted' = guest accepted (submitted form)
+	type AthleteStatus = "registered" | "pending" | "accepted"
+
+	// Flatten registrations into individual athlete rows
+	type AthleteRow = {
+		ordinal: number
+		ordinalLabel: string
+		registrationId: string
+		athlete: {
+			id: string
+			firstName: string | null
+			lastName: string | null
+			email: string | null
+			avatar: string | null
+			affiliateName: string | null
 		}
+		isCaptain: boolean
+		status: AthleteStatus // 'registered' = has account, 'pending' = invited, 'accepted' = guest accepted
+		pendingInvite?: PendingTeammateInvite // For accessing pending answers (when status is 'pending' or 'accepted')
+		division: { label: string } | null
+		teamName: string | null
+		registeredAt: Date | string | null
+		joinedAt: Date | null
+	}
+
+	const athleteRows: AthleteRow[] = []
+	let rowIndex = 0
+	registrations.forEach((registration) => {
+		rowIndex++
+		const isTeamDivision = (registration.division?.teamSize ?? 1) > 1
+
+		// Type assertion for nested relations
+		const athleteTeamWithMemberships = registration.athleteTeam as {
+			memberships?: Array<{
+				id: string
+				userId: string
+				joinedAt: Date | null
+				user?: {
+					id: string
+					firstName: string | null
+					lastName: string | null
+					email: string | null
+					avatar: string | null
+				} | null
+			}>
+		} | null
+
+		// Get all team members (captain first, then teammates)
+		const allMembers: Array<{
+			user: NonNullable<
+				NonNullable<typeof athleteTeamWithMemberships>["memberships"]
+			>[number]["user"]
+			isCaptain: boolean
+			joinedAt: Date | null
+		}> = []
+
+		// Add captain first
+		if (registration.user) {
+			allMembers.push({
+				user: registration.user,
+				isCaptain: true,
+				joinedAt: null,
+			})
+		}
+
+		// Add teammates
+		if (isTeamDivision && athleteTeamWithMemberships?.memberships) {
+			athleteTeamWithMemberships.memberships
+				.filter((m) => m.userId !== registration.userId && m.user)
+				.forEach((m) => {
+					allMembers.push({
+						user: m.user!,
+						isCaptain: false,
+						joinedAt: m.joinedAt,
+					})
+				})
+		}
+
+		// Create a row for each member
+		allMembers.forEach((member, memberIndex) => {
+			athleteRows.push({
+				registrationId: registration.id,
+				ordinal: rowIndex,
+				ordinalLabel: memberIndex === 0 ? String(rowIndex) : "",
+				athlete: {
+					id: member.user?.id ?? "",
+					firstName: member.user?.firstName ?? null,
+					lastName: member.user?.lastName ?? null,
+					email: member.user?.email ?? null,
+					avatar: member.user?.avatar ?? null,
+					affiliateName:
+						(member.user as { affiliateName?: string | null })?.affiliateName ??
+						null,
+				},
+				isCaptain: member.isCaptain,
+				status: "registered",
+				division: registration.division,
+				teamName: isTeamDivision ? registration.teamName : null,
+				registeredAt: member.isCaptain ? registration.registeredAt : null,
+				joinedAt: member.joinedAt,
+			})
+		})
+
+		// Add pending/accepted invites for this registration's athlete team
+		if (isTeamDivision && registration.athleteTeam) {
+			const teamPendingInvites = pendingInvites.filter(
+				(inv) =>
+					inv.athleteTeamId ===
+					(registration.athleteTeam as { id?: string })?.id,
+			)
+			teamPendingInvites.forEach((invite) => {
+				// Map invitation status to athlete row status
+				const athleteStatus: AthleteStatus =
+					invite.status === INVITATION_STATUS.ACCEPTED ? "accepted" : "pending"
+
+				athleteRows.push({
+					registrationId: registration.id,
+					ordinal: rowIndex,
+					ordinalLabel: "",
+					athlete: {
+						id: `pending-${invite.id}`,
+						firstName: null,
+						lastName: null,
+						email: invite.email,
+						avatar: null,
+						affiliateName: null,
+					},
+					isCaptain: false,
+					status: athleteStatus,
+					pendingInvite: invite,
+					division: registration.division,
+					teamName: registration.teamName,
+					registeredAt: null,
+					joinedAt: null,
+				})
+			})
+		}
+	})
+
+	// Get waiver signed date for a user
+	const getWaiverSignedDate = (
+		userId: string,
+		waiverId: string,
+	): Date | null => {
+		const key = `${userId}-${waiverId}`
+		return signaturesByUser[key] || null
+	}
+
+	// Get unique answer values for each question (for filters)
+	const questionFilterOptions = questions.reduce(
+		(acc, question) => {
+			const values = new Set<string>()
+			Object.values(answersByRegistration).forEach((answers) => {
+				answers.forEach((a) => {
+					if (a.questionId === question.id && a.answer) {
+						values.add(a.answer)
+					}
+				})
+			})
+			acc[question.id] = Array.from(values).sort()
+			return acc
+		},
+		{} as Record<string, string[]>,
+	)
+
+	// Filter athlete rows based on question and waiver filters (all OR logic)
+	const filteredAthleteRows = athleteRows.filter((row) => {
+		// Apply question filters (match ANY of the selected values per question)
+		for (const [questionId, filterValues] of Object.entries(
+			currentQuestionFilters,
+		)) {
+			if (filterValues && filterValues.length > 0) {
+				const answers = getAnswersForUser(row.registrationId, row.athlete.id)
+				const answer = answers.find((a) => a.questionId === questionId)
+				if (!answer?.answer || !filterValues.includes(answer.answer)) {
+					return false
+				}
+			}
+		}
+
+		// Apply waiver filters (match ANY of the selected waiver conditions - OR logic)
+		if (currentWaiverFilters.length > 0) {
+			const matchesAnyWaiverFilter = currentWaiverFilters.some(
+				(waiverFilter) => {
+					const [waiverId, status] = waiverFilter.split(":")
+					const signedDate = getWaiverSignedDate(row.athlete.id, waiverId)
+					if (status === "signed") return !!signedDate
+					if (status === "unsigned") return !signedDate
+					return false
+				},
+			)
+			if (!matchesAnyWaiverFilter) return false
+		}
+
+		return true
+	})
+
+	// Sort filtered rows
+	const sortedAthleteRows = [...filteredAthleteRows].sort((a, b) => {
+		if (!currentSortBy) return 0
+
+		const direction = currentSortDir === "desc" ? -1 : 1
+
+		switch (currentSortBy) {
+			case "name": {
+				const nameA = `${a.athlete.firstName ?? ""} ${a.athlete.lastName ?? ""}`
+					.toLowerCase()
+					.trim()
+				const nameB = `${b.athlete.firstName ?? ""} ${b.athlete.lastName ?? ""}`
+					.toLowerCase()
+					.trim()
+				return nameA.localeCompare(nameB) * direction
+			}
+			case "division": {
+				const divA = a.division?.label?.toLowerCase() ?? ""
+				const divB = b.division?.label?.toLowerCase() ?? ""
+				return divA.localeCompare(divB) * direction
+			}
+			case "teamName": {
+				const teamA = a.teamName?.toLowerCase() ?? ""
+				const teamB = b.teamName?.toLowerCase() ?? ""
+				return teamA.localeCompare(teamB) * direction
+			}
+			case "affiliate": {
+				const affA = a.athlete.affiliateName?.toLowerCase() ?? ""
+				const affB = b.athlete.affiliateName?.toLowerCase() ?? ""
+				return affA.localeCompare(affB) * direction
+			}
+			case "registeredAt": {
+				const dateA = a.registeredAt ? new Date(a.registeredAt).getTime() : 0
+				const dateB = b.registeredAt ? new Date(b.registeredAt).getTime() : 0
+				return (dateA - dateB) * direction
+			}
+			case "joinedAt": {
+				const dateA = a.joinedAt ? new Date(a.joinedAt).getTime() : 0
+				const dateB = b.joinedAt ? new Date(b.joinedAt).getTime() : 0
+				return (dateA - dateB) * direction
+			}
+			default:
+				return 0
+		}
+	})
+
+	const handleExportCSV = () => {
+		// Build CSV header
+		const headers = [
+			"#",
+			"Athlete Name",
+			"Email",
+			"Division",
+			"Team Name",
+			"Affiliate",
+			"Registered",
+			"Joined",
+		]
+		questions.forEach((q) => headers.push(q.label))
+		waivers.forEach((w) => headers.push(`${w.title} (Signed)`))
+
+		// Build CSV rows from sorted athlete rows
+		const rows = sortedAthleteRows.map((row) => {
+			// Format name based on status
+			let athleteName: string
+			if (row.status === "pending") {
+				athleteName = `(Pending) ${row.athlete.email}`
+			} else if (row.status === "accepted") {
+				// Use guest name if available for accepted invites
+				athleteName =
+					row.pendingInvite?.guestName || `(Accepted) ${row.athlete.email}`
+			} else {
+				athleteName =
+					`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim()
+			}
+
+			const csvRow = [
+				row.ordinalLabel,
+				athleteName,
+				row.athlete.email ?? "",
+				row.division?.label ?? "",
+				row.teamName ?? "",
+				row.athlete.affiliateName ?? "",
+				row.registeredAt ? formatDate(row.registeredAt) : "",
+				row.joinedAt ? formatDate(row.joinedAt) : "",
+			]
+
+			// Add answer columns - check pending answers for pending/accepted invites
+			if (row.status !== "registered" && row.pendingInvite) {
+				questions.forEach((question) => {
+					const pendingAnswer = row.pendingInvite?.pendingAnswers?.find(
+						(a) => a.questionId === question.id,
+					)
+					csvRow.push(pendingAnswer?.answer ?? "")
+				})
+			} else {
+				const answers = getAnswersForUser(row.registrationId, row.athlete.id)
+				questions.forEach((question) => {
+					const answer = answers.find((a) => a.questionId === question.id)
+					csvRow.push(answer?.answer ?? "")
+				})
+			}
+
+			// Add waiver columns - check pending signatures for pending/accepted invites
+			if (row.status !== "registered" && row.pendingInvite) {
+				waivers.forEach((waiver) => {
+					const pendingSig = row.pendingInvite?.pendingSignatures?.find(
+						(s) => s.waiverId === waiver.id,
+					)
+					csvRow.push(
+						pendingSig ? formatDate(pendingSig.signedAt) : "Not signed",
+					)
+				})
+			} else {
+				waivers.forEach((waiver) => {
+					const signedDate = getWaiverSignedDate(row.athlete.id, waiver.id)
+					csvRow.push(signedDate ? formatDate(signedDate) : "Not signed")
+				})
+			}
+
+			return csvRow
+		})
+
+		// Sanitize cell value to prevent CSV injection (formula characters)
+		const sanitizeCell = (value: string): string => {
+			const escaped = value.replace(/"/g, '""')
+			// Prefix formula-triggering characters with a single quote to prevent spreadsheet injection
+			return /^[=+\-@]/.test(escaped) ? `'${escaped}` : escaped
+		}
+
+		// Generate CSV content
+		const csvContent = [
+			headers.map((h) => `"${sanitizeCell(h)}"`).join(","),
+			...rows.map((row) =>
+				row.map((cell) => `"${sanitizeCell(String(cell))}"`).join(","),
+			),
+		].join("\n")
+
+		// Download CSV
+		const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+		const link = document.createElement("a")
+		const url = URL.createObjectURL(blob)
+		link.setAttribute("href", url)
+		link.setAttribute(
+			"download",
+			`${competition.slug}-athletes-${new Date().toISOString().split("T")[0]}.csv`,
+		)
+		link.style.visibility = "hidden"
+		document.body.appendChild(link)
+		link.click()
+		document.body.removeChild(link)
+		URL.revokeObjectURL(url)
 	}
 
 	return (
-		<div className="flex flex-col gap-4">
-			<div>
-				<h2 className="text-xl font-semibold">Registered Athletes</h2>
-				<p className="text-muted-foreground text-sm">
-					{registrations.length} registration
-					{registrations.length !== 1 ? "s" : ""}
-				</p>
+		<div className="flex flex-col gap-6">
+			{/* Registration Questions Editor */}
+			<RegistrationQuestionsEditor
+				competitionId={competition.id}
+				teamId={teamId}
+				questions={questions}
+				onQuestionsChange={handleQuestionsChange}
+			/>
+
+			{/* Athletes Section */}
+			<div className="flex items-center justify-between">
+				<div>
+					<h2 className="text-xl font-semibold">Registered Athletes</h2>
+					<p className="text-muted-foreground text-sm">
+						{registrations.length} registration
+						{registrations.length !== 1 ? "s" : ""}
+					</p>
+				</div>
+				{registrations.length > 0 && (
+					<Button onClick={handleExportCSV} variant="outline" size="sm">
+						<Download className="h-4 w-4 mr-2" />
+						Export CSV
+					</Button>
+				)}
 			</div>
 
 			{registrations.length === 0 && !currentDivisionFilter ? (
@@ -146,23 +760,178 @@ function AthletesPage() {
 			) : (
 				<div className="flex flex-col gap-4">
 					{/* Filters */}
-					<div className="flex items-center gap-4">
-						<Select
-							value={currentDivisionFilter || "all"}
-							onValueChange={handleDivisionChange}
-						>
-							<SelectTrigger className="w-[200px]">
-								<SelectValue placeholder="All Divisions" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">All Divisions</SelectItem>
-								{divisions.map((division) => (
-									<SelectItem key={division.id} value={division.id}>
-										{division.label} ({division.registrationCount})
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+					<div className="flex flex-col gap-3">
+						{/* Filter dropdowns */}
+						<div className="flex flex-wrap items-center gap-3">
+							{/* Division filter (single select) */}
+							<Select
+								value={currentDivisionFilter || "all"}
+								onValueChange={handleDivisionChange}
+							>
+								<SelectTrigger className="w-[200px]">
+									<SelectValue placeholder="All Divisions" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="all">All Divisions</SelectItem>
+									{divisions.map((division) => (
+										<SelectItem key={division.id} value={division.id}>
+											{division.label} ({division.registrationCount})
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+
+							{/* Question filters (multi-select via dropdown) */}
+							{questions.map((question) => {
+								const options = questionFilterOptions[question.id] || []
+								const selectedValues = currentQuestionFilters[question.id] || []
+								const availableOptions = options.filter(
+									(o) => !selectedValues.includes(o),
+								)
+								if (options.length === 0 || availableOptions.length === 0)
+									return null
+								return (
+									<Select
+										key={question.id}
+										value="__placeholder__"
+										onValueChange={(value) => {
+											if (value !== "__placeholder__") {
+												toggleQuestionFilter(question.id, value)
+											}
+										}}
+									>
+										<SelectTrigger className="w-[180px]">
+											<span className="text-muted-foreground">
+												+ {question.label}
+											</span>
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="__placeholder__" className="hidden">
+												Select...
+											</SelectItem>
+											{availableOptions.map((option) => (
+												<SelectItem key={option} value={option}>
+													{option}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								)
+							})}
+
+							{/* Waiver filter (multi-select via dropdown) */}
+							{waivers.length > 0 &&
+								(() => {
+									const availableWaiverOptions = waivers.flatMap((waiver) => {
+										const items = []
+										const signedKey = `${waiver.id}:signed`
+										const unsignedKey = `${waiver.id}:unsigned`
+										if (!currentWaiverFilters.includes(signedKey)) {
+											items.push({
+												key: signedKey,
+												label: `${waiver.title}: Signed`,
+											})
+										}
+										if (!currentWaiverFilters.includes(unsignedKey)) {
+											items.push({
+												key: unsignedKey,
+												label: `${waiver.title}: Not Signed`,
+											})
+										}
+										return items
+									})
+									if (availableWaiverOptions.length === 0) return null
+									return (
+										<Select
+											value="__placeholder__"
+											onValueChange={(value) => {
+												if (value !== "__placeholder__") {
+													toggleWaiverFilter(value)
+												}
+											}}
+										>
+											<SelectTrigger className="w-[200px]">
+												<span className="text-muted-foreground">
+													+ Waiver Status
+												</span>
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="__placeholder__" className="hidden">
+													Select...
+												</SelectItem>
+												{availableWaiverOptions.map((option) => (
+													<SelectItem key={option.key} value={option.key}>
+														{option.label}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									)
+								})()}
+						</div>
+
+						{/* Active filter pills */}
+						{(Object.keys(currentQuestionFilters).length > 0 ||
+							currentWaiverFilters.length > 0) && (
+							<div className="flex flex-wrap items-center gap-2">
+								{/* Question filter pills */}
+								{Object.entries(currentQuestionFilters).flatMap(
+									([questionId, values]) => {
+										const question = questions.find((q) => q.id === questionId)
+										if (!question || !values) return []
+										return values.map((value) => (
+											<Badge
+												key={`${questionId}-${value}`}
+												variant="secondary"
+												className="pl-2 pr-1 py-1 flex items-center gap-1"
+											>
+												<span className="text-xs text-muted-foreground">
+													{question.label}:
+												</span>
+												<span>{value}</span>
+												<button
+													type="button"
+													onClick={() =>
+														removeQuestionFilter(questionId, value)
+													}
+													className="ml-1 hover:bg-muted rounded-full p-0.5"
+												>
+													<X className="h-3 w-3" />
+												</button>
+											</Badge>
+										))
+									},
+								)}
+
+								{/* Waiver filter pills */}
+								{currentWaiverFilters.map((filterValue) => {
+									const [waiverId, status] = filterValue.split(":")
+									const waiver = waivers.find((w) => w.id === waiverId)
+									if (!waiver) return null
+									return (
+										<Badge
+											key={filterValue}
+											variant="secondary"
+											className="pl-2 pr-1 py-1 flex items-center gap-1"
+										>
+											<span className="text-xs text-muted-foreground">
+												{waiver.title}:
+											</span>
+											<span>
+												{status === "signed" ? "Signed" : "Not Signed"}
+											</span>
+											<button
+												type="button"
+												onClick={() => removeWaiverFilter(filterValue)}
+												className="ml-1 hover:bg-muted rounded-full p-0.5"
+											>
+												<X className="h-3 w-3" />
+											</button>
+										</Badge>
+									)
+								})}
+							</div>
+						)}
 					</div>
 
 					{registrations.length === 0 ? (
@@ -181,142 +950,259 @@ function AthletesPage() {
 									<TableHeader>
 										<TableRow>
 											<TableHead className="w-[50px]">#</TableHead>
-											<TableHead>Athlete</TableHead>
-											<TableHead>Division</TableHead>
-											<TableHead>Team</TableHead>
 											<TableHead>
-												<span className="flex items-center gap-1">
-													<Calendar className="h-3.5 w-3.5" />
+												<button
+													type="button"
+													onClick={() => handleSort("name")}
+													className="flex items-center hover:text-foreground transition-colors"
+												>
+													Athlete
+													<SortIcon column="name" />
+												</button>
+											</TableHead>
+											<TableHead>
+												<button
+													type="button"
+													onClick={() => handleSort("division")}
+													className="flex items-center hover:text-foreground transition-colors"
+												>
+													Division
+													<SortIcon column="division" />
+												</button>
+											</TableHead>
+											<TableHead>
+												<button
+													type="button"
+													onClick={() => handleSort("teamName")}
+													className="flex items-center hover:text-foreground transition-colors"
+												>
+													Team Name
+													<SortIcon column="teamName" />
+												</button>
+											</TableHead>
+											<TableHead>
+												<button
+													type="button"
+													onClick={() => handleSort("affiliate")}
+													className="flex items-center hover:text-foreground transition-colors"
+												>
+													Affiliate
+													<SortIcon column="affiliate" />
+												</button>
+											</TableHead>
+											{questions.map((question) => (
+												<TableHead key={question.id}>
+													{question.label}
+												</TableHead>
+											))}
+											{waivers.map((waiver) => (
+												<TableHead key={waiver.id}>{waiver.title}</TableHead>
+											))}
+											<TableHead>
+												<button
+													type="button"
+													onClick={() => handleSort("registeredAt")}
+													className="flex items-center hover:text-foreground transition-colors"
+												>
+													<Calendar className="h-3.5 w-3.5 mr-1" />
 													Registered
-												</span>
+													<SortIcon column="registeredAt" />
+												</button>
+											</TableHead>
+											<TableHead>
+												<button
+													type="button"
+													onClick={() => handleSort("joinedAt")}
+													className="flex items-center hover:text-foreground transition-colors"
+												>
+													<Calendar className="h-3.5 w-3.5 mr-1" />
+													Joined
+													<SortIcon column="joinedAt" />
+												</button>
 											</TableHead>
 										</TableRow>
 									</TableHeader>
 									<TableBody>
-										{registrations.map((registration, index) => {
-											const pendingCount = getPendingCount(
-												registration.pendingTeammates,
-											)
-											const isTeamDivision =
-												(registration.division?.teamSize ?? 1) > 1
-
-											// Get teammates (non-captain members)
-											// Type assertion needed because Drizzle's relation inference doesn't fully capture nested relations
-											const athleteTeamWithMemberships =
-												registration.athleteTeam as {
-													memberships?: Array<{
-														id: string
-														userId: string
-														user?: {
-															id: string
-															firstName: string | null
-															lastName: string | null
-															email: string | null
-															avatar: string | null
-														} | null
-													}>
-												} | null
-											const teammates =
-												athleteTeamWithMemberships?.memberships?.filter(
-													(m: { userId: string; user?: unknown }) =>
-														m.userId !== registration.userId && m.user,
-												) ?? []
-
-											return (
-												<TableRow key={registration.id}>
-													<TableCell className="text-muted-foreground font-mono text-sm align-top pt-4">
-														{index + 1}
-													</TableCell>
-													<TableCell>
-														<div className="flex flex-col gap-2">
-															{/* Captain */}
-															<div className="flex items-center gap-3">
-																<Avatar className="h-8 w-8">
-																	<AvatarImage
-																		src={registration.user?.avatar ?? undefined}
-																		alt={`${registration.user?.firstName ?? ""} ${registration.user?.lastName ?? ""}`}
-																	/>
-																	<AvatarFallback className="text-xs">
-																		{getInitials(
-																			registration.user?.firstName ?? null,
-																			registration.user?.lastName ?? null,
+										{sortedAthleteRows.map((row) => (
+											<TableRow key={`${row.registrationId}-${row.athlete.id}`}>
+												<TableCell className="font-mono text-sm text-muted-foreground">
+													{row.ordinalLabel}
+												</TableCell>
+												<TableCell>
+													<div className="flex items-center gap-3">
+														<Avatar className="h-8 w-8">
+															<AvatarImage
+																src={row.athlete.avatar ?? undefined}
+																alt={`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`}
+															/>
+															<AvatarFallback className="text-xs">
+																{row.status === "accepted" &&
+																row.pendingInvite?.guestName
+																	? getInitialsFromName(
+																			row.pendingInvite.guestName,
+																		)
+																	: getInitials(
+																			row.athlete.firstName,
+																			row.athlete.lastName,
 																		)}
-																	</AvatarFallback>
-																</Avatar>
-																<div className="flex flex-col">
-																	<span className="font-medium">
-																		{registration.user?.firstName ?? ""}{" "}
-																		{registration.user?.lastName ?? ""}
-																		{isTeamDivision && (
+															</AvatarFallback>
+														</Avatar>
+														<div className="flex flex-col">
+															<span className="font-medium">
+																{row.status === "pending" ? (
+																	<>
+																		<span className="italic text-muted-foreground">
+																			Invited
+																		</span>
+																		<Badge
+																			variant="outline"
+																			className="ml-2 text-xs bg-yellow-50 text-yellow-700 border-yellow-300"
+																		>
+																			Pending
+																		</Badge>
+																	</>
+																) : row.status === "accepted" ? (
+																	<>
+																		{/* Show guest name if available */}
+																		{row.pendingInvite?.guestName ? (
+																			<span>{row.pendingInvite.guestName}</span>
+																		) : (
+																			<span className="italic text-muted-foreground">
+																				Invited
+																			</span>
+																		)}
+																		<Badge
+																			variant="outline"
+																			className="ml-2 text-xs bg-green-50 text-green-700 border-green-300"
+																		>
+																			Accepted
+																		</Badge>
+																	</>
+																) : (
+																	<>
+																		{row.athlete.firstName ?? ""}{" "}
+																		{row.athlete.lastName ?? ""}
+																		{row.isCaptain && row.teamName && (
 																			<span className="text-xs text-muted-foreground ml-1">
 																				(captain)
 																			</span>
 																		)}
-																	</span>
-																	<span className="text-xs text-muted-foreground flex items-center gap-1">
-																		<Mail className="h-3 w-3" />
-																		{registration.user?.email}
-																	</span>
-																</div>
-															</div>
-															{/* Teammates */}
-															{teammates.length > 0 && (
-																<div className="ml-11 flex flex-col gap-1">
-																	{teammates.map((member) => (
-																		<div
-																			key={member.id}
-																			className="flex items-center gap-2 text-sm text-muted-foreground"
-																		>
-																			<Avatar className="h-5 w-5">
-																				<AvatarImage
-																					src={member.user?.avatar ?? undefined}
-																					alt={`${member.user?.firstName ?? ""} ${member.user?.lastName ?? ""}`}
-																				/>
-																				<AvatarFallback className="text-[10px]">
-																					{getInitials(
-																						member.user?.firstName ?? null,
-																						member.user?.lastName ?? null,
-																					)}
-																				</AvatarFallback>
-																			</Avatar>
-																			<span>
-																				{member.user?.firstName ?? ""}{" "}
-																				{member.user?.lastName ?? ""}
-																			</span>
-																		</div>
-																	))}
-																</div>
-															)}
+																	</>
+																)}
+															</span>
+															<span className="text-xs text-muted-foreground flex items-center gap-1">
+																<Mail className="h-3 w-3" />
+																{row.athlete.email}
+															</span>
 														</div>
-													</TableCell>
-													<TableCell className="align-top pt-4">
+													</div>
+												</TableCell>
+												<TableCell>
+													{row.division ? (
 														<Badge variant="outline">
-															{registration.division?.label ?? "Unknown"}
+															{row.division.label}
 														</Badge>
-													</TableCell>
-													<TableCell className="align-top pt-4">
-														{isTeamDivision ? (
-															<div className="flex flex-col gap-1">
-																<span className="font-medium">
-																	{registration.teamName ?? "—"}
-																</span>
-																{pendingCount > 0 && (
-																	<span className="text-xs text-amber-600 flex items-center gap-1">
-																		<Users className="h-3 w-3" />
-																		{pendingCount} pending
+													) : (
+														<span className="text-muted-foreground">—</span>
+													)}
+												</TableCell>
+												<TableCell>
+													{row.teamName ? (
+														<span className="font-medium">{row.teamName}</span>
+													) : (
+														<span className="text-muted-foreground">—</span>
+													)}
+												</TableCell>
+												<TableCell>
+													{row.athlete.affiliateName ? (
+														<span>{row.athlete.affiliateName}</span>
+													) : (
+														<span className="text-muted-foreground">—</span>
+													)}
+												</TableCell>
+												{questions.map((question) => {
+													// For pending/accepted invites, get answer from pending data
+													if (
+														row.status !== "registered" &&
+														row.pendingInvite
+													) {
+														const pendingAnswer =
+															row.pendingInvite.pendingAnswers?.find(
+																(a) => a.questionId === question.id,
+															)
+														return (
+															<TableCell key={question.id} className="text-sm">
+																{pendingAnswer?.answer ?? "—"}
+															</TableCell>
+														)
+													}
+													// For registered members, get from registration answers
+													const answers = getAnswersForUser(
+														row.registrationId,
+														row.athlete.id,
+													)
+													const answer = answers.find(
+														(a) => a.questionId === question.id,
+													)
+													return (
+														<TableCell key={question.id} className="text-sm">
+															{answer?.answer ?? "—"}
+														</TableCell>
+													)
+												})}
+												{waivers.map((waiver) => {
+													// For pending/accepted invites, check pending signatures
+													if (
+														row.status !== "registered" &&
+														row.pendingInvite
+													) {
+														const pendingSig =
+															row.pendingInvite.pendingSignatures?.find(
+																(s) => s.waiverId === waiver.id,
+															)
+														return (
+															<TableCell key={waiver.id} className="text-sm">
+																{pendingSig ? (
+																	<span className="text-green-600">
+																		{formatDate(pendingSig.signedAt)}
+																	</span>
+																) : (
+																	<span className="text-muted-foreground">
+																		Not signed
 																	</span>
 																)}
-															</div>
-														) : (
-															<span className="text-muted-foreground">—</span>
-														)}
-													</TableCell>
-													<TableCell className="text-muted-foreground text-sm align-top pt-4">
-														{formatDate(registration.registeredAt)}
-													</TableCell>
-												</TableRow>
-											)
-										})}
+															</TableCell>
+														)
+													}
+													// For registered members, get from waiver signatures
+													const signedDate = getWaiverSignedDate(
+														row.athlete.id,
+														waiver.id,
+													)
+													return (
+														<TableCell key={waiver.id} className="text-sm">
+															{signedDate ? (
+																<span className="text-green-600">
+																	{formatDate(signedDate)}
+																</span>
+															) : (
+																<span className="text-muted-foreground">
+																	Not signed
+																</span>
+															)}
+														</TableCell>
+													)
+												})}
+												<TableCell className="text-muted-foreground text-sm">
+													{row.registeredAt
+														? formatDate(row.registeredAt)
+														: null}
+												</TableCell>
+												<TableCell className="text-muted-foreground text-sm">
+													{row.joinedAt ? formatDate(row.joinedAt) : null}
+												</TableCell>
+											</TableRow>
+										))}
 									</TableBody>
 								</Table>
 							</CardContent>

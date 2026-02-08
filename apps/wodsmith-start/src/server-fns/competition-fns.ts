@@ -9,6 +9,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, desc, eq, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import { addressesTable } from "@/db/schemas/addresses"
 import {
 	type Competition,
 	type CompetitionGroup,
@@ -16,7 +17,18 @@ import {
 	competitionsTable,
 } from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS, type Team, teamTable } from "@/db/schemas/teams"
-import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
+import { ROLES_ENUM } from "@/db/schemas/users"
+import {
+	addRequestContextAttribute,
+	logEntityCreated,
+	logEntityDeleted,
+	logEntityUpdated,
+	logError,
+	logInfo,
+	logWarning,
+	updateRequestContext,
+} from "@/lib/logging"
+import { addressInputSchema } from "@/schemas/address"
 import {
 	createCompetition,
 	createCompetitionGroup,
@@ -24,15 +36,19 @@ import {
 	updateCompetition,
 	updateCompetitionGroup,
 } from "@/server-fns/competition-server-logic"
+import { normalizeAddressInput } from "@/utils/address"
 import { getSessionFromCookie } from "@/utils/auth"
 
 // ============================================================================
 // Types
 // ============================================================================
 
+import type { Address } from "@/db/schemas/addresses"
+
 export interface CompetitionWithOrganizingTeam extends Competition {
 	organizingTeam: Team | null
 	group: CompetitionGroup | null
+	address: Address | null
 }
 
 export interface CompetitionWithRelations extends Competition {
@@ -58,7 +74,9 @@ const getCompetitionBySlugInputSchema = z.object({
 })
 
 // Schema for YYYY-MM-DD date strings
-const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
+const dateStringSchema = z
+	.string()
+	.regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
 
 const createCompetitionInputSchema = z.object({
 	organizingTeamId: z.string().min(1, "Team ID is required"),
@@ -72,6 +90,7 @@ const createCompetitionInputSchema = z.object({
 	groupId: z.string().optional(),
 	settings: z.string().optional(),
 	timezone: z.string().optional(),
+	competitionType: z.enum(["in-person", "online"]).optional(),
 })
 
 const updateCompetitionInputSchema = z.object({
@@ -87,9 +106,11 @@ const updateCompetitionInputSchema = z.object({
 	settings: z.string().nullable().optional(),
 	visibility: z.enum(["public", "private"]).optional(),
 	status: z.enum(["draft", "published"]).optional(),
+	competitionType: z.enum(["in-person", "online"]).optional(),
 	profileImageUrl: z.string().nullable().optional(),
 	bannerImageUrl: z.string().nullable().optional(),
 	timezone: z.string().optional(),
+	address: addressInputSchema.optional(),
 })
 
 const getCompetitionGroupsInputSchema = z.object({
@@ -159,12 +180,14 @@ export const getPublicCompetitionsFn = createServerFn({ method: "GET" })
 					competitionsTable.passPlatformFeesToCustomer,
 				visibility: competitionsTable.visibility,
 				status: competitionsTable.status,
+				competitionType: competitionsTable.competitionType,
 				profileImageUrl: competitionsTable.profileImageUrl,
 				bannerImageUrl: competitionsTable.bannerImageUrl,
 				defaultHeatsPerRotation: competitionsTable.defaultHeatsPerRotation,
 				defaultLaneShiftPattern: competitionsTable.defaultLaneShiftPattern,
 				defaultMaxSpotsPerDivision:
 					competitionsTable.defaultMaxSpotsPerDivision,
+				primaryAddressId: competitionsTable.primaryAddressId,
 				createdAt: competitionsTable.createdAt,
 				updatedAt: competitionsTable.updatedAt,
 				updateCounter: competitionsTable.updateCounter,
@@ -186,12 +209,18 @@ export const getPublicCompetitionsFn = createServerFn({ method: "GET" })
 					updatedAt: competitionGroupsTable.updatedAt,
 					updateCounter: competitionGroupsTable.updateCounter,
 				},
+				// Address fields
+				address: addressesTable,
 			})
 			.from(competitionsTable)
 			.leftJoin(teamTable, eq(competitionsTable.organizingTeamId, teamTable.id))
 			.leftJoin(
 				competitionGroupsTable,
 				eq(competitionsTable.groupId, competitionGroupsTable.id),
+			)
+			.leftJoin(
+				addressesTable,
+				eq(competitionsTable.primaryAddressId, addressesTable.id),
 			)
 			.where(
 				and(
@@ -224,11 +253,13 @@ export const getPublicCompetitionsFn = createServerFn({ method: "GET" })
 				passPlatformFeesToCustomer: row.passPlatformFeesToCustomer,
 				visibility: row.visibility,
 				status: row.status,
+				competitionType: row.competitionType,
 				profileImageUrl: row.profileImageUrl,
 				bannerImageUrl: row.bannerImageUrl,
 				defaultHeatsPerRotation: row.defaultHeatsPerRotation,
 				defaultLaneShiftPattern: row.defaultLaneShiftPattern,
 				defaultMaxSpotsPerDivision: row.defaultMaxSpotsPerDivision,
+				primaryAddressId: row.primaryAddressId,
 				createdAt: row.createdAt,
 				updatedAt: row.updatedAt,
 				updateCounter: row.updateCounter,
@@ -252,6 +283,7 @@ export const getPublicCompetitionsFn = createServerFn({ method: "GET" })
 							updateCounter: row.group.updateCounter,
 						} as CompetitionGroup)
 					: null,
+				address: row.address as Address | null,
 			}))
 
 		return { competitions: competitionsWithRelations }
@@ -294,12 +326,14 @@ export const getOrganizerCompetitionsFn = createServerFn({ method: "GET" })
 					competitionsTable.passPlatformFeesToCustomer,
 				visibility: competitionsTable.visibility,
 				status: competitionsTable.status,
+				competitionType: competitionsTable.competitionType,
 				profileImageUrl: competitionsTable.profileImageUrl,
 				bannerImageUrl: competitionsTable.bannerImageUrl,
 				defaultHeatsPerRotation: competitionsTable.defaultHeatsPerRotation,
 				defaultLaneShiftPattern: competitionsTable.defaultLaneShiftPattern,
 				defaultMaxSpotsPerDivision:
 					competitionsTable.defaultMaxSpotsPerDivision,
+				primaryAddressId: competitionsTable.primaryAddressId,
 				createdAt: competitionsTable.createdAt,
 				updatedAt: competitionsTable.updatedAt,
 				updateCounter: competitionsTable.updateCounter,
@@ -367,11 +401,13 @@ export const getOrganizerCompetitionsFn = createServerFn({ method: "GET" })
 			passPlatformFeesToCustomer: row.passPlatformFeesToCustomer,
 			visibility: row.visibility,
 			status: row.status,
+			competitionType: row.competitionType,
 			profileImageUrl: row.profileImageUrl,
 			bannerImageUrl: row.bannerImageUrl,
 			defaultHeatsPerRotation: row.defaultHeatsPerRotation,
 			defaultLaneShiftPattern: row.defaultLaneShiftPattern,
 			defaultMaxSpotsPerDivision: row.defaultMaxSpotsPerDivision,
+			primaryAddressId: row.primaryAddressId,
 			createdAt: row.createdAt,
 			updatedAt: row.updatedAt,
 			updateCounter: row.updateCounter,
@@ -431,12 +467,14 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
 					competitionsTable.passPlatformFeesToCustomer,
 				visibility: competitionsTable.visibility,
 				status: competitionsTable.status,
+				competitionType: competitionsTable.competitionType,
 				profileImageUrl: competitionsTable.profileImageUrl,
 				bannerImageUrl: competitionsTable.bannerImageUrl,
 				defaultHeatsPerRotation: competitionsTable.defaultHeatsPerRotation,
 				defaultLaneShiftPattern: competitionsTable.defaultLaneShiftPattern,
 				defaultMaxSpotsPerDivision:
 					competitionsTable.defaultMaxSpotsPerDivision,
+				primaryAddressId: competitionsTable.primaryAddressId,
 				createdAt: competitionsTable.createdAt,
 				updatedAt: competitionsTable.updatedAt,
 				updateCounter: competitionsTable.updateCounter,
@@ -453,12 +491,18 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
 					updatedAt: competitionGroupsTable.updatedAt,
 					updateCounter: competitionGroupsTable.updateCounter,
 				},
+				// Address fields
+				address: addressesTable,
 			})
 			.from(competitionsTable)
 			.leftJoin(teamTable, eq(competitionsTable.organizingTeamId, teamTable.id))
 			.leftJoin(
 				competitionGroupsTable,
 				eq(competitionsTable.groupId, competitionGroupsTable.id),
+			)
+			.leftJoin(
+				addressesTable,
+				eq(competitionsTable.primaryAddressId, addressesTable.id),
 			)
 			.where(eq(competitionsTable.slug, data.slug))
 			.limit(1)
@@ -490,11 +534,13 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
 			passPlatformFeesToCustomer: row.passPlatformFeesToCustomer,
 			visibility: row.visibility,
 			status: row.status,
+			competitionType: row.competitionType,
 			profileImageUrl: row.profileImageUrl,
 			bannerImageUrl: row.bannerImageUrl,
 			defaultHeatsPerRotation: row.defaultHeatsPerRotation,
 			defaultLaneShiftPattern: row.defaultLaneShiftPattern,
 			defaultMaxSpotsPerDivision: row.defaultMaxSpotsPerDivision,
+			primaryAddressId: row.primaryAddressId,
 			createdAt: row.createdAt,
 			updatedAt: row.updatedAt,
 			updateCounter: row.updateCounter,
@@ -511,6 +557,7 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
 						updateCounter: row.group.updateCounter,
 					} as CompetitionGroup)
 				: null,
+			address: row.address as Address | null,
 		}
 
 		return { competition }
@@ -523,6 +570,19 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
 export const createCompetitionFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => createCompetitionInputSchema.parse(data))
 	.handler(async ({ data }) => {
+		// Update request context
+		updateRequestContext({ teamId: data.organizingTeamId })
+
+		logInfo({
+			message: "[Competition] Create competition started",
+			attributes: {
+				name: data.name,
+				slug: data.slug,
+				organizingTeamId: data.organizingTeamId,
+				competitionType: data.competitionType,
+			},
+		})
+
 		try {
 			const result = await createCompetition({
 				organizingTeamId: data.organizingTeamId,
@@ -536,26 +596,32 @@ export const createCompetitionFn = createServerFn({ method: "POST" })
 				groupId: data.groupId,
 				settings: data.settings,
 				timezone: data.timezone,
+				competitionType: data.competitionType,
 			})
 
-			logInfo({
-				message: "[competition] Competition created",
+			// Update context with new IDs
+			addRequestContextAttribute("competitionId", result.competitionId)
+			addRequestContextAttribute("competitionTeamId", result.competitionTeamId)
+
+			logEntityCreated({
+				entity: "competition",
+				id: result.competitionId,
 				attributes: {
-					competitionId: result.competitionId,
 					competitionTeamId: result.competitionTeamId,
-					competitionName: data.name,
-					organizingTeamId: data.organizingTeamId,
+					name: data.name,
 					slug: data.slug,
+					organizingTeamId: data.organizingTeamId,
+					competitionType: data.competitionType,
 				},
 			})
 
 			return result
 		} catch (error) {
 			logError({
-				message: "[competition] Failed to create competition",
+				message: "[Competition] Failed to create competition",
 				error,
 				attributes: {
-					competitionName: data.name,
+					name: data.name,
 					organizingTeamId: data.organizingTeamId,
 					slug: data.slug,
 				},
@@ -575,16 +641,25 @@ export const updateCompetitionFn = createServerFn({ method: "POST" })
 		// Auth check: require authenticated user
 		const session = await getSessionFromCookie()
 		if (!session?.userId) {
+			logWarning({
+				message: "[Competition] Update denied - not authenticated",
+				attributes: { competitionId: data.competitionId },
+			})
 			throw new Error("Authentication required")
 		}
 
+		// Update request context
+		updateRequestContext({ userId: session.userId })
+		addRequestContextAttribute("competitionId", data.competitionId)
+
 		const db = getDb()
 
-		// Get the competition to check organizing team
+		// Get the competition to check organizing team and current address
 		const existingCompetition = await db
 			.select({
 				id: competitionsTable.id,
 				organizingTeamId: competitionsTable.organizingTeamId,
+				primaryAddressId: competitionsTable.primaryAddressId,
 			})
 			.from(competitionsTable)
 			.where(eq(competitionsTable.id, data.competitionId))
@@ -594,37 +669,110 @@ export const updateCompetitionFn = createServerFn({ method: "POST" })
 			throw new Error("Competition not found")
 		}
 
-		// Permission check: user must have MANAGE_COMPETITION permission on organizing team
-		const organizingTeam = session.teams?.find(
-			(t) => t.id === existingCompetition[0].organizingTeamId,
-		)
-		if (
-			!organizingTeam ||
-			!organizingTeam.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS)
-		) {
-			throw new Error(
-				"You do not have permission to manage this competition. Please contact the organizing team.",
+		// Admin bypass - site admins can manage any competition
+		const isAdmin = session.user.role === ROLES_ENUM.ADMIN
+
+		if (!isAdmin) {
+			// Permission check: user must have MANAGE_COMPETITION permission on organizing team
+			const organizingTeam = session.teams?.find(
+				(t) => t.id === existingCompetition[0].organizingTeamId,
 			)
+			if (
+				!organizingTeam ||
+				!organizingTeam.permissions.includes(
+					TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+				)
+			) {
+				logWarning({
+					message: "[Competition] Update denied - permission missing",
+					attributes: {
+						competitionId: data.competitionId,
+						userId: session.userId,
+						organizingTeamId: existingCompetition[0].organizingTeamId,
+					},
+				})
+				throw new Error(
+					"You do not have permission to manage this competition. Please contact the organizing team.",
+				)
+			}
 		}
 
 		try {
-			const { competitionId, ...updates } = data
+			const { competitionId, address, ...updates } = data
+			let primaryAddressId = existingCompetition[0].primaryAddressId
 
-			const competition = await updateCompetition(competitionId, updates)
+			// Handle address creation/update if address data provided
+			if (address) {
+				const normalized = normalizeAddressInput(address)
+				const hasAddressData = Object.values(normalized).some(
+					(v) => v !== undefined && v !== null && v !== "",
+				)
 
-			logInfo({
-				message: "[competition] Competition updated",
+				if (hasAddressData) {
+					if (primaryAddressId) {
+						// Update existing address
+						await db
+							.update(addressesTable)
+							.set({
+								name: normalized.name ?? null,
+								streetLine1: normalized.streetLine1 ?? null,
+								streetLine2: normalized.streetLine2 ?? null,
+								city: normalized.city ?? null,
+								stateProvince: normalized.stateProvince ?? null,
+								postalCode: normalized.postalCode ?? null,
+								countryCode: normalized.countryCode ?? null,
+								notes: normalized.notes ?? null,
+								updatedAt: new Date(),
+							})
+							.where(eq(addressesTable.id, primaryAddressId))
+					} else {
+						// Create new address
+						const [newAddress] = await db
+							.insert(addressesTable)
+							.values({
+								name: normalized.name ?? null,
+								streetLine1: normalized.streetLine1 ?? null,
+								streetLine2: normalized.streetLine2 ?? null,
+								city: normalized.city ?? null,
+								stateProvince: normalized.stateProvince ?? null,
+								postalCode: normalized.postalCode ?? null,
+								countryCode: normalized.countryCode ?? null,
+								notes: normalized.notes ?? null,
+								addressType: "venue",
+							})
+							.returning()
+						primaryAddressId = newAddress.id
+					}
+				}
+			}
+
+			// Include primaryAddressId in updates if it changed
+			const competitionUpdates = {
+				...updates,
+				...(primaryAddressId !== existingCompetition[0].primaryAddressId
+					? { primaryAddressId }
+					: {}),
+			}
+
+			const competition = await updateCompetition(
+				competitionId,
+				competitionUpdates,
+			)
+
+			logEntityUpdated({
+				entity: "competition",
+				id: competitionId,
+				fields: Object.keys(updates),
 				attributes: {
-					competitionId,
 					userId: session.userId,
-					updatedFields: Object.keys(updates),
+					addressUpdated: !!address,
 				},
 			})
 
 			return { competition }
 		} catch (error) {
 			logError({
-				message: "[competition] Failed to update competition",
+				message: "[Competition] Failed to update competition",
 				error,
 				attributes: {
 					competitionId: data.competitionId,
@@ -710,6 +858,9 @@ export const createCompetitionGroupFn = createServerFn({ method: "POST" })
 		createCompetitionGroupInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
+		// Update request context
+		updateRequestContext({ teamId: data.organizingTeamId })
+
 		try {
 			const result = await createCompetitionGroup({
 				organizingTeamId: data.organizingTeamId,
@@ -718,11 +869,13 @@ export const createCompetitionGroupFn = createServerFn({ method: "POST" })
 				description: data.description,
 			})
 
-			logInfo({
-				message: "[competition] Competition group created",
+			addRequestContextAttribute("groupId", result.groupId)
+			logEntityCreated({
+				entity: "competitionGroup",
+				id: result.groupId,
 				attributes: {
-					groupId: result.groupId,
-					groupName: data.name,
+					name: data.name,
+					slug: data.slug,
 					organizingTeamId: data.organizingTeamId,
 				},
 			})
@@ -730,10 +883,10 @@ export const createCompetitionGroupFn = createServerFn({ method: "POST" })
 			return result
 		} catch (error) {
 			logError({
-				message: "[competition] Failed to create competition group",
+				message: "[Competition] Failed to create competition group",
 				error,
 				attributes: {
-					groupName: data.name,
+					name: data.name,
 					organizingTeamId: data.organizingTeamId,
 				},
 			})
@@ -749,23 +902,23 @@ export const updateCompetitionGroupFn = createServerFn({ method: "POST" })
 		updateCompetitionGroupInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
+		addRequestContextAttribute("groupId", data.groupId)
+
 		try {
 			const { groupId, ...updates } = data
 
 			const group = await updateCompetitionGroup(groupId, updates)
 
-			logInfo({
-				message: "[competition] Competition group updated",
-				attributes: {
-					groupId,
-					updatedFields: Object.keys(updates),
-				},
+			logEntityUpdated({
+				entity: "competitionGroup",
+				id: groupId,
+				fields: Object.keys(updates),
 			})
 
 			return { group }
 		} catch (error) {
 			logError({
-				message: "[competition] Failed to update competition group",
+				message: "[Competition] Failed to update competition group",
 				error,
 				attributes: { groupId: data.groupId },
 			})
@@ -782,18 +935,20 @@ export const deleteCompetitionGroupFn = createServerFn({ method: "POST" })
 		deleteCompetitionGroupInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
+		addRequestContextAttribute("groupId", data.groupId)
+
 		try {
 			const result = await deleteCompetitionGroup(data.groupId)
 
-			logInfo({
-				message: "[competition] Competition group deleted",
-				attributes: { groupId: data.groupId },
+			logEntityDeleted({
+				entity: "competitionGroup",
+				id: data.groupId,
 			})
 
 			return result
 		} catch (error) {
 			logError({
-				message: "[competition] Failed to delete competition group",
+				message: "[Competition] Failed to delete competition group",
 				error,
 				attributes: { groupId: data.groupId },
 			})

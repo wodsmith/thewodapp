@@ -7,13 +7,17 @@ import {
 	text,
 	uniqueIndex,
 } from "drizzle-orm/sqlite-core"
+import { addressesTable } from "./addresses"
 import {
 	commonColumns,
+	createCompetitionEventId,
 	createCompetitionGroupId,
 	createCompetitionHeatAssignmentId,
 	createCompetitionHeatId,
 	createCompetitionId,
+	createCompetitionRegistrationAnswerId,
 	createCompetitionRegistrationId,
+	createCompetitionRegistrationQuestionId,
 	createCompetitionVenueId,
 } from "./common"
 import { programmingTracksTable } from "./programming"
@@ -109,6 +113,11 @@ export const competitionsTable = sqliteTable(
 			.$type<"draft" | "published">()
 			.default("draft")
 			.notNull(),
+		// Competition type: in-person = traditional venue-based, online = virtual/remote with video submissions
+		competitionType: text({ length: 15 })
+			.$type<"in-person" | "online">()
+			.default("in-person")
+			.notNull(),
 		// Competition branding images
 		profileImageUrl: text({ length: 600 }),
 		bannerImageUrl: text({ length: 600 }),
@@ -117,6 +126,8 @@ export const competitionsTable = sqliteTable(
 		defaultLaneShiftPattern: text({ length: 20 }).default("shift_right"),
 		// Capacity: default max spots per division (null = unlimited)
 		defaultMaxSpotsPerDivision: integer(),
+		// Primary address for the competition
+		primaryAddressId: text().references(() => addressesTable.id),
 	},
 	(table) => [
 		// slug unique index is already created by .unique() on the column
@@ -213,6 +224,8 @@ export const competitionVenuesTable = sqliteTable(
 		// Minutes between heats for auto-scheduling
 		transitionMinutes: integer().notNull().default(3),
 		sortOrder: integer().default(0).notNull(),
+		// Address for this venue
+		addressId: text().references(() => addressesTable.id),
 	},
 	(table) => [
 		index("competition_venues_competition_idx").on(table.competitionId),
@@ -298,7 +311,117 @@ export const competitionHeatAssignmentsTable = sqliteTable(
 	],
 )
 
+// Competition Registration Questions Table
+// Defines custom questions organizers can ask during registration
+export const competitionRegistrationQuestionsTable = sqliteTable(
+	"competition_registration_questions",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => createCompetitionRegistrationQuestionId())
+			.notNull(),
+		competitionId: text()
+			.notNull()
+			.references(() => competitionsTable.id, { onDelete: "cascade" }),
+		// Question type: text (free form), select (dropdown), number
+		type: text({ length: 20 }).$type<"text" | "select" | "number">().notNull(),
+		// Question label shown to athletes
+		label: text({ length: 500 }).notNull(),
+		// Optional help text / description
+		helpText: text({ length: 1000 }),
+		// For select type: JSON array of options ["S", "M", "L", "XL"]
+		options: text({ length: 5000 }),
+		// Is this question required?
+		required: integer({ mode: "boolean" }).default(true).notNull(),
+		// Should teammates also answer this question? (for team divisions)
+		forTeammates: integer({ mode: "boolean" }).default(false).notNull(),
+		// Sort order for display
+		sortOrder: integer().default(0).notNull(),
+	},
+	(table) => [
+		index("comp_reg_questions_competition_idx").on(table.competitionId),
+		index("comp_reg_questions_sort_idx").on(
+			table.competitionId,
+			table.sortOrder,
+		),
+	],
+)
+
+// Competition Registration Answers Table
+// Stores athlete answers to registration questions
+export const competitionRegistrationAnswersTable = sqliteTable(
+	"competition_registration_answers",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => createCompetitionRegistrationAnswerId())
+			.notNull(),
+		questionId: text()
+			.notNull()
+			.references(() => competitionRegistrationQuestionsTable.id, {
+				onDelete: "cascade",
+			}),
+		// The registration this answer belongs to
+		registrationId: text()
+			.notNull()
+			.references(() => competitionRegistrationsTable.id, {
+				onDelete: "cascade",
+			}),
+		// The user who answered (useful for team registrations where teammates answer separately)
+		userId: text()
+			.notNull()
+			.references(() => userTable.id, { onDelete: "cascade" }),
+		// The answer value (stored as text, converted as needed based on question type)
+		answer: text({ length: 5000 }).notNull(),
+	},
+	(table) => [
+		index("comp_reg_answers_question_idx").on(table.questionId),
+		index("comp_reg_answers_registration_idx").on(table.registrationId),
+		index("comp_reg_answers_user_idx").on(table.userId),
+		// One answer per question per user per registration
+		uniqueIndex("comp_reg_answers_unique_idx").on(
+			table.questionId,
+			table.registrationId,
+			table.userId,
+		),
+	],
+)
+
+// Competition Events Table
+// Per-event settings for online competitions (submission windows, etc.)
+export const competitionEventsTable = sqliteTable(
+	"competition_events",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => createCompetitionEventId())
+			.notNull(),
+		competitionId: text()
+			.notNull()
+			.references(() => competitionsTable.id, { onDelete: "cascade" }),
+		// References track_workout (competition event/workout)
+		trackWorkoutId: text().notNull(),
+		// Submission window for online competitions (ISO 8601 datetime strings)
+		// Athletes can only submit scores within this window
+		submissionOpensAt: text(),
+		submissionClosesAt: text(),
+	},
+	(table) => [
+		index("competition_events_competition_idx").on(table.competitionId),
+		index("competition_events_workout_idx").on(table.trackWorkoutId),
+		// One event config per workout per competition
+		uniqueIndex("competition_events_comp_workout_idx").on(
+			table.competitionId,
+			table.trackWorkoutId,
+		),
+	],
+)
+
 // Type exports
+export type CompetitionEvent = InferSelectModel<typeof competitionEventsTable>
 export type CompetitionGroup = InferSelectModel<typeof competitionGroupsTable>
 export type Competition = InferSelectModel<typeof competitionsTable>
 export type CompetitionRegistration = InferSelectModel<
@@ -309,6 +432,12 @@ export type CompetitionHeat = InferSelectModel<typeof competitionHeatsTable>
 export type CompetitionHeatAssignment = InferSelectModel<
 	typeof competitionHeatAssignmentsTable
 >
+export type CompetitionRegistrationQuestion = InferSelectModel<
+	typeof competitionRegistrationQuestionsTable
+>
+export type CompetitionRegistrationAnswer = InferSelectModel<
+	typeof competitionRegistrationAnswersTable
+>
 
 // Competition visibility constants
 export const COMPETITION_VISIBILITY = {
@@ -318,6 +447,15 @@ export const COMPETITION_VISIBILITY = {
 
 export type CompetitionVisibility =
 	(typeof COMPETITION_VISIBILITY)[keyof typeof COMPETITION_VISIBILITY]
+
+// Competition type constants
+export const COMPETITION_TYPES = {
+	IN_PERSON: "in-person",
+	ONLINE: "online",
+} as const
+
+export type CompetitionType =
+	(typeof COMPETITION_TYPES)[keyof typeof COMPETITION_TYPES]
 
 // Relations
 export const competitionGroupsRelations = relations(
@@ -360,6 +498,15 @@ export const competitionsRelations = relations(
 		heats: many(competitionHeatsTable),
 		// Programming tracks (events)
 		programmingTrack: many(programmingTracksTable),
+		// Registration questions
+		registrationQuestions: many(competitionRegistrationQuestionsTable),
+		// Primary address
+		primaryAddress: one(addressesTable, {
+			fields: [competitionsTable.primaryAddressId],
+			references: [addressesTable.id],
+		}),
+		// Per-event settings (submission windows for online competitions)
+		events: many(competitionEventsTable),
 	}),
 )
 
@@ -401,6 +548,8 @@ export const competitionRegistrationsRelations = relations(
 		}),
 		// Heat assignments for this registration
 		heatAssignments: many(competitionHeatAssignmentsTable),
+		// Registration question answers
+		registrationAnswers: many(competitionRegistrationAnswersTable),
 	}),
 )
 
@@ -413,6 +562,10 @@ export const competitionVenuesRelations = relations(
 			references: [competitionsTable.id],
 		}),
 		heats: many(competitionHeatsTable),
+		address: one(addressesTable, {
+			fields: [competitionVenuesTable.addressId],
+			references: [addressesTable.id],
+		}),
 	}),
 )
 
@@ -448,6 +601,48 @@ export const competitionHeatAssignmentsRelations = relations(
 		registration: one(competitionRegistrationsTable, {
 			fields: [competitionHeatAssignmentsTable.registrationId],
 			references: [competitionRegistrationsTable.id],
+		}),
+	}),
+)
+
+// Registration questions relations
+export const competitionRegistrationQuestionsRelations = relations(
+	competitionRegistrationQuestionsTable,
+	({ one, many }) => ({
+		competition: one(competitionsTable, {
+			fields: [competitionRegistrationQuestionsTable.competitionId],
+			references: [competitionsTable.id],
+		}),
+		answers: many(competitionRegistrationAnswersTable),
+	}),
+)
+
+// Registration answers relations
+export const competitionRegistrationAnswersRelations = relations(
+	competitionRegistrationAnswersTable,
+	({ one }) => ({
+		question: one(competitionRegistrationQuestionsTable, {
+			fields: [competitionRegistrationAnswersTable.questionId],
+			references: [competitionRegistrationQuestionsTable.id],
+		}),
+		registration: one(competitionRegistrationsTable, {
+			fields: [competitionRegistrationAnswersTable.registrationId],
+			references: [competitionRegistrationsTable.id],
+		}),
+		user: one(userTable, {
+			fields: [competitionRegistrationAnswersTable.userId],
+			references: [userTable.id],
+		}),
+	}),
+)
+
+// Competition events relations
+export const competitionEventsRelations = relations(
+	competitionEventsTable,
+	({ one }) => ({
+		competition: one(competitionsTable, {
+			fields: [competitionEventsTable.competitionId],
+			references: [competitionsTable.id],
 		}),
 	}),
 )

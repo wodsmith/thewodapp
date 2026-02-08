@@ -82,3 +82,19 @@ export const createSponsorId = () => `spnsr_${createId()}`
 
 // Organizer request ID generators
 export const createOrganizerRequestId = () => `oreq_${createId()}`
+
+// Competition registration question ID generators
+export const createCompetitionRegistrationQuestionId = () => `crq_${createId()}`
+export const createCompetitionRegistrationAnswerId = () => `cra_${createId()}`
+
+// Competition event ID generators (per-event settings for online competitions)
+export const createCompetitionEventId = () => `cevt_${createId()}`
+
+// Event resource ID generators
+export const createEventResourceId = () => `eres_${createId()}`
+
+// Judging sheet ID generators
+export const createEventJudgingSheetId = () => `ejsheet_${createId()}`
+
+// Address ID generators
+export const createAddressId = () => `addr_${createId()}`

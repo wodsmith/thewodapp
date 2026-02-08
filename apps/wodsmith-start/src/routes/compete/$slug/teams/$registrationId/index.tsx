@@ -12,10 +12,12 @@ import {
 	redirect,
 	useNavigate,
 } from "@tanstack/react-router"
+import { eq } from "drizzle-orm"
 import { CheckCircle, Clock, Copy, Crown, Mail, Users } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
+import { RegistrationAnswersForm } from "@/components/registration/registration-answers-form"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -33,6 +35,11 @@ import {
 	type RegistrationDetails,
 	type TeamRosterResult,
 } from "@/server-fns/registration-fns"
+import {
+	getCompetitionQuestionsFn,
+	getRegistrationAnswersFn,
+	type RegistrationQuestion,
+} from "@/server-fns/registration-questions-fns"
 import {
 	getCompetitionWaiversFn,
 	getWaiverSignaturesForUserFn,
@@ -70,6 +77,7 @@ interface LoaderData {
 		id: string
 		name: string
 		slug: string
+		registrationClosesAt: string | null
 	} | null
 	division: {
 		id: string
@@ -84,6 +92,14 @@ interface LoaderData {
 	pendingTeammates: PendingTeammate[]
 	waivers: Waiver[]
 	waiverSignatures: WaiverSignature[]
+	registrationQuestions: RegistrationQuestion[]
+	registrationAnswers: Array<{
+		id: string
+		questionId: string
+		registrationId: string
+		userId: string
+		answer: string
+	}>
 }
 
 export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
@@ -101,7 +117,7 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 			})
 		}
 
-		// Get team roster and registration details in parallel
+		// Get team roster and registration details first
 		const [roster, registrationDetails] = await Promise.all([
 			getTeamRosterFn({ data: { registrationId } }),
 			getRegistrationDetailsFn({ data: { registrationId } }),
@@ -113,9 +129,56 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 
 		const { registration, members, pending, isTeamRegistration } = roster
 
-		// Check if current user is a team member
+		// Check if user is authorized to view this registration
 		const isTeamMember = members.some((m) => m.user?.id === session.userId)
 		const isRegisteredUser = registration.userId === session.userId
+
+		// If user is not authorized, show 404 (don't reveal that the resource exists)
+		if (!isTeamMember && !isRegisteredUser) {
+			throw notFound()
+		}
+
+		// Now fetch questions, answers, and full competition data if we have a competition
+		let registrationQuestions: RegistrationQuestion[] = []
+		let registrationAnswers: Array<{
+			id: string
+			questionId: string
+			registrationId: string
+			userId: string
+			answer: string
+		}> = []
+		let fullCompetition: { registrationClosesAt: string | null } | null = null
+
+		if (registration.competition?.id) {
+			const [questionsResult, answersResult, competitionData] =
+				await Promise.all([
+					getCompetitionQuestionsFn({
+						data: { competitionId: registration.competition.id },
+					}).catch(() => ({ questions: [] })),
+					getRegistrationAnswersFn({
+						data: { registrationId, userId: session.userId },
+					}).catch(() => ({ answers: [] })),
+					// Fetch full competition data for registrationClosesAt
+					(async () => {
+						const { getDb } = await import("@/db")
+						const { competitionsTable } = await import(
+							"@/db/schemas/competitions"
+						)
+						const db = getDb()
+						const compId = registration.competition?.id
+						if (!compId) return null
+						const comp = await db.query.competitionsTable.findFirst({
+							where: eq(competitionsTable.id, compId),
+							columns: { registrationClosesAt: true },
+						})
+						return comp
+					})().catch(() => null),
+				])
+
+			registrationQuestions = questionsResult.questions
+			registrationAnswers = answersResult.answers
+			fullCompetition = competitionData || null
+		}
 
 		// Parse affiliates from registration metadata
 		let memberAffiliates: Record<string, string> = {}
@@ -181,7 +244,14 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 			members,
 			pending,
 			isTeamRegistration,
-			competition: registration.competition,
+			competition: registration.competition
+				? {
+						id: registration.competition.id,
+						name: registration.competition.name,
+						slug: registration.competition.slug,
+						registrationClosesAt: fullCompetition?.registrationClosesAt || null,
+					}
+				: null,
 			division: registration.division,
 			isTeamMember,
 			isRegisteredUser,
@@ -192,6 +262,8 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 			pendingTeammates,
 			waivers,
 			waiverSignatures,
+			registrationQuestions,
+			registrationAnswers,
 		}
 	},
 })
@@ -214,6 +286,8 @@ function TeamManagementPage() {
 		pendingTeammates,
 		waivers,
 		waiverSignatures,
+		registrationQuestions,
+		registrationAnswers,
 	} = Route.useLoaderData()
 
 	const { welcome } = Route.useSearch()
@@ -257,6 +331,11 @@ function TeamManagementPage() {
 		}
 	}
 
+	// Check if registration is still open for editing
+	const isRegistrationOpen =
+		!competition?.registrationClosesAt ||
+		new Date() < new Date(competition.registrationClosesAt)
+
 	// For individual registrations, show simpler view
 	if (!isTeamRegistration) {
 		return (
@@ -274,6 +353,18 @@ function TeamManagementPage() {
 					<RegistrationDetailsCard
 						details={registrationDetails}
 						isTeamRegistration={false}
+					/>
+				)}
+
+				{/* Registration Questions */}
+				{isRegisteredUser && (
+					<RegistrationAnswersForm
+						registrationId={registration.id}
+						questions={registrationQuestions}
+						answers={registrationAnswers}
+						isEditable={isRegistrationOpen}
+						currentUserId={currentUserId}
+						isCaptain={true}
 					/>
 				)}
 
@@ -328,6 +419,18 @@ function TeamManagementPage() {
 					<RegistrationDetailsCard
 						details={registrationDetails}
 						isTeamRegistration={true}
+					/>
+				)}
+
+				{/* Registration Questions */}
+				{(isTeamMember || isRegisteredUser) && (
+					<RegistrationAnswersForm
+						registrationId={registration.id}
+						questions={registrationQuestions}
+						answers={registrationAnswers}
+						isEditable={isRegistrationOpen}
+						currentUserId={currentUserId}
+						isCaptain={isRegisteredUser}
 					/>
 				)}
 

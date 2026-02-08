@@ -2,6 +2,7 @@
   "permissions": {
     "allow": [
       "mcp__deepwiki__read_wiki_structure",
+      "Bash(pnpm db:push:*)",
       "Bash(pnpm db:generate:*)",
       "Bash(pnpm vitest run:*)",
       "Bash(pnpm db:migrate:dev:*)",
@@ -45,18 +46,5 @@
       "Bash(git diff:*)"
     ],
     "deny": []
-  },
-  "hooks": {
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bun run \"$CLAUDE_PROJECT_DIR\"/hooks/STOP.ts"
-          }
-        ]
-      }
-    ]
   }
 }

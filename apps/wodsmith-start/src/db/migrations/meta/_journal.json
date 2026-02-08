@@ -402,20 +402,6 @@
       "breakpoints": true
     },
     {
-      "idx": 55,
-      "version": "6",
-      "when": 1765408465245,
-      "tag": "0055_add-organizer-requests",
-      "breakpoints": true
-    },
-    {
-      "idx": 56,
-      "version": "6",
-      "when": 1765408892523,
-      "tag": "0056_add-competition-status",
-      "breakpoints": true
-    },
-    {
       "idx": 57,
       "version": "6",
       "when": 1765950512940,
@@ -525,6 +511,83 @@
       "version": "6",
       "when": 1767629400002,
       "tag": "0073_add-competition-timezone",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "6",
+      "when": 1767629400003,
+      "tag": "0074_add-registration-questions",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "6",
+      "when": 1767715800000,
+      "tag": "0075_add-competition-type",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "6",
+      "when": 1767802200000,
+      "tag": "0076_fix-competition-type-column-name",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "6",
+      "when": 1767888600000,
+      "tag": "0077_add_event_judging_sheets",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "6",
+      "when": 1767975000000,
+      "tag": "0078_add-event-resources",
+      "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "6",
+      "when": 1768061400000,
+      "tag": "0079_add-competition-events",
+      "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "6",
+      "when": 1769385813243,
+      "tag": "0080_video-submissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "6",
+      "when": 1769400000000,
+      "tag": "0081_add-submission-window-notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "6",
+      "when": 1769500000000,
+      "tag": "0082_add-addresses-table",
+      "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "6",
+      "when": 1769984444340,
+      "tag": "0083_perpetual_penance",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "6",
+      "when": 1770271577815,
+      "tag": "0084_add-versionid-to-assignment-unique-idx",
       "breakpoints": true
     }
   ]

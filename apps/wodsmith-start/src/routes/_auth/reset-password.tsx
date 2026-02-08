@@ -16,10 +16,10 @@ import {
 import { Input } from "@/components/ui/input"
 import { REDIRECT_AFTER_SIGN_IN } from "@/constants"
 import {
+	type ResetPasswordInput,
 	resetPasswordFn,
 	resetPasswordSchema,
 	validateResetTokenFn,
-	type ResetPasswordInput,
 } from "@/server-fns/auth-fns"
 
 // Search params schema for validation

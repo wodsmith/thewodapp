@@ -9,7 +9,6 @@
  */
 
 import { createId } from "@paralleldrive/cuid2"
-import { AppError } from "@/utils/errors"
 import { createServerFn } from "@tanstack/react-start"
 import { and, count, eq, isNull, not } from "drizzle-orm"
 import { z } from "zod"
@@ -29,6 +28,7 @@ import {
 } from "@/db/schema"
 import { getSessionFromCookie, setActiveTeamCookie } from "@/utils/auth"
 import { sendTeamInvitationEmail } from "@/utils/email"
+import { AppError } from "@/utils/errors"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { generateSlug } from "@/utils/slugify"
 import { requireTeamPermission } from "./requireTeamMembership"

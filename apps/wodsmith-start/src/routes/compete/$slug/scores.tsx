@@ -6,11 +6,11 @@
  */
 
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
+import { ArrowLeft } from "lucide-react"
 import { useCallback } from "react"
 import { z } from "zod"
-import { ArrowLeft } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { ResultsEntryForm } from "@/components/organizer/results/results-entry-form"
+import { Button } from "@/components/ui/button"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import {
 	getCompetitionDivisionsForScoreEntryFn,

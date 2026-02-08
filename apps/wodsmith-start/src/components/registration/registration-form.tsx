@@ -1,8 +1,7 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useNavigate } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { Loader2, User, Users } from "lucide-react"
-import { getLocalDateKey, isSameDateString } from "@/utils/date-utils"
+import { ChevronDown, Loader2, User, Users } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useFieldArray, useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -30,6 +29,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover"
+import {
 	Select,
 	SelectContent,
 	SelectItem,
@@ -45,7 +49,10 @@ import type {
 } from "@/db/schema"
 import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
 import { initiateRegistrationPaymentFn } from "@/server-fns/registration-fns"
+import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
 import { signWaiverFn } from "@/server-fns/waiver-fns"
+import { cn } from "@/utils/cn"
+import { getLocalDateKey, isSameDateString } from "@/utils/date-utils"
 import { AffiliateCombobox } from "./affiliate-combobox"
 import { FeeBreakdown } from "./fee-breakdown"
 
@@ -65,6 +72,15 @@ const registrationSchema = z.object({
 	// Team fields (validated based on division.teamSize)
 	teamName: z.string().max(255).optional(),
 	teammates: z.array(teammateSchema).optional(),
+	// Registration question answers
+	answers: z
+		.array(
+			z.object({
+				questionId: z.string(),
+				answer: z.string(),
+			}),
+		)
+		.optional(),
 })
 
 type FormValues = z.infer<typeof registrationSchema>
@@ -80,6 +96,140 @@ type Props = {
 	paymentCanceled?: boolean
 	defaultAffiliateName?: string
 	waivers: Waiver[]
+	questions: RegistrationQuestion[]
+}
+
+function DivisionField({
+	form,
+	scalingGroup,
+	publicDivisions,
+	isSubmitting,
+	registrationOpen,
+	handleDivisionChange,
+	isTeamDivision,
+	teamSize,
+	teammatesNeeded,
+}: {
+	form: ReturnType<typeof useForm<FormValues>>
+	scalingGroup: ScalingGroup & { scalingLevels: ScalingLevel[] }
+	publicDivisions: PublicCompetitionDivision[]
+	isSubmitting: boolean
+	registrationOpen: boolean
+	handleDivisionChange: (divisionId: string) => void
+	isTeamDivision: boolean
+	teamSize: number
+	teammatesNeeded: number
+}) {
+	const [divisionOpen, setDivisionOpen] = useState(false)
+	const divisionId = form.watch("divisionId")
+	const selectedLevel = scalingGroup.scalingLevels.find(
+		(l) => l.id === divisionId,
+	)
+
+	return (
+		<FormField
+			control={form.control}
+			name="divisionId"
+			render={({ field }) => (
+				<FormItem>
+					<FormLabel>Division</FormLabel>
+					<Popover open={divisionOpen} onOpenChange={setDivisionOpen}>
+						<PopoverTrigger asChild>
+							<FormControl>
+								{/* biome-ignore lint/a11y/useSemanticElements: Popover-based combobox pattern */}
+								<Button
+									variant="outline"
+									role="combobox"
+									disabled={isSubmitting || !registrationOpen}
+									className="w-full justify-between font-normal"
+								>
+									{selectedLevel?.label || "Select a division"}
+									<ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+								</Button>
+							</FormControl>
+						</PopoverTrigger>
+						<PopoverContent
+							className="min-w-[250px] w-[var(--radix-popover-trigger-width)] p-0"
+							align="start"
+						>
+							<div className="max-h-[300px] overflow-y-auto p-1">
+								{scalingGroup.scalingLevels.map((level) => {
+									const divisionInfo = publicDivisions.find(
+										(d) => d.id === level.id,
+									)
+									const isFull = divisionInfo?.isFull ?? false
+									const spotsAvailable = divisionInfo?.spotsAvailable
+									const maxSpots = divisionInfo?.maxSpots
+									const isSelected = field.value === level.id
+
+									return (
+										<button
+											key={level.id}
+											type="button"
+											disabled={isFull}
+											onClick={() => {
+												handleDivisionChange(level.id)
+												setDivisionOpen(false)
+											}}
+											className={cn(
+												"relative flex w-full cursor-pointer select-none items-center justify-between gap-2 rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+												isSelected && "bg-accent",
+												isFull && "pointer-events-none opacity-50",
+											)}
+										>
+											<span
+												className={
+													isFull
+														? "line-through text-muted-foreground"
+														: ""
+												}
+											>
+												{level.label}
+											</span>
+											<div className="flex items-center gap-1">
+												{(level.teamSize ?? 1) > 1 ? (
+													<Badge variant="secondary" className="text-xs">
+														<Users className="w-3 h-3 mr-1" />
+														{level.teamSize}
+													</Badge>
+												) : (
+													<Badge variant="outline" className="text-xs">
+														<User className="w-3 h-3 mr-1" />
+														Indy
+													</Badge>
+												)}
+												{isFull ? (
+													<Badge variant="destructive" className="text-xs">
+														SOLD OUT
+													</Badge>
+												) : maxSpots !== null &&
+													spotsAvailable !== null &&
+													spotsAvailable !== undefined &&
+													spotsAvailable <= 5 ? (
+													<Badge
+														variant="secondary"
+														className="text-xs text-amber-600 dark:text-amber-400"
+													>
+														{spotsAvailable} left
+													</Badge>
+												) : null}
+											</div>
+										</button>
+									)
+								})}
+							</div>
+						</PopoverContent>
+					</Popover>
+					<FormDescription>
+						{isTeamDivision
+							? `Team division - requires ${teamSize} athletes (you + ${teammatesNeeded} teammate${teammatesNeeded > 1 ? "s" : ""})`
+							: "Individual division - compete on your own"}
+					</FormDescription>
+					<FormMessage />
+				</FormItem>
+			)}
+		/>
+	)
 }
 
 export function RegistrationForm({
@@ -93,6 +243,7 @@ export function RegistrationForm({
 	paymentCanceled,
 	defaultAffiliateName,
 	waivers,
+	questions,
 }: Props) {
 	const navigate = useNavigate()
 	const [isSubmitting, setIsSubmitting] = useState(false)
@@ -123,6 +274,7 @@ export function RegistrationForm({
 			teamName: "",
 			affiliateName: defaultAffiliateName ?? "",
 			teammates: [],
+			answers: questions.map((q) => ({ questionId: q.id, answer: "" })),
 		},
 	})
 
@@ -196,6 +348,21 @@ export function RegistrationForm({
 			}
 		}
 
+		// Validate required registration questions
+		if (questions.length > 0 && data.answers) {
+			for (const question of questions) {
+				if (question.required) {
+					const answer = data.answers.find((a) => a.questionId === question.id)
+					if (!answer?.answer?.trim()) {
+						toast.error(
+							`Please answer the required question: ${question.label}`,
+						)
+						return
+					}
+				}
+			}
+		}
+
 		// Check waivers are signed
 		if (!allRequiredWaiversAgreed) {
 			toast.error("Please agree to all required waivers before registering")
@@ -230,13 +397,17 @@ export function RegistrationForm({
 					teamName: isTeamDivision ? data.teamName : undefined,
 					affiliateName: data.affiliateName || undefined,
 					teammates: isTeamDivision ? data.teammates : undefined,
+					answers: data.answers,
 				},
 			})
 
-			// FREE registration - redirect to competition page
+			// FREE registration - redirect to registered page
 			if (result.isFree) {
 				toast.success("Successfully registered!")
-				navigate({ to: `/compete/${competition.slug}` })
+				navigate({
+					to: `/compete/${competition.slug}/registered`,
+					search: { registration_id: result.registrationId },
+				})
 				return
 			}
 
@@ -317,8 +488,29 @@ export function RegistrationForm({
 				const day = Number(dayStr)
 				// Create Date object in UTC to get weekday
 				const d = new Date(Date.UTC(year, monthNum - 1, day))
-				const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-				const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+				const weekdays = [
+					"Sunday",
+					"Monday",
+					"Tuesday",
+					"Wednesday",
+					"Thursday",
+					"Friday",
+					"Saturday",
+				]
+				const months = [
+					"January",
+					"February",
+					"March",
+					"April",
+					"May",
+					"June",
+					"July",
+					"August",
+					"September",
+					"October",
+					"November",
+					"December",
+				]
 				return `${weekdays[d.getUTCDay()]}, ${months[monthNum - 1]} ${day}, ${year}`
 			}
 			return "TBA"
@@ -417,86 +609,16 @@ export function RegistrationForm({
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
-							<FormField
-								control={form.control}
-								name="divisionId"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>Division</FormLabel>
-										<Select
-											onValueChange={handleDivisionChange}
-											defaultValue={field.value}
-											disabled={isSubmitting || !registrationOpen}
-										>
-											<FormControl>
-												<SelectTrigger>
-													<SelectValue placeholder="Select a division" />
-												</SelectTrigger>
-											</FormControl>
-											<SelectContent>
-												{scalingGroup.scalingLevels.map((level) => {
-													// Get capacity info from publicDivisions
-													const divisionInfo = publicDivisions.find(
-														(d) => d.id === level.id,
-													)
-													const isFull = divisionInfo?.isFull ?? false
-													const spotsAvailable = divisionInfo?.spotsAvailable
-													const maxSpots = divisionInfo?.maxSpots
-
-													return (
-														<SelectItem
-															key={level.id}
-															value={level.id}
-															disabled={isFull}
-														>
-															<div className="flex items-center gap-2">
-																<span className={isFull ? "line-through text-muted-foreground" : ""}>
-																	{level.label}
-																</span>
-																{(level.teamSize ?? 1) > 1 ? (
-																	<Badge
-																		variant="secondary"
-																		className="ml-1 text-xs"
-																	>
-																		<Users className="w-3 h-3 mr-1" />
-																		{level.teamSize}
-																	</Badge>
-																) : (
-																	<Badge
-																		variant="outline"
-																		className="ml-1 text-xs"
-																	>
-																		<User className="w-3 h-3 mr-1" />
-																		Individual
-																	</Badge>
-																)}
-																{/* Show capacity info */}
-																{isFull ? (
-																	<Badge variant="destructive" className="ml-1 text-xs">
-																		SOLD OUT
-																	</Badge>
-																) : maxSpots !== null &&
-																  spotsAvailable !== null &&
-																  spotsAvailable !== undefined &&
-																  spotsAvailable <= 5 ? (
-																	<Badge variant="secondary" className="ml-1 text-xs text-amber-600 dark:text-amber-400">
-																		{spotsAvailable} left
-																	</Badge>
-																) : null}
-															</div>
-														</SelectItem>
-													)
-												})}
-											</SelectContent>
-										</Select>
-										<FormDescription>
-											{isTeamDivision
-												? `Team division - requires ${teamSize} athletes (you + ${teammatesNeeded} teammate${teammatesNeeded > 1 ? "s" : ""})`
-												: "Individual division - compete on your own"}
-										</FormDescription>
-										<FormMessage />
-									</FormItem>
-								)}
+							<DivisionField
+								form={form}
+								scalingGroup={scalingGroup}
+								publicDivisions={publicDivisions}
+								isSubmitting={isSubmitting}
+								registrationOpen={registrationOpen}
+								handleDivisionChange={handleDivisionChange}
+								isTeamDivision={isTeamDivision}
+								teamSize={teamSize}
+								teammatesNeeded={teammatesNeeded}
 							/>
 						</CardContent>
 					</Card>
@@ -535,6 +657,69 @@ export function RegistrationForm({
 							/>
 						</CardContent>
 					</Card>
+
+					{/* Registration Questions Card */}
+					{questions.length > 0 && (
+						<Card>
+							<CardHeader>
+								<CardTitle>Registration Questions</CardTitle>
+							</CardHeader>
+							<CardContent className="space-y-6">
+								{questions.map((question, index) => (
+									<FormField
+										key={question.id}
+										control={form.control}
+										name={`answers.${index}.answer`}
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel>
+													{question.label}
+													{question.required && (
+														<span className="text-destructive"> *</span>
+													)}
+												</FormLabel>
+												<FormControl>
+													{question.type === "select" ? (
+														<Select
+															onValueChange={field.onChange}
+															defaultValue={field.value}
+															disabled={isSubmitting || !registrationOpen}
+														>
+															<SelectTrigger>
+																<SelectValue placeholder="Select an option" />
+															</SelectTrigger>
+															<SelectContent>
+																{question.options?.map((opt) => (
+																	<SelectItem key={opt} value={opt}>
+																		{opt}
+																	</SelectItem>
+																))}
+															</SelectContent>
+														</Select>
+													) : question.type === "number" ? (
+														<Input
+															type="number"
+															{...field}
+															disabled={isSubmitting || !registrationOpen}
+														/>
+													) : (
+														<Input
+															{...field}
+															disabled={isSubmitting || !registrationOpen}
+														/>
+													)}
+												</FormControl>
+												{question.helpText && (
+													<FormDescription>{question.helpText}</FormDescription>
+												)}
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+								))}
+							</CardContent>
+						</Card>
+					)}
 
 					{/* Registration Fee Card */}
 					<Card>

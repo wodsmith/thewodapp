@@ -45,8 +45,10 @@ The dropdown shows the count of registrations per division (e.g., "RX (10)").
 
 <!-- FEATURE NOT FOUND: Refunds - There is no refund functionality in the registration management interface. Refunds would need to be processed directly through your payment provider. -->
 
-<!-- FEATURE NOT FOUND: Export Registrations - There is no export button to download registrations as CSV or PDF. -->
+## Exporting Registrations
+
+Click **Export CSV** to download all registrations including custom question answers.
 
 ---
 
-*See also: [How to Schedule Heats](/how-to/organizers/schedule-heats)*
+*See also: [How to Create Registration Questions](/how-to/organizers/registration-questions) | [How to Schedule Heats](/how-to/organizers/schedule-heats)*

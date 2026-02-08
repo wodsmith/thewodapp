@@ -12,7 +12,6 @@ import {
 	Twitter,
 	Users,
 } from "lucide-react"
-import { isSameUTCDay } from "@/utils/date-utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -25,6 +24,7 @@ import {
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { getAthleteProfileDataFn } from "@/server-fns/athlete-profile-fns"
+import { isSameUTCDay } from "@/utils/date-utils"
 
 export const Route = createFileRoute("/compete/athlete/")({
 	component: AthleteProfilePage,
@@ -80,7 +80,9 @@ function parseAthleteProfile(json: string | null): AthleteProfileData | null {
 	}
 }
 
-function calculateAge(dateOfBirth: Date | number | string | null): number | null {
+function calculateAge(
+	dateOfBirth: Date | number | string | null,
+): number | null {
 	if (!dateOfBirth) return null
 	const dob = new Date(dateOfBirth)
 	if (Number.isNaN(dob.getTime())) return null

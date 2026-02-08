@@ -292,6 +292,38 @@ const r2Bucket = await R2Bucket("wodsmith-uploads", {
 	 * Required for production where resources were created before Alchemy.
 	 */
 	adopt: true,
+	/**
+	 * Use remote R2 bucket during local development instead of Miniflare emulation.
+	 * Required to get the actual devDomain URL and test with real uploads.
+	 */
+	dev: { remote: true },
+	/**
+	 * Enable r2.dev public URL for non-prod stages.
+	 * Production uses a custom domain instead.
+	 */
+	devDomain: stage !== "prod",
+	/**
+	 * Custom domain for public access to bucket files.
+	 * Only configured for production - other stages use the r2.dev URL.
+	 */
+	...(stage === "prod" && { domains: "uploads.wodsmith.com" }),
+	/**
+	 * CORS configuration to allow cross-origin requests from the app.
+	 */
+	cors: [
+		{
+			allowed: {
+				origins: [
+					"https://wodsmith.com",
+					"https://demo.wodsmith.com",
+					"http://localhost:3000",
+				],
+				methods: ["GET", "HEAD"],
+				headers: ["*"],
+			},
+			maxAgeSeconds: 3600,
+		},
+	],
 })
 
 /**
@@ -426,6 +458,17 @@ function getDomains(currentStage: string): string[] | undefined {
  */
 const website = await TanStackStart("app", {
 	/**
+	 * Cron triggers for scheduled jobs.
+	 *
+	 * The scheduled handler in src/server.ts processes these triggers.
+	 * Currently runs submission window notifications every 15 minutes.
+	 *
+	 * @see src/server.ts for the scheduled handler implementation
+	 * @see https://developers.cloudflare.com/workers/configuration/cron-triggers/
+	 */
+	crons: ["*/15 * * * *"],
+
+	/**
 	 * Cloudflare resource bindings available to the application.
 	 *
 	 * These bindings inject Cloudflare services into the Worker's environment.
@@ -444,6 +487,7 @@ const website = await TanStackStart("app", {
 		R2_BUCKET: r2Bucket,
 
 		// App configuration
+		// biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
 		APP_URL: process.env.APP_URL!,
 
 		/**
@@ -451,7 +495,8 @@ const website = await TanStackStart("app", {
 		 * Must be "production" for emails to be sent via Resend.
 		 * In dev mode, emails are logged to console only.
 		 */
-		NODE_ENV: stage === "prod" || stage === "demo" ? "production" : "development",
+		NODE_ENV:
+			stage === "prod" || stage === "demo" ? "production" : "development",
 
 		/**
 		 * Site URL used in email templates for links (verify email, reset password, etc.)
@@ -465,13 +510,26 @@ const website = await TanStackStart("app", {
 		EMAIL_REPLY_TO: "support@mail.wodsmith.com",
 
 		// Public URLs and keys
-		R2_PUBLIC_URL: "https://pub-14c651314867492fa9637e830cc729a3.r2.dev",
+		// Use custom domain for prod, r2.dev domain for other stages
+		// Fallback to known r2.dev URL if devDomain not yet provisioned
+		R2_PUBLIC_URL: r2Bucket.domains?.[0]
+			? `https://${r2Bucket.domains[0]}`
+			: r2Bucket.devDomain
+				? `https://${r2Bucket.devDomain}`
+				: "https://pub-14c651314867492fa9637e830cc729a3.r2.dev",
 		POSTHOG_KEY: "phc_UCtCVOUXvpuKzF50prCLKIWWCFc61j5CPTbt99OrKsK",
 		TURNSTILE_SITE_KEY: "0x4AAAAAACF8K4v1TmFMOmtk",
 
 		// Secrets
+		// biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
 		TURNSTILE_SECRET_KEY: alchemy.secret(process.env.TURNSTILE_SECRET_KEY!),
+		// biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
 		RESEND_API_KEY: alchemy.secret(process.env.RESEND_API_KEY!),
+
+		// Cron secret for scheduled job authentication
+		...(process.env.CRON_SECRET && {
+			CRON_SECRET: alchemy.secret(process.env.CRON_SECRET),
+		}),
 
 		// AI configuration (optional - only include if available)
 		...(process.env.OPENAI_API_KEY && {
@@ -484,10 +542,13 @@ const website = await TanStackStart("app", {
 		// Stripe env vars are populated for all environments when available
 		...(hasStripeEnv && {
 			/** Stripe publishable key for client-side Stripe.js initialization */
+			// biome-ignore lint/style/noNonNullAssertion: hasStripeEnv check guarantees this exists
 			STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY!,
 			/** Stripe Connect OAuth client ID */
+			// biome-ignore lint/style/noNonNullAssertion: hasStripeEnv check guarantees this exists
 			STRIPE_CLIENT_ID: process.env.STRIPE_CLIENT_ID!,
 			/** Stripe secret key for server-side API calls */
+			// biome-ignore lint/style/noNonNullAssertion: hasStripeEnv check guarantees this exists
 			STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY!),
 		}),
 		// Webhook secret: use Alchemy-managed webhook for demo/prod, or .dev.vars for local dev

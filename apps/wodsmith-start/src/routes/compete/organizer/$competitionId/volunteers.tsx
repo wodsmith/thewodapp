@@ -1,6 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { useEffect } from "react"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { z } from "zod"
 import type { JudgeAssignmentVersion } from "@/db/schema"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getHeatsForCompetitionFn } from "@/server-fns/competition-heats-fns"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
@@ -23,6 +26,12 @@ import { InvitedVolunteersList } from "./-components/invited-volunteers-list"
 import { JudgeSchedulingContainer } from "./-components/judges"
 import { VolunteersList } from "./-components/volunteers-list"
 
+// Search params schema for tab navigation and event selection
+const searchParamsSchema = z.object({
+	tab: z.enum(["roster", "schedule"]).optional().default("roster"),
+	event: z.string().optional(),
+})
+
 /** Per-event defaults for judge rotations */
 interface EventDefaults {
 	defaultHeatsCount: number | null
@@ -33,6 +42,7 @@ interface EventDefaults {
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/volunteers",
 )({
+	validateSearch: searchParamsSchema,
 	loader: async ({ params }) => {
 		const result = await getCompetitionByIdFn({
 			data: { competitionId: params.competitionId },
@@ -184,7 +194,6 @@ export const Route = createFileRoute(
 			invitations,
 			volunteersWithAccess,
 			events,
-			directInvites,
 			pendingDirectInvites,
 			judges,
 			heats,
@@ -205,7 +214,6 @@ function VolunteersPage() {
 		invitations,
 		volunteersWithAccess,
 		events,
-		directInvites,
 		pendingDirectInvites,
 		judges,
 		heats,
@@ -216,62 +224,127 @@ function VolunteersPage() {
 		activeVersionMap,
 	} = Route.useLoaderData()
 
+	const { tab, event: eventFromUrl } = Route.useSearch()
+	const navigate = useNavigate()
+
+	const handleTabChange = (value: string) => {
+		navigate({
+			to: ".",
+			search: (prev) => ({ ...prev, tab: value as "roster" | "schedule" }),
+			replace: true,
+		})
+	}
+
+	const handleEventChange = (eventId: string) => {
+		navigate({
+			to: ".",
+			search: (prev) => ({ ...prev, event: eventId }),
+			replace: true,
+		})
+	}
+
+	// Determine selected event - from URL or first event
+	// Validate eventFromUrl exists in events before using it
+	const selectedEventId =
+		eventFromUrl && events.some((event) => event.id === eventFromUrl)
+			? eventFromUrl
+			: events[0]?.id || ""
+
+	// Check if schedule tab should be available (in-person competitions only)
+	const isInPerson = competition.competitionType === "in-person"
+
+	// Derive effective tab - fall back to roster if schedule isn't allowed
+	const effectiveTab = !isInPerson && tab === "schedule" ? "roster" : tab
+
+	// Sync URL/state when competition type changes and schedule tab is no longer valid
+	useEffect(() => {
+		if (!isInPerson && tab === "schedule") {
+			navigate({
+				to: ".",
+				search: { tab: "roster" },
+				replace: true,
+			})
+		}
+	}, [isInPerson, tab, navigate])
+
 	return (
-		<div className="flex flex-col gap-8">
-			{/* Invited Volunteers Section - Only show if there are pending direct invites */}
-			{pendingDirectInvites.length > 0 && (
+		<Tabs
+			value={effectiveTab}
+			onValueChange={handleTabChange}
+			className="w-full"
+		>
+			<TabsList className="mb-6">
+				<TabsTrigger value="roster">Roster</TabsTrigger>
+				{isInPerson && (
+					<TabsTrigger value="schedule">Judge Schedule</TabsTrigger>
+				)}
+			</TabsList>
+
+			{/* Roster Tab - Volunteer Management */}
+			<TabsContent value="roster" className="flex flex-col gap-8">
+				{/* Invited Volunteers Section - Only show if there are pending direct invites */}
+				{pendingDirectInvites.length > 0 && (
+					<section>
+						<div className="mb-4">
+							<h2 className="text-xl font-semibold">Invited Volunteers</h2>
+							<p className="text-sm text-muted-foreground">
+								{pendingDirectInvites.length} pending{" "}
+								{pendingDirectInvites.length === 1 ? "invite" : "invites"}
+							</p>
+						</div>
+						<InvitedVolunteersList invites={pendingDirectInvites} />
+					</section>
+				)}
+
+				{/* Volunteers Section */}
 				<section>
 					<div className="mb-4">
-						<h2 className="text-xl font-semibold">Invited Volunteers</h2>
+						<h2 className="text-xl font-semibold">Volunteers</h2>
 						<p className="text-sm text-muted-foreground">
-							{pendingDirectInvites.length} pending{" "}
-							{pendingDirectInvites.length === 1 ? "invite" : "invites"}
+							{invitations.length + volunteersWithAccess.length} total (
+							{invitations.length} application
+							{invitations.length === 1 ? "" : "s"},{" "}
+							{volunteersWithAccess.length} approved)
 						</p>
 					</div>
-					<InvitedVolunteersList invites={directInvites} />
+
+					<VolunteersList
+						competitionId={competition.id}
+						competitionSlug={competition.slug}
+						competitionTeamId={competitionTeamId}
+						organizingTeamId={competition.organizingTeamId}
+						invitations={invitations}
+						volunteers={volunteersWithAccess}
+					/>
 				</section>
+			</TabsContent>
+
+			{/* Schedule Tab - Judge Scheduling & Rotations (in-person only) */}
+			{isInPerson && (
+				<TabsContent value="schedule">
+					<JudgeSchedulingContainer
+						competitionId={competition.id}
+						competitionSlug={competition.slug}
+						organizingTeamId={competition.organizingTeamId}
+						competitionType={competition.competitionType}
+						events={events}
+						heats={heats}
+						judges={judges}
+						judgeAssignments={judgeAssignments}
+						rotations={rotations}
+						eventDefaultsMap={eventDefaultsMap}
+						versionHistoryMap={versionHistoryMap}
+						activeVersionMap={activeVersionMap}
+						competitionDefaultHeats={competition.defaultHeatsPerRotation ?? 4}
+						competitionDefaultPattern={
+							(competition.defaultLaneShiftPattern as "stay" | "shift_right") ??
+							"shift_right"
+						}
+						selectedEventId={selectedEventId}
+						onEventChange={handleEventChange}
+					/>
+				</TabsContent>
 			)}
-
-			{/* Volunteers Section */}
-			<section>
-				<div className="mb-4">
-					<h2 className="text-xl font-semibold">Volunteers</h2>
-					<p className="text-sm text-muted-foreground">
-						{invitations.length + volunteersWithAccess.length} total (
-						{invitations.length} application
-						{invitations.length === 1 ? "" : "s"}, {volunteersWithAccess.length}{" "}
-						approved)
-					</p>
-				</div>
-
-				<VolunteersList
-					competitionId={competition.id}
-					competitionSlug={competition.slug}
-					competitionTeamId={competitionTeamId}
-					organizingTeamId={competition.organizingTeamId}
-					invitations={invitations}
-					volunteers={volunteersWithAccess}
-				/>
-			</section>
-
-			{/* Judging Schedule Section */}
-			<JudgeSchedulingContainer
-				competitionId={competition.id}
-				organizingTeamId={competition.organizingTeamId}
-				events={events}
-				heats={heats}
-				judges={judges}
-				judgeAssignments={judgeAssignments}
-				rotations={rotations}
-				eventDefaultsMap={eventDefaultsMap}
-				versionHistoryMap={versionHistoryMap}
-				activeVersionMap={activeVersionMap}
-				competitionDefaultHeats={competition.defaultHeatsPerRotation ?? 4}
-				competitionDefaultPattern={
-					(competition.defaultLaneShiftPattern as "stay" | "shift_right") ??
-					"shift_right"
-				}
-			/>
-		</div>
+		</Tabs>
 	)
 }

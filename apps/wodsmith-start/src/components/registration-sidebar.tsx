@@ -14,9 +14,9 @@ import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
 import type { Team } from "@/db/schemas/teams"
 import { formatDateStringFull, isSameDateString } from "@/utils/date-utils"
 import {
+	DEFAULT_TIMEZONE,
 	getEndOfDayInTimezone,
 	hasDateStartedInTimezone,
-	DEFAULT_TIMEZONE,
 } from "@/utils/timezone-utils"
 
 /**
@@ -121,6 +121,7 @@ interface RegistrationSidebarProps {
 	isTeamRegistration?: boolean
 	isCaptain?: boolean
 	isVolunteer?: boolean
+	organizerContactEmail?: string | null
 }
 
 function formatDateShort(date: string | Date | number): string {
@@ -151,6 +152,7 @@ export function RegistrationSidebar({
 	isTeamRegistration,
 	isCaptain,
 	isVolunteer = false,
+	organizerContactEmail,
 }: RegistrationSidebarProps) {
 	const regClosesAt = competition.registrationClosesAt
 	const regOpensAt = competition.registrationOpensAt
@@ -169,7 +171,7 @@ export function RegistrationSidebar({
 		<div className="space-y-4">
 			{/* Volunteer Dashboard Button */}
 			{isVolunteer && (
-				<Card className="border-2 border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-transparent">
+				<Card className="border-2 border-blue-500/20 bg-white/5 backdrop-blur-md">
 					<CardContent className="p-4">
 						<Button asChild variant="default" size="sm" className="w-full">
 							<a href={`/compete/${competition.slug}/my-schedule`}>
@@ -184,13 +186,13 @@ export function RegistrationSidebar({
 			{/* Registration CTA Card */}
 			{!isRegistered && registrationOpen && (
 				<Card
-					className={
+					className={`backdrop-blur-md ${
 						urgency?.urgencyLevel === "critical"
-							? "border-2 border-red-500/50 bg-gradient-to-br from-red-500/10 to-transparent"
+							? "border-2 border-red-500/50 bg-red-500/10"
 							: urgency?.urgencyLevel === "urgent"
-								? "border-2 border-amber-500/50 bg-gradient-to-br from-amber-500/10 to-transparent"
-								: "border-2 border-teal-500/20 bg-gradient-to-br from-teal-500/5 to-transparent"
-					}
+								? "border-2 border-amber-500/50 bg-amber-500/10"
+								: "border-2 border-orange-500/20 bg-white/5"
+					}`}
 				>
 					<CardContent className="p-4 space-y-3">
 						{/* Urgency Message */}
@@ -246,7 +248,7 @@ export function RegistrationSidebar({
 				!registrationOpen &&
 				registrationNotYetOpen &&
 				regOpensAt && (
-					<Card className="border-2 border-muted">
+					<Card className="border-white/10 bg-white/5 backdrop-blur-md">
 						<CardContent className="p-4 space-y-2">
 							<div className="flex items-center gap-2 text-muted-foreground">
 								<Clock className="h-4 w-4" />
@@ -266,7 +268,7 @@ export function RegistrationSidebar({
 				!registrationOpen &&
 				!registrationNotYetOpen &&
 				regClosesAt && (
-					<Card className="border-2 border-muted">
+					<Card className="border-white/10 bg-white/5 backdrop-blur-md">
 						<CardContent className="p-4">
 							<div className="flex items-center gap-2 text-muted-foreground">
 								<Clock className="h-4 w-4" />
@@ -278,7 +280,7 @@ export function RegistrationSidebar({
 
 			{/* Already Registered Card */}
 			{isRegistered && (
-				<Card className="border-2 border-green-500/20 bg-gradient-to-br from-green-500/5 to-transparent">
+				<Card className="border-2 border-green-500/20 bg-white/5 backdrop-blur-md">
 					<CardContent className="p-4">
 						<div className="space-y-3">
 							<div className="flex items-center gap-2 text-green-600">
@@ -310,16 +312,17 @@ export function RegistrationSidebar({
 			)}
 
 			{/* Date & Location Card */}
-			<Card>
+			<Card className="border-white/10 bg-white/5 backdrop-blur-md">
 				<CardContent className="p-4 space-y-3">
 					<div className="flex items-start gap-3">
 						<Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
 						<div>
 							<p className="font-medium">
 								{formatDateShort(competition.startDate)}
-								{!isSameDateString(competition.startDate, competition.endDate) && (
-									<> - {formatDateShort(competition.endDate)}</>
-								)}
+								{!isSameDateString(
+									competition.startDate,
+									competition.endDate,
+								) && <> - {formatDateShort(competition.endDate)}</>}
 							</p>
 						</div>
 					</div>
@@ -336,7 +339,7 @@ export function RegistrationSidebar({
 
 			{/* Contact Card */}
 			{competition.organizingTeam && (
-				<Card>
+				<Card className="border-white/10 bg-white/5 backdrop-blur-md">
 					<CardHeader className="pb-2">
 						<CardTitle className="text-sm font-medium">Contact</CardTitle>
 					</CardHeader>
@@ -344,12 +347,16 @@ export function RegistrationSidebar({
 						<p className="font-medium text-sm">
 							{competition.organizingTeam.name}
 						</p>
-						<div className="mt-2 flex gap-2">
-							<Button variant="outline" size="sm" className="h-8" disabled>
-								<Mail className="mr-1 h-3 w-3" />
-								Email
-							</Button>
-						</div>
+						{organizerContactEmail && (
+							<div className="mt-2 flex gap-2">
+								<Button variant="outline" size="sm" className="h-8" asChild>
+									<a href={`mailto:${organizerContactEmail}`}>
+										<Mail className="mr-1 h-3 w-3" />
+										Email
+									</a>
+								</Button>
+							</div>
+						)}
 					</CardContent>
 				</Card>
 			)}

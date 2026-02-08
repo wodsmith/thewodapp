@@ -3,6 +3,7 @@
 import {
 	ChevronDown,
 	Clock,
+	ExternalLink,
 	FileText,
 	ListOrdered,
 	Target,
@@ -46,8 +47,14 @@ interface EventSectionProps {
  * Division selection is synchronized between the event overview and rotation cards.
  */
 export function EventSection({ event }: EventSectionProps) {
-	const { eventName, eventNotes, workout, divisionDescriptions, rotations } =
-		event
+	const {
+		eventName,
+		eventNotes,
+		workout,
+		divisionDescriptions,
+		judgingSheets,
+		rotations,
+	} = event
 
 	// Check if any rotation is upcoming
 	const hasUpcoming = rotations.some((r) => r.isUpcoming)
@@ -180,6 +187,32 @@ export function EventSection({ event }: EventSectionProps) {
 							<p className="text-sm whitespace-pre-wrap">{eventNotes}</p>
 						</div>
 					)}
+
+					{/* Judge Sheets */}
+					{judgingSheets && judgingSheets.length > 0 && (
+						<div className="border rounded-lg p-4 bg-blue-50/50 dark:bg-blue-950/20">
+							<h4 className="text-sm font-semibold mb-3 flex items-center gap-1.5">
+								<FileText className="h-4 w-4" />
+								Judge Sheets
+							</h4>
+							<ul className="space-y-2">
+								{judgingSheets.map((sheet) => (
+									<li key={sheet.id}>
+										<a
+											href={sheet.url}
+											target="_blank"
+											rel="noopener noreferrer"
+											className="flex items-center gap-2 text-sm hover:text-primary transition-colors group"
+										>
+											<FileText className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+											<span className="flex-1">{sheet.title}</span>
+											<ExternalLink className="h-3 w-3 text-muted-foreground" />
+										</a>
+									</li>
+								))}
+							</ul>
+						</div>
+					)}
 				</CardContent>
 			</Card>
 
@@ -252,14 +285,15 @@ function ScoringBadges({ workout }: { workout: WorkoutDetails }) {
 			seconds > 0
 				? `${minutes}:${seconds.toString().padStart(2, "0")}`
 				: `${minutes} min`
-		
+
 		badges.push(
 			<Badge
 				key="timecap"
 				variant="outline"
 				className={cn(
 					"px-3 py-1 text-sm flex gap-2 items-center font-normal",
-					["time", "time-with-cap"].includes(workout.scheme) && "border-red-200 bg-red-50 text-red-700 dark:bg-red-950/30 dark:border-red-800 dark:text-red-400"
+					["time", "time-with-cap"].includes(workout.scheme) &&
+						"border-red-200 bg-red-50 text-red-700 dark:bg-red-950/30 dark:border-red-800 dark:text-red-400",
 				)}
 			>
 				<Clock className="h-4 w-4" />

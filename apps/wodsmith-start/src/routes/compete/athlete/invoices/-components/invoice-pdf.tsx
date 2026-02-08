@@ -134,7 +134,20 @@ function formatDate(date: string | Date | null): string {
 			const year = Number(yearStr)
 			const month = Number(monthStr)
 			const day = Number(dayStr)
-			const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+			const months = [
+				"January",
+				"February",
+				"March",
+				"April",
+				"May",
+				"June",
+				"July",
+				"August",
+				"September",
+				"October",
+				"November",
+				"December",
+			]
 			return `${months[month - 1]} ${day}, ${year}`
 		}
 		return "-"

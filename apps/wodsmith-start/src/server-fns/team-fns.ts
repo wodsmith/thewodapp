@@ -3,6 +3,10 @@
  * Functions for team page features (leaderboards, team info)
  *
  * This file uses top-level imports for server-only modules.
+ *
+ * OBSERVABILITY:
+ * - Team access and operations are logged with request context
+ * - Auth failures are tracked for security monitoring
  */
 
 import { createServerFn } from "@tanstack/react-start"
@@ -14,6 +18,7 @@ import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoresTable } from "@/db/schemas/scores"
 import { teamMembershipTable, teamTable } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
+import { logInfo, logWarning, updateRequestContext } from "@/lib/logging"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getActiveTeamId } from "@/utils/team-auth"
 
@@ -259,11 +264,21 @@ export const getActiveTeamFn = createServerFn({ method: "GET" })
 		// Get session to verify user is authenticated
 		const session = await getSessionFromCookie()
 		if (!session?.userId) {
+			logWarning({
+				message: "[Team] Get active team failed - not authenticated",
+			})
 			throw new Error("Not authenticated")
 		}
 
+		// Update request context
+		updateRequestContext({ userId: session.userId })
+
 		// Verify the user ID matches the session
 		if (session.userId !== data.userId) {
+			logWarning({
+				message: "[Team] Get active team failed - user ID mismatch",
+				attributes: { requestedUserId: data.userId },
+			})
 			throw new Error("Unauthorized")
 		}
 
@@ -292,10 +307,14 @@ export const getActiveTeamFn = createServerFn({ method: "GET" })
 			.limit(1)
 
 		if (memberships.length === 0) {
+			logInfo({ message: "[Team] User has no team memberships" })
 			return { team: null }
 		}
 
 		const membership = memberships[0]
+
+		// Update context with team info
+		updateRequestContext({ teamId: membership.teamId })
 
 		const team: TeamWithRole = {
 			id: membership.teamId,
@@ -350,6 +369,26 @@ export const getTeamFeeSettingsFn = createServerFn({ method: "GET" })
 	})
 
 /**
+ * Get team public contact email
+ * Only returns billingEmail if explicitly configured by the team.
+ * Does NOT fall back to owner's personal email to avoid PII exposure
+ * on public competition pages.
+ */
+export const getTeamContactEmailFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) => getTeamSlugInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		const team = await db.query.teamTable.findFirst({
+			where: eq(teamTable.id, data.teamId),
+			columns: { billingEmail: true },
+		})
+
+		// Only return explicitly configured contact email
+		return team?.billingEmail ?? null
+	})
+
+/**
  * Get the active team ID from cookie or fallback to first team
  *
  * This is the server function wrapper for getActiveTeamId from team-auth.ts.
@@ -391,7 +430,12 @@ export const getOrganizerTeamsFn = createServerFn({ method: "GET" }).handler(
 		}
 
 		// Filter teams that can organize
-		const organizerTeams: Array<{ id: string; name: string; type: string }> = []
+		const organizerTeams: Array<{
+			id: string
+			name: string
+			slug: string
+			type: string
+		}> = []
 		const seenTeamIds = new Set<string>()
 
 		for (const team of session.teams) {
@@ -414,6 +458,7 @@ export const getOrganizerTeamsFn = createServerFn({ method: "GET" }).handler(
 				organizerTeams.push({
 					id: team.id,
 					name: team.name,
+					slug: team.slug,
 					type: team.type,
 				})
 			}

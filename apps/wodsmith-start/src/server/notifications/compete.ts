@@ -23,6 +23,7 @@ import { VolunteerSignupConfirmationEmail } from "@/react-email/compete/voluntee
 import { PaymentExpiredEmail } from "@/react-email/payment-expired"
 import { RegistrationConfirmationEmail } from "@/react-email/registration-confirmation"
 import { TeammateJoinedEmail } from "@/react-email/teammate-joined"
+import { formatDateStringWithWeekday } from "@/utils/date-utils"
 import { sendEmail } from "@/utils/email"
 import {
 	buildInviteLink,
