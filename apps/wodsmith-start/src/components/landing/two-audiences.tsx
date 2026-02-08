@@ -194,7 +194,7 @@ export function TwoAudiences({ session }: TwoAudiencesProps) {
 							))}
 						</div>
 
-						<div className="mt-auto pt-6 border-t border-background/20 dark:border-border">
+						<div className="mt-auto pt-6">
 							<Button
 								className="w-full bg-background text-foreground hover:bg-background/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90"
 								asChild
