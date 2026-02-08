@@ -5,38 +5,30 @@
  * for efficient single-column index sorting. Stored as a zero-padded
  * string in SQLite, so we are NOT limited to 64 bits.
  *
- * Structure (103-bit BigInt, stored as 32-char zero-padded string):
- * - Bits 102-100: status_order (0-7)
- * - Bits 99-60:   primary score value (40 bits, ~1 trillion max)
- * - Bits 59-30:   secondary value / inverted reps at cap (30 bits, ~1 billion max)
- * - Bits 29-0:    tiebreak value (30 bits, ~1 billion max)
+ * Structure (123-bit BigInt, stored as 38-char zero-padded string):
+ * - Bits 122-120: status_order (0-7)
+ * - Bits 119-80:  primary score value (40 bits, ~1 trillion max)
+ * - Bits 79-40:   secondary value / inverted reps at cap (40 bits, ~1 trillion max)
+ * - Bits 39-0:    tiebreak value (40 bits, ~1 trillion max)
  *
- * Each segment has generous headroom so no score encoding can overflow:
- * - Primary handles rounds-reps up to 10M+ rounds, time up to 12+ days in ms
- * - Secondary handles any realistic reps-at-cap count
- * - Tiebreak handles time values up to 12+ days in ms
+ * All three data segments use the same 40-bit width for simplicity.
+ * Each handles any realistic score value with massive headroom.
  */
 
 import { MAX_SCORE_VALUE, STATUS_ORDER } from "../constants"
 import type { Score, ScoreStatus, SortDirection } from "../types"
 import { getSortDirection } from "./direction"
 
-/** Max value for the 40-bit primary segment (~1.1 trillion) */
-const PRIMARY_MAX = 2n ** 40n - 1n
-
-/** Max value for each 30-bit secondary/tiebreak segment (~1.07 billion) */
-const SECONDARY_MAX = 2n ** 30n - 1n
-
-/** Max value for the 30-bit tiebreak segment (~1.07 billion) */
-const TIEBREAK_MAX = 2n ** 30n - 1n
+/** Max value for each 40-bit segment (~1.1 trillion) */
+const SEGMENT_MAX = 2n ** 40n - 1n
 
 /** Bit positions for each segment */
-const SECONDARY_SHIFT = 30n
-const PRIMARY_SHIFT = 60n
-const STATUS_SHIFT = 100n
+const SECONDARY_SHIFT = 40n
+const PRIMARY_SHIFT = 80n
+const STATUS_SHIFT = 120n
 
 /** Number of non-status bits */
-const DATA_BITS = 100n
+const DATA_BITS = 120n
 
 /**
  * Compute a sort key for database storage.
@@ -74,7 +66,7 @@ export function computeSortKey(
 		tiebreakValue =
 			tbDirection === "asc"
 				? BigInt(score.tiebreak.value)
-				: TIEBREAK_MAX - BigInt(score.tiebreak.value)
+				: SEGMENT_MAX - BigInt(score.tiebreak.value)
 	}
 
 	return computeSortKeyWithComponents(
@@ -114,14 +106,14 @@ function computeSortKeyWithComponents(
 	// For descending (higher is better): invert so higher values get lower sort keys
 	const normalizedPrimary =
 		direction === "asc"
-			? BigInt(value) & PRIMARY_MAX
-			: PRIMARY_MAX - (BigInt(value) & PRIMARY_MAX)
+			? BigInt(value) & SEGMENT_MAX
+			: SEGMENT_MAX - (BigInt(value) & SEGMENT_MAX)
 
 	// For capped status, secondary value (reps) matters - higher is better, so invert
 	// For scored status, secondary doesn't matter (use 0)
 	const normalizedSecondary =
 		status === "cap"
-			? SECONDARY_MAX - (BigInt(secondaryValue) & SECONDARY_MAX)
+			? SEGMENT_MAX - (BigInt(secondaryValue) & SEGMENT_MAX)
 			: 0n
 
 	// Combine: status | primary | secondary | tiebreak
@@ -129,7 +121,7 @@ function computeSortKeyWithComponents(
 		statusBits |
 		(normalizedPrimary << PRIMARY_SHIFT) |
 		(normalizedSecondary << SECONDARY_SHIFT) |
-		(tiebreakValue & TIEBREAK_MAX)
+		(tiebreakValue & SEGMENT_MAX)
 	)
 }
 
@@ -174,13 +166,13 @@ export function extractFromSortKey(
 	}
 
 	// Extract primary value from its segment
-	const primaryBits = (sortKey >> PRIMARY_SHIFT) & PRIMARY_MAX
+	const primaryBits = (sortKey >> PRIMARY_SHIFT) & SEGMENT_MAX
 
 	// Denormalize the primary value
 	const value =
 		direction === "asc"
 			? Number(primaryBits)
-			: Number(PRIMARY_MAX - primaryBits)
+			: Number(SEGMENT_MAX - primaryBits)
 
 	return { statusOrder, value }
 }
@@ -204,17 +196,17 @@ export function statusFromOrder(order: number): ScoreStatus {
  * Since SQLite stores sortKey as text, we need zero-padding to ensure
  * lexicographic string comparison produces the same ordering as numeric comparison.
  *
- * A 103-bit value can require up to 32 decimal digits (log10(2^103) ≈ 31.006),
- * so we pad to 32 characters to guarantee all possible values fit. In practice,
+ * A 123-bit value can require up to 38 decimal digits (log10(2^123) ≈ 37.02),
+ * so we pad to 38 characters to guarantee all possible values fit. In practice,
  * the highest status_order is 3 (withdrawn), so the current max is well under
- * 31 digits — but padding to 32 provides safety for the full 3-bit status range.
+ * 37 digits — but padding to 38 provides safety for the full 3-bit status range.
  *
  * @param sortKey - The bigint sort key to convert
  * @returns Zero-padded string representation
  *
  * @example
- * sortKeyToString(510000n) // → "00000000000000000000000000510000"
+ * sortKeyToString(510000n) // → "00000000000000000000000000000000510000"
  */
 export function sortKeyToString(sortKey: bigint): string {
-	return sortKey.toString().padStart(32, "0")
+	return sortKey.toString().padStart(38, "0")
 }

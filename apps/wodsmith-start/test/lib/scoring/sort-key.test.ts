@@ -4,8 +4,7 @@
  * Tests for sort key computation including secondary_value handling
  * for capped scores and tiebreak values.
  *
- * Uses a 103-bit layout (40 primary / 30 secondary / 30 tiebreak + 3 status)
- * stored as a 32-char zero-padded string.
+ * Uses a 123-bit layout (40/40/40 + 3 status) stored as a 38-char zero-padded string.
  */
 
 import { describe, expect, it } from "vitest"
@@ -278,10 +277,10 @@ describe("computeSortKey", () => {
 	})
 
 	describe("sortKeyToString", () => {
-		it("should produce 32-character zero-padded string", () => {
+		it("should produce 38-character zero-padded string", () => {
 			const key = computeSortKey({ scheme: "time", scoreType: "min", value: 510000, status: "scored" })
 			const str = sortKeyToString(key)
-			expect(str.length).toBe(32)
+			expect(str.length).toBe(38)
 		})
 
 		it("should produce string that sorts correctly", () => {
