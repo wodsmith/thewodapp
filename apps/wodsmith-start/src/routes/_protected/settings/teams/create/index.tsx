@@ -68,7 +68,7 @@ function CreateTeamPage() {
 
 			if (result.success && result.data) {
 				trackEvent("team_created", {
-					team_id: result.data.id,
+					team_id: result.data.teamId,
 					team_slug: result.data.slug,
 					has_description: !!data.description,
 				})
