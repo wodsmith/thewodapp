@@ -28,7 +28,7 @@ export function CompeteHero({ session }: CompeteHeroProps) {
 				</div>
 
 				{/* Headline - names the villain */}
-				<h1 className="my-12 font-mono text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-balance">
+				<h1 className="mb-12 font-mono text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-balance">
 					Run a smooth competition
 					<br className="hidden md:block" />
 					<span className="text-primary">without spreadsheet ops</span>
