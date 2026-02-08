@@ -1,8 +1,0 @@
-{
-  "extends": "@repo/typescript-config/base.json",
-  "compilerOptions": {
-    "jsx": "react-jsx"
-  },
-  "include": ["src"],
-  "exclude": ["dist", "build", "node_modules"]
-}
