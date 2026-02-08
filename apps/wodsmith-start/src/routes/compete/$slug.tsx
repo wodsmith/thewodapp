@@ -11,10 +11,47 @@ import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisi
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
 import { getTeamContactEmailFn } from "@/server-fns/team-fns"
+import { getAppUrl } from "@/lib/env"
 
 export const Route = createFileRoute("/compete/$slug")({
 	component: CompetitionDetailLayout,
 	staleTime: 10_000, // Cache for 10 seconds (SWR behavior)
+	head: ({ loaderData }) => {
+		const competition = loaderData?.competition
+
+		if (!competition) {
+			return { meta: [{ title: "Competition Not Found" }] }
+		}
+
+		const appUrl = getAppUrl()
+		const ogImageUrl =
+			competition.bannerImageUrl ||
+			competition.profileImageUrl ||
+			"https://wodsmith.com/wodsmith-logo-1000.png"
+		const pageUrl = `${appUrl}/compete/${competition.slug}`
+		const description =
+			competition.description?.slice(0, 160) ||
+			`Join ${competition.name} - a fitness competition on WODsmith`
+
+		return {
+			meta: [
+				{ title: competition.name },
+				{ name: "description", content: description },
+				{ property: "og:type", content: "website" },
+				{ property: "og:url", content: pageUrl },
+				{ property: "og:title", content: competition.name },
+				{ property: "og:description", content: description },
+				{ property: "og:image", content: ogImageUrl },
+				{ property: "og:image:width", content: "1200" },
+				{ property: "og:image:height", content: "630" },
+				{ property: "og:site_name", content: "WODsmith" },
+				{ name: "twitter:card", content: "summary_large_image" },
+				{ name: "twitter:title", content: competition.name },
+				{ name: "twitter:description", content: description },
+				{ name: "twitter:image", content: ogImageUrl },
+			],
+		}
+	},
 	loader: async ({ params, context }) => {
 		const { slug } = params
 
