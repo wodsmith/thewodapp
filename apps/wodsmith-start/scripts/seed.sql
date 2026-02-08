@@ -1,45 +1,91 @@
-DELETE FROM purchased_item;
-DELETE FROM credit_transaction;
-DELETE FROM passkey_credential;
+-- Competition deep children
+DELETE FROM score_rounds;
+DELETE FROM scores;
+DELETE FROM judge_heat_assignments;
+DELETE FROM judge_assignment_versions;
+DELETE FROM competition_judge_rotations;
+DELETE FROM video_submissions;
+DELETE FROM submission_window_notifications;
+DELETE FROM event_judging_sheets;
+DELETE FROM event_resources;
+DELETE FROM competition_events;
+DELETE FROM competition_heat_assignments;
+DELETE FROM competition_heats;
+DELETE FROM competition_registration_answers;
+DELETE FROM competition_registration_questions;
+DELETE FROM competition_registrations;
+DELETE FROM competition_venues;
+DELETE FROM competition_divisions;
+DELETE FROM competitions;
+DELETE FROM competition_groups;
+DELETE FROM addresses;
+-- Scheduling
+DELETE FROM scheduled_classes;
+DELETE FROM generated_schedules;
+DELETE FROM schedule_template_class_required_skills;
+DELETE FROM schedule_template_classes;
+DELETE FROM schedule_templates;
+-- Programming
 DELETE FROM scheduled_workout_instance;
 DELETE FROM team_programming_track;
 DELETE FROM track_workout;
 DELETE FROM programming_track;
+-- Workouts and related
 DELETE FROM sets;
 DELETE FROM results;
+DELETE FROM workout_scaling_descriptions;
 DELETE FROM workout_movements;
 DELETE FROM workout_tags;
 DELETE FROM workouts;
 DELETE FROM spicy_tags;
 DELETE FROM movements;
+-- Scaling
+DELETE FROM scaling_levels;
+DELETE FROM scaling_groups;
+-- Coaches / Classes
 DELETE FROM coach_to_skills;
 DELETE FROM class_catalog_to_skills;
+DELETE FROM coach_blackout_dates;
+DELETE FROM coach_recurring_unavailability;
 DELETE FROM coaches;
 DELETE FROM class_catalog;
 DELETE FROM skills;
 DELETE FROM locations;
--- Delete competition tables (must be before team due to FK)
-DELETE FROM competition_registrations;
-DELETE FROM competitions;
-DELETE FROM competition_groups;
+-- Sponsors
+DELETE FROM sponsors;
+DELETE FROM sponsor_groups;
+-- Commerce
+DELETE FROM purchased_item;
+DELETE FROM credit_transaction;
+DELETE FROM commerce_purchase;
+DELETE FROM commerce_product;
+-- Auth
+DELETE FROM passkey_credential;
+DELETE FROM waiver_signatures;
+DELETE FROM waivers;
+-- Team hierarchy (children before parents)
 DELETE FROM affiliates;
 DELETE FROM organizer_request;
 DELETE FROM team_invitation;
 DELETE FROM team_membership;
 DELETE FROM team_role;
--- Delete entitlements tables (must be before team due to FK)
 DELETE FROM team_entitlement_override;
+DELETE FROM team_feature_entitlement;
+DELETE FROM team_limit_entitlement;
 DELETE FROM team_usage;
 DELETE FROM team_addon;
 DELETE FROM team_subscription;
 DELETE FROM entitlement;
-DELETE FROM team;
-DELETE FROM user;
--- Delete entitlements metadata tables
+-- Plans and features (before team due to currentPlanId FK)
+DELETE FROM plan_limit;
+DELETE FROM plan_feature;
 DELETE FROM plan;
 DELETE FROM "limit";
 DELETE FROM feature;
 DELETE FROM entitlement_type;
+-- Core entities
+DELETE FROM team;
+DELETE FROM user;
 
 -- Seed global default scaling group (system-wide default)
 -- This must be seeded first as it's used as the ultimate fallback for all workouts
@@ -74,7 +120,8 @@ VALUES
   ('feat_ai_workout_generation', 'ai_workout_generation', 'AI Workout Generation', 'Generate workouts using AI', 'ai', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
   ('feat_ai_programming_assistant', 'ai_programming_assistant', 'AI Programming Assistant', 'AI assistant for programming strategy', 'ai', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
   ('feat_multi_team_management', 'multi_team_management', 'Multi-Team Management', 'Manage multiple teams from one account', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
-  ('feat_host_competitions', 'host_competitions', 'Host Competitions', 'Create and manage competitions and events', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+  ('feat_host_competitions', 'host_competitions', 'Host Competitions', 'Create and manage competitions and events', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('feat_workout_tracking', 'workout_tracking', 'Workout Tracking', 'Access to personal workout tracking features', 'workouts', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- Insert limits
 INSERT OR IGNORE INTO "limit" (id, "key", name, description, unit, resetPeriod, isActive, createdAt, updatedAt, updateCounter)
@@ -508,7 +555,9 @@ INSERT OR IGNORE INTO organizer_request (id, teamId, userId, reason, status, adm
 -- Team entitlement override for unlimited published competitions
 -- This is set when an organizer request is approved (value -1 = unlimited)
 INSERT OR IGNORE INTO team_entitlement_override (id, teamId, type, key, value, reason, expiresAt, createdBy, createdAt, updatedAt, updateCounter) VALUES
-('teo_box1_competitions', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'limit', 'max_published_competitions', '-1', 'Organizer request approved', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+('teo_box1_competitions', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'limit', 'max_published_competitions', '-1', 'Organizer request approved', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('teo_box1_workout_tracking', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feature', 'workout_tracking', 'true', 'Early access grant', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('teo_personaladmin_workout_tracking', 'team_personaladmin', 'feature', 'workout_tracking', 'true', 'Early access grant', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- Create Girls programming track
 INSERT INTO programming_track (id, name, description, type, ownerTeamId, isPublic, createdAt, updatedAt, updateCounter) VALUES 
