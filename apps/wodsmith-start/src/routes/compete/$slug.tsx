@@ -1,4 +1,6 @@
 import { createFileRoute, notFound, Outlet } from "@tanstack/react-router"
+import { useEffect } from "react"
+import { trackEvent } from "@/lib/posthog"
 import { CompetitionHero } from "@/components/competition-hero"
 import {
 	checkCanManageCompetitionFn,
@@ -123,6 +125,15 @@ function CompetitionDetailLayout() {
 	const hasBanner = !!competition.bannerImageUrl
 	const profileImage =
 		competition.profileImageUrl ?? competition.organizingTeam?.avatarUrl
+
+	// Track competition view
+	useEffect(() => {
+		trackEvent("competition_viewed", {
+			competition_id: competition.id,
+			competition_slug: competition.slug,
+			competition_name: competition.name,
+		})
+	}, [competition.id, competition.slug, competition.name])
 
 	return (
 		<div className="relative min-h-screen bg-background print:min-h-0 print:bg-white">

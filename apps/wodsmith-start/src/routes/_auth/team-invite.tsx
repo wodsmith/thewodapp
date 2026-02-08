@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
+import { trackEvent } from "@/lib/posthog"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -75,6 +76,11 @@ function TeamInvitePage() {
 
 			try {
 				const result = await acceptInvitation({ data: { token } })
+
+				trackEvent("team_invite_accepted", {
+					team_id: result.teamId,
+					team_name: result.teamName,
+				})
 
 				toast.dismiss()
 				toast.success("You've successfully joined the team!")
