@@ -92,7 +92,6 @@ import { GitHubComment } from "alchemy/github"
 import { CloudflareStateStore } from "alchemy/state"
 import {
 	Branch as PlanetScaleBranch,
-	Database as PlanetScaleDatabase,
 	Password as PlanetScalePassword,
 } from "alchemy/planetscale"
 import { WebhookEndpoint } from "alchemy/stripe"
@@ -199,13 +198,11 @@ const app = await alchemy("wodsmith", {
 })
 
 /**
- * PlanetScale MySQL database for application data.
+ * PlanetScale MySQL database configuration.
  *
- * This is the primary database going forward, replacing D1 (SQLite).
- * Alchemy manages the database lifecycle, branch, and credentials.
- *
- * The Password resource generates a connection URL that gets passed
- * to the Worker as the `DATABASE_URL` secret binding.
+ * Single shared database across all stages — branches provide isolation.
+ * We pass the database name as a string to avoid Alchemy appending
+ * the stage suffix (e.g. "wodsmith-db-demo").
  *
  * @remarks
  * **Environment variables required:**
@@ -215,13 +212,7 @@ const app = await alchemy("wodsmith", {
  *
  * @see {@link https://planetscale.com/docs PlanetScale Documentation}
  */
-const psDb = await PlanetScaleDatabase("db", {
-	name: "wodsmith-db",
-	adopt: true,
-	clusterSize: "PS_10",
-	region: { slug: "us-east" },
-	productionBranchWebConsole: true,
-})
+const psDbName = "wodsmith-db"
 
 /**
  * PlanetScale branch hierarchy:
@@ -239,7 +230,7 @@ const psBranch =
 	stage === "prod"
 		? undefined
 		: await PlanetScaleBranch(`ps-branch-${stage}`, {
-				database: psDb,
+				database: psDbName,
 				name: psBranchName,
 				parentBranch: branchConfig[stage]?.parent ?? "main",
 				isProduction: false,
@@ -247,7 +238,7 @@ const psBranch =
 			})
 
 const psPassword = await PlanetScalePassword(`ps-password-${stage}`, {
-	database: psDb,
+	database: psDbName,
 	branch: psBranch ?? psBranchName,
 	role: "admin",
 })
@@ -557,7 +548,7 @@ const website = await TanStackStart("app", {
 
 		// PlanetScale database connection (managed by Alchemy)
 		DATABASE_URL: alchemy.secret(
-			`mysql://${psPassword.username}:${psPassword.password.unencrypted}@${psPassword.host}/${psDb.name}?ssl={"rejectUnauthorized":true}`,
+			`mysql://${psPassword.username}:${psPassword.password.unencrypted}@${psPassword.host}/${psDbName}?ssl={"rejectUnauthorized":true}`,
 		),
 
 		// Stripe env vars are populated for all environments when available
