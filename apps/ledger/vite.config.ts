@@ -25,12 +25,6 @@ const config = defineConfig({
 			external: ["node:async_hooks", "cloudflare:workers"],
 		},
 	},
-	resolve: {
-		alias: {
-			"server-only": new URL("./src/lib/server-only-stub.ts", import.meta.url)
-				.pathname,
-		},
-	},
 	ssr: {
 		optimizeDeps: {
 			include: ["clsx", "tailwind-merge", "class-variance-authority"],

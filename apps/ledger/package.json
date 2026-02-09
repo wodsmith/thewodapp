@@ -36,7 +36,6 @@
 		"lucide-react": "^0.544.0",
 		"react": "^19.2.3",
 		"react-dom": "^19.2.3",
-		"server-only": "^0.0.1",
 		"tailwind-merge": "^2.6.0",
 		"tailwindcss": "^4.0.6",
 		"zod": "^4.2.1"
