@@ -1,45 +1,91 @@
-DELETE FROM purchased_item;
-DELETE FROM credit_transaction;
-DELETE FROM passkey_credential;
+-- Competition deep children
+DELETE FROM score_rounds;
+DELETE FROM scores;
+DELETE FROM judge_heat_assignments;
+DELETE FROM judge_assignment_versions;
+DELETE FROM competition_judge_rotations;
+DELETE FROM video_submissions;
+DELETE FROM submission_window_notifications;
+DELETE FROM event_judging_sheets;
+DELETE FROM event_resources;
+DELETE FROM competition_events;
+DELETE FROM competition_heat_assignments;
+DELETE FROM competition_heats;
+DELETE FROM competition_registration_answers;
+DELETE FROM competition_registration_questions;
+DELETE FROM competition_registrations;
+DELETE FROM competition_venues;
+DELETE FROM competition_divisions;
+DELETE FROM competitions;
+DELETE FROM competition_groups;
+DELETE FROM addresses;
+-- Scheduling
+DELETE FROM scheduled_classes;
+DELETE FROM generated_schedules;
+DELETE FROM schedule_template_class_required_skills;
+DELETE FROM schedule_template_classes;
+DELETE FROM schedule_templates;
+-- Programming
 DELETE FROM scheduled_workout_instance;
 DELETE FROM team_programming_track;
 DELETE FROM track_workout;
 DELETE FROM programming_track;
+-- Workouts and related
 DELETE FROM sets;
 DELETE FROM results;
+DELETE FROM workout_scaling_descriptions;
 DELETE FROM workout_movements;
 DELETE FROM workout_tags;
 DELETE FROM workouts;
 DELETE FROM spicy_tags;
 DELETE FROM movements;
+-- Scaling
+DELETE FROM scaling_levels;
+DELETE FROM scaling_groups;
+-- Coaches / Classes
 DELETE FROM coach_to_skills;
 DELETE FROM class_catalog_to_skills;
+DELETE FROM coach_blackout_dates;
+DELETE FROM coach_recurring_unavailability;
 DELETE FROM coaches;
 DELETE FROM class_catalog;
 DELETE FROM skills;
 DELETE FROM locations;
--- Delete competition tables (must be before team due to FK)
-DELETE FROM competition_registrations;
-DELETE FROM competitions;
-DELETE FROM competition_groups;
+-- Sponsors
+DELETE FROM sponsors;
+DELETE FROM sponsor_groups;
+-- Commerce
+DELETE FROM purchased_item;
+DELETE FROM credit_transaction;
+DELETE FROM commerce_purchase;
+DELETE FROM commerce_product;
+-- Auth
+DELETE FROM passkey_credential;
+DELETE FROM waiver_signatures;
+DELETE FROM waivers;
+-- Team hierarchy (children before parents)
 DELETE FROM affiliates;
 DELETE FROM organizer_request;
 DELETE FROM team_invitation;
 DELETE FROM team_membership;
 DELETE FROM team_role;
--- Delete entitlements tables (must be before team due to FK)
 DELETE FROM team_entitlement_override;
+DELETE FROM team_feature_entitlement;
+DELETE FROM team_limit_entitlement;
 DELETE FROM team_usage;
 DELETE FROM team_addon;
 DELETE FROM team_subscription;
 DELETE FROM entitlement;
-DELETE FROM team;
-DELETE FROM user;
--- Delete entitlements metadata tables
+-- Plans and features (before team due to currentPlanId FK)
+DELETE FROM plan_limit;
+DELETE FROM plan_feature;
 DELETE FROM plan;
 DELETE FROM "limit";
 DELETE FROM feature;
 DELETE FROM entitlement_type;
+-- Core entities
+DELETE FROM team;
+DELETE FROM user;
 
 -- Seed global default scaling group (system-wide default)
 -- This must be seeded first as it's used as the ultimate fallback for all workouts
@@ -74,7 +120,8 @@ VALUES
   ('feat_ai_workout_generation', 'ai_workout_generation', 'AI Workout Generation', 'Generate workouts using AI', 'ai', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
   ('feat_ai_programming_assistant', 'ai_programming_assistant', 'AI Programming Assistant', 'AI assistant for programming strategy', 'ai', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
   ('feat_multi_team_management', 'multi_team_management', 'Multi-Team Management', 'Manage multiple teams from one account', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
-  ('feat_host_competitions', 'host_competitions', 'Host Competitions', 'Create and manage competitions and events', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+  ('feat_host_competitions', 'host_competitions', 'Host Competitions', 'Create and manage competitions and events', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('feat_workout_tracking', 'workout_tracking', 'Workout Tracking', 'Access to personal workout tracking features', 'workouts', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- Insert limits
 INSERT OR IGNORE INTO "limit" (id, "key", name, description, unit, resetPeriod, isActive, createdAt, updatedAt, updateCounter)
@@ -218,7 +265,18 @@ INSERT OR IGNORE INTO user (id, firstName, lastName, email, emailVerified, passw
 ('usr_athlete_lauren', 'Lauren', 'Adams', 'lauren.adams@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1997-01-11'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('usr_athlete_nicole', 'Nicole', 'Roberts', 'nicole.roberts@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1995-08-19'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('usr_athlete_amanda', 'Amanda', 'Nelson', 'amanda.nelson@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1992-12-07'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_athlete_kaitlyn', 'Kaitlyn', 'Hill', 'kaitlyn.hill@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1999-03-24'), strftime('%s', 'now'), strftime('%s', 'now'), 0);
+('usr_athlete_kaitlyn', 'Kaitlyn', 'Hill', 'kaitlyn.hill@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1999-03-24'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Volunteers for Winter Throwdown 2025
+('usr_volunteer_dave', 'Dave', 'Martinez', 'dave.martinez@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1985-04-12'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_lisa', 'Lisa', 'Chen', 'lisa.chen@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1990-08-25'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_tom', 'Tom', 'Wilson', 'tom.wilson@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1988-01-17'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_rachel', 'Rachel', 'Kim', 'rachel.kim@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1992-11-30'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_james', 'James', 'Rodriguez', 'james.rodriguez@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1987-06-08'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_emily', 'Emily', 'Thompson', 'emily.thompson@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1994-02-14'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_kevin', 'Kevin', 'Patel', 'kevin.patel@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1991-09-22'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_maria', 'Maria', 'Garcia', 'maria.garcia@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1989-12-03'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_brian', 'Brian', 'Lee', 'brian.lee@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1993-07-19'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_sandra', 'Sandra', 'Nguyen', 'sandra.nguyen@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1995-05-11'), strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Seed teams table (with different plans for testing)
 -- type: 'gym' (default), 'competition_event', or 'personal'
@@ -290,6 +348,20 @@ INSERT OR IGNORE INTO team_membership (id, teamId, userId, roleId, isSystemRole,
 ('tmem_nicole_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_nicole', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
 ('tmem_amanda_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_amanda', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
 ('tmem_kaitlyn_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_kaitlyn', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1);
+
+-- Volunteers for Winter Throwdown 2025
+-- Volunteer memberships include metadata JSON with volunteer-specific info
+INSERT OR IGNORE INTO team_membership (id, teamId, userId, roleId, isSystemRole, joinedAt, createdAt, updatedAt, updateCounter, isActive, metadata) VALUES
+('tmem_volunteer_dave', 'team_winter_throwdown_2025', 'usr_volunteer_dave', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","head_judge"],"credentials":"L1 Judge Certified","shirtSize":"L","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+('tmem_volunteer_lisa', 'team_winter_throwdown_2025', 'usr_volunteer_lisa', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","scorekeeper"],"credentials":"CrossFit L2","shirtSize":"S","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+('tmem_volunteer_tom', 'team_winter_throwdown_2025', 'usr_volunteer_tom', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","equipment"],"shirtSize":"XL","availability":"morning","availabilityNotes":"Available 6am-12pm only","status":"approved","inviteSource":"application"}'),
+('tmem_volunteer_rachel', 'team_winter_throwdown_2025', 'usr_volunteer_rachel', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","check_in","medical"],"credentials":"EMT Certified","shirtSize":"M","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+('tmem_volunteer_james', 'team_winter_throwdown_2025', 'usr_volunteer_james', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","floor_manager"],"credentials":"5 years judging experience","shirtSize":"L","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+('tmem_volunteer_emily', 'team_winter_throwdown_2025', 'usr_volunteer_emily', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","media"],"shirtSize":"S","availability":"afternoon","availabilityNotes":"Available after 12pm","status":"approved","inviteSource":"application"}'),
+('tmem_volunteer_kevin', 'team_winter_throwdown_2025', 'usr_volunteer_kevin', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","scorekeeper"],"credentials":"L1 Trainer","shirtSize":"M","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+('tmem_volunteer_maria', 'team_winter_throwdown_2025', 'usr_volunteer_maria', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","emcee"],"credentials":"Former competitor","shirtSize":"S","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+('tmem_volunteer_brian', 'team_winter_throwdown_2025', 'usr_volunteer_brian', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","equipment","staff"],"shirtSize":"XL","availability":"morning","status":"approved","inviteSource":"application"}'),
+('tmem_volunteer_sandra', 'team_winter_throwdown_2025', 'usr_volunteer_sandra', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","general"],"credentials":"L1 Trainer","shirtSize":"M","availability":"all_day","status":"approved","inviteSource":"direct"}');
 
 -- Affiliates (gyms that athletes can select when registering)
 INSERT OR IGNORE INTO affiliates (id, name, location, verificationStatus, ownerTeamId, createdAt, updatedAt, updateCounter) VALUES
@@ -483,7 +555,9 @@ INSERT OR IGNORE INTO organizer_request (id, teamId, userId, reason, status, adm
 -- Team entitlement override for unlimited published competitions
 -- This is set when an organizer request is approved (value -1 = unlimited)
 INSERT OR IGNORE INTO team_entitlement_override (id, teamId, type, key, value, reason, expiresAt, createdBy, createdAt, updatedAt, updateCounter) VALUES
-('teo_box1_competitions', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'limit', 'max_published_competitions', '-1', 'Organizer request approved', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+('teo_box1_competitions', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'limit', 'max_published_competitions', '-1', 'Organizer request approved', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('teo_box1_workout_tracking', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feature', 'workout_tracking', 'true', 'Early access grant', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('teo_personaladmin_workout_tracking', 'team_personaladmin', 'feature', 'workout_tracking', 'true', 'Early access grant', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- Create Girls programming track
 INSERT INTO programming_track (id, name, description, type, ownerTeamId, isPublic, createdAt, updatedAt, updateCounter) VALUES 

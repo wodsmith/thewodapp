@@ -429,7 +429,7 @@ describe('Competition Score Server Functions (TanStack)', () => {
       const insertMock = {
         insert: vi.fn().mockReturnValue({
           values: vi.fn().mockReturnValue({
-            onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+            onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
           }),
         }),
         delete: vi.fn().mockReturnValue({
@@ -488,7 +488,7 @@ describe('Competition Score Server Functions (TanStack)', () => {
           values: vi.fn().mockImplementation((values) => {
             insertedValues = values
             return {
-              onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+              onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
             }
           }),
         }),
@@ -579,7 +579,7 @@ describe('Competition Score Server Functions (TanStack)', () => {
         }),
         insert: vi.fn().mockReturnValue({
           values: vi.fn().mockReturnValue({
-            onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+            onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
           }),
         }),
         delete: vi.fn().mockReturnValue({

@@ -27,7 +27,7 @@ import { invalidateTeamMembersSessions } from "@/utils/kv-session"
 /**
  * Grant a feature entitlement to a team
  * Inserts into teamFeatureEntitlementTable with source 'override'
- * Uses onConflictDoUpdate to handle duplicates
+ * Uses onDuplicateKeyUpdate to handle duplicates
  */
 export async function grantTeamFeature(
 	teamId: string,
@@ -102,7 +102,7 @@ export async function revokeTeamFeature(
 /**
  * Set a limit override for a team
  * Inserts into teamEntitlementOverrideTable with type 'limit'
- * Uses onConflictDoUpdate to handle duplicates
+ * Uses onDuplicateKeyUpdate to handle duplicates
  */
 export async function setTeamLimitOverride(
 	teamId: string,

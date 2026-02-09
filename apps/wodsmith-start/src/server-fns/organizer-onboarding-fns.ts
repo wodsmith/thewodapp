@@ -14,8 +14,8 @@ import { getDb } from "@/db"
 import { createOrganizerRequestId } from "@/db/schemas/common"
 import {
 	ORGANIZER_REQUEST_STATUS,
-	organizerRequestTable,
 	type OrganizerRequest,
+	organizerRequestTable,
 } from "@/db/schemas/organizer-requests"
 import {
 	SYSTEM_ROLES_ENUM,

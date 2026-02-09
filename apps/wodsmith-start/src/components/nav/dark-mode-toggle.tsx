@@ -14,6 +14,7 @@ type ThemePreference = "light" | "dark" | "system"
 function setThemeCookie(theme: ThemePreference) {
 	const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString()
 	const secure = window.location.protocol === "https:" ? "; Secure" : ""
+	// biome-ignore lint/suspicious/noDocumentCookie: document.cookie required for SSR-accessible theme preference
 	document.cookie = `theme=${theme}; path=/; expires=${expires}; SameSite=Lax${secure}`
 }
 

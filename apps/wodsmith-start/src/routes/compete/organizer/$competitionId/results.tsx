@@ -26,9 +26,9 @@ import {
 } from "@/server-fns/competition-score-fns"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
 import {
+	type AllEventsResultsStatusResponse,
 	getDivisionResultsStatusFn,
 	publishDivisionResultsFn,
-	type AllEventsResultsStatusResponse,
 } from "@/server-fns/division-results-fns"
 
 // Get parent route API to access competition data

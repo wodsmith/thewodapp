@@ -292,7 +292,10 @@ export function OrganizerDivisionItem({
 												? null
 												: parseInt(localMaxSpots, 10)
 										if (newVal !== maxSpots) {
-											if (newVal !== null && (isNaN(newVal) || newVal < 1)) {
+											if (
+												newVal !== null &&
+												(Number.isNaN(newVal) || newVal < 1)
+											) {
 												setLocalMaxSpots(maxSpots?.toString() ?? "")
 												return
 											}

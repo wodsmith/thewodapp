@@ -8,8 +8,8 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
+import { and, eq } from "drizzle-orm"
 import { z } from "zod"
-import { eq, and } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	competitionDivisionsTable,
@@ -18,8 +18,8 @@ import {
 	teamTable,
 } from "@/db/schema"
 import { ROLES_ENUM } from "@/db/schemas/users"
-import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
 import { getCompetitionRevenueStats } from "@/server/commerce/fee-calculator"
+import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
 
 // Re-export type for consumers
 export type { CompetitionRevenueStats } from "@/server/commerce/fee-calculator"

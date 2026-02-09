@@ -117,19 +117,48 @@ export const Route = createFileRoute("/compete/$slug")({
 })
 
 function CompetitionDetailLayout() {
-	const { competition, registrationCount, canManage } = Route.useLoaderData()
+	const { competition, registrationCount, canManage, isVolunteer } =
+		Route.useLoaderData()
+
+	const hasBanner = !!competition.bannerImageUrl
+	const profileImage =
+		competition.profileImageUrl ?? competition.organizingTeam?.avatarUrl
 
 	return (
-		<div className="min-h-screen bg-background">
-			{/* Hero Section */}
-			<CompetitionHero
-				competition={competition}
-				registrationCount={registrationCount}
-				canManage={canManage}
-			/>
+		<div className="relative min-h-screen bg-background print:min-h-0 print:bg-white">
+			{/* Full-bleed banner - absolutely positioned to extend behind the glass card */}
+			{hasBanner && (
+				<div className="absolute left-1/2 top-0 h-[16rem] w-screen -translate-x-1/2 md:h-[20rem] lg:h-[22rem] print:hidden">
+					{/* Profile image on mobile for better portrait fit */}
+					{profileImage && (
+						<img
+							src={profileImage}
+							alt=""
+							className="absolute inset-0 h-full w-full object-cover md:hidden"
+						/>
+					)}
+					{/* Banner image on desktop (or all screens if no profile image) */}
+					<img
+						src={competition.bannerImageUrl!}
+						alt=""
+						className={`absolute inset-0 h-full w-full object-cover ${profileImage ? "hidden md:block" : ""}`}
+					/>
+					<div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/60 to-slate-900/40" />
+				</div>
+			)}
+
+			{/* Hero Section - hidden on print */}
+			<div className="relative print:hidden">
+				<CompetitionHero
+					competition={competition}
+					registrationCount={registrationCount}
+					canManage={canManage}
+					isVolunteer={isVolunteer}
+				/>
+			</div>
 
 			{/* Content Area */}
-			<div className="container mx-auto px-3 py-4 sm:px-4">
+			<div className="relative container mx-auto px-0 pb-4 print:p-0 print:max-w-none">
 				<Outlet />
 			</div>
 		</div>

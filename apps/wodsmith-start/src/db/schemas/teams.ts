@@ -43,6 +43,15 @@ export const SYSTEM_ROLES_ENUM = {
 	VOLUNTEER: "volunteer", // Competition volunteer
 } as const
 
+// Invitation status for tracking guest acceptance
+export const INVITATION_STATUS = {
+	PENDING: "pending", // Invited but not yet responded
+	ACCEPTED: "accepted", // Guest accepted (answered questions/signed waivers)
+} as const
+
+export type InvitationStatus =
+	(typeof INVITATION_STATUS)[keyof typeof INVITATION_STATUS]
+
 export const systemRoleTuple = Object.values(SYSTEM_ROLES_ENUM) as [
 	string,
 	...string[],
@@ -222,6 +231,13 @@ export const teamInvitationTable = mysqlTable(
 		expiresAt: datetime().notNull(),
 		acceptedAt: datetime(),
 		acceptedBy: varchar({ length: 255 }),
+		// Invitation status: pending (awaiting response) or accepted (guest accepted invite)
+		// Note: acceptedAt tracks when a user with account formally joined
+		// status tracks when the invite was accepted (guest submitted form data)
+		status: varchar({ length: 20 })
+			.$type<InvitationStatus>()
+			.default("pending")
+			.notNull(),
 		// Optional JSON metadata to transfer to membership on acceptance
 		metadata: varchar({ length: 255 }),
 	},
@@ -316,6 +332,24 @@ export const teamInvitationRelations = relations(
 		}),
 	}),
 )
+
+// Pending invite data types (stored in teamInvitationTable.metadata before account creation)
+export interface PendingInviteAnswer {
+	questionId: string
+	answer: string
+}
+
+export interface PendingWaiverSignature {
+	waiverId: string
+	signedAt: string // ISO date string
+	signatureName: string // The name they typed as signature
+}
+
+export interface PendingInviteData {
+	pendingAnswers?: PendingInviteAnswer[]
+	pendingSignatures?: PendingWaiverSignature[]
+	submittedAt?: string // ISO date when guest submitted
+}
 
 // Type exports
 export type Team = InferSelectModel<typeof teamTable>

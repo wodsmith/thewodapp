@@ -1,1 +1,0 @@
-ALTER TABLE `team_invitation` ADD `metadata` text;

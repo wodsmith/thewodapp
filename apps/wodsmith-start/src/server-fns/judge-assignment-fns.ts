@@ -133,7 +133,10 @@ async function materializeRotations(
 	// Build heat number -> ID map
 	const heatMap = new Map(heats.map((h) => [h.heatNumber, h.id]))
 
-	// Expand each rotation
+	// Expand each rotation, deduplicating by (heatId, membershipId) to avoid
+	// unique constraint violations if rotations overlap on the same heat+judge
+	const seen = new Set<string>()
+
 	for (const rotation of rotations) {
 		for (let i = 0; i < rotation.heatsCount; i++) {
 			const heatNumber = rotation.startingHeat + i
@@ -145,6 +148,15 @@ async function materializeRotations(
 				)
 				continue
 			}
+
+			const key = `${heatId}:${rotation.membershipId}`
+			if (seen.has(key)) {
+				console.warn(
+					`Duplicate assignment for heat ${heatNumber}, judge ${rotation.membershipId} from rotation ${rotation.id}, skipping`,
+				)
+				continue
+			}
+			seen.add(key)
 
 			const laneNumber = calculateLane(
 				rotation.startingLane,

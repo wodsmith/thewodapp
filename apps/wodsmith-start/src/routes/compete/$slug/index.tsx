@@ -1,16 +1,20 @@
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
+import { CompetitionLocationCard } from "@/components/competition-location-card"
 import { CompetitionTabs } from "@/components/competition-tabs"
+import { CompetitionWorkoutCard } from "@/components/competition-workout-card"
 import { EventDetailsContent } from "@/components/event-details-content"
 import { RegistrationSidebar } from "@/components/registration-sidebar"
-import { CompetitionLocationCard } from "@/components/competition-location-card"
-import { Card, CardContent } from "@/components/ui/card"
+import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
+import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
+import {
+	getPublicScheduleDataFn,
+	type PublicScheduleEvent,
+} from "@/server-fns/competition-heats-fns"
 import {
 	getPublishedCompetitionWorkoutsWithDetailsFn,
 	getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
-import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
-import { CompetitionWorkoutCard } from "@/components/competition-workout-card"
-import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
+import { useDeferredSchedule } from "@/utils/use-deferred-schedule"
 
 const parentRoute = getRouteApi("/compete/$slug")
 
@@ -22,10 +26,21 @@ export const Route = createFileRoute("/compete/$slug/")({
 		})
 
 		if (!competition) {
-			return { workouts: [], divisionDescriptionsMap: {} }
+			return {
+				workouts: [],
+				divisionDescriptionsMap: {},
+				deferredSchedule: Promise.resolve({
+					events: [] as PublicScheduleEvent[],
+				}),
+			}
 		}
 
 		const competitionId = competition.id
+
+		// Defer schedule data - it's below the fold and not needed immediately
+		const deferredSchedule = getPublicScheduleDataFn({
+			data: { competitionId },
+		})
 
 		const [workoutsResult, divisionsResult] = await Promise.all([
 			getPublishedCompetitionWorkoutsWithDetailsFn({
@@ -61,7 +76,7 @@ export const Route = createFileRoute("/compete/$slug/")({
 			}
 		}
 
-		return { workouts, divisionDescriptionsMap }
+		return { workouts, divisionDescriptionsMap, deferredSchedule }
 	},
 })
 
@@ -81,10 +96,13 @@ function CompetitionOverviewPage() {
 	} = parentRoute.useLoaderData()
 
 	const { slug } = Route.useParams()
-	const { workouts, divisionDescriptionsMap } = Route.useLoaderData()
+	const { workouts, divisionDescriptionsMap, deferredSchedule } =
+		Route.useLoaderData()
 
 	const isRegistered = !!userRegistration
 	const isTeamRegistration = (userDivision?.teamSize ?? 1) > 1
+	const timezone = competition.timezone ?? "America/Denver"
+	const scheduleMap = useDeferredSchedule({ deferredSchedule, timezone })
 
 	return (
 		<div className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -96,7 +114,7 @@ function CompetitionOverviewPage() {
 				</div>
 
 				{/* Content Panel */}
-				<div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 backdrop-blur-md">
+				<div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
 					<EventDetailsContent
 						competition={competition}
 						divisions={divisions.length > 0 ? divisions : undefined}
@@ -129,6 +147,7 @@ function CompetitionOverviewPage() {
 													sponsorLogoUrl={event.sponsorLogoUrl}
 													selectedDivisionId="default"
 													timeCap={event.workout.timeCap}
+													schedule={scheduleMap?.get(event.id) ?? null}
 												/>
 											)
 										})}
@@ -136,21 +155,12 @@ function CompetitionOverviewPage() {
 								</div>
 							) : undefined
 						}
-						scheduleContent={
-							<Card className="border-dashed">
-								<CardContent className="py-6 text-center">
-									<p className="text-muted-foreground">
-										Schedule information coming soon.
-									</p>
-								</CardContent>
-							</Card>
-						}
 					/>
 				</div>
 			</div>
 
-			{/* Sidebar */}
-			<aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+			{/* Sidebar - Order first on mobile/tablet for prominent Register button */}
+			<aside className="order-first space-y-4 lg:order-none lg:sticky lg:top-4 lg:self-start">
 				<RegistrationSidebar
 					competition={competition}
 					isRegistered={isRegistered}

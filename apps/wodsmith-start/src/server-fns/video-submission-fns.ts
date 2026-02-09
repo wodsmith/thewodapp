@@ -22,8 +22,8 @@ import {
 	createVideoSubmissionId,
 	videoSubmissionsTable,
 } from "@/db/schemas/video-submissions"
-import { workouts } from "@/db/schemas/workouts"
 import type { TiebreakScheme } from "@/db/schemas/workouts"
+import { workouts } from "@/db/schemas/workouts"
 import {
 	computeSortKey,
 	decodeScore,
@@ -31,8 +31,8 @@ import {
 	getDefaultScoreType,
 	parseScore,
 	type ScoreType,
-	sortKeyToString,
 	STATUS_ORDER,
+	sortKeyToString,
 	type WorkoutScheme,
 } from "@/lib/scoring"
 import { getSessionFromCookie } from "@/utils/auth"

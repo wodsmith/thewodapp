@@ -9,8 +9,8 @@
 
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
-import { getSessionFromCookie, getActiveOrPersonalTeamId } from "@/utils/auth"
 import { getUserWorkouts } from "@/server/workouts"
+import { getActiveOrPersonalTeamId, getSessionFromCookie } from "@/utils/auth"
 
 export const Route = createFileRoute("/api/workouts/search")({
 	server: {

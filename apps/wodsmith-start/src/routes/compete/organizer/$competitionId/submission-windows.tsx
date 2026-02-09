@@ -8,8 +8,8 @@
 import { createFileRoute, getRouteApi, redirect } from "@tanstack/react-router"
 import { SubmissionWindowsManager } from "@/components/compete/submission-windows-manager"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
-import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
 import { getCompetitionEventsFn } from "@/server-fns/competition-event-fns"
+import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
 
 // Get parent route API to access its loader data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")

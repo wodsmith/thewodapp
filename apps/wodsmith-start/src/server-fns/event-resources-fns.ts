@@ -11,8 +11,8 @@ import { z } from "zod"
 import { getDb } from "@/db"
 import { createEventResourceId } from "@/db/schemas/common"
 import {
-	eventResourcesTable,
 	type EventResource,
+	eventResourcesTable,
 } from "@/db/schemas/event-resources"
 import {
 	programmingTracksTable,

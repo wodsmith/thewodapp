@@ -6,8 +6,8 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
+import { asc, desc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
-import { eq, asc, desc, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	createScalingGroupId,

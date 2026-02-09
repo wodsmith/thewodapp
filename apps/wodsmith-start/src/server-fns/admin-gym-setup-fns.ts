@@ -5,25 +5,25 @@
  * This file uses top-level imports for server-only modules.
  */
 
-import { createServerFn } from "@tanstack/react-start"
-import { z } from "zod"
-import { eq, and, count } from "drizzle-orm"
 import { createId } from "@paralleldrive/cuid2"
+import { createServerFn } from "@tanstack/react-start"
+import { and, count, eq } from "drizzle-orm"
+import { z } from "zod"
 import { getDb } from "@/db"
 import { createLocationId, createSkillId } from "@/db/schemas/common"
 import {
-	locationsTable,
-	skillsTable,
-	scheduleTemplatesTable,
-	scheduledClassesTable,
 	classCatalogToSkillsTable,
-	coachToSkillsTable,
-	scheduleTemplateClassRequiredSkillsTable,
-	coachesTable,
 	coachBlackoutDatesTable,
+	coachesTable,
 	coachRecurringUnavailabilityTable,
+	coachToSkillsTable,
+	locationsTable,
+	scheduledClassesTable,
+	scheduleTemplateClassRequiredSkillsTable,
+	scheduleTemplatesTable,
+	skillsTable,
 } from "@/db/schemas/scheduling"
-import { teamTable, teamMembershipTable } from "@/db/schemas/teams"
+import { teamMembershipTable, teamTable } from "@/db/schemas/teams"
 import { requireAdmin } from "@/utils/auth"
 
 // ============================================================================

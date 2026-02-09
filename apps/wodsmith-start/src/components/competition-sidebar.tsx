@@ -19,6 +19,7 @@ import {
 	Layers,
 	MapPin,
 	Medal,
+	Menu,
 	ReceiptText,
 	Settings,
 	Sparkles,
@@ -276,7 +277,28 @@ export function CompetitionSidebar({
 				</SidebarContent>
 				<CompetitionSidebarFooter />
 			</Sidebar>
-			<SidebarInset>{children}</SidebarInset>
+			<SidebarInset>
+				<header className="flex h-14 items-center gap-2 border-b px-3 md:hidden">
+					<SidebarTrigger className="-ml-1">
+						<Menu className="h-5 w-5" />
+					</SidebarTrigger>
+					<Link to="/compete" className="flex items-center gap-2">
+						<img
+							src="/wodsmith-logo-no-text.png"
+							alt="wodsmith compete"
+							width={24}
+							height={24}
+						/>
+						<span className="text-sm font-semibold">
+							<span className="font-black uppercase">wod</span>smith{" "}
+							<span className="font-medium text-amber-600 dark:text-amber-500">
+								Compete
+							</span>
+						</span>
+					</Link>
+				</header>
+				{children}
+			</SidebarInset>
 		</SidebarProvider>
 	)
 }

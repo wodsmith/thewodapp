@@ -14,18 +14,18 @@ import {
 	competitionEventsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
+	SUBMISSION_WINDOW_NOTIFICATION_TYPES,
+	type SubmissionWindowNotificationType,
 	scoresTable,
 	submissionWindowNotificationsTable,
 	trackWorkoutsTable,
 	userTable,
 	workouts,
-	SUBMISSION_WINDOW_NOTIFICATION_TYPES,
-	type SubmissionWindowNotificationType,
 } from "@/db/schema"
 import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
+import { SubmissionWindowClosedEmail } from "@/react-email/submission-window-closed"
 import { SubmissionWindowOpensEmail } from "@/react-email/submission-window-opens"
 import { SubmissionWindowReminderEmail } from "@/react-email/submission-window-reminder"
-import { SubmissionWindowClosedEmail } from "@/react-email/submission-window-closed"
 import { sendEmail } from "@/utils/email"
 
 // ============================================================================
@@ -74,7 +74,7 @@ function normalizeToUtcDatetime(datetime: string): string {
 	if (hasTimezoneIndicator(normalized)) {
 		return normalized
 	}
-	return normalized + "Z"
+	return `${normalized}Z`
 }
 
 /**

@@ -63,7 +63,7 @@ export const createChainableMock = () => {
     insert: vi.fn(() => createChainableMock()),
     values: vi.fn(() => createChainableMock()),
     returning: vi.fn().mockResolvedValue([{id: 'test_id', name: 'Test'}]),
-    onConflictDoUpdate: vi.fn(() => createChainableMock()),
+    onDuplicateKeyUpdate: vi.fn(() => createChainableMock()),
     // Update chain
     update: vi.fn(() => createChainableMock()),
     set: vi.fn(() => createChainableMock()),

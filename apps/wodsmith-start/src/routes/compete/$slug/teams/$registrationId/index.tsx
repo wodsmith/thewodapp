@@ -17,6 +17,7 @@ import { CheckCircle, Clock, Copy, Crown, Mail, Users } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
+import { RegistrationAnswersForm } from "@/components/registration/registration-answers-form"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -27,7 +28,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { RegistrationAnswersForm } from "@/components/registration/registration-answers-form"
 import type { Waiver, WaiverSignature } from "@/db/schemas/waivers"
 import {
 	getRegistrationDetailsFn,
@@ -165,8 +165,10 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 							"@/db/schemas/competitions"
 						)
 						const db = getDb()
+						const compId = registration.competition?.id
+						if (!compId) return null
 						const comp = await db.query.competitionsTable.findFirst({
-							where: eq(competitionsTable.id, registration.competition!.id),
+							where: eq(competitionsTable.id, compId),
 							columns: { registrationClosesAt: true },
 						})
 						return comp

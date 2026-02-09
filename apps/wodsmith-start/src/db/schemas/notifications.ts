@@ -1,12 +1,12 @@
+import { createId } from "@paralleldrive/cuid2"
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
 import { index, mysqlTable, varchar, uniqueIndex } from "drizzle-orm/mysql-core"
 import { commonColumns } from "./common"
-import { createId } from "@paralleldrive/cuid2"
 import {
-	competitionsTable,
 	competitionEventsTable,
 	competitionRegistrationsTable,
+	competitionsTable,
 } from "./competitions"
 import { userTable } from "./users"
 

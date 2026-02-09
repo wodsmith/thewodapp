@@ -27,11 +27,11 @@ import { userTable } from "@/db/schemas/users"
 import { workouts } from "@/db/schemas/workouts"
 import {
 	calculateEventPoints,
+	DEFAULT_SCORING_CONFIG,
 	decodeScore,
+	type EventScoreInput,
 	formatScore,
 	getDefaultScoreType,
-	DEFAULT_SCORING_CONFIG,
-	type EventScoreInput,
 	type WorkoutScheme,
 } from "@/lib/scoring"
 import {

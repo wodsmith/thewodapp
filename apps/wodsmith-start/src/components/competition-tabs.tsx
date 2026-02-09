@@ -53,13 +53,10 @@ export function CompetitionTabs({ slug }: CompetitionTabsProps) {
 	const ActiveIcon = activeTab?.icon || List
 
 	return (
-		<div className="rounded-2xl border border-white/10 bg-white/5 p-2 backdrop-blur-md">
+		<div className="rounded-2xl border border-black/10 bg-black/5 p-2 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
 			{/* Mobile: Select menu */}
 			<div className="sm:hidden">
-				<Select
-					value={getActiveTabValue()}
-					onValueChange={handleSelectChange}
-				>
+				<Select value={getActiveTabValue()} onValueChange={handleSelectChange}>
 					<SelectTrigger className="w-full bg-transparent border-0 h-10 font-medium">
 						<div className="flex items-center gap-2">
 							<ActiveIcon className="h-4 w-4" />
@@ -100,7 +97,7 @@ export function CompetitionTabs({ slug }: CompetitionTabsProps) {
 								"flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all",
 								isActive
 									? "bg-orange-500 text-white"
-									: "text-muted-foreground hover:bg-white/10 hover:text-foreground",
+									: "text-muted-foreground hover:bg-black/10 hover:text-foreground dark:hover:bg-white/10",
 							)}
 						>
 							<Icon className="h-4 w-4" />

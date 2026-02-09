@@ -5,11 +5,14 @@
  * Migrated from apps/wodsmith/src/server/entitlements.ts
  */
 import { and, eq, gt, isNull, or } from "drizzle-orm"
+import { LIMITS } from "@/config/limits"
 import { getDb } from "@/db"
 import {
+	type Entitlement,
 	entitlementTable,
 	featureTable,
 	limitTable,
+	type PlanEntitlements,
 	planFeatureTable,
 	planLimitTable,
 	planTable,
@@ -17,11 +20,8 @@ import {
 	teamFeatureEntitlementTable,
 	teamLimitEntitlementTable,
 	teamTable,
-	type Entitlement,
-	type PlanEntitlements,
 } from "@/db/schema"
 import { createEntitlementId } from "@/db/schemas/common"
-import { LIMITS } from "@/config/limits"
 
 export type { Entitlement }
 

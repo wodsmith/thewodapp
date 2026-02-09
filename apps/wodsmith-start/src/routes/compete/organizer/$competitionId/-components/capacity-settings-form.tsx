@@ -39,7 +39,10 @@ export function CapacitySettingsForm({ competition }: Props) {
 		try {
 			const parsedValue = maxSpots.trim() === "" ? null : parseInt(maxSpots, 10)
 
-			if (parsedValue !== null && (isNaN(parsedValue) || parsedValue < 1)) {
+			if (
+				parsedValue !== null &&
+				(Number.isNaN(parsedValue) || parsedValue < 1)
+			) {
 				toast.error("Please enter a valid number (1 or higher)")
 				setIsSubmitting(false)
 				return
@@ -63,7 +66,7 @@ export function CapacitySettingsForm({ competition }: Props) {
 
 	const hasChanges = (() => {
 		const parsed = maxSpots.trim() === "" ? null : parseInt(maxSpots, 10)
-		if (parsed !== null && isNaN(parsed)) return false // Invalid input, no save
+		if (parsed !== null && Number.isNaN(parsed)) return false // Invalid input, no save
 		return parsed !== competition.defaultMaxSpotsPerDivision
 	})()
 
