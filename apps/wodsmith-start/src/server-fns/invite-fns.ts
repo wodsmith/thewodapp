@@ -114,7 +114,7 @@ const acceptTeamInvitationSchema = z.object({
 		.array(
 			z.object({
 				waiverId: z.string().min(1),
-				signedAt: z.string(),
+				signedAt: z.string().datetime(),
 				signatureName: z.string().min(1),
 			}),
 		)
@@ -149,7 +149,7 @@ const submitPendingInviteDataSchema = z.object({
 		.array(
 			z.object({
 				waiverId: z.string().min(1),
-				signedAt: z.string(),
+				signedAt: z.string().datetime(),
 				signatureName: z.string().min(1),
 			}),
 		)
@@ -535,7 +535,7 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 							})
 
 						const teammateRequiredQuestions = requiredQuestions.filter(
-							(q) => q.forTeammates || q.required,
+							(q) => q.forTeammates,
 						)
 
 						if (teammateRequiredQuestions.length > 0) {

@@ -870,7 +870,7 @@ function TeammateRequirementsForm({
 	const requiredWaivers = waivers.filter((w) => w.required)
 	const allRequiredWaiversSigned = requiredWaivers.every(
 		(w) =>
-			signatures[w.id]?.signatureName?.trim() !== "" &&
+			(signatures[w.id]?.signatureName?.trim() ?? "") !== "" &&
 			signatures[w.id]?.agreed === true,
 	)
 
@@ -971,9 +971,9 @@ function TeammateRequirementsForm({
 			{waivers.length > 0 && (
 				<Card>
 					<CardHeader>
-						<CardTitle>Required Waivers</CardTitle>
+						<CardTitle>Waivers</CardTitle>
 						<CardDescription>
-							Please review and sign all required waivers
+							Please review and sign all required waivers to continue
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
