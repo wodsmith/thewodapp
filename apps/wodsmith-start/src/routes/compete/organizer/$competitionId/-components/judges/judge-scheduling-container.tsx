@@ -24,13 +24,13 @@ import type { HeatWithAssignments } from "@/server-fns/competition-heats-fns"
 import type { CompetitionWorkout } from "@/server-fns/competition-workouts-fns"
 import {
 	getActiveVersionFn,
-	getAssignmentsForVersionFn,
 	getVersionHistoryFn,
 	rollbackToVersionFn,
 } from "@/server-fns/judge-assignment-fns"
-import type {
-	JudgeHeatAssignment,
-	JudgeVolunteerInfo,
+import {
+	getJudgeHeatAssignmentsFn,
+	type JudgeHeatAssignment,
+	type JudgeVolunteerInfo,
 } from "@/server-fns/judge-scheduling-fns"
 
 import { DraggableJudge } from "./draggable-judge"
@@ -235,8 +235,8 @@ export function JudgeSchedulingContainer({
 			// Also fetch assignments for the new active version
 			if (activeResult) {
 				setSelectedVersionId(activeResult.id)
-				const assignmentsResult = await getAssignmentsForVersionFn({
-					data: { versionId: activeResult.id },
+				const assignmentsResult = await getJudgeHeatAssignmentsFn({
+					data: { trackWorkoutId: selectedEventId, versionId: activeResult.id },
 				})
 				if (assignmentsResult) {
 					setAssignments((prev) => {
@@ -245,7 +245,7 @@ export function JudgeSchedulingContainer({
 						const withoutEvent = prev.filter((a) => !eventHeatIds.has(a.heatId))
 						return [
 							...withoutEvent,
-							...(assignmentsResult as unknown as JudgeHeatAssignment[]),
+							...assignmentsResult,
 						]
 					})
 				}
@@ -280,8 +280,8 @@ export function JudgeSchedulingContainer({
 				// Fetch assignments for the new version
 				setIsFetchingAssignments(true)
 				try {
-					const assignmentsResult = await getAssignmentsForVersionFn({
-						data: { versionId },
+					const assignmentsResult = await getJudgeHeatAssignmentsFn({
+						data: { trackWorkoutId: selectedEventId, versionId },
 					})
 					if (assignmentsResult) {
 						setAssignments((prev) => {
@@ -290,11 +290,9 @@ export function JudgeSchedulingContainer({
 							const withoutEvent = prev.filter(
 								(a) => !eventHeatIds.has(a.heatId),
 							)
-							// Type assertion needed because getAssignmentsForVersion returns raw DB structure
-							// but JudgeHeatAssignment expects a 'volunteer' property (server-side type mismatch)
 							return [
 								...withoutEvent,
-								...(assignmentsResult as JudgeHeatAssignment[]),
+								...assignmentsResult,
 							]
 						})
 					}
@@ -345,7 +343,6 @@ export function JudgeSchedulingContainer({
 	}, [eventHeats])
 
 	// Calculate rotation coverage for selected event
-	// Use initialEventRotations directly to avoid stale state timing issues when switching events
 	const rotationCoverage = useMemo(() => {
 		if (eventHeats.length === 0) {
 			return {
@@ -377,10 +374,8 @@ export function JudgeSchedulingContainer({
 			return base
 		})
 
-		// Use fresh rotations for the selected event to avoid stale state on event switch
-		// eventRotations state may lag behind when selectedEventId changes
-		return calculateCoverage(initialEventRotations, heatsData)
-	}, [initialEventRotations, eventHeats, maxLanes, filterEmptyLanes])
+		return calculateCoverage(eventRotations, heatsData)
+	}, [eventRotations, eventHeats, maxLanes, filterEmptyLanes])
 
 	// Handle multi-select toggle
 	function handleToggleSelect(membershipId: string, shiftKey: boolean) {
@@ -729,7 +724,7 @@ export function JudgeSchedulingContainer({
 
 					{/* Rotation Overview */}
 					<RotationOverview
-						rotations={initialEventRotations}
+						rotations={eventRotations}
 						coverage={rotationCoverage}
 						eventName={selectedEvent?.workout.name ?? "Event"}
 						teamId={organizingTeamId}
