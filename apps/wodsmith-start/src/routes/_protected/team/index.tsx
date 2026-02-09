@@ -1,8 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, redirect } from "@tanstack/react-router"
 import { TeamPageClient } from "@/components/team-page-client"
 
 export const Route = createFileRoute("/_protected/team/")({
 	component: TeamPage,
+	beforeLoad: async ({ context }) => {
+		if (!context.hasWorkoutTracking) {
+			throw redirect({ to: "/compete" })
+		}
+	},
 })
 
 function TeamPage() {

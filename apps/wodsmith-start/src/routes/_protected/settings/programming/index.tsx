@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router"
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router"
 import { Plus } from "lucide-react"
 import { ProgrammingTrackCreateDialog } from "@/components/programming-track-create-dialog"
 import { ProgrammingTrackRow } from "@/components/programming-track-row"
@@ -10,6 +10,11 @@ import {
 
 export const Route = createFileRoute("/_protected/settings/programming/")({
 	component: ProgrammingTracksPage,
+	beforeLoad: async ({ context }) => {
+		if (!context.hasWorkoutTracking) {
+			throw redirect({ to: "/compete" })
+		}
+	},
 	loader: async ({ context }) => {
 		// Get teamId from session
 		const session = context.session

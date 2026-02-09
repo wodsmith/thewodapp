@@ -107,7 +107,6 @@ function CalendarSkeleton() {
 						const isToday = i === 15
 
 						return (
-							// biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton array, items never reorder
 							<div
 								key={`skeleton-day-${i}`}
 								className={`min-h-[100px] border-r-2 border-b-2 border-border last:border-r-0 p-2 space-y-2 ${

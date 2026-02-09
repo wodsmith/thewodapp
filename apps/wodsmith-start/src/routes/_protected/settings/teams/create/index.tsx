@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
+import { trackEvent } from "@/lib/posthog"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -66,6 +67,11 @@ function CreateTeamPage() {
 			toast.dismiss()
 
 			if (result.success && result.data) {
+				trackEvent("team_created", {
+					team_id: result.data.teamId,
+					team_slug: result.data.slug,
+					has_description: !!data.description,
+				})
 				toast.success("Team created successfully")
 				const teamSlug = result.data.slug
 				if (teamSlug) {
@@ -81,6 +87,9 @@ function CreateTeamPage() {
 			toast.dismiss()
 			const message =
 				error instanceof Error ? error.message : "Failed to create team"
+			trackEvent("team_created_failed", {
+				error_message: message,
+			})
 			toast.error(message)
 		}
 	}

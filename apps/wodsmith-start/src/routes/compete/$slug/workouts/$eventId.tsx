@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 import { z } from "zod"
 import { VideoSubmissionForm } from "@/components/compete/video-submission-form"
+import { EventHeatSchedule } from "@/components/event-heat-schedule"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -30,7 +31,10 @@ import { Separator } from "@/components/ui/separator"
 import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
-import { getVenueForTrackWorkoutByDivisionFn } from "@/server-fns/competition-heats-fns"
+import {
+	getPublicEventHeatsFn,
+	getVenueForTrackWorkoutByDivisionFn,
+} from "@/server-fns/competition-heats-fns"
 import {
 	getPublicEventDetailsFn,
 	getWorkoutDivisionDescriptionsFn,
@@ -134,6 +138,12 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 				})
 			: { venue: null }
 
+		// Defer heat schedule fetch - not needed for initial render
+		const deferredEventHeats =
+			eventResult.event.heatStatus === "published"
+				? getPublicEventHeatsFn({ data: { trackWorkoutId: eventId } })
+				: Promise.resolve({ heats: [] })
+
 		return {
 			competition,
 			event: eventResult.event,
@@ -146,6 +156,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 			athleteRegisteredDivisionId: athleteDivisionResult.divisionId,
 			venue: venueResult.venue,
 			videoSubmission: videoSubmissionResult,
+			deferredEventHeats,
 		}
 	},
 })
@@ -202,6 +213,7 @@ function EventDetailsPage() {
 		athleteRegisteredDivisionId,
 		venue,
 		videoSubmission,
+		deferredEventHeats,
 	} = Route.useLoaderData()
 	const { slug } = Route.useParams()
 	const search = Route.useSearch()
@@ -317,6 +329,14 @@ function EventDetailsPage() {
 								</div>
 							)}
 						</div>
+
+						{/* Heat Schedule */}
+						{event.heatStatus === "published" && (
+							<EventHeatSchedule
+								deferredHeats={deferredEventHeats}
+								timezone={competition.timezone}
+							/>
+						)}
 
 						{/* Video & Score Submission Form - Below description for online competitions */}
 						{competition.competitionType === "online" && videoSubmission && (

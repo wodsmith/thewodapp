@@ -46,6 +46,16 @@ export interface CoverageStats {
 export interface HeatInfo {
 	heatNumber: number
 	laneCount: number
+	/** When set, only these lanes have athletes and should be considered for lane shifting */
+	occupiedLanes?: Set<number>
+}
+
+export interface ExpandOptions {
+	/**
+	 * When true and occupiedLanes is set, lane shifting will cycle through
+	 * only occupied lanes instead of all lanes 1..laneCount
+	 */
+	respectOccupiedLanes?: boolean
 }
 
 // ============================================================================
@@ -57,15 +67,18 @@ export interface HeatInfo {
  * Does NOT create actual database records - returns the expanded schedule.
  *
  * @param rotation - The rotation configuration
- * @param heats - All heats for the event (with laneCount)
+ * @param heats - All heats for the event (with laneCount and optional occupiedLanes)
+ * @param options - Optional settings for expansion behavior
  * @returns Array of virtual assignments
  */
 export function expandRotationToAssignments(
 	rotation: CompetitionJudgeRotation,
 	heats: HeatInfo[],
+	options?: ExpandOptions,
 ): HeatLaneAssignment[] {
 	const assignments: HeatLaneAssignment[] = []
 	const heatMap = new Map(heats.map((h) => [h.heatNumber, h]))
+	const respectOccupiedLanes = options?.respectOccupiedLanes ?? false
 
 	for (let i = 0; i < rotation.heatsCount; i++) {
 		const heatNumber = rotation.startingHeat + i
@@ -87,6 +100,17 @@ export function expandRotationToAssignments(
 			case LANE_SHIFT_PATTERN.SHIFT_RIGHT:
 				laneNumber = ((rotation.startingLane - 1 + i) % heat.laneCount) + 1
 				break
+		}
+
+		// If respecting occupied lanes and this lane has no athlete, skip this heat entirely
+		if (
+			respectOccupiedLanes &&
+			heat.occupiedLanes &&
+			heat.occupiedLanes.size > 0
+		) {
+			if (!heat.occupiedLanes.has(laneNumber)) {
+				continue // Skip this heat - no athlete in the natural lane
+			}
 		}
 
 		// Validate lane number
@@ -127,16 +151,29 @@ export function calculateCoverage(
 	// Initialize grid with all heat/lane combinations
 	let totalSlots = 0
 	for (const heat of heats) {
-		for (let lane = 1; lane <= heat.laneCount; lane++) {
+		// If occupiedLanes is defined, only count those lanes
+		// Otherwise, count all lanes (backward compatible)
+		const lanesToCount = heat.occupiedLanes
+			? Array.from(heat.occupiedLanes)
+			: Array.from({ length: heat.laneCount }, (_, i) => i + 1)
+
+		for (const lane of lanesToCount) {
 			const key = `${heat.heatNumber}:${lane}`
 			coverageGrid.set(key, [])
 			totalSlots++
 		}
 	}
 
+	// Check if we should respect occupied lanes (when any heat has occupiedLanes defined)
+	const hasOccupiedLanes = heats.some(
+		(h) => h.occupiedLanes && h.occupiedLanes.size > 0,
+	)
+
 	// Expand all rotations and populate grid
 	for (const rotation of rotations) {
-		const assignments = expandRotationToAssignments(rotation, heats)
+		const assignments = expandRotationToAssignments(rotation, heats, {
+			respectOccupiedLanes: hasOccupiedLanes,
+		})
 		for (const assignment of assignments) {
 			const key = `${assignment.heatNumber}:${assignment.laneNumber}`
 			const existing = coverageGrid.get(key) || []

@@ -1,12 +1,11 @@
-import {
-	createFileRoute,
-	Link,
-} from "@tanstack/react-router"
+import { createFileRoute, Link } from "@tanstack/react-router"
 import {
 	AlertCircle,
 	Calendar,
 	CheckCircle2,
+	ChevronDown,
 	Clock,
+	FileText,
 	LogIn,
 	Mail,
 	Trophy,
@@ -14,6 +13,7 @@ import {
 	Users,
 } from "lucide-react"
 import { useState } from "react"
+import { WaiverViewer } from "@/components/compete/waiver-viewer"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -22,6 +22,12 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -89,8 +95,13 @@ export const Route = createFileRoute("/compete/invite/$token")({
 			waivers = waiversResult.waivers
 		}
 
-		const pendingData = await getPendingInviteDataFn({ data: { token: params.token } })
-		const hasPendingData = !!(pendingData?.pendingAnswers?.length || pendingData?.pendingSignatures?.length)
+		const pendingData = await getPendingInviteDataFn({
+			data: { token: params.token },
+		})
+		const hasPendingData = !!(
+			pendingData?.pendingAnswers?.length ||
+			pendingData?.pendingSignatures?.length
+		)
 
 		return {
 			volunteerInvite,
@@ -271,24 +282,28 @@ function InvitePage() {
 						{/* Invite Details */}
 						<InviteDetails invite={invite} />
 
-						{/* Registration Questions - only show if no pending data (guest already filled them) */}
-						{teammateQuestions && teammateQuestions.length > 0 && !hasPendingData && (
-							<TeammateQuestionsForm
-								questions={teammateQuestions}
-								token={token}
-								competitionSlug={invite.competition?.slug}
-								competitionId={invite.competition?.id}
-								teamName={invite.team.name}
-							/>
-						)}
+						{/* Registration Questions & Waivers - only show if no pending data (guest already filled them) */}
+						{(teammateQuestions.length > 0 || waivers.length > 0) &&
+							!hasPendingData && (
+								<TeammateRequirementsForm
+									questions={teammateQuestions}
+									waivers={waivers}
+									token={token}
+									competitionSlug={invite.competition?.slug}
+									competitionId={invite.competition?.id}
+									teamName={invite.team.name}
+								/>
+							)}
 
-						{/* Simple accept button if no questions OR if pending data exists (will be transferred on accept) */}
-						{((!teammateQuestions || teammateQuestions.length === 0) || hasPendingData) && (
+						{/* Simple accept button if no requirements OR if pending data exists (will be transferred on accept) */}
+						{(teammateQuestions.length === 0 && waivers.length === 0) ||
+						hasPendingData ? (
 							<>
 								{hasPendingData && (
 									<div className="rounded-lg bg-green-50 dark:bg-green-900/20 p-4 text-center">
 										<p className="text-sm text-green-700 dark:text-green-300">
-											Your registration answers have been saved. Click below to join the team.
+											Your registration information has been saved. Click below
+											to join the team.
 										</p>
 									</div>
 								)}
@@ -299,7 +314,7 @@ function InvitePage() {
 									teamName={invite.team.name}
 								/>
 							</>
-						)}
+						) : null}
 					</CardContent>
 				</Card>
 			</div>
@@ -311,24 +326,43 @@ function InvitePage() {
 		return (
 			<div className="container mx-auto max-w-lg py-16">
 				<Card>
-					<CardContent className="space-y-4 py-8 text-center">
-						<AlertCircle className="mx-auto h-12 w-12 text-yellow-500" />
-						<h2 className="text-xl font-semibold">Different Account</h2>
-						<p className="text-muted-foreground">
-							This invite was sent to <strong>{invite.email}</strong>.
-							You&apos;re currently logged in as{" "}
-							<strong>{session.email}</strong>.
-						</p>
-						<p className="text-sm text-muted-foreground">
-							You can claim this invite with your current account, which will update the registration email.
-						</p>
-						<div className="flex justify-center gap-3">
-							<AcceptInviteButton
+					<CardContent className="space-y-4 py-8">
+						<div className="text-center">
+							<AlertCircle className="mx-auto h-12 w-12 text-yellow-500" />
+							<h2 className="mt-4 text-xl font-semibold">Different Account</h2>
+							<p className="mt-2 text-muted-foreground">
+								This invite was sent to <strong>{invite.email}</strong>.
+								You&apos;re currently logged in as{" "}
+								<strong>{session.email}</strong>.
+							</p>
+							<p className="mt-1 text-sm text-muted-foreground">
+								You can claim this invite with your current account, which will
+								update the registration email.
+							</p>
+						</div>
+
+						{/* Show requirements form if questions or waivers exist */}
+						{(teammateQuestions.length > 0 || waivers.length > 0) &&
+						!hasPendingData ? (
+							<TeammateRequirementsForm
+								questions={teammateQuestions}
+								waivers={waivers}
 								token={token}
 								competitionSlug={invite.competition?.slug}
 								competitionId={invite.competition?.id}
 								teamName={invite.team.name}
 							/>
+						) : (
+							<div className="flex justify-center gap-3">
+								<AcceptInviteButton
+									token={token}
+									competitionSlug={invite.competition?.slug}
+									competitionId={invite.competition?.id}
+									teamName={invite.team.name}
+								/>
+							</div>
+						)}
+						<div className="flex justify-center">
 							<Button asChild variant="outline">
 								<a href="/api/auth/sign-out">Sign Out</a>
 							</Button>
@@ -365,7 +399,7 @@ function InvitePage() {
 							inviteToken={token}
 							emailHasAccount={emailHasAccount}
 						/>
-					) : (teammateQuestions.length > 0 || waivers.length > 0) ? (
+					) : teammateQuestions.length > 0 || waivers.length > 0 ? (
 						<>
 							<InviteDetails invite={invite} />
 							<GuestInviteForm
@@ -694,7 +728,8 @@ function DirectVolunteerInvite({
 					</CardHeader>
 					<CardContent className="space-y-6">
 						<p className="text-center text-sm text-muted-foreground">
-							You can claim this invite with your current account, which will update the volunteer email.
+							You can claim this invite with your current account, which will
+							update the volunteer email.
 						</p>
 
 						<VolunteerInviteDetails invite={invite} />
@@ -778,26 +813,51 @@ function DirectVolunteerInvite({
 }
 
 /**
- * Teammate questions form component
- * Handles rendering questions and accepting invitation with answers
+ * Teammate requirements form component
+ * Handles rendering questions and waivers, and accepting invitation with answers and signatures
  */
-function TeammateQuestionsForm({
+function TeammateRequirementsForm({
 	questions,
+	waivers,
 	token,
 	competitionSlug,
 	competitionId,
 	teamName,
 }: {
 	questions: RegistrationQuestion[]
+	waivers: Waiver[]
 	token: string
 	competitionSlug?: string
 	competitionId?: string
 	teamName?: string
 }) {
 	const [answers, setAnswers] = useState<Record<string, string>>({})
+	const [signatures, setSignatures] = useState<
+		Record<string, { signatureName: string; agreed: boolean }>
+	>({})
 
 	const handleAnswerChange = (questionId: string, value: string) => {
 		setAnswers((prev) => ({ ...prev, [questionId]: value }))
+	}
+
+	const handleSignatureNameChange = (waiverId: string, name: string) => {
+		setSignatures((prev) => ({
+			...prev,
+			[waiverId]: {
+				signatureName: name,
+				agreed: prev[waiverId]?.agreed || false,
+			},
+		}))
+	}
+
+	const handleAgreementChange = (waiverId: string, agreed: boolean) => {
+		setSignatures((prev) => ({
+			...prev,
+			[waiverId]: {
+				signatureName: prev[waiverId]?.signatureName || "",
+				agreed,
+			},
+		}))
 	}
 
 	// Check if all required questions are answered
@@ -805,6 +865,16 @@ function TeammateQuestionsForm({
 	const allRequiredAnswered = requiredQuestions.every(
 		(q) => answers[q.id] && answers[q.id].trim() !== "",
 	)
+
+	// Check if all required waivers are signed
+	const requiredWaivers = waivers.filter((w) => w.required)
+	const allRequiredWaiversSigned = requiredWaivers.every(
+		(w) =>
+			(signatures[w.id]?.signatureName?.trim() ?? "") !== "" &&
+			signatures[w.id]?.agreed === true,
+	)
+
+	const canSubmit = allRequiredAnswered && allRequiredWaiversSigned
 
 	// Convert answers to array format for submission
 	const answersArray = Object.entries(answers)
@@ -814,84 +884,180 @@ function TeammateQuestionsForm({
 			answer,
 		}))
 
+	// Convert signatures to array format for submission
+	const signaturesArray = Object.entries(signatures)
+		.filter(([_, sig]) => sig.signatureName && sig.agreed)
+		.map(([waiverId, sig]) => ({
+			waiverId,
+			signedAt: new Date().toISOString(),
+			signatureName: sig.signatureName,
+		}))
+
 	return (
 		<>
-			<Card>
-				<CardHeader>
-					<CardTitle>Registration Questions</CardTitle>
-					<CardDescription>
-						Please answer these questions to complete your team registration
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="space-y-6">
-					{questions.map((question) => (
-						<div key={question.id} className="space-y-2">
-							<Label htmlFor={`question-${question.id}`}>
-								{question.label}
-								{question.required && (
-									<span className="text-destructive ml-1">*</span>
+			{/* Questions Section */}
+			{questions.length > 0 && (
+				<Card>
+					<CardHeader>
+						<CardTitle>Registration Questions</CardTitle>
+						<CardDescription>
+							Please answer these questions to complete your team registration
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-6">
+						{questions.map((question) => (
+							<div key={question.id} className="space-y-2">
+								<Label htmlFor={`question-${question.id}`}>
+									{question.label}
+									{question.required && (
+										<span className="text-destructive ml-1">*</span>
+									)}
+								</Label>
+								{question.helpText && (
+									<p className="text-sm text-muted-foreground">
+										{question.helpText}
+									</p>
 								)}
-							</Label>
-							{question.helpText && (
-								<p className="text-sm text-muted-foreground">
-									{question.helpText}
-								</p>
-							)}
 
-							{question.type === "text" && (
-								<Input
-									id={`question-${question.id}`}
-									value={answers[question.id] || ""}
-									onChange={(e) =>
-										handleAnswerChange(question.id, e.target.value)
-									}
-									placeholder="Enter your answer"
-								/>
-							)}
+								{question.type === "text" && (
+									<Input
+										id={`question-${question.id}`}
+										value={answers[question.id] || ""}
+										onChange={(e) =>
+											handleAnswerChange(question.id, e.target.value)
+										}
+										placeholder="Enter your answer"
+									/>
+								)}
 
-							{question.type === "number" && (
-								<Input
-									id={`question-${question.id}`}
-									type="number"
-									value={answers[question.id] || ""}
-									onChange={(e) =>
-										handleAnswerChange(question.id, e.target.value)
-									}
-									placeholder="Enter a number"
-								/>
-							)}
+								{question.type === "number" && (
+									<Input
+										id={`question-${question.id}`}
+										type="number"
+										value={answers[question.id] || ""}
+										onChange={(e) =>
+											handleAnswerChange(question.id, e.target.value)
+										}
+										placeholder="Enter a number"
+									/>
+								)}
 
-							{question.type === "select" && question.options && (
-								<Select
-									value={answers[question.id] || ""}
-									onValueChange={(value) =>
-										handleAnswerChange(question.id, value)
-									}
-								>
-									<SelectTrigger id={`question-${question.id}`}>
-										<SelectValue placeholder="Select an option" />
-									</SelectTrigger>
-									<SelectContent>
-										{question.options.map((option) => (
-											<SelectItem key={option} value={option}>
-												{option}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							)}
-						</div>
-					))}
-				</CardContent>
-			</Card>
+								{question.type === "select" && question.options && (
+									<Select
+										value={answers[question.id] || ""}
+										onValueChange={(value) =>
+											handleAnswerChange(question.id, value)
+										}
+									>
+										<SelectTrigger id={`question-${question.id}`}>
+											<SelectValue placeholder="Select an option" />
+										</SelectTrigger>
+										<SelectContent>
+											{question.options.map((option) => (
+												<SelectItem key={option} value={option}>
+													{option}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								)}
+							</div>
+						))}
+					</CardContent>
+				</Card>
+			)}
+
+			{/* Waivers Section */}
+			{waivers.length > 0 && (
+				<Card>
+					<CardHeader>
+						<CardTitle>Waivers</CardTitle>
+						<CardDescription>
+							Please review and sign all required waivers to continue
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						{waivers.map((waiver) => (
+							<Card key={waiver.id} className="border-2">
+								<Collapsible>
+									<CardHeader>
+										<div className="flex items-center justify-between">
+											<CardTitle className="text-lg">
+												{waiver.title}
+												{waiver.required && (
+													<span className="text-destructive ml-1">*</span>
+												)}
+											</CardTitle>
+											<CollapsibleTrigger asChild>
+												<Button variant="ghost" size="sm">
+													<FileText className="h-4 w-4 mr-2" />
+													View Details
+													<ChevronDown className="h-4 w-4 ml-2" />
+												</Button>
+											</CollapsibleTrigger>
+										</div>
+									</CardHeader>
+									<CollapsibleContent>
+										<CardContent className="space-y-4 pt-0">
+											<div className="border rounded-lg p-4 max-h-96 overflow-y-auto bg-muted/10">
+												<WaiverViewer
+													content={waiver.content}
+													className="prose prose-sm max-w-none dark:prose-invert"
+												/>
+											</div>
+										</CardContent>
+									</CollapsibleContent>
+								</Collapsible>
+								<CardContent className="space-y-4">
+									{/* Signature Input */}
+									<div className="space-y-2">
+										<Label htmlFor={`signature-${waiver.id}`}>
+											Full Name (Signature)
+											{waiver.required && (
+												<span className="text-destructive ml-1">*</span>
+											)}
+										</Label>
+										<Input
+											id={`signature-${waiver.id}`}
+											value={signatures[waiver.id]?.signatureName || ""}
+											onChange={(e) =>
+												handleSignatureNameChange(waiver.id, e.target.value)
+											}
+											placeholder="Enter your full name"
+										/>
+									</div>
+
+									{/* Agreement Checkbox */}
+									<div className="flex items-start gap-3 p-4 bg-muted/20 rounded-lg">
+										<Checkbox
+											id={`agree-${waiver.id}`}
+											checked={signatures[waiver.id]?.agreed || false}
+											onCheckedChange={(checked) =>
+												handleAgreementChange(waiver.id, checked === true)
+											}
+										/>
+										<Label
+											htmlFor={`agree-${waiver.id}`}
+											className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+										>
+											I have read and agree to this waiver
+										</Label>
+									</div>
+								</CardContent>
+							</Card>
+						))}
+					</CardContent>
+				</Card>
+			)}
 
 			<AcceptInviteButton
 				token={token}
 				competitionSlug={competitionSlug}
 				competitionId={competitionId}
 				teamName={teamName}
-				answers={answersArray}
-				disabled={!allRequiredAnswered}
+				answers={answersArray.length > 0 ? answersArray : undefined}
+				signatures={signaturesArray.length > 0 ? signaturesArray : undefined}
+				disabled={!canSubmit}
 			/>
 		</>
 	)

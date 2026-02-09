@@ -18,9 +18,14 @@ import { NavTeamSwitcher } from "./nav-team-switcher"
 interface MobileNavProps {
 	session: SessionValidationResult
 	activeTeamId: string | null
+	hasWorkoutTracking?: boolean
 }
 
-export default function MobileNav({ session, activeTeamId }: MobileNavProps) {
+export default function MobileNav({
+	session,
+	activeTeamId,
+	hasWorkoutTracking,
+}: MobileNavProps) {
 	const [open, setOpen] = useState(false)
 
 	const handleLinkClick = () => {
@@ -63,28 +68,32 @@ export default function MobileNav({ session, activeTeamId }: MobileNavProps) {
 								/>
 							</div>
 							<hr className="my-2" />
-							<Link
-								to="/workouts"
-								search={{ view: "row", q: "" }}
-								className="hover:text-primary"
-								onClick={handleLinkClick}
-							>
-								Workouts
-							</Link>
-							<a
-								href="/log"
-								className="hover:text-primary"
-								onClick={handleLinkClick}
-							>
-								Log
-							</a>
-							<a
-								href="/team"
-								className="hover:text-primary"
-								onClick={handleLinkClick}
-							>
-								Team
-							</a>
+							{hasWorkoutTracking && (
+								<>
+									<Link
+										to="/workouts"
+										search={{ view: "row", q: "" }}
+										className="hover:text-primary"
+										onClick={handleLinkClick}
+									>
+										Workouts
+									</Link>
+									<a
+										href="/log"
+										className="hover:text-primary"
+										onClick={handleLinkClick}
+									>
+										Log
+									</a>
+									<a
+										href="/team"
+										className="hover:text-primary"
+										onClick={handleLinkClick}
+									>
+										Team
+									</a>
+								</>
+							)}
 							<a
 								href="/compete"
 								className="hover:text-primary"

@@ -1,1 +1,0 @@
-ALTER TABLE `competitions` ADD `status` text(15) DEFAULT 'draft' NOT NULL;

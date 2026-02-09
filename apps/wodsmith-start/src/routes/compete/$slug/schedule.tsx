@@ -81,31 +81,27 @@ function CompetitionSchedulePage() {
 	} = Route.useLoaderData()
 	const { competition, session } = parentRoute.useLoaderData()
 
-	// For online competitions, show submission windows
-	if (isOnline) {
-		return (
-			<PublicSubmissionWindows
-				events={events}
-				submissionWindows={submissionWindows}
-				competitionStarted={competitionStarted}
-				timezone={timezone}
-			/>
-		)
-	}
-
-	// For in-person competitions, show heat schedule
 	return (
 		<div className="space-y-4">
 			<div className="sticky top-4 z-10">
 				<CompetitionTabs slug={competition.slug} />
 			</div>
 			<div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
-				<SchedulePageContent
-					events={events}
-					heats={heats}
-					currentUserId={session?.userId}
-					timezone={timezone}
-				/>
+				{isOnline ? (
+					<PublicSubmissionWindows
+						events={events}
+						submissionWindows={submissionWindows}
+						competitionStarted={competitionStarted}
+						timezone={timezone}
+					/>
+				) : (
+					<SchedulePageContent
+						events={events}
+						heats={heats}
+						currentUserId={session?.userId}
+						timezone={timezone}
+					/>
+				)}
 			</div>
 		</div>
 	)

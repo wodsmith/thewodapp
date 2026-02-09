@@ -1,6 +1,14 @@
 "use client"
 
-import { Calendar, Globe, MapPin, Settings, Share2, Users } from "lucide-react"
+import { Link } from "@tanstack/react-router"
+import {
+	Calendar,
+	ClipboardList,
+	Globe,
+	MapPin,
+	Settings,
+	Users,
+} from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -12,13 +20,17 @@ interface CompetitionHeroProps {
 	competition: CompetitionWithOrganizingTeam
 	registrationCount: number
 	canManage?: boolean
+	isVolunteer?: boolean
 }
 
 export function CompetitionHero({
 	competition,
 	registrationCount,
 	canManage = false,
+	isVolunteer = false,
 }: CompetitionHeroProps) {
+	// Show judges schedule link for organizers and volunteers
+	const showJudgesScheduleLink = canManage || isVolunteer
 	// Use competition profile image, fall back to organizing team avatar
 	const profileImage =
 		competition.profileImageUrl ?? competition.organizingTeam?.avatarUrl
@@ -35,33 +47,21 @@ export function CompetitionHero({
 
 	return (
 		<div
-			className={cn(
-				"relative overflow-hidden",
-				hasBanner ? "text-white" : "text-foreground",
-			)}
+			className={cn("relative", hasBanner ? "text-white" : "text-foreground")}
 		>
-			{/* Banner Image or Glassmorphism Background */}
-			{/* biome-ignore lint/style/noNonNullAssertion: hasBanner check guarantees bannerImageUrl exists */}
-			{hasBanner ? (
-				<>
-					<img
-						src={competition.bannerImageUrl!}
-						alt=""
-						className="absolute inset-0 h-full w-full object-cover"
-					/>
-					{/* Overlay for text readability */}
-					<div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/60 to-slate-900/40" />
-				</>
-			) : null}
-
-			{/* Glassmorphism content container */}
-			<div className="relative pb-4 md:pb-8">
+			{/* Glassmorphism content container - pushed down into banner area */}
+			<div
+				className={cn(
+					"pb-4 md:pb-8",
+					hasBanner ? "pt-12 md:pt-16 lg:pt-20" : "",
+				)}
+			>
 				<div
 					className={cn(
 						"rounded-2xl border p-4 shadow-2xl backdrop-blur-xl sm:p-6 md:p-8",
 						hasBanner
-							? "border-white/10 bg-white/5 shadow-black/20"
-							: "border-black/10 bg-black/5 shadow-black/5 dark:border-white/10 dark:bg-white/5 dark:shadow-black/20",
+							? "border-white/10 bg-black/10 shadow-black/10"
+							: "border-black/5 bg-black/[0.03] shadow-black/5 dark:border-white/10 dark:bg-white/[0.03] dark:shadow-black/10",
 					)}
 				>
 					<div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-8">
@@ -70,8 +70,8 @@ export function CompetitionHero({
 							className={cn(
 								"hidden h-36 w-36 shrink-0 items-center justify-center overflow-hidden rounded-xl border shadow-lg backdrop-blur-md md:flex",
 								hasBanner
-									? "border-white/20 bg-white/10 shadow-black/10"
-									: "border-black/10 bg-black/5 shadow-black/5 dark:border-white/20 dark:bg-white/10 dark:shadow-black/10",
+									? "border-white/15 bg-white/5 shadow-black/5"
+									: "border-black/5 bg-black/[0.03] shadow-black/5 dark:border-white/15 dark:bg-white/5 dark:shadow-black/5",
 							)}
 						>
 							{profileImage ? (
@@ -124,7 +124,7 @@ export function CompetitionHero({
 									</div>
 								</div>
 								{/* Desktop action buttons */}
-								<div className="hidden shrink-0 items-center gap-2 sm:flex">
+								<div className="hidden shrink-0 flex-col items-end gap-2 sm:flex">
 									{canManage && (
 										<a href={`/compete/organizer/${competition.id}`}>
 											<Button
@@ -137,19 +137,26 @@ export function CompetitionHero({
 											</Button>
 										</a>
 									)}
-									<Button
-										variant="ghost"
-										size="icon"
-										className={cn(
-											"border",
-											hasBanner
-												? "border-white/10 text-slate-300 hover:bg-white/10 hover:text-white"
-												: "border-black/10 text-muted-foreground hover:bg-black/5 hover:text-foreground dark:border-white/10 dark:hover:bg-white/10",
-										)}
-									>
-										<Share2 className="h-5 w-5" />
-										<span className="sr-only">Share</span>
-									</Button>
+									{showJudgesScheduleLink && (
+										<Link
+											to="/compete/$slug/judges-schedule"
+											params={{ slug: competition.slug }}
+										>
+											<Button
+												variant="secondary"
+												size="sm"
+												className={cn(
+													"border",
+													hasBanner
+														? "border-white/10 bg-white/10 text-slate-100 hover:bg-white/20"
+														: "border-black/10 bg-black/5 text-foreground hover:bg-black/10 dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:hover:bg-white/20",
+												)}
+											>
+												<ClipboardList className="mr-1 h-4 w-4" />
+												Judges Schedule
+											</Button>
+										</Link>
+									)}
 								</div>
 							</div>
 
@@ -170,7 +177,7 @@ export function CompetitionHero({
 							</div>
 
 							{/* Mobile action buttons */}
-							<div className="flex items-center gap-2 sm:hidden">
+							<div className="flex flex-wrap items-center gap-2 sm:hidden">
 								{canManage && (
 									<a href={`/compete/organizer/${competition.id}`}>
 										<Button
@@ -183,19 +190,26 @@ export function CompetitionHero({
 										</Button>
 									</a>
 								)}
-								<Button
-									variant="ghost"
-									size="icon"
-									className={cn(
-										"border",
-										hasBanner
-											? "border-white/10 text-slate-300 hover:bg-white/10 hover:text-white"
-											: "border-black/10 text-muted-foreground hover:bg-black/5 hover:text-foreground dark:border-white/10 dark:hover:bg-white/10",
-									)}
-								>
-									<Share2 className="h-5 w-5" />
-									<span className="sr-only">Share</span>
-								</Button>
+								{showJudgesScheduleLink && (
+									<Link
+										to="/compete/$slug/judges-schedule"
+										params={{ slug: competition.slug }}
+									>
+										<Button
+											variant="secondary"
+											size="sm"
+											className={cn(
+												"border",
+												hasBanner
+													? "border-white/10 bg-white/10 text-slate-100 hover:bg-white/20"
+													: "border-black/10 bg-black/5 text-foreground hover:bg-black/10 dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:hover:bg-white/20",
+											)}
+										>
+											<ClipboardList className="mr-1 h-4 w-4" />
+											Judges
+										</Button>
+									</Link>
+								)}
 							</div>
 						</div>
 					</div>

@@ -60,6 +60,7 @@ interface DroppableLaneProps {
 	) => void
 	selectedJudgeIds?: Set<string>
 	onTapAssign?: (laneNumber: number) => void
+	disabled?: boolean
 }
 
 function DroppableLane({
@@ -68,18 +69,22 @@ function DroppableLane({
 	onDropAssigned,
 	selectedJudgeIds,
 	onTapAssign,
+	disabled,
 }: DroppableLaneProps) {
 	const ref = useRef<HTMLDivElement>(null)
 	const [isDraggedOver, setIsDraggedOver] = useState(false)
 	const hasSelection = selectedJudgeIds && selectedJudgeIds.size > 0
 
 	function handleClick() {
+		if (disabled) return
 		if (hasSelection && onTapAssign) {
 			onTapAssign(laneNum)
 		}
 	}
 
 	useEffect(() => {
+		if (disabled) return
+
 		const element = ref.current
 		if (!element) return
 
@@ -111,9 +116,10 @@ function DroppableLane({
 				}
 			},
 		})
-	}, [laneNum, onDropUnassigned, onDropAssigned])
+	}, [laneNum, onDropUnassigned, onDropAssigned, disabled])
 
 	const handleKeyDown = (e: React.KeyboardEvent) => {
+		if (disabled) return
 		if ((e.key === "Enter" || e.key === " ") && hasSelection) {
 			e.preventDefault()
 			handleClick()
@@ -124,13 +130,19 @@ function DroppableLane({
 		// biome-ignore lint/a11y/noStaticElementInteractions: drop target with conditional click handler
 		<div
 			ref={ref}
-			role={hasSelection ? "button" : undefined}
-			tabIndex={hasSelection ? 0 : undefined}
+			role={hasSelection && !disabled ? "button" : undefined}
+			tabIndex={hasSelection && !disabled ? 0 : undefined}
 			onClick={handleClick}
-			onKeyDown={hasSelection ? handleKeyDown : undefined}
+			onKeyDown={hasSelection && !disabled ? handleKeyDown : undefined}
 			className={`flex items-center gap-3 border-b border-border/50 py-1 transition-colors last:border-0 ${
-				isDraggedOver ? "rounded border-primary bg-primary/10" : ""
-			} ${hasSelection ? "cursor-pointer hover:bg-primary/5" : ""}`}
+				disabled
+					? "bg-neutral-200 dark:bg-neutral-800 bg-[repeating-linear-gradient(45deg,transparent,transparent_4px,rgba(0,0,0,0.1)_4px,rgba(0,0,0,0.1)_8px)] dark:bg-[repeating-linear-gradient(45deg,transparent,transparent_4px,rgba(255,255,255,0.1)_4px,rgba(255,255,255,0.1)_8px)] cursor-not-allowed"
+					: isDraggedOver
+						? "rounded border-primary bg-primary/10"
+						: hasSelection
+							? "cursor-pointer hover:bg-primary/5"
+							: ""
+			}`}
 		>
 			{/* Spacer to align with grip handle in assigned rows - hidden on mobile */}
 			<div className="hidden h-3 w-3 md:block" />
@@ -139,14 +151,22 @@ function DroppableLane({
 			</span>
 			<span
 				className={`flex-1 text-sm ${
-					isDraggedOver
-						? "font-medium text-primary"
-						: hasSelection
-							? "text-primary/70"
-							: "text-muted-foreground"
+					disabled
+						? "text-muted-foreground/50"
+						: isDraggedOver
+							? "font-medium text-primary"
+							: hasSelection
+								? "text-primary/70"
+								: "text-muted-foreground"
 				}`}
 			>
-				{isDraggedOver ? "Drop here" : hasSelection ? "Tap to assign" : "Empty"}
+				{disabled
+					? "No athlete"
+					: isDraggedOver
+						? "Drop here"
+						: hasSelection
+							? "Tap to assign"
+							: "Empty"}
 			</span>
 		</div>
 	)
@@ -278,6 +298,8 @@ interface JudgeHeatCardProps {
 	) => void
 	selectedJudgeIds?: Set<string>
 	onClearSelection?: () => void
+	filterEmptyLanes?: boolean
+	athleteOccupiedLanes?: Set<number>
 }
 
 /**
@@ -297,6 +319,8 @@ export function JudgeHeatCard({
 	onMoveAssignment,
 	selectedJudgeIds,
 	onClearSelection,
+	filterEmptyLanes,
+	athleteOccupiedLanes,
 }: JudgeHeatCardProps) {
 	const [isAssignOpen, setIsAssignOpen] = useState(false)
 	const [selectedMembershipId, setSelectedMembershipId] = useState<string>("")
@@ -552,16 +576,6 @@ export function JudgeHeatCard({
 		}
 	}
 
-	// Group assignments by credential for collapsed view
-	const assignmentsByCredential = heatAssignments.reduce(
-		(acc, assignment) => {
-			const credLabel = assignment.volunteer.credentials ?? "No Credential"
-			acc[credLabel] = (acc[credLabel] ?? 0) + 1
-			return acc
-		},
-		{} as Record<string, number>,
-	)
-
 	// Collapsed view for full heats
 	if (!isExpanded) {
 		return (
@@ -575,6 +589,11 @@ export function JudgeHeatCard({
 						<CardTitle className="text-base">
 							Heat <span className="tabular-nums">{heat.heatNumber}</span>
 						</CardTitle>
+						{heat.division && (
+							<Badge variant="secondary" className="text-xs">
+								{heat.division.label}
+							</Badge>
+						)}
 						<div className="flex items-center gap-2 text-sm text-muted-foreground">
 							{heat.scheduledTime && (
 								<span className="flex items-center gap-1">
@@ -595,14 +614,6 @@ export function JudgeHeatCard({
 						>
 							{heatAssignments.length}/{maxLanes}
 						</Badge>
-						<div className="flex-1" />
-						{Object.entries(assignmentsByCredential).map(
-							([credLabel, count]) => (
-								<Badge key={credLabel} variant="secondary" className="text-xs">
-									{credLabel}: {count}
-								</Badge>
-							),
-						)}
 					</div>
 				</CardHeader>
 			</Card>
@@ -677,6 +688,11 @@ export function JudgeHeatCard({
 											handleDropAssign(Array.from(selectedJudgeIds), lane)
 										}
 									}}
+									disabled={
+										filterEmptyLanes
+											? !athleteOccupiedLanes?.has(laneNum)
+											: false
+									}
 								/>
 							)
 						}

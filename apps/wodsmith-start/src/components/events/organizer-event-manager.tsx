@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router"
 import { Plus } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
+import { trackEvent } from "@/lib/posthog"
 import { Button } from "@/components/ui/button"
 import type { Movement, Sponsor } from "@/db/schema"
 import type {
@@ -109,14 +110,23 @@ export function OrganizerEventManager({
 			})
 
 			if (result?.trackWorkoutId) {
+				trackEvent("competition_event_created", {
+					competition_id: competitionId,
+					event_id: result.trackWorkoutId,
+					event_name: data.name,
+				})
 				toast.success(`Created "${data.name}"`)
 				setShowCreateDialog(false)
 				router.invalidate()
 			}
 		} catch (error) {
-			toast.error(
-				error instanceof Error ? error.message : "Failed to create event",
-			)
+			const message =
+				error instanceof Error ? error.message : "Failed to create event"
+			trackEvent("competition_event_created_failed", {
+				competition_id: competitionId,
+				error_message: message,
+			})
+			toast.error(message)
 		} finally {
 			setIsCreating(false)
 		}

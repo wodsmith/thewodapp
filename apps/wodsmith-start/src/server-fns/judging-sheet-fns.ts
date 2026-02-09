@@ -1,6 +1,11 @@
 /**
  * Judging Sheet Server Functions for TanStack Start
  * Handles CRUD operations for competition event judging sheets
+ *
+ * OBSERVABILITY:
+ * - All judging sheet operations are logged with entity IDs
+ * - Permission denials are tracked
+ * - File uploads/deletes are logged for audit trails
  */
 
 import { createServerFn } from "@tanstack/react-start"
@@ -15,6 +20,15 @@ import {
 } from "@/db/schemas/programming"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
+import {
+	addRequestContextAttribute,
+	logEntityCreated,
+	logEntityDeleted,
+	logEntityUpdated,
+	logInfo,
+	logWarning,
+	updateRequestContext,
+} from "@/lib/logging"
 import { getSessionFromCookie } from "@/utils/auth"
 
 // ============================================================================
@@ -49,6 +63,13 @@ async function requireTeamPermission(
 ): Promise<void> {
 	const hasPermission = await hasTeamPermission(teamId, permission)
 	if (!hasPermission) {
+		logWarning({
+			message: "[JudgingSheet] Permission denied",
+			attributes: {
+				teamId,
+				requiredPermission: permission,
+			},
+		})
 		throw new Error(`Missing required permission: ${permission}`)
 	}
 }
@@ -138,8 +159,20 @@ export const createJudgingSheetFn = createServerFn({ method: "POST" })
 		// Verify authentication
 		const session = await getSessionFromCookie()
 		if (!session?.userId) {
+			logWarning({
+				message: "[JudgingSheet] Create denied - not authenticated",
+				attributes: {
+					competitionId: data.competitionId,
+					trackWorkoutId: data.trackWorkoutId,
+				},
+			})
 			throw new Error("Not authenticated")
 		}
+
+		// Update request context
+		updateRequestContext({ userId: session.userId })
+		addRequestContextAttribute("competitionId", data.competitionId)
+		addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
 
 		// Get the competition to verify ownership
 		const competition = await db.query.competitionsTable.findFirst({
@@ -209,6 +242,21 @@ export const createJudgingSheetFn = createServerFn({ method: "POST" })
 			throw new Error("Failed to create judging sheet")
 		}
 
+		addRequestContextAttribute("judgingSheetId", sheet.id)
+		logEntityCreated({
+			entity: "judgingSheet",
+			id: sheet.id,
+			parentEntity: "competition",
+			parentId: data.competitionId,
+			attributes: {
+				trackWorkoutId: data.trackWorkoutId,
+				title: data.title,
+				originalFilename: data.originalFilename,
+				fileSize: data.fileSize,
+				uploadedBy: session.userId,
+			},
+		})
+
 		return { sheet }
 	})
 
@@ -224,8 +272,16 @@ export const updateJudgingSheetFn = createServerFn({ method: "POST" })
 		// Verify authentication
 		const session = await getSessionFromCookie()
 		if (!session?.userId) {
+			logWarning({
+				message: "[JudgingSheet] Update denied - not authenticated",
+				attributes: { judgingSheetId: data.judgingSheetId },
+			})
 			throw new Error("Not authenticated")
 		}
+
+		// Update request context
+		updateRequestContext({ userId: session.userId })
+		addRequestContextAttribute("judgingSheetId", data.judgingSheetId)
 
 		// Get the judging sheet with competition info
 		const sheet = await db.query.eventJudgingSheetsTable.findFirst({
@@ -255,6 +311,16 @@ export const updateJudgingSheetFn = createServerFn({ method: "POST" })
 			.where(eq(eventJudgingSheetsTable.id, data.judgingSheetId))
 			.returning()
 
+		logEntityUpdated({
+			entity: "judgingSheet",
+			id: data.judgingSheetId,
+			fields: ["title"],
+			attributes: {
+				competitionId: sheet.competitionId,
+				newTitle: data.title,
+			},
+		})
+
 		return { sheet: updated }
 	})
 
@@ -271,8 +337,16 @@ export const deleteJudgingSheetFn = createServerFn({ method: "POST" })
 		// Verify authentication
 		const session = await getSessionFromCookie()
 		if (!session?.userId) {
+			logWarning({
+				message: "[JudgingSheet] Delete denied - not authenticated",
+				attributes: { judgingSheetId: data.judgingSheetId },
+			})
 			throw new Error("Not authenticated")
 		}
+
+		// Update request context
+		updateRequestContext({ userId: session.userId })
+		addRequestContextAttribute("judgingSheetId", data.judgingSheetId)
 
 		// Get the judging sheet with competition info
 		const sheet = await db.query.eventJudgingSheetsTable.findFirst({
@@ -297,6 +371,17 @@ export const deleteJudgingSheetFn = createServerFn({ method: "POST" })
 			.delete(eventJudgingSheetsTable)
 			.where(eq(eventJudgingSheetsTable.id, data.judgingSheetId))
 
+		logEntityDeleted({
+			entity: "judgingSheet",
+			id: data.judgingSheetId,
+			attributes: {
+				competitionId: sheet.competitionId,
+				trackWorkoutId: sheet.trackWorkoutId,
+				title: sheet.title,
+				r2Key: sheet.r2Key,
+			},
+		})
+
 		return { success: true }
 	})
 
@@ -314,8 +399,16 @@ export const reorderJudgingSheetsFn = createServerFn({ method: "POST" })
 		// Verify authentication
 		const session = await getSessionFromCookie()
 		if (!session?.userId) {
+			logWarning({
+				message: "[JudgingSheet] Reorder denied - not authenticated",
+				attributes: { trackWorkoutId: data.trackWorkoutId },
+			})
 			throw new Error("Not authenticated")
 		}
+
+		// Update request context
+		updateRequestContext({ userId: session.userId })
+		addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
 
 		// Get the track workout to find the competition using a join
 		const trackWorkoutResult = await db
@@ -363,6 +456,15 @@ export const reorderJudgingSheetsFn = createServerFn({ method: "POST" })
 					),
 				)
 		}
+
+		logInfo({
+			message: "[JudgingSheet] Judging sheets reordered",
+			attributes: {
+				trackWorkoutId: data.trackWorkoutId,
+				competitionId: competition.competitionId,
+				updateCount: data.updates.length,
+			},
+		})
 
 		return { success: true }
 	})

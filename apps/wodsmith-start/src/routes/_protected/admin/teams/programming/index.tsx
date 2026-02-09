@@ -3,7 +3,12 @@
  * Port of apps/wodsmith/src/app/(admin)/admin/teams/programming/page.tsx
  */
 
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
+import {
+	createFileRoute,
+	Link,
+	redirect,
+	useRouter,
+} from "@tanstack/react-router"
 import { Plus } from "lucide-react"
 import { ProgrammingTrackCreateDialog } from "@/components/programming-track-create-dialog"
 import { ProgrammingTrackRow } from "@/components/programming-track-row"
@@ -17,6 +22,11 @@ import {
 
 export const Route = createFileRoute("/_protected/admin/teams/programming/")({
 	component: AdminProgrammingPage,
+	beforeLoad: async ({ context }) => {
+		if (!context.hasWorkoutTracking) {
+			throw redirect({ to: "/compete" })
+		}
+	},
 	loader: async ({ context }) => {
 		const session = context.session
 		const teamId = session?.teams?.[0]?.id

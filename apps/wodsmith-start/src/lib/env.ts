@@ -17,6 +17,7 @@ type ExtendedEnv = typeof env & {
 	NODE_ENV?: string
 	SITE_URL?: string
 	CRON_SECRET?: string
+	INTERNAL_API_SECRET?: string
 	// Slack integration
 	SLACK_WEBHOOK_URL?: string
 	SLACK_PURCHASE_NOTIFICATIONS_ENABLED?: string
@@ -184,3 +185,17 @@ export const getSiteUrl = createServerOnlyFn((): string => {
 export const getCronSecret = createServerOnlyFn((): string | undefined => {
 	return extendedEnv.CRON_SECRET
 })
+
+// Internal API configuration accessors
+
+/**
+ * Get the internal API secret for worker-to-worker authentication.
+ * This is a server-only function that will throw if called from the client.
+ *
+ * @returns The INTERNAL_API_SECRET environment variable or undefined if not set
+ */
+export const getInternalApiSecret = createServerOnlyFn(
+	(): string | undefined => {
+		return extendedEnv.INTERNAL_API_SECRET
+	},
+)

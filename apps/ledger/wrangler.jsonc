@@ -1,0 +1,35 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"account_id": "317fb84f366ea1ab038ca90000953697",
+	"name": "ledger",
+	"main": "@tanstack/react-start/server-entry",
+	"compatibility_date": "2025-09-02",
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
+	"minify": true,
+	"observability": {
+		"enabled": true
+	},
+	"placement": {
+		"mode": "smart"
+	},
+	"vars": {
+		"APP_URL": "http://localhost:3001"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "ledger-db",
+			"database_id": "placeholder-generate-after-deploy",
+			"migrations_dir": "src/db/migrations"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "R2_BUCKET",
+			"bucket_name": "ledger-documents"
+		}
+	]
+}
