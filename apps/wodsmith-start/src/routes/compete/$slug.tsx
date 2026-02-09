@@ -1,7 +1,8 @@
 import { createFileRoute, notFound, Outlet } from "@tanstack/react-router"
 import { useEffect } from "react"
-import { trackEvent } from "@/lib/posthog"
 import { CompetitionHero } from "@/components/competition-hero"
+import { getAppUrlFn } from "@/lib/env"
+import { trackEvent } from "@/lib/posthog"
 import {
 	checkCanManageCompetitionFn,
 	checkIsVolunteerFn,
@@ -13,7 +14,6 @@ import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisi
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
 import { getTeamContactEmailFn } from "@/server-fns/team-fns"
-import { getAppUrl } from "@/lib/env"
 
 export const Route = createFileRoute("/compete/$slug")({
 	component: CompetitionDetailLayout,
@@ -102,7 +102,7 @@ export const Route = createFileRoute("/compete/$slug")({
 			? divisions.find((d) => d.id === userRegistration.divisionId)
 			: null
 
-		const appUrl = getAppUrl()
+		const appUrl = await getAppUrlFn()
 		const ogBaseUrl = appUrl.includes("localhost")
 			? "http://localhost:8787"
 			: "https://og.wodsmith.com"
