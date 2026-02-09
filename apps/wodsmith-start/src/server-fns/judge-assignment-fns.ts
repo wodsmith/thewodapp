@@ -366,7 +366,7 @@ export const publishRotationsFn = createServerFn({ method: "POST" })
 		const nextVersion =
 			versions.length > 0 ? (versions[0]?.version ?? 0) + 1 : 1
 
-		// Deactivate previous versions (no transactions in D1)
+		// Deactivate previous versions
 		await db
 			.update(judgeAssignmentVersionsTable)
 			.set({ isActive: false, updatedAt: new Date() })
@@ -404,7 +404,7 @@ export const publishRotationsFn = createServerFn({ method: "POST" })
 		// Drizzle inserts all columns including auto-generated ones:
 		// createdAt, updatedAt, updateCounter, id, heatId, membershipId, rotationId, versionId, laneNumber, position, instructions, isManualOverride
 		// That's 11 params per row (instructions is null literal).
-		// D1 has a 100 bound parameter limit (NOT 999 like standard SQLite).
+		// 100 bound parameter batch limit.
 		// max rows per batch = floor(100 / 11) = 9, use 8 for safety
 		const INSERT_BATCH_SIZE = 8
 		if (materializedAssignments.length > 0) {

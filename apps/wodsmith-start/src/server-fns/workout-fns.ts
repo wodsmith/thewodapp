@@ -61,7 +61,7 @@ const getWorkoutsInputSchema = z.object({
 type GetWorkoutsInput = z.infer<typeof getWorkoutsInputSchema>
 
 /**
- * Helper function to fetch tags by workout IDs (batched for D1 100-param limit)
+ * Helper function to fetch tags by workout IDs (batched for 100-param limit)
  */
 async function fetchTagsByWorkoutId(
 	db: ReturnType<typeof getDb>,
@@ -99,7 +99,7 @@ async function fetchTagsByWorkoutId(
 }
 
 /**
- * Helper function to fetch movements by workout IDs (batched for D1 100-param limit)
+ * Helper function to fetch movements by workout IDs (batched for 100-param limit)
  */
 async function fetchMovementsByWorkoutId(
 	db: ReturnType<typeof getDb>,
@@ -930,7 +930,7 @@ export const getTodayScoresFn = createServerFn({ method: "GET" })
 		const endOfDay = new Date(today)
 		endOfDay.setHours(23, 59, 59, 999)
 
-		// Fetch today's scores for the user and workouts (batched for D1 limit)
+		// Fetch today's scores for the user and workouts (batched for param limit)
 		const scoresData = await autochunk(
 			{ items: data.workoutIds, otherParametersCount: 4 },
 			async (chunk) =>

@@ -577,7 +577,7 @@ export const bulkAssignJudgesToHeatFn = createServerFn({ method: "POST" })
 		const db = getDb()
 
 		// Each insert row uses ~7 params (id, heatId, membershipId, laneNumber, position, instructions, commonColumns)
-		// D1 has a 100 param limit, so max 14 rows per batch (14 * 7 = 98)
+		// 100 param limit, so max 14 rows per batch (14 * 7 = 98)
 		// Use 10 to be safe
 		const INSERT_BATCH_SIZE = 10
 

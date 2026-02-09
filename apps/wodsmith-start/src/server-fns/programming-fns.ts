@@ -702,7 +702,7 @@ export const unsubscribeFromTrackFn = createServerFn({ method: "POST" })
 
 /**
  * Get all public programming tracks with subscription status for all user's teams
- * Uses autochunk to handle large arrays of team IDs (D1 100 param limit)
+ * Uses autochunk to handle large arrays of team IDs (100 param limit)
  */
 export const getPublicTracksWithSubscriptionsFn = createServerFn({
 	method: "GET",
@@ -803,7 +803,7 @@ export const getPublicTracksWithSubscriptionsFn = createServerFn({
 
 /**
  * Get teams subscribed to a specific track (filtered to user's teams)
- * Uses autochunk to handle large arrays of team IDs (D1 100 param limit)
+ * Uses autochunk to handle large arrays of team IDs (100 param limit)
  */
 export const getTrackSubscribedTeamsFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) =>

@@ -1286,7 +1286,7 @@ export const saveCompetitionEventFn = createServerFn({ method: "POST" })
 				}))
 
 				// workoutMovements has 6 columns (commonColumns + id, workoutId, movementId)
-				// D1 limit: 100 params, so max rows per batch = floor(100/6) = 16
+				// Batch limit: 100 params, so max rows per batch = floor(100/6) = 16
 				const movementBatches = chunk(movementValues, 16)
 				for (const batch of movementBatches) {
 					await db.insert(workoutMovements).values(batch)

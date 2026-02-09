@@ -217,7 +217,7 @@ export const getWaiverSignaturesForUserFn = createServerFn({ method: "GET" })
 		}
 
 		// Get signatures for this user for any of those waivers
-		// Use autochunk to handle potential large arrays (D1 has 100 param limit)
+		// Use autochunk to handle potential large arrays (100 param limit)
 		const signatures = await autochunk(
 			{ items: waiverIds, otherParametersCount: 1 }, // 1 for userId param
 			async (chunk) =>

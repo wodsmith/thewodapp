@@ -994,7 +994,7 @@ export const bulkAssignToHeatFn = createServerFn({ method: "POST" })
 		}
 
 		// Each insert row uses 7 params (id, heatId, registrationId, laneNumber, createdAt, updatedAt, updateCounter)
-		// D1 has a 100 param limit, so max 14 rows per batch (14 * 7 = 98)
+		// 100 param limit, so max 14 rows per batch (14 * 7 = 98)
 		// Use 10 to be safe
 		const INSERT_BATCH_SIZE = 10
 
@@ -1297,7 +1297,7 @@ export const bulkCreateHeatsFn = createServerFn({ method: "POST" })
 			schedulePublishedAt: heat.scheduledTime ? now : null,
 		}))
 
-		// D1 has a 100 param limit, competitionHeatsTable has ~12 columns
+		// 100 param limit, competitionHeatsTable has ~12 columns
 		// Max rows per batch = floor(100/12) = 8
 		const INSERT_BATCH_SIZE = 8
 
@@ -1346,7 +1346,7 @@ export const bulkUpdateHeatsFn = createServerFn({ method: "POST" })
 
 		const now = new Date()
 
-		// Update each heat individually (D1 doesn't support batch updates with different values)
+		// Update each heat individually (batch updates with different values not supported)
 		await Promise.all(
 			data.heats.map((heat) => {
 				const updateData: Record<string, unknown> = {

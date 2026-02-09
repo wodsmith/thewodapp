@@ -1,10 +1,3 @@
-import type { DrizzleD1Database } from "drizzle-orm/d1"
-import type {
-	SQLiteInsertValue,
-	SQLiteTable,
-	TableConfig,
-} from "drizzle-orm/sqlite-core"
-
 // Re-export cn from the canonical location to avoid duplication
 export { cn } from "@/utils/cn"
 
@@ -106,16 +99,3 @@ export function formatSecondsToTime(totalSeconds: number): string {
 	return `${pad(minutes)}:${pad(seconds)}`
 }
 
-export async function batchInsert<T extends TableConfig>(
-	db: DrizzleD1Database<typeof import("@/db/schema")>,
-	table: SQLiteTable<T>,
-	items: SQLiteInsertValue<SQLiteTable<T>>[],
-	chunkSize = 32,
-) {
-	for (let i = 0; i < items.length; i += chunkSize) {
-		await db
-			.insert(table)
-			.values(items.slice(i, i + chunkSize))
-			.returning()
-	}
-}

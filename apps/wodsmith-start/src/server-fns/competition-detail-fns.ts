@@ -759,7 +759,7 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
 			// Exclude those with acceptedAt set (user with account has claimed the invite)
 			const pendingInvites: PendingTeammateInvite[] = []
 
-			// Query each team's invitations (D1 doesn't support large IN arrays well)
+			// Query each team's invitations (batched for large IN arrays)
 			for (const teamId of athleteTeamIds) {
 				const invitations = await db.query.teamInvitationTable.findMany({
 					where: and(

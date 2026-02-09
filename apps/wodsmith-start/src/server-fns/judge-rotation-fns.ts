@@ -1381,7 +1381,7 @@ export const adjustRotationsForOccupiedLanesFn = createServerFn({
 			}
 
 			// Create new rotations FIRST to avoid data loss if creation fails
-			// (D1 doesn't support transactions, so we build replacements before deleting)
+			// Build replacements before deleting
 			for (const newRot of newRotations) {
 				await createRotationInternal({
 					teamId: data.teamId,
