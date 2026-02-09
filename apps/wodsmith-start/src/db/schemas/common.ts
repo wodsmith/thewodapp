@@ -13,14 +13,14 @@ import { datetime, int } from "drizzle-orm/mysql-core"
  * - Stored in MySQL datetime column (not timestamp)
  */
 export const commonColumns = {
-	createdAt: datetime("created_at")
+	createdAt: datetime()
 		.$defaultFn(() => new Date())
 		.notNull(),
-	updatedAt: datetime("updated_at")
+	updatedAt: datetime()
 		.$defaultFn(() => new Date())
 		.$onUpdateFn(() => new Date())
 		.notNull(),
-	updateCounter: int("update_counter")
+	updateCounter: int()
 		.default(0)
 		.$onUpdate(() => sql`update_counter + 1`),
 }

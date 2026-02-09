@@ -41,52 +41,52 @@ export const scoresTable = mysqlTable(
 	"scores",
 	{
 		...commonColumns,
-		id: varchar("id", { length: 255 }).primaryKey().$defaultFn(createScoreId),
+		id: varchar({ length: 255 }).primaryKey().$defaultFn(createScoreId),
 
 		// Ownership
-		userId: varchar("user_id", { length: 255 }).notNull(),
-		teamId: varchar("team_id", { length: 255 }).notNull(),
+		userId: varchar({ length: 255 }).notNull(),
+		teamId: varchar({ length: 255 }).notNull(),
 
 		// What was scored
-		workoutId: varchar("workout_id", { length: 255 }).notNull(),
-		competitionEventId: varchar("competition_event_id", { length: 255 }), // NULL for personal logs
-		scheduledWorkoutInstanceId: varchar("scheduled_workout_instance_id", { length: 255 }),
+		workoutId: varchar({ length: 255 }).notNull(),
+		competitionEventId: varchar({ length: 255 }), // NULL for personal logs
+		scheduledWorkoutInstanceId: varchar({ length: 255 }),
 
 		// Score classification
-		scheme: varchar("scheme", { length: 255 }).notNull(),
-		scoreType: varchar("score_type", { length: 255 })
+		scheme: varchar({ length: 255 }).notNull(),
+		scoreType: varchar({ length: 255 })
 			.notNull()
 			.default("max"),
 
 		// Primary score (encoded as integer based on scheme)
 		// Time: milliseconds, Rounds+Reps: rounds*100000+reps, Load: grams, Distance: mm
-		scoreValue: int("score_value"),
+		scoreValue: int(),
 
 		// Tiebreak
-		tiebreakScheme: varchar("tiebreak_scheme", { length: 255 }),
-		tiebreakValue: int("tiebreak_value"),
+		tiebreakScheme: varchar({ length: 255 }),
+		tiebreakValue: int(),
 
 		// Time cap handling (for time-with-cap workouts)
-		timeCapMs: int("time_cap_ms"),
+		timeCapMs: int(),
 		// Note: secondaryScheme removed - when capped, score is always reps
-		secondaryValue: int("secondary_value"), // reps completed if capped
+		secondaryValue: int(), // reps completed if capped
 
 		// Status & sorting
-		status: varchar("status", { length: 255 })
+		status: varchar({ length: 255 })
 			.notNull()
 			.default("scored"),
-		statusOrder: int("status_order").notNull().default(0), // 0=scored, 1=cap, 2=dq, 3=withdrawn
+		statusOrder: int().notNull().default(0), // 0=scored, 1=cap, 2=dq, 3=withdrawn
 		// Compound sort key: encodes status + normalized score for single-column sorting
-		sortKey: varchar("sort_key", { length: 255 }),
+		sortKey: varchar({ length: 255 }),
 
 		// Scaling
-		scalingLevelId: varchar("scaling_level_id", { length: 255 }),
-		asRx: boolean("as_rx").notNull().default(false),
+		scalingLevelId: varchar({ length: 255 }),
+		asRx: boolean().notNull().default(false),
 
 		// Metadata
-		notes: varchar("notes", { length: 255 }),
+		notes: varchar({ length: 255 }),
 		// When the workout was performed (Unix timestamp ms)
-		recordedAt: datetime("recorded_at").notNull(),
+		recordedAt: datetime().notNull(),
 	},
 	(table) => [
 		// User's scores, ordered by date
@@ -123,27 +123,27 @@ export const scoresTable = mysqlTable(
 export const scoreRoundsTable = mysqlTable(
 	"score_rounds",
 	{
-		id: varchar("id", { length: 255 }).primaryKey().$defaultFn(createScoreRoundId),
-		scoreId: varchar("score_id", { length: 255 }).notNull(),
+		id: varchar({ length: 255 }).primaryKey().$defaultFn(createScoreRoundId),
+		scoreId: varchar({ length: 255 }).notNull(),
 
 		// Round ordering (1-indexed)
-		roundNumber: int("round_number").notNull(),
+		roundNumber: int().notNull(),
 
 		// The value for this round (encoded based on parent score's scheme)
-		value: int("value").notNull(),
+		value: int().notNull(),
 
 		// Optional: different scheme per round (rare, but possible)
-		schemeOverride: varchar("scheme_override", { length: 255 }),
+		schemeOverride: varchar({ length: 255 }),
 
 		// Status for this specific round
-		status: varchar("status", { length: 255 }),
+		status: varchar({ length: 255 }),
 
 		// For time-capped rounds
-		secondaryValue: int("secondary_value"),
+		secondaryValue: int(),
 
 		// Metadata
-		notes: varchar("notes", { length: 255 }),
-		createdAt: datetime("created_at")
+		notes: varchar({ length: 255 }),
+		createdAt: datetime()
 			.$defaultFn(() => new Date())
 			.notNull(),
 	},

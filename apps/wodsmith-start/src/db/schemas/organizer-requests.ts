@@ -17,7 +17,7 @@ export type OrganizerRequestStatus =
 
 // Organizer request table - tracks requests to become a competition organizer
 export const organizerRequestTable = mysqlTable(
-	"organizer_request",
+	"organizer_requests",
 	{
 		...commonColumns,
 		id: varchar({ length: 255 })

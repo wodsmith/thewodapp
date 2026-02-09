@@ -67,9 +67,9 @@ export type TiebreakScheme = (typeof TIEBREAK_SCHEME_VALUES)[number]
 // Movements table
 export const movements = mysqlTable("movements", {
 	...commonColumns,
-	id: varchar("id", { length: 255 }).primaryKey(),
-	name: varchar("name", { length: 255 }).notNull(),
-	type: varchar("type", {
+	id: varchar({ length: 255 }).primaryKey(),
+	name: varchar({ length: 255 }).notNull(),
+	type: varchar({
 		length: 255,
 		enum: ["weightlifting", "gymnastic", "monostructural"],
 	}).notNull(),
@@ -78,8 +78,8 @@ export const movements = mysqlTable("movements", {
 // Tags table
 export const tags = mysqlTable("spicy_tags", {
 	...commonColumns,
-	id: varchar("id", { length: 255 }).primaryKey(),
-	name: varchar("name", { length: 255 }).notNull().unique(),
+	id: varchar({ length: 255 }).primaryKey(),
+	name: varchar({ length: 255 }).notNull().unique(),
 })
 
 // Workouts table - using third argument for self-referencing foreign key
@@ -87,33 +87,33 @@ export const workouts = mysqlTable(
 	"workouts",
 	{
 		...commonColumns,
-		id: varchar("id", { length: 255 }).primaryKey(),
-		name: varchar("name", { length: 255 }).notNull(),
-		description: varchar("description", { length: 255 }).notNull(),
-		scope: varchar("scope", {
+		id: varchar({ length: 255 }).primaryKey(),
+		name: varchar({ length: 255 }).notNull(),
+		description: varchar({ length: 255 }).notNull(),
+		scope: varchar({
 			length: 255,
 			enum: ["private", "public"],
 		})
 			.default("private")
 			.notNull(),
-		scheme: varchar("scheme", {
+		scheme: varchar({
 			length: 255,
 			enum: WORKOUT_SCHEME_VALUES,
 		}).notNull(),
-		scoreType: varchar("score_type", {
+		scoreType: varchar({
 			length: 255,
 			enum: SCORE_TYPE_VALUES,
 		}),
-		repsPerRound: int("reps_per_round"),
-		roundsToScore: int("rounds_to_score").default(1),
-		teamId: varchar("team_id", { length: 255 }),
-		sugarId: varchar("sugar_id", { length: 255 }),
-		tiebreakScheme: varchar("tiebreak_scheme", { length: 255, enum: TIEBREAK_SCHEME_VALUES }),
-		timeCap: int("time_cap"), // Time cap in seconds (for time-with-cap workouts)
+		repsPerRound: int(),
+		roundsToScore: int().default(1),
+		teamId: varchar({ length: 255 }),
+		sugarId: varchar({ length: 255 }),
+		tiebreakScheme: varchar({ length: 255, enum: TIEBREAK_SCHEME_VALUES }),
+		timeCap: int(), // Time cap in seconds (for time-with-cap workouts)
 		// Note: secondaryScheme removed - when capped, score is always reps
-		sourceTrackId: varchar("source_track_id", { length: 255 }),
-		sourceWorkoutId: varchar("source_workout_id", { length: 255 }),
-		scalingGroupId: varchar("scaling_group_id", { length: 255 }), // Optional scaling group for this workout
+		sourceTrackId: varchar({ length: 255 }),
+		sourceWorkoutId: varchar({ length: 255 }),
+		scalingGroupId: varchar({ length: 255 }), // Optional scaling group for this workout
 	},
 	(workouts) => ({
 		scalingGroupIdx: index("workouts_scaling_group_idx").on(
@@ -132,17 +132,17 @@ export const workouts = mysqlTable(
 // Workout Tags junction table
 export const workoutTags = mysqlTable("workout_tags", {
 	...commonColumns,
-	id: varchar("id", { length: 255 }).primaryKey(),
-	workoutId: varchar("workout_id", { length: 255 }).notNull(),
-	tagId: varchar("tag_id", { length: 255 }).notNull(),
+	id: varchar({ length: 255 }).primaryKey(),
+	workoutId: varchar({ length: 255 }).notNull(),
+	tagId: varchar({ length: 255 }).notNull(),
 })
 
 // Workout Movements junction table
 export const workoutMovements = mysqlTable("workout_movements", {
 	...commonColumns,
-	id: varchar("id", { length: 255 }).primaryKey(),
-	workoutId: varchar("workout_id", { length: 255 }),
-	movementId: varchar("movement_id", { length: 255 }),
+	id: varchar({ length: 255 }).primaryKey(),
+	workoutId: varchar({ length: 255 }),
+	movementId: varchar({ length: 255 }),
 })
 
 // Results base table (consolidated)
@@ -150,40 +150,40 @@ export const results = mysqlTable(
 	"results",
 	{
 		...commonColumns,
-		id: varchar("id", { length: 255 }).primaryKey(),
-		userId: varchar("user_id", { length: 255 }).notNull(),
-		date: datetime("date").notNull(),
-		workoutId: varchar("workout_id", { length: 255 }), // Optional, for WOD results
-		type: varchar("type", {
+		id: varchar({ length: 255 }).primaryKey(),
+		userId: varchar({ length: 255 }).notNull(),
+		date: datetime().notNull(),
+		workoutId: varchar({ length: 255 }), // Optional, for WOD results
+		type: varchar({
 			length: 255,
 			enum: ["wod", "strength", "monostructural"],
 		}).notNull(),
-		notes: varchar("notes", { length: 255 }),
+		notes: varchar({ length: 255 }),
 		// Will be set as foreign key reference in main schema file
-		programmingTrackId: varchar("programming_track_id", { length: 255 }),
+		programmingTrackId: varchar({ length: 255 }),
 		// References to scheduled workout instances (team-based)
-		scheduledWorkoutInstanceId: varchar("scheduled_workout_instance_id", { length: 255 }),
+		scheduledWorkoutInstanceId: varchar({ length: 255 }),
 
 		// WOD specific results
-		scale: varchar("scale", { length: 255, enum: ["rx", "scaled", "rx+"] }), // Deprecated - will be removed after migration
-		scalingLevelId: varchar("scaling_level_id", { length: 255 }), // New: References scaling_levels.id
-		asRx: boolean("as_rx").default(false).notNull(), // New: true if performed as prescribed at that level
-		wodScore: varchar("wod_score", { length: 255 }), // e.g., "3:15", "10 rounds + 5 reps"
+		scale: varchar({ length: 255, enum: ["rx", "scaled", "rx+"] }), // Deprecated - will be removed after migration
+		scalingLevelId: varchar({ length: 255 }), // New: References scaling_levels.id
+		asRx: boolean().default(false).notNull(), // New: true if performed as prescribed at that level
+		wodScore: varchar({ length: 255 }), // e.g., "3:15", "10 rounds + 5 reps"
 
 		// Strength specific results
-		setCount: int("set_count"),
+		setCount: int(),
 
 		// Monostructural specific results
-		distance: int("distance"),
-		time: int("time"),
+		distance: int(),
+		time: int(),
 
 		// Competition-specific fields
-		competitionEventId: varchar("competition_event_id", { length: 255 }), // References trackWorkoutsTable.id
-		competitionRegistrationId: varchar("competition_registration_id", { length: 255 }), // References competitionRegistrationsTable.id
-		scoreStatus: varchar("score_status", { length: 255, enum: SCORE_STATUS_VALUES }), // DNS, DNF, CAP, etc.
-		tieBreakScore: varchar("tie_break_score", { length: 255 }), // Raw tie-break value (e.g., "120" for reps or seconds)
-		secondaryScore: varchar("secondary_score", { length: 255 }), // For time-capped workouts: score achieved when capped (e.g., rounds+reps)
-		enteredBy: varchar("entered_by", { length: 255 }),
+		competitionEventId: varchar({ length: 255 }), // References trackWorkoutsTable.id
+		competitionRegistrationId: varchar({ length: 255 }), // References competitionRegistrationsTable.id
+		scoreStatus: varchar({ length: 255, enum: SCORE_STATUS_VALUES }), // DNS, DNF, CAP, etc.
+		tieBreakScore: varchar({ length: 255 }), // Raw tie-break value (e.g., "120" for reps or seconds)
+		secondaryScore: varchar({ length: 255 }), // For time-capped workouts: score achieved when capped (e.g., rounds+reps)
+		enteredBy: varchar({ length: 255 }),
 	},
 	(table) => [
 		index("results_scaling_level_idx").on(table.scalingLevelId),
@@ -215,18 +215,18 @@ export const results = mysqlTable(
 // Sets table (unified for all result types)
 export const sets = mysqlTable("sets", {
 	...commonColumns,
-	id: varchar("id", { length: 255 }).primaryKey(),
-	resultId: varchar("result_id", { length: 255 }).notNull(),
-	setNumber: int("set_number").notNull(),
-	notes: varchar("notes", { length: 255 }),
+	id: varchar({ length: 255 }).primaryKey(),
+	resultId: varchar({ length: 255 }).notNull(),
+	setNumber: int().notNull(),
+	notes: varchar({ length: 255 }),
 
 	// Generic set data - only one of these will typically be populated
-	reps: int("reps"),
-	weight: int("weight"),
-	status: varchar("status", { length: 255, enum: ["pass", "fail"] }),
-	distance: int("distance"),
-	time: int("time"),
-	score: int("score"), // For sets within a WOD (e.g., rounds completed in an AMRAP)
+	reps: int(),
+	weight: int(),
+	status: varchar({ length: 255, enum: ["pass", "fail"] }),
+	distance: int(),
+	time: int(),
+	score: int(), // For sets within a WOD (e.g., rounds completed in an AMRAP)
 })
 
 // Relations

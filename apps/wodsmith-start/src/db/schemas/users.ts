@@ -24,57 +24,57 @@ const genderTuple = Object.values(GENDER_ENUM) as [string, ...string[]]
 
 // User table
 export const userTable = mysqlTable(
-	"user",
+	"users",
 	{
 		...commonColumns,
-		id: varchar("id", { length: 255 })
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createUserId())
 			.notNull(),
-		firstName: varchar("first_name", {
+		firstName: varchar({
 			length: 255,
 		}),
-		lastName: varchar("last_name", {
+		lastName: varchar({
 			length: 255,
 		}),
-		email: varchar("email", {
+		email: varchar({
 			length: 255,
 		}).unique(),
-		passwordHash: varchar("password_hash", { length: 255 }),
-		role: varchar("role", {
+		passwordHash: varchar({ length: 255 }),
+		role: varchar({
 			length: 50,
 			enum: roleTuple,
 		})
 			.default(ROLES_ENUM.USER)
 			.notNull(),
-		emailVerified: datetime("email_verified"),
-		signUpIpAddress: varchar("sign_up_ip_address", {
+		emailVerified: datetime(),
+		signUpIpAddress: varchar({
 			length: 128,
 		}),
-		googleAccountId: varchar("google_account_id", {
+		googleAccountId: varchar({
 			length: 255,
 		}),
 		/**
 		 * This can either be an absolute or relative path to an image
 		 */
-		avatar: varchar("avatar", {
+		avatar: varchar({
 			length: 600,
 		}),
 		// Credit system fields
-		currentCredits: int("current_credits").default(0).notNull(),
-		lastCreditRefreshAt: datetime("last_credit_refresh_at"),
+		currentCredits: int().default(0).notNull(),
+		lastCreditRefreshAt: datetime(),
 		// Athlete profile fields for competition platform
-		gender: varchar("gender", {
+		gender: varchar({
 			length: 50,
 			enum: genderTuple,
 		}).$type<Gender>(),
-		dateOfBirth: datetime("date_of_birth"),
+		dateOfBirth: datetime(),
 		// Default affiliate/gym for competition registration
-		affiliateName: varchar("affiliate_name", {
+		affiliateName: varchar({
 			length: 255,
 		}),
 		// JSON field for extended athlete profile (PRs, history, etc.)
-		athleteProfile: varchar("athlete_profile", {
+		athleteProfile: varchar({
 			length: 10000,
 		}),
 	},
@@ -89,38 +89,38 @@ export const userTable = mysqlTable(
 
 // Passkey credentials table
 export const passKeyCredentialTable = mysqlTable(
-	"passkey_credential",
+	"passkey_credentials",
 	{
 		...commonColumns,
-		id: varchar("id", { length: 255 })
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createPasskeyId())
 			.notNull(),
-		userId: varchar("user_id", { length: 255 })
+		userId: varchar({ length: 255 })
 			.notNull(),
-		credentialId: varchar("credential_id", {
+		credentialId: varchar({
 			length: 255,
 		})
 			.notNull()
 			.unique(),
-		credentialPublicKey: varchar("credential_public_key", {
+		credentialPublicKey: varchar({
 			length: 255,
 		}).notNull(),
-		counter: int("counter").notNull(),
+		counter: int().notNull(),
 		// Optional array of AuthenticatorTransport as JSON string
-		transports: varchar("transports", {
+		transports: varchar({
 			length: 255,
 		}),
 		// Authenticator Attestation GUID. We use this to identify the device/authenticator app that created the passkey
-		aaguid: varchar("aaguid", {
+		aaguid: varchar({
 			length: 255,
 		}),
 		// The user agent of the device that created the passkey
-		userAgent: varchar("user_agent", {
+		userAgent: varchar({
 			length: 255,
 		}),
 		// The IP address that created the passkey
-		ipAddress: varchar("ip_address", {
+		ipAddress: varchar({
 			length: 128,
 		}),
 	},

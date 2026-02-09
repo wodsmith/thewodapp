@@ -20,7 +20,7 @@ export const creditTransactionTypeTuple = Object.values(
 ) as [string, ...string[]]
 
 export const creditTransactionTable = mysqlTable(
-	"credit_transaction",
+	"credit_transactions",
 	{
 		...commonColumns,
 		id: varchar({
@@ -68,7 +68,7 @@ export const purchasableItemTypeTuple = Object.values(
 ) as [string, ...string[]]
 
 export const purchasedItemsTable = mysqlTable(
-	"purchased_item",
+	"purchased_items",
 	{
 		...commonColumns,
 		id: varchar({

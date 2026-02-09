@@ -45,7 +45,7 @@ export const ENTITLEMENT_TYPES = {
 } as const
 
 // 1. Entitlement Type Table - Define categories of entitlements
-export const entitlementTypeTable = mysqlTable("entitlement_type", {
+export const entitlementTypeTable = mysqlTable("entitlement_types", {
 	...commonColumns,
 	id: varchar({ length: 255 })
 		.primaryKey()
@@ -57,7 +57,7 @@ export const entitlementTypeTable = mysqlTable("entitlement_type", {
 
 // 2. Entitlement Table - Explicit records of granted access
 export const entitlementTable = mysqlTable(
-	"entitlement",
+	"entitlements",
 	{
 		...commonColumns,
 		id: varchar({ length: 255 })
@@ -94,7 +94,7 @@ export const entitlementTable = mysqlTable(
 )
 
 // 3. Feature Table - Define available features
-export const featureTable = mysqlTable("feature", {
+export const featureTable = mysqlTable("features", {
 	...commonColumns,
 	id: varchar({ length: 255 })
 		.primaryKey()
@@ -119,7 +119,7 @@ export const featureTable = mysqlTable("feature", {
 })
 
 // 4. Limit Table - Define available limits
-export const limitTable = mysqlTable("limit", {
+export const limitTable = mysqlTable("limits", {
 	...commonColumns,
 	id: varchar({ length: 255 })
 		.primaryKey()
@@ -141,7 +141,7 @@ export interface PlanEntitlements {
 	limits: Record<string, number> // limit_id -> value (-1 for unlimited)
 }
 
-export const planTable = mysqlTable("plan", {
+export const planTable = mysqlTable("plans", {
 	...commonColumns,
 	id: varchar({ length: 255 })
 		.primaryKey()
@@ -163,7 +163,7 @@ export const planTable = mysqlTable("plan", {
 
 // 5a. Plan Feature Junction Table - Links plans to features
 export const planFeatureTable = mysqlTable(
-	"plan_feature",
+	"plan_features",
 	{
 		...commonColumns,
 		id: varchar({ length: 255 })
@@ -183,7 +183,7 @@ export const planFeatureTable = mysqlTable(
 
 // 5b. Plan Limit Junction Table - Links plans to limits with values
 export const planLimitTable = mysqlTable(
-	"plan_limit",
+	"plan_limits",
 	{
 		...commonColumns,
 		id: varchar({ length: 255 })
@@ -204,7 +204,7 @@ export const planLimitTable = mysqlTable(
 
 // 4. Team Subscription Table - Track team subscriptions
 export const teamSubscriptionTable = mysqlTable(
-	"team_subscription",
+	"team_subscriptions",
 	{
 		...commonColumns,
 		id: varchar({ length: 255 })
@@ -234,7 +234,7 @@ export const teamSubscriptionTable = mysqlTable(
 
 // 5. Team Addon Table - Track purchased add-ons
 export const teamAddonTable = mysqlTable(
-	"team_addon",
+	"team_addons",
 	{
 		...commonColumns,
 		id: varchar({ length: 255 })
@@ -257,7 +257,7 @@ export const teamAddonTable = mysqlTable(
 
 // 6. Team Entitlement Override Table - Manual overrides for specific teams
 export const teamEntitlementOverrideTable = mysqlTable(
-	"team_entitlement_override",
+	"team_entitlement_overrides",
 	{
 		...commonColumns,
 		id: varchar({ length: 255 })
@@ -286,7 +286,7 @@ export const teamEntitlementOverrideTable = mysqlTable(
 
 // 7. Team Usage Table - Track usage against limits
 export const teamUsageTable = mysqlTable(
-	"team_usage",
+	"team_usages",
 	{
 		...commonColumns,
 		id: varchar({ length: 255 })
@@ -315,7 +315,7 @@ export const teamUsageTable = mysqlTable(
 // This is the SOURCE OF TRUTH for what features a team currently has
 // Created when a team subscribes to a plan or when plan is changed
 export const teamFeatureEntitlementTable = mysqlTable(
-	"team_feature_entitlement",
+	"team_feature_entitlements",
 	{
 		...commonColumns,
 		id: varchar({ length: 255 })
@@ -353,7 +353,7 @@ export const teamFeatureEntitlementTable = mysqlTable(
 // This is the SOURCE OF TRUTH for what limits a team currently has
 // Created when a team subscribes to a plan or when plan is changed
 export const teamLimitEntitlementTable = mysqlTable(
-	"team_limit_entitlement",
+	"team_limit_entitlements",
 	{
 		...commonColumns,
 		id: varchar({ length: 255 })

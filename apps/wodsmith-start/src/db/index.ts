@@ -43,7 +43,7 @@ export const getDb = (): Database => {
 		url: databaseUrl,
 	})
 
-	return drizzle(client, { schema, logger: true })
+	return drizzle(client, { schema, logger: true, casing: "snake_case" })
 }
 
 // Export env for other modules that need access to bindings (KV, R2, etc.)

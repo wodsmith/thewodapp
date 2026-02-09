@@ -32,7 +32,7 @@ export const programmingTrackTypeTuple = Object.values(
 
 // Programming tracks table
 export const programmingTracksTable = mysqlTable(
-	"programming_track",
+	"programming_tracks",
 	{
 		...commonColumns,
 		id: varchar({ length: 255 })
@@ -58,7 +58,7 @@ export const programmingTracksTable = mysqlTable(
 
 // Team programming tracks (join table)
 export const teamProgrammingTracksTable = mysqlTable(
-	"team_programming_track",
+	"team_programming_tracks",
 	{
 		...commonColumns,
 		teamId: varchar({ length: 255 })
@@ -81,7 +81,7 @@ export const teamProgrammingTracksTable = mysqlTable(
 
 // Track workouts
 export const trackWorkoutsTable = mysqlTable(
-	"track_workout",
+	"track_workouts",
 	{
 		...commonColumns,
 		id: varchar({ length: 255 })
@@ -132,7 +132,7 @@ export const trackWorkoutsTable = mysqlTable(
 
 // Scheduled Workout Instances
 export const scheduledWorkoutInstancesTable = mysqlTable(
-	"scheduled_workout_instance",
+	"scheduled_workout_instances",
 	{
 		...commonColumns,
 		id: varchar({ length: 255 })

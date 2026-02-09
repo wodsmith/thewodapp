@@ -96,7 +96,7 @@ export const TEAM_PERMISSIONS = {
 
 // Team table - using self-reference pattern for parent organization
 export const teamTable = mysqlTable(
-	"team",
+	"teams",
 	{
 		...commonColumns,
 		id: varchar({ length: 255 })
@@ -157,7 +157,7 @@ export const teamTable = mysqlTable(
 
 // Team membership table
 export const teamMembershipTable = mysqlTable(
-	"team_membership",
+	"team_memberships",
 	{
 		...commonColumns,
 		id: varchar({ length: 255 })
@@ -188,7 +188,7 @@ export const teamMembershipTable = mysqlTable(
 
 // Team role table
 export const teamRoleTable = mysqlTable(
-	"team_role",
+	"team_roles",
 	{
 		...commonColumns,
 		id: varchar({ length: 255 })
@@ -214,7 +214,7 @@ export const teamRoleTable = mysqlTable(
 
 // Team invitation table
 export const teamInvitationTable = mysqlTable(
-	"team_invitation",
+	"team_invitations",
 	{
 		...commonColumns,
 		id: varchar({ length: 255 })

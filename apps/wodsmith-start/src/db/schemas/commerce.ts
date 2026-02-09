@@ -55,7 +55,7 @@ export type CommercePaymentStatus =
  * Represents purchasable products (competition registrations, add-ons, etc.)
  */
 export const commerceProductTable = mysqlTable(
-	"commerce_product",
+	"commerce_products",
 	{
 		...commonColumns,
 		id: varchar({ length: 255 })
@@ -85,7 +85,7 @@ export const commerceProductTable = mysqlTable(
  * Records all purchase transactions
  */
 export const commercePurchaseTable = mysqlTable(
-	"commerce_purchase",
+	"commerce_purchases",
 	{
 		...commonColumns,
 		id: varchar({ length: 255 })
