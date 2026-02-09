@@ -37,8 +37,7 @@ export const Route = createFileRoute("/compete/")({
 // Compares YYYY-MM-DD date strings using the competition's timezone
 // so registration closes at 11:59pm in the competition's local time
 function getCompetitionStatus(comp: CompetitionWithOrganizingTeam) {
-	const { startDate, endDate, registrationOpensAt, registrationClosesAt } =
-		comp
+	const { startDate, endDate, registrationOpensAt, registrationClosesAt } = comp
 	const today = getTodayInTimezone(comp.timezone ?? "America/Denver")
 
 	// Past if already ended (end date is before today)
@@ -73,7 +72,10 @@ function getCompetitionStatus(comp: CompetitionWithOrganizingTeam) {
 	}
 
 	// Coming soon if starts in future AND (no reg window OR reg not yet open)
-	if (startDate > today && (!registrationOpensAt || registrationOpensAt > today)) {
+	if (
+		startDate > today &&
+		(!registrationOpensAt || registrationOpensAt > today)
+	) {
 		return "coming-soon"
 	}
 

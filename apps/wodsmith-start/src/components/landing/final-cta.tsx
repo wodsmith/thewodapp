@@ -28,9 +28,8 @@ export function FinalCTA({ session }: FinalCTAProps) {
 
 					{/* Promise */}
 					<p className="mb-8 text-lg text-background/70 dark:text-muted-foreground">
-						Get started with a demo. We'll help
-						you migrate from spreadsheets and make sure your athletes trust the
-						results.
+						Get started with a demo. We'll help you migrate from spreadsheets
+						and make sure your athletes trust the results.
 					</p>
 
 					{/* CTAs */}
@@ -63,8 +62,8 @@ export function FinalCTA({ session }: FinalCTAProps) {
 
 					{/* Friction clarifier */}
 					<p className="mt-6 text-sm text-background/50 dark:text-muted-foreground">
-						No credit card required. Platform fee applies to paid registrations. Concierge onboarding
-						included.
+						No credit card required. Platform fee applies to paid registrations.
+						Concierge onboarding included.
 					</p>
 				</div>
 			</div>
