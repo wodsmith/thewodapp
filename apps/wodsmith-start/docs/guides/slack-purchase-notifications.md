@@ -7,7 +7,7 @@ This guide explains how to set up Slack notifications for purchases on WODsmith.
 The Slack notification system supports different types of purchases:
 
 | Purchase Type | Description |
-|---------------|-------------|
+| --------------- | ------------- |
 | `COMPETITION_REGISTRATION` | Competition registration payments |
 | `ADDON` | Add-on purchases |
 | `CREDITS` | Credit purchases |
@@ -66,7 +66,7 @@ Or add them to your `alchemy.run.ts` deployment configuration.
 
 Notifications appear in Slack with the following format:
 
-```
+```text
 :trophy: New Competition Registration: $75.00
 
 Customer:          Amount:
@@ -134,7 +134,7 @@ To test the Slack integration:
 ### Common Issues
 
 | Issue | Solution |
-|-------|----------|
+| ------- | ---------- |
 | "No webhook URL configured" | Set `SLACK_WEBHOOK_URL` environment variable |
 | "Purchase notifications disabled" | Set `SLACK_PURCHASE_NOTIFICATIONS_ENABLED=true` |
 | "Purchase type not enabled" | Add the purchase type to `SLACK_PURCHASE_NOTIFICATION_TYPES` |
@@ -168,7 +168,7 @@ The notification format is defined in `buildPurchaseMessage()` in `src/lib/slack
 ## Files Reference
 
 | File | Purpose |
-|------|---------|
+| ------ | --------- |
 | `src/lib/slack.ts` | Slack notification utility functions |
 | `src/lib/env.ts` | Environment variable accessors |
 | `src/routes/api/webhooks/stripe.ts` | Stripe webhook handler (sends notifications) |

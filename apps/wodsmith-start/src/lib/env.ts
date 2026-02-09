@@ -199,3 +199,21 @@ export const getInternalApiSecret = createServerOnlyFn(
 		return extendedEnv.INTERNAL_API_SECRET
 	},
 )
+
+// Slack configuration accessors
+
+export const getSlackWebhookUrl = createServerOnlyFn((): string | undefined => {
+	return extendedEnv.SLACK_WEBHOOK_URL
+})
+
+export const isSlackPurchaseNotificationsEnabled = createServerOnlyFn(
+	(): boolean => {
+		return extendedEnv.SLACK_PURCHASE_NOTIFICATIONS_ENABLED === "true"
+	},
+)
+
+export const getSlackPurchaseNotificationTypes = createServerOnlyFn(
+	(): string | undefined => {
+		return extendedEnv.SLACK_PURCHASE_NOTIFICATION_TYPES
+	},
+)
