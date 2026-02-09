@@ -28,12 +28,7 @@ const config = defineConfig({
 	build: {
 		target: "esnext",
 		rollupOptions: {
-			external: [
-				"node:async_hooks",
-				"node:stream",
-				"node:stream/web",
-				"cloudflare:workers",
-			],
+			external: ["node:async_hooks", "cloudflare:workers"],
 		},
 	},
 	// Resolve server-only as empty module (Next.js specific, not needed in TanStack Start)
