@@ -18,22 +18,20 @@ Create a 1200x630 PNG with WODsmith branding. This is the fallback when a compet
 Edit `src/routes/compete/$slug.tsx`:
 
 ```typescript
-import { getAppUrl } from '@/lib/env'
-
 const FALLBACK_OG_IMAGE = 'https://wodsmith.com/og-default.png'
 ```
 
-Add `head` to the route config (alongside existing `loader`, `component`, etc.):
+Add `appUrl` to the loader return value (call `getAppUrl()` server-side), then add `head` to the route config:
 
 ```typescript
 head: ({ loaderData }) => {
   const competition = loaderData?.competition
+  const appUrl = loaderData?.appUrl  // from loader, not getAppUrl() directly
 
   if (!competition) {
     return { meta: [{ title: 'Competition Not Found' }] }
   }
 
-  const appUrl = getAppUrl()
   const ogImageUrl = competition.bannerImageUrl
     || competition.profileImageUrl
     || FALLBACK_OG_IMAGE

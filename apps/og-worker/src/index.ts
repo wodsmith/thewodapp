@@ -125,7 +125,12 @@ async function generateCompetitionOG(
 		})
 	} catch (error) {
 		console.error("OG generation failed:", error)
-		return generateDefaultOG()
+		try {
+			return await generateDefaultOG()
+		} catch (fallbackError) {
+			console.error("Default OG also failed:", fallbackError)
+			return new Response("OG image generation failed", { status: 500 })
+		}
 	}
 }
 
@@ -141,6 +146,7 @@ async function generateDefaultOG(): Promise<Response> {
 
 async function validateImageUrl(url: string): Promise<string | null> {
 	try {
+		if (!url.startsWith("https://")) return null
 		const res = await fetch(url, { method: "HEAD" })
 		const contentType = res.headers.get("content-type") || ""
 		if (res.ok && contentType.startsWith("image/")) {

@@ -40,19 +40,19 @@ The route already has a loader returning full competition data. Add `head()`:
 // apps/wodsmith-start/src/routes/compete/$slug.tsx
 
 import { createFileRoute } from '@tanstack/react-router'
-import { getAppUrl } from '@/lib/env'
 
 const FALLBACK_OG_IMAGE = 'https://wodsmith.com/og-default.png'
 
 export const Route = createFileRoute('/compete/$slug')({
+  // loader returns { competition, appUrl } — appUrl from getAppUrl() server-side
   head: ({ loaderData }) => {
     const competition = loaderData?.competition
+    const appUrl = loaderData?.appUrl
 
     if (!competition) {
       return { meta: [{ title: 'Competition Not Found' }] }
     }
 
-    const appUrl = getAppUrl()
     const ogImageUrl = competition.bannerImageUrl
       || competition.profileImageUrl
       || FALLBACK_OG_IMAGE
@@ -102,7 +102,7 @@ Upload a static `og-default.png` (1200x630) to the public directory or R2 bucket
 
 ### Notes
 
-- Uses `getAppUrl()` from `@/lib/env` (centralized `createServerOnlyFn` pattern)
+- `getAppUrl()` is called in the loader (not `head()`) since it uses `createServerOnlyFn` and `head()` can run on the client
 - `head()` with `loaderData` is already used in 8+ routes (organizer settings, scoring, revenue, etc.)
 - No `og:image` meta tags exist anywhere in the codebase yet - clean slate
 
@@ -126,7 +126,7 @@ Deploy the OG image service as a **separate Cloudflare Worker** for:
 
 ### System Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                     wodsmith-start                          │
 │  /compete/$slug                                             │
@@ -138,7 +138,7 @@ Deploy the OG image service as a **separate Cloudflare Worker** for:
 │                 og.wodsmith.com (separate Worker)           │
 │                                                             │
 │  /competition/:slug                                         │
-│     └─ Fetches data from wodsmith.com/api/internal/og-data  │
+│     └─ Queries D1 directly via shared binding               │
 │     └─ Generates PNG with workers-og                        │
 │     └─ Returns with aggressive caching                      │
 └─────────────────────────────────────────────────────────────┘
@@ -146,7 +146,7 @@ Deploy the OG image service as a **separate Cloudflare Worker** for:
 
 ### Project Structure
 
-```
+```text
 apps/
 ├── wodsmith-start/              # Main app
 │   └── src/routes/api/internal/og-data/
@@ -183,8 +183,7 @@ import { CompetitionTemplate } from './templates/competition'
 import { DefaultTemplate } from './templates/default'
 
 export interface Env {
-  WODSMITH_API_URL: string  // https://wodsmith.com
-  API_SECRET: string        // Shared secret for internal API
+  DB: D1Database  // Shared D1 binding for direct data access
 }
 
 export default {
@@ -210,49 +209,69 @@ export default {
     // /leaderboard/:competitionSlug
 
     // Fallback: default WODsmith OG image
-    return generateDefaultOG(env)
+    return generateDefaultOG()
   },
 }
 
 async function generateCompetitionOG(slug: string, env: Env): Promise<Response> {
   try {
-    // Fetch competition data from main app's internal API
-    const response = await fetch(
-      `${env.WODSMITH_API_URL}/api/internal/og-data/competition/${slug}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${env.API_SECRET}`,
-        },
-      }
-    )
+    // Query D1 directly via shared binding (no HTTP hop needed)
+    const [row, fonts] = await Promise.all([
+      env.DB.prepare(
+        `SELECT
+          c.name, c.slug, c.description,
+          c.profileImageUrl, c.bannerImageUrl,
+          c.startDate, c.endDate, c.timezone,
+          c.competitionType,
+          c.registrationOpensAt, c.registrationClosesAt,
+          t.name AS teamName, t.avatarUrl AS teamAvatarUrl,
+          a.city AS city, a.stateProvince AS stateProvince
+        FROM competitions c
+        LEFT JOIN team t ON t.id = c.organizingTeamId
+        LEFT JOIN addresses a ON a.id = c.primaryAddressId
+        WHERE c.slug = ? AND c.status = 'published'
+        LIMIT 1`
+      ).bind(slug).first(),
+      loadFonts(),
+    ])
 
-    if (!response.ok) {
-      console.error(`Failed to fetch competition ${slug}: ${response.status}`)
-      return generateDefaultOG(env)
+    if (!row) {
+      return generateDefaultOG()
     }
 
-    const competition = await response.json()
+    const competition: CompetitionData = {
+      name: row.name as string,
+      // ... map remaining fields from D1 row
+    }
 
     return new ImageResponse(
       CompetitionTemplate({ competition }),
       {
         width: 1200,
         height: 630,
+        fonts,
         headers: getCacheHeaders(),
       }
     )
   } catch (error) {
     console.error('OG generation failed:', error)
-    return generateDefaultOG(env)
+    try {
+      return await generateDefaultOG()
+    } catch (fallbackError) {
+      console.error('Default OG also failed:', fallbackError)
+      return new Response('OG image generation failed', { status: 500 })
+    }
   }
 }
 
-async function generateDefaultOG(env: Env): Promise<Response> {
+async function generateDefaultOG(): Promise<Response> {
+  const fonts = await loadFonts()
   return new ImageResponse(
     DefaultTemplate(),
     {
       width: 1200,
       height: 630,
+      fonts,
       headers: getCacheHeaders(),
     }
   )
@@ -620,13 +639,14 @@ Also add `og:image:type`:
     }
   ],
 
-  // Environment variables
-  "vars": {
-    "WODSMITH_API_URL": "https://wodsmith.com"
-  }
-
-  // Secrets (set via CLI):
-  // wrangler secret put API_SECRET
+  // D1 database binding (shared with main app)
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "wodsmith-db",
+      "database_id": "<your-d1-database-id>"
+    }
+  ]
 }
 ```
 
@@ -674,9 +694,8 @@ Also add `og:image:type`:
 ```typescript
 headers: {
   'Content-Type': 'image/png',
-  'Cache-Control': 'public, max-age=3600',      // Browser: 1 hour
-  's-maxage': '86400',                           // Shared cache: 24 hours
-  'CDN-Cache-Control': 'max-age=604800',        // Cloudflare edge: 7 days
+  'Cache-Control': 'public, max-age=3600, s-maxage=86400',  // Browser: 1h, Shared: 24h
+  'CDN-Cache-Control': 'max-age=604800',                     // Cloudflare edge: 7 days
 }
 ```
 
@@ -696,34 +715,24 @@ Or via Cloudflare Dashboard: **Caching -> Configuration -> Purge Cache -> Custom
 
 ## Security
 
-### Internal API Authentication
+### D1 Binding Access
+
+The OG worker accesses competition data via a shared D1 database binding — no HTTP API or shared secrets needed between workers. The D1 binding is configured in `wrangler.jsonc` and access is controlled by Cloudflare's binding system.
+
+### Internal Data API (Optional Fallback)
+
+The internal data API at `/api/internal/og-data/competition/$slug` exists as a fallback approach. It uses Bearer token auth with timing-safe comparison:
 
 ```typescript
-// Shared secret between workers
-// Set in both via: wrangler secret put INTERNAL_API_SECRET
-
-// OG Worker -> Main App request
-headers: {
-  'Authorization': `Bearer ${env.API_SECRET}`,
-}
-
 // Main App validation (using centralized env pattern)
 const secret = getInternalApiSecret()
 const authHeader = request.headers.get('Authorization')
 const providedSecret = authHeader?.replace('Bearer ', '')
 
-if (!providedSecret || providedSecret !== secret) {
+if (!providedSecret || !timingSafeEqual(providedSecret, secret)) {
   return json({ error: 'Unauthorized' }, { status: 401 })
 }
 ```
-
-### Rate Limiting
-
-The internal API should only receive requests from the OG worker. Consider:
-
-1. Cloudflare Access policies on the internal API path
-2. IP allowlisting (if workers have static IPs)
-3. Request signing with timestamps
 
 ## Design Variations
 
@@ -804,9 +813,7 @@ Allow competitions to customize their OG image theme:
 - [ ] Configure `wrangler.jsonc`
 - [ ] Set up DNS: `og.wodsmith.com` -> Worker route
 - [ ] Deploy: `wrangler deploy`
-- [ ] Set secret: `wrangler secret put API_SECRET`
-- [ ] Add `INTERNAL_API_SECRET` to main app env + `src/lib/env.ts`
-- [ ] Create internal data API route in main app
+- [ ] Verify D1 binding is working
 - [ ] Update competition route `head()` to use OG worker URL
 - [ ] Test with [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/)
 - [ ] Test with [Twitter Card Validator](https://cards-dev.twitter.com/validator)
@@ -865,8 +872,8 @@ After deployment:
 ### 500 errors on OG worker
 
 1. Check worker logs: `wrangler tail`
-2. Verify `API_SECRET` is set correctly in both workers
-3. Check main app internal API is accessible
+2. Verify D1 binding is configured correctly in `wrangler.jsonc`
+3. Check D1 database is accessible and has data
 
 ### Social platforms showing old image
 

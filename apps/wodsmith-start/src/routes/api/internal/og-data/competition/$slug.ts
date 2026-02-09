@@ -5,6 +5,18 @@ import { getDb } from "@/db"
 import { competitionsTable } from "@/db/schema"
 import { eq, and } from "drizzle-orm"
 
+function timingSafeEqual(a: string, b: string): boolean {
+	if (a.length !== b.length) return false
+	const encoder = new TextEncoder()
+	const bufA = encoder.encode(a)
+	const bufB = encoder.encode(b)
+	let result = 0
+	for (let i = 0; i < bufA.length; i++) {
+		result |= bufA[i] ^ bufB[i]
+	}
+	return result === 0
+}
+
 export const Route = createFileRoute(
 	"/api/internal/og-data/competition/$slug",
 )({
@@ -22,7 +34,7 @@ export const Route = createFileRoute(
 				const authHeader = request.headers.get("Authorization")
 				const providedSecret = authHeader?.replace("Bearer ", "")
 
-				if (!providedSecret || providedSecret !== secret) {
+				if (!providedSecret || !timingSafeEqual(providedSecret, secret)) {
 					return json({ error: "Unauthorized" }, { status: 401 })
 				}
 
