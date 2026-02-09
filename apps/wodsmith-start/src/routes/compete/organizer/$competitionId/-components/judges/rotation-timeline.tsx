@@ -1,7 +1,15 @@
 "use client"
 
 import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
-import { ChevronLeft, Pencil, Plus, User } from "lucide-react"
+import {
+	ChevronLeft,
+	Loader2,
+	Pencil,
+	Plus,
+	Search,
+	Trash2,
+	User,
+} from "lucide-react"
 import {
 	Fragment,
 	useCallback,
@@ -11,8 +19,20 @@ import {
 	useState,
 } from "react"
 import { toast } from "sonner"
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ToggleGroup } from "@/components/ui/toggle-group"
 import type { CompetitionJudgeRotation, LaneShiftPattern } from "@/db/schema"
@@ -24,7 +44,10 @@ import {
 	expandRotationToAssignments,
 	filterRotationsByAvailability,
 } from "@/lib/judge-rotation-utils"
+import type { HeatWithAssignments } from "@/server-fns/competition-heats-fns"
 import {
+	adjustRotationsForOccupiedLanesFn,
+	deleteVolunteerRotationsFn,
 	getEventRotationsFn,
 	updateJudgeRotationFn,
 } from "@/server-fns/judge-rotation-fns"
@@ -34,18 +57,13 @@ import {
 	MultiRotationEditor,
 } from "./multi-rotation-editor"
 
-interface HeatInfo {
-	heatNumber: number
-	scheduledTime: Date | null
-}
-
 interface RotationTimelineProps {
 	competitionId: string
 	teamId: string
 	trackWorkoutId: string
 	eventName: string
-	/** Array of heats with scheduled times for display in the header */
-	heatsList: HeatInfo[]
+	/** Array of heats with assignments for display and lane filtering */
+	heatsWithAssignments: HeatWithAssignments[]
 	laneCount: number
 	availableJudges: JudgeVolunteerInfo[]
 	initialRotations: CompetitionJudgeRotation[]
@@ -55,6 +73,12 @@ interface RotationTimelineProps {
 	eventDefaultHeatsCount: number
 	/** Minimum heat buffer between rotations for the same judge (default 2) */
 	minHeatBuffer: number
+	/** Whether to filter out empty lanes (lanes with no athletes) */
+	filterEmptyLanes: boolean
+	/** Callback when filter state changes */
+	onFilterEmptyLanesChange: (value: boolean) => void
+	/** Callback when rotations are updated */
+	onRotationsChange?: (rotations: CompetitionJudgeRotation[]) => void
 }
 
 /**
@@ -67,18 +91,22 @@ export function RotationTimeline({
 	teamId,
 	trackWorkoutId,
 	eventName,
-	heatsList,
+	heatsWithAssignments,
 	laneCount,
 	availableJudges,
 	initialRotations,
 	eventLaneShiftPattern,
 	eventDefaultHeatsCount,
 	minHeatBuffer,
+	filterEmptyLanes,
+	onFilterEmptyLanesChange,
+	onRotationsChange,
 }: RotationTimelineProps) {
-	const heatsCount = heatsList.length
+	const heatsCount = heatsWithAssignments.length
 	const [availabilityFilter, setAvailabilityFilter] = useState<
 		"all" | VolunteerAvailability
 	>("all")
+	const [judgeSearchQuery, setJudgeSearchQuery] = useState("")
 	const [rotations, setRotations] =
 		useState<CompetitionJudgeRotation[]>(initialRotations)
 
@@ -128,15 +156,54 @@ export function RotationTimeline({
 	const [editingRotationCells, setEditingRotationCells] = useState<Set<string>>(
 		new Set(),
 	)
+	// Delete confirmation dialog state
+	const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+	const [deletingVolunteerId, setDeletingVolunteerId] = useState<string | null>(
+		null,
+	)
+	const [isDeleting, setIsDeleting] = useState(false)
+
+	// Clear unassigned lanes modal state
+	const [clearUnassignedOpen, setClearUnassignedOpen] = useState(false)
+	const [isClearingUnassigned, setIsClearingUnassigned] = useState(false)
+
+	// Compute occupied lanes per heat from athlete assignments
+	const occupiedLanesByHeat = useMemo(() => {
+		const map = new Map<number, Set<number>>()
+		for (const heat of heatsWithAssignments) {
+			const occupiedLanes = new Set<number>()
+			for (const assignment of heat.assignments) {
+				occupiedLanes.add(assignment.laneNumber)
+			}
+			map.set(heat.heatNumber, occupiedLanes)
+		}
+		return map
+	}, [heatsWithAssignments])
 
 	// Build heats array for coverage calculation
+	// Use actual heat numbers from heatsWithAssignments
 	const heats = useMemo(
 		() =>
-			Array.from({ length: heatsCount }, (_, i) => ({
-				heatNumber: i + 1,
-				laneCount,
-			})),
-		[heatsCount, laneCount],
+			heatsWithAssignments.map((heat) => {
+				// Include occupiedLanes if filtering is enabled
+				if (filterEmptyLanes) {
+					// Compute occupied lanes directly from heat assignments to ensure consistency
+					const occupiedLanes = new Set<number>()
+					for (const assignment of heat.assignments) {
+						occupiedLanes.add(assignment.laneNumber)
+					}
+					return {
+						heatNumber: heat.heatNumber,
+						laneCount,
+						occupiedLanes,
+					}
+				}
+				return {
+					heatNumber: heat.heatNumber,
+					laneCount,
+				}
+			}),
+		[heatsWithAssignments, laneCount, filterEmptyLanes],
 	)
 
 	// Calculate coverage
@@ -144,6 +211,53 @@ export function RotationTimeline({
 		() => calculateCoverage(rotations, heats),
 		[rotations, heats],
 	)
+
+	// Find rotations that have assignments on lanes without athletes
+	// NOTE: This uses the OLD expansion (without respectOccupiedLanes) to identify
+	// rotations that WOULD have assignments on unassigned lanes if shift pattern
+	// were applied naively. This is intentional - it shows what needs adjustment.
+	const rotationsOnUnassignedLanes = useMemo(() => {
+		if (!filterEmptyLanes) return []
+
+		const affectedRotations: Array<{
+			rotation: CompetitionJudgeRotation
+			judgeName: string
+			unassignedSlots: Array<{ heat: number; lane: number }>
+		}> = []
+
+		for (const rotation of rotations) {
+			// Use naive expansion to detect what would land on unassigned lanes
+			const assignments = expandRotationToAssignments(rotation, heats)
+			const unassignedSlots: Array<{ heat: number; lane: number }> = []
+
+			for (const assignment of assignments) {
+				const occupiedLanes = occupiedLanesByHeat.get(assignment.heatNumber)
+				if (!occupiedLanes?.has(assignment.laneNumber)) {
+					unassignedSlots.push({
+						heat: assignment.heatNumber,
+						lane: assignment.laneNumber,
+					})
+				}
+			}
+
+			if (unassignedSlots.length > 0) {
+				const judge = availableJudges.find(
+					(j) => j.membershipId === rotation.membershipId,
+				)
+				const judgeName =
+					`${judge?.firstName ?? ""} ${judge?.lastName ?? ""}`.trim() ||
+					"Unknown Judge"
+
+				affectedRotations.push({
+					rotation,
+					judgeName,
+					unassignedSlots,
+				})
+			}
+		}
+
+		return affectedRotations
+	}, [filterEmptyLanes, rotations, heats, occupiedLanesByHeat, availableJudges])
 
 	// Group rotations by volunteer
 	const rotationsByVolunteer = useMemo(() => {
@@ -155,7 +269,7 @@ export function RotationTimeline({
 		return grouped
 	}, [rotations])
 
-	// Filter rotations by volunteer availability
+	// Filter rotations by volunteer availability and search query
 	const filteredRotationsByVolunteer = useMemo(() => {
 		// Get judge availability from availableJudges
 		const judgeAvailabilityMap = new Map<
@@ -166,35 +280,99 @@ export function RotationTimeline({
 			judgeAvailabilityMap.set(judge.membershipId, judge.availability)
 		}
 
-		return filterRotationsByAvailability(
+		const byAvailability = filterRotationsByAvailability(
 			rotationsByVolunteer,
 			availabilityFilter,
 			judgeAvailabilityMap,
 		)
-	}, [rotationsByVolunteer, availabilityFilter, availableJudges])
+
+		// Apply search filter if query exists
+		if (!judgeSearchQuery.trim()) {
+			return byAvailability
+		}
+
+		const query = judgeSearchQuery.toLowerCase().trim()
+		const filtered = new Map<string, CompetitionJudgeRotation[]>()
+
+		for (const [membershipId, rots] of byAvailability.entries()) {
+			const judge = availableJudges.find((j) => j.membershipId === membershipId)
+			const fullName =
+				`${judge?.firstName ?? ""} ${judge?.lastName ?? ""}`.toLowerCase()
+
+			if (fullName.includes(query)) {
+				filtered.set(membershipId, rots)
+			}
+		}
+
+		return filtered
+	}, [
+		rotationsByVolunteer,
+		availabilityFilter,
+		availableJudges,
+		judgeSearchQuery,
+	])
+
+	// Build maps between display index (1-based) and actual heat number
+	const { displayToHeatNumber, heatNumberToDisplay } = useMemo(() => {
+		const displayToHeat = new Map<number, number>()
+		const heatToDisplay = new Map<number, number>()
+		heatsWithAssignments.forEach((heat, idx) => {
+			displayToHeat.set(idx + 1, heat.heatNumber)
+			heatToDisplay.set(heat.heatNumber, idx + 1)
+		})
+		return {
+			displayToHeatNumber: displayToHeat,
+			heatNumberToDisplay: heatToDisplay,
+		}
+	}, [heatsWithAssignments])
 
 	// Build coverage grid with rotation IDs for highlighting and buffer zones
 	const coverageGrid = useMemo(() => {
 		const grid = new Map<
 			string,
 			{
-				status: "empty" | "covered" | "overlap" | "buffer-blocked"
+				status:
+					| "empty"
+					| "covered"
+					| "overlap"
+					| "buffer-blocked"
+					| "unavailable"
 				rotationIds: string[]
 			}
 		>()
 
-		// Initialize all slots as empty
-		for (let heat = 1; heat <= heatsCount; heat++) {
+		// Initialize all slots using display indices but looking up by actual heat number
+		for (let displayIdx = 1; displayIdx <= heatsCount; displayIdx++) {
+			const actualHeatNumber = displayToHeatNumber.get(displayIdx) ?? displayIdx
 			for (let lane = 1; lane <= laneCount; lane++) {
-				grid.set(`${heat}:${lane}`, { status: "empty", rotationIds: [] })
+				// Mark as unavailable if filtering is enabled and lane has no athlete
+				if (filterEmptyLanes) {
+					const occupiedLanes = occupiedLanesByHeat.get(actualHeatNumber)
+					const hasAthlete = occupiedLanes?.has(lane) ?? false
+					if (!hasAthlete) {
+						grid.set(`${displayIdx}:${lane}`, {
+							status: "unavailable",
+							rotationIds: [],
+						})
+						continue
+					}
+				}
+				// Default to empty
+				grid.set(`${displayIdx}:${lane}`, { status: "empty", rotationIds: [] })
 			}
 		}
 
 		// Mark covered slots with rotation IDs
+		// Use respectOccupiedLanes when filtering so shift pattern cycles through occupied lanes only
 		for (const rotation of rotations) {
-			const assignments = expandRotationToAssignments(rotation, heats)
+			const assignments = expandRotationToAssignments(rotation, heats, {
+				respectOccupiedLanes: filterEmptyLanes,
+			})
 			for (const assignment of assignments) {
-				const key = `${assignment.heatNumber}:${assignment.laneNumber}`
+				// Convert actual heat number to display index for grid lookup
+				const displayIdx = heatNumberToDisplay.get(assignment.heatNumber)
+				if (displayIdx === undefined) continue
+				const key = `${displayIdx}:${assignment.laneNumber}`
 				const current = grid.get(key)
 				if (!current) continue
 
@@ -214,15 +392,20 @@ export function RotationTimeline({
 			const volunteerRotations = rotationsByVolunteer.get(editingVolunteerId)
 			if (volunteerRotations) {
 				for (const rotation of volunteerRotations) {
-					const assignments = expandRotationToAssignments(rotation, heats)
+					const assignments = expandRotationToAssignments(rotation, heats, {
+						respectOccupiedLanes: filterEmptyLanes,
+					})
 					if (assignments.length === 0) continue
 
-					// Get the heat range of this rotation
-					const heatNumbers = assignments.map((a) => a.heatNumber)
-					const rotationStart = Math.min(...heatNumbers)
-					const rotationEnd = Math.max(...heatNumbers)
+					// Get the heat range of this rotation (using display indices)
+					const displayIndices = assignments
+						.map((a) => heatNumberToDisplay.get(a.heatNumber))
+						.filter((idx): idx is number => idx !== undefined)
+					if (displayIndices.length === 0) continue
+					const rotationStart = Math.min(...displayIndices)
+					const rotationEnd = Math.max(...displayIndices)
 
-					// Calculate buffer zones
+					// Calculate buffer zones (in display indices)
 					// Buffer after: (rotationEnd, rotationEnd + minHeatBuffer]
 					const bufferAfterEnd = rotationEnd + minHeatBuffer
 
@@ -230,14 +413,19 @@ export function RotationTimeline({
 					const bufferBeforeStart = rotationStart - minHeatBuffer
 
 					// Mark buffer zone cells (all lanes in buffer heats)
-					for (let heat = bufferBeforeStart; heat <= bufferAfterEnd; heat++) {
+					for (
+						let displayIdx = bufferBeforeStart;
+						displayIdx <= bufferAfterEnd;
+						displayIdx++
+					) {
 						// Skip heats within the rotation itself
-						if (heat >= rotationStart && heat <= rotationEnd) continue
+						if (displayIdx >= rotationStart && displayIdx <= rotationEnd)
+							continue
 						// Skip heats outside valid range
-						if (heat < 1 || heat > heatsCount) continue
+						if (displayIdx < 1 || displayIdx > heatsCount) continue
 
 						for (let lane = 1; lane <= laneCount; lane++) {
-							const key = `${heat}:${lane}`
+							const key = `${displayIdx}:${lane}`
 							const current = grid.get(key)
 							if (!current) continue
 
@@ -264,6 +452,10 @@ export function RotationTimeline({
 		editingVolunteerId,
 		rotationsByVolunteer,
 		minHeatBuffer,
+		filterEmptyLanes,
+		occupiedLanesByHeat,
+		displayToHeatNumber,
+		heatNumberToDisplay,
 	])
 
 	// Build preview cell lookup for fast checking with block colors
@@ -283,13 +475,24 @@ export function RotationTimeline({
 
 		const cellKeys = new Set<string>()
 		for (const rotation of volunteerRotations) {
-			const assignments = expandRotationToAssignments(rotation, heats)
+			const assignments = expandRotationToAssignments(rotation, heats, {
+				respectOccupiedLanes: filterEmptyLanes,
+			})
 			for (const assignment of assignments) {
-				cellKeys.add(`${assignment.heatNumber}:${assignment.laneNumber}`)
+				// Convert actual heat number to display index for grid lookup
+				const displayIdx = heatNumberToDisplay.get(assignment.heatNumber)
+				if (displayIdx === undefined) continue
+				cellKeys.add(`${displayIdx}:${assignment.laneNumber}`)
 			}
 		}
 		return cellKeys
-	}, [selectedVolunteerId, rotationsByVolunteer, heats])
+	}, [
+		selectedVolunteerId,
+		rotationsByVolunteer,
+		heats,
+		filterEmptyLanes,
+		heatNumberToDisplay,
+	])
 
 	// Color palette for multiple blocks
 	const BLOCK_COLORS = [
@@ -317,11 +520,12 @@ export function RotationTimeline({
 			const result = await getEventRotationsFn({ data: { trackWorkoutId } })
 			if (result?.rotations) {
 				setRotations(result.rotations)
+				onRotationsChange?.(result.rotations)
 			}
 		} catch (err) {
 			console.error("Failed to refresh rotations:", err)
 		}
-	}, [trackWorkoutId])
+	}, [trackWorkoutId, onRotationsChange])
 
 	function handleCreateRotation() {
 		setEditingVolunteerId(null)
@@ -333,6 +537,14 @@ export function RotationTimeline({
 	}
 
 	function handleCellClick(heat: number, lane: number) {
+		// Block clicks on unavailable cells (no athlete assigned)
+		if (filterEmptyLanes) {
+			const occupiedLanes = occupiedLanesByHeat.get(heat)
+			if (!occupiedLanes?.has(lane)) {
+				return
+			}
+		}
+
 		if (isEditorOpen) {
 			// Editor is already open - update external position to shift the ACTIVE block
 			// Include timestamp to ensure React sees each click as a new value
@@ -389,12 +601,16 @@ export function RotationTimeline({
 	function handleEditVolunteerRotations(membershipId: string) {
 		const volunteerRotations = rotationsByVolunteer.get(membershipId) || []
 
-		// Calculate cells covered by ALL rotations being edited
+		// Calculate cells covered by ALL rotations being edited (using display indices)
 		const cellKeys = new Set<string>()
 		for (const rotation of volunteerRotations) {
-			const assignments = expandRotationToAssignments(rotation, heats)
+			const assignments = expandRotationToAssignments(rotation, heats, {
+				respectOccupiedLanes: filterEmptyLanes,
+			})
 			for (const assignment of assignments) {
-				cellKeys.add(`${assignment.heatNumber}:${assignment.laneNumber}`)
+				const displayIdx = heatNumberToDisplay.get(assignment.heatNumber)
+				if (displayIdx === undefined) continue
+				cellKeys.add(`${displayIdx}:${assignment.laneNumber}`)
 			}
 		}
 		setEditingRotationCells(cellKeys)
@@ -410,12 +626,16 @@ export function RotationTimeline({
 	function handleAddRotationForVolunteer(membershipId: string) {
 		const volunteerRotations = rotationsByVolunteer.get(membershipId) || []
 
-		// Calculate cells covered by existing rotations
+		// Calculate cells covered by existing rotations (using display indices)
 		const cellKeys = new Set<string>()
 		for (const rotation of volunteerRotations) {
-			const assignments = expandRotationToAssignments(rotation, heats)
+			const assignments = expandRotationToAssignments(rotation, heats, {
+				respectOccupiedLanes: filterEmptyLanes,
+			})
 			for (const assignment of assignments) {
-				cellKeys.add(`${assignment.heatNumber}:${assignment.laneNumber}`)
+				const displayIdx = heatNumberToDisplay.get(assignment.heatNumber)
+				if (displayIdx === undefined) continue
+				cellKeys.add(`${displayIdx}:${assignment.laneNumber}`)
 			}
 		}
 		setEditingRotationCells(cellKeys)
@@ -488,6 +708,70 @@ export function RotationTimeline({
 		setSelectedRotationId((prev) => (prev === rotationId ? null : rotationId))
 	}
 
+	function handleDeleteVolunteerRotations(membershipId: string) {
+		setDeletingVolunteerId(membershipId)
+		setDeleteConfirmOpen(true)
+	}
+
+	async function confirmDeleteVolunteerRotations() {
+		if (!deletingVolunteerId) return
+
+		setIsDeleting(true)
+		try {
+			await deleteVolunteerRotationsFn({
+				data: {
+					teamId,
+					membershipId: deletingVolunteerId,
+					trackWorkoutId,
+				},
+			})
+			toast.success("Rotations deleted")
+			await refreshRotations()
+		} catch (err) {
+			console.error("Failed to delete rotations:", err)
+			toast.error("Failed to delete rotations")
+		} finally {
+			setIsDeleting(false)
+			setDeleteConfirmOpen(false)
+			setDeletingVolunteerId(null)
+		}
+	}
+
+	async function confirmAdjustUnassignedLanes() {
+		if (rotationsOnUnassignedLanes.length === 0) return
+
+		setIsClearingUnassigned(true)
+		try {
+			const rotationIds = rotationsOnUnassignedLanes.map((r) => r.rotation.id)
+
+			// Convert occupiedLanesByHeat Map to a plain object for the server function
+			const occupiedLanesObj: Record<string, number[]> = {}
+			for (const [heatNum, lanesSet] of occupiedLanesByHeat.entries()) {
+				occupiedLanesObj[String(heatNum)] = Array.from(lanesSet)
+			}
+
+			const result = await adjustRotationsForOccupiedLanesFn({
+				data: {
+					teamId,
+					competitionId,
+					trackWorkoutId,
+					occupiedLanesByHeat: occupiedLanesObj,
+					rotationIds,
+				},
+			})
+			toast.success(
+				`Adjusted ${result.data.deletedCount} rotation${result.data.deletedCount > 1 ? "s" : ""}, created ${result.data.createdCount} new`,
+			)
+			await refreshRotations()
+		} catch (err) {
+			console.error("Failed to adjust rotations:", err)
+			toast.error("Failed to adjust rotations")
+		} finally {
+			setIsClearingUnassigned(false)
+			setClearUnassignedOpen(false)
+		}
+	}
+
 	return (
 		<div className="space-y-4">
 			{/* Header */}
@@ -497,6 +781,33 @@ export function RotationTimeline({
 					<p className="text-sm text-muted-foreground">
 						{eventName} - {heatsCount} heats x {laneCount} lanes
 					</p>
+				</div>
+				<div className="flex items-center gap-4">
+					{filterEmptyLanes && rotationsOnUnassignedLanes.length > 0 && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => setClearUnassignedOpen(true)}
+						>
+							<Pencil className="mr-1 h-4 w-4" />
+							Adjust unassigned lanes ({rotationsOnUnassignedLanes.length})
+						</Button>
+					)}
+					<div className="flex items-center gap-2">
+						<Checkbox
+							id="filter-empty-lanes"
+							checked={filterEmptyLanes}
+							onCheckedChange={(checked) =>
+								onFilterEmptyLanesChange(checked === true)
+							}
+						/>
+						<label
+							htmlFor="filter-empty-lanes"
+							className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+						>
+							Only show lanes with athletes
+						</label>
+					</div>
 				</div>
 			</div>
 
@@ -558,9 +869,12 @@ export function RotationTimeline({
 								onActiveBlockChange={setActiveBlockIndex}
 								eventLaneShiftPattern={eventLaneShiftPattern}
 								eventDefaultHeatsCount={eventDefaultHeatsCount}
+								filterEmptyLanes={filterEmptyLanes}
+								occupiedLanesByHeat={occupiedLanesByHeat}
 								onSuccess={handleEditorSuccess}
 								onCancel={handleEditorCancel}
 								onPreviewChange={setPreviewCells}
+								onJudgeSelect={setSelectedVolunteerId}
 							/>
 						) : rotations.length === 0 ? (
 							/* Empty State */
@@ -572,6 +886,18 @@ export function RotationTimeline({
 						) : (
 							/* Grouped Judge List */
 							<>
+								{/* Search Input */}
+								<div className="relative mb-3">
+									<Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+									<Input
+										type="text"
+										placeholder="Search judges..."
+										value={judgeSearchQuery}
+										onChange={(e) => setJudgeSearchQuery(e.target.value)}
+										className="h-8 pl-8 text-sm"
+									/>
+								</div>
+
 								{/* Availability Filter */}
 								<div className="mb-3">
 									<div className="mb-2 text-xs font-medium text-muted-foreground">
@@ -706,6 +1032,17 @@ export function RotationTimeline({
 																<Plus className="mr-1 h-3 w-3" />
 																Add Rotation
 															</Button>
+															<Button
+																variant="outline"
+																size="icon"
+																className="h-7 w-7 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+																onClick={() =>
+																	handleDeleteVolunteerRotations(membershipId)
+																}
+																title="Delete all rotations"
+															>
+																<Trash2 className="h-3.5 w-3.5" />
+															</Button>
 														</div>
 													</div>
 
@@ -799,7 +1136,7 @@ export function RotationTimeline({
 
 									{/* Header Row - Heat Times */}
 									<div className="sticky left-0 z-20 border-b border-r bg-muted" />
-									{heatsList.map((heat) => {
+									{heatsWithAssignments.map((heat) => {
 										const timeText = heat.scheduledTime
 											? heat.scheduledTime.toLocaleTimeString("en-US", {
 													hour: "numeric",
@@ -895,6 +1232,10 @@ export function RotationTimeline({
 								<span className="text-muted-foreground">Overlap</span>
 							</div>
 							<div className="flex items-center gap-2">
+								<div className="h-4 w-4 rounded border bg-neutral-200 dark:bg-neutral-800 bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,rgba(0,0,0,0.15)_2px,rgba(0,0,0,0.15)_4px)]" />
+								<span className="text-muted-foreground">No Athlete</span>
+							</div>
+							<div className="flex items-center gap-2">
 								<div className="h-4 w-4 rounded border bg-primary/60 ring-2 ring-primary" />
 								<span className="text-muted-foreground">Selected</span>
 							</div>
@@ -944,6 +1285,100 @@ export function RotationTimeline({
 					</CardContent>
 				</Card>
 			</div>
+
+			{/* Delete Confirmation Dialog */}
+			<AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete all rotations?</AlertDialogTitle>
+						<AlertDialogDescription>
+							This will remove all rotations for{" "}
+							{deletingVolunteerId
+								? getJudgeName(deletingVolunteerId)
+								: "this judge"}{" "}
+							from this event. This action cannot be undone.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={confirmDeleteVolunteerRotations}
+							disabled={isDeleting}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							{isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+							Delete
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
+			{/* Adjust Unassigned Lanes Confirmation Dialog */}
+			<AlertDialog
+				open={clearUnassignedOpen}
+				onOpenChange={setClearUnassignedOpen}
+			>
+				<AlertDialogContent className="max-w-lg">
+					<AlertDialogHeader>
+						<AlertDialogTitle>
+							Adjust rotations to skip unassigned lanes?
+						</AlertDialogTitle>
+						<AlertDialogDescription asChild>
+							<div className="space-y-3">
+								<p>
+									The following {rotationsOnUnassignedLanes.length} rotation
+									{rotationsOnUnassignedLanes.length > 1 ? "s" : ""} will be
+									adjusted to only cover lanes with athletes:
+								</p>
+								<div className="max-h-48 overflow-y-auto rounded-md border bg-muted/50 p-2">
+									{rotationsOnUnassignedLanes.map(
+										({ rotation, judgeName, unassignedSlots }) => (
+											<div
+												key={rotation.id}
+												className="border-b py-2 last:border-b-0"
+											>
+												<div className="font-medium text-foreground">
+													{judgeName}
+												</div>
+												<div className="text-xs text-muted-foreground">
+													Heats {rotation.startingHeat}-
+													{rotation.startingHeat + rotation.heatsCount - 1},
+													Lane {rotation.startingLane}
+												</div>
+												<div className="mt-1 text-xs text-orange-600 dark:text-orange-400">
+													Will skip:{" "}
+													{unassignedSlots
+														.map((s) => `H${s.heat}L${s.lane}`)
+														.join(", ")}
+												</div>
+											</div>
+										),
+									)}
+								</div>
+								<p className="text-sm text-muted-foreground">
+									Rotations may be split into multiple smaller rotations to skip
+									the unassigned slots.
+								</p>
+							</div>
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isClearingUnassigned}>
+							Cancel
+						</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={confirmAdjustUnassignedLanes}
+							disabled={isClearingUnassigned}
+						>
+							{isClearingUnassigned && (
+								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+							)}
+							Adjust {rotationsOnUnassignedLanes.length} rotation
+							{rotationsOnUnassignedLanes.length > 1 ? "s" : ""}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	)
 }
@@ -951,7 +1386,7 @@ export function RotationTimeline({
 interface TimelineCellProps {
 	heat: number
 	lane: number
-	status: "empty" | "covered" | "overlap" | "buffer-blocked"
+	status: "empty" | "covered" | "overlap" | "buffer-blocked" | "unavailable"
 	isHighlighted: boolean
 	isPreview: boolean
 	/** Block index for preview cells (used for coloring) */
@@ -986,7 +1421,12 @@ function TimelineCell({
 	const ref = useRef<HTMLButtonElement>(null)
 	const [isDraggedOver, setIsDraggedOver] = useState(false)
 
+	// Skip drop target registration and interaction for unavailable cells
+	const isUnavailable = status === "unavailable"
+
 	useEffect(() => {
+		if (isUnavailable) return
+
 		const element = ref.current
 		if (!element) return
 
@@ -1005,13 +1445,18 @@ function TimelineCell({
 				}
 			},
 		})
-	}, [onRotationDrop])
+	}, [onRotationDrop, isUnavailable])
 
 	// Determine background class based on status, highlight, preview, and editing state
 	let bgClass: string
 	let title: string | undefined
 
-	if (isPreviewConflict) {
+	if (isUnavailable) {
+		// Unavailable cell - dark with diagonal stripes, non-interactive
+		bgClass =
+			"bg-neutral-200 dark:bg-neutral-800 bg-[repeating-linear-gradient(45deg,transparent,transparent_4px,rgba(0,0,0,0.1)_4px,rgba(0,0,0,0.1)_8px)] dark:bg-[repeating-linear-gradient(45deg,transparent,transparent_4px,rgba(255,255,255,0.1)_4px,rgba(255,255,255,0.1)_8px)] cursor-not-allowed"
+		title = "No athlete assigned"
+	} else if (isPreviewConflict) {
 		// Preview cell that conflicts with existing assignment - RED
 		bgClass = "bg-red-500/40 border-dashed border-2 border-red-500"
 		title = "Conflict: Heat already assigned"
@@ -1048,11 +1493,12 @@ function TimelineCell({
 		<button
 			ref={ref}
 			type="button"
-			onClick={onClick}
+			onClick={isUnavailable ? undefined : onClick}
 			title={title}
-			className={`cursor-pointer border-b border-r transition-colors last:border-r-0 ${bgClass} ${
+			disabled={isUnavailable}
+			className={`border-b border-r transition-colors last:border-r-0 ${bgClass} ${
 				isDraggedOver ? "ring-2 ring-inset ring-blue-500" : ""
-			}`}
+			} ${isUnavailable ? "" : "cursor-pointer"}`}
 		/>
 	)
 }

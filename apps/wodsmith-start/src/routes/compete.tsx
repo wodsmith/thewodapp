@@ -21,8 +21,8 @@ const getCompeteNavDataFn = createServerFn({ method: "GET" }).handler(
 		// Check if user has MANAGE_COMPETITIONS permission in any team
 		const canOrganize = session?.teams
 			? session.teams.some((team) =>
-				team.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS),
-			)
+					team.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS),
+				)
 			: false
 
 		return { session, canOrganize }
@@ -84,15 +84,19 @@ function CompeteLayout() {
 	}
 
 	return (
-		<div className="flex min-h-screen flex-col">
-			<CompeteNav session={session} canOrganize={canOrganize} />
+		<div className="flex min-h-screen flex-col overflow-x-clip print:min-h-0 print:block">
+			<div className="print:hidden">
+				<CompeteNav session={session} canOrganize={canOrganize} />
+			</div>
 
-			<main className="container mx-auto flex-1 p-4">
-				<CompeteBreadcrumb dynamicLabels={dynamicLabels} />
+			<main className="container mx-auto flex-1 p-4 print:p-0 print:max-w-none print:mx-0">
+				<div className="print:hidden">
+					<CompeteBreadcrumb dynamicLabels={dynamicLabels} />
+				</div>
 				<Outlet />
 			</main>
 
-			<footer className="border-black border-t-2 p-4">
+			<footer className="border-black border-t-2 p-4 print:hidden">
 				<div className="container mx-auto">
 					<p className="text-center">
 						&copy; {new Date().getFullYear()} WODsmith. All rights reserved.

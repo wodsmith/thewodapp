@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils"
 export interface SearchableSelectOption {
 	value: string
 	label: string
+	/** Optional description shown below the label */
+	description?: string
 }
 
 interface SearchableSelectProps {
@@ -65,7 +67,7 @@ export function SearchableSelect({
 				</Button>
 			</PopoverTrigger>
 			<PopoverContent
-				className="w-[--radix-popover-trigger-width] p-0"
+				className="w-[var(--radix-popover-trigger-width)] p-0"
 				align="start"
 			>
 				<div className="p-2">
@@ -99,11 +101,18 @@ export function SearchableSelect({
 								>
 									<Check
 										className={cn(
-											"mr-2 h-4 w-4",
+											"mr-2 h-4 w-4 shrink-0",
 											value === option.value ? "opacity-100" : "opacity-0",
 										)}
 									/>
-									{option.label}
+									<div className="flex flex-col items-start">
+										<span>{option.label}</span>
+										{option.description && (
+											<span className="text-xs text-muted-foreground">
+												{option.description}
+											</span>
+										)}
+									</div>
 								</button>
 							))}
 						</div>

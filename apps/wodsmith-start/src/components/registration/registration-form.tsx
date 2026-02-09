@@ -1,11 +1,12 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useNavigate } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { Loader2, User, Users } from "lucide-react"
+import { ChevronDown, Loader2, User, Users } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useFieldArray, useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
+import { trackEvent } from "@/lib/posthog"
 import { WaiverViewer } from "@/components/compete/waiver-viewer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -29,6 +30,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover"
+import {
 	Select,
 	SelectContent,
 	SelectItem,
@@ -46,6 +52,7 @@ import type { PublicCompetitionDivision } from "@/server-fns/competition-divisio
 import { initiateRegistrationPaymentFn } from "@/server-fns/registration-fns"
 import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
 import { signWaiverFn } from "@/server-fns/waiver-fns"
+import { cn } from "@/utils/cn"
 import { getLocalDateKey, isSameDateString } from "@/utils/date-utils"
 import { AffiliateCombobox } from "./affiliate-combobox"
 import { FeeBreakdown } from "./fee-breakdown"
@@ -93,6 +100,139 @@ type Props = {
 	questions: RegistrationQuestion[]
 }
 
+function DivisionField({
+	form,
+	scalingGroup,
+	publicDivisions,
+	isSubmitting,
+	registrationOpen,
+	handleDivisionChange,
+	isTeamDivision,
+	teamSize,
+	teammatesNeeded,
+}: {
+	form: ReturnType<typeof useForm<FormValues>>
+	scalingGroup: ScalingGroup & { scalingLevels: ScalingLevel[] }
+	publicDivisions: PublicCompetitionDivision[]
+	isSubmitting: boolean
+	registrationOpen: boolean
+	handleDivisionChange: (divisionId: string) => void
+	isTeamDivision: boolean
+	teamSize: number
+	teammatesNeeded: number
+}) {
+	const [divisionOpen, setDivisionOpen] = useState(false)
+	const divisionId = form.watch("divisionId")
+	const selectedLevel = scalingGroup.scalingLevels.find(
+		(l) => l.id === divisionId,
+	)
+
+	return (
+		<FormField
+			control={form.control}
+			name="divisionId"
+			render={({ field }) => (
+				<FormItem>
+					<FormLabel>Division</FormLabel>
+					<Popover open={divisionOpen} onOpenChange={setDivisionOpen}>
+						<PopoverTrigger asChild>
+							<FormControl>
+								{/* biome-ignore lint/a11y/useSemanticElements: Popover-based combobox pattern */}
+								<Button
+									variant="outline"
+									role="combobox"
+									disabled={isSubmitting || !registrationOpen}
+									className="w-full justify-between font-normal"
+								>
+									{selectedLevel?.label || "Select a division"}
+									<ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+								</Button>
+							</FormControl>
+						</PopoverTrigger>
+						<PopoverContent
+							className="min-w-[250px] w-[var(--radix-popover-trigger-width)] p-0"
+							align="start"
+						>
+							<div className="max-h-[300px] overflow-y-auto p-1">
+								{scalingGroup.scalingLevels.map((level) => {
+									const divisionInfo = publicDivisions.find(
+										(d) => d.id === level.id,
+									)
+									const isFull = divisionInfo?.isFull ?? false
+									const spotsAvailable = divisionInfo?.spotsAvailable
+									const maxSpots = divisionInfo?.maxSpots
+									const isSelected = field.value === level.id
+
+									return (
+										<button
+											key={level.id}
+											type="button"
+											disabled={isFull}
+											onClick={() => {
+												handleDivisionChange(level.id)
+												setDivisionOpen(false)
+											}}
+											className={cn(
+												"relative flex w-full cursor-pointer select-none items-center justify-between gap-2 rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+												isSelected && "bg-accent",
+												isFull && "pointer-events-none opacity-50",
+											)}
+										>
+											<span
+												className={
+													isFull
+														? "line-through text-muted-foreground"
+														: ""
+												}
+											>
+												{level.label}
+											</span>
+											<div className="flex items-center gap-1">
+												{(level.teamSize ?? 1) > 1 ? (
+													<Badge variant="secondary" className="text-xs">
+														<Users className="w-3 h-3 mr-1" />
+														{level.teamSize}
+													</Badge>
+												) : (
+													<Badge variant="outline" className="text-xs">
+														<User className="w-3 h-3 mr-1" />
+														Indy
+													</Badge>
+												)}
+												{isFull ? (
+													<Badge variant="destructive" className="text-xs">
+														SOLD OUT
+													</Badge>
+												) : maxSpots !== null &&
+													spotsAvailable !== null &&
+													spotsAvailable !== undefined &&
+													spotsAvailable <= 5 ? (
+													<Badge
+														variant="secondary"
+														className="text-xs text-amber-600 dark:text-amber-400"
+													>
+														{spotsAvailable} left
+													</Badge>
+												) : null}
+											</div>
+										</button>
+									)
+								})}
+							</div>
+						</PopoverContent>
+					</Popover>
+					<FormDescription>
+						{isTeamDivision
+							? `Team division - requires ${teamSize} athletes (you + ${teammatesNeeded} teammate${teammatesNeeded > 1 ? "s" : ""})`
+							: "Individual division - compete on your own"}
+					</FormDescription>
+					<FormMessage />
+				</FormItem>
+			)}
+		/>
+	)
+}
+
 export function RegistrationForm({
 	competition,
 	scalingGroup,
@@ -120,6 +260,15 @@ export function RegistrationForm({
 	const allRequiredWaiversAgreed = requiredWaivers.every((w) =>
 		agreedWaivers.has(w.id),
 	)
+
+	// Track registration started on mount
+	useEffect(() => {
+		trackEvent("competition_registration_started", {
+			competition_id: competition.id,
+			competition_name: competition.name,
+			competition_slug: competition.slug,
+		})
+	}, [competition.id, competition.name, competition.slug])
 
 	// Show toast if returning from canceled payment
 	useEffect(() => {
@@ -262,15 +411,29 @@ export function RegistrationForm({
 				},
 			})
 
-			// FREE registration - redirect to competition page
+			// FREE registration - redirect to registered page
 			if (result.isFree) {
+				trackEvent("competition_registration_completed", {
+					competition_id: competition.id,
+					competition_name: competition.name,
+					competition_slug: competition.slug,
+				})
 				toast.success("Successfully registered!")
-				navigate({ to: `/compete/${competition.slug}` })
+				navigate({
+					to: `/compete/${competition.slug}/registered`,
+					search: { registration_id: result.registrationId },
+				})
 				return
 			}
 
 			// PAID registration - redirect to Stripe Checkout
 			if (result.checkoutUrl) {
+				trackEvent("competition_registration_payment_started", {
+					competition_id: competition.id,
+					competition_name: competition.name,
+					competition_slug: competition.slug,
+					division_id: data.divisionId,
+				})
 				// Use window.location for external redirect
 				window.location.href = result.checkoutUrl
 				return
@@ -280,6 +443,27 @@ export function RegistrationForm({
 		} catch (err) {
 			const errorMessage =
 				err instanceof Error ? err.message : "Registration failed"
+
+			// Classify error to avoid sending PII (emails) to analytics
+			const errorType = /is already on a team/i.test(errorMessage)
+				? "email_already_on_team"
+				: /has already been invited/i.test(errorMessage)
+					? "email_already_invited"
+					: /is your own email/i.test(errorMessage)
+						? "own_email"
+						: /Team name ".+" is already taken/i.test(errorMessage)
+							? "team_name_taken"
+							: /Failed to create checkout/i.test(errorMessage)
+								? "checkout_failed"
+								: "unknown"
+
+			trackEvent("competition_registration_failed", {
+				competition_id: competition.id,
+				competition_name: competition.name,
+				competition_slug: competition.slug,
+				division_id: data.divisionId,
+				error_type: errorType,
+			})
 
 			// Check if error is about team name being taken
 			// Error message follows pattern: 'Team name "X" is already taken...'
@@ -467,98 +651,16 @@ export function RegistrationForm({
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
-							<FormField
-								control={form.control}
-								name="divisionId"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>Division</FormLabel>
-										<Select
-											onValueChange={handleDivisionChange}
-											defaultValue={field.value}
-											disabled={isSubmitting || !registrationOpen}
-										>
-											<FormControl>
-												<SelectTrigger>
-													<SelectValue placeholder="Select a division" />
-												</SelectTrigger>
-											</FormControl>
-											<SelectContent>
-												{scalingGroup.scalingLevels.map((level) => {
-													// Get capacity info from publicDivisions
-													const divisionInfo = publicDivisions.find(
-														(d) => d.id === level.id,
-													)
-													const isFull = divisionInfo?.isFull ?? false
-													const spotsAvailable = divisionInfo?.spotsAvailable
-													const maxSpots = divisionInfo?.maxSpots
-
-													return (
-														<SelectItem
-															key={level.id}
-															value={level.id}
-															disabled={isFull}
-														>
-															<div className="flex items-center gap-2">
-																<span
-																	className={
-																		isFull
-																			? "line-through text-muted-foreground"
-																			: ""
-																	}
-																>
-																	{level.label}
-																</span>
-																{(level.teamSize ?? 1) > 1 ? (
-																	<Badge
-																		variant="secondary"
-																		className="ml-1 text-xs"
-																	>
-																		<Users className="w-3 h-3 mr-1" />
-																		{level.teamSize}
-																	</Badge>
-																) : (
-																	<Badge
-																		variant="outline"
-																		className="ml-1 text-xs"
-																	>
-																		<User className="w-3 h-3 mr-1" />
-																		Individual
-																	</Badge>
-																)}
-																{/* Show capacity info */}
-																{isFull ? (
-																	<Badge
-																		variant="destructive"
-																		className="ml-1 text-xs"
-																	>
-																		SOLD OUT
-																	</Badge>
-																) : maxSpots !== null &&
-																	spotsAvailable !== null &&
-																	spotsAvailable !== undefined &&
-																	spotsAvailable <= 5 ? (
-																	<Badge
-																		variant="secondary"
-																		className="ml-1 text-xs text-amber-600 dark:text-amber-400"
-																	>
-																		{spotsAvailable} left
-																	</Badge>
-																) : null}
-															</div>
-														</SelectItem>
-													)
-												})}
-											</SelectContent>
-										</Select>
-										<FormDescription>
-											{isTeamDivision
-												? `Team division - requires ${teamSize} athletes (you + ${teammatesNeeded} teammate${teammatesNeeded > 1 ? "s" : ""})`
-												: "Individual division - compete on your own"}
-										</FormDescription>
-										<FormMessage />
-									</FormItem>
-								)}
+							<DivisionField
+								form={form}
+								scalingGroup={scalingGroup}
+								publicDivisions={publicDivisions}
+								isSubmitting={isSubmitting}
+								registrationOpen={registrationOpen}
+								handleDivisionChange={handleDivisionChange}
+								isTeamDivision={isTeamDivision}
+								teamSize={teamSize}
+								teammatesNeeded={teammatesNeeded}
 							/>
 						</CardContent>
 					</Card>

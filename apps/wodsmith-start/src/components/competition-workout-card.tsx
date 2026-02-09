@@ -3,6 +3,7 @@
 import { Link } from "@tanstack/react-router"
 import {
 	ArrowRight,
+	Clock,
 	Dumbbell,
 	Hash,
 	MapPin,
@@ -44,6 +45,13 @@ interface CompetitionWorkoutCardProps {
 			countryCode?: string
 		} | null
 	} | null
+	schedule?: {
+		startTime: string
+		endTime: string | null
+		heatCount: number
+		venueName: string | null
+		divisions: string[]
+	} | null
 }
 
 function formatTime(seconds: number): string {
@@ -79,6 +87,7 @@ export function CompetitionWorkoutCard({
 	selectedDivisionId,
 	timeCap,
 	venue,
+	schedule,
 }: CompetitionWorkoutCardProps) {
 	// Get the selected division's scale info (if any)
 	// Only show scale for the explicitly selected division - no fallback
@@ -180,6 +189,14 @@ export function CompetitionWorkoutCard({
 							<div className="inline-flex items-center gap-1 px-2 py-0.5 sm:gap-1.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium bg-secondary text-secondary-foreground">
 								<Hash className="h-3 w-3 sm:h-4 sm:w-4" />
 								{roundsToScore} Rounds
+							</div>
+						)}
+						{schedule && (
+							<div className="inline-flex items-center gap-1 px-2 py-0.5 sm:gap-1.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900">
+								<Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+								{schedule.startTime}
+								{schedule.endTime && ` – ${schedule.endTime}`}
+								{schedule.heatCount > 1 && ` · ${schedule.heatCount} heats`}
 							</div>
 						)}
 					</div>
@@ -309,8 +326,16 @@ export function CompetitionWorkoutCard({
 					</div>
 
 					{/* Mobile CTA - full width at bottom */}
-					<Button variant="default" size="lg" asChild className="w-full mt-4 sm:hidden">
-						<Link to="/compete/$slug/workouts/$eventId" params={{ slug, eventId }}>
+					<Button
+						variant="default"
+						size="lg"
+						asChild
+						className="w-full mt-4 sm:hidden"
+					>
+						<Link
+							to="/compete/$slug/workouts/$eventId"
+							params={{ slug, eventId }}
+						>
 							View Details
 							<ArrowRight className="ml-2 h-4 w-4" />
 						</Link>

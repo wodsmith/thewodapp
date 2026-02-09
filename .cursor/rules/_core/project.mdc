@@ -40,7 +40,7 @@ Code Style and Structure
 - When a fuction has more than 1 parameter, always pass them as a named object.
 - Add `import "server-only"` at the top of the file (ignore this rule for page.tsx files) if it's only intended to be used on the server.
 - When you have to add a global type, add it to `custom-env.d.ts` instead of `cloudflare-env.d.ts`, because otherwise it will be overridden by `pnpm run cf-typegen`;
-- When creating React server actions always use `import { useServerAction } from "@repo/zsa-react"`
+- When creating server functions use `createServerFn` from `@tanstack/react-start`
 - When using `db.insert().values()` never pass and id because we autogenerate then
 
 Naming Conventions

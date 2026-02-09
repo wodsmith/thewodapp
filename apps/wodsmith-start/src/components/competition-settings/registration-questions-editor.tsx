@@ -571,7 +571,6 @@ function QuestionFormDialog({
 								</div>
 								{options.length > 0 && (
 									<div className="space-y-1 mt-2">
-										{/* biome-ignore lint/suspicious/noArrayIndexKey: options are user-editable strings, index is the stable key */}
 										{options.map((option, index) => (
 											<div
 												key={index}

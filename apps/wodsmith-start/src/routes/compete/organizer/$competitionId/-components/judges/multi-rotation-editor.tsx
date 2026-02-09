@@ -1,8 +1,16 @@
 "use client"
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
-import { ChevronDown, Loader2, MousePointer2, Plus, Trash2 } from "lucide-react"
-import { useEffect, useMemo, useRef, useState } from "react"
+import {
+	AlertTriangle,
+	ChevronDown,
+	Loader2,
+	MousePointer2,
+	Plus,
+	Trash2,
+} from "lucide-react"
+import { toast } from "sonner"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useFieldArray, useForm, useWatch } from "react-hook-form"
 import { z } from "zod"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -15,7 +23,6 @@ import {
 import {
 	Form,
 	FormControl,
-	FormDescription,
 	FormField,
 	FormItem,
 	FormLabel,
@@ -23,13 +30,9 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
+	SearchableSelect,
+	type SearchableSelectOption,
+} from "@/components/ui/searchable-select"
 import {
 	type CompetitionJudgeRotation,
 	LANE_SHIFT_PATTERN,
@@ -65,9 +68,15 @@ interface MultiRotationEditorProps {
 	onActiveBlockChange: (index: number) => void
 	eventLaneShiftPattern: LaneShiftPattern
 	eventDefaultHeatsCount: number
+	/** Whether to filter out empty lanes (lanes with no athletes) */
+	filterEmptyLanes?: boolean
+	/** Map of heat number to set of occupied lane numbers */
+	occupiedLanesByHeat?: Map<number, Set<number>>
 	onSuccess: () => void
 	onCancel: () => void
 	onPreviewChange?: (cells: MultiPreviewCell[]) => void
+	/** Called when judge selection changes (for highlighting existing rotations) */
+	onJudgeSelect?: (membershipId: string | null) => void
 }
 
 /**
@@ -118,9 +127,12 @@ export function MultiRotationEditor({
 	onActiveBlockChange,
 	eventLaneShiftPattern,
 	eventDefaultHeatsCount,
+	filterEmptyLanes,
+	occupiedLanesByHeat,
 	onSuccess,
 	onCancel,
 	onPreviewChange,
+	onJudgeSelect,
 }: MultiRotationEditorProps) {
 	const isEditing = !!existingRotations && existingRotations.length > 0
 	// When adding a new rotation (activeBlockIndex >= existingRotations length),
@@ -201,6 +213,38 @@ export function MultiRotationEditor({
 		maxHeats,
 	])
 
+	/**
+	 * Calculate the lane for a given heat iteration.
+	 * Returns null if filtering is enabled and the natural lane has no athlete.
+	 * Uses the same logic as expandRotationToAssignments in judge-rotation-utils.ts
+	 */
+	const calculateLane = useCallback(
+		(startingLane: number, iteration: number, heat: number): number | null => {
+			let lane: number
+			if (eventLaneShiftPattern === LANE_SHIFT_PATTERN.STAY) {
+				lane = startingLane
+			} else {
+				// shift_right: calculate natural lane
+				lane = ((startingLane - 1 + iteration) % maxLanes) + 1
+			}
+
+			// If filtering by occupied lanes and this lane has no athlete, return null (skip)
+			if (filterEmptyLanes && occupiedLanesByHeat) {
+				const occupiedLanes = occupiedLanesByHeat.get(heat)
+				if (
+					occupiedLanes &&
+					occupiedLanes.size > 0 &&
+					!occupiedLanes.has(lane)
+				) {
+					return null // Skip this heat - no athlete in the natural lane
+				}
+			}
+
+			return lane
+		},
+		[eventLaneShiftPattern, maxLanes, filterEmptyLanes, occupiedLanesByHeat],
+	)
+
 	// Calculate preview cells for ALL rotations
 	// Using useMemo ensures preview updates whenever watchedRotations changes
 	const previewCells = useMemo(() => {
@@ -220,20 +264,51 @@ export function MultiRotationEditor({
 				const heat = rotation.startingHeat + i
 				if (heat > maxHeats) break
 
-				let lane: number
-				if (eventLaneShiftPattern === LANE_SHIFT_PATTERN.STAY) {
-					lane = rotation.startingLane
-				} else {
-					// shift_right
-					lane = ((rotation.startingLane - 1 + i) % maxLanes) + 1
-				}
-
+				const lane = calculateLane(rotation.startingLane, i, heat)
+				if (lane === null) continue // Skip heats where natural lane has no athlete
 				allCells.push({ heat, lane, blockIndex })
 			}
 		}
 
 		return allCells
-	}, [watchedRotations, eventLaneShiftPattern, maxHeats, maxLanes])
+	}, [watchedRotations, maxHeats, calculateLane])
+
+	// Calculate which heats will be skipped due to no athletes in the natural lane
+	const skippedHeatsInfo = useMemo(() => {
+		if (!filterEmptyLanes || !occupiedLanesByHeat || !watchedRotations) {
+			return { hasSkippedHeats: false, skippedCount: 0, totalCount: 0 }
+		}
+
+		let skippedCount = 0
+		let totalCount = 0
+
+		for (const rotation of watchedRotations) {
+			if (!rotation) continue
+
+			for (let i = 0; i < rotation.heatsCount; i++) {
+				const heat = rotation.startingHeat + i
+				if (heat > maxHeats) break
+
+				totalCount++
+				const lane = calculateLane(rotation.startingLane, i, heat)
+				if (lane === null) {
+					skippedCount++ // Lane has no athlete, will be skipped
+				}
+			}
+		}
+
+		return {
+			hasSkippedHeats: skippedCount > 0,
+			skippedCount,
+			totalCount,
+		}
+	}, [
+		filterEmptyLanes,
+		occupiedLanesByHeat,
+		watchedRotations,
+		maxHeats,
+		calculateLane,
+	])
 
 	// Notify parent of preview changes
 	useEffect(() => {
@@ -289,6 +364,80 @@ export function MultiRotationEditor({
 		maxHeats,
 	])
 
+	/**
+	 * Split a rotation into multiple rotations based on occupied lanes.
+	 * Only heats where the natural lane has an athlete will be included.
+	 * Heats are grouped into contiguous runs.
+	 */
+	function splitRotationByOccupiedLanes(rotation: {
+		startingHeat: number
+		startingLane: number
+		heatsCount: number
+		notes?: string
+	}): Array<{
+		startingHeat: number
+		startingLane: number
+		heatsCount: number
+		notes?: string
+	}> {
+		if (!filterEmptyLanes || !occupiedLanesByHeat) {
+			return [rotation]
+		}
+
+		const result: Array<{
+			startingHeat: number
+			startingLane: number
+			heatsCount: number
+			notes?: string
+		}> = []
+		let currentStart: number | null = null
+		let currentStartLane: number | null = null
+		let currentCount = 0
+
+		for (let i = 0; i < rotation.heatsCount; i++) {
+			const heat = rotation.startingHeat + i
+			if (heat > maxHeats) break
+
+			const lane = calculateLane(rotation.startingLane, i, heat)
+
+			if (lane !== null) {
+				// This heat has an athlete in the natural lane
+				if (currentStart === null) {
+					currentStart = heat
+					currentStartLane = lane
+					currentCount = 1
+				} else {
+					currentCount++
+				}
+			} else {
+				// No athlete in natural lane - end current streak if any
+				if (currentStart !== null && currentStartLane !== null) {
+					result.push({
+						startingHeat: currentStart,
+						startingLane: currentStartLane,
+						heatsCount: currentCount,
+						notes: rotation.notes,
+					})
+					currentStart = null
+					currentStartLane = null
+					currentCount = 0
+				}
+			}
+		}
+
+		// Don't forget the last streak
+		if (currentStart !== null && currentStartLane !== null) {
+			result.push({
+				startingHeat: currentStart,
+				startingLane: currentStartLane,
+				heatsCount: currentCount,
+				notes: rotation.notes,
+			})
+		}
+
+		return result
+	}
+
 	async function onSubmit(values: MultiRotationFormValues) {
 		// Clamp heatsCount so rotations don't extend beyond maxHeats
 		const clampedRotations = values.rotations.map((r) => ({
@@ -297,6 +446,17 @@ export function MultiRotationEditor({
 			heatsCount: Math.min(r.heatsCount, maxHeats - r.startingHeat + 1),
 			notes: r.notes,
 		}))
+
+		// Split rotations if filterEmptyLanes is enabled
+		const finalRotations = filterEmptyLanes
+			? clampedRotations.flatMap(splitRotationByOccupiedLanes)
+			: clampedRotations
+
+		// If no rotations after filtering, show error
+		if (finalRotations.length === 0) {
+			toast.error("No heats with athletes in the selected lanes")
+			return
+		}
 
 		if (isEditing) {
 			setIsUpdating(true)
@@ -307,7 +467,7 @@ export function MultiRotationEditor({
 						competitionId,
 						trackWorkoutId,
 						membershipId: values.membershipId,
-						rotations: clampedRotations,
+						rotations: finalRotations,
 						laneShiftPattern: eventLaneShiftPattern,
 					},
 				})
@@ -317,6 +477,9 @@ export function MultiRotationEditor({
 				}
 			} catch (err) {
 				console.error("Failed to update rotations:", err)
+				const message =
+					err instanceof Error ? err.message : "Failed to update rotations"
+				toast.error(message)
 			} finally {
 				setIsUpdating(false)
 			}
@@ -329,7 +492,7 @@ export function MultiRotationEditor({
 						competitionId,
 						trackWorkoutId,
 						membershipId: values.membershipId,
-						rotations: clampedRotations,
+						rotations: finalRotations,
 						laneShiftPattern: eventLaneShiftPattern,
 					},
 				})
@@ -339,15 +502,14 @@ export function MultiRotationEditor({
 				}
 			} catch (err) {
 				console.error("Failed to create rotations:", err)
+				const message =
+					err instanceof Error ? err.message : "Failed to create rotations"
+				toast.error(message)
 			} finally {
 				setIsCreating(false)
 			}
 		}
 	}
-
-	const selectedJudge = availableJudges.find(
-		(j) => j.membershipId === formValues.membershipId,
-	)
 
 	const toggleBlock = (index: number) => {
 		setOpenBlocks((prev) => {
@@ -406,57 +568,69 @@ export function MultiRotationEditor({
 							return aCount - bCount
 						})
 
+						// Build options for SearchableSelect
+						const judgeOptions: SearchableSelectOption[] = sortedJudges.map(
+							(judge) => {
+								const rotationCount =
+									rotationsByVolunteer.get(judge.membershipId)?.length ?? 0
+								const judgeName =
+									`${judge.firstName ?? ""} ${judge.lastName ?? ""}`.trim() ||
+									"Unknown"
+								const labelWithCredentials = judge.credentials
+									? `${judgeName} (${judge.credentials})`
+									: judgeName
+								const description =
+									rotationCount === 0
+										? "No rotations"
+										: rotationCount === 1
+											? "1 rotation"
+											: `${rotationCount} rotations`
+
+								return {
+									value: judge.membershipId,
+									label: labelWithCredentials,
+									description,
+								}
+							},
+						)
+
 						return (
 							<FormItem>
 								<FormLabel>Judge</FormLabel>
-								<Select onValueChange={field.onChange} value={field.value}>
-									<FormControl>
-										<SelectTrigger>
-											<SelectValue placeholder="Select a judge" />
-										</SelectTrigger>
-									</FormControl>
-									<SelectContent>
-										{sortedJudges.map((judge) => {
-											const rotationCount =
-												rotationsByVolunteer.get(judge.membershipId)?.length ??
-												0
-											const judgeName =
-												`${judge.firstName ?? ""} ${judge.lastName ?? ""}`.trim() ||
-												"Unknown"
-
-											return (
-												<SelectItem
-													key={judge.membershipId}
-													value={judge.membershipId}
-												>
-													<div className="flex flex-col">
-														<span>
-															{judgeName}
-															{judge.credentials && (
-																<span className="text-muted-foreground">
-																	{" "}
-																	({judge.credentials})
-																</span>
-															)}
-														</span>
-														<span className="text-xs text-muted-foreground">
-															{rotationCount === 0
-																? "No rotations"
-																: rotationCount === 1
-																	? "1 rotation"
-																	: `${rotationCount} rotations`}
-														</span>
-													</div>
-												</SelectItem>
-											)
-										})}
-									</SelectContent>
-								</Select>
+								<FormControl>
+									<SearchableSelect
+										options={judgeOptions}
+										value={field.value}
+										onValueChange={(value) => {
+											field.onChange(value)
+											onJudgeSelect?.(value || null)
+										}}
+										placeholder="Select a judge"
+										searchPlaceholder="Search judges..."
+										emptyMessage="No judges found."
+									/>
+								</FormControl>
 								<FormMessage />
 							</FormItem>
 						)
 					}}
 				/>
+
+				{/* Warning when heats will be skipped */}
+				{skippedHeatsInfo.hasSkippedHeats && (
+					<Alert className="border-amber-500/50 bg-amber-500/10">
+						<AlertTriangle className="h-4 w-4 text-amber-500" />
+						<AlertDescription className="text-sm">
+							<span className="font-medium">
+								{skippedHeatsInfo.skippedCount} of {skippedHeatsInfo.totalCount}{" "}
+								heats will be skipped
+							</span>{" "}
+							because they have no athletes in the selected lane. Only heats
+							with athletes will be assigned. Disable "Only show lanes with
+							athletes" to schedule all heats.
+						</AlertDescription>
+					</Alert>
+				)}
 
 				{/* Rotation Blocks - Accordion/Collapsible */}
 				<div className="space-y-2">
@@ -526,134 +700,96 @@ export function MultiRotationEditor({
 
 									{/* Block Content */}
 									<CollapsibleContent>
-										<div className="space-y-4 border-t p-4 pt-0">
-											{/* Starting Heat */}
-											<FormField
-												control={form.control}
-												name={`rotations.${index}.startingHeat`}
-												render={({ field }) => (
-													<FormItem>
-														<FormLabel>Starting Heat</FormLabel>
-														<FormControl>
-															<Input
-																type="number"
-																min={1}
-																max={maxHeats}
-																{...field}
-																onChange={(e) =>
-																	field.onChange(Number(e.target.value))
-																}
-															/>
-														</FormControl>
-														<FormDescription>
-															Heat number (1-{maxHeats})
-														</FormDescription>
-														<FormMessage />
-													</FormItem>
-												)}
-											/>
+										<div className="space-y-3 border-t p-3">
+											{/* Heat, Lane, Count - inline */}
+											<div className="grid grid-cols-3 gap-2">
+												<FormField
+													control={form.control}
+													name={`rotations.${index}.startingHeat`}
+													render={({ field }) => (
+														<FormItem>
+															<FormLabel className="text-xs">Heat</FormLabel>
+															<FormControl>
+																<Input
+																	type="number"
+																	min={1}
+																	max={maxHeats}
+																	className="h-8"
+																	{...field}
+																	onChange={(e) =>
+																		field.onChange(Number(e.target.value))
+																	}
+																/>
+															</FormControl>
+															<FormMessage />
+														</FormItem>
+													)}
+												/>
+												<FormField
+													control={form.control}
+													name={`rotations.${index}.startingLane`}
+													render={({ field }) => (
+														<FormItem>
+															<FormLabel className="text-xs">Lane</FormLabel>
+															<FormControl>
+																<Input
+																	type="number"
+																	min={1}
+																	max={maxLanes}
+																	className="h-8"
+																	{...field}
+																	onChange={(e) =>
+																		field.onChange(Number(e.target.value))
+																	}
+																/>
+															</FormControl>
+															<FormMessage />
+														</FormItem>
+													)}
+												/>
+												<FormField
+													control={form.control}
+													name={`rotations.${index}.heatsCount`}
+													render={({ field }) => (
+														<FormItem>
+															<FormLabel className="text-xs"># Heats</FormLabel>
+															<FormControl>
+																<Input
+																	type="number"
+																	min={1}
+																	max={maxHeats}
+																	className="h-8"
+																	{...field}
+																	onChange={(e) =>
+																		field.onChange(Number(e.target.value))
+																	}
+																/>
+															</FormControl>
+															<FormMessage />
+														</FormItem>
+													)}
+												/>
+											</div>
 
-											{/* Starting Lane */}
-											<FormField
-												control={form.control}
-												name={`rotations.${index}.startingLane`}
-												render={({ field }) => (
-													<FormItem>
-														<FormLabel>Starting Lane</FormLabel>
-														<FormControl>
-															<Input
-																type="number"
-																min={1}
-																max={maxLanes}
-																{...field}
-																onChange={(e) =>
-																	field.onChange(Number(e.target.value))
-																}
-															/>
-														</FormControl>
-														<FormDescription>
-															Lane number (1-{maxLanes})
-														</FormDescription>
-														<FormMessage />
-													</FormItem>
-												)}
-											/>
-
-											{/* Heats Count */}
-											<FormField
-												control={form.control}
-												name={`rotations.${index}.heatsCount`}
-												render={({ field }) => (
-													<FormItem>
-														<FormLabel>Number of Heats</FormLabel>
-														<FormControl>
-															<Input
-																type="number"
-																min={1}
-																max={maxHeats}
-																{...field}
-																onChange={(e) =>
-																	field.onChange(Number(e.target.value))
-																}
-															/>
-														</FormControl>
-														<FormDescription>
-															How many consecutive heats (1-{maxHeats})
-														</FormDescription>
-														<FormMessage />
-													</FormItem>
-												)}
-											/>
-
-											{/* Notes */}
+											{/* Notes - compact */}
 											<FormField
 												control={form.control}
 												name={`rotations.${index}.notes`}
 												render={({ field }) => (
 													<FormItem>
-														<FormLabel>Notes (Optional)</FormLabel>
+														<FormLabel className="text-xs">Notes</FormLabel>
 														<FormControl>
-															<Textarea {...field} maxLength={500} rows={2} />
+															<Input
+																{...field}
+																placeholder="Optional notes..."
+																maxLength={500}
+																className="h-8"
+															/>
 														</FormControl>
-														<FormDescription>
-															Special instructions or notes
-														</FormDescription>
 														<FormMessage />
 													</FormItem>
 												)}
 											/>
-
-											{/* Block Preview */}
-											{rotation && selectedJudge && (
-												<Alert>
-													<AlertDescription>
-														<div className="space-y-1 text-sm">
-															<p className="font-medium">Preview:</p>
-															<p>
-																{`${selectedJudge.firstName ?? ""} ${selectedJudge.lastName ?? ""}`.trim()}{" "}
-																will judge heats {rotation.startingHeat} through{" "}
-																{rotation.startingHeat +
-																	rotation.heatsCount -
-																	1}
-															</p>
-															{eventLaneShiftPattern ===
-																LANE_SHIFT_PATTERN.STAY && (
-																<p>
-																	Starting and staying in lane{" "}
-																	{rotation.startingLane}
-																</p>
-															)}
-															{eventLaneShiftPattern ===
-																LANE_SHIFT_PATTERN.SHIFT_RIGHT && (
-																<p>
-																	Starting at lane {rotation.startingLane},
-																	shifting lanes each heat
-																</p>
-															)}
-														</div>
-													</AlertDescription>
-												</Alert>
-											)}
 										</div>
 									</CollapsibleContent>
 								</div>

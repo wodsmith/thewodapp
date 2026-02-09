@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router"
 import { LayoutGrid, LayoutList, Plus, Search } from "lucide-react"
 import { useMemo, useState } from "react"
 import { z } from "zod"
@@ -66,6 +66,11 @@ function parseStringToArray(val: string | undefined): string[] {
 
 export const Route = createFileRoute("/_protected/workouts/")({
 	component: WorkoutsPage,
+	beforeLoad: async ({ context }) => {
+		if (!context.hasWorkoutTracking) {
+			throw redirect({ to: "/compete" })
+		}
+	},
 	validateSearch: (search: Record<string, unknown>): WorkoutsSearch => {
 		return workoutsSearchSchema.parse(search)
 	},

@@ -3,6 +3,11 @@
  *
  * This file uses top-level imports for server-only modules.
  * Port of commerce.action.ts registration functions
+ *
+ * OBSERVABILITY:
+ * - All registration operations are logged with request context
+ * - Registration IDs, competition IDs, and payment info are tracked
+ * - Payment flow states (pending, completed, cancelled) are logged
  */
 
 import { createServerFn } from "@tanstack/react-start"
@@ -35,7 +40,13 @@ import {
 	type TeamFeeOverrides,
 } from "@/lib/commerce-stubs"
 import { getAppUrl } from "@/lib/env"
-import { logInfo } from "@/lib/logging/posthog-otel-logger"
+import {
+	addRequestContextAttribute,
+	logEntityCreated,
+	logInfo,
+	logWarning,
+	updateRequestContext,
+} from "@/lib/logging"
 import {
 	notifyRegistrationConfirmed,
 	registerForCompetition,
@@ -176,11 +187,31 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 		const db = getDb()
 		const userId = session.user.id
 
+		// Update request context with user and competition info
+		updateRequestContext({ userId })
+		addRequestContextAttribute("competitionId", input.competitionId)
+		addRequestContextAttribute("divisionId", input.divisionId)
+
+		logInfo({
+			message: "[Registration] Payment initiation started",
+			attributes: {
+				competitionId: input.competitionId,
+				divisionId: input.divisionId,
+				hasTeammates: !!input.teammates?.length,
+			},
+		})
+
 		// 1. Get competition and validate
 		const competition = await db.query.competitionsTable.findFirst({
 			where: eq(competitionsTable.id, input.competitionId),
 		})
-		if (!competition) throw new Error("Competition not found")
+		if (!competition) {
+			logWarning({
+				message: "[Registration] Competition not found",
+				attributes: { competitionId: input.competitionId },
+			})
+			throw new Error("Competition not found")
+		}
 
 		// 2. Validate registration window (using competition's timezone)
 		const competitionTimezone = competition.timezone || DEFAULT_TIMEZONE
@@ -322,13 +353,25 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 				isPaid: false,
 			})
 
-			logInfo({
-				message: "[registration] Free registration completed",
+			// Track created registration
+			addRequestContextAttribute("registrationId", result.registrationId)
+			logEntityCreated({
+				entity: "registration",
+				id: result.registrationId,
+				parentEntity: "competition",
+				parentId: input.competitionId,
 				attributes: {
-					userId,
+					paymentStatus: "FREE",
+					divisionId: input.divisionId,
+				},
+			})
+
+			logInfo({
+				message: "[Registration] Free registration completed",
+				attributes: {
+					registrationId: result.registrationId,
 					competitionId: input.competitionId,
 					divisionId: input.divisionId,
-					registrationId: result.registrationId,
 				},
 			})
 
@@ -443,7 +486,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 				divisionId: input.divisionId,
 				type: COMMERCE_PRODUCT_TYPE.COMPETITION_REGISTRATION,
 			},
-			success_url: `${appUrl}/compete/${competition.slug}/register/success?session_id={CHECKOUT_SESSION_ID}`,
+			success_url: `${appUrl}/compete/${competition.slug}/registered?session_id={CHECKOUT_SESSION_ID}`,
 			cancel_url: `${appUrl}/compete/${competition.slug}/register?canceled=true`,
 			expires_at: Math.floor(Date.now() / 1000) + 30 * 60, // 30 minutes (Stripe minimum)
 			customer_email: session.user.email ?? undefined, // Pre-fill email
@@ -490,14 +533,31 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			.set({ stripeCheckoutSessionId: checkoutSession.id })
 			.where(eq(commercePurchaseTable.id, purchase.id))
 
-		logInfo({
-			message: "[registration] Paid registration checkout initiated",
+		// Track created purchase
+		addRequestContextAttribute("purchaseId", purchase.id)
+		addRequestContextAttribute("checkoutSessionId", checkoutSession.id)
+
+		logEntityCreated({
+			entity: "purchase",
+			id: purchase.id,
+			parentEntity: "competition",
+			parentId: input.competitionId,
 			attributes: {
-				userId,
+				status: "PENDING",
+				totalCents: feeBreakdown.totalChargeCents,
+				divisionId: input.divisionId,
+			},
+		})
+
+		logInfo({
+			message: "[Registration] Checkout session created",
+			attributes: {
+				purchaseId: purchase.id,
 				competitionId: input.competitionId,
 				divisionId: input.divisionId,
-				purchaseId: purchase.id,
 				totalCents: feeBreakdown.totalChargeCents,
+				platformFeeCents: feeBreakdown.platformFeeCents,
+				organizerNetCents: feeBreakdown.organizerNetCents,
 				hasConnectedAccount: !!organizingTeam?.stripeConnectedAccountId,
 			},
 		})
@@ -1132,8 +1192,19 @@ export const cancelPendingPurchaseFn = createServerFn({ method: "POST" })
 		const session = await requireVerifiedEmail()
 		if (!session) throw new Error("Unauthorized")
 
+		// Update request context
+		updateRequestContext({ userId: session.user.id })
+		addRequestContextAttribute("competitionId", data.competitionId)
+
 		// Ensure user can only cancel their own pending purchases
 		if (data.userId !== session.user.id) {
+			logWarning({
+				message: "[Registration] Cancel purchase denied - wrong user",
+				attributes: {
+					requestedUserId: data.userId,
+					competitionId: data.competitionId,
+				},
+			})
 			throw new Error("You can only cancel your own pending purchases")
 		}
 
@@ -1150,6 +1221,13 @@ export const cancelPendingPurchaseFn = createServerFn({ method: "POST" })
 					eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
 				),
 			)
+
+		logInfo({
+			message: "[Registration] Pending purchase cancelled",
+			attributes: {
+				competitionId: data.competitionId,
+			},
+		})
 
 		return { success: true }
 	})

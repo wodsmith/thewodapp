@@ -582,6 +582,13 @@
       "when": 1769984444340,
       "tag": "0083_perpetual_penance",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "6",
+      "when": 1770271577815,
+      "tag": "0084_add-versionid-to-assignment-unique-idx",
+      "breakpoints": true
     }
   ]
 }
