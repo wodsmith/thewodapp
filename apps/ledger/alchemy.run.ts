@@ -40,7 +40,7 @@ const website = await TanStackStart("app", {
 		// biome-ignore lint/style/noNonNullAssertion: Required
 		LEDGER_AUTH_PASSWORD: alchemy.secret(process.env.LEDGER_AUTH_PASSWORD!),
 		// biome-ignore lint/style/noNonNullAssertion: Required for doc analyzer
-		OPENAI_API_KEY: alchemy.secret(process.env.OPENAI_API_KEY!),
+		OPENAI_API_KEY: alchemy.secret(process.env.OPENAI_API_KEY_PROD!),
 	},
 	domains: getDomains(stage),
 	adopt: true,
