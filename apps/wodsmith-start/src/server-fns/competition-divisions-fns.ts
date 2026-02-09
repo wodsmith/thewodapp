@@ -7,10 +7,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, asc, count, eq, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
-import {
-	createScalingGroupId,
-	createScalingLevelId,
-} from "@/db/schemas/common"
+import { createScalingGroupId, createScalingLevelId } from "@/db/schemas/common"
 import {
 	COMMERCE_PURCHASE_STATUS,
 	commercePurchaseTable,
@@ -563,7 +560,7 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
 					description: competitionDivisionsTable.description,
 					feeCents: competitionDivisionsTable.feeCents,
 					maxSpots: competitionDivisionsTable.maxSpots,
-					registrationCount: sql<number>`cast(count(${competitionRegistrationsTable.id}) as integer)`,
+					registrationCount: sql<number>`cast(count(${competitionRegistrationsTable.id}) as unsigned)`,
 				})
 				.from(scalingLevelsTable)
 				.leftJoin(
@@ -592,7 +589,7 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
 			db
 				.select({
 					divisionId: commercePurchaseTable.divisionId,
-					pendingCount: sql<number>`cast(count(*) as integer)`,
+					pendingCount: sql<number>`cast(count(*) as unsigned)`,
 				})
 				.from(commercePurchaseTable)
 				.where(
@@ -680,7 +677,7 @@ export const getCompetitionDivisionsWithCountsFn = createServerFn({
 				description: competitionDivisionsTable.description,
 				feeCents: competitionDivisionsTable.feeCents,
 				maxSpots: competitionDivisionsTable.maxSpots,
-				registrationCount: sql<number>`cast(count(${competitionRegistrationsTable.id}) as integer)`,
+				registrationCount: sql<number>`cast(count(${competitionRegistrationsTable.id}) as unsigned)`,
 			})
 			.from(scalingLevelsTable)
 			.leftJoin(

@@ -729,20 +729,18 @@ export const updateCompetitionFn = createServerFn({ method: "POST" })
 					} else {
 						// Create new address
 						const newAddressId = createAddressId()
-						await db
-							.insert(addressesTable)
-							.values({
-								id: newAddressId,
-								name: normalized.name ?? null,
-								streetLine1: normalized.streetLine1 ?? null,
-								streetLine2: normalized.streetLine2 ?? null,
-								city: normalized.city ?? null,
-								stateProvince: normalized.stateProvince ?? null,
-								postalCode: normalized.postalCode ?? null,
-								countryCode: normalized.countryCode ?? null,
-								notes: normalized.notes ?? null,
-								addressType: "venue",
-							})
+						await db.insert(addressesTable).values({
+							id: newAddressId,
+							name: normalized.name ?? null,
+							streetLine1: normalized.streetLine1 ?? null,
+							streetLine2: normalized.streetLine2 ?? null,
+							city: normalized.city ?? null,
+							stateProvince: normalized.stateProvince ?? null,
+							postalCode: normalized.postalCode ?? null,
+							countryCode: normalized.countryCode ?? null,
+							notes: normalized.notes ?? null,
+							addressType: "venue",
+						})
 						const newAddress = await db.query.addressesTable.findFirst({
 							where: eq(addressesTable.id, newAddressId),
 						})
@@ -812,7 +810,7 @@ export const getCompetitionGroupsFn = createServerFn({ method: "GET" })
 				createdAt: competitionGroupsTable.createdAt,
 				updatedAt: competitionGroupsTable.updatedAt,
 				updateCounter: competitionGroupsTable.updateCounter,
-				competitionCount: sql<number>`cast(count(${competitionsTable.id}) as integer)`,
+				competitionCount: sql<number>`cast(count(${competitionsTable.id}) as unsigned)`,
 			})
 			.from(competitionGroupsTable)
 			.leftJoin(
