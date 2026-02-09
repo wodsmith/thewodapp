@@ -1,26 +1,23 @@
 import { createServerFn } from "@tanstack/react-start"
-import { env } from "cloudflare:workers"
 import { z } from "zod"
 import {
 	createInvoiceAnalyzer,
 	invoiceAnalysisSchema,
 } from "@/agents/invoice-analyzer"
+import { getOpenAIKey } from "@/lib/env"
 import { requireAuth } from "./auth"
 
-export const analyzeDocumentFn = createServerFn()
-	.validator(
+export const analyzeDocumentFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
 		z.object({
 			fileBase64: z.string(),
 			fileName: z.string(),
 			contentType: z.string(),
-		}),
+		}).parse(data),
 	)
 	.handler(async ({ data }) => {
 		await requireAuth()
-		const apiKey = env.OPENAI_API_KEY
-		if (!apiKey) {
-			throw new Error("OPENAI_API_KEY not configured")
-		}
+		const apiKey = getOpenAIKey()
 
 		const agent = createInvoiceAnalyzer(apiKey)
 

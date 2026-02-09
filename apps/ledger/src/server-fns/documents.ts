@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start"
-import { env } from "cloudflare:workers"
 import { desc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
@@ -9,12 +8,13 @@ import {
 	SUBSCRIPTION_TERMS,
 	documentsTable,
 } from "@/db/schema"
+import { getR2Bucket } from "@/lib/env"
 import { requireAuth } from "./auth"
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024 // 10 MB
 const MAX_BASE64_LENGTH = Math.ceil(MAX_UPLOAD_BYTES / 3) * 4
 
-export const listDocumentsFn = createServerFn().handler(async () => {
+export const listDocumentsFn = createServerFn({ method: "GET" }).handler(async () => {
 	await requireAuth()
 	const db = getDb()
 	const documents = await db
@@ -24,8 +24,8 @@ export const listDocumentsFn = createServerFn().handler(async () => {
 	return documents
 })
 
-export const uploadDocumentFn = createServerFn()
-	.validator(
+export const uploadDocumentFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
 		z.object({
 			fileName: z.string(),
 			vendor: z.string().min(1),
@@ -40,7 +40,7 @@ export const uploadDocumentFn = createServerFn()
 			contentType: z.string().optional(),
 			fileSize: z.number().int().optional(),
 			fileBase64: z.string().max(MAX_BASE64_LENGTH, "File too large (max 10 MB)"),
-		}),
+		}).parse(data),
 	)
 	.handler(async ({ data }) => {
 		await requireAuth()
@@ -64,7 +64,7 @@ export const uploadDocumentFn = createServerFn()
 		const r2Key = `invoices/${datePrefix}/${crypto.randomUUID()}-${metadata.fileName}`
 
 		// Upload to R2
-		await env.R2_BUCKET.put(r2Key, bytes.buffer, {
+		await getR2Bucket().put(r2Key, bytes.buffer, {
 			httpMetadata: {
 				contentType: metadata.contentType || "application/octet-stream",
 			},
@@ -83,8 +83,8 @@ export const uploadDocumentFn = createServerFn()
 		return document
 	})
 
-export const deleteDocumentFn = createServerFn()
-	.validator(z.object({ id: z.string() }))
+export const deleteDocumentFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => z.object({ id: z.string() }).parse(data))
 	.handler(async ({ data }) => {
 		await requireAuth()
 		const db = getDb()
@@ -100,7 +100,7 @@ export const deleteDocumentFn = createServerFn()
 		}
 
 		// Delete from R2
-		await env.R2_BUCKET.delete(document.r2Key)
+		await getR2Bucket().delete(document.r2Key)
 
 		// Delete from D1
 		await db.delete(documentsTable).where(eq(documentsTable.id, data.id))
@@ -108,8 +108,8 @@ export const deleteDocumentFn = createServerFn()
 		return { success: true }
 	})
 
-export const getDocumentDownloadUrlFn = createServerFn()
-	.validator(z.object({ id: z.string() }))
+export const getDocumentDownloadUrlFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) => z.object({ id: z.string() }).parse(data))
 	.handler(async ({ data }) => {
 		await requireAuth()
 		const db = getDb()
@@ -124,7 +124,7 @@ export const getDocumentDownloadUrlFn = createServerFn()
 		}
 
 		// Get the object from R2
-		const object = await env.R2_BUCKET.get(document.r2Key)
+		const object = await getR2Bucket().get(document.r2Key)
 		if (!object) {
 			throw new Error("File not found in storage")
 		}
