@@ -21,7 +21,10 @@ import {
 	teamTable,
 	userTable,
 } from "@/db/schema"
-import { competitionRegistrationAnswersTable } from "@/db/schemas/competitions"
+import {
+	competitionRegistrationAnswersTable,
+	competitionRegistrationQuestionsTable,
+} from "@/db/schemas/competitions"
 import type {
 	PendingInviteAnswer,
 	PendingInviteData,
@@ -104,6 +107,15 @@ const acceptTeamInvitationSchema = z.object({
 			z.object({
 				questionId: z.string().min(1),
 				answer: z.string().max(5000),
+			}),
+		)
+		.optional(),
+	signatures: z
+		.array(
+			z.object({
+				waiverId: z.string().min(1),
+				signedAt: z.string(),
+				signatureName: z.string().min(1),
 			}),
 		)
 		.optional(),
@@ -472,6 +484,133 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 			)
 		}
 
+		// Get team from invitation to check type and validate requirements
+		const team = await db.query.teamTable.findFirst({
+			where: eq(teamTable.id, invitation.teamId),
+		})
+		if (!team) {
+			throw new Error("NOT_FOUND: Team not found")
+		}
+
+		// Validate required waivers and questions before accepting
+		// (only when there's no pending data from guest form already)
+		if (
+			team.type === TEAM_TYPE_ENUM.COMPETITION_TEAM &&
+			team.competitionMetadata
+		) {
+			let hasPendingData = false
+			if (invitation.metadata) {
+				try {
+					const meta = JSON.parse(invitation.metadata) as Record<
+						string,
+						unknown
+					>
+					hasPendingData = !!(
+						(Array.isArray(meta.pendingAnswers) &&
+							meta.pendingAnswers.length > 0) ||
+						(Array.isArray(meta.pendingSignatures) &&
+							meta.pendingSignatures.length > 0)
+					)
+				} catch {
+					// Invalid JSON, ignore
+				}
+			}
+
+			if (!hasPendingData) {
+				try {
+					const compMeta = JSON.parse(team.competitionMetadata) as {
+						competitionId?: string
+					}
+					if (compMeta.competitionId) {
+						// Validate required questions
+						const requiredQuestions =
+							await db.query.competitionRegistrationQuestionsTable.findMany({
+								where: and(
+									eq(
+										competitionRegistrationQuestionsTable.competitionId,
+										compMeta.competitionId,
+									),
+									eq(competitionRegistrationQuestionsTable.required, true),
+								),
+							})
+
+						const teammateRequiredQuestions = requiredQuestions.filter(
+							(q) => q.forTeammates || q.required,
+						)
+
+						if (teammateRequiredQuestions.length > 0) {
+							const answeredIds = new Set(
+								(data.answers || []).map((a) => a.questionId),
+							)
+							const unanswered = teammateRequiredQuestions.filter(
+								(q) => !answeredIds.has(q.id),
+							)
+							if (unanswered.length > 0) {
+								throw new Error(
+									"Please answer all required questions before accepting the invitation",
+								)
+							}
+							// Validate non-empty answers
+							for (const q of teammateRequiredQuestions) {
+								const answer = (data.answers || []).find(
+									(a) => a.questionId === q.id,
+								)
+								if (!answer || answer.answer.trim() === "") {
+									throw new Error(
+										"Please answer all required questions before accepting the invitation",
+									)
+								}
+							}
+						}
+
+						// Validate required waivers
+						const requiredWaivers = await db.query.waiversTable.findMany({
+							where: and(
+								eq(waiversTable.competitionId, compMeta.competitionId),
+								eq(waiversTable.required, true),
+							),
+							columns: { id: true },
+						})
+
+						if (requiredWaivers.length > 0) {
+							// Check if user already has signatures for these waivers
+							const existingSignatureWaiverIds = new Set<string>()
+							for (const w of requiredWaivers) {
+								const existingSig =
+									await db.query.waiverSignaturesTable.findFirst({
+										where: and(
+											eq(waiverSignaturesTable.waiverId, w.id),
+											eq(waiverSignaturesTable.userId, session.userId),
+										),
+									})
+								if (existingSig) {
+									existingSignatureWaiverIds.add(w.id)
+								}
+							}
+
+							const signedIds = new Set(
+								(data.signatures || []).map((s) => s.waiverId),
+							)
+							const unsignedWaivers = requiredWaivers.filter(
+								(w) =>
+									!signedIds.has(w.id) && !existingSignatureWaiverIds.has(w.id),
+							)
+							if (unsignedWaivers.length > 0) {
+								throw new Error(
+									"Please sign all required waivers before accepting the invitation",
+								)
+							}
+						}
+					}
+				} catch (e) {
+					// Re-throw validation errors, ignore JSON parse errors
+					if (e instanceof Error && !e.message.includes("JSON")) {
+						throw e
+					}
+				}
+			}
+		}
+
 		// Add user to the team
 		await db.insert(teamMembershipTable).values({
 			teamId: invitation.teamId,
@@ -500,14 +639,6 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 
 		// Update the user's session to include this team
 		await updateAllSessionsOfUser(session.userId)
-
-		// Get team from invitation to check type and return team slug
-		const team = await db.query.teamTable.findFirst({
-			where: eq(teamTable.id, invitation.teamId),
-		})
-		if (!team) {
-			throw new Error("NOT_FOUND: Team not found")
-		}
 
 		// Handle competition_team type - also add user to competition_event team
 		let registrationId: string | null = null
@@ -705,6 +836,33 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 										registrationId: registrationId,
 										userId: session.userId,
 										answer: answerData.answer,
+									})
+								}
+							}
+						}
+
+						// Store waiver signatures submitted by authenticated user
+						if (
+							data.signatures &&
+							data.signatures.length > 0 &&
+							registrationId
+						) {
+							for (const sigData of data.signatures) {
+								// Check if signature already exists
+								const existingSig =
+									await db.query.waiverSignaturesTable.findFirst({
+										where: and(
+											eq(waiverSignaturesTable.waiverId, sigData.waiverId),
+											eq(waiverSignaturesTable.userId, session.userId),
+										),
+									})
+
+								if (!existingSig) {
+									await db.insert(waiverSignaturesTable).values({
+										waiverId: sigData.waiverId,
+										userId: session.userId,
+										signedAt: new Date(sigData.signedAt),
+										registrationId,
 									})
 								}
 							}
