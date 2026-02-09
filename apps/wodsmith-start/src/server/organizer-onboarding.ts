@@ -189,14 +189,12 @@ export async function submitOrganizerRequest({
 	}
 
 	// Create the request
-	const insertResult = await db
-		.insert(organizerRequestTable)
-		.values({
-			teamId,
-			userId,
-			reason,
-			status: ORGANIZER_REQUEST_STATUS.PENDING,
-		})
+	const insertResult = await db.insert(organizerRequestTable).values({
+		teamId,
+		userId,
+		reason,
+		status: ORGANIZER_REQUEST_STATUS.PENDING,
+	})
 
 	const requestId = insertResult.insertId
 	if (!requestId) {

@@ -47,10 +47,7 @@ export function CompetitionHero({
 
 	return (
 		<div
-			className={cn(
-				"relative",
-				hasBanner ? "text-white" : "text-foreground",
-			)}
+			className={cn("relative", hasBanner ? "text-white" : "text-foreground")}
 		>
 			{/* Glassmorphism content container - pushed down into banner area */}
 			<div

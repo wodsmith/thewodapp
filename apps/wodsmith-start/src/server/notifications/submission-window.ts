@@ -115,13 +115,20 @@ async function reserveNotification(params: {
 	const db = getDb()
 	try {
 		// Check if notification already exists (MySQL doesn't have easy "on conflict do nothing")
-		const existing = await db.query.submissionWindowNotificationsTable.findFirst({
-			where: and(
-				eq(submissionWindowNotificationsTable.competitionEventId, params.competitionEventId),
-				eq(submissionWindowNotificationsTable.registrationId, params.registrationId),
-				eq(submissionWindowNotificationsTable.type, params.type),
-			),
-		})
+		const existing =
+			await db.query.submissionWindowNotificationsTable.findFirst({
+				where: and(
+					eq(
+						submissionWindowNotificationsTable.competitionEventId,
+						params.competitionEventId,
+					),
+					eq(
+						submissionWindowNotificationsTable.registrationId,
+						params.registrationId,
+					),
+					eq(submissionWindowNotificationsTable.type, params.type),
+				),
+			})
 
 		if (existing) {
 			// Already reserved

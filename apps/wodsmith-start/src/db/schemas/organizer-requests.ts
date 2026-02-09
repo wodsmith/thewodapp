@@ -24,10 +24,8 @@ export const organizerRequestTable = mysqlTable(
 			.primaryKey()
 			.$defaultFn(() => createOrganizerRequestId())
 			.notNull(),
-		teamId: varchar({ length: 255 })
-			.notNull(),
-		userId: varchar({ length: 255 })
-			.notNull(),
+		teamId: varchar({ length: 255 }).notNull(),
+		userId: varchar({ length: 255 }).notNull(),
 		reason: varchar({ length: 2000 }).notNull(),
 		status: varchar({ length: 20 })
 			.$type<OrganizerRequestStatus>()

@@ -14,8 +14,7 @@ export const sponsorGroupsTable = mysqlTable(
 			.primaryKey()
 			.$defaultFn(() => createSponsorGroupId())
 			.notNull(),
-		competitionId: varchar({ length: 255 })
-			.notNull(),
+		competitionId: varchar({ length: 255 }).notNull(),
 		name: varchar({ length: 100 }).notNull(),
 		displayOrder: int().default(0).notNull(),
 	},

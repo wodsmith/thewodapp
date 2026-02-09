@@ -278,20 +278,18 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 			if (!organizingTeamId) {
 				// Create a demo organizing team with Stripe Connect already set up
 				const demoOrgTeamId = createTeamId()
-				await db
-					.insert(teamTable)
-					.values({
-						id: demoOrgTeamId,
-						name: `Demo Organizer - ${timestamp}`,
-						slug: `demo-organizer-${timestamp}`,
-						type: "gym",
-						creditBalance: 0,
-						// Stripe Connect setup for demo
-						stripeConnectedAccountId: demoStripeAccountId,
-						stripeAccountStatus: "VERIFIED",
-						stripeAccountType: "express",
-						stripeOnboardingCompletedAt: new Date(),
-					})
+				await db.insert(teamTable).values({
+					id: demoOrgTeamId,
+					name: `Demo Organizer - ${timestamp}`,
+					slug: `demo-organizer-${timestamp}`,
+					type: "gym",
+					creditBalance: 0,
+					// Stripe Connect setup for demo
+					stripeConnectedAccountId: demoStripeAccountId,
+					stripeAccountStatus: "VERIFIED",
+					stripeAccountType: "express",
+					stripeOnboardingCompletedAt: new Date(),
+				})
 
 				organizingTeamId = demoOrgTeamId
 				createdTeamIds.push(organizingTeamId)

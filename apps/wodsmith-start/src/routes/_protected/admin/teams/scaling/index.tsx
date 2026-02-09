@@ -3,7 +3,12 @@
  * Port of apps/wodsmith/src/app/(admin)/admin/teams/scaling/page.tsx
  */
 
-import { createFileRoute, Link, redirect, useRouter } from "@tanstack/react-router"
+import {
+	createFileRoute,
+	Link,
+	redirect,
+	useRouter,
+} from "@tanstack/react-router"
 import { GripVertical, Plus, Settings, Star, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"

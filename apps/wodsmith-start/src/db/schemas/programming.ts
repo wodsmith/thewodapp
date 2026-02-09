@@ -61,10 +61,8 @@ export const teamProgrammingTracksTable = mysqlTable(
 	"team_programming_tracks",
 	{
 		...commonColumns,
-		teamId: varchar({ length: 255 })
-			.notNull(),
-		trackId: varchar({ length: 255 })
-			.notNull(),
+		teamId: varchar({ length: 255 }).notNull(),
+		trackId: varchar({ length: 255 }).notNull(),
 		isActive: int().default(1).notNull(),
 		subscribedAt: datetime()
 			.$defaultFn(() => new Date())
@@ -88,10 +86,8 @@ export const trackWorkoutsTable = mysqlTable(
 			.primaryKey()
 			.$defaultFn(() => createTrackWorkoutId())
 			.notNull(),
-		trackId: varchar({ length: 255 })
-			.notNull(),
-		workoutId: varchar({ length: 255 })
-			.notNull(),
+		trackId: varchar({ length: 255 }).notNull(),
+		workoutId: varchar({ length: 255 }).notNull(),
 		// Unified ordering field (1, 2, 3...) - renamed from dayNumber for competition support
 		trackOrder: int().notNull(),
 		notes: varchar({ length: 1000 }),
@@ -139,8 +135,7 @@ export const scheduledWorkoutInstancesTable = mysqlTable(
 			.primaryKey()
 			.$defaultFn(() => createScheduledWorkoutInstanceId())
 			.notNull(),
-		teamId: varchar({ length: 255 })
-			.notNull(),
+		teamId: varchar({ length: 255 }).notNull(),
 		trackWorkoutId: varchar({ length: 255 }),
 		workoutId: varchar({ length: 255 }), // Explicit workout selection (required for standalone, optional for track workouts)
 		scheduledDate: datetime().notNull(),

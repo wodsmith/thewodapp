@@ -48,8 +48,7 @@ export const scalingLevelsTable = mysqlTable(
 			.primaryKey()
 			.$defaultFn(() => createScalingLevelId())
 			.notNull(),
-		scalingGroupId: varchar({ length: 255 })
-			.notNull(),
+		scalingGroupId: varchar({ length: 255 }).notNull(),
 		label: varchar({ length: 100 }).notNull(),
 		position: int().notNull(), // 0 = hardest, increasing numbers = easier
 		teamSize: int().default(1).notNull(), // 1 = individual, 2+ = team
@@ -72,10 +71,8 @@ export const workoutScalingDescriptionsTable = mysqlTable(
 			.primaryKey()
 			.$defaultFn(() => createWorkoutScalingDescriptionId())
 			.notNull(),
-		workoutId: varchar({ length: 255 })
-			.notNull(),
-		scalingLevelId: varchar({ length: 255 })
-			.notNull(),
+		workoutId: varchar({ length: 255 }).notNull(),
+		scalingLevelId: varchar({ length: 255 }).notNull(),
 		description: varchar({ length: 2000 }), // Optional workout-specific description for this scaling level
 	},
 	(table) => [

@@ -11,10 +11,7 @@ import { and, asc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { competitionsTable } from "@/db/schemas/competitions"
-import {
-	createSponsorGroupId,
-	createSponsorId,
-} from "@/db/schemas/common"
+import { createSponsorGroupId, createSponsorId } from "@/db/schemas/common"
 import {
 	programmingTracksTable,
 	trackWorkoutsTable,

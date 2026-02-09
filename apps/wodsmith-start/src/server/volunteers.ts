@@ -42,8 +42,7 @@ export function getVolunteerRoleTypes(
  */
 export function isVolunteer(membership: TeamMembership): boolean {
 	return (
-		membership.roleId === SYSTEM_ROLES_ENUM.VOLUNTEER &&
-		membership.isSystemRole
+		membership.roleId === SYSTEM_ROLES_ENUM.VOLUNTEER && membership.isSystemRole
 	)
 }
 

@@ -224,21 +224,19 @@ export const createJudgingSheetFn = createServerFn({ method: "POST" })
 
 		// Create the judging sheet
 		const id = createEventJudgingSheetId()
-		await db
-			.insert(eventJudgingSheetsTable)
-			.values({
-				id,
-				competitionId: data.competitionId,
-				trackWorkoutId: data.trackWorkoutId,
-				title: data.title,
-				url: data.url,
-				r2Key: data.r2Key,
-				originalFilename: data.originalFilename,
-				fileSize: data.fileSize,
-				mimeType: data.mimeType,
-				uploadedBy: session.userId,
-				sortOrder: nextSortOrder,
-			})
+		await db.insert(eventJudgingSheetsTable).values({
+			id,
+			competitionId: data.competitionId,
+			trackWorkoutId: data.trackWorkoutId,
+			title: data.title,
+			url: data.url,
+			r2Key: data.r2Key,
+			originalFilename: data.originalFilename,
+			fileSize: data.fileSize,
+			mimeType: data.mimeType,
+			uploadedBy: session.userId,
+			sortOrder: nextSortOrder,
+		})
 
 		const sheet = await db.query.eventJudgingSheetsTable.findFirst({
 			where: eq(eventJudgingSheetsTable.id, id),

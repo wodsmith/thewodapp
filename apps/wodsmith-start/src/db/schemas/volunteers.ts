@@ -112,8 +112,7 @@ export const judgeAssignmentVersionsTable = mysqlTable(
 			.$defaultFn(() => createJudgeAssignmentVersionId())
 			.notNull(),
 		// The event/workout this version is for
-		trackWorkoutId: varchar({ length: 255 })
-			.notNull(),
+		trackWorkoutId: varchar({ length: 255 }).notNull(),
 		// Version number (auto-increments per event)
 		version: int().notNull(),
 		// When this version was published
@@ -152,11 +151,9 @@ export const judgeHeatAssignmentsTable = mysqlTable(
 			.$defaultFn(() => createHeatVolunteerId())
 			.notNull(),
 		// The heat this volunteer is assigned to
-		heatId: varchar({ length: 255 })
-			.notNull(),
+		heatId: varchar({ length: 255 }).notNull(),
 		// The team membership (must have volunteer role)
-		membershipId: varchar({ length: 255 })
-			.notNull(),
+		membershipId: varchar({ length: 255 }).notNull(),
 		// Optional reference to the rotation that generated this assignment
 		// (null for manually created assignments)
 		// IMPORTANT: Keep this - it tracks which rotation generated an assignment
@@ -197,14 +194,11 @@ export const competitionJudgeRotationsTable = mysqlTable(
 			.$defaultFn(() => createJudgeRotationId())
 			.notNull(),
 		// The competition this rotation belongs to
-		competitionId: varchar({ length: 255 })
-			.notNull(),
+		competitionId: varchar({ length: 255 }).notNull(),
 		// The event/workout this rotation is for
-		trackWorkoutId: varchar({ length: 255 })
-			.notNull(),
+		trackWorkoutId: varchar({ length: 255 }).notNull(),
 		// The judge (team membership with volunteer role)
-		membershipId: varchar({ length: 255 })
-			.notNull(),
+		membershipId: varchar({ length: 255 }).notNull(),
 		// Starting heat number (1-indexed)
 		startingHeat: int().notNull(),
 		// Starting lane number (1-indexed)

@@ -1,6 +1,12 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { index, int, mysqlTable, varchar, datetime } from "drizzle-orm/mysql-core"
+import {
+	index,
+	int,
+	mysqlTable,
+	varchar,
+	datetime,
+} from "drizzle-orm/mysql-core"
 import { commonColumns, createPasskeyId, createUserId } from "./common"
 import { competitionRegistrationsTable } from "./competitions"
 
@@ -96,8 +102,7 @@ export const passKeyCredentialTable = mysqlTable(
 			.primaryKey()
 			.$defaultFn(() => createPasskeyId())
 			.notNull(),
-		userId: varchar({ length: 255 })
-			.notNull(),
+		userId: varchar({ length: 255 }).notNull(),
 		credentialId: varchar({
 			length: 255,
 		})

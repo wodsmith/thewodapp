@@ -48,19 +48,17 @@ export const submissionWindowNotificationsTable = mysqlTable(
 			.$defaultFn(() => createSubmissionWindowNotificationId())
 			.notNull(),
 		// The competition this notification is for
-		competitionId: varchar({ length: 255 })
-			.notNull(),
+		competitionId: varchar({ length: 255 }).notNull(),
 		// The specific event (workout) with the submission window
-		competitionEventId: varchar({ length: 255 })
-			.notNull(),
+		competitionEventId: varchar({ length: 255 }).notNull(),
 		// The athlete's registration
-		registrationId: varchar({ length: 255 })
-			.notNull(),
+		registrationId: varchar({ length: 255 }).notNull(),
 		// The user who received the notification
-		userId: varchar({ length: 255 })
-			.notNull(),
+		userId: varchar({ length: 255 }).notNull(),
 		// Type of notification
-		type: varchar({ length: 255 }).$type<SubmissionWindowNotificationType>().notNull(),
+		type: varchar({ length: 255 })
+			.$type<SubmissionWindowNotificationType>()
+			.notNull(),
 		// Email address the notification was sent to (for logging/debugging)
 		sentToEmail: varchar({ length: 255 }),
 	},

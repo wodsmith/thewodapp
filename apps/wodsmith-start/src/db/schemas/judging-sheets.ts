@@ -22,11 +22,9 @@ export const eventJudgingSheetsTable = mysqlTable(
 			.$defaultFn(() => createEventJudgingSheetId())
 			.notNull(),
 		// Link to the competition (for easier querying and authorization)
-		competitionId: varchar({ length: 255 })
-			.notNull(),
+		competitionId: varchar({ length: 255 }).notNull(),
 		// Link to the specific event (track_workout)
-		trackWorkoutId: varchar({ length: 255 })
-			.notNull(),
+		trackWorkoutId: varchar({ length: 255 }).notNull(),
 		// Display title for the judging sheet
 		title: varchar({ length: 255 }).notNull(),
 		// R2 storage key for the file
@@ -40,8 +38,7 @@ export const eventJudgingSheetsTable = mysqlTable(
 		// MIME type of the file
 		mimeType: varchar({ length: 100 }).notNull(),
 		// Who uploaded this sheet
-		uploadedBy: varchar({ length: 255 })
-			.notNull(),
+		uploadedBy: varchar({ length: 255 }).notNull(),
 		// Sort order for multiple sheets per event
 		sortOrder: int().default(0).notNull(),
 	},

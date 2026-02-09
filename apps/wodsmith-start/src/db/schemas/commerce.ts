@@ -93,11 +93,9 @@ export const commercePurchaseTable = mysqlTable(
 			.$defaultFn(() => createCommercePurchaseId())
 			.notNull(),
 		// The user making the purchase
-		userId: varchar({ length: 255 })
-			.notNull(),
+		userId: varchar({ length: 255 }).notNull(),
 		// The product being purchased
-		productId: varchar({ length: 255 })
-			.notNull(),
+		productId: varchar({ length: 255 }).notNull(),
 		// Purchase status
 		status: varchar({ length: 20 }).$type<CommercePurchaseStatus>().notNull(),
 
@@ -146,11 +144,9 @@ export const competitionDivisionsTable = mysqlTable(
 			.$defaultFn(() => createCompetitionDivisionFeeId())
 			.notNull(),
 		// The competition this division config applies to
-		competitionId: varchar({ length: 255 })
-			.notNull(),
+		competitionId: varchar({ length: 255 }).notNull(),
 		// The division (scaling level) this config applies to
-		divisionId: varchar({ length: 255 })
-			.notNull(),
+		divisionId: varchar({ length: 255 }).notNull(),
 		// Fee in cents (e.g., 20000 = $200, 35000 = $350)
 		feeCents: int().notNull(),
 		// Markdown description explaining who this division is for

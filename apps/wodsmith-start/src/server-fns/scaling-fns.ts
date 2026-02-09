@@ -9,10 +9,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { asc, desc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
-import {
-	createScalingGroupId,
-	createScalingLevelId,
-} from "@/db/schemas/common"
+import { createScalingGroupId, createScalingLevelId } from "@/db/schemas/common"
 import { scalingGroupsTable, scalingLevelsTable } from "@/db/schemas/scaling"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schemas/teams"
 import { getSessionFromCookie } from "@/utils/auth"

@@ -54,9 +54,7 @@ export const scoresTable = mysqlTable(
 
 		// Score classification
 		scheme: varchar({ length: 255 }).notNull(),
-		scoreType: varchar({ length: 255 })
-			.notNull()
-			.default("max"),
+		scoreType: varchar({ length: 255 }).notNull().default("max"),
 
 		// Primary score (encoded as integer based on scheme)
 		// Time: milliseconds, Rounds+Reps: rounds*100000+reps, Load: grams, Distance: mm
@@ -72,9 +70,7 @@ export const scoresTable = mysqlTable(
 		secondaryValue: int(), // reps completed if capped
 
 		// Status & sorting
-		status: varchar({ length: 255 })
-			.notNull()
-			.default("scored"),
+		status: varchar({ length: 255 }).notNull().default("scored"),
 		statusOrder: int().notNull().default(0), // 0=scored, 1=cap, 2=dq, 3=withdrawn
 		// Compound sort key: encodes status + normalized score for single-column sorting
 		sortKey: varchar({ length: 255 }),

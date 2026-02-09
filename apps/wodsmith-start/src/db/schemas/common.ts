@@ -65,8 +65,7 @@ export const createTeamLimitEntitlementId = () => `tlent_${ulid()}`
 export const createCompetitionGroupId = () => `cgrp_${ulid()}`
 export const createCompetitionId = () => `comp_${ulid()}`
 export const createCompetitionRegistrationId = () => `creg_${ulid()}`
-export const createCompetitionRegistrationTeammateId = () =>
-	`crmt_${ulid()}`
+export const createCompetitionRegistrationTeammateId = () => `crmt_${ulid()}`
 export const createAffiliateId = () => `aff_${ulid()}`
 
 // Commerce ID generators

@@ -273,24 +273,22 @@ export const createWorkoutRemixFn = createServerFn({ method: "POST" })
 
 		// Create the remixed workout
 		const newWorkoutId = `workout_${createId()}`
-		await db
-			.insert(workouts)
-			.values({
-				id: newWorkoutId,
-				name: sourceWorkout.name,
-				description: sourceWorkout.description,
-				scheme: sourceWorkout.scheme,
-				scoreType: sourceWorkout.scoreType,
-				scope: "private", // Remixes start as private
-				repsPerRound: sourceWorkout.repsPerRound,
-				roundsToScore: sourceWorkout.roundsToScore,
-				sugarId: sourceWorkout.sugarId,
-				tiebreakScheme: sourceWorkout.tiebreakScheme,
-				timeCap: sourceWorkout.timeCap,
-				teamId: data.teamId,
-				sourceWorkoutId: data.sourceWorkoutId, // Reference to the original workout
-			})
-	
+		await db.insert(workouts).values({
+			id: newWorkoutId,
+			name: sourceWorkout.name,
+			description: sourceWorkout.description,
+			scheme: sourceWorkout.scheme,
+			scoreType: sourceWorkout.scoreType,
+			scope: "private", // Remixes start as private
+			repsPerRound: sourceWorkout.repsPerRound,
+			roundsToScore: sourceWorkout.roundsToScore,
+			sugarId: sourceWorkout.sugarId,
+			tiebreakScheme: sourceWorkout.tiebreakScheme,
+			timeCap: sourceWorkout.timeCap,
+			teamId: data.teamId,
+			sourceWorkoutId: data.sourceWorkoutId, // Reference to the original workout
+		})
+
 		// Insert workout-tag relationships (batched for D1 limits)
 		if (tagIds.length > 0) {
 			// D1 has 100 param limit. workoutTags table has 5 columns per insert.

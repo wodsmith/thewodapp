@@ -26,7 +26,10 @@ export const affiliatesTable = mysqlTable(
 		// Optional metadata
 		location: varchar({ length: 255 }), // "Austin, TX"
 		// Verification status: unverified (default), verified (admin verified), claimed (gym owner linked)
-		verificationStatus: varchar({ enum: affiliateVerificationStatus, length: 255 })
+		verificationStatus: varchar({
+			enum: affiliateVerificationStatus,
+			length: 255,
+		})
 			.default("unverified")
 			.notNull(),
 		// When claimed, links to the team that owns this affiliate

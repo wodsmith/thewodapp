@@ -54,8 +54,7 @@ export async function createPersonalTeamForUser(user: {
 		id: teamId,
 		name: personalTeamName,
 		slug: personalTeamSlug,
-		description:
-			"Personal team for individual programming track subscriptions",
+		description: "Personal team for individual programming track subscriptions",
 		isPersonalTeam: true,
 		personalTeamOwnerId: user.id,
 	})

@@ -296,7 +296,11 @@ async function findOrCreateTag(tagName: string) {
 	})
 
 	// Fetch the created tag
-	const [newTag] = await db.select().from(tags).where(eq(tags.id, tagId)).limit(1)
+	const [newTag] = await db
+		.select()
+		.from(tags)
+		.where(eq(tags.id, tagId))
+		.limit(1)
 
 	return newTag
 }

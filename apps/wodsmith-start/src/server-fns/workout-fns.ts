@@ -400,20 +400,18 @@ export const createWorkoutFn = createServerFn({ method: "POST" })
 
 		// Create the workout
 		const workoutId = `workout_${createId()}`
-		await db
-			.insert(workouts)
-			.values({
-				id: workoutId,
-				name: data.name,
-				description: data.description,
-				scheme: data.scheme,
-				scoreType: data.scoreType ?? null,
-				scope: data.scope,
-				timeCap: data.timeCap ?? null,
-				roundsToScore: data.roundsToScore ?? null,
-				teamId: data.teamId,
-				sourceWorkoutId: data.sourceWorkoutId ?? null, // For remix tracking
-			})
+		await db.insert(workouts).values({
+			id: workoutId,
+			name: data.name,
+			description: data.description,
+			scheme: data.scheme,
+			scoreType: data.scoreType ?? null,
+			scope: data.scope,
+			timeCap: data.timeCap ?? null,
+			roundsToScore: data.roundsToScore ?? null,
+			teamId: data.teamId,
+			sourceWorkoutId: data.sourceWorkoutId ?? null, // For remix tracking
+		})
 
 		const newWorkout = await db.query.workouts.findFirst({
 			where: eq(workouts.id, workoutId),
@@ -509,15 +507,13 @@ export const scheduleWorkoutFn = createServerFn({ method: "POST" })
 
 		// Create the scheduled workout instance
 		const instanceId = createScheduledWorkoutInstanceId()
-		await db
-			.insert(scheduledWorkoutInstancesTable)
-			.values({
-				id: instanceId,
-				teamId: data.teamId,
-				trackWorkoutId: null, // No track workout for standalone
-				workoutId: data.workoutId, // Direct workout reference
-				scheduledDate: scheduledDate,
-			})
+		await db.insert(scheduledWorkoutInstancesTable).values({
+			id: instanceId,
+			teamId: data.teamId,
+			trackWorkoutId: null, // No track workout for standalone
+			workoutId: data.workoutId, // Direct workout reference
+			scheduledDate: scheduledDate,
+		})
 
 		const instance = await db.query.scheduledWorkoutInstancesTable.findFirst({
 			where: eq(scheduledWorkoutInstancesTable.id, instanceId),

@@ -406,15 +406,13 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 
 		if (!product) {
 			const productId = createCommerceProductId()
-			await db
-				.insert(commerceProductTable)
-				.values({
-					id: productId,
-					name: `Competition Registration - ${competition.name}`,
-					type: COMMERCE_PRODUCT_TYPE.COMPETITION_REGISTRATION,
-					resourceId: input.competitionId,
-					priceCents: registrationFeeCents,
-				})
+			await db.insert(commerceProductTable).values({
+				id: productId,
+				name: `Competition Registration - ${competition.name}`,
+				type: COMMERCE_PRODUCT_TYPE.COMPETITION_REGISTRATION,
+				resourceId: input.competitionId,
+				priceCents: registrationFeeCents,
+			})
 			product = await db.query.commerceProductTable.findFirst({
 				where: eq(commerceProductTable.id, productId),
 			})
@@ -426,27 +424,25 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 
 		// 9. Create purchase record
 		const purchaseId = createCommercePurchaseId()
-		await db
-			.insert(commercePurchaseTable)
-			.values({
-				id: purchaseId,
-				userId,
-				productId: product.id,
-				status: COMMERCE_PURCHASE_STATUS.PENDING,
-				competitionId: input.competitionId,
-				divisionId: input.divisionId,
-				totalCents: feeBreakdown.totalChargeCents,
-				platformFeeCents: feeBreakdown.platformFeeCents,
-				stripeFeeCents: feeBreakdown.stripeFeeCents,
-				organizerNetCents: feeBreakdown.organizerNetCents,
-				// Store team data and answers for webhook to use when creating registration
-				metadata: JSON.stringify({
-					teamName: input.teamName,
-					affiliateName: input.affiliateName,
-					teammates: input.teammates,
-					answers: input.answers,
-				}),
-			})
+		await db.insert(commercePurchaseTable).values({
+			id: purchaseId,
+			userId,
+			productId: product.id,
+			status: COMMERCE_PURCHASE_STATUS.PENDING,
+			competitionId: input.competitionId,
+			divisionId: input.divisionId,
+			totalCents: feeBreakdown.totalChargeCents,
+			platformFeeCents: feeBreakdown.platformFeeCents,
+			stripeFeeCents: feeBreakdown.stripeFeeCents,
+			organizerNetCents: feeBreakdown.organizerNetCents,
+			// Store team data and answers for webhook to use when creating registration
+			metadata: JSON.stringify({
+				teamName: input.teamName,
+				affiliateName: input.affiliateName,
+				teammates: input.teammates,
+				answers: input.answers,
+			}),
+		})
 
 		const purchase = await db.query.commercePurchaseTable.findFirst({
 			where: eq(commercePurchaseTable.id, purchaseId),

@@ -19,10 +19,8 @@ export const coachesTable = mysqlTable(
 	{
 		...commonColumns,
 		id: varchar({ length: 255 }).primaryKey(),
-		userId: varchar({ length: 255 })
-			.notNull(),
-		teamId: varchar({ length: 255 })
-			.notNull(),
+		userId: varchar({ length: 255 }).notNull(),
+		teamId: varchar({ length: 255 }).notNull(),
 		weeklyClassLimit: int(),
 		schedulingPreference: varchar({
 			length: 255,
@@ -40,8 +38,7 @@ export const coachesTable = mysqlTable(
 export const locationsTable = mysqlTable("locations", {
 	...commonColumns,
 	id: varchar({ length: 255 }).primaryKey(),
-	teamId: varchar({ length: 255 })
-		.notNull(),
+	teamId: varchar({ length: 255 }).notNull(),
 	name: varchar({ length: 255 }).notNull(),
 	capacity: int().default(20).notNull(),
 })
@@ -49,8 +46,7 @@ export const locationsTable = mysqlTable("locations", {
 export const classCatalogTable = mysqlTable("class_catalogs", {
 	...commonColumns,
 	id: varchar({ length: 255 }).primaryKey(),
-	teamId: varchar({ length: 255 })
-		.notNull(),
+	teamId: varchar({ length: 255 }).notNull(),
 	name: varchar({ length: 255 }).notNull(),
 	description: varchar({ length: 255 }),
 	durationMinutes: int().notNull().default(60),
@@ -60,18 +56,15 @@ export const classCatalogTable = mysqlTable("class_catalogs", {
 export const skillsTable = mysqlTable("skills", {
 	...commonColumns,
 	id: varchar({ length: 255 }).primaryKey(),
-	teamId: varchar({ length: 255 })
-		.notNull(),
+	teamId: varchar({ length: 255 }).notNull(),
 	name: varchar({ length: 255 }).notNull(),
 })
 
 export const classCatalogToSkillsTable = mysqlTable(
 	"class_catalog_to_skills",
 	{
-		classCatalogId: varchar({ length: 255 })
-			.notNull(),
-		skillId: varchar({ length: 255 })
-			.notNull(),
+		classCatalogId: varchar({ length: 255 }).notNull(),
+		skillId: varchar({ length: 255 }).notNull(),
 	},
 	(table) => [primaryKey({ columns: [table.classCatalogId, table.skillId] })],
 )
@@ -80,10 +73,8 @@ export const classCatalogToSkillsTable = mysqlTable(
 export const coachToSkillsTable = mysqlTable(
 	"coach_to_skills",
 	{
-		coachId: varchar({ length: 255 })
-			.notNull(),
-		skillId: varchar({ length: 255 })
-			.notNull(),
+		coachId: varchar({ length: 255 }).notNull(),
+		skillId: varchar({ length: 255 }).notNull(),
 	},
 	(table) => [primaryKey({ columns: [table.coachId, table.skillId] })],
 )
@@ -91,8 +82,7 @@ export const coachToSkillsTable = mysqlTable(
 export const coachBlackoutDatesTable = mysqlTable("coach_blackout_dates", {
 	...commonColumns,
 	id: varchar({ length: 255 }).primaryKey(),
-	coachId: varchar({ length: 255 })
-		.notNull(),
+	coachId: varchar({ length: 255 }).notNull(),
 	startDate: datetime().notNull(),
 	endDate: datetime().notNull(),
 	reason: varchar({ length: 255 }),
@@ -103,8 +93,7 @@ export const coachRecurringUnavailabilityTable = mysqlTable(
 	{
 		...commonColumns,
 		id: varchar({ length: 255 }).primaryKey(),
-		coachId: varchar({ length: 255 })
-			.notNull(),
+		coachId: varchar({ length: 255 }).notNull(),
 		dayOfWeek: int().notNull(), // 0-6 for Sunday-Saturday
 		startTime: varchar({ length: 255 }).notNull(), // "HH:MM"
 		endTime: varchar({ length: 255 }).notNull(), // "HH:MM"
@@ -116,13 +105,10 @@ export const coachRecurringUnavailabilityTable = mysqlTable(
 export const scheduleTemplatesTable = mysqlTable("schedule_templates", {
 	...commonColumns,
 	id: varchar({ length: 255 }).primaryKey(),
-	teamId: varchar({ length: 255 })
-		.notNull(),
+	teamId: varchar({ length: 255 }).notNull(),
 	name: varchar({ length: 255 }).notNull(),
-	classCatalogId: varchar({ length: 255 })
-		.notNull(),
-	locationId: varchar({ length: 255 })
-		.notNull(),
+	classCatalogId: varchar({ length: 255 }).notNull(),
+	locationId: varchar({ length: 255 }).notNull(),
 })
 
 export const scheduleTemplateClassesTable = mysqlTable(
@@ -130,8 +116,7 @@ export const scheduleTemplateClassesTable = mysqlTable(
 	{
 		...commonColumns,
 		id: varchar({ length: 255 }).primaryKey(),
-		templateId: varchar({ length: 255 })
-			.notNull(),
+		templateId: varchar({ length: 255 }).notNull(),
 		dayOfWeek: int().notNull(),
 		startTime: varchar({ length: 255 }).notNull(),
 		endTime: varchar({ length: 255 }).notNull(),
@@ -142,35 +127,33 @@ export const scheduleTemplateClassesTable = mysqlTable(
 export const scheduleTemplateClassRequiredSkillsTable = mysqlTable(
 	"schedule_template_class_required_skills",
 	{
-		templateClassId: varchar({ length: 255 })
-			.notNull(),
-		skillId: varchar({ length: 255 })
-			.notNull(),
+		templateClassId: varchar({ length: 255 }).notNull(),
+		skillId: varchar({ length: 255 }).notNull(),
 	},
-	(table) => [primaryKey({ name: "sched_class_skills_pk", columns: [table.templateClassId, table.skillId] })],
+	(table) => [
+		primaryKey({
+			name: "sched_class_skills_pk",
+			columns: [table.templateClassId, table.skillId],
+		}),
+	],
 )
 
 // Generated schedule tables
 export const generatedSchedulesTable = mysqlTable("generated_schedules", {
 	...commonColumns,
 	id: varchar({ length: 255 }).primaryKey(),
-	teamId: varchar({ length: 255 })
-		.notNull(),
-	locationId: varchar({ length: 255 })
-		.notNull(),
+	teamId: varchar({ length: 255 }).notNull(),
+	locationId: varchar({ length: 255 }).notNull(),
 	weekStartDate: datetime().notNull(),
 })
 
 export const scheduledClassesTable = mysqlTable("scheduled_classes", {
 	...commonColumns,
 	id: varchar({ length: 255 }).primaryKey(),
-	scheduleId: varchar({ length: 255 })
-		.notNull(),
+	scheduleId: varchar({ length: 255 }).notNull(),
 	coachId: varchar({ length: 255 }), // Nullable if unassigned
-	classCatalogId: varchar({ length: 255 })
-		.notNull(),
-	locationId: varchar({ length: 255 })
-		.notNull(),
+	classCatalogId: varchar({ length: 255 }).notNull(),
+	locationId: varchar({ length: 255 }).notNull(),
 	startTime: datetime().notNull(),
 	endTime: datetime().notNull(),
 })

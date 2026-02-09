@@ -22,8 +22,7 @@ export const eventResourcesTable = mysqlTable(
 			.$defaultFn(() => createEventResourceId())
 			.notNull(),
 		// Foreign key to track_workout (competition event)
-		eventId: varchar({ length: 255 })
-			.notNull(),
+		eventId: varchar({ length: 255 }).notNull(),
 		// Title is required
 		title: varchar({ length: 255 }).notNull(),
 		// Description is optional, supports markdown formatting

@@ -349,16 +349,14 @@ export const createWaiverFn = createServerFn({ method: "POST" })
 
 		// Insert waiver
 		const id = createWaiverId()
-		await db
-			.insert(waiversTable)
-			.values({
-				id,
-				competitionId: data.competitionId,
-				title: data.title,
-				content: data.content,
-				required: data.required,
-				position: maxPosition + 1,
-			})
+		await db.insert(waiversTable).values({
+			id,
+			competitionId: data.competitionId,
+			title: data.title,
+			content: data.content,
+			required: data.required,
+			position: maxPosition + 1,
+		})
 
 		const waiver = await db.query.waiversTable.findFirst({
 			where: eq(waiversTable.id, id),
@@ -562,16 +560,14 @@ export const signWaiverFn = createServerFn({ method: "POST" })
 
 			// Create signature
 			const id = createWaiverSignatureId()
-			await db
-				.insert(waiverSignaturesTable)
-				.values({
-					id,
-					waiverId: data.waiverId,
-					userId: session.userId,
-					registrationId: data.registrationId,
-					ipAddress: data.ipAddress,
-					signedAt: new Date(),
-				})
+			await db.insert(waiverSignaturesTable).values({
+				id,
+				waiverId: data.waiverId,
+				userId: session.userId,
+				registrationId: data.registrationId,
+				ipAddress: data.ipAddress,
+				signedAt: new Date(),
+			})
 
 			const signature = await db.query.waiverSignaturesTable.findFirst({
 				where: eq(waiverSignaturesTable.id, id),

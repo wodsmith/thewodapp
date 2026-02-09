@@ -294,7 +294,9 @@ export const competitionRegistrationQuestionsTable = mysqlTable(
 			.notNull(),
 		competitionId: varchar({ length: 255 }).notNull(),
 		// Question type: text (free form), select (dropdown), number
-		type: varchar({ length: 20 }).$type<"text" | "select" | "number">().notNull(),
+		type: varchar({ length: 20 })
+			.$type<"text" | "select" | "number">()
+			.notNull(),
 		// Question label shown to athletes
 		label: varchar({ length: 500 }).notNull(),
 		// Optional help text / description

@@ -107,14 +107,12 @@ export const createLocationFn = createServerFn({ method: "POST" })
 		const db = getDb()
 
 		const locationId = createLocationId()
-		await db
-			.insert(locationsTable)
-			.values({
-				id: locationId,
-				teamId: data.teamId,
-				name: data.name,
-				capacity: data.capacity,
-			})
+		await db.insert(locationsTable).values({
+			id: locationId,
+			teamId: data.teamId,
+			name: data.name,
+			capacity: data.capacity,
+		})
 
 		const [newLocation] = await db
 			.select()
@@ -202,13 +200,11 @@ export const createSkillFn = createServerFn({ method: "POST" })
 		const db = getDb()
 
 		const skillId = createSkillId()
-		await db
-			.insert(skillsTable)
-			.values({
-				id: skillId,
-				teamId: data.teamId,
-				name: data.name,
-			})
+		await db.insert(skillsTable).values({
+			id: skillId,
+			teamId: data.teamId,
+			name: data.name,
+		})
 
 		const [newSkill] = await db
 			.select()
@@ -361,17 +357,15 @@ export const createCoachFn = createServerFn({ method: "POST" })
 
 		const { skillIds, ...coachData } = data
 		const coachId = `coach_${createId()}`
-		await db
-			.insert(coachesTable)
-			.values({
-				id: coachId,
-				userId: coachData.userId,
-				teamId: coachData.teamId,
-				weeklyClassLimit: coachData.weeklyClassLimit,
-				schedulingPreference: coachData.schedulingPreference,
-				schedulingNotes: coachData.schedulingNotes,
-				isActive: coachData.isActive !== false,
-			})
+		await db.insert(coachesTable).values({
+			id: coachId,
+			userId: coachData.userId,
+			teamId: coachData.teamId,
+			weeklyClassLimit: coachData.weeklyClassLimit,
+			schedulingPreference: coachData.schedulingPreference,
+			schedulingNotes: coachData.schedulingNotes,
+			isActive: coachData.isActive !== false,
+		})
 
 		const [newCoach] = await db
 			.select()

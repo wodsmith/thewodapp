@@ -31,19 +31,19 @@ export const videoSubmissionsTable = mysqlTable(
 	"video_submissions",
 	{
 		...commonColumns,
-		id: varchar({ length: 255 }).primaryKey().$defaultFn(createVideoSubmissionId),
+		id: varchar({ length: 255 })
+			.primaryKey()
+			.$defaultFn(createVideoSubmissionId),
 
 		// The registration this submission belongs to
-		registrationId: varchar({ length: 255 })
-			.notNull(),
+		registrationId: varchar({ length: 255 }).notNull(),
 
 		// The competition event (track workout) this submission is for
 		// Uses trackWorkoutId to match the competitionEventsTable pattern
 		trackWorkoutId: varchar({ length: 255 }).notNull(),
 
 		// The user who submitted the video
-		userId: varchar({ length: 255 })
-			.notNull(),
+		userId: varchar({ length: 255 }).notNull(),
 
 		// The video URL (typically YouTube, but can be other platforms)
 		videoUrl: varchar({ length: 2000 }).notNull(),

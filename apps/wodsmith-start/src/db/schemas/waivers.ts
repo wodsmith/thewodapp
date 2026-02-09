@@ -1,7 +1,15 @@
 import { createId } from "@paralleldrive/cuid2"
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { index, int, varchar, datetime, boolean, mysqlTable, text } from "drizzle-orm/mysql-core"
+import {
+	index,
+	int,
+	varchar,
+	datetime,
+	boolean,
+	mysqlTable,
+	text,
+} from "drizzle-orm/mysql-core"
 import { commonColumns } from "./common"
 import {
 	competitionRegistrationsTable,
@@ -27,8 +35,7 @@ export const waiversTable = mysqlTable(
 			.$defaultFn(() => createWaiverId())
 			.notNull(),
 		// The competition this waiver belongs to
-		competitionId: varchar({ length: 255 })
-			.notNull(),
+		competitionId: varchar({ length: 255 }).notNull(),
 		// Waiver title (e.g., "Liability Waiver", "Photo Release")
 		title: varchar({ length: 255 }).notNull(),
 		// Rich text content stored as Lexical JSON
@@ -57,11 +64,9 @@ export const waiverSignaturesTable = mysqlTable(
 			.$defaultFn(() => createWaiverSignatureId())
 			.notNull(),
 		// The waiver being signed
-		waiverId: varchar({ length: 255 })
-			.notNull(),
+		waiverId: varchar({ length: 255 }).notNull(),
 		// The user who signed the waiver
-		userId: varchar({ length: 255 })
-			.notNull(),
+		userId: varchar({ length: 255 }).notNull(),
 		// The registration this signature is associated with (nullable for captains signing during registration creation)
 		registrationId: varchar({ length: 255 }),
 		// When the waiver was signed

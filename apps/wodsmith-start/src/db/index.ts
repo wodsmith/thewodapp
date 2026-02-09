@@ -35,7 +35,7 @@ export const getDb = (): Database => {
 	const databaseUrl = (env as unknown as { DATABASE_URL?: string }).DATABASE_URL
 	if (!databaseUrl) {
 		throw new Error(
-			'DATABASE_URL not found. Make sure your environment has the PlanetScale connection string configured.',
+			"DATABASE_URL not found. Make sure your environment has the PlanetScale connection string configured.",
 		)
 	}
 
