@@ -9,8 +9,13 @@ import {
 	SUBSCRIPTION_TERMS,
 	documentsTable,
 } from "@/db/schema"
+import { requireAuth } from "./auth"
+
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024 // 10 MB
+const MAX_BASE64_LENGTH = Math.ceil(MAX_UPLOAD_BYTES / 3) * 4
 
 export const listDocumentsFn = createServerFn().handler(async () => {
+	await requireAuth()
 	const db = getDb()
 	const documents = await db
 		.select()
@@ -34,12 +39,18 @@ export const uploadDocumentFn = createServerFn()
 			status: z.enum(PAYMENT_STATUSES).default("unpaid"),
 			contentType: z.string().optional(),
 			fileSize: z.number().int().optional(),
-			fileBase64: z.string(),
+			fileBase64: z.string().max(MAX_BASE64_LENGTH, "File too large (max 10 MB)"),
 		}),
 	)
 	.handler(async ({ data }) => {
+		await requireAuth()
 		const db = getDb()
 		const { fileBase64, ...metadata } = data
+
+		// Runtime guard on declared file size
+		if (metadata.fileSize && metadata.fileSize > MAX_UPLOAD_BYTES) {
+			throw new Error("File too large (max 10 MB)")
+		}
 
 		// Decode base64 file content
 		const binaryString = atob(fileBase64)
@@ -75,6 +86,7 @@ export const uploadDocumentFn = createServerFn()
 export const deleteDocumentFn = createServerFn()
 	.validator(z.object({ id: z.string() }))
 	.handler(async ({ data }) => {
+		await requireAuth()
 		const db = getDb()
 
 		// Get the document to find the R2 key
@@ -99,6 +111,7 @@ export const deleteDocumentFn = createServerFn()
 export const getDocumentDownloadUrlFn = createServerFn()
 	.validator(z.object({ id: z.string() }))
 	.handler(async ({ data }) => {
+		await requireAuth()
 		const db = getDb()
 
 		const [document] = await db
@@ -116,14 +129,17 @@ export const getDocumentDownloadUrlFn = createServerFn()
 			throw new Error("File not found in storage")
 		}
 
-		// Convert to base64 for transfer
+		// Convert to base64 for transfer using chunked approach (avoids O(n²) concatenation)
 		const arrayBuffer = await object.arrayBuffer()
 		const bytes = new Uint8Array(arrayBuffer)
-		let binary = ""
-		for (let i = 0; i < bytes.length; i++) {
-			binary += String.fromCharCode(bytes[i])
+		const CHUNK_SIZE = 0x8000 // 32KB chunks
+		const chunks: string[] = []
+		for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+			chunks.push(
+				String.fromCharCode(...bytes.subarray(i, i + CHUNK_SIZE)),
+			)
 		}
-		const base64 = btoa(binary)
+		const base64 = btoa(chunks.join(""))
 
 		return {
 			base64,

@@ -5,6 +5,7 @@ import {
 	createInvoiceAnalyzer,
 	invoiceAnalysisSchema,
 } from "@/agents/invoice-analyzer"
+import { requireAuth } from "./auth"
 
 export const analyzeDocumentFn = createServerFn()
 	.validator(
@@ -15,6 +16,7 @@ export const analyzeDocumentFn = createServerFn()
 		}),
 	)
 	.handler(async ({ data }) => {
+		await requireAuth()
 		const apiKey = env.OPENAI_API_KEY
 		if (!apiKey) {
 			throw new Error("OPENAI_API_KEY not configured")

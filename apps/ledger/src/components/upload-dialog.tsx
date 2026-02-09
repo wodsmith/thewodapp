@@ -90,7 +90,7 @@ export function UploadDialog({
 			if (result) {
 				if (result.vendor) setVendor(result.vendor)
 				if (result.description) setDescription(result.description)
-				if (result.amountCents)
+				if (result.amountCents != null)
 					setAmount((result.amountCents / 100).toFixed(2))
 				if (result.currency) setCurrency(result.currency)
 				if (result.subscriptionTerm)
