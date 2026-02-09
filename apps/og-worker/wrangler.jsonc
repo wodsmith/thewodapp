@@ -1,0 +1,26 @@
+{
+	"$schema": "https://developers.cloudflare.com/workers/wrangler/config-schema.json",
+	"name": "wodsmith-og",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-03-01",
+	"compatibility_flags": ["nodejs_compat"],
+	"account_id": "317fb84f366ea1ab038ca90000953697",
+	"observability": {
+		"enabled": true
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "wodsmith-db",
+			"database_id": "931185e9-99e5-48f0-bf70-d03ca5936f2d",
+			// Local dev: use the same D1 database ID as Alchemy's local dev environment
+			"preview_database_id": "010c1909-8700-406b-bd1f-694571b30039"
+		}
+	],
+	"routes": [
+		{
+			"pattern": "og.wodsmith.com/*",
+			"zone_name": "wodsmith.com"
+		}
+	]
+}
