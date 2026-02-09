@@ -22,7 +22,12 @@ import {
 	competitionRegistrationsTable,
 	competitionsTable,
 } from "./competitions"
+import { programmingTracksTable } from "./programming"
 import { userTable } from "./users"
+import {
+	competitionJudgeRotationsTable,
+	judgeHeatAssignmentsTable,
+} from "./volunteers"
 
 // Team types for competition platform
 export const TEAM_TYPE_ENUM = {
@@ -285,6 +290,8 @@ export const teamRelations = relations(teamTable, ({ many, one }) => ({
 	athleteTeamRegistrations: many(competitionRegistrationsTable, {
 		relationName: "athleteTeamRegistration",
 	}),
+	// Programming tracks owned by this team
+	programmingTracks: many(programmingTracksTable),
 }))
 
 export const teamRoleRelations = relations(teamRoleTable, ({ one }) => ({
@@ -296,7 +303,7 @@ export const teamRoleRelations = relations(teamRoleTable, ({ one }) => ({
 
 export const teamMembershipRelations = relations(
 	teamMembershipTable,
-	({ one }) => ({
+	({ one, many }) => ({
 		team: one(teamTable, {
 			fields: [teamMembershipTable.teamId],
 			references: [teamTable.id],
@@ -311,6 +318,9 @@ export const teamMembershipRelations = relations(
 			fields: [teamMembershipTable.invitedBy],
 			references: [userTable.id],
 		}),
+		// Judge assignments and rotations (from volunteers system)
+		judgeAssignments: many(judgeHeatAssignmentsTable),
+		judgeRotations: many(competitionJudgeRotationsTable),
 	}),
 )
 

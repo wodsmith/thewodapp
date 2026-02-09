@@ -27,6 +27,10 @@ import { programmingTracksTable } from "./programming"
 import { scalingLevelsTable } from "./scaling"
 import { teamMembershipTable, teamTable } from "./teams"
 import { userTable } from "./users"
+import {
+	competitionJudgeRotationsTable,
+	judgeHeatAssignmentsTable,
+} from "./volunteers"
 
 // Competition Groups (Series) Table
 // Groups organize multiple competitions into series (e.g., "2026 Throwdowns Series")
@@ -466,6 +470,8 @@ export const competitionsRelations = relations(
 		}),
 		// Per-event settings (submission windows for online competitions)
 		events: many(competitionEventsTable),
+		// Judge rotations (from volunteers system)
+		judgeRotations: many(competitionJudgeRotationsTable),
 	}),
 )
 
@@ -545,7 +551,8 @@ export const competitionHeatsRelations = relations(
 			references: [scalingLevelsTable.id],
 		}),
 		assignments: many(competitionHeatAssignmentsTable),
-		// Note: volunteers relation defined in volunteers.ts to avoid circular dependency
+		// Judge assignments (from volunteers system)
+		judgeAssignments: many(judgeHeatAssignmentsTable),
 	}),
 )
 

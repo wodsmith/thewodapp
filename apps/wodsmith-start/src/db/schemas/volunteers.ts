@@ -280,22 +280,8 @@ export const judgeHeatAssignmentsRelations = relations(
 	}),
 )
 
-// Reverse relation: heats can have many judge assignments
-export const competitionHeatsJudgeAssignmentsReverseRelations = relations(
-	competitionHeatsTable,
-	({ many }) => ({
-		judgeAssignments: many(judgeHeatAssignmentsTable),
-	}),
-)
-
-// Reverse relation: team memberships can have judge assignments
-export const teamMembershipJudgeAssignmentsReverseRelations = relations(
-	teamMembershipTable,
-	({ many }) => ({
-		judgeAssignments: many(judgeHeatAssignmentsTable),
-		judgeRotations: many(competitionJudgeRotationsTable),
-	}),
-)
+// Note: Reverse relations for competitionHeatsTable and teamMembershipTable
+// are merged into their primary definitions in competitions.ts and teams.ts
 
 // Judge rotations relations
 export const competitionJudgeRotationsRelations = relations(
@@ -316,19 +302,5 @@ export const competitionJudgeRotationsRelations = relations(
 	}),
 )
 
-// Reverse relation: competitions can have judge rotations
-export const competitionsJudgeRotationsReverseRelations = relations(
-	competitionsTable,
-	({ many }) => ({
-		judgeRotations: many(competitionJudgeRotationsTable),
-	}),
-)
-
-// Reverse relation: track workouts can have judge rotations and versions
-export const trackWorkoutsJudgeSystemReverseRelations = relations(
-	trackWorkoutsTable,
-	({ many }) => ({
-		judgeRotations: many(competitionJudgeRotationsTable),
-		judgeAssignmentVersions: many(judgeAssignmentVersionsTable),
-	}),
-)
+// Note: Reverse relations for competitionsTable and trackWorkoutsTable
+// are merged into their primary definitions in competitions.ts and programming.ts

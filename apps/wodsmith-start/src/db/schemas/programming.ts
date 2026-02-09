@@ -17,6 +17,10 @@ import {
 import { competitionsTable } from "./competitions"
 import { sponsorsTable } from "./sponsors"
 import { teamTable } from "./teams"
+import {
+	competitionJudgeRotationsTable,
+	judgeAssignmentVersionsTable,
+} from "./volunteers"
 import { workouts } from "./workouts"
 
 // Track types enum & tuple
@@ -197,6 +201,9 @@ export const trackWorkoutsRelations = relations(
 			references: [sponsorsTable.id],
 		}),
 		scheduledInstances: many(scheduledWorkoutInstancesTable),
+		// Judge rotations and assignment versions (from volunteers system)
+		judgeRotations: many(competitionJudgeRotationsTable),
+		judgeAssignmentVersions: many(judgeAssignmentVersionsTable),
 	}),
 )
 
