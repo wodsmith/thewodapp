@@ -7,6 +7,7 @@ import {
 	int,
 	json,
 	mysqlTable,
+	text,
 	varchar,
 } from "drizzle-orm/mysql-core"
 import {
@@ -107,7 +108,7 @@ export const teamTable = mysqlTable(
 		description: varchar({ length: 1000 }),
 		avatarUrl: varchar({ length: 600 }),
 		// Settings could be stored as JSON
-		settings: varchar({ length: 10000 }),
+		settings: text(),
 		// Optional billing-related fields
 		billingEmail: varchar({ length: 255 }),
 		// DEPRECATED: Legacy fields - will be removed after migration to entitlements system
@@ -131,7 +132,7 @@ export const teamTable = mysqlTable(
 		// Self-reference handled by Drizzle
 		parentOrganizationId: varchar({ length: 255 }),
 		// JSON metadata for competition-specific settings
-		competitionMetadata: varchar({ length: 10000 }),
+		competitionMetadata: text(),
 
 		// Stripe Connect fields (Phase 2 prep for organizer payouts)
 		stripeConnectedAccountId: varchar({ length: 255 }), // Stripe account ID (acct_xxx)
@@ -175,7 +176,7 @@ export const teamMembershipTable = mysqlTable(
 		expiresAt: datetime(),
 		isActive: boolean().default(true).notNull(),
 		// JSON metadata for role-specific data (e.g., volunteer info)
-		metadata: varchar({ length: 5000 }),
+		metadata: text(),
 	},
 	(table) => [
 		index("team_membership_team_id_idx").on(table.teamId),
@@ -200,7 +201,7 @@ export const teamRoleTable = mysqlTable(
 		// Store permissions as a JSON array of permission keys
 		permissions: json().notNull().$type<string[]>(),
 		// A JSON field for storing UI-specific settings like color, icon, etc.
-		metadata: varchar({ length: 5000 }),
+		metadata: text(),
 		// Optional flag to mark some roles as non-editable
 		isEditable: boolean().default(true).notNull(),
 	},

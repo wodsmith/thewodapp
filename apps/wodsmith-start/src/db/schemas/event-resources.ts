@@ -1,6 +1,6 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { index, int, mysqlTable, varchar } from "drizzle-orm/mysql-core"
+import { index, int, mysqlTable, text, varchar } from "drizzle-orm/mysql-core"
 import { commonColumns, createEventResourceId } from "./common"
 import { trackWorkoutsTable } from "./programming"
 
@@ -27,7 +27,7 @@ export const eventResourcesTable = mysqlTable(
 		// Title is required
 		title: varchar({ length: 255 }).notNull(),
 		// Description is optional, supports markdown formatting
-		description: varchar({ length: 5000 }),
+		description: text(),
 		// URL is optional, for video links, external resources, etc.
 		url: varchar({ length: 2048 }),
 		// Sort order for display (1, 2, 3...)

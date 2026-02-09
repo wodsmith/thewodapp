@@ -3,7 +3,6 @@ import { relations } from "drizzle-orm"
 import {
 	boolean,
 	datetime,
-	foreignKey,
 	index,
 	int,
 	mysqlTable,
@@ -124,11 +123,9 @@ export const workouts = mysqlTable(
 		sourceTrackIdx: index("workouts_source_track_idx").on(
 			workouts.sourceTrackId,
 		),
-		sourceWorkoutSelfRef: foreignKey({
-			columns: [workouts.sourceWorkoutId],
-			foreignColumns: [workouts.id],
-			name: "workouts_source_workout_id_fkey",
-		}).onDelete("set null"),
+		sourceWorkoutIdx: index("workouts_source_workout_idx").on(
+			workouts.sourceWorkoutId,
+		),
 	}),
 )
 

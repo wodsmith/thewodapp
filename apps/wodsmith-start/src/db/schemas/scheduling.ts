@@ -147,7 +147,7 @@ export const scheduleTemplateClassRequiredSkillsTable = mysqlTable(
 		skillId: varchar("skill_id", { length: 255 })
 			.notNull(),
 	},
-	(table) => [primaryKey({ columns: [table.templateClassId, table.skillId] })],
+	(table) => [primaryKey({ name: "sched_class_skills_pk", columns: [table.templateClassId, table.skillId] })],
 )
 
 // Generated schedule tables

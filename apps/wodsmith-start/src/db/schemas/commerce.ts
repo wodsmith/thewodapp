@@ -4,6 +4,7 @@ import {
 	index,
 	int,
 	mysqlTable,
+	text,
 	varchar,
 	uniqueIndex,
 	datetime,
@@ -115,7 +116,7 @@ export const commercePurchaseTable = mysqlTable(
 		stripePaymentIntentId: varchar({ length: 255 }), // Set after checkout completes (from session.payment_intent)
 
 		// Extensibility (JSON for team registration data, etc.)
-		metadata: varchar({ length: 10000 }), // JSON
+		metadata: text(), // JSON
 
 		// Completion timestamp
 		completedAt: datetime(),

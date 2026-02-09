@@ -88,13 +88,13 @@
 
 import alchemy from "alchemy"
 import {
-	D1Database,
 	KVNamespace,
 	R2Bucket,
 	TanStackStart,
 } from "alchemy/cloudflare"
 import { GitHubComment } from "alchemy/github"
 import { CloudflareStateStore } from "alchemy/state"
+import { Branch as PlanetScaleBranch, Database as PlanetScaleDatabase, Password as PlanetScalePassword } from "alchemy/planetscale"
 import { WebhookEndpoint } from "alchemy/stripe"
 
 /**
@@ -199,39 +199,50 @@ const app = await alchemy("wodsmith", {
 })
 
 /**
- * Cloudflare D1 SQLite database for application data.
+ * PlanetScale MySQL database for application data.
  *
- * D1 is Cloudflare's serverless SQLite database. This binding provides:
- * - Automatic schema migrations from the migrations directory
- * - Type-safe database access via Drizzle ORM
- * - Edge-local reads with global replication
+ * This is the primary database going forward, replacing D1 (SQLite).
+ * Alchemy manages the database lifecycle, branch, and credentials.
+ *
+ * The Password resource generates a connection URL that gets passed
+ * to the Worker as the `DATABASE_URL` secret binding.
  *
  * @remarks
- * **Environment-specific notes:**
- * - Each stage gets a separate database instance
- * - Migrations run automatically on deployment
- * - Database name is stage-prefixed: `wodsmith-db-{stage}`
+ * **Environment variables required:**
+ * - `PLANETSCALE_SERVICE_TOKEN_ID`: PlanetScale service token ID
+ * - `PLANETSCALE_SERVICE_TOKEN`: PlanetScale service token secret
+ * - `PLANETSCALE_ORGANIZATION`: PlanetScale organization name
  *
- * **Access in application:**
- * ```typescript
- * import { getDb } from "~/db";
- * const db = getDb(env.DB);
- * const users = await db.query.users.findMany();
- * ```
- *
- * @see {@link https://developers.cloudflare.com/d1/ D1 Documentation}
+ * @see {@link https://planetscale.com/docs PlanetScale Documentation}
  */
-const db = await D1Database("db", {
-	/**
-	 * Directory containing Drizzle migration SQL files.
-	 * Migrations are applied in filename order on each deployment.
-	 */
-	migrationsDir: "./src/db/migrations",
-	/**
-	 * Adopt existing D1 database if it already exists.
-	 * Required for production where resources were created before Alchemy.
-	 */
+const psDb = await PlanetScaleDatabase("db", {
+	name: "wodsmith-db",
 	adopt: true,
+	clusterSize: "PS_10",
+	region: { slug: "us-east" },
+	productionBranchWebConsole: true,
+})
+
+/**
+ * PlanetScale branch for the current stage.
+ * - prod uses "main" (production branch)
+ * - dev/demo get their own branches off main
+ */
+const psBranchName = stage === "prod" ? "main" : stage
+const psBranch =
+	stage === "prod"
+		? undefined
+		: await PlanetScaleBranch(`ps-branch-${stage}`, {
+				database: psDb,
+				name: psBranchName,
+				parentBranch: "main",
+				isProduction: false,
+			})
+
+const psPassword = await PlanetScalePassword(`ps-password-${stage}`, {
+	database: psDb,
+	branch: psBranch ?? psBranchName,
+	role: "admin",
 })
 
 /**
@@ -479,8 +490,6 @@ const website = await TanStackStart("app", {
 	 * - Values wrapped in `alchemy.secret()` become encrypted secrets
 	 */
 	bindings: {
-		/** D1 database binding for application data */
-		DB: db,
 		/** KV namespace binding for session storage */
 		KV_SESSION: kvSession,
 		/** R2 bucket binding for file uploads */
@@ -538,6 +547,11 @@ const website = await TanStackStart("app", {
 		...(process.env.BRAINTRUST_API_KEY && {
 			BRAINTRUST_API_KEY: alchemy.secret(process.env.BRAINTRUST_API_KEY),
 		}),
+
+		// PlanetScale database connection (managed by Alchemy)
+		DATABASE_URL: alchemy.secret(
+			`mysql://${psPassword.username}:${psPassword.password.unencrypted}@${psPassword.host}/${psDb.name}?ssl={"rejectUnauthorized":true}`,
+		),
 
 		// Stripe env vars are populated for all environments when available
 		...(hasStripeEnv && {

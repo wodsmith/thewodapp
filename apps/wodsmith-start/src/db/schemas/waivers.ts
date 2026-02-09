@@ -1,7 +1,7 @@
 import { createId } from "@paralleldrive/cuid2"
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { index, int, varchar, datetime, boolean, mysqlTable } from "drizzle-orm/mysql-core"
+import { index, int, varchar, datetime, boolean, mysqlTable, text } from "drizzle-orm/mysql-core"
 import { commonColumns } from "./common"
 import {
 	competitionRegistrationsTable,
@@ -32,7 +32,7 @@ export const waiversTable = mysqlTable(
 		// Waiver title (e.g., "Liability Waiver", "Photo Release")
 		title: varchar({ length: 255 }).notNull(),
 		// Rich text content stored as Lexical JSON
-		content: varchar({ length: 50000 }).notNull(),
+		content: text().notNull(),
 		// Whether this waiver is required for registration
 		required: boolean().default(true).notNull(),
 		// Display order (for showing multiple waivers in sequence)

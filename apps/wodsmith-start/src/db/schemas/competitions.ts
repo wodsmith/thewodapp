@@ -6,6 +6,7 @@ import {
 	index,
 	int,
 	mysqlTable,
+	text,
 	uniqueIndex,
 	varchar,
 } from "drizzle-orm/mysql-core"
@@ -82,7 +83,7 @@ export const competitionsTable = mysqlTable(
 		// IANA timezone for competition dates and deadlines (e.g., "America/Denver")
 		timezone: varchar({ length: 50 }).default("America/Denver"),
 		// JSON settings (divisions, rules, etc.)
-		settings: varchar({ length: 10000 }),
+		settings: text(),
 
 		// Commerce: Default registration fee (used if no division-specific fee exists)
 		// $0 = free by default
@@ -161,9 +162,9 @@ export const competitionRegistrationsTable = mysqlTable(
 		athleteTeamId: varchar({ length: 255 }),
 		// Pending teammates stored as JSON until they accept
 		// Format: [{ email, firstName?, lastName?, affiliateName? }, ...]
-		pendingTeammates: varchar({ length: 5000 }), // JSON array
+		pendingTeammates: text(), // JSON array
 		// Metadata as JSON (flexible for future expansion)
-		metadata: varchar({ length: 10000 }), // JSON: { notes: "..." }
+		metadata: text(), // JSON: { notes: "..." }
 
 		// Commerce: Payment tracking
 		// Reference to commerce_purchase (no FK to avoid circular deps - relation defined separately)
@@ -299,7 +300,7 @@ export const competitionRegistrationQuestionsTable = mysqlTable(
 		// Optional help text / description
 		helpText: varchar({ length: 1000 }),
 		// For select type: JSON array of options ["S", "M", "L", "XL"]
-		options: varchar({ length: 5000 }),
+		options: text(),
 		// Is this question required?
 		required: boolean().default(true).notNull(),
 		// Should teammates also answer this question? (for team divisions)
@@ -332,7 +333,7 @@ export const competitionRegistrationAnswersTable = mysqlTable(
 		// The user who answered (useful for team registrations where teammates answer separately)
 		userId: varchar({ length: 255 }).notNull(),
 		// The answer value (stored as text, converted as needed based on question type)
-		answer: varchar({ length: 5000 }).notNull(),
+		answer: text().notNull(),
 	},
 	(table) => [
 		index("comp_reg_answers_question_idx").on(table.questionId),
