@@ -1,11 +1,6 @@
 "use client"
 
-import {
-	ChevronDown,
-	ExternalLink,
-	Trophy,
-	Users,
-} from "lucide-react"
+import { ChevronDown, ExternalLink, Trophy, Users } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
 	Collapsible,

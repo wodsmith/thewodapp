@@ -3,7 +3,12 @@
  * Port of apps/wodsmith/src/app/(admin)/admin/teams/programming/page.tsx
  */
 
-import { createFileRoute, Link, redirect, useRouter } from "@tanstack/react-router"
+import {
+	createFileRoute,
+	Link,
+	redirect,
+	useRouter,
+} from "@tanstack/react-router"
 import { Plus } from "lucide-react"
 import { ProgrammingTrackCreateDialog } from "@/components/programming-track-create-dialog"
 import { ProgrammingTrackRow } from "@/components/programming-track-row"

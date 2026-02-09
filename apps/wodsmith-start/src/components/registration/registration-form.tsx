@@ -180,9 +180,7 @@ function DivisionField({
 										>
 											<span
 												className={
-													isFull
-														? "line-through text-muted-foreground"
-														: ""
+													isFull ? "line-through text-muted-foreground" : ""
 												}
 											>
 												{level.label}

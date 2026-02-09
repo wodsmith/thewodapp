@@ -45,8 +45,7 @@ function EntitlementsPage() {
 		const q = search.toLowerCase()
 		return teams.filter(
 			(t) =>
-				t.name.toLowerCase().includes(q) ||
-				t.slug.toLowerCase().includes(q),
+				t.name.toLowerCase().includes(q) || t.slug.toLowerCase().includes(q),
 		)
 	}, [teams, search])
 
@@ -107,7 +106,9 @@ function EntitlementsPage() {
 						{filtered.length === 0 ? (
 							<div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
 								<Building2 className="h-12 w-12 mb-4 opacity-50" />
-								<p>{search ? "No teams match your search" : "No teams found"}</p>
+								<p>
+									{search ? "No teams match your search" : "No teams found"}
+								</p>
 							</div>
 						) : (
 							<Table>
@@ -204,11 +205,7 @@ function TeamRow({ team }: { team: TeamWithWorkoutTracking }) {
 					disabled={loading}
 					onClick={handleToggle}
 				>
-					{loading
-						? "..."
-						: team.hasWorkoutTracking
-							? "Revoke"
-							: "Grant"}
+					{loading ? "..." : team.hasWorkoutTracking ? "Revoke" : "Grant"}
 				</Button>
 			</TableCell>
 		</TableRow>
