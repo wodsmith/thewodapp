@@ -4,7 +4,7 @@
  */
 
 import { env } from "cloudflare:workers"
-import { createServerOnlyFn } from "@tanstack/react-start"
+import { createServerFn, createServerOnlyFn } from "@tanstack/react-start"
 
 /**
  * Type helper for accessing env vars that may not be in the typed Env interface.
@@ -35,6 +35,17 @@ const extendedEnv = env as ExtendedEnv
 export const getAppUrl = createServerOnlyFn((): string => {
 	return env.APP_URL || "https://wodsmith.com"
 })
+
+/**
+ * Get the application URL via RPC (safe to call from route loaders during SPA navigation).
+ * Use this instead of getAppUrl() in route loaders, which run on the client during
+ * client-side navigation and would throw with createServerOnlyFn.
+ */
+export const getAppUrlFn = createServerFn({ method: "GET" }).handler(
+	async () => {
+		return env.APP_URL || "https://wodsmith.com"
+	},
+)
 
 /**
  * Get the Stripe Client ID.
