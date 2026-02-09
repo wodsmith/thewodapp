@@ -160,7 +160,7 @@ export function CompetitionTemplate({ competition }: Props) {
 				<div style={{ display: "flex", width: "36px", flexShrink: 0 }} />
 
 				{/* Text column */}
-				<div style={{ display: "flex", flexDirection: "column" }}>
+				<div style={{ display: "flex", flexDirection: "column", maxWidth: "876px", overflow: "hidden" }}>
 					{/* Badge row */}
 					<div style={{ display: "flex", flexDirection: "row" }}>
 						<div

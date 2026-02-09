@@ -12,7 +12,7 @@
 		{
 			"binding": "DB",
 			"database_name": "wodsmith-db",
-			"database_id": "931185e9-99e5-48f0-bf70-d03ca5936f2d",
+			"database_id": "f6c482fb-c756-49a9-9d74-4b3ca4458c3e",
 			// Local dev: use the same D1 database ID as Alchemy's local dev environment
 			"preview_database_id": "010c1909-8700-406b-bd1f-694571b30039"
 		}
