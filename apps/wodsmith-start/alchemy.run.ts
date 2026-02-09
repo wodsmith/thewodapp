@@ -224,19 +224,26 @@ const psDb = await PlanetScaleDatabase("db", {
 })
 
 /**
- * PlanetScale branch for the current stage.
- * - prod uses "main" (production branch)
- * - dev/demo get their own branches off main
+ * PlanetScale branch hierarchy:
+ * - prod → "main" (production branch, no Branch resource needed)
+ * - dev  → branches off main
+ * - demo → branches off dev (reset from dev when needed)
  */
-const psBranchName = stage === "prod" ? "main" : stage
+const branchConfig: Record<string, { name: string; parent: string }> = {
+	dev: { name: "dev", parent: "main" },
+	demo: { name: "demo", parent: "dev" },
+}
+
+const psBranchName = stage === "prod" ? "main" : (branchConfig[stage]?.name ?? stage)
 const psBranch =
 	stage === "prod"
 		? undefined
 		: await PlanetScaleBranch(`ps-branch-${stage}`, {
 				database: psDb,
 				name: psBranchName,
-				parentBranch: "main",
+				parentBranch: branchConfig[stage]?.parent ?? "main",
 				isProduction: false,
+				adopt: true,
 			})
 
 const psPassword = await PlanetScalePassword(`ps-password-${stage}`, {
