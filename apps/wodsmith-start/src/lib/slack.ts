@@ -3,20 +3,17 @@
  * Uses createServerOnlyFn to enforce server-only execution
  */
 
-import { env } from "cloudflare:workers"
 import { createServerOnlyFn } from "@tanstack/react-start"
-import { logError, logInfo, logWarning } from "@/lib/logging/posthog-otel-logger"
-
-/**
- * Type helper for accessing Slack env vars
- */
-type SlackEnv = typeof env & {
-	SLACK_WEBHOOK_URL?: string
-	SLACK_PURCHASE_NOTIFICATIONS_ENABLED?: string
-	SLACK_PURCHASE_NOTIFICATION_TYPES?: string
-}
-
-const slackEnv = env as SlackEnv
+import {
+	getSlackPurchaseNotificationTypes,
+	getSlackWebhookUrl,
+	isSlackPurchaseNotificationsEnabled,
+} from "@/lib/env"
+import {
+	logError,
+	logInfo,
+	logWarning,
+} from "@/lib/logging/posthog-otel-logger"
 
 /**
  * Purchase types that can trigger Slack notifications
@@ -56,47 +53,33 @@ export interface PurchaseNotificationData {
 }
 
 /**
- * Get the Slack webhook URL.
- * This is a server-only function that will throw if called from the client.
- */
-export const getSlackWebhookUrl = createServerOnlyFn((): string | undefined => {
-	return slackEnv.SLACK_WEBHOOK_URL
-})
-
-/**
- * Check if Slack purchase notifications are enabled.
- * This is a server-only function that will throw if called from the client.
- */
-export const isSlackPurchaseNotificationsEnabled = createServerOnlyFn(
-	(): boolean => {
-		return slackEnv.SLACK_PURCHASE_NOTIFICATIONS_ENABLED === "true"
-	},
-)
-
-/**
  * Get the enabled purchase types for Slack notifications.
- * Reads from SLACK_PURCHASE_NOTIFICATION_TYPES env var (comma-separated list).
+ * Parses the raw comma-separated env var into validated types.
  * Defaults to all types if not specified.
  */
-export const getEnabledPurchaseTypes = createServerOnlyFn(
-	(): SlackPurchaseType[] => {
-		const typesEnv = slackEnv.SLACK_PURCHASE_NOTIFICATION_TYPES
+function getEnabledPurchaseTypes(): SlackPurchaseType[] {
+	const typesEnv = getSlackPurchaseNotificationTypes()
 
-		if (!typesEnv) {
-			// Default to all types
-			return Object.values(SLACK_PURCHASE_TYPES)
-		}
+	if (!typesEnv) {
+		return Object.values(SLACK_PURCHASE_TYPES)
+	}
 
-		const types = typesEnv
-			.split(",")
-			.map((t) => t.trim().toUpperCase())
-			.filter((t) =>
-				Object.values(SLACK_PURCHASE_TYPES).includes(t as SlackPurchaseType),
-			) as SlackPurchaseType[]
+	const types = typesEnv
+		.split(",")
+		.map((t) => t.trim().toUpperCase())
+		.filter((t) =>
+			Object.values(SLACK_PURCHASE_TYPES).includes(t as SlackPurchaseType),
+		) as SlackPurchaseType[]
 
-		return types.length > 0 ? types : Object.values(SLACK_PURCHASE_TYPES)
-	},
-)
+	return types.length > 0 ? types : Object.values(SLACK_PURCHASE_TYPES)
+}
+
+/**
+ * Escape special characters for Slack mrkdwn format
+ */
+function escapeSlackMrkdwn(text: string): string {
+	return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+}
 
 /**
  * Format currency from cents to dollars
@@ -160,7 +143,7 @@ function buildPurchaseMessage(data: PurchaseNotificationData): {
 	if (data.customerName || data.customerEmail) {
 		fields.push({
 			type: "mrkdwn",
-			text: `*Customer:*\n${data.customerName || "Unknown"}${data.customerEmail ? `\n${data.customerEmail}` : ""}`,
+			text: `*Customer:*\n${escapeSlackMrkdwn(data.customerName || "Unknown")}${data.customerEmail ? `\n${escapeSlackMrkdwn(data.customerEmail)}` : ""}`,
 		})
 	}
 
@@ -174,14 +157,14 @@ function buildPurchaseMessage(data: PurchaseNotificationData): {
 	if (data.competitionName) {
 		fields.push({
 			type: "mrkdwn",
-			text: `*Competition:*\n${data.competitionName}`,
+			text: `*Competition:*\n${escapeSlackMrkdwn(data.competitionName)}`,
 		})
 	}
 
 	if (data.divisionName) {
 		fields.push({
 			type: "mrkdwn",
-			text: `*Division:*\n${data.divisionName}`,
+			text: `*Division:*\n${escapeSlackMrkdwn(data.divisionName)}`,
 		})
 	}
 
@@ -189,7 +172,7 @@ function buildPurchaseMessage(data: PurchaseNotificationData): {
 	if (data.teamName) {
 		fields.push({
 			type: "mrkdwn",
-			text: `*Team:*\n${data.teamName}`,
+			text: `*Team:*\n${escapeSlackMrkdwn(data.teamName)}`,
 		})
 	}
 
@@ -197,7 +180,7 @@ function buildPurchaseMessage(data: PurchaseNotificationData): {
 	if (data.productName) {
 		fields.push({
 			type: "mrkdwn",
-			text: `*Product:*\n${data.productName}`,
+			text: `*Product:*\n${escapeSlackMrkdwn(data.productName)}`,
 		})
 	}
 
@@ -232,7 +215,10 @@ function buildPurchaseMessage(data: PurchaseNotificationData): {
 	// Add metadata as additional context if provided
 	if (data.metadata && Object.keys(data.metadata).length > 0) {
 		const metadataText = Object.entries(data.metadata)
-			.map(([key, value]) => `${key}: ${value}`)
+			.map(
+				([key, value]) =>
+					`${escapeSlackMrkdwn(key)}: ${escapeSlackMrkdwn(value)}`,
+			)
 			.join(" | ")
 
 		blocks.push({
