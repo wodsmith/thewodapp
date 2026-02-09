@@ -12,7 +12,7 @@ export const Route = createRootRoute({
 		meta: [
 			{ charSet: "utf-8" },
 			{ name: "viewport", content: "width=device-width, initial-scale=1" },
-			{ title: "Ledger - Document Viewer" },
+			{ title: "WODsmith Ledger" },
 		],
 		links: [{ rel: "stylesheet", href: appCss }],
 	}),
@@ -27,7 +27,7 @@ function RootComponent() {
 
 function RootDocument({ children }: { children: React.ReactNode }) {
 	return (
-		<html lang="en">
+		<html lang="en" className="dark">
 			<head>
 				<HeadContent />
 			</head>

@@ -10,7 +10,7 @@ import {
 	listDocumentsFn,
 } from "@/server-fns/documents"
 import type { Document } from "@/db/schema"
-import { FileText, LogOut, Plus } from "lucide-react"
+import { LogOut, Plus } from "lucide-react"
 
 export const Route = createFileRoute("/_authenticated/documents")({
 	loader: async () => {
@@ -73,8 +73,13 @@ function DocumentsPage() {
 			<header className="border-b">
 				<div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
 					<div className="flex items-center gap-2">
-						<FileText className="h-5 w-5 text-primary" />
-						<h1 className="text-lg font-semibold">Ledger</h1>
+						<img
+							src="/wodsmith-logo-no-text.png"
+							alt="WODsmith"
+							width={28}
+							height={28}
+						/>
+						<h1 className="text-lg font-semibold">WODsmith Ledger</h1>
 					</div>
 					<div className="flex items-center gap-2">
 						<button

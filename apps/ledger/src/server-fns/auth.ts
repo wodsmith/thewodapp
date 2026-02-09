@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start"
-import { env } from "cloudflare:workers"
-import { getCookie, getRequestHeader, setCookie } from "@tanstack/react-start/server"
 import { z } from "zod"
+import { getAuthPassword, getSessionSecret } from "@/lib/env"
 
 const SESSION_COOKIE = "ledger_session"
 
@@ -39,11 +38,7 @@ async function timingSafeEqual(a: string, b: string): Promise<boolean> {
 }
 
 function getSigningKey(): string {
-	const key = env.LEDGER_SESSION_SECRET
-	if (!key) {
-		throw new Error("LEDGER_SESSION_SECRET not configured")
-	}
-	return key
+	return getSessionSecret()
 }
 
 async function signToken(token: string): Promise<string> {
@@ -77,31 +72,31 @@ async function verifyToken(cookie: string): Promise<boolean> {
 	return timingSafeEqual(cookie, expected)
 }
 
-export const checkAuthFn = createServerFn().handler(async () => {
+export const checkAuthFn = createServerFn({ method: "GET" }).handler(async () => {
+	const { getCookie } = await import("@tanstack/react-start/server")
 	const cookie = await getCookie(SESSION_COOKIE)
 	if (!cookie) return false
 	return verifyToken(cookie)
 })
 
 export async function requireAuth() {
+	const { getCookie } = await import("@tanstack/react-start/server")
 	const cookie = await getCookie(SESSION_COOKIE)
 	if (!cookie || !(await verifyToken(cookie))) {
 		throw new Error("Unauthorized")
 	}
 }
 
-export const loginFn = createServerFn()
-	.validator(z.object({ password: z.string() }))
+export const loginFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => z.object({ password: z.string() }).parse(data))
 	.handler(async ({ data }) => {
+		const { getRequestHeader, setCookie } = await import("@tanstack/react-start/server")
 		const clientIp = await getRequestHeader("CF-Connecting-IP") || "unknown"
 		if (!checkRateLimit(clientIp)) {
 			return { success: false, error: "Too many login attempts. Try again later." } as const
 		}
 
-		const correctPassword = env.LEDGER_AUTH_PASSWORD
-		if (!correctPassword) {
-			throw new Error("LEDGER_AUTH_PASSWORD not configured")
-		}
+		const correctPassword = getAuthPassword()
 
 		const match = await timingSafeEqual(data.password, correctPassword)
 		if (!match) {
@@ -124,7 +119,8 @@ export const loginFn = createServerFn()
 		return { success: true } as const
 	})
 
-export const logoutFn = createServerFn().handler(async () => {
+export const logoutFn = createServerFn({ method: "POST" }).handler(async () => {
+	const { setCookie } = await import("@tanstack/react-start/server")
 	await setCookie(SESSION_COOKIE, "", {
 		httpOnly: true,
 		secure: true,

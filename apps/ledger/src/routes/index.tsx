@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { Lock } from "lucide-react"
+
+
 import { useState } from "react"
 import { checkAuthFn, loginFn } from "@/server-fns/auth"
 
@@ -49,10 +50,13 @@ function LoginPage() {
 		<div className="flex min-h-screen items-center justify-center bg-background">
 			<div className="w-full max-w-sm space-y-6 p-8">
 				<div className="flex flex-col items-center space-y-2 text-center">
-					<div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-						<Lock className="h-6 w-6 text-primary" />
-					</div>
-					<h1 className="text-2xl font-bold tracking-tight">Ledger</h1>
+					<img
+						src="/wodsmith-logo-no-text.png"
+						alt="WODsmith"
+						width={48}
+						height={48}
+					/>
+					<h1 className="text-2xl font-bold tracking-tight">WODsmith Ledger</h1>
 					<p className="text-sm text-muted-foreground">
 						Enter your password to access documents
 					</p>
