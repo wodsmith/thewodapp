@@ -13,6 +13,7 @@ import { logError, logInfo, logWarning } from "@/lib/logging/posthog-otel-logger
 type SlackEnv = typeof env & {
 	SLACK_WEBHOOK_URL?: string
 	SLACK_PURCHASE_NOTIFICATIONS_ENABLED?: string
+	SLACK_PURCHASE_NOTIFICATION_TYPES?: string
 }
 
 const slackEnv = env as SlackEnv
@@ -79,8 +80,7 @@ export const isSlackPurchaseNotificationsEnabled = createServerOnlyFn(
  */
 export const getEnabledPurchaseTypes = createServerOnlyFn(
 	(): SlackPurchaseType[] => {
-		const typesEnv = (slackEnv as Record<string, string | undefined>)
-			.SLACK_PURCHASE_NOTIFICATION_TYPES
+		const typesEnv = slackEnv.SLACK_PURCHASE_NOTIFICATION_TYPES
 
 		if (!typesEnv) {
 			// Default to all types
