@@ -53,4 +53,5 @@ jobs:
           ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
           APP_URL: https://ledger.wodsmith.com
           LEDGER_AUTH_PASSWORD: ${{ secrets.LEDGER_AUTH_PASSWORD }}
+          LEDGER_SESSION_SECRET: ${{ secrets.LEDGER_SESSION_SECRET }}
           OPENAI_API_KEY_PROD: ${{ secrets.OPENAI_API_KEY_PROD }}

@@ -39,9 +39,9 @@ async function timingSafeEqual(a: string, b: string): Promise<boolean> {
 }
 
 function getSigningKey(): string {
-	const key = env.LEDGER_AUTH_PASSWORD
+	const key = env.LEDGER_SESSION_SECRET
 	if (!key) {
-		throw new Error("LEDGER_AUTH_PASSWORD not configured")
+		throw new Error("LEDGER_SESSION_SECRET not configured")
 	}
 	return key
 }

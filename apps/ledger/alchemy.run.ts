@@ -39,6 +39,8 @@ const website = await TanStackStart("app", {
 		NODE_ENV: stage === "prod" ? "production" : "development",
 		// biome-ignore lint/style/noNonNullAssertion: Required
 		LEDGER_AUTH_PASSWORD: alchemy.secret(process.env.LEDGER_AUTH_PASSWORD!),
+		// biome-ignore lint/style/noNonNullAssertion: Required for session signing
+		LEDGER_SESSION_SECRET: alchemy.secret(process.env.LEDGER_SESSION_SECRET!),
 		// biome-ignore lint/style/noNonNullAssertion: Required for doc analyzer
 		OPENAI_API_KEY: alchemy.secret(process.env.OPENAI_API_KEY_PROD!),
 	},
