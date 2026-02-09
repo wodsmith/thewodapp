@@ -3,8 +3,7 @@
 	"compilerOptions": {
 		"noEmit": true,
 		"types": ["@cloudflare/workers-types"],
-		"jsx": "react-jsx",
-		"jsxImportSource": "workers-og",
+		"jsx": "react",
 		"tsBuildInfoFile": ".tsbuildinfo"
 	},
 	"include": ["src"],

@@ -23,11 +23,8 @@ export const Route = createFileRoute("/compete/$slug")({
 			return { meta: [{ title: "Competition Not Found" }] }
 		}
 
-		const appUrl = getAppUrl()
-		const ogImageUrl =
-			competition.bannerImageUrl ||
-			competition.profileImageUrl ||
-			"https://wodsmith.com/wodsmith-logo-1000.png"
+		const appUrl = loaderData?.appUrl || "https://wodsmith.com"
+		const ogImageUrl = `${loaderData?.ogBaseUrl || "https://og.wodsmith.com"}/competition/${competition.slug}`
 		const pageUrl = `${appUrl}/compete/${competition.slug}`
 		const description =
 			competition.description?.slice(0, 160) ||
@@ -136,7 +133,14 @@ export const Route = createFileRoute("/compete/$slug")({
 			? divisions.find((d) => d.id === userRegistration.divisionId)
 			: null
 
+		const appUrl = getAppUrl()
+		const ogBaseUrl = appUrl.includes("localhost")
+			? "http://localhost:8787"
+			: "https://og.wodsmith.com"
+
 		return {
+			appUrl,
+			ogBaseUrl,
 			competition,
 			registrationCount,
 			userRegistration,

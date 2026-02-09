@@ -9,9 +9,110 @@ When competition links are shared on social media, we want rich, branded preview
 3. **WODsmith branding** (subtle logo placement)
 4. Optional: Competition dates, type badge (online/in-person), organizing team
 
-## Architecture Decision: Separate Worker
+## Phased Approach
 
-We're deploying the OG image service as a **separate Cloudflare Worker** for:
+### Phase 1: Meta Tags + Static OG Image (in wodsmith-start)
+
+Add OG meta tags to the competition route using a static default image. This gets proper social previews working immediately with zero infrastructure.
+
+### Phase 2: Separate OG Worker (og.wodsmith.com)
+
+Deploy a dedicated Cloudflare Worker that generates dynamic, per-competition OG images with logos, titles, and dates. Swap the static `og:image` URL for the dynamic one.
+
+---
+
+## Phase 1: Meta Tags in wodsmith-start
+
+### What This Does
+
+- Adds `head()` with OG/Twitter meta tags to `/compete/$slug`
+- Uses the competition's `profileImageUrl` or `bannerImageUrl` as the OG image
+- Falls back to a static WODsmith OG image if no competition image exists
+- No new infrastructure, no new worker, no internal API
+
+### Implementation
+
+#### 1. Add head() to Competition Route
+
+The route already has a loader returning full competition data. Add `head()`:
+
+```typescript
+// apps/wodsmith-start/src/routes/compete/$slug.tsx
+
+import { createFileRoute } from '@tanstack/react-router'
+import { getAppUrl } from '@/lib/env'
+
+const FALLBACK_OG_IMAGE = 'https://wodsmith.com/og-default.png'
+
+export const Route = createFileRoute('/compete/$slug')({
+  head: ({ loaderData }) => {
+    const competition = loaderData?.competition
+
+    if (!competition) {
+      return { meta: [{ title: 'Competition Not Found' }] }
+    }
+
+    const appUrl = getAppUrl()
+    const ogImageUrl = competition.bannerImageUrl
+      || competition.profileImageUrl
+      || FALLBACK_OG_IMAGE
+    const pageUrl = `${appUrl}/compete/${competition.slug}`
+    const description = competition.description?.slice(0, 160)
+      || `Join ${competition.name} - a fitness competition on WODsmith`
+
+    return {
+      meta: [
+        // Basic
+        { title: competition.name },
+        { name: 'description', content: description },
+
+        // Open Graph
+        { property: 'og:type', content: 'website' },
+        { property: 'og:url', content: pageUrl },
+        { property: 'og:title', content: competition.name },
+        { property: 'og:description', content: description },
+        { property: 'og:image', content: ogImageUrl },
+        { property: 'og:image:width', content: '1200' },
+        { property: 'og:image:height', content: '630' },
+        { property: 'og:site_name', content: 'WODsmith' },
+
+        // Twitter
+        { name: 'twitter:card', content: 'summary_large_image' },
+        { name: 'twitter:title', content: competition.name },
+        { name: 'twitter:description', content: description },
+        { name: 'twitter:image', content: ogImageUrl },
+      ],
+    }
+  },
+  // ... existing loader, component, etc.
+})
+```
+
+#### 2. Create a Default OG Image
+
+Upload a static `og-default.png` (1200x630) to the public directory or R2 bucket. This is the fallback when a competition has no images.
+
+### Phase 1 Checklist
+
+- [ ] Create static `og-default.png` (1200x630, WODsmith branded)
+- [ ] Add `head()` to `src/routes/compete/$slug.tsx`
+- [ ] Test with [opengraph.xyz](https://www.opengraph.xyz/)
+- [ ] Test with [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/)
+- [ ] Test with [Twitter Card Validator](https://cards-dev.twitter.com/validator)
+
+### Notes
+
+- Uses `getAppUrl()` from `@/lib/env` (centralized `createServerOnlyFn` pattern)
+- `head()` with `loaderData` is already used in 8+ routes (organizer settings, scoring, revenue, etc.)
+- No `og:image` meta tags exist anywhere in the codebase yet - clean slate
+
+---
+
+## Phase 2: Separate OG Worker
+
+### Architecture Decision: Separate Worker
+
+Deploy the OG image service as a **separate Cloudflare Worker** for:
 
 | Benefit | Reason |
 |---------|--------|
@@ -21,7 +122,9 @@ We're deploying the OG image service as a **separate Cloudflare Worker** for:
 | **Reusability** | Can serve OG images for workouts, teams, etc. |
 | **Specialized caching** | Aggressive edge caching for images |
 
-## System Architecture
+**Precedent**: `apps/posthog-proxy` already proves this separate-worker pattern works in the monorepo.
+
+### System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -41,7 +144,7 @@ We're deploying the OG image service as a **separate Cloudflare Worker** for:
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Project Structure
+### Project Structure
 
 ```
 apps/
@@ -62,12 +165,15 @@ apps/
     │   └── wodsmith-logo.png    # Embedded assets
     ├── wrangler.jsonc
     ├── package.json
-    └── tsconfig.json
+    ├── tsconfig.json
+    └── biome.json
 ```
 
-## Implementation Details
+Monorepo auto-discovers via `apps/*` glob in `pnpm-workspace.yaml`. No config changes needed.
 
-### 1. OG Worker Entry Point
+### Implementation Details
+
+#### 1. OG Worker Entry Point
 
 ```typescript
 // apps/og-worker/src/index.ts
@@ -160,7 +266,7 @@ function getCacheHeaders(): Record<string, string> {
 }
 ```
 
-### 2. Competition Template
+#### 2. Competition Template
 
 ```tsx
 // apps/og-worker/src/templates/competition.tsx
@@ -173,6 +279,7 @@ interface CompetitionData {
   bannerImageUrl: string | null
   startDate: string
   endDate: string
+  timezone: string
   competitionType: 'in-person' | 'online'
   organizingTeam: {
     name: string
@@ -270,7 +377,7 @@ export function CompetitionTemplate({ competition }: Props) {
               fontWeight: 400,
             }}
           >
-            {formatDateRange(competition.startDate, competition.endDate)}
+            {formatDateRange(competition.startDate, competition.endDate, competition.timezone)}
           </p>
         </div>
       </div>
@@ -310,36 +417,44 @@ export function CompetitionTemplate({ competition }: Props) {
   )
 }
 
-function formatDateRange(startDate: string, endDate: string): string {
-  const start = new Date(startDate + 'T00:00:00')
-  const end = new Date(endDate + 'T00:00:00')
-
+function formatDateRange(startDate: string, endDate: string, timezone: string): string {
+  // Use timezone-aware formatting to match the competition's configured timezone
   const options: Intl.DateTimeFormatOptions = {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
+    timeZone: timezone,
   }
+
+  // Parse as date-only in the competition's timezone
+  const start = new Date(startDate + 'T12:00:00')
+  const end = new Date(endDate + 'T12:00:00')
 
   if (startDate === endDate) {
     return start.toLocaleDateString('en-US', options)
   }
 
   // Same month and year
-  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-    return `${start.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - ${end.getDate()}, ${end.getFullYear()}`
+  const startMonth = start.toLocaleDateString('en-US', { month: 'long', timeZone: timezone })
+  const endMonth = end.toLocaleDateString('en-US', { month: 'long', timeZone: timezone })
+  const startYear = start.toLocaleDateString('en-US', { year: 'numeric', timeZone: timezone })
+  const endYear = end.toLocaleDateString('en-US', { year: 'numeric', timeZone: timezone })
+
+  if (startMonth === endMonth && startYear === endYear) {
+    const startDay = start.toLocaleDateString('en-US', { day: 'numeric', timeZone: timezone })
+    const endDay = end.toLocaleDateString('en-US', { day: 'numeric', timeZone: timezone })
+    return `${startMonth} ${startDay} - ${endDay}, ${endYear}`
   }
 
-  // Same year
-  if (start.getFullYear() === end.getFullYear()) {
-    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', options)}`
+  if (startYear === endYear) {
+    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: timezone })} - ${end.toLocaleDateString('en-US', options)}`
   }
 
-  // Different years
   return `${start.toLocaleDateString('en-US', options)} - ${end.toLocaleDateString('en-US', options)}`
 }
 ```
 
-### 3. Default Template
+#### 3. Default Template
 
 ```tsx
 // apps/og-worker/src/templates/default.tsx
@@ -388,119 +503,105 @@ export function DefaultTemplate() {
 }
 ```
 
-### 4. Internal Data API (Main App)
+#### 4. Internal Data API (Main App)
+
+> **Codebase pattern**: Uses `createFileRoute` from `@tanstack/react-router` with `server.handlers`, NOT `createAPIFileRoute`. Uses `createServerOnlyFn` for env access, NOT direct `env` imports.
 
 ```typescript
 // apps/wodsmith-start/src/routes/api/internal/og-data/competition/$slug.ts
 
-import { createAPIFileRoute } from '@tanstack/react-start/api'
+import { createFileRoute } from '@tanstack/react-router'
 import { json } from '@tanstack/react-start'
-import { env } from 'cloudflare:workers'
+import { getInternalApiSecret } from '@/lib/env'
 import { db } from '@/db'
 import { competitionsTable } from '@/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 
-export const APIRoute = createAPIFileRoute('/api/internal/og-data/competition/$slug')({
-  GET: async ({ request, params }) => {
-    // Verify internal API secret
-    const authHeader = request.headers.get('Authorization')
-    const expectedAuth = `Bearer ${env.INTERNAL_API_SECRET}`
+export const Route = createFileRoute('/api/internal/og-data/competition/$slug')({
+  server: {
+    handlers: {
+      GET: async ({ request, params }: { request: Request; params: { slug: string } }) => {
+        // Verify internal API secret
+        const secret = getInternalApiSecret()
+        if (!secret) {
+          return json({ error: 'Not configured' }, { status: 500 })
+        }
 
-    if (!env.INTERNAL_API_SECRET || authHeader !== expectedAuth) {
-      return json({ error: 'Unauthorized' }, { status: 401 })
-    }
+        const authHeader = request.headers.get('Authorization')
+        const providedSecret = authHeader?.replace('Bearer ', '')
 
-    const { slug } = params
+        if (!providedSecret || providedSecret !== secret) {
+          return json({ error: 'Unauthorized' }, { status: 401 })
+        }
 
-    const competition = await db.query.competitionsTable.findFirst({
-      where: eq(competitionsTable.slug, slug),
-      with: {
-        organizingTeam: {
-          columns: { name: true, avatarUrl: true },
-        },
+        const { slug } = params
+
+        const competition = await db.query.competitionsTable.findFirst({
+          where: and(
+            eq(competitionsTable.slug, slug),
+            eq(competitionsTable.status, 'published'),
+          ),
+          with: {
+            organizingTeam: {
+              columns: { name: true, avatarUrl: true },
+            },
+          },
+          columns: {
+            name: true,
+            slug: true,
+            description: true,
+            profileImageUrl: true,
+            bannerImageUrl: true,
+            startDate: true,
+            endDate: true,
+            timezone: true,
+            competitionType: true,
+          },
+        })
+
+        if (!competition) {
+          return json({ error: 'Competition not found' }, { status: 404 })
+        }
+
+        return json(competition, {
+          headers: {
+            'Cache-Control': 'private, max-age=60',
+          },
+        })
       },
-      columns: {
-        name: true,
-        slug: true,
-        description: true,
-        profileImageUrl: true,
-        bannerImageUrl: true,
-        startDate: true,
-        endDate: true,
-        competitionType: true,
-      },
-    })
-
-    if (!competition) {
-      return json({ error: 'Competition not found' }, { status: 404 })
-    }
-
-    // Only return published competitions (or draft for preview)
-    return json(competition, {
-      headers: {
-        'Cache-Control': 'private, max-age=60', // Short cache for internal API
-      },
-    })
+    },
   },
 })
 ```
 
-### 5. Meta Tags in Competition Routes
+Add to `src/lib/env.ts`:
 
 ```typescript
-// apps/wodsmith-start/src/routes/compete/$slug.tsx
-
-import { createFileRoute } from '@tanstack/react-router'
-
-// OG service URL - configure via env in production
-const OG_SERVICE_URL = 'https://og.wodsmith.com'
-const APP_URL = 'https://wodsmith.com'
-
-export const Route = createFileRoute('/compete/$slug')({
-  head: ({ loaderData }) => {
-    const competition = loaderData?.competition
-
-    if (!competition) {
-      return { meta: [{ title: 'Competition Not Found' }] }
-    }
-
-    const ogImageUrl = `${OG_SERVICE_URL}/competition/${competition.slug}`
-    const pageUrl = `${APP_URL}/compete/${competition.slug}`
-    const description = competition.description?.slice(0, 160)
-      || `Join ${competition.name} - a fitness competition on WODsmith`
-
-    return {
-      meta: [
-        // Basic
-        { title: competition.name },
-        { name: 'description', content: description },
-
-        // Open Graph
-        { property: 'og:type', content: 'website' },
-        { property: 'og:url', content: pageUrl },
-        { property: 'og:title', content: competition.name },
-        { property: 'og:description', content: description },
-        { property: 'og:image', content: ogImageUrl },
-        { property: 'og:image:width', content: '1200' },
-        { property: 'og:image:height', content: '630' },
-        { property: 'og:image:type', content: 'image/png' },
-        { property: 'og:site_name', content: 'WODsmith' },
-
-        // Twitter
-        { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:title', content: competition.name },
-        { name: 'twitter:description', content: description },
-        { name: 'twitter:image', content: ogImageUrl },
-      ],
-    }
-  },
-  // ... loader, component, etc.
+export const getInternalApiSecret = createServerOnlyFn((): string | undefined => {
+  return extendedEnv.INTERNAL_API_SECRET
 })
 ```
 
-## Worker Configuration
+#### 5. Update Meta Tags for Phase 2
 
-### wrangler.jsonc
+When the OG worker is deployed, update `head()` in `/compete/$slug.tsx`:
+
+```diff
+- const ogImageUrl = competition.bannerImageUrl
+-   || competition.profileImageUrl
+-   || FALLBACK_OG_IMAGE
++ const ogImageUrl = `https://og.wodsmith.com/competition/${competition.slug}`
+```
+
+Also add `og:image:type`:
+
+```typescript
+{ property: 'og:image:type', content: 'image/png' },
+```
+
+### Worker Configuration
+
+#### wrangler.jsonc
 
 ```jsonc
 // apps/og-worker/wrangler.jsonc
@@ -511,7 +612,7 @@ export const Route = createFileRoute('/compete/$slug')({
   "compatibility_date": "2024-12-01",
   "compatibility_flags": ["nodejs_compat"],
 
-  // Custom domain routing
+  // Custom domain routing (same pattern as posthog-proxy)
   "routes": [
     {
       "pattern": "og.wodsmith.com/*",
@@ -529,13 +630,14 @@ export const Route = createFileRoute('/compete/$slug')({
 }
 ```
 
-### package.json
+#### package.json
 
 ```json
 {
   "name": "og-worker",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
@@ -549,6 +651,19 @@ export const Route = createFileRoute('/compete/$slug')({
     "typescript": "^5.7.2",
     "wrangler": "^3.99.0"
   }
+}
+```
+
+#### tsconfig.json
+
+```json
+{
+  "extends": "@repo/typescript-config/base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "workers-og"
+  },
+  "include": ["src"]
 }
 ```
 
@@ -577,7 +692,7 @@ curl -X POST "https://api.cloudflare.com/client/v4/zones/{zone_id}/purge_cache" 
   --data '{"files":["https://og.wodsmith.com/competition/summer-throwdown"]}'
 ```
 
-Or via Cloudflare Dashboard: **Caching → Configuration → Purge Cache → Custom Purge**
+Or via Cloudflare Dashboard: **Caching -> Configuration -> Purge Cache -> Custom Purge**
 
 ## Security
 
@@ -587,14 +702,17 @@ Or via Cloudflare Dashboard: **Caching → Configuration → Purge Cache → Cus
 // Shared secret between workers
 // Set in both via: wrangler secret put INTERNAL_API_SECRET
 
-// OG Worker → Main App request
+// OG Worker -> Main App request
 headers: {
   'Authorization': `Bearer ${env.API_SECRET}`,
 }
 
-// Main App validation
+// Main App validation (using centralized env pattern)
+const secret = getInternalApiSecret()
 const authHeader = request.headers.get('Authorization')
-if (authHeader !== `Bearer ${env.INTERNAL_API_SECRET}`) {
+const providedSecret = authHeader?.replace('Bearer ', '')
+
+if (!providedSecret || providedSecret !== secret) {
   return json({ error: 'Unauthorized' }, { status: 401 })
 }
 ```
@@ -648,10 +766,10 @@ The internal API should only receive requests from the OG worker. Consider:
 
 ```typescript
 // Future routes in og-worker
-/workout/:id          → Workout preview (name, movements, time cap)
-/team/:slug           → Team/gym preview
-/leaderboard/:slug    → Leaderboard snapshot
-/athlete/:id          → Athlete profile card
+/workout/:id          -> Workout preview (name, movements, time cap)
+/team/:slug           -> Team/gym preview
+/leaderboard/:slug    -> Leaderboard snapshot
+/athlete/:id          -> Athlete profile card
 ```
 
 ### Dynamic Theming
@@ -669,19 +787,27 @@ Allow competitions to customize their OG image theme:
 }
 ```
 
-## Deployment Checklist
+## Deployment Checklists
+
+### Phase 1 Checklist
+
+- [ ] Create static `og-default.png` (1200x630)
+- [ ] Add `head()` to `src/routes/compete/$slug.tsx`
+- [ ] Test with social media debuggers
+
+### Phase 2 Checklist
 
 - [ ] Create `apps/og-worker` directory
 - [ ] Initialize with `pnpm init`
 - [ ] Install dependencies: `workers-og`, `wrangler`, `@cloudflare/workers-types`
 - [ ] Create worker source files
 - [ ] Configure `wrangler.jsonc`
-- [ ] Set up DNS: `og.wodsmith.com` → Worker route
+- [ ] Set up DNS: `og.wodsmith.com` -> Worker route
 - [ ] Deploy: `wrangler deploy`
 - [ ] Set secret: `wrangler secret put API_SECRET`
-- [ ] Add `INTERNAL_API_SECRET` to main app
+- [ ] Add `INTERNAL_API_SECRET` to main app env + `src/lib/env.ts`
 - [ ] Create internal data API route in main app
-- [ ] Update competition route `head()` with OG meta tags
+- [ ] Update competition route `head()` to use OG worker URL
 - [ ] Test with [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/)
 - [ ] Test with [Twitter Card Validator](https://cards-dev.twitter.com/validator)
 
@@ -694,7 +820,7 @@ Allow competitions to customize their OG image theme:
 cd apps/wodsmith-start
 pnpm dev
 
-# Terminal 2: OG Worker
+# Terminal 2: OG Worker (Phase 2 only)
 cd apps/og-worker
 pnpm dev --port 8788
 ```
@@ -702,7 +828,7 @@ pnpm dev --port 8788
 ### Manual Testing
 
 ```bash
-# Test OG image generation
+# Test OG image generation (Phase 2)
 curl http://localhost:8788/competition/test-slug --output test.png
 open test.png
 
@@ -747,3 +873,13 @@ After deployment:
 1. Use platform's debug tool to refresh cache
 2. Ensure `og:image` URL is absolute (includes https://)
 3. Verify image is accessible publicly (no auth required)
+
+## Codebase Verification Notes
+
+The following was verified against the actual codebase:
+
+- **Schema**: All fields exist (`name`, `slug`, `description`, `profileImageUrl`, `bannerImageUrl`, `startDate`, `endDate`, `competitionType`, `timezone`). Organizing team relation has `name` and `avatarUrl`.
+- **Routes**: `head()` with `loaderData` is used in 8+ routes. `/compete/$slug.tsx` exists with full loader data but no `head()` yet.
+- **API pattern**: Codebase uses `createFileRoute` + `server.handlers` (NOT `createAPIFileRoute`). Bearer token auth matches cron endpoint pattern. Env access via `createServerOnlyFn`.
+- **Monorepo**: `pnpm-workspace.yaml` auto-discovers `apps/*`. `posthog-proxy` proves the separate worker pattern.
+- **Deployment**: Raw Wrangler recommended (like posthog-proxy). Can add Alchemy later if multi-stage needed.
