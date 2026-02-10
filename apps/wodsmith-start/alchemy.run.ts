@@ -213,6 +213,7 @@ const app = await alchemy("wodsmith", {
  * @see {@link https://planetscale.com/docs PlanetScale Documentation}
  */
 const psDbName = "wodsmith-db"
+const psOrg = process.env.PLANETSCALE_ORGANIZATION ?? "zac-wodsmith"
 
 /**
  * PlanetScale branch hierarchy:
@@ -230,6 +231,7 @@ const psBranch =
 	stage === "prod"
 		? undefined
 		: await PlanetScaleBranch(`ps-branch-${stage}`, {
+				organization: psOrg,
 				database: psDbName,
 				name: psBranchName,
 				parentBranch: branchConfig[stage]?.parent ?? "main",
@@ -238,6 +240,7 @@ const psBranch =
 			})
 
 const psPassword = await PlanetScalePassword(`ps-password-${stage}`, {
+	organization: psOrg,
 	database: psDbName,
 	branch: psBranch ?? psBranchName,
 	role: "admin",
