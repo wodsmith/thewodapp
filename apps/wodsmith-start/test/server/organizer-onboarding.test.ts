@@ -14,6 +14,7 @@ import {ORGANIZER_REQUEST_STATUS, type OrganizerRequest} from '@/db/schema'
 import {FEATURES} from '@/config/features'
 import {LIMITS} from '@/config/limits'
 import {FakeDrizzleDb} from '@repo/test-utils'
+import {getDb} from '@/db'
 
 // Mock the database
 const mockDb = new FakeDrizzleDb()
