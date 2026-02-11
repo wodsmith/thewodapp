@@ -85,7 +85,6 @@ interface VolunteerRowProps {
 	}
 }
 
-
 function getAvailabilityLabel(availability?: string): string | null {
 	switch (availability) {
 		case VOLUNTEER_AVAILABILITY.MORNING:
@@ -154,8 +153,14 @@ function getInitials(
 function formatShiftTimeCompact(startTime: Date, endTime: Date): string {
 	const start = new Date(startTime)
 	const end = new Date(endTime)
-	const startStr = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-	const endStr = end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+	const startStr = start.toLocaleTimeString([], {
+		hour: "numeric",
+		minute: "2-digit",
+	})
+	const endStr = end.toLocaleTimeString([], {
+		hour: "numeric",
+		minute: "2-digit",
+	})
 	return `${startStr} - ${endStr}`
 }
 
@@ -407,7 +412,8 @@ export function VolunteerRow({
 				</div>
 			</TableCell>
 			<TableCell>
-				{assignments.shifts.length === 0 && assignments.judgeHeats.length === 0 ? (
+				{assignments.shifts.length === 0 &&
+				assignments.judgeHeats.length === 0 ? (
 					<span className="text-sm text-muted-foreground">—</span>
 				) : (
 					<div className="flex flex-wrap gap-1">
@@ -420,23 +426,33 @@ export function VolunteerRow({
 									>
 										<Calendar className="h-3 w-3 shrink-0" />
 										<span className="underline decoration-dotted">
-											{assignments.shifts.length} shift{assignments.shifts.length !== 1 ? 's' : ''}
+											{assignments.shifts.length} shift
+											{assignments.shifts.length !== 1 ? "s" : ""}
 										</span>
 									</button>
 								</PopoverTrigger>
 								<PopoverContent className="w-64 p-2" align="start">
-									<p className="mb-2 text-xs font-medium text-muted-foreground">Assigned Shifts</p>
+									<p className="mb-2 text-xs font-medium text-muted-foreground">
+										Assigned Shifts
+									</p>
 									<div className="space-y-1.5">
 										{[...assignments.shifts]
-											.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+											.sort(
+												(a, b) =>
+													new Date(a.startTime).getTime() -
+													new Date(b.startTime).getTime(),
+											)
 											.map((shift) => (
-											<div key={shift.id} className="text-sm">
-												<p className="font-medium">{shift.name}</p>
-												<p className="text-xs text-muted-foreground">
-													{formatShiftTimeCompact(shift.startTime, shift.endTime)}
-												</p>
-											</div>
-										))}
+												<div key={shift.id} className="text-sm">
+													<p className="font-medium">{shift.name}</p>
+													<p className="text-xs text-muted-foreground">
+														{formatShiftTimeCompact(
+															shift.startTime,
+															shift.endTime,
+														)}
+													</p>
+												</div>
+											))}
 									</div>
 								</PopoverContent>
 							</Popover>
@@ -450,41 +466,59 @@ export function VolunteerRow({
 									>
 										<Calendar className="h-3 w-3 shrink-0" />
 										<span className="underline decoration-dotted">
-											{assignments.judgeHeats.length} heat{assignments.judgeHeats.length !== 1 ? 's' : ''}
+											{assignments.judgeHeats.length} heat
+											{assignments.judgeHeats.length !== 1 ? "s" : ""}
 										</span>
 									</button>
 								</PopoverTrigger>
 								<PopoverContent className="w-64 p-2" align="start">
-									<p className="mb-2 text-xs font-medium text-muted-foreground">Judge Assignments</p>
+									<p className="mb-2 text-xs font-medium text-muted-foreground">
+										Judge Assignments
+									</p>
 									<div className="space-y-1.5">
 										{[...assignments.judgeHeats]
 											.sort((a, b) => {
 												if (a.scheduledTime && b.scheduledTime) {
-													return new Date(a.scheduledTime).getTime() - new Date(b.scheduledTime).getTime()
+													return (
+														new Date(a.scheduledTime).getTime() -
+														new Date(b.scheduledTime).getTime()
+													)
 												}
 												return a.heatNumber - b.heatNumber
 											})
 											.map((heat) => (
-											<div key={heat.id} className="text-sm">
-												<p className="font-medium">{heat.eventName} - Heat {heat.heatNumber}</p>
-												{heat.scheduledTime && (
-													<p className="text-xs text-muted-foreground">
-														{new Date(heat.scheduledTime).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}{" "}
-														{new Date(heat.scheduledTime).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+												<div key={heat.id} className="text-sm">
+													<p className="font-medium">
+														{heat.eventName} - Heat {heat.heatNumber}
 													</p>
-												)}
-												{heat.laneNumber !== null && (
-													<p className="text-xs text-muted-foreground">
-														Lane {heat.laneNumber}
-													</p>
-												)}
-												{heat.position && (
-													<p className="text-xs text-muted-foreground">
-														{heat.position}
-													</p>
-												)}
-											</div>
-										))}
+													{heat.scheduledTime && (
+														<p className="text-xs text-muted-foreground">
+															{new Date(heat.scheduledTime).toLocaleDateString(
+																"en-US",
+																{
+																	weekday: "short",
+																	month: "short",
+																	day: "numeric",
+																},
+															)}{" "}
+															{new Date(heat.scheduledTime).toLocaleTimeString(
+																"en-US",
+																{ hour: "numeric", minute: "2-digit" },
+															)}
+														</p>
+													)}
+													{heat.laneNumber !== null && (
+														<p className="text-xs text-muted-foreground">
+															Lane {heat.laneNumber}
+														</p>
+													)}
+													{heat.position && (
+														<p className="text-xs text-muted-foreground">
+															{heat.position}
+														</p>
+													)}
+												</div>
+											))}
 									</div>
 								</PopoverContent>
 							</Popover>
@@ -527,20 +561,18 @@ export function VolunteerRow({
 						<DropdownMenuContent align="end">
 							<DropdownMenuLabel>Role Types</DropdownMenuLabel>
 							<DropdownMenuSeparator />
-							{VOLUNTEER_ROLE_TYPE_VALUES.map(
-								(roleType) => (
-									<DropdownMenuCheckboxItem
-										key={roleType}
-										checked={selectedRoles.has(roleType)}
-										onCheckedChange={(checked) =>
-											handleRoleTypeToggle(roleType, checked)
-										}
-										disabled={isPending}
-									>
-										{VOLUNTEER_ROLE_LABELS[roleType]}
-									</DropdownMenuCheckboxItem>
-								),
-							)}
+							{VOLUNTEER_ROLE_TYPE_VALUES.map((roleType) => (
+								<DropdownMenuCheckboxItem
+									key={roleType}
+									checked={selectedRoles.has(roleType)}
+									onCheckedChange={(checked) =>
+										handleRoleTypeToggle(roleType, checked)
+									}
+									disabled={isPending}
+								>
+									{VOLUNTEER_ROLE_LABELS[roleType]}
+								</DropdownMenuCheckboxItem>
+							))}
 						</DropdownMenuContent>
 					</DropdownMenu>
 				)}

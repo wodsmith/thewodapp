@@ -443,10 +443,7 @@ export const getShiftAssignmentsFn = createServerFn({ method: "GET" })
 			.from(volunteerShiftAssignmentsTable)
 			.innerJoin(
 				teamMembershipTable,
-				eq(
-					volunteerShiftAssignmentsTable.membershipId,
-					teamMembershipTable.id,
-				),
+				eq(volunteerShiftAssignmentsTable.membershipId, teamMembershipTable.id),
 			)
 			.innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
 			.where(eq(volunteerShiftAssignmentsTable.shiftId, data.shiftId))
@@ -460,9 +457,7 @@ export const getShiftAssignmentsFn = createServerFn({ method: "GET" })
 			createdAt: row.assignment.createdAt,
 			updatedAt: row.assignment.updatedAt,
 			volunteer: {
-				name: [row.user.firstName, row.user.lastName]
-					.filter(Boolean)
-					.join(" "),
+				name: [row.user.firstName, row.user.lastName].filter(Boolean).join(" "),
 				email: row.user.email,
 				roleTypes: parseVolunteerRoleTypes(row.membership.metadata),
 			},
@@ -561,7 +556,8 @@ export const bulkAssignVolunteersToShiftFn = createServerFn({ method: "POST" })
 		}
 
 		// Validate capacity for new assignments
-		const totalAfterAssignment = shift.assignments.length + newMembershipIds.length
+		const totalAfterAssignment =
+			shift.assignments.length + newMembershipIds.length
 		if (totalAfterAssignment > shift.capacity) {
 			throw new Error(
 				`VALIDATION_ERROR: Cannot assign ${newMembershipIds.length} volunteers. ` +

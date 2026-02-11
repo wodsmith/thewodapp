@@ -64,33 +64,40 @@ export const Route = createFileRoute(
 		const competitionTeamId = competition.competitionTeamId
 
 		// Parallel fetch: invitations, volunteers, events, direct invites, judges, shifts, assignments
-		const [invitations, volunteers, eventsResult, directInvites, judges, shifts, volunteerAssignments] =
-			await Promise.all([
-				getPendingVolunteerInvitationsFn({
-					data: { competitionTeamId },
-				}),
-				getCompetitionVolunteersFn({
-					data: { competitionTeamId },
-				}),
-				getCompetitionWorkoutsFn({
-					data: {
-						competitionId: competition.id,
-						teamId: competition.organizingTeamId,
-					},
-				}),
-				getDirectVolunteerInvitesFn({
-					data: { competitionTeamId },
-				}),
-				getJudgeVolunteersFn({
-					data: { competitionTeamId },
-				}),
-				getCompetitionShiftsFn({
-					data: { competitionId: competition.id },
-				}),
-				getVolunteerAssignmentsFn({
-					data: { competitionId: competition.id },
-				}),
-			])
+		const [
+			invitations,
+			volunteers,
+			eventsResult,
+			directInvites,
+			judges,
+			shifts,
+			volunteerAssignments,
+		] = await Promise.all([
+			getPendingVolunteerInvitationsFn({
+				data: { competitionTeamId },
+			}),
+			getCompetitionVolunteersFn({
+				data: { competitionTeamId },
+			}),
+			getCompetitionWorkoutsFn({
+				data: {
+					competitionId: competition.id,
+					teamId: competition.organizingTeamId,
+				},
+			}),
+			getDirectVolunteerInvitesFn({
+				data: { competitionTeamId },
+			}),
+			getJudgeVolunteersFn({
+				data: { competitionTeamId },
+			}),
+			getCompetitionShiftsFn({
+				data: { competitionId: competition.id },
+			}),
+			getVolunteerAssignmentsFn({
+				data: { competitionId: competition.id },
+			}),
+		])
 
 		const events = eventsResult.workouts
 
@@ -228,7 +235,10 @@ function VolunteersPage() {
 	const handleTabChange = (value: string) => {
 		navigate({
 			to: ".",
-			search: (prev) => ({ ...prev, tab: value as "roster" | "shifts" | "schedule" }),
+			search: (prev) => ({
+				...prev,
+				tab: value as "roster" | "shifts" | "schedule",
+			}),
 			replace: true,
 		})
 	}

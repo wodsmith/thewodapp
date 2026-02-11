@@ -1,7 +1,15 @@
 "use client"
 
 import { useServerFn } from "@tanstack/react-start"
-import { CalendarDays, Clock, Edit2, MapPin, Plus, Trash2, Users } from "lucide-react"
+import {
+	CalendarDays,
+	Clock,
+	Edit2,
+	MapPin,
+	Plus,
+	Trash2,
+	Users,
+} from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import {
@@ -35,13 +43,17 @@ import {
 	VOLUNTEER_ROLE_LABELS,
 	type VolunteerShift,
 } from "@/db/schemas/volunteers"
-import { deleteShiftFn, getCompetitionShiftsFn } from "@/server-fns/volunteer-shift-fns"
+import {
+	deleteShiftFn,
+	getCompetitionShiftsFn,
+} from "@/server-fns/volunteer-shift-fns"
 import { ShiftAssignmentPanel } from "./shift-assignment-panel"
 import { ShiftFormDialog } from "./shift-form-dialog"
 
 // Type inferred from getCompetitionShiftsFn return type
-type ShiftWithAssignments = Awaited<ReturnType<typeof getCompetitionShiftsFn>>[number]
-
+type ShiftWithAssignments = Awaited<
+	ReturnType<typeof getCompetitionShiftsFn>
+>[number]
 
 // Get badge variant based on capacity fill
 function getCapacityBadgeVariant(
@@ -109,9 +121,12 @@ export function ShiftList({
 	const [deletingShiftId, setDeletingShiftId] = useState<string | null>(null)
 	const [isDeleting, setIsDeleting] = useState(false)
 	const [formDialogOpen, setFormDialogOpen] = useState(false)
-	const [editingShift, setEditingShift] = useState<VolunteerShift | undefined>(undefined)
+	const [editingShift, setEditingShift] = useState<VolunteerShift | undefined>(
+		undefined,
+	)
 	const [assignmentPanelOpen, setAssignmentPanelOpen] = useState(false)
-	const [selectedShift, setSelectedShift] = useState<ShiftWithAssignments | null>(null)
+	const [selectedShift, setSelectedShift] =
+		useState<ShiftWithAssignments | null>(null)
 
 	const deleteShift = useServerFn(deleteShiftFn)
 
@@ -125,17 +140,23 @@ export function ShiftList({
 		setFormDialogOpen(true)
 	}, [])
 
-	const handleOpenAssignmentPanel = useCallback((shift: ShiftWithAssignments) => {
-		setSelectedShift(shift)
-		setAssignmentPanelOpen(true)
-	}, [])
+	const handleOpenAssignmentPanel = useCallback(
+		(shift: ShiftWithAssignments) => {
+			setSelectedShift(shift)
+			setAssignmentPanelOpen(true)
+		},
+		[],
+	)
 
-	const handleAssignmentChange = useCallback((updatedShift: ShiftWithAssignments) => {
-		setShifts((prev) =>
-			prev.map((s) => (s.id === updatedShift.id ? updatedShift : s)),
-		)
-		setSelectedShift(updatedShift)
-	}, [])
+	const handleAssignmentChange = useCallback(
+		(updatedShift: ShiftWithAssignments) => {
+			setShifts((prev) =>
+				prev.map((s) => (s.id === updatedShift.id ? updatedShift : s)),
+			)
+			setSelectedShift(updatedShift)
+		},
+		[],
+	)
 
 	// Group shifts by date
 	const dayGroups = useMemo<DayGroup[]>(() => {
@@ -162,7 +183,9 @@ export function ShiftList({
 		}
 
 		// Sort groups by date
-		return Array.from(groups.values()).sort((a, b) => a.dateKey.localeCompare(b.dateKey))
+		return Array.from(groups.values()).sort((a, b) =>
+			a.dateKey.localeCompare(b.dateKey),
+		)
 	}, [shifts])
 
 	const handleDelete = async () => {
@@ -176,7 +199,9 @@ export function ShiftList({
 			toast.success("Shift deleted successfully")
 			setShifts((prev) => prev.filter((s) => s.id !== deletingShiftId))
 		} catch (error) {
-			toast.error(error instanceof Error ? error.message : "Failed to delete shift")
+			toast.error(
+				error instanceof Error ? error.message : "Failed to delete shift",
+			)
 		} finally {
 			setIsDeleting(false)
 			setDeletingShiftId(null)
@@ -196,7 +221,8 @@ export function ShiftList({
 						<CalendarDays className="mb-4 h-12 w-12 text-muted-foreground" />
 						<h3 className="mb-2 text-lg font-semibold">No shifts created</h3>
 						<p className="mb-4 text-sm text-muted-foreground">
-							Create volunteer shifts to schedule non-judge roles like check-in, medical staff, and more.
+							Create volunteer shifts to schedule non-judge roles like check-in,
+							medical staff, and more.
 						</p>
 						<Button onClick={handleOpenCreateDialog}>
 							<Plus className="mr-2 h-4 w-4" />
@@ -220,7 +246,9 @@ export function ShiftList({
 			{/* Header with Add button */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h2 className="text-2xl font-bold tracking-tight">Volunteer Shifts</h2>
+					<h2 className="text-2xl font-bold tracking-tight">
+						Volunteer Shifts
+					</h2>
 					<p className="text-muted-foreground">
 						Manage time-based volunteer shifts for non-judge roles
 					</p>
@@ -276,7 +304,8 @@ export function ShiftList({
 											</TableCell>
 											<TableCell>
 												<Badge variant="outline">
-													{VOLUNTEER_ROLE_LABELS[shift.roleType] || shift.roleType}
+													{VOLUNTEER_ROLE_LABELS[shift.roleType] ||
+														shift.roleType}
 												</Badge>
 											</TableCell>
 											<TableCell>
@@ -292,7 +321,9 @@ export function ShiftList({
 														{shift.location}
 													</div>
 												) : (
-													<span className="text-sm text-muted-foreground">-</span>
+													<span className="text-sm text-muted-foreground">
+														-
+													</span>
 												)}
 											</TableCell>
 											<TableCell>
@@ -348,7 +379,8 @@ export function ShiftList({
 							Are you sure you want to delete "{shiftToDelete?.name}"?
 							{shiftToDelete && shiftToDelete.assignments.length > 0 && (
 								<>
-									{" "}This shift has {shiftToDelete.assignments.length} volunteer
+									{" "}
+									This shift has {shiftToDelete.assignments.length} volunteer
 									{shiftToDelete.assignments.length !== 1 ? "s" : ""} assigned.
 									They will be unassigned from this shift.
 								</>

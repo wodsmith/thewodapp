@@ -17,66 +17,66 @@ function timingSafeEqual(a: string, b: string): boolean {
 	return result === 0
 }
 
-export const Route = createFileRoute(
-	"/api/internal/og-data/competition/$slug",
-)({
-	server: {
-		handlers: {
-			GET: async ({
-				request,
-				params,
-			}: { request: Request; params: { slug: string } }) => {
-				const secret = getInternalApiSecret()
-				if (!secret) {
-					return json({ error: "Not configured" }, { status: 500 })
-				}
+export const Route = createFileRoute("/api/internal/og-data/competition/$slug")(
+	{
+		server: {
+			handlers: {
+				GET: async ({
+					request,
+					params,
+				}: {
+					request: Request
+					params: { slug: string }
+				}) => {
+					const secret = getInternalApiSecret()
+					if (!secret) {
+						return json({ error: "Not configured" }, { status: 500 })
+					}
 
-				const authHeader = request.headers.get("Authorization")
-				const providedSecret = authHeader?.replace("Bearer ", "")
+					const authHeader = request.headers.get("Authorization")
+					const providedSecret = authHeader?.replace("Bearer ", "")
 
-				if (!providedSecret || !timingSafeEqual(providedSecret, secret)) {
-					return json({ error: "Unauthorized" }, { status: 401 })
-				}
+					if (!providedSecret || !timingSafeEqual(providedSecret, secret)) {
+						return json({ error: "Unauthorized" }, { status: 401 })
+					}
 
-				const { slug } = params
+					const { slug } = params
 
-				const db = getDb()
-				const competition = await db.query.competitionsTable.findFirst({
-					where: and(
-						eq(competitionsTable.slug, slug),
-						eq(competitionsTable.status, "published"),
-					),
-					with: {
-						organizingTeam: {
-							columns: { name: true, avatarUrl: true },
+					const db = getDb()
+					const competition = await db.query.competitionsTable.findFirst({
+						where: and(
+							eq(competitionsTable.slug, slug),
+							eq(competitionsTable.status, "published"),
+						),
+						with: {
+							organizingTeam: {
+								columns: { name: true, avatarUrl: true },
+							},
 						},
-					},
-					columns: {
-						name: true,
-						slug: true,
-						description: true,
-						profileImageUrl: true,
-						bannerImageUrl: true,
-						startDate: true,
-						endDate: true,
-						timezone: true,
-						competitionType: true,
-					},
-				})
+						columns: {
+							name: true,
+							slug: true,
+							description: true,
+							profileImageUrl: true,
+							bannerImageUrl: true,
+							startDate: true,
+							endDate: true,
+							timezone: true,
+							competitionType: true,
+						},
+					})
 
-				if (!competition) {
-					return json(
-						{ error: "Competition not found" },
-						{ status: 404 },
-					)
-				}
+					if (!competition) {
+						return json({ error: "Competition not found" }, { status: 404 })
+					}
 
-				return json(competition, {
-					headers: {
-						"Cache-Control": "private, max-age=60",
-					},
-				})
+					return json(competition, {
+						headers: {
+							"Cache-Control": "private, max-age=60",
+						},
+					})
+				},
 			},
 		},
 	},
-})
+)

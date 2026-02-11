@@ -48,10 +48,7 @@ import {
 	type VolunteerRoleType,
 	type VolunteerShift,
 } from "@/db/schemas/volunteers"
-import {
-	createShiftFn,
-	updateShiftFn,
-} from "@/server-fns/volunteer-shift-fns"
+import { createShiftFn, updateShiftFn } from "@/server-fns/volunteer-shift-fns"
 import { cn } from "@/utils/cn"
 
 // Zod enum from shared volunteer role types
@@ -359,11 +356,7 @@ export function ShiftFormDialog({
 									<FormItem>
 										<FormLabel>Start Time</FormLabel>
 										<FormControl>
-											<Input
-												type="time"
-												disabled={isSubmitting}
-												{...field}
-											/>
+											<Input type="time" disabled={isSubmitting} {...field} />
 										</FormControl>
 										<FormMessage />
 									</FormItem>
@@ -377,11 +370,7 @@ export function ShiftFormDialog({
 									<FormItem>
 										<FormLabel>End Time</FormLabel>
 										<FormControl>
-											<Input
-												type="time"
-												disabled={isSubmitting}
-												{...field}
-											/>
+											<Input type="time" disabled={isSubmitting} {...field} />
 										</FormControl>
 										<FormMessage />
 									</FormItem>
@@ -424,7 +413,9 @@ export function ShiftFormDialog({
 											min={1}
 											disabled={isSubmitting}
 											value={field.value}
-											onChange={(e) => field.onChange(Number(e.target.value) || 1)}
+											onChange={(e) =>
+												field.onChange(Number(e.target.value) || 1)
+											}
 											onBlur={field.onBlur}
 											name={field.name}
 											ref={field.ref}

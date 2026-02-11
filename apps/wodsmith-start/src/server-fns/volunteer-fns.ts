@@ -923,9 +923,7 @@ export const getVolunteerAssignmentsFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) =>
 		z
 			.object({
-				competitionId: z
-					.string()
-					.startsWith("comp_", "Invalid competition ID"),
+				competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
 			})
 			.parse(data),
 	)
@@ -949,7 +947,11 @@ export const getVolunteerAssignmentsFn = createServerFn({ method: "GET" })
 		const heatDetailsMap = new Map(
 			heats.map((h) => [
 				h.id,
-				{ heatNumber: h.heatNumber, trackWorkoutId: h.trackWorkoutId, scheduledTime: h.scheduledTime },
+				{
+					heatNumber: h.heatNumber,
+					trackWorkoutId: h.trackWorkoutId,
+					scheduledTime: h.scheduledTime,
+				},
 			]),
 		)
 

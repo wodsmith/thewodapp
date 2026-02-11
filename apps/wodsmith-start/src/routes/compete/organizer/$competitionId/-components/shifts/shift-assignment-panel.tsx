@@ -33,9 +33,10 @@ import {
 } from "@/server-fns/volunteer-fns"
 
 // Type inferred from getCompetitionShiftsFn return type
-type ShiftWithAssignments = Awaited<ReturnType<typeof getCompetitionShiftsFn>>[number]
+type ShiftWithAssignments = Awaited<
+	ReturnType<typeof getCompetitionShiftsFn>
+>[number]
 type ShiftAssignment = ShiftWithAssignments["assignments"][number]
-
 
 function formatTime(date: Date): string {
 	return date.toLocaleTimeString("en-US", {
@@ -81,12 +82,24 @@ function getVolunteerName(volunteer: TeamMembershipWithUser): string {
 	return name || volunteer.user.email || "Unknown"
 }
 
-function formatShiftTimeCompact(startTime: Date | string, endTime: Date | string): string {
+function formatShiftTimeCompact(
+	startTime: Date | string,
+	endTime: Date | string,
+): string {
 	const start = toDate(startTime)
 	const end = toDate(endTime)
-	const dateStr = start.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-	const startStr = start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).replace(":00", "").toLowerCase()
-	const endStr = end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).replace(":00", "").toLowerCase()
+	const dateStr = start.toLocaleDateString("en-US", {
+		month: "short",
+		day: "numeric",
+	})
+	const startStr = start
+		.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+		.replace(":00", "")
+		.toLowerCase()
+	const endStr = end
+		.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+		.replace(":00", "")
+		.toLowerCase()
 	return `${dateStr} ${startStr}-${endStr}`
 }
 
@@ -98,7 +111,15 @@ function getAssignmentVolunteerName(
 	membership: ShiftAssignment["membership"],
 ): string {
 	// The membership includes user from the Drizzle relation - access it safely
-	const user = (membership as { user?: { firstName?: string | null; lastName?: string | null; email: string } | null }).user
+	const user = (
+		membership as {
+			user?: {
+				firstName?: string | null
+				lastName?: string | null
+				email: string
+			} | null
+		}
+	).user
 	if (!user) return "Unknown"
 	const name = [user.firstName, user.lastName].filter(Boolean).join(" ")
 	return name || user.email
@@ -135,7 +156,9 @@ export function ShiftAssignmentPanel({
 	onOpenChange,
 	onAssignmentChange,
 }: ShiftAssignmentPanelProps) {
-	const [allVolunteers, setAllVolunteers] = useState<TeamMembershipWithUser[]>([])
+	const [allVolunteers, setAllVolunteers] = useState<TeamMembershipWithUser[]>(
+		[],
+	)
 	const [loadingVolunteers, setLoadingVolunteers] = useState(false)
 	const [assigningId, setAssigningId] = useState<string | null>(null)
 	const [unassigningId, setUnassigningId] = useState<string | null>(null)
@@ -162,7 +185,7 @@ export function ShiftAssignmentPanel({
 					setLoadingVolunteers(false)
 				})
 		}
-	}, [open, competitionTeamId])
+	}, [open, competitionTeamId, getVolunteers])
 
 	// Get assigned membership IDs for filtering
 	const assignedMembershipIds = useMemo(() => {
@@ -312,181 +335,192 @@ export function ShiftAssignmentPanel({
 
 				{/* Scrollable content area */}
 				<div className="mt-4 flex-1 overflow-y-auto">
-				{/* Shift Details */}
-				<div className="space-y-3 rounded-lg border bg-muted/30 p-4">
-					<div className="flex items-center gap-2">
-						<Badge variant="outline">
-							{VOLUNTEER_ROLE_LABELS[shift.roleType] || shift.roleType}
-						</Badge>
-						<Badge
-							variant={isAtCapacity ? "default" : "secondary"}
-							className="ml-auto"
-						>
-							<Users className="mr-1 h-3 w-3" />
-							{assignedCount}/{capacity} assigned
-						</Badge>
-					</div>
+					{/* Shift Details */}
+					<div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+						<div className="flex items-center gap-2">
+							<Badge variant="outline">
+								{VOLUNTEER_ROLE_LABELS[shift.roleType] || shift.roleType}
+							</Badge>
+							<Badge
+								variant={isAtCapacity ? "default" : "secondary"}
+								className="ml-auto"
+							>
+								<Users className="mr-1 h-3 w-3" />
+								{assignedCount}/{capacity} assigned
+							</Badge>
+						</div>
 
-					<div className="flex items-center gap-2 text-sm text-muted-foreground">
-						<Clock className="h-4 w-4" />
-						{formatDateRange(startTime, endTime)}
-					</div>
-
-					{shift.location && (
 						<div className="flex items-center gap-2 text-sm text-muted-foreground">
-							<MapPin className="h-4 w-4" />
-							{shift.location}
+							<Clock className="h-4 w-4" />
+							{formatDateRange(startTime, endTime)}
 						</div>
-					)}
 
-					{shift.notes && (
-						<p className="text-sm text-muted-foreground">{shift.notes}</p>
-					)}
-				</div>
+						{shift.location && (
+							<div className="flex items-center gap-2 text-sm text-muted-foreground">
+								<MapPin className="h-4 w-4" />
+								{shift.location}
+							</div>
+						)}
 
-				{/* Assigned Volunteers */}
-				<div className="mt-6">
-					<h3 className="mb-3 text-sm font-medium">Assigned Volunteers</h3>
-					{shift.assignments.length === 0 ? (
-						<p className="text-sm text-muted-foreground">
-							No volunteers assigned yet
-						</p>
-					) : (
-						<div className="space-y-2">
-							{shift.assignments.map((assignment) => {
-								const volunteerName = getAssignmentVolunteerName(
-									assignment.membership,
-								)
-								const volunteerEmail = getAssignmentVolunteerEmail(
-									assignment.membership,
-								)
+						{shift.notes && (
+							<p className="text-sm text-muted-foreground">{shift.notes}</p>
+						)}
+					</div>
 
-								return (
-									<div
-										key={assignment.id}
-										className="flex items-center justify-between rounded-md border bg-card p-2"
-									>
-										<div className="flex items-center gap-2">
-											<div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-												<User className="h-4 w-4 text-primary" />
-											</div>
-											<div>
-												<p className="text-sm font-medium">{volunteerName}</p>
-												{volunteerEmail && (
-													<p className="text-xs text-muted-foreground">
-														{volunteerEmail}
-													</p>
-												)}
-											</div>
-										</div>
-										<Button
-											variant="ghost"
-											size="sm"
-											onClick={() => handleUnassign(assignment.membershipId)}
-											disabled={unassigningId === assignment.membershipId}
-											aria-label={`Remove ${volunteerName}`}
+					{/* Assigned Volunteers */}
+					<div className="mt-6">
+						<h3 className="mb-3 text-sm font-medium">Assigned Volunteers</h3>
+						{shift.assignments.length === 0 ? (
+							<p className="text-sm text-muted-foreground">
+								No volunteers assigned yet
+							</p>
+						) : (
+							<div className="space-y-2">
+								{shift.assignments.map((assignment) => {
+									const volunteerName = getAssignmentVolunteerName(
+										assignment.membership,
+									)
+									const volunteerEmail = getAssignmentVolunteerEmail(
+										assignment.membership,
+									)
+
+									return (
+										<div
+											key={assignment.id}
+											className="flex items-center justify-between rounded-md border bg-card p-2"
 										>
-											<Minus className="h-4 w-4 text-destructive" />
-										</Button>
-									</div>
-								)
-							})}
-						</div>
-					)}
-				</div>
-
-				{/* Available Volunteers */}
-				<div className="mt-6 flex-1">
-					<h3 className="mb-3 text-sm font-medium">
-						Available Volunteers ({VOLUNTEER_ROLE_LABELS[shift.roleType]})
-					</h3>
-					{loadingVolunteers ? (
-						<p className="text-sm text-muted-foreground">
-							Loading volunteers...
-						</p>
-					) : availableVolunteers.length === 0 ? (
-						<p className="text-sm text-muted-foreground">
-							No available volunteers with the {VOLUNTEER_ROLE_LABELS[shift.roleType]}{" "}
-							role type
-						</p>
-					) : (
-						<div className="space-y-2">
-							{availableVolunteers.map((volunteer) => {
-								const volunteerName = getVolunteerName(volunteer)
-								const otherShifts = volunteerOtherShifts.get(volunteer.id) ?? []
-
-								return (
-									<div
-										key={volunteer.id}
-										className="flex items-center justify-between rounded-md border bg-card p-2"
-									>
-										<div className="flex items-center gap-2">
-											<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
-												<User className="h-4 w-4 text-muted-foreground" />
+											<div className="flex items-center gap-2">
+												<div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+													<User className="h-4 w-4 text-primary" />
+												</div>
+												<div>
+													<p className="text-sm font-medium">{volunteerName}</p>
+													{volunteerEmail && (
+														<p className="text-xs text-muted-foreground">
+															{volunteerEmail}
+														</p>
+													)}
+												</div>
 											</div>
-											<div className="min-w-0">
-												<p className="text-sm font-medium">{volunteerName}</p>
-												{volunteer.user?.email && (
-													<p className="truncate text-xs text-muted-foreground">
-														{volunteer.user.email}
-													</p>
-												)}
-												{otherShifts.length > 0 && (
-													<Popover>
-														<PopoverTrigger asChild>
-															<button
-																type="button"
-																className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() => handleUnassign(assignment.membershipId)}
+												disabled={unassigningId === assignment.membershipId}
+												aria-label={`Remove ${volunteerName}`}
+											>
+												<Minus className="h-4 w-4 text-destructive" />
+											</Button>
+										</div>
+									)
+								})}
+							</div>
+						)}
+					</div>
+
+					{/* Available Volunteers */}
+					<div className="mt-6 flex-1">
+						<h3 className="mb-3 text-sm font-medium">
+							Available Volunteers ({VOLUNTEER_ROLE_LABELS[shift.roleType]})
+						</h3>
+						{loadingVolunteers ? (
+							<p className="text-sm text-muted-foreground">
+								Loading volunteers...
+							</p>
+						) : availableVolunteers.length === 0 ? (
+							<p className="text-sm text-muted-foreground">
+								No available volunteers with the{" "}
+								{VOLUNTEER_ROLE_LABELS[shift.roleType]} role type
+							</p>
+						) : (
+							<div className="space-y-2">
+								{availableVolunteers.map((volunteer) => {
+									const volunteerName = getVolunteerName(volunteer)
+									const otherShifts =
+										volunteerOtherShifts.get(volunteer.id) ?? []
+
+									return (
+										<div
+											key={volunteer.id}
+											className="flex items-center justify-between rounded-md border bg-card p-2"
+										>
+											<div className="flex items-center gap-2">
+												<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
+													<User className="h-4 w-4 text-muted-foreground" />
+												</div>
+												<div className="min-w-0">
+													<p className="text-sm font-medium">{volunteerName}</p>
+													{volunteer.user?.email && (
+														<p className="truncate text-xs text-muted-foreground">
+															{volunteer.user.email}
+														</p>
+													)}
+													{otherShifts.length > 0 && (
+														<Popover>
+															<PopoverTrigger asChild>
+																<button
+																	type="button"
+																	className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+																>
+																	<Calendar className="h-3 w-3 shrink-0" />
+																	<span className="underline decoration-dotted">
+																		{otherShifts.length} other shift
+																		{otherShifts.length !== 1 ? "s" : ""}
+																	</span>
+																</button>
+															</PopoverTrigger>
+															<PopoverContent
+																className="w-64 p-2"
+																align="start"
 															>
-																<Calendar className="h-3 w-3 shrink-0" />
-																<span className="underline decoration-dotted">
-																	{otherShifts.length} other shift{otherShifts.length !== 1 ? "s" : ""}
-																</span>
-															</button>
-														</PopoverTrigger>
-														<PopoverContent className="w-64 p-2" align="start">
-															<p className="mb-2 text-xs font-medium text-muted-foreground">Assigned Shifts</p>
-															<div className="space-y-1.5">
-																{otherShifts.map((s) => (
-																	<div key={s.id} className="text-sm">
-																		<p className="font-medium">{s.name}</p>
-																		<p className="text-xs text-muted-foreground">
-																			{formatShiftTimeCompact(s.startTime, s.endTime)}
-																		</p>
-																	</div>
-																))}
-															</div>
-														</PopoverContent>
-													</Popover>
-												)}
+																<p className="mb-2 text-xs font-medium text-muted-foreground">
+																	Assigned Shifts
+																</p>
+																<div className="space-y-1.5">
+																	{otherShifts.map((s) => (
+																		<div key={s.id} className="text-sm">
+																			<p className="font-medium">{s.name}</p>
+																			<p className="text-xs text-muted-foreground">
+																				{formatShiftTimeCompact(
+																					s.startTime,
+																					s.endTime,
+																				)}
+																			</p>
+																		</div>
+																	))}
+																</div>
+															</PopoverContent>
+														</Popover>
+													)}
+												</div>
 											</div>
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() => handleAssign(volunteer.id)}
+												disabled={isAtCapacity || assigningId === volunteer.id}
+												aria-label={`Add ${volunteerName}`}
+												title={
+													isAtCapacity
+														? "Shift is at capacity"
+														: `Add ${volunteerName}`
+												}
+											>
+												<Plus className="h-4 w-4 text-primary" />
+											</Button>
 										</div>
-										<Button
-											variant="ghost"
-											size="sm"
-											onClick={() => handleAssign(volunteer.id)}
-											disabled={isAtCapacity || assigningId === volunteer.id}
-											aria-label={`Add ${volunteerName}`}
-											title={
-												isAtCapacity
-													? "Shift is at capacity"
-													: `Add ${volunteerName}`
-											}
-										>
-											<Plus className="h-4 w-4 text-primary" />
-										</Button>
-									</div>
-								)
-							})}
-						</div>
-					)}
-					{isAtCapacity && availableVolunteers.length > 0 && (
-						<p className="mt-2 text-xs text-muted-foreground">
-							Shift is at capacity. Remove a volunteer to add another.
-						</p>
-					)}
+									)
+								})}
+							</div>
+						)}
+						{isAtCapacity && availableVolunteers.length > 0 && (
+							<p className="mt-2 text-xs text-muted-foreground">
+								Shift is at capacity. Remove a volunteer to add another.
+							</p>
+						)}
+					</div>
 				</div>
-				</div>{/* End scrollable content area */}
+				{/* End scrollable content area */}
 			</SheetContent>
 		</Sheet>
 	)

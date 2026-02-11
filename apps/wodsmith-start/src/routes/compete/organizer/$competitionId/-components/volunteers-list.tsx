@@ -45,7 +45,6 @@ import { bulkAssignVolunteerRoleFn } from "@/server-fns/volunteer-fns"
 import { InviteVolunteerDialog } from "./invite-volunteer-dialog"
 import { VolunteerRow } from "./volunteer-row"
 
-
 interface VolunteerWithAccess {
 	id: string
 	userId: string
@@ -71,27 +70,30 @@ interface VolunteersListProps {
 	organizingTeamId: string
 	invitations: TeamInvitation[]
 	volunteers: VolunteerWithAccess[]
-	volunteerAssignments: Record<string, {
-		shifts: Array<{
-			id: string
-			shiftId: string
-			name: string
-			roleType: string
-			startTime: Date
-			endTime: Date
-			location: string | null
-			notes: string | null
-		}>
-		judgeHeats: Array<{
-			id: string
-			heatId: string
-			eventName: string
-			heatNumber: number
-			scheduledTime: Date | null
-			laneNumber: number | null
-			position: string | null
-		}>
-	}>
+	volunteerAssignments: Record<
+		string,
+		{
+			shifts: Array<{
+				id: string
+				shiftId: string
+				name: string
+				roleType: string
+				startTime: Date
+				endTime: Date
+				location: string | null
+				notes: string | null
+			}>
+			judgeHeats: Array<{
+				id: string
+				heatId: string
+				eventName: string
+				heatNumber: number
+				scheduledTime: Date | null
+				laneNumber: number | null
+				position: string | null
+			}>
+		}
+	>
 }
 
 /**
@@ -357,16 +359,14 @@ export function VolunteersList({
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="start">
-							{VOLUNTEER_ROLE_TYPE_VALUES.map(
-								(roleType) => (
-									<DropdownMenuItem
-										key={roleType}
-										onClick={() => handleBulkAssignRole(roleType)}
-									>
-										{VOLUNTEER_ROLE_LABELS[roleType]}
-									</DropdownMenuItem>
-								),
-							)}
+							{VOLUNTEER_ROLE_TYPE_VALUES.map((roleType) => (
+								<DropdownMenuItem
+									key={roleType}
+									onClick={() => handleBulkAssignRole(roleType)}
+								>
+									{VOLUNTEER_ROLE_LABELS[roleType]}
+								</DropdownMenuItem>
+							))}
 						</DropdownMenuContent>
 					</DropdownMenu>
 					<Button size="sm" variant="ghost" onClick={clearSelection}>
@@ -520,7 +520,12 @@ export function VolunteersList({
 													onToggleSelect={(shiftKey) =>
 														toggleSelection(invitation.id, shiftKey)
 													}
-													assignments={volunteerAssignments[invitation.id] || { shifts: [], judgeHeats: [] }}
+													assignments={
+														volunteerAssignments[invitation.id] || {
+															shifts: [],
+															judgeHeats: [],
+														}
+													}
 												/>
 											)
 										}
@@ -537,7 +542,12 @@ export function VolunteersList({
 												onToggleSelect={(shiftKey) =>
 													toggleSelection(volunteer.id, shiftKey)
 												}
-												assignments={volunteerAssignments[volunteer.id] || { shifts: [], judgeHeats: [] }}
+												assignments={
+													volunteerAssignments[volunteer.id] || {
+														shifts: [],
+														judgeHeats: [],
+													}
+												}
 											/>
 										)
 									})}

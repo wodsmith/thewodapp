@@ -39,8 +39,7 @@ function formatRoleType(role: VolunteerRoleType): string {
 function getRoleBadgeClasses(role: VolunteerRoleType): string {
 	const roleColors: Record<VolunteerRoleType, string> = {
 		judge: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
-		head_judge:
-			"bg-blue-200 text-blue-900 dark:bg-blue-800 dark:text-blue-100",
+		head_judge: "bg-blue-200 text-blue-900 dark:bg-blue-800 dark:text-blue-100",
 		scorekeeper:
 			"bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
 		emcee:
