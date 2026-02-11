@@ -33,7 +33,7 @@ const mockOrganizerSession = {
 	teams: [
 		{
 			id: teamId,
-			permissions: ["manage_programming", "manage_team"],
+			permissions: ["manage_programming", "manage_team", "manage_competitions"],
 		},
 	],
 }
@@ -89,6 +89,10 @@ function createMockJudgingSheet(
 		sortOrder: number
 		createdAt: Date
 		updatedAt: Date
+		competition: {
+			id: string
+			organizingTeamId: string
+		}
 	}> = {},
 ) {
 	return {
@@ -105,6 +109,7 @@ function createMockJudgingSheet(
 		sortOrder: overrides.sortOrder ?? 0,
 		createdAt: overrides.createdAt ?? new Date(),
 		updatedAt: overrides.updatedAt ?? new Date(),
+		...(overrides.competition && { competition: overrides.competition }),
 	}
 }
 
@@ -177,12 +182,8 @@ describe("Judging Sheet Server Functions", () => {
 			).rejects.toThrow("Not authenticated")
 		})
 
-		// Note: Permission check test skipped - FakeDrizzleDb doesn't support
-		// db.query.table.findFirst() pattern used by createJudgingSheetFn.
-		// Permission checking is tested elsewhere via requireTeamPermission.
-
 		it("fails if competition not found", async () => {
-			mockDb.setMockReturnValue([])
+			mockDb.query.competitionsTable.findFirst.mockResolvedValueOnce(undefined)
 
 			await expect(
 				createJudgingSheetFn({
@@ -198,6 +199,44 @@ describe("Judging Sheet Server Functions", () => {
 					},
 				}),
 			).rejects.toThrow("Competition not found")
+		})
+
+		it("creates judging sheet and returns it", async () => {
+			const mockCompetition = {
+				id: competitionId,
+				organizingTeamId: teamId,
+			}
+			const newSheet = createMockJudgingSheet({ id: "ejsheet_new123" })
+
+			// Mock competition lookup
+			mockDb.query.competitionsTable.findFirst.mockResolvedValueOnce(mockCompetition)
+
+			// Mock track workout verification (returns array with matching competitionId)
+			// Then mock existing sheets lookup (returns empty array)
+			mockDb.setMockReturnValue([{ trackWorkoutId, competitionId }])
+
+			// We need to handle two select() calls:
+			// 1. Track workout verification
+			// 2. Existing sheets lookup
+			// Since FakeDrizzleDb uses shared mockReturnValue, we'll mock only the final findFirst
+
+			// Mock the findFirst call after insert
+			mockDb.query.eventJudgingSheetsTable.findFirst.mockResolvedValueOnce(newSheet)
+
+			const result = await createJudgingSheetFn({
+				data: {
+					competitionId,
+					trackWorkoutId,
+					title: "Test",
+					url: "https://test.r2.dev/test.pdf",
+					r2Key: "test/test.pdf",
+					originalFilename: "test.pdf",
+					fileSize: 100,
+					mimeType: "application/pdf",
+				},
+			})
+
+			expect(result.sheet.id).toBe("ejsheet_new123")
 		})
 	})
 
@@ -216,7 +255,7 @@ describe("Judging Sheet Server Functions", () => {
 		})
 
 		it("fails if sheet not found", async () => {
-			mockDb.setMockReturnValue([])
+			mockDb.query.eventJudgingSheetsTable.findFirst.mockResolvedValueOnce(undefined)
 
 			await expect(
 				updateJudgingSheetFn({
@@ -226,6 +265,33 @@ describe("Judging Sheet Server Functions", () => {
 					},
 				}),
 			).rejects.toThrow("Judging sheet not found")
+		})
+
+		it("updates sheet title and returns updated sheet", async () => {
+			const existingSheet = createMockJudgingSheet({
+				id: "ejsheet_test1",
+				title: "Old Title",
+				competition: {
+					id: competitionId,
+					organizingTeamId: teamId,
+				},
+			})
+			const updatedSheet = { ...existingSheet, title: "Updated Title" }
+
+			// Mock the initial sheet lookup
+			mockDb.query.eventJudgingSheetsTable.findFirst.mockResolvedValueOnce(existingSheet)
+
+			// Mock the post-update lookup
+			mockDb.query.eventJudgingSheetsTable.findFirst.mockResolvedValueOnce(updatedSheet)
+
+			const result = await updateJudgingSheetFn({
+				data: {
+					judgingSheetId: "ejsheet_test1",
+					title: "Updated Title",
+				},
+			})
+
+			expect(result.sheet.title).toBe("Updated Title")
 		})
 	})
 
@@ -243,7 +309,7 @@ describe("Judging Sheet Server Functions", () => {
 		})
 
 		it("fails if sheet not found", async () => {
-			mockDb.setMockReturnValue([])
+			mockDb.query.eventJudgingSheetsTable.findFirst.mockResolvedValueOnce(undefined)
 
 			await expect(
 				deleteJudgingSheetFn({
@@ -252,6 +318,26 @@ describe("Judging Sheet Server Functions", () => {
 					},
 				}),
 			).rejects.toThrow("Judging sheet not found")
+		})
+
+		it("deletes sheet and returns success", async () => {
+			const existingSheet = createMockJudgingSheet({
+				id: "ejsheet_test1",
+				competition: {
+					id: competitionId,
+					organizingTeamId: teamId,
+				},
+			})
+
+			mockDb.query.eventJudgingSheetsTable.findFirst.mockResolvedValueOnce(existingSheet)
+
+			const result = await deleteJudgingSheetFn({
+				data: {
+					judgingSheetId: "ejsheet_test1",
+				},
+			})
+
+			expect(result.success).toBe(true)
 		})
 	})
 })

@@ -99,10 +99,37 @@ function createDbMock(config: {
       return Promise.resolve(result)
     }
 
+    // Mock query builder for MySQL compatibility
+    chain.query = {
+      competitionHeatsTable: {
+        findFirst: vi.fn(),
+      },
+      competitionHeatAssignmentsTable: {
+        findFirst: vi.fn(),
+      },
+      competitionVenuesTable: {
+        findFirst: vi.fn(),
+      },
+    }
+
     return chain
   }
 
-  return createChain()
+  // Helper to register tables for testing
+  const dbMock = createChain() as ReturnType<typeof createChain> & {
+    registerTable: (tableName: string) => void
+  }
+
+  dbMock.registerTable = (tableName: string) => {
+    if (!dbMock.query) {
+      dbMock.query = {}
+    }
+    ;(dbMock.query as Record<string, unknown>)[tableName] = {
+      findFirst: vi.fn(),
+    }
+  }
+
+  return dbMock
 }
 
 let mockDbInstance: ReturnType<typeof createDbMock>
@@ -136,6 +163,12 @@ describe('Competition Heats Server Functions (TanStack)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     querySequence = []
+    // Register tables for MySQL query builder pattern
+    if (mockDbInstance?.registerTable) {
+      mockDbInstance.registerTable('competitionHeatsTable')
+      mockDbInstance.registerTable('competitionHeatAssignmentsTable')
+      mockDbInstance.registerTable('competitionVenuesTable')
+    }
   })
 
   describe('getHeatsForCompetitionFn', () => {
@@ -526,13 +559,16 @@ describe('Competition Heats Server Functions (TanStack)', () => {
         updatedAt: new Date(),
       }
 
-      // Create a mock for insert operations
+      // Create a mock for insert operations with MySQL query builder pattern
       const insertMock = {
         insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([createdHeat]),
-          }),
+          values: vi.fn().mockResolvedValue(undefined),
         }),
+        query: {
+          competitionHeatsTable: {
+            findFirst: vi.fn().mockResolvedValue(createdHeat),
+          },
+        },
       }
       mockDbInstance = insertMock as unknown as ReturnType<typeof createDbMock>
 
@@ -567,10 +603,13 @@ describe('Competition Heats Server Functions (TanStack)', () => {
 
       const insertMock = {
         insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([createdHeat]),
-          }),
+          values: vi.fn().mockResolvedValue(undefined),
         }),
+        query: {
+          competitionHeatsTable: {
+            findFirst: vi.fn().mockResolvedValue(createdHeat),
+          },
+        },
       }
       mockDbInstance = insertMock as unknown as ReturnType<typeof createDbMock>
 
@@ -596,10 +635,13 @@ describe('Competition Heats Server Functions (TanStack)', () => {
     it('throws error when insert fails', async () => {
       const insertMock = {
         insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([]), // Empty array = failed
-          }),
+          values: vi.fn().mockResolvedValue(undefined),
         }),
+        query: {
+          competitionHeatsTable: {
+            findFirst: vi.fn().mockResolvedValue(undefined),
+          },
+        },
       }
       mockDbInstance = insertMock as unknown as ReturnType<typeof createDbMock>
 
@@ -868,10 +910,13 @@ describe('Competition Heats Server Functions (TanStack)', () => {
 
       const insertMock = {
         insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([createdAssignment]),
-          }),
+          values: vi.fn().mockResolvedValue(undefined),
         }),
+        query: {
+          competitionHeatAssignmentsTable: {
+            findFirst: vi.fn().mockResolvedValue(createdAssignment),
+          },
+        },
       }
       mockDbInstance = insertMock as unknown as ReturnType<typeof createDbMock>
 
@@ -891,10 +936,13 @@ describe('Competition Heats Server Functions (TanStack)', () => {
     it('throws error when insert fails', async () => {
       const insertMock = {
         insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([]),
-          }),
+          values: vi.fn().mockResolvedValue(undefined),
         }),
+        query: {
+          competitionHeatAssignmentsTable: {
+            findFirst: vi.fn().mockResolvedValue(undefined),
+          },
+        },
       }
       mockDbInstance = insertMock as unknown as ReturnType<typeof createDbMock>
 
@@ -945,12 +993,23 @@ describe('Competition Heats Server Functions (TanStack)', () => {
         },
       ]
 
+      let findFirstCallCount = 0
       const insertMock = {
         insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue(createdAssignments),
+          values: vi.fn().mockResolvedValue(undefined),
+        }),
+        select: vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue(createdAssignments),
           }),
         }),
+        query: {
+          competitionHeatAssignmentsTable: {
+            findFirst: vi.fn().mockImplementation(() => {
+              return Promise.resolve(createdAssignments[findFirstCallCount++])
+            }),
+          },
+        },
       }
       mockDbInstance = insertMock as unknown as ReturnType<typeof createDbMock>
 
@@ -984,12 +1043,23 @@ describe('Competition Heats Server Functions (TanStack)', () => {
         },
       ]
 
+      let findFirstCallCount = 0
       const insertMock = {
         insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue(createdAssignments),
+          values: vi.fn().mockResolvedValue(undefined),
+        }),
+        select: vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue(createdAssignments),
           }),
         }),
+        query: {
+          competitionHeatAssignmentsTable: {
+            findFirst: vi.fn().mockImplementation(() => {
+              return Promise.resolve(createdAssignments[findFirstCallCount++])
+            }),
+          },
+        },
       }
       mockDbInstance = insertMock as unknown as ReturnType<typeof createDbMock>
 
@@ -1069,6 +1139,11 @@ describe('Competition Heats Server Functions (TanStack)', () => {
             where: vi.fn().mockResolvedValue(undefined),
           }),
         }),
+        query: {
+          competitionHeatAssignmentsTable: {
+            findFirst: vi.fn().mockResolvedValue(currentAssignment),
+          },
+        },
       }
       mockDbInstance = moveMock as unknown as ReturnType<typeof createDbMock>
 
@@ -1106,6 +1181,11 @@ describe('Competition Heats Server Functions (TanStack)', () => {
         insert: vi.fn().mockReturnValue({
           values: vi.fn().mockResolvedValue(undefined),
         }),
+        query: {
+          competitionHeatAssignmentsTable: {
+            findFirst: vi.fn().mockResolvedValue(currentAssignment),
+          },
+        },
       }
       mockDbInstance = moveMock as unknown as ReturnType<typeof createDbMock>
 
@@ -1131,6 +1211,11 @@ describe('Competition Heats Server Functions (TanStack)', () => {
             }),
           }),
         }),
+        query: {
+          competitionHeatAssignmentsTable: {
+            findFirst: vi.fn().mockResolvedValue(undefined),
+          },
+        },
       }
       mockDbInstance = moveMock as unknown as ReturnType<typeof createDbMock>
 
@@ -1339,15 +1424,18 @@ describe('Competition Heats Server Functions (TanStack)', () => {
 
       const insertMock = {
         insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([createdVenue]),
-          }),
+          values: vi.fn().mockResolvedValue(undefined),
         }),
         select: vi.fn().mockReturnValue({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockResolvedValue([]),
           }),
         }),
+        query: {
+          competitionVenuesTable: {
+            findFirst: vi.fn().mockResolvedValue(createdVenue),
+          },
+        },
       }
       mockDbInstance = insertMock as unknown as ReturnType<typeof createDbMock>
 
@@ -1382,15 +1470,18 @@ describe('Competition Heats Server Functions (TanStack)', () => {
 
       const insertMock = {
         insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([createdVenue]),
-          }),
+          values: vi.fn().mockResolvedValue(undefined),
         }),
         select: vi.fn().mockReturnValue({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockResolvedValue(existingVenues),
           }),
         }),
+        query: {
+          competitionVenuesTable: {
+            findFirst: vi.fn().mockResolvedValue(createdVenue),
+          },
+        },
       }
       mockDbInstance = insertMock as unknown as ReturnType<typeof createDbMock>
 
@@ -1407,15 +1498,18 @@ describe('Competition Heats Server Functions (TanStack)', () => {
     it('throws error when insert fails', async () => {
       const insertMock = {
         insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([]),
-          }),
+          values: vi.fn().mockResolvedValue(undefined),
         }),
         select: vi.fn().mockReturnValue({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockResolvedValue([]),
           }),
         }),
+        query: {
+          competitionVenuesTable: {
+            findFirst: vi.fn().mockResolvedValue(undefined),
+          },
+        },
       }
       mockDbInstance = insertMock as unknown as ReturnType<typeof createDbMock>
 
@@ -1636,6 +1730,7 @@ describe('Competition Heats Server Functions (TanStack)', () => {
       // Track orderBy and get calls separately
       let orderByCallCount = 0
       let getCallCount = 0
+      let findFirstCallCount = 0
 
       const copyMock = {
         select: vi.fn().mockReturnValue({
@@ -1684,11 +1779,22 @@ describe('Competition Heats Server Functions (TanStack)', () => {
             if (insertedValues.length === 0) {
               insertedValues = values
             }
-            return {
-              returning: vi.fn().mockResolvedValue(createdHeats),
-            }
+            return Promise.resolve(undefined)
           }),
         }),
+        query: {
+          competitionHeatsTable: {
+            findFirst: vi.fn().mockImplementation(() => {
+              return Promise.resolve(createdHeats[findFirstCallCount++])
+            }),
+          },
+          trackWorkoutsTable: {
+            findFirst: vi.fn().mockResolvedValue({trackId: 'track-1'}),
+          },
+          programmingTracksTable: {
+            findFirst: vi.fn().mockResolvedValue({competitionId: 'comp-1'}),
+          },
+        },
       }
       mockDbInstance = copyMock as unknown as ReturnType<typeof createDbMock>
 

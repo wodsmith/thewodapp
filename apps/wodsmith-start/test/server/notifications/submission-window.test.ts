@@ -69,10 +69,13 @@ describe("Submission Window Notifications", () => {
 			// Arrange - user exists with email
 			const mockUser = { id: "user_123", email: "athlete@example.com", firstName: "John" }
 			mockDb.registerTable("userTable")
-			mockDb.setMockSingleValue(mockUser) // For user lookup via db.query.userTable.findFirst()
+			mockDb.registerTable("submissionWindowNotificationsTable")
 
-			// Mock successful reservation (insert returns a row)
-			mockDb.setMockReturnValue([{ id: "notif_123" }])
+			// Mock sequential findFirst calls:
+			// 1st call: user lookup - returns user
+			// 2nd call: notification existence check - returns null (no existing notification)
+			mockDb.query.userTable.findFirst.mockResolvedValueOnce(mockUser)
+			mockDb.query.submissionWindowNotificationsTable.findFirst.mockResolvedValueOnce(null)
 
 			const { sendWindowOpensNotification } = await import(
 				"@/server/notifications/submission-window"
@@ -101,14 +104,25 @@ describe("Submission Window Notifications", () => {
 			)
 		})
 
-		it("does not send notification when reservation fails (already sent)", async () => {
+		it("does not send notification when already exists (check-before-insert)", async () => {
 			// Arrange - user exists with email
 			const mockUser = { id: "user_123", email: "athlete@example.com", firstName: "John" }
 			mockDb.registerTable("userTable")
-			mockDb.setMockSingleValue(mockUser)
+			mockDb.registerTable("submissionWindowNotificationsTable")
 
-			// Mock failed reservation (insert returns empty array due to conflict)
-			mockDb.setMockReturnValue([])
+			// Mock existing notification
+			const existingNotification = {
+				id: "notif_123",
+				competitionEventId: "event_123",
+				registrationId: "reg_123",
+				type: "window_opens"
+			}
+
+			// Mock sequential findFirst calls:
+			// 1st call: user lookup - returns user
+			// 2nd call: notification existence check - returns existing notification
+			mockDb.query.userTable.findFirst.mockResolvedValueOnce(mockUser)
+			mockDb.query.submissionWindowNotificationsTable.findFirst.mockResolvedValueOnce(existingNotification)
 
 			const { sendWindowOpensNotification } = await import(
 				"@/server/notifications/submission-window"
@@ -135,10 +149,13 @@ describe("Submission Window Notifications", () => {
 			// Arrange - user exists with email
 			const mockUser = { id: "user_123", email: "athlete@example.com", firstName: "John" }
 			mockDb.registerTable("userTable")
-			mockDb.setMockSingleValue(mockUser)
+			mockDb.registerTable("submissionWindowNotificationsTable")
 
-			// Mock successful reservation
-			mockDb.setMockReturnValue([{ id: "notif_123" }])
+			// Mock sequential findFirst calls:
+			// 1st call: user lookup - returns user
+			// 2nd call: notification existence check - returns null (no existing notification)
+			mockDb.query.userTable.findFirst.mockResolvedValueOnce(mockUser)
+			mockDb.query.submissionWindowNotificationsTable.findFirst.mockResolvedValueOnce(null)
 
 			// Mock email failure
 			mockSendEmail.mockRejectedValueOnce(new Error("Email service unavailable"))

@@ -66,6 +66,8 @@ describe('Sponsor Server Functions (TanStack)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockDb.reset()
+    mockDb.registerTable('sponsorsTable')
+    mockDb.registerTable('sponsorGroupsTable')
   })
 
   describe('getSponsorFn', () => {
@@ -268,14 +270,13 @@ describe('Sponsor Server Functions (TanStack)', () => {
       })
 
       const whereMock = mockDb.getChainMock().where as any
-      const returningMock = mockDb.getChainMock().returning as any
 
       // Get competition
       whereMock.mockResolvedValueOnce([competition])
       // Get existing groups (empty)
       whereMock.mockResolvedValueOnce([])
-      // Return created group
-      returningMock.mockResolvedValueOnce([created])
+      // Return created group after insert
+      whereMock.mockResolvedValueOnce([created])
 
       const result = await createSponsorGroupFn({
         data: {
@@ -302,10 +303,9 @@ describe('Sponsor Server Functions (TanStack)', () => {
       })
 
       const whereMock = mockDb.getChainMock().where as any
-      const returningMock = mockDb.getChainMock().returning as any
 
       whereMock.mockResolvedValueOnce([competition])
-      returningMock.mockResolvedValueOnce([created])
+      whereMock.mockResolvedValueOnce([created])
 
       const result = await createSponsorGroupFn({
         data: {
@@ -334,11 +334,10 @@ describe('Sponsor Server Functions (TanStack)', () => {
       })
 
       const whereMock = mockDb.getChainMock().where as any
-      const returningMock = mockDb.getChainMock().returning as any
 
       whereMock.mockResolvedValueOnce([competition])
       whereMock.mockResolvedValueOnce(existingGroups)
-      returningMock.mockResolvedValueOnce([created])
+      whereMock.mockResolvedValueOnce([created])
 
       const result = await createSponsorGroupFn({
         data: {
@@ -382,11 +381,11 @@ describe('Sponsor Server Functions (TanStack)', () => {
       const updated = {...existing, name: 'New Name'}
 
       const whereMock = mockDb.getChainMock().where as any
-      const returningMock = mockDb.getChainMock().returning as any
 
-      whereMock.mockResolvedValueOnce([competition])
-      whereMock.mockResolvedValueOnce([existing])
-      returningMock.mockResolvedValueOnce([updated])
+      whereMock.mockResolvedValueOnce([competition]) // Get competition
+      whereMock.mockResolvedValueOnce([existing]) // Get existing group
+      whereMock.mockResolvedValueOnce(undefined) // WHERE clause for UPDATE
+      whereMock.mockResolvedValueOnce([updated]) // Select updated record
 
       const result = await updateSponsorGroupFn({
         data: {
@@ -415,11 +414,11 @@ describe('Sponsor Server Functions (TanStack)', () => {
       const updated = {...existing, displayOrder: 5}
 
       const whereMock = mockDb.getChainMock().where as any
-      const returningMock = mockDb.getChainMock().returning as any
 
       whereMock.mockResolvedValueOnce([competition])
       whereMock.mockResolvedValueOnce([existing])
-      returningMock.mockResolvedValueOnce([updated])
+      whereMock.mockResolvedValueOnce(undefined) // WHERE for UPDATE
+      whereMock.mockResolvedValueOnce([updated])
 
       const result = await updateSponsorGroupFn({
         data: {
@@ -607,11 +606,10 @@ describe('Sponsor Server Functions (TanStack)', () => {
       })
 
       const whereMock = mockDb.getChainMock().where as any
-      const returningMock = mockDb.getChainMock().returning as any
 
       whereMock.mockResolvedValueOnce([competition])
       whereMock.mockResolvedValueOnce([]) // No existing sponsors
-      returningMock.mockResolvedValueOnce([created])
+      whereMock.mockResolvedValueOnce([created])
 
       const result = await createSponsorFn({
         data: {
@@ -634,10 +632,9 @@ describe('Sponsor Server Functions (TanStack)', () => {
       })
 
       const whereMock = mockDb.getChainMock().where as any
-      const returningMock = mockDb.getChainMock().returning as any
 
       whereMock.mockResolvedValueOnce([]) // No existing sponsors
-      returningMock.mockResolvedValueOnce([created])
+      whereMock.mockResolvedValueOnce([created])
 
       const result = await createSponsorFn({
         data: {
@@ -663,11 +660,10 @@ describe('Sponsor Server Functions (TanStack)', () => {
       })
 
       const whereMock = mockDb.getChainMock().where as any
-      const returningMock = mockDb.getChainMock().returning as any
 
       whereMock.mockResolvedValueOnce([competition])
       whereMock.mockResolvedValueOnce([])
-      returningMock.mockResolvedValueOnce([created])
+      whereMock.mockResolvedValueOnce([created])
 
       const result = await createSponsorFn({
         data: {
@@ -722,11 +718,10 @@ describe('Sponsor Server Functions (TanStack)', () => {
       })
 
       const whereMock = mockDb.getChainMock().where as any
-      const returningMock = mockDb.getChainMock().returning as any
 
       whereMock.mockResolvedValueOnce([competition])
       whereMock.mockResolvedValueOnce(existingSponsors)
-      returningMock.mockResolvedValueOnce([created])
+      whereMock.mockResolvedValueOnce([created])
 
       const result = await createSponsorFn({
         data: {
@@ -755,11 +750,11 @@ describe('Sponsor Server Functions (TanStack)', () => {
       const updated = {...existing, name: 'New Name'}
 
       const whereMock = mockDb.getChainMock().where as any
-      const returningMock = mockDb.getChainMock().returning as any
 
       whereMock.mockResolvedValueOnce([existing])
       whereMock.mockResolvedValueOnce([competition])
-      returningMock.mockResolvedValueOnce([updated])
+      whereMock.mockResolvedValueOnce(undefined) // WHERE for UPDATE
+      whereMock.mockResolvedValueOnce([updated])
 
       const result = await updateSponsorFn({
         data: {
@@ -786,11 +781,11 @@ describe('Sponsor Server Functions (TanStack)', () => {
       const updated = {...existing, groupId: 'new-group'}
 
       const whereMock = mockDb.getChainMock().where as any
-      const returningMock = mockDb.getChainMock().returning as any
 
       whereMock.mockResolvedValueOnce([existing])
       whereMock.mockResolvedValueOnce([competition])
-      returningMock.mockResolvedValueOnce([updated])
+      whereMock.mockResolvedValueOnce(undefined) // WHERE for UPDATE
+      whereMock.mockResolvedValueOnce([updated])
 
       const result = await updateSponsorFn({
         data: {
@@ -817,11 +812,11 @@ describe('Sponsor Server Functions (TanStack)', () => {
       const updated = {...existing, groupId: null}
 
       const whereMock = mockDb.getChainMock().where as any
-      const returningMock = mockDb.getChainMock().returning as any
 
       whereMock.mockResolvedValueOnce([existing])
       whereMock.mockResolvedValueOnce([competition])
-      returningMock.mockResolvedValueOnce([updated])
+      whereMock.mockResolvedValueOnce(undefined) // WHERE for UPDATE
+      whereMock.mockResolvedValueOnce([updated])
 
       const result = await updateSponsorFn({
         data: {
@@ -844,10 +839,10 @@ describe('Sponsor Server Functions (TanStack)', () => {
       const updated = {...existing, logoUrl: 'https://example.com/logo.png'}
 
       const whereMock = mockDb.getChainMock().where as any
-      const returningMock = mockDb.getChainMock().returning as any
 
-      whereMock.mockResolvedValueOnce([existing])
-      returningMock.mockResolvedValueOnce([updated])
+      whereMock.mockResolvedValueOnce([existing]) // Get existing (user sponsor, no competition check)
+      whereMock.mockResolvedValueOnce(undefined) // WHERE for UPDATE
+      whereMock.mockResolvedValueOnce([updated]) // Select updated
 
       const result = await updateSponsorFn({
         data: {

@@ -52,6 +52,7 @@ export function createInvoiceAnalyzer(apiKey: string) {
 	const openai = createOpenAI({ apiKey })
 
 	return new Agent({
+		id: "invoice-analyzer",
 		name: "Invoice Analyzer",
 		instructions: `You are an invoice data extraction specialist for a software/SaaS business.
 Extract all relevant invoice information from the provided document image or text.
