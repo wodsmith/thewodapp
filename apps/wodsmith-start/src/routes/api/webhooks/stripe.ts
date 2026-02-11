@@ -13,29 +13,33 @@
 
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
+import { and, eq } from "drizzle-orm"
 import type Stripe from "stripe"
 import { getDb } from "@/db"
 import {
 	COMMERCE_PAYMENT_STATUS,
 	COMMERCE_PURCHASE_STATUS,
 	commercePurchaseTable,
+	competitionDivisionsTable,
 	competitionRegistrationAnswersTable,
 	competitionRegistrationsTable,
+	competitionsTable,
 	teamTable,
+	userTable,
 } from "@/db/schema"
-import { and, eq } from "drizzle-orm"
+import { getStripeWebhookSecret } from "@/lib/env"
 import {
 	logError,
 	logInfo,
 	logWarning,
 } from "@/lib/logging/posthog-otel-logger"
+import { notifyCompetitionRegistration } from "@/lib/slack"
 import { getStripe } from "@/lib/stripe"
-import { getStripeWebhookSecret } from "@/lib/env"
-import {
-	registerForCompetition,
-	notifyRegistrationConfirmed,
-} from "@/server/registration"
 import { notifyPaymentExpired } from "@/server/notifications"
+import {
+	notifyRegistrationConfirmed,
+	registerForCompetition,
+} from "@/server/registration"
 import { getDivisionSpotsAvailableFn } from "@/server-fns/competition-divisions-fns"
 
 export const Route = createFileRoute("/api/webhooks/stripe")({
@@ -287,6 +291,52 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 									competitionId,
 									userId,
 									registrationId: result.registrationId,
+								},
+							})
+							// Don't rethrow - registration and payment succeeded
+						}
+
+						// Send Slack notification for the purchase (non-blocking)
+						try {
+							// Fetch competition and division details for the notification
+							const [competition, divisionConfig, user] = await Promise.all([
+								db.query.competitionsTable.findFirst({
+									where: eq(competitionsTable.id, competitionId),
+								}),
+								db.query.competitionDivisionsTable.findFirst({
+									where: and(
+										eq(competitionDivisionsTable.competitionId, competitionId),
+										eq(competitionDivisionsTable.divisionId, divisionId),
+									),
+									with: {
+										division: true,
+									},
+								}),
+								db.query.userTable.findFirst({
+									where: eq(userTable.id, userId),
+								}),
+							])
+
+							await notifyCompetitionRegistration({
+								amountCents: session.amount_total ?? 0,
+								customerEmail: session.customer_email ?? user?.email ?? undefined,
+								customerName: user
+									? `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+										undefined
+									: undefined,
+								competitionName: competition?.name ?? "Unknown Competition",
+								divisionName: divisionConfig?.division?.label,
+								teamName: registrationData.teamName,
+								purchaseId,
+							})
+						} catch (slackErr) {
+							logWarning({
+								message: "[Stripe Webhook] Failed to send Slack notification",
+								error: slackErr,
+								attributes: {
+									purchaseId,
+									competitionId,
+									userId,
 								},
 							})
 							// Don't rethrow - registration and payment succeeded

@@ -1,47 +1,91 @@
-DELETE FROM purchased_item;
-DELETE FROM credit_transaction;
-DELETE FROM passkey_credential;
+-- Competition deep children
+DELETE FROM score_rounds;
+DELETE FROM scores;
+DELETE FROM judge_heat_assignments;
+DELETE FROM judge_assignment_versions;
+DELETE FROM competition_judge_rotations;
+DELETE FROM video_submissions;
+DELETE FROM submission_window_notifications;
+DELETE FROM event_judging_sheets;
+DELETE FROM event_resources;
+DELETE FROM competition_events;
+DELETE FROM competition_heat_assignments;
+DELETE FROM competition_heats;
+DELETE FROM competition_registration_answers;
+DELETE FROM competition_registration_questions;
+DELETE FROM competition_registrations;
+DELETE FROM competition_venues;
+DELETE FROM competition_divisions;
+DELETE FROM competitions;
+DELETE FROM competition_groups;
+DELETE FROM addresses;
+-- Scheduling
+DELETE FROM scheduled_classes;
+DELETE FROM generated_schedules;
+DELETE FROM schedule_template_class_required_skills;
+DELETE FROM schedule_template_classes;
+DELETE FROM schedule_templates;
+-- Programming
 DELETE FROM scheduled_workout_instance;
 DELETE FROM team_programming_track;
 DELETE FROM track_workout;
 DELETE FROM programming_track;
+-- Workouts and related
 DELETE FROM sets;
 DELETE FROM results;
+DELETE FROM workout_scaling_descriptions;
 DELETE FROM workout_movements;
 DELETE FROM workout_tags;
 DELETE FROM workouts;
 DELETE FROM spicy_tags;
 DELETE FROM movements;
+-- Scaling
+DELETE FROM scaling_levels;
+DELETE FROM scaling_groups;
+-- Coaches / Classes
 DELETE FROM coach_to_skills;
 DELETE FROM class_catalog_to_skills;
+DELETE FROM coach_blackout_dates;
+DELETE FROM coach_recurring_unavailability;
 DELETE FROM coaches;
 DELETE FROM class_catalog;
 DELETE FROM skills;
 DELETE FROM locations;
--- Delete competition tables (must be before team due to FK)
-DELETE FROM competition_venues;
-DELETE FROM competition_registrations;
-DELETE FROM competitions;
-DELETE FROM competition_groups;
-DELETE FROM addresses;
+-- Sponsors
+DELETE FROM sponsors;
+DELETE FROM sponsor_groups;
+-- Commerce
+DELETE FROM purchased_item;
+DELETE FROM credit_transaction;
+DELETE FROM commerce_purchase;
+DELETE FROM commerce_product;
+-- Auth
+DELETE FROM passkey_credential;
+DELETE FROM waiver_signatures;
+DELETE FROM waivers;
+-- Team hierarchy (children before parents)
 DELETE FROM affiliates;
 DELETE FROM organizer_request;
 DELETE FROM team_invitation;
 DELETE FROM team_membership;
 DELETE FROM team_role;
--- Delete entitlements tables (must be before team due to FK)
 DELETE FROM team_entitlement_override;
+DELETE FROM team_feature_entitlement;
+DELETE FROM team_limit_entitlement;
 DELETE FROM team_usage;
 DELETE FROM team_addon;
 DELETE FROM team_subscription;
 DELETE FROM entitlement;
-DELETE FROM team;
-DELETE FROM user;
--- Delete entitlements metadata tables
+-- Plans and features (before team due to currentPlanId FK)
+DELETE FROM plan_limit;
+DELETE FROM plan_feature;
 DELETE FROM plan;
 DELETE FROM "limit";
 DELETE FROM feature;
 DELETE FROM entitlement_type;
+-- Core entities
+DELETE FROM team;
+DELETE FROM user;
 
 -- Seed global default scaling group (system-wide default)
 -- This must be seeded first as it's used as the ultimate fallback for all workouts
@@ -76,7 +120,8 @@ VALUES
   ('feat_ai_workout_generation', 'ai_workout_generation', 'AI Workout Generation', 'Generate workouts using AI', 'ai', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
   ('feat_ai_programming_assistant', 'ai_programming_assistant', 'AI Programming Assistant', 'AI assistant for programming strategy', 'ai', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
   ('feat_multi_team_management', 'multi_team_management', 'Multi-Team Management', 'Manage multiple teams from one account', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
-  ('feat_host_competitions', 'host_competitions', 'Host Competitions', 'Create and manage competitions and events', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+  ('feat_host_competitions', 'host_competitions', 'Host Competitions', 'Create and manage competitions and events', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('feat_workout_tracking', 'workout_tracking', 'Workout Tracking', 'Access to personal workout tracking features', 'workouts', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- Insert limits
 INSERT OR IGNORE INTO "limit" (id, "key", name, description, unit, resetPeriod, isActive, createdAt, updatedAt, updateCounter)
@@ -220,7 +265,18 @@ INSERT OR IGNORE INTO user (id, firstName, lastName, email, emailVerified, passw
 ('usr_athlete_lauren', 'Lauren', 'Adams', 'lauren.adams@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1997-01-11'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('usr_athlete_nicole', 'Nicole', 'Roberts', 'nicole.roberts@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1995-08-19'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('usr_athlete_amanda', 'Amanda', 'Nelson', 'amanda.nelson@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1992-12-07'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_athlete_kaitlyn', 'Kaitlyn', 'Hill', 'kaitlyn.hill@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1999-03-24'), strftime('%s', 'now'), strftime('%s', 'now'), 0);
+('usr_athlete_kaitlyn', 'Kaitlyn', 'Hill', 'kaitlyn.hill@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1999-03-24'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Volunteers for Winter Throwdown 2025
+('usr_volunteer_dave', 'Dave', 'Martinez', 'dave.martinez@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1985-04-12'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_lisa', 'Lisa', 'Chen', 'lisa.chen@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1990-08-25'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_tom', 'Tom', 'Wilson', 'tom.wilson@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1988-01-17'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_rachel', 'Rachel', 'Kim', 'rachel.kim@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1992-11-30'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_james', 'James', 'Rodriguez', 'james.rodriguez@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1987-06-08'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_emily', 'Emily', 'Thompson', 'emily.thompson@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1994-02-14'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_kevin', 'Kevin', 'Patel', 'kevin.patel@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1991-09-22'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_maria', 'Maria', 'Garcia', 'maria.garcia@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1989-12-03'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_brian', 'Brian', 'Lee', 'brian.lee@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1993-07-19'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_volunteer_sandra', 'Sandra', 'Nguyen', 'sandra.nguyen@volunteer.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1995-05-11'), strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Seed teams table (with different plans for testing)
 -- type: 'gym' (default), 'competition_event', or 'personal'
@@ -293,6 +349,20 @@ INSERT OR IGNORE INTO team_membership (id, teamId, userId, roleId, isSystemRole,
 ('tmem_amanda_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_amanda', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
 ('tmem_kaitlyn_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_kaitlyn', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1);
 
+-- Volunteers for Winter Throwdown 2025
+-- Volunteer memberships include metadata JSON with volunteer-specific info
+INSERT OR IGNORE INTO team_membership (id, teamId, userId, roleId, isSystemRole, joinedAt, createdAt, updatedAt, updateCounter, isActive, metadata) VALUES
+('tmem_volunteer_dave', 'team_winter_throwdown_2025', 'usr_volunteer_dave', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","head_judge"],"credentials":"L1 Judge Certified","shirtSize":"L","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+('tmem_volunteer_lisa', 'team_winter_throwdown_2025', 'usr_volunteer_lisa', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","scorekeeper"],"credentials":"CrossFit L2","shirtSize":"S","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+('tmem_volunteer_tom', 'team_winter_throwdown_2025', 'usr_volunteer_tom', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","equipment"],"shirtSize":"XL","availability":"morning","availabilityNotes":"Available 6am-12pm only","status":"approved","inviteSource":"application"}'),
+('tmem_volunteer_rachel', 'team_winter_throwdown_2025', 'usr_volunteer_rachel', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","check_in","medical"],"credentials":"EMT Certified","shirtSize":"M","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+('tmem_volunteer_james', 'team_winter_throwdown_2025', 'usr_volunteer_james', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","floor_manager"],"credentials":"5 years judging experience","shirtSize":"L","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+('tmem_volunteer_emily', 'team_winter_throwdown_2025', 'usr_volunteer_emily', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","media"],"shirtSize":"S","availability":"afternoon","availabilityNotes":"Available after 12pm","status":"approved","inviteSource":"application"}'),
+('tmem_volunteer_kevin', 'team_winter_throwdown_2025', 'usr_volunteer_kevin', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","scorekeeper"],"credentials":"L1 Trainer","shirtSize":"M","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+('tmem_volunteer_maria', 'team_winter_throwdown_2025', 'usr_volunteer_maria', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","emcee"],"credentials":"Former competitor","shirtSize":"S","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+('tmem_volunteer_brian', 'team_winter_throwdown_2025', 'usr_volunteer_brian', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","equipment","staff"],"shirtSize":"XL","availability":"morning","status":"approved","inviteSource":"application"}'),
+('tmem_volunteer_sandra', 'team_winter_throwdown_2025', 'usr_volunteer_sandra', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge","general"],"credentials":"L1 Trainer","shirtSize":"M","availability":"all_day","status":"approved","inviteSource":"direct"}');
+
 -- Affiliates (gyms that athletes can select when registering)
 INSERT OR IGNORE INTO affiliates (id, name, location, verificationStatus, ownerTeamId, createdAt, updatedAt, updateCounter) VALUES
 ('aff_crossfit_canvas', 'CrossFit Canvas', 'Austin, TX', 'verified', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
@@ -314,14 +384,10 @@ INSERT OR IGNORE INTO scaling_levels (id, scalingGroupId, label, position, teamS
 ('slvl_winter_masters_40', 'sgrp_winter_throwdown_2025', 'Masters 40+', 3, 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('slvl_winter_teens', 'sgrp_winter_throwdown_2025', 'Teens 14-17', 4, 1, strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
--- Address for Winter Throwdown 2025
-INSERT OR IGNORE INTO addresses (id, addressType, name, streetLine1, city, stateProvince, postalCode, countryCode, createdAt, updatedAt, updateCounter) VALUES
-('addr_winter_throwdown_2025', 'venue', 'CrossFit Box One', '1234 Fitness Lane', 'Denver', 'CO', '80202', 'US', strftime('%s', 'now'), strftime('%s', 'now'), 0);
-
 -- Competitions - Winter Throwdown 2025
 -- Registration opens 30 days before, closes 7 days before the event
 -- defaultRegistrationFeeCents: 7500 = $75.00
-INSERT OR IGNORE INTO competitions (id, organizingTeamId, competitionTeamId, groupId, slug, name, description, startDate, endDate, registrationOpensAt, registrationClosesAt, timezone, settings, defaultRegistrationFeeCents, visibility, status, competitionType, primaryAddressId, createdAt, updatedAt, updateCounter) VALUES
+INSERT OR IGNORE INTO competitions (id, organizingTeamId, competitionTeamId, groupId, slug, name, description, startDate, endDate, registrationOpensAt, registrationClosesAt, timezone, settings, defaultRegistrationFeeCents, visibility, status, competitionType, createdAt, updatedAt, updateCounter) VALUES
 ('comp_winter_throwdown_2025',
  'team_cokkpu1klwo0ulfhl1iwzpvnbox1',
  'team_winter_throwdown_2025',
@@ -339,15 +405,9 @@ INSERT OR IGNORE INTO competitions (id, organizingTeamId, competitionTeamId, gro
  'public',
  'published',
  'in-person',
- 'addr_winter_throwdown_2025',
  strftime('%s', 'now'),
  strftime('%s', 'now'),
  0);
-
--- Competition Venues for Winter Throwdown 2025
-INSERT OR IGNORE INTO competition_venues (id, competitionId, name, laneCount, transitionMinutes, sortOrder, addressId, createdAt, updatedAt, updateCounter) VALUES
-('cvenue_winter_main', 'comp_winter_throwdown_2025', 'Main Floor', 10, 3, 0, 'addr_winter_throwdown_2025', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('cvenue_winter_outside', 'comp_winter_throwdown_2025', 'Outside Rig', 6, 5, 1, 'addr_winter_throwdown_2025', strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Competition Registrations
 -- Athletes registered for Winter Throwdown 2025
@@ -384,162 +444,6 @@ INSERT OR IGNORE INTO competition_registrations (id, eventId, userId, teamMember
 -- NOTE: Competition events (track_workout) are inserted AFTER workouts table is populated below
 INSERT OR IGNORE INTO programming_track (id, name, description, type, ownerTeamId, scalingGroupId, isPublic, competitionId, createdAt, updatedAt, updateCounter) VALUES
 ('track_winter_throwdown_2025', 'Winter Throwdown 2025 - Events', 'Competition events for Winter Throwdown 2025', 'team_owned', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'sgrp_winter_throwdown_2025', 0, 'comp_winter_throwdown_2025', strftime('%s', 'now'), strftime('%s', 'now'), 0);
-
--- ============================================
--- VOLUNTEER SEED DATA FOR WINTER THROWDOWN 2025
--- 62 volunteers: 20 judges, 5 medical, 5 media, 2 emcee, 5 staff, 10 equipment, 5 floor manager, 10 athlete control
--- ============================================
-
--- Volunteer Users (password for all: password123)
-INSERT OR IGNORE INTO user (id, firstName, lastName, email, emailVerified, passwordHash, role, currentCredits, createdAt, updatedAt, updateCounter) VALUES
--- Judges (20)
-('usr_vol_judge_01', 'Marcus', 'Rivera', 'marcus.judge@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_judge_02', 'Jessica', 'Chen', 'jessica.judge@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_judge_03', 'David', 'Thompson', 'david.judge@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_judge_04', 'Sarah', 'Martinez', 'sarah.judge@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_judge_05', 'Kevin', 'Park', 'kevin.judge@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_judge_06', 'Emily', 'Davis', 'emily.judge@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_judge_07', 'Chris', 'Wilson', 'chris.judge@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_judge_08', 'Amanda', 'Lee', 'amanda.judge@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_judge_09', 'Jason', 'Brown', 'jason.judge@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_judge_10', 'Michelle', 'Garcia', 'michelle.judge@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_judge_11', 'Brian', 'Anderson', 'brian.judge@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_judge_12', 'Lisa', 'Taylor', 'lisa.judge@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_judge_13', 'Robert', 'Moore', 'robert.judge@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_judge_14', 'Jennifer', 'Jackson', 'jennifer.judge@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_judge_15', 'Michael', 'White', 'michael.judge@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_judge_16', 'Rachel', 'Harris', 'rachel.judge@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_judge_17', 'Daniel', 'Clark', 'daniel.judge@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_judge_18', 'Stephanie', 'Lewis', 'steph.judge@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_judge_19', 'Andrew', 'Robinson', 'andrew.judge@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_judge_20', 'Nicole', 'Walker', 'nicole.judge@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
--- Medical (5)
-('usr_vol_medical_01', 'Dr. James', 'Sullivan', 'james.medical@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_medical_02', 'Nurse Amy', 'Patel', 'amy.medical@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_medical_03', 'EMT Carlos', 'Mendez', 'carlos.medical@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_medical_04', 'Dr. Linda', 'Kim', 'linda.medical@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_medical_05', 'Paramedic Tony', 'Russo', 'tony.medical@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
--- Media (5)
-('usr_vol_media_01', 'Alex', 'Photo', 'alex.media@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_media_02', 'Samantha', 'Video', 'samantha.media@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_media_03', 'Jordan', 'Stream', 'jordan.media@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_media_04', 'Casey', 'Drone', 'casey.media@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_media_05', 'Taylor', 'Social', 'taylor.media@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
--- Emcee (2)
-('usr_vol_emcee_01', 'Mike', 'Announcer', 'mike.emcee@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_emcee_02', 'Dana', 'Hype', 'dana.emcee@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
--- Staff (5)
-('usr_vol_staff_01', 'Tom', 'Helper', 'tom.staff@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_staff_02', 'Karen', 'Helper', 'karen.staff@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_staff_03', 'Pete', 'Support', 'pete.staff@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_staff_04', 'Wendy', 'Support', 'wendy.staff@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_staff_05', 'Greg', 'Assist', 'greg.staff@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
--- Equipment (10)
-('usr_vol_equip_01', 'Jake', 'Barbell', 'jake.equip@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_equip_02', 'Zoe', 'Kettlebell', 'zoe.equip@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_equip_03', 'Ethan', 'Dumbbell', 'ethan.equip@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_equip_04', 'Olivia', 'Rope', 'olivia.equip@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_equip_05', 'Noah', 'Box', 'noah.equip@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_equip_06', 'Sophia', 'Rig', 'sophia.equip@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_equip_07', 'Liam', 'Plates', 'liam.equip@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_equip_08', 'Ava', 'Rower', 'ava.equip@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_equip_09', 'Mason', 'Bike', 'mason.equip@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_equip_10', 'Isabella', 'Sled', 'isabella.equip@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
--- Floor Manager (5)
-('usr_vol_floor_01', 'Victor', 'Floor', 'victor.floor@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_floor_02', 'Hannah', 'Floor', 'hannah.floor@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_floor_03', 'Oscar', 'Manager', 'oscar.floor@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_floor_04', 'Grace', 'Manager', 'grace.floor@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_floor_05', 'Leo', 'Lead', 'leo.floor@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
--- Athlete Control / Check-In (10)
-('usr_vol_checkin_01', 'Ben', 'CheckIn', 'ben.checkin@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_checkin_02', 'Claire', 'CheckIn', 'claire.checkin@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_checkin_03', 'Derek', 'Control', 'derek.checkin@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_checkin_04', 'Ella', 'Control', 'ella.checkin@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_checkin_05', 'Finn', 'Athlete', 'finn.checkin@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_checkin_06', 'Gina', 'Athlete', 'gina.checkin@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_checkin_07', 'Henry', 'Register', 'henry.checkin@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_checkin_08', 'Iris', 'Register', 'iris.checkin@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_checkin_09', 'Jack', 'Entry', 'jack.checkin@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_vol_checkin_10', 'Kate', 'Entry', 'kate.checkin@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0);
-
--- Volunteer Team Memberships for Winter Throwdown 2025
--- roleId='volunteer', metadata contains volunteerRoleTypes array
-INSERT OR IGNORE INTO team_membership (id, teamId, userId, roleId, isSystemRole, joinedAt, createdAt, updatedAt, updateCounter, isActive, metadata) VALUES
--- Judges (20)
-('tmem_vol_judge_01', 'team_winter_throwdown_2025', 'usr_vol_judge_01', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge"],"credentials":"L1 Judge Certified","availability":"all_day"}'),
-('tmem_vol_judge_02', 'team_winter_throwdown_2025', 'usr_vol_judge_02', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge"],"credentials":"L2 Judge Certified","availability":"all_day"}'),
-('tmem_vol_judge_03', 'team_winter_throwdown_2025', 'usr_vol_judge_03', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge"],"credentials":"L1 Judge Certified","availability":"morning"}'),
-('tmem_vol_judge_04', 'team_winter_throwdown_2025', 'usr_vol_judge_04', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge"],"credentials":"L1 Judge Certified","availability":"all_day"}'),
-('tmem_vol_judge_05', 'team_winter_throwdown_2025', 'usr_vol_judge_05', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge"],"credentials":"L2 Judge Certified","availability":"afternoon"}'),
-('tmem_vol_judge_06', 'team_winter_throwdown_2025', 'usr_vol_judge_06', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge"],"credentials":"L1 Judge Certified","availability":"all_day"}'),
-('tmem_vol_judge_07', 'team_winter_throwdown_2025', 'usr_vol_judge_07', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge"],"credentials":"L1 Judge Certified","availability":"morning"}'),
-('tmem_vol_judge_08', 'team_winter_throwdown_2025', 'usr_vol_judge_08', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge"],"credentials":"L2 Judge Certified","availability":"all_day"}'),
-('tmem_vol_judge_09', 'team_winter_throwdown_2025', 'usr_vol_judge_09', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge"],"credentials":"L1 Judge Certified","availability":"afternoon"}'),
-('tmem_vol_judge_10', 'team_winter_throwdown_2025', 'usr_vol_judge_10', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge"],"credentials":"L1 Judge Certified","availability":"all_day"}'),
-('tmem_vol_judge_11', 'team_winter_throwdown_2025', 'usr_vol_judge_11', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge"],"credentials":"L2 Judge Certified","availability":"all_day"}'),
-('tmem_vol_judge_12', 'team_winter_throwdown_2025', 'usr_vol_judge_12', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge"],"credentials":"L1 Judge Certified","availability":"morning"}'),
-('tmem_vol_judge_13', 'team_winter_throwdown_2025', 'usr_vol_judge_13', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge"],"credentials":"L1 Judge Certified","availability":"all_day"}'),
-('tmem_vol_judge_14', 'team_winter_throwdown_2025', 'usr_vol_judge_14', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge"],"credentials":"L2 Judge Certified","availability":"afternoon"}'),
-('tmem_vol_judge_15', 'team_winter_throwdown_2025', 'usr_vol_judge_15', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge"],"credentials":"L1 Judge Certified","availability":"all_day"}'),
-('tmem_vol_judge_16', 'team_winter_throwdown_2025', 'usr_vol_judge_16', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge"],"credentials":"L1 Judge Certified","availability":"morning"}'),
-('tmem_vol_judge_17', 'team_winter_throwdown_2025', 'usr_vol_judge_17', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge"],"credentials":"L2 Judge Certified","availability":"all_day"}'),
-('tmem_vol_judge_18', 'team_winter_throwdown_2025', 'usr_vol_judge_18', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge"],"credentials":"L1 Judge Certified","availability":"afternoon"}'),
-('tmem_vol_judge_19', 'team_winter_throwdown_2025', 'usr_vol_judge_19', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge"],"credentials":"L1 Judge Certified","availability":"all_day"}'),
-('tmem_vol_judge_20', 'team_winter_throwdown_2025', 'usr_vol_judge_20', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["judge"],"credentials":"L2 Judge Certified","availability":"all_day"}'),
--- Medical (5)
-('tmem_vol_medical_01', 'team_winter_throwdown_2025', 'usr_vol_medical_01', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["medical"],"credentials":"MD - Emergency Medicine","availability":"all_day"}'),
-('tmem_vol_medical_02', 'team_winter_throwdown_2025', 'usr_vol_medical_02', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["medical"],"credentials":"RN - Sports Medicine","availability":"morning"}'),
-('tmem_vol_medical_03', 'team_winter_throwdown_2025', 'usr_vol_medical_03', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["medical"],"credentials":"EMT-P Certified","availability":"all_day"}'),
-('tmem_vol_medical_04', 'team_winter_throwdown_2025', 'usr_vol_medical_04', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["medical"],"credentials":"MD - Sports Medicine","availability":"afternoon"}'),
-('tmem_vol_medical_05', 'team_winter_throwdown_2025', 'usr_vol_medical_05', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["medical"],"credentials":"Paramedic - ACLS Certified","availability":"all_day"}'),
--- Media (5)
-('tmem_vol_media_01', 'team_winter_throwdown_2025', 'usr_vol_media_01', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["media"],"credentials":"Professional Photographer","availability":"all_day"}'),
-('tmem_vol_media_02', 'team_winter_throwdown_2025', 'usr_vol_media_02', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["media"],"credentials":"Videographer","availability":"all_day"}'),
-('tmem_vol_media_03', 'team_winter_throwdown_2025', 'usr_vol_media_03', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["media"],"credentials":"Live Stream Operator","availability":"all_day"}'),
-('tmem_vol_media_04', 'team_winter_throwdown_2025', 'usr_vol_media_04', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["media"],"credentials":"Drone Pilot FAA Part 107","availability":"morning"}'),
-('tmem_vol_media_05', 'team_winter_throwdown_2025', 'usr_vol_media_05', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["media"],"credentials":"Social Media Manager","availability":"all_day"}'),
--- Emcee (2)
-('tmem_vol_emcee_01', 'team_winter_throwdown_2025', 'usr_vol_emcee_01', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["emcee"],"credentials":"Professional MC - 10 years experience","availability":"all_day"}'),
-('tmem_vol_emcee_02', 'team_winter_throwdown_2025', 'usr_vol_emcee_02', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["emcee"],"credentials":"CrossFit Announcer","availability":"all_day"}'),
--- Staff (5)
-('tmem_vol_staff_01', 'team_winter_throwdown_2025', 'usr_vol_staff_01', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["staff"],"availability":"all_day"}'),
-('tmem_vol_staff_02', 'team_winter_throwdown_2025', 'usr_vol_staff_02', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["staff"],"availability":"morning"}'),
-('tmem_vol_staff_03', 'team_winter_throwdown_2025', 'usr_vol_staff_03', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["staff"],"availability":"afternoon"}'),
-('tmem_vol_staff_04', 'team_winter_throwdown_2025', 'usr_vol_staff_04', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["staff"],"availability":"all_day"}'),
-('tmem_vol_staff_05', 'team_winter_throwdown_2025', 'usr_vol_staff_05', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["staff"],"availability":"all_day"}'),
--- Equipment (10)
-('tmem_vol_equip_01', 'team_winter_throwdown_2025', 'usr_vol_equip_01', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["equipment"],"availability":"all_day"}'),
-('tmem_vol_equip_02', 'team_winter_throwdown_2025', 'usr_vol_equip_02', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["equipment"],"availability":"morning"}'),
-('tmem_vol_equip_03', 'team_winter_throwdown_2025', 'usr_vol_equip_03', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["equipment"],"availability":"all_day"}'),
-('tmem_vol_equip_04', 'team_winter_throwdown_2025', 'usr_vol_equip_04', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["equipment"],"availability":"afternoon"}'),
-('tmem_vol_equip_05', 'team_winter_throwdown_2025', 'usr_vol_equip_05', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["equipment"],"availability":"all_day"}'),
-('tmem_vol_equip_06', 'team_winter_throwdown_2025', 'usr_vol_equip_06', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["equipment"],"availability":"all_day"}'),
-('tmem_vol_equip_07', 'team_winter_throwdown_2025', 'usr_vol_equip_07', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["equipment"],"availability":"morning"}'),
-('tmem_vol_equip_08', 'team_winter_throwdown_2025', 'usr_vol_equip_08', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["equipment"],"availability":"all_day"}'),
-('tmem_vol_equip_09', 'team_winter_throwdown_2025', 'usr_vol_equip_09', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["equipment"],"availability":"afternoon"}'),
-('tmem_vol_equip_10', 'team_winter_throwdown_2025', 'usr_vol_equip_10', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["equipment"],"availability":"all_day"}'),
--- Floor Manager (5)
-('tmem_vol_floor_01', 'team_winter_throwdown_2025', 'usr_vol_floor_01', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["floor_manager"],"credentials":"Competition Floor Lead - 5 years","availability":"all_day"}'),
-('tmem_vol_floor_02', 'team_winter_throwdown_2025', 'usr_vol_floor_02', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["floor_manager"],"credentials":"Event Coordinator","availability":"all_day"}'),
-('tmem_vol_floor_03', 'team_winter_throwdown_2025', 'usr_vol_floor_03', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["floor_manager"],"credentials":"CrossFit Games Floor Manager","availability":"morning"}'),
-('tmem_vol_floor_04', 'team_winter_throwdown_2025', 'usr_vol_floor_04', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["floor_manager"],"credentials":"Event Management Certified","availability":"afternoon"}'),
-('tmem_vol_floor_05', 'team_winter_throwdown_2025', 'usr_vol_floor_05', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["floor_manager"],"credentials":"Head Floor Manager","availability":"all_day"}'),
--- Athlete Control / Check-In (10)
-('tmem_vol_checkin_01', 'team_winter_throwdown_2025', 'usr_vol_checkin_01', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["general"],"availability":"all_day"}'),
-('tmem_vol_checkin_02', 'team_winter_throwdown_2025', 'usr_vol_checkin_02', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["general"],"availability":"morning"}'),
-('tmem_vol_checkin_03', 'team_winter_throwdown_2025', 'usr_vol_checkin_03', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["general"],"availability":"all_day"}'),
-('tmem_vol_checkin_04', 'team_winter_throwdown_2025', 'usr_vol_checkin_04', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["general"],"availability":"afternoon"}'),
-('tmem_vol_checkin_05', 'team_winter_throwdown_2025', 'usr_vol_checkin_05', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["general"],"availability":"all_day"}'),
-('tmem_vol_checkin_06', 'team_winter_throwdown_2025', 'usr_vol_checkin_06', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["general"],"availability":"all_day"}'),
-('tmem_vol_checkin_07', 'team_winter_throwdown_2025', 'usr_vol_checkin_07', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["general"],"availability":"morning"}'),
-('tmem_vol_checkin_08', 'team_winter_throwdown_2025', 'usr_vol_checkin_08', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["general"],"availability":"all_day"}'),
-('tmem_vol_checkin_09', 'team_winter_throwdown_2025', 'usr_vol_checkin_09', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["general"],"availability":"afternoon"}'),
-('tmem_vol_checkin_10', 'team_winter_throwdown_2025', 'usr_vol_checkin_10', 'volunteer', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, '{"volunteerRoleTypes":["general"],"availability":"all_day"}');
-
--- ============================================
--- END VOLUNTEER SEED DATA
--- ============================================
 
 -- ============================================
 -- END COMPETITION PLATFORM SEED DATA
@@ -651,7 +555,9 @@ INSERT OR IGNORE INTO organizer_request (id, teamId, userId, reason, status, adm
 -- Team entitlement override for unlimited published competitions
 -- This is set when an organizer request is approved (value -1 = unlimited)
 INSERT OR IGNORE INTO team_entitlement_override (id, teamId, type, key, value, reason, expiresAt, createdBy, createdAt, updatedAt, updateCounter) VALUES
-('teo_box1_competitions', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'limit', 'max_published_competitions', '-1', 'Organizer request approved', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+('teo_box1_competitions', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'limit', 'max_published_competitions', '-1', 'Organizer request approved', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('teo_box1_workout_tracking', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feature', 'workout_tracking', 'true', 'Early access grant', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('teo_personaladmin_workout_tracking', 'team_personaladmin', 'feature', 'workout_tracking', 'true', 'Early access grant', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- Create Girls programming track
 INSERT INTO programming_track (id, name, description, type, ownerTeamId, isPublic, createdAt, updatedAt, updateCounter) VALUES 

@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 import { z } from "zod"
 import { VideoSubmissionForm } from "@/components/compete/video-submission-form"
+import { EventHeatSchedule } from "@/components/event-heat-schedule"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -30,15 +31,18 @@ import { Separator } from "@/components/ui/separator"
 import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
-import { getVenueForTrackWorkoutByDivisionFn } from "@/server-fns/competition-heats-fns"
+import {
+	getPublicEventHeatsFn,
+	getVenueForTrackWorkoutByDivisionFn,
+} from "@/server-fns/competition-heats-fns"
 import {
 	getPublicEventDetailsFn,
 	getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
 import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
 import { getVideoSubmissionFn } from "@/server-fns/video-submission-fns"
-import { getSessionFromCookie } from "@/utils/auth"
 import { getGoogleMapsUrl, hasAddressData } from "@/utils/address"
+import { getSessionFromCookie } from "@/utils/auth"
 
 const eventSearchSchema = z.object({
 	division: z.string().optional(),
@@ -134,6 +138,12 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 				})
 			: { venue: null }
 
+		// Defer heat schedule fetch - not needed for initial render
+		const deferredEventHeats =
+			eventResult.event.heatStatus === "published"
+				? getPublicEventHeatsFn({ data: { trackWorkoutId: eventId } })
+				: Promise.resolve({ heats: [] })
+
 		return {
 			competition,
 			event: eventResult.event,
@@ -146,6 +156,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 			athleteRegisteredDivisionId: athleteDivisionResult.divisionId,
 			venue: venueResult.venue,
 			videoSubmission: videoSubmissionResult,
+			deferredEventHeats,
 		}
 	},
 })
@@ -177,31 +188,16 @@ function formatHeatTime(date: Date, timezone?: string | null): string {
 	}).format(new Date(date))
 }
 
-function formatEventDate(
-	startDate: string | null,
-	endDate: string | null,
-): string | null {
-	if (!startDate) return null
-
-	const start = new Date(startDate)
-	const formatOptions: Intl.DateTimeFormatOptions = {
+function formatEventDateFromHeatTime(
+	heatTime: Date,
+	timezone?: string | null,
+): string {
+	return new Intl.DateTimeFormat("en-US", {
 		month: "short",
 		day: "numeric",
 		year: "numeric",
-	}
-
-	if (!endDate || start.toDateString() === new Date(endDate).toDateString()) {
-		return new Intl.DateTimeFormat("en-US", formatOptions).format(start)
-	}
-
-	const end = new Date(endDate)
-	const startStr = new Intl.DateTimeFormat("en-US", {
-		month: "short",
-		day: "numeric",
-	}).format(start)
-	const endStr = new Intl.DateTimeFormat("en-US", formatOptions).format(end)
-
-	return `${startStr} - ${endStr}`
+		timeZone: timezone ?? undefined,
+	}).format(new Date(heatTime))
 }
 
 function EventDetailsPage() {
@@ -217,6 +213,7 @@ function EventDetailsPage() {
 		athleteRegisteredDivisionId,
 		venue,
 		videoSubmission,
+		deferredEventHeats,
 	} = Route.useLoaderData()
 	const { slug } = Route.useParams()
 	const search = Route.useSearch()
@@ -237,15 +234,12 @@ function EventDetailsPage() {
 		(divisions && divisions.length > 0 ? divisions[0].id : undefined)
 	const selectedDivisionId = search.division || defaultDivisionId
 
-	// Get the selected division's description, fallback to workout description
-	// Only use division description if it exists and is not empty
+	// Get the selected division's scale info (separate from base description)
 	const selectedDivision = sortedDivisions.find(
 		(d) => d.divisionId === selectedDivisionId,
 	)
-	const divisionDescription = selectedDivision?.description?.trim()
-	const displayDescription = divisionDescription || workout.description || null
-
-	const eventDate = formatEventDate(competition.startDate, competition.endDate)
+	const divisionScale = selectedDivision?.description?.trim() || null
+	const divisionLabel = selectedDivision?.divisionLabel || null
 
 	const handleDivisionChange = (divisionId: string) => {
 		navigate({
@@ -312,9 +306,37 @@ function EventDetailsPage() {
 						</div>
 
 						{/* Event Description */}
-						<div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
-							{displayDescription || "Details coming soon."}
+						<div className="space-y-4">
+							{/* Base workout description */}
+							<div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
+								{workout.description || "Details coming soon."}
+							</div>
+
+							{/* Division-specific scale info */}
+							{divisionScale && (
+								<div className="border-t pt-4 mt-4">
+									<div className="flex items-start gap-3">
+										<Badge
+											variant="secondary"
+											className="shrink-0 text-xs font-medium"
+										>
+											{divisionLabel || "Division"}
+										</Badge>
+										<p className="font-mono text-sm whitespace-pre-wrap leading-relaxed text-muted-foreground">
+											{divisionScale}
+										</p>
+									</div>
+								</div>
+							)}
 						</div>
+
+						{/* Heat Schedule */}
+						{event.heatStatus === "published" && (
+							<EventHeatSchedule
+								deferredHeats={deferredEventHeats}
+								timezone={competition.timezone}
+							/>
+						)}
 
 						{/* Video & Score Submission Form - Below description for online competitions */}
 						{competition.competitionType === "online" && videoSubmission && (
@@ -424,14 +446,19 @@ function EventDetailsPage() {
 							</div>
 						)}
 
-						{eventDate && (
+						{heatTimes && (
 							<div className="flex items-start gap-3">
 								<Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
 								<div>
 									<p className="text-xs text-muted-foreground uppercase tracking-wider">
 										Date
 									</p>
-									<p className="font-medium text-sm">{eventDate}</p>
+									<p className="font-medium text-sm">
+										{formatEventDateFromHeatTime(
+											heatTimes.firstHeatStartTime,
+											competition.timezone,
+										)}
+									</p>
 								</div>
 							</div>
 						)}

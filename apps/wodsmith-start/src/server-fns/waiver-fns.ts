@@ -6,16 +6,16 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
+import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
-import { eq, and, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
 import { competitionsTable } from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { waiversTable, waiverSignaturesTable } from "@/db/schemas/waivers"
 import type { Waiver, WaiverSignature } from "@/db/schemas/waivers"
+import { waiverSignaturesTable, waiversTable } from "@/db/schemas/waivers"
 import { getSessionFromCookie } from "@/utils/auth"
-import { hasTeamPermission } from "@/utils/team-auth"
 import { autochunk } from "@/utils/batch-query"
+import { hasTeamPermission } from "@/utils/team-auth"
 
 // Re-export types for consumers
 export type { Waiver, WaiverSignature }

@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import type { Gender } from "@/db/schema"
-import { getAppUrl } from "@/lib/env"
+import { getAppUrlFn } from "@/lib/env"
 import {
 	getRegistrationSuccessDataFn,
 	updateAthleteBasicProfileFn,
@@ -98,7 +98,7 @@ export const Route = createFileRoute("/compete/$slug/register/success")({
 			competition.passStripeFeesToCustomer ?? false
 
 		// Get the base URL for invite links
-		const baseUrl = getAppUrl()
+		const baseUrl = await getAppUrlFn()
 
 		// Fetch additional data via server function (avoids client-side db import)
 		const { user, isProfileComplete, checkoutSession, purchase, teamInvites } =

@@ -8,9 +8,9 @@
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import {
+	type ParsedVideoUrl,
 	parseVideoUrl,
 	VIDEO_URL_ERRORS,
-	type ParsedVideoUrl,
 	type VideoPlatform,
 } from "@/schemas/video-url"
 

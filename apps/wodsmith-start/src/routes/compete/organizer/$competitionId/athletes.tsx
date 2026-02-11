@@ -11,7 +11,15 @@ import {
 	useNavigate,
 	useRouter,
 } from "@tanstack/react-router"
-import { ArrowDown, ArrowUp, ArrowUpDown, Calendar, Download, Mail, X } from "lucide-react"
+import {
+	ArrowDown,
+	ArrowUp,
+	ArrowUpDown,
+	Calendar,
+	Download,
+	Mail,
+	X,
+} from "lucide-react"
 import { z } from "zod"
 import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -39,9 +47,12 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
+import { INVITATION_STATUS } from "@/db/schemas/teams"
 import {
 	getCompetitionByIdFn,
 	getOrganizerRegistrationsFn,
+	getPendingTeammateInvitationsFn,
+	type PendingTeammateInvite,
 } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import {
@@ -49,8 +60,8 @@ import {
 	getCompetitionRegistrationAnswersFn,
 } from "@/server-fns/registration-questions-fns"
 import {
-	getCompetitionWaiversFn,
 	getCompetitionWaiverSignaturesFn,
+	getCompetitionWaiversFn,
 } from "@/server-fns/waiver-fns"
 
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -103,7 +114,7 @@ export const Route = createFileRoute(
 			throw new Error("Competition not found")
 		}
 
-		// Parallel fetch: registrations, divisions, questions, answers, waivers, and signatures
+		// Parallel fetch: registrations, divisions, questions, answers, waivers, signatures, and pending invites
 		const [
 			registrationsResult,
 			divisionsResult,
@@ -111,6 +122,7 @@ export const Route = createFileRoute(
 			answersResult,
 			waiversResult,
 			signaturesResult,
+			pendingInvitesResult,
 		] = await Promise.all([
 			getOrganizerRegistrationsFn({
 				data: { competitionId, divisionFilter },
@@ -130,6 +142,9 @@ export const Route = createFileRoute(
 			getCompetitionWaiverSignaturesFn({
 				data: { competitionId, teamId: competition.organizingTeamId },
 			}),
+			getPendingTeammateInvitationsFn({
+				data: { competitionId },
+			}),
 		])
 
 		return {
@@ -146,6 +161,7 @@ export const Route = createFileRoute(
 				},
 				{} as Record<string, Date>,
 			),
+			pendingInvites: pendingInvitesResult.pendingInvites,
 			currentDivisionFilter: divisionFilter,
 			currentQuestionFilters: deps?.questionFilters || {},
 			currentWaiverFilters: deps?.waiverFilters || [],
@@ -165,6 +181,7 @@ function AthletesPage() {
 		answersByRegistration,
 		waivers,
 		signaturesByUser,
+		pendingInvites,
 		currentDivisionFilter,
 		currentQuestionFilters,
 		currentWaiverFilters,
@@ -339,10 +356,22 @@ function AthletesPage() {
 		return (first + last).toUpperCase() || "?"
 	}
 
+	// Get initials from a full name string (e.g., "John Doe" -> "JD")
+	const getInitialsFromName = (fullName: string | null | undefined) => {
+		if (!fullName) return "?"
+		const parts = fullName.trim().split(/\s+/)
+		const first = parts[0]?.[0] || ""
+		const last = parts.length > 1 ? parts[parts.length - 1]?.[0] || "" : ""
+		return (first + last).toUpperCase() || "?"
+	}
+
 	const getAnswersForUser = (registrationId: string, userId: string) => {
 		const answers = answersByRegistration[registrationId] || []
 		return answers.filter((a) => a.userId === userId)
 	}
+
+	// Athlete status: 'registered' = has account, 'pending' = invited but not responded, 'accepted' = guest accepted (submitted form)
+	type AthleteStatus = "registered" | "pending" | "accepted"
 
 	// Flatten registrations into individual athlete rows
 	type AthleteRow = {
@@ -358,6 +387,8 @@ function AthletesPage() {
 			affiliateName: string | null
 		}
 		isCaptain: boolean
+		status: AthleteStatus // 'registered' = has account, 'pending' = invited, 'accepted' = guest accepted
+		pendingInvite?: PendingTeammateInvite // For accessing pending answers (when status is 'pending' or 'accepted')
 		division: { label: string } | null
 		teamName: string | null
 		registeredAt: Date | string | null
@@ -429,15 +460,53 @@ function AthletesPage() {
 					lastName: member.user?.lastName ?? null,
 					email: member.user?.email ?? null,
 					avatar: member.user?.avatar ?? null,
-					affiliateName: (member.user as { affiliateName?: string | null })?.affiliateName ?? null,
+					affiliateName:
+						(member.user as { affiliateName?: string | null })?.affiliateName ??
+						null,
 				},
 				isCaptain: member.isCaptain,
+				status: "registered",
 				division: registration.division,
 				teamName: isTeamDivision ? registration.teamName : null,
 				registeredAt: member.isCaptain ? registration.registeredAt : null,
 				joinedAt: member.joinedAt,
 			})
 		})
+
+		// Add pending/accepted invites for this registration's athlete team
+		if (isTeamDivision && registration.athleteTeam) {
+			const teamPendingInvites = pendingInvites.filter(
+				(inv) =>
+					inv.athleteTeamId ===
+					(registration.athleteTeam as { id?: string })?.id,
+			)
+			teamPendingInvites.forEach((invite) => {
+				// Map invitation status to athlete row status
+				const athleteStatus: AthleteStatus =
+					invite.status === INVITATION_STATUS.ACCEPTED ? "accepted" : "pending"
+
+				athleteRows.push({
+					registrationId: registration.id,
+					ordinal: rowIndex,
+					ordinalLabel: "",
+					athlete: {
+						id: `pending-${invite.id}`,
+						firstName: null,
+						lastName: null,
+						email: invite.email,
+						avatar: null,
+						affiliateName: null,
+					},
+					isCaptain: false,
+					status: athleteStatus,
+					pendingInvite: invite,
+					division: registration.division,
+					teamName: registration.teamName,
+					registeredAt: null,
+					joinedAt: null,
+				})
+			})
+		}
 	})
 
 	// Get waiver signed date for a user
@@ -506,8 +575,12 @@ function AthletesPage() {
 
 		switch (currentSortBy) {
 			case "name": {
-				const nameA = `${a.athlete.firstName ?? ""} ${a.athlete.lastName ?? ""}`.toLowerCase().trim()
-				const nameB = `${b.athlete.firstName ?? ""} ${b.athlete.lastName ?? ""}`.toLowerCase().trim()
+				const nameA = `${a.athlete.firstName ?? ""} ${a.athlete.lastName ?? ""}`
+					.toLowerCase()
+					.trim()
+				const nameB = `${b.athlete.firstName ?? ""} ${b.athlete.lastName ?? ""}`
+					.toLowerCase()
+					.trim()
 				return nameA.localeCompare(nameB) * direction
 			}
 			case "division": {
@@ -557,9 +630,22 @@ function AthletesPage() {
 
 		// Build CSV rows from sorted athlete rows
 		const rows = sortedAthleteRows.map((row) => {
+			// Format name based on status
+			let athleteName: string
+			if (row.status === "pending") {
+				athleteName = `(Pending) ${row.athlete.email}`
+			} else if (row.status === "accepted") {
+				// Use guest name if available for accepted invites
+				athleteName =
+					row.pendingInvite?.guestName || `(Accepted) ${row.athlete.email}`
+			} else {
+				athleteName =
+					`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim()
+			}
+
 			const csvRow = [
 				row.ordinalLabel,
-				`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim(),
+				athleteName,
 				row.athlete.email ?? "",
 				row.division?.label ?? "",
 				row.teamName ?? "",
@@ -568,18 +654,38 @@ function AthletesPage() {
 				row.joinedAt ? formatDate(row.joinedAt) : "",
 			]
 
-			// Add answer columns for this specific athlete
-			const answers = getAnswersForUser(row.registrationId, row.athlete.id)
-			questions.forEach((question) => {
-				const answer = answers.find((a) => a.questionId === question.id)
-				csvRow.push(answer?.answer ?? "")
-			})
+			// Add answer columns - check pending answers for pending/accepted invites
+			if (row.status !== "registered" && row.pendingInvite) {
+				questions.forEach((question) => {
+					const pendingAnswer = row.pendingInvite?.pendingAnswers?.find(
+						(a) => a.questionId === question.id,
+					)
+					csvRow.push(pendingAnswer?.answer ?? "")
+				})
+			} else {
+				const answers = getAnswersForUser(row.registrationId, row.athlete.id)
+				questions.forEach((question) => {
+					const answer = answers.find((a) => a.questionId === question.id)
+					csvRow.push(answer?.answer ?? "")
+				})
+			}
 
-			// Add waiver columns
-			waivers.forEach((waiver) => {
-				const signedDate = getWaiverSignedDate(row.athlete.id, waiver.id)
-				csvRow.push(signedDate ? formatDate(signedDate) : "Not signed")
-			})
+			// Add waiver columns - check pending signatures for pending/accepted invites
+			if (row.status !== "registered" && row.pendingInvite) {
+				waivers.forEach((waiver) => {
+					const pendingSig = row.pendingInvite?.pendingSignatures?.find(
+						(s) => s.waiverId === waiver.id,
+					)
+					csvRow.push(
+						pendingSig ? formatDate(pendingSig.signedAt) : "Not signed",
+					)
+				})
+			} else {
+				waivers.forEach((waiver) => {
+					const signedDate = getWaiverSignedDate(row.athlete.id, waiver.id)
+					csvRow.push(signedDate ? formatDate(signedDate) : "Not signed")
+				})
+			}
 
 			return csvRow
 		})
@@ -930,20 +1036,58 @@ function AthletesPage() {
 																alt={`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`}
 															/>
 															<AvatarFallback className="text-xs">
-																{getInitials(
-																	row.athlete.firstName,
-																	row.athlete.lastName,
-																)}
+																{row.status === "accepted" &&
+																row.pendingInvite?.guestName
+																	? getInitialsFromName(
+																			row.pendingInvite.guestName,
+																		)
+																	: getInitials(
+																			row.athlete.firstName,
+																			row.athlete.lastName,
+																		)}
 															</AvatarFallback>
 														</Avatar>
 														<div className="flex flex-col">
 															<span className="font-medium">
-																{row.athlete.firstName ?? ""}{" "}
-																{row.athlete.lastName ?? ""}
-																{row.isCaptain && row.teamName && (
-																	<span className="text-xs text-muted-foreground ml-1">
-																		(captain)
-																	</span>
+																{row.status === "pending" ? (
+																	<>
+																		<span className="italic text-muted-foreground">
+																			Invited
+																		</span>
+																		<Badge
+																			variant="outline"
+																			className="ml-2 text-xs bg-yellow-50 text-yellow-700 border-yellow-300"
+																		>
+																			Pending
+																		</Badge>
+																	</>
+																) : row.status === "accepted" ? (
+																	<>
+																		{/* Show guest name if available */}
+																		{row.pendingInvite?.guestName ? (
+																			<span>{row.pendingInvite.guestName}</span>
+																		) : (
+																			<span className="italic text-muted-foreground">
+																				Invited
+																			</span>
+																		)}
+																		<Badge
+																			variant="outline"
+																			className="ml-2 text-xs bg-green-50 text-green-700 border-green-300"
+																		>
+																			Accepted
+																		</Badge>
+																	</>
+																) : (
+																	<>
+																		{row.athlete.firstName ?? ""}{" "}
+																		{row.athlete.lastName ?? ""}
+																		{row.isCaptain && row.teamName && (
+																			<span className="text-xs text-muted-foreground ml-1">
+																				(captain)
+																			</span>
+																		)}
+																	</>
 																)}
 															</span>
 															<span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -977,6 +1121,22 @@ function AthletesPage() {
 													)}
 												</TableCell>
 												{questions.map((question) => {
+													// For pending/accepted invites, get answer from pending data
+													if (
+														row.status !== "registered" &&
+														row.pendingInvite
+													) {
+														const pendingAnswer =
+															row.pendingInvite.pendingAnswers?.find(
+																(a) => a.questionId === question.id,
+															)
+														return (
+															<TableCell key={question.id} className="text-sm">
+																{pendingAnswer?.answer ?? "—"}
+															</TableCell>
+														)
+													}
+													// For registered members, get from registration answers
 													const answers = getAnswersForUser(
 														row.registrationId,
 														row.athlete.id,
@@ -991,6 +1151,30 @@ function AthletesPage() {
 													)
 												})}
 												{waivers.map((waiver) => {
+													// For pending/accepted invites, check pending signatures
+													if (
+														row.status !== "registered" &&
+														row.pendingInvite
+													) {
+														const pendingSig =
+															row.pendingInvite.pendingSignatures?.find(
+																(s) => s.waiverId === waiver.id,
+															)
+														return (
+															<TableCell key={waiver.id} className="text-sm">
+																{pendingSig ? (
+																	<span className="text-green-600">
+																		{formatDate(pendingSig.signedAt)}
+																	</span>
+																) : (
+																	<span className="text-muted-foreground">
+																		Not signed
+																	</span>
+																)}
+															</TableCell>
+														)
+													}
+													// For registered members, get from waiver signatures
 													const signedDate = getWaiverSignedDate(
 														row.athlete.id,
 														waiver.id,

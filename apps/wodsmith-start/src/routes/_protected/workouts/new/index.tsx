@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { WorkoutForm, type WorkoutFormData } from "@/components/workout-form"
+import { trackEvent } from "@/lib/posthog"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
 import { createWorkoutFn, getWorkoutByIdFn } from "@/server-fns/workout-fns"
 
@@ -34,20 +35,36 @@ function CreateWorkoutPage() {
 			throw new Error("No team selected")
 		}
 
-		const result = await createWorkoutFn({
-			data: {
-				...data,
-				teamId,
-				// Include sourceWorkoutId if this is a remix
-				...(sourceWorkoutId ? { sourceWorkoutId } : {}),
-			},
-		})
-
-		if (result.workout) {
-			navigate({
-				to: "/workouts/$workoutId",
-				params: { workoutId: result.workout.id },
+		try {
+			const result = await createWorkoutFn({
+				data: {
+					...data,
+					teamId,
+					// Include sourceWorkoutId if this is a remix
+					...(sourceWorkoutId ? { sourceWorkoutId } : {}),
+				},
 			})
+
+			if (result.workout) {
+				trackEvent("workout_created", {
+					workout_id: result.workout.id,
+					workout_name: data.name,
+					workout_scheme: data.scheme,
+					workout_scope: data.scope,
+					is_remixed: !!sourceWorkoutId,
+				})
+				navigate({
+					to: "/workouts/$workoutId",
+					params: { workoutId: result.workout.id },
+				})
+			}
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Failed to create workout"
+			trackEvent("workout_created_failed", {
+				error_message: message,
+			})
+			throw error
 		}
 	}
 

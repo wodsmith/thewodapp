@@ -579,15 +579,29 @@
     {
       "idx": 83,
       "version": "6",
-      "when": 1769600000000,
-      "tag": "0083_add-volunteer-shifts",
+      "when": 1769984444340,
+      "tag": "0083_perpetual_penance",
       "breakpoints": true
     },
     {
       "idx": 84,
       "version": "6",
-      "when": 1769700000000,
-      "tag": "0084_add-volunteer-shift-assignments",
+      "when": 1770271577815,
+      "tag": "0084_add-versionid-to-assignment-unique-idx",
+      "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "6",
+      "when": 1770400000000,
+      "tag": "0085_add-volunteer-shifts",
+      "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "6",
+      "when": 1770500000000,
+      "tag": "0086_add-volunteer-shift-assignments",
       "breakpoints": true
     }
   ]

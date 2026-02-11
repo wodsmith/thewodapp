@@ -55,10 +55,18 @@ const sidebarNavItems: SidebarNavItem[] = [
 	},
 ]
 
-export function SettingsSidebar() {
+interface SettingsSidebarProps {
+	hasWorkoutTracking?: boolean
+}
+
+export function SettingsSidebar({ hasWorkoutTracking }: SettingsSidebarProps) {
 	const location = useLocation()
 	const pathname = location.pathname
 	const dialogCloseRef = useRef<HTMLButtonElement>(null)
+
+	const filteredNavItems = hasWorkoutTracking
+		? sidebarNavItems
+		: sidebarNavItems.filter((item) => item.title !== "Programming")
 
 	const handleSignOut = async () => {
 		// Navigate to sign-out which triggers full page reload
@@ -68,7 +76,7 @@ export function SettingsSidebar() {
 	return (
 		<div className="w-full lg:w-auto whitespace-nowrap pb-2 overflow-x-auto">
 			<nav className="flex items-center lg:items-stretch min-w-full space-x-2 pb-2 lg:pb-0 lg:flex-col lg:space-x-0 lg:space-y-1">
-				{sidebarNavItems.map((item) => (
+				{filteredNavItems.map((item) => (
 					<Link
 						key={item.href}
 						to={item.href}

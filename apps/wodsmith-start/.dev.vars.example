@@ -41,3 +41,15 @@ ALCHEMY_PASSWORD=your-secure-password-here
 
 
 CRON_SECRET=secret
+
+### Slack Integration (Optional)
+# Webhook URL for the #ding-ding channel (or your purchase notification channel)
+# Get from Slack: Apps > Incoming Webhooks > Add New Webhook to Workspace
+# SLACK_WEBHOOK_URL=your-slack-webhook-url
+
+# Enable/disable Slack purchase notifications (set to "true" to enable)
+# SLACK_PURCHASE_NOTIFICATIONS_ENABLED=true
+
+# Comma-separated list of purchase types to notify on (optional, defaults to all)
+# Valid types: COMPETITION_REGISTRATION, ADDON, CREDITS, SUBSCRIPTION
+# SLACK_PURCHASE_NOTIFICATION_TYPES=COMPETITION_REGISTRATION,ADDON

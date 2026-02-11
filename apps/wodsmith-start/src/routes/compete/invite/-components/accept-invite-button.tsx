@@ -15,6 +15,11 @@ interface AcceptInviteButtonProps {
 	teamName?: string
 	competitionId?: string
 	answers?: Array<{ questionId: string; answer: string }>
+	signatures?: Array<{
+		waiverId: string
+		signedAt: string
+		signatureName: string
+	}>
 	disabled?: boolean
 }
 
@@ -37,6 +42,7 @@ export function AcceptInviteButton({
 	teamName,
 	competitionId,
 	answers,
+	signatures,
 	disabled,
 }: AcceptInviteButtonProps) {
 	const navigate = useNavigate()
@@ -48,7 +54,7 @@ export function AcceptInviteButton({
 		setIsPending(true)
 		try {
 			const result = (await acceptInvitation({
-				data: { token, answers },
+				data: { token, answers, signatures },
 			})) as AcceptResult
 
 			trackEvent("competition_team_invite_accepted", {
@@ -99,7 +105,7 @@ export function AcceptInviteButton({
 			{isPending ? (
 				"Joining Team..."
 			) : disabled ? (
-				"Please answer all required questions"
+				"Please complete all required fields"
 			) : (
 				<>
 					<CheckCircle className="mr-2 h-4 w-4" />

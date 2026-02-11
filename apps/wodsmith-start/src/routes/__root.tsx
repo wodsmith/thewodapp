@@ -12,6 +12,7 @@ import { Toaster } from "sonner"
 
 import MainNav from "@/components/nav/main-nav"
 import { PostHogProvider } from "@/lib/posthog/provider"
+import { checkWorkoutTrackingAccess } from "@/server-fns/entitlements"
 import { getOptionalSession } from "@/server-fns/middleware/auth"
 import { getActiveTeamIdFn, getThemeCookieFn } from "@/server-fns/session-fns"
 
@@ -47,7 +48,11 @@ export const Route = createRootRoute({
 		const ssrTheme = themeCookie === "dark" ? "dark" : "light"
 		// Get active team ID from cookie for team switcher
 		const activeTeamId = await getActiveTeamIdFn()
-		return { session, ssrTheme, activeTeamId }
+		// Check workout tracking access
+		const hasWorkoutTracking = session?.user
+			? await checkWorkoutTrackingAccess()
+			: false
+		return { session, ssrTheme, activeTeamId, hasWorkoutTracking }
 	},
 
 	component: RootComponent,
@@ -56,7 +61,7 @@ export const Route = createRootRoute({
 })
 
 function RootComponent() {
-	const { session, activeTeamId } = Route.useRouteContext()
+	const { session, activeTeamId, hasWorkoutTracking } = Route.useRouteContext()
 
 	// Get both current and target locations to handle navigation transitions smoothly
 	// - location: where we're navigating TO (target)
@@ -83,7 +88,11 @@ function RootComponent() {
 	return (
 		<>
 			{!isCompeteRoute && !isAdminRoute && (
-				<MainNav session={session} activeTeamId={activeTeamId} />
+				<MainNav
+					session={session}
+					activeTeamId={activeTeamId}
+					hasWorkoutTracking={hasWorkoutTracking}
+				/>
 			)}
 			<Outlet />
 		</>
@@ -120,7 +129,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 	const { ssrTheme } = Route.useRouteContext()
 
 	return (
-		<html lang="en" className={ssrTheme === "dark" ? "dark" : undefined}>
+		<html lang="en" className={ssrTheme === "dark" ? "group dark" : "group"}>
 			<head>
 				{/* Blocking script to prevent FOUC - runs before React hydrates.
 			    This corrects for 'system' preference which SSR can't detect.

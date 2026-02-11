@@ -28,6 +28,9 @@ export const FEATURES = {
 
 	// Competition platform features
 	HOST_COMPETITIONS: "host_competitions",
+
+	// Personal workout tracking
+	WORKOUT_TRACKING: "workout_tracking",
 } as const
 
 export type FeatureId = (typeof FEATURES)[keyof typeof FEATURES]

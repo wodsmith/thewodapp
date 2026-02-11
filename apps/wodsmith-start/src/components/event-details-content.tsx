@@ -1,12 +1,6 @@
 "use client"
 
-import {
-	Calendar,
-	ChevronDown,
-	ExternalLink,
-	Trophy,
-	Users,
-} from "lucide-react"
+import { ChevronDown, ExternalLink, Trophy, Users } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
 	Collapsible,
@@ -47,7 +41,6 @@ interface EventDetailsContentProps {
 	divisions?: DivisionWithDetails[]
 	sponsors?: SponsorsData
 	workoutsContent?: React.ReactNode
-	scheduleContent?: React.ReactNode
 }
 
 function formatPrice(cents: number): string {
@@ -60,7 +53,6 @@ export function EventDetailsContent({
 	divisions,
 	sponsors,
 	workoutsContent,
-	scheduleContent,
 }: EventDetailsContentProps) {
 	const hasDivisions = divisions && divisions.length > 0
 	const hasSponsors =
@@ -155,16 +147,6 @@ export function EventDetailsContent({
 						</CardContent>
 					</Card>
 				)}
-			</section>
-
-			{/* Schedule Section */}
-			<section>
-				<div className="flex items-center gap-2 mb-4">
-					<Calendar className="h-5 w-5 text-muted-foreground" />
-					<h2 className="text-xl font-semibold">Schedule</h2>
-				</div>
-				<Separator className="mb-4" />
-				{scheduleContent}
 			</section>
 
 			{/* Workouts Section */}

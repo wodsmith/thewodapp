@@ -92,7 +92,7 @@ export default function CompeteMobileNav({
 					<span className="sr-only">Toggle navigation menu</span>
 				</Button>
 			</SheetTrigger>
-			<SheetContent side="left" className="bg-white dark:bg-black">
+			<SheetContent side="left" background="sidebar">
 				<SheetTitle className="sr-only">Navigation Menu</SheetTitle>
 				<nav className="grid gap-6 font-medium text-lg">
 					{!shouldHideBrand(pathname) && (
@@ -194,7 +194,7 @@ export default function CompeteMobileNav({
 									<span>Profile</span>
 								</div>
 							</a>
-							<LogoutButton />
+							<LogoutButton showText />
 							<DarkModeToggle />
 						</>
 					) : (

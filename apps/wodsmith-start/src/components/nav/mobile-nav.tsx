@@ -18,9 +18,14 @@ import { NavTeamSwitcher } from "./nav-team-switcher"
 interface MobileNavProps {
 	session: SessionValidationResult
 	activeTeamId: string | null
+	hasWorkoutTracking?: boolean
 }
 
-export default function MobileNav({ session, activeTeamId }: MobileNavProps) {
+export default function MobileNav({
+	session,
+	activeTeamId,
+	hasWorkoutTracking,
+}: MobileNavProps) {
 	const [open, setOpen] = useState(false)
 
 	const handleLinkClick = () => {
@@ -35,7 +40,7 @@ export default function MobileNav({ session, activeTeamId }: MobileNavProps) {
 					<span className="sr-only">Toggle navigation menu</span>
 				</Button>
 			</SheetTrigger>
-			<SheetContent side="left" className="bg-white dark:bg-black">
+			<SheetContent side="left" background="sidebar">
 				<SheetTitle className="sr-only">Navigation Menu</SheetTitle>
 				<nav className="grid gap-6 font-medium text-lg">
 					<Link
@@ -63,28 +68,32 @@ export default function MobileNav({ session, activeTeamId }: MobileNavProps) {
 								/>
 							</div>
 							<hr className="my-2" />
-							<Link
-								to="/workouts"
-								search={{ view: "row", q: "" }}
-								className="hover:text-primary"
-								onClick={handleLinkClick}
-							>
-								Workouts
-							</Link>
-							<a
-								href="/log"
-								className="hover:text-primary"
-								onClick={handleLinkClick}
-							>
-								Log
-							</a>
-							<a
-								href="/team"
-								className="hover:text-primary"
-								onClick={handleLinkClick}
-							>
-								Team
-							</a>
+							{hasWorkoutTracking && (
+								<>
+									<Link
+										to="/workouts"
+										search={{ view: "row", q: "" }}
+										className="hover:text-primary"
+										onClick={handleLinkClick}
+									>
+										Workouts
+									</Link>
+									<a
+										href="/log"
+										className="hover:text-primary"
+										onClick={handleLinkClick}
+									>
+										Log
+									</a>
+									<a
+										href="/team"
+										className="hover:text-primary"
+										onClick={handleLinkClick}
+									>
+										Team
+									</a>
+								</>
+							)}
 							<a
 								href="/compete"
 								className="hover:text-primary"
@@ -93,10 +102,8 @@ export default function MobileNav({ session, activeTeamId }: MobileNavProps) {
 								Compete
 							</a>
 							<hr className="my-2" />
-							<div className="flex items-center gap-4">
-								<LogoutButton />
-								<DarkModeToggle />
-							</div>
+							<LogoutButton showText />
+							<DarkModeToggle />
 						</>
 					) : (
 						<>

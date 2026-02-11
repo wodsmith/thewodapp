@@ -13,8 +13,8 @@ import { useServerFn } from "@tanstack/react-start"
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getScheduledWorkoutsForAdminFn } from "@/server-fns/admin-team-fns"
 import type { ScheduledWorkoutEvent } from "@/server-fns/admin-team-fns"
+import { getScheduledWorkoutsForAdminFn } from "@/server-fns/admin-team-fns"
 import "./team-scheduling-calendar.css"
 
 interface TeamSchedulingCalendarProps {
@@ -101,7 +101,6 @@ function CalendarSkeleton() {
 
 				{/* Calendar days grid - 6 weeks */}
 				<div className="grid grid-cols-7">
-					{/* biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton array, items never reorder */}
 					{Array.from({ length: 42 }).map((_, i) => {
 						const hasEvent = eventPattern[i]
 						const hasMultipleEvents = hasEvent && (i % 7 === 2 || i % 7 === 5)

@@ -221,10 +221,11 @@ export const judgeHeatAssignmentsTable = sqliteTable(
 		index("judge_heat_assignments_heat_idx").on(table.heatId),
 		index("judge_heat_assignments_membership_idx").on(table.membershipId),
 		index("judge_heat_assignments_version_idx").on(table.versionId),
-		// Ensure a volunteer can only be assigned once per heat
+		// Ensure a volunteer can only be assigned once per heat per version
 		uniqueIndex("judge_heat_assignments_unique_idx").on(
 			table.heatId,
 			table.membershipId,
+			table.versionId,
 		),
 	],
 )

@@ -16,15 +16,19 @@ import {
 	competitionGroupsTable,
 	competitionsTable,
 } from "@/db/schemas/competitions"
-import {
-	TEAM_PERMISSIONS,
-	type Team,
-	teamTable,
-} from "@/db/schemas/teams"
+import { TEAM_PERMISSIONS, type Team, teamTable } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
+import {
+	addRequestContextAttribute,
+	logEntityCreated,
+	logEntityDeleted,
+	logEntityUpdated,
+	logError,
+	logInfo,
+	logWarning,
+	updateRequestContext,
+} from "@/lib/logging"
 import { addressInputSchema } from "@/schemas/address"
-import { normalizeAddressInput } from "@/utils/address"
-import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 import {
 	createCompetition,
 	createCompetitionGroup,
@@ -32,6 +36,7 @@ import {
 	updateCompetition,
 	updateCompetitionGroup,
 } from "@/server-fns/competition-server-logic"
+import { normalizeAddressInput } from "@/utils/address"
 import { getSessionFromCookie } from "@/utils/auth"
 
 // ============================================================================
@@ -565,6 +570,19 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
 export const createCompetitionFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => createCompetitionInputSchema.parse(data))
 	.handler(async ({ data }) => {
+		// Update request context
+		updateRequestContext({ teamId: data.organizingTeamId })
+
+		logInfo({
+			message: "[Competition] Create competition started",
+			attributes: {
+				name: data.name,
+				slug: data.slug,
+				organizingTeamId: data.organizingTeamId,
+				competitionType: data.competitionType,
+			},
+		})
+
 		try {
 			const result = await createCompetition({
 				organizingTeamId: data.organizingTeamId,
@@ -581,24 +599,29 @@ export const createCompetitionFn = createServerFn({ method: "POST" })
 				competitionType: data.competitionType,
 			})
 
-			logInfo({
-				message: "[competition] Competition created",
+			// Update context with new IDs
+			addRequestContextAttribute("competitionId", result.competitionId)
+			addRequestContextAttribute("competitionTeamId", result.competitionTeamId)
+
+			logEntityCreated({
+				entity: "competition",
+				id: result.competitionId,
 				attributes: {
-					competitionId: result.competitionId,
 					competitionTeamId: result.competitionTeamId,
-					competitionName: data.name,
-					organizingTeamId: data.organizingTeamId,
+					name: data.name,
 					slug: data.slug,
+					organizingTeamId: data.organizingTeamId,
+					competitionType: data.competitionType,
 				},
 			})
 
 			return result
 		} catch (error) {
 			logError({
-				message: "[competition] Failed to create competition",
+				message: "[Competition] Failed to create competition",
 				error,
 				attributes: {
-					competitionName: data.name,
+					name: data.name,
 					organizingTeamId: data.organizingTeamId,
 					slug: data.slug,
 				},
@@ -618,8 +641,16 @@ export const updateCompetitionFn = createServerFn({ method: "POST" })
 		// Auth check: require authenticated user
 		const session = await getSessionFromCookie()
 		if (!session?.userId) {
+			logWarning({
+				message: "[Competition] Update denied - not authenticated",
+				attributes: { competitionId: data.competitionId },
+			})
 			throw new Error("Authentication required")
 		}
+
+		// Update request context
+		updateRequestContext({ userId: session.userId })
+		addRequestContextAttribute("competitionId", data.competitionId)
 
 		const db = getDb()
 
@@ -648,8 +679,18 @@ export const updateCompetitionFn = createServerFn({ method: "POST" })
 			)
 			if (
 				!organizingTeam ||
-				!organizingTeam.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS)
+				!organizingTeam.permissions.includes(
+					TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+				)
 			) {
+				logWarning({
+					message: "[Competition] Update denied - permission missing",
+					attributes: {
+						competitionId: data.competitionId,
+						userId: session.userId,
+						organizingTeamId: existingCompetition[0].organizingTeamId,
+					},
+				})
 				throw new Error(
 					"You do not have permission to manage this competition. Please contact the organizing team.",
 				)
@@ -718,12 +759,12 @@ export const updateCompetitionFn = createServerFn({ method: "POST" })
 				competitionUpdates,
 			)
 
-			logInfo({
-				message: "[competition] Competition updated",
+			logEntityUpdated({
+				entity: "competition",
+				id: competitionId,
+				fields: Object.keys(updates),
 				attributes: {
-					competitionId,
 					userId: session.userId,
-					updatedFields: Object.keys(updates),
 					addressUpdated: !!address,
 				},
 			})
@@ -731,7 +772,7 @@ export const updateCompetitionFn = createServerFn({ method: "POST" })
 			return { competition }
 		} catch (error) {
 			logError({
-				message: "[competition] Failed to update competition",
+				message: "[Competition] Failed to update competition",
 				error,
 				attributes: {
 					competitionId: data.competitionId,
@@ -817,6 +858,9 @@ export const createCompetitionGroupFn = createServerFn({ method: "POST" })
 		createCompetitionGroupInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
+		// Update request context
+		updateRequestContext({ teamId: data.organizingTeamId })
+
 		try {
 			const result = await createCompetitionGroup({
 				organizingTeamId: data.organizingTeamId,
@@ -825,11 +869,13 @@ export const createCompetitionGroupFn = createServerFn({ method: "POST" })
 				description: data.description,
 			})
 
-			logInfo({
-				message: "[competition] Competition group created",
+			addRequestContextAttribute("groupId", result.groupId)
+			logEntityCreated({
+				entity: "competitionGroup",
+				id: result.groupId,
 				attributes: {
-					groupId: result.groupId,
-					groupName: data.name,
+					name: data.name,
+					slug: data.slug,
 					organizingTeamId: data.organizingTeamId,
 				},
 			})
@@ -837,10 +883,10 @@ export const createCompetitionGroupFn = createServerFn({ method: "POST" })
 			return result
 		} catch (error) {
 			logError({
-				message: "[competition] Failed to create competition group",
+				message: "[Competition] Failed to create competition group",
 				error,
 				attributes: {
-					groupName: data.name,
+					name: data.name,
 					organizingTeamId: data.organizingTeamId,
 				},
 			})
@@ -856,23 +902,23 @@ export const updateCompetitionGroupFn = createServerFn({ method: "POST" })
 		updateCompetitionGroupInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
+		addRequestContextAttribute("groupId", data.groupId)
+
 		try {
 			const { groupId, ...updates } = data
 
 			const group = await updateCompetitionGroup(groupId, updates)
 
-			logInfo({
-				message: "[competition] Competition group updated",
-				attributes: {
-					groupId,
-					updatedFields: Object.keys(updates),
-				},
+			logEntityUpdated({
+				entity: "competitionGroup",
+				id: groupId,
+				fields: Object.keys(updates),
 			})
 
 			return { group }
 		} catch (error) {
 			logError({
-				message: "[competition] Failed to update competition group",
+				message: "[Competition] Failed to update competition group",
 				error,
 				attributes: { groupId: data.groupId },
 			})
@@ -889,18 +935,20 @@ export const deleteCompetitionGroupFn = createServerFn({ method: "POST" })
 		deleteCompetitionGroupInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
+		addRequestContextAttribute("groupId", data.groupId)
+
 		try {
 			const result = await deleteCompetitionGroup(data.groupId)
 
-			logInfo({
-				message: "[competition] Competition group deleted",
-				attributes: { groupId: data.groupId },
+			logEntityDeleted({
+				entity: "competitionGroup",
+				id: data.groupId,
 			})
 
 			return result
 		} catch (error) {
 			logError({
-				message: "[competition] Failed to delete competition group",
+				message: "[Competition] Failed to delete competition group",
 				error,
 				attributes: { groupId: data.groupId },
 			})

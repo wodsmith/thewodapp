@@ -3,6 +3,7 @@
 import { Link } from "@tanstack/react-router"
 import {
 	ArrowRight,
+	Clock,
 	Dumbbell,
 	Hash,
 	MapPin,
@@ -14,8 +15,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { getGoogleMapsUrl, hasAddressData } from "@/utils/address"
 import type { DivisionDescription } from "@/server-fns/competition-workouts-fns"
+import { getGoogleMapsUrl, hasAddressData } from "@/utils/address"
 
 interface CompetitionWorkoutCardProps {
 	eventId: string
@@ -43,6 +44,13 @@ interface CompetitionWorkoutCardProps {
 			postalCode?: string
 			countryCode?: string
 		} | null
+	} | null
+	schedule?: {
+		startTime: string
+		endTime: string | null
+		heatCount: number
+		venueName: string | null
+		divisions: string[]
 	} | null
 }
 
@@ -79,24 +87,18 @@ export function CompetitionWorkoutCard({
 	selectedDivisionId,
 	timeCap,
 	venue,
+	schedule,
 }: CompetitionWorkoutCardProps) {
-	// Find RX division (position 0 is typically RX/hardest)
-	const sortedDivisions = [...divisionDescriptions].sort(
-		(a, b) => a.position - b.position,
-	)
-	const rxDivision = sortedDivisions.find((d) => d.position === 0)
-	const rxDescription = rxDivision?.description
-
-	// Determine description to display
-	// If selectedDivisionId is provided (and not "default"), try to find that specific description.
-	// If not found, fallback to RX description, then base description.
-	const targetDivisionDesc =
+	// Get the selected division's scale info (if any)
+	// Only show scale for the explicitly selected division - no fallback
+	const targetDivision =
 		selectedDivisionId && selectedDivisionId !== "default"
 			? divisionDescriptions.find((d) => d.divisionId === selectedDivisionId)
 			: null
 
-	const displayDescription =
-		targetDivisionDesc?.description || rxDescription || description
+	// Division scale is shown separately from base description
+	const divisionScale = targetDivision?.description?.trim() || null
+	const divisionLabel = targetDivision?.divisionLabel || null
 
 	const formattedTimeCap = timeCap ? formatTime(timeCap) : null
 
@@ -189,11 +191,19 @@ export function CompetitionWorkoutCard({
 								{roundsToScore} Rounds
 							</div>
 						)}
+						{schedule && (
+							<div className="inline-flex items-center gap-1 px-2 py-0.5 sm:gap-1.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900">
+								<Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+								{schedule.startTime}
+								{schedule.endTime && ` – ${schedule.endTime}`}
+								{schedule.heatCount > 1 && ` · ${schedule.heatCount} heats`}
+							</div>
+						)}
 					</div>
 
 					{/* Venue Section */}
 					<div className="mb-4 sm:mb-6">
-						{venue && venue.address && hasAddressData(venue.address) ? (
+						{venue?.address && hasAddressData(venue.address) ? (
 							(() => {
 								const mapsUrl = getGoogleMapsUrl(venue.address)
 								return (
@@ -242,14 +252,32 @@ export function CompetitionWorkoutCard({
 								hasMovementsOrTags ? "md:col-span-8" : "col-span-1",
 							)}
 						>
-							<div className="prose prose-sm max-w-none dark:prose-invert">
+							<div className="prose prose-sm max-w-none dark:prose-invert space-y-4">
+								{/* Base workout description */}
 								<p className="whitespace-pre-wrap text-sm sm:text-base leading-relaxed">
-									{displayDescription || (
+									{description || (
 										<span className="italic text-muted-foreground">
 											Details to be announced.
 										</span>
 									)}
 								</p>
+
+								{/* Division-specific scale info */}
+								{divisionScale && (
+									<div className="border-t pt-3 mt-3">
+										<div className="flex items-start gap-2">
+											<Badge
+												variant="secondary"
+												className="shrink-0 text-xs font-medium"
+											>
+												{divisionLabel || "Division"}
+											</Badge>
+											<p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+												{divisionScale}
+											</p>
+										</div>
+									</div>
+								)}
 							</div>
 						</div>
 
@@ -298,8 +326,16 @@ export function CompetitionWorkoutCard({
 					</div>
 
 					{/* Mobile CTA - full width at bottom */}
-					<Button variant="default" size="lg" asChild className="w-full mt-4 sm:hidden">
-						<Link to="/compete/$slug/workouts/$eventId" params={{ slug, eventId }}>
+					<Button
+						variant="default"
+						size="lg"
+						asChild
+						className="w-full mt-4 sm:hidden"
+					>
+						<Link
+							to="/compete/$slug/workouts/$eventId"
+							params={{ slug, eventId }}
+						>
 							View Details
 							<ArrowRight className="ml-2 h-4 w-4" />
 						</Link>

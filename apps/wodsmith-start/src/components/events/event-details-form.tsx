@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
+import { MovementsList } from "@/components/movements-list"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -41,7 +42,6 @@ import {
 	WORKOUT_SCHEME_VALUES,
 } from "@/db/schemas/workouts"
 import { saveCompetitionEventFn } from "@/server-fns/competition-workouts-fns"
-import { MovementsList } from "@/components/movements-list"
 
 // Form ID for external submit buttons
 export const EVENT_DETAILS_FORM_ID = "event-details-form"
@@ -72,13 +72,6 @@ const TIEBREAK_SCHEMES = [
 	{ value: "time", label: "Time" },
 	{ value: "reps", label: "Reps" },
 ] as const
-
-// Time-based schemes for conditional rendering
-const TIME_BASED_SCHEMES: WorkoutScheme[] = ["time", "time-with-cap"]
-
-function isTimeBasedScheme(scheme: WorkoutScheme): boolean {
-	return TIME_BASED_SCHEMES.includes(scheme)
-}
 
 // Get default score type based on scheme
 function getDefaultScoreType(scheme: WorkoutScheme): ScoreType {
@@ -405,78 +398,79 @@ export function EventDetailsForm({
 									/>
 								)}
 
-								{(isTimeBasedScheme(scheme) || scheme === "rounds-reps") && (
-									<div className="grid grid-cols-2 gap-4">
-										<FormField
-											control={form.control}
-											name="tiebreakScheme"
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>
-														Tiebreak Scheme{" "}
-														<span className="text-muted-foreground">
-															(optional)
-														</span>
-													</FormLabel>
-													<Select
-														value={field.value ?? "none"}
-														onValueChange={(v) =>
-															field.onChange(v === "none" ? null : v)
+								{scheme === "time-with-cap" && (
+									<FormField
+										control={form.control}
+										name="timeCap"
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel>Time Cap (minutes)</FormLabel>
+												<FormControl>
+													<Input
+														type="number"
+														placeholder="e.g., 12"
+														value={field.value ? field.value / 60 : ""}
+														onChange={(e) =>
+															field.onChange(
+																e.target.value
+																	? Math.round(
+																			Number.parseFloat(e.target.value) * 60,
+																		)
+																	: null,
+															)
 														}
-													>
-														<FormControl>
-															<SelectTrigger>
-																<SelectValue placeholder="None" />
-															</SelectTrigger>
-														</FormControl>
-														<SelectContent>
-															<SelectItem value="none">None</SelectItem>
-															{TIEBREAK_SCHEMES.map((s) => (
-																<SelectItem key={s.value} value={s.value}>
-																	{s.label}
-																</SelectItem>
-															))}
-														</SelectContent>
-													</Select>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-										{scheme === "time-with-cap" && (
-											<FormField
-												control={form.control}
-												name="timeCap"
-												render={({ field }) => (
-													<FormItem>
-														<FormLabel>Time Cap (minutes)</FormLabel>
-														<FormControl>
-															<Input
-																type="number"
-																placeholder="e.g., 12"
-																value={field.value ? field.value / 60 : ""}
-																onChange={(e) =>
-																	field.onChange(
-																		e.target.value
-																			? Math.round(
-																					Number.parseFloat(e.target.value) *
-																						60,
-																				)
-																			: null,
-																	)
-																}
-																min="1"
-																step="0.5"
-															/>
-														</FormControl>
-														<FormDescription>
-															Enter time cap in minutes (e.g., 12 for 12:00)
-														</FormDescription>
-														<FormMessage />
-													</FormItem>
-												)}
-											/>
+														min="1"
+														step="0.5"
+													/>
+												</FormControl>
+												<FormDescription>
+													Enter time cap in minutes (e.g., 12 for 12:00)
+												</FormDescription>
+												<FormMessage />
+											</FormItem>
 										)}
-									</div>
+									/>
+								)}
+
+								{scheme !== "pass-fail" && (
+									<FormField
+										control={form.control}
+										name="tiebreakScheme"
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel>
+													Tiebreak{" "}
+													<span className="text-muted-foreground">
+														(optional)
+													</span>
+												</FormLabel>
+												<Select
+													value={field.value ?? "none"}
+													onValueChange={(v) =>
+														field.onChange(v === "none" ? null : v)
+													}
+												>
+													<FormControl>
+														<SelectTrigger>
+															<SelectValue placeholder="None" />
+														</SelectTrigger>
+													</FormControl>
+													<SelectContent>
+														<SelectItem value="none">None</SelectItem>
+														{TIEBREAK_SCHEMES.map((s) => (
+															<SelectItem key={s.value} value={s.value}>
+																{s.label}
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+												<FormDescription>
+													Used to break ties when athletes have the same score
+												</FormDescription>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
 								)}
 
 								<FormField
