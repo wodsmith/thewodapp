@@ -629,8 +629,8 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 			const judgingSheets =
 				judgingSheetsByTrackWorkout.get(rotation.trackWorkoutId) || []
 
-			// Skip if event is not published
-			if (trackWorkout?.eventStatus !== "published") {
+			// Skip if track workout not found
+			if (!trackWorkout) {
 				continue
 			}
 
