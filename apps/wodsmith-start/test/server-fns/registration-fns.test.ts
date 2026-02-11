@@ -50,6 +50,7 @@ vi.mock('@/utils/auth', () => ({
 // Mock TanStack createServerFn to make server functions directly callable
 vi.mock('@tanstack/react-start', () => ({
   createServerFn: () => ({
+    handler: (fn: any) => fn,
     inputValidator: () => ({
       handler: (fn: any) => fn,
     }),

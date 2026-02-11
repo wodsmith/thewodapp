@@ -204,6 +204,9 @@ export async function getCompetitionLeaderboard(params: {
 	const scoringConfig =
 		getEffectiveScoringConfig(settings) ?? DEFAULT_SCORING_CONFIG
 
+	// Division results publishing state — controls leaderboard visibility
+	const divisionResults = settings?.divisionResults
+
 	// Get competition track
 	const track = await getCompetitionTrack(params.competitionId)
 	if (!track) {
@@ -221,7 +224,12 @@ export async function getCompetitionLeaderboard(params: {
 		})
 		.from(trackWorkoutsTable)
 		.innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
-		.where(eq(trackWorkoutsTable.trackId, track.id))
+		.where(
+			and(
+				eq(trackWorkoutsTable.trackId, track.id),
+				eq(trackWorkoutsTable.eventStatus, "published"),
+			),
+		)
 		.orderBy(trackWorkoutsTable.trackOrder)
 
 	if (trackWorkouts.length === 0) {
@@ -362,7 +370,19 @@ export async function getCompetitionLeaderboard(params: {
 		}
 
 		// Calculate points for each division using the scoring algorithm
-		for (const [_divisionId, divisionScores] of eventScoresByDivision) {
+		for (const [divisionId, divisionScores] of eventScoresByDivision) {
+			// Filter by division results publishing state.
+			// When divisionResults exists, the organizer has opted into per-event publishing.
+			// Divisions default to "Draft" (hidden) — only show explicitly published ones.
+			// When divisionResults is absent, all results show (backwards compat).
+			if (divisionResults) {
+				const eventPublishState = divisionResults[trackWorkout.id]
+				if (eventPublishState) {
+					const divisionPublishState = eventPublishState[divisionId]
+					if (!divisionPublishState?.publishedAt) continue
+				}
+			}
+
 			// Convert to EventScoreInput format
 			const eventScoreInputs: EventScoreInput[] = divisionScores.map((s) => ({
 				userId: s.userId,

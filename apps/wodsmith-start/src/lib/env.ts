@@ -4,7 +4,7 @@
  */
 
 import { env } from "cloudflare:workers"
-import { createServerOnlyFn } from "@tanstack/react-start"
+import { createServerFn, createServerOnlyFn } from "@tanstack/react-start"
 
 /**
  * Type helper for accessing env vars that may not be in the typed Env interface.
@@ -17,6 +17,11 @@ type ExtendedEnv = typeof env & {
 	NODE_ENV?: string
 	SITE_URL?: string
 	CRON_SECRET?: string
+	INTERNAL_API_SECRET?: string
+	// Slack integration
+	SLACK_WEBHOOK_URL?: string
+	SLACK_PURCHASE_NOTIFICATIONS_ENABLED?: string
+	SLACK_PURCHASE_NOTIFICATION_TYPES?: string
 }
 
 const extendedEnv = env as ExtendedEnv
@@ -30,6 +35,17 @@ const extendedEnv = env as ExtendedEnv
 export const getAppUrl = createServerOnlyFn((): string => {
 	return env.APP_URL || "https://wodsmith.com"
 })
+
+/**
+ * Get the application URL via RPC (safe to call from route loaders during SPA navigation).
+ * Use this instead of getAppUrl() in route loaders, which run on the client during
+ * client-side navigation and would throw with createServerOnlyFn.
+ */
+export const getAppUrlFn = createServerFn({ method: "GET" }).handler(
+	async () => {
+		return env.APP_URL || "https://wodsmith.com"
+	},
+)
 
 /**
  * Get the Stripe Client ID.
@@ -180,3 +196,35 @@ export const getSiteUrl = createServerOnlyFn((): string => {
 export const getCronSecret = createServerOnlyFn((): string | undefined => {
 	return extendedEnv.CRON_SECRET
 })
+
+// Internal API configuration accessors
+
+/**
+ * Get the internal API secret for worker-to-worker authentication.
+ * This is a server-only function that will throw if called from the client.
+ *
+ * @returns The INTERNAL_API_SECRET environment variable or undefined if not set
+ */
+export const getInternalApiSecret = createServerOnlyFn(
+	(): string | undefined => {
+		return extendedEnv.INTERNAL_API_SECRET
+	},
+)
+
+// Slack configuration accessors
+
+export const getSlackWebhookUrl = createServerOnlyFn((): string | undefined => {
+	return extendedEnv.SLACK_WEBHOOK_URL
+})
+
+export const isSlackPurchaseNotificationsEnabled = createServerOnlyFn(
+	(): boolean => {
+		return extendedEnv.SLACK_PURCHASE_NOTIFICATIONS_ENABLED === "true"
+	},
+)
+
+export const getSlackPurchaseNotificationTypes = createServerOnlyFn(
+	(): string | undefined => {
+		return extendedEnv.SLACK_PURCHASE_NOTIFICATION_TYPES
+	},
+)
