@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest"
 import { buildInsert, type ParsedValue } from "../../scripts/migrate-d1-to-ps-lib"
 
 describe("buildInsert", () => {

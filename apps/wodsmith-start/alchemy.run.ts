@@ -220,6 +220,7 @@ const app = await alchemy("wodsmith", {
  *
  * @see {@link https://developers.cloudflare.com/d1/ D1 Documentation}
  */
+// @ts-ignore -- keeping D1 resource during PlanetScale migration
 const _db = await D1Database("db", {
 	/**
 	 * Adopt existing D1 database if it already exists.

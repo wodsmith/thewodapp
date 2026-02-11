@@ -552,7 +552,7 @@ export function buildInsert(
 	mysqlTable: string,
 	d1Columns: string[],
 	rows: ParsedValue[][],
-	d1TableName: string,
+	_d1TableName: string,
 ): string[] {
 	// Map D1 column names to PlanetScale snake_case column names
 	const psColumns = d1Columns.map((col) => toSnakeCase(col))

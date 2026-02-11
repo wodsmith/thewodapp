@@ -44,10 +44,10 @@ async function main() {
 
 	// Step 1: Create a temporary password for the dev branch
 	console.log("Creating temporary password...")
-	const pw = await psApi(`/branches/${BRANCH}/passwords`, "POST", {
+	const pw = (await psApi(`/branches/${BRANCH}/passwords`, "POST", {
 		role: "admin",
 		name: `temp-migration-${Date.now()}`,
-	})
+	})) as Record<string, any>
 
 	const host = pw.access_host_url || pw.hostname || pw.database_branch?.access_host_url
 	console.log(`  Password response keys: ${Object.keys(pw).join(", ")}`)
@@ -86,7 +86,7 @@ async function main() {
 	console.log("\n=== Running migration ===\n")
 
 	// Import and spawn the migration script as a subprocess
-	const proc = Bun.spawn(
+	const proc = (globalThis as any).Bun.spawn(
 		["bun", "run", "scripts/migrate-d1-to-ps.ts", "--url", dbUrl],
 		{
 			cwd: "/Users/ianjones/wodsmith/apps/wodsmith-start",
@@ -115,7 +115,7 @@ async function main() {
 	// Step 5: Clean up temporary password
 	console.log("\nCleaning up temporary password...")
 	try {
-		await psApi(`/branches/${BRANCH}/passwords/${pw.id}`, "DELETE")
+		await psApi(`/branches/${BRANCH}/passwords/${(pw as Record<string, any>).id}`, "DELETE")
 		console.log("  Password deleted.")
 	} catch {
 		console.log("  Could not delete password (may need manual cleanup)")
