@@ -204,13 +204,8 @@ export async function getCompetitionLeaderboard(params: {
 	const scoringConfig =
 		getEffectiveScoringConfig(settings) ?? DEFAULT_SCORING_CONFIG
 
-	// Parse division results publishing state from settings
-	// divisionResults[eventId][divisionId].publishedAt controls visibility
-	const divisionResults = (
-		settings as Record<string, unknown> | null
-	)?.divisionResults as
-		| Record<string, Record<string, { publishedAt: number | null }>>
-		| undefined
+	// Division results publishing state — controls leaderboard visibility
+	const divisionResults = settings?.divisionResults
 
 	// Get competition track
 	const track = await getCompetitionTrack(params.competitionId)
@@ -376,11 +371,12 @@ export async function getCompetitionLeaderboard(params: {
 
 		// Calculate points for each division using the scoring algorithm
 		for (const [divisionId, divisionScores] of eventScoresByDivision) {
-			// Skip if division results are not published for this event
-			// Only filter when divisionResults exists (organizer opted into publishing)
+			// Filter by division results publishing state.
+			// When divisionResults exists, the organizer has opted into per-event publishing.
+			// Divisions default to "Draft" (hidden) — only show explicitly published ones.
+			// When divisionResults is absent, all results show (backwards compat).
 			if (divisionResults) {
 				const eventPublishState = divisionResults[trackWorkout.id]
-				// If this event has publish entries, check if this division is published
 				if (eventPublishState) {
 					const divisionPublishState = eventPublishState[divisionId]
 					if (!divisionPublishState?.publishedAt) continue
