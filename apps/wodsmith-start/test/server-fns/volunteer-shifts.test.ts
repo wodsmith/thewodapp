@@ -6,6 +6,7 @@ import {
   unassignVolunteerFromShiftFn,
   getVolunteerShiftsFn,
   getCompetitionShiftsFn,
+  getShiftAssignmentsFn,
   deleteShiftFn,
   updateShiftFn,
   bulkAssignVolunteersToShiftFn,
@@ -823,6 +824,120 @@ describe('Volunteer Shift Server Functions', () => {
       expect(result.assignedCount).toBe(0)
       expect(result.skippedCount).toBe(2)
       expect(result.message).toBe('All volunteers are already assigned to this shift')
+    })
+  })
+
+  // ============================================================================
+  // getShiftAssignmentsFn Tests
+  // ============================================================================
+  describe('getShiftAssignmentsFn', () => {
+    it('should return assignments with volunteer details', async () => {
+      const mockShift = createMockShift()
+
+      // Mock shift lookup with auth check
+      mockDb.setMockSingleValue({
+        ...mockShift,
+        assignments: [createMockShiftAssignment()],
+      })
+
+      // Mock the join query returning assignment + membership + user
+      mockDb.setMockReturnValue([
+        {
+          assignment: {
+            id: 'vsas_test123',
+            shiftId: 'vshf_test123',
+            membershipId: 'tmem_volunteer123',
+            notes: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          membership: {
+            id: 'tmem_volunteer123',
+            metadata: JSON.stringify({volunteerRoleTypes: ['judge', 'check_in']}),
+          },
+          user: {
+            id: 'user-vol-1',
+            firstName: 'Jane',
+            lastName: 'Doe',
+            email: 'jane@example.com',
+          },
+        },
+      ])
+
+      const result = await getShiftAssignmentsFn({
+        data: {shiftId: 'vshf_test123'},
+      })
+
+      expect(result).toHaveLength(1)
+      expect(result[0]?.volunteer.name).toBe('Jane Doe')
+      expect(result[0]?.volunteer.email).toBe('jane@example.com')
+      expect(result[0]?.volunteer.roleTypes).toEqual(['judge', 'check_in'])
+    })
+
+    it('should return empty array when shift has no assignments', async () => {
+      const mockShift = createMockShift()
+
+      mockDb.setMockSingleValue({
+        ...mockShift,
+        assignments: [],
+      })
+      mockDb.setMockReturnValue([])
+
+      const result = await getShiftAssignmentsFn({
+        data: {shiftId: 'vshf_test123'},
+      })
+
+      expect(result).toEqual([])
+    })
+
+    it('should reject when shift not found', async () => {
+      mockDb.setMockSingleValue(null)
+
+      await expect(
+        getShiftAssignmentsFn({
+          data: {shiftId: 'vshf_nonexistent'},
+        }),
+      ).rejects.toThrow('NOT_FOUND: Volunteer shift not found')
+    })
+
+    it('should handle volunteers with no metadata', async () => {
+      const mockShift = createMockShift()
+
+      mockDb.setMockSingleValue({
+        ...mockShift,
+        assignments: [createMockShiftAssignment()],
+      })
+
+      mockDb.setMockReturnValue([
+        {
+          assignment: {
+            id: 'vsas_test123',
+            shiftId: 'vshf_test123',
+            membershipId: 'tmem_volunteer123',
+            notes: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          membership: {
+            id: 'tmem_volunteer123',
+            metadata: null, // No metadata
+          },
+          user: {
+            id: 'user-vol-1',
+            firstName: 'John',
+            lastName: null,
+            email: 'john@example.com',
+          },
+        },
+      ])
+
+      const result = await getShiftAssignmentsFn({
+        data: {shiftId: 'vshf_test123'},
+      })
+
+      expect(result).toHaveLength(1)
+      expect(result[0]?.volunteer.name).toBe('John')
+      expect(result[0]?.volunteer.roleTypes).toEqual([])
     })
   })
 })
