@@ -220,12 +220,7 @@ const app = await alchemy("wodsmith", {
  *
  * @see {@link https://developers.cloudflare.com/d1/ D1 Documentation}
  */
-const db = await D1Database("db", {
-	/**
-	 * Directory containing Drizzle migration SQL files.
-	 * Migrations are applied in filename order on each deployment.
-	 */
-	migrationsDir: "./src/db/migrations",
+const _db = await D1Database("db", {
 	/**
 	 * Adopt existing D1 database if it already exists.
 	 * Required for production where resources were created before Alchemy.
