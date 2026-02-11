@@ -245,22 +245,24 @@ const _db = await D1Database("db", {
  * @see {@link https://planetscale.com/docs PlanetScale Documentation}
  */
 const psDbName = "wodsmith-db"
-const psOrg = process.env.PLANETSCALE_ORGANIZATION ?? "zac-wodsmith"
+const psOrg = process.env.PLANETSCALE_ORGANIZATION ?? "wodsmith"
 
 /**
  * PlanetScale branch hierarchy:
- * - prod → "main" (production branch, no Branch resource needed)
- * - dev  → branches off main
- * - demo → branches off dev (reset from dev when needed)
+ * - prod  → "main" (production branch, no Branch resource needed)
+ * - dev   → branches off main
+ * - demo  → branches off dev (reset from dev when needed)
+ * - pr-N  → uses "dev" branch directly (no per-PR branch creation)
  */
 const branchConfig: Record<string, { name: string; parent: string }> = {
 	dev: { name: "dev", parent: "main" },
 	demo: { name: "demo", parent: "dev" },
 }
 
-const psBranchName = stage === "prod" ? "main" : (branchConfig[stage]?.name ?? stage)
+const isPrStage = stage.startsWith("pr-")
+const psBranchName = stage === "prod" ? "main" : (branchConfig[stage]?.name ?? (isPrStage ? "dev" : stage))
 const psBranch =
-	stage === "prod"
+	stage === "prod" || isPrStage
 		? undefined
 		: await PlanetScaleBranch(`ps-branch-${stage}`, {
 				organization: psOrg,
