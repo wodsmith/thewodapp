@@ -33,6 +33,28 @@ import type {
 	JudgeVolunteerInfo,
 } from "@/server-fns/judge-scheduling-fns"
 
+/**
+ * Transform raw Drizzle relational query results from getAssignmentsForVersionFn
+ * into JudgeHeatAssignment shape expected by UI components.
+ * The server fn returns { membership: { user: { firstName, ... } } }
+ * but UI expects { volunteer: { firstName, ... } }
+ */
+function transformVersionAssignments(
+	// biome-ignore lint/suspicious/noExplicitAny: raw Drizzle relational query result
+	raw: any[],
+): JudgeHeatAssignment[] {
+	return raw.map((a) => ({
+		...a,
+		volunteer: {
+			membershipId: a.membership?.id ?? a.membershipId,
+			userId: a.membership?.userId ?? "",
+			firstName: a.membership?.user?.firstName ?? null,
+			lastName: a.membership?.user?.lastName ?? null,
+			volunteerRoleTypes: [],
+		} as JudgeVolunteerInfo,
+	}))
+}
+
 import { DraggableJudge } from "./draggable-judge"
 import { EventDefaultsEditor } from "./event-defaults-editor"
 import { JudgeHeatCard } from "./judge-heat-card"
@@ -245,7 +267,7 @@ export function JudgeSchedulingContainer({
 						const withoutEvent = prev.filter((a) => !eventHeatIds.has(a.heatId))
 						return [
 							...withoutEvent,
-							...(assignmentsResult as unknown as JudgeHeatAssignment[]),
+							...transformVersionAssignments(assignmentsResult as any[]),
 						]
 					})
 				}
@@ -290,11 +312,9 @@ export function JudgeSchedulingContainer({
 							const withoutEvent = prev.filter(
 								(a) => !eventHeatIds.has(a.heatId),
 							)
-							// Type assertion needed because getAssignmentsForVersion returns raw DB structure
-							// but JudgeHeatAssignment expects a 'volunteer' property (server-side type mismatch)
 							return [
 								...withoutEvent,
-								...(assignmentsResult as JudgeHeatAssignment[]),
+								...transformVersionAssignments(assignmentsResult as any[]),
 							]
 						})
 					}
