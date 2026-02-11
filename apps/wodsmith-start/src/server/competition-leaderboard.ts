@@ -221,7 +221,12 @@ export async function getCompetitionLeaderboard(params: {
 		})
 		.from(trackWorkoutsTable)
 		.innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
-		.where(eq(trackWorkoutsTable.trackId, track.id))
+		.where(
+			and(
+				eq(trackWorkoutsTable.trackId, track.id),
+				eq(trackWorkoutsTable.eventStatus, "published"),
+			),
+		)
 		.orderBy(trackWorkoutsTable.trackOrder)
 
 	if (trackWorkouts.length === 0) {
