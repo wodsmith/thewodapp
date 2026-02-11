@@ -58,6 +58,8 @@ interface ChainableMock {
 	returning: Mock<(columns?: unknown) => Promise<unknown[]>>
 	onConflictDoUpdate: Mock<(config: unknown) => ChainableMock>
 	onConflictDoNothing: Mock<(config?: unknown) => ChainableMock>
+	// MySQL-specific (PlanetScale)
+	onDuplicateKeyUpdate: Mock<(config: unknown) => ChainableMock>
 	
 	// Update chain
 	update: Mock<(table: unknown) => ChainableMock>
@@ -190,6 +192,8 @@ export class FakeDrizzleDb {
 			returning: this.createMockFn(() => Promise.resolve(self.mockReturnValue)),
 			onConflictDoUpdate: this.createMockFn(() => mock),
 			onConflictDoNothing: this.createMockFn(() => mock),
+			// MySQL-specific (PlanetScale)
+			onDuplicateKeyUpdate: this.createMockFn(() => mock),
 			
 			// Update chain
 			update: this.createMockFn(() => mock),

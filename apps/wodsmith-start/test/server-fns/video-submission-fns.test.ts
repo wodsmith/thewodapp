@@ -207,6 +207,8 @@ describe("Video Submission Server Functions (TanStack)", () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
 		mockDb.reset()
+		// Register tables for MySQL compatibility
+		mockDb.registerTable('videoSubmissionsTable')
 		// Reset to authenticated session
 		setMockSession(mockAuthenticatedSession)
 	})
@@ -534,7 +536,6 @@ describe("Video Submission Server Functions (TanStack)", () => {
 		it("creates new video submission successfully", async () => {
 			const registration = createTestRegistration()
 			const competition = createTestCompetition({ competitionType: "online" })
-			const newSubmission = createTestVideoSubmission({ id: "sub-new" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			limitMock
@@ -543,10 +544,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([]) // No event = allow submission
 				.mockResolvedValueOnce([]) // No existing submission
 
-			const returningMock = mockDb.getChainMock().returning as ReturnType<
-				typeof vi.fn
-			>
-			returningMock.mockResolvedValueOnce([newSubmission])
+			// Mock the insert().returning() to return a new submission
+			const returningMock = mockDb.getChainMock().returning as ReturnType<typeof vi.fn>
+			returningMock.mockResolvedValueOnce([{ id: 'vsub_test-new' }])
 
 			const result = await submitVideoFn({
 				data: {
@@ -557,7 +557,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			})
 
 			expect(result.success).toBe(true)
-			expect(result.submissionId).toBe("sub-new")
+			expect(result.submissionId).toBeDefined()
+			expect(typeof result.submissionId).toBe("string")
+			expect(result.submissionId).toMatch(/^vsub_/) // Verify CUID2 prefix
 			expect(result.isUpdate).toBe(false)
 			expect(mockDb.insert).toHaveBeenCalled()
 		})
@@ -608,10 +610,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }]) // Workout details
 				.mockResolvedValueOnce([track]) // Track for team ownership
 
-			const returningMock = mockDb.getChainMock().returning as ReturnType<
-				typeof vi.fn
-			>
-			returningMock.mockResolvedValueOnce([{ id: "sub-new" }])
+			// Mock the insert().returning() to return a new submission
+			const returningMock = mockDb.getChainMock().returning as ReturnType<typeof vi.fn>
+			returningMock.mockResolvedValueOnce([{ id: 'vsub_test-new' }])
 
 			const result = await submitVideoFn({
 				data: {
@@ -649,10 +650,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
 				.mockResolvedValueOnce([track])
 
-			const returningMock = mockDb.getChainMock().returning as ReturnType<
-				typeof vi.fn
-			>
-			returningMock.mockResolvedValueOnce([{ id: "sub-new" }])
+			// Mock the insert().returning() to return a new submission
+			const returningMock = mockDb.getChainMock().returning as ReturnType<typeof vi.fn>
+			returningMock.mockResolvedValueOnce([{ id: 'vsub_test-new' }])
 
 			const result = await submitVideoFn({
 				data: {
@@ -690,10 +690,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
 				.mockResolvedValueOnce([track])
 
-			const returningMock = mockDb.getChainMock().returning as ReturnType<
-				typeof vi.fn
-			>
-			returningMock.mockResolvedValueOnce([{ id: "sub-new" }])
+			// Mock the insert().returning() to return a new submission
+			const returningMock = mockDb.getChainMock().returning as ReturnType<typeof vi.fn>
+			returningMock.mockResolvedValueOnce([{ id: 'vsub_test-new' }])
 
 			const result = await submitVideoFn({
 				data: {
@@ -719,7 +718,6 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				scoreType: "min",
 			})
 			const trackWorkout = createTestTrackWorkout({ workoutId: "wk-1" })
-			const newSubmission = createTestVideoSubmission({ id: "sub-new" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			limitMock
@@ -729,11 +727,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([]) // No existing submission
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
 
-			// Video submission creation succeeds
-			const returningMock = mockDb.getChainMock().returning as ReturnType<
-				typeof vi.fn
-			>
-			returningMock.mockResolvedValueOnce([newSubmission])
+			// Mock the insert().returning() to return a new submission
+			const returningMock = mockDb.getChainMock().returning as ReturnType<typeof vi.fn>
+			returningMock.mockResolvedValueOnce([{ id: 'vsub_test-new' }])
 
 			await expect(
 				submitVideoFn({
@@ -759,7 +755,6 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			})
 			const trackWorkout = createTestTrackWorkout({ workoutId: "wk-1" })
 			const track = { ownerTeamId: "team-1" }
-			const newSubmission = createTestVideoSubmission({ id: "sub-new" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			limitMock
@@ -770,11 +765,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
 				.mockResolvedValueOnce([track])
 
-			// Video submission creation succeeds
-			const returningMock = mockDb.getChainMock().returning as ReturnType<
-				typeof vi.fn
-			>
-			returningMock.mockResolvedValueOnce([newSubmission])
+			// Mock the insert().returning() to return a new submission
+			const returningMock = mockDb.getChainMock().returning as ReturnType<typeof vi.fn>
+			returningMock.mockResolvedValueOnce([{ id: 'vsub_test-new' }])
 
 			await expect(
 				submitVideoFn({
@@ -829,10 +822,6 @@ describe("Video Submission Server Functions (TanStack)", () => {
 		it("includes notes in submission when provided", async () => {
 			const registration = createTestRegistration()
 			const competition = createTestCompetition({ competitionType: "online" })
-			const newSubmission = createTestVideoSubmission({
-				id: "sub-new",
-				notes: "Great performance!",
-			})
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			limitMock
@@ -841,10 +830,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([])
 				.mockResolvedValueOnce([])
 
-			const returningMock = mockDb.getChainMock().returning as ReturnType<
-				typeof vi.fn
-			>
-			returningMock.mockResolvedValueOnce([newSubmission])
+			// Mock the insert().returning() to return a new submission
+			const returningMock = mockDb.getChainMock().returning as ReturnType<typeof vi.fn>
+			returningMock.mockResolvedValueOnce([{ id: 'vsub_test-new' }])
 
 			const result = await submitVideoFn({
 				data: {
@@ -880,10 +868,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
 				.mockResolvedValueOnce([track])
 
-			const returningMock = mockDb.getChainMock().returning as ReturnType<
-				typeof vi.fn
-			>
-			returningMock.mockResolvedValueOnce([{ id: "sub-new" }])
+			// Mock the insert().returning() to return a new submission
+			const returningMock = mockDb.getChainMock().returning as ReturnType<typeof vi.fn>
+			returningMock.mockResolvedValueOnce([{ id: 'vsub_test-new' }])
 
 			const result = await submitVideoFn({
 				data: {
@@ -919,10 +906,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
 				.mockResolvedValueOnce([track])
 
-			const returningMock = mockDb.getChainMock().returning as ReturnType<
-				typeof vi.fn
-			>
-			returningMock.mockResolvedValueOnce([{ id: "sub-new" }])
+			// Mock the insert().returning() to return a new submission
+			const returningMock = mockDb.getChainMock().returning as ReturnType<typeof vi.fn>
+			returningMock.mockResolvedValueOnce([{ id: 'vsub_test-new' }])
 
 			const result = await submitVideoFn({
 				data: {
@@ -958,10 +944,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
 				.mockResolvedValueOnce([track])
 
-			const returningMock = mockDb.getChainMock().returning as ReturnType<
-				typeof vi.fn
-			>
-			returningMock.mockResolvedValueOnce([{ id: "sub-new" }])
+			// Mock the insert().returning() to return a new submission
+			const returningMock = mockDb.getChainMock().returning as ReturnType<typeof vi.fn>
+			returningMock.mockResolvedValueOnce([{ id: 'vsub_test-new' }])
 
 			const result = await submitVideoFn({
 				data: {
@@ -980,7 +965,6 @@ describe("Video Submission Server Functions (TanStack)", () => {
 		it("throws when workout not found during score submission", async () => {
 			const registration = createTestRegistration()
 			const competition = createTestCompetition({ competitionType: "online" })
-			const newSubmission = createTestVideoSubmission({ id: "sub-new" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			limitMock
@@ -990,11 +974,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([]) // No existing video submission
 				.mockResolvedValueOnce([]) // No workout found
 
-			// Video submission creation succeeds
-			const returningMock = mockDb.getChainMock().returning as ReturnType<
-				typeof vi.fn
-			>
-			returningMock.mockResolvedValueOnce([newSubmission])
+			// Mock the insert().returning() to return a new submission
+			const returningMock = mockDb.getChainMock().returning as ReturnType<typeof vi.fn>
+			returningMock.mockResolvedValueOnce([{ id: 'vsub_test-new' }])
 
 			await expect(
 				submitVideoFn({
@@ -1018,7 +1000,6 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				scoreType: "min",
 			})
 			const trackWorkout = createTestTrackWorkout({ workoutId: "wk-1" })
-			const newSubmission = createTestVideoSubmission({ id: "sub-new" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			limitMock
@@ -1029,11 +1010,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
 				.mockResolvedValueOnce([]) // No track found
 
-			// Video submission creation succeeds
-			const returningMock = mockDb.getChainMock().returning as ReturnType<
-				typeof vi.fn
-			>
-			returningMock.mockResolvedValueOnce([newSubmission])
+			// Mock the insert().returning() to return a new submission
+			const returningMock = mockDb.getChainMock().returning as ReturnType<typeof vi.fn>
+			returningMock.mockResolvedValueOnce([{ id: 'vsub_test-new' }])
 
 			await expect(
 				submitVideoFn({
@@ -1059,7 +1038,6 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			})
 			const trackWorkout = createTestTrackWorkout({ workoutId: "wk-1" })
 			const track = { ownerTeamId: "team-1" }
-			const newSubmission = createTestVideoSubmission({ id: "sub-new" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			limitMock
@@ -1070,10 +1048,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
 				.mockResolvedValueOnce([track])
 
-			const returningMock = mockDb.getChainMock().returning as ReturnType<
-				typeof vi.fn
-			>
-			returningMock.mockResolvedValueOnce([newSubmission])
+			// Mock the insert().returning() to return a new submission
+			const returningMock = mockDb.getChainMock().returning as ReturnType<typeof vi.fn>
+			returningMock.mockResolvedValueOnce([{ id: 'vsub_test-new' }])
 
 			const result = await submitVideoFn({
 				data: {
@@ -1086,7 +1063,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			})
 
 			expect(result.success).toBe(true)
-			expect(result.submissionId).toBe("sub-new")
+			expect(result.submissionId).toBeDefined()
+			expect(typeof result.submissionId).toBe("string")
+			expect(result.submissionId).toMatch(/^vsub_/) // Verify CUID2 prefix
 			// Verifies insert was called (for both video submission and score)
 			expect(mockDb.insert).toHaveBeenCalled()
 		})

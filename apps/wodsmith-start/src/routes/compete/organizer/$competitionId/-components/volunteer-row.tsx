@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "@tanstack/react-router"
-import { Check, X } from "lucide-react"
+import { Calendar, Check, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -16,9 +16,19 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover"
 import { TableCell, TableRow } from "@/components/ui/table"
 import type { User } from "@/db/schema"
-import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
+import {
+	VOLUNTEER_AVAILABILITY,
+	VOLUNTEER_ROLE_LABELS,
+	VOLUNTEER_ROLE_TYPE_VALUES,
+	type VolunteerRoleType,
+} from "@/db/schemas/volunteers"
 import {
 	addVolunteerRoleTypeFn,
 	grantScoreAccessFn,
@@ -52,25 +62,27 @@ interface VolunteerRowProps {
 	organizingTeamId: string
 	isSelected?: boolean
 	onToggleSelect?: (shiftKey: boolean) => void
-}
-
-type VolunteerRoleType =
-	| "judge"
-	| "head_judge"
-	| "scorekeeper"
-	| "emcee"
-	| "floor_manager"
-	| "media"
-	| "general"
-
-const ROLE_TYPE_LABELS: Record<VolunteerRoleType, string> = {
-	judge: "Judge",
-	head_judge: "Head Judge",
-	scorekeeper: "Scorekeeper",
-	emcee: "Emcee",
-	floor_manager: "Floor Manager",
-	media: "Media",
-	general: "General",
+	assignments: {
+		shifts: Array<{
+			id: string
+			shiftId: string
+			name: string
+			roleType: string
+			startTime: Date
+			endTime: Date
+			location: string | null
+			notes: string | null
+		}>
+		judgeHeats: Array<{
+			id: string
+			heatId: string
+			eventName: string
+			heatNumber: number
+			scheduledTime: Date | null
+			laneNumber: number | null
+			position: string | null
+		}>
+	}
 }
 
 function getAvailabilityLabel(availability?: string): string | null {
@@ -138,6 +150,20 @@ function getInitials(
 	return (first + last).toUpperCase() || "?"
 }
 
+function formatShiftTimeCompact(startTime: Date, endTime: Date): string {
+	const start = new Date(startTime)
+	const end = new Date(endTime)
+	const startStr = start.toLocaleTimeString([], {
+		hour: "numeric",
+		minute: "2-digit",
+	})
+	const endStr = end.toLocaleTimeString([], {
+		hour: "numeric",
+		minute: "2-digit",
+	})
+	return `${startStr} - ${endStr}`
+}
+
 export function VolunteerRow({
 	volunteer,
 	competitionId,
@@ -145,6 +171,7 @@ export function VolunteerRow({
 	organizingTeamId,
 	isSelected = false,
 	onToggleSelect,
+	assignments,
 }: VolunteerRowProps) {
 	const router = useRouter()
 	const metadata = parseMetadata(volunteer.metadata)
@@ -376,13 +403,128 @@ export function VolunteerRow({
 				<div className="flex flex-wrap gap-1">
 					{Array.from(selectedRoles).map((roleType) => (
 						<Badge key={roleType} variant="outline">
-							{ROLE_TYPE_LABELS[roleType]}
+							{VOLUNTEER_ROLE_LABELS[roleType]}
 						</Badge>
 					))}
 					{selectedRoles.size === 0 && (
 						<span className="text-sm text-muted-foreground">—</span>
 					)}
 				</div>
+			</TableCell>
+			<TableCell>
+				{assignments.shifts.length === 0 &&
+				assignments.judgeHeats.length === 0 ? (
+					<span className="text-sm text-muted-foreground">—</span>
+				) : (
+					<div className="flex flex-wrap gap-1">
+						{assignments.shifts.length > 0 && (
+							<Popover>
+								<PopoverTrigger asChild>
+									<button
+										type="button"
+										className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+									>
+										<Calendar className="h-3 w-3 shrink-0" />
+										<span className="underline decoration-dotted">
+											{assignments.shifts.length} shift
+											{assignments.shifts.length !== 1 ? "s" : ""}
+										</span>
+									</button>
+								</PopoverTrigger>
+								<PopoverContent className="w-64 p-2" align="start">
+									<p className="mb-2 text-xs font-medium text-muted-foreground">
+										Assigned Shifts
+									</p>
+									<div className="space-y-1.5">
+										{[...assignments.shifts]
+											.sort(
+												(a, b) =>
+													new Date(a.startTime).getTime() -
+													new Date(b.startTime).getTime(),
+											)
+											.map((shift) => (
+												<div key={shift.id} className="text-sm">
+													<p className="font-medium">{shift.name}</p>
+													<p className="text-xs text-muted-foreground">
+														{formatShiftTimeCompact(
+															shift.startTime,
+															shift.endTime,
+														)}
+													</p>
+												</div>
+											))}
+									</div>
+								</PopoverContent>
+							</Popover>
+						)}
+						{assignments.judgeHeats.length > 0 && (
+							<Popover>
+								<PopoverTrigger asChild>
+									<button
+										type="button"
+										className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+									>
+										<Calendar className="h-3 w-3 shrink-0" />
+										<span className="underline decoration-dotted">
+											{assignments.judgeHeats.length} heat
+											{assignments.judgeHeats.length !== 1 ? "s" : ""}
+										</span>
+									</button>
+								</PopoverTrigger>
+								<PopoverContent className="w-64 p-2" align="start">
+									<p className="mb-2 text-xs font-medium text-muted-foreground">
+										Judge Assignments
+									</p>
+									<div className="space-y-1.5">
+										{[...assignments.judgeHeats]
+											.sort((a, b) => {
+												if (a.scheduledTime && b.scheduledTime) {
+													return (
+														new Date(a.scheduledTime).getTime() -
+														new Date(b.scheduledTime).getTime()
+													)
+												}
+												return a.heatNumber - b.heatNumber
+											})
+											.map((heat) => (
+												<div key={heat.id} className="text-sm">
+													<p className="font-medium">
+														{heat.eventName} - Heat {heat.heatNumber}
+													</p>
+													{heat.scheduledTime && (
+														<p className="text-xs text-muted-foreground">
+															{new Date(heat.scheduledTime).toLocaleDateString(
+																"en-US",
+																{
+																	weekday: "short",
+																	month: "short",
+																	day: "numeric",
+																},
+															)}{" "}
+															{new Date(heat.scheduledTime).toLocaleTimeString(
+																"en-US",
+																{ hour: "numeric", minute: "2-digit" },
+															)}
+														</p>
+													)}
+													{heat.laneNumber !== null && (
+														<p className="text-xs text-muted-foreground">
+															Lane {heat.laneNumber}
+														</p>
+													)}
+													{heat.position && (
+														<p className="text-xs text-muted-foreground">
+															{heat.position}
+														</p>
+													)}
+												</div>
+											))}
+									</div>
+								</PopoverContent>
+							</Popover>
+						)}
+					</div>
+				)}
 			</TableCell>
 			<TableCell>
 				<Checkbox
@@ -419,20 +561,18 @@ export function VolunteerRow({
 						<DropdownMenuContent align="end">
 							<DropdownMenuLabel>Role Types</DropdownMenuLabel>
 							<DropdownMenuSeparator />
-							{(Object.keys(ROLE_TYPE_LABELS) as VolunteerRoleType[]).map(
-								(roleType) => (
-									<DropdownMenuCheckboxItem
-										key={roleType}
-										checked={selectedRoles.has(roleType)}
-										onCheckedChange={(checked) =>
-											handleRoleTypeToggle(roleType, checked)
-										}
-										disabled={isPending}
-									>
-										{ROLE_TYPE_LABELS[roleType]}
-									</DropdownMenuCheckboxItem>
-								),
-							)}
+							{VOLUNTEER_ROLE_TYPE_VALUES.map((roleType) => (
+								<DropdownMenuCheckboxItem
+									key={roleType}
+									checked={selectedRoles.has(roleType)}
+									onCheckedChange={(checked) =>
+										handleRoleTypeToggle(roleType, checked)
+									}
+									disabled={isPending}
+								>
+									{VOLUNTEER_ROLE_LABELS[roleType]}
+								</DropdownMenuCheckboxItem>
+							))}
 						</DropdownMenuContent>
 					</DropdownMenu>
 				)}

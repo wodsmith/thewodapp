@@ -12,6 +12,8 @@ import {
 	createHeatVolunteerId,
 	createJudgeAssignmentVersionId,
 	createJudgeRotationId,
+	createVolunteerShiftAssignmentId,
+	createVolunteerShiftId,
 } from "./common"
 import { competitionHeatsTable, competitionsTable } from "./competitions"
 import { trackWorkoutsTable } from "./programming"
@@ -31,10 +33,43 @@ export const VOLUNTEER_ROLE_TYPES = {
 	FLOOR_MANAGER: "floor_manager",
 	MEDIA: "media",
 	GENERAL: "general",
+	ATHLETE_CONTROL: "athlete_control",
+	EQUIPMENT_TEAM: "equipment_team",
 } as const
 
 export type VolunteerRoleType =
 	(typeof VOLUNTEER_ROLE_TYPES)[keyof typeof VOLUNTEER_ROLE_TYPES]
+
+// Human-readable labels for volunteer role types
+export const VOLUNTEER_ROLE_LABELS: Record<VolunteerRoleType, string> = {
+	judge: "Judge",
+	head_judge: "Head Judge",
+	equipment: "Equipment",
+	medical: "Medical",
+	check_in: "Check-In",
+	staff: "Staff",
+	scorekeeper: "Scorekeeper",
+	emcee: "Emcee",
+	floor_manager: "Floor Manager",
+	media: "Media",
+	general: "General",
+	athlete_control: "Athlete Control",
+	equipment_team: "Equipment Team",
+}
+
+// All role type values as an array (for zod schemas, dropdowns, etc.)
+export const VOLUNTEER_ROLE_TYPE_VALUES = Object.values(
+	VOLUNTEER_ROLE_TYPES,
+) as [VolunteerRoleType, ...VolunteerRoleType[]]
+
+// Role type options for dropdowns (value + label pairs)
+export const VOLUNTEER_ROLE_OPTIONS: {
+	value: VolunteerRoleType
+	label: string
+}[] = VOLUNTEER_ROLE_TYPE_VALUES.map((value) => ({
+	value,
+	label: VOLUNTEER_ROLE_LABELS[value],
+}))
 
 // Lane shift pattern for judge rotations
 export const LANE_SHIFT_PATTERN = {
@@ -245,6 +280,79 @@ export const competitionJudgeRotationsTable = sqliteTable(
 	],
 )
 
+// Volunteer Shifts Table
+// Time-based volunteer shifts for non-judge roles (medical, check_in, staff, etc.)
+// Unlike judge rotations (heat-based), these are standalone time slots
+export const volunteerShiftsTable = sqliteTable(
+	"volunteer_shifts",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => createVolunteerShiftId())
+			.notNull(),
+		// The competition this shift belongs to
+		competitionId: text()
+			.notNull()
+			.references(() => competitionsTable.id, { onDelete: "cascade" }),
+		// Name of the shift (e.g., "Morning Check-In", "Medical Station A")
+		name: text({ length: 200 }).notNull(),
+		// Role type for this shift
+		roleType: text({ length: 50 }).$type<VolunteerRoleType>().notNull(),
+		// Shift start time
+		startTime: integer({
+			mode: "timestamp",
+		}).notNull(),
+		// Shift end time
+		endTime: integer({
+			mode: "timestamp",
+		}).notNull(),
+		// Optional location for this shift
+		location: text({ length: 200 }),
+		// Maximum number of volunteers for this shift
+		capacity: integer().notNull().default(1),
+		// Optional notes/instructions for this shift
+		notes: text({ length: 1000 }),
+	},
+	(table) => [
+		index("volunteer_shifts_competition_idx").on(table.competitionId),
+		index("volunteer_shifts_start_time_idx").on(table.startTime),
+	],
+)
+
+// Volunteer Shift Assignments Table
+// Junction table to assign volunteers (team memberships) to shifts
+// A volunteer can be assigned to multiple shifts, and a shift can have multiple volunteers up to its capacity
+export const volunteerShiftAssignmentsTable = sqliteTable(
+	"volunteer_shift_assignments",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => createVolunteerShiftAssignmentId())
+			.notNull(),
+		// The shift this assignment is for
+		shiftId: text()
+			.notNull()
+			.references(() => volunteerShiftsTable.id, { onDelete: "cascade" }),
+		// The team membership (volunteer) being assigned
+		membershipId: text()
+			.notNull()
+			.references(() => teamMembershipTable.id, { onDelete: "cascade" }),
+		// Optional notes/instructions for this specific assignment
+		notes: text({ length: 500 }),
+	},
+	(table) => [
+		index("volunteer_shift_assignments_shift_idx").on(table.shiftId),
+		index("volunteer_shift_assignments_membership_idx").on(table.membershipId),
+		// Ensure a volunteer can only be assigned once per shift
+		uniqueIndex("volunteer_shift_assignments_unique_idx").on(
+			table.shiftId,
+			table.membershipId,
+		),
+	],
+)
+
 // Type exports
 export type JudgeAssignmentVersion = InferSelectModel<
 	typeof judgeAssignmentVersionsTable
@@ -254,6 +362,10 @@ export type JudgeHeatAssignment = InferSelectModel<
 >
 export type CompetitionJudgeRotation = InferSelectModel<
 	typeof competitionJudgeRotationsTable
+>
+export type VolunteerShift = InferSelectModel<typeof volunteerShiftsTable>
+export type VolunteerShiftAssignment = InferSelectModel<
+	typeof volunteerShiftAssignmentsTable
 >
 
 // Legacy type aliases for backward compatibility
@@ -306,12 +418,13 @@ export const competitionHeatsJudgeAssignmentsReverseRelations = relations(
 	}),
 )
 
-// Reverse relation: team memberships can have judge assignments
-export const teamMembershipJudgeAssignmentsReverseRelations = relations(
+// Reverse relation: team memberships can have judge assignments and shift assignments
+export const teamMembershipVolunteerReverseRelations = relations(
 	teamMembershipTable,
 	({ many }) => ({
 		judgeAssignments: many(judgeHeatAssignmentsTable),
 		judgeRotations: many(competitionJudgeRotationsTable),
+		volunteerShiftAssignments: many(volunteerShiftAssignmentsTable),
 	}),
 )
 
@@ -334,11 +447,12 @@ export const competitionJudgeRotationsRelations = relations(
 	}),
 )
 
-// Reverse relation: competitions can have judge rotations
-export const competitionsJudgeRotationsReverseRelations = relations(
+// Reverse relation: competitions can have judge rotations and volunteer shifts
+export const competitionsVolunteerSystemReverseRelations = relations(
 	competitionsTable,
 	({ many }) => ({
 		judgeRotations: many(competitionJudgeRotationsTable),
+		volunteerShifts: many(volunteerShiftsTable),
 	}),
 )
 
@@ -348,5 +462,32 @@ export const trackWorkoutsJudgeSystemReverseRelations = relations(
 	({ many }) => ({
 		judgeRotations: many(competitionJudgeRotationsTable),
 		judgeAssignmentVersions: many(judgeAssignmentVersionsTable),
+	}),
+)
+
+// Volunteer shifts relations
+export const volunteerShiftsRelations = relations(
+	volunteerShiftsTable,
+	({ one, many }) => ({
+		competition: one(competitionsTable, {
+			fields: [volunteerShiftsTable.competitionId],
+			references: [competitionsTable.id],
+		}),
+		assignments: many(volunteerShiftAssignmentsTable),
+	}),
+)
+
+// Volunteer shift assignments relations
+export const volunteerShiftAssignmentsRelations = relations(
+	volunteerShiftAssignmentsTable,
+	({ one }) => ({
+		shift: one(volunteerShiftsTable, {
+			fields: [volunteerShiftAssignmentsTable.shiftId],
+			references: [volunteerShiftsTable.id],
+		}),
+		membership: one(teamMembershipTable, {
+			fields: [volunteerShiftAssignmentsTable.membershipId],
+			references: [teamMembershipTable.id],
+		}),
 	}),
 )

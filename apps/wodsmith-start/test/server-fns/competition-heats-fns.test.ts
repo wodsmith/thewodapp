@@ -99,10 +99,37 @@ function createDbMock(config: {
       return Promise.resolve(result)
     }
 
+    // Mock query builder for MySQL compatibility
+    chain.query = {
+      competitionHeatsTable: {
+        findFirst: vi.fn(),
+      },
+      competitionHeatAssignmentsTable: {
+        findFirst: vi.fn(),
+      },
+      competitionVenuesTable: {
+        findFirst: vi.fn(),
+      },
+    }
+
     return chain
   }
 
-  return createChain()
+  // Helper to register tables for testing
+  const dbMock = createChain() as ReturnType<typeof createChain> & {
+    registerTable: (tableName: string) => void
+  }
+
+  dbMock.registerTable = (tableName: string) => {
+    if (!dbMock.query) {
+      dbMock.query = {}
+    }
+    ;(dbMock.query as Record<string, unknown>)[tableName] = {
+      findFirst: vi.fn(),
+    }
+  }
+
+  return dbMock
 }
 
 let mockDbInstance: ReturnType<typeof createDbMock>
@@ -136,6 +163,12 @@ describe('Competition Heats Server Functions (TanStack)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     querySequence = []
+    // Register tables for MySQL query builder pattern
+    if (mockDbInstance?.registerTable) {
+      mockDbInstance.registerTable('competitionHeatsTable')
+      mockDbInstance.registerTable('competitionHeatAssignmentsTable')
+      mockDbInstance.registerTable('competitionVenuesTable')
+    }
   })
 
   describe('getHeatsForCompetitionFn', () => {
@@ -526,7 +559,6 @@ describe('Competition Heats Server Functions (TanStack)', () => {
         updatedAt: new Date(),
       }
 
-      // Create a mock for insert operations
       const insertMock = {
         insert: vi.fn().mockReturnValue({
           values: vi.fn().mockReturnValue({
@@ -597,7 +629,7 @@ describe('Competition Heats Server Functions (TanStack)', () => {
       const insertMock = {
         insert: vi.fn().mockReturnValue({
           values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([]), // Empty array = failed
+            returning: vi.fn().mockResolvedValue([]),
           }),
         }),
       }
@@ -1069,6 +1101,11 @@ describe('Competition Heats Server Functions (TanStack)', () => {
             where: vi.fn().mockResolvedValue(undefined),
           }),
         }),
+        query: {
+          competitionHeatAssignmentsTable: {
+            findFirst: vi.fn().mockResolvedValue(currentAssignment),
+          },
+        },
       }
       mockDbInstance = moveMock as unknown as ReturnType<typeof createDbMock>
 
@@ -1106,6 +1143,11 @@ describe('Competition Heats Server Functions (TanStack)', () => {
         insert: vi.fn().mockReturnValue({
           values: vi.fn().mockResolvedValue(undefined),
         }),
+        query: {
+          competitionHeatAssignmentsTable: {
+            findFirst: vi.fn().mockResolvedValue(currentAssignment),
+          },
+        },
       }
       mockDbInstance = moveMock as unknown as ReturnType<typeof createDbMock>
 
@@ -1131,6 +1173,11 @@ describe('Competition Heats Server Functions (TanStack)', () => {
             }),
           }),
         }),
+        query: {
+          competitionHeatAssignmentsTable: {
+            findFirst: vi.fn().mockResolvedValue(undefined),
+          },
+        },
       }
       mockDbInstance = moveMock as unknown as ReturnType<typeof createDbMock>
 

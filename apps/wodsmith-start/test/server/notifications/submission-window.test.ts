@@ -69,10 +69,11 @@ describe("Submission Window Notifications", () => {
 			// Arrange - user exists with email
 			const mockUser = { id: "user_123", email: "athlete@example.com", firstName: "John" }
 			mockDb.registerTable("userTable")
-			mockDb.setMockSingleValue(mockUser) // For user lookup via db.query.userTable.findFirst()
 
-			// Mock successful reservation (insert returns a row)
-			mockDb.setMockReturnValue([{ id: "notif_123" }])
+			// Mock user lookup via db.query.userTable.findFirst
+			mockDb.query.userTable.findFirst.mockResolvedValueOnce(mockUser)
+			// Mock reservation: returning [{ id }] means insert succeeded (not a duplicate)
+			mockDb.getChainMock().returning.mockResolvedValueOnce([{ id: "notif-new" }])
 
 			const { sendWindowOpensNotification } = await import(
 				"@/server/notifications/submission-window"
@@ -101,14 +102,14 @@ describe("Submission Window Notifications", () => {
 			)
 		})
 
-		it("does not send notification when reservation fails (already sent)", async () => {
+		it("does not send notification when already exists (check-before-insert)", async () => {
 			// Arrange - user exists with email
 			const mockUser = { id: "user_123", email: "athlete@example.com", firstName: "John" }
 			mockDb.registerTable("userTable")
-			mockDb.setMockSingleValue(mockUser)
 
-			// Mock failed reservation (insert returns empty array due to conflict)
-			mockDb.setMockReturnValue([])
+			// Mock user lookup via db.query.userTable.findFirst
+			mockDb.query.userTable.findFirst.mockResolvedValueOnce(mockUser)
+			// Default returning() returns [] which means reservation failed (duplicate)
 
 			const { sendWindowOpensNotification } = await import(
 				"@/server/notifications/submission-window"
@@ -135,10 +136,11 @@ describe("Submission Window Notifications", () => {
 			// Arrange - user exists with email
 			const mockUser = { id: "user_123", email: "athlete@example.com", firstName: "John" }
 			mockDb.registerTable("userTable")
-			mockDb.setMockSingleValue(mockUser)
 
-			// Mock successful reservation
-			mockDb.setMockReturnValue([{ id: "notif_123" }])
+			// Mock user lookup via db.query.userTable.findFirst
+			mockDb.query.userTable.findFirst.mockResolvedValueOnce(mockUser)
+			// Mock reservation: returning [{ id }] means insert succeeded
+			mockDb.getChainMock().returning.mockResolvedValueOnce([{ id: "notif-new" }])
 
 			// Mock email failure
 			mockSendEmail.mockRejectedValueOnce(new Error("Email service unavailable"))

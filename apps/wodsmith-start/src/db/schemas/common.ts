@@ -98,3 +98,7 @@ export const createEventJudgingSheetId = () => `ejsheet_${createId()}`
 
 // Address ID generators
 export const createAddressId = () => `addr_${createId()}`
+
+// Volunteer shift ID generators
+export const createVolunteerShiftId = () => `vshf_${createId()}`
+export const createVolunteerShiftAssignmentId = () => `vshfa_${createId()}`
