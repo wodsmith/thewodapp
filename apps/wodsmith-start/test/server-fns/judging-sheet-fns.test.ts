@@ -215,13 +215,8 @@ describe("Judging Sheet Server Functions", () => {
 			// Then mock existing sheets lookup (returns empty array)
 			mockDb.setMockReturnValue([{ trackWorkoutId, competitionId }])
 
-			// We need to handle two select() calls:
-			// 1. Track workout verification
-			// 2. Existing sheets lookup
-			// Since FakeDrizzleDb uses shared mockReturnValue, we'll mock only the final findFirst
-
-			// Mock the findFirst call after insert
-			mockDb.query.eventJudgingSheetsTable.findFirst.mockResolvedValueOnce(newSheet)
+			// Mock the .returning() call after insert
+			mockDb.getChainMock().returning.mockResolvedValueOnce([newSheet])
 
 			const result = await createJudgingSheetFn({
 				data: {
@@ -281,8 +276,8 @@ describe("Judging Sheet Server Functions", () => {
 			// Mock the initial sheet lookup
 			mockDb.query.eventJudgingSheetsTable.findFirst.mockResolvedValueOnce(existingSheet)
 
-			// Mock the post-update lookup
-			mockDb.query.eventJudgingSheetsTable.findFirst.mockResolvedValueOnce(updatedSheet)
+			// Mock the .returning() call after update
+			mockDb.getChainMock().returning.mockResolvedValueOnce([updatedSheet])
 
 			const result = await updateJudgingSheetFn({
 				data: {

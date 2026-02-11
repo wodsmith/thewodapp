@@ -34,6 +34,11 @@ vi.mock('@/utils/kv-session', () => ({
   invalidateTeamMembersSessions: vi.fn().mockResolvedValue(undefined),
 }))
 
+// Mock the logging module
+vi.mock('@/lib/logging/posthog-otel-logger', () => ({
+  logInfo: vi.fn(),
+}))
+
 import {invalidateTeamMembersSessions} from '@/utils/kv-session'
 
 describe('Organizer Onboarding', () => {
@@ -81,21 +86,17 @@ describe('Organizer Onboarding', () => {
 
       // Check for pending request (none)
       // Check for approved request (none)
-      // Insert returns insertId
-      // Then fetch the created request
       mockDb.query.organizerRequestTable.findFirst
         .mockResolvedValueOnce(null)  // No pending
         .mockResolvedValueOnce(null)  // No approved
-        .mockResolvedValueOnce(mockRequest)  // Return created request
 
       mockDb.query.featureTable.findFirst.mockResolvedValue({
         id: 'feature-123',
         key: FEATURES.HOST_COMPETITIONS,
       })
 
-      mockDb.insert.mockReturnValue({
-        values: vi.fn().mockResolvedValue({insertId: mockRequestId})
-      } as any)
+      // insert().values().returning() returns [mockRequest]
+      mockDb.getChainMock().returning.mockResolvedValueOnce([mockRequest])
 
       const result = await submitOrganizerRequest({
         teamId: mockTeamId,
@@ -145,11 +146,7 @@ describe('Organizer Onboarding', () => {
     it('should throw error if request creation fails', async () => {
       mockDb.query.organizerRequestTable.findFirst.mockResolvedValue(null)
 
-      // Mock insert to return no insertId (failed insert)
-      mockDb.insert.mockReturnValue({
-        values: vi.fn().mockResolvedValue({insertId: null})
-      } as any)
-
+      // .returning() returns [] by default, which causes the throw
       await expect(
         submitOrganizerRequest({
           teamId: mockTeamId,
@@ -173,10 +170,11 @@ describe('Organizer Onboarding', () => {
       })
 
       // First call: get request to approve
-      // Second call: return updated request after update
       mockDb.query.organizerRequestTable.findFirst
         .mockResolvedValueOnce(pendingRequest)
-        .mockResolvedValueOnce(approvedRequest)
+
+      // update().set().where().returning() returns [approvedRequest]
+      mockDb.getChainMock().returning.mockResolvedValueOnce([approvedRequest])
 
       mockDb.query.userTable.findFirst.mockResolvedValue({
         firstName: 'Test',
@@ -247,17 +245,17 @@ describe('Organizer Onboarding', () => {
       })
 
       // First call: get request
-      // Second call: failed to retrieve updated request (null)
       mockDb.query.organizerRequestTable.findFirst
         .mockResolvedValueOnce(pendingRequest)
-        .mockResolvedValueOnce(null)  // Failed to retrieve updated
+
+      // .returning() returns [] by default → throws "Failed to update organizer request"
 
       await expect(
         approveOrganizerRequest({
           requestId: mockRequestId,
           adminUserId: mockAdminUserId,
         }),
-      ).rejects.toThrow('Failed to retrieve updated organizer request')
+      ).rejects.toThrow('Failed to update organizer request')
     })
   })
 
@@ -274,10 +272,11 @@ describe('Organizer Onboarding', () => {
       })
 
       // First call: get request to reject
-      // Second call: return updated request after update
       mockDb.query.organizerRequestTable.findFirst
         .mockResolvedValueOnce(pendingRequest)
-        .mockResolvedValueOnce(rejectedRequest)
+
+      // update().set().where().returning() returns [rejectedRequest]
+      mockDb.getChainMock().returning.mockResolvedValueOnce([rejectedRequest])
 
       mockDb.query.userTable.findFirst.mockResolvedValue({
         firstName: 'Test',
@@ -312,7 +311,9 @@ describe('Organizer Onboarding', () => {
 
       mockDb.query.organizerRequestTable.findFirst
         .mockResolvedValueOnce(pendingRequest)
-        .mockResolvedValueOnce(rejectedRequest)
+
+      // update().set().where().returning() returns [rejectedRequest]
+      mockDb.getChainMock().returning.mockResolvedValueOnce([rejectedRequest])
 
       mockDb.query.userTable.findFirst.mockResolvedValue({
         firstName: 'Test',
@@ -373,14 +374,15 @@ describe('Organizer Onboarding', () => {
 
       mockDb.query.organizerRequestTable.findFirst
         .mockResolvedValueOnce(pendingRequest)
-        .mockResolvedValueOnce(null)  // Failed to retrieve updated
+
+      // .returning() returns [] by default → throws "Failed to update organizer request"
 
       await expect(
         rejectOrganizerRequest({
           requestId: mockRequestId,
           adminUserId: mockAdminUserId,
         }),
-      ).rejects.toThrow('Failed to retrieve updated organizer request')
+      ).rejects.toThrow('Failed to update organizer request')
     })
   })
 
@@ -506,16 +508,14 @@ describe('Organizer Onboarding', () => {
       mockDb.query.organizerRequestTable.findFirst
         .mockResolvedValueOnce(null)  // No pending
         .mockResolvedValueOnce(null)  // No approved
-        .mockResolvedValueOnce(pendingRequest)  // Return created request
 
       mockDb.query.featureTable.findFirst.mockResolvedValue({
         id: 'feature-123',
         key: FEATURES.HOST_COMPETITIONS,
       })
 
-      mockDb.insert.mockReturnValue({
-        values: vi.fn().mockResolvedValue({insertId: mockRequestId})
-      } as any)
+      // insert().values().returning() returns [pendingRequest]
+      mockDb.getChainMock().returning.mockResolvedValueOnce([pendingRequest])
 
       // Submit request
       const submitted = await submitOrganizerRequest({
@@ -539,7 +539,9 @@ describe('Organizer Onboarding', () => {
       // Mock for approve
       mockDb.query.organizerRequestTable.findFirst
         .mockResolvedValueOnce(pendingRequest)
-        .mockResolvedValueOnce(approvedRequest)
+
+      // update().set().where().returning() returns [approvedRequest]
+      mockDb.getChainMock().returning.mockResolvedValueOnce([approvedRequest])
 
       mockDb.query.userTable.findFirst.mockResolvedValue({
         firstName: 'Test',
@@ -573,7 +575,9 @@ describe('Organizer Onboarding', () => {
 
       mockDb.query.organizerRequestTable.findFirst
         .mockResolvedValueOnce(pendingRequest)
-        .mockResolvedValueOnce(rejectedRequest)
+
+      // update().set().where().returning() returns [rejectedRequest]
+      mockDb.getChainMock().returning.mockResolvedValueOnce([rejectedRequest])
 
       mockDb.query.userTable.findFirst.mockResolvedValue({
         firstName: 'Test',
@@ -640,22 +644,13 @@ describe('Entitlement Grant/Revoke Functions', () => {
           name: 'Host Competitions',
         })
 
-        const mockOnDuplicateKeyUpdate = vi.fn().mockResolvedValue(undefined)
-        const mockValues = vi.fn().mockReturnValue({
-          onDuplicateKeyUpdate: mockOnDuplicateKeyUpdate,
-        })
-
-        mockDb.insert.mockReturnValue({
-          values: mockValues,
-        } as any)
-
         // ACT
         await grantTeamFeature(mockTeamId, mockFeatureKey)
 
         // ASSERT
         expect(mockDb.query.featureTable.findFirst).toHaveBeenCalled()
         expect(mockDb.insert).toHaveBeenCalled()
-        expect(mockValues).toHaveBeenCalledWith({
+        expect(mockDb.getChainMock().values).toHaveBeenCalledWith({
           teamId: mockTeamId,
           featureId: mockFeatureId,
           source: 'override',
@@ -663,25 +658,18 @@ describe('Entitlement Grant/Revoke Functions', () => {
         })
       })
 
-      it('should handle upsert (onDuplicateKeyUpdate) for duplicate grants', async () => {
+      it('should handle upsert (onConflictDoUpdate) for duplicate grants', async () => {
         // ARRANGE: Mock feature lookup
         mockDb.query.featureTable.findFirst.mockResolvedValue({
           id: mockFeatureId,
           key: mockFeatureKey,
         })
 
-        const mockOnDuplicateKeyUpdate = vi.fn().mockResolvedValue(undefined)
-        mockDb.insert.mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            onDuplicateKeyUpdate: mockOnDuplicateKeyUpdate,
-          }),
-        } as any)
-
         // ACT
         await grantTeamFeature(mockTeamId, mockFeatureKey)
 
-        // ASSERT: onDuplicateKeyUpdate was called with correct params
-        expect(mockOnDuplicateKeyUpdate).toHaveBeenCalledWith(
+        // ASSERT: onConflictDoUpdate was called with correct params
+        expect(mockDb.getChainMock().onConflictDoUpdate).toHaveBeenCalledWith(
           expect.objectContaining({
             set: {
               isActive: 1,
@@ -698,13 +686,7 @@ describe('Entitlement Grant/Revoke Functions', () => {
           key: mockFeatureKey,
         })
 
-        mockDb.insert.mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
-          }),
-        } as any)
-
-        // ACT
+        // ACT (default chain mock handles insert().values().onConflictDoUpdate())
         await grantTeamFeature(mockTeamId, mockFeatureKey)
 
         // ASSERT: Session invalidation was called with teamId
@@ -728,16 +710,6 @@ describe('Entitlement Grant/Revoke Functions', () => {
   describe('setTeamLimitOverride', () => {
     describe('with all parameters', () => {
       it('should insert limit override with teamId, type, key, value, and reason', async () => {
-        // ARRANGE
-        const mockOnDuplicateKeyUpdate = vi.fn().mockResolvedValue(undefined)
-        const mockValues = vi.fn().mockReturnValue({
-          onDuplicateKeyUpdate: mockOnDuplicateKeyUpdate,
-        })
-
-        mockDb.insert.mockReturnValue({
-          values: mockValues,
-        } as any)
-
         // ACT
         await setTeamLimitOverride(
           mockTeamId,
@@ -748,13 +720,14 @@ describe('Entitlement Grant/Revoke Functions', () => {
 
         // ASSERT
         expect(mockDb.insert).toHaveBeenCalled()
-        expect(mockValues).toHaveBeenCalledWith({
+        expect(mockDb.getChainMock().values).toHaveBeenCalledWith({
           teamId: mockTeamId,
           type: 'limit',
           key: mockLimitKey,
           value: '-1',
           reason: 'Organizer request approved',
         })
+        expect(mockDb.getChainMock().onConflictDoUpdate).toHaveBeenCalled()
       })
     })
 

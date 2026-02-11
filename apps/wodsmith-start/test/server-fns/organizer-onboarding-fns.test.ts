@@ -126,11 +126,11 @@ describe('organizer-onboarding-fns', () => {
       // submitOrganizerRequestInternal:
       // 1. Check for pending (null)
       // 2. Check for approved (null)
-      // 3. Insert then fetch created request
+      // 3. Insert with .returning() returns array
       mockDb.query.organizerRequestTable.findFirst
         .mockResolvedValueOnce(null)  // No pending
         .mockResolvedValueOnce(null)  // No approved
-        .mockResolvedValueOnce(createdRequest)  // Return created
+      mockDb.getChainMock().returning.mockResolvedValueOnce([createdRequest])
 
       const result = await submitOrganizerRequestFn({data: validInput})
 
@@ -155,7 +155,7 @@ describe('organizer-onboarding-fns', () => {
       mockDb.query.organizerRequestTable.findFirst
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(createdRequest)
+      mockDb.getChainMock().returning.mockResolvedValueOnce([createdRequest])
 
       await submitOrganizerRequestFn({data: validInput})
 
@@ -191,7 +191,7 @@ describe('organizer-onboarding-fns', () => {
       mockDb.query.organizerRequestTable.findFirst
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(createdRequest)
+      mockDb.getChainMock().returning.mockResolvedValueOnce([createdRequest])
 
       await submitOrganizerRequestFn({data: inputWithoutCaptcha})
 

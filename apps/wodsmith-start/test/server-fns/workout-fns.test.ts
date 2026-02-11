@@ -459,8 +459,7 @@ describe('Workout Server Functions (TanStack)', () => {
         teamId: 'team-1',
       })
 
-      // MySQL/PlanetScale: code uses db.query.workouts.findFirst() instead of .returning()
-      mockDb.query.workouts.findFirst.mockResolvedValueOnce(created)
+      mockDb.getChainMock().returning.mockResolvedValueOnce([created])
 
       const result = await createWorkoutFn({
         data: {
@@ -488,7 +487,7 @@ describe('Workout Server Functions (TanStack)', () => {
         timeCap: 600,
       })
 
-      mockDb.query.workouts.findFirst.mockResolvedValueOnce(created)
+      mockDb.getChainMock().returning.mockResolvedValueOnce([created])
 
       const result = await createWorkoutFn({
         data: {
@@ -511,7 +510,7 @@ describe('Workout Server Functions (TanStack)', () => {
         scheme: 'reps',
       })
 
-      mockDb.query.workouts.findFirst.mockResolvedValueOnce(created)
+      mockDb.getChainMock().returning.mockResolvedValueOnce([created])
 
       const result = await createWorkoutFn({
         data: {
@@ -533,7 +532,7 @@ describe('Workout Server Functions (TanStack)', () => {
         scope: 'public',
       })
 
-      mockDb.query.workouts.findFirst.mockResolvedValueOnce(created)
+      mockDb.getChainMock().returning.mockResolvedValueOnce([created])
 
       const result = await createWorkoutFn({
         data: {
@@ -646,8 +645,7 @@ describe('Workout Server Functions (TanStack)', () => {
         scheme: 'reps',
       })
 
-      // MySQL/PlanetScale: code uses db.query.workouts.findFirst() instead of .returning()
-      mockDb.query.workouts.findFirst.mockResolvedValueOnce(updated)
+      mockDb.getChainMock().returning.mockResolvedValueOnce([updated])
 
       const result = await updateWorkoutFn({
         data: {
@@ -668,8 +666,7 @@ describe('Workout Server Functions (TanStack)', () => {
     })
 
     it('throws when workout not found', async () => {
-      // MySQL/PlanetScale: findFirst returns null when not found
-      mockDb.query.workouts.findFirst.mockResolvedValueOnce(null)
+      // Default .returning() returns [], which causes the throw
 
       await expect(
         updateWorkoutFn({
@@ -738,8 +735,7 @@ describe('Workout Server Functions (TanStack)', () => {
         scheduledDate: new Date('2025-01-15T12:00:00.000Z'),
       })
 
-      // MySQL/PlanetScale: code uses db.query.scheduledWorkoutInstancesTable.findFirst()
-      mockDb.query.scheduledWorkoutInstancesTable.findFirst.mockResolvedValueOnce(instance)
+      mockDb.getChainMock().returning.mockResolvedValueOnce([instance])
 
       const result = await scheduleWorkoutFn({
         data: {
@@ -809,8 +805,7 @@ describe('Workout Server Functions (TanStack)', () => {
     })
 
     it('throws when scheduling fails', async () => {
-      // MySQL/PlanetScale: findFirst returns null when not found
-      mockDb.query.scheduledWorkoutInstancesTable.findFirst.mockResolvedValueOnce(null)
+      // Default .returning() returns [], which causes the throw
 
       await expect(
         scheduleWorkoutFn({

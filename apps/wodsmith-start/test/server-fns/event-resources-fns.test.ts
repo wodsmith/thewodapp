@@ -183,8 +183,8 @@ describe("Event Resources Server Functions", () => {
 				{ eventId: "event-1", ownerTeamId: "team-1" },
 			])
 
-			// Mock: insert and findFirst
-			mockDb.query.eventResourcesTable.findFirst.mockResolvedValueOnce(created)
+			// Mock: insert returning
+			mockDb.getChainMock().returning.mockResolvedValueOnce([created])
 
 			const result = await createEventResourceFn({
 				data: {

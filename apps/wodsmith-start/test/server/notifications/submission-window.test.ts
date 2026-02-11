@@ -69,13 +69,11 @@ describe("Submission Window Notifications", () => {
 			// Arrange - user exists with email
 			const mockUser = { id: "user_123", email: "athlete@example.com", firstName: "John" }
 			mockDb.registerTable("userTable")
-			mockDb.registerTable("submissionWindowNotificationsTable")
 
-			// Mock sequential findFirst calls:
-			// 1st call: user lookup - returns user
-			// 2nd call: notification existence check - returns null (no existing notification)
+			// Mock user lookup via db.query.userTable.findFirst
 			mockDb.query.userTable.findFirst.mockResolvedValueOnce(mockUser)
-			mockDb.query.submissionWindowNotificationsTable.findFirst.mockResolvedValueOnce(null)
+			// Mock reservation: returning [{ id }] means insert succeeded (not a duplicate)
+			mockDb.getChainMock().returning.mockResolvedValueOnce([{ id: "notif-new" }])
 
 			const { sendWindowOpensNotification } = await import(
 				"@/server/notifications/submission-window"
@@ -108,21 +106,10 @@ describe("Submission Window Notifications", () => {
 			// Arrange - user exists with email
 			const mockUser = { id: "user_123", email: "athlete@example.com", firstName: "John" }
 			mockDb.registerTable("userTable")
-			mockDb.registerTable("submissionWindowNotificationsTable")
 
-			// Mock existing notification
-			const existingNotification = {
-				id: "notif_123",
-				competitionEventId: "event_123",
-				registrationId: "reg_123",
-				type: "window_opens"
-			}
-
-			// Mock sequential findFirst calls:
-			// 1st call: user lookup - returns user
-			// 2nd call: notification existence check - returns existing notification
+			// Mock user lookup via db.query.userTable.findFirst
 			mockDb.query.userTable.findFirst.mockResolvedValueOnce(mockUser)
-			mockDb.query.submissionWindowNotificationsTable.findFirst.mockResolvedValueOnce(existingNotification)
+			// Default returning() returns [] which means reservation failed (duplicate)
 
 			const { sendWindowOpensNotification } = await import(
 				"@/server/notifications/submission-window"
@@ -149,13 +136,11 @@ describe("Submission Window Notifications", () => {
 			// Arrange - user exists with email
 			const mockUser = { id: "user_123", email: "athlete@example.com", firstName: "John" }
 			mockDb.registerTable("userTable")
-			mockDb.registerTable("submissionWindowNotificationsTable")
 
-			// Mock sequential findFirst calls:
-			// 1st call: user lookup - returns user
-			// 2nd call: notification existence check - returns null (no existing notification)
+			// Mock user lookup via db.query.userTable.findFirst
 			mockDb.query.userTable.findFirst.mockResolvedValueOnce(mockUser)
-			mockDb.query.submissionWindowNotificationsTable.findFirst.mockResolvedValueOnce(null)
+			// Mock reservation: returning [{ id }] means insert succeeded
+			mockDb.getChainMock().returning.mockResolvedValueOnce([{ id: "notif-new" }])
 
 			// Mock email failure
 			mockSendEmail.mockRejectedValueOnce(new Error("Email service unavailable"))
