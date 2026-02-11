@@ -13,6 +13,8 @@
 import { and, eq, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
+	competitionHeatAssignmentsTable,
+	competitionHeatsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
 } from "@/db/schemas/competitions"
@@ -173,6 +175,61 @@ async function getCompetitionTrack(competitionId: string) {
 }
 
 // ============================================================================
+// Heat-Based Workout Filtering
+// ============================================================================
+
+interface HeatInfo {
+	id: string
+	trackWorkoutId: string
+	divisionId: string | null
+}
+
+interface HeatAssignmentInfo {
+	heatId: string
+	divisionId: string | null
+}
+
+/**
+ * Determine which track workouts are relevant for a division based on heat data.
+ *
+ * A workout is relevant to a division if:
+ * 1. A heat exists with divisionId matching the target division, OR
+ * 2. A mixed heat (divisionId=null) has at least one assignment from that division
+ *
+ * Returns null if no heats exist (backward compat: show all workouts).
+ */
+export function getRelevantWorkoutIds(params: {
+	heats: HeatInfo[]
+	mixedHeatAssignments: HeatAssignmentInfo[]
+	divisionId: string
+}): Set<string> | null {
+	if (params.heats.length === 0) return null
+
+	// Workouts with division-specific heats matching selected division
+	const relevant = new Set(
+		params.heats
+			.filter((h) => h.divisionId === params.divisionId)
+			.map((h) => h.trackWorkoutId),
+	)
+
+	// For mixed heats (divisionId=null), check actual assignments
+	const heatIdToWorkout = new Map(
+		params.heats
+			.filter((h) => h.divisionId === null)
+			.map((h) => [h.id, h.trackWorkoutId]),
+	)
+
+	for (const assignment of params.mixedHeatAssignments) {
+		if (assignment.divisionId === params.divisionId) {
+			const twId = heatIdToWorkout.get(assignment.heatId)
+			if (twId) relevant.add(twId)
+		}
+	}
+
+	return relevant
+}
+
+// ============================================================================
 // Main Leaderboard Functions
 // ============================================================================
 
@@ -236,6 +293,71 @@ export async function getCompetitionLeaderboard(params: {
 		return { entries: [], scoringConfig, events: [] }
 	}
 
+	// Filter workouts by division heat assignments when a division is selected.
+	// If a division has no heats for a workout, that workout shouldn't appear
+	// on that division's leaderboard. If no heats exist at all, show everything.
+	let filteredTrackWorkouts = trackWorkouts
+	if (params.divisionId) {
+		const trackWorkoutIds = trackWorkouts.map((tw) => tw.id)
+		const heatsForWorkouts = await autochunk(
+			{ items: trackWorkoutIds, otherParametersCount: 0 },
+			async (chunk) =>
+				db
+					.select({
+						id: competitionHeatsTable.id,
+						trackWorkoutId: competitionHeatsTable.trackWorkoutId,
+						divisionId: competitionHeatsTable.divisionId,
+					})
+					.from(competitionHeatsTable)
+					.where(inArray(competitionHeatsTable.trackWorkoutId, chunk)),
+		)
+
+		// Fetch assignments for mixed heats (divisionId=null)
+		const mixedHeatIds = heatsForWorkouts
+			.filter((h) => h.divisionId === null)
+			.map((h) => h.id)
+
+		const mixedHeatAssignments =
+			mixedHeatIds.length > 0
+				? await autochunk(
+						{ items: mixedHeatIds, otherParametersCount: 0 },
+						async (chunk) =>
+							db
+								.select({
+									heatId: competitionHeatAssignmentsTable.heatId,
+									divisionId: competitionRegistrationsTable.divisionId,
+								})
+								.from(competitionHeatAssignmentsTable)
+								.innerJoin(
+									competitionRegistrationsTable,
+									eq(
+										competitionHeatAssignmentsTable.registrationId,
+										competitionRegistrationsTable.id,
+									),
+								)
+								.where(
+									inArray(competitionHeatAssignmentsTable.heatId, chunk),
+								),
+					)
+				: []
+
+		const relevantIds = getRelevantWorkoutIds({
+			heats: heatsForWorkouts,
+			mixedHeatAssignments,
+			divisionId: params.divisionId,
+		})
+
+		if (relevantIds) {
+			filteredTrackWorkouts = trackWorkouts.filter((tw) =>
+				relevantIds.has(tw.id),
+			)
+
+			if (filteredTrackWorkouts.length === 0) {
+				return { entries: [], scoringConfig, events: [] }
+			}
+		}
+	}
+
 	// Get all registrations for this competition
 	const registrations = await db
 		.select({
@@ -255,7 +377,7 @@ export async function getCompetitionLeaderboard(params: {
 		.where(eq(competitionRegistrationsTable.eventId, params.competitionId))
 
 	if (registrations.length === 0) {
-		const events = trackWorkouts.map((tw) => ({
+		const events = filteredTrackWorkouts.map((tw) => ({
 			trackWorkoutId: tw.id,
 			name: tw.workout.name,
 		}))
@@ -306,7 +428,7 @@ export async function getCompetitionLeaderboard(params: {
 	}
 
 	// Get all scores for competition events
-	const trackWorkoutIds = trackWorkouts.map((tw) => tw.id)
+	const trackWorkoutIds = filteredTrackWorkouts.map((tw) => tw.id)
 	const userIds = filteredRegistrations.map((r) => r.user.id)
 
 	const allScores = await fetchScores({ trackWorkoutIds, userIds })
@@ -351,7 +473,7 @@ export async function getCompetitionLeaderboard(params: {
 	}
 
 	// Process each event using configurable scoring
-	for (const trackWorkout of trackWorkouts) {
+	for (const trackWorkout of filteredTrackWorkouts) {
 		// Get scores for this event, grouped by division
 		const eventScoresByDivision = new Map<string, typeof allScores>()
 
@@ -542,7 +664,7 @@ export async function getCompetitionLeaderboard(params: {
 	})
 
 	// Build events list for the response
-	const events = trackWorkouts.map((tw) => ({
+	const events = filteredTrackWorkouts.map((tw) => ({
 		trackWorkoutId: tw.id,
 		name: tw.workout.name,
 	}))
