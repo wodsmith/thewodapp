@@ -186,8 +186,8 @@ jobs:
           # Secrets for all environments
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          # AI configuration (optional)
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          # AI configuration (stage-specific keys)
+          OPENAI_API_KEY_PROD: ${{ secrets.OPENAI_API_KEY_PROD }}
           BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
           # Stripe secrets - prod and demo get their respective keys
           STRIPE_API_KEY: ${{ env.STAGE == 'prod' && secrets.STRIPE_SECRET_KEY || (env.STAGE == 'demo' && secrets.STRIPE_SECRET_KEY_DEMO || '') }}
@@ -257,9 +257,11 @@ jobs:
           # Secrets for all environments
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          # AI configuration (optional)
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          # AI configuration (stage-specific keys)
+          OPENAI_API_KEY_DEMO: ${{ secrets.OPENAI_API_KEY_DEMO }}
           BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
+          # Vectorize for AI semantic memory
+          CLOUDFLARE_VECTORIZE_API_TOKEN: ${{ secrets.CLOUDFLARE_VECTORIZE_API_TOKEN }}
           # Both point to same secret - STRIPE_API_KEY is for Alchemy webhook creation,
           # STRIPE_SECRET_KEY is for runtime API calls
           STRIPE_API_KEY: ${{ secrets.STRIPE_SECRET_KEY_DEMO }}

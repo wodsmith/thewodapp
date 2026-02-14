@@ -87,7 +87,7 @@
  */
 
 import alchemy from "alchemy"
-import { D1Database, KVNamespace, R2Bucket, TanStackStart } from "alchemy/cloudflare"
+import { D1Database, KVNamespace, R2Bucket, TanStackStart, VectorizeIndex } from "alchemy/cloudflare"
 import { GitHubComment } from "alchemy/github"
 import { CloudflareStateStore } from "alchemy/state"
 import {
@@ -137,6 +137,12 @@ const needsStripeWebhook = stage === "demo" || stage === "prod"
  * Whether Stripe environment variables are available.
  * Stripe env vars are populated for all environments when available.
  */
+/**
+ * Whether the current stage needs Vectorize for AI memory.
+ * Only demo and production environments require the Vectorize index.
+ */
+const needsVectorize = stage === "demo" || stage === "prod"
+
 const hasStripeEnv =
 	process.env.STRIPE_SECRET_KEY &&
 	process.env.STRIPE_PUBLISHABLE_KEY &&
@@ -373,6 +379,19 @@ const r2Bucket = await R2Bucket("wodsmith-uploads", {
 })
 
 /**
+ * Cloudflare Vectorize index for AI agent memory.
+ *
+ * Only created for prod/demo stages (requires CLOUDFLARE_VECTORIZE_API_TOKEN).
+ */
+const aiMemoryIndex = needsVectorize
+	? await VectorizeIndex("ai-memory", {
+			dimensions: 1536,
+			metric: "cosine",
+			adopt: true,
+		})
+	: undefined
+
+/**
  * Validate required Stripe environment variables when Stripe webhook is needed.
  * Fails fast with a clear error message if any required variables are missing.
  */
@@ -529,6 +548,8 @@ const website = await TanStackStart("app", {
 		KV_SESSION: kvSession,
 		/** R2 bucket binding for file uploads */
 		R2_BUCKET: r2Bucket,
+		/** Vectorize index binding for AI memory (prod/demo only) */
+		...(aiMemoryIndex ? { AI_MEMORY: aiMemoryIndex } : {}),
 
 		// App configuration
 		// biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
@@ -581,6 +602,16 @@ const website = await TanStackStart("app", {
 		}),
 		...(process.env.BRAINTRUST_API_KEY && {
 			BRAINTRUST_API_KEY: alchemy.secret(process.env.BRAINTRUST_API_KEY),
+		}),
+
+		// Cloudflare credentials for Vectorize REST API (AI memory)
+		...(process.env.CLOUDFLARE_ACCOUNT_ID && {
+			CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,
+		}),
+		...(process.env.CLOUDFLARE_VECTORIZE_API_TOKEN && {
+			CLOUDFLARE_VECTORIZE_API_TOKEN: alchemy.secret(
+				process.env.CLOUDFLARE_VECTORIZE_API_TOKEN,
+			),
 		}),
 
 		// PlanetScale database connection (managed by Alchemy)
