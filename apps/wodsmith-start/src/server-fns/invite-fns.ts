@@ -6,7 +6,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, count, eq } from "drizzle-orm"
+import { and, count, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -574,19 +574,21 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 
 						if (requiredWaivers.length > 0) {
 							// Check if user already has signatures for these waivers
-							const existingSignatureWaiverIds = new Set<string>()
-							for (const w of requiredWaivers) {
-								const existingSig =
-									await db.query.waiverSignaturesTable.findFirst({
-										where: and(
-											eq(waiverSignaturesTable.waiverId, w.id),
-											eq(waiverSignaturesTable.userId, session.userId),
+							const requiredWaiverIds = requiredWaivers.map((w) => w.id)
+							const existingSignatures =
+								await db.query.waiverSignaturesTable.findMany({
+									where: and(
+										inArray(
+											waiverSignaturesTable.waiverId,
+											requiredWaiverIds,
 										),
-									})
-								if (existingSig) {
-									existingSignatureWaiverIds.add(w.id)
-								}
-							}
+										eq(waiverSignaturesTable.userId, session.userId),
+									),
+									columns: { waiverId: true },
+								})
+							const existingSignatureWaiverIds = new Set(
+								existingSignatures.map((s) => s.waiverId),
+							)
 
 							const signedIds = new Set(
 								(data.signatures || []).map((s) => s.waiverId),
@@ -729,6 +731,10 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 										competitionRegistrationsTable.eventId,
 										metadata.competitionId,
 									),
+									columns: {
+										id: true,
+										pendingTeammates: true,
+									},
 								})
 
 							for (const reg of registrations) {
@@ -795,27 +801,42 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 
 						// Store teammate registration answers if provided
 						if (allAnswers.length > 0 && registrationId) {
-							for (const answerData of allAnswers) {
-								// Check if answer already exists for this user/question/registration
-								const existingAnswer =
-									await db.query.competitionRegistrationAnswersTable.findFirst({
-										where: and(
-											eq(
-												competitionRegistrationAnswersTable.questionId,
-												answerData.questionId,
-											),
-											eq(
-												competitionRegistrationAnswersTable.registrationId,
-												registrationId,
-											),
-											eq(
-												competitionRegistrationAnswersTable.userId,
-												session.userId,
-											),
+							// Batch fetch existing answers for this user/registration
+							const questionIds = allAnswers.map((a) => a.questionId)
+							const existingAnswers =
+								await db.query.competitionRegistrationAnswersTable.findMany({
+									where: and(
+										inArray(
+											competitionRegistrationAnswersTable.questionId,
+											questionIds,
 										),
-									})
+										eq(
+											competitionRegistrationAnswersTable.registrationId,
+											registrationId,
+										),
+										eq(
+											competitionRegistrationAnswersTable.userId,
+											session.userId,
+										),
+									),
+									columns: { id: true, questionId: true },
+								})
+							const existingAnswerMap = new Map(
+								existingAnswers.map((a) => [a.questionId, a.id]),
+							)
 
-								if (existingAnswer) {
+							const newAnswers: Array<{
+								questionId: string
+								registrationId: string
+								userId: string
+								answer: string
+							}> = []
+
+							for (const answerData of allAnswers) {
+								const existingId = existingAnswerMap.get(
+									answerData.questionId,
+								)
+								if (existingId) {
 									// Update existing answer
 									await db
 										.update(competitionRegistrationAnswersTable)
@@ -826,12 +847,11 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 										.where(
 											eq(
 												competitionRegistrationAnswersTable.id,
-												existingAnswer.id,
+												existingId,
 											),
 										)
 								} else {
-									// Insert new answer
-									await db.insert(competitionRegistrationAnswersTable).values({
+									newAnswers.push({
 										questionId: answerData.questionId,
 										registrationId: registrationId,
 										userId: session.userId,
@@ -839,6 +859,59 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 									})
 								}
 							}
+
+							// Batch insert new answers
+							if (newAnswers.length > 0) {
+								await db
+									.insert(competitionRegistrationAnswersTable)
+									.values(newAnswers)
+							}
+						}
+
+						// Collect all waiver IDs to check for existing signatures in one query
+						const allWaiverIds = [
+							...(data.signatures || []).map((s) => s.waiverId),
+						]
+
+						// Parse pending signatures from invitation metadata
+						let inviteMetadata: Record<string, unknown> | null = null
+						let pendingSignatures: PendingWaiverSignature[] = []
+
+						if (invitation.metadata && registrationId) {
+							try {
+								inviteMetadata = JSON.parse(
+									invitation.metadata,
+								) as Record<string, unknown>
+								if (Array.isArray(inviteMetadata.pendingSignatures)) {
+									pendingSignatures =
+										inviteMetadata.pendingSignatures as PendingWaiverSignature[]
+									allWaiverIds.push(
+										...pendingSignatures.map((s) => s.waiverId),
+									)
+								}
+							} catch {
+								// Invalid JSON, ignore
+							}
+						}
+
+						// Batch check existing signatures for all waivers at once
+						let existingWaiverIds = new Set<string>()
+						if (allWaiverIds.length > 0 && registrationId) {
+							const uniqueWaiverIds = [...new Set(allWaiverIds)]
+							const existingSigs =
+								await db.query.waiverSignaturesTable.findMany({
+									where: and(
+										inArray(
+											waiverSignaturesTable.waiverId,
+											uniqueWaiverIds,
+										),
+										eq(waiverSignaturesTable.userId, session.userId),
+									),
+									columns: { waiverId: true },
+								})
+							existingWaiverIds = new Set(
+								existingSigs.map((s) => s.waiverId),
+							)
 						}
 
 						// Store waiver signatures submitted by authenticated user
@@ -847,74 +920,49 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 							data.signatures.length > 0 &&
 							registrationId
 						) {
-							for (const sigData of data.signatures) {
-								// Check if signature already exists
-								const existingSig =
-									await db.query.waiverSignaturesTable.findFirst({
-										where: and(
-											eq(waiverSignaturesTable.waiverId, sigData.waiverId),
-											eq(waiverSignaturesTable.userId, session.userId),
-										),
-									})
-
-								if (!existingSig) {
-									await db.insert(waiverSignaturesTable).values({
-										waiverId: sigData.waiverId,
-										userId: session.userId,
-										signedAt: new Date(sigData.signedAt),
-										registrationId,
-									})
-								}
+							const newSigs = data.signatures
+								.filter((s) => !existingWaiverIds.has(s.waiverId))
+								.map((sigData) => ({
+									waiverId: sigData.waiverId,
+									userId: session.userId,
+									signedAt: new Date(sigData.signedAt),
+									registrationId: registrationId!,
+								}))
+							if (newSigs.length > 0) {
+								await db.insert(waiverSignaturesTable).values(newSigs)
 							}
 						}
 
 						// Transfer pending waiver signatures from invitation metadata
-						if (invitation.metadata && registrationId) {
-							try {
-								const inviteMetadata = JSON.parse(
-									invitation.metadata,
-								) as Record<string, unknown>
-								if (Array.isArray(inviteMetadata.pendingSignatures)) {
-									const pendingSignatures =
-										inviteMetadata.pendingSignatures as PendingWaiverSignature[]
-									for (const sigData of pendingSignatures) {
-										// Check if signature already exists
-										const existingSig =
-											await db.query.waiverSignaturesTable.findFirst({
-												where: and(
-													eq(waiverSignaturesTable.waiverId, sigData.waiverId),
-													eq(waiverSignaturesTable.userId, session.userId),
-												),
-											})
-
-										if (!existingSig) {
-											await db.insert(waiverSignaturesTable).values({
-												waiverId: sigData.waiverId,
-												userId: session.userId,
-												signedAt: new Date(sigData.signedAt),
-												registrationId,
-											})
-										}
-									}
-								}
-
-								// Clear pending data from metadata now that it's transferred
-								delete inviteMetadata.pendingAnswers
-								delete inviteMetadata.pendingSignatures
-								delete inviteMetadata.submittedAt
-
-								await db
-									.update(teamInvitationTable)
-									.set({
-										metadata:
-											Object.keys(inviteMetadata).length > 0
-												? JSON.stringify(inviteMetadata)
-												: null,
-									})
-									.where(eq(teamInvitationTable.id, invitation.id))
-							} catch {
-								// Invalid JSON, ignore
+						if (pendingSignatures.length > 0 && registrationId) {
+							const newPendingSigs = pendingSignatures
+								.filter((s) => !existingWaiverIds.has(s.waiverId))
+								.map((sigData) => ({
+									waiverId: sigData.waiverId,
+									userId: session.userId,
+									signedAt: new Date(sigData.signedAt),
+									registrationId: registrationId!,
+								}))
+							if (newPendingSigs.length > 0) {
+								await db.insert(waiverSignaturesTable).values(newPendingSigs)
 							}
+						}
+
+						// Clear pending data from metadata now that it's transferred
+						if (inviteMetadata && registrationId) {
+							delete inviteMetadata.pendingAnswers
+							delete inviteMetadata.pendingSignatures
+							delete inviteMetadata.submittedAt
+
+							await db
+								.update(teamInvitationTable)
+								.set({
+									metadata:
+										Object.keys(inviteMetadata).length > 0
+											? JSON.stringify(inviteMetadata)
+											: null,
+								})
+								.where(eq(teamInvitationTable.id, invitation.id))
 						}
 					}
 				}
@@ -1321,25 +1369,37 @@ export const transferPendingDataToUserFn = createServerFn({ method: "POST" })
 			pendingData.pendingAnswers.length > 0 &&
 			registrationId
 		) {
-			for (const answerData of pendingData.pendingAnswers) {
-				// Check if answer already exists
-				const existingAnswer =
-					await db.query.competitionRegistrationAnswersTable.findFirst({
-						where: and(
-							eq(
-								competitionRegistrationAnswersTable.questionId,
-								answerData.questionId,
-							),
-							eq(
-								competitionRegistrationAnswersTable.registrationId,
-								registrationId,
-							),
-							eq(competitionRegistrationAnswersTable.userId, session.userId),
+			// Batch fetch existing answers
+			const questionIds = pendingData.pendingAnswers.map((a) => a.questionId)
+			const existingAnswers =
+				await db.query.competitionRegistrationAnswersTable.findMany({
+					where: and(
+						inArray(
+							competitionRegistrationAnswersTable.questionId,
+							questionIds,
 						),
-					})
+						eq(
+							competitionRegistrationAnswersTable.registrationId,
+							registrationId,
+						),
+						eq(competitionRegistrationAnswersTable.userId, session.userId),
+					),
+					columns: { id: true, questionId: true },
+				})
+			const existingAnswerMap = new Map(
+				existingAnswers.map((a) => [a.questionId, a.id]),
+			)
 
-				if (existingAnswer) {
-					// Update existing answer
+			const newAnswers: Array<{
+				questionId: string
+				registrationId: string
+				userId: string
+				answer: string
+			}> = []
+
+			for (const answerData of pendingData.pendingAnswers) {
+				const existingId = existingAnswerMap.get(answerData.questionId)
+				if (existingId) {
 					await db
 						.update(competitionRegistrationAnswersTable)
 						.set({
@@ -1347,17 +1407,23 @@ export const transferPendingDataToUserFn = createServerFn({ method: "POST" })
 							updatedAt: new Date(),
 						})
 						.where(
-							eq(competitionRegistrationAnswersTable.id, existingAnswer.id),
+							eq(competitionRegistrationAnswersTable.id, existingId),
 						)
 				} else {
-					// Insert new answer
-					await db.insert(competitionRegistrationAnswersTable).values({
+					newAnswers.push({
 						questionId: answerData.questionId,
 						registrationId,
 						userId: session.userId,
 						answer: answerData.answer,
 					})
 				}
+			}
+
+			// Batch insert new answers
+			if (newAnswers.length > 0) {
+				await db
+					.insert(competitionRegistrationAnswersTable)
+					.values(newAnswers)
 			}
 		}
 
@@ -1366,25 +1432,28 @@ export const transferPendingDataToUserFn = createServerFn({ method: "POST" })
 			pendingData.pendingSignatures &&
 			pendingData.pendingSignatures.length > 0
 		) {
-			for (const signatureData of pendingData.pendingSignatures) {
-				// Check if signature already exists
-				const existingSignature =
-					await db.query.waiverSignaturesTable.findFirst({
-						where: and(
-							eq(waiverSignaturesTable.waiverId, signatureData.waiverId),
-							eq(waiverSignaturesTable.userId, session.userId),
-						),
-					})
+			// Batch check existing signatures
+			const waiverIds = pendingData.pendingSignatures.map((s) => s.waiverId)
+			const existingSigs = await db.query.waiverSignaturesTable.findMany({
+				where: and(
+					inArray(waiverSignaturesTable.waiverId, waiverIds),
+					eq(waiverSignaturesTable.userId, session.userId),
+				),
+				columns: { waiverId: true },
+			})
+			const existingWaiverIds = new Set(existingSigs.map((s) => s.waiverId))
 
-				if (!existingSignature) {
-					// Insert new signature (signatureName is stored in pending data only, not in table)
-					await db.insert(waiverSignaturesTable).values({
-						waiverId: signatureData.waiverId,
-						userId: session.userId,
-						signedAt: new Date(signatureData.signedAt),
-						registrationId: registrationId || undefined,
-					})
-				}
+			const newSigs = pendingData.pendingSignatures
+				.filter((s) => !existingWaiverIds.has(s.waiverId))
+				.map((signatureData) => ({
+					waiverId: signatureData.waiverId,
+					userId: session.userId,
+					signedAt: new Date(signatureData.signedAt),
+					registrationId: registrationId || undefined,
+				}))
+
+			if (newSigs.length > 0) {
+				await db.insert(waiverSignaturesTable).values(newSigs)
 			}
 		}
 

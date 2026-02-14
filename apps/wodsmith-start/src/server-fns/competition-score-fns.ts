@@ -60,9 +60,6 @@ import {
 	sortKeyToString,
 } from "@/lib/scoring"
 import { getSessionFromCookie } from "@/utils/auth"
-import { autochunk, chunk, SQL_BATCH_SIZE } from "@/utils/batch-query"
-
-const BATCH_SIZE = SQL_BATCH_SIZE
 
 // ============================================================================
 // Types
@@ -408,21 +405,19 @@ async function getHeatsForWorkoutInternal(
 			: []
 	const divisionMap = new Map(divisions.map((d) => [d.id, d]))
 
-	// Fetch assignments in batches
+	// Fetch assignments for all heats
 	const heatIds = heats.map((h) => h.id)
-	const assignmentBatches = await Promise.all(
-		chunk(heatIds, BATCH_SIZE).map((batch) =>
-			db
-				.select({
-					heatId: competitionHeatAssignmentsTable.heatId,
-					laneNumber: competitionHeatAssignmentsTable.laneNumber,
-					registrationId: competitionHeatAssignmentsTable.registrationId,
-				})
-				.from(competitionHeatAssignmentsTable)
-				.where(inArray(competitionHeatAssignmentsTable.heatId, batch)),
-		),
-	)
-	const assignments = assignmentBatches.flat()
+	const assignments =
+		heatIds.length > 0
+			? await db
+					.select({
+						heatId: competitionHeatAssignmentsTable.heatId,
+						laneNumber: competitionHeatAssignmentsTable.laneNumber,
+						registrationId: competitionHeatAssignmentsTable.registrationId,
+					})
+					.from(competitionHeatAssignmentsTable)
+					.where(inArray(competitionHeatAssignmentsTable.heatId, heatIds))
+			: []
 
 	// Group assignments by heat
 	const assignmentsByHeat = new Map<string, typeof assignments>()
@@ -503,7 +498,7 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
 			},
 		}
 
-		// Get all registrations for this competition
+		// Get all registrations for this competition (with optional division filter)
 		const registrations = await db
 			.select({
 				registration: competitionRegistrationsTable,
@@ -519,48 +514,49 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
 				scalingLevelsTable,
 				eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
 			)
-			.where(eq(competitionRegistrationsTable.eventId, data.competitionId))
+			.where(
+				and(
+					eq(competitionRegistrationsTable.eventId, data.competitionId),
+					...(data.divisionId
+						? [
+								eq(
+									competitionRegistrationsTable.divisionId,
+									data.divisionId,
+								),
+							]
+						: []),
+				),
+			)
 
-		// Filter by division if specified
-		const filteredRegistrations = data.divisionId
-			? registrations.filter(
-					(r) => r.registration.divisionId === data.divisionId,
-				)
-			: registrations
+		const filteredRegistrations = registrations
 
-		// Get existing scores for this event from scores table (chunked to avoid parameter limit)
+		// Get existing scores for this event
 		const userIds = filteredRegistrations.map((r) => r.user.id)
 		const existingScores =
 			userIds.length > 0
-				? await autochunk(
-						{ items: userIds, otherParametersCount: 1 },
-						async (userChunk) =>
-							db
-								.select()
-								.from(scoresTable)
-								.where(
-									and(
-										eq(scoresTable.competitionEventId, data.trackWorkoutId),
-										inArray(scoresTable.userId, userChunk),
-									),
-								),
-					)
+				? await db
+						.select()
+						.from(scoresTable)
+						.where(
+							and(
+								eq(scoresTable.competitionEventId, data.trackWorkoutId),
+								inArray(scoresTable.userId, userIds),
+							),
+						)
 				: []
 
-		// Get score_rounds for all existing scores (chunked to avoid parameter limit)
+		// Get score_rounds for all existing scores
 		const scoreIds = existingScores.map((s) => s.id)
 		const existingRounds =
 			scoreIds.length > 0
-				? await autochunk({ items: scoreIds }, async (scoreChunk) =>
-						db
-							.select({
-								scoreId: scoreRoundsTable.scoreId,
-								roundNumber: scoreRoundsTable.roundNumber,
-								value: scoreRoundsTable.value,
-							})
-							.from(scoreRoundsTable)
-							.where(inArray(scoreRoundsTable.scoreId, scoreChunk)),
-					)
+				? await db
+						.select({
+							scoreId: scoreRoundsTable.scoreId,
+							roundNumber: scoreRoundsTable.roundNumber,
+							value: scoreRoundsTable.value,
+						})
+						.from(scoreRoundsTable)
+						.where(inArray(scoreRoundsTable.scoreId, scoreIds))
 				: []
 
 		// Group rounds by scoreId and convert to legacy format
@@ -614,16 +610,14 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
 
 		const divisions =
 			divisionIds.length > 0
-				? await autochunk({ items: divisionIds }, async (divChunk) =>
-						db
-							.select({
-								id: scalingLevelsTable.id,
-								label: scalingLevelsTable.label,
-								position: scalingLevelsTable.position,
-							})
-							.from(scalingLevelsTable)
-							.where(inArray(scalingLevelsTable.id, divChunk)),
-					)
+				? await db
+						.select({
+							id: scalingLevelsTable.id,
+							label: scalingLevelsTable.label,
+							position: scalingLevelsTable.position,
+						})
+						.from(scalingLevelsTable)
+						.where(inArray(scalingLevelsTable.id, divisionIds))
 				: []
 
 		// Get team members for team registrations
@@ -638,21 +632,19 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
 		// Fetch team memberships with user info for all athlete teams
 		const teamMemberships =
 			athleteTeamIds.length > 0
-				? await autochunk({ items: athleteTeamIds }, async (teamChunk) =>
-						db
-							.select({
-								teamId: teamMembershipTable.teamId,
-								userId: teamMembershipTable.userId,
-								firstName: userTable.firstName,
-								lastName: userTable.lastName,
-							})
-							.from(teamMembershipTable)
-							.innerJoin(
-								userTable,
-								eq(teamMembershipTable.userId, userTable.id),
-							)
-							.where(inArray(teamMembershipTable.teamId, teamChunk)),
-					)
+				? await db
+						.select({
+							teamId: teamMembershipTable.teamId,
+							userId: teamMembershipTable.userId,
+							firstName: userTable.firstName,
+							lastName: userTable.lastName,
+						})
+						.from(teamMembershipTable)
+						.innerJoin(
+							userTable,
+							eq(teamMembershipTable.userId, userTable.id),
+						)
+						.where(inArray(teamMembershipTable.teamId, athleteTeamIds))
 				: []
 
 		// Group team members by teamId
@@ -902,6 +894,8 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 			const scheme = data.workout.scheme as ScoringWorkoutScheme
 			const scoreType =
 				(data.workout.scoreType as ScoreType) || getDefaultScoreType(scheme)
+			const workoutTiebreakScheme =
+				(data.workout.tiebreakScheme as TiebreakScheme) ?? null
 
 			// Encode score using encoding
 			let encodedValue: number | null = null
@@ -999,62 +993,105 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 
 			const teamId = teamResult.ownerTeamId
 
-			// Insert/update scores table
-			await db
-				.insert(scoresTable)
-				.values({
-					userId: data.userId,
-					teamId,
-					workoutId: data.workoutId,
-					competitionEventId: data.trackWorkoutId,
-					scheme,
-					scoreType,
-					scoreValue: encodedValue,
-					status: newStatus,
-					statusOrder: getStatusOrder(data.scoreStatus),
-					sortKey: sortKey ? sortKeyToString(sortKey) : null,
-					tiebreakScheme:
-						(data.workout.tiebreakScheme as TiebreakScheme) ?? null,
-					tiebreakValue,
-					timeCapMs,
-					secondaryValue,
-					scalingLevelId: data.divisionId,
-					asRx: true,
-					recordedAt: new Date(),
-				})
-				.onDuplicateKeyUpdate({
-					set: {
+			// Use a transaction for atomicity: upsert score → retrieve ID → manage rounds
+			const scoreId = await db.transaction(async (tx) => {
+				// Insert/update scores table
+				await tx
+					.insert(scoresTable)
+					.values({
+						userId: data.userId,
+						teamId,
+						workoutId: data.workoutId,
+						competitionEventId: data.trackWorkoutId,
+						scheme,
+						scoreType,
 						scoreValue: encodedValue,
 						status: newStatus,
 						statusOrder: getStatusOrder(data.scoreStatus),
 						sortKey: sortKey ? sortKeyToString(sortKey) : null,
 						tiebreakScheme:
-							(data.workout.tiebreakScheme as TiebreakScheme) ?? null,
+							workoutTiebreakScheme,
 						tiebreakValue,
 						timeCapMs,
 						secondaryValue,
 						scalingLevelId: data.divisionId,
-						updatedAt: new Date(),
-					},
-				})
+						asRx: true,
+						recordedAt: new Date(),
+					})
+					.onDuplicateKeyUpdate({
+						set: {
+							scoreValue: encodedValue,
+							status: newStatus,
+							statusOrder: getStatusOrder(data.scoreStatus),
+							sortKey: sortKey ? sortKeyToString(sortKey) : null,
+							tiebreakScheme:
+								workoutTiebreakScheme,
+							tiebreakValue,
+							timeCapMs,
+							secondaryValue,
+							scalingLevelId: data.divisionId,
+							updatedAt: new Date(),
+						},
+					})
 
-			// Get the final score ID (either new or existing)
-			const [finalScore] = await db
-				.select({ id: scoresTable.id })
-				.from(scoresTable)
-				.where(
-					and(
-						eq(scoresTable.competitionEventId, data.trackWorkoutId),
-						eq(scoresTable.userId, data.userId),
-					),
-				)
-				.limit(1)
+				// Get the final score ID (either new or existing)
+				const [finalScore] = await tx
+					.select({ id: scoresTable.id })
+					.from(scoresTable)
+					.where(
+						and(
+							eq(scoresTable.competitionEventId, data.trackWorkoutId),
+							eq(scoresTable.userId, data.userId),
+						),
+					)
+					.limit(1)
 
-			if (!finalScore) {
-				throw new Error("Failed to retrieve score after upsert")
-			}
+				if (!finalScore) {
+					throw new Error("Failed to retrieve score after upsert")
+				}
 
-			const scoreId = finalScore.id
+				const id = finalScore.id
+
+				// Handle score_rounds - delete existing and insert new
+				if (data.roundScores && data.roundScores.length > 0) {
+					// Delete existing rounds
+					await tx
+						.delete(scoreRoundsTable)
+						.where(eq(scoreRoundsTable.scoreId, id))
+
+					// Convert and insert new rounds
+					const roundsToInsert = data.roundScores.map((round, index) => {
+						let roundValue: number
+
+						if (scheme === "rounds-reps") {
+							const roundsNum =
+								Number.parseInt(round.parts?.[0] ?? round.score, 10) || 0
+							const reps =
+								Number.parseInt(round.parts?.[1] ?? "0", 10) || 0
+							roundValue = roundsNum * 100000 + reps
+						} else if (
+							scheme === "time" ||
+							scheme === "time-with-cap" ||
+							scheme === "emom"
+						) {
+							roundValue = encodeScore(round.score, scheme) ?? 0
+						} else {
+							roundValue = encodeScore(round.score, scheme) ?? 0
+						}
+
+						return {
+							scoreId: id,
+							roundNumber: index + 1,
+							value: roundValue,
+							status: null,
+						}
+					})
+
+					await tx.insert(scoreRoundsTable).values(roundsToInsert)
+				}
+
+				return id
+			})
 
 			// Log score entity creation/update
 			addRequestContextAttribute("scoreId", scoreId)
@@ -1072,48 +1109,7 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 				},
 			})
 
-			// Handle score_rounds - delete existing and insert new
 			if (data.roundScores && data.roundScores.length > 0) {
-				// Delete existing rounds
-				await db
-					.delete(scoreRoundsTable)
-					.where(eq(scoreRoundsTable.scoreId, scoreId))
-
-				// Convert and insert new rounds
-				const roundsToInsert = data.roundScores.map((round, index) => {
-					let roundValue: number
-
-					if (scheme === "rounds-reps") {
-						const roundsNum =
-							Number.parseInt(round.parts?.[0] ?? round.score, 10) || 0
-						const reps = Number.parseInt(round.parts?.[1] ?? "0", 10) || 0
-						roundValue = roundsNum * 100000 + reps
-					} else if (
-						scheme === "time" ||
-						scheme === "time-with-cap" ||
-						scheme === "emom"
-					) {
-						roundValue = encodeScore(round.score, scheme) ?? 0
-					} else {
-						roundValue = encodeScore(round.score, scheme) ?? 0
-					}
-
-					return {
-						scoreId,
-						roundNumber: index + 1,
-						value: roundValue,
-						status: null,
-					}
-				})
-
-				// Batch insert rounds
-				const ROUND_BATCH_SIZE = 10
-				await Promise.all(
-					chunk(roundsToInsert, ROUND_BATCH_SIZE).map((batch) =>
-						db.insert(scoreRoundsTable).values(batch),
-					),
-				)
-
 				logInfo({
 					message: "[Score] Round scores saved",
 					attributes: {
