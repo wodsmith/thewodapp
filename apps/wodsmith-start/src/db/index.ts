@@ -28,24 +28,17 @@ declare namespace Cloudflare {
 // Type for the database instance
 export type Database = MySql2Database<typeof schema>
 
-// Cached drizzle instance. In Workers, module scope is per-isolate,
-// so this avoids creating duplicate pools when getDb() is called
-// multiple times within the same request.
-let _db: Database | null = null
-
 /**
  * Get database connection (server-only)
  *
  * Prefers Hyperdrive binding (deployed Workers) for connection pooling.
  * Falls back to DATABASE_URL (local dev via .dev.vars).
  *
- * Uses mysql2 with disableEval: true (required for Workers runtime).
- * Hyperdrive handles connection pooling externally; we use connectionLimit: 1
- * to avoid redundant client-side pooling.
+ * Creates a fresh pool per call. Workers I/O objects are bound to the
+ * request that created them, so connections cannot be cached across requests.
+ * Hyperdrive handles the real connection pooling externally.
  */
 export const getDb = createServerOnlyFn((): Database => {
-	if (_db) return _db
-
 	const hyperdrive = (env as { HYPERDRIVE?: Hyperdrive }).HYPERDRIVE
 	const connectionString =
 		hyperdrive?.connectionString ??
@@ -63,13 +56,11 @@ export const getDb = createServerOnlyFn((): Database => {
 		connectionLimit: 1,
 	})
 
-	_db = drizzle(pool, {
+	return drizzle(pool, {
 		schema,
 		casing: "snake_case",
 		mode: "planetscale",
 	})
-
-	return _db
 })
 
 // Export env for other modules that need access to bindings (KV, R2, etc.)
