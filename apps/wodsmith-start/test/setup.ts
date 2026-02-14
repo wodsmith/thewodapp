@@ -124,8 +124,6 @@ export const createChainableMock = () => {
     delete: vi.fn().mockResolvedValue({changes: 0}),
     // Other methods
     get: vi.fn().mockResolvedValue(null),
-    // MySQL replacement for .returning() - use onDuplicateKeyUpdate instead
-    onDuplicateKeyUpdate: vi.fn(() => createChainableMock()),
     // Query API (drizzle relational queries)
     query: createQueryMock(),
   }

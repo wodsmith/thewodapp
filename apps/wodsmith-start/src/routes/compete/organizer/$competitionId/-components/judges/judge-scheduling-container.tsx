@@ -33,28 +33,6 @@ import {
 	type JudgeVolunteerInfo,
 } from "@/server-fns/judge-scheduling-fns"
 
-/**
- * Transform raw Drizzle relational query results from getAssignmentsForVersionFn
- * into JudgeHeatAssignment shape expected by UI components.
- * The server fn returns { membership: { user: { firstName, ... } } }
- * but UI expects { volunteer: { firstName, ... } }
- */
-function transformVersionAssignments(
-	// biome-ignore lint/suspicious/noExplicitAny: raw Drizzle relational query result
-	raw: any[],
-): JudgeHeatAssignment[] {
-	return raw.map((a) => ({
-		...a,
-		volunteer: {
-			membershipId: a.membership?.id ?? a.membershipId,
-			userId: a.membership?.userId ?? "",
-			firstName: a.membership?.user?.firstName ?? null,
-			lastName: a.membership?.user?.lastName ?? null,
-			volunteerRoleTypes: [],
-		} as JudgeVolunteerInfo,
-	}))
-}
-
 import { DraggableJudge } from "./draggable-judge"
 import { EventDefaultsEditor } from "./event-defaults-editor"
 import { JudgeHeatCard } from "./judge-heat-card"
