@@ -1,11 +1,11 @@
 /**
- * Utilities for batching SQL queries to avoid SQLite/D1 variable limits
+ * Utilities for batching SQL queries to avoid MySQL/PlanetScale variable limits.
  * Based on: https://github.com/drizzle-team/drizzle-orm/issues/2479#issuecomment-2544001471
  */
 
 /**
- * D1 has a 100 bound parameter limit per query (NOT 999 like standard SQLite).
- * See: https://developers.cloudflare.com/d1/platform/limits/
+ * Batch size limit for query parameters.
+ * Kept at 100 as a safe default for batched operations.
  * For simple ID arrays, each ID = 1 parameter.
  * For inserts, each column value = 1 parameter (including auto-generated columns).
  */
@@ -34,7 +34,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Automatically chunks items for batched queries respecting D1's parameter limit.
+ * Automatically chunks items for batched queries respecting the parameter limit.
  * Calculates actual parameter count based on item structure.
  *
  * @param options.items - Array of items to process (IDs or objects)

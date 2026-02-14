@@ -27,7 +27,7 @@ import { invalidateTeamMembersSessions } from "@/utils/kv-session"
 /**
  * Grant a feature entitlement to a team
  * Inserts into teamFeatureEntitlementTable with source 'override'
- * Uses onConflictDoUpdate to handle duplicates
+ * Uses onDuplicateKeyUpdate to handle duplicates
  */
 export async function grantTeamFeature(
 	teamId: string,
@@ -52,11 +52,7 @@ export async function grantTeamFeature(
 			source: "override",
 			isActive: 1,
 		})
-		.onConflictDoUpdate({
-			target: [
-				teamFeatureEntitlementTable.teamId,
-				teamFeatureEntitlementTable.featureId,
-			],
+		.onDuplicateKeyUpdate({
 			set: {
 				isActive: 1,
 				source: "override",
@@ -106,7 +102,7 @@ export async function revokeTeamFeature(
 /**
  * Set a limit override for a team
  * Inserts into teamEntitlementOverrideTable with type 'limit'
- * Uses onConflictDoUpdate to handle duplicates
+ * Uses onDuplicateKeyUpdate to handle duplicates
  */
 export async function setTeamLimitOverride(
 	teamId: string,
@@ -125,12 +121,7 @@ export async function setTeamLimitOverride(
 			value: String(value),
 			reason,
 		})
-		.onConflictDoUpdate({
-			target: [
-				teamEntitlementOverrideTable.teamId,
-				teamEntitlementOverrideTable.type,
-				teamEntitlementOverrideTable.key,
-			],
+		.onDuplicateKeyUpdate({
 			set: {
 				value: String(value),
 				reason,
@@ -198,18 +189,25 @@ export async function submitOrganizerRequest({
 	}
 
 	// Create the request
-	const [request] = await db
-		.insert(organizerRequestTable)
-		.values({
-			teamId,
-			userId,
-			reason,
-			status: ORGANIZER_REQUEST_STATUS.PENDING,
-		})
-		.returning()
+	const insertResult = await db.insert(organizerRequestTable).values({
+		teamId,
+		userId,
+		reason,
+		status: ORGANIZER_REQUEST_STATUS.PENDING,
+	})
+
+	const requestId = insertResult.insertId
+	if (!requestId) {
+		throw new Error("Failed to create organizer request")
+	}
+
+	// Fetch the inserted record
+	const request = await db.query.organizerRequestTable.findFirst({
+		where: eq(organizerRequestTable.id, requestId),
+	})
 
 	if (!request) {
-		throw new Error("Failed to create organizer request")
+		throw new Error("Failed to retrieve created organizer request")
 	}
 
 	// Grant HOST_COMPETITIONS feature (allows creating private competitions)
@@ -379,7 +377,7 @@ export async function approveOrganizerRequest({
 	}
 
 	// Update the request
-	const [updatedRequest] = await db
+	await db
 		.update(organizerRequestTable)
 		.set({
 			status: ORGANIZER_REQUEST_STATUS.APPROVED,
@@ -388,10 +386,14 @@ export async function approveOrganizerRequest({
 			adminNotes,
 		})
 		.where(eq(organizerRequestTable.id, requestId))
-		.returning()
+
+	// Fetch the updated record
+	const updatedRequest = await db.query.organizerRequestTable.findFirst({
+		where: eq(organizerRequestTable.id, requestId),
+	})
 
 	if (!updatedRequest) {
-		throw new Error("Failed to update organizer request")
+		throw new Error("Failed to retrieve updated organizer request")
 	}
 
 	// Set MAX_PUBLISHED_COMPETITIONS to -1 (unlimited)
@@ -467,7 +469,7 @@ export async function rejectOrganizerRequest({
 	}
 
 	// Update the request
-	const [updatedRequest] = await db
+	await db
 		.update(organizerRequestTable)
 		.set({
 			status: ORGANIZER_REQUEST_STATUS.REJECTED,
@@ -476,10 +478,14 @@ export async function rejectOrganizerRequest({
 			adminNotes,
 		})
 		.where(eq(organizerRequestTable.id, requestId))
-		.returning()
+
+	// Fetch the updated record
+	const updatedRequest = await db.query.organizerRequestTable.findFirst({
+		where: eq(organizerRequestTable.id, requestId),
+	})
 
 	if (!updatedRequest) {
-		throw new Error("Failed to update organizer request")
+		throw new Error("Failed to retrieve updated organizer request")
 	}
 
 	// Optionally revoke the HOST_COMPETITIONS feature

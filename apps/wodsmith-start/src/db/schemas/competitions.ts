@@ -1,12 +1,15 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
 import {
+	boolean,
+	datetime,
 	index,
-	integer,
-	sqliteTable,
+	int,
+	mysqlTable,
 	text,
 	uniqueIndex,
-} from "drizzle-orm/sqlite-core"
+	varchar,
+} from "drizzle-orm/mysql-core"
 import { addressesTable } from "./addresses"
 import {
 	commonColumns,
@@ -24,25 +27,27 @@ import { programmingTracksTable } from "./programming"
 import { scalingLevelsTable } from "./scaling"
 import { teamMembershipTable, teamTable } from "./teams"
 import { userTable } from "./users"
+import {
+	competitionJudgeRotationsTable,
+	judgeHeatAssignmentsTable,
+} from "./volunteers"
 
 // Competition Groups (Series) Table
 // Groups organize multiple competitions into series (e.g., "2026 Throwdowns Series")
-export const competitionGroupsTable = sqliteTable(
+export const competitionGroupsTable = mysqlTable(
 	"competition_groups",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createCompetitionGroupId())
 			.notNull(),
 		// The organizing team (gym) that created this group
-		organizingTeamId: text()
-			.notNull()
-			.references(() => teamTable.id, { onDelete: "cascade" }),
+		organizingTeamId: varchar({ length: 255 }).notNull(),
 		// Slug is unique per organizing team (not globally unique)
-		slug: text({ length: 255 }).notNull(),
-		name: text({ length: 255 }).notNull(),
-		description: text({ length: 1000 }),
+		slug: varchar({ length: 255 }).notNull(),
+		name: varchar({ length: 255 }).notNull(),
+		description: varchar({ length: 1000 }),
 	},
 	(table) => [
 		// Ensure slug is unique per organizing team
@@ -55,79 +60,73 @@ export const competitionGroupsTable = sqliteTable(
 
 // Competitions Table
 // Represents individual competition events
-export const competitionsTable = sqliteTable(
+export const competitionsTable = mysqlTable(
 	"competitions",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createCompetitionId())
 			.notNull(),
 		// The organizing team (gym) that owns/created this competition
-		organizingTeamId: text()
-			.notNull()
-			.references(() => teamTable.id, { onDelete: "cascade" }),
+		organizingTeamId: varchar({ length: 255 }).notNull(),
 		// The competition_event team (auto-created) for athlete management
-		competitionTeamId: text()
-			.notNull()
-			.references(() => teamTable.id, { onDelete: "cascade" }),
+		competitionTeamId: varchar({ length: 255 }).notNull(),
 		// OPTIONAL: Group/series this competition belongs to
-		groupId: text().references(() => competitionGroupsTable.id, {
-			onDelete: "set null",
-		}),
+		groupId: varchar({ length: 255 }),
 		// Slug must be globally unique (used in public URLs like /compete/{slug})
-		slug: text({ length: 255 }).notNull().unique(),
-		name: text({ length: 255 }).notNull(),
-		description: text({ length: 2000 }),
+		slug: varchar({ length: 255 }).notNull().unique(),
+		name: varchar({ length: 255 }).notNull(),
+		description: varchar({ length: 2000 }),
 		// Competition dates (YYYY-MM-DD format for timezone-agnostic storage)
-		startDate: text().notNull(),
-		endDate: text().notNull(),
+		startDate: varchar({ length: 255 }).notNull(),
+		endDate: varchar({ length: 255 }).notNull(),
 		// Registration window (YYYY-MM-DD format)
-		registrationOpensAt: text(),
-		registrationClosesAt: text(),
+		registrationOpensAt: varchar({ length: 255 }),
+		registrationClosesAt: varchar({ length: 255 }),
 		// IANA timezone for competition dates and deadlines (e.g., "America/Denver")
-		timezone: text({ length: 50 }).default("America/Denver"),
+		timezone: varchar({ length: 50 }).default("America/Denver"),
 		// JSON settings (divisions, rules, etc.)
-		settings: text({ length: 10000 }),
+		settings: text(),
 
 		// Commerce: Default registration fee (used if no division-specific fee exists)
 		// $0 = free by default
-		defaultRegistrationFeeCents: integer().default(0),
+		defaultRegistrationFeeCents: int().default(0),
 		// Commerce: Fee configuration (nullable = use platform defaults)
 		// Basis points, null = default 250 (2.5%)
-		platformFeePercentage: integer(),
+		platformFeePercentage: int(),
 		// Cents, null = default 200 ($2.00)
-		platformFeeFixed: integer(),
+		platformFeeFixed: int(),
 		// If true, Stripe fees are passed to customer instead of absorbed by organizer
-		passStripeFeesToCustomer: integer({ mode: "boolean" }).default(false),
+		passStripeFeesToCustomer: boolean().default(false),
 		// If true, platform fees are passed to customer instead of absorbed by organizer
 		// Defaults to true for new competitions
-		passPlatformFeesToCustomer: integer({ mode: "boolean" }).default(true),
+		passPlatformFeesToCustomer: boolean().default(true),
 		// Visibility: public = listed on /compete, private = unlisted but accessible via URL
-		visibility: text({ length: 10 })
+		visibility: varchar({ length: 10 })
 			.$type<"public" | "private">()
 			.default("public")
 			.notNull(),
 		// Status: draft = only visible to organizers, published = visible based on visibility setting
-		status: text({ length: 15 })
+		status: varchar({ length: 15 })
 			.$type<"draft" | "published">()
 			.default("draft")
 			.notNull(),
 		// Competition type: in-person = traditional venue-based, online = virtual/remote with video submissions
-		competitionType: text({ length: 15 })
+		competitionType: varchar({ length: 15 })
 			.$type<"in-person" | "online">()
 			.default("in-person")
 			.notNull(),
 		// Competition branding images
-		profileImageUrl: text({ length: 600 }),
-		bannerImageUrl: text({ length: 600 }),
+		profileImageUrl: varchar({ length: 600 }),
+		bannerImageUrl: varchar({ length: 600 }),
 		// Judge rotation defaults
-		defaultHeatsPerRotation: integer().default(4),
-		defaultLaneShiftPattern: text({ length: 20 }).default("shift_right"),
+		defaultHeatsPerRotation: int().default(4),
+		defaultLaneShiftPattern: varchar({ length: 20 }).default("shift_right"),
 		// Capacity: default max spots per division (null = unlimited)
-		defaultMaxSpotsPerDivision: integer(),
+		defaultMaxSpotsPerDivision: int(),
 		// Primary address for the competition
-		primaryAddressId: text().references(() => addressesTable.id),
+		primaryAddressId: varchar({ length: 255 }),
 	},
 	(table) => [
 		// slug unique index is already created by .unique() on the column
@@ -140,54 +139,44 @@ export const competitionsTable = sqliteTable(
 
 // Competition Registrations Table
 // Tracks athlete registrations for competitions
-export const competitionRegistrationsTable = sqliteTable(
+export const competitionRegistrationsTable = mysqlTable(
 	"competition_registrations",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createCompetitionRegistrationId())
 			.notNull(),
 		// The competition this registration is for
-		eventId: text()
-			.notNull()
-			.references(() => competitionsTable.id, { onDelete: "cascade" }),
+		eventId: varchar({ length: 255 }).notNull(),
 		// The user who registered (captain for team registrations)
-		userId: text()
-			.notNull()
-			.references(() => userTable.id, { onDelete: "cascade" }),
+		userId: varchar({ length: 255 }).notNull(),
 		// The team membership created in the competition_event team
-		teamMemberId: text()
-			.notNull()
-			.references(() => teamMembershipTable.id, { onDelete: "cascade" }),
+		teamMemberId: varchar({ length: 255 }).notNull(),
 		// The division (scaling level) the athlete is competing in
-		divisionId: text().references(() => scalingLevelsTable.id),
+		divisionId: varchar({ length: 255 }),
 		// When the athlete registered
-		registeredAt: integer({ mode: "timestamp" }).notNull(),
+		registeredAt: datetime().notNull(),
 		// Team info (NULL for individual registrations)
-		teamName: text({ length: 255 }),
+		teamName: varchar({ length: 255 }),
 		// Who created the registration (same as userId for individuals)
-		captainUserId: text().references(() => userTable.id, {
-			onDelete: "set null",
-		}),
+		captainUserId: varchar({ length: 255 }),
 		// For team registrations, the athlete team (competition_team type)
 		// NULL for individual registrations (teamSize=1)
-		athleteTeamId: text().references(() => teamTable.id, {
-			onDelete: "set null",
-		}),
+		athleteTeamId: varchar({ length: 255 }),
 		// Pending teammates stored as JSON until they accept
 		// Format: [{ email, firstName?, lastName?, affiliateName? }, ...]
-		pendingTeammates: text({ length: 5000 }), // JSON array
+		pendingTeammates: text(), // JSON array
 		// Metadata as JSON (flexible for future expansion)
-		metadata: text({ length: 10000 }), // JSON: { notes: "..." }
+		metadata: text(), // JSON: { notes: "..." }
 
 		// Commerce: Payment tracking
 		// Reference to commerce_purchase (no FK to avoid circular deps - relation defined separately)
-		commercePurchaseId: text(),
+		commercePurchaseId: varchar({ length: 255 }),
 		// Payment status: FREE | PENDING_PAYMENT | PAID | FAILED
-		paymentStatus: text({ length: 20 }),
+		paymentStatus: varchar({ length: 20 }),
 		// When payment was completed
-		paidAt: integer({ mode: "timestamp" }),
+		paidAt: datetime(),
 	},
 	(table) => [
 		// One user can only register once per competition
@@ -208,24 +197,22 @@ export const competitionRegistrationsTable = sqliteTable(
 
 // Competition Venues Table
 // Floors/areas for heat scheduling (e.g., "Main Floor", "Outside Rig")
-export const competitionVenuesTable = sqliteTable(
+export const competitionVenuesTable = mysqlTable(
 	"competition_venues",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createCompetitionVenueId())
 			.notNull(),
-		competitionId: text()
-			.notNull()
-			.references(() => competitionsTable.id, { onDelete: "cascade" }),
-		name: text({ length: 100 }).notNull(),
-		laneCount: integer().notNull().default(3),
+		competitionId: varchar({ length: 255 }).notNull(),
+		name: varchar({ length: 100 }).notNull(),
+		laneCount: int().notNull().default(3),
 		// Minutes between heats for auto-scheduling
-		transitionMinutes: integer().notNull().default(3),
-		sortOrder: integer().default(0).notNull(),
+		transitionMinutes: int().notNull().default(3),
+		sortOrder: int().default(0).notNull(),
 		// Address for this venue
-		addressId: text().references(() => addressesTable.id),
+		addressId: varchar({ length: 255 }),
 	},
 	(table) => [
 		index("competition_venues_competition_idx").on(table.competitionId),
@@ -238,34 +225,28 @@ export const competitionVenuesTable = sqliteTable(
 
 // Competition Heats Table
 // Heat definitions per workout with time and venue
-export const competitionHeatsTable = sqliteTable(
+export const competitionHeatsTable = mysqlTable(
 	"competition_heats",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createCompetitionHeatId())
 			.notNull(),
-		competitionId: text()
-			.notNull()
-			.references(() => competitionsTable.id, { onDelete: "cascade" }),
+		competitionId: varchar({ length: 255 }).notNull(),
 		// References track_workout (competition event)
-		trackWorkoutId: text().notNull(),
-		venueId: text().references(() => competitionVenuesTable.id, {
-			onDelete: "set null",
-		}),
-		heatNumber: integer().notNull(),
-		scheduledTime: integer({ mode: "timestamp" }),
+		trackWorkoutId: varchar({ length: 255 }).notNull(),
+		venueId: varchar({ length: 255 }),
+		heatNumber: int().notNull(),
+		scheduledTime: datetime(),
 		// Duration of this heat in minutes (workout cap + buffer)
-		durationMinutes: integer(),
+		durationMinutes: int(),
 		// Optional division filter (null = mixed divisions)
-		divisionId: text().references(() => scalingLevelsTable.id, {
-			onDelete: "set null",
-		}),
-		notes: text({ length: 500 }),
+		divisionId: varchar({ length: 255 }),
+		notes: varchar({ length: 500 }),
 		// Per-heat schedule publishing: null = not published, timestamp = when published
 		// Allows individual heat schedules to be made visible to athletes
-		schedulePublishedAt: integer({ mode: "timestamp" }),
+		schedulePublishedAt: datetime(),
 	},
 	(table) => [
 		index("competition_heats_competition_idx").on(table.competitionId),
@@ -280,23 +261,17 @@ export const competitionHeatsTable = sqliteTable(
 
 // Competition Heat Assignments Table
 // Athlete/team lane assignments within heats
-export const competitionHeatAssignmentsTable = sqliteTable(
+export const competitionHeatAssignmentsTable = mysqlTable(
 	"competition_heat_assignments",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createCompetitionHeatAssignmentId())
 			.notNull(),
-		heatId: text()
-			.notNull()
-			.references(() => competitionHeatsTable.id, { onDelete: "cascade" }),
-		registrationId: text()
-			.notNull()
-			.references(() => competitionRegistrationsTable.id, {
-				onDelete: "cascade",
-			}),
-		laneNumber: integer().notNull(),
+		heatId: varchar({ length: 255 }).notNull(),
+		registrationId: varchar({ length: 255 }).notNull(),
+		laneNumber: int().notNull(),
 	},
 	(table) => [
 		index("competition_heat_assignments_heat_idx").on(table.heatId),
@@ -313,31 +288,31 @@ export const competitionHeatAssignmentsTable = sqliteTable(
 
 // Competition Registration Questions Table
 // Defines custom questions organizers can ask during registration
-export const competitionRegistrationQuestionsTable = sqliteTable(
+export const competitionRegistrationQuestionsTable = mysqlTable(
 	"competition_registration_questions",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createCompetitionRegistrationQuestionId())
 			.notNull(),
-		competitionId: text()
-			.notNull()
-			.references(() => competitionsTable.id, { onDelete: "cascade" }),
+		competitionId: varchar({ length: 255 }).notNull(),
 		// Question type: text (free form), select (dropdown), number
-		type: text({ length: 20 }).$type<"text" | "select" | "number">().notNull(),
+		type: varchar({ length: 20 })
+			.$type<"text" | "select" | "number">()
+			.notNull(),
 		// Question label shown to athletes
-		label: text({ length: 500 }).notNull(),
+		label: varchar({ length: 500 }).notNull(),
 		// Optional help text / description
-		helpText: text({ length: 1000 }),
+		helpText: varchar({ length: 1000 }),
 		// For select type: JSON array of options ["S", "M", "L", "XL"]
-		options: text({ length: 5000 }),
+		options: text(),
 		// Is this question required?
-		required: integer({ mode: "boolean" }).default(true).notNull(),
+		required: boolean().default(true).notNull(),
 		// Should teammates also answer this question? (for team divisions)
-		forTeammates: integer({ mode: "boolean" }).default(false).notNull(),
+		forTeammates: boolean().default(false).notNull(),
 		// Sort order for display
-		sortOrder: integer().default(0).notNull(),
+		sortOrder: int().default(0).notNull(),
 	},
 	(table) => [
 		index("comp_reg_questions_competition_idx").on(table.competitionId),
@@ -350,31 +325,21 @@ export const competitionRegistrationQuestionsTable = sqliteTable(
 
 // Competition Registration Answers Table
 // Stores athlete answers to registration questions
-export const competitionRegistrationAnswersTable = sqliteTable(
+export const competitionRegistrationAnswersTable = mysqlTable(
 	"competition_registration_answers",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createCompetitionRegistrationAnswerId())
 			.notNull(),
-		questionId: text()
-			.notNull()
-			.references(() => competitionRegistrationQuestionsTable.id, {
-				onDelete: "cascade",
-			}),
+		questionId: varchar({ length: 255 }).notNull(),
 		// The registration this answer belongs to
-		registrationId: text()
-			.notNull()
-			.references(() => competitionRegistrationsTable.id, {
-				onDelete: "cascade",
-			}),
+		registrationId: varchar({ length: 255 }).notNull(),
 		// The user who answered (useful for team registrations where teammates answer separately)
-		userId: text()
-			.notNull()
-			.references(() => userTable.id, { onDelete: "cascade" }),
+		userId: varchar({ length: 255 }).notNull(),
 		// The answer value (stored as text, converted as needed based on question type)
-		answer: text({ length: 5000 }).notNull(),
+		answer: text().notNull(),
 	},
 	(table) => [
 		index("comp_reg_answers_question_idx").on(table.questionId),
@@ -391,23 +356,21 @@ export const competitionRegistrationAnswersTable = sqliteTable(
 
 // Competition Events Table
 // Per-event settings for online competitions (submission windows, etc.)
-export const competitionEventsTable = sqliteTable(
+export const competitionEventsTable = mysqlTable(
 	"competition_events",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createCompetitionEventId())
 			.notNull(),
-		competitionId: text()
-			.notNull()
-			.references(() => competitionsTable.id, { onDelete: "cascade" }),
+		competitionId: varchar({ length: 255 }).notNull(),
 		// References track_workout (competition event/workout)
-		trackWorkoutId: text().notNull(),
+		trackWorkoutId: varchar({ length: 255 }).notNull(),
 		// Submission window for online competitions (ISO 8601 datetime strings)
 		// Athletes can only submit scores within this window
-		submissionOpensAt: text(),
-		submissionClosesAt: text(),
+		submissionOpensAt: varchar({ length: 255 }),
+		submissionClosesAt: varchar({ length: 255 }),
 	},
 	(table) => [
 		index("competition_events_competition_idx").on(table.competitionId),
@@ -507,6 +470,8 @@ export const competitionsRelations = relations(
 		}),
 		// Per-event settings (submission windows for online competitions)
 		events: many(competitionEventsTable),
+		// Judge rotations (from volunteers system)
+		judgeRotations: many(competitionJudgeRotationsTable),
 	}),
 )
 
@@ -586,7 +551,8 @@ export const competitionHeatsRelations = relations(
 			references: [scalingLevelsTable.id],
 		}),
 		assignments: many(competitionHeatAssignmentsTable),
-		// Note: volunteers relation defined in volunteers.ts to avoid circular dependency
+		// Judge assignments (from volunteers system)
+		judgeAssignments: many(judgeHeatAssignmentsTable),
 	}),
 )
 

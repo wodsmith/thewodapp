@@ -114,25 +114,40 @@ async function reserveNotification(params: {
 }): Promise<boolean> {
 	const db = getDb()
 	try {
-		// Use onConflictDoNothing - if the unique constraint is violated,
-		// the insert silently does nothing and returns no rows
-		const result = await db
-			.insert(submissionWindowNotificationsTable)
-			.values({
-				competitionId: params.competitionId,
-				competitionEventId: params.competitionEventId,
-				registrationId: params.registrationId,
-				userId: params.userId,
-				type: params.type,
-				sentToEmail: params.sentToEmail,
+		// Check if notification already exists (MySQL doesn't have easy "on conflict do nothing")
+		const existing =
+			await db.query.submissionWindowNotificationsTable.findFirst({
+				where: and(
+					eq(
+						submissionWindowNotificationsTable.competitionEventId,
+						params.competitionEventId,
+					),
+					eq(
+						submissionWindowNotificationsTable.registrationId,
+						params.registrationId,
+					),
+					eq(submissionWindowNotificationsTable.type, params.type),
+				),
 			})
-			.onConflictDoNothing()
-			.returning({ id: submissionWindowNotificationsTable.id })
 
-		// If we got a result back, the insert succeeded (notification reserved)
-		return result.length > 0
+		if (existing) {
+			// Already reserved
+			return false
+		}
+
+		// Insert the notification reservation
+		await db.insert(submissionWindowNotificationsTable).values({
+			competitionId: params.competitionId,
+			competitionEventId: params.competitionEventId,
+			registrationId: params.registrationId,
+			userId: params.userId,
+			type: params.type,
+			sentToEmail: params.sentToEmail,
+		})
+
+		return true
 	} catch (err) {
-		// Log unexpected errors but treat as "already reserved"
+		// Handle duplicate key error (race condition) or other errors
 		logError({
 			message: "[Submission Notification] Error reserving notification",
 			error: err,

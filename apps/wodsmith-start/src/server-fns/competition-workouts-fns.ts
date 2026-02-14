@@ -9,7 +9,9 @@ import { and, asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+	createProgrammingTrackId,
 	createTagId,
+	createTrackWorkoutId,
 	createWorkoutScalingDescriptionId,
 } from "@/db/schemas/common"
 import {
@@ -286,14 +288,19 @@ async function findOrCreateTag(tagName: string) {
 	}
 
 	// Create new tag
+	const tagId = createTagId()
+	await db.insert(tags).values({
+		id: tagId,
+		name: tagName,
+		updateCounter: 0,
+	})
+
+	// Fetch the created tag
 	const [newTag] = await db
-		.insert(tags)
-		.values({
-			id: createTagId(),
-			name: tagName,
-			updateCounter: 0,
-		})
-		.returning()
+		.select()
+		.from(tags)
+		.where(eq(tags.id, tagId))
+		.limit(1)
 
 	return newTag
 }
@@ -978,22 +985,17 @@ export const addWorkoutToCompetitionFn = createServerFn({ method: "POST" })
 			(await getNextCompetitionEventOrder(data.competitionId))
 
 		// Add workout to track
-		const [trackWorkout] = await db
-			.insert(trackWorkoutsTable)
-			.values({
-				trackId: track.id,
-				workoutId: data.workoutId,
-				trackOrder,
-				pointsMultiplier: data.pointsMultiplier ?? 100,
-				notes: data.notes,
-			})
-			.returning()
+		const trackWorkoutId = createTrackWorkoutId()
+		await db.insert(trackWorkoutsTable).values({
+			id: trackWorkoutId,
+			trackId: track.id,
+			workoutId: data.workoutId,
+			trackOrder,
+			pointsMultiplier: data.pointsMultiplier ?? 100,
+			notes: data.notes,
+		})
 
-		if (!trackWorkout) {
-			throw new Error("Failed to add workout to competition")
-		}
-
-		return { trackWorkoutId: trackWorkout.id }
+		return { trackWorkoutId }
 	})
 
 /**
@@ -1063,17 +1065,21 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
 			}
 
 			// Create the programming track for this competition
-			const [createdTrack] = await db
-				.insert(programmingTracksTable)
-				.values({
-					name: `${competition.name} - Events`,
-					description: `Competition events for ${competition.name}`,
-					type: PROGRAMMING_TRACK_TYPE.TEAM_OWNED,
-					ownerTeamId: competition.organizingTeamId,
-					competitionId: competition.id,
-					isPublic: 0,
-				})
-				.returning()
+			const createdTrackId = createProgrammingTrackId()
+			await db.insert(programmingTracksTable).values({
+				id: createdTrackId,
+				name: `${competition.name} - Events`,
+				description: `Competition events for ${competition.name}`,
+				type: PROGRAMMING_TRACK_TYPE.TEAM_OWNED,
+				ownerTeamId: competition.organizingTeamId,
+				competitionId: competition.id,
+				isPublic: 0,
+			})
+
+			// Fetch the created track
+			const createdTrack = await db.query.programmingTracksTable.findFirst({
+				where: eq(programmingTracksTable.id, createdTrackId),
+			})
 
 			if (!createdTrack) {
 				throw new Error("Failed to create programming track for competition")
@@ -1086,27 +1092,22 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
 		const nextOrder = await getNextCompetitionEventOrder(data.competitionId)
 
 		// Create the workout
-		const [workout] = await db
-			.insert(workouts)
-			.values({
-				id: `workout_${createId()}`,
-				name: data.name,
-				scheme: data.scheme as (typeof workouts.$inferInsert)["scheme"],
-				scoreType:
-					data.scoreType as (typeof workouts.$inferInsert)["scoreType"],
-				description: data.description ?? "",
-				teamId: data.teamId,
-				scope: "private", // Competition workouts are private to the organizing team
-				roundsToScore: data.roundsToScore ?? null,
-				repsPerRound: data.repsPerRound ?? null,
-				tiebreakScheme: data.tiebreakScheme ?? null,
-				sourceWorkoutId: data.sourceWorkoutId ?? null, // For remixes
-			})
-			.returning({ id: workouts.id })
+		const workoutId = `workout_${createId()}`
+		await db.insert(workouts).values({
+			id: workoutId,
+			name: data.name,
+			scheme: data.scheme as (typeof workouts.$inferInsert)["scheme"],
+			scoreType: data.scoreType as (typeof workouts.$inferInsert)["scoreType"],
+			description: data.description ?? "",
+			teamId: data.teamId,
+			scope: "private", // Competition workouts are private to the organizing team
+			roundsToScore: data.roundsToScore ?? null,
+			repsPerRound: data.repsPerRound ?? null,
+			tiebreakScheme: data.tiebreakScheme ?? null,
+			sourceWorkoutId: data.sourceWorkoutId ?? null, // For remixes
+		})
 
-		if (!workout) {
-			throw new Error("Failed to create workout")
-		}
+		const workout = { id: workoutId }
 
 		// Handle tags - create new ones from names and use existing IDs
 		const finalTagIds: string[] = []
@@ -1150,23 +1151,18 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
 		}
 
 		// Add to competition track
-		const [trackWorkout] = await db
-			.insert(trackWorkoutsTable)
-			.values({
-				trackId: track.id,
-				workoutId: workout.id,
-				trackOrder: nextOrder,
-				pointsMultiplier: 100,
-			})
-			.returning({ id: trackWorkoutsTable.id })
-
-		if (!trackWorkout) {
-			throw new Error("Failed to add workout to competition")
-		}
+		const trackWorkoutId = createTrackWorkoutId()
+		await db.insert(trackWorkoutsTable).values({
+			id: trackWorkoutId,
+			trackId: track.id,
+			workoutId: workout.id,
+			trackOrder: nextOrder,
+			pointsMultiplier: 100,
+		})
 
 		return {
 			workoutId: workout.id,
-			trackWorkoutId: trackWorkout.id,
+			trackWorkoutId,
 		}
 	})
 
@@ -1290,7 +1286,7 @@ export const saveCompetitionEventFn = createServerFn({ method: "POST" })
 				}))
 
 				// workoutMovements has 6 columns (commonColumns + id, workoutId, movementId)
-				// D1 limit: 100 params, so max rows per batch = floor(100/6) = 16
+				// Batch limit: 100 params, so max rows per batch = floor(100/6) = 16
 				const movementBatches = chunk(movementValues, 16)
 				for (const batch of movementBatches) {
 					await db.insert(workoutMovements).values(batch)
@@ -1359,26 +1355,38 @@ export const saveCompetitionEventFn = createServerFn({ method: "POST" })
 			}
 
 			// Upsert descriptions that have values
-			// Using individual upserts since D1 doesn't support batch upsert well
+			// Manual upsert pattern for MySQL compatibility
 			for (const { divisionId, description } of toUpsert) {
-				await db
-					.insert(workoutScalingDescriptionsTable)
-					.values({
+				// Check if record exists
+				const existing = await db
+					.select({ id: workoutScalingDescriptionsTable.id })
+					.from(workoutScalingDescriptionsTable)
+					.where(
+						and(
+							eq(workoutScalingDescriptionsTable.workoutId, data.workoutId),
+							eq(workoutScalingDescriptionsTable.scalingLevelId, divisionId),
+						),
+					)
+					.limit(1)
+
+				if (existing.length > 0) {
+					// Update existing
+					await db
+						.update(workoutScalingDescriptionsTable)
+						.set({
+							description,
+							updatedAt: new Date(),
+						})
+						.where(eq(workoutScalingDescriptionsTable.id, existing[0]!.id))
+				} else {
+					// Insert new
+					await db.insert(workoutScalingDescriptionsTable).values({
 						id: createWorkoutScalingDescriptionId(),
 						workoutId: data.workoutId,
 						scalingLevelId: divisionId,
 						description,
 					})
-					.onConflictDoUpdate({
-						target: [
-							workoutScalingDescriptionsTable.workoutId,
-							workoutScalingDescriptionsTable.scalingLevelId,
-						],
-						set: {
-							description,
-							updatedAt: new Date(),
-						},
-					})
+				}
 			}
 		}
 

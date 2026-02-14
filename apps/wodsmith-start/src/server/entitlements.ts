@@ -21,6 +21,7 @@ import {
 	teamLimitEntitlementTable,
 	teamTable,
 } from "@/db/schema"
+import { createEntitlementId } from "@/db/schemas/common"
 
 export type { Entitlement }
 
@@ -266,18 +267,21 @@ export async function createEntitlement({
 }): Promise<Entitlement> {
 	const db = getDb()
 
-	const [entitlement] = await db
-		.insert(entitlementTable)
-		.values({
-			userId,
-			teamId,
-			entitlementTypeId,
-			sourceType,
-			sourceId,
-			metadata,
-			expiresAt,
-		})
-		.returning()
+	const entitlementId = createEntitlementId()
+	await db.insert(entitlementTable).values({
+		id: entitlementId,
+		userId,
+		teamId,
+		entitlementTypeId,
+		sourceType,
+		sourceId,
+		metadata,
+		expiresAt,
+	})
+
+	const entitlement = await db.query.entitlementTable.findFirst({
+		where: eq(entitlementTable.id, entitlementId),
+	})
 
 	if (!entitlement) {
 		throw new Error("Failed to create entitlement")

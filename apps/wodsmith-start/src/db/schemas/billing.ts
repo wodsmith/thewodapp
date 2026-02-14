@@ -1,6 +1,12 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import {
+	index,
+	int,
+	mysqlTable,
+	varchar,
+	datetime,
+} from "drizzle-orm/mysql-core"
 import {
 	commonColumns,
 	createCreditTransactionId,
@@ -19,33 +25,32 @@ export const creditTransactionTypeTuple = Object.values(
 	CREDIT_TRANSACTION_TYPE,
 ) as [string, ...string[]]
 
-export const creditTransactionTable = sqliteTable(
-	"credit_transaction",
+export const creditTransactionTable = mysqlTable(
+	"credit_transactions",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({
+			length: 255,
+		})
 			.primaryKey()
 			.$defaultFn(() => createCreditTransactionId())
 			.notNull(),
-		userId: text()
-			.notNull()
-			.references(() => userTable.id),
-		amount: integer().notNull(),
-		// Track how many credits are still available from this transaction
-		remainingAmount: integer().default(0).notNull(),
-		type: text({
-			enum: creditTransactionTypeTuple,
-		}).notNull(),
-		description: text({
+		userId: varchar({
 			length: 255,
 		}).notNull(),
-		expirationDate: integer({
-			mode: "timestamp",
-		}),
-		expirationDateProcessedAt: integer({
-			mode: "timestamp",
-		}),
-		paymentIntentId: text({
+		amount: int().notNull(),
+		// Track how many credits are still available from this transaction
+		remainingAmount: int().default(0).notNull(),
+		type: varchar({
+			length: 255,
+			enum: creditTransactionTypeTuple,
+		}).notNull(),
+		description: varchar({
+			length: 255,
+		}).notNull(),
+		expirationDate: datetime(),
+		expirationDateProcessedAt: datetime(),
+		paymentIntentId: varchar({
 			length: 255,
 		}),
 	},
@@ -68,26 +73,29 @@ export const purchasableItemTypeTuple = Object.values(
 	PURCHASABLE_ITEM_TYPE,
 ) as [string, ...string[]]
 
-export const purchasedItemsTable = sqliteTable(
-	"purchased_item",
+export const purchasedItemsTable = mysqlTable(
+	"purchased_items",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({
+			length: 255,
+		})
 			.primaryKey()
 			.$defaultFn(() => createPurchasedItemId())
 			.notNull(),
-		userId: text()
-			.notNull()
-			.references(() => userTable.id),
+		userId: varchar({
+			length: 255,
+		}).notNull(),
 		// The type of item (e.g., COMPONENT, TEMPLATE, etc.)
-		itemType: text({
+		itemType: varchar({
+			length: 255,
 			enum: purchasableItemTypeTuple,
 		}).notNull(),
 		// The ID of the item within its type (e.g., componentId)
-		itemId: text().notNull(),
-		purchasedAt: integer({
-			mode: "timestamp",
-		})
+		itemId: varchar({
+			length: 255,
+		}).notNull(),
+		purchasedAt: datetime()
 			.$defaultFn(() => new Date())
 			.notNull(),
 	},

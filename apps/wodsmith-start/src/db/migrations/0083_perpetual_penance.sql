@@ -1,1 +1,0 @@
-ALTER TABLE `team_invitation` ADD `status` text(20) DEFAULT 'pending' NOT NULL;

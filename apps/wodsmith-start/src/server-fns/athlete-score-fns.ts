@@ -535,8 +535,7 @@ export const submitAthleteScoreFn = createServerFn({ method: "POST" })
 					asRx: true,
 					recordedAt: new Date(),
 				})
-				.onConflictDoUpdate({
-					target: [scoresTable.competitionEventId, scoresTable.userId],
+				.onDuplicateKeyUpdate({
 					set: {
 						scoreValue: encodedValue,
 						status: data.status,

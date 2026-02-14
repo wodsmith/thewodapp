@@ -138,10 +138,8 @@ describe('Volunteer Shift Server Functions', () => {
         const mockCompetition = createMockCompetition()
         const createdShift = createMockShift()
 
-        // Mock competition lookup
-        mockDb.setMockSingleValue(mockCompetition)
-        // Mock insert return
-        mockDb.setMockReturnValue([createdShift])
+        // Queue: 1st findFirst returns competition, 2nd returns created shift
+        mockDb.queueMockSingleValues([mockCompetition, createdShift])
 
         const result = await createShiftFn({
           data: {
@@ -163,12 +161,16 @@ describe('Volunteer Shift Server Functions', () => {
 
       it('should create a shift with optional fields', async () => {
         const mockCompetition = createMockCompetition()
-        const createdShift = createMockShift({
-          name: 'Medical Station',
-        })
+        const createdShift = {
+          ...createMockShift({
+            name: 'Medical Station',
+          }),
+          location: 'Gym Floor',
+          notes: 'Bring first aid kit',
+        }
 
-        mockDb.setMockSingleValue(mockCompetition)
-        mockDb.setMockReturnValue([{...createdShift, location: 'Gym Floor', notes: 'Bring first aid kit'}])
+        // Queue: 1st findFirst returns competition, 2nd returns created shift
+        mockDb.queueMockSingleValues([mockCompetition, createdShift])
 
         const result = await createShiftFn({
           data: {
@@ -193,9 +195,9 @@ describe('Volunteer Shift Server Functions', () => {
         const mockCompetition = createMockCompetition()
 
         for (const roleType of roleTypes) {
-          mockDb.setMockSingleValue(mockCompetition)
           const createdShift = createMockShift({roleType})
-          mockDb.setMockReturnValue([createdShift])
+          // Queue: 1st findFirst returns competition, 2nd returns created shift
+          mockDb.queueMockSingleValues([mockCompetition, createdShift])
 
           const result = await createShiftFn({
             data: {
@@ -276,16 +278,17 @@ describe('Volunteer Shift Server Functions', () => {
     describe('successful operations', () => {
       it('should assign a volunteer to a shift', async () => {
         const mockShift = createMockShift({capacity: 3})
+        const mockCompetition = createMockCompetition()
+        const mockMembership = {id: 'tmem_volunteer123', userId: 'user-123', teamId: 'team-org-123'}
         const createdAssignment = createMockShiftAssignment()
 
-        // First query: get shift with assignments
-        mockDb.setMockSingleValue({
-          ...mockShift,
-          assignments: [], // No existing assignments
-        })
-
-        // Mock membership lookup and insert
-        mockDb.setMockReturnValue([createdAssignment])
+        // Queue: 1st=shift, 2nd=competition (auth), 3rd=membership, 4th=created assignment
+        mockDb.queueMockSingleValues([
+          {...mockShift, assignments: []},
+          mockCompetition,
+          mockMembership,
+          createdAssignment,
+        ])
 
         const result = await assignVolunteerToShiftFn({
           data: {
@@ -301,16 +304,20 @@ describe('Volunteer Shift Server Functions', () => {
 
       it('should assign with optional notes', async () => {
         const mockShift = createMockShift({capacity: 3})
+        const mockCompetition = createMockCompetition()
+        const mockMembership = {id: 'tmem_volunteer123', userId: 'user-123', teamId: 'team-org-123'}
         const createdAssignment = {
           ...createMockShiftAssignment(),
           notes: 'Experienced volunteer',
         }
 
-        mockDb.setMockSingleValue({
-          ...mockShift,
-          assignments: [],
-        })
-        mockDb.setMockReturnValue([createdAssignment])
+        // Queue: 1st=shift, 2nd=competition (auth), 3rd=membership, 4th=created assignment
+        mockDb.queueMockSingleValues([
+          {...mockShift, assignments: []},
+          mockCompetition,
+          mockMembership,
+          createdAssignment,
+        ])
 
         const result = await assignVolunteerToShiftFn({
           data: {
@@ -429,13 +436,14 @@ describe('Volunteer Shift Server Functions', () => {
 
       it('should reject when assignment not found', async () => {
         const mockShift = createMockShift()
+        const mockCompetition = createMockCompetition()
 
-        mockDb.setMockSingleValue({
-          ...mockShift,
-          assignments: [],
-        })
-        // Mock delete returning empty (no rows deleted)
-        mockDb.setMockReturnValue([])
+        // Queue: 1st=shift (auth check), 2nd=competition (auth check), 3rd=null (no assignment found)
+        mockDb.queueMockSingleValues([
+          {...mockShift, assignments: []},
+          mockCompetition,
+          null, // No assignment found
+        ])
 
         await expect(
           unassignVolunteerFromShiftFn({
@@ -615,10 +623,11 @@ describe('Volunteer Shift Server Functions', () => {
   describe('updateShiftFn', () => {
     it('should update shift name', async () => {
       const mockShift = createMockShift()
+      const mockCompetition = createMockCompetition()
       const updatedShift = {...mockShift, name: 'Updated Name'}
 
-      mockDb.setMockSingleValue(mockShift)
-      mockDb.setMockReturnValue([updatedShift])
+      // Queue: 1st findFirst returns existing shift, 2nd returns competition, 3rd returns updated shift
+      mockDb.queueMockSingleValues([mockShift, mockCompetition, updatedShift])
 
       const result = await updateShiftFn({
         data: {
@@ -633,12 +642,13 @@ describe('Volunteer Shift Server Functions', () => {
 
     it('should update shift times', async () => {
       const mockShift = createMockShift()
+      const mockCompetition = createMockCompetition()
       const newStartTime = new Date('2025-01-15T09:00:00Z')
       const newEndTime = new Date('2025-01-15T13:00:00Z')
       const updatedShift = {...mockShift, startTime: newStartTime, endTime: newEndTime}
 
-      mockDb.setMockSingleValue(mockShift)
-      mockDb.setMockReturnValue([updatedShift])
+      // Queue: 1st findFirst returns existing shift, 2nd returns competition, 3rd returns updated shift
+      mockDb.queueMockSingleValues([mockShift, mockCompetition, updatedShift])
 
       const result = await updateShiftFn({
         data: {

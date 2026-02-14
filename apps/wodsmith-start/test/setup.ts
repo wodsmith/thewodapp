@@ -116,7 +116,7 @@ export const createChainableMock = () => {
     insert: vi.fn(() => createChainableMock()),
     values: vi.fn(() => createChainableMock()),
     returning: vi.fn().mockResolvedValue([{id: 'test_id', name: 'Test'}]),
-    onConflictDoUpdate: vi.fn(() => createChainableMock()),
+    onDuplicateKeyUpdate: vi.fn(() => createChainableMock()),
     // Update chain
     update: vi.fn(() => createChainableMock()),
     set: vi.fn(() => createChainableMock()),
@@ -124,8 +124,6 @@ export const createChainableMock = () => {
     delete: vi.fn().mockResolvedValue({changes: 0}),
     // Other methods
     get: vi.fn().mockResolvedValue(null),
-    // MySQL replacement for .returning() - use onDuplicateKeyUpdate instead
-    onDuplicateKeyUpdate: vi.fn(() => createChainableMock()),
     // Query API (drizzle relational queries)
     query: createQueryMock(),
   }

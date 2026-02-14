@@ -13,14 +13,10 @@ import {
 import {ORGANIZER_REQUEST_STATUS, type OrganizerRequest} from '@/db/schema'
 import {FEATURES} from '@/config/features'
 import {LIMITS} from '@/config/limits'
-import {FakeDrizzleDb} from '@repo/test-utils'
-import {getDb} from '@/db'
 
 // Mock the database
-const mockDb = new FakeDrizzleDb()
-
 vi.mock('@/db', () => ({
-  getDb: vi.fn(() => mockDb),
+  getDb: vi.fn(),
 }))
 
 // Mock the email module
@@ -34,12 +30,9 @@ vi.mock('@/utils/kv-session', () => ({
   invalidateTeamMembersSessions: vi.fn().mockResolvedValue(undefined),
 }))
 
-// Mock the logging module
-vi.mock('@/lib/logging/posthog-otel-logger', () => ({
-  logInfo: vi.fn(),
-}))
-
 import {invalidateTeamMembersSessions} from '@/utils/kv-session'
+
+import {getDb} from '@/db'
 
 describe('Organizer Onboarding', () => {
   const mockTeamId = 'team-123'
@@ -67,13 +60,6 @@ describe('Organizer Onboarding', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockDb.reset()
-    mockDb.registerTable('organizerRequestTable')
-    mockDb.registerTable('teamFeatureEntitlementTable')
-    mockDb.registerTable('teamEntitlementOverrideTable')
-    mockDb.registerTable('featureTable')
-    mockDb.registerTable('userTable')
-    mockDb.registerTable('teamTable')
   })
 
   afterEach(() => {
@@ -83,20 +69,34 @@ describe('Organizer Onboarding', () => {
   describe('submitOrganizerRequest', () => {
     it('should create a new organizer request', async () => {
       const mockRequest = createMockRequest()
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce(null) // No pending request
+              .mockResolvedValueOnce(null) // No approved request
+              .mockResolvedValueOnce(mockRequest), // Fetch created request
+          },
+          featureTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              id: 'feature-123',
+              key: FEATURES.HOST_COMPETITIONS,
+            }),
+          },
+        },
+        insert: vi.fn().mockReturnValue({
+          values: vi.fn().mockImplementation(() => {
+            const result = Promise.resolve({insertId: mockRequestId})
+            ;(result as any).onDuplicateKeyUpdate = vi
+              .fn()
+              .mockResolvedValue(undefined)
+            return result
+          }),
+        }),
+      }
 
-      // Check for pending request (none)
-      // Check for approved request (none)
-      mockDb.query.organizerRequestTable.findFirst
-        .mockResolvedValueOnce(null)  // No pending
-        .mockResolvedValueOnce(null)  // No approved
-
-      mockDb.query.featureTable.findFirst.mockResolvedValue({
-        id: 'feature-123',
-        key: FEATURES.HOST_COMPETITIONS,
-      })
-
-      // insert().values().returning() returns [mockRequest]
-      mockDb.getChainMock().returning.mockResolvedValueOnce([mockRequest])
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       const result = await submitOrganizerRequest({
         teamId: mockTeamId,
@@ -113,8 +113,15 @@ describe('Organizer Onboarding', () => {
       const existingRequest = createMockRequest({
         status: ORGANIZER_REQUEST_STATUS.PENDING,
       })
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi.fn().mockResolvedValue(existingRequest),
+          },
+        },
+      }
 
-      mockDb.query.organizerRequestTable.findFirst.mockResolvedValue(existingRequest)
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       await expect(
         submitOrganizerRequest({
@@ -128,11 +135,20 @@ describe('Organizer Onboarding', () => {
     })
 
     it('should throw error if team is already approved', async () => {
-      mockDb.query.organizerRequestTable.findFirst
-        .mockResolvedValueOnce(null) // No pending request
-        .mockResolvedValueOnce(
-          createMockRequest({status: ORGANIZER_REQUEST_STATUS.APPROVED}),
-        ) // But approved exists
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce(null) // No pending request
+              .mockResolvedValueOnce(
+                createMockRequest({status: ORGANIZER_REQUEST_STATUS.APPROVED}),
+              ), // But approved exists
+          },
+        },
+      }
+
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       await expect(
         submitOrganizerRequest({
@@ -144,9 +160,19 @@ describe('Organizer Onboarding', () => {
     })
 
     it('should throw error if request creation fails', async () => {
-      mockDb.query.organizerRequestTable.findFirst.mockResolvedValue(null)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi.fn().mockResolvedValue(null),
+          },
+        },
+        insert: vi.fn().mockReturnValue({
+          values: vi.fn().mockResolvedValue({insertId: null}), // null insertId = failed insert
+        }),
+      }
 
-      // .returning() returns [] by default, which causes the throw
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
+
       await expect(
         submitOrganizerRequest({
           teamId: mockTeamId,
@@ -169,23 +195,41 @@ describe('Organizer Onboarding', () => {
         adminNotes: 'Good application',
       })
 
-      // First call: get request to approve
-      mockDb.query.organizerRequestTable.findFirst
-        .mockResolvedValueOnce(pendingRequest)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce(pendingRequest) // Get request
+              .mockResolvedValueOnce(approvedRequest), // Fetch updated request
+          },
+          userTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              firstName: 'Test',
+              lastName: 'User',
+              email: 'test@example.com',
+            }),
+          },
+          teamTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              name: 'Test Team',
+              slug: 'test-team',
+            }),
+          },
+        },
+        update: vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue(undefined),
+          }),
+        }),
+        insert: vi.fn().mockReturnValue({
+          values: vi.fn().mockReturnValue({
+            onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
+          }),
+        }),
+      }
 
-      // update().set().where().returning() returns [approvedRequest]
-      mockDb.getChainMock().returning.mockResolvedValueOnce([approvedRequest])
-
-      mockDb.query.userTable.findFirst.mockResolvedValue({
-        firstName: 'Test',
-        lastName: 'User',
-        email: 'test@example.com',
-      })
-
-      mockDb.query.teamTable.findFirst.mockResolvedValue({
-        name: 'Test Team',
-        slug: 'test-team',
-      })
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       const result = await approveOrganizerRequest({
         requestId: mockRequestId,
@@ -199,7 +243,15 @@ describe('Organizer Onboarding', () => {
     })
 
     it('should throw error if request not found', async () => {
-      mockDb.query.organizerRequestTable.findFirst.mockResolvedValue(null)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi.fn().mockResolvedValue(null),
+          },
+        },
+      }
+
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       await expect(
         approveOrganizerRequest({
@@ -214,7 +266,15 @@ describe('Organizer Onboarding', () => {
         status: ORGANIZER_REQUEST_STATUS.APPROVED,
       })
 
-      mockDb.query.organizerRequestTable.findFirst.mockResolvedValue(approvedRequest)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi.fn().mockResolvedValue(approvedRequest),
+          },
+        },
+      }
+
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       await expect(
         approveOrganizerRequest({
@@ -229,7 +289,15 @@ describe('Organizer Onboarding', () => {
         status: ORGANIZER_REQUEST_STATUS.REJECTED,
       })
 
-      mockDb.query.organizerRequestTable.findFirst.mockResolvedValue(rejectedRequest)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi.fn().mockResolvedValue(rejectedRequest),
+          },
+        },
+      }
+
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       await expect(
         approveOrganizerRequest({
@@ -244,18 +312,30 @@ describe('Organizer Onboarding', () => {
         status: ORGANIZER_REQUEST_STATUS.PENDING,
       })
 
-      // First call: get request
-      mockDb.query.organizerRequestTable.findFirst
-        .mockResolvedValueOnce(pendingRequest)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce(pendingRequest) // Get request
+              .mockResolvedValueOnce(null), // Fetch updated request returns null
+          },
+        },
+        update: vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue(undefined),
+          }),
+        }),
+      }
 
-      // .returning() returns [] by default → throws "Failed to update organizer request"
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       await expect(
         approveOrganizerRequest({
           requestId: mockRequestId,
           adminUserId: mockAdminUserId,
         }),
-      ).rejects.toThrow('Failed to update organizer request')
+      ).rejects.toThrow('Failed to retrieve updated organizer request')
     })
   })
 
@@ -271,22 +351,35 @@ describe('Organizer Onboarding', () => {
         adminNotes: 'Not ready',
       })
 
-      // First call: get request to reject
-      mockDb.query.organizerRequestTable.findFirst
-        .mockResolvedValueOnce(pendingRequest)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce(pendingRequest) // Get request
+              .mockResolvedValueOnce(rejectedRequest), // Fetch updated request
+          },
+          userTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              firstName: 'Test',
+              lastName: 'User',
+              email: 'test@example.com',
+            }),
+          },
+          teamTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              name: 'Test Team',
+            }),
+          },
+        },
+        update: vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue(undefined),
+          }),
+        }),
+      }
 
-      // update().set().where().returning() returns [rejectedRequest]
-      mockDb.getChainMock().returning.mockResolvedValueOnce([rejectedRequest])
-
-      mockDb.query.userTable.findFirst.mockResolvedValue({
-        firstName: 'Test',
-        lastName: 'User',
-        email: 'test@example.com',
-      })
-
-      mockDb.query.teamTable.findFirst.mockResolvedValue({
-        name: 'Test Team',
-      })
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       const result = await rejectOrganizerRequest({
         requestId: mockRequestId,
@@ -309,26 +402,41 @@ describe('Organizer Onboarding', () => {
         reviewedAt: new Date(),
       })
 
-      mockDb.query.organizerRequestTable.findFirst
-        .mockResolvedValueOnce(pendingRequest)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce(pendingRequest) // Get request
+              .mockResolvedValueOnce(rejectedRequest), // Fetch updated request
+          },
+          userTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              firstName: 'Test',
+              lastName: 'User',
+              email: 'test@example.com',
+            }),
+          },
+          teamTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              name: 'Test Team',
+            }),
+          },
+          featureTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              id: 'feature-123',
+              key: FEATURES.HOST_COMPETITIONS,
+            }),
+          },
+        },
+        update: vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue(undefined),
+          }),
+        }),
+      }
 
-      // update().set().where().returning() returns [rejectedRequest]
-      mockDb.getChainMock().returning.mockResolvedValueOnce([rejectedRequest])
-
-      mockDb.query.userTable.findFirst.mockResolvedValue({
-        firstName: 'Test',
-        lastName: 'User',
-        email: 'test@example.com',
-      })
-
-      mockDb.query.teamTable.findFirst.mockResolvedValue({
-        name: 'Test Team',
-      })
-
-      mockDb.query.featureTable.findFirst.mockResolvedValue({
-        id: 'feature-123',
-        key: FEATURES.HOST_COMPETITIONS,
-      })
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       const result = await rejectOrganizerRequest({
         requestId: mockRequestId,
@@ -341,7 +449,15 @@ describe('Organizer Onboarding', () => {
     })
 
     it('should throw error if request not found', async () => {
-      mockDb.query.organizerRequestTable.findFirst.mockResolvedValue(null)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi.fn().mockResolvedValue(null),
+          },
+        },
+      }
+
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       await expect(
         rejectOrganizerRequest({
@@ -356,7 +472,15 @@ describe('Organizer Onboarding', () => {
         status: ORGANIZER_REQUEST_STATUS.APPROVED,
       })
 
-      mockDb.query.organizerRequestTable.findFirst.mockResolvedValue(approvedRequest)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi.fn().mockResolvedValue(approvedRequest),
+          },
+        },
+      }
+
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       await expect(
         rejectOrganizerRequest({
@@ -372,17 +496,30 @@ describe('Organizer Onboarding', () => {
         status: ORGANIZER_REQUEST_STATUS.PENDING,
       })
 
-      mockDb.query.organizerRequestTable.findFirst
-        .mockResolvedValueOnce(pendingRequest)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce(pendingRequest) // Get request
+              .mockResolvedValueOnce(null), // Fetch updated request returns null
+          },
+        },
+        update: vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue(undefined),
+          }),
+        }),
+      }
 
-      // .returning() returns [] by default → throws "Failed to update organizer request"
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       await expect(
         rejectOrganizerRequest({
           requestId: mockRequestId,
           adminUserId: mockAdminUserId,
         }),
-      ).rejects.toThrow('Failed to update organizer request')
+      ).rejects.toThrow('Failed to retrieve updated organizer request')
     })
   })
 
@@ -392,7 +529,15 @@ describe('Organizer Onboarding', () => {
         status: ORGANIZER_REQUEST_STATUS.APPROVED,
       })
 
-      mockDb.query.organizerRequestTable.findFirst.mockResolvedValue(approvedRequest)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi.fn().mockResolvedValue(approvedRequest),
+          },
+        },
+      }
+
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       const result = await isApprovedOrganizer(mockTeamId)
 
@@ -400,7 +545,15 @@ describe('Organizer Onboarding', () => {
     })
 
     it('should return false if team has no approved request', async () => {
-      mockDb.query.organizerRequestTable.findFirst.mockResolvedValue(null)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi.fn().mockResolvedValue(null),
+          },
+        },
+      }
+
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       const result = await isApprovedOrganizer(mockTeamId)
 
@@ -408,7 +561,15 @@ describe('Organizer Onboarding', () => {
     })
 
     it('should return false if team has pending request instead', async () => {
-      mockDb.query.organizerRequestTable.findFirst.mockResolvedValue(null)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi.fn().mockResolvedValue(null), // findFirst with approved status returns null
+          },
+        },
+      }
+
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       const result = await isApprovedOrganizer(mockTeamId)
 
@@ -416,7 +577,15 @@ describe('Organizer Onboarding', () => {
     })
 
     it('should return false if team has rejected request', async () => {
-      mockDb.query.organizerRequestTable.findFirst.mockResolvedValue(null)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi.fn().mockResolvedValue(null),
+          },
+        },
+      }
+
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       const result = await isApprovedOrganizer(mockTeamId)
 
@@ -430,7 +599,15 @@ describe('Organizer Onboarding', () => {
         status: ORGANIZER_REQUEST_STATUS.PENDING,
       })
 
-      mockDb.query.organizerRequestTable.findFirst.mockResolvedValue(pendingRequest)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi.fn().mockResolvedValue(pendingRequest),
+          },
+        },
+      }
+
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       const result = await hasPendingOrganizerRequest(mockTeamId)
 
@@ -438,7 +615,15 @@ describe('Organizer Onboarding', () => {
     })
 
     it('should return false if team has no pending request', async () => {
-      mockDb.query.organizerRequestTable.findFirst.mockResolvedValue(null)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi.fn().mockResolvedValue(null),
+          },
+        },
+      }
+
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       const result = await hasPendingOrganizerRequest(mockTeamId)
 
@@ -446,7 +631,15 @@ describe('Organizer Onboarding', () => {
     })
 
     it('should return false if team has approved request instead', async () => {
-      mockDb.query.organizerRequestTable.findFirst.mockResolvedValue(null)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi.fn().mockResolvedValue(null), // findFirst with pending status returns null
+          },
+        },
+      }
+
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       const result = await hasPendingOrganizerRequest(mockTeamId)
 
@@ -454,7 +647,15 @@ describe('Organizer Onboarding', () => {
     })
 
     it('should return false if team has rejected request', async () => {
-      mockDb.query.organizerRequestTable.findFirst.mockResolvedValue(null)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi.fn().mockResolvedValue(null),
+          },
+        },
+      }
+
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       const result = await hasPendingOrganizerRequest(mockTeamId)
 
@@ -466,7 +667,15 @@ describe('Organizer Onboarding', () => {
     it('should return the most recent organizer request for a team', async () => {
       const mockRequest = createMockRequest()
 
-      mockDb.query.organizerRequestTable.findFirst.mockResolvedValue(mockRequest)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi.fn().mockResolvedValue(mockRequest),
+          },
+        },
+      }
+
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       const result = await getOrganizerRequest(mockTeamId)
 
@@ -474,7 +683,15 @@ describe('Organizer Onboarding', () => {
     })
 
     it('should return null if no request exists for team', async () => {
-      mockDb.query.organizerRequestTable.findFirst.mockResolvedValue(null)
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi.fn().mockResolvedValue(null),
+          },
+        },
+      }
+
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       const result = await getOrganizerRequest(mockTeamId)
 
@@ -483,8 +700,15 @@ describe('Organizer Onboarding', () => {
 
     it('should query by descending createdAt to get most recent', async () => {
       const mockRequest = createMockRequest()
+      const mockDb = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi.fn().mockResolvedValue(mockRequest),
+          },
+        },
+      }
 
-      mockDb.query.organizerRequestTable.findFirst.mockResolvedValue(mockRequest)
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
 
       await getOrganizerRequest(mockTeamId)
 
@@ -505,17 +729,34 @@ describe('Organizer Onboarding', () => {
       })
 
       // Mock for submit
-      mockDb.query.organizerRequestTable.findFirst
-        .mockResolvedValueOnce(null)  // No pending
-        .mockResolvedValueOnce(null)  // No approved
+      const mockDbSubmit = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce(null) // No pending
+              .mockResolvedValueOnce(null) // No approved
+              .mockResolvedValueOnce(pendingRequest), // Fetch created
+          },
+          featureTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              id: 'feature-123',
+              key: FEATURES.HOST_COMPETITIONS,
+            }),
+          },
+        },
+        insert: vi.fn().mockReturnValue({
+          values: vi.fn().mockImplementation(() => {
+            const result = Promise.resolve({insertId: mockRequestId})
+            ;(result as any).onDuplicateKeyUpdate = vi
+              .fn()
+              .mockResolvedValue(undefined)
+            return result
+          }),
+        }),
+      }
 
-      mockDb.query.featureTable.findFirst.mockResolvedValue({
-        id: 'feature-123',
-        key: FEATURES.HOST_COMPETITIONS,
-      })
-
-      // insert().values().returning() returns [pendingRequest]
-      mockDb.getChainMock().returning.mockResolvedValueOnce([pendingRequest])
+      vi.mocked(getDb).mockReturnValue(mockDbSubmit as any)
 
       // Submit request
       const submitted = await submitOrganizerRequest({
@@ -528,31 +769,43 @@ describe('Organizer Onboarding', () => {
 
       // Reset mocks for approve step
       vi.clearAllMocks()
-      mockDb.reset()
-      mockDb.registerTable('organizerRequestTable')
-      mockDb.registerTable('teamFeatureEntitlementTable')
-      mockDb.registerTable('teamEntitlementOverrideTable')
-      mockDb.registerTable('featureTable')
-      mockDb.registerTable('userTable')
-      mockDb.registerTable('teamTable')
 
       // Mock for approve
-      mockDb.query.organizerRequestTable.findFirst
-        .mockResolvedValueOnce(pendingRequest)
+      const mockDbApprove = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce(pendingRequest) // Get request
+              .mockResolvedValueOnce(approvedRequest), // Fetch updated
+          },
+          userTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              firstName: 'Test',
+              lastName: 'User',
+              email: 'test@example.com',
+            }),
+          },
+          teamTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              name: 'Test Team',
+              slug: 'test-team',
+            }),
+          },
+        },
+        update: vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue(undefined),
+          }),
+        }),
+        insert: vi.fn().mockReturnValue({
+          values: vi.fn().mockReturnValue({
+            onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
+          }),
+        }),
+      }
 
-      // update().set().where().returning() returns [approvedRequest]
-      mockDb.getChainMock().returning.mockResolvedValueOnce([approvedRequest])
-
-      mockDb.query.userTable.findFirst.mockResolvedValue({
-        firstName: 'Test',
-        lastName: 'User',
-        email: 'test@example.com',
-      })
-
-      mockDb.query.teamTable.findFirst.mockResolvedValue({
-        name: 'Test Team',
-        slug: 'test-team',
-      })
+      vi.mocked(getDb).mockReturnValue(mockDbApprove as any)
 
       // Approve request
       const approved = await approveOrganizerRequest({
@@ -573,26 +826,42 @@ describe('Organizer Onboarding', () => {
         reviewedAt: new Date(),
       })
 
-      mockDb.query.organizerRequestTable.findFirst
-        .mockResolvedValueOnce(pendingRequest)
+      // Mock for reject
+      const mockDbReject = {
+        query: {
+          organizerRequestTable: {
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce(pendingRequest) // Get request
+              .mockResolvedValueOnce(rejectedRequest), // Fetch updated
+          },
+          userTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              firstName: 'Test',
+              lastName: 'User',
+              email: 'test@example.com',
+            }),
+          },
+          teamTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              name: 'Test Team',
+            }),
+          },
+          featureTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              id: 'feature-123',
+              key: FEATURES.HOST_COMPETITIONS,
+            }),
+          },
+        },
+        update: vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue(undefined),
+          }),
+        }),
+      }
 
-      // update().set().where().returning() returns [rejectedRequest]
-      mockDb.getChainMock().returning.mockResolvedValueOnce([rejectedRequest])
-
-      mockDb.query.userTable.findFirst.mockResolvedValue({
-        firstName: 'Test',
-        lastName: 'User',
-        email: 'test@example.com',
-      })
-
-      mockDb.query.teamTable.findFirst.mockResolvedValue({
-        name: 'Test Team',
-      })
-
-      mockDb.query.featureTable.findFirst.mockResolvedValue({
-        id: 'feature-123',
-        key: FEATURES.HOST_COMPETITIONS,
-      })
+      vi.mocked(getDb).mockReturnValue(mockDbReject as any)
 
       const result = await rejectOrganizerRequest({
         requestId: mockRequestId,
@@ -621,13 +890,6 @@ describe('Entitlement Grant/Revoke Functions', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockDb.reset()
-    mockDb.registerTable('organizerRequestTable')
-    mockDb.registerTable('teamFeatureEntitlementTable')
-    mockDb.registerTable('teamEntitlementOverrideTable')
-    mockDb.registerTable('featureTable')
-    mockDb.registerTable('userTable')
-    mockDb.registerTable('teamTable')
   })
 
   afterEach(() => {
@@ -637,20 +899,36 @@ describe('Entitlement Grant/Revoke Functions', () => {
   describe('grantTeamFeature', () => {
     describe('when feature exists', () => {
       it('should look up feature by key and insert entitlement', async () => {
-        // ARRANGE: Mock feature lookup
-        mockDb.query.featureTable.findFirst.mockResolvedValue({
-          id: mockFeatureId,
-          key: mockFeatureKey,
-          name: 'Host Competitions',
+        // ARRANGE: Mock feature lookup and insert
+        const mockInsertValues = vi.fn().mockReturnValue({
+          onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
         })
+        const mockInsert = vi.fn().mockReturnValue({
+          values: mockInsertValues,
+        })
+
+        const mockDb = {
+          query: {
+            featureTable: {
+              findFirst: vi.fn().mockResolvedValue({
+                id: mockFeatureId,
+                key: mockFeatureKey,
+                name: 'Host Competitions',
+              }),
+            },
+          },
+          insert: mockInsert,
+        }
+
+        vi.mocked(getDb).mockReturnValue(mockDb as any)
 
         // ACT
         await grantTeamFeature(mockTeamId, mockFeatureKey)
 
         // ASSERT
         expect(mockDb.query.featureTable.findFirst).toHaveBeenCalled()
-        expect(mockDb.insert).toHaveBeenCalled()
-        expect(mockDb.getChainMock().values).toHaveBeenCalledWith({
+        expect(mockInsert).toHaveBeenCalled()
+        expect(mockInsertValues).toHaveBeenCalledWith({
           teamId: mockTeamId,
           featureId: mockFeatureId,
           source: 'override',
@@ -658,18 +936,34 @@ describe('Entitlement Grant/Revoke Functions', () => {
         })
       })
 
-      it('should handle upsert (onConflictDoUpdate) for duplicate grants', async () => {
-        // ARRANGE: Mock feature lookup
-        mockDb.query.featureTable.findFirst.mockResolvedValue({
-          id: mockFeatureId,
-          key: mockFeatureKey,
+      it('should handle upsert (onDuplicateKeyUpdate) for duplicate grants', async () => {
+        // ARRANGE: Mock feature lookup and upsert
+        const mockOnDuplicateKeyUpdate = vi.fn().mockResolvedValue(undefined)
+        const mockInsert = vi.fn().mockReturnValue({
+          values: vi.fn().mockReturnValue({
+            onDuplicateKeyUpdate: mockOnDuplicateKeyUpdate,
+          }),
         })
+
+        const mockDb = {
+          query: {
+            featureTable: {
+              findFirst: vi.fn().mockResolvedValue({
+                id: mockFeatureId,
+                key: mockFeatureKey,
+              }),
+            },
+          },
+          insert: mockInsert,
+        }
+
+        vi.mocked(getDb).mockReturnValue(mockDb as any)
 
         // ACT
         await grantTeamFeature(mockTeamId, mockFeatureKey)
 
-        // ASSERT: onConflictDoUpdate was called with correct params
-        expect(mockDb.getChainMock().onConflictDoUpdate).toHaveBeenCalledWith(
+        // ASSERT: onDuplicateKeyUpdate was called with correct params
+        expect(mockOnDuplicateKeyUpdate).toHaveBeenCalledWith(
           expect.objectContaining({
             set: {
               isActive: 1,
@@ -680,13 +974,26 @@ describe('Entitlement Grant/Revoke Functions', () => {
       })
 
       it('should invalidate team member sessions after granting feature', async () => {
-        // ARRANGE: Mock feature lookup
-        mockDb.query.featureTable.findFirst.mockResolvedValue({
-          id: mockFeatureId,
-          key: mockFeatureKey,
-        })
+        // ARRANGE: Mock feature lookup and insert
+        const mockDb = {
+          query: {
+            featureTable: {
+              findFirst: vi.fn().mockResolvedValue({
+                id: mockFeatureId,
+                key: mockFeatureKey,
+              }),
+            },
+          },
+          insert: vi.fn().mockReturnValue({
+            values: vi.fn().mockReturnValue({
+              onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
+            }),
+          }),
+        }
 
-        // ACT (default chain mock handles insert().values().onConflictDoUpdate())
+        vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+        // ACT
         await grantTeamFeature(mockTeamId, mockFeatureKey)
 
         // ASSERT: Session invalidation was called with teamId
@@ -697,7 +1004,15 @@ describe('Entitlement Grant/Revoke Functions', () => {
     describe('when feature does not exist', () => {
       it('should throw error when feature is not found', async () => {
         // ARRANGE: Mock feature lookup returning null
-        mockDb.query.featureTable.findFirst.mockResolvedValue(null)
+        const mockDb = {
+          query: {
+            featureTable: {
+              findFirst: vi.fn().mockResolvedValue(null),
+            },
+          },
+        }
+
+        vi.mocked(getDb).mockReturnValue(mockDb as any)
 
         // ACT & ASSERT
         await expect(
@@ -710,6 +1025,21 @@ describe('Entitlement Grant/Revoke Functions', () => {
   describe('setTeamLimitOverride', () => {
     describe('with all parameters', () => {
       it('should insert limit override with teamId, type, key, value, and reason', async () => {
+        // ARRANGE
+        const mockOnDuplicateKeyUpdate = vi.fn().mockResolvedValue(undefined)
+        const mockValues = vi.fn().mockReturnValue({
+          onDuplicateKeyUpdate: mockOnDuplicateKeyUpdate,
+        })
+        const mockInsert = vi.fn().mockReturnValue({
+          values: mockValues,
+        })
+
+        const mockDb = {
+          insert: mockInsert,
+        }
+
+        vi.mocked(getDb).mockReturnValue(mockDb as any)
+
         // ACT
         await setTeamLimitOverride(
           mockTeamId,
@@ -719,15 +1049,14 @@ describe('Entitlement Grant/Revoke Functions', () => {
         )
 
         // ASSERT
-        expect(mockDb.insert).toHaveBeenCalled()
-        expect(mockDb.getChainMock().values).toHaveBeenCalledWith({
+        expect(mockInsert).toHaveBeenCalled()
+        expect(mockValues).toHaveBeenCalledWith({
           teamId: mockTeamId,
           type: 'limit',
           key: mockLimitKey,
           value: '-1',
           reason: 'Organizer request approved',
         })
-        expect(mockDb.getChainMock().onConflictDoUpdate).toHaveBeenCalled()
       })
     })
 
@@ -735,7 +1064,7 @@ describe('Entitlement Grant/Revoke Functions', () => {
       it('should insert limit override with undefined reason', async () => {
         // ARRANGE
         const mockValues = vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+          onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
         })
         const mockInsert = vi.fn().mockReturnValue({
           values: mockValues,
@@ -764,10 +1093,10 @@ describe('Entitlement Grant/Revoke Functions', () => {
     describe('upsert behavior', () => {
       it('should handle upsert for duplicate overrides', async () => {
         // ARRANGE
-        const mockOnConflictDoUpdate = vi.fn().mockResolvedValue(undefined)
+        const mockOnDuplicateKeyUpdate = vi.fn().mockResolvedValue(undefined)
         const mockInsert = vi.fn().mockReturnValue({
           values: vi.fn().mockReturnValue({
-            onConflictDoUpdate: mockOnConflictDoUpdate,
+            onDuplicateKeyUpdate: mockOnDuplicateKeyUpdate,
           }),
         })
 
@@ -785,8 +1114,8 @@ describe('Entitlement Grant/Revoke Functions', () => {
           'Updated limit',
         )
 
-        // ASSERT: onConflictDoUpdate was called with correct params
-        expect(mockOnConflictDoUpdate).toHaveBeenCalledWith(
+        // ASSERT: onDuplicateKeyUpdate was called with correct params
+        expect(mockOnDuplicateKeyUpdate).toHaveBeenCalledWith(
           expect.objectContaining({
             set: {
               value: '5',
@@ -801,7 +1130,7 @@ describe('Entitlement Grant/Revoke Functions', () => {
       it('should convert numeric value to string', async () => {
         // ARRANGE
         const mockValues = vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+          onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
         })
         const mockInsert = vi.fn().mockReturnValue({
           values: mockValues,
@@ -827,7 +1156,7 @@ describe('Entitlement Grant/Revoke Functions', () => {
       it('should handle negative values correctly (unlimited = -1)', async () => {
         // ARRANGE
         const mockValues = vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+          onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
         })
         const mockInsert = vi.fn().mockReturnValue({
           values: mockValues,
@@ -853,7 +1182,7 @@ describe('Entitlement Grant/Revoke Functions', () => {
       it('should handle zero value correctly (pending state)', async () => {
         // ARRANGE
         const mockValues = vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+          onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
         })
         const mockInsert = vi.fn().mockReturnValue({
           values: mockValues,
@@ -984,7 +1313,7 @@ describe('Entitlement Grant/Revoke Functions', () => {
         },
         insert: vi.fn().mockReturnValue({
           values: vi.fn().mockReturnValue({
-            onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+            onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
           }),
         }),
       }
@@ -1028,7 +1357,7 @@ describe('Entitlement Grant/Revoke Functions', () => {
     it('should set limit to 0 for pending state, then -1 for approved state', async () => {
       const mockInsert = vi.fn().mockReturnValue({
         values: vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+          onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
         }),
       })
 

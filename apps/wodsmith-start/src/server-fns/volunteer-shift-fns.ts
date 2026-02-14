@@ -18,6 +18,10 @@ import {
 } from "@/db/schema"
 import type { VolunteerMembershipMetadata } from "@/db/schema"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import {
+	createVolunteerShiftAssignmentId,
+	createVolunteerShiftId,
+} from "@/db/schemas/common"
 import { autochunk } from "@/utils/batch-query"
 import { requireTeamPermission } from "@/utils/team-auth"
 
@@ -114,19 +118,23 @@ export const createShiftFn = createServerFn({ method: "POST" })
 
 		const db = getDb()
 
-		const [newShift] = await db
-			.insert(volunteerShiftsTable)
-			.values({
-				competitionId: data.competitionId,
-				name: data.name,
-				roleType: data.roleType,
-				startTime: data.startTime,
-				endTime: data.endTime,
-				location: data.location,
-				capacity: data.capacity,
-				notes: data.notes,
-			})
-			.returning()
+		const newShiftId = createVolunteerShiftId()
+
+		await db.insert(volunteerShiftsTable).values({
+			id: newShiftId,
+			competitionId: data.competitionId,
+			name: data.name,
+			roleType: data.roleType,
+			startTime: data.startTime,
+			endTime: data.endTime,
+			location: data.location,
+			capacity: data.capacity,
+			notes: data.notes,
+		})
+
+		const newShift = await db.query.volunteerShiftsTable.findFirst({
+			where: eq(volunteerShiftsTable.id, newShiftId),
+		})
 
 		if (!newShift) {
 			throw new Error("Failed to create volunteer shift")
@@ -226,11 +234,14 @@ export const updateShiftFn = createServerFn({ method: "POST" })
 
 		updateValues.updatedAt = new Date()
 
-		const [updatedShift] = await db
+		await db
 			.update(volunteerShiftsTable)
 			.set(updateValues)
 			.where(eq(volunteerShiftsTable.id, data.shiftId))
-			.returning()
+
+		const updatedShift = await db.query.volunteerShiftsTable.findFirst({
+			where: eq(volunteerShiftsTable.id, data.shiftId),
+		})
 
 		if (!updatedShift) {
 			throw new Error("Failed to update volunteer shift")
@@ -364,14 +375,19 @@ export const assignVolunteerToShiftFn = createServerFn({ method: "POST" })
 		}
 
 		// Create the assignment
-		const [assignment] = await db
-			.insert(volunteerShiftAssignmentsTable)
-			.values({
-				shiftId: data.shiftId,
-				membershipId: data.membershipId,
-				notes: data.notes,
+		const newAssignmentId = createVolunteerShiftAssignmentId()
+
+		await db.insert(volunteerShiftAssignmentsTable).values({
+			id: newAssignmentId,
+			shiftId: data.shiftId,
+			membershipId: data.membershipId,
+			notes: data.notes,
+		})
+
+		const assignment =
+			await db.query.volunteerShiftAssignmentsTable.findFirst({
+				where: eq(volunteerShiftAssignmentsTable.id, newAssignmentId),
 			})
-			.returning()
 
 		if (!assignment) {
 			throw new Error("Failed to create shift assignment")
@@ -398,20 +414,23 @@ export const unassignVolunteerFromShiftFn = createServerFn({ method: "POST" })
 		// Validate permission via shift
 		await getShiftWithAuthCheck(data.shiftId)
 
-		// Delete the assignment
-		const result = await db
-			.delete(volunteerShiftAssignmentsTable)
-			.where(
-				and(
+		// Check the assignment exists before deleting
+		const existingAssignment =
+			await db.query.volunteerShiftAssignmentsTable.findFirst({
+				where: and(
 					eq(volunteerShiftAssignmentsTable.shiftId, data.shiftId),
 					eq(volunteerShiftAssignmentsTable.membershipId, data.membershipId),
 				),
-			)
-			.returning({ id: volunteerShiftAssignmentsTable.id })
+			})
 
-		if (result.length === 0) {
+		if (!existingAssignment) {
 			throw new Error("NOT_FOUND: Assignment not found")
 		}
+
+		// Delete the assignment
+		await db
+			.delete(volunteerShiftAssignmentsTable)
+			.where(eq(volunteerShiftAssignmentsTable.id, existingAssignment.id))
 
 		return { success: true }
 	})
@@ -587,30 +606,33 @@ export const bulkAssignVolunteersToShiftFn = createServerFn({ method: "POST" })
 			)
 		}
 
-		// Create assignments using autochunk for inserts
+		// Create assignments with pre-generated IDs
 		const assignmentValues = newMembershipIds.map((membershipId) => ({
+			id: createVolunteerShiftAssignmentId(),
 			shiftId: data.shiftId,
 			membershipId,
 			notes: data.notes,
 		}))
 
-		// D1 insert parameter count = number of columns * number of rows
-		// volunteerShiftAssignmentsTable has ~5 columns per insert (id, shiftId, membershipId, notes, createdAt, updatedAt)
-		// Safe batch size = floor(100 / 6) = ~16 rows per batch
+		// MySQL parameter limit - batch inserts
+		// volunteerShiftAssignmentsTable has ~6 columns per insert (id, shiftId, membershipId, notes, createdAt, updatedAt)
 		const BATCH_SIZE = 15
-
-		const createdAssignments: Array<
-			typeof volunteerShiftAssignmentsTable.$inferSelect
-		> = []
+		const allIds: string[] = []
 
 		for (let i = 0; i < assignmentValues.length; i += BATCH_SIZE) {
 			const batch = assignmentValues.slice(i, i + BATCH_SIZE)
-			const inserted = await db
-				.insert(volunteerShiftAssignmentsTable)
-				.values(batch)
-				.returning()
-			createdAssignments.push(...inserted)
+			await db.insert(volunteerShiftAssignmentsTable).values(batch)
+			allIds.push(...batch.map((v) => v.id))
 		}
+
+		// Query back the created assignments
+		const createdAssignments = await autochunk(
+			{ items: allIds, otherParametersCount: 0 },
+			async (chunk) =>
+				db.query.volunteerShiftAssignmentsTable.findMany({
+					where: inArray(volunteerShiftAssignmentsTable.id, chunk),
+				}),
+		)
 
 		return {
 			success: true,

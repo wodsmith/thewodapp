@@ -1,12 +1,13 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
 import {
+	datetime,
 	index,
-	integer,
+	int,
+	mysqlTable,
 	primaryKey,
-	sqliteTable,
-	text,
-} from "drizzle-orm/sqlite-core"
+	varchar,
+} from "drizzle-orm/mysql-core"
 import {
 	commonColumns,
 	createProgrammingTrackId,
@@ -16,6 +17,10 @@ import {
 import { competitionsTable } from "./competitions"
 import { sponsorsTable } from "./sponsors"
 import { teamTable } from "./teams"
+import {
+	competitionJudgeRotationsTable,
+	judgeAssignmentVersionsTable,
+} from "./volunteers"
 import { workouts } from "./workouts"
 
 // Track types enum & tuple
@@ -30,24 +35,22 @@ export const programmingTrackTypeTuple = Object.values(
 ) as [string, ...string[]]
 
 // Programming tracks table
-export const programmingTracksTable = sqliteTable(
-	"programming_track",
+export const programmingTracksTable = mysqlTable(
+	"programming_tracks",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createProgrammingTrackId())
 			.notNull(),
-		name: text({ length: 255 }).notNull(),
-		description: text({ length: 1000 }),
-		type: text({ enum: programmingTrackTypeTuple }).notNull(),
-		ownerTeamId: text().references(() => teamTable.id),
-		scalingGroupId: text(), // Optional scaling group for all workouts in this track
-		isPublic: integer().default(0).notNull(),
+		name: varchar({ length: 255 }).notNull(),
+		description: varchar({ length: 1000 }),
+		type: varchar({ length: 255 }).notNull(),
+		ownerTeamId: varchar({ length: 255 }),
+		scalingGroupId: varchar({ length: 255 }), // Optional scaling group for all workouts in this track
+		isPublic: int().default(0).notNull(),
 		// Competition association - null for regular tracks, set for competition event tracks
-		competitionId: text().references(() => competitionsTable.id, {
-			onDelete: "cascade",
-		}),
+		competitionId: varchar({ length: 255 }),
 	},
 	(table) => [
 		index("programming_track_type_idx").on(table.type),
@@ -58,22 +61,18 @@ export const programmingTracksTable = sqliteTable(
 )
 
 // Team programming tracks (join table)
-export const teamProgrammingTracksTable = sqliteTable(
-	"team_programming_track",
+export const teamProgrammingTracksTable = mysqlTable(
+	"team_programming_tracks",
 	{
 		...commonColumns,
-		teamId: text()
-			.notNull()
-			.references(() => teamTable.id),
-		trackId: text()
-			.notNull()
-			.references(() => programmingTracksTable.id),
-		isActive: integer().default(1).notNull(),
-		subscribedAt: integer({ mode: "timestamp" })
+		teamId: varchar({ length: 255 }).notNull(),
+		trackId: varchar({ length: 255 }).notNull(),
+		isActive: int().default(1).notNull(),
+		subscribedAt: datetime()
 			.$defaultFn(() => new Date())
 			.notNull(),
 		// Optional: allow teams to customize their start day within the track
-		startDayOffset: integer().default(0).notNull(),
+		startDayOffset: int().default(0).notNull(),
 	},
 	(table) => [
 		primaryKey({ columns: [table.teamId, table.trackId] }),
@@ -83,46 +82,40 @@ export const teamProgrammingTracksTable = sqliteTable(
 )
 
 // Track workouts
-export const trackWorkoutsTable = sqliteTable(
-	"track_workout",
+export const trackWorkoutsTable = mysqlTable(
+	"track_workouts",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createTrackWorkoutId())
 			.notNull(),
-		trackId: text()
-			.notNull()
-			.references(() => programmingTracksTable.id),
-		workoutId: text()
-			.notNull()
-			.references(() => workouts.id),
+		trackId: varchar({ length: 255 }).notNull(),
+		workoutId: varchar({ length: 255 }).notNull(),
 		// Unified ordering field (1, 2, 3...) - renamed from dayNumber for competition support
-		trackOrder: integer().notNull(),
-		notes: text({ length: 1000 }),
+		trackOrder: int().notNull(),
+		notes: varchar({ length: 1000 }),
 		// Points multiplier for competitions (100 = 1x, 200 = 2x for finals, etc.)
-		pointsMultiplier: integer().default(100),
+		pointsMultiplier: int().default(100),
 		// Heat assignment visibility: draft = hidden from athletes, published = visible
-		heatStatus: text({ length: 20 })
+		heatStatus: varchar({ length: 20 })
 			.$type<"draft" | "published">()
 			.default("draft"),
 		// Event visibility: draft = hidden from public, published = visible for marketing
-		eventStatus: text({ length: 20 })
+		eventStatus: varchar({ length: 20 })
 			.$type<"draft" | "published">()
 			.default("draft"),
 		// Presenting sponsor for this event ("Presented by X")
-		sponsorId: text().references(() => sponsorsTable.id, {
-			onDelete: "set null",
-		}),
+		sponsorId: varchar({ length: 255 }),
 		// Judge rotation defaults for this event (nullable = inherit from competition)
 		// Default number of heats per rotation assignment
-		defaultHeatsCount: integer(),
+		defaultHeatsCount: int(),
 		// Default lane shift pattern for all rotations in this event
 		// All rotations in an event must use the same pattern
-		defaultLaneShiftPattern: text({ length: 20 }),
+		defaultLaneShiftPattern: varchar({ length: 20 }),
 		// Minimum number of heats a judge must rest between rotations
 		// Nullable = inherit from competition default or system default of 2
-		minHeatBuffer: integer().default(2),
+		minHeatBuffer: int().default(2),
 	},
 	(table) => [
 		index("track_workout_track_idx").on(table.trackId),
@@ -138,23 +131,21 @@ export const trackWorkoutsTable = sqliteTable(
 )
 
 // Scheduled Workout Instances
-export const scheduledWorkoutInstancesTable = sqliteTable(
-	"scheduled_workout_instance",
+export const scheduledWorkoutInstancesTable = mysqlTable(
+	"scheduled_workout_instances",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createScheduledWorkoutInstanceId())
 			.notNull(),
-		teamId: text()
-			.notNull()
-			.references(() => teamTable.id),
-		trackWorkoutId: text().references(() => trackWorkoutsTable.id),
-		workoutId: text().references(() => workouts.id), // Explicit workout selection (required for standalone, optional for track workouts)
-		scheduledDate: integer({ mode: "timestamp" }).notNull(),
-		teamSpecificNotes: text({ length: 1000 }),
-		scalingGuidanceForDay: text({ length: 1000 }),
-		classTimes: text({ length: 500 }), // JSON string or comma-separated times
+		teamId: varchar({ length: 255 }).notNull(),
+		trackWorkoutId: varchar({ length: 255 }),
+		workoutId: varchar({ length: 255 }), // Explicit workout selection (required for standalone, optional for track workouts)
+		scheduledDate: datetime().notNull(),
+		teamSpecificNotes: varchar({ length: 1000 }),
+		scalingGuidanceForDay: varchar({ length: 1000 }),
+		classTimes: varchar({ length: 500 }), // JSON string or comma-separated times
 	},
 	(table) => [
 		index("scheduled_workout_instance_team_idx").on(table.teamId),
@@ -210,6 +201,9 @@ export const trackWorkoutsRelations = relations(
 			references: [sponsorsTable.id],
 		}),
 		scheduledInstances: many(scheduledWorkoutInstancesTable),
+		// Judge rotations and assignment versions (from volunteers system)
+		judgeRotations: many(competitionJudgeRotationsTable),
+		judgeAssignmentVersions: many(judgeAssignmentVersionsTable),
 	}),
 )
 

@@ -138,9 +138,6 @@ describe('Workout Server Functions (TanStack)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockDb.reset()
-    // Register tables for db.query.tableName.findFirst() pattern (MySQL/PlanetScale)
-    mockDb.registerTable('workouts')
-    mockDb.registerTable('scheduledWorkoutInstancesTable')
     // Reset to authenticated session
     setMockSession(mockAuthenticatedSession)
   })
@@ -459,7 +456,9 @@ describe('Workout Server Functions (TanStack)', () => {
         teamId: 'team-1',
       })
 
-      mockDb.getChainMock().returning.mockResolvedValueOnce([created])
+      // Source uses db.query.workouts.findFirst() after insert
+      mockDb.registerTable('workouts')
+      mockDb.setMockSingleValue(created)
 
       const result = await createWorkoutFn({
         data: {
@@ -471,11 +470,7 @@ describe('Workout Server Functions (TanStack)', () => {
         },
       })
 
-      expect(result.workout).toMatchObject({
-        id: created.id,
-        name: created.name,
-        scheme: created.scheme,
-      })
+      expect(result.workout).toEqual(created)
       expect(mockDb.insert).toHaveBeenCalled()
     })
 
@@ -487,7 +482,8 @@ describe('Workout Server Functions (TanStack)', () => {
         timeCap: 600,
       })
 
-      mockDb.getChainMock().returning.mockResolvedValueOnce([created])
+      mockDb.registerTable('workouts')
+      mockDb.setMockSingleValue(created)
 
       const result = await createWorkoutFn({
         data: {
@@ -510,7 +506,8 @@ describe('Workout Server Functions (TanStack)', () => {
         scheme: 'reps',
       })
 
-      mockDb.getChainMock().returning.mockResolvedValueOnce([created])
+      mockDb.registerTable('workouts')
+      mockDb.setMockSingleValue(created)
 
       const result = await createWorkoutFn({
         data: {
@@ -532,7 +529,8 @@ describe('Workout Server Functions (TanStack)', () => {
         scope: 'public',
       })
 
-      mockDb.getChainMock().returning.mockResolvedValueOnce([created])
+      mockDb.registerTable('workouts')
+      mockDb.setMockSingleValue(created)
 
       const result = await createWorkoutFn({
         data: {
@@ -645,7 +643,9 @@ describe('Workout Server Functions (TanStack)', () => {
         scheme: 'reps',
       })
 
-      mockDb.getChainMock().returning.mockResolvedValueOnce([updated])
+      // Source uses db.query.workouts.findFirst() after update
+      mockDb.registerTable('workouts')
+      mockDb.setMockSingleValue(updated)
 
       const result = await updateWorkoutFn({
         data: {
@@ -657,16 +657,14 @@ describe('Workout Server Functions (TanStack)', () => {
         },
       })
 
-      expect(result.workout).toMatchObject({
-        id: updated.id,
-        name: updated.name,
-        scheme: updated.scheme,
-      })
+      expect(result.workout).toEqual(updated)
       expect(mockDb.update).toHaveBeenCalled()
     })
 
     it('throws when workout not found', async () => {
-      // Default .returning() returns [], which causes the throw
+      // Source uses db.query.workouts.findFirst() which returns null
+      mockDb.registerTable('workouts')
+      mockDb.setMockSingleValue(null)
 
       await expect(
         updateWorkoutFn({
@@ -735,7 +733,9 @@ describe('Workout Server Functions (TanStack)', () => {
         scheduledDate: new Date('2025-01-15T12:00:00.000Z'),
       })
 
-      mockDb.getChainMock().returning.mockResolvedValueOnce([instance])
+      // Source uses db.query.scheduledWorkoutInstancesTable.findFirst() after insert
+      mockDb.registerTable('scheduledWorkoutInstancesTable')
+      mockDb.setMockSingleValue(instance)
 
       const result = await scheduleWorkoutFn({
         data: {
@@ -746,11 +746,7 @@ describe('Workout Server Functions (TanStack)', () => {
       })
 
       expect(result.success).toBe(true)
-      expect(result.instance).toMatchObject({
-        id: instance.id,
-        teamId: instance.teamId,
-        workoutId: instance.workoutId,
-      })
+      expect(result.instance).toEqual(instance)
       expect(mockDb.insert).toHaveBeenCalled()
     })
 
@@ -805,7 +801,9 @@ describe('Workout Server Functions (TanStack)', () => {
     })
 
     it('throws when scheduling fails', async () => {
-      // Default .returning() returns [], which causes the throw
+      // Source uses db.query.scheduledWorkoutInstancesTable.findFirst() which returns null
+      mockDb.registerTable('scheduledWorkoutInstancesTable')
+      mockDb.setMockSingleValue(null)
 
       await expect(
         scheduleWorkoutFn({

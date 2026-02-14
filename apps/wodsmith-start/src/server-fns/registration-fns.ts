@@ -31,6 +31,8 @@ import {
 	teamMembershipTable,
 	teamTable,
 	userTable,
+	createCommerceProductId,
+	createCommercePurchaseId,
 } from "@/db/schema"
 import {
 	buildFeeConfig,
@@ -403,16 +405,17 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 		})
 
 		if (!product) {
-			const [newProduct] = await db
-				.insert(commerceProductTable)
-				.values({
-					name: `Competition Registration - ${competition.name}`,
-					type: COMMERCE_PRODUCT_TYPE.COMPETITION_REGISTRATION,
-					resourceId: input.competitionId,
-					priceCents: registrationFeeCents,
-				})
-				.returning()
-			product = newProduct
+			const productId = createCommerceProductId()
+			await db.insert(commerceProductTable).values({
+				id: productId,
+				name: `Competition Registration - ${competition.name}`,
+				type: COMMERCE_PRODUCT_TYPE.COMPETITION_REGISTRATION,
+				resourceId: input.competitionId,
+				priceCents: registrationFeeCents,
+			})
+			product = await db.query.commerceProductTable.findFirst({
+				where: eq(commerceProductTable.id, productId),
+			})
 		}
 
 		if (!product) {
@@ -420,29 +423,30 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 		}
 
 		// 9. Create purchase record
-		const purchaseResult = await db
-			.insert(commercePurchaseTable)
-			.values({
-				userId,
-				productId: product.id,
-				status: COMMERCE_PURCHASE_STATUS.PENDING,
-				competitionId: input.competitionId,
-				divisionId: input.divisionId,
-				totalCents: feeBreakdown.totalChargeCents,
-				platformFeeCents: feeBreakdown.platformFeeCents,
-				stripeFeeCents: feeBreakdown.stripeFeeCents,
-				organizerNetCents: feeBreakdown.organizerNetCents,
-				// Store team data and answers for webhook to use when creating registration
-				metadata: JSON.stringify({
-					teamName: input.teamName,
-					affiliateName: input.affiliateName,
-					teammates: input.teammates,
-					answers: input.answers,
-				}),
-			})
-			.returning()
+		const purchaseId = createCommercePurchaseId()
+		await db.insert(commercePurchaseTable).values({
+			id: purchaseId,
+			userId,
+			productId: product.id,
+			status: COMMERCE_PURCHASE_STATUS.PENDING,
+			competitionId: input.competitionId,
+			divisionId: input.divisionId,
+			totalCents: feeBreakdown.totalChargeCents,
+			platformFeeCents: feeBreakdown.platformFeeCents,
+			stripeFeeCents: feeBreakdown.stripeFeeCents,
+			organizerNetCents: feeBreakdown.organizerNetCents,
+			// Store team data and answers for webhook to use when creating registration
+			metadata: JSON.stringify({
+				teamName: input.teamName,
+				affiliateName: input.affiliateName,
+				teammates: input.teammates,
+				answers: input.answers,
+			}),
+		})
 
-		const purchase = purchaseResult[0]
+		const purchase = await db.query.commercePurchaseTable.findFirst({
+			where: eq(commercePurchaseTable.id, purchaseId),
+		})
 		if (!purchase) {
 			throw new Error("Failed to create purchase record")
 		}

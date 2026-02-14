@@ -13,6 +13,7 @@ import {
 	competitionRegistrationsTable,
 	competitionsTable,
 } from "@/db/schemas/competitions"
+import { createCompetitionRegistrationQuestionId } from "@/db/schemas/common"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"
@@ -243,19 +244,23 @@ export const createQuestionFn = createServerFn({ method: "POST" })
 			...existingQuestions.map((q) => q.sortOrder),
 		)
 
-		const [created] = await db
-			.insert(competitionRegistrationQuestionsTable)
-			.values({
-				competitionId: data.competitionId,
-				type: data.type,
-				label: data.label,
-				helpText: data.helpText ?? null,
-				options: stringifyOptions(data.options),
-				required: data.required,
-				forTeammates: data.forTeammates,
-				sortOrder: maxSortOrder + 1,
+		const id = createCompetitionRegistrationQuestionId()
+		await db.insert(competitionRegistrationQuestionsTable).values({
+			id,
+			competitionId: data.competitionId,
+			type: data.type,
+			label: data.label,
+			helpText: data.helpText ?? null,
+			options: stringifyOptions(data.options),
+			required: data.required,
+			forTeammates: data.forTeammates,
+			sortOrder: maxSortOrder + 1,
+		})
+
+		const created =
+			await db.query.competitionRegistrationQuestionsTable.findFirst({
+				where: eq(competitionRegistrationQuestionsTable.id, id),
 			})
-			.returning()
 
 		if (!created) {
 			throw new Error("Failed to create question")
@@ -328,11 +333,15 @@ export const updateQuestionFn = createServerFn({ method: "POST" })
 		if (data.forTeammates !== undefined)
 			updateData.forTeammates = data.forTeammates
 
-		const [updated] = await db
+		await db
 			.update(competitionRegistrationQuestionsTable)
 			.set(updateData)
 			.where(eq(competitionRegistrationQuestionsTable.id, data.questionId))
-			.returning()
+
+		const updated =
+			await db.query.competitionRegistrationQuestionsTable.findFirst({
+				where: eq(competitionRegistrationQuestionsTable.id, data.questionId),
+			})
 
 		if (!updated) {
 			throw new Error("Failed to update question")

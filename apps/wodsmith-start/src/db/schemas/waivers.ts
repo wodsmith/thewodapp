@@ -1,7 +1,15 @@
 import { createId } from "@paralleldrive/cuid2"
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import {
+	index,
+	int,
+	varchar,
+	datetime,
+	boolean,
+	mysqlTable,
+	text,
+} from "drizzle-orm/mysql-core"
 import { commonColumns } from "./common"
 import {
 	competitionRegistrationsTable,
@@ -18,26 +26,24 @@ export const createWaiverSignatureId = () => `wsig_${createId()}`
  * Stores waiver documents for competitions. Organizers can create multiple waivers
  * per competition with rich text content (Lexical JSON).
  */
-export const waiversTable = sqliteTable(
+export const waiversTable = mysqlTable(
 	"waivers",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createWaiverId())
 			.notNull(),
 		// The competition this waiver belongs to
-		competitionId: text()
-			.notNull()
-			.references(() => competitionsTable.id, { onDelete: "cascade" }),
+		competitionId: varchar({ length: 255 }).notNull(),
 		// Waiver title (e.g., "Liability Waiver", "Photo Release")
-		title: text({ length: 255 }).notNull(),
+		title: varchar({ length: 255 }).notNull(),
 		// Rich text content stored as Lexical JSON
-		content: text({ length: 50000 }).notNull(),
+		content: text().notNull(),
 		// Whether this waiver is required for registration
-		required: integer({ mode: "boolean" }).default(true).notNull(),
+		required: boolean().default(true).notNull(),
 		// Display order (for showing multiple waivers in sequence)
-		position: integer().default(0).notNull(),
+		position: int().default(0).notNull(),
 	},
 	(table) => [
 		index("waivers_competition_idx").on(table.competitionId),
@@ -49,32 +55,26 @@ export const waiversTable = sqliteTable(
  * Waiver Signatures Table
  * Tracks when athletes sign waivers during registration or invite acceptance.
  */
-export const waiverSignaturesTable = sqliteTable(
+export const waiverSignaturesTable = mysqlTable(
 	"waiver_signatures",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createWaiverSignatureId())
 			.notNull(),
 		// The waiver being signed
-		waiverId: text()
-			.notNull()
-			.references(() => waiversTable.id, { onDelete: "cascade" }),
+		waiverId: varchar({ length: 255 }).notNull(),
 		// The user who signed the waiver
-		userId: text()
-			.notNull()
-			.references(() => userTable.id, { onDelete: "cascade" }),
+		userId: varchar({ length: 255 }).notNull(),
 		// The registration this signature is associated with (nullable for captains signing during registration creation)
-		registrationId: text().references(() => competitionRegistrationsTable.id, {
-			onDelete: "cascade",
-		}),
+		registrationId: varchar({ length: 255 }),
 		// When the waiver was signed
-		signedAt: integer({ mode: "timestamp" })
+		signedAt: datetime()
 			.$defaultFn(() => new Date())
 			.notNull(),
 		// Optional IP address for audit trail
-		ipAddress: text({ length: 45 }), // IPv6 max length
+		ipAddress: varchar({ length: 45 }), // IPv6 max length
 	},
 	(table) => [
 		index("waiver_signatures_waiver_idx").on(table.waiverId),

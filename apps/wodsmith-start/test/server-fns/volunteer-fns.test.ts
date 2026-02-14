@@ -310,12 +310,11 @@ describe('Volunteer Server Functions', () => {
   // ============================================================================
   describe('submitVolunteerSignupFn', () => {
     it('should create a volunteer signup invitation', async () => {
-      // findMany must return [] for duplicate check, but insert().returning() needs [{id}].
-      // Use mockResolvedValueOnce on findMany so the first call returns [],
-      // then set mockReturnValue for insert().returning().
+      // findMany must return [] for duplicate check
       mockDb.query.teamInvitationTable.findMany.mockResolvedValueOnce([])
       mockDb.setMockSingleValue(null) // No existing user
-      mockDb.setMockReturnValue([{id: 'tinv_new123'}]) // For insert().returning()
+      // Mock findFirst() after insert (PlanetScale: no .returning())
+      mockDb.query.teamInvitationTable.findFirst.mockResolvedValueOnce({id: 'tinv_new123'})
 
       const result = await submitVolunteerSignupFn({
         data: {

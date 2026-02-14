@@ -1,6 +1,12 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import {
+	index,
+	int,
+	mysqlTable,
+	varchar,
+	datetime,
+} from "drizzle-orm/mysql-core"
 import { commonColumns, createPasskeyId, createUserId } from "./common"
 import { competitionRegistrationsTable } from "./competitions"
 
@@ -23,62 +29,58 @@ export type Gender = (typeof GENDER_ENUM)[keyof typeof GENDER_ENUM]
 const genderTuple = Object.values(GENDER_ENUM) as [string, ...string[]]
 
 // User table
-export const userTable = sqliteTable(
-	"user",
+export const userTable = mysqlTable(
+	"users",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createUserId())
 			.notNull(),
-		firstName: text({
+		firstName: varchar({
 			length: 255,
 		}),
-		lastName: text({
+		lastName: varchar({
 			length: 255,
 		}),
-		email: text({
+		email: varchar({
 			length: 255,
 		}).unique(),
-		passwordHash: text(),
-		role: text({
+		passwordHash: varchar({ length: 255 }),
+		role: varchar({
+			length: 50,
 			enum: roleTuple,
 		})
 			.default(ROLES_ENUM.USER)
 			.notNull(),
-		emailVerified: integer({
-			mode: "timestamp",
-		}),
-		signUpIpAddress: text({
+		emailVerified: datetime(),
+		signUpIpAddress: varchar({
 			length: 128,
 		}),
-		googleAccountId: text({
+		googleAccountId: varchar({
 			length: 255,
 		}),
 		/**
 		 * This can either be an absolute or relative path to an image
 		 */
-		avatar: text({
+		avatar: varchar({
 			length: 600,
 		}),
 		// Credit system fields
-		currentCredits: integer().default(0).notNull(),
-		lastCreditRefreshAt: integer({
-			mode: "timestamp",
-		}),
+		currentCredits: int().default(0).notNull(),
+		lastCreditRefreshAt: datetime(),
 		// Athlete profile fields for competition platform
-		gender: text({
+		gender: varchar({
+			length: 50,
 			enum: genderTuple,
 		}).$type<Gender>(),
-		dateOfBirth: integer({
-			mode: "timestamp",
-		}),
+		dateOfBirth: datetime(),
 		// Default affiliate/gym for competition registration
-		affiliateName: text({
+		affiliateName: varchar({
 			length: 255,
 		}),
 		// JSON field for extended athlete profile (PRs, history, etc.)
-		athleteProfile: text({
+		athleteProfile: varchar({
 			length: 10000,
 		}),
 	},
@@ -92,40 +94,38 @@ export const userTable = sqliteTable(
 )
 
 // Passkey credentials table
-export const passKeyCredentialTable = sqliteTable(
-	"passkey_credential",
+export const passKeyCredentialTable = mysqlTable(
+	"passkey_credentials",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createPasskeyId())
 			.notNull(),
-		userId: text()
-			.notNull()
-			.references(() => userTable.id),
-		credentialId: text({
+		userId: varchar({ length: 255 }).notNull(),
+		credentialId: varchar({
 			length: 255,
 		})
 			.notNull()
 			.unique(),
-		credentialPublicKey: text({
+		credentialPublicKey: varchar({
 			length: 255,
 		}).notNull(),
-		counter: integer().notNull(),
+		counter: int().notNull(),
 		// Optional array of AuthenticatorTransport as JSON string
-		transports: text({
+		transports: varchar({
 			length: 255,
 		}),
 		// Authenticator Attestation GUID. We use this to identify the device/authenticator app that created the passkey
-		aaguid: text({
+		aaguid: varchar({
 			length: 255,
 		}),
 		// The user agent of the device that created the passkey
-		userAgent: text({
+		userAgent: varchar({
 			length: 255,
 		}),
 		// The IP address that created the passkey
-		ipAddress: text({
+		ipAddress: varchar({
 			length: 128,
 		}),
 	},

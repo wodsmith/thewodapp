@@ -42,8 +42,8 @@ interface VolunteerWithAccess {
 	userId: string
 	teamId: string
 	roleId: string
-	isSystemRole: number
-	isActive: number
+	isSystemRole: boolean
+	isActive: boolean
 	metadata: string | null
 	joinedAt: Date | null
 	createdAt: Date

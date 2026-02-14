@@ -8,22 +8,19 @@
 import { createId } from "@paralleldrive/cuid2"
 import { relations } from "drizzle-orm"
 import {
+	boolean,
+	datetime,
 	index,
-	integer,
-	sqliteTable,
-	text,
+	int,
+	mysqlTable,
 	uniqueIndex,
-} from "drizzle-orm/sqlite-core"
+	varchar,
+} from "drizzle-orm/mysql-core"
 import { commonColumns } from "./common"
 import { scalingLevelsTable } from "./scaling"
 import { teamTable } from "./teams"
 import { userTable } from "./users"
-import {
-	SCORE_TYPE_VALUES,
-	TIEBREAK_SCHEME_VALUES,
-	WORKOUT_SCHEME_VALUES,
-	workouts,
-} from "./workouts"
+import { workouts } from "./workouts"
 
 // ID generators
 export const createScoreId = () => `score_${createId()}`
@@ -40,65 +37,52 @@ export type ScoreStatusNew = (typeof SCORE_STATUS_NEW_VALUES)[number]
  * Stores workout results with encoded integer values for efficient sorting.
  * Replaces the old results + sets tables.
  */
-export const scoresTable = sqliteTable(
+export const scoresTable = mysqlTable(
 	"scores",
 	{
 		...commonColumns,
-		id: text("id").primaryKey().$defaultFn(createScoreId),
+		id: varchar({ length: 255 }).primaryKey().$defaultFn(createScoreId),
 
 		// Ownership
-		userId: text("user_id")
-			.notNull()
-			.references(() => userTable.id),
-		teamId: text("team_id")
-			.notNull()
-			.references(() => teamTable.id),
+		userId: varchar({ length: 255 }).notNull(),
+		teamId: varchar({ length: 255 }).notNull(),
 
 		// What was scored
-		workoutId: text("workout_id")
-			.notNull()
-			.references(() => workouts.id),
-		competitionEventId: text("competition_event_id"), // NULL for personal logs
-		scheduledWorkoutInstanceId: text("scheduled_workout_instance_id"),
+		workoutId: varchar({ length: 255 }).notNull(),
+		competitionEventId: varchar({ length: 255 }), // NULL for personal logs
+		scheduledWorkoutInstanceId: varchar({ length: 255 }),
 
 		// Score classification
-		scheme: text("scheme", { enum: WORKOUT_SCHEME_VALUES }).notNull(),
-		scoreType: text("score_type", { enum: SCORE_TYPE_VALUES })
-			.notNull()
-			.default("max"),
+		scheme: varchar({ length: 255 }).notNull(),
+		scoreType: varchar({ length: 255 }).notNull().default("max"),
 
 		// Primary score (encoded as integer based on scheme)
 		// Time: milliseconds, Rounds+Reps: rounds*100000+reps, Load: grams, Distance: mm
-		scoreValue: integer("score_value"),
+		scoreValue: int(),
 
 		// Tiebreak
-		tiebreakScheme: text("tiebreak_scheme", { enum: TIEBREAK_SCHEME_VALUES }),
-		tiebreakValue: integer("tiebreak_value"),
+		tiebreakScheme: varchar({ length: 255 }),
+		tiebreakValue: int(),
 
 		// Time cap handling (for time-with-cap workouts)
-		timeCapMs: integer("time_cap_ms"),
+		timeCapMs: int(),
 		// Note: secondaryScheme removed - when capped, score is always reps
-		secondaryValue: integer("secondary_value"), // reps completed if capped
+		secondaryValue: int(), // reps completed if capped
 
 		// Status & sorting
-		status: text("status", { enum: SCORE_STATUS_NEW_VALUES })
-			.notNull()
-			.default("scored"),
-		statusOrder: integer("status_order").notNull().default(0), // 0=scored, 1=cap, 2=dq, 3=withdrawn
+		status: varchar({ length: 255 }).notNull().default("scored"),
+		statusOrder: int().notNull().default(0), // 0=scored, 1=cap, 2=dq, 3=withdrawn
 		// Compound sort key: encodes status + normalized score for single-column sorting
-		// Stored as text since SQLite doesn't natively support BIGINT
-		sortKey: text("sort_key"),
+		sortKey: varchar({ length: 255 }),
 
 		// Scaling
-		scalingLevelId: text("scaling_level_id").references(
-			() => scalingLevelsTable.id,
-		),
-		asRx: integer("as_rx", { mode: "boolean" }).notNull().default(false),
+		scalingLevelId: varchar({ length: 255 }),
+		asRx: boolean().notNull().default(false),
 
 		// Metadata
-		notes: text("notes"),
+		notes: varchar({ length: 255 }),
 		// When the workout was performed (Unix timestamp ms)
-		recordedAt: integer("recorded_at", { mode: "timestamp" }).notNull(),
+		recordedAt: datetime().notNull(),
 	},
 	(table) => [
 		// User's scores, ordered by date
@@ -132,32 +116,30 @@ export const scoresTable = sqliteTable(
  * Stores individual rounds/sets within a score.
  * For multi-round workouts like "10x3 Back Squat" or "3 rounds for time".
  */
-export const scoreRoundsTable = sqliteTable(
+export const scoreRoundsTable = mysqlTable(
 	"score_rounds",
 	{
-		id: text("id").primaryKey().$defaultFn(createScoreRoundId),
-		scoreId: text("score_id")
-			.notNull()
-			.references(() => scoresTable.id, { onDelete: "cascade" }),
+		id: varchar({ length: 255 }).primaryKey().$defaultFn(createScoreRoundId),
+		scoreId: varchar({ length: 255 }).notNull(),
 
 		// Round ordering (1-indexed)
-		roundNumber: integer("round_number").notNull(),
+		roundNumber: int().notNull(),
 
 		// The value for this round (encoded based on parent score's scheme)
-		value: integer("value").notNull(),
+		value: int().notNull(),
 
 		// Optional: different scheme per round (rare, but possible)
-		schemeOverride: text("scheme_override", { enum: WORKOUT_SCHEME_VALUES }),
+		schemeOverride: varchar({ length: 255 }),
 
 		// Status for this specific round
-		status: text("status", { enum: SCORE_STATUS_NEW_VALUES }),
+		status: varchar({ length: 255 }),
 
 		// For time-capped rounds
-		secondaryValue: integer("secondary_value"),
+		secondaryValue: int(),
 
 		// Metadata
-		notes: text("notes"),
-		createdAt: integer("created_at", { mode: "timestamp" })
+		notes: varchar({ length: 255 }),
+		createdAt: datetime()
 			.$defaultFn(() => new Date())
 			.notNull(),
 	},

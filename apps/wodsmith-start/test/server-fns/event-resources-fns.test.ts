@@ -57,7 +57,6 @@ describe("Event Resources Server Functions", () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
 		mockDb.reset()
-		mockDb.registerTable("eventResourcesTable")
 	})
 
 	describe("getEventResourcesFn", () => {
@@ -183,8 +182,9 @@ describe("Event Resources Server Functions", () => {
 				{ eventId: "event-1", ownerTeamId: "team-1" },
 			])
 
-			// Mock: insert returning
-			mockDb.getChainMock().returning.mockResolvedValueOnce([created])
+			// Mock: db.query.eventResourcesTable.findFirst() returns the created resource
+			mockDb.registerTable("eventResourcesTable")
+			mockDb.setMockSingleValue(created)
 
 			const result = await createEventResourceFn({
 				data: {

@@ -215,8 +215,8 @@ describe("Judging Sheet Server Functions", () => {
 			// Then mock existing sheets lookup (returns empty array)
 			mockDb.setMockReturnValue([{ trackWorkoutId, competitionId }])
 
-			// Mock the .returning() call after insert
-			mockDb.getChainMock().returning.mockResolvedValueOnce([newSheet])
+			// Mock the findFirst() after insert (PlanetScale: no .returning())
+			mockDb.query.eventJudgingSheetsTable.findFirst.mockResolvedValueOnce(newSheet)
 
 			const result = await createJudgingSheetFn({
 				data: {
@@ -276,8 +276,8 @@ describe("Judging Sheet Server Functions", () => {
 			// Mock the initial sheet lookup
 			mockDb.query.eventJudgingSheetsTable.findFirst.mockResolvedValueOnce(existingSheet)
 
-			// Mock the .returning() call after update
-			mockDb.getChainMock().returning.mockResolvedValueOnce([updatedSheet])
+			// Mock the findFirst() after update (PlanetScale: no .returning())
+			mockDb.query.eventJudgingSheetsTable.findFirst.mockResolvedValueOnce(updatedSheet)
 
 			const result = await updateJudgingSheetFn({
 				data: {

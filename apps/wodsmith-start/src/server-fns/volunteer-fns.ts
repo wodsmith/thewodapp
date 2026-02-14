@@ -22,6 +22,10 @@ import {
 	volunteerShiftsTable,
 	workouts,
 } from "@/db/schema"
+import {
+	createTeamInvitationId,
+	createTeamMembershipId,
+} from "@/db/schemas/common"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import type { VolunteerMembershipMetadata } from "@/db/schemas/volunteers"
 import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
@@ -115,7 +119,7 @@ export const getPendingVolunteerInvitationsFn = createServerFn({
 			where: and(
 				eq(teamInvitationTable.teamId, data.competitionTeamId),
 				eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
-				eq(teamInvitationTable.isSystemRole, 1),
+				eq(teamInvitationTable.isSystemRole, true),
 				isNull(teamInvitationTable.acceptedAt),
 			),
 		})
@@ -134,7 +138,7 @@ export const getCompetitionVolunteersFn = createServerFn({ method: "GET" })
 			where: and(
 				eq(teamMembershipTable.teamId, data.competitionTeamId),
 				eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
-				eq(teamMembershipTable.isSystemRole, 1),
+				eq(teamMembershipTable.isSystemRole, true),
 			),
 			with: {
 				user: true,
@@ -157,7 +161,7 @@ export const getDirectVolunteerInvitesFn = createServerFn({ method: "GET" })
 			where: and(
 				eq(teamInvitationTable.teamId, data.competitionTeamId),
 				eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
-				eq(teamInvitationTable.isSystemRole, 1),
+				eq(teamInvitationTable.isSystemRole, true),
 			),
 		})
 
@@ -274,7 +278,7 @@ export const submitVolunteerSignupFn = createServerFn({ method: "POST" })
 			where: and(
 				eq(teamInvitationTable.teamId, data.competitionTeamId),
 				eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
-				eq(teamInvitationTable.isSystemRole, 1),
+				eq(teamInvitationTable.isSystemRole, true),
 			),
 		})
 
@@ -298,7 +302,7 @@ export const submitVolunteerSignupFn = createServerFn({ method: "POST" })
 					eq(teamMembershipTable.teamId, data.competitionTeamId),
 					eq(teamMembershipTable.userId, existingUser.id),
 					eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
-					eq(teamMembershipTable.isSystemRole, 1),
+					eq(teamMembershipTable.isSystemRole, true),
 				),
 			})
 
@@ -326,21 +330,23 @@ export const submitVolunteerSignupFn = createServerFn({ method: "POST" })
 		const oneYearFromNow = new Date()
 		oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1)
 
-		const newInvitation = await db
-			.insert(teamInvitationTable)
-			.values({
-				teamId: data.competitionTeamId,
-				email: data.signupEmail,
-				roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
-				isSystemRole: 1,
-				token: crypto.randomUUID(),
-				invitedBy: null,
-				expiresAt: oneYearFromNow,
-				metadata: JSON.stringify(metadata),
-			})
-			.returning()
+		const invitationId = createTeamInvitationId()
+		await db.insert(teamInvitationTable).values({
+			id: invitationId,
+			teamId: data.competitionTeamId,
+			email: data.signupEmail,
+			roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
+			isSystemRole: true,
+			token: crypto.randomUUID(),
+			invitedBy: null,
+			expiresAt: oneYearFromNow,
+			metadata: JSON.stringify(metadata),
+		})
 
-		const invitation = newInvitation[0]
+		const invitation = await db.query.teamInvitationTable.findFirst({
+			where: eq(teamInvitationTable.id, invitationId),
+		})
+
 		if (!invitation) {
 			throw new Error("Failed to create volunteer invitation")
 		}
@@ -774,20 +780,21 @@ export const updateVolunteerMetadataFn = createServerFn({ method: "POST" })
 								eq(teamMembershipTable.teamId, invitation.teamId),
 								eq(teamMembershipTable.userId, existingUser.id),
 								eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
-								eq(teamMembershipTable.isSystemRole, 1),
+								eq(teamMembershipTable.isSystemRole, true),
 							),
 						})
 
 					if (!existingMembership) {
 						await db.insert(teamMembershipTable).values({
+							id: createTeamMembershipId(),
 							teamId: invitation.teamId,
 							userId: existingUser.id,
 							roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
-							isSystemRole: 1,
+							isSystemRole: true,
 							invitedBy: session.userId,
 							invitedAt: now,
 							joinedAt: now,
-							isActive: 1,
+							isActive: true,
 							metadata: JSON.stringify(updatedMetadata),
 						})
 					}

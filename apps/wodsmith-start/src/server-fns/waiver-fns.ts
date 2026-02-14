@@ -12,7 +12,12 @@ import { getDb } from "@/db"
 import { competitionsTable } from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import type { Waiver, WaiverSignature } from "@/db/schemas/waivers"
-import { waiverSignaturesTable, waiversTable } from "@/db/schemas/waivers"
+import {
+	createWaiverId,
+	createWaiverSignatureId,
+	waiverSignaturesTable,
+	waiversTable,
+} from "@/db/schemas/waivers"
 import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk } from "@/utils/batch-query"
 import { hasTeamPermission } from "@/utils/team-auth"
@@ -212,7 +217,7 @@ export const getWaiverSignaturesForUserFn = createServerFn({ method: "GET" })
 		}
 
 		// Get signatures for this user for any of those waivers
-		// Use autochunk to handle potential large arrays (D1 has 100 param limit)
+		// Use autochunk to handle potential large arrays (100 param limit)
 		const signatures = await autochunk(
 			{ items: waiverIds, otherParametersCount: 1 }, // 1 for userId param
 			async (chunk) =>
@@ -343,18 +348,20 @@ export const createWaiverFn = createServerFn({ method: "POST" })
 			existingWaivers.length > 0 ? (existingWaivers[0]?.position ?? -1) : -1
 
 		// Insert waiver
-		const result = await db
-			.insert(waiversTable)
-			.values({
-				competitionId: data.competitionId,
-				title: data.title,
-				content: data.content,
-				required: data.required,
-				position: maxPosition + 1,
-			})
-			.returning()
+		const id = createWaiverId()
+		await db.insert(waiversTable).values({
+			id,
+			competitionId: data.competitionId,
+			title: data.title,
+			content: data.content,
+			required: data.required,
+			position: maxPosition + 1,
+		})
 
-		const [waiver] = Array.isArray(result) ? result : []
+		const waiver = await db.query.waiversTable.findFirst({
+			where: eq(waiversTable.id, id),
+		})
+
 		if (!waiver) {
 			throw new Error("Failed to create waiver")
 		}
@@ -411,7 +418,7 @@ export const updateWaiverFn = createServerFn({ method: "POST" })
 		if (data.required !== undefined) updateData.required = data.required
 
 		// Update waiver with compound where clause
-		const result = await db
+		await db
 			.update(waiversTable)
 			.set(updateData)
 			.where(
@@ -420,9 +427,14 @@ export const updateWaiverFn = createServerFn({ method: "POST" })
 					eq(waiversTable.competitionId, data.competitionId),
 				),
 			)
-			.returning()
 
-		const [waiver] = Array.isArray(result) ? result : []
+		const waiver = await db.query.waiversTable.findFirst({
+			where: and(
+				eq(waiversTable.id, data.waiverId),
+				eq(waiversTable.competitionId, data.competitionId),
+			),
+		})
+
 		if (!waiver) {
 			throw new Error("Failed to update waiver")
 		}
@@ -547,18 +559,20 @@ export const signWaiverFn = createServerFn({ method: "POST" })
 			}
 
 			// Create signature
-			const result = await db
-				.insert(waiverSignaturesTable)
-				.values({
-					waiverId: data.waiverId,
-					userId: session.userId,
-					registrationId: data.registrationId,
-					ipAddress: data.ipAddress,
-					signedAt: new Date(),
-				})
-				.returning()
+			const id = createWaiverSignatureId()
+			await db.insert(waiverSignaturesTable).values({
+				id,
+				waiverId: data.waiverId,
+				userId: session.userId,
+				registrationId: data.registrationId,
+				ipAddress: data.ipAddress,
+				signedAt: new Date(),
+			})
 
-			const [signature] = Array.isArray(result) ? result : []
+			const signature = await db.query.waiverSignaturesTable.findFirst({
+				where: eq(waiverSignaturesTable.id, id),
+			})
+
 			if (!signature) {
 				throw new Error("Failed to create signature")
 			}

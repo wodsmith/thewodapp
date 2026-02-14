@@ -10,6 +10,7 @@ import { and, desc, eq, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { addressesTable } from "@/db/schemas/addresses"
+import { createAddressId } from "@/db/schemas/common"
 import {
 	type Competition,
 	type CompetitionGroup,
@@ -727,20 +728,25 @@ export const updateCompetitionFn = createServerFn({ method: "POST" })
 							.where(eq(addressesTable.id, primaryAddressId))
 					} else {
 						// Create new address
-						const [newAddress] = await db
-							.insert(addressesTable)
-							.values({
-								name: normalized.name ?? null,
-								streetLine1: normalized.streetLine1 ?? null,
-								streetLine2: normalized.streetLine2 ?? null,
-								city: normalized.city ?? null,
-								stateProvince: normalized.stateProvince ?? null,
-								postalCode: normalized.postalCode ?? null,
-								countryCode: normalized.countryCode ?? null,
-								notes: normalized.notes ?? null,
-								addressType: "venue",
-							})
-							.returning()
+						const newAddressId = createAddressId()
+						await db.insert(addressesTable).values({
+							id: newAddressId,
+							name: normalized.name ?? null,
+							streetLine1: normalized.streetLine1 ?? null,
+							streetLine2: normalized.streetLine2 ?? null,
+							city: normalized.city ?? null,
+							stateProvince: normalized.stateProvince ?? null,
+							postalCode: normalized.postalCode ?? null,
+							countryCode: normalized.countryCode ?? null,
+							notes: normalized.notes ?? null,
+							addressType: "venue",
+						})
+						const newAddress = await db.query.addressesTable.findFirst({
+							where: eq(addressesTable.id, newAddressId),
+						})
+						if (!newAddress) {
+							throw new Error("Failed to create address")
+						}
 						primaryAddressId = newAddress.id
 					}
 				}
@@ -804,7 +810,7 @@ export const getCompetitionGroupsFn = createServerFn({ method: "GET" })
 				createdAt: competitionGroupsTable.createdAt,
 				updatedAt: competitionGroupsTable.updatedAt,
 				updateCounter: competitionGroupsTable.updateCounter,
-				competitionCount: sql<number>`cast(count(${competitionsTable.id}) as integer)`,
+				competitionCount: sql<number>`cast(count(${competitionsTable.id}) as unsigned)`,
 			})
 			.from(competitionGroupsTable)
 			.leftJoin(
