@@ -8,6 +8,7 @@
  * - In local dev: Falls back to DATABASE_URL from .dev.vars.
  */
 
+import { createServerOnlyFn } from "@tanstack/react-start"
 import { env } from "cloudflare:workers"
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2"
 import mysql from "mysql2/promise"
@@ -33,7 +34,7 @@ export type Database = MySql2Database<typeof schema>
 let _db: Database | null = null
 
 /**
- * Get database connection
+ * Get database connection (server-only)
  *
  * Prefers Hyperdrive binding (deployed Workers) for connection pooling.
  * Falls back to DATABASE_URL (local dev via .dev.vars).
@@ -42,7 +43,7 @@ let _db: Database | null = null
  * Hyperdrive handles connection pooling externally; we use connectionLimit: 1
  * to avoid redundant client-side pooling.
  */
-export const getDb = (): Database => {
+export const getDb = createServerOnlyFn((): Database => {
 	if (_db) return _db
 
 	const hyperdrive = (env as { HYPERDRIVE?: Hyperdrive }).HYPERDRIVE
@@ -69,7 +70,7 @@ export const getDb = (): Database => {
 	})
 
 	return _db
-}
+})
 
 // Export env for other modules that need access to bindings (KV, R2, etc.)
 export { env }
