@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "04c8346c9d30",
+  "session_id": "0e4cbadc-56c9-436a-a9b1-76eba39df971",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-14T06:38:53.327808Z",
+  "branch": "zac/correct-stripe-fees",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/wodsmith-start/test/server/destination-charge-fees.test.ts"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "9f99797e-89f5-4653-804a-4680db4ca77a",
+  "token_usage": {
+    "input_tokens": 36,
+    "cache_creation_tokens": 118162,
+    "cache_read_tokens": 2830509,
+    "output_tokens": 6493,
+    "api_call_count": 28
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-14T06:38:53.258014Z",
+    "agent_lines": 863,
+    "human_added": 6,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 869,
+    "agent_percentage": 99.30955120828538
+  }
+}

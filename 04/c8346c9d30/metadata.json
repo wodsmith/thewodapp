@@ -3,10 +3,11 @@
   "checkpoint_id": "04c8346c9d30",
   "strategy": "manual-commit",
   "branch": "zac/correct-stripe-fees",
-  "checkpoints_count": 4,
+  "checkpoints_count": 6,
   "files_touched": [
     "apps/wodsmith-start/src/components/landing/compete-hero.tsx",
     "apps/wodsmith-start/src/server-fns/registration-fns.ts",
+    "apps/wodsmith-start/test/server/destination-charge-fees.test.ts",
     "hero-check.png",
     "hero-top.png",
     "hero-v2.png"
@@ -25,13 +26,20 @@
       "context": "/04/c8346c9d30/1/context.md",
       "content_hash": "/04/c8346c9d30/1/content_hash.txt",
       "prompt": "/04/c8346c9d30/1/prompt.txt"
+    },
+    {
+      "metadata": "/04/c8346c9d30/2/metadata.json",
+      "transcript": "/04/c8346c9d30/2/full.jsonl",
+      "context": "/04/c8346c9d30/2/context.md",
+      "content_hash": "/04/c8346c9d30/2/content_hash.txt",
+      "prompt": "/04/c8346c9d30/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 2663,
-    "cache_creation_tokens": 124033,
-    "cache_read_tokens": 4735875,
-    "output_tokens": 3470,
-    "api_call_count": 71
+    "input_tokens": 2699,
+    "cache_creation_tokens": 242195,
+    "cache_read_tokens": 7566384,
+    "output_tokens": 9963,
+    "api_call_count": 99
   }
 }

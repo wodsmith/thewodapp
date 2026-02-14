@@ -1,0 +1,356 @@
+based on the current changes, please create a full suite of tests for this functionality. we want it battle tested
+
+---
+
+Base directory for this skill: /Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/.claude/skills/test
+
+# Testing (Router Skill)
+
+**"Write tests. Not too many. Mostly integration."** — Kent C. Dodds
+
+This skill routes you to the right testing approach. TDD is non-negotiable for swarm work.
+
+## Testing Trophy
+
+```
+      /\
+     /  \  E2E (slow, high confidence)
+    /----\  5-10 critical path tests
+   / INT  \ Integration (SWEET SPOT)
+  /--------\ Test real interactions
+ |  UNIT  | Unit (fast, focused)
+ |________| Pure logic, no mocks
+  STATIC   Lint + TypeScript
+```
+
+**Philosophy:**
+- **Static** catches typos and type errors (free, instant feedback)
+- **Unit** tests pure logic in isolation (fast, focused, many tests)
+- **Integration** tests real interactions (sweet spot, highest ROI)
+- **E2E** tests critical user journeys (slow, expensive, few tests)
+
+## Decision Tree: Which Test Type?
+
+```
+What are you testing?
+│
+├─ Pure function / calculation / business logic?
+│  └─ Use: unit-test (fast, no mocking needed)
+│     When: calculateScore(), formatDate(), pure validators
+│
+├─ Multi-component workflow / database operations / React with providers?
+│  └─ Use: integration-test (real interactions, less mocking)
+│     When: server actions, form submissions, API endpoints, context-heavy components
+│
+└─ Critical user journey / revenue flow / authentication?
+   └─ Use: e2e-test (full stack, highest confidence)
+      When: signup, checkout, core product actions (only happy paths!)
+```
+
+**Heuristic:** If you need >3 mocks, use integration. If it's a critical revenue path, use E2E.
+
+## TDD Red-Green-Refactor (Non-Negotiable)
+
+```
+┌──────────────────────────┐
+│ RED: Write failing test  │ ← If it passes, test is wrong
+└──────────┬───────────────┘
+           │
+┌──────────▼───────────────┐
+│ GREEN: Make it pass      │ ← Minimum code, hardcode OK
+└──────────┬───────────────┘
+           │
+┌──────────▼───────────────┐
+│ REFACTOR: Clean up       │ ← Tests stay green
+└──────────┬───────────────┘
+           │
+           └─────────┐
+                     │
+                     ▼ REPEAT
+```
+
+**Every feature. Every bug fix. No exceptions.**
+
+## Quick Start by Type
+
+### Unit Test (Pure Logic)
+
+```bash
+skills_use(name="unit-test")
+```
+
+**Use when:** Testing service functions, pure calculations, webhook handlers
+**Key patterns:** Arrange-Act-Assert, one assertion per concept, mock at boundaries only
+**Speed:** Fastest (<1ms per test)
+
+### Integration Test (Real Interactions)
+
+```bash
+skills_use(name="integration-test")
+```
+
+**Use when:** Testing workflows, database ops, React components with providers, server actions
+**Key patterns:** Factory data, MSW for network, custom render with providers, `waitFor` for async
+**Speed:** Fast (10-100ms per test)
+
+### E2E Test (Critical Paths)
+
+```bash
+skills_use(name="e2e-test")
+```
+
+**Use when:** Testing signup, revenue flows, multi-step journeys, critical user paths
+**Key patterns:** Page objects, fixtures for auth, visual regression, test isolation
+**Speed:** Slow (1-10s per test)
+
+## Anti-Patterns to Avoid
+
+❌ **Testing implementation details** - Test behavior, not private methods or internal state
+❌ **Mocking everything** - Prefer real implementations, mock only boundaries (DB, network)
+❌ **One assertion per test dogma** - Multiple assertions OK if testing same concept
+❌ **No tests on bug fixes** - Write failing test that reproduces bug, then fix (prevents regression)
+❌ **Skipping TDD for "simple" changes** - Simple changes break things. Write test first.
+❌ **Too many E2E tests** - E2E is expensive. Use integration tests for most cases.
+❌ **Tests that depend on each other** - Each test must be independent, run in any order
+
+## When to Use Which Child Skill
+
+| Scenario | Load This Skill |
+|----------|----------------|
+| Testing pure functions, calculations, formatters | `unit-test` |
+| Testing database queries, server actions, API routes | `integration-test` |
+| Testing React components with hooks/context | `integration-test` |
+| Testing signup, checkout, critical user flows | `e2e-test` |
+| Breaking dependencies in legacy code | `testing-patterns` |
+| Understanding characterization tests, seams | `testing-patterns` |
+
+## Testing Patterns (Advanced)
+
+For dependency breaking, seams, characterization tests, and safe refactoring:
+
+```bash
+skills_use(name="testing-patterns")
+```
+
+**Use when:** Adding tests to legacy code, breaking hard dependencies, understanding code through tests
+
+## Core Principles
+
+1. **Test behavior, not implementation** - Public API, not private methods
+2. **Mock at boundaries only** - Database, network, file system. Not your own code.
+3. **Fail fast, fail clear** - Good test names describe the expected behavior
+4. **Tests are documentation** - Test names should read like specifications
+5. **Refactor with confidence** - Tests enable safe changes
+
+## Resources
+
+- Child skills: `unit-test`, `integration-test`, `e2e-test`, `testing-patterns`
+- Testing Trophy: https://kentcdodds.com/blog/write-tests
+- TDD by Example: Kent Beck
+- Working Effectively with Legacy Code: Michael Feathers (for `testing-patterns`)
+
+---
+
+Base directory for this skill: /Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/.claude/skills/unit-test
+
+# Unit Testing
+
+Test pure business logic in isolation. Mock system boundaries (DB, webhooks, external APIs). Verify calculated values, not side effects.
+
+## TDD Cycle (Non-Negotiable)
+
+**RED → GREEN → REFACTOR**. Every feature. Every bug fix.
+
+- **RED**: Write failing test first. If it passes, your test is wrong.
+- **GREEN**: Minimum code to pass. Hardcode if needed.
+- **REFACTOR**: Clean up while green. Run tests after every change.
+
+```typescript
+// RED
+test("calculates score", () => expect(calculateScore({ reps: 10, weight: 135 })).toBe(1350)) // FAILS
+// GREEN - hardcode
+function calculateScore(data) { return 1350 }
+// RED - force real logic
+test("different score", () => expect(calculateScore({ reps: 5, weight: 100 })).toBe(500)) // FAILS
+// GREEN - implement
+function calculateScore(data) { return data.reps * data.weight }
+```
+
+## Arrange-Act-Assert Pattern
+
+```typescript
+test("applies discount", () => {
+  // ARRANGE
+  const price = 100, discount = 0.2
+  // ACT
+  const result = applyDiscount(price, discount)
+  // ASSERT
+  expect(result).toBe(80)
+})
+```
+
+**One concept per test**: Multiple assertions OK if testing same concept.
+
+```typescript
+// GOOD: One concept
+test("returns errors for invalid workout", () => {
+  const result = validateWorkout({})
+  expect(result.valid).toBe(false)
+  expect(result.errors).toContain("name required")
+})
+
+// BAD: Multiple concepts
+test("validates and saves", () => {
+  expect(validateWorkout({}).valid).toBe(false)
+  expect(saveWorkout({ name: "Fran" }).id).toBeDefined()
+})
+```
+
+## Anti-Patterns
+
+**Overspecified Tests** (THE WORST) - Testing HOW instead of WHAT.
+
+```typescript
+// BAD: Implementation details
+test("processes", () => {
+  processor.initialize() // internal
+  expect(processor.state).toBe("ready") // internal
+})
+
+// GOOD: Behavior
+test("processes valid workout", () => {
+  expect(processWorkout({ name: "Fran" }).success).toBe(true)
+})
+```
+
+**Testing State Not Behavior**
+
+```typescript
+// BAD
+test("sets score", () => {
+  scorer.calculate(10, 135)
+  expect(scorer.score).toBe(1350) // internal field
+})
+
+// GOOD
+test("calculates score", () => {
+  expect(scorer.calculate(10, 135)).toBe(1350)
+})
+```
+
+**Multiple Unrelated Assertions**
+
+```typescript
+// BAD: Which failed?
+test("validation", () => {
+  expect(validateName("")).toBe(false)
+  expect(validateType("x")).toBe(false)
+})
+
+// GOOD: Split tests
+test("rejects empty name", () => expect(validateName("")).toBe(false))
+test("rejects invalid type", () => expect(validateType("x")).toBe(false))
+```
+
+## Pure Function Testing
+
+Separate calculations (pure) from side effects (DB, webhooks).
+
+```typescript
+// Bad: mixed
+async function processWebhook(event) {
+  const score = event.reps * event.weight
+  await db.insert(scores).values({ score })
+}
+
+// Good: separated
+function calculateScore(data) { return data.reps * data.weight } // pure
+
+async function processWebhook(event) {
+  const score = calculateScore(event.data) // pure
+  await db.insert(scores).values({ score }) // side effect
+}
+
+// Test pure function - no mocks
+test("calculates score", () => {
+  expect(calculateScore({ reps: 10, weight: 135 })).toBe(1350)
+})
+```
+
+## Mocking at Boundaries
+
+Mock DB, auth, APIs. Test logic between them.
+
+```typescript
+vi.mock("@/server/workouts", () => ({
+  getWorkoutById: vi.fn(),
+  updateWorkout: vi.fn(),
+}))
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  vi.mocked(getWorkoutById).mockResolvedValue({ id: "w-123" })
+})
+
+test("updates workout", async () => {
+  const [data, err] = await updateWorkoutAction({
+    id: "w-123", workout: { name: "Updated" }
+  })
+  
+  expect(err).toBeNull()
+  expect(updateWorkout).toHaveBeenCalledWith({
+    id: "w-123", workout: { name: "Updated" }
+  })
+})
+```
+
+## What to Test vs Mock
+
+**Test**: Calculations, transformations, validation, business rules
+**Mock**: Database, external APIs, auth, webhooks, file system
+
+## Breaking Dependencies
+
+Hard to test? Use dependency-breaking techniques.
+
+**See `testing-patterns` skill**: `skills_use(name="testing-patterns")`
+- 25 techniques, seam model, characterization tests
+
+Quick: **Parameterize Constructor**, **Extract Interface**, **Subclass & Override**
+
+```typescript
+// Before
+class Processor { process() { new ProductionDB().save() } }
+
+// After - inject dependency
+class Processor {
+  constructor(private db = new ProductionDB()) {}
+  process() { this.db.save() }
+}
+
+// Test
+new Processor(new FakeDB())
+```
+
+## Organization & Running
+
+**Structure**: `test/lib/` (pure functions), `test/server/` (services, mock DB), `test/actions/` (actions, mock services)
+
+**Run**: `pnpm test` (all), `pnpm test -- path/to/file.test.ts` (single)
+
+## Principles
+
+1. **RED → GREEN → REFACTOR** - no exceptions
+2. **Pure functions** - easier to test, no mocks
+3. **Mock boundaries** - DB, auth, APIs
+4. **Behavior not state** - what it does, not how
+5. **One concept per test** - clear failures
+6. **Arrange-Act-Assert** - consistent structure
+
+---
+
+did you test all the variations around passing fees on to the customer vs merchant taking on that charge and such?
+
+---
+
+commit and push
