@@ -39,7 +39,7 @@ export function initPostHog(): void {
 	posthog.init(POSTHOG_KEY, {
 		api_host: POSTHOG_HOST,
 		ui_host: "https://us.posthog.com",
-		// Match Next.js app settings
+		// PostHog SDK settings
 		defaults: "2025-05-24",
 		capture_exceptions: true,
 		debug: false,

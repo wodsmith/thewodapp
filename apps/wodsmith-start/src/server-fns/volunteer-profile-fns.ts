@@ -86,8 +86,5 @@ export const updateVolunteerProfileFn = createServerFn({ method: "POST" })
 			})
 			.where(eq(teamMembershipTable.id, data.membershipId))
 
-		// Note: In TanStack Start, we don't have revalidatePath like Next.js
-		// The router handles revalidation differently
-
 		return { success: true }
 	})

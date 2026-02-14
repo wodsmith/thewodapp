@@ -1,7 +1,6 @@
 /**
- * Judge Scheduling Server Functions for TanStack Start
- * Port of apps/wodsmith/src/server/judge-scheduling.ts and judge-schedule.ts
- * Converted from Next.js server actions to TanStack Start createServerFn pattern
+ * Judge Scheduling Server Functions
+ * Handles judge assignment, scheduling, and availability for competitions.
  */
 
 import { createServerFn } from "@tanstack/react-start"
