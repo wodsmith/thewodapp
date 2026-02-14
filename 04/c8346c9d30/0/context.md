@@ -1,0 +1,26 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+please check how we do calculations for stripe processing fees. stripe has $38.50 for our platform fee but the ui is showing $52.28.. this is bad. and then check and verify the stripe processing fees are correct... the site ui is showing $20.28. I'm logged into the stripe cli so you should be able to get all the processing fees for production
+
+### Prompt 2
+
+<task-notification>
+<task-id>bd9cb30</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "List live mode charges" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+### Prompt 3
+
+we have settings for passing the stripe fee on to the customer vs the merchant taking on that charge. in this case both the platform and stripe fees are passed on to the customer. does that change your evaluation at all?
+
+### Prompt 4
+
+yes please fix this
+
