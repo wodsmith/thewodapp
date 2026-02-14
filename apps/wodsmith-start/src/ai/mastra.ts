@@ -2,7 +2,7 @@
  * @fileoverview Mastra AI agent configuration for WODsmith.
  *
  * This module configures the Mastra agent framework with:
- * - D1 storage for conversation threads and messages
+ * - PlanetScale (MySQL) storage for conversation threads and messages
  * - Cloudflare Vectorize for semantic memory recall
  * - OpenAI embeddings for vector generation
  *
@@ -13,7 +13,7 @@ import { createServerOnlyFn } from "@tanstack/react-start"
 import { env } from "cloudflare:workers"
 
 import { Memory } from "@mastra/memory"
-import { D1Store } from "@mastra/cloudflare-d1"
+import { PlanetScaleStore } from "./storage"
 import { CloudflareVector } from "@mastra/vectorize"
 import { RequestContext } from "@mastra/core/request-context"
 import { openai } from "@ai-sdk/openai"
@@ -22,19 +22,20 @@ import { getOpenAIModel } from "@/lib/ai"
 /**
  * Creates a Memory instance for AI agent conversations.
  *
- * Uses D1 for thread/message storage and Cloudflare Vectorize for semantic recall.
- * This function must be called within a request context to access the D1 binding.
- *
- * Note: D1Store automatically initializes tables before first storage operation.
+ * Uses PlanetScale for thread/message storage and Cloudflare Vectorize for semantic recall.
+ * This function must be called within a request context to access env bindings.
  *
  * @returns Memory instance configured for Cloudflare Workers
  */
 export const createMemory = createServerOnlyFn(() => {
-	// Create D1 store using the Worker binding (faster than REST API)
-	// D1Store handles table initialization automatically
-	const storage = new D1Store({
+	const databaseUrl = (env as unknown as { DATABASE_URL?: string }).DATABASE_URL
+	if (!databaseUrl) {
+		throw new Error("DATABASE_URL not found for Mastra memory storage")
+	}
+
+	const storage = new PlanetScaleStore({
 		id: "wodsmith-memory",
-		binding: env.DB,
+		url: databaseUrl,
 		tablePrefix: "mastra_",
 	})
 

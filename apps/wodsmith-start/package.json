@@ -55,7 +55,6 @@
 		"@lexical/rich-text": "^0.39.0",
 		"@marsidev/react-turnstile": "^1.0.2",
 		"@mastra/ai-sdk": "1.0.0-beta.14",
-		"@mastra/cloudflare-d1": "1.0.0-beta.9",
 		"@mastra/core": "1.0.0-beta.21",
 		"@mastra/memory": "1.0.0-beta.12",
 		"@mastra/vectorize": "1.0.0-beta.3",
