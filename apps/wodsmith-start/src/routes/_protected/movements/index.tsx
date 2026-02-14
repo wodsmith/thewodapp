@@ -1,13 +1,24 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import {
+	createFileRoute,
+	Link,
+	redirect,
+	useNavigate,
+} from "@tanstack/react-router"
 import { ChevronDown, Filter, Plus, Search } from "lucide-react"
 import { useMemo, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ROLES_ENUM } from "@/db/schema"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
 
 export const Route = createFileRoute("/_protected/movements/")({
 	component: MovementsPage,
+	beforeLoad: async ({ context }) => {
+		if (!context.hasWorkoutTracking) {
+			throw redirect({ to: "/compete" })
+		}
+	},
 	validateSearch: (search: Record<string, unknown>) => ({
 		q: (search.q as string) || "",
 		type: (search.type as string) || "",
@@ -20,6 +31,7 @@ export const Route = createFileRoute("/_protected/movements/")({
 
 function MovementsPage() {
 	const { movements } = Route.useLoaderData()
+	const { session } = Route.useRouteContext()
 	const navigate = useNavigate({ from: Route.fullPath })
 	const { q, type } = Route.useSearch()
 	const [searchTerm, setSearchTerm] = useState(q)
@@ -67,12 +79,14 @@ function MovementsPage() {
 			{/* Header */}
 			<div className="mb-6 flex items-center justify-between">
 				<h1 className="text-4xl font-bold">MOVEMENTS</h1>
-				<Button asChild>
-					<Link to="/movements/new">
-						<Plus className="h-5 w-5 mr-2" />
-						Create Movement
-					</Link>
-				</Button>
+				{session?.user.role === ROLES_ENUM.ADMIN && (
+					<Button asChild>
+						<Link to="/movements/new">
+							<Plus className="h-5 w-5 mr-2" />
+							Create Movement
+						</Link>
+					</Button>
+				)}
 			</div>
 
 			{/* Search + Filter */}

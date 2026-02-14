@@ -2,6 +2,12 @@
  * Competition Score Server Functions for TanStack Start
  * Port from apps/wodsmith/src/server/competition-scores.ts and
  * apps/wodsmith/src/actions/competition-score-actions.ts
+ *
+ * OBSERVABILITY:
+ * - All score operations are logged with entity IDs for tracing
+ * - Score saves/updates track competitionId, userId, scoreId
+ * - Permission checks are logged for audit trails
+ * - Batch operations include counts and error summaries
  */
 
 import { createServerFn } from "@tanstack/react-start"
@@ -9,7 +15,17 @@ import { and, eq, gt, inArray, isNull, or } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+	addRequestContextAttribute,
+	logEntityDeleted,
+	logEntityUpdated,
+	logError,
+	logInfo,
+	logWarning,
+	updateRequestContext,
+} from "@/lib/logging"
+import {
 	type CompetitionHeat,
+	competitionEventsTable,
 	competitionHeatAssignmentsTable,
 	competitionHeatsTable,
 	competitionRegistrationsTable,
@@ -25,7 +41,6 @@ import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
 import { teamMembershipTable } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
-import { getSessionFromCookie } from "@/utils/auth"
 import {
 	SCORE_STATUS_VALUES,
 	type ScoreStatus,
@@ -44,6 +59,7 @@ import {
 	STATUS_ORDER,
 	sortKeyToString,
 } from "@/lib/scoring"
+import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk, chunk, SQL_BATCH_SIZE } from "@/utils/batch-query"
 
 const BATCH_SIZE = SQL_BATCH_SIZE
@@ -142,6 +158,81 @@ export interface EventScoreEntryDataWithHeats extends EventScoreEntryData {
 // ============================================================================
 // Helper Functions
 // ============================================================================
+
+/**
+ * Check if current time is within the event's submission window.
+ * Only applies to online competitions.
+ */
+async function isWithinSubmissionWindow(
+	competitionId: string,
+	trackWorkoutId: string,
+): Promise<{ allowed: boolean; reason?: string }> {
+	const db = getDb()
+
+	// Get competition type
+	const [competition] = await db
+		.select({
+			competitionType: competitionsTable.competitionType,
+		})
+		.from(competitionsTable)
+		.where(eq(competitionsTable.id, competitionId))
+		.limit(1)
+
+	if (!competition) {
+		return { allowed: false, reason: "Competition not found" }
+	}
+
+	// Only check submission windows for online competitions
+	if (competition.competitionType !== "online") {
+		return { allowed: true }
+	}
+
+	// Get competition event with submission window
+	const [event] = await db
+		.select({
+			submissionOpensAt: competitionEventsTable.submissionOpensAt,
+			submissionClosesAt: competitionEventsTable.submissionClosesAt,
+		})
+		.from(competitionEventsTable)
+		.where(
+			and(
+				eq(competitionEventsTable.competitionId, competitionId),
+				eq(competitionEventsTable.trackWorkoutId, trackWorkoutId),
+			),
+		)
+		.limit(1)
+
+	// If no event record exists, allow submission (backward compatibility)
+	if (!event) {
+		return { allowed: true }
+	}
+
+	// If no submission window is configured, allow submission
+	if (!event.submissionOpensAt || !event.submissionClosesAt) {
+		return { allowed: true }
+	}
+
+	// Check if current time is within the window
+	const now = new Date()
+	const opensAt = new Date(event.submissionOpensAt)
+	const closesAt = new Date(event.submissionClosesAt)
+
+	if (now < opensAt) {
+		return {
+			allowed: false,
+			reason: `Submission window opens at ${opensAt.toISOString()}`,
+		}
+	}
+
+	if (now > closesAt) {
+		return {
+			allowed: false,
+			reason: `Submission window closed at ${closesAt.toISOString()}`,
+		}
+	}
+
+	return { allowed: true }
+}
 
 /**
  * Map ScoreStatus to statusOrder for the scores table.
@@ -437,7 +528,7 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
 				)
 			: registrations
 
-		// Get existing scores for this event from scores table (chunked to avoid D1 parameter limit)
+		// Get existing scores for this event from scores table (chunked to avoid parameter limit)
 		const userIds = filteredRegistrations.map((r) => r.user.id)
 		const existingScores =
 			userIds.length > 0
@@ -456,7 +547,7 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
 					)
 				: []
 
-		// Get score_rounds for all existing scores (chunked to avoid D1 parameter limit)
+		// Get score_rounds for all existing scores (chunked to avoid parameter limit)
 		const scoreIds = existingScores.map((s) => s.id)
 		const existingRounds =
 			scoreIds.length > 0
@@ -765,6 +856,44 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 		}> => {
 			const db = getDb()
 
+			// Update request context for tracing
+			addRequestContextAttribute("competitionId", data.competitionId)
+			addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
+			addRequestContextAttribute("athleteUserId", data.userId)
+
+			logInfo({
+				message: "[Score] Save competition score started",
+				attributes: {
+					competitionId: data.competitionId,
+					trackWorkoutId: data.trackWorkoutId,
+					userId: data.userId,
+					registrationId: data.registrationId,
+					divisionId: data.divisionId,
+					scoreStatus: data.scoreStatus,
+				},
+			})
+
+			// Check submission window for online competitions
+			const submissionCheck = await isWithinSubmissionWindow(
+				data.competitionId,
+				data.trackWorkoutId,
+			)
+
+			if (!submissionCheck.allowed) {
+				logWarning({
+					message: "[Score] Submission window blocked",
+					attributes: {
+						competitionId: data.competitionId,
+						trackWorkoutId: data.trackWorkoutId,
+						userId: data.userId,
+						reason: submissionCheck.reason,
+					},
+				})
+				throw new Error(
+					submissionCheck.reason || "Score submission not allowed at this time",
+				)
+			}
+
 			// Validate workout info is provided
 			if (!data.workout) {
 				throw new Error("Workout info is required to save competition score")
@@ -813,7 +942,21 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 				? data.workout.timeCap * 1000
 				: null
 
+			// Encode tiebreak if provided (needed for sortKey computation)
+			let tiebreakValue: number | null = null
+			if (data.tieBreakScore && data.workout.tiebreakScheme) {
+				try {
+					tiebreakValue = encodeScore(
+						data.tieBreakScore,
+						data.workout.tiebreakScheme as ScoringWorkoutScheme,
+					)
+				} catch (_error) {
+					// Silently ignore tiebreak encoding errors
+				}
+			}
+
 			// Compute sort key for efficient leaderboard queries
+			// Include tiebreak in sortKey so tied scores can be differentiated
 			const sortKey =
 				encodedValue !== null
 					? computeSortKey({
@@ -821,6 +964,19 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 							status: newStatus,
 							scheme,
 							scoreType,
+							// Include time cap info for capped scores
+							timeCap:
+								newStatus === "cap" && timeCapMs && secondaryValue !== null
+									? { ms: timeCapMs, secondaryValue }
+									: undefined,
+							// Include tiebreak for proper tie-breaking in rankings
+							tiebreak:
+								tiebreakValue !== null && data.workout.tiebreakScheme
+									? {
+											scheme: data.workout.tiebreakScheme as "time" | "reps",
+											value: tiebreakValue,
+										}
+									: undefined,
 						})
 					: null
 
@@ -842,19 +998,6 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 			}
 
 			const teamId = teamResult.ownerTeamId
-
-			// Encode tiebreak if provided
-			let tiebreakValue: number | null = null
-			if (data.tieBreakScore && data.workout.tiebreakScheme) {
-				try {
-					tiebreakValue = encodeScore(
-						data.tieBreakScore,
-						data.workout.tiebreakScheme as ScoringWorkoutScheme,
-					)
-				} catch (_error) {
-					// Silently ignore tiebreak encoding errors
-				}
-			}
 
 			// Insert/update scores table
 			await db
@@ -879,8 +1022,7 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 					asRx: true,
 					recordedAt: new Date(),
 				})
-				.onConflictDoUpdate({
-					target: [scoresTable.competitionEventId, scoresTable.userId],
+				.onDuplicateKeyUpdate({
 					set: {
 						scoreValue: encodedValue,
 						status: newStatus,
@@ -913,6 +1055,22 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 			}
 
 			const scoreId = finalScore.id
+
+			// Log score entity creation/update
+			addRequestContextAttribute("scoreId", scoreId)
+			logEntityUpdated({
+				entity: "score",
+				id: scoreId,
+				attributes: {
+					competitionId: data.competitionId,
+					trackWorkoutId: data.trackWorkoutId,
+					userId: data.userId,
+					registrationId: data.registrationId,
+					divisionId: data.divisionId,
+					scoreStatus: data.scoreStatus,
+					hasRoundScores: !!(data.roundScores && data.roundScores.length > 0),
+				},
+			})
 
 			// Handle score_rounds - delete existing and insert new
 			if (data.roundScores && data.roundScores.length > 0) {
@@ -955,7 +1113,26 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 						db.insert(scoreRoundsTable).values(batch),
 					),
 				)
+
+				logInfo({
+					message: "[Score] Round scores saved",
+					attributes: {
+						scoreId,
+						roundCount: data.roundScores.length,
+					},
+				})
 			}
+
+			logInfo({
+				message: "[Score] Competition score saved successfully",
+				attributes: {
+					scoreId,
+					competitionId: data.competitionId,
+					trackWorkoutId: data.trackWorkoutId,
+					userId: data.userId,
+					scoreStatus: data.scoreStatus,
+				},
+			})
 
 			return { success: true, data: { resultId: scoreId, isNew: true } }
 		},
@@ -980,6 +1157,39 @@ export const saveCompetitionScoresFn = createServerFn({ method: "POST" })
 		}> => {
 			const errors: Array<{ userId: string; error: string }> = []
 			let savedCount = 0
+
+			// Update request context
+			addRequestContextAttribute("competitionId", data.competitionId)
+			addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
+
+			logInfo({
+				message: "[Score] Batch save competition scores started",
+				attributes: {
+					competitionId: data.competitionId,
+					trackWorkoutId: data.trackWorkoutId,
+					scoreCount: data.scores.length,
+				},
+			})
+
+			// Check submission window for online competitions
+			const submissionCheck = await isWithinSubmissionWindow(
+				data.competitionId,
+				data.trackWorkoutId,
+			)
+
+			if (!submissionCheck.allowed) {
+				logWarning({
+					message: "[Score] Batch submission window blocked",
+					attributes: {
+						competitionId: data.competitionId,
+						trackWorkoutId: data.trackWorkoutId,
+						reason: submissionCheck.reason,
+					},
+				})
+				throw new Error(
+					submissionCheck.reason || "Score submission not allowed at this time",
+				)
+			}
 
 			// Get workout info for all scores
 			const db = getDb()
@@ -1020,12 +1230,32 @@ export const saveCompetitionScoresFn = createServerFn({ method: "POST" })
 					})
 					savedCount++
 				} catch (error) {
+					const errorMessage =
+						error instanceof Error ? error.message : "Unknown error"
 					errors.push({
 						userId: scoreData.userId,
-						error: error instanceof Error ? error.message : "Unknown error",
+						error: errorMessage,
+					})
+					logError({
+						message: "[Score] Failed to save individual score in batch",
+						error,
+						attributes: {
+							userId: scoreData.userId,
+							registrationId: scoreData.registrationId,
+						},
 					})
 				}
 			}
+
+			logInfo({
+				message: "[Score] Batch save competition scores completed",
+				attributes: {
+					competitionId: data.competitionId,
+					trackWorkoutId: data.trackWorkoutId,
+					savedCount,
+					errorCount: errors.length,
+				},
+			})
 
 			return { success: true, data: { savedCount, errors } }
 		},
@@ -1041,6 +1271,20 @@ export const deleteCompetitionScoreFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }): Promise<{ success: boolean }> => {
 		const db = getDb()
 
+		// Update request context
+		addRequestContextAttribute("competitionId", data.competitionId)
+		addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
+		addRequestContextAttribute("targetUserId", data.userId)
+
+		logInfo({
+			message: "[Score] Delete competition score started",
+			attributes: {
+				competitionId: data.competitionId,
+				trackWorkoutId: data.trackWorkoutId,
+				userId: data.userId,
+			},
+		})
+
 		// Delete from scores table (score_rounds are cascade deleted)
 		await db
 			.delete(scoresTable)
@@ -1050,6 +1294,16 @@ export const deleteCompetitionScoreFn = createServerFn({ method: "POST" })
 					eq(scoresTable.userId, data.userId),
 				),
 			)
+
+		logEntityDeleted({
+			entity: "score",
+			id: `${data.trackWorkoutId}:${data.userId}`,
+			attributes: {
+				competitionId: data.competitionId,
+				trackWorkoutId: data.trackWorkoutId,
+				userId: data.userId,
+			},
+		})
 
 		return { success: true }
 	})
@@ -1065,8 +1319,15 @@ export const deleteCompetitionScoreFn = createServerFn({ method: "POST" })
 async function requireScoreAccess(competitionTeamId: string): Promise<void> {
 	const session = await getSessionFromCookie()
 	if (!session?.userId) {
+		logWarning({
+			message: "[Score] Volunteer access denied - not authenticated",
+			attributes: { competitionTeamId },
+		})
 		throw new Error("Not authenticated")
 	}
+
+	updateRequestContext({ userId: session.userId })
+	addRequestContextAttribute("competitionTeamId", competitionTeamId)
 
 	const db = getDb()
 	const entitlements = await db.query.entitlementTable.findMany({
@@ -1083,8 +1344,24 @@ async function requireScoreAccess(competitionTeamId: string): Promise<void> {
 	})
 
 	if (entitlements.length === 0) {
+		logWarning({
+			message: "[Score] Volunteer access denied - missing entitlement",
+			attributes: {
+				userId: session.userId,
+				competitionTeamId,
+				entitlementType: "competition_score_input",
+			},
+		})
 		throw new Error("Missing score access permission")
 	}
+
+	logInfo({
+		message: "[Score] Volunteer access granted",
+		attributes: {
+			userId: session.userId,
+			competitionTeamId,
+		},
+	})
 }
 
 const volunteerScoreAccessInputSchema = z.object({

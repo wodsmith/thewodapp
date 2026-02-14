@@ -11,16 +11,18 @@ import { z } from "zod"
 import { FEATURES } from "@/config/features"
 import { LIMITS } from "@/config/limits"
 import { getDb } from "@/db"
+import { createOrganizerRequestId } from "@/db/schemas/common"
 import {
 	ORGANIZER_REQUEST_STATUS,
-	organizerRequestTable,
 	type OrganizerRequest,
+	organizerRequestTable,
 } from "@/db/schemas/organizer-requests"
 import {
 	SYSTEM_ROLES_ENUM,
 	TEAM_PERMISSIONS,
 	teamMembershipTable,
 } from "@/db/schemas/teams"
+import { ROLES_ENUM } from "@/db/schemas/users"
 import {
 	grantTeamFeature,
 	setTeamLimitOverride,
@@ -34,7 +36,7 @@ import { validateTurnstileToken } from "@/utils/validate-captcha"
 // ============================================================================
 
 /**
- * Check if user has permission for a team
+ * Check if user has permission for a team (or is a site admin)
  */
 async function hasTeamPermission(
 	teamId: string,
@@ -42,6 +44,9 @@ async function hasTeamPermission(
 ): Promise<boolean> {
 	const session = await getSessionFromCookie()
 	if (!session?.userId) return false
+
+	// Site admins have all permissions
+	if (session.user?.role === ROLES_ENUM.ADMIN) return true
 
 	const team = session.teams?.find((t) => t.id === teamId)
 	if (!team) return false
@@ -63,7 +68,7 @@ async function isTeamOwnerFromDb(
 			eq(teamMembershipTable.userId, userId),
 			eq(teamMembershipTable.teamId, teamId),
 			eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.OWNER),
-			eq(teamMembershipTable.isSystemRole, 1),
+			eq(teamMembershipTable.isSystemRole, true),
 		),
 	})
 	return !!membership
@@ -114,15 +119,18 @@ async function submitOrganizerRequestInternal({
 	}
 
 	// Create the request
-	const [request] = await db
-		.insert(organizerRequestTable)
-		.values({
-			teamId,
-			userId,
-			reason,
-			status: ORGANIZER_REQUEST_STATUS.PENDING,
-		})
-		.returning()
+	const id = createOrganizerRequestId()
+	await db.insert(organizerRequestTable).values({
+		id,
+		teamId,
+		userId,
+		reason,
+		status: ORGANIZER_REQUEST_STATUS.PENDING,
+	})
+
+	const request = await db.query.organizerRequestTable.findFirst({
+		where: eq(organizerRequestTable.id, id),
+	})
 
 	if (!request) {
 		throw new Error("Failed to create organizer request")

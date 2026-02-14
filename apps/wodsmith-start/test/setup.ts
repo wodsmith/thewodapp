@@ -40,6 +40,59 @@ const mockD1Client = {
     ]),
 }
 
+// Create a table mock with findFirst and findMany
+const createTableMock = () => ({
+  findFirst: vi.fn().mockResolvedValue(null),
+  findMany: vi.fn().mockResolvedValue([]),
+})
+
+// Create query mock with all tables used by db.query.tableName pattern
+const createQueryMock = () => ({
+  // Core tables
+  workouts: createTableMock(),
+  teamTable: createTableMock(),
+  teamMembershipTable: createTableMock(),
+  userTable: createTableMock(),
+  planTable: createTableMock(),
+  featureTable: createTableMock(),
+  limitTable: createTableMock(),
+  // Competition tables
+  competitionsTable: createTableMock(),
+  competitionRegistrationsTable: createTableMock(),
+  competitionRegistrationQuestionsTable: createTableMock(),
+  competitionJudgeRotationsTable: createTableMock(),
+  competitionHeatsTable: createTableMock(),
+  // Organizer tables
+  organizerRequestTable: createTableMock(),
+  // Sponsor tables
+  sponsorsTable: createTableMock(),
+  sponsorGroupsTable: createTableMock(),
+  // Waiver tables
+  waiversTable: createTableMock(),
+  waiverSignaturesTable: createTableMock(),
+  // Judging tables
+  eventJudgingSheetsTable: createTableMock(),
+  judgeAssignmentVersionsTable: createTableMock(),
+  // Video/submission tables
+  videoSubmissionsTable: createTableMock(),
+  // Resource tables
+  eventResourcesTable: createTableMock(),
+  // Address tables
+  addressesTable: createTableMock(),
+  // Commerce tables
+  commerceProductTable: createTableMock(),
+  commercePurchaseTable: createTableMock(),
+  // Entitlement tables
+  entitlementTable: createTableMock(),
+  teamFeatureEntitlementTable: createTableMock(),
+  teamLimitEntitlementTable: createTableMock(),
+  teamEntitlementOverrideTable: createTableMock(),
+  // Scheduling tables
+  scheduledWorkoutInstancesTable: createTableMock(),
+  // Notification tables
+  notificationReservationsTable: createTableMock(),
+})
+
 // Mock the db object that is null in test environment
 // The mockDb needs to be thenable so that when you await the query chain, it returns an array
 export const createChainableMock = () => {
@@ -63,7 +116,7 @@ export const createChainableMock = () => {
     insert: vi.fn(() => createChainableMock()),
     values: vi.fn(() => createChainableMock()),
     returning: vi.fn().mockResolvedValue([{id: 'test_id', name: 'Test'}]),
-    onConflictDoUpdate: vi.fn(() => createChainableMock()),
+    onDuplicateKeyUpdate: vi.fn(() => createChainableMock()),
     // Update chain
     update: vi.fn(() => createChainableMock()),
     set: vi.fn(() => createChainableMock()),
@@ -72,15 +125,7 @@ export const createChainableMock = () => {
     // Other methods
     get: vi.fn().mockResolvedValue(null),
     // Query API (drizzle relational queries)
-    query: {
-      workouts: {findFirst: vi.fn().mockResolvedValue(null)},
-      organizerRequestTable: {findFirst: vi.fn().mockResolvedValue(null)},
-      teamTable: {findFirst: vi.fn().mockResolvedValue(null)},
-      teamMembershipTable: {findFirst: vi.fn().mockResolvedValue(null)},
-      planTable: {findFirst: vi.fn().mockResolvedValue(null)},
-      featureTable: {findFirst: vi.fn().mockResolvedValue(null)},
-      limitTable: {findFirst: vi.fn().mockResolvedValue(null)},
-    },
+    query: createQueryMock(),
   }
   return mock
 }

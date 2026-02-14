@@ -3,102 +3,90 @@
  *
  * This file uses top-level imports for server-only modules.
  *
- * Handles image uploads to R2 with purpose-based configuration:
+ * Handles file uploads to R2 with purpose-based configuration:
  * - competition-profile: Competition profile images (5MB max)
  * - competition-banner: Competition banner images (5MB max)
  * - competition-sponsor-logo: Sponsor logos (2MB max)
  * - athlete-profile: Athlete profile images (2MB max)
  * - athlete-cover: Athlete cover images (5MB max)
  * - sponsor-logo: General sponsor logos (2MB max)
+ * - judging-sheet: Judging sheet PDFs (20MB max)
+ *
+ * OBSERVABILITY:
+ * - All upload attempts are logged with purpose and file info
+ * - Authorization failures are tracked
+ * - Successful uploads include R2 key for correlation
  */
 
+import { env } from "cloudflare:workers"
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
-import { env } from "cloudflare:workers"
+import {
+	addRequestContextAttribute,
+	logError,
+	logInfo,
+	logWarning,
+	updateRequestContext,
+} from "@/lib/logging"
+import { checkUploadAuthorization } from "@/server/upload-authorization"
 import { getSessionFromCookie } from "@/utils/auth"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { hasTeamPermission } from "@/utils/team-auth"
-import { getDb } from "@/db"
-import { competitionsTable } from "@/db/schema"
-import { eq } from "drizzle-orm"
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+const DOCUMENT_TYPES = ["application/pdf"]
 
 const PURPOSE_CONFIG: Record<
 	string,
-	{ maxSizeMb: number; pathPrefix: string }
+	{ maxSizeMb: number; pathPrefix: string; allowedTypes: string[] }
 > = {
-	"competition-profile": { maxSizeMb: 5, pathPrefix: "competitions/profiles" },
-	"competition-banner": { maxSizeMb: 5, pathPrefix: "competitions/banners" },
+	"competition-profile": {
+		maxSizeMb: 5,
+		pathPrefix: "competitions/profiles",
+		allowedTypes: IMAGE_TYPES,
+	},
+	"competition-banner": {
+		maxSizeMb: 5,
+		pathPrefix: "competitions/banners",
+		allowedTypes: IMAGE_TYPES,
+	},
 	"competition-sponsor-logo": {
 		maxSizeMb: 2,
 		pathPrefix: "competitions/sponsors",
+		allowedTypes: IMAGE_TYPES,
 	},
-	"athlete-profile": { maxSizeMb: 2, pathPrefix: "athletes/profiles" },
-	"athlete-cover": { maxSizeMb: 5, pathPrefix: "athletes/covers" },
-	"sponsor-logo": { maxSizeMb: 2, pathPrefix: "sponsors/logos" },
+	"athlete-profile": {
+		maxSizeMb: 2,
+		pathPrefix: "athletes/profiles",
+		allowedTypes: IMAGE_TYPES,
+	},
+	"athlete-cover": {
+		maxSizeMb: 5,
+		pathPrefix: "athletes/covers",
+		allowedTypes: IMAGE_TYPES,
+	},
+	"sponsor-logo": {
+		maxSizeMb: 2,
+		pathPrefix: "sponsors/logos",
+		allowedTypes: IMAGE_TYPES,
+	},
+	"judging-sheet": {
+		maxSizeMb: 20,
+		pathPrefix: "competitions/judging-sheets",
+		allowedTypes: DOCUMENT_TYPES,
+	},
 }
 
 export const Route = createFileRoute("/api/upload")({
 	server: {
 		handlers: {
 			POST: async ({ request }) => {
-				/**
-				 * Check if user has permission to upload for the given entity
-				 */
-				async function checkUploadAuthorization(
-					purpose: string,
-					entityId: string | null,
-					userId: string,
-				): Promise<{ authorized: boolean; error?: string }> {
-					// Competition uploads require team permission
-					if (purpose.startsWith("competition-") && entityId) {
-						const db = getDb()
-						const competition = await db.query.competitionsTable.findFirst({
-							where: eq(competitionsTable.id, entityId),
-						})
-						if (!competition) {
-							return { authorized: false, error: "Competition not found" }
-						}
-						const hasPermission = await hasTeamPermission(
-							competition.organizingTeamId,
-							TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
-						)
-						if (!hasPermission) {
-							return {
-								authorized: false,
-								error: "Not authorized to upload for this competition",
-							}
-						}
-						return { authorized: true }
-					}
-
-					// Athlete uploads can only be for the current user
-					if (purpose.startsWith("athlete-") && entityId) {
-						if (entityId !== userId) {
-							return {
-								authorized: false,
-								error: "Not authorized to upload for this athlete",
-							}
-						}
-						return { authorized: true }
-					}
-
-					// Sponsor uploads require entityId to be the user's own or not provided
-					if (purpose === "sponsor-logo" && entityId && entityId !== userId) {
-						return {
-							authorized: false,
-							error: "Not authorized to upload sponsor logo",
-						}
-					}
-
-					return { authorized: true }
-				}
-
 				const session = await getSessionFromCookie()
 				if (!session) {
+					logWarning({ message: "[Upload] Unauthorized upload attempt" })
 					return json({ error: "Unauthorized" }, { status: 401 })
 				}
+
+				// Update request context
+				updateRequestContext({ userId: session.user.id })
 
 				const formData = await request.formData()
 				const file = formData.get("file") as File | null
@@ -106,12 +94,34 @@ export const Route = createFileRoute("/api/upload")({
 				const entityId = formData.get("entityId") as string | null
 
 				if (!file) {
+					logWarning({ message: "[Upload] No file provided" })
 					return json({ error: "No file provided" }, { status: 400 })
 				}
 
 				if (!purpose || !PURPOSE_CONFIG[purpose]) {
+					logWarning({
+						message: "[Upload] Invalid purpose",
+						attributes: { purpose },
+					})
 					return json({ error: "Invalid or missing purpose" }, { status: 400 })
 				}
+
+				// Add upload context
+				addRequestContextAttribute("uploadPurpose", purpose)
+				if (entityId) {
+					addRequestContextAttribute("uploadEntityId", entityId)
+				}
+
+				logInfo({
+					message: "[Upload] Upload started",
+					attributes: {
+						purpose,
+						entityId,
+						fileName: file.name,
+						fileSize: file.size,
+						mimeType: file.type,
+					},
+				})
 
 				// Authorization check
 				const authCheck = await checkUploadAuthorization(
@@ -120,6 +130,14 @@ export const Route = createFileRoute("/api/upload")({
 					session.user.id,
 				)
 				if (!authCheck.authorized) {
+					logWarning({
+						message: "[Upload] Authorization denied",
+						attributes: {
+							purpose,
+							entityId,
+							reason: authCheck.error,
+						},
+					})
 					return json(
 						{ error: authCheck.error || "Forbidden" },
 						{ status: 403 },
@@ -130,15 +148,33 @@ export const Route = createFileRoute("/api/upload")({
 				const maxSizeBytes = config.maxSizeMb * 1024 * 1024
 
 				if (file.size > maxSizeBytes) {
+					logWarning({
+						message: "[Upload] File too large",
+						attributes: {
+							purpose,
+							fileSize: file.size,
+							maxSize: maxSizeBytes,
+						},
+					})
 					return json(
 						{ error: `File too large. Maximum size is ${config.maxSizeMb}MB` },
 						{ status: 400 },
 					)
 				}
 
-				if (!ALLOWED_TYPES.includes(file.type)) {
+				if (!config.allowedTypes.includes(file.type)) {
+					logWarning({
+						message: "[Upload] Invalid file type",
+						attributes: {
+							purpose,
+							mimeType: file.type,
+							allowedTypes: config.allowedTypes,
+						},
+					})
+					const allowedTypeNames =
+						purpose === "judging-sheet" ? "PDF" : "JPEG, PNG, WebP, GIF"
 					return json(
-						{ error: "Invalid file type. Allowed: JPEG, PNG, WebP, GIF" },
+						{ error: `Invalid file type. Allowed: ${allowedTypeNames}` },
 						{ status: 400 },
 					)
 				}
@@ -150,25 +186,54 @@ export const Route = createFileRoute("/api/upload")({
 					? `${config.pathPrefix}/${entityId}/${filename}`
 					: `${config.pathPrefix}/${session.user.id}/${filename}`
 
-				await env.R2_BUCKET.put(key, await file.arrayBuffer(), {
-					httpMetadata: {
-						contentType: file.type,
-					},
-					customMetadata: {
-						uploadedBy: session.user.id,
-						purpose,
+				try {
+					await env.R2_BUCKET.put(key, await file.arrayBuffer(), {
+						httpMetadata: {
+							contentType: file.type,
+						},
+						customMetadata: {
+							uploadedBy: session.user.id,
+							purpose,
+							originalFilename: file.name,
+						},
+					})
+
+					const publicUrl = env.R2_PUBLIC_URL
+						? `${env.R2_PUBLIC_URL}/${key}`
+						: key
+
+					addRequestContextAttribute("uploadKey", key)
+
+					logInfo({
+						message: "[Upload] Upload completed",
+						attributes: {
+							purpose,
+							entityId,
+							key,
+							fileSize: file.size,
+						},
+					})
+
+					return json({
+						url: publicUrl,
+						key,
+						// Additional metadata useful for judging sheets and other document uploads
 						originalFilename: file.name,
-					},
-				})
-
-				const publicUrl = env.R2_PUBLIC_URL
-					? `${env.R2_PUBLIC_URL}/${key}`
-					: key
-
-				return json({
-					url: publicUrl,
-					key,
-				})
+						fileSize: file.size,
+						mimeType: file.type,
+					})
+				} catch (err) {
+					logError({
+						message: "[Upload] R2 upload failed",
+						error: err,
+						attributes: {
+							purpose,
+							entityId,
+							key,
+						},
+					})
+					return json({ error: "Upload failed" }, { status: 500 })
+				}
 			},
 		},
 	},

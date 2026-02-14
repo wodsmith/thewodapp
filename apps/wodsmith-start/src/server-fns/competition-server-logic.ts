@@ -52,23 +52,16 @@ export async function createCompetitionGroup(params: {
 	}
 
 	// Insert competition group record
-	const result = await db
-		.insert(competitionGroupsTable)
-		.values({
-			id: `cgrp_${createId()}`,
-			organizingTeamId: params.organizingTeamId,
-			name: params.name,
-			slug: params.slug,
-			description: params.description,
-		})
-		.returning()
+	const groupId = `cgrp_${createId()}`
+	await db.insert(competitionGroupsTable).values({
+		id: groupId,
+		organizingTeamId: params.organizingTeamId,
+		name: params.name,
+		slug: params.slug,
+		description: params.description,
+	})
 
-	const [group] = Array.isArray(result) ? result : []
-	if (!group) {
-		throw new Error("Failed to create competition series")
-	}
-
-	return { groupId: group.id }
+	return { groupId }
 }
 
 /**
@@ -138,13 +131,13 @@ export async function updateCompetitionGroup(
 	if (data.slug !== undefined) updateData.slug = data.slug
 	if (data.description !== undefined) updateData.description = data.description
 
-	const result = await db
+	await db
 		.update(competitionGroupsTable)
 		.set(updateData)
 		.where(eq(competitionGroupsTable.id, groupId))
-		.returning()
 
-	const [group] = Array.isArray(result) ? result : []
+	// Select back the updated record
+	const group = await getCompetitionGroup(groupId)
 	if (!group) {
 		throw new Error("Failed to update competition series")
 	}
@@ -200,6 +193,7 @@ export async function createCompetition(params: {
 	groupId?: string
 	settings?: string
 	timezone?: string // IANA timezone string (e.g., "America/Denver")
+	competitionType?: "in-person" | "online"
 }): Promise<{ competitionId: string; competitionTeamId: string }> {
 	const db = getDb()
 
@@ -257,52 +251,36 @@ export async function createCompetition(params: {
 	}
 
 	// Insert competition_event team
-	const newTeam = await db
-		.insert(teamTable)
-		.values({
-			name: `${params.name} (Event)`,
-			slug: teamSlug,
-			type: "competition_event",
-			parentOrganizationId: params.organizingTeamId,
-			description: `Competition event team for ${params.name}`,
-			creditBalance: 0,
-		})
-		.returning()
-
-	const competitionTeam = Array.isArray(newTeam) ? newTeam[0] : undefined
-	if (!competitionTeam || !competitionTeam.id) {
-		throw new Error("Failed to create competition event team")
-	}
-
-	const competitionTeamId = competitionTeam.id
+	const competitionTeamId = `team_${createId()}`
+	await db.insert(teamTable).values({
+		id: competitionTeamId,
+		name: `${params.name} (Event)`,
+		slug: teamSlug,
+		type: "competition_event",
+		parentOrganizationId: params.organizingTeamId,
+		description: `Competition event team for ${params.name}`,
+		creditBalance: 0,
+	})
 
 	// Step 2: Insert competition record
-	let competition: typeof competitionsTable.$inferSelect | undefined
+	const competitionId = `comp_${createId()}`
 	try {
-		const result = await db
-			.insert(competitionsTable)
-			.values({
-				id: `comp_${createId()}`,
-				organizingTeamId: params.organizingTeamId,
-				competitionTeamId,
-				groupId: params.groupId,
-				name: params.name,
-				slug: params.slug,
-				description: params.description,
-				startDate: params.startDate,
-				endDate: params.endDate,
-				registrationOpensAt: params.registrationOpensAt,
-				registrationClosesAt: params.registrationClosesAt,
-				settings: params.settings,
-				timezone: params.timezone,
-			})
-			.returning()
-
-		const [inserted] = Array.isArray(result) ? result : []
-		if (!inserted) {
-			throw new Error("Competition insert returned no result")
-		}
-		competition = inserted
+		await db.insert(competitionsTable).values({
+			id: competitionId,
+			organizingTeamId: params.organizingTeamId,
+			competitionTeamId,
+			groupId: params.groupId,
+			name: params.name,
+			slug: params.slug,
+			description: params.description,
+			startDate: params.startDate,
+			endDate: params.endDate,
+			registrationOpensAt: params.registrationOpensAt,
+			registrationClosesAt: params.registrationClosesAt,
+			settings: params.settings,
+			timezone: params.timezone,
+			competitionType: params.competitionType,
+		})
 	} catch (competitionError) {
 		// Compensating cleanup: delete the competition team created in Step 1
 		try {
@@ -317,14 +295,8 @@ export async function createCompetition(params: {
 		)
 	}
 
-	if (!competition) {
-		throw new Error(
-			"Competition not defined after insert - this should not happen",
-		)
-	}
-
 	return {
-		competitionId: competition.id,
+		competitionId,
 		competitionTeamId,
 	}
 }
@@ -368,9 +340,11 @@ export async function updateCompetition(
 		settings: string | null
 		visibility: "public" | "private"
 		status: "draft" | "published"
+		competitionType: "in-person" | "online"
 		profileImageUrl: string | null
 		bannerImageUrl: string | null
 		timezone: string // IANA timezone string
+		primaryAddressId: string | null
 	}>,
 ): Promise<Competition> {
 	const db = getDb()
@@ -434,19 +408,23 @@ export async function updateCompetition(
 	if (updates.visibility !== undefined)
 		updateData.visibility = updates.visibility
 	if (updates.status !== undefined) updateData.status = updates.status
+	if (updates.competitionType !== undefined)
+		updateData.competitionType = updates.competitionType
 	if (updates.profileImageUrl !== undefined)
 		updateData.profileImageUrl = updates.profileImageUrl
 	if (updates.bannerImageUrl !== undefined)
 		updateData.bannerImageUrl = updates.bannerImageUrl
 	if (updates.timezone !== undefined) updateData.timezone = updates.timezone
+	if (updates.primaryAddressId !== undefined)
+		updateData.primaryAddressId = updates.primaryAddressId
 
-	const result = await db
+	await db
 		.update(competitionsTable)
 		.set(updateData)
 		.where(eq(competitionsTable.id, competitionId))
-		.returning()
 
-	const [competition] = Array.isArray(result) ? result : []
+	// Select back the updated record
+	const competition = await getCompetition(competitionId)
 	if (!competition) {
 		throw new Error("Failed to update competition")
 	}

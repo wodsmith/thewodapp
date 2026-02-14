@@ -1,6 +1,22 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi, beforeEach } from "vitest"
-import type { CompetitionLeaderboardEntry } from "@/server-fns/leaderboard-fns"
+import type { CompetitionLeaderboardEntry, CompetitionLeaderboardResponse } from "@/server-fns/leaderboard-fns"
+import type { ScoringAlgorithm } from "@/types/scoring"
+
+// Mock use-mobile hook (jsdom doesn't implement matchMedia)
+vi.mock("@/hooks/use-mobile", () => ({
+	useIsMobile: () => false,
+}))
+
+/**
+ * Helper to wrap entries in the leaderboard response format
+ */
+function mockLeaderboardResponse(
+	entries: CompetitionLeaderboardEntry[],
+	scoringAlgorithm: ScoringAlgorithm = "traditional",
+): CompetitionLeaderboardResponse {
+	return { entries, scoringAlgorithm }
+}
 
 // Mock TanStack Router hooks
 const mockNavigate = vi.fn()
@@ -18,9 +34,20 @@ vi.mock("@tanstack/react-router", () => ({
 }))
 
 // Mock TanStack Start useServerFn - returns the function directly
-vi.mock("@tanstack/react-start", () => ({
-	useServerFn: (fn: unknown) => fn,
-}))
+vi.mock("@tanstack/react-start", () => {
+	const createChainable = (): Record<string, unknown> => {
+		const fn = vi.fn() as unknown as Record<string, unknown>
+		fn.inputValidator = () => createChainable()
+		fn.handler = () => createChainable()
+		fn.middleware = () => createChainable()
+		fn.validator = () => createChainable()
+		return fn
+	}
+	return {
+		useServerFn: (fn: unknown) => fn,
+		createServerFn: () => createChainable(),
+	}
+})
 
 // Mock the server functions
 vi.mock("@/server-fns/competition-divisions-fns", () => ({
@@ -122,7 +149,7 @@ describe("LeaderboardPageContent", () => {
 				}),
 			]
 
-			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(entries)
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
 
 			render(<LeaderboardPageContent competitionId="comp-1" />)
 
@@ -140,7 +167,7 @@ describe("LeaderboardPageContent", () => {
 		it("displays event columns with per-event scores", async () => {
 			const entries = [createMockEntry()]
 
-			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(entries)
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
 
 			render(<LeaderboardPageContent competitionId="comp-1" />)
 
@@ -189,7 +216,7 @@ describe("LeaderboardPageContent", () => {
 				}),
 			]
 
-			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(entries)
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
 
 			render(<LeaderboardPageContent competitionId="comp-1" />)
 
@@ -222,7 +249,7 @@ describe("LeaderboardPageContent", () => {
 				}),
 			]
 
-			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(entries)
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
 
 			render(<LeaderboardPageContent competitionId="comp-1" />)
 
@@ -242,7 +269,7 @@ describe("LeaderboardPageContent", () => {
 				}),
 			]
 
-			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(entries)
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
 
 			render(<LeaderboardPageContent competitionId="comp-1" />)
 
@@ -257,7 +284,7 @@ describe("LeaderboardPageContent", () => {
 
 	describe("Algorithm Indicator", () => {
 		it("displays leaderboard content after loading", async () => {
-			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue([createMockEntry()])
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse([createMockEntry()]))
 
 			render(<LeaderboardPageContent competitionId="comp-1" />)
 
@@ -268,9 +295,9 @@ describe("LeaderboardPageContent", () => {
 		})
 
 		it("displays leaderboard with P-Score points", async () => {
-			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue([
-				createMockEntry({ totalPoints: 15.5 }),
-			])
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(
+				mockLeaderboardResponse([createMockEntry({ totalPoints: 15.5 })], "p_score"),
+			)
 
 			render(<LeaderboardPageContent competitionId="comp-1" />)
 
@@ -282,7 +309,7 @@ describe("LeaderboardPageContent", () => {
 		})
 
 		it("displays leaderboard with custom points", async () => {
-			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue([createMockEntry()])
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse([createMockEntry()]))
 
 			render(<LeaderboardPageContent competitionId="comp-1" />)
 
@@ -296,7 +323,7 @@ describe("LeaderboardPageContent", () => {
 		it("formats traditional points as integers", async () => {
 			const entries = [createMockEntry({ totalPoints: 195 })]
 
-			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(entries)
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
 
 			render(<LeaderboardPageContent competitionId="comp-1" />)
 
@@ -309,7 +336,7 @@ describe("LeaderboardPageContent", () => {
 		it("formats P-Score points with one decimal place", async () => {
 			const entries = [createMockEntry({ totalPoints: 15.567 })]
 
-			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(entries)
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
 
 			render(<LeaderboardPageContent competitionId="comp-1" />)
 
@@ -336,7 +363,7 @@ describe("LeaderboardPageContent", () => {
 		})
 
 		it("shows empty state when no results", async () => {
-			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue([])
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse([]))
 
 			render(<LeaderboardPageContent competitionId="comp-1" />)
 

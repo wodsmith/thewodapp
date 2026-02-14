@@ -8,7 +8,7 @@
  *   - "MMM d" → "Jan 15"
  *   - "EEEE, MMMM d, yyyy" → "Monday, January 15, 2024"
  */
-import { parse, isValid, format } from "date-fns"
+import { format, isValid, parse } from "date-fns"
 import { formatInTimeZone } from "date-fns-tz"
 
 /**
@@ -182,11 +182,16 @@ export function formatUTCDateRange(
 /**
  * Format a date string (YYYY-MM-DD) for full display (e.g., "Jan 15, 2024").
  * Works directly with date strings without timezone conversion.
+ * Also handles Date objects gracefully.
  */
 export function formatDateStringFull(
-	dateStr: string | null | undefined,
+	dateStr: string | null | undefined | Date,
 ): string {
 	if (!dateStr) return ""
+
+	if (dateStr instanceof Date) {
+		return format(dateStr, "MMM d, yyyy")
+	}
 
 	const parsed = parse(dateStr, "yyyy-MM-dd", new Date())
 	if (!isValid(parsed)) return ""
@@ -200,11 +205,16 @@ export function formatDateStringFull(
 /**
  * Format a date string (YYYY-MM-DD) for short display (e.g., "Jan 15").
  * Works directly with date strings without timezone conversion.
+ * Also handles Date objects gracefully.
  */
 export function formatDateStringShort(
-	dateStr: string | null | undefined,
+	dateStr: string | null | undefined | Date,
 ): string {
 	if (!dateStr) return ""
+
+	if (dateStr instanceof Date) {
+		return format(dateStr, "MMM d")
+	}
 
 	const parsed = parse(dateStr, "yyyy-MM-dd", new Date())
 	if (!isValid(parsed)) return ""
@@ -218,22 +228,36 @@ export function formatDateStringShort(
 /**
  * Format a date range from YYYY-MM-DD strings for display.
  * Handles single-day events, same month, different months, and different years.
+ * Also handles Date objects gracefully.
  */
 export function formatDateStringRange(
-	startDateStr: string,
-	endDateStr: string,
+	startDateStr: string | Date,
+	endDateStr: string | Date,
 ): string {
-	const startParsed = parse(startDateStr, "yyyy-MM-dd", new Date())
-	const endParsed = parse(endDateStr, "yyyy-MM-dd", new Date())
+	let startParsed: Date
+	let endParsed: Date
 
-	if (!isValid(startParsed) || !isValid(endParsed)) return ""
+	if (startDateStr instanceof Date) {
+		startParsed = startDateStr
+	} else {
+		startParsed = parse(startDateStr, "yyyy-MM-dd", new Date())
+		// Verify parsed dates match input
+		if (
+			!isValid(startParsed) ||
+			format(startParsed, "yyyy-MM-dd") !== startDateStr
+		) {
+			return ""
+		}
+	}
 
-	// Verify parsed dates match input (catches invalid dates)
-	if (
-		format(startParsed, "yyyy-MM-dd") !== startDateStr ||
-		format(endParsed, "yyyy-MM-dd") !== endDateStr
-	) {
-		return ""
+	if (endDateStr instanceof Date) {
+		endParsed = endDateStr
+	} else {
+		endParsed = parse(endDateStr, "yyyy-MM-dd", new Date())
+		// Verify parsed dates match input
+		if (!isValid(endParsed) || format(endParsed, "yyyy-MM-dd") !== endDateStr) {
+			return ""
+		}
 	}
 
 	const startYear = startParsed.getFullYear()
@@ -244,7 +268,7 @@ export function formatDateStringRange(
 	const endDay = endParsed.getDate()
 
 	// Single-day event
-	if (startDateStr === endDateStr) {
+	if (startYear === endYear && startMonth === endMonth && startDay === endDay) {
 		return format(startParsed, "MMMM d, yyyy")
 	}
 
@@ -264,13 +288,18 @@ export function formatDateStringRange(
 
 /**
  * Check if two date strings (YYYY-MM-DD) represent the same date.
+ * Also handles Date objects by comparing their YYYY-MM-DD representation.
  */
 export function isSameDateString(
-	date1: string | null | undefined,
-	date2: string | null | undefined,
+	date1: string | null | undefined | Date,
+	date2: string | null | undefined | Date,
 ): boolean {
 	if (!date1 || !date2) return false
-	return date1 === date2
+
+	const d1Str = date1 instanceof Date ? format(date1, "yyyy-MM-dd") : date1
+	const d2Str = date2 instanceof Date ? format(date2, "yyyy-MM-dd") : date2
+
+	return d1Str === d2Str
 }
 
 // ============================================================================
@@ -306,9 +335,7 @@ export function parseDateString(
  * Check if a YYYY-MM-DD string represents a valid date.
  * Returns false for invalid dates like "2024-13-01" or "2024-02-30".
  */
-export function isValidDateString(
-	dateStr: string | null | undefined,
-): boolean {
+export function isValidDateString(dateStr: string | null | undefined): boolean {
 	return parseDateString(dateStr) !== null
 }
 
@@ -317,18 +344,24 @@ export function isValidDateString(
  * Use this for deadline comparisons to ensure consistent behavior across timezones.
  * Returns null if the date string is invalid.
  */
-export function getEndOfDayUTC(dateStr: string | null | undefined): Date | null {
+export function getEndOfDayUTC(
+	dateStr: string | null | undefined,
+): Date | null {
 	const parts = parseDateString(dateStr)
 	if (!parts) return null
 
-	return new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 23, 59, 59, 999))
+	return new Date(
+		Date.UTC(parts.year, parts.month - 1, parts.day, 23, 59, 59, 999),
+	)
 }
 
 /**
  * Get the start of day (00:00:00.000 UTC) for a YYYY-MM-DD string.
  * Returns null if the date string is invalid.
  */
-export function getStartOfDayUTC(dateStr: string | null | undefined): Date | null {
+export function getStartOfDayUTC(
+	dateStr: string | null | undefined,
+): Date | null {
 	const parts = parseDateString(dateStr)
 	if (!parts) return null
 
@@ -344,10 +377,21 @@ export function getTodayStringUTC(): string {
 }
 
 /**
+ * Get today's date as a YYYY-MM-DD string in a specific IANA timezone.
+ * Useful for comparing dates against a competition's local timezone.
+ * @param timezone - IANA timezone string (e.g., "America/Denver")
+ */
+export function getTodayInTimezone(timezone: string): string {
+	return formatInTimeZone(new Date(), timezone, "yyyy-MM-dd")
+}
+
+/**
  * Compare a YYYY-MM-DD deadline string against the current time.
  * Returns true if the deadline has passed (current time is after end of day UTC).
  */
-export function isDeadlinePassed(deadlineStr: string | null | undefined): boolean {
+export function isDeadlinePassed(
+	deadlineStr: string | null | undefined,
+): boolean {
 	const deadline = getEndOfDayUTC(deadlineStr)
 	if (!deadline) return false
 	return new Date() > deadline

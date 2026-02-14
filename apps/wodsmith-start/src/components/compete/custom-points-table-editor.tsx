@@ -1,22 +1,22 @@
 "use client"
 
-import { useState, useMemo, useCallback, useEffect } from "react"
+import { RotateCcw, X } from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
 	Dialog,
 	DialogContent,
 	DialogDescription,
+	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-	DialogFooter,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Badge } from "@/components/ui/badge"
-import { RotateCcw, X } from "lucide-react"
-import type { CustomTableConfig, TraditionalConfig } from "@/types/scoring"
 import { generatePointsTable } from "@/lib/scoring/algorithms/custom"
+import type { CustomTableConfig, TraditionalConfig } from "@/types/scoring"
 
 /**
  * Props for the CustomPointsTableEditor component

@@ -3,6 +3,11 @@
  *
  * This file uses top-level imports for server-only modules.
  * Port of commerce.action.ts registration functions
+ *
+ * OBSERVABILITY:
+ * - All registration operations are logged with request context
+ * - Registration IDs, competition IDs, and payment info are tracked
+ * - Payment flow states (pending, completed, cancelled) are logged
  */
 
 import { createServerFn } from "@tanstack/react-start"
@@ -16,6 +21,8 @@ import {
 	COMMERCE_PURCHASE_STATUS,
 	commerceProductTable,
 	commercePurchaseTable,
+	competitionRegistrationAnswersTable,
+	competitionRegistrationQuestionsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
 	scalingGroupsTable,
@@ -24,6 +31,8 @@ import {
 	teamMembershipTable,
 	teamTable,
 	userTable,
+	createCommerceProductId,
+	createCommercePurchaseId,
 } from "@/db/schema"
 import {
 	buildFeeConfig,
@@ -33,7 +42,13 @@ import {
 	type TeamFeeOverrides,
 } from "@/lib/commerce-stubs"
 import { getAppUrl } from "@/lib/env"
-import { logInfo } from "@/lib/logging/posthog-otel-logger"
+import {
+	addRequestContextAttribute,
+	logEntityCreated,
+	logInfo,
+	logWarning,
+	updateRequestContext,
+} from "@/lib/logging"
 import {
 	notifyRegistrationConfirmed,
 	registerForCompetition,
@@ -41,9 +56,9 @@ import {
 import { getStripe } from "@/lib/stripe"
 import { requireVerifiedEmail } from "@/utils/auth"
 import {
+	DEFAULT_TIMEZONE,
 	hasDateStartedInTimezone,
 	isDeadlinePassedInTimezone,
-	DEFAULT_TIMEZONE,
 } from "@/utils/timezone-utils"
 import { getDivisionSpotsAvailableFn } from "./competition-divisions-fns"
 
@@ -67,6 +82,15 @@ const initiateRegistrationPaymentInputSchema = z.object({
 			}),
 		)
 		.optional(),
+	// Registration question answers
+	answers: z
+		.array(
+			z.object({
+				questionId: z.string().min(1),
+				answer: z.string().max(5000),
+			}),
+		)
+		.optional(),
 })
 
 const getRegistrationFeeBreakdownInputSchema = z.object({
@@ -78,6 +102,70 @@ const getUserCompetitionRegistrationInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
 	userId: z.string().min(1, "User ID is required"),
 })
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Validate that all required questions have answers
+ * Throws error if required questions are missing
+ */
+async function validateRequiredQuestions(
+	competitionId: string,
+	answers: Array<{ questionId: string; answer: string }> | undefined,
+): Promise<void> {
+	const db = getDb()
+
+	// Get all required questions for this competition
+	const requiredQuestions = await db
+		.select()
+		.from(competitionRegistrationQuestionsTable)
+		.where(
+			and(
+				eq(competitionRegistrationQuestionsTable.competitionId, competitionId),
+				eq(competitionRegistrationQuestionsTable.required, true),
+			),
+		)
+
+	if (requiredQuestions.length === 0) return
+
+	// Check each required question has an answer
+	const answerMap = new Map(answers?.map((a) => [a.questionId, a.answer]))
+
+	const missingQuestions = requiredQuestions.filter(
+		(q) => !answerMap.has(q.id) || !answerMap.get(q.id)?.trim(),
+	)
+
+	if (missingQuestions.length > 0) {
+		throw new Error(
+			`Please answer all required questions: ${missingQuestions.map((q) => q.label).join(", ")}`,
+		)
+	}
+}
+
+/**
+ * Store registration answers in the database
+ */
+async function storeRegistrationAnswers(
+	registrationId: string,
+	userId: string,
+	answers: Array<{ questionId: string; answer: string }> | undefined,
+): Promise<void> {
+	if (!answers || answers.length === 0) return
+
+	const db = getDb()
+
+	// Insert all answers
+	for (const answer of answers) {
+		await db.insert(competitionRegistrationAnswersTable).values({
+			questionId: answer.questionId,
+			registrationId,
+			userId,
+			answer: answer.answer,
+		})
+	}
+}
 
 // ============================================================================
 // Server Functions
@@ -101,11 +189,31 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 		const db = getDb()
 		const userId = session.user.id
 
+		// Update request context with user and competition info
+		updateRequestContext({ userId })
+		addRequestContextAttribute("competitionId", input.competitionId)
+		addRequestContextAttribute("divisionId", input.divisionId)
+
+		logInfo({
+			message: "[Registration] Payment initiation started",
+			attributes: {
+				competitionId: input.competitionId,
+				divisionId: input.divisionId,
+				hasTeammates: !!input.teammates?.length,
+			},
+		})
+
 		// 1. Get competition and validate
 		const competition = await db.query.competitionsTable.findFirst({
 			where: eq(competitionsTable.id, input.competitionId),
 		})
-		if (!competition) throw new Error("Competition not found")
+		if (!competition) {
+			logWarning({
+				message: "[Registration] Competition not found",
+				attributes: { competitionId: input.competitionId },
+			})
+			throw new Error("Competition not found")
+		}
 
 		// 2. Validate registration window (using competition's timezone)
 		const competitionTimezone = competition.timezone || DEFAULT_TIMEZONE
@@ -150,6 +258,9 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 				"This division is full. Please select a different division.",
 			)
 		}
+
+		// 3.6. Validate required questions have answers
+		await validateRequiredQuestions(input.competitionId, input.answers)
 
 		// 4. Check for existing pending purchase (resume payment flow)
 		const existingPurchase = await db.query.commercePurchaseTable.findFirst({
@@ -229,6 +340,13 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 				.set({ paymentStatus: COMMERCE_PAYMENT_STATUS.FREE })
 				.where(eq(competitionRegistrationsTable.id, result.registrationId))
 
+			// Store registration answers
+			await storeRegistrationAnswers(
+				result.registrationId,
+				userId,
+				input.answers,
+			)
+
 			// Send registration confirmation email for free registration
 			await notifyRegistrationConfirmed({
 				userId,
@@ -237,13 +355,25 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 				isPaid: false,
 			})
 
-			logInfo({
-				message: "[registration] Free registration completed",
+			// Track created registration
+			addRequestContextAttribute("registrationId", result.registrationId)
+			logEntityCreated({
+				entity: "registration",
+				id: result.registrationId,
+				parentEntity: "competition",
+				parentId: input.competitionId,
 				attributes: {
-					userId,
+					paymentStatus: "FREE",
+					divisionId: input.divisionId,
+				},
+			})
+
+			logInfo({
+				message: "[Registration] Free registration completed",
+				attributes: {
+					registrationId: result.registrationId,
 					competitionId: input.competitionId,
 					divisionId: input.divisionId,
-					registrationId: result.registrationId,
 				},
 			})
 
@@ -275,16 +405,17 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 		})
 
 		if (!product) {
-			const [newProduct] = await db
-				.insert(commerceProductTable)
-				.values({
-					name: `Competition Registration - ${competition.name}`,
-					type: COMMERCE_PRODUCT_TYPE.COMPETITION_REGISTRATION,
-					resourceId: input.competitionId,
-					priceCents: registrationFeeCents,
-				})
-				.returning()
-			product = newProduct
+			const productId = createCommerceProductId()
+			await db.insert(commerceProductTable).values({
+				id: productId,
+				name: `Competition Registration - ${competition.name}`,
+				type: COMMERCE_PRODUCT_TYPE.COMPETITION_REGISTRATION,
+				resourceId: input.competitionId,
+				priceCents: registrationFeeCents,
+			})
+			product = await db.query.commerceProductTable.findFirst({
+				where: eq(commerceProductTable.id, productId),
+			})
 		}
 
 		if (!product) {
@@ -292,28 +423,30 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 		}
 
 		// 9. Create purchase record
-		const purchaseResult = await db
-			.insert(commercePurchaseTable)
-			.values({
-				userId,
-				productId: product.id,
-				status: COMMERCE_PURCHASE_STATUS.PENDING,
-				competitionId: input.competitionId,
-				divisionId: input.divisionId,
-				totalCents: feeBreakdown.totalChargeCents,
-				platformFeeCents: feeBreakdown.platformFeeCents,
-				stripeFeeCents: feeBreakdown.stripeFeeCents,
-				organizerNetCents: feeBreakdown.organizerNetCents,
-				// Store team data for webhook to use when creating registration
-				metadata: JSON.stringify({
-					teamName: input.teamName,
-					affiliateName: input.affiliateName,
-					teammates: input.teammates,
-				}),
-			})
-			.returning()
+		const purchaseId = createCommercePurchaseId()
+		await db.insert(commercePurchaseTable).values({
+			id: purchaseId,
+			userId,
+			productId: product.id,
+			status: COMMERCE_PURCHASE_STATUS.PENDING,
+			competitionId: input.competitionId,
+			divisionId: input.divisionId,
+			totalCents: feeBreakdown.totalChargeCents,
+			platformFeeCents: feeBreakdown.platformFeeCents,
+			stripeFeeCents: feeBreakdown.stripeFeeCents,
+			organizerNetCents: feeBreakdown.organizerNetCents,
+			// Store team data and answers for webhook to use when creating registration
+			metadata: JSON.stringify({
+				teamName: input.teamName,
+				affiliateName: input.affiliateName,
+				teammates: input.teammates,
+				answers: input.answers,
+			}),
+		})
 
-		const purchase = purchaseResult[0]
+		const purchase = await db.query.commercePurchaseTable.findFirst({
+			where: eq(commercePurchaseTable.id, purchaseId),
+		})
 		if (!purchase) {
 			throw new Error("Failed to create purchase record")
 		}
@@ -357,9 +490,9 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 				divisionId: input.divisionId,
 				type: COMMERCE_PRODUCT_TYPE.COMPETITION_REGISTRATION,
 			},
-			success_url: `${appUrl}/compete/${competition.slug}/register/success?session_id={CHECKOUT_SESSION_ID}`,
+			success_url: `${appUrl}/compete/${competition.slug}/registered?session_id={CHECKOUT_SESSION_ID}`,
 			cancel_url: `${appUrl}/compete/${competition.slug}/register?canceled=true`,
-			expires_at: Math.floor(Date.now() / 1000) + 15 * 60, // 15 minutes (reservation timeout)
+			expires_at: Math.floor(Date.now() / 1000) + 30 * 60, // 30 minutes (Stripe minimum)
 			customer_email: session.user.email ?? undefined, // Pre-fill email
 		}
 
@@ -404,14 +537,31 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			.set({ stripeCheckoutSessionId: checkoutSession.id })
 			.where(eq(commercePurchaseTable.id, purchase.id))
 
-		logInfo({
-			message: "[registration] Paid registration checkout initiated",
+		// Track created purchase
+		addRequestContextAttribute("purchaseId", purchase.id)
+		addRequestContextAttribute("checkoutSessionId", checkoutSession.id)
+
+		logEntityCreated({
+			entity: "purchase",
+			id: purchase.id,
+			parentEntity: "competition",
+			parentId: input.competitionId,
 			attributes: {
-				userId,
+				status: "PENDING",
+				totalCents: feeBreakdown.totalChargeCents,
+				divisionId: input.divisionId,
+			},
+		})
+
+		logInfo({
+			message: "[Registration] Checkout session created",
+			attributes: {
+				purchaseId: purchase.id,
 				competitionId: input.competitionId,
 				divisionId: input.divisionId,
-				purchaseId: purchase.id,
 				totalCents: feeBreakdown.totalChargeCents,
+				platformFeeCents: feeBreakdown.platformFeeCents,
+				organizerNetCents: feeBreakdown.organizerNetCents,
 				hasConnectedAccount: !!organizingTeam?.stripeConnectedAccountId,
 			},
 		})
@@ -630,9 +780,11 @@ export const updateRegistrationAffiliateFn = createServerFn({ method: "POST" })
 		const db = getDb()
 
 		// Get the registration
-		const registration = await db.query.competitionRegistrationsTable.findFirst({
-			where: eq(competitionRegistrationsTable.id, input.registrationId),
-		})
+		const registration = await db.query.competitionRegistrationsTable.findFirst(
+			{
+				where: eq(competitionRegistrationsTable.id, input.registrationId),
+			},
+		)
 
 		if (!registration) {
 			throw new Error("Registration not found")
@@ -900,28 +1052,30 @@ export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
 		const { competitionDivisionsTable } = await import("@/db/schema")
 
 		// Get registration with all related data
-		const registration = await db.query.competitionRegistrationsTable.findFirst({
-			where: eq(competitionRegistrationsTable.id, data.registrationId),
-			with: {
-				competition: {
-					columns: {
-						id: true,
-						name: true,
-						slug: true,
-						startDate: true,
-						endDate: true,
-						profileImageUrl: true,
+		const registration = await db.query.competitionRegistrationsTable.findFirst(
+			{
+				where: eq(competitionRegistrationsTable.id, data.registrationId),
+				with: {
+					competition: {
+						columns: {
+							id: true,
+							name: true,
+							slug: true,
+							startDate: true,
+							endDate: true,
+							profileImageUrl: true,
+						},
 					},
-				},
-				division: {
-					columns: {
-						id: true,
-						label: true,
-						teamSize: true,
+					division: {
+						columns: {
+							id: true,
+							label: true,
+							teamSize: true,
+						},
 					},
 				},
 			},
-		})
+		)
 
 		if (!registration) {
 			return null
@@ -940,7 +1094,8 @@ export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
 			isTeamMember = !!membership
 		}
 		if (!isRegisteredUser && !isTeamMember) {
-			throw new Error("You are not authorized to view this registration")
+			// Return null instead of throwing to allow route to show 404
+			return null
 		}
 
 		// Parse related data (handle array vs single object)
@@ -961,12 +1116,14 @@ export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
 		let divisionFeeCents: number | null = null
 
 		if (competition?.id && division?.id) {
-			const divisionConfig = await db.query.competitionDivisionsTable.findFirst({
-				where: and(
-					eq(competitionDivisionsTable.competitionId, competition.id),
-					eq(competitionDivisionsTable.divisionId, division.id),
-				),
-			})
+			const divisionConfig = await db.query.competitionDivisionsTable.findFirst(
+				{
+					where: and(
+						eq(competitionDivisionsTable.competitionId, competition.id),
+						eq(competitionDivisionsTable.divisionId, division.id),
+					),
+				},
+			)
 			if (divisionConfig) {
 				divisionDescription = divisionConfig.description
 				divisionFeeCents = divisionConfig.feeCents
@@ -1039,8 +1196,19 @@ export const cancelPendingPurchaseFn = createServerFn({ method: "POST" })
 		const session = await requireVerifiedEmail()
 		if (!session) throw new Error("Unauthorized")
 
+		// Update request context
+		updateRequestContext({ userId: session.user.id })
+		addRequestContextAttribute("competitionId", data.competitionId)
+
 		// Ensure user can only cancel their own pending purchases
 		if (data.userId !== session.user.id) {
+			logWarning({
+				message: "[Registration] Cancel purchase denied - wrong user",
+				attributes: {
+					requestedUserId: data.userId,
+					competitionId: data.competitionId,
+				},
+			})
 			throw new Error("You can only cancel your own pending purchases")
 		}
 
@@ -1057,6 +1225,13 @@ export const cancelPendingPurchaseFn = createServerFn({ method: "POST" })
 					eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
 				),
 			)
+
+		logInfo({
+			message: "[Registration] Pending purchase cancelled",
+			attributes: {
+				competitionId: data.competitionId,
+			},
+		})
 
 		return { success: true }
 	})

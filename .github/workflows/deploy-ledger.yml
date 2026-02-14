@@ -1,0 +1,57 @@
+name: Deploy Ledger
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/ledger/**'
+      - '.github/workflows/deploy-ledger.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-ledger
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    name: Deploy Ledger to Cloudflare Workers
+    defaults:
+      run:
+        working-directory: apps/ledger
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: .
+
+      - name: Deploy with Alchemy
+        run: pnpm run ledger-deploy
+        env:
+          STAGE: prod
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
+          ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
+          APP_URL: https://ledger.wodsmith.com
+          LEDGER_AUTH_PASSWORD: ${{ secrets.LEDGER_AUTH_PASSWORD }}
+          LEDGER_SESSION_SECRET: ${{ secrets.LEDGER_SESSION_SECRET }}
+          OPENAI_API_KEY_PROD: ${{ secrets.OPENAI_API_KEY_PROD }}

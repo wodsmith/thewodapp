@@ -47,6 +47,7 @@ import type {
 	CompetitionLeaderboardEntry,
 	TeamMemberInfo,
 } from "@/server-fns/leaderboard-fns"
+import type { ScoringAlgorithm } from "@/types/scoring"
 
 // Type aliases for cleaner column definitions
 type LeaderboardCellContext = CellContext<CompetitionLeaderboardEntry, unknown>
@@ -64,6 +65,7 @@ interface CompetitionLeaderboardTableProps {
 		scheme: string
 	}>
 	selectedEventId: string | null // null = overall view
+	scoringAlgorithm: ScoringAlgorithm
 }
 
 function getRankIcon(rank: number) {
@@ -104,10 +106,30 @@ function RankCell({ rank, points }: { rank: number; points?: number }) {
 	)
 }
 
+/**
+ * Format points display based on scoring algorithm
+ * - Online scoring: show raw points (lower is better)
+ * - P-Score: show raw points (can be negative)
+ * - Other algorithms: show "+points" for positive (higher is better)
+ */
+function formatPoints(points: number, algorithm: ScoringAlgorithm): string {
+	// Online and p_score show raw points
+	if (algorithm === "online" || algorithm === "p_score") {
+		return String(points)
+	}
+	// Don't add + to negative numbers
+	if (points < 0) {
+		return String(points)
+	}
+	return `+${points}`
+}
+
 function EventResultCell({
 	result,
+	scoringAlgorithm,
 }: {
 	result: CompetitionLeaderboardEntry["eventResults"][number]
+	scoringAlgorithm: ScoringAlgorithm
 }) {
 	if (result.rank === 0) {
 		return <span className="text-muted-foreground italic">—</span>
@@ -128,7 +150,7 @@ function EventResultCell({
 			<span className="text-xs text-muted-foreground tabular-nums">
 				<span className="font-medium">#{result.rank}</span>
 				<span className="mx-1">·</span>
-				<span>+{result.points}</span>
+				<span>{formatPoints(result.points, scoringAlgorithm)}</span>
 			</span>
 		</div>
 	)
@@ -191,6 +213,7 @@ function TeamCell({ entry }: { entry: CompetitionLeaderboardEntry }) {
 function MobileLeaderboardRow({
 	entry,
 	events,
+	scoringAlgorithm,
 }: {
 	entry: CompetitionLeaderboardEntry
 	events: Array<{
@@ -199,6 +222,7 @@ function MobileLeaderboardRow({
 		trackOrder: number
 		scheme: string
 	}>
+	scoringAlgorithm: ScoringAlgorithm
 }) {
 	const [isOpen, setIsOpen] = useState(false)
 	const icon = getRankIcon(entry.overallRank)
@@ -292,7 +316,8 @@ function MobileLeaderboardRow({
 												)}
 											</span>
 											<span className="text-xs text-muted-foreground tabular-nums">
-												#{result.rank} +{result.points}
+												#{result.rank}{" "}
+												{formatPoints(result.points, scoringAlgorithm)}
 											</span>
 										</div>
 									) : (
@@ -312,6 +337,7 @@ export function CompetitionLeaderboardTable({
 	leaderboard,
 	events,
 	selectedEventId,
+	scoringAlgorithm,
 }: CompetitionLeaderboardTableProps) {
 	// Compute the correct default sort column based on view mode
 	const defaultSortColumn = selectedEventId ? "eventRank" : "overallRank"
@@ -479,14 +505,19 @@ export function CompetitionLeaderboardTable({
 					if (!result) {
 						return <span className="text-muted-foreground">-</span>
 					}
-					return <EventResultCell result={result} />
+					return (
+						<EventResultCell
+							result={result}
+							scoringAlgorithm={scoringAlgorithm}
+						/>
+					)
 				},
 				sortingFn: "basic",
 			})
 		}
 
 		return baseColumns
-	}, [events, selectedEventId, isTeamLeaderboard])
+	}, [events, selectedEventId, isTeamLeaderboard, scoringAlgorithm])
 
 	// Ensure sorting state only references columns that exist
 	// This prevents errors when switching between overall and single event views
@@ -628,6 +659,7 @@ export function CompetitionLeaderboardTable({
 								key={entry.registrationId}
 								entry={entry}
 								events={events}
+								scoringAlgorithm={scoringAlgorithm}
 							/>
 						))}
 					</div>

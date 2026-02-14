@@ -5,25 +5,25 @@
  * This file uses top-level imports for server-only modules.
  */
 
-import { createServerFn } from "@tanstack/react-start"
-import { z } from "zod"
-import { eq, and, count } from "drizzle-orm"
 import { createId } from "@paralleldrive/cuid2"
+import { createServerFn } from "@tanstack/react-start"
+import { and, count, eq } from "drizzle-orm"
+import { z } from "zod"
 import { getDb } from "@/db"
 import { createLocationId, createSkillId } from "@/db/schemas/common"
 import {
-	locationsTable,
-	skillsTable,
-	scheduleTemplatesTable,
-	scheduledClassesTable,
 	classCatalogToSkillsTable,
-	coachToSkillsTable,
-	scheduleTemplateClassRequiredSkillsTable,
-	coachesTable,
 	coachBlackoutDatesTable,
+	coachesTable,
 	coachRecurringUnavailabilityTable,
+	coachToSkillsTable,
+	locationsTable,
+	scheduledClassesTable,
+	scheduleTemplateClassRequiredSkillsTable,
+	scheduleTemplatesTable,
+	skillsTable,
 } from "@/db/schemas/scheduling"
-import { teamTable, teamMembershipTable } from "@/db/schemas/teams"
+import { teamMembershipTable, teamTable } from "@/db/schemas/teams"
 import { requireAdmin } from "@/utils/auth"
 
 // ============================================================================
@@ -106,15 +106,18 @@ export const createLocationFn = createServerFn({ method: "POST" })
 		await requireAdmin()
 		const db = getDb()
 
+		const locationId = createLocationId()
+		await db.insert(locationsTable).values({
+			id: locationId,
+			teamId: data.teamId,
+			name: data.name,
+			capacity: data.capacity,
+		})
+
 		const [newLocation] = await db
-			.insert(locationsTable)
-			.values({
-				id: createLocationId(),
-				teamId: data.teamId,
-				name: data.name,
-				capacity: data.capacity,
-			})
-			.returning()
+			.select()
+			.from(locationsTable)
+			.where(eq(locationsTable.id, locationId))
 
 		return { success: true, data: newLocation }
 	})
@@ -145,7 +148,17 @@ export const deleteLocationFn = createServerFn({ method: "POST" })
 			)
 		}
 
-		const [deletedLocation] = await db
+		const [locationToDelete] = await db
+			.select()
+			.from(locationsTable)
+			.where(
+				and(
+					eq(locationsTable.id, data.id),
+					eq(locationsTable.teamId, data.teamId),
+				),
+			)
+
+		await db
 			.delete(locationsTable)
 			.where(
 				and(
@@ -153,9 +166,8 @@ export const deleteLocationFn = createServerFn({ method: "POST" })
 					eq(locationsTable.teamId, data.teamId),
 				),
 			)
-			.returning()
 
-		return { success: true, data: deletedLocation }
+		return { success: true, data: locationToDelete }
 	})
 
 // ============================================================================
@@ -187,14 +199,17 @@ export const createSkillFn = createServerFn({ method: "POST" })
 		await requireAdmin()
 		const db = getDb()
 
+		const skillId = createSkillId()
+		await db.insert(skillsTable).values({
+			id: skillId,
+			teamId: data.teamId,
+			name: data.name,
+		})
+
 		const [newSkill] = await db
-			.insert(skillsTable)
-			.values({
-				id: createSkillId(),
-				teamId: data.teamId,
-				name: data.name,
-			})
-			.returning()
+			.select()
+			.from(skillsTable)
+			.where(eq(skillsTable.id, skillId))
 
 		return { success: true, data: newSkill }
 	})
@@ -234,14 +249,20 @@ export const deleteSkillFn = createServerFn({ method: "POST" })
 			)
 		}
 
-		const [deletedSkill] = await db
+		const [skillToDelete] = await db
+			.select()
+			.from(skillsTable)
+			.where(
+				and(eq(skillsTable.id, data.id), eq(skillsTable.teamId, data.teamId)),
+			)
+
+		await db
 			.delete(skillsTable)
 			.where(
 				and(eq(skillsTable.id, data.id), eq(skillsTable.teamId, data.teamId)),
 			)
-			.returning()
 
-		return { success: true, data: deletedSkill }
+		return { success: true, data: skillToDelete }
 	})
 
 // ============================================================================
@@ -257,11 +278,15 @@ export const updateTeamSettingsFn = createServerFn({ method: "POST" })
 		await requireAdmin()
 		const db = getDb()
 
-		const [updatedTeam] = await db
+		await db
 			.update(teamTable)
 			.set({ settings: data.settings })
 			.where(eq(teamTable.id, data.teamId))
-			.returning()
+
+		const [updatedTeam] = await db
+			.select()
+			.from(teamTable)
+			.where(eq(teamTable.id, data.teamId))
 
 		return { success: true, data: updatedTeam }
 	})
@@ -304,7 +329,7 @@ export const getTeamMembersFn = createServerFn({ method: "GET" })
 		const members = await db.query.teamMembershipTable.findMany({
 			where: and(
 				eq(teamMembershipTable.teamId, data.teamId),
-				eq(teamMembershipTable.isActive, 1),
+				eq(teamMembershipTable.isActive, true),
 			),
 			with: {
 				user: {
@@ -331,18 +356,21 @@ export const createCoachFn = createServerFn({ method: "POST" })
 		const db = getDb()
 
 		const { skillIds, ...coachData } = data
+		const coachId = `coach_${createId()}`
+		await db.insert(coachesTable).values({
+			id: coachId,
+			userId: coachData.userId,
+			teamId: coachData.teamId,
+			weeklyClassLimit: coachData.weeklyClassLimit,
+			schedulingPreference: coachData.schedulingPreference,
+			schedulingNotes: coachData.schedulingNotes,
+			isActive: coachData.isActive !== false,
+		})
+
 		const [newCoach] = await db
-			.insert(coachesTable)
-			.values({
-				id: `coach_${createId()}`,
-				userId: coachData.userId,
-				teamId: coachData.teamId,
-				weeklyClassLimit: coachData.weeklyClassLimit,
-				schedulingPreference: coachData.schedulingPreference,
-				schedulingNotes: coachData.schedulingNotes,
-				isActive: coachData.isActive !== false ? 1 : 0,
-			})
-			.returning()
+			.select()
+			.from(coachesTable)
+			.where(eq(coachesTable.id, coachId))
 
 		if (skillIds && newCoach) {
 			const coachSkills = skillIds.map((skillId) => ({
@@ -395,12 +423,18 @@ export const deleteCoachFn = createServerFn({ method: "POST" })
 			.set({ coachId: null })
 			.where(eq(scheduledClassesTable.coachId, data.id))
 
-		const [deletedCoach] = await db
+		const [coachToDelete] = await db
+			.select()
+			.from(coachesTable)
+			.where(
+				and(eq(coachesTable.id, data.id), eq(coachesTable.teamId, data.teamId)),
+			)
+
+		await db
 			.delete(coachesTable)
 			.where(
 				and(eq(coachesTable.id, data.id), eq(coachesTable.teamId, data.teamId)),
 			)
-			.returning()
 
-		return { success: true, data: deletedCoach }
+		return { success: true, data: coachToDelete }
 	})

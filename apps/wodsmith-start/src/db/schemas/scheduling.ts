@@ -2,33 +2,32 @@ import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
 import {
 	index,
-	integer,
+	int,
+	boolean,
+	datetime,
 	primaryKey,
-	sqliteTable,
-	text,
-} from "drizzle-orm/sqlite-core"
+	mysqlTable,
+	varchar,
+} from "drizzle-orm/mysql-core"
 import { commonColumns } from "./common"
 import { teamTable } from "./teams"
 import { userTable } from "./users"
 
 // Store coach-specific settings, linking a user to a team
-export const coachesTable = sqliteTable(
+export const coachesTable = mysqlTable(
 	"coaches",
 	{
 		...commonColumns,
-		id: text("id").primaryKey(),
-		userId: text("user_id")
-			.notNull()
-			.references(() => userTable.id),
-		teamId: text("team_id")
-			.notNull()
-			.references(() => teamTable.id),
-		weeklyClassLimit: integer("weekly_class_limit"),
-		schedulingPreference: text("scheduling_preference", {
+		id: varchar({ length: 255 }).primaryKey(),
+		userId: varchar({ length: 255 }).notNull(),
+		teamId: varchar({ length: 255 }).notNull(),
+		weeklyClassLimit: int(),
+		schedulingPreference: varchar({
+			length: 255,
 			enum: ["morning", "afternoon", "night", "any"],
 		}),
-		schedulingNotes: text("scheduling_notes"), // For soft, unstructured preferences
-		isActive: integer("is_active").default(1).notNull(),
+		schedulingNotes: varchar({ length: 255 }), // For soft, unstructured preferences
+		isActive: boolean().default(true),
 	},
 	(table) => [
 		index("coach_user_team_unique_idx").on(table.userId, table.teamId),
@@ -36,162 +35,127 @@ export const coachesTable = sqliteTable(
 )
 
 // Gym configuration tables
-export const locationsTable = sqliteTable("locations", {
+export const locationsTable = mysqlTable("locations", {
 	...commonColumns,
-	id: text("id").primaryKey(),
-	teamId: text("team_id")
-		.notNull()
-		.references(() => teamTable.id),
-	name: text("name").notNull(),
-	capacity: integer("capacity").default(20).notNull(),
+	id: varchar({ length: 255 }).primaryKey(),
+	teamId: varchar({ length: 255 }).notNull(),
+	name: varchar({ length: 255 }).notNull(),
+	capacity: int().default(20).notNull(),
 })
 
-export const classCatalogTable = sqliteTable("class_catalog", {
+export const classCatalogTable = mysqlTable("class_catalogs", {
 	...commonColumns,
-	id: text("id").primaryKey(),
-	teamId: text("team_id")
-		.notNull()
-		.references(() => teamTable.id),
-	name: text("name").notNull(),
-	description: text("description"),
-	durationMinutes: integer("duration_minutes").notNull().default(60),
-	maxParticipants: integer("max_participants").notNull().default(20),
+	id: varchar({ length: 255 }).primaryKey(),
+	teamId: varchar({ length: 255 }).notNull(),
+	name: varchar({ length: 255 }).notNull(),
+	description: varchar({ length: 255 }),
+	durationMinutes: int().notNull().default(60),
+	maxParticipants: int().notNull().default(20),
 })
 
-export const skillsTable = sqliteTable("skills", {
+export const skillsTable = mysqlTable("skills", {
 	...commonColumns,
-	id: text("id").primaryKey(),
-	teamId: text("team_id")
-		.notNull()
-		.references(() => teamTable.id),
-	name: text("name").notNull(),
+	id: varchar({ length: 255 }).primaryKey(),
+	teamId: varchar({ length: 255 }).notNull(),
+	name: varchar({ length: 255 }).notNull(),
 })
 
-export const classCatalogToSkillsTable = sqliteTable(
+export const classCatalogToSkillsTable = mysqlTable(
 	"class_catalog_to_skills",
 	{
-		classCatalogId: text("class_catalog_id")
-			.notNull()
-			.references(() => classCatalogTable.id, { onDelete: "cascade" }),
-		skillId: text("skill_id")
-			.notNull()
-			.references(() => skillsTable.id, { onDelete: "cascade" }),
+		classCatalogId: varchar({ length: 255 }).notNull(),
+		skillId: varchar({ length: 255 }).notNull(),
 	},
 	(table) => [primaryKey({ columns: [table.classCatalogId, table.skillId] })],
 )
 
 // Coach constraint tables
-export const coachToSkillsTable = sqliteTable(
+export const coachToSkillsTable = mysqlTable(
 	"coach_to_skills",
 	{
-		coachId: text("coach_id")
-			.notNull()
-			.references(() => coachesTable.id),
-		skillId: text("skill_id")
-			.notNull()
-			.references(() => skillsTable.id),
+		coachId: varchar({ length: 255 }).notNull(),
+		skillId: varchar({ length: 255 }).notNull(),
 	},
 	(table) => [primaryKey({ columns: [table.coachId, table.skillId] })],
 )
 
-export const coachBlackoutDatesTable = sqliteTable("coach_blackout_dates", {
+export const coachBlackoutDatesTable = mysqlTable("coach_blackout_dates", {
 	...commonColumns,
-	id: text("id").primaryKey(),
-	coachId: text("coach_id")
-		.notNull()
-		.references(() => coachesTable.id),
-	startDate: integer("start_date", { mode: "timestamp" }).notNull(),
-	endDate: integer("end_date", { mode: "timestamp" }).notNull(),
-	reason: text("reason"),
+	id: varchar({ length: 255 }).primaryKey(),
+	coachId: varchar({ length: 255 }).notNull(),
+	startDate: datetime().notNull(),
+	endDate: datetime().notNull(),
+	reason: varchar({ length: 255 }),
 })
 
-export const coachRecurringUnavailabilityTable = sqliteTable(
+export const coachRecurringUnavailabilityTable = mysqlTable(
 	"coach_recurring_unavailability",
 	{
 		...commonColumns,
-		id: text("id").primaryKey(),
-		coachId: text("coach_id")
-			.notNull()
-			.references(() => coachesTable.id),
-		dayOfWeek: integer("day_of_week").notNull(), // 0-6 for Sunday-Saturday
-		startTime: text("start_time").notNull(), // "HH:MM"
-		endTime: text("end_time").notNull(), // "HH:MM"
-		description: text("description"),
+		id: varchar({ length: 255 }).primaryKey(),
+		coachId: varchar({ length: 255 }).notNull(),
+		dayOfWeek: int().notNull(), // 0-6 for Sunday-Saturday
+		startTime: varchar({ length: 255 }).notNull(), // "HH:MM"
+		endTime: varchar({ length: 255 }).notNull(), // "HH:MM"
+		description: varchar({ length: 255 }),
 	},
 )
 
 // Schedule template tables
-export const scheduleTemplatesTable = sqliteTable("schedule_templates", {
+export const scheduleTemplatesTable = mysqlTable("schedule_templates", {
 	...commonColumns,
-	id: text("id").primaryKey(),
-	teamId: text("team_id")
-		.notNull()
-		.references(() => teamTable.id),
-	name: text("name").notNull(),
-	classCatalogId: text("class_catalog_id")
-		.notNull()
-		.references(() => classCatalogTable.id),
-	locationId: text("location_id")
-		.notNull()
-		.references(() => locationsTable.id),
+	id: varchar({ length: 255 }).primaryKey(),
+	teamId: varchar({ length: 255 }).notNull(),
+	name: varchar({ length: 255 }).notNull(),
+	classCatalogId: varchar({ length: 255 }).notNull(),
+	locationId: varchar({ length: 255 }).notNull(),
 })
 
-export const scheduleTemplateClassesTable = sqliteTable(
+export const scheduleTemplateClassesTable = mysqlTable(
 	"schedule_template_classes",
 	{
 		...commonColumns,
-		id: text("id").primaryKey(),
-		templateId: text("template_id")
-			.notNull()
-			.references(() => scheduleTemplatesTable.id),
-		dayOfWeek: integer("day_of_week").notNull(),
-		startTime: text("start_time").notNull(),
-		endTime: text("end_time").notNull(),
-		requiredCoaches: integer("required_coaches").default(1).notNull(),
+		id: varchar({ length: 255 }).primaryKey(),
+		templateId: varchar({ length: 255 }).notNull(),
+		dayOfWeek: int().notNull(),
+		startTime: varchar({ length: 255 }).notNull(),
+		endTime: varchar({ length: 255 }).notNull(),
+		requiredCoaches: int().default(1).notNull(),
 	},
 )
 
-export const scheduleTemplateClassRequiredSkillsTable = sqliteTable(
+export const scheduleTemplateClassRequiredSkillsTable = mysqlTable(
 	"schedule_template_class_required_skills",
 	{
-		templateClassId: text("template_class_id")
-			.notNull()
-			.references(() => scheduleTemplateClassesTable.id),
-		skillId: text("skill_id")
-			.notNull()
-			.references(() => skillsTable.id),
+		templateClassId: varchar({ length: 255 }).notNull(),
+		skillId: varchar({ length: 255 }).notNull(),
 	},
-	(table) => [primaryKey({ columns: [table.templateClassId, table.skillId] })],
+	(table) => [
+		primaryKey({
+			name: "sched_class_skills_pk",
+			columns: [table.templateClassId, table.skillId],
+		}),
+	],
 )
 
 // Generated schedule tables
-export const generatedSchedulesTable = sqliteTable("generated_schedules", {
+export const generatedSchedulesTable = mysqlTable("generated_schedules", {
 	...commonColumns,
-	id: text("id").primaryKey(),
-	teamId: text("team_id")
-		.notNull()
-		.references(() => teamTable.id),
-	locationId: text("location_id")
-		.notNull()
-		.references(() => locationsTable.id),
-	weekStartDate: integer("week_start_date", { mode: "timestamp" }).notNull(),
+	id: varchar({ length: 255 }).primaryKey(),
+	teamId: varchar({ length: 255 }).notNull(),
+	locationId: varchar({ length: 255 }).notNull(),
+	weekStartDate: datetime().notNull(),
 })
 
-export const scheduledClassesTable = sqliteTable("scheduled_classes", {
+export const scheduledClassesTable = mysqlTable("scheduled_classes", {
 	...commonColumns,
-	id: text("id").primaryKey(),
-	scheduleId: text("schedule_id")
-		.notNull()
-		.references(() => generatedSchedulesTable.id),
-	coachId: text("coach_id").references(() => coachesTable.id), // Nullable if unassigned
-	classCatalogId: text("class_catalog_id")
-		.notNull()
-		.references(() => classCatalogTable.id),
-	locationId: text("location_id")
-		.notNull()
-		.references(() => locationsTable.id),
-	startTime: integer("start_time", { mode: "timestamp" }).notNull(),
-	endTime: integer("end_time", { mode: "timestamp" }).notNull(),
+	id: varchar({ length: 255 }).primaryKey(),
+	scheduleId: varchar({ length: 255 }).notNull(),
+	coachId: varchar({ length: 255 }), // Nullable if unassigned
+	classCatalogId: varchar({ length: 255 }).notNull(),
+	locationId: varchar({ length: 255 }).notNull(),
+	startTime: datetime().notNull(),
+	endTime: datetime().notNull(),
 })
 
 // RELATIONS

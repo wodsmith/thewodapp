@@ -13,10 +13,13 @@ import {
 	Calculator,
 	Calendar,
 	ClipboardSignature,
+	Clock,
 	DollarSign,
 	Home,
 	Layers,
+	MapPin,
 	Medal,
+	Menu,
 	ReceiptText,
 	Settings,
 	Sparkles,
@@ -44,6 +47,7 @@ import { cn } from "@/utils/cn"
 
 interface CompetitionSidebarProps {
 	competitionId: string
+	competitionType?: "in-person" | "online"
 	children: React.ReactNode
 }
 
@@ -61,6 +65,7 @@ interface NavGroup {
 
 const getNavigation = (
 	basePath: string,
+	competitionType?: "in-person" | "online",
 ): { overview: NavItem; groups: NavGroup[] } => ({
 	overview: {
 		label: "Overview",
@@ -73,6 +78,16 @@ const getNavigation = (
 			items: [
 				{ label: "Divisions", href: `${basePath}/divisions`, icon: Layers },
 				{ label: "Events", href: `${basePath}/events`, icon: Trophy },
+				// Submission Windows only for online competitions
+				...(competitionType === "online"
+					? [
+							{
+								label: "Submission Windows",
+								href: `${basePath}/submission-windows`,
+								icon: Clock,
+							},
+						]
+					: []),
 				{ label: "Scoring", href: `${basePath}/scoring`, icon: Calculator },
 				{ label: "Registrations", href: `${basePath}/athletes`, icon: Users },
 				{
@@ -85,7 +100,17 @@ const getNavigation = (
 		{
 			label: "Run Competition",
 			items: [
-				{ label: "Schedule", href: `${basePath}/schedule`, icon: Calendar },
+				// Schedule only for in-person competitions
+				...(competitionType !== "online"
+					? [
+							{
+								label: "Schedule",
+								href: `${basePath}/schedule`,
+								icon: Calendar,
+							},
+						]
+					: []),
+				{ label: "Locations", href: `${basePath}/locations`, icon: MapPin },
 				{
 					label: "Volunteers",
 					href: `${basePath}/volunteers`,
@@ -198,12 +223,13 @@ function CompetitionSidebarFooter() {
 
 export function CompetitionSidebar({
 	competitionId,
+	competitionType,
 	children,
 }: CompetitionSidebarProps) {
 	const router = useRouterState()
 	const pathname = router.location.pathname
 	const basePath = `/compete/organizer/${competitionId}`
-	const navigation = getNavigation(basePath)
+	const navigation = getNavigation(basePath, competitionType)
 
 	const isActive = (href: string) => {
 		if (href === basePath) {
@@ -251,7 +277,28 @@ export function CompetitionSidebar({
 				</SidebarContent>
 				<CompetitionSidebarFooter />
 			</Sidebar>
-			<SidebarInset>{children}</SidebarInset>
+			<SidebarInset>
+				<header className="flex h-14 items-center gap-2 border-b px-3 md:hidden">
+					<SidebarTrigger className="-ml-1">
+						<Menu className="h-5 w-5" />
+					</SidebarTrigger>
+					<Link to="/compete" className="flex items-center gap-2">
+						<img
+							src="/wodsmith-logo-no-text.png"
+							alt="wodsmith compete"
+							width={24}
+							height={24}
+						/>
+						<span className="text-sm font-semibold">
+							<span className="font-black uppercase">wod</span>smith{" "}
+							<span className="font-medium text-amber-600 dark:text-amber-500">
+								Compete
+							</span>
+						</span>
+					</Link>
+				</header>
+				{children}
+			</SidebarInset>
 		</SidebarProvider>
 	)
 }

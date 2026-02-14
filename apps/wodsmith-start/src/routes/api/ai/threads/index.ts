@@ -43,15 +43,15 @@ export const Route = createFileRoute("/api/ai/threads/")({
 
 					// List threads for this user (resourceId = user.id)
 					// Note: Mastra Memory API uses 0-indexed pages
-					const result = await memory.listThreadsByResourceId({
-						resourceId: session.user.id,
+					const result = await memory.listThreads({
+						filter: { resourceId: session.user.id },
 						page,
 						perPage,
 					})
 
 					return new Response(
 						JSON.stringify({
-							threads: result.threads.map((thread) => ({
+							threads: result.threads.map((thread: { id: string; title?: string | null; createdAt: unknown; updatedAt: unknown }) => ({
 								id: thread.id,
 								title: thread.title ?? null,
 								createdAt: thread.createdAt,

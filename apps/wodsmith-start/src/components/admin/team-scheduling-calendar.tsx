@@ -13,8 +13,8 @@ import { useServerFn } from "@tanstack/react-start"
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getScheduledWorkoutsForAdminFn } from "@/server-fns/admin-team-fns"
 import type { ScheduledWorkoutEvent } from "@/server-fns/admin-team-fns"
+import { getScheduledWorkoutsForAdminFn } from "@/server-fns/admin-team-fns"
 import "./team-scheduling-calendar.css"
 
 interface TeamSchedulingCalendarProps {

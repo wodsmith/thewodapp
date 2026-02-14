@@ -101,7 +101,7 @@ export function calculatePScore(input: PScoreInput): PScoreResult[] {
 	})
 
 	// Get best score
-	const best = sortedActive[0]?.value ?? 0
+	const best = sortedActive[0]?.value
 
 	// Calculate median value
 	const median = calculateMedian(sortedActive, config.medianField)
@@ -182,14 +182,14 @@ function getMedianValue(
 	medianField: "top_half" | "all",
 ): number {
 	if (values.length === 0) return 0
-	if (values.length === 1) return values[0] ?? 0
+	if (values.length === 1) return values[0]!
 
 	if (medianField === "top_half") {
 		// Top half boundary: the LAST athlete in the top half defines the median
 		// With 4 athletes, top half = 2, median = value at index 1
 		// With 6 athletes, top half = 3, median = value at index 2
 		const halfSize = Math.ceil(values.length / 2)
-		return values[halfSize - 1] ?? 0
+		return values[halfSize - 1]!
 	}
 
 	// All field: statistical median
@@ -201,17 +201,19 @@ function getMedianValue(
  */
 function findStatisticalMedian(values: number[]): number {
 	if (values.length === 0) return 0
-	if (values.length === 1) return values[0] ?? 0
+	if (values.length === 1) return values[0]!
 
 	const mid = Math.floor(values.length / 2)
 
 	if (values.length % 2 === 0) {
 		// Even number: average of two middle values
-		return ((values[mid - 1] ?? 0) + (values[mid] ?? 0)) / 2
+		// biome-ignore lint/style/noNonNullAssertion: mid calculated from length guarantees valid indices
+		return (values[mid - 1]! + values[mid]!) / 2
 	}
 
 	// Odd number: middle value
-	return values[mid] ?? 0
+	// biome-ignore lint/style/noNonNullAssertion: mid calculated from length guarantees valid index
+	return values[mid]!
 }
 
 /**
@@ -254,9 +256,8 @@ function assignRanks(
 	let previousValue: number | null = null
 
 	for (let i = 0; i < results.length; i++) {
-		const score = sortedScores[i]
-		const result = results[i]
-		if (!score || !result) continue
+		const score = sortedScores[i]!
+		const result = results[i]!
 
 		if (previousValue !== null && score.value !== previousValue) {
 			currentRank = i + 1

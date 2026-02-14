@@ -13,24 +13,26 @@
  * @see docs/plans/configurable-scoring-system.md
  */
 
+import type { WorkoutScheme } from "@/lib/scoring/types"
 import type {
+	PScoreConfig,
 	ScoringConfig,
 	TraditionalConfig,
-	PScoreConfig,
 } from "@/types/scoring"
-import type { WorkoutScheme } from "@/lib/scoring/types"
+import { calculateCustomPoints } from "./custom"
+import { calculateOnlinePoints } from "./online"
 import { calculatePScore, type PScoreInput } from "./p-score"
 import { calculateTraditionalPoints } from "./traditional"
-import { calculateCustomPoints } from "./custom"
 
-// Re-export algorithm implementations
-export { calculatePScore, type PScoreInput, type PScoreResult } from "./p-score"
-export { calculateTraditionalPoints } from "./traditional"
 export {
 	calculateCustomPoints,
 	generatePointsTable,
 	WINNER_TAKES_MORE_TABLE,
 } from "./custom"
+export { calculateOnlinePoints } from "./online"
+// Re-export algorithm implementations
+export { calculatePScore, type PScoreInput, type PScoreResult } from "./p-score"
+export { calculateTraditionalPoints } from "./traditional"
 
 /**
  * Input for event score calculation
@@ -41,6 +43,12 @@ export interface EventScoreInput {
 	value: number
 	/** Score status */
 	status: "scored" | "cap" | "dnf" | "dns" | "withdrawn"
+	/**
+	 * Pre-computed sort key for proper ordering.
+	 * Encodes status + value + secondaryValue + tiebreak into a single string.
+	 * If not provided, sorting falls back to value-only comparison.
+	 */
+	sortKey?: string | null
 }
 
 /**
@@ -95,6 +103,34 @@ export const DEFAULT_PSCORE_CONFIG: PScoreConfig = {
 const ASCENDING_SCHEMES = new Set<WorkoutScheme>(["time", "time-with-cap"])
 
 /**
+ * Sort scores by performance, using sortKey when available for proper
+ * secondary value (reps at cap) and tiebreak ordering.
+ */
+function sortScoresByPerformance(
+	scores: EventScoreInput[],
+	scheme: WorkoutScheme,
+): EventScoreInput[] {
+	const isAscending = ASCENDING_SCHEMES.has(scheme)
+
+	return [...scores].sort((a, b) => {
+		// If both have sortKey, use it for complete ordering
+		if (a.sortKey && b.sortKey) {
+			// sortKey is zero-padded string, lexicographic comparison works
+			return a.sortKey.localeCompare(b.sortKey)
+		}
+
+		// Fallback: status-based sorting for time-with-cap
+		if (scheme === "time-with-cap") {
+			if (a.status === "cap" && b.status !== "cap") return 1
+			if (a.status !== "cap" && b.status === "cap") return -1
+		}
+
+		// Fallback: value-only comparison
+		return isAscending ? a.value - b.value : b.value - a.value
+	})
+}
+
+/**
  * Calculate event points using the configured scoring algorithm.
  *
  * This is the main entry point for scoring calculations. It dispatches
@@ -137,6 +173,8 @@ export function calculateEventPoints(
 			return calculatePScoreEventPoints(scores, scheme, config)
 		case "winner_takes_more":
 			return calculateWinnerTakesMoreEventPoints(scores, scheme, config)
+		case "online":
+			return calculateOnlineEventPoints(scores, scheme, config)
 		case "custom":
 			return calculateCustomEventPoints(scores, scheme, config)
 		default: {
@@ -156,7 +194,6 @@ function calculateTraditionalEventPoints(
 	config: ScoringConfig,
 ): Map<string, EventPointsResult> {
 	const traditionalConfig = config.traditional ?? DEFAULT_TRADITIONAL_CONFIG
-	const isAscending = ASCENDING_SCHEMES.has(scheme)
 
 	// Separate active scores from inactive
 	const activeScores = scores.filter(
@@ -166,15 +203,8 @@ function calculateTraditionalEventPoints(
 		(s) => s.status === "dnf" || s.status === "dns" || s.status === "withdrawn",
 	)
 
-	// Sort active scores by performance
-	const sortedActive = [...activeScores].sort((a, b) => {
-		// In time-with-cap, capped athletes rank after scored athletes
-		if (scheme === "time-with-cap") {
-			if (a.status === "cap" && b.status !== "cap") return 1
-			if (a.status !== "cap" && b.status === "cap") return -1
-		}
-		return isAscending ? a.value - b.value : b.value - a.value
-	})
+	// Sort active scores by performance (uses sortKey when available)
+	const sortedActive = sortScoresByPerformance(activeScores, scheme)
 
 	// Assign ranks with tie handling
 	const ranked = assignRanks(sortedActive)
@@ -239,8 +269,6 @@ function calculateWinnerTakesMoreEventPoints(
 	scheme: WorkoutScheme,
 	config: ScoringConfig,
 ): Map<string, EventPointsResult> {
-	const isAscending = ASCENDING_SCHEMES.has(scheme)
-
 	// Separate active scores from inactive
 	const activeScores = scores.filter(
 		(s) => s.status === "scored" || s.status === "cap",
@@ -249,15 +277,8 @@ function calculateWinnerTakesMoreEventPoints(
 		(s) => s.status === "dnf" || s.status === "dns" || s.status === "withdrawn",
 	)
 
-	// Sort active scores by performance
-	const sortedActive = [...activeScores].sort((a, b) => {
-		// In time-with-cap, capped athletes rank after scored athletes
-		if (scheme === "time-with-cap") {
-			if (a.status === "cap" && b.status !== "cap") return 1
-			if (a.status !== "cap" && b.status === "cap") return -1
-		}
-		return isAscending ? a.value - b.value : b.value - a.value
-	})
+	// Sort active scores by performance (uses sortKey when available)
+	const sortedActive = sortScoresByPerformance(activeScores, scheme)
 
 	// Assign ranks with tie handling
 	const ranked = assignRanks(sortedActive)
@@ -391,7 +412,6 @@ function calculateCustomEventPoints(
 		overrides: {},
 	}
 	const traditionalConfig = config.traditional ?? DEFAULT_TRADITIONAL_CONFIG
-	const isAscending = ASCENDING_SCHEMES.has(scheme)
 
 	// Separate active scores from inactive
 	const activeScores = scores.filter(
@@ -401,14 +421,8 @@ function calculateCustomEventPoints(
 		(s) => s.status === "dnf" || s.status === "dns" || s.status === "withdrawn",
 	)
 
-	// Sort active scores by performance
-	const sortedActive = [...activeScores].sort((a, b) => {
-		if (scheme === "time-with-cap") {
-			if (a.status === "cap" && b.status !== "cap") return 1
-			if (a.status !== "cap" && b.status === "cap") return -1
-		}
-		return isAscending ? a.value - b.value : b.value - a.value
-	})
+	// Sort active scores by performance (uses sortKey when available)
+	const sortedActive = sortScoresByPerformance(activeScores, scheme)
 
 	// Assign ranks with tie handling
 	const ranked = assignRanks(sortedActive)
@@ -463,23 +477,110 @@ function calculateCustomEventPoints(
 }
 
 /**
- * Assign ranks to sorted scores, handling ties
+ * Calculate points using online scoring
+ * Points = rank (1st place = 1 point, 2nd = 2 points, etc.)
+ * Lowest total wins, ideal for online competitions with unknown participant count
+ */
+function calculateOnlineEventPoints(
+	scores: EventScoreInput[],
+	scheme: WorkoutScheme,
+	config: ScoringConfig,
+): Map<string, EventPointsResult> {
+	// Separate active scores from inactive
+	const activeScores = scores.filter(
+		(s) => s.status === "scored" || s.status === "cap",
+	)
+	const inactiveScores = scores.filter(
+		(s) => s.status === "dnf" || s.status === "dns" || s.status === "withdrawn",
+	)
+
+	// Sort active scores by performance (uses sortKey when available)
+	const sortedActive = sortScoresByPerformance(activeScores, scheme)
+
+	// Assign ranks with tie handling
+	const ranked = assignRanks(sortedActive)
+	const results = new Map<string, EventPointsResult>()
+
+	// Calculate points for active athletes (points = rank)
+	for (const { score, rank } of ranked) {
+		const points = calculateOnlinePoints(rank)
+		results.set(score.userId, {
+			userId: score.userId,
+			points,
+			rank,
+		})
+	}
+
+	// Handle inactive athletes based on config
+	const lastActiveRank = ranked.length > 0 ? ranked[ranked.length - 1].rank : 0
+	for (const score of inactiveScores) {
+		if (
+			score.status !== "dnf" &&
+			score.status !== "dns" &&
+			score.status !== "withdrawn"
+		) {
+			continue
+		}
+		const handling = getStatusHandling(score.status, config)
+		let points: number
+		let rank: number
+
+		switch (handling) {
+			case "last_place":
+			case "worst_performance":
+				// Both get ranked after all active athletes
+				rank = lastActiveRank + 1
+				points = calculateOnlinePoints(rank)
+				break
+			case "zero":
+				// For online scoring, "zero" means worst possible position
+				// Rank and points should stay consistent (points = rank)
+				// Use total participants + 1 as the penalty position
+				rank = scores.length + 1
+				points = calculateOnlinePoints(rank)
+				break
+			case "exclude":
+				// Don't add to results
+				continue
+		}
+
+		results.set(score.userId, {
+			userId: score.userId,
+			points,
+			rank,
+		})
+	}
+
+	return results
+}
+
+/**
+ * Assign ranks to sorted scores, handling ties.
+ * Uses sortKey for tie detection when available, falls back to value.
  */
 function assignRanks(
 	sortedScores: EventScoreInput[],
 ): Array<{ score: EventScoreInput; rank: number }> {
 	const result: Array<{ score: EventScoreInput; rank: number }> = []
 	let currentRank = 1
+	let previousSortKey: string | null = null
 	let previousValue: number | null = null
 
 	for (let i = 0; i < sortedScores.length; i++) {
 		const score = sortedScores[i]
 
-		if (previousValue !== null && score.value !== previousValue) {
+		// Use sortKey for tie detection when available (more accurate)
+		if (score.sortKey && previousSortKey !== null) {
+			if (score.sortKey !== previousSortKey) {
+				currentRank = i + 1
+			}
+		} else if (previousValue !== null && score.value !== previousValue) {
+			// Fallback to value-only comparison
 			currentRank = i + 1
 		}
 
 		result.push({ score, rank: currentRank })
+		previousSortKey = score.sortKey ?? null
 		previousValue = score.value
 	}
 
@@ -528,6 +629,8 @@ export function getScoringAlgorithmName(
 			return "P-Score"
 		case "winner_takes_more":
 			return "Winner Takes More"
+		case "online":
+			return "Online"
 		case "custom":
 			return "Custom"
 	}

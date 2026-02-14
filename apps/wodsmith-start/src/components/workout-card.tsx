@@ -37,6 +37,7 @@ interface WorkoutCardProps {
 	// Remix tracking
 	sourceWorkoutId?: string | null
 	sourceWorkout?: SourceWorkoutInfo
+	selectedDivisionId?: string
 }
 
 export function WorkoutCard({
@@ -55,6 +56,7 @@ export function WorkoutCard({
 	divisionDescriptions,
 	sponsorName,
 	sponsorLogoUrl: _sponsorLogoUrl,
+	selectedDivisionId,
 }: WorkoutCardProps) {
 	// Sort divisions by position and filter to only those with custom descriptions
 	const sortedDivisions = [...divisionDescriptions].sort(
@@ -79,14 +81,16 @@ export function WorkoutCard({
 	}
 	const [selectedTab, setSelectedTab] = useState(getDefaultTab)
 
-	// Get the description to display based on selected tab
+	// Get the description to display based on selected tab or passed prop
 	const getDisplayDescription = () => {
-		if (selectedTab === "default") {
+		const targetDivisionId = selectedDivisionId || selectedTab
+
+		if (targetDivisionId === "default") {
 			// Show RX description if available, otherwise fall back to base description
 			return rxDescription || description
 		}
 		const divisionDesc = divisionDescriptions.find(
-			(d) => d.divisionId === selectedTab,
+			(d) => d.divisionId === targetDivisionId,
 		)
 		return divisionDesc?.description || description
 	}
@@ -144,8 +148,8 @@ export function WorkoutCard({
 				</div>
 			</CardHeader>
 			<CardContent>
-				{/* Division selector tabs - only show if there are multiple division descriptions */}
-				{divisionsWithDescriptions.length > 1 && (
+				{/* Division selector tabs - only show if there are multiple division descriptions AND no external selection */}
+				{!selectedDivisionId && divisionsWithDescriptions.length > 1 && (
 					<Tabs
 						value={selectedTab}
 						onValueChange={setSelectedTab}

@@ -1,105 +1,111 @@
 "use client"
 
-import { Link, useLocation } from "@tanstack/react-router"
-import { Button } from "@/components/ui/button"
+import { Link, useLocation, useNavigate } from "@tanstack/react-router"
+import { Calendar, Dumbbell, List, Trophy } from "lucide-react"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
 import { cn } from "@/utils/cn"
 
 interface CompetitionTabsProps {
 	slug: string
-	isRegistered: boolean
-	registrationOpen: boolean
-	registrationClosed: boolean
-	registrationNotYetOpen: boolean
 }
 
 const tabs = [
-	{ label: "Event Details", href: "" },
-	{ label: "Workouts", href: "/workouts" },
-	{ label: "Schedule", href: "/schedule" },
-	{ label: "Leaderboard", href: "/leaderboard" },
+	{ label: "Event Details", href: "", icon: List },
+	{ label: "Workouts", href: "/workouts", icon: Dumbbell },
+	{ label: "Schedule", href: "/schedule", icon: Calendar },
+	{ label: "Leaderboard", href: "/leaderboard", icon: Trophy },
 ]
 
-export function CompetitionTabs({
-	slug,
-	isRegistered,
-	registrationOpen,
-	registrationClosed,
-	registrationNotYetOpen,
-}: CompetitionTabsProps) {
+export function CompetitionTabs({ slug }: CompetitionTabsProps) {
 	const location = useLocation()
+	const navigate = useNavigate()
 	const pathname = location.pathname
 	const basePath = `/compete/${slug}`
 
-	// Determine register button state
-	const getRegisterButtonText = () => {
-		if (isRegistered) return "Registered"
-		if (registrationClosed) return "Registration Closed"
-		if (registrationNotYetOpen) return "Registration Opens Soon"
-		if (registrationOpen) return "Register"
-		return "Registration Unavailable"
+	// Determine active tab value for select
+	const getActiveTabValue = () => {
+		for (const tab of tabs) {
+			const tabPath = `${basePath}${tab.href}`
+			const isActive =
+				tab.href === "" ? pathname === basePath : pathname.startsWith(tabPath)
+			if (isActive) return tab.href || "/"
+		}
+		return "/"
 	}
 
-	const isRegisterButtonDisabled =
-		isRegistered ||
-		registrationClosed ||
-		registrationNotYetOpen ||
-		!registrationOpen
+	const handleSelectChange = (value: string) => {
+		const href = value === "/" ? "" : value
+		navigate({ to: `${basePath}${href}` })
+	}
+
+	const activeTab = tabs.find((tab) => {
+		const tabPath = `${basePath}${tab.href}`
+		return tab.href === ""
+			? pathname === basePath
+			: pathname.startsWith(tabPath)
+	})
+	const ActiveIcon = activeTab?.icon || List
 
 	return (
-		<div className="sticky top-0 z-10 border-b bg-background">
-			<div className="container mx-auto">
-				<div className="flex items-center justify-between gap-2">
-					<nav className="flex h-auto gap-0 overflow-x-auto">
-						{tabs.map((tab) => {
-							const tabPath = `${basePath}${tab.href}`
-							// For the root tab (Event Details), check exact match
-							// For other tabs, check if pathname starts with the tab path
-							const isActive =
-								tab.href === ""
-									? pathname === basePath
-									: pathname.startsWith(tabPath)
-
-							return (
-								<Link
-									key={tab.href}
-									to={tabPath}
-									className={cn(
-										"border-b-2 px-4 py-3 text-sm font-medium transition-colors",
-										isActive
-											? "border-teal-500 text-foreground"
-											: "border-transparent text-muted-foreground hover:text-foreground",
-									)}
-								>
-									{tab.label}
-								</Link>
-							)
-						})}
-					</nav>
-					<div className="py-2 pr-4">
-						{registrationOpen && !isRegistered ? (
-							<Button
-								variant="default"
-								size="sm"
-								className="bg-teal-600 hover:bg-teal-500"
-								asChild
+		<div className="rounded-2xl border border-black/10 bg-black/5 p-2 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
+			{/* Mobile: Select menu */}
+			<div className="sm:hidden">
+				<Select value={getActiveTabValue()} onValueChange={handleSelectChange}>
+					<SelectTrigger className="w-full bg-transparent border-0 h-10 font-medium">
+						<div className="flex items-center gap-2">
+							<ActiveIcon className="h-4 w-4" />
+							<SelectValue />
+						</div>
+					</SelectTrigger>
+					<SelectContent>
+						{tabs.map((tab) => (
+							<SelectItem
+								key={tab.href || "/"}
+								value={tab.href || "/"}
+								className="cursor-pointer"
 							>
-								<Link to="/compete/$slug/register" params={{ slug }}>
-									Register
-								</Link>
-							</Button>
-						) : (
-							<Button
-								variant={isRegistered ? "outline" : "default"}
-								size="sm"
-								disabled={isRegisterButtonDisabled}
-								className={cn(isRegistered && "cursor-default")}
-							>
-								{getRegisterButtonText()}
-							</Button>
-						)}
-					</div>
-				</div>
+								{tab.label}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
 			</div>
+
+			{/* Desktop: Tab navigation */}
+			<nav className="hidden sm:flex h-auto gap-1 overflow-x-auto">
+				{tabs.map((tab) => {
+					const tabPath = `${basePath}${tab.href}`
+					const Icon = tab.icon
+					// For the root tab (Event Details), check exact match
+					// For other tabs, check if pathname starts with the tab path
+					const isActive =
+						tab.href === ""
+							? pathname === basePath
+							: pathname.startsWith(tabPath)
+
+					return (
+						<Link
+							key={tab.href}
+							to={tabPath}
+							className={cn(
+								"flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all",
+								isActive
+									? "bg-orange-500 text-white"
+									: "text-muted-foreground hover:bg-black/10 hover:text-foreground dark:hover:bg-white/10",
+							)}
+						>
+							<Icon className="h-4 w-4" />
+							{tab.label}
+						</Link>
+					)
+				})}
+			</nav>
 		</div>
 	)
 }

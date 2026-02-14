@@ -16,8 +16,8 @@ import {
 	teamTable,
 	userTable,
 } from "@/db/schema"
-import { addToCompetitionEventTeam } from "@/server/registration"
 import { notifyTeammateJoined } from "@/server/notifications"
+import { addToCompetitionEventTeam } from "@/server/registration"
 import { getSessionFromCookie } from "@/utils/auth"
 import { sendTeamInvitationEmail } from "@/utils/email"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
@@ -100,11 +100,11 @@ export async function inviteUserToTeam({
 			teamId,
 			userId: existingUser.id,
 			roleId,
-			isSystemRole: isSystemRole ? 1 : 0,
+			isSystemRole,
 			invitedBy: session.userId,
 			invitedAt: new Date(),
 			joinedAt: new Date(),
-			isActive: 1,
+			isActive: true,
 			metadata,
 		})
 
@@ -137,7 +137,7 @@ export async function inviteUserToTeam({
 			.update(teamInvitationTable)
 			.set({
 				roleId,
-				isSystemRole: isSystemRole ? 1 : 0,
+				isSystemRole,
 				token,
 				expiresAt,
 				invitedBy: session.userId,
@@ -173,21 +173,25 @@ export async function inviteUserToTeam({
 		}
 	}
 
-	const newInvitation = await db
-		.insert(teamInvitationTable)
-		.values({
-			teamId,
-			email,
-			roleId,
-			isSystemRole: isSystemRole ? 1 : 0,
-			token,
-			invitedBy: session.userId,
-			expiresAt,
-			metadata,
-		})
-		.returning()
+	// Generate invitation ID for later retrieval
+	const { createTeamInvitationId } = await import("@/db/schemas/common")
+	const invitationId = createTeamInvitationId()
 
-	const invitation = newInvitation?.[0]
+	await db.insert(teamInvitationTable).values({
+		id: invitationId,
+		teamId,
+		email,
+		roleId,
+		isSystemRole,
+		token,
+		invitedBy: session.userId,
+		expiresAt,
+		metadata,
+	})
+
+	const invitation = await db.query.teamInvitationTable.findFirst({
+		where: eq(teamInvitationTable.id, invitationId),
+	})
 
 	if (!invitation) {
 		throw new Error("ERROR: Could not create invitation")
@@ -302,13 +306,13 @@ export async function acceptTeamInvitation(token: string): Promise<{
 		teamId: invitation.teamId,
 		userId: session.userId,
 		roleId: invitation.roleId,
-		isSystemRole: Number(invitation.isSystemRole),
+		isSystemRole: invitation.isSystemRole,
 		invitedBy: invitation.invitedBy,
 		invitedAt: invitation.createdAt
 			? new Date(invitation.createdAt)
 			: new Date(),
 		joinedAt: new Date(),
-		isActive: 1,
+		isActive: true,
 		metadata: invitation.metadata,
 	})
 

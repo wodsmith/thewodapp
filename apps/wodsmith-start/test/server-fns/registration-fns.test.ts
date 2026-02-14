@@ -50,6 +50,7 @@ vi.mock('@/utils/auth', () => ({
 // Mock TanStack createServerFn to make server functions directly callable
 vi.mock('@tanstack/react-start', () => ({
   createServerFn: () => ({
+    handler: (fn: any) => fn,
     inputValidator: () => ({
       handler: (fn: any) => fn,
     }),
@@ -343,7 +344,7 @@ describe('registration-fns', () => {
     })
 
     describe('authorization', () => {
-      it('should reject when user is not registrant or team member', async () => {
+      it('should return null when user is not registrant or team member', async () => {
         setMockSession(mockUnauthorizedSession)
         mockDb.setMockSingleValue(mockRegistration)
         mockDb.query.teamMembershipTable = {
@@ -351,11 +352,12 @@ describe('registration-fns', () => {
           findMany: vi.fn().mockResolvedValue([]),
         }
 
-        await expect(
-          getRegistrationDetailsFn({
-            data: {registrationId: testRegistrationId},
-          }),
-        ).rejects.toThrow('You are not authorized to view this registration')
+        const result = await getRegistrationDetailsFn({
+          data: {registrationId: testRegistrationId},
+        })
+
+        // Returns null instead of throwing to allow route to show 404
+        expect(result).toBeNull()
       })
 
       it('should allow registered user to view registration', async () => {

@@ -29,12 +29,12 @@ function createMembership(
     teamId: 'team-1',
     userId: 'user-1',
     roleId: SYSTEM_ROLES_ENUM.MEMBER,
-    isSystemRole: 1,
+    isSystemRole: true,
     invitedBy: null,
     invitedAt: null,
     joinedAt: new Date(),
     expiresAt: null,
-    isActive: 1,
+    isActive: true,
     metadata: null,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -53,7 +53,7 @@ function createVolunteerMembership(
   }
   return createMembership({
     roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
-    isSystemRole: 1,
+    isSystemRole: true,
     metadata: JSON.stringify(metadata),
   })
 }
@@ -139,7 +139,7 @@ describe('isVolunteer', () => {
   it('returns false for non-volunteer role', () => {
     const membership = createMembership({
       roleId: SYSTEM_ROLES_ENUM.MEMBER,
-      isSystemRole: 1,
+      isSystemRole: true,
     })
 
     expect(isVolunteer(membership)).toBe(false)
@@ -148,7 +148,7 @@ describe('isVolunteer', () => {
   it('returns false for owner role', () => {
     const membership = createMembership({
       roleId: SYSTEM_ROLES_ENUM.OWNER,
-      isSystemRole: 1,
+      isSystemRole: true,
     })
 
     expect(isVolunteer(membership)).toBe(false)
@@ -157,7 +157,7 @@ describe('isVolunteer', () => {
   it('returns false for admin role', () => {
     const membership = createMembership({
       roleId: SYSTEM_ROLES_ENUM.ADMIN,
-      isSystemRole: 1,
+      isSystemRole: true,
     })
 
     expect(isVolunteer(membership)).toBe(false)
@@ -166,7 +166,7 @@ describe('isVolunteer', () => {
   it('returns false for captain role', () => {
     const membership = createMembership({
       roleId: SYSTEM_ROLES_ENUM.CAPTAIN,
-      isSystemRole: 1,
+      isSystemRole: true,
     })
 
     expect(isVolunteer(membership)).toBe(false)
@@ -175,7 +175,7 @@ describe('isVolunteer', () => {
   it('returns false when volunteer role is not system role', () => {
     const membership = createMembership({
       roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
-      isSystemRole: 0, // Not a system role
+      isSystemRole: false, // Not a system role
     })
 
     expect(isVolunteer(membership)).toBe(false)
@@ -184,7 +184,7 @@ describe('isVolunteer', () => {
   it('returns false for custom role named volunteer', () => {
     const membership = createMembership({
       roleId: 'custom-volunteer-role-id',
-      isSystemRole: 0,
+      isSystemRole: false,
     })
 
     expect(isVolunteer(membership)).toBe(false)
@@ -247,7 +247,7 @@ describe('volunteer metadata parsing edge cases', () => {
       }
       const membership = createMembership({
         roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
-        isSystemRole: 1,
+        isSystemRole: true,
         metadata: JSON.stringify(metadata),
       })
 
@@ -266,7 +266,7 @@ describe('volunteer metadata parsing edge cases', () => {
       }
       const membership = createMembership({
         roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
-        isSystemRole: 1,
+        isSystemRole: true,
         metadata: JSON.stringify(metadata),
       })
 
@@ -285,7 +285,7 @@ describe('volunteer metadata parsing edge cases', () => {
       }
       const membership = createMembership({
         roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
-        isSystemRole: 1,
+        isSystemRole: true,
         metadata: JSON.stringify(metadata),
       })
 
@@ -306,7 +306,7 @@ describe('volunteer metadata parsing edge cases', () => {
       }
       const membership = createMembership({
         roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
-        isSystemRole: 1,
+        isSystemRole: true,
         metadata: JSON.stringify(metadata),
       })
 
@@ -333,7 +333,7 @@ describe('volunteer metadata parsing edge cases', () => {
       }
       const membership = createMembership({
         roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
-        isSystemRole: 1,
+        isSystemRole: true,
         metadata: JSON.stringify(metadata),
       })
 
@@ -356,7 +356,7 @@ describe('volunteer metadata parsing edge cases', () => {
       }
       const membership = createMembership({
         roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
-        isSystemRole: 1,
+        isSystemRole: true,
         metadata: JSON.stringify(metadata),
       })
 
@@ -388,7 +388,7 @@ describe('volunteer metadata parsing edge cases', () => {
       // Edge case: metadata exists but roleTypes is not an array
       const membership = createMembership({
         roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
-        isSystemRole: 1,
+        isSystemRole: true,
         metadata: JSON.stringify({volunteerRoleTypes: 'not-an-array'}),
       })
 

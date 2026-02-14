@@ -17,6 +17,7 @@ import {
 	competitionJudgeRotationsTable,
 	competitionsTable,
 	competitionVenuesTable,
+	judgeHeatAssignmentsTable,
 	LANE_SHIFT_PATTERN,
 	trackWorkoutsTable,
 	workouts,
@@ -205,6 +206,26 @@ const deleteVolunteerRotationsSchema = z.object({
 	teamId: teamIdSchema,
 	membershipId: z.string().min(1, "Judge ID is required"),
 	trackWorkoutId: z.string().min(1, "Event ID is required"),
+})
+
+const batchDeleteRotationsSchema = z.object({
+	teamId: teamIdSchema,
+	competitionId: z.string().min(1, "Competition ID is required"),
+	rotationIds: z
+		.array(z.string().min(1))
+		.min(1, "At least one rotation ID required"),
+})
+
+const adjustRotationsForOccupiedLanesSchema = z.object({
+	teamId: teamIdSchema,
+	competitionId: z.string().min(1, "Competition ID is required"),
+	trackWorkoutId: z.string().min(1, "Event ID is required"),
+	/** Map of heatNumber -> array of occupied lane numbers */
+	occupiedLanesByHeat: z.record(z.string(), z.array(z.number())),
+	/** Rotation IDs to adjust */
+	rotationIds: z
+		.array(z.string().min(1))
+		.min(1, "At least one rotation ID required"),
 })
 
 // ============================================================================
@@ -480,19 +501,27 @@ async function createRotationInternal(params: {
 		}
 	}
 
-	const [rotation] = await db
-		.insert(competitionJudgeRotationsTable)
-		.values({
-			competitionId: params.competitionId,
-			trackWorkoutId: params.trackWorkoutId,
-			membershipId: params.membershipId,
-			startingHeat: params.startingHeat,
-			startingLane: params.startingLane,
-			heatsCount: params.heatsCount,
-			laneShiftPattern,
-			notes: params.notes ?? null,
-		})
-		.returning()
+	// Generate ID first
+	const { createJudgeRotationId } = await import("@/db/schemas/common")
+	const id = createJudgeRotationId()
+
+	// Insert without returning
+	await db.insert(competitionJudgeRotationsTable).values({
+		id,
+		competitionId: params.competitionId,
+		trackWorkoutId: params.trackWorkoutId,
+		membershipId: params.membershipId,
+		startingHeat: params.startingHeat,
+		startingLane: params.startingLane,
+		heatsCount: params.heatsCount,
+		laneShiftPattern,
+		notes: params.notes ?? null,
+	})
+
+	// Select back
+	const rotation = await db.query.competitionJudgeRotationsTable.findFirst({
+		where: eq(competitionJudgeRotationsTable.id, id),
+	})
 
 	if (!rotation) {
 		throw new Error("Failed to create judge rotation")
@@ -503,6 +532,10 @@ async function createRotationInternal(params: {
 
 /**
  * Delete a judge rotation (internal helper)
+ *
+ * Note: The rotationId FK on judge_heat_assignments was created without
+ * ON DELETE SET NULL (migration 0060), so we must manually null it out
+ * before deleting the rotation to avoid FK constraint violations.
  */
 async function deleteRotationInternal(
 	rotationId: string,
@@ -512,6 +545,13 @@ async function deleteRotationInternal(
 
 	// Permission check
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.MANAGE_COMPETITIONS)
+
+	// Clear rotationId references in judge_heat_assignments before deleting
+	// (the DB FK lacks ON DELETE SET NULL due to migration 0060)
+	await db
+		.update(judgeHeatAssignmentsTable)
+		.set({ rotationId: null })
+		.where(eq(judgeHeatAssignmentsTable.rotationId, rotationId))
 
 	await db
 		.delete(competitionJudgeRotationsTable)
@@ -836,11 +876,16 @@ export const updateJudgeRotationFn = createServerFn({ method: "POST" })
 			updateData.notes = data.notes
 		}
 
-		const [updated] = await db
+		// Update without returning
+		await db
 			.update(competitionJudgeRotationsTable)
 			.set(updateData)
 			.where(eq(competitionJudgeRotationsTable.id, data.rotationId))
-			.returning()
+
+		// Select back
+		const updated = await db.query.competitionJudgeRotationsTable.findFirst({
+			where: eq(competitionJudgeRotationsTable.id, data.rotationId),
+		})
 
 		if (!updated) {
 			throw new Error("Rotation not found or update failed")
@@ -1146,9 +1191,11 @@ export const deleteVolunteerRotationsFn = createServerFn({ method: "POST" })
 			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
 
-		// Delete all rotations for this volunteer in this event
-		const result = await db
-			.delete(competitionJudgeRotationsTable)
+		// Find rotations to delete, then use deleteRotationInternal which
+		// handles clearing FK references in judge_heat_assignments
+		const rotationsToDelete = await db
+			.select({ id: competitionJudgeRotationsTable.id })
+			.from(competitionJudgeRotationsTable)
 			.where(
 				and(
 					eq(competitionJudgeRotationsTable.membershipId, data.membershipId),
@@ -1158,10 +1205,205 @@ export const deleteVolunteerRotationsFn = createServerFn({ method: "POST" })
 					),
 				),
 			)
-			.returning({ id: competitionJudgeRotationsTable.id })
+
+		for (const rotation of rotationsToDelete) {
+			await deleteRotationInternal(rotation.id, data.teamId)
+		}
 
 		return {
 			success: true,
-			data: { deletedCount: result.length },
+			data: { deletedCount: rotationsToDelete.length },
+		}
+	})
+
+/**
+ * Batch delete multiple rotations by their IDs
+ */
+export const batchDeleteRotationsFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => batchDeleteRotationsSchema.parse(data))
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Permission check
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		)
+
+		// Verify all rotations belong to this competition before deleting
+		const rotations = await db.query.competitionJudgeRotationsTable.findMany({
+			where: (table, { inArray }) => inArray(table.id, data.rotationIds),
+		})
+
+		for (const rotation of rotations) {
+			if (rotation.competitionId !== data.competitionId) {
+				throw new Error("Rotation does not belong to this competition")
+			}
+		}
+
+		// Delete each rotation
+		let deletedCount = 0
+		for (const rotationId of data.rotationIds) {
+			await deleteRotationInternal(rotationId, data.teamId)
+			deletedCount++
+		}
+
+		return {
+			success: true,
+			data: { deletedCount },
+		}
+	})
+
+/**
+ * Adjust rotations to only cover lanes with athletes.
+ * Splits rotations as needed to skip unoccupied lanes.
+ */
+export const adjustRotationsForOccupiedLanesFn = createServerFn({
+	method: "POST",
+})
+	.inputValidator((data: unknown) =>
+		adjustRotationsForOccupiedLanesSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Permission check
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		)
+
+		// Get heats for expansion
+		const heatsRaw = await db
+			.select({
+				heatNumber: competitionHeatsTable.heatNumber,
+				venueLaneCount: competitionVenuesTable.laneCount,
+			})
+			.from(competitionHeatsTable)
+			.leftJoin(
+				competitionVenuesTable,
+				eq(competitionHeatsTable.venueId, competitionVenuesTable.id),
+			)
+			.where(eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId))
+
+		const heats = heatsRaw.map((h) => ({
+			heatNumber: h.heatNumber,
+			laneCount: h.venueLaneCount ?? 10,
+		}))
+
+		// Convert occupiedLanesByHeat to a Map for easier lookup
+		const occupiedMap = new Map<number, Set<number>>()
+		for (const [heatStr, lanes] of Object.entries(data.occupiedLanesByHeat)) {
+			occupiedMap.set(Number(heatStr), new Set(lanes))
+		}
+
+		let deletedCount = 0
+		let createdCount = 0
+		let unchangedCount = 0
+
+		for (const rotationId of data.rotationIds) {
+			// Get the rotation
+			const rotation = await db.query.competitionJudgeRotationsTable.findFirst({
+				where: (table, { eq }) => eq(table.id, rotationId),
+			})
+
+			if (!rotation) continue
+
+			// Validate rotation belongs to this event
+			if (
+				rotation.trackWorkoutId !== data.trackWorkoutId ||
+				rotation.competitionId !== data.competitionId
+			) {
+				throw new Error("Rotation does not belong to this event")
+			}
+
+			// Expand to assignments
+			const assignments = expandRotationToAssignments(rotation, heats)
+
+			// Filter to only occupied lanes
+			const occupiedAssignments = assignments.filter((a) => {
+				const occupied = occupiedMap.get(a.heatNumber)
+				return occupied?.has(a.laneNumber)
+			})
+
+			// If all assignments are valid, skip this rotation
+			if (occupiedAssignments.length === assignments.length) {
+				unchangedCount++
+				continue
+			}
+
+			// If no assignments are valid, just delete
+			if (occupiedAssignments.length === 0) {
+				await deleteRotationInternal(rotationId, data.teamId)
+				deletedCount++
+				continue
+			}
+
+			// Group contiguous heats into new rotations
+			// Sort by heat number
+			occupiedAssignments.sort((a, b) => a.heatNumber - b.heatNumber)
+
+			const newRotations: Array<{
+				startingHeat: number
+				startingLane: number
+				heatsCount: number
+			}> = []
+
+			let currentRun: typeof occupiedAssignments = []
+
+			for (const assignment of occupiedAssignments) {
+				if (currentRun.length === 0) {
+					currentRun.push(assignment)
+				} else {
+					const lastAssignment = currentRun[currentRun.length - 1]!
+					// Check if this is contiguous (next heat in sequence)
+					if (assignment.heatNumber === lastAssignment.heatNumber + 1) {
+						currentRun.push(assignment)
+					} else {
+						// End current run, start new one
+						newRotations.push({
+							startingHeat: currentRun[0]!.heatNumber,
+							startingLane: currentRun[0]!.laneNumber,
+							heatsCount: currentRun.length,
+						})
+						currentRun = [assignment]
+					}
+				}
+			}
+
+			// Don't forget the last run
+			if (currentRun.length > 0) {
+				newRotations.push({
+					startingHeat: currentRun[0]!.heatNumber,
+					startingLane: currentRun[0]!.laneNumber,
+					heatsCount: currentRun.length,
+				})
+			}
+
+			// Create new rotations FIRST to avoid data loss if creation fails
+			// Build replacements before deleting
+			for (const newRot of newRotations) {
+				await createRotationInternal({
+					teamId: data.teamId,
+					competitionId: data.competitionId,
+					trackWorkoutId: data.trackWorkoutId,
+					membershipId: rotation.membershipId,
+					startingHeat: newRot.startingHeat,
+					startingLane: newRot.startingLane,
+					heatsCount: newRot.heatsCount,
+					laneShiftPattern: rotation.laneShiftPattern,
+					notes: rotation.notes ?? undefined,
+				})
+				createdCount++
+			}
+
+			// Delete old rotation only after new ones are created successfully
+			await deleteRotationInternal(rotationId, data.teamId)
+			deletedCount++
+		}
+
+		return {
+			success: true,
+			data: { deletedCount, createdCount, unchangedCount },
 		}
 	})

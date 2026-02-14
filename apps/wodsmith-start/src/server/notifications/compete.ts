@@ -8,7 +8,6 @@
 
 import { eq } from "drizzle-orm"
 import { getDb } from "@/db"
-import { formatDateStringWithWeekday } from "@/utils/date-utils"
 import {
 	competitionRegistrationsTable,
 	competitionsTable,
@@ -21,6 +20,7 @@ import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 import { PaymentExpiredEmail } from "@/react-email/payment-expired"
 import { RegistrationConfirmationEmail } from "@/react-email/registration-confirmation"
 import { TeammateJoinedEmail } from "@/react-email/teammate-joined"
+import { formatDateStringWithWeekday } from "@/utils/date-utils"
 import { sendEmail } from "@/utils/email"
 
 // ============================================================================

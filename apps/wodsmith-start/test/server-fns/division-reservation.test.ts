@@ -33,6 +33,7 @@ function setSequentialMockValues(values: unknown[][]) {
 // Mock TanStack createServerFn to make server functions directly callable
 vi.mock("@tanstack/react-start", () => ({
 	createServerFn: () => ({
+		handler: (fn: unknown) => fn,
 		inputValidator: () => ({
 			handler: (fn: unknown) => fn,
 		}),

@@ -121,6 +121,7 @@ function NewCompetitionPage() {
 							teams={teams}
 							selectedTeamId={selectedTeamId}
 							groups={groups}
+							defaultGroupId={groupId}
 							onSuccess={handleSuccess}
 							onCancel={handleCancel}
 						/>

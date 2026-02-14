@@ -1,9 +1,12 @@
 "use client"
 
-import { FileWarning } from "lucide-react"
+import { Link } from "@tanstack/react-router"
+import { ClipboardList, FileWarning, Search } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import {
 	Select,
 	SelectContent,
@@ -20,12 +23,14 @@ import { calculateCoverage } from "@/lib/judge-rotation-utils"
 import type { HeatWithAssignments } from "@/server-fns/competition-heats-fns"
 import type { CompetitionWorkout } from "@/server-fns/competition-workouts-fns"
 import {
-	getAssignmentsForVersionFn,
+	getActiveVersionFn,
+	getVersionHistoryFn,
 	rollbackToVersionFn,
 } from "@/server-fns/judge-assignment-fns"
-import type {
-	JudgeHeatAssignment,
-	JudgeVolunteerInfo,
+import {
+	getJudgeHeatAssignmentsFn,
+	type JudgeHeatAssignment,
+	type JudgeVolunteerInfo,
 } from "@/server-fns/judge-scheduling-fns"
 
 import { DraggableJudge } from "./draggable-judge"
@@ -44,7 +49,9 @@ interface EventDefaults {
 
 interface JudgeSchedulingContainerProps {
 	competitionId: string
+	competitionSlug: string
 	organizingTeamId: string
+	competitionType: "in-person" | "online"
 	events: CompetitionWorkout[]
 	heats: HeatWithAssignments[]
 	judges: JudgeVolunteerInfo[]
@@ -60,6 +67,10 @@ interface JudgeSchedulingContainerProps {
 	competitionDefaultHeats: number
 	/** Competition-level default lane shift pattern */
 	competitionDefaultPattern: LaneShiftPattern
+	/** Currently selected event ID (from URL) */
+	selectedEventId: string
+	/** Callback when event selection changes */
+	onEventChange: (eventId: string) => void
 }
 
 /**
@@ -68,7 +79,9 @@ interface JudgeSchedulingContainerProps {
  */
 export function JudgeSchedulingContainer({
 	competitionId,
+	competitionSlug,
 	organizingTeamId,
+	competitionType,
 	events,
 	heats,
 	judges,
@@ -79,10 +92,10 @@ export function JudgeSchedulingContainer({
 	activeVersionMap,
 	competitionDefaultHeats,
 	competitionDefaultPattern,
+	selectedEventId,
+	onEventChange,
 }: JudgeSchedulingContainerProps) {
-	const [selectedEventId, setSelectedEventId] = useState<string>(
-		events[0]?.id ?? "",
-	)
+	const isOnline = competitionType === "online"
 	const [assignments, setAssignments] =
 		useState<JudgeHeatAssignment[]>(initialAssignments)
 	const [selectedJudgeIds, setSelectedJudgeIds] = useState<Set<string>>(
@@ -93,6 +106,8 @@ export function JudgeSchedulingContainer({
 	)
 	const [isRollingBack, setIsRollingBack] = useState(false)
 	const [isFetchingAssignments, setIsFetchingAssignments] = useState(false)
+	const [filterEmptyLanes, setFilterEmptyLanes] = useState(false)
+	const [availableJudgeSearch, setAvailableJudgeSearch] = useState("")
 
 	// Get heats for selected event
 	const eventHeats = useMemo(
@@ -146,11 +161,28 @@ export function JudgeSchedulingContainer({
 			.sort((a, b) => a.assignmentCount - b.assignmentCount)
 	}, [judges, assignments])
 
-	// Get rotations for selected event
-	const eventRotations = useMemo(
+	// Filter judges by search query
+	const filteredJudgesByAssignmentCount = useMemo(() => {
+		if (!availableJudgeSearch.trim()) return judgesByAssignmentCount
+		const query = availableJudgeSearch.toLowerCase().trim()
+		return judgesByAssignmentCount.filter((judge) => {
+			const fullName =
+				`${judge.firstName ?? ""} ${judge.lastName ?? ""}`.toLowerCase()
+			return fullName.includes(query)
+		})
+	}, [judgesByAssignmentCount, availableJudgeSearch])
+
+	// Get rotations for selected event - track locally to update on changes
+	const initialEventRotations = useMemo(
 		() => initialRotations.filter((r) => r.trackWorkoutId === selectedEventId),
 		[initialRotations, selectedEventId],
 	)
+	const [eventRotations, setEventRotations] = useState(initialEventRotations)
+
+	// Sync when event changes or initial data changes
+	useEffect(() => {
+		setEventRotations(initialEventRotations)
+	}, [initialEventRotations])
 
 	// Get selected event details
 	const selectedEvent = useMemo(
@@ -158,16 +190,26 @@ export function JudgeSchedulingContainer({
 		[events, selectedEventId],
 	)
 
-	// Get version data for selected event
-	const eventVersionHistory = useMemo(
+	// Get version data for selected event - track locally to update on publish
+	const initialVersionHistory = useMemo(
 		() => versionHistoryMap.get(selectedEventId) ?? [],
 		[versionHistoryMap, selectedEventId],
 	)
-
-	const eventActiveVersion = useMemo(
+	const initialActiveVersion = useMemo(
 		() => activeVersionMap.get(selectedEventId) ?? null,
 		[activeVersionMap, selectedEventId],
 	)
+	const [eventVersionHistory, setEventVersionHistory] = useState(
+		initialVersionHistory,
+	)
+	const [eventActiveVersion, setEventActiveVersion] =
+		useState(initialActiveVersion)
+
+	// Sync when event changes
+	useEffect(() => {
+		setEventVersionHistory(initialVersionHistory)
+		setEventActiveVersion(initialActiveVersion)
+	}, [initialVersionHistory, initialActiveVersion])
 
 	// Auto-select active version when event changes
 	useEffect(() => {
@@ -177,6 +219,41 @@ export function JudgeSchedulingContainer({
 			setSelectedVersionId(null)
 		}
 	}, [eventActiveVersion])
+
+	// Refresh version data after publishing
+	async function refreshVersionData() {
+		try {
+			const [historyResult, activeResult] = await Promise.all([
+				getVersionHistoryFn({ data: { trackWorkoutId: selectedEventId } }),
+				getActiveVersionFn({ data: { trackWorkoutId: selectedEventId } }),
+			])
+			if (historyResult) {
+				setEventVersionHistory(historyResult)
+			}
+			setEventActiveVersion(activeResult)
+
+			// Also fetch assignments for the new active version
+			if (activeResult) {
+				setSelectedVersionId(activeResult.id)
+				const assignmentsResult = await getJudgeHeatAssignmentsFn({
+					data: { trackWorkoutId: selectedEventId, versionId: activeResult.id },
+				})
+				if (assignmentsResult) {
+					setAssignments((prev) => {
+						// Remove old assignments for this event, add new ones
+						const eventHeatIds = new Set(eventHeats.map((h) => h.id))
+						const withoutEvent = prev.filter((a) => !eventHeatIds.has(a.heatId))
+						return [
+							...withoutEvent,
+							...assignmentsResult,
+						]
+					})
+				}
+			}
+		} catch (err) {
+			console.error("Failed to refresh version data:", err)
+		}
+	}
 
 	// Handle version change
 	async function handleVersionChange(versionId: string) {
@@ -203,8 +280,8 @@ export function JudgeSchedulingContainer({
 				// Fetch assignments for the new version
 				setIsFetchingAssignments(true)
 				try {
-					const assignmentsResult = await getAssignmentsForVersionFn({
-						data: { versionId },
+					const assignmentsResult = await getJudgeHeatAssignmentsFn({
+						data: { trackWorkoutId: selectedEventId, versionId },
 					})
 					if (assignmentsResult) {
 						setAssignments((prev) => {
@@ -213,11 +290,9 @@ export function JudgeSchedulingContainer({
 							const withoutEvent = prev.filter(
 								(a) => !eventHeatIds.has(a.heatId),
 							)
-							// Type assertion needed because getAssignmentsForVersion returns raw DB structure
-							// but JudgeHeatAssignment expects a 'volunteer' property (server-side type mismatch)
 							return [
 								...withoutEvent,
-								...(assignmentsResult as JudgeHeatAssignment[]),
+								...assignmentsResult,
 							]
 						})
 					}
@@ -254,6 +329,19 @@ export function JudgeSchedulingContainer({
 		competitionDefaultPattern,
 	])
 
+	// Compute occupied lanes per heat from athlete assignments
+	const occupiedLanesByHeat = useMemo(() => {
+		const map = new Map<number, Set<number>>()
+		for (const heat of eventHeats) {
+			const occupiedLanes = new Set<number>()
+			for (const assignment of heat.assignments) {
+				occupiedLanes.add(assignment.laneNumber)
+			}
+			map.set(heat.heatNumber, occupiedLanes)
+		}
+		return map
+	}, [eventHeats])
+
 	// Calculate rotation coverage for selected event
 	const rotationCoverage = useMemo(() => {
 		if (eventHeats.length === 0) {
@@ -266,13 +354,28 @@ export function JudgeSchedulingContainer({
 			}
 		}
 
-		const heatsData = eventHeats.map((h) => ({
-			heatNumber: h.heatNumber,
-			laneCount: h.venue?.laneCount ?? maxLanes,
-		}))
+		const heatsData = eventHeats.map((h) => {
+			const base = {
+				heatNumber: h.heatNumber,
+				laneCount: h.venue?.laneCount ?? maxLanes,
+			}
+			// Include occupiedLanes if filtering is enabled
+			if (filterEmptyLanes) {
+				// Compute occupied lanes directly from heat assignments to ensure consistency
+				const occupiedLanes = new Set<number>()
+				for (const assignment of h.assignments) {
+					occupiedLanes.add(assignment.laneNumber)
+				}
+				return {
+					...base,
+					occupiedLanes,
+				}
+			}
+			return base
+		})
 
 		return calculateCoverage(eventRotations, heatsData)
-	}, [eventRotations, eventHeats, maxLanes])
+	}, [eventRotations, eventHeats, maxLanes, filterEmptyLanes])
 
 	// Handle multi-select toggle
 	function handleToggleSelect(membershipId: string, shiftKey: boolean) {
@@ -363,11 +466,24 @@ export function JudgeSchedulingContainer({
 	return (
 		<section className="space-y-8">
 			{/* Header */}
-			<div>
-				<h2 className="text-xl font-semibold">Judging Schedule</h2>
-				<p className="text-sm text-muted-foreground">
-					Manage judge assignments with manual or rotation-based scheduling
-				</p>
+			<div className="flex items-start justify-between gap-4">
+				<div>
+					<h2 className="text-xl font-semibold">Judging Schedule</h2>
+					<p className="text-sm text-muted-foreground">
+						Manage judge assignments with manual or rotation-based scheduling
+					</p>
+				</div>
+				{heats.length > 0 && (
+					<Button variant="outline" size="sm" asChild>
+						<Link
+							to="/compete/$slug/judges-schedule"
+							params={{ slug: competitionSlug }}
+						>
+							<ClipboardList className="mr-2 h-4 w-4" />
+							View Printable Schedule
+						</Link>
+					</Button>
+				)}
 			</div>
 
 			{/* Event Selector - Prominent placement */}
@@ -375,7 +491,7 @@ export function JudgeSchedulingContainer({
 				<label htmlFor="event-selector" className="text-sm font-medium">
 					Event:
 				</label>
-				<Select value={selectedEventId} onValueChange={setSelectedEventId}>
+				<Select value={selectedEventId} onValueChange={onEventChange}>
 					<SelectTrigger id="event-selector" className="w-80">
 						<SelectValue placeholder="Select event" />
 					</SelectTrigger>
@@ -390,238 +506,274 @@ export function JudgeSchedulingContainer({
 				</Select>
 			</div>
 
-			{/* Published Assignments Section */}
-			<section className="space-y-6">
-				<h3 className="text-lg font-semibold">Published Assignments</h3>
+			{/* Published Assignments Section - Only for in-person competitions */}
+			{!isOnline && (
+				<section className="space-y-6">
+					<h3 className="text-lg font-semibold">Published Assignments</h3>
 
-				{/* Version Selector */}
-				{eventVersionHistory.length > 0 && (
-					<Card>
-						<CardContent className="p-4">
-							<div className="flex items-center gap-4">
-								<div className="flex-1">
-									<label
-										htmlFor="version-selector"
-										className="mb-1 block text-sm font-medium"
-									>
-										Assignment Version
-									</label>
-									<Select
-										value={selectedVersionId ?? ""}
-										onValueChange={handleVersionChange}
-										disabled={isRollingBack || isFetchingAssignments}
-									>
-										<SelectTrigger id="version-selector" className="w-full">
-											<SelectValue placeholder="Select version" />
-										</SelectTrigger>
-										<SelectContent>
-											{eventVersionHistory.map((version) => (
-												<SelectItem key={version.id} value={version.id}>
-													Version {version.version} - Published{" "}
-													{new Date(version.publishedAt).toLocaleDateString()}
-													{version.isActive && " (Active)"}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-									{selectedVersionId &&
-										eventVersionHistory.find((v) => v.id === selectedVersionId)
-											?.notes && (
-											<p className="mt-1 text-xs text-muted-foreground">
-												{
-													eventVersionHistory.find(
-														(v) => v.id === selectedVersionId,
-													)?.notes
-												}
+					{/* Version Selector */}
+					{eventVersionHistory.length > 0 && (
+						<Card>
+							<CardContent className="p-4">
+								<div className="flex items-center gap-4">
+									<div className="flex-1">
+										<label
+											htmlFor="version-selector"
+											className="mb-1 block text-sm font-medium"
+										>
+											Assignment Version
+										</label>
+										<Select
+											value={selectedVersionId ?? ""}
+											onValueChange={handleVersionChange}
+											disabled={isRollingBack || isFetchingAssignments}
+										>
+											<SelectTrigger id="version-selector" className="w-full">
+												<SelectValue placeholder="Select version" />
+											</SelectTrigger>
+											<SelectContent>
+												{eventVersionHistory.map((version) => (
+													<SelectItem key={version.id} value={version.id}>
+														Version {version.version} - Published{" "}
+														{new Date(version.publishedAt).toLocaleDateString()}
+														{version.isActive && " (Active)"}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+										{selectedVersionId &&
+											eventVersionHistory.find(
+												(v) => v.id === selectedVersionId,
+											)?.notes && (
+												<p className="mt-1 text-xs text-muted-foreground">
+													{
+														eventVersionHistory.find(
+															(v) => v.id === selectedVersionId,
+														)?.notes
+													}
+												</p>
+											)}
+									</div>
+								</div>
+							</CardContent>
+						</Card>
+					)}
+
+					{/* Empty State when no version */}
+					{!eventActiveVersion && (
+						<Card>
+							<CardContent className="py-12 text-center">
+								<FileWarning className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+								<h4 className="mb-2 text-lg font-semibold">
+									No assignments published yet
+								</h4>
+								<p className="mb-4 text-muted-foreground">
+									Create rotations in the Rotations section below, then publish
+									them to generate assignments.
+								</p>
+							</CardContent>
+						</Card>
+					)}
+
+					{/* Show content when there's an active version */}
+					{eventActiveVersion && (
+						<>
+							{/* Overview */}
+							<JudgeOverview
+								events={events}
+								heats={heats}
+								judgeAssignments={assignments}
+								filterEmptyLanes={filterEmptyLanes}
+								onFilterEmptyLanesChange={setFilterEmptyLanes}
+							/>
+
+							{/* Main content: judges panel + heats */}
+							<div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+								{/* Available Judges Panel */}
+								<Card className="lg:sticky lg:top-4 lg:self-start">
+									<CardContent className="p-4">
+										<div className="mb-3 flex items-center justify-between">
+											<h4 className="text-sm font-medium">Available Judges</h4>
+											{selectedJudgeIds.size > 0 && (
+												<button
+													type="button"
+													onClick={clearSelection}
+													className="text-xs text-muted-foreground hover:text-foreground"
+												>
+													Clear ({selectedJudgeIds.size})
+												</button>
+											)}
+										</div>
+										{judges.length === 0 ? (
+											<p className="py-4 text-center text-sm text-muted-foreground">
+												No judges have been added yet. Add volunteers with the
+												Judge role type in the Volunteers section above.
 											</p>
+										) : (
+											<>
+												{/* Search Input */}
+												<div className="relative mb-3">
+													<Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+													<Input
+														type="text"
+														placeholder="Search judges..."
+														value={availableJudgeSearch}
+														onChange={(e) =>
+															setAvailableJudgeSearch(e.target.value)
+														}
+														className="h-8 pl-8 text-sm"
+													/>
+												</div>
+												<div className="max-h-[55vh] space-y-1.5 overflow-y-auto">
+													{filteredJudgesByAssignmentCount.map((judge) => (
+														<DraggableJudge
+															key={judge.membershipId}
+															volunteer={judge}
+															isSelected={selectedJudgeIds.has(
+																judge.membershipId,
+															)}
+															onToggleSelect={handleToggleSelect}
+															selectedIds={selectedJudgeIds}
+															assignmentCount={judge.assignmentCount}
+															isAssignedToCurrentEvent={assignedJudgeIds.has(
+																judge.membershipId,
+															)}
+														/>
+													))}
+													{filteredJudgesByAssignmentCount.length === 0 &&
+														availableJudgeSearch && (
+															<p className="py-4 text-center text-sm text-muted-foreground">
+																No judges match "{availableJudgeSearch}"
+															</p>
+														)}
+												</div>
+											</>
 										)}
+									</CardContent>
+								</Card>
+
+								{/* Heats Grid */}
+								<div className="space-y-4">
+									{eventHeats.length === 0 ? (
+										<Card>
+											<CardContent className="py-8 text-center">
+												<p className="text-muted-foreground">
+													No heats scheduled for this event yet.
+												</p>
+												<p className="mt-2 text-sm text-muted-foreground">
+													Create heats in the Schedule section first.
+												</p>
+											</CardContent>
+										</Card>
+									) : (
+										eventHeats.map((heat) => (
+											<JudgeHeatCard
+												key={heat.id}
+												heat={heat}
+												competitionId={competitionId}
+												organizingTeamId={organizingTeamId}
+												unassignedVolunteers={unassignedJudges}
+												judgeAssignments={assignments.filter(
+													(a) => a.heatId === heat.id,
+												)}
+												maxLanes={maxLanes}
+												onDelete={() => {
+													// No-op: Heat deletion should be done in Schedule section
+													console.debug(
+														"Heat deletion is handled in Schedule section",
+													)
+												}}
+												onAssignmentChange={(newAssignments) =>
+													handleAssignmentChange(heat.id, newAssignments)
+												}
+												onMoveAssignment={handleMoveAssignment}
+												selectedJudgeIds={selectedJudgeIds}
+												onClearSelection={clearSelection}
+												filterEmptyLanes={filterEmptyLanes}
+												athleteOccupiedLanes={occupiedLanesByHeat.get(
+													heat.heatNumber,
+												)}
+											/>
+										))
+									)}
 								</div>
 							</div>
-						</CardContent>
-					</Card>
-				)}
+						</>
+					)}
+				</section>
+			)}
 
-				{/* Empty State when no version */}
-				{!eventActiveVersion && (
-					<Card>
-						<CardContent className="py-12 text-center">
-							<FileWarning className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-							<h4 className="mb-2 text-lg font-semibold">
-								No assignments published yet
-							</h4>
-							<p className="mb-4 text-muted-foreground">
-								Create rotations in the Rotations section below, then publish
-								them to generate assignments.
-							</p>
-						</CardContent>
-					</Card>
-				)}
+			{/* Rotations Section - Only for in-person competitions */}
+			{!isOnline && (
+				<section className="space-y-6">
+					<h3 className="text-lg font-semibold">Rotations</h3>
 
-				{/* Show content when there's an active version */}
-				{eventActiveVersion && (
-					<>
-						{/* Overview */}
-						<JudgeOverview
-							events={events}
-							heats={heats}
-							judgeAssignments={assignments}
-						/>
-
-						{/* Main content: judges panel + heats */}
-						<div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
-							{/* Available Judges Panel */}
-							<Card className="lg:sticky lg:top-4 lg:self-start">
-								<CardContent className="p-4">
-									<div className="mb-3 flex items-center justify-between">
-										<h4 className="text-sm font-medium">Available Judges</h4>
-										{selectedJudgeIds.size > 0 && (
-											<button
-												type="button"
-												onClick={clearSelection}
-												className="text-xs text-muted-foreground hover:text-foreground"
-											>
-												Clear ({selectedJudgeIds.size})
-											</button>
-										)}
-									</div>
-									{judges.length === 0 ? (
-										<p className="py-4 text-center text-sm text-muted-foreground">
-											No judges have been added yet. Add volunteers with the
-											Judge role type in the Volunteers section above.
-										</p>
-									) : (
-										<div className="max-h-[60vh] space-y-1.5 overflow-y-auto">
-											{judgesByAssignmentCount.map((judge) => (
-												<DraggableJudge
-													key={judge.membershipId}
-													volunteer={judge}
-													isSelected={selectedJudgeIds.has(judge.membershipId)}
-													onToggleSelect={handleToggleSelect}
-													selectedIds={selectedJudgeIds}
-													assignmentCount={judge.assignmentCount}
-													isAssignedToCurrentEvent={assignedJudgeIds.has(
-														judge.membershipId,
-													)}
-												/>
-											))}
-										</div>
-									)}
-								</CardContent>
-							</Card>
-
-							{/* Heats Grid */}
-							<div className="space-y-4">
-								{eventHeats.length === 0 ? (
-									<Card>
-										<CardContent className="py-8 text-center">
-											<p className="text-muted-foreground">
-												No heats scheduled for this event yet.
-											</p>
-											<p className="mt-2 text-sm text-muted-foreground">
-												Create heats in the Schedule section first.
-											</p>
-										</CardContent>
-									</Card>
-								) : (
-									eventHeats.map((heat) => (
-										<JudgeHeatCard
-											key={heat.id}
-											heat={heat}
-											competitionId={competitionId}
-											organizingTeamId={organizingTeamId}
-											unassignedVolunteers={unassignedJudges}
-											judgeAssignments={assignments.filter(
-												(a) => a.heatId === heat.id,
-											)}
-											maxLanes={maxLanes}
-											onDelete={() => {
-												// No-op: Heat deletion should be done in Schedule section
-												console.debug(
-													"Heat deletion is handled in Schedule section",
-												)
-											}}
-											onAssignmentChange={(newAssignments) =>
-												handleAssignmentChange(heat.id, newAssignments)
-											}
-											onMoveAssignment={handleMoveAssignment}
-											selectedJudgeIds={selectedJudgeIds}
-											onClearSelection={clearSelection}
-										/>
-									))
-								)}
-							</div>
-						</div>
-					</>
-				)}
-			</section>
-
-			{/* Rotations Section */}
-			<section className="space-y-6">
-				<h3 className="text-lg font-semibold">Rotations</h3>
-
-				{/* Event Defaults Editor */}
-				<EventDefaultsEditor
-					teamId={organizingTeamId}
-					competitionId={competitionId}
-					trackWorkoutId={selectedEventId}
-					defaultHeatsCount={selectedEventDefaults.rawDefaultHeatsCount}
-					defaultLaneShiftPattern={
-						selectedEventDefaults.rawDefaultLaneShiftPattern
-					}
-					minHeatBuffer={selectedEventDefaults.rawMinHeatBuffer}
-					competitionDefaultHeats={competitionDefaultHeats}
-					competitionDefaultPattern={competitionDefaultPattern}
-				/>
-
-				{/* Rotation Overview */}
-				<RotationOverview
-					rotations={eventRotations}
-					coverage={rotationCoverage}
-					eventName={selectedEvent?.workout.name ?? "Event"}
-					teamId={organizingTeamId}
-					trackWorkoutId={selectedEventId}
-					hasActiveVersion={!!eventActiveVersion}
-					nextVersionNumber={
-						eventVersionHistory.length > 0
-							? (eventVersionHistory[0]?.version ?? 0) + 1
-							: 1
-					}
-				/>
-
-				{/* Rotation Timeline */}
-				{eventHeats.length > 0 ? (
-					<RotationTimeline
-						key={selectedEventId}
+					{/* Event Defaults Editor */}
+					<EventDefaultsEditor
+						teamId={organizingTeamId}
 						competitionId={competitionId}
+						trackWorkoutId={selectedEventId}
+						defaultHeatsCount={selectedEventDefaults.rawDefaultHeatsCount}
+						defaultLaneShiftPattern={
+							selectedEventDefaults.rawDefaultLaneShiftPattern
+						}
+						minHeatBuffer={selectedEventDefaults.rawMinHeatBuffer}
+						competitionDefaultHeats={competitionDefaultHeats}
+						competitionDefaultPattern={competitionDefaultPattern}
+					/>
+
+					{/* Rotation Overview */}
+					<RotationOverview
+						rotations={eventRotations}
+						coverage={rotationCoverage}
+						eventName={selectedEvent?.workout.name ?? "Event"}
 						teamId={organizingTeamId}
 						trackWorkoutId={selectedEventId}
-						eventName={selectedEvent?.workout.name ?? "Event"}
-						heatsList={eventHeats.map((h) => ({
-							heatNumber: h.heatNumber,
-							scheduledTime: h.scheduledTime,
-						}))}
-						laneCount={maxLanes}
-						availableJudges={judges}
-						initialRotations={eventRotations}
-						eventLaneShiftPattern={
-							selectedEventDefaults.defaultLaneShiftPattern
+						hasActiveVersion={!!eventActiveVersion}
+						nextVersionNumber={
+							eventVersionHistory.length > 0
+								? (eventVersionHistory[0]?.version ?? 0) + 1
+								: 1
 						}
-						eventDefaultHeatsCount={selectedEventDefaults.defaultHeatsCount}
-						minHeatBuffer={selectedEventDefaults.minHeatBuffer}
+						onPublishSuccess={refreshVersionData}
 					/>
-				) : (
-					<Card>
-						<CardContent className="py-8 text-center">
-							<p className="text-muted-foreground">
-								No heats scheduled for this event yet.
-							</p>
-							<p className="mt-2 text-sm text-muted-foreground">
-								Create heats in the Schedule section before creating rotations.
-							</p>
-						</CardContent>
-					</Card>
-				)}
-			</section>
+
+					{/* Rotation Timeline */}
+					{eventHeats.length > 0 ? (
+						<RotationTimeline
+							key={selectedEventId}
+							competitionId={competitionId}
+							teamId={organizingTeamId}
+							trackWorkoutId={selectedEventId}
+							eventName={selectedEvent?.workout.name ?? "Event"}
+							heatsWithAssignments={eventHeats}
+							laneCount={maxLanes}
+							availableJudges={judges}
+							initialRotations={eventRotations}
+							eventLaneShiftPattern={
+								selectedEventDefaults.defaultLaneShiftPattern
+							}
+							eventDefaultHeatsCount={selectedEventDefaults.defaultHeatsCount}
+							minHeatBuffer={selectedEventDefaults.minHeatBuffer}
+							filterEmptyLanes={filterEmptyLanes}
+							onFilterEmptyLanesChange={setFilterEmptyLanes}
+							onRotationsChange={setEventRotations}
+						/>
+					) : (
+						<Card>
+							<CardContent className="py-8 text-center">
+								<p className="text-muted-foreground">
+									No heats scheduled for this event yet.
+								</p>
+								<p className="mt-2 text-sm text-muted-foreground">
+									Create heats in the Schedule section before creating
+									rotations.
+								</p>
+							</CardContent>
+						</Card>
+					)}
+				</section>
+			)}
 		</section>
 	)
 }

@@ -3,11 +3,10 @@
 import {
 	ChevronDown,
 	Clock,
+	ExternalLink,
 	FileText,
 	ListOrdered,
-	Repeat,
 	Target,
-	Timer,
 	Trophy,
 	Users,
 } from "lucide-react"
@@ -48,8 +47,14 @@ interface EventSectionProps {
  * Division selection is synchronized between the event overview and rotation cards.
  */
 export function EventSection({ event }: EventSectionProps) {
-	const { eventName, eventNotes, workout, divisionDescriptions, rotations } =
-		event
+	const {
+		eventName,
+		eventNotes,
+		workout,
+		divisionDescriptions,
+		judgingSheets,
+		rotations,
+	} = event
 
 	// Check if any rotation is upcoming
 	const hasUpcoming = rotations.some((r) => r.isUpcoming)
@@ -182,6 +187,32 @@ export function EventSection({ event }: EventSectionProps) {
 							<p className="text-sm whitespace-pre-wrap">{eventNotes}</p>
 						</div>
 					)}
+
+					{/* Judge Sheets */}
+					{judgingSheets && judgingSheets.length > 0 && (
+						<div className="border rounded-lg p-4 bg-blue-50/50 dark:bg-blue-950/20">
+							<h4 className="text-sm font-semibold mb-3 flex items-center gap-1.5">
+								<FileText className="h-4 w-4" />
+								Judge Sheets
+							</h4>
+							<ul className="space-y-2">
+								{judgingSheets.map((sheet) => (
+									<li key={sheet.id}>
+										<a
+											href={sheet.url}
+											target="_blank"
+											rel="noopener noreferrer"
+											className="flex items-center gap-2 text-sm hover:text-primary transition-colors group"
+										>
+											<FileText className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+											<span className="flex-1">{sheet.title}</span>
+											<ExternalLink className="h-3 w-3 text-muted-foreground" />
+										</a>
+									</li>
+								))}
+							</ul>
+						</div>
+					)}
 				</CardContent>
 			</Card>
 
@@ -246,20 +277,6 @@ function getAssignedDivisions(
 function ScoringBadges({ workout }: { workout: WorkoutDetails }) {
 	const badges: React.ReactNode[] = []
 
-	// Scheme badge (how the workout is scored)
-	const schemeLabel = formatScheme(workout.scheme)
-	if (schemeLabel) {
-		badges.push(
-			<span
-				key="scheme"
-				className="inline-flex items-center gap-1 text-sm text-muted-foreground"
-			>
-				<Trophy className="h-3.5 w-3.5" />
-				{schemeLabel}
-			</span>,
-		)
-	}
-
 	// Time cap
 	if (workout.timeCap) {
 		const minutes = Math.floor(workout.timeCap / 60)
@@ -268,40 +285,35 @@ function ScoringBadges({ workout }: { workout: WorkoutDetails }) {
 			seconds > 0
 				? `${minutes}:${seconds.toString().padStart(2, "0")}`
 				: `${minutes} min`
+
 		badges.push(
-			<span
+			<Badge
 				key="timecap"
-				className="inline-flex items-center gap-1 text-sm text-muted-foreground"
+				variant="outline"
+				className={cn(
+					"px-3 py-1 text-sm flex gap-2 items-center font-normal",
+					["time", "time-with-cap"].includes(workout.scheme) &&
+						"border-red-200 bg-red-50 text-red-700 dark:bg-red-950/30 dark:border-red-800 dark:text-red-400",
+				)}
 			>
-				<Timer className="h-3.5 w-3.5" />
-				{timeCapStr} cap
-			</span>,
+				<Clock className="h-4 w-4" />
+				{timeCapStr} Cap
+			</Badge>,
 		)
 	}
 
-	// Rounds to score
-	if (workout.roundsToScore && workout.roundsToScore > 1) {
+	// Scheme badge
+	const schemeLabel = formatScheme(workout.scheme)
+	if (schemeLabel) {
 		badges.push(
-			<span
-				key="rounds"
-				className="inline-flex items-center gap-1 text-sm text-muted-foreground"
+			<Badge
+				key="scheme"
+				variant="outline"
+				className="px-3 py-1 text-sm flex gap-2 items-center font-normal"
 			>
-				<Repeat className="h-3.5 w-3.5" />
-				{workout.roundsToScore} rounds scored
-			</span>,
-		)
-	}
-
-	// Reps per round
-	if (workout.repsPerRound) {
-		badges.push(
-			<span
-				key="reps"
-				className="inline-flex items-center gap-1 text-sm text-muted-foreground"
-			>
-				<ListOrdered className="h-3.5 w-3.5" />
-				{workout.repsPerRound} reps/round
-			</span>,
+				<Target className="h-4 w-4" />
+				{schemeLabel}
+			</Badge>,
 		)
 	}
 
@@ -311,25 +323,42 @@ function ScoringBadges({ workout }: { workout: WorkoutDetails }) {
 		!["time", "time-with-cap"].includes(workout.scheme)
 	) {
 		badges.push(
-			<span
+			<Badge
 				key="scoretype"
-				className="inline-flex items-center gap-1 text-sm text-muted-foreground"
+				variant="outline"
+				className="px-3 py-1 text-sm flex gap-2 items-center font-normal"
 			>
-				<Target className="h-3.5 w-3.5" />
+				<Trophy className="h-4 w-4" />
 				{formatScoreType(workout.scoreType)}
-			</span>,
+			</Badge>,
+		)
+	}
+
+	// Rounds to score
+	if (workout.roundsToScore && workout.roundsToScore > 1) {
+		badges.push(
+			<Badge
+				key="rounds"
+				variant="outline"
+				className="px-3 py-1 text-sm flex gap-2 items-center font-normal"
+			>
+				<ListOrdered className="h-4 w-4" />
+				{workout.roundsToScore} Rounds
+			</Badge>,
 		)
 	}
 
 	// Tiebreak
 	if (workout.tiebreakScheme) {
 		badges.push(
-			<span
+			<Badge
 				key="tiebreak"
-				className="inline-flex items-center gap-1 text-sm text-muted-foreground"
+				variant="outline"
+				className="px-3 py-1 text-sm flex gap-2 items-center font-normal"
 			>
+				<Target className="h-4 w-4" />
 				Tiebreak: {workout.tiebreakScheme}
-			</span>,
+			</Badge>,
 		)
 	}
 

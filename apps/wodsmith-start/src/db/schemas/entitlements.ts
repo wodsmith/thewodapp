@@ -1,12 +1,14 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
 import {
+	datetime,
 	index,
-	integer,
-	sqliteTable,
-	text,
+	int,
+	json,
+	mysqlTable,
 	uniqueIndex,
-} from "drizzle-orm/sqlite-core"
+	varchar,
+} from "drizzle-orm/mysql-core"
 import {
 	commonColumns,
 	createEntitlementId,
@@ -43,47 +45,44 @@ export const ENTITLEMENT_TYPES = {
 } as const
 
 // 1. Entitlement Type Table - Define categories of entitlements
-export const entitlementTypeTable = sqliteTable("entitlement_type", {
+export const entitlementTypeTable = mysqlTable("entitlement_types", {
 	...commonColumns,
-	id: text()
+	id: varchar({ length: 255 })
 		.primaryKey()
 		.$defaultFn(() => createEntitlementTypeId())
 		.notNull(),
-	name: text({ length: 100 }).notNull().unique(),
-	description: text({ length: 500 }),
+	name: varchar({ length: 100 }).notNull().unique(),
+	description: varchar({ length: 500 }),
 })
 
 // 2. Entitlement Table - Explicit records of granted access
-export const entitlementTable = sqliteTable(
-	"entitlement",
+export const entitlementTable = mysqlTable(
+	"entitlements",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createEntitlementId())
 			.notNull(),
 		// What type of access is this?
-		entitlementTypeId: text()
-			.notNull()
-			.references(() => entitlementTypeTable.id),
+		entitlementTypeId: varchar({ length: 255 }).notNull(),
 		// Who has this access?
-		userId: text()
-			.notNull()
-			.references(() => userTable.id),
+		userId: varchar({ length: 255 }).notNull(),
 		// Team context (for org-scoped access)
-		teamId: text().references(() => teamTable.id),
+		teamId: varchar({ length: 255 }),
 		// Where did this entitlement come from?
-		sourceType: text({
+		sourceType: varchar({
+			length: 255,
 			enum: ["PURCHASE", "SUBSCRIPTION", "MANUAL"],
 		}).notNull(),
 		// What is the source? (purchaseId, subscriptionId, adminUserId, etc.)
-		sourceId: text().notNull(),
+		sourceId: varchar({ length: 255 }).notNull(),
 		// Type-specific metadata (contentIds, featureIds, etc.)
-		metadata: text({ mode: "json" }).$type<Record<string, any>>(),
+		metadata: json().$type<Record<string, any>>(),
 		// Optional expiration
-		expiresAt: integer({ mode: "timestamp" }),
+		expiresAt: datetime(),
 		// Soft delete for audit trail
-		deletedAt: integer({ mode: "timestamp" }),
+		deletedAt: datetime(),
 	},
 	(table) => [
 		index("entitlement_user_id_idx").on(table.userId),
@@ -95,16 +94,17 @@ export const entitlementTable = sqliteTable(
 )
 
 // 3. Feature Table - Define available features
-export const featureTable = sqliteTable("feature", {
+export const featureTable = mysqlTable("features", {
 	...commonColumns,
-	id: text()
+	id: varchar({ length: 255 })
 		.primaryKey()
 		.$defaultFn(() => createFeatureId())
 		.notNull(),
-	key: text({ length: 100 }).notNull().unique(), // e.g., "programming_tracks"
-	name: text({ length: 100 }).notNull(),
-	description: text({ length: 500 }),
-	category: text({
+	key: varchar({ length: 100 }).notNull().unique(), // e.g., "programming_tracks"
+	name: varchar({ length: 100 }).notNull(),
+	description: varchar({ length: 500 }),
+	category: varchar({
+		length: 255,
 		enum: [
 			"workouts",
 			"programming",
@@ -115,24 +115,24 @@ export const featureTable = sqliteTable("feature", {
 			"analytics",
 		],
 	}).notNull(),
-	isActive: integer().default(1).notNull(),
+	isActive: int().default(1).notNull(),
 })
 
 // 4. Limit Table - Define available limits
-export const limitTable = sqliteTable("limit", {
+export const limitTable = mysqlTable("limits", {
 	...commonColumns,
-	id: text()
+	id: varchar({ length: 255 })
 		.primaryKey()
 		.$defaultFn(() => createLimitId())
 		.notNull(),
-	key: text({ length: 100 }).notNull().unique(), // e.g., "max_teams"
-	name: text({ length: 100 }).notNull(),
-	description: text({ length: 500 }),
-	unit: text({ length: 50 }).notNull(), // e.g., "teams", "MB", "messages"
-	resetPeriod: text({ enum: ["monthly", "yearly", "never"] })
+	key: varchar({ length: 100 }).notNull().unique(), // e.g., "max_teams"
+	name: varchar({ length: 100 }).notNull(),
+	description: varchar({ length: 500 }),
+	unit: varchar({ length: 50 }).notNull(), // e.g., "teams", "MB", "messages"
+	resetPeriod: varchar({ length: 255, enum: ["monthly", "yearly", "never"] })
 		.default("never")
 		.notNull(),
-	isActive: integer().default(1).notNull(),
+	isActive: int().default(1).notNull(),
 })
 
 // 5. Plan Table - Store available subscription plans
@@ -141,41 +141,37 @@ export interface PlanEntitlements {
 	limits: Record<string, number> // limit_id -> value (-1 for unlimited)
 }
 
-export const planTable = sqliteTable("plan", {
+export const planTable = mysqlTable("plans", {
 	...commonColumns,
-	id: text()
+	id: varchar({ length: 255 })
 		.primaryKey()
 		.$defaultFn(() => createPlanId())
 		.notNull(),
-	name: text({ length: 100 }).notNull(),
-	description: text({ length: 500 }),
-	price: integer().notNull(), // in cents
-	interval: text({ enum: ["month", "year"] }),
-	isActive: integer().default(1).notNull(),
-	isPublic: integer().default(1).notNull(), // can users sign up for this?
-	sortOrder: integer().default(0).notNull(),
+	name: varchar({ length: 100 }).notNull(),
+	description: varchar({ length: 500 }),
+	price: int().notNull(), // in cents
+	interval: varchar({ length: 255, enum: ["month", "year"] }),
+	isActive: int().default(1).notNull(),
+	isPublic: int().default(1).notNull(), // can users sign up for this?
+	sortOrder: int().default(0).notNull(),
 	// DEPRECATED: JSON field storing the plan's entitlements (use junction tables instead)
-	entitlements: text({ mode: "json" }).$type<PlanEntitlements>(),
+	entitlements: json().$type<PlanEntitlements>(),
 	// Stripe-related fields
-	stripePriceId: text({ length: 255 }),
-	stripeProductId: text({ length: 255 }),
+	stripePriceId: varchar({ length: 255 }),
+	stripeProductId: varchar({ length: 255 }),
 })
 
 // 5a. Plan Feature Junction Table - Links plans to features
-export const planFeatureTable = sqliteTable(
-	"plan_feature",
+export const planFeatureTable = mysqlTable(
+	"plan_features",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createPlanFeatureId())
 			.notNull(),
-		planId: text()
-			.notNull()
-			.references(() => planTable.id, { onDelete: "cascade" }),
-		featureId: text()
-			.notNull()
-			.references(() => featureTable.id, { onDelete: "cascade" }),
+		planId: varchar({ length: 255 }).notNull(),
+		featureId: varchar({ length: 255 }).notNull(),
 	},
 	(table) => [
 		index("plan_feature_plan_id_idx").on(table.planId),
@@ -186,21 +182,17 @@ export const planFeatureTable = sqliteTable(
 )
 
 // 5b. Plan Limit Junction Table - Links plans to limits with values
-export const planLimitTable = sqliteTable(
-	"plan_limit",
+export const planLimitTable = mysqlTable(
+	"plan_limits",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createPlanLimitId())
 			.notNull(),
-		planId: text()
-			.notNull()
-			.references(() => planTable.id, { onDelete: "cascade" }),
-		limitId: text()
-			.notNull()
-			.references(() => limitTable.id, { onDelete: "cascade" }),
-		value: integer().notNull(), // -1 for unlimited
+		planId: varchar({ length: 255 }).notNull(),
+		limitId: varchar({ length: 255 }).notNull(),
+		value: int().notNull(), // -1 for unlimited
 	},
 	(table) => [
 		index("plan_limit_plan_id_idx").on(table.planId),
@@ -211,31 +203,28 @@ export const planLimitTable = sqliteTable(
 )
 
 // 4. Team Subscription Table - Track team subscriptions
-export const teamSubscriptionTable = sqliteTable(
-	"team_subscription",
+export const teamSubscriptionTable = mysqlTable(
+	"team_subscriptions",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createTeamSubscriptionId())
 			.notNull(),
-		teamId: text()
-			.notNull()
-			.references(() => teamTable.id),
-		planId: text()
-			.notNull()
-			.references(() => planTable.id),
-		status: text({
+		teamId: varchar({ length: 255 }).notNull(),
+		planId: varchar({ length: 255 }).notNull(),
+		status: varchar({
+			length: 255,
 			enum: ["active", "cancelled", "past_due", "trialing", "paused"],
 		}).notNull(),
-		currentPeriodStart: integer({ mode: "timestamp" }).notNull(),
-		currentPeriodEnd: integer({ mode: "timestamp" }).notNull(),
-		cancelAtPeriodEnd: integer().default(0).notNull(),
-		trialStart: integer({ mode: "timestamp" }),
-		trialEnd: integer({ mode: "timestamp" }),
+		currentPeriodStart: datetime().notNull(),
+		currentPeriodEnd: datetime().notNull(),
+		cancelAtPeriodEnd: int().default(0).notNull(),
+		trialStart: datetime(),
+		trialEnd: datetime(),
 		// Stripe-related fields
-		stripeSubscriptionId: text({ length: 255 }),
-		stripeCustomerId: text({ length: 255 }),
+		stripeSubscriptionId: varchar({ length: 255 }),
+		stripeCustomerId: varchar({ length: 255 }),
 	},
 	(table) => [
 		index("team_subscription_team_id_idx").on(table.teamId),
@@ -244,23 +233,21 @@ export const teamSubscriptionTable = sqliteTable(
 )
 
 // 5. Team Addon Table - Track purchased add-ons
-export const teamAddonTable = sqliteTable(
-	"team_addon",
+export const teamAddonTable = mysqlTable(
+	"team_addons",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createTeamAddonId())
 			.notNull(),
-		teamId: text()
-			.notNull()
-			.references(() => teamTable.id),
-		addonId: text().notNull(), // reference to addon definition in code
-		quantity: integer().default(1).notNull(),
-		status: text({ enum: ["active", "cancelled"] }).notNull(),
-		expiresAt: integer({ mode: "timestamp" }),
+		teamId: varchar({ length: 255 }).notNull(),
+		addonId: varchar({ length: 255 }).notNull(), // reference to addon definition in code
+		quantity: int().default(1).notNull(),
+		status: varchar({ length: 255, enum: ["active", "cancelled"] }).notNull(),
+		expiresAt: datetime(),
 		// Stripe-related fields
-		stripeSubscriptionItemId: text({ length: 255 }),
+		stripeSubscriptionItemId: varchar({ length: 255 }),
 	},
 	(table) => [
 		index("team_addon_team_id_idx").on(table.teamId),
@@ -269,23 +256,21 @@ export const teamAddonTable = sqliteTable(
 )
 
 // 6. Team Entitlement Override Table - Manual overrides for specific teams
-export const teamEntitlementOverrideTable = sqliteTable(
-	"team_entitlement_override",
+export const teamEntitlementOverrideTable = mysqlTable(
+	"team_entitlement_overrides",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createTeamEntitlementOverrideId())
 			.notNull(),
-		teamId: text()
-			.notNull()
-			.references(() => teamTable.id),
-		type: text({ enum: ["feature", "limit"] }).notNull(),
-		key: text().notNull(), // feature or limit ID
-		value: text().notNull(), // JSON value (boolean for features, number for limits)
-		reason: text({ length: 500 }), // why was this override applied?
-		expiresAt: integer({ mode: "timestamp" }),
-		createdBy: text().references(() => userTable.id),
+		teamId: varchar({ length: 255 }).notNull(),
+		type: varchar({ length: 255, enum: ["feature", "limit"] }).notNull(),
+		key: varchar({ length: 255 }).notNull(), // feature or limit ID
+		value: varchar({ length: 255 }).notNull(), // JSON value (boolean for features, number for limits)
+		reason: varchar({ length: 500 }), // why was this override applied?
+		expiresAt: datetime(),
+		createdBy: varchar({ length: 255 }),
 	},
 	(table) => [
 		index("team_entitlement_override_team_id_idx").on(table.teamId),
@@ -300,21 +285,19 @@ export const teamEntitlementOverrideTable = sqliteTable(
 )
 
 // 7. Team Usage Table - Track usage against limits
-export const teamUsageTable = sqliteTable(
-	"team_usage",
+export const teamUsageTable = mysqlTable(
+	"team_usages",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createTeamUsageId())
 			.notNull(),
-		teamId: text()
-			.notNull()
-			.references(() => teamTable.id),
-		limitKey: text().notNull(), // which limit this tracks
-		currentValue: integer().default(0).notNull(),
-		periodStart: integer({ mode: "timestamp" }).notNull(),
-		periodEnd: integer({ mode: "timestamp" }).notNull(),
+		teamId: varchar({ length: 255 }).notNull(),
+		limitKey: varchar({ length: 255 }).notNull(), // which limit this tracks
+		currentValue: int().default(0).notNull(),
+		periodStart: datetime().notNull(),
+		periodEnd: datetime().notNull(),
 	},
 	(table) => [
 		index("team_usage_team_id_idx").on(table.teamId),
@@ -331,32 +314,29 @@ export const teamUsageTable = sqliteTable(
 // 8. Team Feature Entitlement Table - Snapshot of features a team has access to
 // This is the SOURCE OF TRUTH for what features a team currently has
 // Created when a team subscribes to a plan or when plan is changed
-export const teamFeatureEntitlementTable = sqliteTable(
-	"team_feature_entitlement",
+export const teamFeatureEntitlementTable = mysqlTable(
+	"team_feature_entitlements",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createTeamFeatureEntitlementId())
 			.notNull(),
-		teamId: text()
-			.notNull()
-			.references(() => teamTable.id, { onDelete: "cascade" }),
-		featureId: text()
-			.notNull()
-			.references(() => featureTable.id, { onDelete: "cascade" }),
+		teamId: varchar({ length: 255 }).notNull(),
+		featureId: varchar({ length: 255 }).notNull(),
 		// Track where this entitlement came from
-		source: text({
+		source: varchar({
+			length: 255,
 			enum: ["plan", "addon", "override"],
 		})
 			.default("plan")
 			.notNull(),
 		// Optional reference to the plan this came from (for audit trail)
-		sourcePlanId: text().references(() => planTable.id),
+		sourcePlanId: varchar({ length: 255 }),
 		// Optional expiration (for trials, temporary grants)
-		expiresAt: integer({ mode: "timestamp" }),
+		expiresAt: datetime(),
 		// Track if this snapshot is currently active (for history preservation)
-		isActive: integer().default(1).notNull(),
+		isActive: int().default(1).notNull(),
 	},
 	(table) => [
 		index("team_feature_entitlement_team_id_idx").on(table.teamId),
@@ -372,33 +352,30 @@ export const teamFeatureEntitlementTable = sqliteTable(
 // 9. Team Limit Entitlement Table - Snapshot of limits a team has
 // This is the SOURCE OF TRUTH for what limits a team currently has
 // Created when a team subscribes to a plan or when plan is changed
-export const teamLimitEntitlementTable = sqliteTable(
-	"team_limit_entitlement",
+export const teamLimitEntitlementTable = mysqlTable(
+	"team_limit_entitlements",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createTeamLimitEntitlementId())
 			.notNull(),
-		teamId: text()
-			.notNull()
-			.references(() => teamTable.id, { onDelete: "cascade" }),
-		limitId: text()
-			.notNull()
-			.references(() => limitTable.id, { onDelete: "cascade" }),
-		value: integer().notNull(), // -1 for unlimited
+		teamId: varchar({ length: 255 }).notNull(),
+		limitId: varchar({ length: 255 }).notNull(),
+		value: int().notNull(), // -1 for unlimited
 		// Track where this entitlement came from
-		source: text({
+		source: varchar({
+			length: 255,
 			enum: ["plan", "addon", "override"],
 		})
 			.default("plan")
 			.notNull(),
 		// Optional reference to the plan this came from (for audit trail)
-		sourcePlanId: text().references(() => planTable.id),
+		sourcePlanId: varchar({ length: 255 }),
 		// Optional expiration (for trials, temporary grants)
-		expiresAt: integer({ mode: "timestamp" }),
+		expiresAt: datetime(),
 		// Track if this snapshot is currently active (for history preservation)
-		isActive: integer().default(1).notNull(),
+		isActive: int().default(1).notNull(),
 	},
 	(table) => [
 		index("team_limit_entitlement_team_id_idx").on(table.teamId),

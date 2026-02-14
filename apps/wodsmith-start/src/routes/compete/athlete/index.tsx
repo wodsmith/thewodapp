@@ -12,7 +12,6 @@ import {
 	Twitter,
 	Users,
 } from "lucide-react"
-import { isSameUTCDay } from "@/utils/date-utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -25,6 +24,7 @@ import {
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { getAthleteProfileDataFn } from "@/server-fns/athlete-profile-fns"
+import { isSameUTCDay } from "@/utils/date-utils"
 
 export const Route = createFileRoute("/compete/athlete/")({
 	component: AthleteProfilePage,
@@ -80,10 +80,12 @@ function parseAthleteProfile(json: string | null): AthleteProfileData | null {
 	}
 }
 
-function calculateAge(dateOfBirth: Date | number | null): number | null {
+function calculateAge(
+	dateOfBirth: Date | number | string | null,
+): number | null {
 	if (!dateOfBirth) return null
-	const dob =
-		typeof dateOfBirth === "number" ? new Date(dateOfBirth) : dateOfBirth
+	const dob = new Date(dateOfBirth)
+	if (Number.isNaN(dob.getTime())) return null
 	const today = new Date()
 	let age = today.getFullYear() - dob.getFullYear()
 	const monthDiff = today.getMonth() - dob.getMonth()
@@ -131,9 +133,10 @@ function formatLiftWeight(
 	return `${weight} lbs`
 }
 
-function formatDate(date: Date | number | null): string {
+function formatDate(date: Date | number | string | null): string {
 	if (!date) return "TBA"
-	const d = typeof date === "number" ? new Date(date) : date
+	const d = new Date(date)
+	if (Number.isNaN(d.getTime())) return "Invalid Date"
 	return d.toLocaleDateString("en-US", {
 		month: "short",
 		day: "numeric",

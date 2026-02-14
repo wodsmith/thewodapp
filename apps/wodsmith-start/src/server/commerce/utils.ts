@@ -192,8 +192,7 @@ export function getTeamPlatformFee(team?: TeamFeeOverrides): {
 		percentageBasisPoints:
 			team?.organizerFeePercentage ??
 			PLATFORM_DEFAULTS.platformPercentageBasisPoints,
-		fixedCents:
-			team?.organizerFeeFixed ?? PLATFORM_DEFAULTS.platformFixedCents,
+		fixedCents: team?.organizerFeeFixed ?? PLATFORM_DEFAULTS.platformFixedCents,
 	}
 }
 

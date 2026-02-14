@@ -5,14 +5,20 @@
 
 import { createId } from "@paralleldrive/cuid2"
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray } from "drizzle-orm"
+import { and, asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+	createProgrammingTrackId,
 	createTagId,
+	createTrackWorkoutId,
 	createWorkoutScalingDescriptionId,
 } from "@/db/schemas/common"
-import { competitionsTable } from "@/db/schemas/competitions"
+import {
+	competitionHeatsTable,
+	competitionsTable,
+} from "@/db/schemas/competitions"
+import { eventResourcesTable } from "@/db/schemas/event-resources"
 import {
 	PROGRAMMING_TRACK_TYPE,
 	programmingTracksTable,
@@ -23,7 +29,9 @@ import {
 	scalingLevelsTable,
 	workoutScalingDescriptionsTable,
 } from "@/db/schemas/scaling"
+import { sponsorsTable } from "@/db/schemas/sponsors"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { ROLES_ENUM } from "@/db/schemas/users"
 import {
 	movements,
 	SCORE_TYPE_VALUES,
@@ -35,7 +43,6 @@ import {
 	workouts,
 	workoutTags,
 } from "@/db/schemas/workouts"
-import { sponsorsTable } from "@/db/schemas/sponsors"
 import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk, chunk } from "@/utils/batch-query"
 
@@ -99,6 +106,11 @@ const getCompetitionWorkoutsInputSchema = z.object({
 const getCompetitionEventInputSchema = z.object({
 	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
 	teamId: z.string().min(1, "Team ID is required"),
+})
+
+const getPublicEventDetailsInputSchema = z.object({
+	eventId: z.string().min(1, "Event ID is required"),
+	competitionId: z.string().min(1, "Competition ID is required"),
 })
 
 const addWorkoutToCompetitionInputSchema = z.object({
@@ -188,7 +200,7 @@ const saveCompetitionEventInputSchema = z.object({
 // ============================================================================
 
 /**
- * Check if user has permission on a team
+ * Check if user has permission on a team (or is a site admin)
  */
 async function hasTeamPermission(
 	teamId: string,
@@ -196,6 +208,9 @@ async function hasTeamPermission(
 ): Promise<boolean> {
 	const session = await getSessionFromCookie()
 	if (!session?.userId) return false
+
+	// Site admins have all permissions
+	if (session.user?.role === ROLES_ENUM.ADMIN) return true
 
 	const team = session.teams?.find((t) => t.id === teamId)
 	if (!team) return false
@@ -273,14 +288,19 @@ async function findOrCreateTag(tagName: string) {
 	}
 
 	// Create new tag
+	const tagId = createTagId()
+	await db.insert(tags).values({
+		id: tagId,
+		name: tagName,
+		updateCounter: 0,
+	})
+
+	// Fetch the created tag
 	const [newTag] = await db
-		.insert(tags)
-		.values({
-			id: createTagId(),
-			name: tagName,
-			updateCounter: 0,
-		})
-		.returning()
+		.select()
+		.from(tags)
+		.where(eq(tags.id, tagId))
+		.limit(1)
 
 	return newTag
 }
@@ -509,6 +529,197 @@ export const getPublishedCompetitionWorkoutsWithDetailsFn = createServerFn({
 		}))
 
 		return { workouts: enrichedWorkouts }
+	})
+
+/**
+ * Get public event details including resources and heat times
+ * Returns event details, resources, and first/last heat times for public views
+ */
+export const getPublicEventDetailsFn = createServerFn({
+	method: "GET",
+})
+	.inputValidator((data: unknown) =>
+		getPublicEventDetailsInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// First verify the event belongs to the competition
+		const track = await db.query.programmingTracksTable.findFirst({
+			where: eq(programmingTracksTable.competitionId, data.competitionId),
+		})
+
+		if (!track) {
+			return { event: null, resources: [], heatTimes: null, totalEvents: 0 }
+		}
+
+		// Get the track workout with workout details and sponsor
+		const trackWorkoutResult = await db
+			.select({
+				id: trackWorkoutsTable.id,
+				trackId: trackWorkoutsTable.trackId,
+				workoutId: trackWorkoutsTable.workoutId,
+				trackOrder: trackWorkoutsTable.trackOrder,
+				notes: trackWorkoutsTable.notes,
+				pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+				heatStatus: trackWorkoutsTable.heatStatus,
+				eventStatus: trackWorkoutsTable.eventStatus,
+				sponsorId: trackWorkoutsTable.sponsorId,
+				createdAt: trackWorkoutsTable.createdAt,
+				updatedAt: trackWorkoutsTable.updatedAt,
+				workout: {
+					id: workouts.id,
+					name: workouts.name,
+					description: workouts.description,
+					scheme: workouts.scheme,
+					scoreType: workouts.scoreType,
+					roundsToScore: workouts.roundsToScore,
+					repsPerRound: workouts.repsPerRound,
+					tiebreakScheme: workouts.tiebreakScheme,
+					timeCap: workouts.timeCap,
+				},
+				sponsorName: sponsorsTable.name,
+				sponsorLogoUrl: sponsorsTable.logoUrl,
+			})
+			.from(trackWorkoutsTable)
+			.innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+			.leftJoin(
+				sponsorsTable,
+				eq(trackWorkoutsTable.sponsorId, sponsorsTable.id),
+			)
+			.where(
+				and(
+					eq(trackWorkoutsTable.id, data.eventId),
+					eq(trackWorkoutsTable.trackId, track.id),
+					eq(trackWorkoutsTable.eventStatus, "published"),
+				),
+			)
+			.limit(1)
+
+		if (trackWorkoutResult.length === 0) {
+			return { event: null, resources: [], heatTimes: null, totalEvents: 0 }
+		}
+
+		const event = trackWorkoutResult[0]
+
+		// Count total published events in this track for "Event X of Y" display
+		const totalEventsResult = await db
+			.select({ id: trackWorkoutsTable.id })
+			.from(trackWorkoutsTable)
+			.where(
+				and(
+					eq(trackWorkoutsTable.trackId, event.trackId),
+					eq(trackWorkoutsTable.eventStatus, "published"),
+				),
+			)
+		const totalEvents = totalEventsResult.length
+
+		// Fetch movements for this workout
+		const workoutMovementsData = await db
+			.select({
+				movementId: movements.id,
+				movementName: movements.name,
+			})
+			.from(workoutMovements)
+			.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
+			.where(eq(workoutMovements.workoutId, event.workoutId))
+
+		// Fetch tags for this workout
+		const workoutTagsData = await db
+			.select({
+				tagId: tags.id,
+				tagName: tags.name,
+			})
+			.from(workoutTags)
+			.innerJoin(tags, eq(workoutTags.tagId, tags.id))
+			.where(eq(workoutTags.workoutId, event.workoutId))
+
+		// Fetch event resources
+		const resources = await db
+			.select()
+			.from(eventResourcesTable)
+			.where(eq(eventResourcesTable.eventId, data.eventId))
+			.orderBy(asc(eventResourcesTable.sortOrder))
+
+		// Only fetch heat times if the event's heatStatus is published
+		let heatTimes: {
+			firstHeatStartTime: Date
+			lastHeatEndTime: Date
+		} | null = null
+
+		if (event.heatStatus === "published") {
+			// Fetch heats for this event to get first and last heat times
+			const heats = await db
+				.select({
+					scheduledTime: competitionHeatsTable.scheduledTime,
+					durationMinutes: competitionHeatsTable.durationMinutes,
+				})
+				.from(competitionHeatsTable)
+				.where(eq(competitionHeatsTable.trackWorkoutId, data.eventId))
+				.orderBy(asc(competitionHeatsTable.scheduledTime))
+
+			// Only include heats that have a scheduled time
+			const scheduledHeats = heats.filter((h) => h.scheduledTime !== null)
+
+			if (scheduledHeats.length > 0) {
+				const sortedHeats = scheduledHeats
+					.filter(
+						(h): h is typeof h & { scheduledTime: Date } =>
+							h.scheduledTime !== null,
+					)
+					.sort((a, b) => a.scheduledTime.getTime() - b.scheduledTime.getTime())
+
+				if (sortedHeats.length > 0) {
+					const firstHeat = sortedHeats[0]!
+					const lastHeat = sortedHeats[sortedHeats.length - 1]!
+
+					// Calculate last heat end time (start time + duration)
+					const lastHeatEndTime = new Date(lastHeat.scheduledTime.getTime())
+					if (lastHeat.durationMinutes) {
+						lastHeatEndTime.setMinutes(
+							lastHeatEndTime.getMinutes() + lastHeat.durationMinutes,
+						)
+					}
+
+					heatTimes = {
+						firstHeatStartTime: firstHeat.scheduledTime!,
+						lastHeatEndTime,
+					}
+				}
+			}
+		}
+
+		// Combine all data
+		const enrichedEvent = {
+			id: event.id,
+			trackId: event.trackId,
+			workoutId: event.workoutId,
+			trackOrder: event.trackOrder,
+			notes: event.notes,
+			pointsMultiplier: event.pointsMultiplier,
+			heatStatus: event.heatStatus,
+			eventStatus: event.eventStatus,
+			sponsorId: event.sponsorId,
+			createdAt: event.createdAt,
+			updatedAt: event.updatedAt,
+			workout: {
+				...event.workout,
+				movements: workoutMovementsData.map((m) => ({
+					id: m.movementId,
+					name: m.movementName,
+				})),
+				tags: workoutTagsData.map((t) => ({ id: t.tagId, name: t.tagName })),
+			},
+			sponsorName: event.sponsorName ?? undefined,
+			sponsorLogoUrl: event.sponsorLogoUrl ?? undefined,
+		}
+
+		return {
+			event: enrichedEvent,
+			resources,
+			heatTimes,
+			totalEvents,
+		}
 	})
 
 /**
@@ -774,22 +985,17 @@ export const addWorkoutToCompetitionFn = createServerFn({ method: "POST" })
 			(await getNextCompetitionEventOrder(data.competitionId))
 
 		// Add workout to track
-		const [trackWorkout] = await db
-			.insert(trackWorkoutsTable)
-			.values({
-				trackId: track.id,
-				workoutId: data.workoutId,
-				trackOrder,
-				pointsMultiplier: data.pointsMultiplier ?? 100,
-				notes: data.notes,
-			})
-			.returning()
+		const trackWorkoutId = createTrackWorkoutId()
+		await db.insert(trackWorkoutsTable).values({
+			id: trackWorkoutId,
+			trackId: track.id,
+			workoutId: data.workoutId,
+			trackOrder,
+			pointsMultiplier: data.pointsMultiplier ?? 100,
+			notes: data.notes,
+		})
 
-		if (!trackWorkout) {
-			throw new Error("Failed to add workout to competition")
-		}
-
-		return { trackWorkoutId: trackWorkout.id }
+		return { trackWorkoutId }
 	})
 
 /**
@@ -859,17 +1065,21 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
 			}
 
 			// Create the programming track for this competition
-			const [createdTrack] = await db
-				.insert(programmingTracksTable)
-				.values({
-					name: `${competition.name} - Events`,
-					description: `Competition events for ${competition.name}`,
-					type: PROGRAMMING_TRACK_TYPE.TEAM_OWNED,
-					ownerTeamId: competition.organizingTeamId,
-					competitionId: competition.id,
-					isPublic: 0,
-				})
-				.returning()
+			const createdTrackId = createProgrammingTrackId()
+			await db.insert(programmingTracksTable).values({
+				id: createdTrackId,
+				name: `${competition.name} - Events`,
+				description: `Competition events for ${competition.name}`,
+				type: PROGRAMMING_TRACK_TYPE.TEAM_OWNED,
+				ownerTeamId: competition.organizingTeamId,
+				competitionId: competition.id,
+				isPublic: 0,
+			})
+
+			// Fetch the created track
+			const createdTrack = await db.query.programmingTracksTable.findFirst({
+				where: eq(programmingTracksTable.id, createdTrackId),
+			})
 
 			if (!createdTrack) {
 				throw new Error("Failed to create programming track for competition")
@@ -882,27 +1092,22 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
 		const nextOrder = await getNextCompetitionEventOrder(data.competitionId)
 
 		// Create the workout
-		const [workout] = await db
-			.insert(workouts)
-			.values({
-				id: `workout_${createId()}`,
-				name: data.name,
-				scheme: data.scheme as (typeof workouts.$inferInsert)["scheme"],
-				scoreType:
-					data.scoreType as (typeof workouts.$inferInsert)["scoreType"],
-				description: data.description ?? "",
-				teamId: data.teamId,
-				scope: "private", // Competition workouts are private to the organizing team
-				roundsToScore: data.roundsToScore ?? null,
-				repsPerRound: data.repsPerRound ?? null,
-				tiebreakScheme: data.tiebreakScheme ?? null,
-				sourceWorkoutId: data.sourceWorkoutId ?? null, // For remixes
-			})
-			.returning({ id: workouts.id })
+		const workoutId = `workout_${createId()}`
+		await db.insert(workouts).values({
+			id: workoutId,
+			name: data.name,
+			scheme: data.scheme as (typeof workouts.$inferInsert)["scheme"],
+			scoreType: data.scoreType as (typeof workouts.$inferInsert)["scoreType"],
+			description: data.description ?? "",
+			teamId: data.teamId,
+			scope: "private", // Competition workouts are private to the organizing team
+			roundsToScore: data.roundsToScore ?? null,
+			repsPerRound: data.repsPerRound ?? null,
+			tiebreakScheme: data.tiebreakScheme ?? null,
+			sourceWorkoutId: data.sourceWorkoutId ?? null, // For remixes
+		})
 
-		if (!workout) {
-			throw new Error("Failed to create workout")
-		}
+		const workout = { id: workoutId }
 
 		// Handle tags - create new ones from names and use existing IDs
 		const finalTagIds: string[] = []
@@ -946,23 +1151,18 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
 		}
 
 		// Add to competition track
-		const [trackWorkout] = await db
-			.insert(trackWorkoutsTable)
-			.values({
-				trackId: track.id,
-				workoutId: workout.id,
-				trackOrder: nextOrder,
-				pointsMultiplier: 100,
-			})
-			.returning({ id: trackWorkoutsTable.id })
-
-		if (!trackWorkout) {
-			throw new Error("Failed to add workout to competition")
-		}
+		const trackWorkoutId = createTrackWorkoutId()
+		await db.insert(trackWorkoutsTable).values({
+			id: trackWorkoutId,
+			trackId: track.id,
+			workoutId: workout.id,
+			trackOrder: nextOrder,
+			pointsMultiplier: 100,
+		})
 
 		return {
 			workoutId: workout.id,
-			trackWorkoutId: trackWorkout.id,
+			trackWorkoutId,
 		}
 	})
 
@@ -1086,7 +1286,7 @@ export const saveCompetitionEventFn = createServerFn({ method: "POST" })
 				}))
 
 				// workoutMovements has 6 columns (commonColumns + id, workoutId, movementId)
-				// D1 limit: 100 params, so max rows per batch = floor(100/6) = 16
+				// Batch limit: 100 params, so max rows per batch = floor(100/6) = 16
 				const movementBatches = chunk(movementValues, 16)
 				for (const batch of movementBatches) {
 					await db.insert(workoutMovements).values(batch)
@@ -1155,26 +1355,38 @@ export const saveCompetitionEventFn = createServerFn({ method: "POST" })
 			}
 
 			// Upsert descriptions that have values
-			// Using individual upserts since D1 doesn't support batch upsert well
+			// Manual upsert pattern for MySQL compatibility
 			for (const { divisionId, description } of toUpsert) {
-				await db
-					.insert(workoutScalingDescriptionsTable)
-					.values({
+				// Check if record exists
+				const existing = await db
+					.select({ id: workoutScalingDescriptionsTable.id })
+					.from(workoutScalingDescriptionsTable)
+					.where(
+						and(
+							eq(workoutScalingDescriptionsTable.workoutId, data.workoutId),
+							eq(workoutScalingDescriptionsTable.scalingLevelId, divisionId),
+						),
+					)
+					.limit(1)
+
+				if (existing.length > 0) {
+					// Update existing
+					await db
+						.update(workoutScalingDescriptionsTable)
+						.set({
+							description,
+							updatedAt: new Date(),
+						})
+						.where(eq(workoutScalingDescriptionsTable.id, existing[0]!.id))
+				} else {
+					// Insert new
+					await db.insert(workoutScalingDescriptionsTable).values({
 						id: createWorkoutScalingDescriptionId(),
 						workoutId: data.workoutId,
 						scalingLevelId: divisionId,
 						description,
 					})
-					.onConflictDoUpdate({
-						target: [
-							workoutScalingDescriptionsTable.workoutId,
-							workoutScalingDescriptionsTable.scalingLevelId,
-						],
-						set: {
-							description,
-							updatedAt: new Date(),
-						},
-					})
+				}
 			}
 		}
 

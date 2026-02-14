@@ -140,7 +140,7 @@ export const getWorkoutLeaderboardFn = createServerFn({ method: "GET" })
 		const instanceIds = instances.map((i) => i.id)
 
 		// Get all scores for these scheduled instances using autochunk
-		// to respect D1's 100 parameter limit
+		// to respect the 100 parameter limit
 		const scores = await autochunk(
 			{ items: instanceIds, otherParametersCount: 1 }, // 1 for teamId
 			async (chunk) =>

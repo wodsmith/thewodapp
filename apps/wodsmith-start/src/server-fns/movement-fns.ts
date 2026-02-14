@@ -14,7 +14,7 @@ import {
 	workouts,
 	workoutTags,
 } from "@/db/schemas/workouts"
-import { getSessionFromCookie } from "@/utils/auth"
+import { getSessionFromCookie, requireAdmin } from "@/utils/auth"
 
 /**
  * Get all movements available in the system
@@ -51,11 +51,8 @@ export const createMovementFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
-		// Verify authentication
-		const session = await getSessionFromCookie()
-		if (!session?.userId) {
-			throw new Error("Not authenticated")
-		}
+		// Verify authentication and admin role
+		await requireAdmin()
 
 		const movementId = crypto.randomUUID()
 
@@ -139,7 +136,7 @@ export const getWorkoutsByMovementIdFn = createServerFn({ method: "GET" })
 		}
 
 		// Get the actual workouts
-		// Note: D1 has a 100 parameter limit, but for typical use cases this should be fine
+		// Note: 100 parameter batch limit, but for typical use cases this should be fine
 		// If this becomes an issue, implement batching similar to autochunk in the Next.js version
 		const workoutsData = await db
 			.select()

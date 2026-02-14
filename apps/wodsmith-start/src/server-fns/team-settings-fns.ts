@@ -9,7 +9,6 @@
  */
 
 import { createId } from "@paralleldrive/cuid2"
-import { AppError } from "@/utils/errors"
 import { createServerFn } from "@tanstack/react-start"
 import { and, count, eq, isNull, not } from "drizzle-orm"
 import { z } from "zod"
@@ -29,6 +28,7 @@ import {
 } from "@/db/schema"
 import { getSessionFromCookie, setActiveTeamCookie } from "@/utils/auth"
 import { sendTeamInvitationEmail } from "@/utils/email"
+import { AppError } from "@/utils/errors"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { generateSlug } from "@/utils/slugify"
 import { requireTeamPermission } from "./requireTeamMembership"
@@ -254,34 +254,35 @@ export const createTeamFn = createServerFn({ method: "POST" })
 		}
 
 		// Insert the team with default free plan
-		const newTeam = (await db
-			.insert(teamTable)
-			.values({
-				name: data.name,
-				slug,
-				description: data.description,
-				creditBalance: 0,
-				currentPlanId: "free", // All new teams start on free plan
-			})
-			.returning()) as unknown as Array<typeof teamTable.$inferInsert>
+		const teamId = createId()
+		await db.insert(teamTable).values({
+			id: teamId,
+			name: data.name,
+			slug,
+			description: data.description,
+			creditBalance: 0,
+			currentPlanId: "free", // All new teams start on free plan
+		})
 
-		const team = Array.isArray(newTeam) ? newTeam[0] : undefined
-		if (!team || !team.id) {
+		// Fetch the created team to return
+		const team = await db.query.teamTable.findFirst({
+			where: eq(teamTable.id, teamId),
+		})
+
+		if (!team) {
 			throw new AppError("ERROR", "Could not create team")
 		}
-
-		const teamId: string = team.id
 
 		// Add the creator as an owner
 		await db.insert(teamMembershipTable).values({
 			teamId,
 			userId,
 			roleId: SYSTEM_ROLES_ENUM.OWNER,
-			isSystemRole: 1,
+			isSystemRole: true,
 			invitedBy: userId,
 			invitedAt: new Date(),
 			joinedAt: new Date(),
-			isActive: 1,
+			isActive: true,
 		})
 
 		// Create default custom role for the team
@@ -294,7 +295,7 @@ export const createTeamFn = createServerFn({ method: "POST" })
 				TEAM_PERMISSIONS.CREATE_COMPONENTS,
 				TEAM_PERMISSIONS.EDIT_COMPONENTS,
 			],
-			isEditable: 1,
+			isEditable: true,
 		})
 
 		// Create team subscription for free plan
@@ -608,7 +609,7 @@ export const updateMemberRoleFn = createServerFn({ method: "POST" })
 			.update(teamMembershipTable)
 			.set({
 				roleId: data.roleId,
-				isSystemRole: data.isSystemRole ? 1 : 0,
+				isSystemRole: data.isSystemRole,
 				updatedAt: new Date(),
 			})
 			.where(
@@ -762,11 +763,11 @@ export const inviteUserFn = createServerFn({ method: "POST" })
 				teamId: data.teamId,
 				userId: existingUser.id,
 				roleId: data.roleId,
-				isSystemRole: data.isSystemRole ? 1 : 0,
+				isSystemRole: data.isSystemRole,
 				invitedBy: session.userId,
 				invitedAt: new Date(),
 				joinedAt: new Date(),
-				isActive: 1,
+				isActive: true,
 			})
 
 			// Update the user's session to include this team
@@ -800,7 +801,7 @@ export const inviteUserFn = createServerFn({ method: "POST" })
 				.update(teamInvitationTable)
 				.set({
 					roleId: data.roleId,
-					isSystemRole: data.isSystemRole ? 1 : 0,
+					isSystemRole: data.isSystemRole,
 					token,
 					expiresAt,
 					invitedBy: session.userId,
@@ -837,20 +838,21 @@ export const inviteUserFn = createServerFn({ method: "POST" })
 			}
 		}
 
-		const newInvitation = await db
-			.insert(teamInvitationTable)
-			.values({
-				teamId: data.teamId,
-				email: data.email,
-				roleId: data.roleId,
-				isSystemRole: data.isSystemRole ? 1 : 0,
-				token,
-				invitedBy: session.userId,
-				expiresAt,
-			})
-			.returning()
+		const invitationId = createId()
+		await db.insert(teamInvitationTable).values({
+			id: invitationId,
+			teamId: data.teamId,
+			email: data.email,
+			roleId: data.roleId,
+			isSystemRole: data.isSystemRole,
+			token,
+			invitedBy: session.userId,
+			expiresAt,
+		})
 
-		const invitation = newInvitation?.[0]
+		const invitation = await db.query.teamInvitationTable.findFirst({
+			where: eq(teamInvitationTable.id, invitationId),
+		})
 
 		if (!invitation) {
 			throw new AppError("ERROR", "Could not create invitation")

@@ -19,3 +19,7 @@ export {
 	type SponsorFactory,
 	type SponsorGroupFactory,
 } from "./sponsor"
+export {
+	createEventResource,
+	type EventResourceFactory,
+} from "./event-resource"

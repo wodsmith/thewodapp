@@ -12,6 +12,7 @@ import { getDb } from "@/db"
 import {
 	competitionRegistrationsTable,
 	competitionsTable,
+	INVITATION_STATUS,
 	SYSTEM_ROLES_ENUM,
 	scalingLevelsTable,
 	TEAM_TYPE_ENUM,
@@ -20,9 +21,18 @@ import {
 	teamTable,
 	userTable,
 } from "@/db/schema"
-import { waiversTable } from "@/db/schemas/waivers"
+import {
+	competitionRegistrationAnswersTable,
+	competitionRegistrationQuestionsTable,
+} from "@/db/schemas/competitions"
+import type {
+	PendingInviteAnswer,
+	PendingInviteData,
+	PendingWaiverSignature,
+} from "@/db/schemas/teams"
 import type { VolunteerMembershipMetadata } from "@/db/schemas/volunteers"
 import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
+import { waiverSignaturesTable, waiversTable } from "@/db/schemas/waivers"
 import { getSessionFromCookie } from "@/utils/auth"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 
@@ -92,6 +102,23 @@ const checkEmailExistsSchema = z.object({
 
 const acceptTeamInvitationSchema = z.object({
 	token: z.string().min(1, "Token is required"),
+	answers: z
+		.array(
+			z.object({
+				questionId: z.string().min(1),
+				answer: z.string().max(5000),
+			}),
+		)
+		.optional(),
+	signatures: z
+		.array(
+			z.object({
+				waiverId: z.string().min(1),
+				signedAt: z.string().datetime(),
+				signatureName: z.string().min(1),
+			}),
+		)
+		.optional(),
 })
 
 const acceptVolunteerInviteSchema = z.object({
@@ -106,6 +133,31 @@ const acceptVolunteerInviteSchema = z.object({
 	availabilityNotes: z.string().optional(),
 	credentials: z.string().optional(),
 	signupPhone: z.string().optional(),
+})
+
+const submitPendingInviteDataSchema = z.object({
+	token: z.string().min(1, "Token is required"),
+	answers: z
+		.array(
+			z.object({
+				questionId: z.string().min(1),
+				answer: z.string().max(5000),
+			}),
+		)
+		.optional(),
+	signatures: z
+		.array(
+			z.object({
+				waiverId: z.string().min(1),
+				signedAt: z.string().datetime(),
+				signatureName: z.string().min(1),
+			}),
+		)
+		.optional(),
+})
+
+const transferPendingDataSchema = z.object({
+	token: z.string().min(1, "Token is required"),
 })
 
 // ============================================================================
@@ -258,7 +310,7 @@ export const getVolunteerInviteFn = createServerFn({ method: "GET" })
 		// Check if this is a volunteer invite
 		if (
 			invitation.roleId !== SYSTEM_ROLES_ENUM.VOLUNTEER ||
-			invitation.isSystemRole !== 1
+			invitation.isSystemRole !== true
 		) {
 			return null // Not a volunteer invite
 		}
@@ -388,10 +440,11 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 			throw new Error("CONFLICT: Invitation has already been accepted")
 		}
 
-		// Check if user's email matches the invitation email (case-insensitive)
+		// Log email mismatch for tracking, but allow the operation to proceed
+		// The acceptedBy field tracks who actually accepted regardless of invite email
 		if (session.user.email?.toLowerCase() !== invitation.email?.toLowerCase()) {
-			throw new Error(
-				"FORBIDDEN: This invitation is for a different email address",
+			console.log(
+				`Team invite email mismatch: invited=${invitation.email}, acceptedBy=${session.user.email}`,
 			)
 		}
 
@@ -431,41 +484,161 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 			)
 		}
 
-		// Add user to the team
-		await db.insert(teamMembershipTable).values({
-			teamId: invitation.teamId,
-			userId: session.userId,
-			roleId: invitation.roleId,
-			isSystemRole: Number(invitation.isSystemRole),
-			invitedBy: invitation.invitedBy,
-			invitedAt: invitation.createdAt
-				? new Date(invitation.createdAt)
-				: new Date(),
-			joinedAt: new Date(),
-			isActive: 1,
-			metadata: invitation.metadata,
-		})
-
-		// Mark invitation as accepted
-		await db
-			.update(teamInvitationTable)
-			.set({
-				acceptedAt: new Date(),
-				acceptedBy: session.userId,
-				updatedAt: new Date(),
-			})
-			.where(eq(teamInvitationTable.id, invitation.id))
-
-		// Update the user's session to include this team
-		await updateAllSessionsOfUser(session.userId)
-
-		// Get team from invitation to check type and return team slug
+		// Get team from invitation to check type and validate requirements
 		const team = await db.query.teamTable.findFirst({
 			where: eq(teamTable.id, invitation.teamId),
 		})
 		if (!team) {
 			throw new Error("NOT_FOUND: Team not found")
 		}
+
+		// Validate required waivers and questions before accepting
+		// (only when there's no pending data from guest form already)
+		if (
+			team.type === TEAM_TYPE_ENUM.COMPETITION_TEAM &&
+			team.competitionMetadata
+		) {
+			let hasPendingData = false
+			if (invitation.metadata) {
+				try {
+					const meta = JSON.parse(invitation.metadata) as Record<
+						string,
+						unknown
+					>
+					hasPendingData = !!(
+						(Array.isArray(meta.pendingAnswers) &&
+							meta.pendingAnswers.length > 0) ||
+						(Array.isArray(meta.pendingSignatures) &&
+							meta.pendingSignatures.length > 0)
+					)
+				} catch {
+					// Invalid JSON, ignore
+				}
+			}
+
+			if (!hasPendingData) {
+				try {
+					const compMeta = JSON.parse(team.competitionMetadata) as {
+						competitionId?: string
+					}
+					if (compMeta.competitionId) {
+						// Validate required questions
+						const requiredQuestions =
+							await db.query.competitionRegistrationQuestionsTable.findMany({
+								where: and(
+									eq(
+										competitionRegistrationQuestionsTable.competitionId,
+										compMeta.competitionId,
+									),
+									eq(competitionRegistrationQuestionsTable.required, true),
+								),
+							})
+
+						const teammateRequiredQuestions = requiredQuestions.filter(
+							(q) => q.forTeammates,
+						)
+
+						if (teammateRequiredQuestions.length > 0) {
+							const answeredIds = new Set(
+								(data.answers || []).map((a) => a.questionId),
+							)
+							const unanswered = teammateRequiredQuestions.filter(
+								(q) => !answeredIds.has(q.id),
+							)
+							if (unanswered.length > 0) {
+								throw new Error(
+									"Please answer all required questions before accepting the invitation",
+								)
+							}
+							// Validate non-empty answers
+							for (const q of teammateRequiredQuestions) {
+								const answer = (data.answers || []).find(
+									(a) => a.questionId === q.id,
+								)
+								if (!answer || answer.answer.trim() === "") {
+									throw new Error(
+										"Please answer all required questions before accepting the invitation",
+									)
+								}
+							}
+						}
+
+						// Validate required waivers
+						const requiredWaivers = await db.query.waiversTable.findMany({
+							where: and(
+								eq(waiversTable.competitionId, compMeta.competitionId),
+								eq(waiversTable.required, true),
+							),
+							columns: { id: true },
+						})
+
+						if (requiredWaivers.length > 0) {
+							// Check if user already has signatures for these waivers
+							const existingSignatureWaiverIds = new Set<string>()
+							for (const w of requiredWaivers) {
+								const existingSig =
+									await db.query.waiverSignaturesTable.findFirst({
+										where: and(
+											eq(waiverSignaturesTable.waiverId, w.id),
+											eq(waiverSignaturesTable.userId, session.userId),
+										),
+									})
+								if (existingSig) {
+									existingSignatureWaiverIds.add(w.id)
+								}
+							}
+
+							const signedIds = new Set(
+								(data.signatures || []).map((s) => s.waiverId),
+							)
+							const unsignedWaivers = requiredWaivers.filter(
+								(w) =>
+									!signedIds.has(w.id) && !existingSignatureWaiverIds.has(w.id),
+							)
+							if (unsignedWaivers.length > 0) {
+								throw new Error(
+									"Please sign all required waivers before accepting the invitation",
+								)
+							}
+						}
+					}
+				} catch (e) {
+					// Re-throw validation errors, ignore JSON parse errors
+					if (e instanceof Error && !e.message.includes("JSON")) {
+						throw e
+					}
+				}
+			}
+		}
+
+		// Add user to the team
+		await db.insert(teamMembershipTable).values({
+			teamId: invitation.teamId,
+			userId: session.userId,
+			roleId: invitation.roleId,
+			isSystemRole: invitation.isSystemRole,
+			invitedBy: invitation.invitedBy ?? undefined,
+			invitedAt: invitation.createdAt
+				? new Date(invitation.createdAt)
+				: new Date(),
+			joinedAt: new Date(),
+			isActive: true,
+			metadata: invitation.metadata ?? undefined,
+		})
+
+		// Mark invitation as accepted (with account)
+		await db
+			.update(teamInvitationTable)
+			.set({
+				acceptedAt: new Date(),
+				acceptedBy: session.userId,
+				status: INVITATION_STATUS.ACCEPTED,
+				updatedAt: new Date(),
+			})
+			.where(eq(teamInvitationTable.id, invitation.id))
+
+		// Update the user's session to include this team
+		await updateAllSessionsOfUser(session.userId)
 
 		// Handle competition_team type - also add user to competition_event team
 		let registrationId: string | null = null
@@ -510,9 +683,9 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 								teamId: competition.competitionTeamId,
 								userId: session.userId,
 								roleId: SYSTEM_ROLES_ENUM.MEMBER,
-								isSystemRole: 1,
+								isSystemRole: true,
 								joinedAt: new Date(),
-								isActive: 1,
+								isActive: true,
 							})
 						}
 
@@ -589,6 +762,160 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 								}
 							}
 						}
+
+						// Merge answers from request data AND pending metadata
+						let allAnswers = data.answers || []
+
+						// Check for pending answers in invitation metadata (from guest form)
+						if (invitation.metadata) {
+							try {
+								const inviteMetadata = JSON.parse(
+									invitation.metadata,
+								) as Record<string, unknown>
+								if (Array.isArray(inviteMetadata.pendingAnswers)) {
+									const pendingAnswers =
+										inviteMetadata.pendingAnswers as PendingInviteAnswer[]
+									// Merge pending answers (pending takes precedence if duplicate)
+									const answerMap = new Map<
+										string,
+										{ questionId: string; answer: string }
+									>()
+									for (const a of allAnswers) {
+										answerMap.set(a.questionId, a)
+									}
+									for (const a of pendingAnswers) {
+										answerMap.set(a.questionId, a)
+									}
+									allAnswers = Array.from(answerMap.values())
+								}
+							} catch {
+								// Invalid JSON, ignore
+							}
+						}
+
+						// Store teammate registration answers if provided
+						if (allAnswers.length > 0 && registrationId) {
+							for (const answerData of allAnswers) {
+								// Check if answer already exists for this user/question/registration
+								const existingAnswer =
+									await db.query.competitionRegistrationAnswersTable.findFirst({
+										where: and(
+											eq(
+												competitionRegistrationAnswersTable.questionId,
+												answerData.questionId,
+											),
+											eq(
+												competitionRegistrationAnswersTable.registrationId,
+												registrationId,
+											),
+											eq(
+												competitionRegistrationAnswersTable.userId,
+												session.userId,
+											),
+										),
+									})
+
+								if (existingAnswer) {
+									// Update existing answer
+									await db
+										.update(competitionRegistrationAnswersTable)
+										.set({
+											answer: answerData.answer,
+											updatedAt: new Date(),
+										})
+										.where(
+											eq(
+												competitionRegistrationAnswersTable.id,
+												existingAnswer.id,
+											),
+										)
+								} else {
+									// Insert new answer
+									await db.insert(competitionRegistrationAnswersTable).values({
+										questionId: answerData.questionId,
+										registrationId: registrationId,
+										userId: session.userId,
+										answer: answerData.answer,
+									})
+								}
+							}
+						}
+
+						// Store waiver signatures submitted by authenticated user
+						if (
+							data.signatures &&
+							data.signatures.length > 0 &&
+							registrationId
+						) {
+							for (const sigData of data.signatures) {
+								// Check if signature already exists
+								const existingSig =
+									await db.query.waiverSignaturesTable.findFirst({
+										where: and(
+											eq(waiverSignaturesTable.waiverId, sigData.waiverId),
+											eq(waiverSignaturesTable.userId, session.userId),
+										),
+									})
+
+								if (!existingSig) {
+									await db.insert(waiverSignaturesTable).values({
+										waiverId: sigData.waiverId,
+										userId: session.userId,
+										signedAt: new Date(sigData.signedAt),
+										registrationId,
+									})
+								}
+							}
+						}
+
+						// Transfer pending waiver signatures from invitation metadata
+						if (invitation.metadata && registrationId) {
+							try {
+								const inviteMetadata = JSON.parse(
+									invitation.metadata,
+								) as Record<string, unknown>
+								if (Array.isArray(inviteMetadata.pendingSignatures)) {
+									const pendingSignatures =
+										inviteMetadata.pendingSignatures as PendingWaiverSignature[]
+									for (const sigData of pendingSignatures) {
+										// Check if signature already exists
+										const existingSig =
+											await db.query.waiverSignaturesTable.findFirst({
+												where: and(
+													eq(waiverSignaturesTable.waiverId, sigData.waiverId),
+													eq(waiverSignaturesTable.userId, session.userId),
+												),
+											})
+
+										if (!existingSig) {
+											await db.insert(waiverSignaturesTable).values({
+												waiverId: sigData.waiverId,
+												userId: session.userId,
+												signedAt: new Date(sigData.signedAt),
+												registrationId,
+											})
+										}
+									}
+								}
+
+								// Clear pending data from metadata now that it's transferred
+								delete inviteMetadata.pendingAnswers
+								delete inviteMetadata.pendingSignatures
+								delete inviteMetadata.submittedAt
+
+								await db
+									.update(teamInvitationTable)
+									.set({
+										metadata:
+											Object.keys(inviteMetadata).length > 0
+												? JSON.stringify(inviteMetadata)
+												: null,
+									})
+									.where(eq(teamInvitationTable.id, invitation.id))
+							} catch {
+								// Invalid JSON, ignore
+							}
+						}
 					}
 				}
 			} catch {
@@ -636,7 +963,7 @@ export const acceptVolunteerInviteFn = createServerFn({ method: "POST" })
 		// Verify this is a volunteer invitation
 		if (
 			invitation.roleId !== SYSTEM_ROLES_ENUM.VOLUNTEER ||
-			invitation.isSystemRole !== 1
+			invitation.isSystemRole !== true
 		) {
 			throw new Error("This is not a volunteer invitation")
 		}
@@ -651,10 +978,11 @@ export const acceptVolunteerInviteFn = createServerFn({ method: "POST" })
 			throw new Error("CONFLICT: Invitation has already been accepted")
 		}
 
-		// Check if user's email matches the invitation email (case-insensitive)
+		// Log email mismatch for tracking, but allow the operation to proceed
+		// The acceptedBy field tracks who actually accepted regardless of invite email
 		if (session.user.email?.toLowerCase() !== invitation.email?.toLowerCase()) {
-			throw new Error(
-				"FORBIDDEN: This invitation is for a different email address",
+			console.log(
+				`Volunteer invite email mismatch: invited=${invitation.email}, acceptedBy=${session.user.email}`,
 			)
 		}
 
@@ -722,22 +1050,23 @@ export const acceptVolunteerInviteFn = createServerFn({ method: "POST" })
 			teamId: invitation.teamId,
 			userId: session.userId,
 			roleId: invitation.roleId,
-			isSystemRole: Number(invitation.isSystemRole),
-			invitedBy: invitation.invitedBy,
+			isSystemRole: invitation.isSystemRole,
+			invitedBy: invitation.invitedBy ?? undefined,
 			invitedAt: invitation.createdAt
 				? new Date(invitation.createdAt)
 				: new Date(),
 			joinedAt: new Date(),
-			isActive: 1,
+			isActive: true,
 			metadata: JSON.stringify(mergedMetadata),
 		})
 
-		// Mark invitation as accepted
+		// Mark invitation as accepted (with account)
 		await db
 			.update(teamInvitationTable)
 			.set({
 				acceptedAt: new Date(),
 				acceptedBy: session.userId,
+				status: INVITATION_STATUS.ACCEPTED,
 				updatedAt: new Date(),
 			})
 			.where(eq(teamInvitationTable.id, invitation.id))
@@ -754,5 +1083,341 @@ export const acceptVolunteerInviteFn = createServerFn({ method: "POST" })
 			success: true,
 			teamId: invitation.teamId,
 			teamSlug: team?.slug,
+		}
+	})
+
+// ============================================================================
+// Pending Invite Data Functions (Guest/Unauthenticated)
+// ============================================================================
+
+/**
+ * Submit pending invite data (answers/signatures) without authentication.
+ * Stores data in invitation.metadata JSON field for later transfer.
+ */
+export const submitPendingInviteDataFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => submitPendingInviteDataSchema.parse(data))
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Find the invitation by token
+		const invitation = await db.query.teamInvitationTable.findFirst({
+			where: eq(teamInvitationTable.token, data.token),
+		})
+
+		if (!invitation) {
+			throw new Error("NOT_FOUND: Invitation not found")
+		}
+
+		// Check if invitation has expired
+		if (invitation.expiresAt && new Date(invitation.expiresAt) < new Date()) {
+			throw new Error("Invitation has expired")
+		}
+
+		// Check if invitation was already accepted
+		if (invitation.acceptedAt) {
+			throw new Error("CONFLICT: Invitation has already been accepted")
+		}
+
+		// Parse existing metadata
+		let existingMetadata: Record<string, unknown> = {}
+		if (invitation.metadata) {
+			try {
+				existingMetadata = JSON.parse(invitation.metadata)
+			} catch {
+				// Invalid JSON, ignore
+			}
+		}
+
+		// Build pending data
+		const pendingData: PendingInviteData = {
+			submittedAt: new Date().toISOString(),
+		}
+
+		if (data.answers && data.answers.length > 0) {
+			pendingData.pendingAnswers = data.answers.map((a) => ({
+				questionId: a.questionId,
+				answer: a.answer,
+			}))
+		}
+
+		if (data.signatures && data.signatures.length > 0) {
+			pendingData.pendingSignatures = data.signatures.map((s) => ({
+				waiverId: s.waiverId,
+				signedAt: s.signedAt,
+				signatureName: s.signatureName,
+			}))
+		}
+
+		// Merge with existing metadata
+		const updatedMetadata = {
+			...existingMetadata,
+			...pendingData,
+		}
+
+		// Update invitation metadata and set status to accepted
+		// Guest has submitted their form data - this is acceptance without account
+		await db
+			.update(teamInvitationTable)
+			.set({
+				metadata: JSON.stringify(updatedMetadata),
+				status: INVITATION_STATUS.ACCEPTED,
+				updatedAt: new Date(),
+			})
+			.where(eq(teamInvitationTable.id, invitation.id))
+
+		return {
+			success: true,
+			inviteId: invitation.id,
+		}
+	})
+
+/**
+ * Retrieve pending invite data by token (for pre-filling forms).
+ */
+export const getPendingInviteDataFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) => getInviteByTokenSchema.parse(data))
+	.handler(async ({ data }): Promise<PendingInviteData | null> => {
+		const db = getDb()
+
+		const invitation = await db.query.teamInvitationTable.findFirst({
+			where: eq(teamInvitationTable.token, data.token),
+		})
+
+		if (!invitation || !invitation.metadata) {
+			return null
+		}
+
+		try {
+			const metadata = JSON.parse(invitation.metadata) as Record<
+				string,
+				unknown
+			>
+
+			// Extract pending data fields
+			const pendingData: PendingInviteData = {}
+
+			if (typeof metadata.submittedAt === "string") {
+				pendingData.submittedAt = metadata.submittedAt
+			}
+
+			if (Array.isArray(metadata.pendingAnswers)) {
+				pendingData.pendingAnswers =
+					metadata.pendingAnswers as PendingInviteAnswer[]
+			}
+
+			if (Array.isArray(metadata.pendingSignatures)) {
+				pendingData.pendingSignatures =
+					metadata.pendingSignatures as PendingWaiverSignature[]
+			}
+
+			return Object.keys(pendingData).length > 0 ? pendingData : null
+		} catch {
+			return null
+		}
+	})
+
+/**
+ * Transfer pending invite data to real tables after authentication.
+ * Called after user accepts invite.
+ */
+export const transferPendingDataToUserFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => transferPendingDataSchema.parse(data))
+	.handler(async ({ data }) => {
+		const session = await getSessionFromCookie()
+
+		if (!session) {
+			throw new Error("NOT_AUTHORIZED: Not authenticated")
+		}
+
+		const db = getDb()
+
+		// Find the invitation by token
+		const invitation = await db.query.teamInvitationTable.findFirst({
+			where: eq(teamInvitationTable.token, data.token),
+			with: {
+				team: true,
+			},
+		})
+
+		if (!invitation) {
+			throw new Error("NOT_FOUND: Invitation not found")
+		}
+
+		// Log email mismatch for tracking, but allow the operation to proceed
+		// The acceptedBy field tracks who actually accepted regardless of invite email
+		if (session.user.email?.toLowerCase() !== invitation.email?.toLowerCase()) {
+			console.log(
+				`Transfer pending data email mismatch: invited=${invitation.email}, acceptedBy=${session.user.email}`,
+			)
+		}
+
+		// Parse metadata to get pending data
+		let pendingData: PendingInviteData | null = null
+		if (invitation.metadata) {
+			try {
+				const metadata = JSON.parse(invitation.metadata) as Record<
+					string,
+					unknown
+				>
+				pendingData = {
+					submittedAt:
+						typeof metadata.submittedAt === "string"
+							? metadata.submittedAt
+							: undefined,
+					pendingAnswers: Array.isArray(metadata.pendingAnswers)
+						? (metadata.pendingAnswers as PendingInviteAnswer[])
+						: undefined,
+					pendingSignatures: Array.isArray(metadata.pendingSignatures)
+						? (metadata.pendingSignatures as PendingWaiverSignature[])
+						: undefined,
+				}
+			} catch {
+				// Invalid JSON, ignore
+			}
+		}
+
+		if (!pendingData) {
+			return { success: true, transferred: false }
+		}
+
+		const team = Array.isArray(invitation.team)
+			? invitation.team[0]
+			: invitation.team
+
+		// Get competition metadata to find registrationId
+		let registrationId: string | null = null
+		if (
+			team?.type === TEAM_TYPE_ENUM.COMPETITION_TEAM &&
+			team.competitionMetadata
+		) {
+			try {
+				const competitionMetadata = JSON.parse(team.competitionMetadata) as {
+					competitionId?: string
+				}
+				if (competitionMetadata.competitionId) {
+					const registration =
+						await db.query.competitionRegistrationsTable.findFirst({
+							where: and(
+								eq(
+									competitionRegistrationsTable.eventId,
+									competitionMetadata.competitionId,
+								),
+								eq(competitionRegistrationsTable.athleteTeamId, team.id),
+							),
+						})
+
+					if (registration) {
+						registrationId = registration.id
+					}
+				}
+			} catch {
+				// Invalid JSON, ignore
+			}
+		}
+
+		// Transfer pending answers
+		if (
+			pendingData.pendingAnswers &&
+			pendingData.pendingAnswers.length > 0 &&
+			registrationId
+		) {
+			for (const answerData of pendingData.pendingAnswers) {
+				// Check if answer already exists
+				const existingAnswer =
+					await db.query.competitionRegistrationAnswersTable.findFirst({
+						where: and(
+							eq(
+								competitionRegistrationAnswersTable.questionId,
+								answerData.questionId,
+							),
+							eq(
+								competitionRegistrationAnswersTable.registrationId,
+								registrationId,
+							),
+							eq(competitionRegistrationAnswersTable.userId, session.userId),
+						),
+					})
+
+				if (existingAnswer) {
+					// Update existing answer
+					await db
+						.update(competitionRegistrationAnswersTable)
+						.set({
+							answer: answerData.answer,
+							updatedAt: new Date(),
+						})
+						.where(
+							eq(competitionRegistrationAnswersTable.id, existingAnswer.id),
+						)
+				} else {
+					// Insert new answer
+					await db.insert(competitionRegistrationAnswersTable).values({
+						questionId: answerData.questionId,
+						registrationId,
+						userId: session.userId,
+						answer: answerData.answer,
+					})
+				}
+			}
+		}
+
+		// Transfer pending signatures
+		if (
+			pendingData.pendingSignatures &&
+			pendingData.pendingSignatures.length > 0
+		) {
+			for (const signatureData of pendingData.pendingSignatures) {
+				// Check if signature already exists
+				const existingSignature =
+					await db.query.waiverSignaturesTable.findFirst({
+						where: and(
+							eq(waiverSignaturesTable.waiverId, signatureData.waiverId),
+							eq(waiverSignaturesTable.userId, session.userId),
+						),
+					})
+
+				if (!existingSignature) {
+					// Insert new signature (signatureName is stored in pending data only, not in table)
+					await db.insert(waiverSignaturesTable).values({
+						waiverId: signatureData.waiverId,
+						userId: session.userId,
+						signedAt: new Date(signatureData.signedAt),
+						registrationId: registrationId || undefined,
+					})
+				}
+			}
+		}
+
+		// Clear pending data from metadata
+		if (invitation.metadata) {
+			try {
+				const metadata = JSON.parse(invitation.metadata) as Record<
+					string,
+					unknown
+				>
+				delete metadata.submittedAt
+				delete metadata.pendingAnswers
+				delete metadata.pendingSignatures
+
+				await db
+					.update(teamInvitationTable)
+					.set({
+						metadata:
+							Object.keys(metadata).length > 0
+								? JSON.stringify(metadata)
+								: null,
+						updatedAt: new Date(),
+					})
+					.where(eq(teamInvitationTable.id, invitation.id))
+			} catch {
+				// Invalid JSON, ignore
+			}
+		}
+
+		return {
+			success: true,
+			transferred: true,
+			answersCount: pendingData.pendingAnswers?.length || 0,
+			signaturesCount: pendingData.pendingSignatures?.length || 0,
 		}
 	})

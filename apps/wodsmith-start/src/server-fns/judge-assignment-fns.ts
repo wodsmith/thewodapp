@@ -133,7 +133,10 @@ async function materializeRotations(
 	// Build heat number -> ID map
 	const heatMap = new Map(heats.map((h) => [h.heatNumber, h.id]))
 
-	// Expand each rotation
+	// Expand each rotation, deduplicating by (heatId, membershipId) to avoid
+	// unique constraint violations if rotations overlap on the same heat+judge
+	const seen = new Set<string>()
+
 	for (const rotation of rotations) {
 		for (let i = 0; i < rotation.heatsCount; i++) {
 			const heatNumber = rotation.startingHeat + i
@@ -145,6 +148,15 @@ async function materializeRotations(
 				)
 				continue
 			}
+
+			const key = `${heatId}:${rotation.membershipId}`
+			if (seen.has(key)) {
+				console.warn(
+					`Duplicate assignment for heat ${heatNumber}, judge ${rotation.membershipId} from rotation ${rotation.id}, skipping`,
+				)
+				continue
+			}
+			seen.add(key)
 
 			const laneNumber = calculateLane(
 				rotation.startingLane,
@@ -354,7 +366,7 @@ export const publishRotationsFn = createServerFn({ method: "POST" })
 		const nextVersion =
 			versions.length > 0 ? (versions[0]?.version ?? 0) + 1 : 1
 
-		// Deactivate previous versions (no transactions in D1)
+		// Deactivate previous versions
 		await db
 			.update(judgeAssignmentVersionsTable)
 			.set({ isActive: false, updatedAt: new Date() })
@@ -362,17 +374,21 @@ export const publishRotationsFn = createServerFn({ method: "POST" })
 				eq(judgeAssignmentVersionsTable.trackWorkoutId, data.trackWorkoutId),
 			)
 
-		// Create new version
-		const [newVersion] = await db
-			.insert(judgeAssignmentVersionsTable)
-			.values({
-				trackWorkoutId: data.trackWorkoutId,
-				version: nextVersion,
-				publishedBy: data.publishedBy,
-				notes: data.notes ?? null,
-				isActive: true,
-			})
-			.returning()
+		// Create new version - generate ID, insert, select back
+		const { createJudgeAssignmentVersionId } = await import("@/db/schema")
+		const newVersionId = createJudgeAssignmentVersionId()
+		await db.insert(judgeAssignmentVersionsTable).values({
+			id: newVersionId,
+			trackWorkoutId: data.trackWorkoutId,
+			version: nextVersion,
+			publishedBy: data.publishedBy,
+			notes: data.notes ?? null,
+			isActive: true,
+		})
+
+		const newVersion = await db.query.judgeAssignmentVersionsTable.findFirst({
+			where: eq(judgeAssignmentVersionsTable.id, newVersionId),
+		})
 
 		if (!newVersion) {
 			throw new Error("Failed to create version")
@@ -388,7 +404,7 @@ export const publishRotationsFn = createServerFn({ method: "POST" })
 		// Drizzle inserts all columns including auto-generated ones:
 		// createdAt, updatedAt, updateCounter, id, heatId, membershipId, rotationId, versionId, laneNumber, position, instructions, isManualOverride
 		// That's 11 params per row (instructions is null literal).
-		// D1 has a 100 bound parameter limit (NOT 999 like standard SQLite).
+		// 100 bound parameter batch limit.
 		// max rows per batch = floor(100 / 11) = 9, use 8 for safety
 		const INSERT_BATCH_SIZE = 8
 		if (materializedAssignments.length > 0) {
@@ -455,12 +471,16 @@ export const rollbackToVersionFn = createServerFn({ method: "POST" })
 				),
 			)
 
-		// Activate the target version
-		const [updatedVersion] = await db
+		// Activate the target version - update, then select
+		await db
 			.update(judgeAssignmentVersionsTable)
 			.set({ isActive: true, updatedAt: new Date() })
 			.where(eq(judgeAssignmentVersionsTable.id, data.versionId))
-			.returning()
+
+		const updatedVersion =
+			await db.query.judgeAssignmentVersionsTable.findFirst({
+				where: eq(judgeAssignmentVersionsTable.id, data.versionId),
+			})
 
 		if (!updatedVersion) {
 			throw new Error("Failed to activate version")

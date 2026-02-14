@@ -3,12 +3,19 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
+import { ChevronDownIcon, MapPinIcon } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
+import { AddressFields } from "@/components/forms/address-fields"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import {
 	Form,
 	FormControl,
@@ -31,10 +38,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
 import { updateCompetitionFn } from "@/server-fns/competition-fns"
-import {
-	COMMON_US_TIMEZONES,
-	DEFAULT_TIMEZONE,
-} from "@/utils/timezone-utils"
+import { COMMON_US_TIMEZONES, DEFAULT_TIMEZONE } from "@/utils/timezone-utils"
 
 /**
  * Format a date value for HTML date inputs.
@@ -71,6 +75,7 @@ const formSchema = z
 				/^[a-z0-9-]+$/,
 				"Slug must be lowercase letters, numbers, and hyphens only",
 			),
+		competitionType: z.enum(["in-person", "online"]),
 		isMultiDay: z.boolean(),
 		startDate: z.string().min(1, "Start date is required"),
 		endDate: z.string().optional(),
@@ -81,6 +86,18 @@ const formSchema = z
 		visibility: z.enum(["public", "private"]),
 		status: z.enum(["draft", "published"]),
 		timezone: z.string().min(1, "Timezone is required"),
+		address: z
+			.object({
+				name: z.string().optional(),
+				streetLine1: z.string().optional(),
+				streetLine2: z.string().optional(),
+				city: z.string().optional(),
+				stateProvince: z.string().optional(),
+				postalCode: z.string().optional(),
+				countryCode: z.string().optional(),
+				notes: z.string().optional(),
+			})
+			.optional(),
 	})
 	.refine(
 		(data) => {
@@ -124,8 +141,21 @@ const formSchema = z
 
 type FormValues = z.infer<typeof formSchema>
 
+interface CompetitionWithAddress extends Competition {
+	primaryAddress?: {
+		name: string | null
+		streetLine1: string | null
+		streetLine2: string | null
+		city: string | null
+		stateProvince: string | null
+		postalCode: string | null
+		countryCode: string | null
+		notes: string | null
+	} | null
+}
+
 interface OrganizerCompetitionEditFormProps {
-	competition: Competition
+	competition: CompetitionWithAddress
 	groups: Array<CompetitionGroup & { competitionCount: number }>
 	isPendingApproval?: boolean
 }
@@ -143,6 +173,11 @@ export function OrganizerCompetitionEditForm({
 	const [bannerImageUrl, setBannerImageUrl] = useState<string | null>(
 		competition.bannerImageUrl ?? null,
 	)
+	// Open location section by default if address exists
+	const hasExistingAddress = Boolean(
+		competition.primaryAddress?.streetLine1 || competition.primaryAddress?.city,
+	)
+	const [isLocationOpen, setIsLocationOpen] = useState(hasExistingAddress)
 
 	// Use useServerFn hook for client-side server function calls
 	const updateCompetition = useServerFn(updateCompetitionFn)
@@ -157,13 +192,12 @@ export function OrganizerCompetitionEditForm({
 		defaultValues: {
 			name: competition.name,
 			slug: competition.slug,
+			competitionType: competition.competitionType ?? "in-person",
 			isMultiDay: existingIsMultiDay,
 			startDate: formatDateForInput(competition.startDate),
 			endDate: formatDateForInput(competition.endDate),
 			description: competition.description || "",
-			registrationOpensAt: formatDateForInput(
-				competition.registrationOpensAt,
-			),
+			registrationOpensAt: formatDateForInput(competition.registrationOpensAt),
 			registrationClosesAt: formatDateForInput(
 				competition.registrationClosesAt,
 			),
@@ -171,10 +205,21 @@ export function OrganizerCompetitionEditForm({
 			visibility: competition.visibility ?? "public",
 			status: competition.status ?? "draft",
 			timezone: competition.timezone ?? DEFAULT_TIMEZONE,
+			address: {
+				name: competition.primaryAddress?.name ?? "",
+				streetLine1: competition.primaryAddress?.streetLine1 ?? "",
+				streetLine2: competition.primaryAddress?.streetLine2 ?? "",
+				city: competition.primaryAddress?.city ?? "",
+				stateProvince: competition.primaryAddress?.stateProvince ?? "",
+				postalCode: competition.primaryAddress?.postalCode ?? "",
+				countryCode: competition.primaryAddress?.countryCode ?? "",
+				notes: competition.primaryAddress?.notes ?? "",
+			},
 		},
 	})
 
 	const isMultiDay = form.watch("isMultiDay")
+	const competitionType = form.watch("competitionType")
 
 	// Auto-generate slug from name
 	const handleNameChange = (name: string) => {
@@ -208,9 +253,11 @@ export function OrganizerCompetitionEditForm({
 					groupId: data.groupId,
 					visibility: data.visibility,
 					status: data.status,
+					competitionType: data.competitionType,
 					profileImageUrl,
 					bannerImageUrl,
 					timezone: data.timezone,
+					address: data.address,
 				},
 			})
 			toast.success("Competition updated successfully")
@@ -281,6 +328,58 @@ export function OrganizerCompetitionEditForm({
 						</FormItem>
 					)}
 				/>
+
+				{/* Competition Type */}
+				<FormField
+					control={form.control}
+					name="competitionType"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Competition Type</FormLabel>
+							<Select onValueChange={field.onChange} value={field.value}>
+								<FormControl>
+									<SelectTrigger>
+										<SelectValue placeholder="Select competition type" />
+									</SelectTrigger>
+								</FormControl>
+								<SelectContent>
+									<SelectItem value="in-person">
+										In-Person - Traditional venue-based competition
+									</SelectItem>
+									<SelectItem value="online">
+										Online - Virtual competition with video submissions
+									</SelectItem>
+								</SelectContent>
+							</Select>
+							<FormDescription>
+								{field.value === "online"
+									? "Athletes submit video recordings of their workouts"
+									: "Athletes compete at a physical venue"}
+							</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+
+				{/* Location Section - Only shown for in-person competitions */}
+				{competitionType === "in-person" && (
+					<Collapsible open={isLocationOpen} onOpenChange={setIsLocationOpen}>
+						<div className="rounded-lg border p-4">
+							<CollapsibleTrigger className="flex w-full items-center justify-between">
+								<div className="flex items-center gap-2">
+									<MapPinIcon className="h-5 w-5 text-muted-foreground" />
+									<h3 className="text-lg font-semibold">Location</h3>
+								</div>
+								<ChevronDownIcon
+									className={`h-5 w-5 transition-transform ${isLocationOpen ? "rotate-180" : ""}`}
+								/>
+							</CollapsibleTrigger>
+							<CollapsibleContent className="mt-4">
+								<AddressFields form={form} prefix="address" />
+							</CollapsibleContent>
+						</div>
+					</Collapsible>
+				)}
 
 				<div className="grid gap-6 md:grid-cols-2">
 					<div className="space-y-2">

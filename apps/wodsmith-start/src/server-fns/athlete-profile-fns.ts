@@ -5,8 +5,8 @@
  * This file uses top-level imports for server-only modules.
  */
 
-import { createServerFn } from "@tanstack/react-start"
 import { redirect } from "@tanstack/react-router"
+import { createServerFn } from "@tanstack/react-start"
 import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
@@ -337,7 +337,7 @@ export const getAthleteProfileDataFn = createServerFn({
 	const userTeamMemberships = await db.query.teamMembershipTable.findMany({
 		where: and(
 			eq(teamMembershipTable.userId, session.userId),
-			eq(teamMembershipTable.isActive, 1),
+			eq(teamMembershipTable.isActive, true),
 		),
 		columns: { teamId: true },
 	})

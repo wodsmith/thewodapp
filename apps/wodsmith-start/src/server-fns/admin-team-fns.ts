@@ -6,16 +6,16 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
+import { desc, eq, inArray, sql } from "drizzle-orm"
 import { z } from "zod"
-import { desc, sql, eq, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
-import { teamTable, teamMembershipTable } from "@/db/schemas/teams"
-import type { Team, TeamMembership } from "@/db/schemas/teams"
 import { competitionsTable } from "@/db/schemas/competitions"
 import {
 	scheduledWorkoutInstancesTable,
 	trackWorkoutsTable,
 } from "@/db/schemas/programming"
+import type { Team, TeamMembership } from "@/db/schemas/teams"
+import { teamMembershipTable, teamTable } from "@/db/schemas/teams"
 import { workouts } from "@/db/schemas/workouts"
 import { requireAdmin } from "@/utils/auth"
 
@@ -193,7 +193,7 @@ export const getAdminTeamStatsFn = createServerFn({
 	const [personalResult] = await db
 		.select({ count: sql<number>`COUNT(*)` })
 		.from(teamTable)
-		.where(eq(teamTable.isPersonalTeam, 1))
+		.where(eq(teamTable.isPersonalTeam, true))
 
 	// Get competition event team count
 	const [competitionEventResult] = await db
@@ -378,9 +378,10 @@ export const updateOrganizerFeeFn = createServerFn({ method: "POST" })
 
 		return {
 			success: true,
-			message: data.organizerFeePercentage !== null
-				? `Updated ${team.name} to founding organizer fee: ${(data.organizerFeePercentage / 100).toFixed(1)}% + $${((data.organizerFeeFixed ?? 0) / 100).toFixed(2)}`
-				: `Reset ${team.name} to standard platform fee`,
+			message:
+				data.organizerFeePercentage !== null
+					? `Updated ${team.name} to founding organizer fee: ${(data.organizerFeePercentage / 100).toFixed(1)}% + $${((data.organizerFeeFixed ?? 0) / 100).toFixed(2)}`
+					: `Reset ${team.name} to standard platform fee`,
 		}
 	})
 
@@ -417,6 +418,7 @@ export const getOrganizerFeeFn = createServerFn({ method: "GET" })
 			teamName: team.name,
 			organizerFeePercentage: team.organizerFeePercentage,
 			organizerFeeFixed: team.organizerFeeFixed,
-			hasCustomFee: team.organizerFeePercentage !== null || team.organizerFeeFixed !== null,
+			hasCustomFee:
+				team.organizerFeePercentage !== null || team.organizerFeeFixed !== null,
 		}
 	})

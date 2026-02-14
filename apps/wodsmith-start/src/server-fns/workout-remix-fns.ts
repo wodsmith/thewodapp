@@ -273,28 +273,25 @@ export const createWorkoutRemixFn = createServerFn({ method: "POST" })
 
 		// Create the remixed workout
 		const newWorkoutId = `workout_${createId()}`
-		await db
-			.insert(workouts)
-			.values({
-				id: newWorkoutId,
-				name: sourceWorkout.name,
-				description: sourceWorkout.description,
-				scheme: sourceWorkout.scheme,
-				scoreType: sourceWorkout.scoreType,
-				scope: "private", // Remixes start as private
-				repsPerRound: sourceWorkout.repsPerRound,
-				roundsToScore: sourceWorkout.roundsToScore,
-				sugarId: sourceWorkout.sugarId,
-				tiebreakScheme: sourceWorkout.tiebreakScheme,
-				timeCap: sourceWorkout.timeCap,
-				teamId: data.teamId,
-				sourceWorkoutId: data.sourceWorkoutId, // Reference to the original workout
-			})
-			.returning()
+		await db.insert(workouts).values({
+			id: newWorkoutId,
+			name: sourceWorkout.name,
+			description: sourceWorkout.description,
+			scheme: sourceWorkout.scheme,
+			scoreType: sourceWorkout.scoreType,
+			scope: "private", // Remixes start as private
+			repsPerRound: sourceWorkout.repsPerRound,
+			roundsToScore: sourceWorkout.roundsToScore,
+			sugarId: sourceWorkout.sugarId,
+			tiebreakScheme: sourceWorkout.tiebreakScheme,
+			timeCap: sourceWorkout.timeCap,
+			teamId: data.teamId,
+			sourceWorkoutId: data.sourceWorkoutId, // Reference to the original workout
+		})
 
-		// Insert workout-tag relationships (batched for D1 limits)
+		// Insert workout-tag relationships (batched for param limits)
 		if (tagIds.length > 0) {
-			// D1 has 100 param limit. workoutTags table has 5 columns per insert.
+			// 100 param limit. workoutTags table has 5 columns per insert.
 			// Max rows per batch: floor(100 / 5) = 20, but use conservative 15
 			const TAG_INSERT_BATCH_SIZE = 15
 			for (let i = 0; i < tagIds.length; i += TAG_INSERT_BATCH_SIZE) {
@@ -309,7 +306,7 @@ export const createWorkoutRemixFn = createServerFn({ method: "POST" })
 			}
 		}
 
-		// Insert workout-movement relationships (batched for D1 limits)
+		// Insert workout-movement relationships (batched for param limits)
 		if (movementIds.length > 0) {
 			// workoutMovements table has 5 columns per insert.
 			// Max rows per batch: floor(100 / 5) = 20, but use conservative 15
