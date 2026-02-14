@@ -4,46 +4,61 @@
  * Database Connection Module
  *
  * Provides database connection to PlanetScale (MySQL).
- * Migration status: Switched from D1/SQLite to PlanetScale/MySQL.
+ * - In production: Uses Cloudflare Hyperdrive for connection pooling and caching.
+ * - In local dev: Falls back to DATABASE_URL from .dev.vars.
  */
 
 import { env } from "cloudflare:workers"
-import { Client } from "@planetscale/database"
-import { drizzle } from "drizzle-orm/planetscale-serverless"
+import { drizzle, type MySql2Database } from "drizzle-orm/mysql2"
+import mysql from "mysql2/promise"
 
 import * as schema from "./schema"
 
-// Extend Env type to include DATABASE_URL
-// This should be set as a secret in .dev.vars and Cloudflare dashboard
-declare module "cloudflare:workers" {
+// Extend Cloudflare.Env with Hyperdrive binding and DATABASE_URL fallback.
+// HYPERDRIVE will be in wrangler.jsonc after `pnpm alchemy:dev` deploys the binding.
+// DATABASE_URL is set in .dev.vars for local development.
+declare namespace Cloudflare {
 	interface Env {
+		HYPERDRIVE?: Hyperdrive
 		DATABASE_URL?: string
 	}
 }
 
 // Type for the database instance
-export type Database = ReturnType<typeof drizzle<typeof schema>>
+export type Database = MySql2Database<typeof schema>
 
 /**
  * Get database connection
  *
- * Creates a fresh PlanetScale connection for each request.
- * This is the recommended pattern for serverless environments.
+ * Prefers Hyperdrive binding (deployed Workers) for connection pooling.
+ * Falls back to DATABASE_URL (local dev via .dev.vars).
+ *
+ * Uses mysql2 with disableEval: true (required for Workers runtime).
+ * Hyperdrive handles connection pooling, so we create a single-connection pool per request.
  */
 export const getDb = (): Database => {
-	// Cast to access DATABASE_URL from .dev.vars (not in wrangler.jsonc bindings)
-	const databaseUrl = (env as unknown as { DATABASE_URL?: string }).DATABASE_URL
-	if (!databaseUrl) {
+	const hyperdrive = (env as { HYPERDRIVE?: Hyperdrive }).HYPERDRIVE
+	const connectionString =
+		hyperdrive?.connectionString ??
+		(env as { DATABASE_URL?: string }).DATABASE_URL
+
+	if (!connectionString) {
 		throw new Error(
-			"DATABASE_URL not found. Make sure your environment has the PlanetScale connection string configured.",
+			"No database connection available. Set HYPERDRIVE binding (production) or DATABASE_URL in .dev.vars (local dev).",
 		)
 	}
 
-	const client = new Client({
-		url: databaseUrl,
+	const pool = mysql.createPool({
+		uri: connectionString,
+		disableEval: true,
+		connectionLimit: 1,
 	})
 
-	return drizzle(client, { schema, logger: true, casing: "snake_case" })
+	return drizzle(pool, {
+		schema,
+		casing: "snake_case",
+		mode: "planetscale",
+	})
 }
 
 // Export env for other modules that need access to bindings (KV, R2, etc.)
