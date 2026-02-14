@@ -456,10 +456,9 @@ describe('Workout Server Functions (TanStack)', () => {
         teamId: 'team-1',
       })
 
-      const returningMock = mockDb.getChainMock().returning as ReturnType<
-        typeof vi.fn
-      >
-      returningMock.mockResolvedValueOnce([created])
+      // Source uses db.query.workouts.findFirst() after insert
+      mockDb.registerTable('workouts')
+      mockDb.setMockSingleValue(created)
 
       const result = await createWorkoutFn({
         data: {
@@ -483,10 +482,8 @@ describe('Workout Server Functions (TanStack)', () => {
         timeCap: 600,
       })
 
-      const returningMock = mockDb.getChainMock().returning as ReturnType<
-        typeof vi.fn
-      >
-      returningMock.mockResolvedValueOnce([created])
+      mockDb.registerTable('workouts')
+      mockDb.setMockSingleValue(created)
 
       const result = await createWorkoutFn({
         data: {
@@ -509,10 +506,8 @@ describe('Workout Server Functions (TanStack)', () => {
         scheme: 'reps',
       })
 
-      const returningMock = mockDb.getChainMock().returning as ReturnType<
-        typeof vi.fn
-      >
-      returningMock.mockResolvedValueOnce([created])
+      mockDb.registerTable('workouts')
+      mockDb.setMockSingleValue(created)
 
       const result = await createWorkoutFn({
         data: {
@@ -534,10 +529,8 @@ describe('Workout Server Functions (TanStack)', () => {
         scope: 'public',
       })
 
-      const returningMock = mockDb.getChainMock().returning as ReturnType<
-        typeof vi.fn
-      >
-      returningMock.mockResolvedValueOnce([created])
+      mockDb.registerTable('workouts')
+      mockDb.setMockSingleValue(created)
 
       const result = await createWorkoutFn({
         data: {
@@ -650,10 +643,9 @@ describe('Workout Server Functions (TanStack)', () => {
         scheme: 'reps',
       })
 
-      const returningMock = mockDb.getChainMock().returning as ReturnType<
-        typeof vi.fn
-      >
-      returningMock.mockResolvedValueOnce([updated])
+      // Source uses db.query.workouts.findFirst() after update
+      mockDb.registerTable('workouts')
+      mockDb.setMockSingleValue(updated)
 
       const result = await updateWorkoutFn({
         data: {
@@ -670,10 +662,9 @@ describe('Workout Server Functions (TanStack)', () => {
     })
 
     it('throws when workout not found', async () => {
-      const returningMock = mockDb.getChainMock().returning as ReturnType<
-        typeof vi.fn
-      >
-      returningMock.mockResolvedValueOnce([])
+      // Source uses db.query.workouts.findFirst() which returns null
+      mockDb.registerTable('workouts')
+      mockDb.setMockSingleValue(null)
 
       await expect(
         updateWorkoutFn({
@@ -742,10 +733,9 @@ describe('Workout Server Functions (TanStack)', () => {
         scheduledDate: new Date('2025-01-15T12:00:00.000Z'),
       })
 
-      const returningMock = mockDb.getChainMock().returning as ReturnType<
-        typeof vi.fn
-      >
-      returningMock.mockResolvedValueOnce([instance])
+      // Source uses db.query.scheduledWorkoutInstancesTable.findFirst() after insert
+      mockDb.registerTable('scheduledWorkoutInstancesTable')
+      mockDb.setMockSingleValue(instance)
 
       const result = await scheduleWorkoutFn({
         data: {
@@ -811,10 +801,9 @@ describe('Workout Server Functions (TanStack)', () => {
     })
 
     it('throws when scheduling fails', async () => {
-      const returningMock = mockDb.getChainMock().returning as ReturnType<
-        typeof vi.fn
-      >
-      returningMock.mockResolvedValueOnce([])
+      // Source uses db.query.scheduledWorkoutInstancesTable.findFirst() which returns null
+      mockDb.registerTable('scheduledWorkoutInstancesTable')
+      mockDb.setMockSingleValue(null)
 
       await expect(
         scheduleWorkoutFn({

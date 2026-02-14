@@ -549,12 +549,12 @@ export async function getCompetitionLeaderboard(params: {
 					scheme: score.scheme as WorkoutScheme,
 					scoreType,
 					value: score.scoreValue ?? 0,
-					status: score.status,
+					status: score.status as "scored" | "cap" | "dq" | "withdrawn",
 				}
 
 				if (score.tiebreakValue !== null && score.tiebreakScheme) {
 					scoreObj.tiebreak = {
-						scheme: score.tiebreakScheme,
+						scheme: score.tiebreakScheme as "reps" | "time",
 						value: score.tiebreakValue,
 					}
 				}

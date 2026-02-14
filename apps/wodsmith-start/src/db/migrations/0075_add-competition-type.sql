@@ -1,1 +1,0 @@
-ALTER TABLE `competitions` ADD `competition_type` text(15) DEFAULT 'in-person' NOT NULL;

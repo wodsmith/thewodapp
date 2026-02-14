@@ -22,6 +22,7 @@ import {
 } from "@/constants"
 import { getDb } from "@/db"
 import { teamMembershipTable, teamTable, userTable } from "@/db/schema"
+import { createUserId, createTeamId } from "@/db/schemas/common"
 import {
 	addRequestContextAttribute,
 	logEntityCreated,
@@ -192,17 +193,23 @@ export const signUpFn = createServerFn({ method: "POST" })
 		// Hash the password
 		const hashedPassword = await hashPassword({ password: data.password })
 
+		// Generate IDs upfront for MySQL compatibility (no RETURNING)
+		const userId = createUserId()
+		const teamId = createTeamId()
+
 		// Create the user with auto-verified email
-		const [user] = await db
-			.insert(userTable)
-			.values({
-				email: data.email,
-				firstName: data.firstName,
-				lastName: data.lastName,
-				passwordHash: hashedPassword,
-				emailVerified: new Date(), // Auto-verify email on signup
-			})
-			.returning()
+		await db.insert(userTable).values({
+			id: userId,
+			email: data.email,
+			firstName: data.firstName,
+			lastName: data.lastName,
+			passwordHash: hashedPassword,
+			emailVerified: new Date(), // Auto-verify email on signup
+		})
+
+		const user = await db.query.userTable.findFirst({
+			where: eq(userTable.id, userId),
+		})
 
 		if (!user || !user.email) {
 			logError({
@@ -228,30 +235,19 @@ export const signUpFn = createServerFn({ method: "POST" })
 			user.firstName?.toLowerCase() || "personal"
 		}-${user.id.slice(-6)}`
 
-		const personalTeamResult = await db
-			.insert(teamTable)
-			.values({
-				name: personalTeamName,
-				slug: personalTeamSlug,
-				description:
-					"Personal team for individual programming track subscriptions",
-				isPersonalTeam: 1,
-				personalTeamOwnerId: user.id,
-			})
-			.returning()
-		const personalTeam = personalTeamResult[0]
-
-		if (!personalTeam) {
-			logError({
-				message: "[Auth] Sign-up failed - personal team creation failed",
-				attributes: { userId: user.id },
-			})
-			throw new Error("Failed to create personal team")
-		}
+		await db.insert(teamTable).values({
+			id: teamId,
+			name: personalTeamName,
+			slug: personalTeamSlug,
+			description:
+				"Personal team for individual programming track subscriptions",
+			isPersonalTeam: true,
+			personalTeamOwnerId: user.id,
+		})
 
 		logEntityCreated({
 			entity: "team",
-			id: personalTeam.id,
+			id: teamId,
 			parentEntity: "user",
 			parentId: user.id,
 			attributes: { isPersonalTeam: true },
@@ -259,12 +255,12 @@ export const signUpFn = createServerFn({ method: "POST" })
 
 		// Add the user as a member of their personal team
 		await db.insert(teamMembershipTable).values({
-			teamId: personalTeam.id,
+			teamId,
 			userId: user.id,
 			roleId: "owner", // System role for team owner
-			isSystemRole: 1,
+			isSystemRole: true,
 			joinedAt: new Date(),
-			isActive: 1,
+			isActive: true,
 		})
 
 		// Create session and set cookie
@@ -274,7 +270,7 @@ export const signUpFn = createServerFn({ method: "POST" })
 			message: "[Auth] Sign-up successful",
 			attributes: {
 				userId: user.id,
-				personalTeamId: personalTeam.id,
+				personalTeamId: teamId,
 			},
 		})
 

@@ -29,7 +29,7 @@ export interface TeamWithWorkoutTracking {
 	name: string
 	slug: string
 	type: string | null
-	isPersonalTeam: number
+	isPersonalTeam: boolean
 	memberCount: number
 	hasWorkoutTracking: boolean
 }

@@ -66,9 +66,9 @@ export const Route = createFileRoute("/_protected/admin/teams/scaling/")({
 
 		const team = session?.teams?.find((t) => t.id === teamId)
 
-		// Find default scaling group (isDefault === 1 and belongs to this team)
+		// Find default scaling group (isDefault === true and belongs to this team)
 		const defaultGroup = scalingGroups.find(
-			(g) => g.isDefault === 1 && g.teamId === teamId,
+			(g) => g.isDefault && g.teamId === teamId,
 		)
 
 		return {
@@ -212,7 +212,7 @@ function AdminScalingPage() {
 						<div className="grid gap-4">
 							{scalingGroups.map((group) => {
 								const isTeamDefault = defaultScalingGroupId === group.id
-								const isGlobalDefault = group.isSystem === 1
+								const isGlobalDefault = group.isSystem
 
 								return (
 									<Card

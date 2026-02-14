@@ -22,6 +22,11 @@ import {
 	teamTable,
 	userTable,
 } from "@/db/schema"
+import {
+	createTeamId,
+	createTeamMembershipId,
+	createCompetitionRegistrationId,
+} from "@/db/schemas/common"
 import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 import { RegistrationConfirmationEmail } from "@/react-email/registration-confirmation"
 import { parseCompetitionSettings } from "@/server-fns/competition-divisions-fns"
@@ -197,11 +202,11 @@ async function inviteUserToTeamInternal({
 			teamId,
 			userId: existingUser.id,
 			roleId,
-			isSystemRole: isSystemRole ? 1 : 0,
+			isSystemRole,
 			invitedBy,
 			invitedAt: new Date(),
 			joinedAt: new Date(),
-			isActive: 1,
+			isActive: true,
 		})
 
 		// Also add to competition_event team if this is a competition team
@@ -224,9 +229,9 @@ async function inviteUserToTeamInternal({
 						teamId: competition.competitionTeamId,
 						userId: existingUser.id,
 						roleId: SYSTEM_ROLES_ENUM.MEMBER,
-						isSystemRole: 1,
+						isSystemRole: true,
 						joinedAt: new Date(),
-						isActive: 1,
+						isActive: true,
 					})
 				}
 			}
@@ -245,7 +250,7 @@ async function inviteUserToTeamInternal({
 		teamId,
 		email: email.toLowerCase(),
 		roleId,
-		isSystemRole: isSystemRole ? 1 : 0,
+		isSystemRole,
 		token,
 		invitedBy,
 		expiresAt,
@@ -471,7 +476,7 @@ export async function registerForCompetition(
 				where: and(
 					eq(teamMembershipTable.teamId, team.id),
 					eq(teamMembershipTable.userId, params.userId),
-					eq(teamMembershipTable.isActive, 1),
+					eq(teamMembershipTable.isActive, true),
 				),
 			})
 
@@ -574,7 +579,7 @@ export async function registerForCompetition(
 							where: and(
 								eq(teamMembershipTable.teamId, team.id),
 								eq(teamMembershipTable.userId, teammateUser.id),
-								eq(teamMembershipTable.isActive, 1),
+								eq(teamMembershipTable.isActive, true),
 							),
 						})
 
@@ -659,61 +664,45 @@ export async function registerForCompetition(
 
 		// Create competition_team for athlete squad
 		const teamName = params.teamName ?? "Unknown Team"
-		const newAthleteTeam = await db
-			.insert(teamTable)
-			.values({
-				name: teamName,
-				slug: teamSlug,
-				type: TEAM_TYPE_ENUM.COMPETITION_TEAM,
-				parentOrganizationId: competition.competitionTeamId, // Parent is the event team
-				description: `Team ${params.teamName} competing in ${competition.name}`,
-				creditBalance: 0,
-				competitionMetadata: JSON.stringify({
-					competitionId: params.competitionId,
-					divisionId: params.divisionId,
-				}),
-			})
-			.returning()
+		const athleteTeamIdGenerated = createTeamId()
+		await db.insert(teamTable).values({
+			id: athleteTeamIdGenerated,
+			name: teamName,
+			slug: teamSlug,
+			type: TEAM_TYPE_ENUM.COMPETITION_TEAM,
+			parentOrganizationId: competition.competitionTeamId, // Parent is the event team
+			description: `Team ${params.teamName} competing in ${competition.name}`,
+			creditBalance: 0,
+			competitionMetadata: JSON.stringify({
+				competitionId: params.competitionId,
+				divisionId: params.divisionId,
+			}),
+		})
 
-		const athleteTeam = Array.isArray(newAthleteTeam)
-			? newAthleteTeam[0]
-			: undefined
-		if (!athleteTeam) {
-			throw new Error("Failed to create athlete team")
-		}
-
-		athleteTeamId = athleteTeam.id
+		athleteTeamId = athleteTeamIdGenerated
 
 		// Add captain to athlete team with CAPTAIN role
 		await db.insert(teamMembershipTable).values({
 			teamId: athleteTeamId,
 			userId: params.userId,
 			roleId: SYSTEM_ROLES_ENUM.CAPTAIN,
-			isSystemRole: 1,
+			isSystemRole: true,
 			joinedAt: new Date(),
-			isActive: 1,
+			isActive: true,
 		})
 	}
 
 	// 11. Create team_membership in competition_event team
-	const teamMembershipResult = await db
-		.insert(teamMembershipTable)
-		.values({
-			teamId: competition.competitionTeamId,
-			userId: params.userId,
-			roleId: SYSTEM_ROLES_ENUM.MEMBER,
-			isSystemRole: 1,
-			joinedAt: new Date(),
-			isActive: 1,
-		})
-		.returning()
-
-	const teamMember = Array.isArray(teamMembershipResult)
-		? teamMembershipResult[0]
-		: undefined
-	if (!teamMember) {
-		throw new Error("Failed to create team membership")
-	}
+	const teamMemberId = createTeamMembershipId()
+	await db.insert(teamMembershipTable).values({
+		id: teamMemberId,
+		teamId: competition.competitionTeamId,
+		userId: params.userId,
+		roleId: SYSTEM_ROLES_ENUM.MEMBER,
+		isSystemRole: true,
+		joinedAt: new Date(),
+		isActive: true,
+	})
 
 	// 12. Store pending teammates as JSON for team registrations
 	const pendingTeammatesJson =
@@ -734,27 +723,25 @@ export async function registerForCompetition(
 		: null
 
 	// 14. Create competition_registration record
-	const registrationResult = await db
-		.insert(competitionRegistrationsTable)
-		.values({
-			id: `creg_${createId()}`,
-			eventId: params.competitionId,
-			userId: params.userId,
-			teamMemberId: teamMember.id,
-			divisionId: params.divisionId,
-			registeredAt: new Date(),
-			// Team fields
-			teamName: isTeamDivision ? params.teamName : null,
-			captainUserId: params.userId,
-			athleteTeamId,
-			pendingTeammates: pendingTeammatesJson,
-			metadata: metadataJson,
-		})
-		.returning()
+	const registrationId = createCompetitionRegistrationId()
+	await db.insert(competitionRegistrationsTable).values({
+		id: registrationId,
+		eventId: params.competitionId,
+		userId: params.userId,
+		teamMemberId: teamMemberId,
+		divisionId: params.divisionId,
+		registeredAt: new Date(),
+		// Team fields
+		teamName: isTeamDivision ? params.teamName : null,
+		captainUserId: params.userId,
+		athleteTeamId,
+		pendingTeammates: pendingTeammatesJson,
+		metadata: metadataJson,
+	})
 
-	const registration = Array.isArray(registrationResult)
-		? registrationResult[0]
-		: undefined
+	const registration = await db.query.competitionRegistrationsTable.findFirst({
+		where: eq(competitionRegistrationsTable.id, registrationId),
+	})
 	if (!registration) {
 		throw new Error("Failed to create registration")
 	}
@@ -796,7 +783,7 @@ export async function registerForCompetition(
 
 	return {
 		registrationId: registration.id,
-		teamMemberId: teamMember.id,
+		teamMemberId,
 		athleteTeamId,
 	}
 }
@@ -958,9 +945,9 @@ export async function addToCompetitionEventTeam(
 		teamId: competition.competitionTeamId,
 		userId,
 		roleId: SYSTEM_ROLES_ENUM.MEMBER,
-		isSystemRole: 1,
+		isSystemRole: true,
 		joinedAt: new Date(),
-		isActive: 1,
+		isActive: true,
 	})
 
 	// Update user sessions to include the new team

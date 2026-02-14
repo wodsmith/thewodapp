@@ -223,9 +223,9 @@ async function createTeamMemberships(
 			teamId,
 			userId,
 			roleId,
-			isSystemRole: 1,
+			isSystemRole: true,
 			joinedAt: new Date(),
-			isActive: 1,
+			isActive: true,
 			metadata,
 		})
 		membershipIds.push(membershipId)
@@ -277,23 +277,21 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 
 			if (!organizingTeamId) {
 				// Create a demo organizing team with Stripe Connect already set up
-				const demoOrgTeam = await db
-					.insert(teamTable)
-					.values({
-						id: createTeamId(),
-						name: `Demo Organizer - ${timestamp}`,
-						slug: `demo-organizer-${timestamp}`,
-						type: "gym",
-						creditBalance: 0,
-						// Stripe Connect setup for demo
-						stripeConnectedAccountId: demoStripeAccountId,
-						stripeAccountStatus: "VERIFIED",
-						stripeAccountType: "express",
-						stripeOnboardingCompletedAt: new Date(),
-					})
-					.returning()
+				const demoOrgTeamId = createTeamId()
+				await db.insert(teamTable).values({
+					id: demoOrgTeamId,
+					name: `Demo Organizer - ${timestamp}`,
+					slug: `demo-organizer-${timestamp}`,
+					type: "gym",
+					creditBalance: 0,
+					// Stripe Connect setup for demo
+					stripeConnectedAccountId: demoStripeAccountId,
+					stripeAccountStatus: "VERIFIED",
+					stripeAccountType: "express",
+					stripeOnboardingCompletedAt: new Date(),
+				})
 
-				organizingTeamId = demoOrgTeam[0]!.id
+				organizingTeamId = demoOrgTeamId
 				createdTeamIds.push(organizingTeamId)
 			} else {
 				// Update existing team with Stripe Connect data if not already set
@@ -324,6 +322,10 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 
 					stripePatched = true
 				}
+			}
+
+			if (!organizingTeamId) {
+				throw new Error("Failed to resolve organizing team ID")
 			}
 
 			// 2. Create competition with unique slug
@@ -391,8 +393,8 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 				id: scalingGroupId,
 				title: "Demo Competition Divisions",
 				teamId: organizingTeamId,
-				isDefault: 0,
-				isSystem: 0,
+				isDefault: false,
+				isSystem: false,
 			})
 
 			const divisionIds: Record<string, string> = {}

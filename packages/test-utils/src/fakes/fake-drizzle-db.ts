@@ -58,6 +58,8 @@ interface ChainableMock {
 	returning: Mock<(columns?: unknown) => Promise<unknown[]>>
 	onConflictDoUpdate: Mock<(config: unknown) => ChainableMock>
 	onConflictDoNothing: Mock<(config?: unknown) => ChainableMock>
+	// MySQL-specific (PlanetScale)
+	onDuplicateKeyUpdate: Mock<(config: unknown) => ChainableMock>
 	
 	// Update chain
 	update: Mock<(table: unknown) => ChainableMock>
@@ -95,14 +97,15 @@ interface QueryApi {
 export class FakeDrizzleDb {
 	private mockReturnValue: unknown[] = []
 	private mockSingleValue: unknown | null = null
+	private mockSingleValueQueue: (unknown | null)[] = []
 	private mockChanges = 0
 	private chainMock: ChainableMock
 	public query: QueryApi = {}
-	
+
 	constructor() {
 		this.chainMock = this.createChainableMock()
 	}
-	
+
 	/**
 	 * Set the return value for queries.
 	 * Affects select, insert().returning(), findMany, etc.
@@ -110,22 +113,42 @@ export class FakeDrizzleDb {
 	setMockReturnValue(value: unknown[]): void {
 		this.mockReturnValue = value
 	}
-	
+
 	/**
 	 * Set the return value for single-record queries.
 	 * Affects findFirst, get, etc.
 	 */
 	setMockSingleValue(value: unknown | null): void {
 		this.mockSingleValue = value
+		this.mockSingleValueQueue = []
 	}
-	
+
+	/**
+	 * Queue multiple values for sequential findFirst calls.
+	 * Each call to findFirst will return the next value in the queue.
+	 * Falls back to mockSingleValue when queue is empty.
+	 */
+	queueMockSingleValues(values: (unknown | null)[]): void {
+		this.mockSingleValueQueue = [...values]
+	}
+
 	/**
 	 * Set the number of changes for delete/update operations.
 	 */
 	setMockChanges(changes: number): void {
 		this.mockChanges = changes
 	}
-	
+
+	/**
+	 * Get next single value from queue or fallback to mockSingleValue
+	 */
+	private getNextSingleValue(): unknown | null {
+		if (this.mockSingleValueQueue.length > 0) {
+			return this.mockSingleValueQueue.shift() ?? null
+		}
+		return this.mockSingleValue
+	}
+
 	/**
 	 * Register a table in the query API.
 	 * After calling this, db.query.tableName.findFirst() works.
@@ -133,18 +156,19 @@ export class FakeDrizzleDb {
 	registerTable(tableName: string): void {
 		if (!this.query[tableName]) {
 			this.query[tableName] = {
-				findFirst: this.createMockFn(() => Promise.resolve(this.mockSingleValue)),
+				findFirst: this.createMockFn(() => Promise.resolve(this.getNextSingleValue())),
 				findMany: this.createMockFn(() => Promise.resolve(this.mockReturnValue)),
 			}
 		}
 	}
-	
+
 	/**
 	 * Reset all mocks. Call in beforeEach/afterEach.
 	 */
 	reset(): void {
 		this.mockReturnValue = []
 		this.mockSingleValue = null
+		this.mockSingleValueQueue = []
 		this.mockChanges = 0
 		this.chainMock = this.createChainableMock()
 		this.query = {}
@@ -190,6 +214,8 @@ export class FakeDrizzleDb {
 			returning: this.createMockFn(() => Promise.resolve(self.mockReturnValue)),
 			onConflictDoUpdate: this.createMockFn(() => mock),
 			onConflictDoNothing: this.createMockFn(() => mock),
+			// MySQL-specific (PlanetScale)
+			onDuplicateKeyUpdate: this.createMockFn(() => mock),
 			
 			// Update chain
 			update: this.createMockFn(() => mock),

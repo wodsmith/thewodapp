@@ -319,7 +319,8 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 
 							await notifyCompetitionRegistration({
 								amountCents: session.amount_total ?? 0,
-								customerEmail: session.customer_email ?? user?.email ?? undefined,
+								customerEmail:
+									session.customer_email ?? user?.email ?? undefined,
 								customerName: user
 									? `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
 										undefined

@@ -11,6 +11,7 @@ import { and, asc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { competitionsTable } from "@/db/schemas/competitions"
+import { createSponsorGroupId, createSponsorId } from "@/db/schemas/common"
 import {
 	programmingTracksTable,
 	trackWorkoutsTable,
@@ -289,14 +290,19 @@ export const createSponsorGroupFn = createServerFn({ method: "POST" })
 			order = existingGroups.length
 		}
 
+		const groupId = createSponsorGroupId()
+		await db.insert(sponsorGroupsTable).values({
+			id: groupId,
+			competitionId: data.competitionId,
+			name: data.name,
+			displayOrder: order,
+		})
+
+		// Select back the created record
 		const [created] = await db
-			.insert(sponsorGroupsTable)
-			.values({
-				competitionId: data.competitionId,
-				name: data.name,
-				displayOrder: order,
-			})
-			.returning()
+			.select()
+			.from(sponsorGroupsTable)
+			.where(eq(sponsorGroupsTable.id, groupId))
 
 		if (!created) {
 			throw new Error("Failed to create sponsor group")
@@ -343,7 +349,7 @@ export const updateSponsorGroupFn = createServerFn({ method: "POST" })
 			return { group: null }
 		}
 
-		const [updated] = await db
+		await db
 			.update(sponsorGroupsTable)
 			.set({
 				name: data.name ?? existing.name,
@@ -351,7 +357,12 @@ export const updateSponsorGroupFn = createServerFn({ method: "POST" })
 				updatedAt: new Date(),
 			})
 			.where(eq(sponsorGroupsTable.id, data.groupId))
-			.returning()
+
+		// Select back the updated record
+		const [updated] = await db
+			.select()
+			.from(sponsorGroupsTable)
+			.where(eq(sponsorGroupsTable.id, data.groupId))
 
 		return { group: updated ?? null }
 	})
@@ -495,18 +506,23 @@ export const createSponsorFn = createServerFn({ method: "POST" })
 			order = existingSponsors.length
 		}
 
+		const sponsorId = createSponsorId()
+		await db.insert(sponsorsTable).values({
+			id: sponsorId,
+			competitionId: data.competitionId ?? null,
+			userId: data.userId ?? null,
+			groupId: data.groupId ?? null,
+			name: data.name,
+			logoUrl: data.logoUrl ?? null,
+			website: data.website ?? null,
+			displayOrder: order,
+		})
+
+		// Select back the created record
 		const [created] = await db
-			.insert(sponsorsTable)
-			.values({
-				competitionId: data.competitionId ?? null,
-				userId: data.userId ?? null,
-				groupId: data.groupId ?? null,
-				name: data.name,
-				logoUrl: data.logoUrl ?? null,
-				website: data.website ?? null,
-				displayOrder: order,
-			})
-			.returning()
+			.select()
+			.from(sponsorsTable)
+			.where(eq(sponsorsTable.id, sponsorId))
 
 		if (!created) {
 			throw new Error("Failed to create sponsor")
@@ -549,7 +565,7 @@ export const updateSponsorFn = createServerFn({ method: "POST" })
 		}
 		// For user sponsors, authorization is checked at action level
 
-		const [updated] = await db
+		await db
 			.update(sponsorsTable)
 			.set({
 				groupId: data.groupId === undefined ? existing.groupId : data.groupId,
@@ -560,7 +576,12 @@ export const updateSponsorFn = createServerFn({ method: "POST" })
 				updatedAt: new Date(),
 			})
 			.where(eq(sponsorsTable.id, data.sponsorId))
-			.returning()
+
+		// Select back the updated record
+		const [updated] = await db
+			.select()
+			.from(sponsorsTable)
+			.where(eq(sponsorsTable.id, data.sponsorId))
 
 		return { sponsor: updated ?? null }
 	})

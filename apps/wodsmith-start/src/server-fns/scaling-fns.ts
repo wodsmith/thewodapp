@@ -9,6 +9,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { asc, desc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import { createScalingGroupId, createScalingLevelId } from "@/db/schemas/common"
 import { scalingGroupsTable, scalingLevelsTable } from "@/db/schemas/scaling"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schemas/teams"
 import { getSessionFromCookie } from "@/utils/auth"
@@ -33,8 +34,8 @@ export interface ScalingGroup {
 	title: string
 	description: string | null
 	teamId: string | null
-	isDefault: number
-	isSystem: number
+	isDefault: boolean
+	isSystem: boolean
 	createdAt: Date
 	updatedAt: Date
 }
@@ -222,29 +223,35 @@ export const createScalingGroupFn = createServerFn({ method: "POST" })
 		const db = getDb()
 
 		// Create the scaling group
-		const [group] = await db
-			.insert(scalingGroupsTable)
-			.values({
-				title: data.title,
-				description: data.description ?? null,
-				teamId: data.teamId,
-				isDefault: 0,
-				isSystem: 0,
-			})
-			.returning()
-
-		if (!group) {
-			throw new Error("Failed to create scaling group")
-		}
+		const groupId = createScalingGroupId()
+		await db.insert(scalingGroupsTable).values({
+			id: groupId,
+			title: data.title,
+			description: data.description ?? null,
+			teamId: data.teamId,
+			isDefault: false,
+			isSystem: false,
+		})
 
 		// Create the scaling levels
 		for (const level of data.levels) {
 			await db.insert(scalingLevelsTable).values({
-				scalingGroupId: group.id,
+				id: createScalingLevelId(),
+				scalingGroupId: groupId,
 				label: level.label,
 				position: level.position,
 				teamSize: 1,
 			})
+		}
+
+		// Select back the created record
+		const [group] = await db
+			.select()
+			.from(scalingGroupsTable)
+			.where(eq(scalingGroupsTable.id, groupId))
+
+		if (!group) {
+			throw new Error("Failed to create scaling group")
 		}
 
 		return { success: true, scalingGroup: group }
@@ -289,12 +296,12 @@ export const updateScalingGroupFn = createServerFn({ method: "POST" })
 		}
 
 		// Prevent editing system groups
-		if (existing.isSystem === 1) {
+		if (existing.isSystem) {
 			throw new Error("Cannot edit system scaling groups")
 		}
 
 		// Update the group
-		const [updated] = await db
+		await db
 			.update(scalingGroupsTable)
 			.set({
 				title: data.title,
@@ -302,7 +309,16 @@ export const updateScalingGroupFn = createServerFn({ method: "POST" })
 				updatedAt: new Date(),
 			})
 			.where(eq(scalingGroupsTable.id, data.groupId))
-			.returning()
+
+		// Select back the updated record
+		const [updated] = await db
+			.select()
+			.from(scalingGroupsTable)
+			.where(eq(scalingGroupsTable.id, data.groupId))
+
+		if (!updated) {
+			throw new Error("Failed to update scaling group")
+		}
 
 		return { success: true, scalingGroup: updated }
 	})
@@ -341,7 +357,7 @@ export const deleteScalingGroupFn = createServerFn({ method: "POST" })
 		}
 
 		// Prevent deleting system groups
-		if (existing.isSystem === 1) {
+		if (existing.isSystem) {
 			throw new Error("Cannot delete system scaling groups")
 		}
 
@@ -399,14 +415,23 @@ export const setDefaultScalingGroupFn = createServerFn({ method: "POST" })
 		}
 
 		// Update the team's default scaling group
-		const [team] = await db
+		await db
 			.update(teamTable)
 			.set({
 				defaultScalingGroupId: data.groupId,
 				updatedAt: new Date(),
 			})
 			.where(eq(teamTable.id, data.teamId))
-			.returning()
+
+		// Select back the updated record
+		const [team] = await db
+			.select()
+			.from(teamTable)
+			.where(eq(teamTable.id, data.teamId))
+
+		if (!team) {
+			throw new Error("Failed to update team")
+		}
 
 		return { success: true, team }
 	})

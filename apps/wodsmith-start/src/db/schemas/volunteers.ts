@@ -2,16 +2,20 @@ import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
 import {
 	index,
-	integer,
-	sqliteTable,
-	text,
+	int,
+	mysqlTable,
+	varchar,
+	boolean,
+	datetime,
 	uniqueIndex,
-} from "drizzle-orm/sqlite-core"
+} from "drizzle-orm/mysql-core"
 import {
 	commonColumns,
 	createHeatVolunteerId,
 	createJudgeAssignmentVersionId,
 	createJudgeRotationId,
+	createVolunteerShiftAssignmentId,
+	createVolunteerShiftId,
 } from "./common"
 import { competitionHeatsTable, competitionsTable } from "./competitions"
 import { trackWorkoutsTable } from "./programming"
@@ -31,10 +35,43 @@ export const VOLUNTEER_ROLE_TYPES = {
 	FLOOR_MANAGER: "floor_manager",
 	MEDIA: "media",
 	GENERAL: "general",
+	ATHLETE_CONTROL: "athlete_control",
+	EQUIPMENT_TEAM: "equipment_team",
 } as const
 
 export type VolunteerRoleType =
 	(typeof VOLUNTEER_ROLE_TYPES)[keyof typeof VOLUNTEER_ROLE_TYPES]
+
+// Human-readable labels for volunteer role types
+export const VOLUNTEER_ROLE_LABELS: Record<VolunteerRoleType, string> = {
+	judge: "Judge",
+	head_judge: "Head Judge",
+	equipment: "Equipment",
+	medical: "Medical",
+	check_in: "Check-In",
+	staff: "Staff",
+	scorekeeper: "Scorekeeper",
+	emcee: "Emcee",
+	floor_manager: "Floor Manager",
+	media: "Media",
+	general: "General",
+	athlete_control: "Athlete Control",
+	equipment_team: "Equipment Team",
+}
+
+// All role type values as an array (for zod schemas, dropdowns, etc.)
+export const VOLUNTEER_ROLE_TYPE_VALUES = Object.values(
+	VOLUNTEER_ROLE_TYPES,
+) as [VolunteerRoleType, ...VolunteerRoleType[]]
+
+// Role type options for dropdowns (value + label pairs)
+export const VOLUNTEER_ROLE_OPTIONS: {
+	value: VolunteerRoleType
+	label: string
+}[] = VOLUNTEER_ROLE_TYPE_VALUES.map((value) => ({
+	value,
+	label: VOLUNTEER_ROLE_LABELS[value],
+}))
 
 // Lane shift pattern for judge rotations
 export const LANE_SHIFT_PATTERN = {
@@ -101,34 +138,28 @@ export interface VolunteerMembershipMetadata {
 
 // Judge Assignment Versions Table
 // Tracks published versions of judge assignments for each event
-export const judgeAssignmentVersionsTable = sqliteTable(
+export const judgeAssignmentVersionsTable = mysqlTable(
 	"judge_assignment_versions",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createJudgeAssignmentVersionId())
 			.notNull(),
 		// The event/workout this version is for
-		trackWorkoutId: text()
-			.notNull()
-			.references(() => trackWorkoutsTable.id, { onDelete: "cascade" }),
+		trackWorkoutId: varchar({ length: 255 }).notNull(),
 		// Version number (auto-increments per event)
-		version: integer().notNull(),
+		version: int().notNull(),
 		// When this version was published
-		publishedAt: integer({
-			mode: "timestamp",
-		})
+		publishedAt: datetime()
 			.$defaultFn(() => new Date())
 			.notNull(),
 		// Who published this version (nullable for system-generated)
-		publishedBy: text().references(() => userTable.id, {
-			onDelete: "set null",
-		}),
+		publishedBy: varchar({ length: 255 }),
 		// Optional notes about this version
-		notes: text({ length: 1000 }),
+		notes: varchar({ length: 1000 }),
 		// Whether this is the currently active version for this event
-		isActive: integer({ mode: "boolean" }).notNull().default(false),
+		isActive: boolean().notNull().default(false),
 	},
 	(table) => [
 		index("judge_assignment_versions_workout_idx").on(table.trackWorkoutId),
@@ -146,41 +177,33 @@ export const judgeAssignmentVersionsTable = sqliteTable(
 
 // Judge Heat Assignments Table (formerly Competition Heat Volunteers)
 // Maps volunteers (team memberships with volunteer role) to specific heats
-export const judgeHeatAssignmentsTable = sqliteTable(
+export const judgeHeatAssignmentsTable = mysqlTable(
 	"judge_heat_assignments",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createHeatVolunteerId())
 			.notNull(),
 		// The heat this volunteer is assigned to
-		heatId: text()
-			.notNull()
-			.references(() => competitionHeatsTable.id, { onDelete: "cascade" }),
+		heatId: varchar({ length: 255 }).notNull(),
 		// The team membership (must have volunteer role)
-		membershipId: text()
-			.notNull()
-			.references(() => teamMembershipTable.id, { onDelete: "cascade" }),
+		membershipId: varchar({ length: 255 }).notNull(),
 		// Optional reference to the rotation that generated this assignment
 		// (null for manually created assignments)
 		// IMPORTANT: Keep this - it tracks which rotation generated an assignment
-		rotationId: text().references(() => competitionJudgeRotationsTable.id, {
-			onDelete: "set null",
-		}),
+		rotationId: varchar({ length: 255 }),
 		// Optional reference to the version this assignment belongs to
 		// (nullable for migration - assignments created before versioning)
-		versionId: text().references(() => judgeAssignmentVersionsTable.id, {
-			onDelete: "set null",
-		}),
+		versionId: varchar({ length: 255 }),
 		// Optional lane assignment (for lane judges)
-		laneNumber: integer(),
+		laneNumber: int(),
 		// Position/role for this specific heat (overrides default from metadata)
-		position: text({ length: 50 }).$type<VolunteerRoleType>(),
+		position: varchar({ length: 50 }).$type<VolunteerRoleType>(),
 		// Heat-specific instructions for this volunteer
-		instructions: text({ length: 500 }),
+		instructions: varchar({ length: 500 }),
 		// Whether this assignment was manually overridden (not from rotation/version)
-		isManualOverride: integer({ mode: "boolean" }).notNull().default(false),
+		isManualOverride: boolean().notNull().default(false),
 	},
 	(table) => [
 		index("judge_heat_assignments_heat_idx").on(table.heatId),
@@ -197,39 +220,33 @@ export const judgeHeatAssignmentsTable = sqliteTable(
 
 // Judge Rotations Table
 // Defines rotation patterns for judges across multiple heats
-export const competitionJudgeRotationsTable = sqliteTable(
+export const competitionJudgeRotationsTable = mysqlTable(
 	"competition_judge_rotations",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createJudgeRotationId())
 			.notNull(),
 		// The competition this rotation belongs to
-		competitionId: text()
-			.notNull()
-			.references(() => competitionsTable.id, { onDelete: "cascade" }),
+		competitionId: varchar({ length: 255 }).notNull(),
 		// The event/workout this rotation is for
-		trackWorkoutId: text()
-			.notNull()
-			.references(() => trackWorkoutsTable.id, { onDelete: "cascade" }),
+		trackWorkoutId: varchar({ length: 255 }).notNull(),
 		// The judge (team membership with volunteer role)
-		membershipId: text()
-			.notNull()
-			.references(() => teamMembershipTable.id, { onDelete: "cascade" }),
+		membershipId: varchar({ length: 255 }).notNull(),
 		// Starting heat number (1-indexed)
-		startingHeat: integer().notNull(),
+		startingHeat: int().notNull(),
 		// Starting lane number (1-indexed)
-		startingLane: integer().notNull(),
+		startingLane: int().notNull(),
 		// How many consecutive heats they judge
-		heatsCount: integer().notNull(),
+		heatsCount: int().notNull(),
 		// Lane shift pattern ('stay', 'shift_right')
-		laneShiftPattern: text({ length: 20 })
+		laneShiftPattern: varchar({ length: 20 })
 			.$type<LaneShiftPattern>()
 			.notNull()
 			.default("stay"),
 		// Optional notes/instructions for this rotation
-		notes: text({ length: 500 }),
+		notes: varchar({ length: 500 }),
 	},
 	(table) => [
 		index("competition_judge_rotations_competition_idx").on(
@@ -245,6 +262,69 @@ export const competitionJudgeRotationsTable = sqliteTable(
 	],
 )
 
+// Volunteer Shifts Table
+// Time-based volunteer shifts for non-judge roles (medical, check_in, staff, etc.)
+// Unlike judge rotations (heat-based), these are standalone time slots
+export const volunteerShiftsTable = mysqlTable(
+	"volunteer_shifts",
+	{
+		...commonColumns,
+		id: varchar({ length: 255 })
+			.primaryKey()
+			.$defaultFn(() => createVolunteerShiftId())
+			.notNull(),
+		// The competition this shift belongs to
+		competitionId: varchar({ length: 255 }).notNull(),
+		// Name of the shift (e.g., "Morning Check-In", "Medical Station A")
+		name: varchar({ length: 200 }).notNull(),
+		// Role type for this shift
+		roleType: varchar({ length: 50 }).$type<VolunteerRoleType>().notNull(),
+		// Shift start time
+		startTime: datetime().notNull(),
+		// Shift end time
+		endTime: datetime().notNull(),
+		// Optional location for this shift
+		location: varchar({ length: 200 }),
+		// Maximum number of volunteers for this shift
+		capacity: int().notNull().default(1),
+		// Optional notes/instructions for this shift
+		notes: varchar({ length: 1000 }),
+	},
+	(table) => [
+		index("volunteer_shifts_competition_idx").on(table.competitionId),
+		index("volunteer_shifts_start_time_idx").on(table.startTime),
+	],
+)
+
+// Volunteer Shift Assignments Table
+// Junction table to assign volunteers (team memberships) to shifts
+// A volunteer can be assigned to multiple shifts, and a shift can have multiple volunteers up to its capacity
+export const volunteerShiftAssignmentsTable = mysqlTable(
+	"volunteer_shift_assignments",
+	{
+		...commonColumns,
+		id: varchar({ length: 255 })
+			.primaryKey()
+			.$defaultFn(() => createVolunteerShiftAssignmentId())
+			.notNull(),
+		// The shift this assignment is for
+		shiftId: varchar({ length: 255 }).notNull(),
+		// The team membership (volunteer) being assigned
+		membershipId: varchar({ length: 255 }).notNull(),
+		// Optional notes/instructions for this specific assignment
+		notes: varchar({ length: 500 }),
+	},
+	(table) => [
+		index("volunteer_shift_assignments_shift_idx").on(table.shiftId),
+		index("volunteer_shift_assignments_membership_idx").on(table.membershipId),
+		// Ensure a volunteer can only be assigned once per shift
+		uniqueIndex("volunteer_shift_assignments_unique_idx").on(
+			table.shiftId,
+			table.membershipId,
+		),
+	],
+)
+
 // Type exports
 export type JudgeAssignmentVersion = InferSelectModel<
 	typeof judgeAssignmentVersionsTable
@@ -254,6 +334,10 @@ export type JudgeHeatAssignment = InferSelectModel<
 >
 export type CompetitionJudgeRotation = InferSelectModel<
 	typeof competitionJudgeRotationsTable
+>
+export type VolunteerShift = InferSelectModel<typeof volunteerShiftsTable>
+export type VolunteerShiftAssignment = InferSelectModel<
+	typeof volunteerShiftAssignmentsTable
 >
 
 // Legacy type aliases for backward compatibility
@@ -298,22 +382,9 @@ export const judgeHeatAssignmentsRelations = relations(
 	}),
 )
 
-// Reverse relation: heats can have many judge assignments
-export const competitionHeatsJudgeAssignmentsReverseRelations = relations(
-	competitionHeatsTable,
-	({ many }) => ({
-		judgeAssignments: many(judgeHeatAssignmentsTable),
-	}),
-)
-
-// Reverse relation: team memberships can have judge assignments
-export const teamMembershipJudgeAssignmentsReverseRelations = relations(
-	teamMembershipTable,
-	({ many }) => ({
-		judgeAssignments: many(judgeHeatAssignmentsTable),
-		judgeRotations: many(competitionJudgeRotationsTable),
-	}),
-)
+// Note: Reverse relations for competitionHeatsTable and teamMembershipTable
+// are merged into their primary definitions in competitions.ts and teams.ts
+// volunteerShiftAssignments reverse relation is also included there
 
 // Judge rotations relations
 export const competitionJudgeRotationsRelations = relations(
@@ -334,19 +405,33 @@ export const competitionJudgeRotationsRelations = relations(
 	}),
 )
 
-// Reverse relation: competitions can have judge rotations
-export const competitionsJudgeRotationsReverseRelations = relations(
-	competitionsTable,
-	({ many }) => ({
-		judgeRotations: many(competitionJudgeRotationsTable),
+// Note: Reverse relations for competitionsTable and trackWorkoutsTable
+// are merged into their primary definitions in competitions.ts and programming.ts
+// volunteerShifts reverse relation is also included there
+
+// Volunteer shifts relations
+export const volunteerShiftsRelations = relations(
+	volunteerShiftsTable,
+	({ one, many }) => ({
+		competition: one(competitionsTable, {
+			fields: [volunteerShiftsTable.competitionId],
+			references: [competitionsTable.id],
+		}),
+		assignments: many(volunteerShiftAssignmentsTable),
 	}),
 )
 
-// Reverse relation: track workouts can have judge rotations and versions
-export const trackWorkoutsJudgeSystemReverseRelations = relations(
-	trackWorkoutsTable,
-	({ many }) => ({
-		judgeRotations: many(competitionJudgeRotationsTable),
-		judgeAssignmentVersions: many(judgeAssignmentVersionsTable),
+// Volunteer shift assignments relations
+export const volunteerShiftAssignmentsRelations = relations(
+	volunteerShiftAssignmentsTable,
+	({ one }) => ({
+		shift: one(volunteerShiftsTable, {
+			fields: [volunteerShiftAssignmentsTable.shiftId],
+			references: [volunteerShiftsTable.id],
+		}),
+		membership: one(teamMembershipTable, {
+			fields: [volunteerShiftAssignmentsTable.membershipId],
+			references: [teamMembershipTable.id],
+		}),
 	}),
 )

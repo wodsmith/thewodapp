@@ -35,6 +35,7 @@ export const Route = createFileRoute("/compete/$slug/my-schedule")({
 				competition,
 				membership: null,
 				events: [],
+				shifts: [],
 				volunteerMetadata: null,
 				hasTeam: false,
 				hasScoreAccess: false,
@@ -54,14 +55,15 @@ export const Route = createFileRoute("/compete/$slug/my-schedule")({
 				competition,
 				membership: null,
 				events: [],
+				shifts: [],
 				volunteerMetadata: null,
 				hasTeam: true,
 				hasScoreAccess: false,
 			}
 		}
 
-		// Get enriched rotations for the volunteer's schedule
-		const [{ events }, hasScoreAccess] = await Promise.all([
+		// Get enriched rotations and shifts for the volunteer's schedule
+		const [{ events, shifts }, hasScoreAccess] = await Promise.all([
 			getVolunteerScheduleDataFn({
 				data: {
 					membershipId: membership.id,
@@ -80,6 +82,7 @@ export const Route = createFileRoute("/compete/$slug/my-schedule")({
 			competition,
 			membership,
 			events,
+			shifts,
 			volunteerMetadata,
 			hasTeam: true,
 			hasScoreAccess,
@@ -110,6 +113,7 @@ function MySchedulePage() {
 		competition,
 		membership,
 		events,
+		shifts,
 		volunteerMetadata,
 		hasTeam,
 		hasScoreAccess,
@@ -162,6 +166,7 @@ function MySchedulePage() {
 				{hasTeam && membership && (
 					<ScheduleView
 						events={events}
+						shifts={shifts}
 						competitionName={competition.name}
 						volunteerMetadata={volunteerMetadata}
 						membershipId={membership.id}

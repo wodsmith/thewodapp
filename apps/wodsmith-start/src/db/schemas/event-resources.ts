@@ -1,6 +1,6 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import { index, int, mysqlTable, text, varchar } from "drizzle-orm/mysql-core"
 import { commonColumns, createEventResourceId } from "./common"
 import { trackWorkoutsTable } from "./programming"
 
@@ -13,28 +13,24 @@ import { trackWorkoutsTable } from "./programming"
  *
  * Each event can have multiple resources, ordered by sortOrder.
  */
-export const eventResourcesTable = sqliteTable(
+export const eventResourcesTable = mysqlTable(
 	"event_resources",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createEventResourceId())
 			.notNull(),
 		// Foreign key to track_workout (competition event)
-		eventId: text()
-			.notNull()
-			.references(() => trackWorkoutsTable.id, {
-				onDelete: "cascade",
-			}),
+		eventId: varchar({ length: 255 }).notNull(),
 		// Title is required
-		title: text({ length: 255 }).notNull(),
+		title: varchar({ length: 255 }).notNull(),
 		// Description is optional, supports markdown formatting
-		description: text({ length: 5000 }),
+		description: text(),
 		// URL is optional, for video links, external resources, etc.
-		url: text({ length: 2048 }),
+		url: varchar({ length: 2048 }),
 		// Sort order for display (1, 2, 3...)
-		sortOrder: integer().notNull().default(1),
+		sortOrder: int().notNull().default(1),
 	},
 	(table) => [
 		// Index for efficient lookup by event

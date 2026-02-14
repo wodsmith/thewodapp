@@ -355,7 +355,7 @@ export const getUserCompetitionRegistrationFn = createServerFn({
 			.where(
 				and(
 					eq(teamMembershipTable.userId, data.userId),
-					eq(teamMembershipTable.isActive, 1),
+					eq(teamMembershipTable.isActive, true),
 				),
 			)
 
@@ -473,7 +473,7 @@ export const checkCanManageCompetitionFn = createServerFn({ method: "GET" })
 				and(
 					eq(teamMembershipTable.teamId, data.organizingTeamId),
 					eq(teamMembershipTable.userId, data.userId),
-					eq(teamMembershipTable.isActive, 1),
+					eq(teamMembershipTable.isActive, true),
 				),
 			)
 			.limit(1)
@@ -512,8 +512,8 @@ export const checkIsVolunteerFn = createServerFn({ method: "GET" })
 					eq(teamMembershipTable.teamId, data.competitionTeamId),
 					eq(teamMembershipTable.userId, data.userId),
 					eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
-					eq(teamMembershipTable.isSystemRole, 1),
-					eq(teamMembershipTable.isActive, 1),
+					eq(teamMembershipTable.isSystemRole, true),
+					eq(teamMembershipTable.isActive, true),
 				),
 			)
 			.limit(1)
@@ -618,7 +618,7 @@ export const getOrganizerRegistrationsFn = createServerFn({ method: "GET" })
 									userId: true,
 									joinedAt: true,
 								},
-								where: eq(teamMembershipTable.isActive, 1),
+								where: eq(teamMembershipTable.isActive, true),
 								with: {
 									user: {
 										columns: {
@@ -759,7 +759,7 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
 			// Exclude those with acceptedAt set (user with account has claimed the invite)
 			const pendingInvites: PendingTeammateInvite[] = []
 
-			// Query each team's invitations (D1 doesn't support large IN arrays well)
+			// Query each team's invitations (batched for large IN arrays)
 			for (const teamId of athleteTeamIds) {
 				const invitations = await db.query.teamInvitationTable.findMany({
 					where: and(

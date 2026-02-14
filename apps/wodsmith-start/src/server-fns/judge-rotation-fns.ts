@@ -501,19 +501,27 @@ async function createRotationInternal(params: {
 		}
 	}
 
-	const [rotation] = await db
-		.insert(competitionJudgeRotationsTable)
-		.values({
-			competitionId: params.competitionId,
-			trackWorkoutId: params.trackWorkoutId,
-			membershipId: params.membershipId,
-			startingHeat: params.startingHeat,
-			startingLane: params.startingLane,
-			heatsCount: params.heatsCount,
-			laneShiftPattern,
-			notes: params.notes ?? null,
-		})
-		.returning()
+	// Generate ID first
+	const { createJudgeRotationId } = await import("@/db/schemas/common")
+	const id = createJudgeRotationId()
+
+	// Insert without returning
+	await db.insert(competitionJudgeRotationsTable).values({
+		id,
+		competitionId: params.competitionId,
+		trackWorkoutId: params.trackWorkoutId,
+		membershipId: params.membershipId,
+		startingHeat: params.startingHeat,
+		startingLane: params.startingLane,
+		heatsCount: params.heatsCount,
+		laneShiftPattern,
+		notes: params.notes ?? null,
+	})
+
+	// Select back
+	const rotation = await db.query.competitionJudgeRotationsTable.findFirst({
+		where: eq(competitionJudgeRotationsTable.id, id),
+	})
 
 	if (!rotation) {
 		throw new Error("Failed to create judge rotation")
@@ -868,11 +876,16 @@ export const updateJudgeRotationFn = createServerFn({ method: "POST" })
 			updateData.notes = data.notes
 		}
 
-		const [updated] = await db
+		// Update without returning
+		await db
 			.update(competitionJudgeRotationsTable)
 			.set(updateData)
 			.where(eq(competitionJudgeRotationsTable.id, data.rotationId))
-			.returning()
+
+		// Select back
+		const updated = await db.query.competitionJudgeRotationsTable.findFirst({
+			where: eq(competitionJudgeRotationsTable.id, data.rotationId),
+		})
 
 		if (!updated) {
 			throw new Error("Rotation not found or update failed")
@@ -1197,11 +1210,9 @@ export const deleteVolunteerRotationsFn = createServerFn({ method: "POST" })
 			await deleteRotationInternal(rotation.id, data.teamId)
 		}
 
-		const result = rotationsToDelete
-
 		return {
 			success: true,
-			data: { deletedCount: result.length },
+			data: { deletedCount: rotationsToDelete.length },
 		}
 	})
 
@@ -1370,7 +1381,7 @@ export const adjustRotationsForOccupiedLanesFn = createServerFn({
 			}
 
 			// Create new rotations FIRST to avoid data loss if creation fails
-			// (D1 doesn't support transactions, so we build replacements before deleting)
+			// Build replacements before deleting
 			for (const newRot of newRotations) {
 				await createRotationInternal({
 					teamId: data.teamId,

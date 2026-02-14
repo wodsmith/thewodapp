@@ -1,5 +1,3 @@
-import React from "react"
-
 export function DefaultTemplate() {
 	return (
 		<div
@@ -60,6 +58,7 @@ export function DefaultTemplate() {
 			{/* Logo */}
 			<img
 				src="https://wodsmith.com/wodsmith-logo-1000.png"
+				alt=""
 				width={160}
 				height={160}
 				style={{ marginBottom: "32px", position: "relative" }}

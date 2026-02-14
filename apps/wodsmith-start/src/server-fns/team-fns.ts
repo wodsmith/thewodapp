@@ -300,7 +300,7 @@ export const getActiveTeamFn = createServerFn({ method: "GET" })
 			.where(
 				and(
 					eq(teamMembershipTable.userId, data.userId),
-					eq(teamMembershipTable.isActive, 1),
+					eq(teamMembershipTable.isActive, true),
 				),
 			)
 			.orderBy(desc(teamMembershipTable.joinedAt))

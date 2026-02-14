@@ -1,6 +1,6 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import { datetime, index, mysqlTable, varchar } from "drizzle-orm/mysql-core"
 import { commonColumns, createOrganizerRequestId } from "./common"
 import { teamTable } from "./teams"
 import { userTable } from "./users"
@@ -16,28 +16,24 @@ export type OrganizerRequestStatus =
 	(typeof ORGANIZER_REQUEST_STATUS)[keyof typeof ORGANIZER_REQUEST_STATUS]
 
 // Organizer request table - tracks requests to become a competition organizer
-export const organizerRequestTable = sqliteTable(
-	"organizer_request",
+export const organizerRequestTable = mysqlTable(
+	"organizer_requests",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createOrganizerRequestId())
 			.notNull(),
-		teamId: text()
-			.notNull()
-			.references(() => teamTable.id, { onDelete: "cascade" }),
-		userId: text()
-			.notNull()
-			.references(() => userTable.id, { onDelete: "cascade" }),
-		reason: text({ length: 2000 }).notNull(),
-		status: text({ length: 20 })
+		teamId: varchar({ length: 255 }).notNull(),
+		userId: varchar({ length: 255 }).notNull(),
+		reason: varchar({ length: 2000 }).notNull(),
+		status: varchar({ length: 20 })
 			.$type<OrganizerRequestStatus>()
 			.default("pending")
 			.notNull(),
-		adminNotes: text({ length: 2000 }),
-		reviewedBy: text().references(() => userTable.id),
-		reviewedAt: integer({ mode: "timestamp" }),
+		adminNotes: varchar({ length: 2000 }),
+		reviewedBy: varchar({ length: 255 }),
+		reviewedAt: datetime(),
 	},
 	(table) => [
 		index("organizer_request_team_idx").on(table.teamId),

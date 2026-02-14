@@ -69,7 +69,7 @@ const teamTabs = [
 
 function getTeamTypeBadge(team: {
 	type: string | null
-	isPersonalTeam: number
+	isPersonalTeam: boolean
 }) {
 	if (team.isPersonalTeam) {
 		return (

@@ -528,7 +528,7 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
 				)
 			: registrations
 
-		// Get existing scores for this event from scores table (chunked to avoid D1 parameter limit)
+		// Get existing scores for this event from scores table (chunked to avoid parameter limit)
 		const userIds = filteredRegistrations.map((r) => r.user.id)
 		const existingScores =
 			userIds.length > 0
@@ -547,7 +547,7 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
 					)
 				: []
 
-		// Get score_rounds for all existing scores (chunked to avoid D1 parameter limit)
+		// Get score_rounds for all existing scores (chunked to avoid parameter limit)
 		const scoreIds = existingScores.map((s) => s.id)
 		const existingRounds =
 			scoreIds.length > 0
@@ -1022,8 +1022,7 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 					asRx: true,
 					recordedAt: new Date(),
 				})
-				.onConflictDoUpdate({
-					target: [scoresTable.competitionEventId, scoresTable.userId],
+				.onDuplicateKeyUpdate({
 					set: {
 						scoreValue: encodedValue,
 						status: newStatus,

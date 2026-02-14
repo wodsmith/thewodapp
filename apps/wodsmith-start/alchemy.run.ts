@@ -87,14 +87,13 @@
  */
 
 import alchemy from "alchemy"
-import {
-	D1Database,
-	KVNamespace,
-	R2Bucket,
-	TanStackStart,
-} from "alchemy/cloudflare"
+import { D1Database, KVNamespace, R2Bucket, TanStackStart } from "alchemy/cloudflare"
 import { GitHubComment } from "alchemy/github"
 import { CloudflareStateStore } from "alchemy/state"
+import {
+	Branch as PlanetScaleBranch,
+	Password as PlanetScalePassword,
+} from "alchemy/planetscale"
 import { WebhookEndpoint } from "alchemy/stripe"
 
 /**
@@ -221,17 +220,64 @@ const app = await alchemy("wodsmith", {
  *
  * @see {@link https://developers.cloudflare.com/d1/ D1 Documentation}
  */
-const db = await D1Database("db", {
-	/**
-	 * Directory containing Drizzle migration SQL files.
-	 * Migrations are applied in filename order on each deployment.
-	 */
-	migrationsDir: "./src/db/migrations",
+// @ts-ignore -- keeping D1 resource during PlanetScale migration
+const _db = await D1Database("db", {
 	/**
 	 * Adopt existing D1 database if it already exists.
 	 * Required for production where resources were created before Alchemy.
 	 */
 	adopt: true,
+})
+
+/**
+ * PlanetScale MySQL database configuration.
+ *
+ * Single shared database across all stages — branches provide isolation.
+ * We pass the database name as a string to avoid Alchemy appending
+ * the stage suffix (e.g. "wodsmith-db-demo").
+ *
+ * @remarks
+ * **Environment variables required:**
+ * - `PLANETSCALE_SERVICE_TOKEN_ID`: PlanetScale service token ID
+ * - `PLANETSCALE_SERVICE_TOKEN`: PlanetScale service token secret
+ * - `PLANETSCALE_ORGANIZATION`: PlanetScale organization name
+ *
+ * @see {@link https://planetscale.com/docs PlanetScale Documentation}
+ */
+const psDbName = "wodsmith-db"
+const psOrg = process.env.PLANETSCALE_ORGANIZATION ?? "wodsmith"
+
+/**
+ * PlanetScale branch hierarchy:
+ * - prod  → "main" (production branch, no Branch resource needed)
+ * - dev   → branches off main
+ * - demo  → branches off main (parallel to dev)
+ * - pr-N  → uses "dev" branch directly (no per-PR branch creation)
+ */
+const branchConfig: Record<string, { name: string; parent: string }> = {
+	dev: { name: "dev", parent: "main" },
+	demo: { name: "demo", parent: "main" },
+}
+
+const isPrStage = stage.startsWith("pr-")
+const psBranchName = stage === "prod" ? "main" : (branchConfig[stage]?.name ?? (isPrStage ? "dev" : stage))
+const psBranch =
+	stage === "prod" || isPrStage
+		? undefined
+		: await PlanetScaleBranch(`ps-branch-${stage}`, {
+				organization: psOrg,
+				database: psDbName,
+				name: psBranchName,
+				parentBranch: branchConfig[stage]?.parent ?? "main",
+				isProduction: false,
+				adopt: true,
+			})
+
+const psPassword = await PlanetScalePassword(`ps-password-${stage}`, {
+	organization: psOrg,
+	database: psDbName,
+	branch: psBranch ?? psBranchName,
+	role: "admin",
 })
 
 /**
@@ -479,8 +525,6 @@ const website = await TanStackStart("app", {
 	 * - Values wrapped in `alchemy.secret()` become encrypted secrets
 	 */
 	bindings: {
-		/** D1 database binding for application data */
-		DB: db,
 		/** KV namespace binding for session storage */
 		KV_SESSION: kvSession,
 		/** R2 bucket binding for file uploads */
@@ -538,6 +582,11 @@ const website = await TanStackStart("app", {
 		...(process.env.BRAINTRUST_API_KEY && {
 			BRAINTRUST_API_KEY: alchemy.secret(process.env.BRAINTRUST_API_KEY),
 		}),
+
+		// PlanetScale database connection (managed by Alchemy)
+		DATABASE_URL: alchemy.secret(
+			`mysql://${psPassword.username}:${psPassword.password.unencrypted}@${psPassword.host}/${psDbName}?ssl={"rejectUnauthorized":true}`,
+		),
 
 		// Stripe env vars are populated for all environments when available
 		...(hasStripeEnv && {

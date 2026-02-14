@@ -372,17 +372,20 @@ export const createEventResourceFn = createServerFn({ method: "POST" })
 		// Normalize empty string URL to null
 		const url = data.url === "" ? null : data.url
 
-		const [resource] = await db
-			.insert(eventResourcesTable)
-			.values({
-				id: createEventResourceId(),
-				eventId: data.eventId,
-				title: data.title,
-				description: data.description ?? null,
-				url: url ?? null,
-				sortOrder,
-			})
-			.returning()
+		// Generate ID first, insert, then select back
+		const id = createEventResourceId()
+		await db.insert(eventResourcesTable).values({
+			id,
+			eventId: data.eventId,
+			title: data.title,
+			description: data.description ?? null,
+			url: url ?? null,
+			sortOrder,
+		})
+
+		const resource = await db.query.eventResourcesTable.findFirst({
+			where: eq(eventResourcesTable.id, id),
+		})
 
 		if (!resource) {
 			throw new Error("Failed to create resource")

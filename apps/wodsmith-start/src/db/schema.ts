@@ -23,12 +23,5 @@ export * from "./schemas/volunteers"
 export * from "./schemas/waivers"
 export * from "./schemas/workouts"
 
-// Cross-schema relations to ensure proper relation names and avoid conflicts
-import { relations } from "drizzle-orm"
-import { programmingTracksTable } from "./schemas/programming"
-import { teamTable } from "./schemas/teams"
-
-// Team reverse relations for programming tracks
-export const teamReverseRelations = relations(teamTable, ({ many }) => ({
-	programmingTracks: many(programmingTracksTable),
-}))
+// Note: Cross-schema relations have been merged into their primary definitions
+// teamTable relations (including programmingTracks) are in schemas/teams.ts
