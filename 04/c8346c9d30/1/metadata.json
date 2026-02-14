@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "04c8346c9d30",
+  "session_id": "ee520aa7-a751-4c55-801e-5de0607a85b0",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-14T06:38:27.385548Z",
+  "branch": "zac/correct-stripe-fees",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "apps/wodsmith-start/src/components/landing/compete-hero.tsx",
+    "hero-check.png",
+    "hero-top.png",
+    "hero-v2.png"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "baa6b416-a618-47b9-8a4e-b868031ce3fe",
+  "token_usage": {
+    "input_tokens": 2623,
+    "cache_creation_tokens": 56229,
+    "cache_read_tokens": 2367828,
+    "output_tokens": 3050,
+    "api_call_count": 39
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-14T06:38:27.166354Z",
+    "agent_lines": 0,
+    "human_added": 857,
+    "human_modified": 16,
+    "human_removed": 0,
+    "total_committed": 873,
+    "agent_percentage": 0
+  }
+}

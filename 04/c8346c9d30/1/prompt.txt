@@ -1,0 +1,33 @@
+please install and implement this shader preset into the homepage header of the website with proper brand colors import {
+  Shader,
+  Circle,
+  FilmGrain,
+  SolidColor,
+  Swirl
+} from 'shaders/react' import {
+  Shader,
+  Circle,
+  FilmGrain,
+  SolidColor,
+  Swirl
+} from 'shaders/react'
+
+---
+
+why dont I see it in compete-hero?
+
+---
+
+kill that dev server
+
+---
+
+please figure out why the shader isn't rendering.....
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+dev server is already running dummy
