@@ -263,8 +263,8 @@ describe('Workout Sets Server Functions', () => {
 
   describe('getMultipleWorkoutResultSetsFn', () => {
     it('returns sets for multiple scores', async () => {
-      // Mock for first score
       const score1 = createTestScore({id: 'score-1', scheme: 'reps'})
+      const score2 = createTestScore({id: 'score-2', scheme: 'reps'})
       const rounds1 = [
         createTestScoreRound({
           scoreId: 'score-1',
@@ -272,9 +272,6 @@ describe('Workout Sets Server Functions', () => {
           value: 10,
         }),
       ]
-
-      // Mock for second score
-      const score2 = createTestScore({id: 'score-2', scheme: 'reps'})
       const rounds2 = [
         createTestScoreRound({
           scoreId: 'score-2',
@@ -288,18 +285,15 @@ describe('Workout Sets Server Functions', () => {
         }),
       ]
 
-      const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+      const whereMock = mockDb.getChainMock().where as ReturnType<typeof vi.fn>
       const orderByMock = mockDb.getChainMock().orderBy as ReturnType<
         typeof vi.fn
       >
 
-      // First call for score-1
-      limitMock.mockResolvedValueOnce([score1])
-      orderByMock.mockResolvedValueOnce(rounds1)
-
-      // Second call for score-2
-      limitMock.mockResolvedValueOnce([score2])
-      orderByMock.mockResolvedValueOnce(rounds2)
+      // First query: batch fetch parent scores
+      whereMock.mockResolvedValueOnce([score1, score2])
+      // Second query: batch fetch all rounds (where returns chainable, orderBy is terminal)
+      orderByMock.mockResolvedValueOnce([...rounds1, ...rounds2])
 
       const result = await getMultipleWorkoutResultSetsFn({
         data: {scoreIds: ['score-1', 'score-2']},
@@ -330,17 +324,15 @@ describe('Workout Sets Server Functions', () => {
         }),
       ]
 
-      const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+      const whereMock = mockDb.getChainMock().where as ReturnType<typeof vi.fn>
       const orderByMock = mockDb.getChainMock().orderBy as ReturnType<
         typeof vi.fn
       >
 
-      // First call for score-1 succeeds
-      limitMock.mockResolvedValueOnce([score1])
+      // Batch fetch parent scores - only score-1 exists
+      whereMock.mockResolvedValueOnce([score1])
+      // Batch fetch rounds - only rounds for score-1
       orderByMock.mockResolvedValueOnce(rounds1)
-
-      // Second call for score-missing fails (not found)
-      limitMock.mockResolvedValueOnce([])
 
       const result = await getMultipleWorkoutResultSetsFn({
         data: {scoreIds: ['score-1', 'score-missing']},

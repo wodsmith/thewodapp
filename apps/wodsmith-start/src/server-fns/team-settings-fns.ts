@@ -422,10 +422,8 @@ export const deleteTeamFn = createServerFn({ method: "POST" })
 		// Delete team and related data
 		await db.delete(teamTable).where(eq(teamTable.id, data.teamId))
 
-		// Update sessions for all affected users
-		for (const userId of userIds) {
-			await updateAllSessionsOfUser(userId)
-		}
+		// Update sessions for all affected users in parallel
+		await Promise.all(userIds.map((userId) => updateAllSessionsOfUser(userId)))
 
 		return { success: true }
 	})

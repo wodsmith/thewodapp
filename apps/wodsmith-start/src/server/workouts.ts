@@ -14,7 +14,6 @@ import {
 	workouts,
 	workoutTags,
 } from "@/db/schemas/workouts"
-import { autochunk } from "@/utils/batch-query"
 
 /**
  * Get workouts for a team with optional search and filtering
@@ -199,19 +198,15 @@ async function fetchTagsByWorkoutId(
 ): Promise<Map<string, Array<{ id: string; name: string }>>> {
 	if (workoutIds.length === 0) return new Map()
 
-	const workoutTagsData = await autochunk(
-		{ items: workoutIds },
-		async (chunk) =>
-			db
-				.select({
-					workoutId: workoutTags.workoutId,
-					tagId: tags.id,
-					tagName: tags.name,
-				})
-				.from(workoutTags)
-				.innerJoin(tags, eq(workoutTags.tagId, tags.id))
-				.where(inArray(workoutTags.workoutId, chunk)),
-	)
+	const workoutTagsData = await db
+		.select({
+			workoutId: workoutTags.workoutId,
+			tagId: tags.id,
+			tagName: tags.name,
+		})
+		.from(workoutTags)
+		.innerJoin(tags, eq(workoutTags.tagId, tags.id))
+		.where(inArray(workoutTags.workoutId, workoutIds))
 
 	const tagsByWorkoutId = new Map<string, Array<{ id: string; name: string }>>()
 
@@ -237,20 +232,16 @@ async function fetchMovementsByWorkoutId(
 ): Promise<Map<string, Array<{ id: string; name: string; type: string }>>> {
 	if (workoutIds.length === 0) return new Map()
 
-	const workoutMovementsData = await autochunk(
-		{ items: workoutIds },
-		async (chunk) =>
-			db
-				.select({
-					workoutId: workoutMovements.workoutId,
-					movementId: movements.id,
-					movementName: movements.name,
-					movementType: movements.type,
-				})
-				.from(workoutMovements)
-				.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
-				.where(inArray(workoutMovements.workoutId, chunk)),
-	)
+	const workoutMovementsData = await db
+		.select({
+			workoutId: workoutMovements.workoutId,
+			movementId: movements.id,
+			movementName: movements.name,
+			movementType: movements.type,
+		})
+		.from(workoutMovements)
+		.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
+		.where(inArray(workoutMovements.workoutId, workoutIds))
 
 	const movementsByWorkoutId = new Map<
 		string,
