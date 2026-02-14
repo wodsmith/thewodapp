@@ -497,23 +497,15 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			organizingTeam?.stripeConnectedAccountId &&
 			organizingTeam.stripeAccountStatus === "VERIFIED"
 		) {
-			// With destination charges, Stripe fees are charged to the connected account.
-			// We need to calculate application_fee such that after Stripe's fee,
-			// the organizer receives exactly organizerNetCents.
+			// With destination charges, Stripe fees are charged to the PLATFORM account,
+			// not the connected account. The connected account receives
+			// (totalCharge - applicationFee) with no additional Stripe fee deduction.
 			//
-			// Formula: organizer_net = connected_receives - stripe_fee_on_connected
-			// Where: stripe_fee = connected_receives * 2.9% + $0.30
-			// Solving for connected_receives:
-			//   connected_receives = (organizer_net + 30) / 0.971
-			// Then: application_fee = total_charge - connected_receives
-			const stripeRate = 0.029
-			const stripeFixedCents = 30
-			const connectedAccountReceives = Math.ceil(
-				(feeBreakdown.organizerNetCents + stripeFixedCents) / (1 - stripeRate),
-			)
+			// So: applicationFee = totalCharge - organizerNet
+			// Platform net after Stripe fee = applicationFee - stripeFee = platformFee
 			const applicationFeeAmount = Math.max(
 				0,
-				feeBreakdown.totalChargeCents - connectedAccountReceives,
+				feeBreakdown.totalChargeCents - feeBreakdown.organizerNetCents,
 			)
 
 			sessionParams.payment_intent_data = {
