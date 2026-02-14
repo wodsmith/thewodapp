@@ -2,8 +2,6 @@ import {describe, expect, it} from 'vitest'
 import {
   buildFeeConfig,
   calculateCompetitionFees,
-  PLATFORM_DEFAULTS,
-  type TeamFeeOverrides,
 } from '@/server/commerce/utils'
 import type {FeeBreakdown, FeeConfiguration} from '@/server/commerce/fee-calculator'
 
