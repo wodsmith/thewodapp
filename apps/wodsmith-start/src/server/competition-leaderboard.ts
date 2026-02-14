@@ -194,16 +194,22 @@ interface HeatAssignmentInfo {
  *
  * A workout is relevant to a division if:
  * 1. A heat exists with divisionId matching the target division, OR
- * 2. A mixed heat (divisionId=null) has at least one assignment from that division
+ * 2. A mixed heat (divisionId=null) has at least one assignment from that division, OR
+ * 3. The workout has scores from athletes registered in that division
  *
- * Returns null if no heats exist (backward compat: show all workouts).
+ * Returns null if no heats exist and no scored workout IDs provided (backward compat).
  */
 export function getRelevantWorkoutIds(params: {
 	heats: HeatInfo[]
 	mixedHeatAssignments: HeatAssignmentInfo[]
 	divisionId: string
+	workoutIdsWithScores: Set<string>
 }): Set<string> | null {
-	if (params.heats.length === 0) return null
+	if (
+		params.heats.length === 0 &&
+		params.workoutIdsWithScores.size === 0
+	)
+		return null
 
 	// Workouts with division-specific heats matching selected division
 	const relevant = new Set(
@@ -224,6 +230,11 @@ export function getRelevantWorkoutIds(params: {
 			const twId = heatIdToWorkout.get(assignment.heatId)
 			if (twId) relevant.add(twId)
 		}
+	}
+
+	// Include workouts that have scores for this division
+	for (const twId of params.workoutIdsWithScores) {
+		relevant.add(twId)
 	}
 
 	return relevant
@@ -293,23 +304,61 @@ export async function getCompetitionLeaderboard(params: {
 		return { entries: [], scoringConfig, events: [] }
 	}
 
-	// Filter workouts by division heat assignments when a division is selected.
-	// If a division has no heats for a workout, that workout shouldn't appear
-	// on that division's leaderboard. If no heats exist at all, show everything.
+	// Filter workouts by division relevance when a division is selected.
+	// A workout is relevant if it has heats OR scores for the division.
 	let filteredTrackWorkouts = trackWorkouts
 	if (params.divisionId) {
 		const trackWorkoutIds = trackWorkouts.map((tw) => tw.id)
-		const heatsForWorkouts = await autochunk(
-			{ items: trackWorkoutIds, otherParametersCount: 0 },
-			async (chunk) =>
-				db
-					.select({
-						id: competitionHeatsTable.id,
-						trackWorkoutId: competitionHeatsTable.trackWorkoutId,
-						divisionId: competitionHeatsTable.divisionId,
-					})
-					.from(competitionHeatsTable)
-					.where(inArray(competitionHeatsTable.trackWorkoutId, chunk)),
+
+		// Query heats and scores for division in parallel
+		const [heatsForWorkouts, scoredWorkoutRows] = await Promise.all([
+			autochunk(
+				{ items: trackWorkoutIds, otherParametersCount: 0 },
+				async (chunk) =>
+					db
+						.select({
+							id: competitionHeatsTable.id,
+							trackWorkoutId: competitionHeatsTable.trackWorkoutId,
+							divisionId: competitionHeatsTable.divisionId,
+						})
+						.from(competitionHeatsTable)
+						.where(inArray(competitionHeatsTable.trackWorkoutId, chunk)),
+			),
+			// Find workouts that have scores from athletes in this division
+			autochunk(
+				{ items: trackWorkoutIds, otherParametersCount: 1 },
+				async (chunk) =>
+					db
+						.selectDistinct({
+							competitionEventId: scoresTable.competitionEventId,
+						})
+						.from(scoresTable)
+						.innerJoin(
+							competitionRegistrationsTable,
+							and(
+								eq(scoresTable.userId, competitionRegistrationsTable.userId),
+								eq(
+									competitionRegistrationsTable.eventId,
+									params.competitionId,
+								),
+							),
+						)
+						.where(
+							and(
+								inArray(scoresTable.competitionEventId, chunk),
+								eq(
+									competitionRegistrationsTable.divisionId,
+									params.divisionId!,
+								),
+							),
+						),
+			),
+		])
+
+		const workoutIdsWithScores = new Set(
+			scoredWorkoutRows
+				.map((r) => r.competitionEventId)
+				.filter((id): id is string => id !== null),
 		)
 
 		// Fetch assignments for mixed heats (divisionId=null)
@@ -345,6 +394,7 @@ export async function getCompetitionLeaderboard(params: {
 			heats: heatsForWorkouts,
 			mixedHeatAssignments,
 			divisionId: params.divisionId,
+			workoutIdsWithScores,
 		})
 
 		if (relevantIds) {
