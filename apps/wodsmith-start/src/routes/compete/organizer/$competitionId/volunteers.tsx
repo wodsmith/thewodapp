@@ -21,14 +21,17 @@ import {
 	getCompetitionVolunteersFn,
 	getDirectVolunteerInvitesFn,
 	getPendingVolunteerInvitationsFn,
+	getVolunteerAssignmentsFn,
 } from "@/server-fns/volunteer-fns"
+import { getCompetitionShiftsFn } from "@/server-fns/volunteer-shift-fns"
 import { InvitedVolunteersList } from "./-components/invited-volunteers-list"
 import { JudgeSchedulingContainer } from "./-components/judges"
+import { ShiftList } from "./-components/shifts/shift-list"
 import { VolunteersList } from "./-components/volunteers-list"
 
 // Search params schema for tab navigation and event selection
 const searchParamsSchema = z.object({
-	tab: z.enum(["roster", "schedule"]).optional().default("roster"),
+	tab: z.enum(["roster", "shifts", "schedule"]).optional().default("roster"),
 	event: z.string().optional(),
 })
 
@@ -60,43 +63,41 @@ export const Route = createFileRoute(
 
 		const competitionTeamId = competition.competitionTeamId
 
-		// Parallel fetch: invitations, volunteers, events, direct invites, judges
-		const [invitations, volunteers, eventsResult, directInvites, judges] =
-			await Promise.all([
-				getPendingVolunteerInvitationsFn({
-					data: { competitionTeamId },
-				}),
-				getCompetitionVolunteersFn({
-					data: { competitionTeamId },
-				}),
-				getCompetitionWorkoutsFn({
-					data: {
-						competitionId: competition.id,
-						teamId: competition.organizingTeamId,
-					},
-				}),
-				getDirectVolunteerInvitesFn({
-					data: { competitionTeamId },
-				}),
-				getJudgeVolunteersFn({
-					data: { competitionTeamId },
-				}),
-				getCompetitionVolunteersFn({
-					data: { competitionTeamId: competition.competitionTeamId },
-				}),
-				getCompetitionWorkoutsFn({
-					data: {
-						competitionId: competition.id,
-						teamId: competition.organizingTeamId,
-					},
-				}),
-				getDirectVolunteerInvitesFn({
-					data: { competitionTeamId: competition.competitionTeamId },
-				}),
-				getJudgeVolunteersFn({
-					data: { competitionTeamId: competition.competitionTeamId },
-				}),
-			])
+		// Parallel fetch: invitations, volunteers, events, direct invites, judges, shifts, assignments
+		const [
+			invitations,
+			volunteers,
+			eventsResult,
+			directInvites,
+			judges,
+			shifts,
+			volunteerAssignments,
+		] = await Promise.all([
+			getPendingVolunteerInvitationsFn({
+				data: { competitionTeamId },
+			}),
+			getCompetitionVolunteersFn({
+				data: { competitionTeamId },
+			}),
+			getCompetitionWorkoutsFn({
+				data: {
+					competitionId: competition.id,
+					teamId: competition.organizingTeamId,
+				},
+			}),
+			getDirectVolunteerInvitesFn({
+				data: { competitionTeamId },
+			}),
+			getJudgeVolunteersFn({
+				data: { competitionTeamId },
+			}),
+			getCompetitionShiftsFn({
+				data: { competitionId: competition.id },
+			}),
+			getVolunteerAssignmentsFn({
+				data: { competitionId: competition.id },
+			}),
+		])
 
 		const events = eventsResult.workouts
 
@@ -202,6 +203,8 @@ export const Route = createFileRoute(
 			eventDefaultsMap,
 			versionHistoryMap,
 			activeVersionMap,
+			shifts,
+			volunteerAssignments,
 		}
 	},
 	component: VolunteersPage,
@@ -222,6 +225,8 @@ function VolunteersPage() {
 		eventDefaultsMap,
 		versionHistoryMap,
 		activeVersionMap,
+		shifts,
+		volunteerAssignments,
 	} = Route.useLoaderData()
 
 	const { tab, event: eventFromUrl } = Route.useSearch()
@@ -230,7 +235,10 @@ function VolunteersPage() {
 	const handleTabChange = (value: string) => {
 		navigate({
 			to: ".",
-			search: (prev) => ({ ...prev, tab: value as "roster" | "schedule" }),
+			search: (prev) => ({
+				...prev,
+				tab: value as "roster" | "shifts" | "schedule",
+			}),
 			replace: true,
 		})
 	}
@@ -275,6 +283,7 @@ function VolunteersPage() {
 		>
 			<TabsList className="mb-6">
 				<TabsTrigger value="roster">Roster</TabsTrigger>
+				<TabsTrigger value="shifts">Shifts</TabsTrigger>
 				{isInPerson && (
 					<TabsTrigger value="schedule">Judge Schedule</TabsTrigger>
 				)}
@@ -315,8 +324,18 @@ function VolunteersPage() {
 						organizingTeamId={competition.organizingTeamId}
 						invitations={invitations}
 						volunteers={volunteersWithAccess}
+						volunteerAssignments={volunteerAssignments}
 					/>
 				</section>
+			</TabsContent>
+
+			{/* Shifts Tab */}
+			<TabsContent value="shifts" className="mt-6">
+				<ShiftList
+					competitionId={competition.id}
+					competitionTeamId={competitionTeamId}
+					shifts={shifts}
+				/>
 			</TabsContent>
 
 			{/* Schedule Tab - Judge Scheduling & Rotations (in-person only) */}

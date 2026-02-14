@@ -35,29 +35,15 @@ import {
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { TeamInvitation, User } from "@/db/schema"
-import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
+import {
+	VOLUNTEER_AVAILABILITY,
+	VOLUNTEER_ROLE_LABELS,
+	VOLUNTEER_ROLE_TYPE_VALUES,
+	type VolunteerRoleType,
+} from "@/db/schemas/volunteers"
 import { bulkAssignVolunteerRoleFn } from "@/server-fns/volunteer-fns"
 import { InviteVolunteerDialog } from "./invite-volunteer-dialog"
 import { VolunteerRow } from "./volunteer-row"
-
-type VolunteerRoleType =
-	| "judge"
-	| "head_judge"
-	| "scorekeeper"
-	| "emcee"
-	| "floor_manager"
-	| "media"
-	| "general"
-
-const ROLE_TYPE_LABELS: Record<VolunteerRoleType, string> = {
-	judge: "Judge",
-	head_judge: "Head Judge",
-	scorekeeper: "Scorekeeper",
-	emcee: "Emcee",
-	floor_manager: "Floor Manager",
-	media: "Media",
-	general: "General",
-}
 
 interface VolunteerWithAccess {
 	id: string
@@ -84,6 +70,30 @@ interface VolunteersListProps {
 	organizingTeamId: string
 	invitations: TeamInvitation[]
 	volunteers: VolunteerWithAccess[]
+	volunteerAssignments: Record<
+		string,
+		{
+			shifts: Array<{
+				id: string
+				shiftId: string
+				name: string
+				roleType: string
+				startTime: Date
+				endTime: Date
+				location: string | null
+				notes: string | null
+			}>
+			judgeHeats: Array<{
+				id: string
+				heatId: string
+				eventName: string
+				heatNumber: number
+				scheduledTime: Date | null
+				laneNumber: number | null
+				position: string | null
+			}>
+		}
+	>
 }
 
 /**
@@ -97,6 +107,7 @@ export function VolunteersList({
 	organizingTeamId,
 	invitations,
 	volunteers,
+	volunteerAssignments,
 }: VolunteersListProps) {
 	const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
 	const [filter, setFilter] = useState<"all" | "pending" | "approved">("all")
@@ -348,16 +359,14 @@ export function VolunteersList({
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="start">
-							{(Object.keys(ROLE_TYPE_LABELS) as VolunteerRoleType[]).map(
-								(roleType) => (
-									<DropdownMenuItem
-										key={roleType}
-										onClick={() => handleBulkAssignRole(roleType)}
-									>
-										{ROLE_TYPE_LABELS[roleType]}
-									</DropdownMenuItem>
-								),
-							)}
+							{VOLUNTEER_ROLE_TYPE_VALUES.map((roleType) => (
+								<DropdownMenuItem
+									key={roleType}
+									onClick={() => handleBulkAssignRole(roleType)}
+								>
+									{VOLUNTEER_ROLE_LABELS[roleType]}
+								</DropdownMenuItem>
+							))}
 						</DropdownMenuContent>
 					</DropdownMenu>
 					<Button size="sm" variant="ghost" onClick={clearSelection}>
@@ -459,6 +468,7 @@ export function VolunteersList({
 										<TableHead>Name</TableHead>
 										<TableHead>Email</TableHead>
 										<TableHead>Role Types</TableHead>
+										<TableHead>Assignments</TableHead>
 										<TableHead>Score Access</TableHead>
 										<TableHead className="text-right">Actions</TableHead>
 									</TableRow>
@@ -510,6 +520,12 @@ export function VolunteersList({
 													onToggleSelect={(shiftKey) =>
 														toggleSelection(invitation.id, shiftKey)
 													}
+													assignments={
+														volunteerAssignments[invitation.id] || {
+															shifts: [],
+															judgeHeats: [],
+														}
+													}
 												/>
 											)
 										}
@@ -525,6 +541,12 @@ export function VolunteersList({
 												isSelected={selectedIds.has(volunteer.id)}
 												onToggleSelect={(shiftKey) =>
 													toggleSelection(volunteer.id, shiftKey)
+												}
+												assignments={
+													volunteerAssignments[volunteer.id] || {
+														shifts: [],
+														judgeHeats: [],
+													}
 												}
 											/>
 										)

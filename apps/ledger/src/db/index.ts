@@ -1,5 +1,3 @@
-/// <reference path="../../worker-configuration.d.ts" />
-
 import { createServerOnlyFn } from "@tanstack/react-start"
 import { env } from "cloudflare:workers"
 import type { DrizzleD1Database } from "drizzle-orm/d1"

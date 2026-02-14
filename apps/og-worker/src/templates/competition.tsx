@@ -1,5 +1,3 @@
-import React from "react"
-
 const WODSMITH_LOGO = "https://wodsmith.com/wodsmith-logo-1000.png"
 const WODSMITH_LOGO_SMALL = "https://wodsmith.com/wodsmith-logo-no-text.png"
 
@@ -150,6 +148,7 @@ export function CompetitionTemplate({ competition }: Props) {
 				>
 					<img
 						src={displayLogo}
+						alt=""
 						width={competition.logoUrl ? 160 : 120}
 						height={competition.logoUrl ? 160 : 120}
 						style={{ objectFit: "cover" }}
@@ -308,7 +307,7 @@ export function CompetitionTemplate({ competition }: Props) {
 						alignItems: "center",
 					}}
 				>
-					<img src={WODSMITH_LOGO_SMALL} width={28} height={28} />
+					<img src={WODSMITH_LOGO_SMALL} alt="" width={28} height={28} />
 					<div
 						style={{
 							display: "flex",

@@ -9,12 +9,18 @@ import { z } from "zod"
 import { getDb } from "@/db"
 import type { TeamMembership, User } from "@/db/schema"
 import {
+	competitionHeatsTable,
 	entitlementTable,
 	entitlementTypeTable,
+	judgeHeatAssignmentsTable,
 	SYSTEM_ROLES_ENUM,
 	teamInvitationTable,
 	teamMembershipTable,
+	trackWorkoutsTable,
 	userTable,
+	volunteerShiftAssignmentsTable,
+	volunteerShiftsTable,
+	workouts,
 } from "@/db/schema"
 import {
 	createTeamInvitationId,
@@ -90,6 +96,8 @@ const volunteerRoleTypeSchema = z.enum([
 	"medical",
 	"check_in",
 	"staff",
+	"athlete_control",
+	"equipment_team",
 ])
 
 // ============================================================================
@@ -912,4 +920,165 @@ export const bulkAssignVolunteerRoleFn = createServerFn({ method: "POST" })
 		const failed = results.filter((r) => r.status === "rejected").length
 
 		return { success: true, succeeded, failed }
+	})
+
+/**
+ * Get all volunteer assignments (shifts and judge heats) for a competition
+ * Returns a map of membershipId -> { shifts: [...], judgeHeats: [...] }
+ */
+export const getVolunteerAssignmentsFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Get all shift IDs for this competition
+		const shifts = await db.query.volunteerShiftsTable.findMany({
+			where: eq(volunteerShiftsTable.competitionId, data.competitionId),
+			columns: { id: true },
+		})
+		const shiftIds = shifts.map((s) => s.id)
+
+		// Get all heat IDs for this competition
+		const heats = await db.query.competitionHeatsTable.findMany({
+			where: eq(competitionHeatsTable.competitionId, data.competitionId),
+		})
+		const heatIds = heats.map((h) => h.id)
+
+		// Build a map of heatId -> heat details for later lookup
+		const heatDetailsMap = new Map(
+			heats.map((h) => [
+				h.id,
+				{
+					heatNumber: h.heatNumber,
+					trackWorkoutId: h.trackWorkoutId,
+					scheduledTime: h.scheduledTime,
+				},
+			]),
+		)
+
+		// Get track workout details for event names
+		const trackWorkoutIds = [...new Set(heats.map((h) => h.trackWorkoutId))]
+		const trackWorkoutsData =
+			trackWorkoutIds.length > 0
+				? await autochunk(
+						{ items: trackWorkoutIds, otherParametersCount: 0 },
+						async (chunk) =>
+							db
+								.select({
+									id: trackWorkoutsTable.id,
+									workoutName: workouts.name,
+								})
+								.from(trackWorkoutsTable)
+								.innerJoin(
+									workouts,
+									eq(trackWorkoutsTable.workoutId, workouts.id),
+								)
+								.where(inArray(trackWorkoutsTable.id, chunk)),
+					)
+				: []
+
+		// Build a map of trackWorkoutId -> event name
+		const eventNameMap = new Map(
+			trackWorkoutsData.flat().map((tw) => [tw.id, tw.workoutName]),
+		)
+
+		// Query shift assignments with shift details
+		const shiftAssignments =
+			shiftIds.length > 0
+				? await autochunk(
+						{ items: shiftIds, otherParametersCount: 0 },
+						async (chunk) =>
+							db.query.volunteerShiftAssignmentsTable.findMany({
+								where: inArray(volunteerShiftAssignmentsTable.shiftId, chunk),
+								with: {
+									shift: true,
+								},
+							}),
+					)
+				: []
+
+		// Query judge heat assignments
+		const judgeAssignments =
+			heatIds.length > 0
+				? await autochunk(
+						{ items: heatIds, otherParametersCount: 0 },
+						async (chunk) =>
+							db.query.judgeHeatAssignmentsTable.findMany({
+								where: inArray(judgeHeatAssignmentsTable.heatId, chunk),
+							}),
+					)
+				: []
+
+		// Build the map: membershipId -> assignments
+		const assignmentMap: Record<
+			string,
+			{
+				shifts: Array<{
+					id: string
+					shiftId: string
+					name: string
+					roleType: string
+					startTime: Date
+					endTime: Date
+					location: string | null
+					notes: string | null
+				}>
+				judgeHeats: Array<{
+					id: string
+					heatId: string
+					eventName: string
+					heatNumber: number
+					scheduledTime: Date | null
+					laneNumber: number | null
+					position: string | null
+				}>
+			}
+		> = {}
+
+		// Process shift assignments
+		for (const assignment of shiftAssignments) {
+			if (!assignmentMap[assignment.membershipId]) {
+				assignmentMap[assignment.membershipId] = { shifts: [], judgeHeats: [] }
+			}
+			assignmentMap[assignment.membershipId].shifts.push({
+				id: assignment.id,
+				shiftId: assignment.shiftId,
+				name: assignment.shift.name,
+				roleType: assignment.shift.roleType,
+				startTime: assignment.shift.startTime,
+				endTime: assignment.shift.endTime,
+				location: assignment.shift.location,
+				notes: assignment.shift.notes,
+			})
+		}
+
+		// Process judge heat assignments
+		for (const assignment of judgeAssignments) {
+			const heatDetails = heatDetailsMap.get(assignment.heatId)
+			if (!heatDetails) continue
+
+			const eventName =
+				eventNameMap.get(heatDetails.trackWorkoutId) || "Unknown Event"
+
+			if (!assignmentMap[assignment.membershipId]) {
+				assignmentMap[assignment.membershipId] = { shifts: [], judgeHeats: [] }
+			}
+			assignmentMap[assignment.membershipId].judgeHeats.push({
+				id: assignment.id,
+				heatId: assignment.heatId,
+				eventName,
+				heatNumber: heatDetails.heatNumber,
+				scheduledTime: heatDetails.scheduledTime,
+				laneNumber: assignment.laneNumber,
+				position: assignment.position,
+			})
+		}
+
+		return assignmentMap
 	})

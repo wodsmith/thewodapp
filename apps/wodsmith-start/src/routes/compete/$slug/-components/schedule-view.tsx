@@ -1,13 +1,18 @@
 "use client"
 
 import type { VolunteerMembershipMetadata } from "@/db/schemas/volunteers"
-import type { EventWithRotations } from "@/server-fns/volunteer-schedule-fns"
+import type {
+	EventWithRotations,
+	VolunteerShiftData,
+} from "@/server-fns/volunteer-schedule-fns"
 import { formatUTCDateRange } from "@/utils/date-utils"
 import { EventSection } from "./event-section"
+import { ShiftCard } from "./shift-card"
 import { VolunteerProfileCard } from "./volunteer-profile-card"
 
 interface ScheduleViewProps {
 	events: EventWithRotations[]
+	shifts: VolunteerShiftData[]
 	competitionName: string
 	volunteerMetadata: VolunteerMembershipMetadata | null
 	membershipId: string
@@ -29,9 +34,11 @@ function hasJudgeRole(metadata: VolunteerMembershipMetadata | null): boolean {
 /**
  * Client component that displays volunteer schedule
  * Shows judging assignments only for volunteers with judge roles
+ * Shows shifts for all volunteers who have shift assignments
  */
 export function ScheduleView({
 	events,
+	shifts,
 	competitionName,
 	volunteerMetadata,
 	membershipId,
@@ -46,10 +53,18 @@ export function ScheduleView({
 			: null
 
 	const isJudge = hasJudgeRole(volunteerMetadata)
-	const pageTitle = isJudge ? "My Judging Schedule" : "My Volunteer Schedule"
+	const hasShifts = shifts.length > 0
+	const hasEvents = events.length > 0
 
-	// No judging assignments (or not a judge)
-	if (events.length === 0) {
+	// Show "My Judging Schedule" only if judge with events and no shifts
+	// Otherwise show "My Volunteer Schedule" when shifts exist or generic volunteer
+	const pageTitle =
+		isJudge && hasEvents && !hasShifts
+			? "My Judging Schedule"
+			: "My Volunteer Schedule"
+
+	// No assignments at all - show empty state
+	if (!hasEvents && !hasShifts) {
 		return (
 			<div className="space-y-6">
 				<div>
@@ -94,7 +109,7 @@ export function ScheduleView({
 		)
 	}
 
-	// Has judging assignments - show them
+	// Has assignments - show them
 	return (
 		<div className="space-y-6">
 			<div>
@@ -112,11 +127,30 @@ export function ScheduleView({
 				competitionSlug={competitionSlug}
 			/>
 
-			<div className="space-y-8">
-				{events.map((event) => (
-					<EventSection key={event.trackWorkoutId} event={event} />
-				))}
+			{/* My Shifts Section */}
+			<div className="space-y-4">
+				<h2 className="text-xl font-semibold">My Shifts</h2>
+				{hasShifts ? (
+					<div className="space-y-3">
+						{shifts.map((shift) => (
+							<ShiftCard key={shift.id} shift={shift} />
+						))}
+					</div>
+				) : (
+					<div className="bg-muted/50 rounded-lg border border-dashed p-6 text-center">
+						<p className="text-muted-foreground">No shifts assigned yet</p>
+					</div>
+				)}
 			</div>
+
+			{/* Events/Judging Section */}
+			{hasEvents && (
+				<div className="space-y-8">
+					{events.map((event) => (
+						<EventSection key={event.trackWorkoutId} event={event} />
+					))}
+				</div>
+			)}
 
 			<div className="bg-muted rounded-lg border p-4 text-sm text-muted-foreground">
 				<p className="font-semibold mb-1">Need help?</p>
