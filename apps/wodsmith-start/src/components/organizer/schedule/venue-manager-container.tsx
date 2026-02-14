@@ -1,5 +1,3 @@
-import "server-only"
-
 import type { CompetitionVenue } from "@/db/schemas/competitions"
 import { getCompetitionVenuesFn } from "@/server-fns/competition-heats-fns"
 import { VenueManager } from "./venue-manager"

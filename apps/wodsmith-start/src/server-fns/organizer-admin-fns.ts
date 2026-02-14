@@ -103,9 +103,6 @@ export const approveOrganizerRequestFn = createServerFn({ method: "POST" })
 					adminNotes: data.adminNotes,
 				})
 
-				// Note: revalidatePath is Next.js specific, TanStack has different patterns
-				// for cache invalidation if needed
-
 				return { success: true, data: result }
 			} catch (error) {
 				console.error("Failed to approve organizer request:", error)
@@ -147,9 +144,6 @@ export const rejectOrganizerRequestFn = createServerFn({ method: "POST" })
 					adminNotes: data.adminNotes,
 					revokeFeature: data.revokeFeature ?? false,
 				})
-
-				// Note: revalidatePath is Next.js specific, TanStack has different patterns
-				// for cache invalidation if needed
 
 				return { success: true, data: result }
 			} catch (error) {

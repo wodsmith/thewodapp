@@ -1,5 +1,3 @@
-import "server-only"
-
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import {
 	getCompetitionRegistrationsFn,

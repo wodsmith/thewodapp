@@ -101,8 +101,7 @@ Database is modularly structured in `src/db/schemas/`:
 
 - Use TypeScript everywhere, prefer interfaces over types
 - Functional components, avoid classes
-- Server Components by default, `use client` only when necessary
-- Add `import "server-only"` to server-only files (except page.tsx)
+- Functional React components with hooks
 - Use semantic commit messages: `feat:`, `fix:`, `chore:`
 - Use `pnpm` as package manager
 
@@ -129,7 +128,7 @@ Database is modularly structured in `src/db/schemas/`:
 
 ### Authentication & Authorization
 
-- Session handling: `getSessionFromCookie()` for server components
+- Session handling: `getSessionFromCookie()` for server functions
 - Client session: `useSessionStore()` from `src/state/session.ts`
 - Team authorization utilities in `src/utils/team-auth.ts`
 - Protect routes with team context validation
@@ -137,7 +136,7 @@ Database is modularly structured in `src/db/schemas/`:
 
 ### State Management
 
-- Server state: React Server Components
+- Server state: TanStack Router loaders and server functions
 - Client state: Zustand stores in `src/state/`
 - URL state: NUQS for search parameters
 - Forms: React Hook Form with Zod validation

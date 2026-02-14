@@ -128,7 +128,7 @@ beforeEach(() => {
 
   // Set required env vars for OAuth tests
   process.env.STRIPE_CLIENT_ID = 'ca_test_123'
-  process.env.NEXT_PUBLIC_APP_URL = 'https://wodsmith.com'
+  process.env.APP_URL = 'https://wodsmith.com'
 })
 
 afterEach(() => {

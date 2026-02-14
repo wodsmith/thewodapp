@@ -2,11 +2,11 @@
 
 # WODsmith
 
-A comprehensive CrossFit gym management platform built with Next.js, Cloudflare Workers, and modern web technologies. WODsmith enables gyms to manage workouts, programming tracks, athlete performance tracking, and team collaboration.
+A comprehensive CrossFit gym management platform built with TanStack Start, Cloudflare Workers, and modern web technologies. WODsmith enables gyms to manage workouts, programming tracks, athlete performance tracking, and team collaboration.
 
 ## 🚀 Live Demo
 
-[Visit WODsmith](https://nextjs-saas-template.agenticdev.agency/sign-up)
+[Visit WODsmith](https://wodsmith.com)
 
 ## 📋 Table of Contents
 
@@ -110,7 +110,7 @@ A comprehensive CrossFit gym management platform built with Next.js, Cloudflare 
 ## 🛠 Tech Stack
 
 ### Frontend
-- **Framework:** Next.js 15.3.2 with App Router
+- **Framework:** TanStack Start (React 19, TypeScript, Vinxi/Vite)
 - **UI Library:** React 19
 - **Styling:** Tailwind CSS, Shadcn UI
 - **State Management:** Zustand, NUQS (URL state)
@@ -123,11 +123,11 @@ A comprehensive CrossFit gym management platform built with Next.js, Cloudflare 
 - **Database:** Cloudflare D1 (SQLite)
 - **ORM:** Drizzle ORM
 - **Session Store:** Cloudflare KV
-- **Authentication:** Lucia Auth
-- **API:** Server Actions with ZSA
+- **Authentication:** Custom auth with KV sessions
+- **API:** TanStack Start server functions (`createServerFn`)
 
 ### DevOps
-- **Deployment:** OpenNext for Cloudflare
+- **Deployment:** Cloudflare Workers via Alchemy IaC
 - **CI/CD:** GitHub Actions
 - **Type Safety:** TypeScript
 - **Code Quality:** Biome (linting & formatting)
@@ -173,7 +173,7 @@ A comprehensive CrossFit gym management platform built with Next.js, Cloudflare 
    ```bash
    pnpm dev
    ```
-   Open [http://localhost:3000](http://localhost:3000)
+   Open [http://localhost:5173](http://localhost:5173)
 
 ## 💻 Development
 
@@ -202,36 +202,27 @@ A comprehensive CrossFit gym management platform built with Next.js, Cloudflare 
 ### Development Guidelines
 
 1. **Never write SQL migrations manually** - Always use `pnpm db:generate`
-2. **Use Server Components by default** - Add `use client` only when necessary
-3. **Follow the established patterns** - Check existing code for conventions
+2. **Follow the established patterns** - Check existing code for conventions
 4. **Type safety is mandatory** - No `any` types allowed
 5. **Test your changes** - Write tests for new features
 
 ## 📁 Project Structure
 
 ```
-src/
-├── app/                    # Next.js App Router
-│   ├── (auth)/            # Authentication pages
-│   ├── (main)/            # Main application
-│   │   ├── workouts/      # Workout management
-│   │   ├── programming/   # Programming tracks
-│   │   ├── log/          # Workout logging
-│   │   ├── movements/    # Movement library
-│   │   └── calculator/   # Workout calculators
-│   ├── (admin)/          # Admin dashboard
-│   ├── (settings)/       # User settings
-│   └── api/              # API routes
-├── components/           # Reusable React components
-├── db/                   # Database configuration
-│   ├── schemas/         # Database schema definitions
-│   └── migrations/      # Auto-generated migrations
-├── server/              # Server-side business logic
-├── actions/             # Server actions (ZSA)
-├── utils/               # Utility functions
-├── state/               # Client state management (Zustand)
-├── schemas/             # Zod validation schemas
-└── react-email/         # Email templates
+apps/wodsmith-start/src/
+├── routes/                 # TanStack Router file-based routes
+│   ├── api/               # API routes (server handlers)
+│   └── compete/           # Competition features
+├── components/            # React components
+├── db/                    # Database schema and migrations
+│   ├── schema.ts          # Main schema exports
+│   └── migrations/        # Auto-generated migrations
+├── server/                # Server-only business logic
+├── server-fns/            # Server functions (createServerFn)
+├── lib/                   # Shared utilities
+├── utils/                 # Utility functions
+├── state/                 # Client state management (Zustand)
+└── schemas/               # Zod validation schemas
 ```
 
 ## 🗄 Database Schema
@@ -293,7 +284,7 @@ The application uses a modular database schema with the following main entities:
 - `DATABASE_URL` - D1 database connection
 - `KV_SESSIONS` - KV namespace for sessions
 - `TURNSTILE_SECRET_KEY` - Cloudflare Turnstile secret
-- `NEXT_PUBLIC_TURNSTILE_SITE_KEY` - Turnstile site key
+- `VITE_TURNSTILE_SITE_KEY` - Turnstile site key
 - `RESEND_API_KEY` or `BREVO_API_KEY` - Email service API key
 
 #### Optional Variables
@@ -344,7 +335,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- Built with the [Cloudflare Workers Next.js SaaS Template](https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template)
 - UI components from [Shadcn UI](https://ui.shadcn.com)
 - Drag and drop powered by [Atlaskit Pragmatic Drag and Drop](https://atlassian.design/components/pragmatic-drag-and-drop)
 

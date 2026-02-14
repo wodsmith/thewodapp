@@ -1,6 +1,6 @@
 ---
 name: review
-description: Centralizes persona-driven code reviews (Carmack, React core, Anders, React Router, Next.js, etc.) so Claude can pick or combine expert viewpoints when the user asks for a code review or perspective-specific critique. Use when user asks for code review, architecture feedback, or expert perspective on implementation.
+description: Centralizes persona-driven code reviews (Carmack, React core, Anders, React Router, etc.) so Claude can pick or combine expert viewpoints when the user asks for a code review or perspective-specific critique. Use when user asks for code review, architecture feedback, or expert perspective on implementation.
 ---
 
 # Review Skill
@@ -21,7 +21,6 @@ Unifies every reviewer persona into one Skill. Claude activates this Skill whene
    - Observability/tracing → Read `references/perf-reviewer.md` FIRST
    - React patterns → Read `references/react-reviewer.md` FIRST
    - React Router → Read `references/react-router-reviewer.md` FIRST
-   - Next.js/App Router → Read `references/nextjs-reviewer.md` FIRST
 3. **Apply the reviewer persona's perspective** by following their specific guidance and priorities from the loaded reference.
 4. Cite specific files/lines, flag issues, and provide concrete recommendations.
 
@@ -53,6 +52,5 @@ When multiple personas are requested (e.g., "review this with Anders and React p
 - **Brendan Gregg & Liz Rice** - observability, tracing, data-first performance analysis. [Open instructions](references/perf-reviewer.md)
 - **React Core Maintainer** - hooks, concurrent rendering, DX-focused component patterns. [Open instructions](references/react-reviewer.md)
 - **React Router Team** - progressive enhancement, nested routing, loaders/actions, web platform APIs. [Open instructions](references/react-router-reviewer.md)
-- **Vercel/Next.js Team** - server-first rendering, App Router, Server Components, Server Actions, caching. [Open instructions](references/nextjs-reviewer.md)
 
 Each reference stays out of context until explicitly opened, keeping Claude's context lean while still giving fast access to the original, detailed reviewer guidance.

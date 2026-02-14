@@ -33,7 +33,7 @@ VITE_APP_URL=http://localhost:5173
 ALCHEMY_PASSWORD=your-secure-password-here
 
 ### PostHog Configuration (Optional)
-# NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+# POSTHOG_HOST=https://us.i.posthog.com
 # POSTHOG_LOGS_ENDPOINT=https://us.i.posthog.com/i/v1/logs
 
 ### Logging (Optional)
