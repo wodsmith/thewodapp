@@ -251,12 +251,12 @@ const psOrg = process.env.PLANETSCALE_ORGANIZATION ?? "wodsmith"
  * PlanetScale branch hierarchy:
  * - prod  → "main" (production branch, no Branch resource needed)
  * - dev   → branches off main
- * - demo  → branches off dev (reset from dev when needed)
+ * - demo  → branches off main (parallel to dev)
  * - pr-N  → uses "dev" branch directly (no per-PR branch creation)
  */
 const branchConfig: Record<string, { name: string; parent: string }> = {
 	dev: { name: "dev", parent: "main" },
-	demo: { name: "demo", parent: "dev" },
+	demo: { name: "demo", parent: "main" },
 }
 
 const isPrStage = stage.startsWith("pr-")
