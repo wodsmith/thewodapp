@@ -22,7 +22,7 @@ import {
 	createVolunteerShiftAssignmentId,
 	createVolunteerShiftId,
 } from "@/db/schemas/common"
-import { autochunk } from "@/utils/batch-query"
+
 import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
@@ -585,15 +585,11 @@ export const bulkAssignVolunteersToShiftFn = createServerFn({ method: "POST" })
 			)
 		}
 
-		// Verify all memberships exist using autochunk for D1 parameter limits
-		const memberships = await autochunk(
-			{ items: newMembershipIds, otherParametersCount: 0 },
-			async (chunk) =>
-				db
-					.select({ id: teamMembershipTable.id })
-					.from(teamMembershipTable)
-					.where(inArray(teamMembershipTable.id, chunk)),
-		)
+		// Verify all memberships exist
+		const memberships = await db
+			.select({ id: teamMembershipTable.id })
+			.from(teamMembershipTable)
+			.where(inArray(teamMembershipTable.id, newMembershipIds))
 
 		const foundMembershipIds = new Set(memberships.map((m) => m.id))
 		const missingMembershipIds = newMembershipIds.filter(
@@ -626,13 +622,10 @@ export const bulkAssignVolunteersToShiftFn = createServerFn({ method: "POST" })
 		}
 
 		// Query back the created assignments
-		const createdAssignments = await autochunk(
-			{ items: allIds, otherParametersCount: 0 },
-			async (chunk) =>
-				db.query.volunteerShiftAssignmentsTable.findMany({
-					where: inArray(volunteerShiftAssignmentsTable.id, chunk),
-				}),
-		)
+		const createdAssignments =
+			await db.query.volunteerShiftAssignmentsTable.findMany({
+				where: inArray(volunteerShiftAssignmentsTable.id, allIds),
+			})
 
 		return {
 			success: true,

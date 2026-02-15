@@ -8,7 +8,6 @@ import { LIMITS } from "@/config/limits"
 import {
 	getTeamLimit,
 	hasFeature,
-	isTeamPendingOrganizer,
 } from "@/server/entitlements"
 import { validateSession } from "@/server-fns/middleware/auth"
 import { getSessionFromCookie } from "@/utils/auth"
@@ -52,14 +51,16 @@ const checkOrganizerEntitlements = createServerFn({ method: "GET" }).handler(
 		// Get the active team from cookie
 		const cookieTeamId = await getActiveTeamId()
 
-		// Find all teams that have HOST_COMPETITIONS
-		const teamsWithHostCompetitions: string[] = []
-		for (const team of session.teams) {
-			const hasHost = await hasFeature(team.id, FEATURES.HOST_COMPETITIONS)
-			if (hasHost) {
-				teamsWithHostCompetitions.push(team.id)
-			}
-		}
+		// Find all teams that have HOST_COMPETITIONS (in parallel)
+		const hostChecks = await Promise.all(
+			session.teams.map(async (team) => ({
+				id: team.id,
+				hasHost: await hasFeature(team.id, FEATURES.HOST_COMPETITIONS),
+			})),
+		)
+		const teamsWithHostCompetitions = hostChecks
+			.filter((t) => t.hasHost)
+			.map((t) => t.id)
 
 		// No teams can host competitions - redirect to onboarding
 		if (teamsWithHostCompetitions.length === 0) {
@@ -79,16 +80,12 @@ const checkOrganizerEntitlements = createServerFn({ method: "GET" }).handler(
 				? cookieTeamId
 				: teamsWithHostCompetitions[0]!
 
-		// Check if pending (limit = 0) for the active organizing team
-		const isPendingApproval = await isTeamPendingOrganizer(
-			activeOrganizingTeamId,
-		)
-
-		// Check if approved (limit = -1 or > 0)
+		// Get limit once and derive both isPendingApproval and isApproved
 		const limit = await getTeamLimit(
 			activeOrganizingTeamId,
 			LIMITS.MAX_PUBLISHED_COMPETITIONS,
 		)
+		const isPendingApproval = limit === 0
 		const isApproved = limit === -1 || limit > 0
 
 		return {
