@@ -1,6 +1,6 @@
 ---
 name: local-db
-description: Handle local database schema changes with Drizzle and D1. Use when making schema changes to src/db/schema.ts, adding/modifying database tables or columns, or when asked about database migrations. Covers the push-based local development workflow and when to generate migrations.
+description: Handle database schema changes with Drizzle and PlanetScale (MySQL). Use when making schema changes to src/db/schema.ts, adding/modifying database tables or columns, or when asked about database migrations. Covers the push-based development workflow and when to generate migrations.
 ---
 
 # Local Database Workflow
@@ -13,7 +13,7 @@ When making schema changes during development:
 
 ```bash
 # 1. Edit src/db/schema.ts
-# 2. Push changes directly to local D1
+# 2. Push changes to PlanetScale dev branch
 pnpm db:push
 ```
 
@@ -46,7 +46,7 @@ pnpm db:migrate:local
 |---------|-------------|
 | `pnpm db:push` | Local development - apply schema changes |
 | `pnpm db:generate --name=X` | Before merging - create migration file |
-| `pnpm db:migrate:local` | Apply migrations to local D1 |
+| `pnpm db:migrate:local` | Apply migrations locally |
 | `pnpm db:studio` | Browse local database |
 
 ## Important Notes

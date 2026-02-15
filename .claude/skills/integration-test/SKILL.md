@@ -91,7 +91,7 @@ const updated = db.findById("teams", team.id)
 expect(updated.name).toBe("Updated Name")
 ```
 
-**FakeDatabase enforces D1's 100 parameter limit** - catches batch query bugs early.
+**FakeDatabase enforces MySQL parameter limits** - catches batch query bugs early.
 
 ### 3. MSW for Network Mocking
 
@@ -283,7 +283,7 @@ pnpm test -- programming-subscription.test.ts # single file
 3. **Use factories for consistent data** - Override only what matters
 4. **Async utilities over timeouts** - `findBy*`, `waitFor`, never `setTimeout`
 5. **Custom render for providers** - Wrap components in necessary context
-6. **Enforce real constraints** - FakeDatabase enforces D1's parameter limits
+6. **Enforce real constraints** - FakeDatabase enforces MySQL parameter limits
 
 ## Additional Resources
 
