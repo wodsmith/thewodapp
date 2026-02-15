@@ -560,7 +560,7 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
 					description: competitionDivisionsTable.description,
 					feeCents: competitionDivisionsTable.feeCents,
 					maxSpots: competitionDivisionsTable.maxSpots,
-					registrationCount: sql<number>`cast(count(${competitionRegistrationsTable.id}) as unsigned)`,
+					registrationCount: sql<number>`cast(count(${competitionRegistrationsTable.id}) as integer)`,
 				})
 				.from(scalingLevelsTable)
 				.leftJoin(
@@ -589,7 +589,7 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
 			db
 				.select({
 					divisionId: commercePurchaseTable.divisionId,
-					pendingCount: sql<number>`cast(count(*) as unsigned)`,
+					pendingCount: sql<number>`cast(count(*) as integer)`,
 				})
 				.from(commercePurchaseTable)
 				.where(
@@ -610,8 +610,8 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
 		const defaultMax = competition.defaultMaxSpotsPerDivision ?? null
 		const result: PublicCompetitionDivision[] = divisions.map((d) => {
 			const effectiveMax = d.maxSpots ?? defaultMax
-			const pendingCount = pendingCountMap.get(d.id) ?? 0
-			const totalOccupied = d.registrationCount + pendingCount
+			const pendingCount = Number(pendingCountMap.get(d.id) ?? 0)
+			const totalOccupied = Number(d.registrationCount) + pendingCount
 			const spotsAvailable =
 				effectiveMax !== null ? effectiveMax - totalOccupied : null
 			return {
@@ -677,7 +677,7 @@ export const getCompetitionDivisionsWithCountsFn = createServerFn({
 				description: competitionDivisionsTable.description,
 				feeCents: competitionDivisionsTable.feeCents,
 				maxSpots: competitionDivisionsTable.maxSpots,
-				registrationCount: sql<number>`cast(count(${competitionRegistrationsTable.id}) as unsigned)`,
+				registrationCount: sql<number>`cast(count(${competitionRegistrationsTable.id}) as integer)`,
 			})
 			.from(scalingLevelsTable)
 			.leftJoin(
@@ -1307,8 +1307,8 @@ export const getDivisionSpotsAvailableFn = createServerFn({ method: "GET" })
 				),
 		])
 
-		const confirmedCount = registrations[0]?.count ?? 0
-		const pendingCount = pendingPurchases[0]?.count ?? 0
+		const confirmedCount = Number(registrations[0]?.count ?? 0)
+		const pendingCount = Number(pendingPurchases[0]?.count ?? 0)
 		const registered = confirmedCount + pendingCount
 
 		// Calculate effective max: division override > competition default > null (unlimited)

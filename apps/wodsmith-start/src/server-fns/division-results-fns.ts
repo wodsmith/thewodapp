@@ -260,7 +260,7 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 					db
 						.select({
 							divisionId: competitionRegistrationsTable.divisionId,
-							count: sql<number>`cast(count(*) as unsigned)`,
+							count: sql<number>`cast(count(*) as integer)`,
 						})
 						.from(competitionRegistrationsTable)
 						.where(

@@ -810,7 +810,7 @@ export const getCompetitionGroupsFn = createServerFn({ method: "GET" })
 				createdAt: competitionGroupsTable.createdAt,
 				updatedAt: competitionGroupsTable.updatedAt,
 				updateCounter: competitionGroupsTable.updateCounter,
-				competitionCount: sql<number>`cast(count(${competitionsTable.id}) as unsigned)`,
+				competitionCount: sql<number>`cast(count(${competitionsTable.id}) as integer)`,
 			})
 			.from(competitionGroupsTable)
 			.leftJoin(
