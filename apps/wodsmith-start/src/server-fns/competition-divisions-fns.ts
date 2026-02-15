@@ -21,6 +21,7 @@ import { scalingGroupsTable, scalingLevelsTable } from "@/db/schemas/scaling"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"
+import { calculateDivisionCapacity } from "@/utils/division-capacity"
 
 // ============================================================================
 // Types
@@ -607,13 +608,13 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
 		)
 
 		// Apply defaults from competition and calculate capacity (including reservations)
-		const defaultMax = competition.defaultMaxSpotsPerDivision ?? null
 		const result: PublicCompetitionDivision[] = divisions.map((d) => {
-			const effectiveMax = d.maxSpots ?? defaultMax
-			const pendingCount = pendingCountMap.get(d.id) ?? 0
-			const totalOccupied = d.registrationCount + pendingCount
-			const spotsAvailable =
-				effectiveMax !== null ? effectiveMax - totalOccupied : null
+			const capacity = calculateDivisionCapacity({
+				registrationCount: d.registrationCount,
+				pendingCount: pendingCountMap.get(d.id) ?? 0,
+				divisionMaxSpots: d.maxSpots,
+				competitionDefaultMax: competition.defaultMaxSpotsPerDivision,
+			})
 			return {
 				id: d.id,
 				label: d.label,
@@ -621,9 +622,9 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
 				registrationCount: d.registrationCount,
 				feeCents: d.feeCents ?? competition.defaultRegistrationFeeCents ?? 0,
 				teamSize: d.teamSize,
-				maxSpots: effectiveMax,
-				spotsAvailable,
-				isFull: effectiveMax !== null && totalOccupied >= effectiveMax,
+				maxSpots: capacity.effectiveMax,
+				spotsAvailable: capacity.spotsAvailable,
+				isFull: capacity.isFull,
 			}
 		})
 
@@ -1307,20 +1308,21 @@ export const getDivisionSpotsAvailableFn = createServerFn({ method: "GET" })
 				),
 		])
 
-		const confirmedCount = registrations[0]?.count ?? 0
-		const pendingCount = pendingPurchases[0]?.count ?? 0
-		const registered = confirmedCount + pendingCount
-
-		// Calculate effective max: division override > competition default > null (unlimited)
-		const effectiveMax =
-			divisionConfig?.maxSpots ?? competition.defaultMaxSpotsPerDivision ?? null
+		const confirmedCount = Number(registrations[0]?.count ?? 0)
+		const pendingCount = Number(pendingPurchases[0]?.count ?? 0)
+		const capacity = calculateDivisionCapacity({
+			registrationCount: confirmedCount,
+			pendingCount,
+			divisionMaxSpots: divisionConfig?.maxSpots,
+			competitionDefaultMax: competition.defaultMaxSpotsPerDivision,
+		})
 
 		return {
-			maxSpots: effectiveMax,
-			registered,
+			maxSpots: capacity.effectiveMax,
+			registered: capacity.totalOccupied,
 			confirmedCount,
 			pendingCount,
-			available: effectiveMax !== null ? effectiveMax - registered : null,
-			isFull: effectiveMax !== null && registered >= effectiveMax,
+			available: capacity.spotsAvailable,
+			isFull: capacity.isFull,
 		}
 	})
