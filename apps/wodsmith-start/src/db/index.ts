@@ -50,8 +50,13 @@ export const getDb = createServerOnlyFn((): Database => {
 		)
 	}
 
+	// Strip 'ssl-mode' from the connection string — Hyperdrive injects it
+	// but mysql2 doesn't recognize it (uses `ssl` object instead) and warns/hangs.
+	const url = new URL(connectionString)
+	url.searchParams.delete("ssl-mode")
+
 	const pool = mysql.createPool({
-		uri: connectionString,
+		uri: url.toString(),
 		disableEval: true,
 		connectionLimit: 1,
 	})
