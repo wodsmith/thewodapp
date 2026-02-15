@@ -87,7 +87,7 @@
  */
 
 import alchemy from "alchemy"
-import { D1Database, KVNamespace, R2Bucket, TanStackStart } from "alchemy/cloudflare"
+import { D1Database, Hyperdrive, KVNamespace, R2Bucket, TanStackStart } from "alchemy/cloudflare"
 import { GitHubComment } from "alchemy/github"
 import { CloudflareStateStore } from "alchemy/state"
 import {
@@ -278,6 +278,36 @@ const psPassword = await PlanetScalePassword(`ps-password-${stage}`, {
 	database: psDbName,
 	branch: psBranch ?? psBranchName,
 	role: "admin",
+})
+
+/**
+ * Cloudflare Hyperdrive for PlanetScale connection pooling and caching.
+ *
+ * Hyperdrive sits between the Worker and PlanetScale, providing:
+ * - Connection pooling (reuses TCP connections across requests)
+ * - SQL query caching (configurable TTL)
+ * - Reduced latency for repeated queries
+ *
+ * The Worker connects to Hyperdrive via the `HYPERDRIVE` binding,
+ * which exposes a `connectionString` for use with standard MySQL drivers (mysql2).
+ */
+const hyperdrive = await Hyperdrive(`hyperdrive-${stage}`, {
+	origin: {
+		host: psPassword.host,
+		database: psDbName,
+		user: psPassword.username,
+		password: psPassword.password.unencrypted,
+		port: 3306,
+		scheme: "mysql",
+	},
+	caching: {
+		disabled: true,
+	},
+	adopt: true,
+	// Local dev: connect directly to PlanetScale (bypassing Hyperdrive pooling)
+	dev: {
+		origin: `mysql://${psPassword.username}:${psPassword.password.unencrypted}@${psPassword.host}:3306/${psDbName}?sslaccept=strict`,
+	},
 })
 
 /**
@@ -529,6 +559,8 @@ const website = await TanStackStart("app", {
 		KV_SESSION: kvSession,
 		/** R2 bucket binding for file uploads */
 		R2_BUCKET: r2Bucket,
+		/** Hyperdrive binding for pooled PlanetScale connections */
+		HYPERDRIVE: hyperdrive,
 
 		// App configuration
 		// biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
@@ -582,11 +614,6 @@ const website = await TanStackStart("app", {
 		...(process.env.BRAINTRUST_API_KEY && {
 			BRAINTRUST_API_KEY: alchemy.secret(process.env.BRAINTRUST_API_KEY),
 		}),
-
-		// PlanetScale database connection (managed by Alchemy)
-		DATABASE_URL: alchemy.secret(
-			`mysql://${psPassword.username}:${psPassword.password.unencrypted}@${psPassword.host}/${psDbName}?ssl={"rejectUnauthorized":true}`,
-		),
 
 		// Stripe env vars are populated for all environments when available
 		...(hasStripeEnv && {

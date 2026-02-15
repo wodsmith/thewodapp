@@ -4,47 +4,60 @@
  * Database Connection Module
  *
  * Provides database connection to PlanetScale (MySQL).
- * Migration status: Switched from D1/SQLite to PlanetScale/MySQL.
+ * - In production: Uses Cloudflare Hyperdrive for connection pooling and caching.
+ * - In local dev: Falls back to DATABASE_URL from .dev.vars.
  */
 
+import { createServerOnlyFn } from "@tanstack/react-start"
 import { env } from "cloudflare:workers"
-import { Client } from "@planetscale/database"
-import { drizzle } from "drizzle-orm/planetscale-serverless"
+import { drizzle, type MySql2Database } from "drizzle-orm/mysql2"
+import mysql from "mysql2"
 
 import * as schema from "./schema"
 
-// Extend Env type to include DATABASE_URL
-// This should be set as a secret in .dev.vars and Cloudflare dashboard
-declare module "cloudflare:workers" {
+declare namespace Cloudflare {
 	interface Env {
+		HYPERDRIVE?: Hyperdrive
 		DATABASE_URL?: string
 	}
 }
 
 // Type for the database instance
-export type Database = ReturnType<typeof drizzle<typeof schema>>
+export type Database = MySql2Database<typeof schema>
 
 /**
- * Get database connection
+ * Get database connection (server-only)
  *
- * Creates a fresh PlanetScale connection for each request.
- * This is the recommended pattern for serverless environments.
+ * Prefers Hyperdrive binding (deployed Workers) for connection pooling.
+ * Falls back to DATABASE_URL (local dev via .dev.vars).
+ *
+ * Uses a single connection (not a pool) since Hyperdrive handles
+ * connection pooling externally at the Cloudflare level.
  */
-export const getDb = (): Database => {
-	// Cast to access DATABASE_URL from .dev.vars (not in wrangler.jsonc bindings)
-	const databaseUrl = (env as unknown as { DATABASE_URL?: string }).DATABASE_URL
-	if (!databaseUrl) {
+export const getDb = createServerOnlyFn((): Database => {
+	const hyperdrive = (env as { HYPERDRIVE?: Hyperdrive }).HYPERDRIVE
+	const connectionString =
+		hyperdrive?.connectionString ??
+		(env as { DATABASE_URL?: string }).DATABASE_URL
+
+	if (!connectionString) {
 		throw new Error(
-			"DATABASE_URL not found. Make sure your environment has the PlanetScale connection string configured.",
+			"No database connection available. Set HYPERDRIVE binding (production) or DATABASE_URL in .dev.vars (local dev).",
 		)
 	}
 
-	const client = new Client({
-		url: databaseUrl,
+	// Strip 'ssl-mode' from the connection string — Hyperdrive injects it
+	// but mysql2 doesn't recognize it (uses `ssl` object instead) and warns/hangs.
+	const url = new URL(connectionString)
+	url.searchParams.delete("ssl-mode")
+
+	const connection = mysql.createConnection({
+		uri: url.toString(),
+		disableEval: true,
 	})
 
-	return drizzle(client, { schema, logger: true, casing: "snake_case" })
-}
+	return drizzle({ client: connection, schema, casing: "snake_case", mode: "planetscale" })
+})
 
 // Export env for other modules that need access to bindings (KV, R2, etc.)
 export { env }
