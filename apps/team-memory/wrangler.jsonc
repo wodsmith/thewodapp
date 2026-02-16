@@ -11,7 +11,7 @@
 		{
 			"binding": "DB",
 			"database_name": "team-memory-db",
-			"database_id": "placeholder"
+			"database_id": "6a9bfebb-696a-4254-9276-de6654cd951f"
 		}
 	],
 	"vectorize": [
@@ -24,6 +24,6 @@
 		"binding": "AI"
 	},
 	"triggers": {
-		"crons": ["0 6 * * *", "0 7 * * 0"]
+		"crons": ["0 6 * * *", "0 7 * * *"]
 	}
 }

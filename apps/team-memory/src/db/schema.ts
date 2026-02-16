@@ -69,6 +69,7 @@ export const sessions = sqliteTable('sessions', {
 export const sessionMessages = sqliteTable('session_messages', {
 	id: text('id').primaryKey(),
 	sessionId: text('session_id').notNull(),
+	ordinal: integer('ordinal').notNull(),
 	role: text('role', {enum: ['user', 'assistant', 'system']}).notNull(),
 	content: text('content').notNull(),
 	createdAt: text('created_at')

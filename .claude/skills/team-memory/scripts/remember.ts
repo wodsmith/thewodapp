@@ -18,8 +18,32 @@ if (args.length === 0 || args[0] === "--help") {
 let content = "";
 let category = "convention";
 let priority = "moderate";
-let userId: string | undefined;
+let userId: string | undefined = process.env.USER;
 let sessionId: string | undefined;
+
+// Auto-detect session ID from most recently modified Claude transcript
+function detectSessionId(): string | undefined {
+	const { readdirSync, statSync } = require("node:fs");
+	const { join, basename } = require("node:path");
+	const home = process.env.HOME || "";
+	// Claude Code encodes CWD: replace all non-alphanumeric chars with "-"
+	const cwd = process.cwd().replace(/[^a-zA-Z0-9]/g, "-");
+	const sessionsDir = join(home, ".claude", "projects", cwd);
+	try {
+		const files = readdirSync(sessionsDir)
+			.filter((f: string) => f.endsWith(".jsonl"))
+			.map((f: string) => ({
+				name: basename(f, ".jsonl"),
+				mtime: statSync(join(sessionsDir, f)).mtimeMs,
+			}))
+			.sort((a: { mtime: number }, b: { mtime: number }) => b.mtime - a.mtime);
+		return files[0]?.name;
+	} catch {
+		return undefined;
+	}
+}
+
+sessionId = detectSessionId();
 
 for (const arg of args) {
 	if (arg.startsWith("--category=")) {

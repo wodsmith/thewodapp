@@ -44,8 +44,8 @@ export async function handleScheduled(
 		)
 	}
 
-	if (event.cron === '0 7 * * 0') {
-		// Weekly: decay + deprecate harmful
+	if (event.cron === '0 7 * * *') {
+		// Nightly: decay + deprecate harmful
 		await applyExponentialDecay(db)
 		await deprecateHarmful(db)
 	}
