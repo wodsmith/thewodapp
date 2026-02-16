@@ -1,0 +1,29 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "team-memory",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-02-16",
+	"compatibility_flags": ["nodejs_compat"],
+	"observability": {
+		"enabled": true
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "team-memory-db",
+			"database_id": "6a9bfebb-696a-4254-9276-de6654cd951f"
+		}
+	],
+	"vectorize": [
+		{
+			"binding": "VECTORIZE",
+			"index_name": "team-memory-embeddings"
+		}
+	],
+	"ai": {
+		"binding": "AI"
+	},
+	"triggers": {
+		"crons": ["0 6 * * *", "0 7 * * *"]
+	}
+}
