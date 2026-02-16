@@ -7,9 +7,7 @@ import {
 	Globe,
 	MapPin,
 	Settings,
-	Users,
 } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { CompetitionWithOrganizingTeam } from "@/server-fns/competition-fns"
@@ -18,14 +16,12 @@ import { formatUTCDateRange } from "@/utils/date-utils"
 
 interface CompetitionHeroProps {
 	competition: CompetitionWithOrganizingTeam
-	registrationCount: number
 	canManage?: boolean
 	isVolunteer?: boolean
 }
 
 export function CompetitionHero({
 	competition,
-	registrationCount,
 	canManage = false,
 	isVolunteer = false,
 }: CompetitionHeroProps) {
@@ -158,22 +154,6 @@ export function CompetitionHero({
 										</Link>
 									)}
 								</div>
-							</div>
-
-							{/* Quick Stats */}
-							<div className="flex flex-wrap gap-2">
-								<Badge
-									variant="secondary"
-									className={cn(
-										"border backdrop-blur-sm",
-										hasBanner
-											? "border-white/10 bg-white/10 text-slate-100 hover:bg-white/20"
-											: "border-black/10 bg-black/5 text-foreground hover:bg-black/10 dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:hover:bg-white/20",
-									)}
-								>
-									<Users className="mr-1 h-3 w-3" />
-									{registrationCount} Athletes
-								</Badge>
 							</div>
 
 							{/* Mobile action buttons */}
