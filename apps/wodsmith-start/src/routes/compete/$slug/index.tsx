@@ -83,7 +83,6 @@ export const Route = createFileRoute("/compete/$slug/")({
 function CompetitionOverviewPage() {
 	const {
 		competition,
-		registrationCount,
 		userRegistration,
 		isVolunteer,
 		registrationStatus,
@@ -165,7 +164,6 @@ function CompetitionOverviewPage() {
 					competition={competition}
 					isRegistered={isRegistered}
 					registrationOpen={registrationStatus.registrationOpen}
-					registrationCount={registrationCount}
 					maxSpots={maxSpots}
 					userDivision={userDivision?.label}
 					registrationId={userRegistration?.id}

@@ -223,13 +223,6 @@ function DivisionsGroupedByPrice({
 // Helper component for individual division row
 function DivisionRow({ division }: { division: DivisionWithDetails }) {
 	const hasDescription = !!division.description
-	const athleteLabel = division.teamSize > 1 ? "teams" : "athletes"
-
-	// Format spots display
-	const spotsDisplay = division.maxSpots
-		? `${division.registrationCount}/${division.maxSpots}`
-		: `${division.registrationCount}`
-
 	return (
 		<Collapsible className="group">
 			<Card className={division.isFull ? "opacity-60" : ""}>
@@ -251,26 +244,15 @@ function DivisionRow({ division }: { division: DivisionWithDetails }) {
 									<ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
 								)}
 							</div>
-							<div className="flex items-center gap-2">
-								{division.isFull ? (
-									<span className="text-xs font-medium text-red-600 dark:text-red-400">
-										SOLD OUT
-									</span>
-								) : division.maxSpots && division.spotsAvailable !== null ? (
-									<span className="text-xs text-muted-foreground">
-										{spotsDisplay} {athleteLabel}
-										{division.spotsAvailable <= 5 && (
-											<span className="ml-1 text-amber-600 dark:text-amber-400">
-												({division.spotsAvailable} left)
-											</span>
-										)}
-									</span>
-								) : (
-									<span className="text-xs text-muted-foreground">
-										{spotsDisplay} {athleteLabel}
-									</span>
-								)}
-							</div>
+							{division.isFull ? (
+								<span className="text-xs font-medium text-red-600 dark:text-red-400">
+									SOLD OUT
+								</span>
+							) : division.spotsAvailable !== null && division.spotsAvailable <= 5 ? (
+								<span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+									{division.spotsAvailable} left
+								</span>
+							) : null}
 						</div>
 					</CardHeader>
 				</CollapsibleTrigger>
