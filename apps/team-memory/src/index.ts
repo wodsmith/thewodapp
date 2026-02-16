@@ -6,6 +6,7 @@ import {contextRoutes} from './routes/context'
 import {feedbackRoutes} from './routes/feedback'
 import {sessionRoutes} from './routes/sessions'
 import {exportRoutes} from './routes/export'
+import {handleScheduled} from './routes/cron'
 
 const app = new Hono<{Bindings: Env}>()
 
@@ -18,4 +19,7 @@ app.route('/feedback', feedbackRoutes)
 app.route('/sessions', sessionRoutes)
 app.route('/export', exportRoutes)
 
-export default app
+export default {
+	fetch: app.fetch,
+	scheduled: handleScheduled,
+}
