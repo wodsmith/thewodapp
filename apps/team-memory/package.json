@@ -1,0 +1,31 @@
+{
+	"name": "team-memory",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "wrangler dev",
+		"deploy": "wrangler deploy --minify",
+		"cf-typegen": "wrangler types --env-interface CloudflareBindings",
+		"lint": "biome lint .",
+		"format": "biome format --write .",
+		"check": "biome check .",
+		"type-check": "tsc --noEmit",
+		"db:push": "drizzle-kit push",
+		"db:generate": "drizzle-kit generate",
+		"db:studio": "drizzle-kit studio"
+	},
+	"dependencies": {
+		"drizzle-orm": "^0.39.3",
+		"hono": "^4.11.9",
+		"ulid": "^2.3.0"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.0.6",
+		"@cloudflare/workers-types": "^4.20250508.0",
+		"@repo/typescript-config": "workspace:*",
+		"drizzle-kit": "^0.30.6",
+		"typescript": "^5.8.3",
+		"wrangler": "^4.16.1"
+	}
+}
