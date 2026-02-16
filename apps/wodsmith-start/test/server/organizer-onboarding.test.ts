@@ -163,11 +163,13 @@ describe('Organizer Onboarding', () => {
       const mockDb = {
         query: {
           organizerRequestTable: {
-            findFirst: vi.fn().mockResolvedValue(null),
+            findFirst: vi.fn()
+              .mockResolvedValueOnce(null) // no existing approved request
+              .mockResolvedValueOnce(null), // post-insert fetch returns null
           },
         },
         insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockResolvedValue({insertId: null}), // null insertId = failed insert
+          values: vi.fn().mockResolvedValue(undefined),
         }),
       }
 
@@ -179,7 +181,7 @@ describe('Organizer Onboarding', () => {
           userId: mockUserId,
           reason: mockReason,
         }),
-      ).rejects.toThrow('Failed to create organizer request')
+      ).rejects.toThrow('Failed to retrieve created organizer request')
     })
   })
 
