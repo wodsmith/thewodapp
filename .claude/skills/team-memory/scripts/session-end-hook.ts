@@ -157,6 +157,7 @@ function spawnExtractionAgent(
 		["-p", "--model", "sonnet", "--output-format", "text"],
 		{
 			env,
+			cwd: "/tmp", // Avoid inheriting project hooks (entire, beads, etc.)
 			stdio: ["pipe", "pipe", "pipe"],
 		},
 	);
