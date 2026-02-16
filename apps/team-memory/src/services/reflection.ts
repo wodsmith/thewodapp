@@ -71,6 +71,9 @@ Return ONLY a valid JSON array: [{"content": "...", "category": "convention|gotc
 				: ''
 		if (!text) continue
 
+		const VALID_CATEGORIES: Category[] = ['convention', 'gotcha', 'debugging', 'architecture', 'workflow']
+		const VALID_PRIORITIES: Priority[] = ['critical', 'moderate', 'ephemeral']
+
 		try {
 			// Extract JSON array from response (may have surrounding text)
 			const match = text.match(/\[[\s\S]*\]/)
@@ -81,7 +84,9 @@ Return ONLY a valid JSON array: [{"content": "...", "category": "convention|gotc
 					bullet.content &&
 					bullet.category &&
 					bullet.priority &&
-					bullet.content.length <= 200
+					bullet.content.length <= 200 &&
+					VALID_CATEGORIES.includes(bullet.category) &&
+					VALID_PRIORITIES.includes(bullet.priority)
 				) {
 					results.push(bullet)
 				}

@@ -1,4 +1,4 @@
-import {ne, sql} from 'drizzle-orm'
+import {eq, ne, sql} from 'drizzle-orm'
 import type {Database} from '../db'
 import {observations, reflections} from '../db/schema'
 
@@ -31,13 +31,13 @@ export async function applyExponentialDecay(
 					maturity: 'deprecated',
 					updatedAt: sql`(datetime('now'))`,
 				})
-				.where(sql`id = ${row.id}`)
+				.where(eq(observations.id, row.id))
 			deprecated++
 		} else if (Math.abs(newScore - row.score) > 0.001) {
 			await db
 				.update(observations)
-				.set({score: newScore})
-				.where(sql`id = ${row.id}`)
+				.set({score: newScore, updatedAt: sql`(datetime('now'))`})
+				.where(eq(observations.id, row.id))
 			decayed++
 		}
 	}
@@ -61,13 +61,13 @@ export async function applyExponentialDecay(
 					maturity: 'deprecated',
 					updatedAt: sql`(datetime('now'))`,
 				})
-				.where(sql`id = ${row.id}`)
+				.where(eq(reflections.id, row.id))
 			deprecated++
 		} else if (Math.abs(newScore - row.score) > 0.001) {
 			await db
 				.update(reflections)
-				.set({score: newScore})
-				.where(sql`id = ${row.id}`)
+				.set({score: newScore, updatedAt: sql`(datetime('now'))`})
+				.where(eq(reflections.id, row.id))
 			decayed++
 		}
 	}

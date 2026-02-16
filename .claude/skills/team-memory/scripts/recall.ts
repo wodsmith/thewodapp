@@ -11,7 +11,7 @@ if (args.length === 0 || args[0] === "--help") {
 	process.exit(args[0] === "--help" ? 0 : 1);
 }
 
-let query = "";
+const positionalArgs: string[] = [];
 let limit = "5";
 let category = "";
 let priority = "";
@@ -24,9 +24,11 @@ for (const arg of args) {
 	} else if (arg.startsWith("--priority=")) {
 		priority = arg.split("=")[1];
 	} else {
-		query = arg;
+		positionalArgs.push(arg);
 	}
 }
+
+const query = positionalArgs.join(" ");
 
 if (!query) {
 	console.error("Error: query is required");

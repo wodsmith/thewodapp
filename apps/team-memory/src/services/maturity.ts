@@ -22,8 +22,8 @@ export async function checkPromotion(
 
 	let newMaturity = obs.maturity
 
-	// Deprecation check takes priority
-	if (total > 0 && harmful / total > 0.3) {
+	// Deprecation check takes priority (require minimum 3 feedback entries)
+	if (total >= 3 && harmful / total > 0.3) {
 		newMaturity = 'deprecated'
 	} else if (
 		obs.maturity === 'established' &&
@@ -61,7 +61,7 @@ export async function deprecateHarmful(
 
 	for (const obs of rows) {
 		const log = obs.feedbackLog ?? []
-		if (log.length === 0) continue
+		if (log.length < 3) continue
 
 		const harmful = log.filter((e) => e.signal === 'harmful').length
 		if (harmful / log.length > harmThreshold) {

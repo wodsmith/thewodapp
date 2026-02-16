@@ -12,7 +12,7 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 const BASE_URL = process.env.TEAM_MEMORY_URL || "http://localhost:8787";
 const MEMORY_PATH =
 	process.env.TEAM_MEMORY_FILE ||
-	`${process.env.HOME}/.claude/projects/-Users-zacjones-Documents-02-Areas-wodsmith-thewodapp/memory/MEMORY.md`;
+	`${process.cwd()}/MEMORY.md`;
 
 const BEGIN_MARKER = "<!-- BEGIN TEAM-MEMORY -->";
 const END_MARKER = "<!-- END TEAM-MEMORY -->";

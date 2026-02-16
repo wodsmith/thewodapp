@@ -7,9 +7,8 @@ export const exportRoutes = new Hono<{ Bindings: Env }>()
 
 exportRoutes.get("/", async (c) => {
 	const thresholdParam = c.req.query("scoreThreshold")
-	const scoreThreshold = thresholdParam
-		? Number.parseFloat(thresholdParam)
-		: 0.5
+	const parsed = thresholdParam ? Number.parseFloat(thresholdParam) : NaN
+	const scoreThreshold = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0.5
 
 	const db = getDb(c.env.DB)
 	const markdown = await exportCoreMemory(db, scoreThreshold)

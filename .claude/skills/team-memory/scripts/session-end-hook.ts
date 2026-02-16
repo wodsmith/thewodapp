@@ -158,7 +158,6 @@ function spawnExtractionAgent(
 		{
 			env,
 			stdio: ["pipe", "pipe", "pipe"],
-			detached: true,
 		},
 	);
 
@@ -172,7 +171,7 @@ function spawnExtractionAgent(
 
 	// Collect stdout, parse observations, POST them
 	const chunks: Uint8Array[] = [];
-	(async () => {
+	void (async () => {
 		try {
 			for await (const chunk of child.stdout!) {
 				chunks.push(chunk);
@@ -226,7 +225,7 @@ function spawnExtractionAgent(
 		} catch (err) {
 			console.error("session-end: extraction agent error:", err);
 		}
-	})();
+	})().catch((err) => console.error("session-end: unexpected extraction error:", err));
 
 	// Note: we intentionally do NOT unref — the async IIFE above needs
 	// the process to stay alive until stdout collection + POSTs complete.

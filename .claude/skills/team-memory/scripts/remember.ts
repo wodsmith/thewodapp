@@ -15,7 +15,7 @@ if (args.length === 0 || args[0] === "--help") {
 	process.exit(args[0] === "--help" ? 0 : 1);
 }
 
-let content = "";
+const positionalArgs: string[] = [];
 let category = "convention";
 let priority = "moderate";
 let userId: string | undefined = process.env.USER;
@@ -55,9 +55,11 @@ for (const arg of args) {
 	} else if (arg.startsWith("--sessionId=")) {
 		sessionId = arg.split("=")[1];
 	} else {
-		content = arg;
+		positionalArgs.push(arg);
 	}
 }
+
+const content = positionalArgs.join(" ");
 
 if (!content) {
 	console.error("Error: content is required");

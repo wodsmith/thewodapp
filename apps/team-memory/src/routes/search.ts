@@ -16,7 +16,8 @@ searchRoutes.get("/", async (c) => {
 	const category = c.req.query("category") as Category | undefined
 	const priority = c.req.query("priority") as Priority | undefined
 	const limitParam = c.req.query("limit")
-	const limit = limitParam ? Number.parseInt(limitParam, 10) : 10
+	const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : 10
+	const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 10
 
 	const response = await c.env.AI.run("@cf/baai/bge-small-en-v1.5", {
 		text: [q],
