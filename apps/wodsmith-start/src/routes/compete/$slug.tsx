@@ -6,7 +6,6 @@ import { trackEvent } from "@/lib/posthog"
 import {
 	checkCanManageCompetitionFn,
 	checkIsVolunteerFn,
-	getCompetitionRegistrationCountFn,
 	getRegistrationStatusFn,
 	getUserCompetitionRegistrationFn,
 } from "@/server-fns/competition-detail-fns"
@@ -31,10 +30,9 @@ export const Route = createFileRoute("/compete/$slug")({
 		const session = context.session ?? null
 
 		// Parallel fetch ALL data in a single batch
-		// Public data: registration count, divisions, sponsors, registration status
+		// Public data: divisions, sponsors, registration status
 		// User data (if logged in): user registration, can manage, is volunteer
 		const [
-			registrationCountResult,
 			divisionsResult,
 			sponsorsResult,
 			registrationStatus,
@@ -44,9 +42,6 @@ export const Route = createFileRoute("/compete/$slug")({
 			isVolunteerResult,
 		] = await Promise.all([
 			// Public data - always fetched
-			getCompetitionRegistrationCountFn({
-				data: { competitionId: competition.id },
-			}),
 			getPublicCompetitionDivisionsFn({
 				data: { competitionId: competition.id },
 			}),
@@ -90,7 +85,6 @@ export const Route = createFileRoute("/compete/$slug")({
 				: Promise.resolve({ isVolunteer: false }),
 		])
 
-		const registrationCount = registrationCountResult.count
 		const divisions = divisionsResult.divisions
 		const sponsors = sponsorsResult
 		const userRegistration = userRegResult.registration
@@ -111,7 +105,6 @@ export const Route = createFileRoute("/compete/$slug")({
 			appUrl,
 			ogBaseUrl,
 			competition,
-			registrationCount,
 			userRegistration,
 			canManage,
 			isVolunteer,
@@ -160,8 +153,7 @@ export const Route = createFileRoute("/compete/$slug")({
 })
 
 function CompetitionDetailLayout() {
-	const { competition, registrationCount, canManage, isVolunteer } =
-		Route.useLoaderData()
+	const { competition, canManage, isVolunteer } = Route.useLoaderData()
 
 	const hasBanner = !!competition.bannerImageUrl
 	const profileImage =
@@ -203,7 +195,6 @@ function CompetitionDetailLayout() {
 			<div className="relative print:hidden">
 				<CompetitionHero
 					competition={competition}
-					registrationCount={registrationCount}
 					canManage={canManage}
 					isVolunteer={isVolunteer}
 				/>
