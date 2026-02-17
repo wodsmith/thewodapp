@@ -262,6 +262,91 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 		// 3.6. Validate required questions have answers
 		await validateRequiredQuestions(input.competitionId, input.answers)
 
+		// 3.7. Validate teammate emails BEFORE payment
+		// This prevents charging users for invalid team registrations
+		if (input.teammates && input.teammates.length > 0) {
+			// Get current user for email comparison
+			const currentUser = await db.query.userTable.findFirst({
+				where: eq(userTable.id, userId),
+				columns: { email: true },
+			})
+
+			if (!currentUser?.email) {
+				throw new Error("User email not found")
+			}
+
+			const currentUserEmail = currentUser.email.toLowerCase()
+
+			// Check each teammate
+			for (const teammate of input.teammates) {
+				const teammateEmail = teammate.email.toLowerCase()
+
+				// CRITICAL: Check if teammate email is the same as the user's own email
+				if (teammateEmail === currentUserEmail) {
+					throw new Error(
+						`${teammate.email} is your own email. Please enter a different teammate's email.`,
+					)
+				}
+
+				// Check if teammate is already registered for this competition
+				const teammateUser = await db.query.userTable.findFirst({
+					where: eq(userTable.email, teammateEmail),
+				})
+
+				if (teammateUser) {
+					const teammateReg =
+						await db.query.competitionRegistrationsTable.findFirst({
+							where: and(
+								eq(competitionRegistrationsTable.eventId, input.competitionId),
+								eq(competitionRegistrationsTable.userId, teammateUser.id),
+							),
+						})
+
+					if (teammateReg) {
+						throw new Error(
+							`${teammate.email} is already registered for this competition`,
+						)
+					}
+				}
+
+				// Check if email is already in pendingTeammates of another registration
+				const allRegistrations =
+					await db.query.competitionRegistrationsTable.findMany({
+						where: eq(
+							competitionRegistrationsTable.eventId,
+							input.competitionId,
+						),
+					})
+
+				for (const reg of allRegistrations) {
+					if (!reg.pendingTeammates) continue
+
+					try {
+						const pending = JSON.parse(reg.pendingTeammates) as Array<{
+							email: string
+						}>
+						const isPending = pending.some(
+							(p) => p.email.toLowerCase() === teammateEmail,
+						)
+
+						if (isPending) {
+							throw new Error(
+								`${teammate.email} has already been invited to another team for this competition`,
+							)
+						}
+					} catch (e) {
+						// Re-throw our custom errors, ignore JSON parse errors
+						if (
+							e instanceof Error &&
+							e.message.includes("already been invited")
+						) {
+							throw e
+						}
+					}
+				}
+			}
+		}
+
 		// 4. Check for existing pending purchase (resume payment flow)
 		const existingPurchase = await db.query.commercePurchaseTable.findFirst({
 			where: and(

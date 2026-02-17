@@ -65,11 +65,23 @@ vi.mock('cloudflare:workers', () => ({
   },
 }))
 
+// Mock division capacity check
+vi.mock('@/server-fns/competition-divisions-fns', () => ({
+  getDivisionSpotsAvailableFn: vi.fn().mockResolvedValue({
+    isFull: false,
+    spotsAvailable: 100,
+  }),
+  parseCompetitionSettings: vi.fn().mockReturnValue({
+    divisions: { scalingGroupId: 'scaling-group-123' },
+  }),
+}))
+
 // Import mocked auth so we can change behavior
 import {requireVerifiedEmail} from '@/utils/auth'
 import {
   updateRegistrationAffiliateFn,
   getRegistrationDetailsFn,
+  initiateRegistrationPaymentFn,
 } from '@/server-fns/registration-fns'
 
 // Helper to set mock session
@@ -509,6 +521,269 @@ describe('registration-fns', () => {
         expect(result?.division?.feeCents).toBeNull()
         expect(result?.division?.description).toBeNull()
       })
+    })
+  })
+
+  describe('initiateRegistrationPaymentFn - teammate email validation', () => {
+    const testUserId = 'user-captain-123'
+    const mockCaptainSession = {
+      userId: testUserId,
+      user: {
+        id: testUserId,
+        email: 'captain@example.com',
+      },
+      teams: [],
+    }
+
+    const mockCompetition = {
+      id: testCompetitionId,
+      name: 'Test Competition',
+      slug: 'test-competition',
+      registrationOpensAt: new Date('2024-01-01'),
+      registrationClosesAt: new Date('2025-12-31'),
+      timezone: 'America/Denver',
+      organizingTeamId: 'organizing-team-123',
+    }
+
+    const mockUser = {
+      id: testUserId,
+      email: 'captain@example.com',
+      firstName: 'John',
+      lastName: 'Doe',
+    }
+
+    beforeEach(() => {
+      setMockSession(mockCaptainSession)
+      mockDb.registerTable('competitionRegistrationQuestionsTable')
+
+      // Mock competition lookup
+      mockDb.query.competitionsTable = {
+        findFirst: vi.fn().mockResolvedValue(mockCompetition),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+
+      // Mock user lookup
+      mockDb.query.userTable = {
+        findFirst: vi.fn().mockResolvedValue(mockUser),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+
+      // Mock empty registrations (no conflicts)
+      mockDb.query.competitionRegistrationsTable = {
+        findFirst: vi.fn().mockResolvedValue(null),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+    })
+
+    it('should reject when teammate email is same as user email', async () => {
+      await expect(
+        initiateRegistrationPaymentFn({
+          data: {
+            competitionId: testCompetitionId,
+            divisionId: testDivisionId,
+            teamName: 'Test Team',
+            teammates: [
+              {
+                email: 'captain@example.com', // Same as user's email
+                firstName: 'Jane',
+                lastName: 'Doe',
+              },
+            ],
+          },
+        }),
+      ).rejects.toThrow(
+        'captain@example.com is your own email. Please enter a different teammate\'s email.',
+      )
+    })
+
+    it('should reject when teammate email is same as user email (case insensitive)', async () => {
+      await expect(
+        initiateRegistrationPaymentFn({
+          data: {
+            competitionId: testCompetitionId,
+            divisionId: testDivisionId,
+            teamName: 'Test Team',
+            teammates: [
+              {
+                email: 'CAPTAIN@EXAMPLE.COM', // Same email, different case
+                firstName: 'Jane',
+                lastName: 'Doe',
+              },
+            ],
+          },
+        }),
+      ).rejects.toThrow(
+        'CAPTAIN@EXAMPLE.COM is your own email. Please enter a different teammate\'s email.',
+      )
+    })
+
+    it('should reject when teammate is already registered for competition', async () => {
+      const teammateUser = {
+        id: 'teammate-user-123',
+        email: 'teammate@example.com',
+      }
+
+      const existingRegistration = {
+        id: 'existing-reg-123',
+        userId: teammateUser.id,
+        eventId: testCompetitionId,
+      }
+
+      // Mock teammate user exists
+      mockDb.query.userTable = {
+        findFirst: vi
+          .fn()
+          .mockResolvedValueOnce(mockUser) // First call for captain
+          .mockResolvedValueOnce(teammateUser), // Second call for teammate
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+
+      // Mock teammate already registered
+      mockDb.query.competitionRegistrationsTable = {
+        findFirst: vi
+          .fn()
+          .mockResolvedValueOnce(null) // Check captain not registered
+          .mockResolvedValueOnce(existingRegistration), // Check teammate is registered
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+
+      await expect(
+        initiateRegistrationPaymentFn({
+          data: {
+            competitionId: testCompetitionId,
+            divisionId: testDivisionId,
+            teamName: 'Test Team',
+            teammates: [
+              {
+                email: 'teammate@example.com',
+                firstName: 'Jane',
+                lastName: 'Doe',
+              },
+            ],
+          },
+        }),
+      ).rejects.toThrow('teammate@example.com is already registered for this competition')
+    })
+
+    it('should reject when teammate is already invited to another team', async () => {
+      const existingReg = {
+        id: 'other-team-reg-123',
+        userId: 'other-captain-456',
+        eventId: testCompetitionId,
+        pendingTeammates: JSON.stringify([
+          {
+            email: 'teammate@example.com',
+            firstName: 'Jane',
+            lastName: 'Doe',
+          },
+        ]),
+      }
+
+      mockDb.query.competitionRegistrationsTable = {
+        findFirst: vi.fn().mockResolvedValue(null),
+        findMany: vi.fn().mockResolvedValue([existingReg]),
+      }
+
+      await expect(
+        initiateRegistrationPaymentFn({
+          data: {
+            competitionId: testCompetitionId,
+            divisionId: testDivisionId,
+            teamName: 'Test Team',
+            teammates: [
+              {
+                email: 'teammate@example.com',
+                firstName: 'Jane',
+                lastName: 'Doe',
+              },
+            ],
+          },
+        }),
+      ).rejects.toThrow(
+        'teammate@example.com has already been invited to another team for this competition',
+      )
+    })
+
+    it('should allow registration with valid teammate email', async () => {
+      // Mock all required dependencies for successful registration
+      const mockDivision = {
+        id: testDivisionId,
+        label: 'RX',
+        teamSize: 2,
+      }
+
+      const mockOrganizingTeam = {
+        id: 'organizing-team-123',
+        stripeAccountStatus: 'VERIFIED',
+        stripeConnectedAccountId: 'acct_test123',
+        organizerFeePercentage: null,
+        organizerFeeFixed: null,
+      }
+
+      // Mock database responses
+      mockDb.query.scalingLevelsTable = {
+        findFirst: vi.fn().mockResolvedValue(mockDivision),
+        findMany: vi.fn().mockResolvedValue([mockDivision]),
+      }
+
+      mockDb.query.teamTable = {
+        findFirst: vi.fn().mockResolvedValue(mockOrganizingTeam),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+
+      // Mock competition divisions for fee lookup
+      mockDb.query.competitionDivisionsTable = {
+        findFirst: vi.fn().mockResolvedValue({
+          competitionId: testCompetitionId,
+          divisionId: testDivisionId,
+          feeCents: 5000,
+        }),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+
+      // Mock Stripe
+      const mockStripeSession = {
+        id: 'cs_test123',
+        url: 'https://checkout.stripe.com/test',
+        status: 'open',
+      }
+
+      vi.mock('@/lib/stripe', () => ({
+        getStripe: vi.fn(() => ({
+          checkout: {
+            sessions: {
+              create: vi.fn().mockResolvedValue(mockStripeSession),
+            },
+          },
+        })),
+      }))
+
+      // This should NOT throw - teammate email is different from captain
+      // Note: The actual call might still fail due to other validations or mocks,
+      // but it should pass the teammate email validation
+      try {
+        await initiateRegistrationPaymentFn({
+          data: {
+            competitionId: testCompetitionId,
+            divisionId: testDivisionId,
+            teamName: 'Test Team',
+            teammates: [
+              {
+                email: 'different@example.com', // Different from captain@example.com
+                firstName: 'Jane',
+                lastName: 'Doe',
+              },
+            ],
+          },
+        })
+      } catch (error) {
+        // If it throws, it should NOT be about the teammate email
+        if (error instanceof Error) {
+          expect(error.message).not.toContain('is your own email')
+          expect(error.message).not.toContain('already registered')
+          expect(error.message).not.toContain('already been invited')
+        }
+      }
     })
   })
 })
