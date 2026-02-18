@@ -41,7 +41,7 @@ const formSchema = z.object({
 		.string()
 		.min(1, "Track name is required")
 		.max(255, "Name is too long"),
-	description: z.string().max(1000, "Description is too long").optional(),
+	description: z.string().max(10000, "Description is too long").optional(),
 	type: z.enum([
 		PROGRAMMING_TRACK_TYPE.SELF_PROGRAMMED,
 		PROGRAMMING_TRACK_TYPE.TEAM_OWNED,

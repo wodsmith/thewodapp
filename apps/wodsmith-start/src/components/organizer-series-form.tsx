@@ -37,7 +37,7 @@ const formSchema = z.object({
 			/^[a-z0-9-]+$/,
 			"Slug must be lowercase letters, numbers, and hyphens only",
 		),
-	description: z.string().max(1000, "Description is too long").optional(),
+	description: z.string().max(10000, "Description is too long").optional(),
 	profileImageUrl: z.string().optional(), // Placeholder for future implementation
 })
 

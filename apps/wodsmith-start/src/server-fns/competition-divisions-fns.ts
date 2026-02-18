@@ -178,7 +178,7 @@ const updateDivisionDescriptionInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
 	teamId: z.string().min(1, "Team ID is required"),
 	divisionId: z.string().min(1, "Division ID is required"),
-	description: z.string().max(2000).nullable(),
+	description: z.string().max(10000).nullable(),
 })
 
 const getScalingGroupWithLevelsInputSchema = z.object({

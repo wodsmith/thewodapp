@@ -6,6 +6,7 @@ import {
 	int,
 	mysqlTable,
 	primaryKey,
+	text,
 	varchar,
 } from "drizzle-orm/mysql-core"
 import {
@@ -44,7 +45,7 @@ export const programmingTracksTable = mysqlTable(
 			.$defaultFn(() => createProgrammingTrackId())
 			.notNull(),
 		name: varchar({ length: 255 }).notNull(),
-		description: varchar({ length: 1000 }),
+		description: text(),
 		type: varchar({ length: 255 }).notNull(),
 		ownerTeamId: varchar({ length: 255 }),
 		scalingGroupId: varchar({ length: 255 }), // Optional scaling group for all workouts in this track

@@ -61,7 +61,7 @@ const getScalingGroupWithLevelsInputSchema = z.object({
 const createScalingGroupInputSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
 	title: z.string().min(1, "Title is required").max(100),
-	description: z.string().max(500).optional(),
+	description: z.string().max(10000).optional(),
 	levels: z
 		.array(
 			z.object({
@@ -76,7 +76,7 @@ const updateScalingGroupInputSchema = z.object({
 	groupId: z.string().min(1, "Group ID is required"),
 	teamId: z.string().min(1, "Team ID is required"),
 	title: z.string().min(1, "Title is required").max(100),
-	description: z.string().max(500).optional(),
+	description: z.string().max(10000).optional(),
 })
 
 const deleteScalingGroupInputSchema = z.object({

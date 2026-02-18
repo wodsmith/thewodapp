@@ -189,7 +189,7 @@ const saveCompetitionEventInputSchema = z.object({
 		.array(
 			z.object({
 				divisionId: z.string().min(1, "Division ID is required"),
-				description: z.string().max(2000).nullable(),
+				description: z.string().max(10000).nullable(),
 			}),
 		)
 		.optional(),

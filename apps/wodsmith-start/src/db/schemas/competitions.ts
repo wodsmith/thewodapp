@@ -47,7 +47,7 @@ export const competitionGroupsTable = mysqlTable(
 		// Slug is unique per organizing team (not globally unique)
 		slug: varchar({ length: 255 }).notNull(),
 		name: varchar({ length: 255 }).notNull(),
-		description: varchar({ length: 1000 }),
+		description: text(),
 	},
 	(table) => [
 		// Ensure slug is unique per organizing team
@@ -77,7 +77,7 @@ export const competitionsTable = mysqlTable(
 		// Slug must be globally unique (used in public URLs like /compete/{slug})
 		slug: varchar({ length: 255 }).notNull().unique(),
 		name: varchar({ length: 255 }).notNull(),
-		description: varchar({ length: 2000 }),
+		description: text(),
 		// Competition dates (YYYY-MM-DD format for timezone-agnostic storage)
 		startDate: varchar({ length: 255 }).notNull(),
 		endDate: varchar({ length: 255 }).notNull(),

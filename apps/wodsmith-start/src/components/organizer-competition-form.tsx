@@ -52,7 +52,7 @@ const formSchema = z
 		isMultiDay: z.boolean(),
 		startDate: z.string().min(1, "Start date is required"),
 		endDate: z.string().optional(),
-		description: z.string().max(2000, "Description is too long").optional(),
+		description: z.string().max(10000, "Description is too long").optional(),
 		registrationOpensAt: z.string().optional(),
 		registrationClosesAt: z.string().optional(),
 		groupId: z.string().optional(),
