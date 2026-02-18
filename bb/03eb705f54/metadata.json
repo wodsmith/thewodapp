@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "bb03eb705f54",
+  "strategy": "manual-commit",
+  "branch": "zac/migrate-event-descriptions",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "scripts/backfill-missing-registrations.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/bb/03eb705f54/0/metadata.json",
+      "transcript": "/bb/03eb705f54/0/full.jsonl",
+      "context": "/bb/03eb705f54/0/context.md",
+      "content_hash": "/bb/03eb705f54/0/content_hash.txt",
+      "prompt": "/bb/03eb705f54/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1903,
+    "cache_creation_tokens": 163231,
+    "cache_read_tokens": 6651643,
+    "output_tokens": 6867,
+    "api_call_count": 56
+  }
+}

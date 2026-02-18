@@ -1,0 +1,120 @@
+please use an agent team and investigate this issue: # Leaderboard Missing Athletes Investigation Report
+
+**Date:** 2026-02-16
+**Reporter:** Claude Code (initial investigation)
+**Status:** Root cause partially identified, further investigation needed
+
+## Summary
+
+The All Valley Open 2026 leaderboard at `mountainwestfitnesschampionship.com/all-valley-open` is missing **12 of 70 registered athletes**. The CSV export from Competition Corner shows 70 registrations; the API returns only 58.
+
+## Architecture Overview
+
+```
+Competition Corner (registration source of truth)
+        ↓ (sync mechanism — unknown)
+PlanetScale MySQL DB
+        ↓
+mwfc-api (Cloudflare Worker) → GET /leaderboard/:competitionId
+        ↓
+mwfc (Next.js frontend, React Query client-side fetch)
+```
+
+- **Frontend repo:** `/Users/zacjones/Documents/02.Areas/wodsmith/mwfc`
+- **API repo:** `/Users/zacjones/Documents/02.Areas/wodsmith/mwfc-api`
+- **API endpoint:** `https://mwfc-api.mountainwestchampionship.workers.dev`
+- **Competition ID:** `comp_sfy558a952ov789d6x525pa3`
+- **DB:** Plaaccessed via `@planetscale/database` + Drizzle ORM)
+
+## Findings
+
+### 1. The 12 Missing Athletes
+
+All missing athletes registered between **Feb 9-15, 2026**. All registrations from Jan 22 - Feb 8 are present.
+
+| Athlete | Affiliate | Division | Registered |
+|---|---|---|---|
+| David Poulsen | Boise CrossFit | Men's Open | Feb 10 |
+| Jill Forkner | CrossFit Canvas | Women's Open | Feb 10 |
+| Elizabeth Krmpotich | CrossFit Canvas | Women's Open | Feb 10 |
+| Kevin Bobzien | CrossFit Northside | Men's Open | Feb 11 |
+| Katie Clune | Four Rivers CrossFit | Women's Open | Feb 11 |
+| Justin McKerrow | Four Rivers CrossFit | Men's Open | Feb 10 |
+| Emma Myers | Four Rivers CrossFit | Women's Open | Feb 10 |
+| Angie Hemenway | Four Rivers CrossFit | Women's Open | Feb 10 |
+| Leon Fuller | Four Rivers CrossFit | Men's Open | Feb 9 |
+| Lance Silva | Four Rivers CrossFit | Men's Open | Feb 9 |
+| Taylor Duke | Snake River CrossFit | Men's Open | Feb 15 |
+| Austin Andreasen | Snake River CrossFit | Men's Open | Feb 15 |
+
+### 2. Correct Gym Athlete Counts (CSV vs API)
+
+| Gym | CSV (expected) | API (actual) | Missing |
+|---|---|---|---|
+| Boise CrossFit | 15 | 14 | 1 |
+| CrossFit Canvas | 19 | 17 | 2 |
+| CrossFit Northside | 7 | 6 | 1 |
+| Four Rivers CrossFit | 20 | 14 | 6 |
+| Snake River CrossFit | 9 | 7 | 2 |
+| **Total** | **70** | **58** | **12** |
+
+### 3. Issues Fixed During Investigation
+
+Two issues were fixed and deployed to the API during this investigation:
+
+**a. INNER JOIN dropping registrations (`mwfc-api/src/services/leaderboard.ts:209`)**
+- The registration query used `INNER JOIN users` — any `competition_registrations` row without a matching `users` row was silently dropped.
+- Changed to `LEFT JOIN` so missing user records don't exclude athletes.
+- **This did NOT account for the 12 missing athletes** — they don't have `competition_registrations` rows at all.
+
+**b. CDN caching (`mwfc-api/src/index.ts:77`)**
+- Response header was `Cache-Control: s-maxage=60`, allowing Cloudflare edge to serve stale data for up60 seconds.
+- Changed to `Cache-Control: no-store` for fresh data on every request.
+- **This was not the root cause** but was cleaned up for correctness.
+
+### 4. Root Cause: Registration Sync Failure
+
+The 12 missing athletes exist in Competition Corner (the registration platform) but have **no rows in the PlanetScale `competition_registrations` table**. The cutoff appears to be around Feb 8-9, 2026 — everything before that date synced; nothing after did.
+
+## Next Steps for Investigation
+
+1. **Identify the sync mechanism** — How do Competition Corner registrations get into PlanetScale? Possible mechanisms:
+   - Webhook from Competition Corner → some worker/function that writes to PlanetScale
+   - Cron job / scheduled worker that polls Competition Corner API
+   - Manual import process
+   - Part of the `wodsmith` ecosystem (check `/Users/zacjones/Documents/02.Areas/wodsmith/` for related projects like `agent`, `wodsmith-brain`, `daily-dotcom-scrape-workflow`)
+
+2. **Check the sync service logs** — Look for errors starting around Feb 8-9, 2026.
+
+3. **Verify DB state** — Run this query against PlanetScale to confirm the 12 athletes are truly missing:
+   ```sql
+   SELECT COUNT(*) FROM competition_registrations
+   WHERE event_id = 'comp_sfy558a952ov789d6x525pa3';
+   -- Expected: 70, currently returning: 58
+   ```
+
+4. **Check for a Competition Corner API** — The `useScheduleData.ts` hook references Competition Corner heat data APIs, confirming integration exists. There may be a registration sync endpoint as well.
+
+5. **Backfill the 12 missing registrations** once the sync issue is resolved.
+
+## Reference Files
+
+- CSV source of truth: `docs/the-all-valley-open-2026-athletes-2026-02-16.csv`
+- API leaderboard service: `mwfc-api/src/services/leaderboard.ts`
+- API entry point: `mwfc-api/src/index.ts`
+- DB schema: `mwfc-api/src/db/schema.ts`
+- DB client: `mwfc-api/src/db/client.ts`
+- Frontend leaderboard hook: `src/hooks/useLeaderboard.ts`
+- Frontend page: `src/app/all-valley-open/page.tsx`
+
+---
+
+WE ONLY USE WODSMITH FOR THIS IDK WHERE THE COMPETITION CORNER STUFF WAS INTRODUCED. THERE WAS NO WAY COMPETITION CORNER WAS INVOLVED
+
+---
+
+yes backfill
+
+---
+
+ok here is austin and taylors data, please add them "1","Taylor Duke","tcduke@outlook.com","Men’s Open Division","","Snake River CrossFit","Feb 15, 2026","","Unisex X-Large","Feb 15, 2026" "2","Austin Andreasen","ozandreasen@gmail.com","Men’s Open Division","","Snake River CrossFit","Feb 15, 2026","","Unisex Large","Feb 15, 2026"
