@@ -5,6 +5,7 @@ import {
 	index,
 	int,
 	mysqlTable,
+	text,
 	uniqueIndex,
 	varchar,
 } from "drizzle-orm/mysql-core"
@@ -27,7 +28,7 @@ export const scalingGroupsTable = mysqlTable(
 			.$defaultFn(() => createScalingGroupId())
 			.notNull(),
 		title: varchar({ length: 255 }).notNull(),
-		description: varchar({ length: 1000 }),
+		description: text('description'),
 		teamId: varchar({ length: 255 }), // Nullable for system groups
 		isDefault: boolean().default(false).notNull(),
 		isSystem: boolean().default(false).notNull(), // Marks global default group
@@ -73,7 +74,7 @@ export const workoutScalingDescriptionsTable = mysqlTable(
 			.notNull(),
 		workoutId: varchar({ length: 255 }).notNull(),
 		scalingLevelId: varchar({ length: 255 }).notNull(),
-		description: varchar({ length: 2000 }), // Optional workout-specific description for this scaling level
+		description: text('description'), // Optional workout-specific description for this scaling level
 	},
 	(table) => [
 		index("workout_scaling_desc_workout_idx").on(table.workoutId),

@@ -8,6 +8,7 @@ import {
 	boolean,
 	datetime,
 	uniqueIndex,
+	text,
 } from "drizzle-orm/mysql-core"
 import {
 	commonColumns,
@@ -157,7 +158,7 @@ export const judgeAssignmentVersionsTable = mysqlTable(
 		// Who published this version (nullable for system-generated)
 		publishedBy: varchar({ length: 255 }),
 		// Optional notes about this version
-		notes: varchar({ length: 1000 }),
+		notes: text(),
 		// Whether this is the currently active version for this event
 		isActive: boolean().notNull().default(false),
 	},
@@ -201,7 +202,7 @@ export const judgeHeatAssignmentsTable = mysqlTable(
 		// Position/role for this specific heat (overrides default from metadata)
 		position: varchar({ length: 50 }).$type<VolunteerRoleType>(),
 		// Heat-specific instructions for this volunteer
-		instructions: varchar({ length: 500 }),
+		instructions: text(),
 		// Whether this assignment was manually overridden (not from rotation/version)
 		isManualOverride: boolean().notNull().default(false),
 	},
@@ -246,7 +247,7 @@ export const competitionJudgeRotationsTable = mysqlTable(
 			.notNull()
 			.default("stay"),
 		// Optional notes/instructions for this rotation
-		notes: varchar({ length: 500 }),
+		notes: text(),
 	},
 	(table) => [
 		index("competition_judge_rotations_competition_idx").on(
@@ -288,7 +289,7 @@ export const volunteerShiftsTable = mysqlTable(
 		// Maximum number of volunteers for this shift
 		capacity: int().notNull().default(1),
 		// Optional notes/instructions for this shift
-		notes: varchar({ length: 1000 }),
+		notes: text(),
 	},
 	(table) => [
 		index("volunteer_shifts_competition_idx").on(table.competitionId),
@@ -312,7 +313,7 @@ export const volunteerShiftAssignmentsTable = mysqlTable(
 		// The team membership (volunteer) being assigned
 		membershipId: varchar({ length: 255 }).notNull(),
 		// Optional notes/instructions for this specific assignment
-		notes: varchar({ length: 500 }),
+		notes: text(),
 	},
 	(table) => [
 		index("volunteer_shift_assignments_shift_idx").on(table.shiftId),

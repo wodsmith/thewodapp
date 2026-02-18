@@ -8,6 +8,7 @@ import {
 	primaryKey,
 	mysqlTable,
 	varchar,
+	text,
 } from "drizzle-orm/mysql-core"
 import { commonColumns } from "./common"
 import { teamTable } from "./teams"
@@ -26,7 +27,7 @@ export const coachesTable = mysqlTable(
 			length: 255,
 			enum: ["morning", "afternoon", "night", "any"],
 		}),
-		schedulingNotes: varchar({ length: 255 }), // For soft, unstructured preferences
+		schedulingNotes: text(), // For soft, unstructured preferences
 		isActive: boolean().default(true),
 	},
 	(table) => [
@@ -48,7 +49,7 @@ export const classCatalogTable = mysqlTable("class_catalogs", {
 	id: varchar({ length: 255 }).primaryKey(),
 	teamId: varchar({ length: 255 }).notNull(),
 	name: varchar({ length: 255 }).notNull(),
-	description: varchar({ length: 255 }),
+	description: text(),
 	durationMinutes: int().notNull().default(60),
 	maxParticipants: int().notNull().default(20),
 })
@@ -85,7 +86,7 @@ export const coachBlackoutDatesTable = mysqlTable("coach_blackout_dates", {
 	coachId: varchar({ length: 255 }).notNull(),
 	startDate: datetime().notNull(),
 	endDate: datetime().notNull(),
-	reason: varchar({ length: 255 }),
+	reason: text(),
 })
 
 export const coachRecurringUnavailabilityTable = mysqlTable(
@@ -97,7 +98,7 @@ export const coachRecurringUnavailabilityTable = mysqlTable(
 		dayOfWeek: int().notNull(), // 0-6 for Sunday-Saturday
 		startTime: varchar({ length: 255 }).notNull(), // "HH:MM"
 		endTime: varchar({ length: 255 }).notNull(), // "HH:MM"
-		description: varchar({ length: 255 }),
+		description: text(),
 	},
 )
 
