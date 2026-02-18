@@ -78,8 +78,8 @@ const getScalingGroupWithLevelsFn = createServerFn({ method: "GET" })
 		return { scalingGroup }
 	})
 
-// Server function to get user's affiliate name
-const getUserAffiliateNameFn = createServerFn({ method: "GET" })
+// Server function to get user's profile info for registration
+const getUserProfileFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) =>
 		z.object({ userId: z.string() }).parse(data),
 	)
@@ -88,10 +88,20 @@ const getUserAffiliateNameFn = createServerFn({ method: "GET" })
 		const db = getDb()
 		const user = await db.query.userTable.findFirst({
 			where: eq(userTable.id, data.userId),
-			columns: { affiliateName: true },
+			columns: {
+				affiliateName: true,
+				firstName: true,
+				lastName: true,
+				email: true,
+			},
 		})
 
-		return { affiliateName: user?.affiliateName ?? null }
+		return {
+			affiliateName: user?.affiliateName ?? null,
+			firstName: user?.firstName ?? null,
+			lastName: user?.lastName ?? null,
+			email: user?.email ?? null,
+		}
 	})
 
 export const Route = createFileRoute("/compete/$slug/register")({
@@ -132,7 +142,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 		// These all only need competition.id or session.userId
 		const [
 			{ registration: existingRegistration },
-			{ affiliateName },
+			userProfile,
 			{ waivers },
 			{ questions },
 		] = await Promise.all([
@@ -142,7 +152,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 					userId: session.userId,
 				},
 			}),
-			getUserAffiliateNameFn({
+			getUserProfileFn({
 				data: { userId: session.userId },
 			}),
 			getCompetitionWaiversFn({
@@ -231,10 +241,13 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			registrationOpen,
 			registrationOpensAt: regOpensAt,
 			registrationClosesAt: regClosesAt,
-			defaultAffiliateName: affiliateName ?? undefined,
+			defaultAffiliateName: userProfile.affiliateName ?? undefined,
 			divisionsConfigured: true,
 			waivers,
 			questions,
+			userFirstName: userProfile.firstName,
+			userLastName: userProfile.lastName,
+			userEmail: userProfile.email,
 		}
 	},
 })
@@ -252,6 +265,9 @@ function RegisterPage() {
 		divisionsConfigured,
 		waivers,
 		questions,
+		userFirstName,
+		userLastName,
+		userEmail,
 	} = Route.useLoaderData()
 
 	const { canceled } = Route.useSearch()
@@ -288,6 +304,9 @@ function RegisterPage() {
 				defaultAffiliateName={defaultAffiliateName}
 				waivers={waivers}
 				questions={questions}
+				userFirstName={userFirstName}
+				userLastName={userLastName}
+				userEmail={userEmail}
 			/>
 		</div>
 	)
