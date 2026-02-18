@@ -8,6 +8,7 @@ import { FEATURES } from "@/config/features"
 import { LIMITS } from "@/config/limits"
 import { getDb } from "@/db"
 import {
+	createOrganizerRequestId,
 	featureTable,
 	ORGANIZER_REQUEST_STATUS,
 	type OrganizerRequest,
@@ -189,17 +190,14 @@ export async function submitOrganizerRequest({
 	}
 
 	// Create the request
-	const insertResult = await db.insert(organizerRequestTable).values({
+	const requestId = createOrganizerRequestId()
+	await db.insert(organizerRequestTable).values({
+		id: requestId,
 		teamId,
 		userId,
 		reason,
 		status: ORGANIZER_REQUEST_STATUS.PENDING,
 	})
-
-	const requestId = insertResult.insertId
-	if (!requestId) {
-		throw new Error("Failed to create organizer request")
-	}
 
 	// Fetch the inserted record
 	const request = await db.query.organizerRequestTable.findFirst({
