@@ -3,7 +3,6 @@ import { relations } from "drizzle-orm"
 import {
 	index,
 	int,
-	json,
 	mysqlTable,
 	text,
 	varchar,
@@ -115,7 +114,7 @@ export const commercePurchaseTable = mysqlTable(
 		stripePaymentIntentId: varchar({ length: 255 }), // Set after checkout completes (from session.payment_intent)
 
 		// Extensibility (JSON for team registration data, etc.)
-		metadata: json().$type<Record<string, unknown>>(),
+		metadata: text(), // JSON
 
 		// Completion timestamp
 		completedAt: datetime(),

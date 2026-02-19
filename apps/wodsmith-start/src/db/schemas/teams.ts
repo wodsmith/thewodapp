@@ -181,7 +181,7 @@ export const teamMembershipTable = mysqlTable(
 		expiresAt: datetime(),
 		isActive: boolean().default(true).notNull(),
 		// JSON metadata for role-specific data (e.g., volunteer info)
-		metadata: json().$type<Record<string, unknown>>(),
+		metadata: text(),
 	},
 	(table) => [
 		index("team_membership_team_id_idx").on(table.teamId),
@@ -206,7 +206,7 @@ export const teamRoleTable = mysqlTable(
 		// Store permissions as a JSON array of permission keys
 		permissions: json().notNull().$type<string[]>(),
 		// A JSON field for storing UI-specific settings like color, icon, etc.
-		metadata: json().$type<Record<string, unknown>>(),
+		metadata: text(),
 		// Optional flag to mark some roles as non-editable
 		isEditable: boolean().default(true).notNull(),
 	},
@@ -245,7 +245,7 @@ export const teamInvitationTable = mysqlTable(
 			.default("pending")
 			.notNull(),
 		// Optional JSON metadata to transfer to membership on acceptance
-		metadata: json().$type<Record<string, unknown>>(),
+		metadata: text(),
 	},
 	(table) => [
 		index("team_invitation_team_id_idx").on(table.teamId),

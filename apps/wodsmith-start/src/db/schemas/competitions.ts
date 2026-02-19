@@ -5,7 +5,6 @@ import {
 	datetime,
 	index,
 	int,
-	json,
 	mysqlTable,
 	text,
 	uniqueIndex,
@@ -167,9 +166,9 @@ export const competitionRegistrationsTable = mysqlTable(
 		athleteTeamId: varchar({ length: 255 }),
 		// Pending teammates stored as JSON until they accept
 		// Format: [{ email, firstName?, lastName?, affiliateName? }, ...]
-		pendingTeammates: json().$type<Array<{ email: string; firstName?: string; lastName?: string; affiliateName?: string }>>(),
+		pendingTeammates: text(), // JSON array
 		// Metadata as JSON (flexible for future expansion)
-		metadata: json().$type<Record<string, unknown>>(),
+		metadata: text(), // JSON: { notes: "..." }
 
 		// Commerce: Payment tracking
 		// Reference to commerce_purchase (no FK to avoid circular deps - relation defined separately)
