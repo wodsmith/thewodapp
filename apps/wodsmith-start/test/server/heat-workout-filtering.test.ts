@@ -7,13 +7,15 @@ const DIVISION_SCALED = "div-scaled"
 const WORKOUT_FRAN = "tw-fran"
 const WORKOUT_GRACE = "tw-grace"
 const WORKOUT_DIANE = "tw-diane"
+const WORKOUT_MAX_DU = "tw-max-du"
 
 describe("getRelevantWorkoutIds", () => {
-	it("returns null when no heats exist (backward compat)", () => {
+	it("returns null when no heats and no scores exist (backward compat)", () => {
 		const result = getRelevantWorkoutIds({
 			heats: [],
 			mixedHeatAssignments: [],
 			divisionId: DIVISION_RX,
+			workoutIdsWithScores: new Set(),
 		})
 
 		expect(result).toBeNull()
@@ -28,6 +30,7 @@ describe("getRelevantWorkoutIds", () => {
 				],
 				mixedHeatAssignments: [],
 				divisionId: DIVISION_RX,
+				workoutIdsWithScores: new Set(),
 			})
 
 			expect(result).toEqual(new Set([WORKOUT_FRAN, WORKOUT_GRACE]))
@@ -42,13 +45,14 @@ describe("getRelevantWorkoutIds", () => {
 				],
 				mixedHeatAssignments: [],
 				divisionId: DIVISION_SCALED,
+				workoutIdsWithScores: new Set(),
 			})
 
 			// Scaled only has heats for Fran, not Grace
 			expect(result).toEqual(new Set([WORKOUT_FRAN]))
 		})
 
-		it("returns empty set when no heats match the division", () => {
+		it("returns empty set when no heats match the division and no scores", () => {
 			const result = getRelevantWorkoutIds({
 				heats: [
 					{ id: "h1", trackWorkoutId: WORKOUT_FRAN, divisionId: DIVISION_RX },
@@ -56,6 +60,7 @@ describe("getRelevantWorkoutIds", () => {
 				],
 				mixedHeatAssignments: [],
 				divisionId: DIVISION_SCALED,
+				workoutIdsWithScores: new Set(),
 			})
 
 			expect(result?.size).toBe(0)
@@ -73,6 +78,7 @@ describe("getRelevantWorkoutIds", () => {
 					{ heatId: "h1", divisionId: DIVISION_SCALED },
 				],
 				divisionId: DIVISION_SCALED,
+				workoutIdsWithScores: new Set(),
 			})
 
 			expect(result).toEqual(new Set([WORKOUT_FRAN]))
@@ -89,19 +95,21 @@ describe("getRelevantWorkoutIds", () => {
 					{ heatId: "h2", divisionId: DIVISION_RX },
 				],
 				divisionId: DIVISION_SCALED,
+				workoutIdsWithScores: new Set(),
 			})
 
 			// Neither workout has Scaled athletes assigned
 			expect(result?.size).toBe(0)
 		})
 
-		it("includes workout when mixed heat has no assignments at all", () => {
+		it("excludes workout when mixed heat has no assignments at all", () => {
 			const result = getRelevantWorkoutIds({
 				heats: [
 					{ id: "h1", trackWorkoutId: WORKOUT_FRAN, divisionId: null },
 				],
 				mixedHeatAssignments: [],
 				divisionId: DIVISION_SCALED,
+				workoutIdsWithScores: new Set(),
 			})
 
 			// No assignments = can't confirm division participates
@@ -125,6 +133,7 @@ describe("getRelevantWorkoutIds", () => {
 					{ heatId: "h2", divisionId: DIVISION_RX },
 				],
 				divisionId: DIVISION_RX,
+				workoutIdsWithScores: new Set(),
 			})
 
 			// RX gets Fran (division-specific) and Grace (mixed with RX assignments)
@@ -133,17 +142,15 @@ describe("getRelevantWorkoutIds", () => {
 		})
 
 		it("real scenario: Scaled division should not see RX-only workouts", () => {
-			// Winter Throwdown scenario: Fran for both, Grace only for RX
 			const result = getRelevantWorkoutIds({
 				heats: [
-					// Fran heats for both divisions
 					{ id: "h1", trackWorkoutId: WORKOUT_FRAN, divisionId: DIVISION_RX },
 					{ id: "h2", trackWorkoutId: WORKOUT_FRAN, divisionId: DIVISION_SCALED },
-					// Grace heats only for RX
 					{ id: "h3", trackWorkoutId: WORKOUT_GRACE, divisionId: DIVISION_RX },
 				],
 				mixedHeatAssignments: [],
 				divisionId: DIVISION_SCALED,
+				workoutIdsWithScores: new Set(),
 			})
 
 			expect(result).toEqual(new Set([WORKOUT_FRAN]))
@@ -163,6 +170,7 @@ describe("getRelevantWorkoutIds", () => {
 				],
 				mixedHeatAssignments: [],
 				divisionId: DIVISION_SCALED,
+				workoutIdsWithScores: new Set(),
 			})
 
 			// Scaled only has heats for Fran
@@ -178,10 +186,74 @@ describe("getRelevantWorkoutIds", () => {
 				],
 				mixedHeatAssignments: [],
 				divisionId: DIVISION_RX,
+				workoutIdsWithScores: new Set(),
 			})
 
 			expect(result).toEqual(new Set([WORKOUT_FRAN]))
 			expect(result?.size).toBe(1)
+		})
+	})
+
+	describe("workouts with scores but no heats", () => {
+		it("includes workouts that have scores for the division", () => {
+			// Valentine's Day Massacre: Max DU has scores but no heats
+			const result = getRelevantWorkoutIds({
+				heats: [
+					{ id: "h1", trackWorkoutId: WORKOUT_FRAN, divisionId: DIVISION_RX },
+					{ id: "h2", trackWorkoutId: WORKOUT_GRACE, divisionId: DIVISION_RX },
+				],
+				mixedHeatAssignments: [],
+				divisionId: DIVISION_RX,
+				workoutIdsWithScores: new Set([WORKOUT_MAX_DU]),
+			})
+
+			expect(result).toEqual(
+				new Set([WORKOUT_FRAN, WORKOUT_GRACE, WORKOUT_MAX_DU]),
+			)
+		})
+
+		it("does not include scored workouts for other divisions", () => {
+			const result = getRelevantWorkoutIds({
+				heats: [
+					{ id: "h1", trackWorkoutId: WORKOUT_FRAN, divisionId: DIVISION_RX },
+				],
+				mixedHeatAssignments: [],
+				divisionId: DIVISION_SCALED,
+				// Scores are already filtered to the target division at the call site
+				workoutIdsWithScores: new Set(),
+			})
+
+			expect(result).toEqual(new Set())
+		})
+
+		it("includes workout with scores even when no heats exist at all", () => {
+			const result = getRelevantWorkoutIds({
+				heats: [],
+				mixedHeatAssignments: [],
+				divisionId: DIVISION_RX,
+				workoutIdsWithScores: new Set([WORKOUT_MAX_DU]),
+			})
+
+			expect(result).toEqual(new Set([WORKOUT_MAX_DU]))
+		})
+
+		it("combines heats and scores for full relevance", () => {
+			const result = getRelevantWorkoutIds({
+				heats: [
+					{ id: "h1", trackWorkoutId: WORKOUT_FRAN, divisionId: DIVISION_RX },
+					{ id: "h2", trackWorkoutId: WORKOUT_FRAN, divisionId: DIVISION_SCALED },
+					{ id: "h3", trackWorkoutId: WORKOUT_GRACE, divisionId: DIVISION_RX },
+				],
+				mixedHeatAssignments: [],
+				divisionId: DIVISION_SCALED,
+				workoutIdsWithScores: new Set([WORKOUT_MAX_DU, WORKOUT_DIANE]),
+			})
+
+			// Scaled gets: Fran (heats), Max DU (scores), Diane (scores)
+			// Grace excluded (heats only for RX, no scaled scores)
+			expect(result).toEqual(
+				new Set([WORKOUT_FRAN, WORKOUT_MAX_DU, WORKOUT_DIANE]),
+			)
 		})
 	})
 })
