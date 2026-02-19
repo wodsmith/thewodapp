@@ -13,6 +13,7 @@ import {
 	index,
 	int,
 	mysqlTable,
+	text,
 	uniqueIndex,
 	varchar,
 } from "drizzle-orm/mysql-core"
@@ -80,7 +81,7 @@ export const scoresTable = mysqlTable(
 		asRx: boolean().notNull().default(false),
 
 		// Metadata
-		notes: varchar({ length: 255 }),
+		notes: text(),
 		// When the workout was performed (Unix timestamp ms)
 		recordedAt: datetime().notNull(),
 	},
@@ -138,7 +139,7 @@ export const scoreRoundsTable = mysqlTable(
 		secondaryValue: int(),
 
 		// Metadata
-		notes: varchar({ length: 255 }),
+		notes: text(),
 		createdAt: datetime()
 			.$defaultFn(() => new Date())
 			.notNull(),

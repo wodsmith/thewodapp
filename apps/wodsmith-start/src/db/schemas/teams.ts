@@ -110,7 +110,7 @@ export const teamTable = mysqlTable(
 			.notNull(),
 		name: varchar({ length: 255 }).notNull(),
 		slug: varchar({ length: 255 }).notNull().unique(),
-		description: varchar({ length: 1000 }),
+		description: text(),
 		avatarUrl: varchar({ length: 600 }),
 		// Settings could be stored as JSON
 		settings: text(),
@@ -202,7 +202,7 @@ export const teamRoleTable = mysqlTable(
 			.notNull(),
 		teamId: varchar({ length: 255 }).notNull(),
 		name: varchar({ length: 255 }).notNull(),
-		description: varchar({ length: 1000 }),
+		description: text(),
 		// Store permissions as a JSON array of permission keys
 		permissions: json().notNull().$type<string[]>(),
 		// A JSON field for storing UI-specific settings like color, icon, etc.
@@ -245,7 +245,7 @@ export const teamInvitationTable = mysqlTable(
 			.default("pending")
 			.notNull(),
 		// Optional JSON metadata to transfer to membership on acceptance
-		metadata: varchar({ length: 255 }),
+		metadata: text(),
 	},
 	(table) => [
 		index("team_invitation_team_id_idx").on(table.teamId),

@@ -6,6 +6,7 @@ import {
 	index,
 	int,
 	mysqlTable,
+	text,
 	uniqueIndex,
 	varchar,
 } from "drizzle-orm/mysql-core"
@@ -89,7 +90,7 @@ export const workouts = mysqlTable(
 		...commonColumns,
 		id: varchar({ length: 255 }).primaryKey(),
 		name: varchar({ length: 255 }).notNull(),
-		description: varchar({ length: 255 }).notNull(),
+		description: text().notNull(),
 		scope: varchar({
 			length: 255,
 			enum: ["private", "public"],
@@ -158,7 +159,7 @@ export const results = mysqlTable(
 			length: 255,
 			enum: ["wod", "strength", "monostructural"],
 		}).notNull(),
-		notes: varchar({ length: 255 }),
+		notes: text(),
 		// Will be set as foreign key reference in main schema file
 		programmingTrackId: varchar({ length: 255 }),
 		// References to scheduled workout instances (team-based)
@@ -218,7 +219,7 @@ export const sets = mysqlTable("sets", {
 	id: varchar({ length: 255 }).primaryKey(),
 	resultId: varchar({ length: 255 }).notNull(),
 	setNumber: int().notNull(),
-	notes: varchar({ length: 255 }),
+	notes: text(),
 
 	// Generic set data - only one of these will typically be populated
 	reps: int(),

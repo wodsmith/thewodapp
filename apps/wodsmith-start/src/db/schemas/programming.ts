@@ -6,6 +6,7 @@ import {
 	int,
 	mysqlTable,
 	primaryKey,
+	text,
 	varchar,
 } from "drizzle-orm/mysql-core"
 import {
@@ -44,7 +45,7 @@ export const programmingTracksTable = mysqlTable(
 			.$defaultFn(() => createProgrammingTrackId())
 			.notNull(),
 		name: varchar({ length: 255 }).notNull(),
-		description: varchar({ length: 1000 }),
+		description: text(),
 		type: varchar({ length: 255 }).notNull(),
 		ownerTeamId: varchar({ length: 255 }),
 		scalingGroupId: varchar({ length: 255 }), // Optional scaling group for all workouts in this track
@@ -94,7 +95,7 @@ export const trackWorkoutsTable = mysqlTable(
 		workoutId: varchar({ length: 255 }).notNull(),
 		// Unified ordering field (1, 2, 3...) - renamed from dayNumber for competition support
 		trackOrder: int().notNull(),
-		notes: varchar({ length: 1000 }),
+		notes: text(),
 		// Points multiplier for competitions (100 = 1x, 200 = 2x for finals, etc.)
 		pointsMultiplier: int().default(100),
 		// Heat assignment visibility: draft = hidden from athletes, published = visible
@@ -143,9 +144,9 @@ export const scheduledWorkoutInstancesTable = mysqlTable(
 		trackWorkoutId: varchar({ length: 255 }),
 		workoutId: varchar({ length: 255 }), // Explicit workout selection (required for standalone, optional for track workouts)
 		scheduledDate: datetime().notNull(),
-		teamSpecificNotes: varchar({ length: 1000 }),
-		scalingGuidanceForDay: varchar({ length: 1000 }),
-		classTimes: varchar({ length: 500 }), // JSON string or comma-separated times
+		teamSpecificNotes: text(),
+		scalingGuidanceForDay: text(),
+		classTimes: text(), // JSON string or comma-separated times
 	},
 	(table) => [
 		index("scheduled_workout_instance_team_idx").on(table.teamId),
