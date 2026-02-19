@@ -28,6 +28,7 @@ import {
 	setTeamLimitOverride,
 } from "@/server/organizer-onboarding"
 import { getSessionFromCookie } from "@/utils/auth"
+import { sendOrganizerSignupWelcomeEmail } from "@/utils/email"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { validateTurnstileToken } from "@/utils/validate-captcha"
 
@@ -296,6 +297,14 @@ export const submitOrganizerRequestFn = createServerFn({ method: "POST" })
 				userId: session.user.id,
 				reason: data.reason,
 			})
+
+			// Send welcome email to the organizer (non-blocking)
+			if (session.user.email) {
+				sendOrganizerSignupWelcomeEmail({
+					email: session.user.email,
+					recipientName: session.user.firstName ?? undefined,
+				})
+			}
 
 			return { success: true, data: result }
 		},

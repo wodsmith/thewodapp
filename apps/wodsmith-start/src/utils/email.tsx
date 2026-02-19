@@ -11,6 +11,7 @@ import {
 } from "@/lib/env"
 import { OrganizerRequestApprovedEmail } from "@/react-email/organizer/request-approved"
 import { OrganizerRequestRejectedEmail } from "@/react-email/organizer/request-rejected"
+import { OrganizerSignupWelcomeEmail } from "@/react-email/organizer/signup-welcome"
 import { ResetPasswordEmail } from "@/react-email/reset-password"
 import { TeamInviteEmail } from "@/react-email/team-invite"
 import { VerifyEmail } from "@/react-email/verify-email"
@@ -365,5 +366,30 @@ export async function sendOrganizerRejectionEmail({
 			supportEmail,
 		}),
 		tags: [{ name: "type", value: "organizer-rejection" }],
+	})
+}
+
+/**
+ * Sends a welcome email when an organizer signs up.
+ * A personal, plain-text style email asking for feedback on running competitions.
+ * Uses the unified sendEmail function for consistent logging and error handling.
+ */
+export async function sendOrganizerSignupWelcomeEmail({
+	email,
+	recipientName,
+}: {
+	email: string
+	recipientName?: string
+}): Promise<void> {
+	const supportEmail = getEmailReplyTo()
+
+	await sendEmail({
+		to: email,
+		subject: `Welcome to WODsmith Compete`,
+		template: OrganizerSignupWelcomeEmail({
+			recipientName,
+		}),
+		tags: [{ name: "type", value: "organizer-signup-welcome" }],
+		replyTo: supportEmail,
 	})
 }
