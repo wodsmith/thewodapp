@@ -24,7 +24,7 @@ import {
 } from "@/db/schemas/volunteers"
 import {
 	assignVolunteerToShiftFn,
-	getCompetitionShiftsFn,
+	type getCompetitionShiftsFn,
 	unassignVolunteerFromShiftFn,
 } from "@/server-fns/volunteer-shift-fns"
 import {

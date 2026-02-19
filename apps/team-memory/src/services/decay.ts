@@ -21,7 +21,7 @@ export async function applyExponentialDecay(
 
 	for (const row of obs) {
 		const daysSince = daysSinceUpdate(row.updatedAt)
-		const newScore = row.score * Math.pow(0.5, daysSince / halfLifeDays)
+		const newScore = row.score * 0.5 ** (daysSince / halfLifeDays)
 
 		if (newScore < DEPRECATION_THRESHOLD) {
 			await db
@@ -51,7 +51,7 @@ export async function applyExponentialDecay(
 
 	for (const row of refs) {
 		const daysSince = daysSinceUpdate(row.updatedAt)
-		const newScore = row.score * Math.pow(0.5, daysSince / halfLifeDays)
+		const newScore = row.score * 0.5 ** (daysSince / halfLifeDays)
 
 		if (newScore < DEPRECATION_THRESHOLD) {
 			await db
