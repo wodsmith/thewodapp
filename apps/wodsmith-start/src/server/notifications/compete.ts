@@ -94,13 +94,19 @@ function getAthleteName(user: {
  * Parse pending teammates count from JSON string
  */
 function parsePendingTeammateCount(
-	pendingTeammates: Array<{ email: string; firstName?: string | null; lastName?: string | null; affiliateName?: string | null }> | null | undefined,
+	pendingTeammatesJson: string | null | undefined,
 ): number {
-	if (!pendingTeammates) return 0
-	if (Array.isArray(pendingTeammates)) {
-		return pendingTeammates.length
+	if (!pendingTeammatesJson) return 0
+
+	try {
+		const parsed = JSON.parse(pendingTeammatesJson) as unknown
+		if (Array.isArray(parsed)) {
+			return parsed.length
+		}
+		return 0
+	} catch {
+		return 0
 	}
-	return 0
 }
 
 /**

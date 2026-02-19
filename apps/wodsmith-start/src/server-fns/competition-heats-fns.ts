@@ -92,11 +92,15 @@ const registrationMetadataSchema = z
 /**
  * Extract affiliate from registration metadata with runtime validation
  */
-function getAffiliate(metadata: Record<string, unknown> | null | undefined, userId: string): string | null {
+function getAffiliate(metadata: string | null, userId: string): string | null {
 	if (!metadata) return null
-	const result = registrationMetadataSchema.safeParse(metadata)
-	if (!result.success) return null
-	return result.data.affiliates?.[userId] ?? null
+	try {
+		const result = registrationMetadataSchema.safeParse(JSON.parse(metadata))
+		if (!result.success) return null
+		return result.data.affiliates?.[userId] ?? null
+	} catch {
+		return null
+	}
 }
 
 // ============================================================================

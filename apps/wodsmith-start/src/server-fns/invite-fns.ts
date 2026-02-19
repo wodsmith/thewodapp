@@ -332,7 +332,11 @@ export const getVolunteerInviteFn = createServerFn({ method: "GET" })
 		let volunteerMetadata: Partial<VolunteerMembershipMetadata> = {}
 
 		if (invitation.metadata) {
-			volunteerMetadata = invitation.metadata as Partial<VolunteerMembershipMetadata>
+			try {
+				volunteerMetadata = JSON.parse(invitation.metadata)
+			} catch {
+				// Invalid JSON, ignore
+			}
 		}
 
 		// Determine invite source - fallback to heuristics for legacy data
@@ -494,14 +498,22 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 			team.type === TEAM_TYPE_ENUM.COMPETITION_TEAM &&
 			team.competitionMetadata
 		) {
+			let hasPendingData = false
 			if (invitation.metadata) {
-				const meta = invitation.metadata as Record<string, unknown>
-				hasPendingData = !!(
-					(Array.isArray(meta.pendingAnswers) &&
-						meta.pendingAnswers.length > 0) ||
-					(Array.isArray(meta.pendingSignatures) &&
-						meta.pendingSignatures.length > 0)
-				)
+				try {
+					const meta = JSON.parse(invitation.metadata) as Record<
+						string,
+						unknown
+					>
+					hasPendingData = !!(
+						(Array.isArray(meta.pendingAnswers) &&
+							meta.pendingAnswers.length > 0) ||
+						(Array.isArray(meta.pendingSignatures) &&
+							meta.pendingSignatures.length > 0)
+					)
+				} catch {
+					// Invalid JSON, ignore
+				}
 			}
 
 			if (!hasPendingData) {
@@ -722,28 +734,31 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 							for (const reg of registrations) {
 								if (!reg.pendingTeammates) continue
 
-								const pending = reg.pendingTeammates as Array<{
-									email: string
-									affiliateName?: string | null
-								}>
-								if (!Array.isArray(pending)) continue
-								const updatedPending = pending.filter(
-									(t) =>
-										t.email.toLowerCase() !==
-										session.user.email?.toLowerCase(),
-								)
+								try {
+									const pending = JSON.parse(reg.pendingTeammates) as Array<{
+										email: string
+										affiliateName?: string | null
+									}>
+									const updatedPending = pending.filter(
+										(t) =>
+											t.email.toLowerCase() !==
+											session.user.email?.toLowerCase(),
+									)
 
-								if (updatedPending.length !== pending.length) {
-									await db
-										.update(competitionRegistrationsTable)
-										.set({
-											pendingTeammates:
-												updatedPending.length > 0
-													? updatedPending
-													: null,
-										})
-										.where(eq(competitionRegistrationsTable.id, reg.id))
-									break
+									if (updatedPending.length !== pending.length) {
+										await db
+											.update(competitionRegistrationsTable)
+											.set({
+												pendingTeammates:
+													updatedPending.length > 0
+														? JSON.stringify(updatedPending)
+														: null,
+											})
+											.where(eq(competitionRegistrationsTable.id, reg.id))
+										break
+									}
+								} catch {
+									// Ignore JSON parse errors
 								}
 							}
 						}
@@ -753,25 +768,30 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 
 						// Check for pending answers in invitation metadata (from guest form)
 						if (invitation.metadata) {
-							const inviteMetadata = invitation.metadata as Record<string, unknown>
-							if (Array.isArray(inviteMetadata.pendingAnswers)) {
-								const pendingAnswers =
-									inviteMetadata.pendingAnswers as PendingInviteAnswer[]
-								// Merge pending answers (pending takes precedence if duplicate)
-								const answerMap = new Map<
-									string,
-									{ questionId: string; answer: string }
-								>()
-								for (const a of allAnswers) {
-									answerMap.set(a.questionId, a)
+							try {
+								const inviteMetadata = JSON.parse(
+									invitation.metadata,
+								) as Record<string, unknown>
+								if (Array.isArray(inviteMetadata.pendingAnswers)) {
+									const pendingAnswers =
+										inviteMetadata.pendingAnswers as PendingInviteAnswer[]
+									// Merge pending answers (pending takes precedence if duplicate)
+									const answerMap = new Map<
+										string,
+										{ questionId: string; answer: string }
+									>()
+									for (const a of allAnswers) {
+										answerMap.set(a.questionId, a)
+									}
+									for (const a of pendingAnswers) {
+										answerMap.set(a.questionId, a)
+									}
+									allAnswers = Array.from(answerMap.values())
 								}
-								for (const a of pendingAnswers) {
-									answerMap.set(a.questionId, a)
-								}
-								allAnswers = Array.from(answerMap.values())
+							} catch {
+								// Invalid JSON, ignore
 							}
 						}
-
 
 						// Store teammate registration answers if provided
 						if (allAnswers.length > 0 && registrationId) {
@@ -850,45 +870,51 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 
 						// Transfer pending waiver signatures from invitation metadata
 						if (invitation.metadata && registrationId) {
-							const inviteMetadata = { ...(invitation.metadata as Record<string, unknown>) }
-							if (Array.isArray(inviteMetadata.pendingSignatures)) {
-								const pendingSignatures =
-									inviteMetadata.pendingSignatures as PendingWaiverSignature[]
-								for (const sigData of pendingSignatures) {
-									// Check if signature already exists
-									const existingSig =
-										await db.query.waiverSignaturesTable.findFirst({
-											where: and(
-												eq(waiverSignaturesTable.waiverId, sigData.waiverId),
-												eq(waiverSignaturesTable.userId, session.userId),
-											),
-										})
+							try {
+								const inviteMetadata = JSON.parse(
+									invitation.metadata,
+								) as Record<string, unknown>
+								if (Array.isArray(inviteMetadata.pendingSignatures)) {
+									const pendingSignatures =
+										inviteMetadata.pendingSignatures as PendingWaiverSignature[]
+									for (const sigData of pendingSignatures) {
+										// Check if signature already exists
+										const existingSig =
+											await db.query.waiverSignaturesTable.findFirst({
+												where: and(
+													eq(waiverSignaturesTable.waiverId, sigData.waiverId),
+													eq(waiverSignaturesTable.userId, session.userId),
+												),
+											})
 
-									if (!existingSig) {
-										await db.insert(waiverSignaturesTable).values({
-											waiverId: sigData.waiverId,
-											userId: session.userId,
-											signedAt: new Date(sigData.signedAt),
-											registrationId,
-										})
+										if (!existingSig) {
+											await db.insert(waiverSignaturesTable).values({
+												waiverId: sigData.waiverId,
+												userId: session.userId,
+												signedAt: new Date(sigData.signedAt),
+												registrationId,
+											})
+										}
 									}
 								}
+
+								// Clear pending data from metadata now that it's transferred
+								delete inviteMetadata.pendingAnswers
+								delete inviteMetadata.pendingSignatures
+								delete inviteMetadata.submittedAt
+
+								await db
+									.update(teamInvitationTable)
+									.set({
+										metadata:
+											Object.keys(inviteMetadata).length > 0
+												? JSON.stringify(inviteMetadata)
+												: null,
+									})
+									.where(eq(teamInvitationTable.id, invitation.id))
+							} catch {
+								// Invalid JSON, ignore
 							}
-
-							// Clear pending data from metadata now that it's transferred
-							delete inviteMetadata.pendingAnswers
-							delete inviteMetadata.pendingSignatures
-							delete inviteMetadata.submittedAt
-
-							await db
-								.update(teamInvitationTable)
-								.set({
-									metadata:
-										Object.keys(inviteMetadata).length > 0
-											? inviteMetadata
-											: null,
-								})
-								.where(eq(teamInvitationTable.id, invitation.id))
 						}
 					}
 				}
@@ -999,9 +1025,14 @@ export const acceptVolunteerInviteFn = createServerFn({ method: "POST" })
 		}
 
 		// Parse existing invitation metadata and merge with user-provided data
-		let existingMetadata: Record<string, unknown> = invitation.metadata
-			? { ...(invitation.metadata as Record<string, unknown>) }
-			: {}
+		let existingMetadata: Record<string, unknown> = {}
+		if (invitation.metadata) {
+			try {
+				existingMetadata = JSON.parse(invitation.metadata)
+			} catch {
+				// Invalid JSON, ignore
+			}
+		}
 
 		// Merge user-provided volunteer data with existing metadata
 		const mergedMetadata = {
@@ -1026,7 +1057,7 @@ export const acceptVolunteerInviteFn = createServerFn({ method: "POST" })
 				: new Date(),
 			joinedAt: new Date(),
 			isActive: true,
-			metadata: mergedMetadata,
+			metadata: JSON.stringify(mergedMetadata),
 		})
 
 		// Mark invitation as accepted (with account)
@@ -1088,9 +1119,14 @@ export const submitPendingInviteDataFn = createServerFn({ method: "POST" })
 		}
 
 		// Parse existing metadata
-		let existingMetadata: Record<string, unknown> = invitation.metadata
-			? { ...(invitation.metadata as Record<string, unknown>) }
-			: {}
+		let existingMetadata: Record<string, unknown> = {}
+		if (invitation.metadata) {
+			try {
+				existingMetadata = JSON.parse(invitation.metadata)
+			} catch {
+				// Invalid JSON, ignore
+			}
+		}
 
 		// Build pending data
 		const pendingData: PendingInviteData = {
@@ -1123,7 +1159,7 @@ export const submitPendingInviteDataFn = createServerFn({ method: "POST" })
 		await db
 			.update(teamInvitationTable)
 			.set({
-				metadata: updatedMetadata,
+				metadata: JSON.stringify(updatedMetadata),
 				status: INVITATION_STATUS.ACCEPTED,
 				updatedAt: new Date(),
 			})
@@ -1146,29 +1182,33 @@ export const getPendingInviteDataFn = createServerFn({ method: "GET" })
 		const invitation = await db.query.teamInvitationTable.findFirst({
 			where: eq(teamInvitationTable.token, data.token),
 		})
+
 		if (!invitation || !invitation.metadata) {
 			return null
 		}
 
-		const metadata = invitation.metadata as Record<string, unknown>
+		try {
+			const metadata = JSON.parse(invitation.metadata) as Record<
+				string,
+				unknown
+			>
 
-		// Extract pending data fields
-		const pendingData: PendingInviteData = {}
+			// Extract pending data fields
+			const pendingData: PendingInviteData = {}
 
-		if (typeof metadata.submittedAt === "string") {
-			pendingData.submittedAt = metadata.submittedAt
-		}
+			if (typeof metadata.submittedAt === "string") {
+				pendingData.submittedAt = metadata.submittedAt
+			}
 
-		if (Array.isArray(metadata.pendingAnswers)) {
-			pendingData.pendingAnswers =
-				metadata.pendingAnswers as PendingInviteAnswer[]
-		}
+			if (Array.isArray(metadata.pendingAnswers)) {
+				pendingData.pendingAnswers =
+					metadata.pendingAnswers as PendingInviteAnswer[]
+			}
 
-		if (Array.isArray(metadata.pendingSignatures)) {
-			pendingData.pendingSignatures =
-				metadata.pendingSignatures as PendingWaiverSignature[]
-		}
-
+			if (Array.isArray(metadata.pendingSignatures)) {
+				pendingData.pendingSignatures =
+					metadata.pendingSignatures as PendingWaiverSignature[]
+			}
 
 			return Object.keys(pendingData).length > 0 ? pendingData : null
 		} catch {
@@ -1214,18 +1254,25 @@ export const transferPendingDataToUserFn = createServerFn({ method: "POST" })
 		// Parse metadata to get pending data
 		let pendingData: PendingInviteData | null = null
 		if (invitation.metadata) {
-			const metadata = invitation.metadata as Record<string, unknown>
-			pendingData = {
-				submittedAt:
-					typeof metadata.submittedAt === "string"
-						? metadata.submittedAt
+			try {
+				const metadata = JSON.parse(invitation.metadata) as Record<
+					string,
+					unknown
+				>
+				pendingData = {
+					submittedAt:
+						typeof metadata.submittedAt === "string"
+							? metadata.submittedAt
+							: undefined,
+					pendingAnswers: Array.isArray(metadata.pendingAnswers)
+						? (metadata.pendingAnswers as PendingInviteAnswer[])
 						: undefined,
-				pendingAnswers: Array.isArray(metadata.pendingAnswers)
-					? (metadata.pendingAnswers as PendingInviteAnswer[])
-					: undefined,
-				pendingSignatures: Array.isArray(metadata.pendingSignatures)
-					? (metadata.pendingSignatures as PendingWaiverSignature[])
-					: undefined,
+					pendingSignatures: Array.isArray(metadata.pendingSignatures)
+						? (metadata.pendingSignatures as PendingWaiverSignature[])
+						: undefined,
+				}
+			} catch {
+				// Invalid JSON, ignore
 			}
 		}
 
@@ -1343,21 +1390,28 @@ export const transferPendingDataToUserFn = createServerFn({ method: "POST" })
 
 		// Clear pending data from metadata
 		if (invitation.metadata) {
-			const metadata = { ...(invitation.metadata as Record<string, unknown>) }
-			delete metadata.submittedAt
-			delete metadata.pendingAnswers
-			delete metadata.pendingSignatures
+			try {
+				const metadata = JSON.parse(invitation.metadata) as Record<
+					string,
+					unknown
+				>
+				delete metadata.submittedAt
+				delete metadata.pendingAnswers
+				delete metadata.pendingSignatures
 
-			await db
-				.update(teamInvitationTable)
-				.set({
-					metadata:
-						Object.keys(metadata).length > 0
-							? metadata
-							: null,
-					updatedAt: new Date(),
-				})
-				.where(eq(teamInvitationTable.id, invitation.id))
+				await db
+					.update(teamInvitationTable)
+					.set({
+						metadata:
+							Object.keys(metadata).length > 0
+								? JSON.stringify(metadata)
+								: null,
+						updatedAt: new Date(),
+					})
+					.where(eq(teamInvitationTable.id, invitation.id))
+			} catch {
+				// Invalid JSON, ignore
+			}
 		}
 
 		return {
