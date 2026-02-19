@@ -27,14 +27,8 @@ export function getVolunteerRoleTypes(
 ): VolunteerRoleType[] {
 	if (!membership.metadata) return []
 
-	try {
-		const metadata = JSON.parse(
-			membership.metadata,
-		) as VolunteerMembershipMetadata
-		return metadata.volunteerRoleTypes ?? []
-	} catch {
-		return []
-	}
+	const metadata = membership.metadata as unknown as VolunteerMembershipMetadata
+	return metadata.volunteerRoleTypes ?? []
 }
 
 /**

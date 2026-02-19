@@ -728,27 +728,23 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
 					teamToRegistration.set(reg.athleteTeamId, reg.id)
 
 					// Parse pendingTeammates to get names entered by captain
-					if (reg.pendingTeammates) {
-						try {
-							const teammates = JSON.parse(reg.pendingTeammates) as Array<{
-								email: string
-								firstName?: string
-								lastName?: string
-							}>
-							for (const tm of teammates) {
-								const name = [tm.firstName, tm.lastName]
-									.filter(Boolean)
-									.join(" ")
-									.trim()
-								if (name && tm.email) {
-									teammateNames.set(
-										`${reg.athleteTeamId}-${tm.email.toLowerCase()}`,
-										name,
-									)
-								}
+					if (reg.pendingTeammates && Array.isArray(reg.pendingTeammates)) {
+						const teammates = reg.pendingTeammates as Array<{
+							email: string
+							firstName?: string
+							lastName?: string
+						}>
+						for (const tm of teammates) {
+							const name = [tm.firstName, tm.lastName]
+								.filter(Boolean)
+								.join(" ")
+								.trim()
+							if (name && tm.email) {
+								teammateNames.set(
+									`${reg.athleteTeamId}-${tm.email.toLowerCase()}`,
+									name,
+								)
 							}
-						} catch {
-							// Invalid JSON, ignore
 						}
 					}
 				}
@@ -784,21 +780,17 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
 					let submittedAt: string | undefined
 
 					if (inv.metadata) {
-						try {
-							const meta = JSON.parse(inv.metadata) as Record<string, unknown>
-							if (Array.isArray(meta.pendingAnswers)) {
-								pendingAnswers =
-									meta.pendingAnswers as PendingTeammateInvite["pendingAnswers"]
-							}
-							if (Array.isArray(meta.pendingSignatures)) {
-								pendingSignatures =
-									meta.pendingSignatures as PendingTeammateInvite["pendingSignatures"]
-							}
-							if (typeof meta.submittedAt === "string") {
-								submittedAt = meta.submittedAt
-							}
-						} catch {
-							// Invalid JSON, ignore
+						const meta = inv.metadata as Record<string, unknown>
+						if (Array.isArray(meta.pendingAnswers)) {
+							pendingAnswers =
+								meta.pendingAnswers as PendingTeammateInvite["pendingAnswers"]
+						}
+						if (Array.isArray(meta.pendingSignatures)) {
+							pendingSignatures =
+								meta.pendingSignatures as PendingTeammateInvite["pendingSignatures"]
+						}
+						if (typeof meta.submittedAt === "string") {
+							submittedAt = meta.submittedAt
 						}
 					}
 

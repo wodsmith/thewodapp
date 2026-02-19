@@ -42,7 +42,7 @@ export async function inviteUserToTeam({
 	email: string
 	roleId: string
 	isSystemRole?: boolean
-	metadata?: string
+	metadata?: Record<string, unknown>
 	skipPermissionCheck?: boolean
 }): Promise<{
 	success: boolean

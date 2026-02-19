@@ -436,12 +436,12 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			stripeFeeCents: feeBreakdown.stripeFeeCents,
 			organizerNetCents: feeBreakdown.organizerNetCents,
 			// Store team data and answers for webhook to use when creating registration
-			metadata: JSON.stringify({
+			metadata: {
 				teamName: input.teamName,
 				affiliateName: input.affiliateName,
 				teammates: input.teammates,
 				answers: input.answers,
-			}),
+			},
 		})
 
 		const purchase = await db.query.commercePurchaseTable.findFirst({
@@ -723,8 +723,8 @@ export interface TeamRosterResult {
 		teamName: string | null
 		captainUserId: string | null
 		userId: string
-		metadata: string | null
-		pendingTeammates: string | null
+		metadata: Record<string, unknown> | null
+		pendingTeammates: Array<{ email: string; firstName?: string | null; lastName?: string | null; affiliateName?: string | null }> | null
 		athleteTeamId: string | null
 		competition: {
 			id: string
@@ -801,15 +801,10 @@ export const updateRegistrationAffiliateFn = createServerFn({ method: "POST" })
 			throw new Error("You must be a team member to update your affiliate")
 		}
 
-		// Parse existing metadata
-		let metadata: Record<string, unknown> = {}
-		if (registration.metadata) {
-			try {
-				metadata = JSON.parse(registration.metadata) as Record<string, unknown>
-			} catch {
-				metadata = {}
-			}
-		}
+		// Use existing metadata (already parsed by Drizzle JSON type)
+		let metadata: Record<string, unknown> = registration.metadata
+			? { ...(registration.metadata as Record<string, unknown>) }
+			: {}
 
 		// Ensure affiliates object exists
 		if (!metadata.affiliates || typeof metadata.affiliates !== "object") {
@@ -834,7 +829,7 @@ export const updateRegistrationAffiliateFn = createServerFn({ method: "POST" })
 			.update(competitionRegistrationsTable)
 			.set({
 				metadata:
-					Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : null,
+					Object.keys(metadata).length > 0 ? metadata : null,
 				updatedAt: new Date(),
 			})
 			.where(eq(competitionRegistrationsTable.id, input.registrationId))

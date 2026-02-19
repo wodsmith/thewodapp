@@ -151,14 +151,10 @@ const getVolunteerScheduleDataInputSchema = z.object({
  * Parse volunteer metadata from membership record
  */
 function parseVolunteerMetadata(
-	metadata: string | null,
+	metadata: Record<string, unknown> | null | undefined,
 ): VolunteerMembershipMetadata | null {
 	if (!metadata) return null
-	try {
-		return JSON.parse(metadata) as VolunteerMembershipMetadata
-	} catch {
-		return null
-	}
+	return metadata as unknown as VolunteerMembershipMetadata
 }
 
 /**

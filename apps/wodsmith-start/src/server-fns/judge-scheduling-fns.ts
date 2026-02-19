@@ -113,20 +113,16 @@ const volunteerRoleTypeSchema = z.enum([
  * Parse volunteer metadata from membership record
  */
 function parseVolunteerMetadata(
-	metadata: string | null,
+	metadata: Record<string, unknown> | null | undefined,
 ): VolunteerMembershipMetadata | null {
 	if (!metadata) return null
-	try {
-		return JSON.parse(metadata) as VolunteerMembershipMetadata
-	} catch {
-		return null
-	}
+	return metadata as unknown as VolunteerMembershipMetadata
 }
 
 /**
  * Check if volunteer has judge or head_judge role type
  */
-function isJudge(metadata: string | null): boolean {
+function isJudge(metadata: Record<string, unknown> | null | undefined): boolean {
 	const meta = parseVolunteerMetadata(metadata)
 	if (!meta?.volunteerRoleTypes) return false
 	return (

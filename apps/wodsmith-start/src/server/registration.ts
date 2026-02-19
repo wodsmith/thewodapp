@@ -123,19 +123,13 @@ function getAthleteName(user: {
  * Parse pending teammates count from JSON string
  */
 function parsePendingTeammateCount(
-	pendingTeammatesJson: string | null | undefined,
+	pendingTeammates: Array<{ email: string; firstName?: string | null; lastName?: string | null; affiliateName?: string | null }> | null | undefined,
 ): number {
-	if (!pendingTeammatesJson) return 0
-
-	try {
-		const parsed = JSON.parse(pendingTeammatesJson) as unknown
-		if (Array.isArray(parsed)) {
-			return parsed.length
-		}
-		return 0
-	} catch {
-		return 0
+	if (!pendingTeammates) return 0
+	if (Array.isArray(pendingTeammates)) {
+		return pendingTeammates.length
 	}
+	return 0
 }
 
 // ============================================================================
@@ -500,28 +494,15 @@ export async function registerForCompetition(
 	for (const reg of allRegistrations) {
 		if (!reg.pendingTeammates) continue
 
-		try {
-			const pending = JSON.parse(reg.pendingTeammates) as Array<{
-				email: string
-			}>
-			const isPending = pending.some(
-				(p) => p.email.toLowerCase() === user.email?.toLowerCase(),
-			)
+		const pending = reg.pendingTeammates as Array<{ email: string }>
+		const isPending = Array.isArray(pending) && pending.some(
+			(p) => p.email.toLowerCase() === user.email?.toLowerCase(),
+		)
 
-			if (isPending) {
-				throw new Error(
-					"You have already been invited to another team for this competition",
-				)
-			}
-		} catch (e) {
-			// Re-throw our custom errors, ignore JSON parse errors
-			if (
-				e instanceof Error &&
-				(e.message.includes("already been invited") ||
-					e.message.includes("already on a team"))
-			) {
-				throw e
-			}
+		if (isPending) {
+			throw new Error(
+				"You have already been invited to another team for this competition",
+			)
 		}
 	}
 
@@ -609,10 +590,8 @@ export async function registerForCompetition(
 			for (const reg of allRegistrations) {
 				if (!reg.pendingTeammates) continue
 
-				try {
-					const pending = JSON.parse(reg.pendingTeammates) as Array<{
-						email: string
-					}>
+				const pending = reg.pendingTeammates as Array<{ email: string }>
+				if (Array.isArray(pending)) {
 					const isPending = pending.some(
 						(p) => p.email.toLowerCase() === teammateEmail,
 					)
@@ -621,15 +600,6 @@ export async function registerForCompetition(
 						throw new Error(
 							`${teammate.email} has already been invited to another team for this competition`,
 						)
-					}
-				} catch (e) {
-					// Re-throw our custom errors, ignore JSON parse errors
-					if (
-						e instanceof Error &&
-						(e.message.includes("already been invited") ||
-							e.message.includes("already on a team"))
-					) {
-						throw e
 					}
 				}
 			}
@@ -704,22 +674,20 @@ export async function registerForCompetition(
 		isActive: true,
 	})
 
-	// 12. Store pending teammates as JSON for team registrations
-	const pendingTeammatesJson =
+	// 12. Store pending teammates for team registrations
+	const pendingTeammatesData =
 		isTeamDivision && params.teammates
-			? JSON.stringify(
-					params.teammates.map((t) => ({
-						email: t.email.toLowerCase(),
-						firstName: t.firstName ?? null,
-						lastName: t.lastName ?? null,
-						affiliateName: t.affiliateName ?? null,
-					})),
-				)
+			? params.teammates.map((t) => ({
+					email: t.email.toLowerCase(),
+					firstName: t.firstName ?? null,
+					lastName: t.lastName ?? null,
+					affiliateName: t.affiliateName ?? null,
+				}))
 			: null
 
-	// 13. Create metadata JSON with captain's affiliate info (using new per-user format)
-	const metadataJson = params.affiliateName
-		? JSON.stringify({ affiliates: { [params.userId]: params.affiliateName } })
+	// 13. Create metadata with captain's affiliate info (using new per-user format)
+	const metadataData = params.affiliateName
+		? { affiliates: { [params.userId]: params.affiliateName } }
 		: null
 
 	// 14. Create competition_registration record
@@ -735,8 +703,8 @@ export async function registerForCompetition(
 		teamName: isTeamDivision ? params.teamName : null,
 		captainUserId: params.userId,
 		athleteTeamId,
-		pendingTeammates: pendingTeammatesJson,
-		metadata: metadataJson,
+		pendingTeammates: pendingTeammatesData,
+		metadata: metadataData,
 	})
 
 	const registration = await db.query.competitionRegistrationsTable.findFirst({

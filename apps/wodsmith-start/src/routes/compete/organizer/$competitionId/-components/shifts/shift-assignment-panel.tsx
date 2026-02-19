@@ -63,15 +63,11 @@ function formatDateRange(startTime: Date, endTime: Date): string {
 }
 
 function parseVolunteerRoleTypes(
-	metadata: string | null,
+	metadata: Record<string, unknown> | null | undefined,
 ): VolunteerMembershipMetadata["volunteerRoleTypes"] {
 	if (!metadata) return []
-	try {
-		const parsed = JSON.parse(metadata) as VolunteerMembershipMetadata
-		return parsed.volunteerRoleTypes ?? []
-	} catch {
-		return []
-	}
+	const parsed = metadata as unknown as VolunteerMembershipMetadata
+	return parsed.volunteerRoleTypes ?? []
 }
 
 function getVolunteerName(volunteer: TeamMembershipWithUser): string {
