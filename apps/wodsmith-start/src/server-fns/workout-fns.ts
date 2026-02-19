@@ -56,6 +56,8 @@ const getWorkoutsInputSchema = z.object({
 	workoutType: z.enum(WORKOUT_SCHEME_VALUES).optional(),
 	trackId: z.string().optional(),
 	type: z.enum(WORKOUT_TYPE_FILTER_VALUES).optional(),
+	// Filter to show only team-owned workouts (exclude public workouts from others)
+	myWorkoutsOnly: z.boolean().optional(),
 })
 
 type GetWorkoutsInput = z.infer<typeof getWorkoutsInputSchema>
@@ -165,12 +167,17 @@ export const getWorkoutsFn = createServerFn({ method: "GET" })
 		const conditions: ReturnType<typeof eq>[] = []
 
 		// Base condition: team-owned or public workouts
-		const teamOrPublicCondition = or(
-			eq(workouts.teamId, validatedData.teamId),
-			eq(workouts.scope, "public"),
-		)
-		if (teamOrPublicCondition) {
-			conditions.push(teamOrPublicCondition)
+		// If myWorkoutsOnly is true, only show team-owned workouts
+		if (validatedData.myWorkoutsOnly) {
+			conditions.push(eq(workouts.teamId, validatedData.teamId))
+		} else {
+			const teamOrPublicCondition = or(
+				eq(workouts.teamId, validatedData.teamId),
+				eq(workouts.scope, "public"),
+			)
+			if (teamOrPublicCondition) {
+				conditions.push(teamOrPublicCondition)
+			}
 		}
 
 		// Search filter

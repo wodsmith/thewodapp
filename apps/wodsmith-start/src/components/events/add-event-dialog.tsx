@@ -2,6 +2,7 @@
 
 import { Loader2, Search } from "lucide-react"
 import { useEffect, useState } from "react"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
 	Dialog,
 	DialogContent,
@@ -10,6 +11,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { ScoreType, WorkoutScheme } from "@/db/schemas/workouts"
 import { getWorkoutsFn } from "@/server-fns/workout-fns"
@@ -43,8 +45,9 @@ export function AddEventDialog({
 	const [search, setSearch] = useState("")
 	const [workouts, setWorkouts] = useState<WorkoutWithMovements[]>([])
 	const [isLoading, setIsLoading] = useState(false)
+	const [myWorkoutsOnly, setMyWorkoutsOnly] = useState(true)
 
-	// Fetch workouts when dialog opens or search changes
+	// Fetch workouts when dialog opens or search/filter changes
 	useEffect(() => {
 		if (!open) return
 
@@ -57,6 +60,7 @@ export function AddEventDialog({
 						search: search.trim() || undefined,
 						page: 1,
 						pageSize: 50,
+						myWorkoutsOnly,
 					},
 				})
 
@@ -83,7 +87,7 @@ export function AddEventDialog({
 
 		const timeoutId = setTimeout(fetchWorkouts, 300) // Debounce
 		return () => clearTimeout(timeoutId)
-	}, [open, search, teamId])
+	}, [open, search, teamId, myWorkoutsOnly])
 
 	const handleSelect = (workout: WorkoutWithMovements) => {
 		if (isAdding) return
@@ -117,6 +121,23 @@ export function AddEventDialog({
 						/>
 					</div>
 
+					{/* Filter Checkbox */}
+					<div className="flex items-center space-x-2">
+						<Checkbox
+							id="my-workouts-only"
+							checked={myWorkoutsOnly}
+							onCheckedChange={(checked) =>
+								setMyWorkoutsOnly(checked === true)
+							}
+						/>
+						<Label
+							htmlFor="my-workouts-only"
+							className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+						>
+							Show only my workouts
+						</Label>
+					</div>
+
 					{/* Workout List */}
 					<ScrollArea className="h-[400px]">
 						{isLoading ? (
@@ -137,11 +158,11 @@ export function AddEventDialog({
 										type="button"
 										onClick={() => handleSelect(workout)}
 										disabled={isAdding}
-										className="w-full text-left p-4 rounded-lg border hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+										className="w-full text-left p-4 rounded-lg border hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
 									>
-										<div className="font-medium">{workout.name}</div>
+										<div className="font-medium truncate">{workout.name}</div>
 										{workout.description && (
-											<p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+											<p className="text-sm text-muted-foreground line-clamp-2 mt-1 break-words overflow-hidden">
 												{workout.description}
 											</p>
 										)}
