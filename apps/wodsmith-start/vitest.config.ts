@@ -36,7 +36,6 @@ export default defineConfig({
 	plugins: [react(), tsconfigPaths()],
 	resolve: {
 		alias: {
-			"server-only": resolve(__dirname, "./test/__mocks__/server-only.js"),
 			"cloudflare:workers": resolve(
 				__dirname,
 				"./test/__mocks__/cloudflare-workers.js",

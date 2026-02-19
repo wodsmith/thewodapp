@@ -1,16 +1,9 @@
 ## Project Notes
 
-- Porting an old Next.js website to this new template.
-- Tech stack: Next.js, Cloudflare D1, Drizzle ORM.
-- Database functions are being added to `./src/db/`.
-- Server actions are being added to `./src/actions/`.
-- Server actions are used by pages to load or mutate data.
-- Need to re-implement `getWorkoutById` function in the new framework.
-- Need to create a server action for `getWorkoutById`.
-- Need to create server actions for `getResultSetsById` and `getWorkoutResultsByWorkoutAndUser`.
-- Provided source code for `getResultSetsById` and `getWorkoutResultsByWorkoutAndUser` for reference.
-- Match the style of `@server/workouts.ts` and `@actions/workout-actions.ts` for new implementations.
-- Current focus: work on `/src/app/(main)/workouts/[id]/page.tsx` for the workout detail page.
+- Tech stack: TanStack Start, Cloudflare D1, Drizzle ORM.
+- Database functions are in `apps/wodsmith-start/src/db/`.
+- Server functions use TanStack Start `createServerFn` in `apps/wodsmith-start/src/server-fns/`.
+- Server functions are used by route loaders and client components to load or mutate data.
 
 ## Source code referrence
 

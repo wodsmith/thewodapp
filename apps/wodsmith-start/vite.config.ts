@@ -31,13 +31,6 @@ const config = defineConfig({
 			external: ["node:async_hooks", "cloudflare:workers"],
 		},
 	},
-	// Resolve server-only as empty module (Next.js specific, not needed in TanStack Start)
-	resolve: {
-		alias: {
-			"server-only": new URL("./src/lib/server-only-stub.ts", import.meta.url)
-				.pathname,
-		},
-	},
 	// Pre-bundle SSR dependencies to avoid mid-session optimization errors
 	ssr: {
 		optimizeDeps: {
