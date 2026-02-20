@@ -22,6 +22,12 @@ function futureTimestamp(days: number): string {
 	return d.toISOString().slice(0, 19).replace("T", " ")
 }
 
+function dateString(daysFromNow: number): string {
+	const d = new Date()
+	d.setDate(d.getDate() + daysFromNow)
+	return d.toISOString().slice(0, 10)
+}
+
 async function main() {
 	const url = process.env.DATABASE_URL
 	if (!url) {
@@ -37,6 +43,12 @@ async function main() {
 
 		// Clean up in reverse dependency order
 		const cleanupTables = [
+			"competition_registrations",
+			"competition_events",
+			"scaling_levels",
+			"scaling_groups",
+			"competitions",
+			"team_feature_entitlements",
 			"team_subscriptions",
 			"workouts",
 			"team_memberships",
@@ -49,6 +61,10 @@ async function main() {
 				`DELETE FROM \`${table}\` WHERE id LIKE 'e2e_%'`,
 			)
 		}
+		// Clean up registrations by competition_id
+		await connection.execute(
+			"DELETE FROM `competition_registrations` WHERE competition_id = 'e2e_competition'",
+		)
 		// Also clean up users by email
 		await connection.execute(
 			"DELETE FROM `users` WHERE email IN (?, ?)",
@@ -71,7 +87,11 @@ async function main() {
 		)
 		// Clean up teams by slug
 		await connection.execute(
-			"DELETE FROM `teams` WHERE slug = 'e2e-test-gym'",
+			"DELETE FROM `teams` WHERE slug IN ('e2e-test-gym', 'e2e-comp-athletes')",
+		)
+		// Clean up competitions by slug
+		await connection.execute(
+			"DELETE FROM `competitions` WHERE slug = 'e2e-throwdown'",
 		)
 
 		console.log("  Cleanup done\n")
@@ -293,6 +313,116 @@ async function main() {
 		)
 
 		console.log("  team_subscriptions: 1 row inserted")
+
+		// ================================================================
+		// FEATURE ENTITLEMENT (host_competitions for organizer tests)
+		// ================================================================
+		console.log("Seeding E2E feature entitlements...")
+
+		// Ensure the feature exists (may already exist from base seed)
+		await connection.execute(
+			`INSERT IGNORE INTO \`features\` (id, \`key\`, name, description, category, is_active, created_at, updated_at, update_counter)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[
+				"e2e_feature_host_comp",
+				"host_competitions",
+				"Host Competitions",
+				"Allow team to host competitions",
+				"team",
+				1,
+				ts,
+				ts,
+				0,
+			],
+		)
+
+		// Get the actual feature ID (may differ if base seed created it)
+		const [featureRows] = await connection.execute(
+			"SELECT id FROM `features` WHERE `key` = 'host_competitions'",
+		) as [Array<{ id: string }>, unknown]
+		const hostFeatureId = featureRows[0]?.id || "e2e_feature_host_comp"
+
+		// Grant host_competitions to e2e_test_team
+		await connection.execute(
+			`INSERT IGNORE INTO \`team_feature_entitlements\` (id, team_id, feature_id, source, is_active, created_at, updated_at, update_counter)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			["e2e_feat_host", "e2e_test_team", hostFeatureId, "override", 1, ts, ts, 0],
+		)
+
+		console.log("  feature entitlements: 1 row inserted")
+
+		// ================================================================
+		// COMPETITION (for registration tests)
+		// ================================================================
+		console.log("Seeding E2E competition...")
+
+		// Competition athlete team
+		await connection.execute(
+			`INSERT IGNORE INTO \`teams\` (id, name, slug, description, type, credit_balance, current_plan_id, created_at, updated_at, update_counter)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[
+				"e2e_comp_team",
+				"E2E Comp Athletes",
+				"e2e-comp-athletes",
+				"Athlete team for E2E test competition",
+				"competition_event",
+				0,
+				"free",
+				ts,
+				ts,
+				0,
+			],
+		)
+
+		// Scaling group + levels (divisions)
+		await connection.execute(
+			`INSERT IGNORE INTO \`scaling_groups\` (id, title, description, team_id, is_default, is_system, created_at, updated_at, update_counter)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			["e2e_scaling_group", "E2E Divisions", null, "e2e_test_team", 0, 0, ts, ts, 0],
+		)
+
+		const divisions = [
+			["e2e_div_rx", "e2e_scaling_group", "RX", 0, 1],
+			["e2e_div_scaled", "e2e_scaling_group", "Scaled", 1, 1],
+			["e2e_div_team", "e2e_scaling_group", "Team of 2", 2, 2],
+		]
+		for (const [id, groupId, label, position, teamSize] of divisions) {
+			await connection.execute(
+				`INSERT IGNORE INTO \`scaling_levels\` (id, scaling_group_id, label, position, team_size, created_at, updated_at, update_counter)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				[id, groupId, label, position, teamSize, ts, ts, 0],
+			)
+		}
+
+		// Competition with open registration
+		const settings = JSON.stringify({ divisions: { scalingGroupId: "e2e_scaling_group" } })
+		await connection.execute(
+			`INSERT IGNORE INTO \`competitions\` (id, organizing_team_id, competition_team_id, slug, name, description, start_date, end_date, registration_opens_at, registration_closes_at, timezone, settings, default_registration_fee_cents, visibility, status, competition_type, created_at, updated_at, update_counter)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[
+				"e2e_competition",
+				"e2e_test_team",
+				"e2e_comp_team",
+				"e2e-throwdown",
+				"E2E Test Throwdown",
+				"A test competition for E2E testing",
+				dateString(30),
+				dateString(31),
+				dateString(-1),
+				dateString(29),
+				"America/Denver",
+				settings,
+				0,
+				"public",
+				"published",
+				"in-person",
+				ts,
+				ts,
+				0,
+			],
+		)
+
+		console.log("  competition: 1 + 1 team + 3 divisions inserted")
 
 		console.log("\nE2E seed complete!")
 	} finally {
