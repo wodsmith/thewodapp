@@ -120,7 +120,7 @@ export async function createAuthenticatedContext(page: Page): Promise<void> {
 	// Verify we're actually authenticated by checking for user-specific elements
 	// Wait for authenticated nav links to appear
 	await page.waitForSelector(
-		'nav a[href="/log"], nav a[href="/teams"]',
+		'nav a[href="/log"], nav a[href="/team"]',
 		{ timeout: 10000 },
 	)
 }
@@ -151,9 +151,9 @@ export async function logout(page: Page): Promise<void> {
 		}
 	}
 
-	// The app redirects to /compete after logout (see useSignOut hook)
+	// The app redirects to /sign-in after logout (see logout-button.tsx)
 	// Wait for navigation away from the authenticated page
-	await page.waitForURL(/\/(compete|sign-in|login)/, { timeout: 5000 })
+	await page.waitForURL(/\/sign-in/, { timeout: 5000 })
 }
 
 /**
@@ -169,7 +169,7 @@ export async function isAuthenticated(page: Page): Promise<boolean> {
 		// Look for nav elements that only appear when authenticated
 		// The main nav shows "LOG" and "TEAM" links only for authenticated users
 		await page.waitForSelector(
-			'nav a[href="/log"], nav a[href="/teams"], nav a[href="/settings"]',
+			'nav a[href="/log"], nav a[href="/team"], nav a[href="/settings"]',
 			{ timeout: 2000 },
 		)
 		return true

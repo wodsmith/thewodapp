@@ -17,10 +17,7 @@ test.describe('Admin Competitions Browser', () => {
     await loginAsAdmin(page)
   })
 
-  // FIXME: This test is flaky in CI - the sign-in page doesn't load reliably in shard 1
-  // The login helper times out waiting for the form. Needs investigation.
-  // See: https://github.com/wodsmith/thewodapp/issues/XXX
-  test.skip('should load admin competitions page with correct header', async ({
+  test('should load admin competitions page with correct header', async ({
     page,
   }) => {
     // First verify we're authenticated by checking we're on the workouts page
@@ -57,7 +54,8 @@ test.describe('Admin Competitions Browser', () => {
 
     // Verify breadcrumb navigation exists
     await expect(page.getByRole('link', {name: 'Admin'})).toBeVisible()
-    await expect(page.getByRole('link', {name: 'Competitions'})).toBeVisible()
+    // "Competitions" is the current page breadcrumb (a span, not a link)
+    await expect(page.getByText('Competitions')).toBeVisible()
   })
 
   // SKIPPED: wodsmith-start doesn't have filter tabs
@@ -122,17 +120,16 @@ test.describe('Admin Competitions Browser', () => {
     await expect(page).toHaveURL(/\/admin\/competitions/)
   })
 
-  // SKIPPED: Empty state text differs in wodsmith-start
-  test.skip('should handle empty state gracefully', async ({page}) => {
+  test('should handle empty state gracefully', async ({page}) => {
     await page.goto('/admin/competitions', {waitUntil: 'networkidle'})
 
     // The page should either:
-    // 1. Show "No competitions yet" empty state, OR
+    // 1. Show "No Competitions" empty state, OR
     // 2. Show a list of competitions
 
     // Check if empty state is shown
     const emptyStateHeading = page.getByRole('heading', {
-      name: 'No competitions yet',
+      name: 'No Competitions',
     })
     const isEmptyState = await emptyStateHeading
       .isVisible({timeout: 1000})
@@ -141,9 +138,7 @@ test.describe('Admin Competitions Browser', () => {
     if (isEmptyState) {
       // Verify empty state UI
       await expect(
-        page.getByText(
-          'No competitions have been created by any organizers yet.',
-        ),
+        page.getByText('There are no competitions in the system yet.'),
       ).toBeVisible()
     } else {
       // If not empty, there should be competition rows
@@ -179,8 +174,7 @@ test.describe('Admin Competitions Browser', () => {
     await expect(page).toHaveURL(/\/admin\/competitions/)
   })
 
-  // FIXME: This test is flaky in CI - same issue as above
-  test.skip('non-admin should not access admin competitions page', async ({
+  test('non-admin should not access admin competitions page', async ({
     page,
   }) => {
     // First, logout
@@ -204,8 +198,7 @@ test.describe('Admin Competitions Browser', () => {
   })
 })
 
-// SKIPPED: These tests use .group class selector which doesn't exist in wodsmith-start
-test.describe.skip('Admin Competitions - With Data', () => {
+test.describe('Admin Competitions - With Data', () => {
   test.beforeEach(async ({page}) => {
     await loginAsAdmin(page)
   })
@@ -224,7 +217,7 @@ test.describe.skip('Admin Competitions - With Data', () => {
 
     if (hasCompetitions) {
       // Get the first competition row
-      const firstRow = page.locator('.group').first()
+      const firstRow = page.locator('tr').nth(1)
 
       // Verify it has expected elements
       // Competition name link
@@ -249,7 +242,7 @@ test.describe.skip('Admin Competitions - With Data', () => {
     }
   })
 
-  test("should open actions dropdown and show 'Manage as Organizer' option", async ({
+  test("should open actions dropdown and show 'Manage' option", async ({
     page,
   }) => {
     await page.goto('/admin/competitions', {waitUntil: 'networkidle'})
@@ -267,7 +260,7 @@ test.describe.skip('Admin Competitions - With Data', () => {
     }
 
     // Hover over the first competition row to reveal the actions button
-    const firstRow = page.locator('.group').first()
+    const firstRow = page.locator('tr').nth(1)
     await firstRow.hover()
 
     // Find and click the more actions button (MoreHorizontal icon)
@@ -276,11 +269,11 @@ test.describe.skip('Admin Competitions - With Data', () => {
     await actionsButton.click()
 
     // Verify dropdown menu opens with expected options
-    await expect(page.getByText('Manage as Organizer')).toBeVisible()
-    await expect(page.getByText('View Public Page')).toBeVisible()
+    await expect(page.getByText('Manage')).toBeVisible()
+    await expect(page.getByText('View')).toBeVisible()
   })
 
-  test("should navigate to organizer view when clicking 'Manage as Organizer'", async ({
+  test("should navigate to organizer view when clicking 'Manage'", async ({
     page,
   }) => {
     await page.goto('/admin/competitions', {waitUntil: 'networkidle'})
@@ -302,14 +295,14 @@ test.describe.skip('Admin Competitions - With Data', () => {
     await expect(firstLink).toBeVisible()
 
     // Hover and click actions dropdown
-    const firstRow = page.locator('.group').first()
+    const firstRow = page.locator('tr').nth(1)
     await firstRow.hover()
 
     const actionsButton = firstRow.getByRole('button')
     await actionsButton.click()
 
-    // Click "Manage as Organizer"
-    await page.getByText('Manage as Organizer').click()
+    // Click "Manage"
+    await page.getByText('Manage').click()
 
     // Should navigate to the organizer view
     await expect(page).toHaveURL(/\/compete\/organizer\//)

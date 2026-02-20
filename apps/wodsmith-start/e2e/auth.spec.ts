@@ -18,7 +18,7 @@ import {
  * TODO: Update selectors and expected text to match wodsmith-start.
  */
 
-test.describe.skip('Authentication', () => {
+test.describe('Authentication', () => {
   test('should show login page', async ({page}) => {
     await page.goto('/sign-in')
 
@@ -30,7 +30,7 @@ test.describe.skip('Authentication', () => {
     await expect(page.getByPlaceholder(/email/i)).toBeVisible()
     await expect(page.getByPlaceholder(/password/i)).toBeVisible()
     await expect(
-      page.getByRole('button', {name: 'SIGN IN', exact: true}),
+      page.getByRole('button', {name: /sign in/i}),
     ).toBeVisible()
   })
 
@@ -82,7 +82,7 @@ test.describe.skip('Authentication', () => {
     await page.getByPlaceholder(/password/i).fill('wrongpassword123')
 
     // Submit the form
-    await page.getByRole('button', {name: 'SIGN IN', exact: true}).click()
+    await page.getByRole('button', {name: /sign in/i}).click()
 
     // Should stay on sign-in page
     await expect(page).toHaveURL(/\/sign-in/)
@@ -101,7 +101,7 @@ test.describe.skip('Authentication', () => {
     await page.getByPlaceholder(/password/i).fill('somepassword')
 
     // Submit the form
-    await page.getByRole('button', {name: 'SIGN IN', exact: true}).click()
+    await page.getByRole('button', {name: /sign in/i}).click()
 
     // Should stay on sign-in page
     await expect(page).toHaveURL(/\/sign-in/)
@@ -122,9 +122,9 @@ test.describe.skip('Authentication', () => {
     // Logout
     await logout(page)
 
-    // The app redirects to /compete after logout (see useSignOut hook)
+    // The app redirects to /sign-in after logout (see logout-button.tsx)
     // Then verify we're logged out by trying to access a protected route
-    await expect(page).toHaveURL(/\/(compete|sign-in|login)/)
+    await expect(page).toHaveURL(/\/sign-in/)
 
     // Verify we're logged out by trying to access protected route
     await page.goto('/workouts')

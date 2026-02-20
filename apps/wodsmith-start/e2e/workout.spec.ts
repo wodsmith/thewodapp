@@ -32,7 +32,7 @@ function getWorkoutCardByName(
   return page.getByRole('link', {name: new RegExp(`^${name}`)}).first()
 }
 
-test.describe.skip('Workouts', () => {
+test.describe('Workouts', () => {
   test.beforeEach(async ({page}) => {
     // Login before each test
     await loginAsTestUser(page)
