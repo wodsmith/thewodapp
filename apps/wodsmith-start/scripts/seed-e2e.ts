@@ -48,6 +48,7 @@ async function main(): Promise<void> {
 			"scaling_levels",
 			"scaling_groups",
 			"competitions",
+			"team_entitlement_overrides",
 			"team_feature_entitlements",
 			"team_subscriptions",
 			"workouts",
@@ -349,7 +350,25 @@ async function main(): Promise<void> {
 			["e2e_feat_host", "e2e_test_team", hostFeatureId, "override", 1, ts, ts, 0],
 		)
 
-		console.log("  feature entitlements: 1 row inserted")
+		// Grant workout_tracking to both personal and gym teams (required for /workouts access)
+		// Clean up any existing overrides first
+		await connection.execute(
+			"DELETE FROM `team_entitlement_overrides` WHERE id LIKE 'e2e_%'",
+		)
+
+		const workoutTrackingOverrides = [
+			["e2e_teo_personal_workout", "e2e_personal_team_test", "feature", "workout_tracking", "true", "E2E test grant"],
+			["e2e_teo_gym_workout", "e2e_test_team", "feature", "workout_tracking", "true", "E2E test grant"],
+		]
+		for (const [id, teamId, type, key, value, reason] of workoutTrackingOverrides) {
+			await connection.execute(
+				`INSERT IGNORE INTO \`team_entitlement_overrides\` (id, team_id, type, \`key\`, value, reason, created_at, updated_at, update_counter)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				[id, teamId, type, key, value, reason, ts, ts, 0],
+			)
+		}
+
+		console.log("  feature entitlements: 1 + 2 workout_tracking overrides inserted")
 
 		// ================================================================
 		// COMPETITION (for registration tests)

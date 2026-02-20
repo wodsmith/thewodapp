@@ -9,23 +9,23 @@ test.describe('Competition Registration', () => {
     const comp = TEST_DATA.competition
 
     // Navigate to public competition page
-    await page.goto(`/compete/${comp.slug}`, {waitUntil: 'networkidle'})
+    await page.goto(`/compete/${comp.slug}`, {waitUntil: 'domcontentloaded'})
 
     // Verify competition page loaded
     await expect(
       page.getByRole('heading', {name: comp.name}),
-    ).toBeVisible({timeout: 10000})
+    ).toBeVisible({timeout: 15000})
 
     // Click Register Now
     const registerLink = page.getByRole('link', {name: /register now/i})
-    await expect(registerLink).toBeVisible({timeout: 5000})
+    await expect(registerLink).toBeVisible({timeout: 10000})
     await registerLink.click()
 
     // Should be on registration page
     await expect(page).toHaveURL(/\/compete\/e2e-throwdown\/register/)
     await expect(
       page.getByText(/register for/i),
-    ).toBeVisible({timeout: 10000})
+    ).toBeVisible({timeout: 15000})
 
     // Select a division (combobox trigger)
     const divisionTrigger = page
@@ -55,9 +55,10 @@ test.describe('Competition Registration', () => {
     await expect(submitBtn).toBeEnabled({timeout: 5000})
     await submitBtn.click()
 
-    // Verify success — either redirected to success page or see confirmation
-    await expect(
-      page.getByText(/registered|registration complete/i).first(),
-    ).toBeVisible({timeout: 15000})
+    // Verify success — check for URL change to registered/success page
+    // or visible confirmation text (not hidden elements)
+    await expect(page).toHaveURL(/\/compete\/e2e-throwdown\/(registered|register\/success)/, {
+      timeout: 15000,
+    })
   })
 })

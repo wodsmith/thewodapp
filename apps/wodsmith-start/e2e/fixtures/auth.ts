@@ -21,14 +21,14 @@ export async function login(
 	page: Page,
 	credentials: { email: string; password: string },
 ): Promise<void> {
-	await page.goto("/sign-in", { waitUntil: 'networkidle' })
+	await page.goto("/sign-in", { waitUntil: 'domcontentloaded' })
 
 	if (!page.url().includes('/sign-in')) {
 		return
 	}
 
 	const signInButton = page.getByRole("button", { name: "Sign In" })
-	await signInButton.waitFor({ state: 'visible', timeout: 10000 })
+	await signInButton.waitFor({ state: 'visible', timeout: 15000 })
 
 	// Placeholders: "name@example.com" and "Enter your password"
 	await page.getByPlaceholder("name@example.com").fill(credentials.email)
@@ -39,10 +39,9 @@ export async function login(
 	// After login, app redirects to "/" (REDIRECT_AFTER_SIGN_IN)
 	await page.waitForURL(/^https?:\/\/[^/]+(\/)?$/, {
 		timeout: 15000,
-		waitUntil: 'networkidle'
 	})
 
-	await page.waitForLoadState('networkidle')
+	await page.waitForLoadState('domcontentloaded')
 
 	let attempts = 0
 	const maxAttempts = 20
@@ -80,7 +79,7 @@ export async function loginAsAdmin(page: Page): Promise<void> {
 
 	// Extra verification for admin login - wait for session to be fully established
 	// The admin needs the session to be properly set before accessing /admin routes
-	await page.waitForLoadState('networkidle')
+	await page.waitForLoadState('domcontentloaded')
 
 	// Verify the session cookie exists before proceeding
 	// This is critical for admin routes which redirect to sign-in if no session

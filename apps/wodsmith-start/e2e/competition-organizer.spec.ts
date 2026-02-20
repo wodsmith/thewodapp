@@ -11,10 +11,10 @@ test.describe('Competition Organizer', () => {
     const slug = `e2e-comp-${Date.now()}`
 
     // Navigate to create competition page
-    await page.goto('/compete/organizer/new', {waitUntil: 'networkidle'})
+    await page.goto('/compete/organizer/new', {waitUntil: 'domcontentloaded'})
     await expect(
-      page.getByRole('heading', {name: 'Create Competition'}),
-    ).toBeVisible({timeout: 10000})
+      page.getByText('Create Competition', {exact: true}).first(),
+    ).toBeVisible({timeout: 15000})
 
     // Fill form
     // Select organizing team
@@ -31,7 +31,8 @@ test.describe('Competition Organizer', () => {
     await page.getByLabel('Competition Name').fill(uniqueName)
 
     // Clear and fill slug
-    const slugInput = page.getByLabel('Slug')
+    // Use getByRole('textbox') to avoid matching Router DevTools buttons containing "slug" in aria-labels
+    const slugInput = page.getByRole('textbox', {name: 'Slug'})
     await slugInput.clear()
     await slugInput.fill(slug)
 

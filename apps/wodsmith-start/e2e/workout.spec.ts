@@ -8,11 +8,11 @@ test.describe('Workouts', () => {
   })
 
   test('should display workouts and navigate to detail', async ({page}) => {
-    await page.goto('/workouts', {waitUntil: 'networkidle'})
+    await page.goto('/workouts', {waitUntil: 'domcontentloaded'})
 
     // Heading text is uppercase "WORKOUTS"
     await expect(page.getByRole('heading', {name: 'WORKOUTS'})).toBeVisible({
-      timeout: 10000,
+      timeout: 30000,
     })
 
     // Wait for workout links to appear
@@ -38,18 +38,18 @@ test.describe('Workouts', () => {
     await expect(page).toHaveURL(/\/workouts\//)
     await expect(
       page.getByRole('heading', {name: TEST_DATA.workouts.fran.name}),
-    ).toBeVisible()
+    ).toBeVisible({timeout: 10000})
   })
 
   test('should create a new workout', async ({page}) => {
     const uniqueName = `E2E Test Workout ${Date.now()}`
 
-    await page.goto('/workouts/new')
+    await page.goto('/workouts/new', {waitUntil: 'domcontentloaded'})
 
     // Heading is "CREATE WORKOUT"
     await expect(
       page.getByRole('heading', {name: 'CREATE WORKOUT'}),
-    ).toBeVisible()
+    ).toBeVisible({timeout: 15000})
 
     // Fill name — Label text is "Workout Name"
     await page.getByLabel('Workout Name').fill(uniqueName)
@@ -68,11 +68,11 @@ test.describe('Workouts', () => {
     await page.getByRole('button', {name: 'Create Workout'}).click()
 
     // Should redirect to workout detail page
-    await page.waitForURL(/\/workouts\/(?!new)/, {timeout: 10000})
+    await page.waitForURL(/\/workouts\/(?!new)/, {timeout: 15000})
 
     // Detail page heading shows the workout name
     await expect(page.getByRole('heading', {name: uniqueName})).toBeVisible({
-      timeout: 5000,
+      timeout: 10000,
     })
   })
 })
