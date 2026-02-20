@@ -103,7 +103,7 @@ async function main(): Promise<void> {
 		console.log("Seeding E2E users...")
 
 		const passwordHash =
-			"65326530746573743073616c743030303030303030303030303030303030303030:b48c581e99d139fcb38983beac256d7ebe92c32cfd159445e79e7e4380092db3"
+			"00000000000000000000000000000000:07909439c014b7b32f22e8a0d8ef9c94fd7c9c0d1783153d8a3d5b2072c6736e"
 
 		await connection.execute(
 			`INSERT IGNORE INTO \`users\` (id, first_name, last_name, email, password_hash, role, email_verified, current_credits, created_at, updated_at, update_counter)
