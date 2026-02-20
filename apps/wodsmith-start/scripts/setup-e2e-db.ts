@@ -1,130 +1,61 @@
+#!/usr/bin/env tsx
 /**
- * E2E Database Setup Script for wodsmith-start
+ * E2E Database Setup Script
  *
- * This script prepares the local D1 database for E2E tests:
- * 1. Applies all migrations (if needed)
- * 2. Checks if base data exists (plans, features)
- * 3. Runs base seed only if needed
- * 4. Always runs the E2E-specific seed (test users, teams, workouts)
- *
- * Run with: pnpm tsx scripts/setup-e2e-db.ts
- * Or use: pnpm db:seed:e2e
+ * Sets up the MySQL database for E2E tests:
+ * 1. Pushes schema via drizzle-kit
+ * 2. Seeds base data
+ * 3. Seeds E2E test data
  */
 
-import {execSync} from 'node:child_process'
-import {existsSync} from 'node:fs'
-import {dirname, join} from 'node:path'
-import {fileURLToPath} from 'node:url'
+import { execSync } from "node:child_process"
+import { dirname, join } from "node:path"
+import { fileURLToPath } from "node:url"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const SCRIPTS_DIR = __dirname
-const APP_DIR = join(__dirname, '..')
-
-// Alchemy uses a different wrangler config location
-const WRANGLER_CONFIG = '.alchemy/local/wrangler.jsonc'
-
-// Get database name from the helper script
-function getDbName(): string {
-  try {
-    const result = execSync('node scripts/get-db-name.mjs', {
-      cwd: APP_DIR,
-      encoding: 'utf-8',
-    })
-    return result.trim()
-  } catch {
-    return 'wodsmith-db-dev'
-  }
-}
+const APP_DIR = join(__dirname, "..")
 
 function runCommand(command: string, description: string): void {
-  console.log(`\n📦 ${description}...`)
-  try {
-    execSync(command, {
-      cwd: APP_DIR,
-      stdio: 'inherit',
-    })
-    console.log(`✅ ${description} completed`)
-  } catch (error) {
-    console.error(`❌ ${description} failed`)
-    throw error
-  }
-}
-
-function checkDataExists(dbName: string): boolean {
-  try {
-    // Check if plans table has data (indicates base seed was run)
-    const result = execSync(
-      `wrangler d1 execute ${dbName} --local --command "SELECT COUNT(*) as count FROM plan" --json -c ${WRANGLER_CONFIG}`,
-      {cwd: APP_DIR, encoding: 'utf-8'},
-    )
-    const parsed = JSON.parse(result)
-    const count = parsed[0]?.results?.[0]?.count ?? 0
-    return count > 0
-  } catch {
-    return false
-  }
-}
-
-function ensureAlchemyLocalSetup(): void {
-  const wranglerPath = join(APP_DIR, WRANGLER_CONFIG)
-  if (!existsSync(wranglerPath)) {
-    console.log(
-      '\n⚠️  Alchemy local config not found. Running db:setup-local...',
-    )
-    runCommand('pnpm db:setup-local', 'Setting up local Alchemy environment')
-  }
+	console.log(`\n${description}...`)
+	try {
+		execSync(command, {
+			cwd: APP_DIR,
+			stdio: "inherit",
+			env: { ...process.env },
+		})
+		console.log(`${description} completed`)
+	} catch (error) {
+		console.error(`${description} failed`)
+		throw error
+	}
 }
 
 async function main(): Promise<void> {
-  console.log('🧪 Setting up E2E test database...')
-  console.log('='.repeat(50))
+	if (!process.env.DATABASE_URL) {
+		console.error("DATABASE_URL environment variable is required")
+		process.exit(1)
+	}
 
-  // Ensure Alchemy local setup exists
-  ensureAlchemyLocalSetup()
+	console.log("Setting up E2E test database...")
+	console.log("=".repeat(50))
 
-  const dbName = getDbName()
-  console.log(`📊 Database: ${dbName}`)
-  console.log(`📁 Config: ${WRANGLER_CONFIG}`)
+	// Step 1: Push schema
+	runCommand("pnpm db:push", "Pushing database schema")
 
-  // Check required files exist
-  const e2eSeedFile = join(SCRIPTS_DIR, 'seed-e2e.sql')
-  if (!existsSync(e2eSeedFile)) {
-    throw new Error(`E2E seed file not found: ${e2eSeedFile}`)
-  }
+	// Step 2: Run base seed
+	runCommand("pnpm db:seed", "Seeding base data")
 
-  // Step 1: Apply migrations
-  runCommand(
-    `wrangler d1 migrations apply ${dbName} --local -c ${WRANGLER_CONFIG}`,
-    'Applying database migrations',
-  )
+	// Step 3: Run E2E seed
+	runCommand("pnpm tsx scripts/seed-e2e.ts", "Seeding E2E test data")
 
-  // Step 2: Check if base data exists
-  const hasBaseData = checkDataExists(dbName)
-
-  if (!hasBaseData) {
-    console.log('\n⚠️  Base data not found. Running full seed first...')
-
-    // Run the full seed script which handles everything
-    runCommand('bash ./scripts/seed-all.sh', 'Running full database seed')
-  } else {
-    console.log('\n✓ Base data already exists, skipping base seed')
-  }
-
-  // Step 3: Always run E2E-specific seed (it cleans up its own data first)
-  runCommand(
-    `wrangler d1 execute ${dbName} --local --file=./scripts/seed-e2e.sql -c ${WRANGLER_CONFIG}`,
-    'Running E2E test seed (users, teams, workouts)',
-  )
-
-  console.log('\n' + '='.repeat(50))
-  console.log('✅ E2E database setup complete!')
-  console.log('\nTest credentials:')
-  console.log('  Email:    test@wodsmith.com')
-  console.log('  Password: TestPassword123!')
-  console.log('\nRun E2E tests with: pnpm e2e')
+	console.log("\n" + "=".repeat(50))
+	console.log("E2E database setup complete!")
+	console.log("\nTest credentials:")
+	console.log("  Email:    test@wodsmith.com")
+	console.log("  Password: TestPassword123!")
 }
 
 main().catch((error) => {
-  console.error('\n❌ E2E database setup failed:', error.message)
-  process.exit(1)
+	console.error("\nE2E database setup failed:", error.message)
+	process.exit(1)
 })

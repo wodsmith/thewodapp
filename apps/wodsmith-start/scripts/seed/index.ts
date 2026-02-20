@@ -10,7 +10,7 @@
  *   --only <name>     Run only a specific seeder (e.g. "03-users")
  */
 
-import { createClient } from "./db"
+import { createClient, closeClient } from "./db"
 import { cleanup } from "./cleanup"
 
 // Import all seeders in order
@@ -60,7 +60,7 @@ async function main() {
 		}
 	}
 
-	const client = createClient()
+	const client = await createClient()
 	console.log("Connected to PlanetScale\n")
 
 	if (!skipCleanup) {
@@ -79,6 +79,7 @@ async function main() {
 
 	const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
 	console.log(`\nAll seeders completed in ${elapsed}s`)
+	await closeClient()
 }
 
 main().catch((err) => {

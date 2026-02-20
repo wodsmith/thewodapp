@@ -1,4 +1,4 @@
-import type { Client } from "@planetscale/database"
+import type { Connection } from "mysql2/promise"
 import { batchInsert, dateToUnix, now } from "../helpers"
 
 // Password hash for "password123"
@@ -11,7 +11,7 @@ const CROSSFIT_PASSWORD_HASH =
 
 const EMAIL_VERIFIED = 1750194531
 
-export async function seed(client: Client): Promise<void> {
+export async function seed(client: Connection): Promise<void> {
 	console.log("Seeding users...")
 
 	const ts = now()

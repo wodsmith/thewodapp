@@ -1,4 +1,4 @@
-import type { Client } from "@planetscale/database"
+import type { Connection } from "mysql2/promise"
 
 const BATCH_SIZE = 500
 
@@ -7,9 +7,9 @@ export function esc(name: string): string {
 	return `\`${name}\``
 }
 
-/** Current unix timestamp in seconds */
-export function now(): number {
-	return Math.floor(Date.now() / 1000)
+/** Current timestamp as datetime string */
+export function now(): string {
+	return currentTimestamp()
 }
 
 /** Current date as YYYY-MM-DD string */
@@ -45,14 +45,14 @@ export function pastDatetime(days: number): string {
 	return d.toISOString().slice(0, 19).replace("T", " ")
 }
 
-/** Unix timestamp for a specific date string like '1985-03-15' */
-export function dateToUnix(dateStr: string): number {
-	return Math.floor(new Date(dateStr).getTime() / 1000)
+/** Datetime string for a specific date string like '1985-03-15' */
+export function dateToUnix(dateStr: string): string {
+	return new Date(dateStr).toISOString().slice(0, 19).replace("T", " ")
 }
 
-/** Unix timestamp for a specific datetime string like '2024-12-27 10:30:00' */
-export function datetimeToUnix(datetimeStr: string): number {
-	return Math.floor(new Date(datetimeStr).getTime() / 1000)
+/** Datetime string for a specific datetime string like '2024-12-27 10:30:00' */
+export function datetimeToUnix(datetimeStr: string): string {
+	return new Date(datetimeStr).toISOString().slice(0, 19).replace("T", " ")
 }
 
 /** Current timestamp as ISO string (for CURRENT_TIMESTAMP replacement) */
@@ -60,11 +60,11 @@ export function currentTimestamp(): string {
 	return new Date().toISOString().slice(0, 19).replace("T", " ")
 }
 
-/** Unix timestamp for N days from now */
-export function futureUnix(days: number): number {
+/** Datetime string for N days from now */
+export function futureUnix(days: number): string {
 	const d = new Date()
 	d.setDate(d.getDate() + days)
-	return Math.floor(d.getTime() / 1000)
+	return d.toISOString().slice(0, 19).replace("T", " ")
 }
 
 /**
@@ -95,7 +95,7 @@ function flattenParams(
  * Rows are plain objects with snake_case keys matching the column names.
  */
 export async function batchInsert(
-	client: Client,
+	client: Connection,
 	tableName: string,
 	rows: Record<string, unknown>[],
 ): Promise<void> {
