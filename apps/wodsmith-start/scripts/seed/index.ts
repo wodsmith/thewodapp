@@ -61,7 +61,7 @@ async function main() {
 	}
 
 	const client = await createClient()
-	console.log("Connected to PlanetScale\n")
+	console.log("Connected to database\n")
 
 	if (!skipCleanup) {
 		await cleanup(client)

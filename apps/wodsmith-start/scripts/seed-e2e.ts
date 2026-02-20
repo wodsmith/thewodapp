@@ -28,7 +28,7 @@ function dateString(daysFromNow: number): string {
 	return d.toISOString().slice(0, 10)
 }
 
-async function main() {
+async function main(): Promise<void> {
 	const url = process.env.DATABASE_URL
 	if (!url) {
 		console.error("DATABASE_URL environment variable is required")

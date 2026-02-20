@@ -22,7 +22,8 @@ test.describe('Competition Organizer', () => {
       .getByRole('combobox')
       .filter({hasText: /select team/i})
       .first()
-    if (await teamTrigger.isVisible({timeout: 2000})) {
+    const teamVisible = await teamTrigger.waitFor({state: 'visible', timeout: 2000}).then(() => true).catch(() => false)
+    if (teamVisible) {
       await teamTrigger.click()
       await page.getByRole('option', {name: /E2E Test Gym/i}).click()
     }
@@ -39,7 +40,8 @@ test.describe('Competition Organizer', () => {
       .getByRole('combobox')
       .filter({hasText: /select competition type/i})
       .first()
-    if (await typeTrigger.isVisible({timeout: 2000})) {
+    const typeVisible = await typeTrigger.waitFor({state: 'visible', timeout: 2000}).then(() => true).catch(() => false)
+    if (typeVisible) {
       await typeTrigger.click()
       await page.getByRole('option', {name: /In-Person/i}).click()
     }
@@ -63,7 +65,8 @@ test.describe('Competition Organizer', () => {
     // Navigate to divisions page
     await page.waitForURL(/\/compete\/organizer\//, {timeout: 10000})
     const divisionsLink = page.getByRole('link', {name: /divisions/i})
-    if (await divisionsLink.isVisible({timeout: 3000})) {
+    const divisionsVisible = await divisionsLink.waitFor({state: 'visible', timeout: 3000}).then(() => true).catch(() => false)
+    if (divisionsVisible) {
       await divisionsLink.click()
     } else {
       // Navigate directly via URL pattern
@@ -73,7 +76,8 @@ test.describe('Competition Organizer', () => {
 
     // Set up divisions — click "Start Fresh" for default Open + Scaled
     const startFresh = page.getByRole('button', {name: /start fresh/i})
-    if (await startFresh.isVisible({timeout: 5000})) {
+    const startFreshVisible = await startFresh.waitFor({state: 'visible', timeout: 5000}).then(() => true).catch(() => false)
+    if (startFreshVisible) {
       await startFresh.click()
       // Wait for divisions to appear
       await expect(page.getByText(/open/i)).toBeVisible({timeout: 10000})
@@ -81,8 +85,12 @@ test.describe('Competition Organizer', () => {
 
     // Navigate to events page
     const eventsLink = page.getByRole('link', {name: /events/i})
-    if (await eventsLink.isVisible({timeout: 3000})) {
+    const eventsVisible = await eventsLink.waitFor({state: 'visible', timeout: 3000}).then(() => true).catch(() => false)
+    if (eventsVisible) {
       await eventsLink.click()
+    } else {
+      const url = page.url()
+      await page.goto(`${url}/events`)
     }
 
     // Create an event

@@ -50,9 +50,9 @@ export function dateToUnix(dateStr: string): string {
 	return new Date(dateStr).toISOString().slice(0, 19).replace("T", " ")
 }
 
-/** Datetime string for a specific datetime string like '2024-12-27 10:30:00' */
+/** Pass through a datetime string already in 'YYYY-MM-DD HH:MM:SS' format */
 export function datetimeToUnix(datetimeStr: string): string {
-	return new Date(datetimeStr).toISOString().slice(0, 19).replace("T", " ")
+	return datetimeStr
 }
 
 /** Current timestamp as ISO string (for CURRENT_TIMESTAMP replacement) */

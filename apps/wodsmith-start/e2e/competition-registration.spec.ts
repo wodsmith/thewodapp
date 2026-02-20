@@ -22,7 +22,7 @@ test.describe('Competition Registration', () => {
     await registerLink.click()
 
     // Should be on registration page
-    await expect(page).toHaveURL(new RegExp(`/compete/${comp.slug}/register`))
+    await expect(page).toHaveURL(/\/compete\/e2e-throwdown\/register/)
     await expect(
       page.getByText(/register for/i),
     ).toBeVisible({timeout: 10000})
@@ -40,7 +40,8 @@ test.describe('Competition Registration', () => {
 
     // Select affiliate — search for Independent
     const affiliateInput = page.getByPlaceholder(/search.*affiliate/i).first()
-    if (await affiliateInput.isVisible({timeout: 3000})) {
+    const affiliateVisible = await affiliateInput.waitFor({state: 'visible', timeout: 3000}).then(() => true).catch(() => false)
+    if (affiliateVisible) {
       await affiliateInput.fill('Independent')
       // Wait for dropdown and select
       const independentOption = page.getByText(/independent/i).first()
