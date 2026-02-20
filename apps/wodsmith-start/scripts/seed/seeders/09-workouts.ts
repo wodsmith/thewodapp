@@ -1,10 +1,10 @@
-import type { Client } from "@planetscale/database"
+import type { Connection } from "mysql2/promise"
 import { batchInsert, now } from "../helpers"
 
 const CF_TEAM = "team_cokkpu1klwo0ulfhl1iwzpvn"
 const BOX1_TEAM = "team_cokkpu1klwo0ulfhl1iwzpvnbox1"
 
-export async function seed(client: Client): Promise<void> {
+export async function seed(client: Connection): Promise<void> {
 	console.log("Seeding workouts...")
 
 	const ts = now()

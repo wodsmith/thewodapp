@@ -21,42 +21,28 @@ export async function login(
 	page: Page,
 	credentials: { email: string; password: string },
 ): Promise<void> {
-	// Navigate to sign-in page and wait for network to settle
-	await page.goto("/sign-in", { waitUntil: 'networkidle' })
+	await page.goto("/sign-in", { waitUntil: 'domcontentloaded' })
 
-	// Check if already authenticated (server-side redirect to workouts)
-	// This happens when the user has a valid session cookie
 	if (!page.url().includes('/sign-in')) {
-		// Already logged in, redirected away from sign-in
 		return
 	}
 
-	// Wait for the sign-in form to be ready
-	// Use a longer timeout in CI where pages may load slower
-	// Note: Button text is "Sign In" (mixed case) not "SIGN IN"
-	const signInButton = page.getByRole("button", { name: /sign in/i })
-	await signInButton.waitFor({ state: 'visible', timeout: 10000 })
+	const signInButton = page.getByRole("button", { name: "Sign In" })
+	await signInButton.waitFor({ state: 'visible', timeout: 15000 })
 
-	// Fill in the login form
-	await page.getByPlaceholder(/email/i).fill(credentials.email)
-	await page.getByPlaceholder(/password/i).fill(credentials.password)
+	// Placeholders: "name@example.com" and "Enter your password"
+	await page.getByPlaceholder("name@example.com").fill(credentials.email)
+	await page.getByPlaceholder("Enter your password").fill(credentials.password)
 
-	// Submit the form
 	await signInButton.click()
 
-	// Wait for redirect after successful login
-	// The app redirects to /workouts after login
-	await page.waitForURL(/\/(workouts|dashboard)/, { 
+	// After login, app redirects to "/" (REDIRECT_AFTER_SIGN_IN)
+	await page.waitForURL(/^https?:\/\/[^/]+(\/)?$/, {
 		timeout: 15000,
-		waitUntil: 'networkidle'
 	})
 
-	// Wait for network to settle and session to be fully established
-	// This ensures cookies are set before navigating to protected routes
-	await page.waitForLoadState('networkidle')
+	await page.waitForLoadState('domcontentloaded')
 
-	// Poll for the session cookie to be set (httpOnly cookies need context.cookies())
-	// This is critical in CI where timing can be tighter
 	let attempts = 0
 	const maxAttempts = 20
 	while (attempts < maxAttempts) {
@@ -93,7 +79,7 @@ export async function loginAsAdmin(page: Page): Promise<void> {
 
 	// Extra verification for admin login - wait for session to be fully established
 	// The admin needs the session to be properly set before accessing /admin routes
-	await page.waitForLoadState('networkidle')
+	await page.waitForLoadState('domcontentloaded')
 
 	// Verify the session cookie exists before proceeding
 	// This is critical for admin routes which redirect to sign-in if no session
@@ -111,66 +97,26 @@ export async function loginAsAdmin(page: Page): Promise<void> {
 }
 
 /**
- * Create an authenticated browser context with session storage
- * Useful for tests that need to start with an authenticated state
- */
-export async function createAuthenticatedContext(page: Page): Promise<void> {
-	await loginAsTestUser(page)
-
-	// Verify we're actually authenticated by checking for user-specific elements
-	// Wait for authenticated nav links to appear
-	await page.waitForSelector(
-		'nav a[href="/log"], nav a[href="/teams"]',
-		{ timeout: 10000 },
-	)
-}
-
-/**
  * Logout the current user
- * 
- * The app uses a LogoutButton component that triggers signOutAction server action.
- * The button only has a LogOut icon, so we find it by role and position in the nav.
- * After logout, the app redirects to /compete.
+ *
+ * LogoutButton has aria-label="Log out". After logout, app redirects to /sign-in.
  */
 export async function logout(page: Page): Promise<void> {
-	// The logout button is in the nav, appears after other nav items
-	// It's a button with a LogOut icon (no text)
-	// On desktop, find it in the main nav
-	const logoutButton = page.locator('nav button').filter({ has: page.locator('svg.lucide-log-out') }).first()
-	
-	if (await logoutButton.isVisible({ timeout: 2000 })) {
-		await logoutButton.click()
-	} else {
-		// On mobile, might need to open menu first
-		const mobileMenuButton = page.getByRole('button', { name: /menu/i })
-		if (await mobileMenuButton.isVisible()) {
-			await mobileMenuButton.click()
-			// Look for logout in mobile menu
-			const mobileLogout = page.locator('button').filter({ has: page.locator('svg.lucide-log-out') }).first()
-			await mobileLogout.click()
-		}
-	}
-
-	// The app redirects to /compete after logout (see useSignOut hook)
-	// Wait for navigation away from the authenticated page
-	await page.waitForURL(/\/(compete|sign-in|login)/, { timeout: 5000 })
+	const logoutButton = page.getByRole('button', { name: 'Log out' })
+	await logoutButton.click()
+	await page.waitForURL(/\/sign-in/, { timeout: 10000 })
 }
 
 /**
  * Check if the current page shows authenticated state
  *
- * We check for authenticated-only UI elements:
- * - Navigation links that only appear when logged in (Log, Team, etc.)
- * - Settings link in the nav
- * - The logout button
+ * Looks for the logout button which only appears when authenticated.
  */
 export async function isAuthenticated(page: Page): Promise<boolean> {
 	try {
-		// Look for nav elements that only appear when authenticated
-		// The main nav shows "LOG" and "TEAM" links only for authenticated users
 		await page.waitForSelector(
-			'nav a[href="/log"], nav a[href="/teams"], nav a[href="/settings"]',
-			{ timeout: 2000 },
+			'button[aria-label="Log out"]',
+			{ timeout: 5000 },
 		)
 		return true
 	} catch {

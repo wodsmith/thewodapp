@@ -87,7 +87,7 @@
  */
 
 import alchemy from "alchemy"
-import { D1Database, Hyperdrive, KVNamespace, R2Bucket, TanStackStart } from "alchemy/cloudflare"
+import { Hyperdrive, KVNamespace, R2Bucket, TanStackStart } from "alchemy/cloudflare"
 import { GitHubComment } from "alchemy/github"
 import { CloudflareStateStore } from "alchemy/state"
 import {
@@ -195,38 +195,6 @@ const app = await alchemy("wodsmith", {
 	stateStore: process.env.CI
 		? (scope) => new CloudflareStateStore(scope)
 		: undefined,
-})
-
-/**
- * Cloudflare D1 SQLite database for application data.
- *
- * D1 is Cloudflare's serverless SQLite database. This binding provides:
- * - Automatic schema migrations from the migrations directory
- * - Type-safe database access via Drizzle ORM
- * - Edge-local reads with global replication
- *
- * @remarks
- * **Environment-specific notes:**
- * - Each stage gets a separate database instance
- * - Migrations run automatically on deployment
- * - Database name is stage-prefixed: `wodsmith-db-{stage}`
- *
- * **Access in application:**
- * ```typescript
- * import { getDb } from "~/db";
- * const db = getDb(env.DB);
- * const users = await db.query.users.findMany();
- * ```
- *
- * @see {@link https://developers.cloudflare.com/d1/ D1 Documentation}
- */
-// @ts-ignore -- keeping D1 resource during PlanetScale migration
-const _db = await D1Database("db", {
-	/**
-	 * Adopt existing D1 database if it already exists.
-	 * Required for production where resources were created before Alchemy.
-	 */
-	adopt: true,
 })
 
 /**
