@@ -61,9 +61,9 @@ async function main() {
 				`DELETE FROM \`${table}\` WHERE id LIKE 'e2e_%'`,
 			)
 		}
-		// Clean up registrations by competition_id
+		// Clean up registrations by event_id
 		await connection.execute(
-			"DELETE FROM `competition_registrations` WHERE competition_id = 'e2e_competition'",
+			"DELETE FROM `competition_registrations` WHERE event_id = 'e2e_competition'",
 		)
 		// Also clean up users by email
 		await connection.execute(
