@@ -86,15 +86,22 @@
  * @module alchemy.run
  */
 
-import alchemy from "alchemy"
-import { D1Database, KVNamespace, R2Bucket, TanStackStart, VectorizeIndex } from "alchemy/cloudflare"
-import { GitHubComment } from "alchemy/github"
-import { CloudflareStateStore } from "alchemy/state"
+import alchemy from 'alchemy'
 import {
-	Branch as PlanetScaleBranch,
-	Password as PlanetScalePassword,
-} from "alchemy/planetscale"
-import { WebhookEndpoint } from "alchemy/stripe"
+  D1Database,
+  Hyperdrive,
+  KVNamespace,
+  R2Bucket,
+  TanStackStart,
+  VectorizeIndex,
+} from 'alchemy/cloudflare'
+import {GitHubComment} from 'alchemy/github'
+import {CloudflareStateStore} from 'alchemy/state'
+import {
+  Branch as PlanetScaleBranch,
+  Password as PlanetScalePassword,
+} from 'alchemy/planetscale'
+import {WebhookEndpoint} from 'alchemy/stripe'
 
 /**
  * Initialize the Alchemy application context.
@@ -125,13 +132,13 @@ import { WebhookEndpoint } from "alchemy/stripe"
  * Current stage name for conditional configuration.
  * PR stages are formatted as `pr-{number}` (e.g., `pr-42`).
  */
-const stage = process.env.STAGE ?? "dev"
+const stage = process.env.STAGE ?? 'dev'
 
 /**
  * Whether the current stage needs Stripe webhook.
  * Only demo and production environments require the webhook resource.
  */
-const needsStripeWebhook = stage === "demo" || stage === "prod"
+const needsStripeWebhook = stage === 'demo' || stage === 'prod'
 
 /**
  * Whether Stripe environment variables are available.
@@ -141,66 +148,66 @@ const needsStripeWebhook = stage === "demo" || stage === "prod"
  * Whether the current stage needs Vectorize for AI memory.
  * Only demo and production environments require the Vectorize index.
  */
-const needsVectorize = stage === "demo" || stage === "prod"
+const needsVectorize = stage === 'demo' || stage === 'prod'
 
 const hasStripeEnv =
-	process.env.STRIPE_SECRET_KEY &&
-	process.env.STRIPE_PUBLISHABLE_KEY &&
-	process.env.STRIPE_CLIENT_ID
+  process.env.STRIPE_SECRET_KEY &&
+  process.env.STRIPE_PUBLISHABLE_KEY &&
+  process.env.STRIPE_CLIENT_ID
 
-const app = await alchemy("wodsmith", {
-	/**
-	 * Deployment stage/environment name.
-	 *
-	 * Each stage maintains completely isolated resources. Setting this to different
-	 * values creates separate infrastructure stacks that don't interfere with each other.
-	 *
-	 * @default "dev"
-	 *
-	 * @example
-	 * - "dev"     → Development database, no custom domain
-	 * - "staging" → Staging database, staging domain (if configured)
-	 * - "prod"    → Production database, wodsmith.com domain
-	 * - "pr-42"   → PR preview with auto-generated workers.dev URL
-	 */
-	stage,
+const app = await alchemy('wodsmith', {
+  /**
+   * Deployment stage/environment name.
+   *
+   * Each stage maintains completely isolated resources. Setting this to different
+   * values creates separate infrastructure stacks that don't interfere with each other.
+   *
+   * @default "dev"
+   *
+   * @example
+   * - "dev"     → Development database, no custom domain
+   * - "staging" → Staging database, staging domain (if configured)
+   * - "prod"    → Production database, wodsmith.com domain
+   * - "pr-42"   → PR preview with auto-generated workers.dev URL
+   */
+  stage,
 
-	/**
-	 * Deployment phase: create/update (`up`) or tear down (`destroy`).
-	 *
-	 * When `destroy` is specified, Alchemy will delete all resources for the
-	 * current stage. This is irreversible - use with caution in production!
-	 *
-	 * @remarks
-	 * The destroy phase stops execution after the alchemy() call - no resources
-	 * are created, only deleted. This prevents accidental recreation of resources.
-	 *
-	 * @example
-	 * ```bash
-	 * # Destroy via CLI flag (recommended)
-	 * npx alchemy deploy --destroy
-	 *
-	 * # Programmatic destroy (for scripts)
-	 * const app = await alchemy("my-app", { phase: "destroy" });
-	 * ```
-	 */
-	phase: process.argv.includes("--destroy") ? "destroy" : "up",
+  /**
+   * Deployment phase: create/update (`up`) or tear down (`destroy`).
+   *
+   * When `destroy` is specified, Alchemy will delete all resources for the
+   * current stage. This is irreversible - use with caution in production!
+   *
+   * @remarks
+   * The destroy phase stops execution after the alchemy() call - no resources
+   * are created, only deleted. This prevents accidental recreation of resources.
+   *
+   * @example
+   * ```bash
+   * # Destroy via CLI flag (recommended)
+   * npx alchemy deploy --destroy
+   *
+   * # Programmatic destroy (for scripts)
+   * const app = await alchemy("my-app", { phase: "destroy" });
+   * ```
+   */
+  phase: process.argv.includes('--destroy') ? 'destroy' : 'up',
 
-	/**
-	 * State storage backend for tracking infrastructure state.
-	 *
-	 * @remarks
-	 * - **Local development**: Uses FileSystemStateStore (`.alchemy/` directory)
-	 * - **CI/CD pipelines**: Uses CloudflareStateStore for persistent, shared state
-	 *
-	 * CloudflareStateStore enables ephemeral CI runners to access state from
-	 * previous deployments, which is required for incremental updates and destroy operations.
-	 *
-	 * @see {@link https://alchemy.run/docs/state-management State Management Docs}
-	 */
-	stateStore: process.env.CI
-		? (scope) => new CloudflareStateStore(scope)
-		: undefined,
+  /**
+   * State storage backend for tracking infrastructure state.
+   *
+   * @remarks
+   * - **Local development**: Uses FileSystemStateStore (`.alchemy/` directory)
+   * - **CI/CD pipelines**: Uses CloudflareStateStore for persistent, shared state
+   *
+   * CloudflareStateStore enables ephemeral CI runners to access state from
+   * previous deployments, which is required for incremental updates and destroy operations.
+   *
+   * @see {@link https://alchemy.run/docs/state-management State Management Docs}
+   */
+  stateStore: process.env.CI
+    ? (scope) => new CloudflareStateStore(scope)
+    : undefined,
 })
 
 /**
@@ -227,12 +234,12 @@ const app = await alchemy("wodsmith", {
  * @see {@link https://developers.cloudflare.com/d1/ D1 Documentation}
  */
 // @ts-ignore -- keeping D1 resource during PlanetScale migration
-const _db = await D1Database("db", {
-	/**
-	 * Adopt existing D1 database if it already exists.
-	 * Required for production where resources were created before Alchemy.
-	 */
-	adopt: true,
+const _db = await D1Database('db', {
+  /**
+   * Adopt existing D1 database if it already exists.
+   * Required for production where resources were created before Alchemy.
+   */
+  adopt: true,
 })
 
 /**
@@ -250,8 +257,8 @@ const _db = await D1Database("db", {
  *
  * @see {@link https://planetscale.com/docs PlanetScale Documentation}
  */
-const psDbName = "wodsmith-db"
-const psOrg = process.env.PLANETSCALE_ORGANIZATION ?? "wodsmith"
+const psDbName = 'wodsmith-db'
+const psOrg = process.env.PLANETSCALE_ORGANIZATION ?? 'wodsmith'
 
 /**
  * PlanetScale branch hierarchy:
@@ -260,30 +267,63 @@ const psOrg = process.env.PLANETSCALE_ORGANIZATION ?? "wodsmith"
  * - demo  → branches off main (parallel to dev)
  * - pr-N  → uses "dev" branch directly (no per-PR branch creation)
  */
-const branchConfig: Record<string, { name: string; parent: string }> = {
-	dev: { name: "dev", parent: "main" },
-	demo: { name: "demo", parent: "main" },
+const branchConfig: Record<string, {name: string; parent: string}> = {
+  dev: {name: 'dev', parent: 'main'},
+  demo: {name: 'demo', parent: 'main'},
 }
 
-const isPrStage = stage.startsWith("pr-")
-const psBranchName = stage === "prod" ? "main" : (branchConfig[stage]?.name ?? (isPrStage ? "dev" : stage))
+const isPrStage = stage.startsWith('pr-')
+const psBranchName =
+  stage === 'prod'
+    ? 'main'
+    : (branchConfig[stage]?.name ?? (isPrStage ? 'dev' : stage))
 const psBranch =
-	stage === "prod" || isPrStage
-		? undefined
-		: await PlanetScaleBranch(`ps-branch-${stage}`, {
-				organization: psOrg,
-				database: psDbName,
-				name: psBranchName,
-				parentBranch: branchConfig[stage]?.parent ?? "main",
-				isProduction: false,
-				adopt: true,
-			})
+  stage === 'prod' || isPrStage
+    ? undefined
+    : await PlanetScaleBranch(`ps-branch-${stage}`, {
+        organization: psOrg,
+        database: psDbName,
+        name: psBranchName,
+        parentBranch: branchConfig[stage]?.parent ?? 'main',
+        isProduction: false,
+        adopt: true,
+      })
 
 const psPassword = await PlanetScalePassword(`ps-password-${stage}`, {
-	organization: psOrg,
-	database: psDbName,
-	branch: psBranch ?? psBranchName,
-	role: "admin",
+  organization: psOrg,
+  database: psDbName,
+  branch: psBranch ?? psBranchName,
+  role: 'admin',
+})
+
+/**
+ * Cloudflare Hyperdrive for PlanetScale connection pooling and caching.
+ *
+ * Hyperdrive sits between the Worker and PlanetScale, providing:
+ * - Connection pooling (reuses TCP connections across requests)
+ * - SQL query caching (configurable TTL)
+ * - Reduced latency for repeated queries
+ *
+ * The Worker connects to Hyperdrive via the `HYPERDRIVE` binding,
+ * which exposes a `connectionString` for use with standard MySQL drivers (mysql2).
+ */
+const hyperdrive = await Hyperdrive(`hyperdrive-${stage}`, {
+  origin: {
+    host: psPassword.host,
+    database: psDbName,
+    user: psPassword.username,
+    password: psPassword.password.unencrypted,
+    port: 3306,
+    scheme: 'mysql',
+  },
+  caching: {
+    disabled: true,
+  },
+  adopt: true,
+  // Local dev: connect directly to PlanetScale (bypassing Hyperdrive pooling)
+  dev: {
+    origin: `mysql://${psPassword.username}:${psPassword.password.unencrypted}@${psPassword.host}:3306/${psDbName}?sslaccept=strict`,
+  },
 })
 
 /**
@@ -308,12 +348,12 @@ const psPassword = await PlanetScalePassword(`ps-password-${stage}`, {
  *
  * @see {@link https://developers.cloudflare.com/kv/ KV Documentation}
  */
-const kvSession = await KVNamespace("wodsmith-sessions", {
-	/**
-	 * Adopt existing KV namespace if it already exists.
-	 * Required for production where resources were created before Alchemy.
-	 */
-	adopt: true,
+const kvSession = await KVNamespace('wodsmith-sessions', {
+  /**
+   * Adopt existing KV namespace if it already exists.
+   * Required for production where resources were created before Alchemy.
+   */
+  adopt: true,
 })
 
 /**
@@ -338,44 +378,44 @@ const kvSession = await KVNamespace("wodsmith-sessions", {
  *
  * @see {@link https://developers.cloudflare.com/r2/ R2 Documentation}
  */
-const r2Bucket = await R2Bucket("wodsmith-uploads", {
-	/**
-	 * Adopt existing R2 bucket if it already exists.
-	 * Required for production where resources were created before Alchemy.
-	 */
-	adopt: true,
-	/**
-	 * Use remote R2 bucket during local development instead of Miniflare emulation.
-	 * Required to get the actual devDomain URL and test with real uploads.
-	 */
-	dev: { remote: true },
-	/**
-	 * Enable r2.dev public URL for non-prod stages.
-	 * Production uses a custom domain instead.
-	 */
-	devDomain: stage !== "prod",
-	/**
-	 * Custom domain for public access to bucket files.
-	 * Only configured for production - other stages use the r2.dev URL.
-	 */
-	...(stage === "prod" && { domains: "uploads.wodsmith.com" }),
-	/**
-	 * CORS configuration to allow cross-origin requests from the app.
-	 */
-	cors: [
-		{
-			allowed: {
-				origins: [
-					"https://wodsmith.com",
-					"https://demo.wodsmith.com",
-					"http://localhost:3000",
-				],
-				methods: ["GET", "HEAD"],
-				headers: ["*"],
-			},
-			maxAgeSeconds: 3600,
-		},
-	],
+const r2Bucket = await R2Bucket('wodsmith-uploads', {
+  /**
+   * Adopt existing R2 bucket if it already exists.
+   * Required for production where resources were created before Alchemy.
+   */
+  adopt: true,
+  /**
+   * Use remote R2 bucket during local development instead of Miniflare emulation.
+   * Required to get the actual devDomain URL and test with real uploads.
+   */
+  dev: {remote: true},
+  /**
+   * Enable r2.dev public URL for non-prod stages.
+   * Production uses a custom domain instead.
+   */
+  devDomain: stage !== 'prod',
+  /**
+   * Custom domain for public access to bucket files.
+   * Only configured for production - other stages use the r2.dev URL.
+   */
+  ...(stage === 'prod' && {domains: 'uploads.wodsmith.com'}),
+  /**
+   * CORS configuration to allow cross-origin requests from the app.
+   */
+  cors: [
+    {
+      allowed: {
+        origins: [
+          'https://wodsmith.com',
+          'https://demo.wodsmith.com',
+          'http://localhost:3000',
+        ],
+        methods: ['GET', 'HEAD'],
+        headers: ['*'],
+      },
+      maxAgeSeconds: 3600,
+    },
+  ],
 })
 
 /**
@@ -384,29 +424,29 @@ const r2Bucket = await R2Bucket("wodsmith-uploads", {
  * Only created for prod/demo stages (requires CLOUDFLARE_VECTORIZE_API_TOKEN).
  */
 const aiMemoryIndex = needsVectorize
-	? await VectorizeIndex("ai-memory", {
-			dimensions: 1536,
-			metric: "cosine",
-			adopt: true,
-		})
-	: undefined
+  ? await VectorizeIndex('ai-memory', {
+      dimensions: 1536,
+      metric: 'cosine',
+      adopt: true,
+    })
+  : undefined
 
 /**
  * Validate required Stripe environment variables when Stripe webhook is needed.
  * Fails fast with a clear error message if any required variables are missing.
  */
 if (needsStripeWebhook) {
-	const requiredStripeVars = [
-		"STRIPE_SECRET_KEY",
-		"STRIPE_PUBLISHABLE_KEY",
-		"STRIPE_CLIENT_ID",
-	] as const
-	const missing = requiredStripeVars.filter((varName) => !process.env[varName])
-	if (missing.length > 0) {
-		throw new Error(
-			`Missing required Stripe environment variables for stage "${stage}": ${missing.join(", ")}`,
-		)
-	}
+  const requiredStripeVars = [
+    'STRIPE_SECRET_KEY',
+    'STRIPE_PUBLISHABLE_KEY',
+    'STRIPE_CLIENT_ID',
+  ] as const
+  const missing = requiredStripeVars.filter((varName) => !process.env[varName])
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required Stripe environment variables for stage "${stage}": ${missing.join(', ')}`,
+    )
+  }
 }
 
 /**
@@ -436,23 +476,23 @@ if (needsStripeWebhook) {
  * @see {@link https://stripe.com/docs/webhooks Stripe Webhook Documentation}
  */
 const stripeWebhookUrl =
-	stage === "prod"
-		? "https://wodsmith.com/api/webhooks/stripe"
-		: "https://demo.wodsmith.com/api/webhooks/stripe"
+  stage === 'prod'
+    ? 'https://wodsmith.com/api/webhooks/stripe'
+    : 'https://demo.wodsmith.com/api/webhooks/stripe'
 
 const stripeWebhook = needsStripeWebhook
-	? await WebhookEndpoint("stripe-webhook", {
-			url: stripeWebhookUrl,
-			enabledEvents: [
-				"checkout.session.completed",
-				"checkout.session.expired",
-				"account.updated",
-				"account.application.authorized",
-				"account.application.deauthorized",
-			],
-			adopt: true,
-		})
-	: null
+  ? await WebhookEndpoint('stripe-webhook', {
+      url: stripeWebhookUrl,
+      enabledEvents: [
+        'checkout.session.completed',
+        'checkout.session.expired',
+        'account.updated',
+        'account.application.authorized',
+        'account.application.deauthorized',
+      ],
+      adopt: true,
+    })
+  : null
 
 /**
  * Determines the custom domain(s) for the current deployment stage.
@@ -477,14 +517,14 @@ const stripeWebhook = needsStripeWebhook
  * ```
  */
 function getDomains(currentStage: string): string[] | undefined {
-	if (currentStage === "prod") {
-		return ["wodsmith.com"]
-	}
-	if (currentStage === "demo") {
-		return ["demo.wodsmith.com"]
-	}
-	// PR previews and other stages use auto-generated workers.dev URLs
-	return undefined
+  if (currentStage === 'prod') {
+    return ['wodsmith.com']
+  }
+  if (currentStage === 'demo') {
+    return ['demo.wodsmith.com']
+  }
+  // PR previews and other stages use auto-generated workers.dev URLs
+  return undefined
 }
 
 /**
@@ -521,153 +561,155 @@ function getDomains(currentStage: string): string[] | undefined {
  *
  * @see {@link https://tanstack.com/start/latest TanStack Start Docs}
  */
-const website = await TanStackStart("app", {
-	/**
-	 * Cron triggers for scheduled jobs.
-	 *
-	 * The scheduled handler in src/server.ts processes these triggers.
-	 * Currently runs submission window notifications every 15 minutes.
-	 *
-	 * @see src/server.ts for the scheduled handler implementation
-	 * @see https://developers.cloudflare.com/workers/configuration/cron-triggers/
-	 */
-	crons: ["*/15 * * * *"],
+const website = await TanStackStart('app', {
+  /**
+   * Cron triggers for scheduled jobs.
+   *
+   * The scheduled handler in src/server.ts processes these triggers.
+   * Currently runs submission window notifications every 15 minutes.
+   *
+   * @see src/server.ts for the scheduled handler implementation
+   * @see https://developers.cloudflare.com/workers/configuration/cron-triggers/
+   */
+  crons: ['*/15 * * * *'],
 
-	/**
-	 * Cloudflare resource bindings available to the application.
-	 *
-	 * These bindings inject Cloudflare services into the Worker's environment.
-	 * The binding names become properties on `env`.
-	 *
-	 * For environment variables and secrets, add them directly to bindings:
-	 * - Plain strings become environment variables
-	 * - Values wrapped in `alchemy.secret()` become encrypted secrets
-	 */
-	bindings: {
-		/** KV namespace binding for session storage */
-		KV_SESSION: kvSession,
-		/** R2 bucket binding for file uploads */
-		R2_BUCKET: r2Bucket,
-		/** Vectorize index binding for AI memory (prod/demo only) */
-		...(aiMemoryIndex ? { AI_MEMORY: aiMemoryIndex } : {}),
+  /**
+   * Cloudflare resource bindings available to the application.
+   *
+   * These bindings inject Cloudflare services into the Worker's environment.
+   * The binding names become properties on `env`.
+   *
+   * For environment variables and secrets, add them directly to bindings:
+   * - Plain strings become environment variables
+   * - Values wrapped in `alchemy.secret()` become encrypted secrets
+   */
+  bindings: {
+    /** KV namespace binding for session storage */
+    KV_SESSION: kvSession,
+    /** R2 bucket binding for file uploads */
+    R2_BUCKET: r2Bucket,
+    /** Vectorize index binding for AI memory (prod/demo only) */
+    ...(aiMemoryIndex ? {AI_MEMORY: aiMemoryIndex} : {}),
+    /** Hyperdrive binding for pooled PlanetScale connections */
+    HYPERDRIVE: hyperdrive,
 
-		// App configuration
-		// biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
-		APP_URL: process.env.APP_URL!,
+    // App configuration
+    // biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
+    APP_URL: process.env.APP_URL!,
 
-		/**
-		 * Environment mode - CRITICAL for email sending!
-		 * Must be "production" for emails to be sent via Resend.
-		 * In dev mode, emails are logged to console only.
-		 */
-		NODE_ENV:
-			stage === "prod" || stage === "demo" ? "production" : "development",
+    /**
+     * Environment mode - CRITICAL for email sending!
+     * Must be "production" for emails to be sent via Resend.
+     * In dev mode, emails are logged to console only.
+     */
+    NODE_ENV:
+      stage === 'prod' || stage === 'demo' ? 'production' : 'development',
 
-		/**
-		 * Site URL used in email templates for links (verify email, reset password, etc.)
-		 * Falls back to wodsmith.com if not set.
-		 */
-		SITE_URL: process.env.APP_URL || "https://wodsmith.com",
+    /**
+     * Site URL used in email templates for links (verify email, reset password, etc.)
+     * Falls back to wodsmith.com if not set.
+     */
+    SITE_URL: process.env.APP_URL || 'https://wodsmith.com',
 
-		// Email configuration
-		EMAIL_FROM: "team@mail.wodsmith.com",
-		EMAIL_FROM_NAME: "WODsmith",
-		EMAIL_REPLY_TO: "support@mail.wodsmith.com",
+    // Email configuration
+    EMAIL_FROM: 'team@mail.wodsmith.com',
+    EMAIL_FROM_NAME: 'WODsmith',
+    EMAIL_REPLY_TO: 'support@mail.wodsmith.com',
 
-		// Public URLs and keys
-		// Use custom domain for prod, r2.dev domain for other stages
-		// Fallback to known r2.dev URL if devDomain not yet provisioned
-		R2_PUBLIC_URL: r2Bucket.domains?.[0]
-			? `https://${r2Bucket.domains[0]}`
-			: r2Bucket.devDomain
-				? `https://${r2Bucket.devDomain}`
-				: "https://pub-14c651314867492fa9637e830cc729a3.r2.dev",
-		POSTHOG_KEY: "phc_UCtCVOUXvpuKzF50prCLKIWWCFc61j5CPTbt99OrKsK",
-		TURNSTILE_SITE_KEY: "0x4AAAAAACF8K4v1TmFMOmtk",
+    // Public URLs and keys
+    // Use custom domain for prod, r2.dev domain for other stages
+    // Fallback to known r2.dev URL if devDomain not yet provisioned
+    R2_PUBLIC_URL: r2Bucket.domains?.[0]
+      ? `https://${r2Bucket.domains[0]}`
+      : r2Bucket.devDomain
+        ? `https://${r2Bucket.devDomain}`
+        : 'https://pub-14c651314867492fa9637e830cc729a3.r2.dev',
+    POSTHOG_KEY: 'phc_UCtCVOUXvpuKzF50prCLKIWWCFc61j5CPTbt99OrKsK',
+    TURNSTILE_SITE_KEY: '0x4AAAAAACF8K4v1TmFMOmtk',
 
-		// Secrets
-		// biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
-		TURNSTILE_SECRET_KEY: alchemy.secret(process.env.TURNSTILE_SECRET_KEY!),
-		// biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
-		RESEND_API_KEY: alchemy.secret(process.env.RESEND_API_KEY!),
+    // Secrets
+    // biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
+    TURNSTILE_SECRET_KEY: alchemy.secret(process.env.TURNSTILE_SECRET_KEY!),
+    // biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
+    RESEND_API_KEY: alchemy.secret(process.env.RESEND_API_KEY!),
 
-		// Cron secret for scheduled job authentication
-		...(process.env.CRON_SECRET && {
-			CRON_SECRET: alchemy.secret(process.env.CRON_SECRET),
-		}),
+    // Cron secret for scheduled job authentication
+    ...(process.env.CRON_SECRET && {
+      CRON_SECRET: alchemy.secret(process.env.CRON_SECRET),
+    }),
 
-		// AI configuration (optional - only include if available)
-		...(process.env.OPENAI_API_KEY && {
-			OPENAI_API_KEY: alchemy.secret(process.env.OPENAI_API_KEY),
-		}),
-		...(process.env.BRAINTRUST_API_KEY && {
-			BRAINTRUST_API_KEY: alchemy.secret(process.env.BRAINTRUST_API_KEY),
-		}),
+    // AI configuration (optional - only include if available)
+    ...(process.env.OPENAI_API_KEY && {
+      OPENAI_API_KEY: alchemy.secret(process.env.OPENAI_API_KEY),
+    }),
+    ...(process.env.BRAINTRUST_API_KEY && {
+      BRAINTRUST_API_KEY: alchemy.secret(process.env.BRAINTRUST_API_KEY),
+    }),
 
-		// Cloudflare credentials for Vectorize REST API (AI memory)
-		...(process.env.CLOUDFLARE_ACCOUNT_ID && {
-			CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,
-		}),
-		...(process.env.CLOUDFLARE_VECTORIZE_API_TOKEN && {
-			CLOUDFLARE_VECTORIZE_API_TOKEN: alchemy.secret(
-				process.env.CLOUDFLARE_VECTORIZE_API_TOKEN,
-			),
-		}),
+    // Cloudflare credentials for Vectorize REST API (AI memory)
+    ...(process.env.CLOUDFLARE_ACCOUNT_ID && {
+      CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,
+    }),
+    ...(process.env.CLOUDFLARE_VECTORIZE_API_TOKEN && {
+      CLOUDFLARE_VECTORIZE_API_TOKEN: alchemy.secret(
+        process.env.CLOUDFLARE_VECTORIZE_API_TOKEN,
+      ),
+    }),
 
-		// PlanetScale database connection (managed by Alchemy)
-		DATABASE_URL: alchemy.secret(
-			`mysql://${psPassword.username}:${psPassword.password.unencrypted}@${psPassword.host}/${psDbName}?ssl={"rejectUnauthorized":true}`,
-		),
+    // PlanetScale database connection (managed by Alchemy)
+    DATABASE_URL: alchemy.secret(
+      `mysql://${psPassword.username}:${psPassword.password.unencrypted}@${psPassword.host}/${psDbName}?ssl={"rejectUnauthorized":true}`,
+    ),
 
-		// Stripe env vars are populated for all environments when available
-		...(hasStripeEnv && {
-			/** Stripe publishable key for client-side Stripe.js initialization */
-			// biome-ignore lint/style/noNonNullAssertion: hasStripeEnv check guarantees this exists
-			STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY!,
-			/** Stripe Connect OAuth client ID */
-			// biome-ignore lint/style/noNonNullAssertion: hasStripeEnv check guarantees this exists
-			STRIPE_CLIENT_ID: process.env.STRIPE_CLIENT_ID!,
-			/** Stripe secret key for server-side API calls */
-			// biome-ignore lint/style/noNonNullAssertion: hasStripeEnv check guarantees this exists
-			STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY!),
-		}),
-		// Webhook secret: use Alchemy-managed webhook for demo/prod, or .dev.vars for local dev
-		...(stripeWebhook
-			? {
-					/** Stripe webhook secret for signature verification (Alchemy-managed) */
-					STRIPE_WEBHOOK_SECRET: alchemy.secret(stripeWebhook.secret),
-				}
-			: process.env.STRIPE_WEBHOOK_SECRET
-				? {
-						/** Stripe webhook secret for local dev (from .dev.vars) */
-						STRIPE_WEBHOOK_SECRET: alchemy.secret(
-							process.env.STRIPE_WEBHOOK_SECRET,
-						),
-					}
-				: {}),
-	},
+    // Stripe env vars are populated for all environments when available
+    ...(hasStripeEnv && {
+      /** Stripe publishable key for client-side Stripe.js initialization */
+      // biome-ignore lint/style/noNonNullAssertion: hasStripeEnv check guarantees this exists
+      STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY!,
+      /** Stripe Connect OAuth client ID */
+      // biome-ignore lint/style/noNonNullAssertion: hasStripeEnv check guarantees this exists
+      STRIPE_CLIENT_ID: process.env.STRIPE_CLIENT_ID!,
+      /** Stripe secret key for server-side API calls */
+      // biome-ignore lint/style/noNonNullAssertion: hasStripeEnv check guarantees this exists
+      STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY!),
+    }),
+    // Webhook secret: use Alchemy-managed webhook for demo/prod, or .dev.vars for local dev
+    ...(stripeWebhook
+      ? {
+          /** Stripe webhook secret for signature verification (Alchemy-managed) */
+          STRIPE_WEBHOOK_SECRET: alchemy.secret(stripeWebhook.secret),
+        }
+      : process.env.STRIPE_WEBHOOK_SECRET
+        ? {
+            /** Stripe webhook secret for local dev (from .dev.vars) */
+            STRIPE_WEBHOOK_SECRET: alchemy.secret(
+              process.env.STRIPE_WEBHOOK_SECRET,
+            ),
+          }
+        : {}),
+  },
 
-	/**
-	 * Custom domains to bind to this Worker.
-	 *
-	 * @remarks
-	 * Domains require:
-	 * 1. DNS zone managed by Cloudflare
-	 * 2. Appropriate DNS records (Alchemy creates these automatically)
-	 *
-	 * Domain assignment by environment:
-	 * - **prod**: `wodsmith.com` (production domain)
-	 * - **demo**: `demo.wodsmith.com` (persistent staging/demo environment)
-	 * - **pr-N**: Auto-generated `*.workers.dev` subdomain (avoids DNS delays)
-	 * - **other**: Auto-generated `*.workers.dev` subdomain
-	 */
-	domains: getDomains(stage),
+  /**
+   * Custom domains to bind to this Worker.
+   *
+   * @remarks
+   * Domains require:
+   * 1. DNS zone managed by Cloudflare
+   * 2. Appropriate DNS records (Alchemy creates these automatically)
+   *
+   * Domain assignment by environment:
+   * - **prod**: `wodsmith.com` (production domain)
+   * - **demo**: `demo.wodsmith.com` (persistent staging/demo environment)
+   * - **pr-N**: Auto-generated `*.workers.dev` subdomain (avoids DNS delays)
+   * - **other**: Auto-generated `*.workers.dev` subdomain
+   */
+  domains: getDomains(stage),
 
-	/**
-	 * Adopt existing Worker if it already exists.
-	 * Required for production where the Worker was created before Alchemy.
-	 */
-	adopt: true,
+  /**
+   * Adopt existing Worker if it already exists.
+   * Required for production where the Worker was created before Alchemy.
+   */
+  adopt: true,
 })
 
 /**
@@ -691,16 +733,16 @@ const website = await TanStackStart("app", {
  * @see {@link https://alchemy.run/docs/github GitHub Integration Docs}
  */
 if (process.env.PULL_REQUEST) {
-	const prNumber = Number(process.env.PULL_REQUEST)
-	// Use default workers.dev URL to avoid DNS propagation delays
-	const previewUrl = `https://wodsmith-app-pr-${prNumber}.zacjones93.workers.dev`
-	const commitSha = process.env.GITHUB_SHA?.slice(0, 7) ?? "unknown"
+  const prNumber = Number(process.env.PULL_REQUEST)
+  // Use default workers.dev URL to avoid DNS propagation delays
+  const previewUrl = `https://wodsmith-app-pr-${prNumber}.zacjones93.workers.dev`
+  const commitSha = process.env.GITHUB_SHA?.slice(0, 7) ?? 'unknown'
 
-	await GitHubComment("preview-comment", {
-		owner: "wodsmith",
-		repository: "thewodapp",
-		issueNumber: prNumber,
-		body: `## 🚀 Preview Deployed
+  await GitHubComment('preview-comment', {
+    owner: 'wodsmith',
+    repository: 'thewodapp',
+    issueNumber: prNumber,
+    body: `## 🚀 Preview Deployed
 
 **URL:** ${previewUrl}
 
@@ -712,7 +754,7 @@ if (process.env.PULL_REQUEST) {
 
 ---
 _This comment is automatically updated on each push to this PR._`,
-	})
+  })
 }
 
 /**

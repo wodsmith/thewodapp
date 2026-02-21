@@ -16,10 +16,7 @@ import { CompetitionHeader } from "@/components/competition-header"
 import { CompetitionSidebar } from "@/components/competition-sidebar"
 import { OrganizerBreadcrumb } from "@/components/organizer-breadcrumb"
 import { PendingOrganizerBanner } from "@/components/pending-organizer-banner"
-import {
-	checkCanManageCompetitionFn,
-	getCompetitionByIdFn,
-} from "@/server-fns/competition-detail-fns"
+import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 
 export const Route = createFileRoute("/compete/organizer/$competitionId")({
 	component: CompetitionLayout,
@@ -44,13 +41,14 @@ export const Route = createFileRoute("/compete/organizer/$competitionId")({
 			throw notFound()
 		}
 
-		// Verify user can manage this competition
-		const { canManage } = await checkCanManageCompetitionFn({
-			data: {
-				organizingTeamId: competition.organizingTeamId,
-				userId: session.user.id,
-			},
-		})
+		// Verify user can manage this competition using session data
+		const canManage =
+			session.user?.role === "admin" ||
+			!!session.teams?.find(
+				(t) =>
+					t.id === competition.organizingTeamId &&
+					(t.role.id === "admin" || t.role.id === "owner"),
+			)
 
 		if (!canManage) {
 			throw redirect({

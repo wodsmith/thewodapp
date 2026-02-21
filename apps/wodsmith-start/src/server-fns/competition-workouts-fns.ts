@@ -44,7 +44,6 @@ import {
 	workoutTags,
 } from "@/db/schemas/workouts"
 import { getSessionFromCookie } from "@/utils/auth"
-import { autochunk, chunk } from "@/utils/batch-query"
 
 // ============================================================================
 // Types
@@ -95,6 +94,11 @@ const getPublishedCompetitionWorkoutsInputSchema = z.object({
 
 const getWorkoutDivisionDescriptionsInputSchema = z.object({
 	workoutId: z.string().min(1, "Workout ID is required"),
+	divisionIds: z.array(z.string()),
+})
+
+const getBatchWorkoutDivisionDescriptionsInputSchema = z.object({
+	workoutIds: z.array(z.string()).min(1, "At least one workout ID is required"),
 	divisionIds: z.array(z.string()),
 })
 
@@ -443,38 +447,26 @@ export const getPublishedCompetitionWorkoutsWithDetailsFn = createServerFn({
 		const workoutIds = trackWorkouts.map((tw) => tw.workoutId)
 
 		// Batch fetch movements for all workouts
-		const allMovements = await autochunk(
-			{ items: workoutIds },
-			async (chunk: string[]) => {
-				const rows = await db
-					.select({
-						workoutId: workoutMovements.workoutId,
-						movementId: movements.id,
-						movementName: movements.name,
-					})
-					.from(workoutMovements)
-					.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
-					.where(inArray(workoutMovements.workoutId, chunk))
-				return rows
-			},
-		)
+		const allMovements = await db
+			.select({
+				workoutId: workoutMovements.workoutId,
+				movementId: movements.id,
+				movementName: movements.name,
+			})
+			.from(workoutMovements)
+			.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
+			.where(inArray(workoutMovements.workoutId, workoutIds))
 
 		// Batch fetch tags for all workouts
-		const allTags = await autochunk(
-			{ items: workoutIds },
-			async (chunk: string[]) => {
-				const rows = await db
-					.select({
-						workoutId: workoutTags.workoutId,
-						tagId: tags.id,
-						tagName: tags.name,
-					})
-					.from(workoutTags)
-					.innerJoin(tags, eq(workoutTags.tagId, tags.id))
-					.where(inArray(workoutTags.workoutId, chunk))
-				return rows
-			},
-		)
+		const allTags = await db
+			.select({
+				workoutId: workoutTags.workoutId,
+				tagId: tags.id,
+				tagName: tags.name,
+			})
+			.from(workoutTags)
+			.innerJoin(tags, eq(workoutTags.tagId, tags.id))
+			.where(inArray(workoutTags.workoutId, workoutIds))
 
 		// Create lookup maps for movements and tags
 		const movementsByWorkout = new Map<
@@ -739,41 +731,29 @@ export const getWorkoutDivisionDescriptionsFn = createServerFn({
 
 		const db = getDb()
 
-		// Get the scaling levels (divisions) with their descriptions for this workout (batched)
-		const divisions = await autochunk(
-			{ items: data.divisionIds },
-			async (chunk: string[]) => {
-				const rows = await db
-					.select({
-						divisionId: scalingLevelsTable.id,
-						divisionLabel: scalingLevelsTable.label,
-						position: scalingLevelsTable.position,
-					})
-					.from(scalingLevelsTable)
-					.where(inArray(scalingLevelsTable.id, chunk))
-				return rows
-			},
-		)
+		// Get the scaling levels (divisions) with their descriptions for this workout
+		const divisions = await db
+			.select({
+				divisionId: scalingLevelsTable.id,
+				divisionLabel: scalingLevelsTable.label,
+				position: scalingLevelsTable.position,
+			})
+			.from(scalingLevelsTable)
+			.where(inArray(scalingLevelsTable.id, data.divisionIds))
 
-		// Get existing descriptions for this workout (batched)
-		const descriptions = await autochunk(
-			{ items: data.divisionIds, otherParametersCount: 1 }, // +1 for workoutId
-			async (chunk: string[]) => {
-				const rows = await db
-					.select({
-						scalingLevelId: workoutScalingDescriptionsTable.scalingLevelId,
-						description: workoutScalingDescriptionsTable.description,
-					})
-					.from(workoutScalingDescriptionsTable)
-					.where(
-						and(
-							eq(workoutScalingDescriptionsTable.workoutId, data.workoutId),
-							inArray(workoutScalingDescriptionsTable.scalingLevelId, chunk),
-						),
-					)
-				return rows
-			},
-		)
+		// Get existing descriptions for this workout
+		const descriptions = await db
+			.select({
+				scalingLevelId: workoutScalingDescriptionsTable.scalingLevelId,
+				description: workoutScalingDescriptionsTable.description,
+			})
+			.from(workoutScalingDescriptionsTable)
+			.where(
+				and(
+					eq(workoutScalingDescriptionsTable.workoutId, data.workoutId),
+					inArray(workoutScalingDescriptionsTable.scalingLevelId, data.divisionIds),
+				),
+			)
 
 		// Create a map for quick lookup
 		const descriptionMap = new Map(
@@ -789,6 +769,72 @@ export const getWorkoutDivisionDescriptionsFn = createServerFn({
 		}))
 
 		return { descriptions: result }
+	})
+
+/**
+ * Get division descriptions for multiple workouts in a single call.
+ * Avoids N+1 by fetching all descriptions for all workoutIds at once.
+ */
+export const getBatchWorkoutDivisionDescriptionsFn = createServerFn({
+	method: "GET",
+})
+	.inputValidator((data: unknown) =>
+		getBatchWorkoutDivisionDescriptionsInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		if (data.divisionIds.length === 0 || data.workoutIds.length === 0) {
+			return { descriptionsByWorkout: {} as Record<string, DivisionDescription[]> }
+		}
+
+		const db = getDb()
+
+		// Get all divisions (shared across workouts)
+		const divisions = await db
+			.select({
+				divisionId: scalingLevelsTable.id,
+				divisionLabel: scalingLevelsTable.label,
+				position: scalingLevelsTable.position,
+			})
+			.from(scalingLevelsTable)
+			.where(inArray(scalingLevelsTable.id, data.divisionIds))
+
+		// Get descriptions for all workouts at once
+		const allDescriptions = await db
+			.select({
+				workoutId: workoutScalingDescriptionsTable.workoutId,
+				scalingLevelId: workoutScalingDescriptionsTable.scalingLevelId,
+				description: workoutScalingDescriptionsTable.description,
+			})
+			.from(workoutScalingDescriptionsTable)
+			.where(
+				and(
+					inArray(workoutScalingDescriptionsTable.workoutId, data.workoutIds),
+					inArray(workoutScalingDescriptionsTable.scalingLevelId, data.divisionIds),
+				),
+			)
+
+		// Build description map: workoutId -> scalingLevelId -> description
+		const descMap = new Map<string, Map<string, string | null>>()
+		for (const d of allDescriptions) {
+			if (!descMap.has(d.workoutId)) {
+				descMap.set(d.workoutId, new Map())
+			}
+			descMap.get(d.workoutId)!.set(d.scalingLevelId, d.description)
+		}
+
+		// Build result keyed by workoutId
+		const descriptionsByWorkout: Record<string, DivisionDescription[]> = {}
+		for (const workoutId of data.workoutIds) {
+			const workoutDescMap = descMap.get(workoutId)
+			descriptionsByWorkout[workoutId] = divisions.map((division) => ({
+				divisionId: division.divisionId,
+				divisionLabel: division.divisionLabel,
+				description: workoutDescMap?.get(division.divisionId) ?? null,
+				position: division.position,
+			}))
+		}
+
+		return { descriptionsByWorkout }
 	})
 
 /**
@@ -1277,7 +1323,7 @@ export const saveCompetitionEventFn = createServerFn({ method: "POST" })
 				.delete(workoutMovements)
 				.where(eq(workoutMovements.workoutId, data.workoutId))
 
-			// Insert new movements in batches
+			// Insert new movements
 			if (data.movementIds.length > 0) {
 				const movementValues = data.movementIds.map((movementId) => ({
 					id: `workout_movement_${createId()}`,
@@ -1285,12 +1331,7 @@ export const saveCompetitionEventFn = createServerFn({ method: "POST" })
 					movementId,
 				}))
 
-				// workoutMovements has 6 columns (commonColumns + id, workoutId, movementId)
-				// Batch limit: 100 params, so max rows per batch = floor(100/6) = 16
-				const movementBatches = chunk(movementValues, 16)
-				for (const batch of movementBatches) {
-					await db.insert(workoutMovements).values(batch)
-				}
+				await db.insert(workoutMovements).values(movementValues)
 			}
 		}
 
@@ -1333,25 +1374,17 @@ export const saveCompetitionEventFn = createServerFn({ method: "POST" })
 
 			// Delete descriptions that are explicitly null
 			if (toDelete.length > 0) {
-				// Batch delete by divisionId using autochunk
-				await autochunk(
-					{ items: toDelete, otherParametersCount: 1 }, // +1 for workoutId
-					async (chunk: string[]) => {
-						await db
-							.delete(workoutScalingDescriptionsTable)
-							.where(
-								and(
-									eq(workoutScalingDescriptionsTable.workoutId, data.workoutId),
-									inArray(
-										workoutScalingDescriptionsTable.scalingLevelId,
-										chunk,
-									),
-								),
-							)
-						// Return empty array since delete doesn't return rows
-						return [] as unknown[]
-					},
-				)
+				await db
+					.delete(workoutScalingDescriptionsTable)
+					.where(
+						and(
+							eq(workoutScalingDescriptionsTable.workoutId, data.workoutId),
+							inArray(
+								workoutScalingDescriptionsTable.scalingLevelId,
+								toDelete,
+							),
+						),
+					)
 			}
 
 			// Upsert descriptions that have values

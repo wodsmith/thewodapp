@@ -47,7 +47,7 @@ export const competitionGroupsTable = mysqlTable(
 		// Slug is unique per organizing team (not globally unique)
 		slug: varchar({ length: 255 }).notNull(),
 		name: varchar({ length: 255 }).notNull(),
-		description: varchar({ length: 1000 }),
+		description: text(),
 	},
 	(table) => [
 		// Ensure slug is unique per organizing team
@@ -77,7 +77,7 @@ export const competitionsTable = mysqlTable(
 		// Slug must be globally unique (used in public URLs like /compete/{slug})
 		slug: varchar({ length: 255 }).notNull().unique(),
 		name: varchar({ length: 255 }).notNull(),
-		description: varchar({ length: 2000 }),
+		description: text(),
 		// Competition dates (YYYY-MM-DD format for timezone-agnostic storage)
 		startDate: varchar({ length: 255 }).notNull(),
 		endDate: varchar({ length: 255 }).notNull(),
@@ -243,7 +243,7 @@ export const competitionHeatsTable = mysqlTable(
 		durationMinutes: int(),
 		// Optional division filter (null = mixed divisions)
 		divisionId: varchar({ length: 255 }),
-		notes: varchar({ length: 500 }),
+		notes: text(),
 		// Per-heat schedule publishing: null = not published, timestamp = when published
 		// Allows individual heat schedules to be made visible to athletes
 		schedulePublishedAt: datetime(),
@@ -304,7 +304,7 @@ export const competitionRegistrationQuestionsTable = mysqlTable(
 		// Question label shown to athletes
 		label: varchar({ length: 500 }).notNull(),
 		// Optional help text / description
-		helpText: varchar({ length: 1000 }),
+		helpText: text(),
 		// For select type: JSON array of options ["S", "M", "L", "XL"]
 		options: text(),
 		// Is this question required?

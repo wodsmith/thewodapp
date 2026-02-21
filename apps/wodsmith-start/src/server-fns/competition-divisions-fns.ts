@@ -6,7 +6,7 @@
 import { createServerFn } from "@tanstack/react-start"
 import { and, asc, count, eq, sql } from "drizzle-orm"
 import { z } from "zod"
-import { getDb } from "@/db"
+import { type Database, getDb } from "@/db"
 import { createScalingGroupId, createScalingLevelId } from "@/db/schemas/common"
 import {
 	COMMERCE_PURCHASE_STATUS,
@@ -21,6 +21,7 @@ import { scalingGroupsTable, scalingLevelsTable } from "@/db/schemas/scaling"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"
+import { calculateDivisionCapacity } from "@/utils/division-capacity"
 
 // ============================================================================
 // Types
@@ -214,12 +215,14 @@ async function createScalingGroup({
 	teamId,
 	title,
 	description,
+	tx,
 }: {
 	teamId: string
 	title: string
 	description?: string | null
+	tx?: Database
 }) {
-	const db = getDb()
+	const db = tx ?? getDb()
 
 	const id = createScalingGroupId()
 
@@ -251,13 +254,15 @@ async function createScalingLevel({
 	label,
 	position,
 	teamSize = 1,
+	tx,
 }: {
 	scalingGroupId: string
 	label: string
 	position?: number
 	teamSize?: number
+	tx?: Database
 }) {
-	const db = getDb()
+	const db = tx ?? getDb()
 
 	// Determine position (0 = hardest). If not provided, append to end.
 	let newPosition = position
@@ -377,41 +382,48 @@ async function ensureCompetitionOwnedScalingGroup({
 	const currentGroupId = settings?.divisions?.scalingGroupId
 
 	if (!currentGroupId) {
-		// No divisions yet - create empty group with defaults
-		const newGroup = await createScalingGroup({
-			teamId,
-			title: `${competition.name} Divisions`,
-			description: `Divisions for ${competition.name}`,
+		// No divisions yet - create empty group with defaults (atomic)
+		const newGroupId = await db.transaction(async (tx) => {
+			const newGroup = await createScalingGroup({
+				teamId,
+				title: `${competition.name} Divisions`,
+				description: `Divisions for ${competition.name}`,
+				tx,
+			})
+
+			if (!newGroup) {
+				throw new Error("Failed to create scaling group")
+			}
+
+			// Create default divisions
+			await createScalingLevel({
+				scalingGroupId: newGroup.id,
+				label: "Open",
+				position: 0,
+				tx,
+			})
+			await createScalingLevel({
+				scalingGroupId: newGroup.id,
+				label: "Scaled",
+				position: 1,
+				tx,
+			})
+
+			// Update competition settings
+			const newSettings = stringifyCompetitionSettings({
+				...settings,
+				divisions: { scalingGroupId: newGroup.id },
+			})
+
+			await tx
+				.update(competitionsTable)
+				.set({ settings: newSettings, updatedAt: new Date() })
+				.where(eq(competitionsTable.id, competitionId))
+
+			return newGroup.id
 		})
 
-		if (!newGroup) {
-			throw new Error("Failed to create scaling group")
-		}
-
-		// Create default divisions
-		await createScalingLevel({
-			scalingGroupId: newGroup.id,
-			label: "Open",
-			position: 0,
-		})
-		await createScalingLevel({
-			scalingGroupId: newGroup.id,
-			label: "Scaled",
-			position: 1,
-		})
-
-		// Update competition settings
-		const newSettings = stringifyCompetitionSettings({
-			...settings,
-			divisions: { scalingGroupId: newGroup.id },
-		})
-
-		await db
-			.update(competitionsTable)
-			.set({ settings: newSettings, updatedAt: new Date() })
-			.where(eq(competitionsTable.id, competitionId))
-
-		return { scalingGroupId: newGroup.id, wasCloned: true }
+		return { scalingGroupId: newGroupId, wasCloned: true }
 	}
 
 	// Check if already competition-owned
@@ -424,7 +436,7 @@ async function ensureCompetitionOwnedScalingGroup({
 		return { scalingGroupId: currentGroupId, wasCloned: false }
 	}
 
-	// Need to clone: current group is shared/template
+	// Need to clone: current group is shared/template (atomic)
 	const templateLevels = await listScalingLevels({
 		scalingGroupId: currentGroupId,
 	})
@@ -434,40 +446,46 @@ async function ensureCompetitionOwnedScalingGroup({
 		.from(scalingGroupsTable)
 		.where(eq(scalingGroupsTable.id, currentGroupId))
 
-	const newGroup = await createScalingGroup({
-		teamId,
-		title: `${competition.name} Divisions`,
-		description: templateGroup
-			? `Cloned from ${templateGroup.title}`
-			: `Divisions for ${competition.name}`,
-	})
-
-	if (!newGroup) {
-		throw new Error("Failed to create scaling group")
-	}
-
-	// Clone levels
-	for (const level of templateLevels) {
-		await createScalingLevel({
-			scalingGroupId: newGroup.id,
-			label: level.label,
-			position: level.position,
-			teamSize: level.teamSize,
+	const newGroupId = await db.transaction(async (tx) => {
+		const newGroup = await createScalingGroup({
+			teamId,
+			title: `${competition.name} Divisions`,
+			description: templateGroup
+				? `Cloned from ${templateGroup.title}`
+				: `Divisions for ${competition.name}`,
+			tx,
 		})
-	}
 
-	// Update competition settings
-	const newSettings = stringifyCompetitionSettings({
-		...settings,
-		divisions: { scalingGroupId: newGroup.id },
+		if (!newGroup) {
+			throw new Error("Failed to create scaling group")
+		}
+
+		// Clone levels
+		for (const level of templateLevels) {
+			await createScalingLevel({
+				scalingGroupId: newGroup.id,
+				label: level.label,
+				position: level.position,
+				teamSize: level.teamSize,
+				tx,
+			})
+		}
+
+		// Update competition settings
+		const newSettings = stringifyCompetitionSettings({
+			...settings,
+			divisions: { scalingGroupId: newGroup.id },
+		})
+
+		await tx
+			.update(competitionsTable)
+			.set({ settings: newSettings, updatedAt: new Date() })
+			.where(eq(competitionsTable.id, competitionId))
+
+		return newGroup.id
 	})
 
-	await db
-		.update(competitionsTable)
-		.set({ settings: newSettings, updatedAt: new Date() })
-		.where(eq(competitionsTable.id, competitionId))
-
-	return { scalingGroupId: newGroup.id, wasCloned: true }
+	return { scalingGroupId: newGroupId, wasCloned: true }
 }
 
 /**
@@ -607,13 +625,13 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
 		)
 
 		// Apply defaults from competition and calculate capacity (including reservations)
-		const defaultMax = competition.defaultMaxSpotsPerDivision ?? null
 		const result: PublicCompetitionDivision[] = divisions.map((d) => {
-			const effectiveMax = d.maxSpots ?? defaultMax
-			const pendingCount = pendingCountMap.get(d.id) ?? 0
-			const totalOccupied = d.registrationCount + pendingCount
-			const spotsAvailable =
-				effectiveMax !== null ? effectiveMax - totalOccupied : null
+			const capacity = calculateDivisionCapacity({
+				registrationCount: d.registrationCount,
+				pendingCount: pendingCountMap.get(d.id) ?? 0,
+				divisionMaxSpots: d.maxSpots,
+				competitionDefaultMax: competition.defaultMaxSpotsPerDivision,
+			})
 			return {
 				id: d.id,
 				label: d.label,
@@ -621,9 +639,9 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
 				registrationCount: d.registrationCount,
 				feeCents: d.feeCents ?? competition.defaultRegistrationFeeCents ?? 0,
 				teamSize: d.teamSize,
-				maxSpots: effectiveMax,
-				spotsAvailable,
-				isFull: effectiveMax !== null && totalOccupied >= effectiveMax,
+				maxSpots: capacity.effectiveMax,
+				spotsAvailable: capacity.spotsAvailable,
+				isFull: capacity.isFull,
 			}
 		})
 
@@ -803,80 +821,78 @@ export const initializeCompetitionDivisionsFn = createServerFn({
 			throw new Error("Competition already has divisions configured")
 		}
 
-		let newScalingGroupId: string
+		// Read template data before transaction (if cloning)
+		let templateLevels: Awaited<ReturnType<typeof listScalingLevels>> = []
+		let templateGroupTitle: string | undefined
 
 		if (data.templateGroupId) {
-			// Clone from template
-			const templateLevels = await listScalingLevels({
+			templateLevels = await listScalingLevels({
 				scalingGroupId: data.templateGroupId,
 			})
 
-			// Get template group title for naming
 			const [templateGroup] = await db
 				.select()
 				.from(scalingGroupsTable)
 				.where(eq(scalingGroupsTable.id, data.templateGroupId))
 
-			const newGroup = await createScalingGroup({
-				teamId: data.teamId,
-				title: `${competition.name} Divisions`,
-				description: templateGroup
-					? `Cloned from ${templateGroup.title}`
-					: `Divisions for ${competition.name}`,
-			})
-
-			if (!newGroup) {
-				throw new Error("Failed to create scaling group")
-			}
-
-			newScalingGroupId = newGroup.id
-
-			// Clone levels
-			for (const level of templateLevels) {
-				await createScalingLevel({
-					scalingGroupId: newScalingGroupId,
-					label: level.label,
-					position: level.position,
-					teamSize: level.teamSize,
-				})
-			}
-		} else {
-			// Create new empty group with default divisions
-			const newGroup = await createScalingGroup({
-				teamId: data.teamId,
-				title: `${competition.name} Divisions`,
-				description: `Divisions for ${competition.name}`,
-			})
-
-			if (!newGroup) {
-				throw new Error("Failed to create scaling group")
-			}
-
-			newScalingGroupId = newGroup.id
-
-			// Create default divisions
-			await createScalingLevel({
-				scalingGroupId: newScalingGroupId,
-				label: "Open",
-				position: 0,
-			})
-			await createScalingLevel({
-				scalingGroupId: newScalingGroupId,
-				label: "Scaled",
-				position: 1,
-			})
+			templateGroupTitle = templateGroup?.title
 		}
 
-		// Update competition settings with new scaling group
-		const newSettings = stringifyCompetitionSettings({
-			...settings,
-			divisions: { scalingGroupId: newScalingGroupId },
-		})
+		// Create group + levels + update settings atomically
+		const newScalingGroupId = await db.transaction(async (tx) => {
+			const newGroup = await createScalingGroup({
+				teamId: data.teamId,
+				title: `${competition.name} Divisions`,
+				description: data.templateGroupId && templateGroupTitle
+					? `Cloned from ${templateGroupTitle}`
+					: `Divisions for ${competition.name}`,
+				tx,
+			})
 
-		await db
-			.update(competitionsTable)
-			.set({ settings: newSettings, updatedAt: new Date() })
-			.where(eq(competitionsTable.id, data.competitionId))
+			if (!newGroup) {
+				throw new Error("Failed to create scaling group")
+			}
+
+			if (data.templateGroupId) {
+				// Clone levels from template
+				for (const level of templateLevels) {
+					await createScalingLevel({
+						scalingGroupId: newGroup.id,
+						label: level.label,
+						position: level.position,
+						teamSize: level.teamSize,
+						tx,
+					})
+				}
+			} else {
+				// Create default divisions
+				await createScalingLevel({
+					scalingGroupId: newGroup.id,
+					label: "Open",
+					position: 0,
+					tx,
+				})
+				await createScalingLevel({
+					scalingGroupId: newGroup.id,
+					label: "Scaled",
+					position: 1,
+					tx,
+				})
+			}
+
+			// Update competition settings with new scaling group
+			const newSettings = stringifyCompetitionSettings({
+				...settings,
+				divisions: { scalingGroupId: newGroup.id },
+			})
+
+			await tx
+				.update(competitionsTable)
+				.set({ settings: newSettings, updatedAt: new Date() })
+				.where(eq(competitionsTable.id, data.competitionId))
+
+			return newGroup.id
+		})
 
 		return { scalingGroupId: newScalingGroupId }
 	})
@@ -1047,21 +1063,23 @@ export const reorderCompetitionDivisionsFn = createServerFn({ method: "POST" })
 			teamId: data.teamId,
 		})
 
-		// Update positions according to provided order
-		for (let i = 0; i < data.orderedDivisionIds.length; i++) {
-			const id = data.orderedDivisionIds[i]
-			if (!id) continue
+		// Update all positions atomically
+		await db.transaction(async (tx) => {
+			for (let i = 0; i < data.orderedDivisionIds.length; i++) {
+				const id = data.orderedDivisionIds[i]
+				if (!id) continue
 
-			await db
-				.update(scalingLevelsTable)
-				.set({ position: i, updatedAt: new Date() })
-				.where(
-					and(
-						eq(scalingLevelsTable.id, id),
-						eq(scalingLevelsTable.scalingGroupId, scalingGroupId),
-					),
-				)
-		}
+				await tx
+					.update(scalingLevelsTable)
+					.set({ position: i, updatedAt: new Date() })
+					.where(
+						and(
+							eq(scalingLevelsTable.id, id),
+							eq(scalingLevelsTable.scalingGroupId, scalingGroupId),
+						),
+					)
+			}
+		})
 
 		return { success: true }
 	})
@@ -1307,20 +1325,21 @@ export const getDivisionSpotsAvailableFn = createServerFn({ method: "GET" })
 				),
 		])
 
-		const confirmedCount = registrations[0]?.count ?? 0
-		const pendingCount = pendingPurchases[0]?.count ?? 0
-		const registered = confirmedCount + pendingCount
-
-		// Calculate effective max: division override > competition default > null (unlimited)
-		const effectiveMax =
-			divisionConfig?.maxSpots ?? competition.defaultMaxSpotsPerDivision ?? null
+		const confirmedCount = Number(registrations[0]?.count ?? 0)
+		const pendingCount = Number(pendingPurchases[0]?.count ?? 0)
+		const capacity = calculateDivisionCapacity({
+			registrationCount: confirmedCount,
+			pendingCount,
+			divisionMaxSpots: divisionConfig?.maxSpots,
+			competitionDefaultMax: competition.defaultMaxSpotsPerDivision,
+		})
 
 		return {
-			maxSpots: effectiveMax,
-			registered,
+			maxSpots: capacity.effectiveMax,
+			registered: capacity.totalOccupied,
 			confirmedCount,
 			pendingCount,
-			available: effectiveMax !== null ? effectiveMax - registered : null,
-			isFull: effectiveMax !== null && registered >= effectiveMax,
+			available: capacity.spotsAvailable,
+			isFull: capacity.isFull,
 		}
 	})

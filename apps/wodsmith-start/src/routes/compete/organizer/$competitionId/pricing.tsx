@@ -8,7 +8,6 @@
 
 import { createFileRoute } from "@tanstack/react-router"
 import { getCompetitionDivisionFeesFn } from "@/server-fns/commerce-fns"
-import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import {
 	getScalingGroupWithLevelsFn,
 	parseCompetitionSettings,
@@ -22,31 +21,24 @@ import { StripeConnectionRequired } from "./-components/stripe-connection-requir
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/pricing",
 )({
-	loader: async ({ params }) => {
-		// 1. Get competition details
-		const result = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
-		})
+	staleTime: 10_000,
+	loader: async ({ parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const { competition } = parentMatch.loaderData!
 
-		if (!result.competition) {
-			throw new Error("Competition not found")
-		}
-
-		const competition = result.competition
-
-		// 2. Get Stripe connection status for the organizing team
+		// Get Stripe connection status for the organizing team
 		const stripeStatus = await getStripeConnectionStatusFn({
 			data: { teamId: competition.organizingTeamId },
 		})
 
 		const isStripeConnected = stripeStatus.isConnected
 
-		// 3. Get team slug for Stripe connection redirect (if not connected)
+		// Get team slug for Stripe connection redirect (if not connected)
 		const teamSlug = await getTeamSlugFn({
 			data: { teamId: competition.organizingTeamId },
 		})
 
-		// 4. If Stripe not connected, return early with minimal data
+		// If Stripe not connected, return early with minimal data
 		if (!isStripeConnected) {
 			return {
 				competition: {
@@ -60,7 +52,7 @@ export const Route = createFileRoute(
 			}
 		}
 
-		// 5. Get competition's divisions from scaling group
+		// Get competition's divisions from scaling group
 		const settings = parseCompetitionSettings(competition.settings)
 		let divisions: Array<{ id: string; label: string; teamSize: number }> = []
 
@@ -78,12 +70,12 @@ export const Route = createFileRoute(
 			}
 		}
 
-		// 6. Get current fee configuration
+		// Get current fee configuration
 		const feeConfig = await getCompetitionDivisionFeesFn({
 			data: { competitionId: competition.id },
 		})
 
-		// 7. Get team's fee settings (for founding organizers)
+		// Get team's fee settings (for founding organizers)
 		const teamFeeSettings = await getTeamFeeSettingsFn({
 			data: { teamId: competition.organizingTeamId },
 		})

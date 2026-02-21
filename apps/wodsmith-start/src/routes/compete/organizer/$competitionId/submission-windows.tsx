@@ -7,7 +7,6 @@
 
 import { createFileRoute, getRouteApi, redirect } from "@tanstack/react-router"
 import { SubmissionWindowsManager } from "@/components/compete/submission-windows-manager"
-import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionEventsFn } from "@/server-fns/competition-event-fns"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
 
@@ -17,16 +16,11 @@ const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/submission-windows",
 )({
+	staleTime: 10_000,
 	component: SubmissionWindowsPage,
-	loader: async ({ params }) => {
-		// Get competition to check type and get teamId
-		const { competition } = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
-		})
-
-		if (!competition) {
-			throw new Error("Competition not found")
-		}
+	loader: async ({ params, parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const { competition } = parentMatch.loaderData!
 
 		// Only online competitions have submission windows
 		if (competition.competitionType !== "online") {

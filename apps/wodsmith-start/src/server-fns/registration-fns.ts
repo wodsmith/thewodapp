@@ -156,15 +156,15 @@ async function storeRegistrationAnswers(
 
 	const db = getDb()
 
-	// Insert all answers
-	for (const answer of answers) {
-		await db.insert(competitionRegistrationAnswersTable).values({
+	// Insert all answers in a single batch
+	await db.insert(competitionRegistrationAnswersTable).values(
+		answers.map((answer) => ({
 			questionId: answer.questionId,
 			registrationId,
 			userId,
 			answer: answer.answer,
-		})
-	}
+		})),
+	)
 }
 
 // ============================================================================

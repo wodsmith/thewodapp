@@ -18,7 +18,6 @@ import { ResultsEntryForm } from "@/components/organizer/results/results-entry-f
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import {
 	getEventScoreEntryDataWithHeatsFn,
@@ -43,21 +42,16 @@ const searchParamsSchema = z.object({
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/results",
 )({
+	staleTime: 10_000,
 	validateSearch: searchParamsSchema,
 	component: ResultsPage,
 	loaderDeps: ({ search }) => ({
 		eventId: search.event,
 		divisionId: search.division,
 	}),
-	loader: async ({ params, deps }) => {
-		// First get competition to know the teamId
-		const { competition } = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
-		})
-
-		if (!competition) {
-			throw new Error("Competition not found")
-		}
+	loader: async ({ params, deps, parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const { competition } = parentMatch.loaderData!
 
 		// Fetch events, divisions, and division results status in parallel
 		const [eventsResult, divisionsResult, divisionResultsStatus] =
@@ -219,9 +213,10 @@ function ResultsPage() {
 					workout: params.workout,
 				},
 			})
+			await router.invalidate()
 			return result.data
 		},
-		[],
+		[router],
 	)
 
 	// No events - show empty state

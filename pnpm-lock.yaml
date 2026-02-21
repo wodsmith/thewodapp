@@ -198,6 +198,37 @@ importers:
         specifier: ^4.16.1
         version: 4.16.1(@cloudflare/workers-types@4.20251205.0)
 
+  apps/team-memory:
+    dependencies:
+      drizzle-orm:
+        specifier: ^0.39.3
+        version: 0.39.3(@cloudflare/workers-types@4.20251205.0)(@opentelemetry/api@1.9.0)(@planetscale/database@1.19.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@11.10.0)(mysql2@3.16.2)
+      hono:
+        specifier: ^4.11.9
+        version: 4.11.9
+      ulid:
+        specifier: ^2.3.0
+        version: 2.4.0
+    devDependencies:
+      '@biomejs/biome':
+        specifier: 2.0.6
+        version: 2.0.6
+      '@cloudflare/workers-types':
+        specifier: ^4.20250508.0
+        version: 4.20251205.0
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      drizzle-kit:
+        specifier: ^0.30.6
+        version: 0.30.6
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+      wrangler:
+        specifier: ^4.16.1
+        version: 4.56.0(@cloudflare/workers-types@4.20251205.0)
+
   apps/wodsmith-start:
     dependencies:
       '@ai-sdk/openai':
@@ -12040,6 +12071,10 @@ packages:
 
   ufo@1.6.1:
     resolution: {integrity: sha512-9a4/uxlTWJ4+a5i0ooc1rU7C7YOw3wT+UGqdeNNHWnOF9qcMBgLRS+4IYUqbczewFx4mLEig6gawh7X6mFlEkA==}
+
+  ulid@2.4.0:
+    resolution: {integrity: sha512-fIRiVTJNcSRmXKPZtGzFQv9WRrZ3M9eoptl/teFJvjOzmpU+/K/JH6HZ8deBfb5vMEpicJcLn7JmvdknlMq7Zg==}
+    hasBin: true
 
   ulid@3.0.2:
     resolution: {integrity: sha512-yu26mwteFYzBAot7KVMqFGCVpsF6g8wXfJzQUHvu1no3+rRRSFcSV2nKeYvNPLD2J4b08jYBDhHUjeH0ygIl9w==}
@@ -27052,6 +27087,8 @@ snapshots:
       - encoding
 
   ufo@1.6.1: {}
+
+  ulid@2.4.0: {}
 
   ulid@3.0.2: {}
 

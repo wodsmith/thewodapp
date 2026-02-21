@@ -4,15 +4,14 @@ import { CompetitionTabs } from "@/components/competition-tabs"
 import { CompetitionWorkoutCard } from "@/components/competition-workout-card"
 import { EventDetailsContent } from "@/components/event-details-content"
 import { RegistrationSidebar } from "@/components/registration-sidebar"
-import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
-import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import {
 	getPublicScheduleDataFn,
 	type PublicScheduleEvent,
 } from "@/server-fns/competition-heats-fns"
 import {
+	getBatchWorkoutDivisionDescriptionsFn,
 	getPublishedCompetitionWorkoutsWithDetailsFn,
-	getWorkoutDivisionDescriptionsFn,
+	type DivisionDescription,
 } from "@/server-fns/competition-workouts-fns"
 import { useDeferredSchedule } from "@/utils/use-deferred-schedule"
 
@@ -20,10 +19,10 @@ const parentRoute = getRouteApi("/compete/$slug")
 
 export const Route = createFileRoute("/compete/$slug/")({
 	component: CompetitionOverviewPage,
-	loader: async ({ params }) => {
-		const { competition } = await getCompetitionBySlugFn({
-			data: { slug: params.slug },
-		})
+	loader: async ({ parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const competition = parentMatch.loaderData?.competition
+		const divisions = parentMatch.loaderData?.divisions
 
 		if (!competition) {
 			return {
@@ -42,38 +41,20 @@ export const Route = createFileRoute("/compete/$slug/")({
 			data: { competitionId },
 		})
 
-		const [workoutsResult, divisionsResult] = await Promise.all([
-			getPublishedCompetitionWorkoutsWithDetailsFn({
-				data: { competitionId },
-			}),
-			getPublicCompetitionDivisionsFn({
-				data: { competitionId },
-			}),
-		])
+		const workoutsResult = await getPublishedCompetitionWorkoutsWithDetailsFn({
+			data: { competitionId },
+		})
 
 		const workouts = workoutsResult.workouts
-		const divisions = divisionsResult.divisions
 		const divisionIds = divisions?.map((d) => d.id) ?? []
-		const divisionDescriptionsMap: Record<
-			string,
-			Awaited<ReturnType<typeof getWorkoutDivisionDescriptionsFn>>
-		> = {}
+		const divisionDescriptionsMap: Record<string, DivisionDescription[]> = {}
 
 		if (divisionIds.length > 0 && workouts.length > 0) {
-			const descriptionsPromises = workouts.map(async (event) => {
-				const result = await getWorkoutDivisionDescriptionsFn({
-					data: {
-						workoutId: event.workoutId,
-						divisionIds,
-					},
-				})
-				return { workoutId: event.workoutId, descriptions: result.descriptions }
+			const workoutIds = workouts.map((w) => w.workoutId)
+			const batchResult = await getBatchWorkoutDivisionDescriptionsFn({
+				data: { workoutIds, divisionIds },
 			})
-
-			const results = await Promise.all(descriptionsPromises)
-			for (const { workoutId, descriptions } of results) {
-				divisionDescriptionsMap[workoutId] = { descriptions }
-			}
+			Object.assign(divisionDescriptionsMap, batchResult.descriptionsByWorkout)
 		}
 
 		return { workouts, divisionDescriptionsMap, deferredSchedule }
@@ -83,7 +64,6 @@ export const Route = createFileRoute("/compete/$slug/")({
 function CompetitionOverviewPage() {
 	const {
 		competition,
-		registrationCount,
 		userRegistration,
 		isVolunteer,
 		registrationStatus,
@@ -141,7 +121,7 @@ function CompetitionOverviewPage() {
 													movements={event.workout.movements}
 													tags={event.workout.tags}
 													divisionDescriptions={
-														divisionDescriptionsResult?.descriptions ?? []
+														divisionDescriptionsResult ?? []
 													}
 													sponsorName={event.sponsorName}
 													sponsorLogoUrl={event.sponsorLogoUrl}
@@ -165,7 +145,6 @@ function CompetitionOverviewPage() {
 					competition={competition}
 					isRegistered={isRegistered}
 					registrationOpen={registrationStatus.registrationOpen}
-					registrationCount={registrationCount}
 					maxSpots={maxSpots}
 					userDivision={userDivision?.label}
 					registrationId={userRegistration?.id}

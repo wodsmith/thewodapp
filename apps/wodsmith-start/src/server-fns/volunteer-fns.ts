@@ -37,7 +37,7 @@ import {
 	isVolunteer,
 } from "@/server/volunteers"
 import { getSessionFromCookie } from "@/utils/auth"
-import { autochunk } from "@/utils/batch-query"
+
 import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
@@ -696,13 +696,10 @@ export const revokeScoreAccessFn = createServerFn({ method: "POST" })
 
 		const entitlementIds = entitlements.map((e) => e.id)
 
-		await autochunk({ items: entitlementIds }, async (chunk) => {
-			await db
-				.update(entitlementTable)
-				.set({ deletedAt: new Date() })
-				.where(inArray(entitlementTable.id, chunk))
-			return []
-		})
+		await db
+			.update(entitlementTable)
+			.set({ deletedAt: new Date() })
+			.where(inArray(entitlementTable.id, entitlementIds))
 
 		return { success: true }
 	})
@@ -966,53 +963,41 @@ export const getVolunteerAssignmentsFn = createServerFn({ method: "GET" })
 		const trackWorkoutIds = [...new Set(heats.map((h) => h.trackWorkoutId))]
 		const trackWorkoutsData =
 			trackWorkoutIds.length > 0
-				? await autochunk(
-						{ items: trackWorkoutIds, otherParametersCount: 0 },
-						async (chunk) =>
-							db
-								.select({
-									id: trackWorkoutsTable.id,
-									workoutName: workouts.name,
-								})
-								.from(trackWorkoutsTable)
-								.innerJoin(
-									workouts,
-									eq(trackWorkoutsTable.workoutId, workouts.id),
-								)
-								.where(inArray(trackWorkoutsTable.id, chunk)),
-					)
+				? await db
+						.select({
+							id: trackWorkoutsTable.id,
+							workoutName: workouts.name,
+						})
+						.from(trackWorkoutsTable)
+						.innerJoin(
+							workouts,
+							eq(trackWorkoutsTable.workoutId, workouts.id),
+						)
+						.where(inArray(trackWorkoutsTable.id, trackWorkoutIds))
 				: []
 
 		// Build a map of trackWorkoutId -> event name
 		const eventNameMap = new Map(
-			trackWorkoutsData.flat().map((tw) => [tw.id, tw.workoutName]),
+			trackWorkoutsData.map((tw) => [tw.id, tw.workoutName]),
 		)
 
 		// Query shift assignments with shift details
 		const shiftAssignments =
 			shiftIds.length > 0
-				? await autochunk(
-						{ items: shiftIds, otherParametersCount: 0 },
-						async (chunk) =>
-							db.query.volunteerShiftAssignmentsTable.findMany({
-								where: inArray(volunteerShiftAssignmentsTable.shiftId, chunk),
-								with: {
-									shift: true,
-								},
-							}),
-					)
+				? await db.query.volunteerShiftAssignmentsTable.findMany({
+						where: inArray(volunteerShiftAssignmentsTable.shiftId, shiftIds),
+						with: {
+							shift: true,
+						},
+					})
 				: []
 
 		// Query judge heat assignments
 		const judgeAssignments =
 			heatIds.length > 0
-				? await autochunk(
-						{ items: heatIds, otherParametersCount: 0 },
-						async (chunk) =>
-							db.query.judgeHeatAssignmentsTable.findMany({
-								where: inArray(judgeHeatAssignmentsTable.heatId, chunk),
-							}),
-					)
+				? await db.query.judgeHeatAssignmentsTable.findMany({
+						where: inArray(judgeHeatAssignmentsTable.heatId, heatIds),
+					})
 				: []
 
 		// Build the map: membershipId -> assignments

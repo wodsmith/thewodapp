@@ -452,21 +452,28 @@ export const reorderJudgingSheetsFn = createServerFn({ method: "POST" })
 			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
 
-		// Update sort orders
-		for (const update of data.updates) {
-			await db
-				.update(eventJudgingSheetsTable)
-				.set({
-					sortOrder: update.sortOrder,
-					updatedAt: new Date(),
-				})
-				.where(
-					and(
-						eq(eventJudgingSheetsTable.id, update.judgingSheetId),
-						eq(eventJudgingSheetsTable.trackWorkoutId, data.trackWorkoutId),
-					),
-				)
-		}
+		// Update sort orders in a transaction
+		await db.transaction(async (tx) => {
+			await Promise.all(
+				data.updates.map((update) =>
+					tx
+						.update(eventJudgingSheetsTable)
+						.set({
+							sortOrder: update.sortOrder,
+							updatedAt: new Date(),
+						})
+						.where(
+							and(
+								eq(eventJudgingSheetsTable.id, update.judgingSheetId),
+								eq(
+									eventJudgingSheetsTable.trackWorkoutId,
+									data.trackWorkoutId,
+								),
+							),
+						),
+				),
+			)
+		})
 
 		logInfo({
 			message: "[JudgingSheet] Judging sheets reordered",

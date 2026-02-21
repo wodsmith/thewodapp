@@ -44,7 +44,6 @@ import {
 	getEffectiveScoringConfig,
 	parseCompetitionSettings,
 } from "@/types/competitions"
-import { autochunk } from "@/utils/batch-query"
 
 // ============================================================================
 // Types
@@ -115,10 +114,7 @@ async function fetchScores(params: {
 }) {
 	const db = getDb()
 
-	const scores = await autochunk(
-		{ items: params.trackWorkoutIds, otherParametersCount: 1 },
-		async (chunk) =>
-			db
+	const scores = await db
 				.select({
 					id: scoresTable.id,
 					userId: scoresTable.userId,
@@ -136,11 +132,10 @@ async function fetchScores(params: {
 				.from(scoresTable)
 				.where(
 					and(
-						inArray(scoresTable.competitionEventId, chunk),
+						inArray(scoresTable.competitionEventId, params.trackWorkoutIds),
 						inArray(scoresTable.userId, params.userIds),
 					),
-				),
-	)
+				)
 
 	return scores
 }
@@ -299,18 +294,14 @@ export async function getCompetitionLeaderboard(params: {
 	let filteredTrackWorkouts = trackWorkouts
 	if (params.divisionId) {
 		const trackWorkoutIds = trackWorkouts.map((tw) => tw.id)
-		const heatsForWorkouts = await autochunk(
-			{ items: trackWorkoutIds, otherParametersCount: 0 },
-			async (chunk) =>
-				db
+		const heatsForWorkouts = await db
 					.select({
 						id: competitionHeatsTable.id,
 						trackWorkoutId: competitionHeatsTable.trackWorkoutId,
 						divisionId: competitionHeatsTable.divisionId,
 					})
 					.from(competitionHeatsTable)
-					.where(inArray(competitionHeatsTable.trackWorkoutId, chunk)),
-		)
+					.where(inArray(competitionHeatsTable.trackWorkoutId, trackWorkoutIds))
 
 		// Fetch assignments for mixed heats (divisionId=null)
 		const mixedHeatIds = heatsForWorkouts
@@ -319,10 +310,7 @@ export async function getCompetitionLeaderboard(params: {
 
 		const mixedHeatAssignments =
 			mixedHeatIds.length > 0
-				? await autochunk(
-						{ items: mixedHeatIds, otherParametersCount: 0 },
-						async (chunk) =>
-							db
+				? await db
 								.select({
 									heatId: competitionHeatAssignmentsTable.heatId,
 									divisionId: competitionRegistrationsTable.divisionId,
@@ -336,9 +324,8 @@ export async function getCompetitionLeaderboard(params: {
 									),
 								)
 								.where(
-									inArray(competitionHeatAssignmentsTable.heatId, chunk),
-								),
-					)
+									inArray(competitionHeatAssignmentsTable.heatId, mixedHeatIds),
+								)
 				: []
 
 		const relevantIds = getRelevantWorkoutIds({
@@ -400,16 +387,14 @@ export async function getCompetitionLeaderboard(params: {
 
 	const allTeamMemberships =
 		athleteTeamIds.length > 0
-			? await autochunk({ items: athleteTeamIds }, async (chunk) =>
-					db
+			? await db
 						.select({
 							membership: teamMembershipTable,
 							user: userTable,
 						})
 						.from(teamMembershipTable)
 						.innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
-						.where(inArray(teamMembershipTable.teamId, chunk)),
-				)
+						.where(inArray(teamMembershipTable.teamId, athleteTeamIds))
 			: []
 
 	// Group memberships by teamId

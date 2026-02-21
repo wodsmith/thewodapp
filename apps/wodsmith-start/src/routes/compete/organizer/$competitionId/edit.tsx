@@ -7,7 +7,6 @@
  */
 
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
-import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionGroupsFn } from "@/server-fns/competition-fns"
 import { OrganizerCompetitionEditForm } from "./-components/organizer-competition-edit-form"
 
@@ -15,16 +14,11 @@ import { OrganizerCompetitionEditForm } from "./-components/organizer-competitio
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 
 export const Route = createFileRoute("/compete/organizer/$competitionId/edit")({
+	staleTime: 10_000,
 	component: EditCompetitionPage,
-	loader: async ({ params }) => {
-		// First get competition to know the teamId
-		const { competition } = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
-		})
-
-		if (!competition) {
-			throw new Error("Competition not found")
-		}
+	loader: async ({ parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const { competition } = parentMatch.loaderData!
 
 		// Fetch competition groups for the organizing team
 		const { groups } = await getCompetitionGroupsFn({

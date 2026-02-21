@@ -9,16 +9,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { ArrowLeft, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { getJudgesScheduleDataFn } from "@/server-fns/judge-scheduling-fns"
 import { JudgesScheduleContent } from "./-components/judges-schedule-content"
 
 export const Route = createFileRoute("/compete/$slug/judges-schedule")({
-	loader: async ({ params }) => {
-		const { slug } = params
-
-		// Fetch competition by slug
-		const { competition } = await getCompetitionBySlugFn({ data: { slug } })
+	loader: async ({ parentMatchPromise }) => {
+		// Get competition from parent
+		const parentMatch = await parentMatchPromise
+		const competition = parentMatch.loaderData?.competition
 
 		if (!competition) {
 			throw new Error("Competition not found")

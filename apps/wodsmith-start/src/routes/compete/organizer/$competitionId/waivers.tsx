@@ -18,6 +18,7 @@ const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/waivers",
 )({
+	staleTime: 10_000,
 	loader: async ({ params }) => {
 		// Fetch waivers for this competition
 		const { waivers } = await getCompetitionWaiversFn({
