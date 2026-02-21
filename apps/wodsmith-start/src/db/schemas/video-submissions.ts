@@ -11,6 +11,7 @@ import {
 	datetime,
 	index,
 	mysqlTable,
+	text,
 	uniqueIndex,
 	varchar,
 } from "drizzle-orm/mysql-core"
@@ -49,7 +50,7 @@ export const videoSubmissionsTable = mysqlTable(
 		videoUrl: varchar({ length: 2000 }).notNull(),
 
 		// Optional notes from the athlete
-		notes: varchar({ length: 1000 }),
+		notes: text(),
 
 		// When the video was submitted
 		submittedAt: datetime().notNull(),

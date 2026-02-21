@@ -114,7 +114,6 @@ interface RegistrationSidebarProps {
 	}
 	isRegistered: boolean
 	registrationOpen: boolean
-	registrationCount: number
 	maxSpots?: number
 	userDivision?: string | null
 	registrationId?: string | null
@@ -145,7 +144,6 @@ export function RegistrationSidebar({
 	competition,
 	isRegistered,
 	registrationOpen,
-	registrationCount,
 	maxSpots: _maxSpots, // Reserved for future "X spots left" feature
 	userDivision,
 	registrationId,
@@ -232,13 +230,6 @@ export function RegistrationSidebar({
 							</p>
 						)}
 
-						{/* Social proof */}
-						{registrationCount > 0 && (
-							<p className="text-xs text-muted-foreground text-center">
-								{registrationCount} athlete{registrationCount !== 1 ? "s" : ""}{" "}
-								registered
-							</p>
-						)}
 					</CardContent>
 				</Card>
 			)}

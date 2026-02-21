@@ -4,6 +4,7 @@ import {
 	index,
 	int,
 	mysqlTable,
+	text,
 	varchar,
 	datetime,
 } from "drizzle-orm/mysql-core"
@@ -80,9 +81,7 @@ export const userTable = mysqlTable(
 			length: 255,
 		}),
 		// JSON field for extended athlete profile (PRs, history, etc.)
-		athleteProfile: varchar({
-			length: 10000,
-		}),
+		athleteProfile: text(),
 	},
 	(table) => [
 		index("email_idx").on(table.email),

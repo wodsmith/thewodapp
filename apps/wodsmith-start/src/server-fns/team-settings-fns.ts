@@ -13,6 +13,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, count, eq, isNull, not } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import { createTeamId } from "@/db/schemas/common"
 import {
 	SYSTEM_ROLES_ENUM,
 	TEAM_PERMISSIONS,
@@ -254,7 +255,7 @@ export const createTeamFn = createServerFn({ method: "POST" })
 		}
 
 		// Insert the team with default free plan
-		const teamId = createId()
+		const teamId = createTeamId()
 		await db.insert(teamTable).values({
 			id: teamId,
 			name: data.name,

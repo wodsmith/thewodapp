@@ -98,6 +98,9 @@ type Props = {
 	defaultAffiliateName?: string
 	waivers: Waiver[]
 	questions: RegistrationQuestion[]
+	userFirstName?: string | null
+	userLastName?: string | null
+	userEmail?: string | null
 }
 
 function DivisionField({
@@ -243,6 +246,9 @@ export function RegistrationForm({
 	defaultAffiliateName,
 	waivers,
 	questions,
+	userFirstName,
+	userLastName,
+	userEmail,
 }: Props) {
 	const navigate = useNavigate()
 	const [isSubmitting, setIsSubmitting] = useState(false)
@@ -810,9 +816,57 @@ export function RegistrationForm({
 									<div className="flex items-center justify-between">
 										<h4 className="text-sm font-medium">Teammates</h4>
 										<Badge variant="outline">
-											{fields.length} of {teammatesNeeded} added
+											{fields.length + 1} of {teamSize} added
 										</Badge>
 									</div>
+
+									{/* Current user as Teammate 1 (read-only) */}
+									<Card className="p-4 bg-muted/50">
+										<div className="space-y-4">
+											<div className="flex items-center gap-2">
+												<User className="w-4 h-4 text-muted-foreground" />
+												<span className="font-medium">
+													Teammate 1 (You)
+												</span>
+											</div>
+
+											<div className="grid grid-cols-2 gap-4">
+												<div>
+													<Label className="text-sm font-medium">
+														First Name
+													</Label>
+													<Input
+														value={userFirstName || ""}
+														disabled
+														className="mt-1.5"
+													/>
+												</div>
+												<div>
+													<Label className="text-sm font-medium">
+														Last Name
+													</Label>
+													<Input
+														value={userLastName || ""}
+														disabled
+														className="mt-1.5"
+													/>
+												</div>
+											</div>
+
+											<div>
+												<Label className="text-sm font-medium">Email</Label>
+												<Input
+													value={userEmail || ""}
+													disabled
+													className="mt-1.5"
+												/>
+											</div>
+
+											<p className="text-xs text-muted-foreground">
+												Update your profile to change this information.
+											</p>
+										</div>
+									</Card>
 
 									{fields.map((field, index) => (
 										<Card key={field.id} className="p-4">
@@ -820,7 +874,7 @@ export function RegistrationForm({
 												<div className="flex items-center gap-2">
 													<Users className="w-4 h-4 text-muted-foreground" />
 													<span className="font-medium">
-														Teammate {index + 1}
+														Teammate {index + 2}
 													</span>
 												</div>
 
