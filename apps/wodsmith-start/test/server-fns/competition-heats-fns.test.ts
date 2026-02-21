@@ -1134,15 +1134,12 @@ describe('Competition Heats Server Functions (TanStack)', () => {
             findFirst: vi.fn().mockResolvedValue(currentAssignment),
           },
         },
-        transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
+        transaction: vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
           const tx = {
             delete: txDelete,
             insert: txInsert,
           }
           return fn(tx)
-        }),
-        transaction: vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
-          return fn(moveMock)
         }),
       }
       mockDbInstance = moveMock as unknown as ReturnType<typeof createDbMock>
@@ -1199,11 +1196,6 @@ describe('Competition Heats Server Functions (TanStack)', () => {
                 queryCount++
                 return Promise.resolve(assignedIds)
               }),
-            }),
-            where: vi.fn().mockImplementation(() => {
-              queryCount++
-              // Second query returns empty (all assigned, none unassigned)
-              return Promise.resolve([])
             }),
             where: vi.fn().mockResolvedValue([]), // No unassigned registrations after SQL filter
           }),
