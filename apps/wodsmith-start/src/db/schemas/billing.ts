@@ -4,6 +4,7 @@ import {
 	index,
 	int,
 	mysqlTable,
+	text,
 	varchar,
 	datetime,
 } from "drizzle-orm/mysql-core"
@@ -45,9 +46,7 @@ export const creditTransactionTable = mysqlTable(
 			length: 255,
 			enum: creditTransactionTypeTuple,
 		}).notNull(),
-		description: varchar({
-			length: 255,
-		}).notNull(),
+		description: text().notNull(),
 		expirationDate: datetime(),
 		expirationDateProcessedAt: datetime(),
 		paymentIntentId: varchar({

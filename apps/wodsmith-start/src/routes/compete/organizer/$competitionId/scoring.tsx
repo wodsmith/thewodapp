@@ -1,25 +1,20 @@
-import { createFileRoute, notFound } from "@tanstack/react-router"
-import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
+import { createFileRoute } from "@tanstack/react-router"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
 import { ScoringSettingsForm } from "./-components/scoring-settings-form"
 
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/scoring",
 )({
-	loader: async ({ params }) => {
-		const result = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
-		})
-
-		if (!result.competition) {
-			throw notFound()
-		}
+	staleTime: 10_000,
+	loader: async ({ params, parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const { competition } = parentMatch.loaderData!
 
 		// Fetch events for head-to-head tiebreaker selection
 		const workoutsResult = await getCompetitionWorkoutsFn({
 			data: {
 				competitionId: params.competitionId,
-				teamId: result.competition.organizingTeamId,
+				teamId: competition.organizingTeamId,
 			},
 		})
 
@@ -28,7 +23,7 @@ export const Route = createFileRoute(
 			name: w.workout.name,
 		}))
 
-		return { competition: result.competition, events }
+		return { competition, events }
 	},
 	component: ScoringPage,
 	head: ({ loaderData }) => {

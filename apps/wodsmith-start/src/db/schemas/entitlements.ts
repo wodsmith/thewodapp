@@ -6,6 +6,7 @@ import {
 	int,
 	json,
 	mysqlTable,
+	text,
 	uniqueIndex,
 	varchar,
 } from "drizzle-orm/mysql-core"
@@ -52,7 +53,7 @@ export const entitlementTypeTable = mysqlTable("entitlement_types", {
 		.$defaultFn(() => createEntitlementTypeId())
 		.notNull(),
 	name: varchar({ length: 100 }).notNull().unique(),
-	description: varchar({ length: 500 }),
+	description: text(),
 })
 
 // 2. Entitlement Table - Explicit records of granted access
@@ -102,7 +103,7 @@ export const featureTable = mysqlTable("features", {
 		.notNull(),
 	key: varchar({ length: 100 }).notNull().unique(), // e.g., "programming_tracks"
 	name: varchar({ length: 100 }).notNull(),
-	description: varchar({ length: 500 }),
+	description: text(),
 	category: varchar({
 		length: 255,
 		enum: [
@@ -127,7 +128,7 @@ export const limitTable = mysqlTable("limits", {
 		.notNull(),
 	key: varchar({ length: 100 }).notNull().unique(), // e.g., "max_teams"
 	name: varchar({ length: 100 }).notNull(),
-	description: varchar({ length: 500 }),
+	description: text(),
 	unit: varchar({ length: 50 }).notNull(), // e.g., "teams", "MB", "messages"
 	resetPeriod: varchar({ length: 255, enum: ["monthly", "yearly", "never"] })
 		.default("never")
@@ -148,7 +149,7 @@ export const planTable = mysqlTable("plans", {
 		.$defaultFn(() => createPlanId())
 		.notNull(),
 	name: varchar({ length: 100 }).notNull(),
-	description: varchar({ length: 500 }),
+	description: text(),
 	price: int().notNull(), // in cents
 	interval: varchar({ length: 255, enum: ["month", "year"] }),
 	isActive: int().default(1).notNull(),
@@ -268,7 +269,7 @@ export const teamEntitlementOverrideTable = mysqlTable(
 		type: varchar({ length: 255, enum: ["feature", "limit"] }).notNull(),
 		key: varchar({ length: 255 }).notNull(), // feature or limit ID
 		value: varchar({ length: 255 }).notNull(), // JSON value (boolean for features, number for limits)
-		reason: varchar({ length: 500 }), // why was this override applied?
+		reason: text(), // why was this override applied?
 		expiresAt: datetime(),
 		createdBy: varchar({ length: 255 }),
 	},

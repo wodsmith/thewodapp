@@ -1,6 +1,6 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { mysqlTable, varchar } from "drizzle-orm/mysql-core"
+import { mysqlTable, text, varchar } from "drizzle-orm/mysql-core"
 import { commonColumns, createAddressId } from "./common"
 
 // Address type enum for different use cases
@@ -39,7 +39,7 @@ export const addressesTable = mysqlTable("addresses", {
 	// Country code (ISO 3166-1 alpha-2, e.g., "US", "CA")
 	countryCode: varchar({ length: 2 }),
 	// Optional notes or additional information
-	notes: varchar({ length: 1000 }),
+	notes: text(),
 })
 
 // Address relations

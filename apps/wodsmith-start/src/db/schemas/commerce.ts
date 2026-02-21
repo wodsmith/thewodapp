@@ -150,7 +150,7 @@ export const competitionDivisionsTable = mysqlTable(
 		// Fee in cents (e.g., 20000 = $200, 35000 = $350)
 		feeCents: int().notNull(),
 		// Markdown description explaining who this division is for
-		description: varchar({ length: 2000 }),
+		description: text(),
 		// Max spots for this division (null = use competition default)
 		maxSpots: int(),
 	},

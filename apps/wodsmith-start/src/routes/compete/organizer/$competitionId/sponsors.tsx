@@ -16,6 +16,7 @@ const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/sponsors",
 )({
+	staleTime: 10_000,
 	component: SponsorsPage,
 	loader: async ({ params }) => {
 		// Fetch sponsors with groups

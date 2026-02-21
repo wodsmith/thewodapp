@@ -11,13 +11,10 @@
 import { createServerOnlyFn } from "@tanstack/react-start"
 import { env } from "cloudflare:workers"
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2"
-import mysql from "mysql2/promise"
+import mysql from "mysql2"
 
 import * as schema from "./schema"
 
-// Extend Cloudflare.Env with Hyperdrive binding and DATABASE_URL fallback.
-// HYPERDRIVE will be in wrangler.jsonc after `pnpm alchemy:dev` deploys the binding.
-// DATABASE_URL is set in .dev.vars for local development.
 declare namespace Cloudflare {
 	interface Env {
 		HYPERDRIVE?: Hyperdrive
@@ -34,9 +31,8 @@ export type Database = MySql2Database<typeof schema>
  * Prefers Hyperdrive binding (deployed Workers) for connection pooling.
  * Falls back to DATABASE_URL (local dev via .dev.vars).
  *
- * Creates a fresh pool per call. Workers I/O objects are bound to the
- * request that created them, so connections cannot be cached across requests.
- * Hyperdrive handles the real connection pooling externally.
+ * Uses a single connection (not a pool) since Hyperdrive handles
+ * connection pooling externally at the Cloudflare level.
  */
 export const getDb = createServerOnlyFn((): Database => {
 	const hyperdrive = (env as { HYPERDRIVE?: Hyperdrive }).HYPERDRIVE
@@ -50,17 +46,17 @@ export const getDb = createServerOnlyFn((): Database => {
 		)
 	}
 
-	const pool = mysql.createPool({
-		uri: connectionString,
+	// Strip 'ssl-mode' from the connection string — Hyperdrive injects it
+	// but mysql2 doesn't recognize it (uses `ssl` object instead) and warns/hangs.
+	const url = new URL(connectionString)
+	url.searchParams.delete("ssl-mode")
+
+	const connection = mysql.createConnection({
+		uri: url.toString(),
 		disableEval: true,
-		connectionLimit: 1,
 	})
 
-	return drizzle(pool, {
-		schema,
-		casing: "snake_case",
-		mode: "planetscale",
-	})
+	return drizzle({ client: connection, schema, casing: "snake_case", mode: "planetscale" })
 })
 
 // Export env for other modules that need access to bindings (KV, R2, etc.)

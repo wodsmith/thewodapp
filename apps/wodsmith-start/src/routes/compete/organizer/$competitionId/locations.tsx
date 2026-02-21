@@ -15,6 +15,7 @@ const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/locations",
 )({
+	staleTime: 10_000,
 	component: LocationsPage,
 	loader: async ({ params }) => {
 		const { venues } = await getCompetitionVenuesFn({

@@ -1,6 +1,6 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { datetime, index, mysqlTable, varchar } from "drizzle-orm/mysql-core"
+import { datetime, index, mysqlTable, text, varchar } from "drizzle-orm/mysql-core"
 import { commonColumns, createOrganizerRequestId } from "./common"
 import { teamTable } from "./teams"
 import { userTable } from "./users"
@@ -26,12 +26,12 @@ export const organizerRequestTable = mysqlTable(
 			.notNull(),
 		teamId: varchar({ length: 255 }).notNull(),
 		userId: varchar({ length: 255 }).notNull(),
-		reason: varchar({ length: 2000 }).notNull(),
+		reason: text().notNull(),
 		status: varchar({ length: 20 })
 			.$type<OrganizerRequestStatus>()
 			.default("pending")
 			.notNull(),
-		adminNotes: varchar({ length: 2000 }),
+		adminNotes: text(),
 		reviewedBy: varchar({ length: 255 }),
 		reviewedAt: datetime(),
 	},

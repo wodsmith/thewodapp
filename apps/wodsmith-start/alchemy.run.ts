@@ -300,6 +300,9 @@ const hyperdrive = await Hyperdrive(`hyperdrive-${stage}`, {
 		port: 3306,
 		scheme: "mysql",
 	},
+	caching: {
+		disabled: true,
+	},
 	adopt: true,
 	// Local dev: connect directly to PlanetScale (bypassing Hyperdrive pooling)
 	dev: {

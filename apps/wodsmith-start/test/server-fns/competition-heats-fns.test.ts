@@ -701,7 +701,7 @@ describe('Competition Heats Server Functions (TanStack)', () => {
       ]
 
       let selectCallCount = 0
-      const reorderMock = {
+      const reorderMock: Record<string, unknown> = {
         select: vi.fn().mockReturnValue({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
@@ -1141,6 +1141,9 @@ describe('Competition Heats Server Functions (TanStack)', () => {
           }
           return fn(tx)
         }),
+        transaction: vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+          return fn(moveMock)
+        }),
       }
       mockDbInstance = moveMock as unknown as ReturnType<typeof createDbMock>
 
@@ -1202,6 +1205,7 @@ describe('Competition Heats Server Functions (TanStack)', () => {
               // Second query returns empty (all assigned, none unassigned)
               return Promise.resolve([])
             }),
+            where: vi.fn().mockResolvedValue([]), // No unassigned registrations after SQL filter
           }),
         }),
       }

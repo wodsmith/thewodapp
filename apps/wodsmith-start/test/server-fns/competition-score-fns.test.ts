@@ -70,6 +70,9 @@ function createDbMock(config: {
       return chain
     })
     chain.orderBy = vi.fn(() => chain)
+    chain.transaction = vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+      return fn(chain)
+    })
     chain.limit = vi.fn(() => {
       queryCount++
 
@@ -450,7 +453,9 @@ describe('Competition Score Server Functions (TanStack)', () => {
             }),
           }),
         }),
-        transaction: vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => fn(insertMock)),
+        transaction: vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+          return fn(insertMock)
+        }),
       }
       mockDbInstance = insertMock as unknown as ReturnType<typeof createDbMock>
 
@@ -511,7 +516,9 @@ describe('Competition Score Server Functions (TanStack)', () => {
             }),
           }),
         }),
-        transaction: vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => fn(insertMock)),
+        transaction: vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+          return fn(insertMock)
+        }),
       }
       mockDbInstance = insertMock as unknown as ReturnType<typeof createDbMock>
 
