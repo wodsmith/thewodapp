@@ -5,7 +5,7 @@
  * Migrated from apps/wodsmith/src/server/entitlements.ts
  */
 import { and, eq, gt, isNull, or } from "drizzle-orm"
-import { cache } from "react"
+
 import { LIMITS } from "@/config/limits"
 import { getDb } from "@/db"
 import {
@@ -44,7 +44,7 @@ export interface EntitlementResult {
  * IMPORTANT: This function returns what the team CURRENTLY HAS, which is
  * separate from what their billing plan currently offers to new subscribers.
  */
-export const getTeamPlan = cache(async function getTeamPlan(teamId: string): Promise<{
+export async function getTeamPlan(teamId: string): Promise<{
 	id: string
 	name: string
 	entitlements: PlanEntitlements
@@ -153,7 +153,7 @@ export const getTeamPlan = cache(async function getTeamPlan(teamId: string): Pro
 		name: plan.name,
 		entitlements,
 	}
-})
+}
 
 /**
  * Check if a team has access to a specific feature
@@ -298,7 +298,7 @@ export async function createEntitlement({
 /**
  * Get feature override for a team
  */
-const getFeatureOverride = cache(async function getFeatureOverride(
+async function getFeatureOverride(
 	teamId: string,
 	featureId: string,
 ): Promise<boolean | null> {
@@ -319,12 +319,12 @@ const getFeatureOverride = cache(async function getFeatureOverride(
 	if (!override) return null
 
 	return override.value === "true" || override.value === "1"
-})
+}
 
 /**
  * Get limit override for a team
  */
-const getLimitOverride = cache(async function getLimitOverride(
+async function getLimitOverride(
 	teamId: string,
 	limitKey: string,
 ): Promise<number | null> {
@@ -346,4 +346,4 @@ const getLimitOverride = cache(async function getLimitOverride(
 
 	const parsed = Number.parseInt(override.value, 10)
 	return Number.isNaN(parsed) ? null : parsed
-})
+}
