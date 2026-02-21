@@ -213,9 +213,10 @@ function ResultsPage() {
 					workout: params.workout,
 				},
 			})
+			await router.invalidate()
 			return result.data
 		},
-		[],
+		[router],
 	)
 
 	// No events - show empty state
