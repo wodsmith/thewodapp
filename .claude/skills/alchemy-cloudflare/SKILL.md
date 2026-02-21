@@ -1,6 +1,6 @@
 ---
 name: alchemy-cloudflare
-description: Alchemy IaC patterns for deploying TanStack Start apps to Cloudflare Workers with D1 databases. Use when setting up new TanStack Start projects, configuring Alchemy deployments, working with D1/Drizzle migrations, local development with Cloudflare bindings, or deploying to custom domains.
+description: Alchemy IaC patterns for deploying TanStack Start apps to Cloudflare Workers. Use when setting up new TanStack Start projects, configuring Alchemy deployments, working with Drizzle migrations, local development with Cloudflare bindings, or deploying to custom domains. Database is PlanetScale (MySQL), not D1.
 ---
 
 # Alchemy Cloudflare IaC
@@ -11,7 +11,7 @@ TypeScript-first Infrastructure as Code for deploying TanStack Start application
 
 - **alchemy.run.ts**: Infrastructure definition file (TypeScript, not YAML)
 - **TanStackStart resource**: Wraps Worker config specifically for TanStack builds
-- **D1Database resource**: Manages D1 with automatic Drizzle migration application
+- **Database**: PlanetScale (MySQL) via `@planetscale/database` serverless driver
 - **Type inference**: `typeof worker.Env` provides types without codegen
 - **Secrets**: `alchemy.secret()` encrypts values with `ALCHEMY_PASSWORD`
 
@@ -27,19 +27,17 @@ pnpm add alchemy @cloudflare/workers-types
 
 ```typescript
 import alchemy from "alchemy"
-import { D1Database, TanStackStart } from "alchemy/cloudflare"
+import { TanStackStart } from "alchemy/cloudflare"
 
 const app = await alchemy("my-app", {
   stage: process.env.STAGE ?? "dev",
   phase: process.argv.includes("--destroy") ? "destroy" : "up",
 })
 
-const db = await D1Database("my-d1", {
-  migrationsDir: "./drizzle",  // Auto-applies Drizzle migrations
-})
-
 const worker = await TanStackStart("my-worker", {
-  d1Databases: { DB: db },
+  vars: {
+    DATABASE_URL: process.env.DATABASE_URL!, // PlanetScale connection
+  },
   domains: ["my-app.com"],  // Custom domain
 })
 
@@ -98,34 +96,31 @@ pnpm alchemy dev
 ```
 
 **What this provides:**
-- Full D1 database emulation (persisted in `.alchemy/{app}/{stage}/`)
 - KV, R2, Durable Objects bindings
 - Same `Env` types as production
+- Database connects to PlanetScale dev branch
 
 **Only required env var:**
 ```bash
 ALCHEMY_PASSWORD=your-password
 ```
 
-## D1 + Drizzle Integration
+## PlanetScale + Drizzle Integration
 
 ### Migration Workflow
 
 1. Modify schema in `src/db/schema.ts`
-2. Generate migration: `pnpm drizzle-kit generate`
-3. Deploy: `bun alchemy.run.ts` (auto-applies migrations)
+2. Push changes: `pnpm db:push` (development)
+3. Generate migration: `pnpm db:generate --name=feature-name` (before merging)
 
-### Accessing D1
+### Accessing Database
 
 ```typescript
 // In server functions or loaders
-import { getCloudflareContext } from "@opennextjs/cloudflare"
+import { getDb } from "@/db"
 
-export async function loader() {
-  const { env } = await getCloudflareContext()
-  const db = drizzle(env.DB)
-  // Use db...
-}
+const db = getDb()
+// Uses @planetscale/database Client with drizzle-orm/planetscale-serverless
 ```
 
 ## Common Patterns
@@ -185,11 +180,8 @@ rollupOptions: {
 ### "Route files should not import @/db"
 Server functions must be in `src/server-fns/` files, not inline in route files. Routes can only import and call server functions.
 
-### D1 not persisting locally
-Check `.alchemy/{app}/{stage}/` directory exists. Ensure `ALCHEMY_PASSWORD` is set.
-
-### Migration not applying
-Verify `migrationsDir` points to correct directory (where `.sql` files are).
+### Database connection failing
+Check `DATABASE_URL` in `.dev.vars` is set correctly for PlanetScale.
 
 ## References
 

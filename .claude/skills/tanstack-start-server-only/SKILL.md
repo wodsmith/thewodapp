@@ -32,7 +32,7 @@ Use `createServerOnlyFn` for:
 import {env} from 'cloudflare:workers'
 
 // Access bindings and env vars
-env.DB // D1 database
+env.DATABASE_URL // PlanetScale database connection
 env.KV_SESSION // KV namespace
 env.R2_BUCKET // R2 bucket
 env.APP_URL // Environment variable
