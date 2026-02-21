@@ -16,7 +16,6 @@ import { EventJudgingSheets } from "@/components/organizer/event-judging-sheets"
 import { EventSubmissionWindowCard } from "@/components/organizer/event-submission-window-card"
 import { HeatSchedulePublishingCard } from "@/components/organizer/heat-schedule-publishing-card"
 import { Button } from "@/components/ui/button"
-import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionEventsFn } from "@/server-fns/competition-event-fns"
 import {
@@ -34,16 +33,11 @@ const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/events/$eventId",
 )({
+	staleTime: 10_000,
 	component: EventEditPage,
-	loader: async ({ params }) => {
-		// First get competition to know the teamId
-		const { competition } = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
-		})
-
-		if (!competition) {
-			throw new Error("Competition not found")
-		}
+	loader: async ({ params, parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const { competition } = parentMatch.loaderData!
 
 		const isOnline = competition.competitionType === "online"
 

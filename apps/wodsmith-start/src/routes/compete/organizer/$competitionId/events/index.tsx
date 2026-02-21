@@ -8,11 +8,10 @@
 
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { OrganizerEventManager } from "@/components/events/organizer-event-manager"
-import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import {
+	getBatchWorkoutDivisionDescriptionsFn,
 	getCompetitionWorkoutsFn,
-	getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
 import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
@@ -23,16 +22,11 @@ const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/events/",
 )({
+	staleTime: 10_000,
 	component: EventsPage,
-	loader: async ({ params }) => {
-		// First get competition to know the teamId
-		const { competition } = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
-		})
-
-		if (!competition) {
-			throw new Error("Competition not found")
-		}
+	loader: async ({ params, parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const { competition } = parentMatch.loaderData!
 
 		// Parallel fetch events, divisions, movements, sponsors
 		const [eventsResult, divisionsResult, movementsResult, sponsorsResult] =
@@ -61,9 +55,9 @@ export const Route = createFileRoute(
 			...sponsorsResult.ungroupedSponsors,
 		]
 
-		// Fetch division descriptions for all events
+		// Batch fetch division descriptions for all events in a single call
 		const divisionIds = divisionsResult.divisions.map((d) => d.id)
-		const divisionDescriptionsByWorkout: Record<
+		let divisionDescriptionsByWorkout: Record<
 			string,
 			Array<{
 				divisionId: string
@@ -73,21 +67,11 @@ export const Route = createFileRoute(
 		> = {}
 
 		if (divisionIds.length > 0 && eventsResult.workouts.length > 0) {
-			// Fetch descriptions for each workout in parallel
-			const descriptionPromises = eventsResult.workouts.map(async (event) => {
-				const result = await getWorkoutDivisionDescriptionsFn({
-					data: {
-						workoutId: event.workoutId,
-						divisionIds,
-					},
-				})
-				return { workoutId: event.workoutId, descriptions: result.descriptions }
+			const workoutIds = eventsResult.workouts.map((e) => e.workoutId)
+			const result = await getBatchWorkoutDivisionDescriptionsFn({
+				data: { workoutIds, divisionIds },
 			})
-
-			const results = await Promise.all(descriptionPromises)
-			for (const { workoutId, descriptions } of results) {
-				divisionDescriptionsByWorkout[workoutId] = descriptions
-			}
+			divisionDescriptionsByWorkout = result.descriptionsByWorkout
 		}
 
 		return {

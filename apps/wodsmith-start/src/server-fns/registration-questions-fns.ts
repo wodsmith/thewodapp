@@ -429,24 +429,26 @@ export const reorderQuestionsFn = createServerFn({ method: "POST" })
 			throw new Error("Competition does not belong to this team")
 		}
 
-		// Update sort orders
-		for (let i = 0; i < data.orderedQuestionIds.length; i++) {
-			const questionId = data.orderedQuestionIds[i]
-			if (!questionId) continue
-
-			await db
-				.update(competitionRegistrationQuestionsTable)
-				.set({ sortOrder: i, updatedAt: new Date() })
-				.where(
-					and(
-						eq(competitionRegistrationQuestionsTable.id, questionId),
-						eq(
-							competitionRegistrationQuestionsTable.competitionId,
-							data.competitionId,
-						),
-					),
-				)
-		}
+		// Update sort orders in a transaction
+		await db.transaction(async (tx) => {
+			await Promise.all(
+				data.orderedQuestionIds.map((questionId, i) => {
+					if (!questionId) return Promise.resolve()
+					return tx
+						.update(competitionRegistrationQuestionsTable)
+						.set({ sortOrder: i, updatedAt: new Date() })
+						.where(
+							and(
+								eq(competitionRegistrationQuestionsTable.id, questionId),
+								eq(
+									competitionRegistrationQuestionsTable.competitionId,
+									data.competitionId,
+								),
+							),
+						)
+				}),
+			)
+		})
 
 		return { success: true }
 	})

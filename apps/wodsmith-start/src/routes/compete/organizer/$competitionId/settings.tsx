@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { CapacitySettingsForm } from "./-components/capacity-settings-form"
 import { RotationSettingsForm } from "./-components/rotation-settings-form"
 import { ScoringSettingsForm } from "./-components/scoring-settings-form"
@@ -7,14 +6,10 @@ import { ScoringSettingsForm } from "./-components/scoring-settings-form"
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/settings",
 )({
-	loader: async ({ params }) => {
-		const { competition } = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
-		})
-
-		if (!competition) {
-			throw new Error("Competition not found")
-		}
+	staleTime: 10_000,
+	loader: async ({ parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const { competition } = parentMatch.loaderData!
 
 		return { competition }
 	},
