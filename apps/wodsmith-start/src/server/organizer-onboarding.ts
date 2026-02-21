@@ -128,6 +128,9 @@ export async function setTeamLimitOverride(
 				reason,
 			},
 		})
+
+	// Invalidate sessions for all team members so they get the updated limit
+	await invalidateTeamMembersSessions(teamId)
 }
 
 export interface OrganizerRequestWithDetails extends OrganizerRequest {

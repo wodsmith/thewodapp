@@ -8,7 +8,6 @@
 
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { OrganizerEventManager } from "@/components/events/organizer-event-manager"
-import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import {
 	getBatchWorkoutDivisionDescriptionsFn,
@@ -23,16 +22,11 @@ const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/events/",
 )({
+	staleTime: 10_000,
 	component: EventsPage,
-	loader: async ({ params }) => {
-		// First get competition to know the teamId
-		const { competition } = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
-		})
-
-		if (!competition) {
-			throw new Error("Competition not found")
-		}
+	loader: async ({ params, parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const { competition } = parentMatch.loaderData!
 
 		// Parallel fetch events, divisions, movements, sponsors
 		const [eventsResult, divisionsResult, movementsResult, sponsorsResult] =

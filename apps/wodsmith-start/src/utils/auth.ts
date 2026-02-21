@@ -1,7 +1,7 @@
 import { encodeHexLowerCase } from "@oslojs/encoding"
 import { init } from "@paralleldrive/cuid2"
 import { getCookie, setCookie } from "@tanstack/react-start/server"
-import { eq } from "drizzle-orm"
+import { and, eq, gt, inArray, isNull, or } from "drizzle-orm"
 import ms from "ms"
 import { cache } from "react"
 import { ACTIVE_TEAM_COOKIE_NAME, SESSION_COOKIE_NAME } from "@/constants"
@@ -12,6 +12,7 @@ import {
 	TEAM_PERMISSIONS,
 	type Team,
 	type TeamMembership,
+	teamEntitlementOverrideTable,
 	teamMembershipTable,
 	userTable,
 } from "@/db/schema"
@@ -155,6 +156,36 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 	const teamPlans = await Promise.all(teamPlansPromises)
 	const planMap = new Map(teamPlans.map((plan, i) => [teamIds[i], plan]))
 
+	// Fetch entitlement overrides for all teams in a single query
+	const overrides =
+		teamIds.length > 0
+			? await db
+					.select({
+						teamId: teamEntitlementOverrideTable.teamId,
+						type: teamEntitlementOverrideTable.type,
+						key: teamEntitlementOverrideTable.key,
+						value: teamEntitlementOverrideTable.value,
+					})
+					.from(teamEntitlementOverrideTable)
+					.where(
+						and(
+							inArray(teamEntitlementOverrideTable.teamId, teamIds),
+							or(
+								isNull(teamEntitlementOverrideTable.expiresAt),
+								gt(teamEntitlementOverrideTable.expiresAt, new Date()),
+							),
+						),
+					)
+			: []
+
+	// Group overrides by teamId
+	const overridesByTeam = new Map<string, typeof overrides>()
+	for (const override of overrides) {
+		const existing = overridesByTeam.get(override.teamId) ?? []
+		existing.push(override)
+		overridesByTeam.set(override.teamId, existing)
+	}
+
 	// Process memberships without async operations
 	return userTeamMemberships.map((membership) => {
 		let roleName = ""
@@ -194,6 +225,27 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 
 		const plan = planMap.get(membership.teamId)
 
+		// Merge entitlement overrides into plan data
+		const teamOverrides = overridesByTeam.get(membership.teamId) ?? []
+		let features = plan ? [...plan.entitlements.features] : []
+		const limits = plan ? { ...plan.entitlements.limits } : {}
+
+		for (const override of teamOverrides) {
+			if (override.type === "feature") {
+				const isEnabled = override.value === "true" || override.value === "1"
+				if (isEnabled && !features.includes(override.key)) {
+					features.push(override.key)
+				} else if (!isEnabled) {
+					features = features.filter((f) => f !== override.key)
+				}
+			} else if (override.type === "limit") {
+				const parsed = Number.parseInt(override.value, 10)
+				if (!Number.isNaN(parsed)) {
+					limits[override.key] = parsed
+				}
+			}
+		}
+
 		const team =
 			membership.team && "name" in membership.team ? membership.team : null
 		return {
@@ -212,8 +264,8 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 				? {
 						id: plan.id,
 						name: plan.name,
-						features: plan.entitlements.features,
-						limits: plan.entitlements.limits,
+						features,
+						limits,
 					}
 				: undefined,
 		}

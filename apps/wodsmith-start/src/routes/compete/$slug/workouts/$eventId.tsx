@@ -29,8 +29,6 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
-import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
-import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import {
 	getPublicEventHeatsFn,
 	getVenueForTrackWorkoutByDivisionFn,
@@ -69,31 +67,26 @@ const getAthleteRegisteredDivisionFn = createServerFn({ method: "GET" })
 export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 	component: EventDetailsPage,
 	validateSearch: (search) => eventSearchSchema.parse(search),
-	loader: async ({ params }) => {
-		const { slug, eventId } = params
+	loader: async ({ params, parentMatchPromise }) => {
+		const { eventId } = params
 
-		// Fetch competition by slug first
-		const { competition } = await getCompetitionBySlugFn({
-			data: { slug },
-		})
+		const parentMatch = await parentMatchPromise
+		const competition = parentMatch.loaderData?.competition
+		const parentDivisions = parentMatch.loaderData?.divisions
 
 		if (!competition) {
 			throw notFound()
 		}
 
-		// Fetch event details, divisions, judging sheets, athlete's division, and video submission in parallel
+		// Fetch event details, judging sheets, athlete's division, and video submission in parallel
 		const [
 			eventResult,
-			divisionsResult,
 			judgingSheetsResult,
 			athleteDivisionResult,
 			videoSubmissionResult,
 		] = await Promise.all([
 			getPublicEventDetailsFn({
 				data: { eventId, competitionId: competition.id },
-			}),
-			getPublicCompetitionDivisionsFn({
-				data: { competitionId: competition.id },
 			}),
 			getEventJudgingSheetsFn({ data: { trackWorkoutId: eventId } }),
 			getAthleteRegisteredDivisionFn({
@@ -111,8 +104,8 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 			throw notFound()
 		}
 
-		// Fetch division descriptions if there are divisions
-		const divisions = divisionsResult.divisions ?? []
+		// Use divisions from parent
+		const divisions = parentDivisions ?? []
 		let divisionDescriptions: Array<{
 			divisionId: string
 			divisionLabel: string
