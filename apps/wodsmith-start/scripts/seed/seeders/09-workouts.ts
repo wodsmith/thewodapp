@@ -19,6 +19,7 @@ export async function seed(client: Client): Promise<void> {
 		roundsToScore: number,
 		sourceWorkoutId?: string | null,
 		timeCap?: number | null,
+		scoreType?: string | null,
 	) {
 		return {
 			id,
@@ -29,10 +30,31 @@ export async function seed(client: Client): Promise<void> {
 			team_id: teamId,
 			rounds_to_score: roundsToScore,
 			time_cap: timeCap ?? null,
+			score_type: scoreType ?? defaultScoreType(scheme),
 			source_workout_id: sourceWorkoutId ?? null,
 			created_at: ts,
 			updated_at: ts,
 			update_counter: 0,
+		}
+	}
+
+	/** Derive a sensible default score_type from the workout scheme */
+	function defaultScoreType(scheme: string): string | null {
+		switch (scheme) {
+			case "time":
+			case "time-with-cap":
+				return "min" // faster is better
+			case "rounds-reps":
+			case "reps":
+			case "emom":
+			case "load":
+			case "points":
+			case "calories":
+			case "meters":
+			case "feet":
+				return "max" // more is better
+			default:
+				return null
 		}
 	}
 
