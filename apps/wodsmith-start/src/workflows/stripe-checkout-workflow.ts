@@ -205,28 +205,17 @@ async function createRegistration(
 		return null
 	}
 
-	const [divisionConfig] = await db
-		.select({
-			id: competitionDivisionsTable.id,
-			competitionId: competitionDivisionsTable.competitionId,
-			divisionId: competitionDivisionsTable.divisionId,
-			maxSpots: competitionDivisionsTable.maxSpots,
-			division: {
-				label: scalingLevelsTable.label,
-			},
-		})
-		.from(competitionDivisionsTable)
-		.leftJoin(
-			scalingLevelsTable,
-			eq(competitionDivisionsTable.divisionId, scalingLevelsTable.id),
-		)
-		.where(
-			and(
-				eq(competitionDivisionsTable.competitionId, competitionId),
-				eq(competitionDivisionsTable.divisionId, divisionId),
-			),
-		)
-		.limit(1)
+	const divisionConfig = await db.query.competitionDivisionsTable.findFirst({
+		where: and(
+			eq(competitionDivisionsTable.competitionId, competitionId),
+			eq(competitionDivisionsTable.divisionId, divisionId),
+		),
+	})
+
+	// Fetch division label separately for notification display
+	const divisionRecord = await db.query.scalingLevelsTable.findFirst({
+		where: eq(scalingLevelsTable.id, divisionId),
+	})
 
 	const [registrations, pendingPurchases] = await Promise.all([
 		db
@@ -385,7 +374,7 @@ async function createRegistration(
 				? `${user.firstName || ""} ${user.lastName || ""}`.trim() || null
 				: null,
 			competitionName: competition.name,
-			divisionName: divisionConfig?.division?.label ?? null,
+			divisionName: divisionRecord?.label ?? null,
 			teamName: registrationData.teamName ?? null,
 			registrationDivisionId: divisionId,
 			registrationTeamName: registrationData.teamName ?? null,
