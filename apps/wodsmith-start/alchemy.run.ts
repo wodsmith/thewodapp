@@ -521,6 +521,7 @@ function getDomains(currentStage: string): string[] | undefined {
  */
 const stripeCheckoutWorkflow = Workflow(`stripe-checkout-workflow-${stage}`, {
 	className: "StripeCheckoutWorkflow",
+	workflowName: `stripe-checkout-workflow-${stage}`,
 })
 
 /**
