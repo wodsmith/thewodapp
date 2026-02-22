@@ -52,6 +52,7 @@ import {
 import {
 	notifyRegistrationConfirmed,
 	registerForCompetition,
+	sendPendingTeammateEmails,
 } from "@/lib/registration-stubs"
 import { getStripe } from "@/lib/stripe"
 import { requireVerifiedEmail } from "@/utils/auth"
@@ -333,6 +334,22 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 				affiliateName: input.affiliateName,
 				teammates: input.teammates,
 			})
+
+			// Send teammate invitation emails (extracted from registerForCompetition)
+			if (result.athleteTeamId && input.teammates?.length) {
+				const division = await db.query.scalingLevelsTable.findFirst({
+					where: eq(scalingLevelsTable.id, input.divisionId),
+					columns: { label: true },
+				})
+
+				await sendPendingTeammateEmails({
+					athleteTeamId: result.athleteTeamId,
+					competitionId: input.competitionId,
+					teamName: input.teamName ?? "Unknown Team",
+					divisionName: division?.label ?? "Open",
+					inviterUserId: userId,
+				})
+			}
 
 			// Mark as free registration
 			await db

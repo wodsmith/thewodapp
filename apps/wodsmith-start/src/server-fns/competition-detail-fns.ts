@@ -457,6 +457,20 @@ export const getRegistrationPurchaseStatusFn = createServerFn({
 			return { status: "processing" as const }
 		}
 
+		// Check if there's a failed purchase (division full, payment failed, etc.)
+		const failedPurchase = await db.query.commercePurchaseTable.findFirst({
+			where: and(
+				eq(commercePurchaseTable.userId, data.userId),
+				eq(commercePurchaseTable.competitionId, data.competitionId),
+				eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.FAILED),
+			),
+			columns: { id: true },
+		})
+
+		if (failedPurchase) {
+			return { status: "failed" as const }
+		}
+
 		return { status: "none" as const }
 	})
 

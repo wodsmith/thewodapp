@@ -13,4 +13,5 @@
 export {
 	notifyRegistrationConfirmed,
 	registerForCompetition,
+	sendPendingTeammateEmails,
 } from "@/server/registration"

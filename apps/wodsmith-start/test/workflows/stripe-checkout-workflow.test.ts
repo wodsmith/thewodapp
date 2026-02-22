@@ -38,11 +38,14 @@ vi.mock('@/lib/logging/posthog-otel-logger', () => ({
 // Mock registration
 const mockRegisterForCompetition = vi.fn()
 const mockNotifyRegistrationConfirmed = vi.fn()
+const mockSendPendingTeammateEmails = vi.fn()
 vi.mock('@/server/registration', () => ({
   registerForCompetition: (...args: unknown[]) =>
     mockRegisterForCompetition(...args),
   notifyRegistrationConfirmed: (...args: unknown[]) =>
     mockNotifyRegistrationConfirmed(...args),
+  sendPendingTeammateEmails: (...args: unknown[]) =>
+    mockSendPendingTeammateEmails(...args),
 }))
 
 // Mock Slack
@@ -210,12 +213,15 @@ function setupHappyPathMocks() {
   // Both Promise.all selects return [{count: 5}] — 5+5=10 < 50 max
   mockDb.setMockReturnValue([{count: 5}])
 
-  // Registration creation
+  // Registration creation (individual — no athlete team)
   mockRegisterForCompetition.mockResolvedValue({
     registrationId: testRegistrationId,
     teamMemberId: 'tm-1',
     athleteTeamId: null,
   })
+
+  // Teammate email sending
+  mockSendPendingTeammateEmails.mockResolvedValue(undefined)
 
   // Notifications
   mockNotifyRegistrationConfirmed.mockResolvedValue(undefined)
@@ -265,10 +271,20 @@ describe('StripeCheckoutWorkflow', () => {
         affiliateName: undefined,
         teammates: undefined,
       })
+
+      // No teammate invitation step for individual registrations
+      expect(mockSendPendingTeammateEmails).not.toHaveBeenCalled()
     })
 
     it('creates team registration with teammates and stores answers', async () => {
       setupHappyPathMocks()
+
+      // Override: team registration returns athleteTeamId
+      mockRegisterForCompetition.mockResolvedValue({
+        registrationId: testRegistrationId,
+        teamMemberId: 'tm-1',
+        athleteTeamId: 'athlete-team-1',
+      })
 
       const purchaseWithTeamMeta = {
         ...mockPurchase,
@@ -301,6 +317,21 @@ describe('StripeCheckoutWorkflow', () => {
 
       // Verify answers were inserted (insert was called for answers)
       expect(mockDb.insert).toHaveBeenCalled()
+
+      // Verify teammate invitation emails sent as separate step (4 steps total)
+      expect(step.do).toHaveBeenCalledTimes(4)
+      expect(step.do).toHaveBeenCalledWith(
+        'send-teammate-invitations',
+        expect.any(Object),
+        expect.any(Function),
+      )
+      expect(mockSendPendingTeammateEmails).toHaveBeenCalledWith({
+        athleteTeamId: 'athlete-team-1',
+        competitionId: testCompetitionId,
+        teamName: 'Test Team',
+        divisionName: 'Rx',
+        inviterUserId: testUserId,
+      })
     })
   })
 
