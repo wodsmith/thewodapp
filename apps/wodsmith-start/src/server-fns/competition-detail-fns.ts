@@ -19,6 +19,10 @@ import { z } from "zod"
 import { getDb } from "@/db"
 import { addressesTable } from "@/db/schemas/addresses"
 import {
+	COMMERCE_PURCHASE_STATUS,
+	commercePurchaseTable,
+} from "@/db/schemas/commerce"
+import {
 	competitionRegistrationsTable,
 	competitionsTable,
 } from "@/db/schemas/competitions"
@@ -308,6 +312,42 @@ export const getCompetitionRegistrationsFn = createServerFn({ method: "GET" })
 			.orderBy(competitionRegistrationsTable.registeredAt)
 
 		return { registrations }
+	})
+
+/**
+ * Check whether all purchases for a Stripe checkout session are settled.
+ * Returns true when no purchases are still PENDING.
+ * Called from the client to determine when to stop polling.
+ */
+export const checkCheckoutCompletionFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z.object({ sessionId: z.string() }).parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		const purchases = await db
+			.select({
+				id: commercePurchaseTable.id,
+				status: commercePurchaseTable.status,
+			})
+			.from(commercePurchaseTable)
+			.where(
+				eq(
+					commercePurchaseTable.stripeCheckoutSessionId,
+					data.sessionId,
+				),
+			)
+
+		if (purchases.length === 0) {
+			return { ready: false, total: 0, pending: 0 }
+		}
+
+		const pending = purchases.filter(
+			(p) => p.status === COMMERCE_PURCHASE_STATUS.PENDING,
+		).length
+
+		return { ready: pending === 0, total: purchases.length, pending }
 	})
 
 /**

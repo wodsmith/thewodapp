@@ -1,15 +1,22 @@
+import { useEffect, useState } from "react"
 import {
 	createFileRoute,
 	getRouteApi,
 	Link,
 	redirect,
+	useRouter,
 } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
+import { Loader2 } from "lucide-react"
 import { z } from "zod"
 import { CompetitionRegisteredBanner } from "@/components/competition-registered-banner"
 import { CompetitionShareCard } from "@/components/competition-share-card"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import { Button } from "@/components/ui/button"
-import { getUserCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
+import {
+	checkCheckoutCompletionFn,
+	getUserCompetitionRegistrationsFn,
+} from "@/server-fns/competition-detail-fns"
 import { getUserAffiliateNameFn } from "@/server-fns/registration-fns"
 
 const parentRoute = getRouteApi("/compete/$slug")
@@ -20,8 +27,10 @@ export const Route = createFileRoute("/compete/$slug/registered")({
 		session_id: z.string().optional(),
 		registration_id: z.string().optional(),
 	}),
-	loader: async ({ params, context, parentMatchPromise }) => {
+	loaderDeps: ({ search }) => ({ session_id: search.session_id }),
+	loader: async ({ params, context, deps, parentMatchPromise }) => {
 		const { slug } = params
+		const { session_id } = deps
 		const session = context?.session ?? null
 
 		if (!session) {
@@ -51,7 +60,9 @@ export const Route = createFileRoute("/compete/$slug/registered")({
 				}),
 			])
 
-		if (registrations.length === 0) {
+		// Only redirect if no session_id — if we came from Stripe checkout,
+		// registrations may still be processing
+		if (registrations.length === 0 && !session_id) {
 			throw redirect({
 				to: "/compete/$slug",
 				params: { slug },
@@ -72,17 +83,82 @@ export const Route = createFileRoute("/compete/$slug/registered")({
 			}
 		})
 
-		return { athleteName, affiliateName, items }
+		return { athleteName, affiliateName, items, sessionId: session_id ?? null }
 	},
 })
 
 function RegisteredPage() {
 	const { competition } = parentRoute.useLoaderData()
-	const { athleteName, affiliateName, items } = Route.useLoaderData()
+	const { athleteName, affiliateName, items, sessionId } =
+		Route.useLoaderData()
 	const { slug } = Route.useParams()
+	const router = useRouter()
+	const checkCompletion = useServerFn(checkCheckoutCompletionFn)
+	const [checkoutSettled, setCheckoutSettled] = useState(!sessionId)
+	const [purchaseStatus, setPurchaseStatus] = useState<{
+		total: number
+		pending: number
+	}>({ total: 0, pending: 0 })
+
+	// Poll until all purchases for this checkout session are settled
+	useEffect(() => {
+		if (checkoutSettled || !sessionId) return
+
+		let cancelled = false
+
+		const poll = async () => {
+			while (!cancelled) {
+				try {
+					const result = await checkCompletion({
+						data: { sessionId },
+					})
+					if (!cancelled) {
+						setPurchaseStatus({
+							total: result.total,
+							pending: result.pending,
+						})
+					}
+					if (result.ready) {
+						if (!cancelled) {
+							setCheckoutSettled(true)
+							router.invalidate()
+						}
+						return
+					}
+				} catch {
+					// ignore transient errors, keep polling
+				}
+				await new Promise((r) => setTimeout(r, 1000))
+			}
+		}
+
+		poll()
+		return () => {
+			cancelled = true
+		}
+	}, [checkoutSettled, sessionId, checkCompletion, router])
 
 	const profileImage =
 		competition.profileImageUrl ?? competition.organizingTeam?.avatarUrl
+
+	if (!checkoutSettled) {
+		const { total, pending } = purchaseStatus
+		return (
+			<div className="space-y-4">
+				<div className="sticky top-4 z-10">
+					<CompetitionTabs slug={competition.slug} />
+				</div>
+				<div className="flex flex-col items-center justify-center gap-3 py-20">
+					<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+					<p className="text-muted-foreground text-sm">
+						{total > 0
+							? `Verifying ${pending} of ${total} division ${total === 1 ? "purchase" : "purchases"}...`
+							: "Confirming your registration..."}
+					</p>
+				</div>
+			</div>
+		)
+	}
 
 	return (
 		<div className="space-y-4">
