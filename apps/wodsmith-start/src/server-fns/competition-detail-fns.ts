@@ -14,10 +14,14 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, count, eq, inArray, isNull, sql } from "drizzle-orm"
+import { and, count, eq, inArray, isNull, ne, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { addressesTable } from "@/db/schemas/addresses"
+import {
+	COMMERCE_PURCHASE_STATUS,
+	commercePurchaseTable,
+} from "@/db/schemas/commerce"
 import {
 	competitionRegistrationsTable,
 	competitionsTable,
@@ -55,6 +59,11 @@ const getUserRegistrationInputSchema = z.object({
 })
 
 const getPendingTeamInvitesInputSchema = z.object({
+	competitionId: z.string().min(1, "Competition ID is required"),
+	userId: z.string().min(1, "User ID is required"),
+})
+
+const getRegistrationPurchaseStatusInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
 	userId: z.string().min(1, "User ID is required"),
 })
@@ -392,6 +401,77 @@ export const getUserCompetitionRegistrationFn = createServerFn({
 			.limit(1)
 
 		return { registration: teamRegistration[0] ?? null }
+	})
+
+/**
+ * Check the status of a user's registration purchase for a competition.
+ * Used for polling after Stripe checkout redirect to detect when the
+ * workflow has completed and the registration exists.
+ *
+ * Returns:
+ * - "registered" if a registration already exists
+ * - "processing" if a non-cancelled purchase exists but no registration yet
+ * - "none" if no purchase or registration found
+ */
+export const getRegistrationPurchaseStatusFn = createServerFn({
+	method: "GET",
+})
+	.inputValidator((data: unknown) =>
+		getRegistrationPurchaseStatusInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const session = await getSessionFromCookie()
+		if (!session?.userId || session.userId !== data.userId) {
+			throw new Error("Unauthorized")
+		}
+
+		const db = getDb()
+
+		// Check for existing registration first
+		const registration = await db.query.competitionRegistrationsTable.findFirst(
+			{
+				where: and(
+					eq(competitionRegistrationsTable.eventId, data.competitionId),
+					eq(competitionRegistrationsTable.userId, data.userId),
+				),
+				columns: { id: true },
+			},
+		)
+
+		if (registration) {
+			return { status: "registered" as const }
+		}
+
+		// No registration — check for a non-cancelled, non-failed purchase (workflow may still be processing)
+		const purchase = await db.query.commercePurchaseTable.findFirst({
+			where: and(
+				eq(commercePurchaseTable.userId, data.userId),
+				eq(commercePurchaseTable.competitionId, data.competitionId),
+				ne(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.CANCELLED),
+				ne(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.FAILED),
+			),
+			columns: { id: true, status: true },
+		})
+
+		if (purchase) {
+			return { status: "processing" as const }
+		}
+
+		// Check if there's a failed purchase (division full, payment failed, etc.)
+		const failedPurchase = await db.query.commercePurchaseTable.findFirst({
+			where: and(
+				eq(commercePurchaseTable.userId, data.userId),
+				eq(commercePurchaseTable.competitionId, data.competitionId),
+				eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.FAILED),
+			),
+			columns: { id: true },
+		})
+
+		if (failedPurchase) {
+			return { status: "failed" as const }
+		}
+
+		return { status: "none" as const }
 	})
 
 /**

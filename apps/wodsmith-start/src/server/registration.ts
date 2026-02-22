@@ -9,7 +9,7 @@
  */
 
 import { createId } from "@paralleldrive/cuid2"
-import { and, eq, inArray, sql } from "drizzle-orm"
+import { and, eq, inArray, isNull, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	competitionRegistrationsTable,
@@ -256,35 +256,11 @@ async function inviteUserToTeamInternal({
 		expiresAt,
 	})
 
-	// Send competition team invite email
-	if (competitionContext) {
-		// Get competition name for email subject
-		const competition = await db.query.competitionsTable.findFirst({
-			where: eq(competitionsTable.id, competitionContext.competitionId),
-		})
-		const competitionName = competition?.name ?? "the competition"
+	// NOTE: Email sending has been extracted to sendPendingTeammateEmails().
+	// Callers are responsible for sending emails after registration completes.
+	// This allows the workflow to send emails in a discrete retryable step.
 
-		// Get inviter name for personalized email
-		const inviter = await db.query.userTable.findFirst({
-			where: eq(userTable.id, invitedBy),
-			columns: { firstName: true, lastName: true },
-		})
-		const inviterName = inviter
-			? `${inviter.firstName || ""} ${inviter.lastName || ""}`.trim() ||
-				"Your team captain"
-			: "Your team captain"
-
-		await sendCompetitionTeamInviteEmail({
-			email: email.toLowerCase(),
-			invitationToken: token,
-			teamName: competitionContext.teamName,
-			competitionName,
-			divisionName: competitionContext.divisionName,
-			inviterName,
-		})
-	}
-
-	return { userJoined: false, invitationSent: true, token }
+	return { userJoined: false, invitationSent: false, token }
 }
 
 // ============================================================================
@@ -890,6 +866,69 @@ export async function notifyRegistrationConfirmed(
 			message: "[Email] Failed to send registration confirmation",
 			error: err,
 			attributes: { userId, registrationId, competitionId },
+		})
+	}
+}
+
+// ============================================================================
+// Teammate Invitation Emails
+// ============================================================================
+
+/**
+ * Send invitation emails for pending teammate invitations on an athlete team.
+ *
+ * Queries the DB for invitations that haven't been accepted yet, then sends
+ * a competition team invite email for each one. Designed to be called as a
+ * discrete step in the workflow so retries don't duplicate emails from
+ * registerForCompetition.
+ */
+export async function sendPendingTeammateEmails(params: {
+	athleteTeamId: string
+	competitionId: string
+	teamName: string
+	divisionName: string
+	inviterUserId: string
+}): Promise<void> {
+	const db = getDb()
+
+	// Get pending invitations for this athlete team
+	const pendingInvitations = await db.query.teamInvitationTable.findMany({
+		where: and(
+			eq(teamInvitationTable.teamId, params.athleteTeamId),
+			isNull(teamInvitationTable.acceptedAt),
+		),
+		columns: {
+			email: true,
+			token: true,
+		},
+	})
+
+	if (pendingInvitations.length === 0) return
+
+	// Get competition name
+	const competition = await db.query.competitionsTable.findFirst({
+		where: eq(competitionsTable.id, params.competitionId),
+	})
+	const competitionName = competition?.name ?? "the competition"
+
+	// Get inviter name
+	const inviter = await db.query.userTable.findFirst({
+		where: eq(userTable.id, params.inviterUserId),
+		columns: { firstName: true, lastName: true },
+	})
+	const inviterName = inviter
+		? `${inviter.firstName || ""} ${inviter.lastName || ""}`.trim() ||
+			"Your team captain"
+		: "Your team captain"
+
+	for (const invitation of pendingInvitations) {
+		await sendCompetitionTeamInviteEmail({
+			email: invitation.email,
+			invitationToken: invitation.token,
+			teamName: params.teamName,
+			competitionName,
+			divisionName: params.divisionName,
+			inviterName,
 		})
 	}
 }

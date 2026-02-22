@@ -38,11 +38,14 @@ vi.mock('@/lib/logging/posthog-otel-logger', () => ({
 // Mock registration
 const mockRegisterForCompetition = vi.fn()
 const mockNotifyRegistrationConfirmed = vi.fn()
+const mockSendPendingTeammateEmails = vi.fn()
 vi.mock('@/server/registration', () => ({
   registerForCompetition: (...args: unknown[]) =>
     mockRegisterForCompetition(...args),
   notifyRegistrationConfirmed: (...args: unknown[]) =>
     mockNotifyRegistrationConfirmed(...args),
+  sendPendingTeammateEmails: (...args: unknown[]) =>
+    mockSendPendingTeammateEmails(...args),
 }))
 
 // Mock Slack
@@ -210,12 +213,15 @@ function setupHappyPathMocks() {
   // Both Promise.all selects return [{count: 5}] — 5+5=10 < 50 max
   mockDb.setMockReturnValue([{count: 5}])
 
-  // Registration creation
+  // Registration creation (individual — no athlete team)
   mockRegisterForCompetition.mockResolvedValue({
     registrationId: testRegistrationId,
     teamMemberId: 'tm-1',
     athleteTeamId: null,
   })
+
+  // Teammate email sending
+  mockSendPendingTeammateEmails.mockResolvedValue(undefined)
 
   // Notifications
   mockNotifyRegistrationConfirmed.mockResolvedValue(undefined)
@@ -265,10 +271,20 @@ describe('StripeCheckoutWorkflow', () => {
         affiliateName: undefined,
         teammates: undefined,
       })
+
+      // No teammate invitation step for individual registrations
+      expect(mockSendPendingTeammateEmails).not.toHaveBeenCalled()
     })
 
     it('creates team registration with teammates and stores answers', async () => {
       setupHappyPathMocks()
+
+      // Override: team registration returns athleteTeamId
+      mockRegisterForCompetition.mockResolvedValue({
+        registrationId: testRegistrationId,
+        teamMemberId: 'tm-1',
+        athleteTeamId: 'athlete-team-1',
+      })
 
       const purchaseWithTeamMeta = {
         ...mockPurchase,
@@ -301,11 +317,26 @@ describe('StripeCheckoutWorkflow', () => {
 
       // Verify answers were inserted (insert was called for answers)
       expect(mockDb.insert).toHaveBeenCalled()
+
+      // Verify teammate invitation emails sent as separate step (4 steps total)
+      expect(step.do).toHaveBeenCalledTimes(4)
+      expect(step.do).toHaveBeenCalledWith(
+        'send-teammate-invitations',
+        expect.any(Object),
+        expect.any(Function),
+      )
+      expect(mockSendPendingTeammateEmails).toHaveBeenCalledWith({
+        athleteTeamId: 'athlete-team-1',
+        competitionId: testCompetitionId,
+        teamName: 'Test Team',
+        divisionName: 'Rx',
+        inviterUserId: testUserId,
+      })
     })
   })
 
   describe('Step 1: create-registration — Failure States', () => {
-    it('returns null when purchase not found', async () => {
+    it('throws when purchase not found (enables workflow retry)', async () => {
       mockDb.query.commercePurchaseTable = {
         findFirst: vi.fn().mockResolvedValue(null),
         findMany: vi.fn().mockResolvedValue([]),
@@ -315,10 +346,10 @@ describe('StripeCheckoutWorkflow', () => {
       const step = createFakeStep()
       const event = createWorkflowEvent(baseParams)
 
-      await workflow.run(event as any, step as any)
+      await expect(workflow.run(event as any, step as any)).rejects.toThrow(
+        'Purchase not found: purchase-123',
+      )
 
-      // Only 1 step called (create-registration returned null), no email/slack
-      expect(step.do).toHaveBeenCalledTimes(1)
       expect(mockRegisterForCompetition).not.toHaveBeenCalled()
     })
 
@@ -468,7 +499,7 @@ describe('StripeCheckoutWorkflow', () => {
       expect(mockDb.update).toHaveBeenCalled()
     })
 
-    it('returns null when competition not found', async () => {
+    it('throws when competition not found (enables workflow retry)', async () => {
       setupHappyPathMocks()
 
       mockDb.query.competitionsTable = {
@@ -480,13 +511,14 @@ describe('StripeCheckoutWorkflow', () => {
       const step = createFakeStep()
       const event = createWorkflowEvent(baseParams)
 
-      await workflow.run(event as any, step as any)
+      await expect(workflow.run(event as any, step as any)).rejects.toThrow(
+        'Competition not found: comp-456',
+      )
 
-      expect(step.do).toHaveBeenCalledTimes(1)
       expect(mockRegisterForCompetition).not.toHaveBeenCalled()
       expect(mockLogError).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: '[Workflow] Competition not found for capacity check',
+          message: '[Workflow] Competition not found — will retry',
         }),
       )
     })

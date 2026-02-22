@@ -9,15 +9,16 @@
  *
  * Steps:
  * 1. create-registration: Core DB operations (idempotency checks, capacity, registration, payment)
- * 2. send-confirmation-email: Email notification (retries independently)
- * 3. send-slack-notification: Slack notification (retries independently)
+ * 2. send-teammate-invitations: Teammate invite emails for team registrations (retries independently)
+ * 3. send-confirmation-email: Captain confirmation email (retries independently)
+ * 4. send-slack-notification: Slack notification (retries independently)
  *
  * In local dev (where Workflows aren't available), the webhook handler
  * calls processCheckoutInline() which runs the same logic synchronously.
  */
 
-import { WorkflowEntrypoint } from "cloudflare:workers"
 import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers"
+import { WorkflowEntrypoint } from "cloudflare:workers"
 import { and, count, eq, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
@@ -40,6 +41,7 @@ import { getStripe } from "@/lib/stripe"
 import {
 	notifyRegistrationConfirmed,
 	registerForCompetition,
+	sendPendingTeammateEmails,
 } from "@/server/registration"
 import { calculateDivisionCapacity } from "@/utils/division-capacity"
 
@@ -71,6 +73,7 @@ interface RegistrationStepResult {
 	competitionName: string
 	divisionName: string | null
 	teamName: string | null
+	athleteTeamId: string | null
 	registrationDivisionId: string | null
 	registrationTeamName: string | null
 	registrationPendingTeammates: string | null
@@ -97,10 +100,10 @@ async function createRegistration(
 
 	if (!existingPurchase) {
 		logError({
-			message: "[Workflow] Purchase not found",
+			message: "[Workflow] Purchase not found — will retry",
 			attributes: { purchaseId },
 		})
-		return null
+		throw new Error(`Purchase not found: ${purchaseId}`)
 	}
 
 	if (existingPurchase.status === COMMERCE_PURCHASE_STATUS.COMPLETED) {
@@ -197,10 +200,10 @@ async function createRegistration(
 
 	if (!competition) {
 		logError({
-			message: "[Workflow] Competition not found for capacity check",
+			message: "[Workflow] Competition not found — will retry",
 			attributes: { competitionId },
 		})
-		return null
+		throw new Error(`Competition not found: ${competitionId}`)
 	}
 
 	const divisionConfig = await db.query.competitionDivisionsTable.findFirst({
@@ -372,6 +375,7 @@ async function createRegistration(
 			competitionName: competition.name,
 			divisionName: divisionConfig?.division?.label ?? null,
 			teamName: registrationData.teamName ?? null,
+			athleteTeamId: result.athleteTeamId,
 			registrationDivisionId: divisionId,
 			registrationTeamName: registrationData.teamName ?? null,
 			registrationPendingTeammates: null,
@@ -501,7 +505,42 @@ export class StripeCheckoutWorkflow extends WorkflowEntrypoint<
 			return
 		}
 
-		// Step 2: Send confirmation email (non-critical, retries independently)
+		// Step 2: Send teammate invitation emails (team registrations only)
+		if (registrationResult.athleteTeamId && registrationResult.teamName) {
+			try {
+				await step.do(
+					"send-teammate-invitations",
+					{
+						retries: {
+							limit: 3,
+							delay: "2 seconds",
+							backoff: "exponential",
+						},
+					},
+					async () => {
+						await sendPendingTeammateEmails({
+							athleteTeamId: registrationResult.athleteTeamId!,
+							competitionId: registrationResult.competitionId,
+							teamName: registrationResult.teamName!,
+							divisionName: registrationResult.divisionName ?? "Open",
+							inviterUserId: registrationResult.userId,
+						})
+					},
+				)
+			} catch (inviteErr) {
+				logWarning({
+					message:
+						"[Workflow] Teammate invitation emails failed after retries, continuing",
+					error: inviteErr,
+					attributes: {
+						purchaseId,
+						athleteTeamId: registrationResult.athleteTeamId,
+					},
+				})
+			}
+		}
+
+		// Step 3: Send captain confirmation email (non-critical, retries independently)
 		// Wrapped in try-catch so email failure doesn't block Slack notification
 		try {
 			await step.do(
@@ -525,7 +564,7 @@ export class StripeCheckoutWorkflow extends WorkflowEntrypoint<
 			})
 		}
 
-		// Step 3: Send Slack notification (non-critical, retries independently)
+		// Step 4: Send Slack notification (non-critical, retries independently)
 		try {
 			await step.do(
 				"send-slack-notification",
@@ -569,12 +608,34 @@ export async function processCheckoutInline(
 		return
 	}
 
+	// Send teammate invitation emails for team registrations
+	if (registrationResult.athleteTeamId && registrationResult.teamName) {
+		try {
+			await sendPendingTeammateEmails({
+				athleteTeamId: registrationResult.athleteTeamId,
+				competitionId: registrationResult.competitionId,
+				teamName: registrationResult.teamName,
+				divisionName: registrationResult.divisionName ?? "Open",
+				inviterUserId: registrationResult.userId,
+			})
+		} catch (err) {
+			logWarning({
+				message:
+					"[Inline Checkout] Teammate invitation emails failed, continuing",
+				error: err,
+				attributes: {
+					purchaseId: registrationResult.purchaseId,
+					athleteTeamId: registrationResult.athleteTeamId,
+				},
+			})
+		}
+	}
+
 	try {
 		await sendConfirmationEmail(registrationResult)
 	} catch (err) {
 		logWarning({
-			message:
-				"[Inline Checkout] Email notification failed, continuing",
+			message: "[Inline Checkout] Email notification failed, continuing",
 			error: err,
 			attributes: {
 				purchaseId: registrationResult.purchaseId,
@@ -587,8 +648,7 @@ export async function processCheckoutInline(
 		await sendSlackNotification(registrationResult, session)
 	} catch (err) {
 		logWarning({
-			message:
-				"[Inline Checkout] Slack notification failed, continuing",
+			message: "[Inline Checkout] Slack notification failed, continuing",
 			error: err,
 			attributes: {
 				purchaseId: registrationResult.purchaseId,
