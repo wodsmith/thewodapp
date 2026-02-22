@@ -654,6 +654,12 @@ const website = await TanStackStart("app", {
 			// biome-ignore lint/style/noNonNullAssertion: hasStripeEnv check guarantees this exists
 			STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY!),
 		}),
+		// Slack notifications (optional - only include if available)
+		...(process.env.SLACK_WEBHOOK_URL && {
+			SLACK_WEBHOOK_URL: alchemy.secret(process.env.SLACK_WEBHOOK_URL),
+			SLACK_PURCHASE_NOTIFICATIONS_ENABLED: "true",
+		}),
+
 		// Webhook secret: use Alchemy-managed webhook for demo/prod, or .dev.vars for local dev
 		...(stripeWebhook
 			? {
