@@ -25,7 +25,7 @@
           },
           {
             "type": "command",
-            "command": "TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/session-end-hook.ts"
+            "command": "TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev TEAM_MEMORY_TOKEN=$TEAM_MEMORY_TOKEN bun run .claude/skills/team-memory/scripts/session-end-hook.ts"
           }
         ]
       }

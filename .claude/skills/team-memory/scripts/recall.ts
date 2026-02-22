@@ -1,6 +1,12 @@
 #!/usr/bin/env bun
 
 const BASE_URL = process.env.TEAM_MEMORY_URL || "http://localhost:8787";
+const API_TOKEN = process.env.TEAM_MEMORY_TOKEN;
+
+if (!API_TOKEN) {
+	console.error("Error: TEAM_MEMORY_TOKEN environment variable is required");
+	process.exit(1);
+}
 
 const args = process.argv.slice(2);
 
@@ -40,7 +46,9 @@ if (category) params.set("category", category);
 if (priority) params.set("priority", priority);
 
 try {
-	const res = await fetch(`${BASE_URL}/search?${params}`);
+	const res = await fetch(`${BASE_URL}/search?${params}`, {
+		headers: {Authorization: `Bearer ${API_TOKEN}`},
+	});
 	const data = await res.json();
 
 	if (!res.ok) {

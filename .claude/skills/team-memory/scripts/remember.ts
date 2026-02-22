@@ -1,6 +1,12 @@
 #!/usr/bin/env bun
 
 const BASE_URL = process.env.TEAM_MEMORY_URL || "http://localhost:8787";
+const API_TOKEN = process.env.TEAM_MEMORY_TOKEN;
+
+if (!API_TOKEN) {
+	console.error("Error: TEAM_MEMORY_TOKEN environment variable is required");
+	process.exit(1);
+}
 
 const args = process.argv.slice(2);
 
@@ -73,7 +79,10 @@ if (sessionId) body.sessionId = sessionId;
 try {
 	const res = await fetch(`${BASE_URL}/observations`, {
 		method: "POST",
-		headers: { "Content-Type": "application/json" },
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${API_TOKEN}`,
+		},
 		body: JSON.stringify(body),
 	});
 

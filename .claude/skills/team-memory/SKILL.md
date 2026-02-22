@@ -14,7 +14,7 @@ Manage a shared team memory system backed by a Cloudflare Worker with semantic s
 Save a new observation to team memory.
 
 ```bash
-TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/remember.ts "<observation text>" [--category=<category>] [--priority=<priority>]
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev TEAM_MEMORY_TOKEN=$TEAM_MEMORY_TOKEN bun run .claude/skills/team-memory/scripts/remember.ts "<observation text>" [--category=<category>] [--priority=<priority>]
 ```
 
 **Categories:** `convention`, `gotcha`, `debugging`, `architecture`, `workflow`
@@ -24,8 +24,8 @@ Defaults: category=convention, priority=moderate
 
 Examples:
 ```bash
-TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/remember.ts "PlanetScale returns strings for COUNT columns — always wrap with Number()" --category=gotcha --priority=critical
-TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/remember.ts "Use ULID for ID generation, not CUID2" --category=convention
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev TEAM_MEMORY_TOKEN=$TEAM_MEMORY_TOKEN bun run .claude/skills/team-memory/scripts/remember.ts "PlanetScale returns strings for COUNT columns — always wrap with Number()" --category=gotcha --priority=critical
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev TEAM_MEMORY_TOKEN=$TEAM_MEMORY_TOKEN bun run .claude/skills/team-memory/scripts/remember.ts "Use ULID for ID generation, not CUID2" --category=convention
 ```
 
 ### /recall — Search memories
@@ -33,15 +33,15 @@ TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skill
 Search team memory by semantic query.
 
 ```bash
-TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/recall.ts "<query>" [--limit=<n>] [--category=<category>] [--priority=<priority>]
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev TEAM_MEMORY_TOKEN=$TEAM_MEMORY_TOKEN bun run .claude/skills/team-memory/scripts/recall.ts "<query>" [--limit=<n>] [--category=<category>] [--priority=<priority>]
 ```
 
 Default limit: 5. Results are ranked by relevance.
 
 Examples:
 ```bash
-TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/recall.ts "database migration patterns"
-TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/recall.ts "Stripe" --category=gotcha --limit=10
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev TEAM_MEMORY_TOKEN=$TEAM_MEMORY_TOKEN bun run .claude/skills/team-memory/scripts/recall.ts "database migration patterns"
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev TEAM_MEMORY_TOKEN=$TEAM_MEMORY_TOKEN bun run .claude/skills/team-memory/scripts/recall.ts "Stripe" --category=gotcha --limit=10
 ```
 
 ### /feedback — Rate a memory
@@ -49,25 +49,41 @@ TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skill
 Provide feedback on a memory's usefulness.
 
 ```bash
-TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/feedback.ts <observation-id> <signal> [--note="<reason>"]
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev TEAM_MEMORY_TOKEN=$TEAM_MEMORY_TOKEN bun run .claude/skills/team-memory/scripts/feedback.ts <observation-id> <signal> [--note="<reason>"]
 ```
 
 **Signals:** `helpful`, `harmful`, `irrelevant`
 
 Examples:
 ```bash
-TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/feedback.ts 01J5K3M2N7 helpful --note="Saved me from a production bug"
-TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/feedback.ts 01J5K3M2N7 irrelevant
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev TEAM_MEMORY_TOKEN=$TEAM_MEMORY_TOKEN bun run .claude/skills/team-memory/scripts/feedback.ts 01J5K3M2N7 helpful --note="Saved me from a production bug"
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev TEAM_MEMORY_TOKEN=$TEAM_MEMORY_TOKEN bun run .claude/skills/team-memory/scripts/feedback.ts 01J5K3M2N7 irrelevant
 ```
 
 ## Environment
 
 Production URL: `https://team-memory.zacjones93.workers.dev`
 
-All commands below include the env var inline. If `TEAM_MEMORY_URL` is already set in your shell, the prefix is optional.
+### Required Environment Variables
+
+- `TEAM_MEMORY_URL` - Worker URL (production: `https://team-memory.zacjones93.workers.dev`)
+- `TEAM_MEMORY_TOKEN` - Bearer token for API authentication. Must match the `API_TOKEN` secret configured on the Cloudflare Worker.
+
+Both env vars must be set for all commands. If they're already exported in your shell profile, the inline prefixes are optional.
+
+### Setting the token
+
+The API token is stored as a Cloudflare Workers secret. To set or rotate:
+
+```bash
+cd apps/team-memory
+npx wrangler secret put API_TOKEN
+```
+
+Then set `TEAM_MEMORY_TOKEN` in your shell profile to the same value.
 
 ## Hooks
 
 - **SessionStart**: Reminds the agent about the memory system and how to use /recall for task-relevant lookups
-- **SessionEnd**: Reads transcript JSONL, extracts user/assistant messages, POSTs to `/sessions`
-- **Export**: Syncs memories to MEMORY.md between `<!-- BEGIN TEAM-MEMORY -->` / `<!-- END TEAM-MEMORY -->` markers
+- **SessionEnd**: Reads transcript JSONL, extracts user/assistant messages, POSTs to `/sessions` (requires `TEAM_MEMORY_TOKEN`)
+- **Export**: Syncs memories to MEMORY.md between `<!-- BEGIN TEAM-MEMORY -->` / `<!-- END TEAM-MEMORY -->` markers (requires `TEAM_MEMORY_TOKEN`)

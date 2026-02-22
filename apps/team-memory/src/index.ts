@@ -1,5 +1,6 @@
 import {Hono} from 'hono'
 import type {Env} from './types'
+import {requireAuth} from './middleware/auth'
 import {observationRoutes} from './routes/observations'
 import {searchRoutes} from './routes/search'
 import {contextRoutes} from './routes/context'
@@ -10,14 +11,20 @@ import {handleScheduled} from './routes/cron'
 
 const app = new Hono<{Bindings: Env}>()
 
+// Public - no auth required
 app.get('/health', (c) => c.json({status: 'ok'}))
 
-app.route('/observations', observationRoutes)
-app.route('/search', searchRoutes)
-app.route('/context', contextRoutes)
-app.route('/feedback', feedbackRoutes)
-app.route('/sessions', sessionRoutes)
-app.route('/export', exportRoutes)
+// Protected routes - require Bearer token auth
+const api = new Hono<{Bindings: Env}>()
+api.use('*', requireAuth)
+api.route('/observations', observationRoutes)
+api.route('/search', searchRoutes)
+api.route('/context', contextRoutes)
+api.route('/feedback', feedbackRoutes)
+api.route('/sessions', sessionRoutes)
+api.route('/export', exportRoutes)
+
+app.route('/', api)
 
 export default {
 	fetch: app.fetch,

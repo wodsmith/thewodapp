@@ -10,6 +10,12 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 
 const BASE_URL = process.env.TEAM_MEMORY_URL || "http://localhost:8787";
+const API_TOKEN = process.env.TEAM_MEMORY_TOKEN;
+
+if (!API_TOKEN) {
+	console.error("Error: TEAM_MEMORY_TOKEN environment variable is required");
+	process.exit(1);
+}
 const MEMORY_PATH =
 	process.env.TEAM_MEMORY_FILE ||
 	`${process.cwd()}/MEMORY.md`;
@@ -18,7 +24,9 @@ const BEGIN_MARKER = "<!-- BEGIN TEAM-MEMORY -->";
 const END_MARKER = "<!-- END TEAM-MEMORY -->";
 
 try {
-	const res = await fetch(`${BASE_URL}/export`);
+	const res = await fetch(`${BASE_URL}/export`, {
+		headers: {Authorization: `Bearer ${API_TOKEN}`},
+	});
 
 	if (!res.ok) {
 		console.error(`Export failed (${res.status}): ${await res.text()}`);

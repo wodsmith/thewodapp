@@ -16,8 +16,14 @@ import {readFileSync, existsSync} from "fs";
 import {spawn} from "node:child_process";
 
 const BASE_URL = process.env.TEAM_MEMORY_URL || "https://team-memory.zacjones93.workers.dev";
+const API_TOKEN = process.env.TEAM_MEMORY_TOKEN;
 const MAX_MESSAGES = 200;
 const MAX_CONTENT_LENGTH = 5000;
+
+if (!API_TOKEN) {
+	console.error("session-end: TEAM_MEMORY_TOKEN environment variable is required");
+	process.exit(0);
+}
 
 interface HookInput {
 	session_id: string;
@@ -197,7 +203,10 @@ function spawnExtractionAgent(
 
 					const res = await fetch(`${BASE_URL}/observations`, {
 						method: "POST",
-						headers: {"Content-Type": "application/json"},
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `Bearer ${API_TOKEN}`,
+						},
 						body: JSON.stringify({
 							content: obs.content,
 							category: obs.category,
@@ -268,7 +277,10 @@ try {
 
 	const res = await fetch(`${BASE_URL}/sessions`, {
 		method: "POST",
-		headers: {"Content-Type": "application/json"},
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${API_TOKEN}`,
+		},
 		body: JSON.stringify({
 			userId: "claude-code",
 			messages,
