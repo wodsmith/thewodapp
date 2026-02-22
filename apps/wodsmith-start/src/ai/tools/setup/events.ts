@@ -175,17 +175,21 @@ export const createEvent = createTool({
 		})
 
 		if (!track) {
-			const [newTrack] = await db
+			const trackId = `pt_${createId()}`
+			await db
 				.insert(programmingTracksTable)
 				.values({
+					id: trackId,
 					name: `${competition.name} Events`,
 					type: PROGRAMMING_TRACK_TYPE.TEAM_OWNED,
 					ownerTeamId: teamId,
 					competitionId,
 					isPublic: 0,
 				})
-				.returning()
-			track = newTrack
+			track = await db.query.programmingTracksTable.findFirst({
+				where: eq(programmingTracksTable.id, trackId),
+			})
+			if (!track) return { error: "Failed to create programming track" }
 		}
 
 		// Get max order if not provided
@@ -201,7 +205,7 @@ export const createEvent = createTool({
 
 		// Create the workout
 		const workoutId = `workout_${createId()}`
-		const [workout] = await db
+		await db
 			.insert(workoutsTable)
 			.values({
 				id: workoutId,
@@ -212,32 +216,32 @@ export const createEvent = createTool({
 				teamId: teamId ?? null,
 				scope: "private",
 			})
-			.returning()
 
 		// Create the track workout (event)
-		const [event] = await db
+		const eventId = `tw_${createId()}`
+		await db
 			.insert(trackWorkoutsTable)
 			.values({
+				id: eventId,
 				trackId: track.id,
-				workoutId: workout.id,
+				workoutId,
 				trackOrder: finalOrder,
 				pointsMultiplier,
 				eventStatus: "draft",
 				heatStatus: "draft",
 			})
-			.returning()
 
 		return {
 			success: true,
 			event: {
-				id: event.id,
-				order: event.trackOrder,
-				eventStatus: event.eventStatus,
+				id: eventId,
+				order: finalOrder,
+				eventStatus: "draft",
 				workout: {
-					id: workout.id,
-					name: workout.name,
-					scheme: workout.scheme,
-					timeCap: workout.timeCap,
+					id: workoutId,
+					name,
+					scheme,
+					timeCap: timeCap ?? null,
 				},
 			},
 		}

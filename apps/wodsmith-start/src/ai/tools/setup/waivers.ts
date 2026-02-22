@@ -7,6 +7,7 @@
 import { createTool } from "@mastra/core/tools"
 import { z } from "zod"
 import { eq, and } from "drizzle-orm"
+import { createId } from "@paralleldrive/cuid2"
 
 import { getDb } from "@/db"
 import { competitionsTable } from "@/db/schemas/competitions"
@@ -163,24 +164,25 @@ export const createWaiver = createTool({
 		}
 
 		// Create waiver
-		const [waiver] = await db
+		const waiverId = `waiver_${createId()}`
+		await db
 			.insert(waiversTable)
 			.values({
+				id: waiverId,
 				competitionId,
 				title,
 				content,
 				required,
 				position: finalPosition,
 			})
-			.returning()
 
 		return {
 			success: true,
 			waiver: {
-				id: waiver.id,
-				title: waiver.title,
-				required: waiver.required,
-				position: waiver.position,
+				id: waiverId,
+				title,
+				required,
+				position: finalPosition,
 			},
 		}
 	},

@@ -39,7 +39,7 @@ export const Route = createFileRoute("/api/ai/threads/")({
 						50,
 					)
 
-					const memory = createMemory()
+					const memory = await createMemory()
 
 					// List threads for this user (resourceId = user.id)
 					// Note: Mastra Memory API uses 0-indexed pages

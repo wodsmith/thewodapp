@@ -9,6 +9,7 @@
 import { createTool } from "@mastra/core/tools"
 import { z } from "zod"
 import { eq, and } from "drizzle-orm"
+import { createId } from "@paralleldrive/cuid2"
 
 import { getDb } from "@/db"
 import { competitionsTable } from "@/db/schemas/competitions"
@@ -247,17 +248,18 @@ export const createDivision = createTool({
 
 		// If no scaling group, create one for this competition
 		if (!scalingGroupId) {
-			const [newGroup] = await db
+			const newGroupId = `sg_${createId()}`
+			await db
 				.insert(scalingGroupsTable)
 				.values({
+					id: newGroupId,
 					title: `${competition.name} Divisions`,
 					teamId: teamId ?? null,
 					isDefault: 0,
 					isSystem: 0,
 				})
-				.returning()
 
-			scalingGroupId = newGroup.id
+			scalingGroupId = newGroupId
 
 			// Update competition settings
 			const newSettings = {
@@ -285,20 +287,21 @@ export const createDivision = createTool({
 		}
 
 		// Create the scaling level (division)
-		const [newDivision] = await db
+		const newDivisionId = `sl_${createId()}`
+		await db
 			.insert(scalingLevelsTable)
 			.values({
+				id: newDivisionId,
 				scalingGroupId: scalingGroupId,
 				label: name,
 				position: finalPosition,
 				teamSize,
 			})
-			.returning()
 
 		// Create the competition-specific config
 		await db.insert(competitionDivisionsTable).values({
 			competitionId,
-			divisionId: newDivision.id,
+			divisionId: newDivisionId,
 			feeCents,
 			description: description ?? null,
 		})
@@ -306,10 +309,10 @@ export const createDivision = createTool({
 		return {
 			success: true,
 			division: {
-				id: newDivision.id,
-				name: newDivision.label,
-				position: newDivision.position,
-				teamSize: newDivision.teamSize,
+				id: newDivisionId,
+				name,
+				position: finalPosition,
+				teamSize,
 				feeCents,
 				description,
 			},

@@ -36,7 +36,6 @@ export const createMemory = createServerOnlyFn(() => {
 	const storage = new PlanetScaleStore({
 		id: "wodsmith-memory",
 		url: databaseUrl,
-		tablePrefix: "mastra_",
 	})
 
 	// Create Vectorize store using REST API

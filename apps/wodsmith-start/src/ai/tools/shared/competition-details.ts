@@ -280,7 +280,7 @@ export const listCompetitions = createTool({
 				visibility: competitionsTable.visibility,
 				registrationCount: sql<number>`(
           SELECT COUNT(*) FROM competition_registrations
-          WHERE competition_registrations.eventId = competitions.id
+          WHERE competition_registrations.event_id = competitions.id
         )`.as("registrationCount"),
 			})
 			.from(competitionsTable)

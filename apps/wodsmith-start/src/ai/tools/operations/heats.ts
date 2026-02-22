@@ -5,6 +5,7 @@
 import { createTool } from "@mastra/core/tools"
 import { z } from "zod"
 import { eq, and, inArray } from "drizzle-orm"
+import { createId } from "@paralleldrive/cuid2"
 
 import { getDb } from "@/db"
 import {
@@ -176,9 +177,11 @@ export const createHeat = createTool({
 		}
 
 		// Create heat
-		const [heat] = await db
+		const heatId = `heat_${createId()}`
+		await db
 			.insert(competitionHeatsTable)
 			.values({
+				id: heatId,
 				competitionId,
 				trackWorkoutId: eventId,
 				heatNumber,
@@ -187,14 +190,13 @@ export const createHeat = createTool({
 				venueId: venueId ?? null,
 				divisionId: divisionId ?? null,
 			})
-			.returning()
 
 		return {
 			success: true,
 			heat: {
-				id: heat.id,
-				heatNumber: heat.heatNumber,
-				scheduledTime: heat.scheduledTime?.toISOString(),
+				id: heatId,
+				heatNumber,
+				scheduledTime: scheduledTime ?? null,
 			},
 		}
 	},
@@ -265,22 +267,23 @@ export const assignAthleteToHeat = createTool({
 		}
 
 		// Create assignment
-		const [assignment] = await db
+		const assignmentId = `cha_${createId()}`
+		await db
 			.insert(competitionHeatAssignmentsTable)
 			.values({
+				id: assignmentId,
 				heatId,
 				registrationId,
 				laneNumber,
 			})
-			.returning()
 
 		return {
 			success: true,
 			assignment: {
-				id: assignment.id,
-				heatId: assignment.heatId,
-				registrationId: assignment.registrationId,
-				laneNumber: assignment.laneNumber,
+				id: assignmentId,
+				heatId,
+				registrationId,
+				laneNumber,
 			},
 		}
 	},

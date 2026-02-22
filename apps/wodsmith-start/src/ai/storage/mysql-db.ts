@@ -8,6 +8,11 @@
 import { Client } from "@planetscale/database"
 import type { StorageColumn, StorageColumnType } from "@mastra/core/storage"
 
+/** Convert a Date to MySQL DATETIME(3) format */
+export function toMySQLDatetime(date: Date): string {
+	return date.toISOString().replace("T", " ").replace("Z", "")
+}
+
 interface MysqlDBConfig {
 	url: string
 	tablePrefix?: string
@@ -71,7 +76,7 @@ export class MysqlDB {
 	getSqlType(type: StorageColumnType): string {
 		switch (type) {
 			case "text":
-				return "VARCHAR(255)"
+				return "TEXT"
 			case "timestamp":
 				return "DATETIME(3)"
 			case "uuid":
@@ -114,7 +119,10 @@ export class MysqlDB {
 
 	serializeValue(value: unknown): unknown {
 		if (value === null || value === undefined) return null
-		if (value instanceof Date) return value.toISOString()
+		if (value instanceof Date) {
+			// MySQL DATETIME(3) format: YYYY-MM-DD HH:MM:SS.mmm
+			return value.toISOString().replace("T", " ").replace("Z", "")
+		}
 		if (typeof value === "object") return JSON.stringify(value)
 		return value
 	}

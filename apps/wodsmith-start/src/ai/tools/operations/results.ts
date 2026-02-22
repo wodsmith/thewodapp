@@ -5,6 +5,7 @@
 import { createTool } from "@mastra/core/tools"
 import { z } from "zod"
 import { eq, and } from "drizzle-orm"
+import { createId } from "@paralleldrive/cuid2"
 
 import { getDb } from "@/db"
 import {
@@ -153,9 +154,11 @@ export const enterResult = createTool({
 		}
 
 		// Create new score
-		const [score] = await db
+		const scoreId = `score_${createId()}`
+		await db
 			.insert(scoresTable)
 			.values({
+				id: scoreId,
 				userId: registration.userId,
 				teamId: competition.organizingTeamId,
 				workoutId: event.workoutId,
@@ -173,11 +176,10 @@ export const enterResult = createTool({
 					: null,
 				recordedAt: new Date(),
 			})
-			.returning()
 
 		return {
 			success: true,
-			scoreId: score.id,
+			scoreId,
 			action: "created",
 		}
 	},

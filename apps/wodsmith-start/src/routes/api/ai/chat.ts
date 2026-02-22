@@ -120,6 +120,13 @@ export const Route = createFileRoute("/api/ai/chat")({
 					// Use provided threadId or generate a new one
 					const threadId = requestThreadId || generateThreadId()
 
+					// When using Mastra memory with threads, only send the latest user message.
+					// Mastra memory loads conversation history from the thread storage.
+					// Sending the full history from the client causes duplicate reasoning
+					// items in the OpenAI Responses API input array.
+					const lastMessage = filteredMessages[filteredMessages.length - 1]
+					const messagesToStream = lastMessage ? [lastMessage] : filteredMessages
+
 					// Create request context for multi-tenant operations
 					const requestContext = createRequestContext({
 						user: session.user,
@@ -130,9 +137,9 @@ export const Route = createFileRoute("/api/ai/chat")({
 					})
 
 					// Stream agent response with memory threading
-					// Cast is safe since we only filter parts, not change message structure
+					// Only send latest message; memory loads history from thread storage
 					const agentStream = await competitionRouter.stream(
-						filteredMessages as Parameters<typeof competitionRouter.stream>[0],
+						messagesToStream as Parameters<typeof competitionRouter.stream>[0],
 						{
 							requestContext,
 							// Allow multiple tool calls for complex operations like creating competitions

@@ -13,20 +13,19 @@ import {
 	ensureDate,
 	normalizePerPage,
 	calculatePagination,
-	serializeDate,
 } from "@mastra/core/storage"
 import type {
 	StorageResourceType,
 	StorageListMessagesInput,
 	StorageListMessagesOutput,
-	StorageListThreadsByResourceIdInput,
-	StorageListThreadsByResourceIdOutput,
+	StorageListThreadsInput,
+	StorageListThreadsOutput,
 } from "@mastra/core/storage"
 import { MessageList } from "@mastra/core/agent"
 import type { MastraMessageContentV2 } from "@mastra/core/agent"
 import type { MastraDBMessage, StorageThreadType } from "@mastra/core/memory"
 
-import { MysqlDB } from "./mysql-db"
+import { MysqlDB, toMySQLDatetime } from "./mysql-db"
 
 function isArrayOfRecords(
 	value: unknown,
@@ -47,6 +46,45 @@ function deserializeValue(value: unknown): unknown {
 		}
 	}
 	return value
+}
+
+/**
+ * Strip providerMetadata from reasoning parts in message content.
+ *
+ * Works around a Mastra core bug where the first response's reasoning
+ * providerMetadata (containing an OpenAI `rs_xxx` itemId) leaks into
+ * subsequent assistant messages. When these stale itemIds are replayed
+ * to OpenAI's Responses API, it rejects with "Duplicate item found".
+ *
+ * By stripping providerMetadata from stored reasoning, OpenAI generates
+ * fresh reasoning IDs for each request.
+ */
+function stripReasoningProviderMetadata(content: unknown): unknown {
+	if (typeof content === "string") {
+		try {
+			const parsed = JSON.parse(content)
+			const stripped = stripReasoningProviderMetadata(parsed)
+			return JSON.stringify(stripped)
+		} catch {
+			return content
+		}
+	}
+	if (typeof content !== "object" || content === null) return content
+
+	const obj = content as Record<string, unknown>
+	if (Array.isArray(obj.parts)) {
+		return {
+			...obj,
+			parts: (obj.parts as Record<string, unknown>[]).map((part) => {
+				if (part.type === "reasoning") {
+					const { providerMetadata, ...rest } = part
+					return rest
+				}
+				return part
+			}),
+		}
+	}
+	return content
 }
 
 interface MemoryStorageMySQLConfig {
@@ -180,7 +218,7 @@ export class MemoryStorageMySQL extends MemoryStorage {
 			params: [
 				updatedResource.workingMemory,
 				JSON.stringify(updatedResource.metadata),
-				updatedAt.toISOString(),
+				toMySQLDatetime(updatedAt),
 				resourceId,
 			],
 		})
@@ -210,10 +248,10 @@ export class MemoryStorageMySQL extends MemoryStorage {
 		}
 	}
 
-	async listThreadsByResourceId(
-		args: StorageListThreadsByResourceIdInput,
-	): Promise<StorageListThreadsByResourceIdOutput> {
-		const { resourceId, page = 0, perPage: perPageInput, orderBy } = args
+	async listThreads(
+		args: StorageListThreadsInput,
+	): Promise<StorageListThreadsOutput> {
+		const { filter, page = 0, perPage: perPageInput, orderBy } = args
 		const perPage = normalizePerPage(perPageInput, 100)
 		const { offset, perPage: perPageForResponse } = calculatePagination(
 			page,
@@ -224,9 +262,27 @@ export class MemoryStorageMySQL extends MemoryStorage {
 
 		const fullTableName = this.#db.getTableName(TABLE_THREADS)
 
+		// Build WHERE clause from filter
+		const conditions: string[] = []
+		const params: unknown[] = []
+
+		if (filter?.resourceId) {
+			conditions.push("`resourceId` = ?")
+			params.push(filter.resourceId)
+		}
+
+		if (filter?.metadata) {
+			for (const [key, value] of Object.entries(filter.metadata)) {
+				conditions.push(`JSON_EXTRACT(\`metadata\`, ?) = ?`)
+				params.push(`$.${key}`, typeof value === "string" ? value : JSON.stringify(value))
+			}
+		}
+
+		const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : ""
+
 		const countResult = await this.#db.executeQuery({
-			sql: `SELECT COUNT(*) AS count FROM \`${fullTableName}\` WHERE \`resourceId\` = ?`,
-			params: [resourceId],
+			sql: `SELECT COUNT(*) AS count FROM \`${fullTableName}\` ${whereClause}`,
+			params,
 		})
 		const total = Number(
 			(countResult as Record<string, unknown>[])?.[0]?.count ?? 0,
@@ -234,8 +290,8 @@ export class MemoryStorageMySQL extends MemoryStorage {
 
 		const limitValue = perPageInput === false ? total : perPage
 		const results = await this.#db.executeQuery({
-			sql: `SELECT * FROM \`${fullTableName}\` WHERE \`resourceId\` = ? ORDER BY \`${field}\` ${direction} LIMIT ? OFFSET ?`,
-			params: [resourceId, limitValue, offset],
+			sql: `SELECT * FROM \`${fullTableName}\` ${whereClause} ORDER BY \`${field}\` ${direction} LIMIT ? OFFSET ?`,
+			params: [...params, limitValue, offset],
 		})
 
 		const threads = (results as Record<string, unknown>[]).map(
@@ -273,8 +329,8 @@ export class MemoryStorageMySQL extends MemoryStorage {
 				metadata: thread.metadata
 					? JSON.stringify(thread.metadata)
 					: null,
-				createdAt: thread.createdAt.toISOString(),
-				updatedAt: thread.updatedAt.toISOString(),
+				createdAt: toMySQLDatetime(thread.createdAt),
+				updatedAt: toMySQLDatetime(thread.updatedAt),
 			},
 			conflictColumns: ["id"],
 			updateColumns: [
@@ -316,7 +372,7 @@ export class MemoryStorageMySQL extends MemoryStorage {
 			params: [
 				title,
 				JSON.stringify(mergedMetadata),
-				updatedAt.toISOString(),
+				toMySQLDatetime(updatedAt),
 				id,
 			],
 		})
@@ -369,34 +425,87 @@ export class MemoryStorageMySQL extends MemoryStorage {
 			if (!thread) throw new Error(`Thread ${message.threadId} not found`)
 		}
 
-		const messagesToInsert = messages.map((message) => {
+		// Deduplicate: fetch existing message IDs for this thread so we can
+		// skip messages whose content already exists (prevents the Mastra
+		// providerMetadata leak from creating duplicate assistant messages).
+		const fullTableName = this.#db.getTableName(TABLE_MESSAGES)
+		const existingRows = await this.#db.executeQuery({
+			sql: `SELECT id, content FROM \`${fullTableName}\` WHERE \`thread_id\` = ?`,
+			params: [threadId],
+		})
+		const existingById = new Map<string, string>()
+		const existingContentSet = new Set<string>()
+		if (Array.isArray(existingRows)) {
+			for (const row of existingRows as { id: string; content: string }[]) {
+				existingById.set(row.id, row.content)
+				existingContentSet.add(row.content)
+			}
+		}
+
+		const messagesToInsert: Array<{
+			id: string
+			thread_id: string
+			content: string
+			createdAt: string
+			role: string
+			type: string
+			resourceId: string
+		}> = []
+
+		for (const message of messages) {
+			const contentStr =
+				typeof message.content === "string"
+					? message.content
+					: JSON.stringify(message.content)
 			const createdAt = message.createdAt
 				? new Date(message.createdAt)
 				: now
-			return {
+
+			// If this exact ID already exists, allow upsert (update)
+			if (existingById.has(message.id)) {
+				messagesToInsert.push({
+					id: message.id,
+					thread_id: message.threadId,
+					content: contentStr,
+					createdAt: toMySQLDatetime(createdAt),
+					role: message.role,
+					type: message.type || "v2",
+					resourceId: message.resourceId,
+				})
+				continue
+			}
+
+			// Skip if identical content already exists in this thread
+			// (prevents duplicate assistant messages from providerMetadata leak)
+			if (existingContentSet.has(contentStr)) {
+				continue
+			}
+
+			messagesToInsert.push({
 				id: message.id,
 				thread_id: message.threadId,
-				content:
-					typeof message.content === "string"
-						? message.content
-						: JSON.stringify(message.content),
-				createdAt: createdAt.toISOString(),
+				content: contentStr,
+				createdAt: toMySQLDatetime(createdAt),
 				role: message.role,
 				type: message.type || "v2",
 				resourceId: message.resourceId,
-			}
-		})
+			})
+			// Track so subsequent messages in this batch are also deduped
+			existingContentSet.add(contentStr)
+		}
 
-		await this.#db.batchUpsert({
-			tableName: TABLE_MESSAGES,
-			records: messagesToInsert,
-		})
+		if (messagesToInsert.length > 0) {
+			await this.#db.batchUpsert({
+				tableName: TABLE_MESSAGES,
+				records: messagesToInsert,
+			})
+		}
 
 		// Update thread's updatedAt timestamp
 		const threadsTable = this.#db.getTableName(TABLE_THREADS)
 		await this.#db.executeQuery({
 			sql: `UPDATE \`${threadsTable}\` SET \`updatedAt\` = ? WHERE \`id\` = ?`,
-			params: [now.toISOString(), threadId],
+			params: [toMySQLDatetime(now), threadId],
 		})
 
 		const list = new MessageList().add(messages, "memory")
@@ -490,7 +599,13 @@ export class MemoryStorageMySQL extends MemoryStorage {
 			const processedMsg: Record<string, unknown> = {}
 			for (const [key, value] of Object.entries(message)) {
 				if (key === "type" && value === "v2") continue
-				processedMsg[key] = deserializeValue(value)
+				if (key === "content") {
+					processedMsg[key] = stripReasoningProviderMetadata(
+						deserializeValue(value),
+					)
+				} else {
+					processedMsg[key] = deserializeValue(value)
+				}
 			}
 			return processedMsg
 		})
@@ -544,19 +659,17 @@ export class MemoryStorageMySQL extends MemoryStorage {
 
 		const dateRange = filter?.dateRange
 		if (dateRange?.start) {
-			const startDate =
-				dateRange.start instanceof Date
-					? serializeDate(dateRange.start)
-					: serializeDate(new Date(dateRange.start))
+			const startDate = toMySQLDatetime(
+				dateRange.start instanceof Date ? dateRange.start : new Date(dateRange.start),
+			)
 			const startOp = dateRange.startExclusive ? ">" : ">="
 			query += ` AND \`createdAt\` ${startOp} ?`
 			queryParams.push(startDate)
 		}
 		if (dateRange?.end) {
-			const endDate =
-				dateRange.end instanceof Date
-					? serializeDate(dateRange.end)
-					: serializeDate(new Date(dateRange.end))
+			const endDate = toMySQLDatetime(
+				dateRange.end instanceof Date ? dateRange.end : new Date(dateRange.end),
+			)
 			const endOp = dateRange.endExclusive ? "<" : "<="
 			query += ` AND \`createdAt\` ${endOp} ?`
 			queryParams.push(endDate)
@@ -580,7 +693,15 @@ export class MemoryStorageMySQL extends MemoryStorage {
 			const processedMsg: Record<string, unknown> = {}
 			for (const [key, value] of Object.entries(message)) {
 				if (key === "type" && value === "v2") continue
-				processedMsg[key] = deserializeValue(value)
+				if (key === "content") {
+					// Strip stale reasoning providerMetadata to prevent
+					// duplicate rs_ itemIds when replayed to OpenAI
+					processedMsg[key] = stripReasoningProviderMetadata(
+						deserializeValue(value),
+					)
+				} else {
+					processedMsg[key] = deserializeValue(value)
+				}
 			}
 			return processedMsg
 		})
@@ -596,19 +717,17 @@ export class MemoryStorageMySQL extends MemoryStorage {
 			countParams.push(resourceId)
 		}
 		if (dateRange?.start) {
-			const startDate =
-				dateRange.start instanceof Date
-					? serializeDate(dateRange.start)
-					: serializeDate(new Date(dateRange.start))
+			const startDate = toMySQLDatetime(
+				dateRange.start instanceof Date ? dateRange.start : new Date(dateRange.start),
+			)
 			const startOp = dateRange.startExclusive ? ">" : ">="
 			countQuery += ` AND \`createdAt\` ${startOp} ?`
 			countParams.push(startDate)
 		}
 		if (dateRange?.end) {
-			const endDate =
-				dateRange.end instanceof Date
-					? serializeDate(dateRange.end)
-					: serializeDate(new Date(dateRange.end))
+			const endDate = toMySQLDatetime(
+				dateRange.end instanceof Date ? dateRange.end : new Date(dateRange.end),
+			)
 			const endOp = dateRange.endExclusive ? "<" : "<="
 			countQuery += ` AND \`createdAt\` ${endOp} ?`
 			countParams.push(endDate)
@@ -834,7 +953,7 @@ export class MemoryStorageMySQL extends MemoryStorage {
 			await this.#db.executeQuery({
 				sql: `UPDATE \`${threadsTableName}\` SET \`updatedAt\` = ? WHERE \`id\` IN (${threadPlaceholders})`,
 				params: [
-					new Date().toISOString(),
+					toMySQLDatetime(new Date()),
 					...Array.from(threadIdsToUpdate),
 				],
 			})
@@ -884,7 +1003,7 @@ export class MemoryStorageMySQL extends MemoryStorage {
 			const threadPlaceholders = threadIds.map(() => "?").join(",")
 			await this.#db.executeQuery({
 				sql: `UPDATE \`${threadsTableName}\` SET \`updatedAt\` = ? WHERE \`id\` IN (${threadPlaceholders})`,
-				params: [new Date().toISOString(), ...threadIds],
+				params: [toMySQLDatetime(new Date()), ...threadIds],
 			})
 		}
 	}

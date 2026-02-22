@@ -54,12 +54,20 @@ export function AIChat({
 }: AIChatProps) {
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const [input, setInput] = useState("")
-	const [currentThreadId, setCurrentThreadId] = useState(propThreadId)
 
-	// Update currentThreadId when prop changes
+	// Use a ref for threadId so transport body stays current without
+	// recreating the transport (which would reset useChat mid-request).
+	const threadIdRef = useRef(propThreadId)
+	const onThreadChangeRef = useRef(onThreadChange)
+	onThreadChangeRef.current = onThreadChange
+
+	// Update ref when prop changes (e.g. navigating to an existing thread)
 	useEffect(() => {
-		setCurrentThreadId(propThreadId)
+		threadIdRef.current = propThreadId
 	}, [propThreadId])
+
+	// Stable chat instance ID - doesn't change when threadId arrives
+	const [chatId] = useState(() => propThreadId ?? `chat_${crypto.randomUUID()}`)
 
 	// Prepare initial messages - combine context with loaded messages
 	const combinedInitialMessages = useMemo(() => {
@@ -82,28 +90,38 @@ export function AIChat({
 		return msgs.length > 0 ? msgs : undefined
 	}, [initialContext, propInitialMessages])
 
-	// Create transport with custom fetch to capture threadId from response
+	// Stable transport - uses refs so it never recreates during a request.
+	// The threadId in the body reads from the ref at fetch time.
 	const transport = useMemo(() => {
 		return new DefaultChatTransport({
 			api: "/api/ai/chat",
-			body: { threadId: currentThreadId },
-			fetch: async (url, options) => {
-				const response = await fetch(url, options)
+			// body is read at fetch time via the custom fetch below
+			body: {},
+			fetch: async (url, init) => {
+				// Inject the current threadId into the request body
+				if (init?.body) {
+					const parsed = JSON.parse(init.body as string)
+					parsed.threadId = threadIdRef.current
+					init = { ...init, body: JSON.stringify(parsed) }
+				}
 
-				// Check for new threadId in response headers
+				const response = await fetch(url, init)
+
+				// Capture new threadId from response without disrupting useChat
 				const responseThreadId = response.headers.get("X-Thread-Id")
-				if (responseThreadId && responseThreadId !== currentThreadId) {
-					setCurrentThreadId(responseThreadId)
-					onThreadChange?.(responseThreadId)
+				if (responseThreadId && responseThreadId !== threadIdRef.current) {
+					threadIdRef.current = responseThreadId
+					onThreadChangeRef.current?.(responseThreadId)
 				}
 
 				return response
 			},
 		})
-	}, [currentThreadId, onThreadChange])
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [])
 
 	const { messages, sendMessage, regenerate, status, error } = useChat({
-		id: currentThreadId,
+		id: chatId,
 		messages: combinedInitialMessages,
 		transport,
 	})
