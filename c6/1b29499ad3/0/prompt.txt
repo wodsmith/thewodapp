@@ -1,0 +1,152 @@
+is there something I have to do to get cloudflare workflows to function properly in development? I'm testing stripe and registration is handled through workflows
+
+---
+
+Base directory for this skill: /Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/.claude/skills/team-memory
+
+# Team Memory
+
+Manage a shared team memory system backed by a Cloudflare Worker with semantic search.
+
+## Commands
+
+### /remember — Store an observation
+
+Save a new observation to team memory.
+
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/remember.ts "<observation text>" [--category=<category>] [--priority=<priority>]
+```
+
+**Categories:** `convention`, `gotcha`, `debugging`, `architecture`, `workflow`
+**Priorities:** `critical`, `moderate`, `ephemeral`
+
+Defaults: category=convention, priority=moderate
+
+Examples:
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/remember.ts "PlanetScale returns strings for COUNT columns — always wrap with Number()" --category=gotcha --priority=critical
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/remember.ts "Use ULID for ID generation, not CUID2" --category=convention
+```
+
+### /recall — Search memories
+
+Search team memory by semantic query.
+
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/recall.ts "<query>" [--limit=<n>] [--category=<category>] [--priority=<priority>]
+```
+
+Default limit: 5. Results are ranked by relevance.
+
+Examples:
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/recall.ts "database migration patterns"
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/recall.ts "Stripe" --category=gotcha --limit=10
+```
+
+### /feedback — Rate a memory
+
+Provide feedback on a memory's usefulness.
+
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/feedback.ts <observation-id> <signal> [--note="<reason>"]
+```
+
+**Signals:** `helpful`, `harmful`, `irrelevant`
+
+Examples:
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/feedback.ts 01J5K3M2N7 helpful --note="Saved me from a production bug"
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/feedback.ts 01J5K3M2N7 irrelevant
+```
+
+## Environment
+
+Production URL: `https://team-memory.zacjones93.workers.dev`
+
+All commands below include the env var inline. If `TEAM_MEMORY_URL` is already set in your shell, the prefix is optional.
+
+## Hooks
+
+- **SessionStart**: Reminds the agent about the memory system and how to use /recall for task-relevant lookups
+- **SessionEnd**: Reads transcript JSONL, extracts user/assistant messages, POSTs to `/sessions`
+- **Export**: Syncs memories to MEMORY.md between `<!-- BEGIN TEAM-MEMORY -->` / `<!-- END TEAM-MEMORY -->` markers
+
+
+ARGUMENTS: /recall "Cloudflare Workflows development local"
+
+---
+
+yeah I made a registration and didn't see any logs come through
+
+---
+
+I see these server logs but not1hing in the stripe webhook logs [vite] hot updated: virtual:cloudflare/worker-entry
+[INFO] [Registration] Payment initiation started {
+  competitionId: 'comp_yl7qp5curpr8753z9orzo0lb',
+  divisionCount: 2,
+  divisionIds: 'slvl_01KJ3FW8GY2JXSFWTH3S15C389,slvl_01KJ3FXH9BHZ92F00KKMYP70RH'
+}
+[INFO] [Registration] Checkout session created {
+  purchaseIds: 'cpur_01KJ3GKSXM87EKPT30F0SFVQV2,cpur_01KJ3GKT5TYSZYTBBMHBZ989MY',
+  competitionId: 'comp_yl7qp5curpr8753z9orzo0lb',
+  lineItemCount: 2,
+  totalCents: 6640,
+  hasConnectedAccount: true
+}
+1:38:19 PM [vite] .env changed, restarting server...
+1:38:23 PM [vite] server restarted.
+[INFO] [Registration] Payment initiation started {
+  competitionId: 'comp_yl7qp5curpr8753z9orzo0lb',
+  divisionCount: 2,
+  divisionIds: 'slvl_01KJ3FW8GY2JXSFWTH3S15C389,slvl_01KJ3FXH9BHZ92F00KKMYP70RH'
+}
+[INFO] [Registration] Checkout session created {
+  purchaseIds: 'REDACTED,cpur_01KJ3H8KAZARWC7DC81QFPPQA0',
+  competitionId: 'comp_yl7qp5curpr8753z9orzo0lb',
+  lineItemCount: 2,
+  totalCents: 6640,
+  hasConnectedAccount: true
+}
+
+---
+
+[Request interrupted by user]
+
+---
+
+please answer my question
+
+---
+
+yes, I'm not fucking stupid
+
+---
+
+I told you, there are no logs
+
+---
+
+ok payment failed LOG /src/lib/logging/posthog-otel-logger.ts:282:6 - http://localhost:3000/__tsd/open-source?source=%2Fsrc%2Flib%2Flogging%2Fposthog-otel-logger.ts%3A282%3A6
+ →  [ERROR] [Stripe Webhook] Processing failed {
+  eventType: 'checkout.session.completed',
+  error: {
+    message: "Cannot read properties of undefined (reading 'referencedTable')",
+    stack: "TypeError: Cannot read properties of undefined (reading 'referencedTable')\n" +
+      '    at normalizeRelation (/Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/apps/wodsmith-start/node_modules/.vite/deps_ssr/chunk-QSYG64V6.js:2884:75)\n' +
+      '    at MySqlDialect.buildRelationalQueryWithoutLateralSubqueries (/Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/apps/wodsmith-start/node_modules/.vite/deps_ssr/chunk-BVIY765V.js:2086:53)\n' +
+      '    at QueryPromise._getQuery (/Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/apps/wodsmith-start/node_modules/.vite/deps_ssr/chunk-BVIY765V.js:3588:62)\n' +
+      '    at QueryPromise._toL (/Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/apps/wodsmith-start/node_modules/.vite/deps_ssr/chunk-BVIY765V.js:3608:24)\n' +
+      '    at QueryPromise.prepare (/Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/apps/wodsmith-start/node_modules/.vite/deps_ssr/chunk-BVIY765V.js:3574:40)\n' +
+      '    at QueryPromise.execute (/Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/apps/wodsmith-start/node_modules/.vite/deps_ssr/chunk-BVIY765V.js:3620:17)\n' +
+      '    at QueryPromise.then (/Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/apps/wodsmith-start/node_modules/.vite/deps_ssr/chunk-QSYG64V6.js:1404:17)\n' +
+      '    at createRegistration (/Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/apps/wodsmith-start/src/workflows/stripe-checkout-workflow.ts:206:25)\n' +
+      '    at processCheckoutInline (/Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/apps/wodsmith-start/src/workflows/stripe-checkout-workflow.ts:566:29)\n' +
+      '    at POST (/Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/apps/wodsmith-start/src/routes/api/webhooks/stripe.ts:350:10)'
+  }
+}
+[INFO] [Stripe Webhook] Unhandled event type { eventType: 'payment.created' }
+[INFO] [Stripe Webhook] Unhandled event type { eventType: 'transfer.created' }
+[INFO] [Stripe Webhook] Unhandled event type { eventType: 'charge.updated' }
+[INFO] [Stripe Webhook] Unhandled event type { eventType: 'application_fee.created' }
