@@ -519,7 +519,7 @@ function getDomains(currentStage: string): string[] | undefined {
  * The webhook handler dispatches to this workflow keyed by Stripe event ID
  * for idempotency, then returns 200 immediately.
  */
-const stripeCheckoutWorkflow = Workflow("stripe-checkout-workflow", {
+const stripeCheckoutWorkflow = Workflow(`stripe-checkout-workflow-${stage}`, {
 	className: "StripeCheckoutWorkflow",
 })
 
