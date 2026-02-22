@@ -1,4 +1,8 @@
-import { createRouter } from "@tanstack/react-router"
+import {
+	type ErrorComponentProps,
+	createRouter,
+} from "@tanstack/react-router"
+import { captureException } from "./lib/posthog/utils"
 
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen"
@@ -14,6 +18,24 @@ function DefaultPendingComponent() {
 					100% { transform: translateX(400%); }
 				}
 			`}</style>
+		</div>
+	)
+}
+
+function DefaultErrorComponent({ reset }: ErrorComponentProps) {
+	return (
+		<div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8">
+			<h1 className="text-4xl font-bold">Something went wrong</h1>
+			<p className="text-lg text-muted-foreground">
+				An unexpected error occurred. Please try again.
+			</p>
+			<button
+				type="button"
+				onClick={reset}
+				className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+			>
+				Try Again
+			</button>
 		</div>
 	)
 }
@@ -38,6 +60,15 @@ export const getRouter = () => {
 		defaultPendingMs: 500, // Show loader after 500ms
 		defaultPendingMinMs: 200, // Minimum loader display time
 		defaultPendingComponent: DefaultPendingComponent,
+
+		// Error handling - report caught errors to PostHog and show fallback UI
+		defaultErrorComponent: DefaultErrorComponent,
+		defaultOnCatch: (error, errorInfo) => {
+			captureException(error, {
+				componentStack: errorInfo.componentStack,
+				source: "tanstack-router-error-boundary",
+			})
+		},
 	})
 
 	return router
