@@ -36,6 +36,17 @@ export async function login(
 
 	await signInButton.click()
 
+	// Wait a bit for the server function to complete
+	await page.waitForTimeout(2000)
+
+	// Check for any error messages on the page
+	const errorAlert = page.locator('[role="alert"], .alert-destructive, [class*="alert"]').first()
+	const hasError = await errorAlert.isVisible().catch(() => false)
+	if (hasError) {
+		const errorText = await errorAlert.textContent().catch(() => 'unknown error')
+		console.log('Sign-in error visible on page:', errorText)
+	}
+
 	// After login, app redirects to "/" (REDIRECT_AFTER_SIGN_IN)
 	await page.waitForURL(/^https?:\/\/[^/]+(\/)?$/, {
 		timeout: 15000,
