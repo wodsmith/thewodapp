@@ -240,14 +240,14 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 							registrationData.answers &&
 							registrationData.answers.length > 0
 						) {
-							for (const answer of registrationData.answers) {
-								await db.insert(competitionRegistrationAnswersTable).values({
+							await db.insert(competitionRegistrationAnswersTable).values(
+								registrationData.answers.map((answer) => ({
 									questionId: answer.questionId,
 									registrationId: result.registrationId,
 									userId,
 									answer: answer.answer,
-								})
-							}
+								})),
+							)
 						}
 
 						// Mark purchase as completed

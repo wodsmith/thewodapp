@@ -725,8 +725,15 @@ describe('Competition Heats Server Functions (TanStack)', () => {
             where: vi.fn().mockResolvedValue(undefined),
           }),
         }),
-        transaction: vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
-          return fn(reorderMock)
+        transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
+          const tx = {
+            update: vi.fn().mockReturnValue({
+              set: vi.fn().mockReturnValue({
+                where: vi.fn().mockResolvedValue(undefined),
+              }),
+            }),
+          }
+          return fn(tx)
         }),
       }
       mockDbInstance = reorderMock as unknown as ReturnType<typeof createDbMock>
@@ -1114,20 +1121,25 @@ describe('Competition Heats Server Functions (TanStack)', () => {
         laneNumber: 1,
       }
 
-      const moveMock: Record<string, unknown> = {
+      const txDelete = vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(undefined),
+      })
+      const txInsert = vi.fn().mockReturnValue({
+        values: vi.fn().mockResolvedValue(undefined),
+      })
+
+      const moveMock = {
         query: {
           competitionHeatAssignmentsTable: {
             findFirst: vi.fn().mockResolvedValue(currentAssignment),
           },
         },
-        delete: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue(undefined),
-        }),
-        insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockResolvedValue(undefined),
-        }),
         transaction: vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
-          return fn(moveMock)
+          const tx = {
+            delete: txDelete,
+            insert: txInsert,
+          }
+          return fn(tx)
         }),
       }
       mockDbInstance = moveMock as unknown as ReturnType<typeof createDbMock>
@@ -1141,8 +1153,8 @@ describe('Competition Heats Server Functions (TanStack)', () => {
       })
 
       expect(result.success).toBe(true)
-      expect(moveMock.delete).toHaveBeenCalled()
-      expect(moveMock.insert).toHaveBeenCalled()
+      expect(txDelete).toHaveBeenCalled()
+      expect(txInsert).toHaveBeenCalled()
     })
 
     it('throws error when assignment not found', async () => {
@@ -1169,12 +1181,21 @@ describe('Competition Heats Server Functions (TanStack)', () => {
 
   describe('getUnassignedRegistrationsFn', () => {
     it('returns empty array when no unassigned registrations', async () => {
-      // Mock: All registrations are assigned (SQL filtering returns empty)
+      // Mock: All registrations are assigned
+      const assignedIds = [{registrationId: 'creg_1'}]
+
+      // The implementation now does:
+      // 1. db.select().from(heatAssignments).innerJoin(heats).where() -> assigned IDs
+      // 2. db.select().from(registrations).where(notInArray) -> unassigned regs (empty)
+      let queryCount = 0
       const unassignedMock = {
         select: vi.fn().mockReturnValue({
           from: vi.fn().mockReturnValue({
             innerJoin: vi.fn().mockReturnValue({
-              where: vi.fn().mockResolvedValue([{registrationId: 'creg_1'}]),
+              where: vi.fn().mockImplementation(() => {
+                queryCount++
+                return Promise.resolve(assignedIds)
+              }),
             }),
             where: vi.fn().mockResolvedValue([]), // No unassigned registrations after SQL filter
           }),
@@ -1195,32 +1216,34 @@ describe('Competition Heats Server Functions (TanStack)', () => {
     })
 
     it('returns unassigned registrations with user details', async () => {
-      // creg_1 is assigned, creg_2 is unassigned
+      const assignedIds = [{registrationId: 'creg_1'}] // creg_1 is assigned
+      const unassignedRegistrations = [
+        {
+          id: 'creg_2',
+          teamName: null,
+          userId: 'user_2',
+          divisionId: 'div_1',
+        }, // creg_2 is unassigned
+      ]
       const users = [{id: 'user_2', firstName: 'Jane', lastName: 'Doe'}]
       const divisions = [{id: 'div_1', label: 'RX'}]
 
+      // The implementation now does:
+      // 1. db.select().from(heatAssignments).innerJoin(heats).where() -> assigned IDs
+      // 2. db.select().from(registrations).where(notInArray) -> unassigned regs
+      // 3. db.select().from(users).where(inArray) -> users
+      // 4. db.select().from(divisions).where(inArray) -> divisions
       let whereCount = 0
       const unassignedMock = {
         select: vi.fn().mockReturnValue({
           from: vi.fn().mockReturnValue({
             innerJoin: vi.fn().mockReturnValue({
-              where: vi.fn().mockResolvedValue([{registrationId: 'creg_1'}]),
+              where: vi.fn().mockResolvedValue(assignedIds),
             }),
             where: vi.fn().mockImplementation(() => {
               whereCount++
-              // Query 1: unassigned registrations (SQL filters out creg_1)
-              if (whereCount === 1)
-                return Promise.resolve([
-                  {
-                    id: 'creg_2',
-                    teamName: null,
-                    userId: 'user_2',
-                    divisionId: 'div_1',
-                  },
-                ])
-              // Query 2: users for unassigned registrations
+              if (whereCount === 1) return Promise.resolve(unassignedRegistrations)
               if (whereCount === 2) return Promise.resolve(users)
-              // Query 3: divisions
               return Promise.resolve(divisions)
             }),
           }),
@@ -1244,41 +1267,45 @@ describe('Competition Heats Server Functions (TanStack)', () => {
     })
 
     it('filters by division when divisionId provided', async () => {
-      // Only RX registrations returned (SQL filters by divisionId)
+      const assignedIds: unknown[] = [] // No assignments
+      // The mock should return only RX registrations since the real DB
+      // would filter by divisionId in the WHERE clause
+      const filteredRegistrations = [
+        {
+          id: 'creg_1',
+          teamName: null,
+          userId: 'user_1',
+          divisionId: 'div_rx',
+        },
+        {
+          id: 'creg_3',
+          teamName: null,
+          userId: 'user_3',
+          divisionId: 'div_rx',
+        },
+      ]
       const users = [
         {id: 'user_1', firstName: 'John', lastName: 'Smith'},
         {id: 'user_3', firstName: 'Bob', lastName: 'Johnson'},
       ]
       const divisions = [{id: 'div_rx', label: 'RX'}]
 
+      // The implementation now does:
+      // 1. db.select().from(heatAssignments).innerJoin(heats).where() -> assigned IDs
+      // 2. db.select().from(registrations).where(and(...conditions)) -> filtered regs
+      // 3. db.select().from(users).where(inArray) -> users
+      // 4. db.select().from(divisions).where(inArray) -> divisions
       let whereCount = 0
       const unassignedMock = {
         select: vi.fn().mockReturnValue({
           from: vi.fn().mockReturnValue({
             innerJoin: vi.fn().mockReturnValue({
-              where: vi.fn().mockResolvedValue([]), // No assignments
+              where: vi.fn().mockResolvedValue(assignedIds),
             }),
             where: vi.fn().mockImplementation(() => {
               whereCount++
-              // Query 1: registrations filtered by division in SQL
-              if (whereCount === 1)
-                return Promise.resolve([
-                  {
-                    id: 'creg_1',
-                    teamName: null,
-                    userId: 'user_1',
-                    divisionId: 'div_rx',
-                  },
-                  {
-                    id: 'creg_3',
-                    teamName: null,
-                    userId: 'user_3',
-                    divisionId: 'div_rx',
-                  },
-                ])
-              // Query 2: users
+              if (whereCount === 1) return Promise.resolve(filteredRegistrations)
               if (whereCount === 2) return Promise.resolve(users)
-              // Query 3: divisions
               return Promise.resolve(divisions)
             }),
           }),
@@ -1304,11 +1331,14 @@ describe('Competition Heats Server Functions (TanStack)', () => {
     })
 
     it('returns empty when no heats exist for workout', async () => {
+      // The implementation now does:
+      // 1. db.select().from(heatAssignments).innerJoin(heats).where() -> empty (no heats/assignments)
+      // 2. db.select().from(registrations).where() -> empty registrations
       const unassignedMock = {
         select: vi.fn().mockReturnValue({
           from: vi.fn().mockReturnValue({
             innerJoin: vi.fn().mockReturnValue({
-              where: vi.fn().mockResolvedValue([]), // No assignments (no heats)
+              where: vi.fn().mockResolvedValue([]), // No assigned IDs
             }),
             where: vi.fn().mockResolvedValue([]), // No registrations
           }),

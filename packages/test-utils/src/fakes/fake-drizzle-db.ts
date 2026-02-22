@@ -226,7 +226,6 @@ export class FakeDrizzleDb {
 
 			// Delete chain
 			delete: this.createMockFn(() => mock),
-
 			// Transaction support
 			transaction: this.createMockFn(async (fn: (tx: ChainableMock) => Promise<unknown>) => {
 				return fn(mock)
@@ -248,7 +247,6 @@ export class FakeDrizzleDb {
 	get update() { return this.chainMock.update }
 	get delete() { return this.chainMock.delete }
 	get transaction() { return this.chainMock.transaction as Mock }
-
 	// For accessing the full chain mock in tests
 	getChainMock(): ChainableMock {
 		return this.chainMock

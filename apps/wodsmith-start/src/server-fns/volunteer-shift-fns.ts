@@ -610,16 +610,10 @@ export const bulkAssignVolunteersToShiftFn = createServerFn({ method: "POST" })
 			notes: data.notes,
 		}))
 
-		// MySQL parameter limit - batch inserts
-		// volunteerShiftAssignmentsTable has ~6 columns per insert (id, shiftId, membershipId, notes, createdAt, updatedAt)
-		const BATCH_SIZE = 15
-		const allIds: string[] = []
+		// Insert all assignments in a single query (MySQL has no param limit)
+		await db.insert(volunteerShiftAssignmentsTable).values(assignmentValues)
 
-		for (let i = 0; i < assignmentValues.length; i += BATCH_SIZE) {
-			const batch = assignmentValues.slice(i, i + BATCH_SIZE)
-			await db.insert(volunteerShiftAssignmentsTable).values(batch)
-			allIds.push(...batch.map((v) => v.id))
-		}
+		const allIds = assignmentValues.map((v) => v.id)
 
 		// Query back the created assignments
 		const createdAssignments =

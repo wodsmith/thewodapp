@@ -11,7 +11,6 @@ import { scheduledWorkoutInstancesTable } from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoresTable } from "@/db/schemas/scores"
 import { userTable } from "@/db/schemas/users"
-import { autochunk } from "@/utils/batch-query"
 
 // ===========================
 // Type Definitions
@@ -139,37 +138,32 @@ export const getWorkoutLeaderboardFn = createServerFn({ method: "GET" })
 
 		const instanceIds = instances.map((i) => i.id)
 
-		// Get all scores for these scheduled instances using autochunk
-		// to respect the 100 parameter limit
-		const scores = await autochunk(
-			{ items: instanceIds, otherParametersCount: 1 }, // 1 for teamId
-			async (chunk) =>
-				db
-					.select({
-						scoreId: scoresTable.id,
-						userId: scoresTable.userId,
-						scoreValue: scoresTable.scoreValue,
-						scheme: scoresTable.scheme,
-						scoreType: scoresTable.scoreType,
-						asRx: scoresTable.asRx,
-						scheduledWorkoutInstanceId: scoresTable.scheduledWorkoutInstanceId,
-						userName: userTable.firstName,
-						userLastName: userTable.lastName,
-						scalingLabel: scalingLevelsTable.label,
-					})
-					.from(scoresTable)
-					.innerJoin(userTable, eq(scoresTable.userId, userTable.id))
-					.leftJoin(
-						scalingLevelsTable,
-						eq(scoresTable.scalingLevelId, scalingLevelsTable.id),
-					)
-					.where(
-						and(
-							inArray(scoresTable.scheduledWorkoutInstanceId, chunk),
-							eq(scoresTable.teamId, data.teamId),
-						),
-					),
-		)
+		// Get all scores for these scheduled instances
+		const scores = await db
+			.select({
+				scoreId: scoresTable.id,
+				userId: scoresTable.userId,
+				scoreValue: scoresTable.scoreValue,
+				scheme: scoresTable.scheme,
+				scoreType: scoresTable.scoreType,
+				asRx: scoresTable.asRx,
+				scheduledWorkoutInstanceId: scoresTable.scheduledWorkoutInstanceId,
+				userName: userTable.firstName,
+				userLastName: userTable.lastName,
+				scalingLabel: scalingLevelsTable.label,
+			})
+			.from(scoresTable)
+			.innerJoin(userTable, eq(scoresTable.userId, userTable.id))
+			.leftJoin(
+				scalingLevelsTable,
+				eq(scoresTable.scalingLevelId, scalingLevelsTable.id),
+			)
+			.where(
+				and(
+					inArray(scoresTable.scheduledWorkoutInstanceId, instanceIds),
+					eq(scoresTable.teamId, data.teamId),
+				),
+			)
 
 		// Create a map of instance ID to date for easy lookup
 		const instanceDateMap = new Map<string, Date>()
