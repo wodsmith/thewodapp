@@ -465,22 +465,25 @@ export async function registerForCompetition(
 		}
 	}
 
-	// 8. Check for duplicate registration (as captain)
+	// 8. Check for duplicate registration in the SAME division (as captain)
+	// Users CAN register for multiple divisions in the same competition
 	const existingRegistration =
 		await db.query.competitionRegistrationsTable.findFirst({
 			where: and(
 				eq(competitionRegistrationsTable.eventId, params.competitionId),
 				eq(competitionRegistrationsTable.userId, params.userId),
+				eq(competitionRegistrationsTable.divisionId, params.divisionId),
 			),
 		})
 
 	if (existingRegistration) {
-		throw new Error("You are already registered for this competition")
+		throw new Error(
+			"You are already registered for this division in this competition",
+		)
 	}
 
-	// 8b. Check if user is already on another team for this competition (as teammate)
-	// Use JSON_EXTRACT to filter competition teams by competitionId in SQL,
-	// then join with memberships to check in a single query
+	// 8b. Check if user is already on another team for this DIVISION (as teammate)
+	// Users can be on different teams in different divisions
 	const existingTeamMembership = await db
 		.select({ teamId: teamMembershipTable.teamId })
 		.from(teamMembershipTable)
@@ -491,16 +494,16 @@ export async function registerForCompetition(
 				eq(teamMembershipTable.isActive, true),
 				eq(teamTable.type, TEAM_TYPE_ENUM.COMPETITION_TEAM),
 				sql`JSON_EXTRACT(${teamTable.competitionMetadata}, '$.competitionId') = ${params.competitionId}`,
+				sql`JSON_EXTRACT(${teamTable.competitionMetadata}, '$.divisionId') = ${params.divisionId}`,
 			),
 		)
 		.limit(1)
 
 	if (existingTeamMembership.length > 0) {
-		throw new Error("You are already on a team for this competition")
+		throw new Error("You are already on a team for this division")
 	}
 
-	// 8c. Check if user's email is in pendingTeammates of another registration
-	// Use MySQL JSON_CONTAINS to search within the pendingTeammates JSON array
+	// 8c. Check if user's email is in pendingTeammates of another registration in the SAME division
 	if (user.email) {
 		const pendingMatch = await db
 			.select({ id: competitionRegistrationsTable.id })
@@ -508,6 +511,7 @@ export async function registerForCompetition(
 			.where(
 				and(
 					eq(competitionRegistrationsTable.eventId, params.competitionId),
+					eq(competitionRegistrationsTable.divisionId, params.divisionId),
 					sql`JSON_CONTAINS(${competitionRegistrationsTable.pendingTeammates}, JSON_OBJECT('email', ${user.email.toLowerCase()}))`,
 				),
 			)
@@ -515,7 +519,7 @@ export async function registerForCompetition(
 
 		if (pendingMatch.length > 0) {
 			throw new Error(
-				"You have already been invited to another team for this competition",
+				"You have already been invited to another team for this division",
 			)
 		}
 	}
@@ -546,7 +550,7 @@ export async function registerForCompetition(
 			const teammateUserIds = teammateUsers.map((u) => u.id)
 			const emailByUserId = new Map(teammateUsers.map((u) => [u.id, u.email]))
 
-			// Batch check: are any of these users already registered as captains?
+			// Batch check: are any of these users already registered as captains in this DIVISION?
 			const existingRegs = await db
 				.select({
 					userId: competitionRegistrationsTable.userId,
@@ -555,16 +559,19 @@ export async function registerForCompetition(
 				.where(
 					and(
 						eq(competitionRegistrationsTable.eventId, params.competitionId),
+						eq(competitionRegistrationsTable.divisionId, params.divisionId),
 						inArray(competitionRegistrationsTable.userId, teammateUserIds),
 					),
 				)
 
 			if (existingRegs.length > 0) {
 				const regEmail = emailByUserId.get(existingRegs[0].userId)
-				throw new Error(`${regEmail} is already on a team for this competition`)
+				throw new Error(
+					`${regEmail} is already registered for this division`,
+				)
 			}
 
-			// Batch check: are any of these users on a competition_team for this competition?
+			// Batch check: are any of these users on a competition_team for this DIVISION?
 			const existingCompTeamMemberships = await db
 				.select({
 					userId: teamMembershipTable.userId,
@@ -577,6 +584,7 @@ export async function registerForCompetition(
 						eq(teamMembershipTable.isActive, true),
 						eq(teamTable.type, TEAM_TYPE_ENUM.COMPETITION_TEAM),
 						sql`JSON_EXTRACT(${teamTable.competitionMetadata}, '$.competitionId') = ${params.competitionId}`,
+						sql`JSON_EXTRACT(${teamTable.competitionMetadata}, '$.divisionId') = ${params.divisionId}`,
 					),
 				)
 				.limit(1)
@@ -586,12 +594,12 @@ export async function registerForCompetition(
 					existingCompTeamMemberships[0].userId,
 				)
 				throw new Error(
-					`${memberEmail} is already on a team for this competition`,
+					`${memberEmail} is already on a team for this division`,
 				)
 			}
 		}
 
-		// Batch check: are any teammate emails in pendingTeammates of another registration?
+		// Batch check: are any teammate emails in pendingTeammates of another registration in this DIVISION?
 		for (const teammateEmail of teammateEmails) {
 			const pendingMatch = await db
 				.select({ id: competitionRegistrationsTable.id })
@@ -599,6 +607,7 @@ export async function registerForCompetition(
 				.where(
 					and(
 						eq(competitionRegistrationsTable.eventId, params.competitionId),
+						eq(competitionRegistrationsTable.divisionId, params.divisionId),
 						sql`JSON_CONTAINS(${competitionRegistrationsTable.pendingTeammates}, JSON_OBJECT('email', ${teammateEmail}))`,
 					),
 				)
@@ -609,7 +618,7 @@ export async function registerForCompetition(
 					(t) => t.email.toLowerCase() === teammateEmail,
 				)?.email
 				throw new Error(
-					`${originalEmail} has already been invited to another team for this competition`,
+					`${originalEmail} has already been invited to another team for this division`,
 				)
 			}
 		}
@@ -671,17 +680,26 @@ export async function registerForCompetition(
 		})
 	}
 
-	// 11. Create team_membership in competition_event team
-	const teamMemberId = createTeamMembershipId()
-	await db.insert(teamMembershipTable).values({
-		id: teamMemberId,
-		teamId: competition.competitionTeamId,
-		userId: params.userId,
-		roleId: SYSTEM_ROLES_ENUM.MEMBER,
-		isSystemRole: true,
-		joinedAt: new Date(),
-		isActive: true,
+	// 11. Create team_membership in competition_event team (if not already a member from another division)
+	const existingEventMembership = await db.query.teamMembershipTable.findFirst({
+		where: and(
+			eq(teamMembershipTable.teamId, competition.competitionTeamId),
+			eq(teamMembershipTable.userId, params.userId),
+		),
 	})
+
+	const teamMemberId = existingEventMembership?.id ?? createTeamMembershipId()
+	if (!existingEventMembership) {
+		await db.insert(teamMembershipTable).values({
+			id: teamMemberId,
+			teamId: competition.competitionTeamId,
+			userId: params.userId,
+			roleId: SYSTEM_ROLES_ENUM.MEMBER,
+			isSystemRole: true,
+			joinedAt: new Date(),
+			isActive: true,
+		})
+	}
 
 	// 12. Store pending teammates as JSON for team registrations
 	const pendingTeammatesJson =

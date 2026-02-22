@@ -9,7 +9,7 @@ import { CompetitionRegisteredBanner } from "@/components/competition-registered
 import { CompetitionShareCard } from "@/components/competition-share-card"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import { Button } from "@/components/ui/button"
-import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
+import { getUserCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
 import { getUserAffiliateNameFn } from "@/server-fns/registration-fns"
 
 const parentRoute = getRouteApi("/compete/$slug")
@@ -38,9 +38,9 @@ export const Route = createFileRoute("/compete/$slug/registered")({
 			throw redirect({ to: "/compete" })
 		}
 
-		const [{ registration }, affiliateResult] =
+		const [{ registrations }, affiliateResult] =
 			await Promise.all([
-				getUserCompetitionRegistrationFn({
+				getUserCompetitionRegistrationsFn({
 					data: {
 						competitionId: competition.id,
 						userId: session.userId,
@@ -51,22 +51,36 @@ export const Route = createFileRoute("/compete/$slug/registered")({
 				}),
 			])
 
-		if (!registration) {
+		if (registrations.length === 0) {
 			throw redirect({
 				to: "/compete/$slug",
 				params: { slug },
 			})
 		}
 
-		const userDivision = registration.divisionId
-			? divisions.find((d) => d.id === registration.divisionId)
+		// Show the most recent registration (last in list)
+		const latestRegistration = registrations[registrations.length - 1]
+
+		const userDivision = latestRegistration.divisionId
+			? divisions.find((d) => d.id === latestRegistration.divisionId)
 			: null
+
+		// Build division labels for multi-registration display
+		const allDivisionLabels = registrations.map((reg) => {
+			const div = reg.divisionId
+				? divisions.find((d) => d.id === reg.divisionId)
+				: null
+			return div?.label ?? "Division"
+		})
 
 		return {
 			athleteName: `${session.user.firstName} ${session.user.lastName}`,
-			divisionLabel: userDivision?.label ?? null,
+			divisionLabel:
+				registrations.length > 1
+					? allDivisionLabels.join(", ")
+					: (userDivision?.label ?? null),
 			affiliateName: affiliateResult.affiliateName ?? "Independent",
-			registrationId: registration.id,
+			registrationId: latestRegistration.id,
 		}
 	},
 })

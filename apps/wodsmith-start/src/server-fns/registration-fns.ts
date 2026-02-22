@@ -66,12 +66,9 @@ import { getDivisionSpotsAvailableFn } from "./competition-divisions-fns"
 // Input Schemas
 // ============================================================================
 
-const initiateRegistrationPaymentInputSchema = z.object({
-	competitionId: z.string().min(1, "Competition ID is required"),
+const registrationItemSchema = z.object({
 	divisionId: z.string().min(1, "Division ID is required"),
-	// Team registration data (stored for webhook to use)
 	teamName: z.string().optional(),
-	affiliateName: z.string().max(255).optional(),
 	teammates: z
 		.array(
 			z.object({
@@ -82,7 +79,14 @@ const initiateRegistrationPaymentInputSchema = z.object({
 			}),
 		)
 		.optional(),
-	// Registration question answers
+})
+
+const initiateRegistrationPaymentInputSchema = z.object({
+	competitionId: z.string().min(1, "Competition ID is required"),
+	// Multi-division support: array of division entries
+	items: z.array(registrationItemSchema).min(1, "At least one division is required"),
+	// Shared fields
+	affiliateName: z.string().max(255).optional(),
 	answers: z
 		.array(
 			z.object({
@@ -172,11 +176,14 @@ async function storeRegistrationAnswers(
 // ============================================================================
 
 /**
- * Initiate payment for competition registration
+ * Initiate payment for competition registration (supports multi-division)
  *
  * For FREE competitions ($0), creates registration directly.
- * For PAID competitions, creates pending purchase + Stripe Checkout Session.
+ * For PAID competitions, creates pending purchase(s) + Stripe Checkout Session.
  * Registration is completed by webhook after payment succeeds.
+ *
+ * Supports registering for multiple divisions in a single checkout.
+ * Each division becomes a separate line item and purchase record.
  */
 export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) =>
@@ -192,14 +199,14 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 		// Update request context with user and competition info
 		updateRequestContext({ userId })
 		addRequestContextAttribute("competitionId", input.competitionId)
-		addRequestContextAttribute("divisionId", input.divisionId)
+		addRequestContextAttribute("divisionCount", input.items.length.toString())
 
 		logInfo({
 			message: "[Registration] Payment initiation started",
 			attributes: {
 				competitionId: input.competitionId,
-				divisionId: input.divisionId,
-				hasTeammates: !!input.teammates?.length,
+				divisionCount: input.items.length,
+				divisionIds: input.items.map((i) => i.divisionId).join(","),
 			},
 		})
 
@@ -234,72 +241,64 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			throw new Error("Registration has closed")
 		}
 
-		// 3. Check not already registered
-		const existingRegistration =
-			await db.query.competitionRegistrationsTable.findFirst({
-				where: and(
-					eq(competitionRegistrationsTable.eventId, input.competitionId),
-					eq(competitionRegistrationsTable.userId, userId),
-				),
-			})
-		if (existingRegistration) {
-			throw new Error("You are already registered for this competition")
+		// 3. Check not already registered for any of these divisions
+		for (const item of input.items) {
+			const existingRegistration =
+				await db.query.competitionRegistrationsTable.findFirst({
+					where: and(
+						eq(competitionRegistrationsTable.eventId, input.competitionId),
+						eq(competitionRegistrationsTable.userId, userId),
+						eq(competitionRegistrationsTable.divisionId, item.divisionId),
+					),
+				})
+			if (existingRegistration) {
+				const division = await db.query.scalingLevelsTable.findFirst({
+					where: eq(scalingLevelsTable.id, item.divisionId),
+				})
+				throw new Error(
+					`You are already registered for ${division?.label ?? "this division"}`,
+				)
+			}
 		}
 
-		// 3.5. Check division capacity
-		const capacityCheck = await getDivisionSpotsAvailableFn({
-			data: {
-				competitionId: input.competitionId,
-				divisionId: input.divisionId,
-			},
-		})
-		if (capacityCheck.isFull) {
-			throw new Error(
-				"This division is full. Please select a different division.",
-			)
+		// 3.5. Check division capacity for all items
+		for (const item of input.items) {
+			const capacityCheck = await getDivisionSpotsAvailableFn({
+				data: {
+					competitionId: input.competitionId,
+					divisionId: item.divisionId,
+				},
+			})
+			if (capacityCheck.isFull) {
+				const division = await db.query.scalingLevelsTable.findFirst({
+					where: eq(scalingLevelsTable.id, item.divisionId),
+				})
+				throw new Error(
+					`${division?.label ?? "This division"} is full. Please select a different division.`,
+				)
+			}
 		}
 
 		// 3.6. Validate required questions have answers
 		await validateRequiredQuestions(input.competitionId, input.answers)
 
-		// 4. Check for existing pending purchase (resume payment flow)
-		const existingPurchase = await db.query.commercePurchaseTable.findFirst({
-			where: and(
-				eq(commercePurchaseTable.userId, userId),
-				eq(commercePurchaseTable.competitionId, input.competitionId),
-				eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
-			),
-		})
-
-		if (existingPurchase?.stripeCheckoutSessionId) {
-			// Check if existing checkout session is still valid
-			try {
-				const checkoutSession = await getStripe().checkout.sessions.retrieve(
-					existingPurchase.stripeCheckoutSessionId,
-				)
-				// Return existing if not expired and not completed
-				if (checkoutSession.status === "open" && checkoutSession.url) {
-					return {
-						purchaseId: existingPurchase.id,
-						checkoutUrl: checkoutSession.url,
-						totalCents: existingPurchase.totalCents,
-						isFree: false,
-					}
-				}
-			} catch {
-				// Session expired or invalid - continue to create new one
-			}
-		}
-
-		// 5. Get registration fee for this division
-		const registrationFeeCents = await getRegistrationFee(
-			input.competitionId,
-			input.divisionId,
+		// 4. Get registration fee for each division
+		const itemFees = await Promise.all(
+			input.items.map(async (item) => ({
+				...item,
+				feeCents: await getRegistrationFee(
+					input.competitionId,
+					item.divisionId,
+				),
+			})),
 		)
 
-		// 5.5. For paid competitions, verify organizer has Stripe connected and get fee overrides
+		const totalFeeCents = itemFees.reduce((sum, item) => sum + item.feeCents, 0)
+		const allFree = totalFeeCents === 0
+
+		// 5. For paid items, verify organizer has Stripe connected
 		let teamFeeOverrides: TeamFeeOverrides | undefined
-		if (registrationFeeCents > 0) {
+		if (!allFree) {
 			const organizingTeam = await db.query.teamTable.findFirst({
 				where: eq(teamTable.id, competition.organizingTeamId),
 				columns: {
@@ -316,64 +315,68 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 				)
 			}
 
-			// Extract team fee overrides for founding organizers
 			teamFeeOverrides = {
 				organizerFeePercentage: organizingTeam.organizerFeePercentage,
 				organizerFeeFixed: organizingTeam.organizerFeeFixed,
 			}
 		}
 
-		// 6. FREE DIVISION - create registration directly
-		if (registrationFeeCents === 0) {
-			const result = await registerForCompetition({
-				competitionId: input.competitionId,
-				userId,
-				divisionId: input.divisionId,
-				teamName: input.teamName,
-				affiliateName: input.affiliateName,
-				teammates: input.teammates,
-			})
+		// 6. ALL FREE - create registrations directly
+		if (allFree) {
+			let firstRegistrationId: string | null = null
 
-			// Mark as free registration
-			await db
-				.update(competitionRegistrationsTable)
-				.set({ paymentStatus: COMMERCE_PAYMENT_STATUS.FREE })
-				.where(eq(competitionRegistrationsTable.id, result.registrationId))
+			for (const item of input.items) {
+				const result = await registerForCompetition({
+					competitionId: input.competitionId,
+					userId,
+					divisionId: item.divisionId,
+					teamName: item.teamName,
+					affiliateName: input.affiliateName,
+					teammates: item.teammates,
+				})
 
-			// Store registration answers
-			await storeRegistrationAnswers(
-				result.registrationId,
-				userId,
-				input.answers,
-			)
+				if (!firstRegistrationId) {
+					firstRegistrationId = result.registrationId
+				}
 
-			// Send registration confirmation email for free registration
-			await notifyRegistrationConfirmed({
-				userId,
-				registrationId: result.registrationId,
-				competitionId: input.competitionId,
-				isPaid: false,
-			})
+				// Mark as free registration
+				await db
+					.update(competitionRegistrationsTable)
+					.set({ paymentStatus: COMMERCE_PAYMENT_STATUS.FREE })
+					.where(eq(competitionRegistrationsTable.id, result.registrationId))
 
-			// Track created registration
-			addRequestContextAttribute("registrationId", result.registrationId)
-			logEntityCreated({
-				entity: "registration",
-				id: result.registrationId,
-				parentEntity: "competition",
-				parentId: input.competitionId,
-				attributes: {
-					paymentStatus: "FREE",
-					divisionId: input.divisionId,
-				},
-			})
+				// Store registration answers (shared across all divisions)
+				await storeRegistrationAnswers(
+					result.registrationId,
+					userId,
+					input.answers,
+				)
 
-			logInfo({
-				message: "[Registration] Free registration completed",
-				attributes: {
+				// Send registration confirmation email
+				await notifyRegistrationConfirmed({
+					userId,
 					registrationId: result.registrationId,
 					competitionId: input.competitionId,
-					divisionId: input.divisionId,
+					isPaid: false,
+				})
+
+				logEntityCreated({
+					entity: "registration",
+					id: result.registrationId,
+					parentEntity: "competition",
+					parentId: input.competitionId,
+					attributes: {
+						paymentStatus: "FREE",
+						divisionId: item.divisionId,
+					},
+				})
+			}
+
+			logInfo({
+				message: "[Registration] Free registration(s) completed",
+				attributes: {
+					competitionId: input.competitionId,
+					divisionCount: input.items.length,
 				},
 			})
 
@@ -382,18 +385,11 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 				checkoutUrl: null,
 				totalCents: 0,
 				isFree: true,
-				registrationId: result.registrationId,
+				registrationId: firstRegistrationId,
 			}
 		}
 
-		// 7. PAID COMPETITION - calculate fees (with team-level overrides for founding organizers)
-		const feeConfig = buildFeeConfig(competition, teamFeeOverrides)
-		const feeBreakdown = calculateCompetitionFees(
-			registrationFeeCents,
-			feeConfig,
-		)
-
-		// 8. Find or create product (idempotent)
+		// 7. PAID - Find or create product (idempotent)
 		let product = await db.query.commerceProductTable.findFirst({
 			where: and(
 				eq(
@@ -411,7 +407,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 				name: `Competition Registration - ${competition.name}`,
 				type: COMMERCE_PRODUCT_TYPE.COMPETITION_REGISTRATION,
 				resourceId: input.competitionId,
-				priceCents: registrationFeeCents,
+				priceCents: 0, // Individual item prices vary per division
 			})
 			product = await db.query.commerceProductTable.findFirst({
 				where: eq(commerceProductTable.id, productId),
@@ -422,41 +418,106 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			throw new Error("Failed to get or create product")
 		}
 
-		// 9. Create purchase record
-		const purchaseId = createCommercePurchaseId()
-		await db.insert(commercePurchaseTable).values({
-			id: purchaseId,
-			userId,
-			productId: product.id,
-			status: COMMERCE_PURCHASE_STATUS.PENDING,
-			competitionId: input.competitionId,
-			divisionId: input.divisionId,
-			totalCents: feeBreakdown.totalChargeCents,
-			platformFeeCents: feeBreakdown.platformFeeCents,
-			stripeFeeCents: feeBreakdown.stripeFeeCents,
-			organizerNetCents: feeBreakdown.organizerNetCents,
-			// Store team data and answers for webhook to use when creating registration
-			metadata: JSON.stringify({
-				teamName: input.teamName,
-				affiliateName: input.affiliateName,
-				teammates: input.teammates,
-				answers: input.answers,
-			}),
-		})
+		// 8. Create purchase records and build line items for each division
+		const feeConfig = buildFeeConfig(competition, teamFeeOverrides)
+		const purchaseIds: string[] = []
+		const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = []
+		let totalChargeCents = 0
+		let totalPlatformFeeCents = 0
+		let totalOrganizerNetCents = 0
 
-		const purchase = await db.query.commercePurchaseTable.findFirst({
-			where: eq(commercePurchaseTable.id, purchaseId),
-		})
-		if (!purchase) {
-			throw new Error("Failed to create purchase record")
+		// Process free items immediately, create purchases for paid items
+		for (const item of itemFees) {
+			if (item.feeCents === 0) {
+				// Register free division immediately
+				const result = await registerForCompetition({
+					competitionId: input.competitionId,
+					userId,
+					divisionId: item.divisionId,
+					teamName: item.teamName,
+					affiliateName: input.affiliateName,
+					teammates: item.teammates,
+				})
+
+				await db
+					.update(competitionRegistrationsTable)
+					.set({ paymentStatus: COMMERCE_PAYMENT_STATUS.FREE })
+					.where(eq(competitionRegistrationsTable.id, result.registrationId))
+
+				await storeRegistrationAnswers(
+					result.registrationId,
+					userId,
+					input.answers,
+				)
+
+				await notifyRegistrationConfirmed({
+					userId,
+					registrationId: result.registrationId,
+					competitionId: input.competitionId,
+					isPaid: false,
+				})
+
+				continue
+			}
+
+			// Paid division - create purchase record
+			const feeBreakdown = calculateCompetitionFees(item.feeCents, feeConfig)
+			const purchaseId = createCommercePurchaseId()
+			purchaseIds.push(purchaseId)
+
+			await db.insert(commercePurchaseTable).values({
+				id: purchaseId,
+				userId,
+				productId: product.id,
+				status: COMMERCE_PURCHASE_STATUS.PENDING,
+				competitionId: input.competitionId,
+				divisionId: item.divisionId,
+				totalCents: feeBreakdown.totalChargeCents,
+				platformFeeCents: feeBreakdown.platformFeeCents,
+				stripeFeeCents: feeBreakdown.stripeFeeCents,
+				organizerNetCents: feeBreakdown.organizerNetCents,
+				metadata: JSON.stringify({
+					teamName: item.teamName,
+					affiliateName: input.affiliateName,
+					teammates: item.teammates,
+					answers: input.answers,
+				}),
+			})
+
+			totalChargeCents += feeBreakdown.totalChargeCents
+			totalPlatformFeeCents += feeBreakdown.platformFeeCents
+			totalOrganizerNetCents += feeBreakdown.organizerNetCents
+
+			// Get division label for Stripe line item
+			const division = await db.query.scalingLevelsTable.findFirst({
+				where: eq(scalingLevelsTable.id, item.divisionId),
+			})
+
+			lineItems.push({
+				price_data: {
+					currency: "usd",
+					unit_amount: feeBreakdown.totalChargeCents,
+					product_data: {
+						name: `${competition.name} - ${division?.label ?? "Registration"}`,
+						description: "Competition Registration",
+					},
+				},
+				quantity: 1,
+			})
 		}
 
-		// 10. Get division label for checkout display
-		const division = await db.query.scalingLevelsTable.findFirst({
-			where: eq(scalingLevelsTable.id, input.divisionId),
-		})
+		// If no paid items remain (all were free after splitting), return
+		if (purchaseIds.length === 0 || lineItems.length === 0) {
+			return {
+				purchaseId: null,
+				checkoutUrl: null,
+				totalCents: 0,
+				isFree: true,
+				registrationId: null,
+			}
+		}
 
-		// 10.5. Get organizing team's Stripe connection for payouts
+		// 9. Get organizing team's Stripe connection for payouts
 		const organizingTeam = await db.query.teamTable.findFirst({
 			where: eq(teamTable.id, competition.organizingTeamId),
 			columns: {
@@ -465,35 +526,23 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			},
 		})
 
-		// 11. Create Stripe Checkout Session
+		// 10. Create Stripe Checkout Session with multiple line items
 		const appUrl = getAppUrl()
 		const sessionParams: Stripe.Checkout.SessionCreateParams = {
 			mode: "payment",
 			payment_method_types: ["card"],
-			line_items: [
-				{
-					price_data: {
-						currency: "usd",
-						unit_amount: feeBreakdown.totalChargeCents,
-						product_data: {
-							name: `${competition.name} - ${division?.label ?? "Registration"}`,
-							description: "Competition Registration",
-						},
-					},
-					quantity: 1,
-				},
-			],
+			line_items: lineItems,
 			metadata: {
-				purchaseId: purchase.id,
+				purchaseIds: purchaseIds.join(","),
 				userId,
 				competitionId: input.competitionId,
-				divisionId: input.divisionId,
 				type: COMMERCE_PRODUCT_TYPE.COMPETITION_REGISTRATION,
+				multiDivision: purchaseIds.length > 1 ? "true" : "false",
 			},
 			success_url: `${appUrl}/compete/${competition.slug}/registered?session_id={CHECKOUT_SESSION_ID}`,
 			cancel_url: `${appUrl}/compete/${competition.slug}/register?canceled=true`,
-			expires_at: Math.floor(Date.now() / 1000) + 30 * 60, // 30 minutes (Stripe minimum)
-			customer_email: session.user.email ?? undefined, // Pre-fill email
+			expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
+			customer_email: session.user.email ?? undefined,
 		}
 
 		// Add transfer_data if organizer has verified Stripe connection
@@ -501,15 +550,9 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			organizingTeam?.stripeConnectedAccountId &&
 			organizingTeam.stripeAccountStatus === "VERIFIED"
 		) {
-			// With destination charges, Stripe fees are charged to the PLATFORM account,
-			// not the connected account. The connected account receives
-			// (totalCharge - applicationFee) with no additional Stripe fee deduction.
-			//
-			// So: applicationFee = totalCharge - organizerNet
-			// Platform net after Stripe fee = applicationFee - stripeFee = platformFee
 			const applicationFeeAmount = Math.max(
 				0,
-				feeBreakdown.totalChargeCents - feeBreakdown.organizerNetCents,
+				totalChargeCents - totalOrganizerNetCents,
 			)
 
 			sessionParams.payment_intent_data = {
@@ -523,45 +566,29 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 		const checkoutSession =
 			await getStripe().checkout.sessions.create(sessionParams)
 
-		// 12. Update purchase with Checkout Session ID
-		await db
-			.update(commercePurchaseTable)
-			.set({ stripeCheckoutSessionId: checkoutSession.id })
-			.where(eq(commercePurchaseTable.id, purchase.id))
-
-		// Track created purchase
-		addRequestContextAttribute("purchaseId", purchase.id)
-		addRequestContextAttribute("checkoutSessionId", checkoutSession.id)
-
-		logEntityCreated({
-			entity: "purchase",
-			id: purchase.id,
-			parentEntity: "competition",
-			parentId: input.competitionId,
-			attributes: {
-				status: "PENDING",
-				totalCents: feeBreakdown.totalChargeCents,
-				divisionId: input.divisionId,
-			},
-		})
+		// 11. Update all purchases with Checkout Session ID
+		for (const purchaseId of purchaseIds) {
+			await db
+				.update(commercePurchaseTable)
+				.set({ stripeCheckoutSessionId: checkoutSession.id })
+				.where(eq(commercePurchaseTable.id, purchaseId))
+		}
 
 		logInfo({
 			message: "[Registration] Checkout session created",
 			attributes: {
-				purchaseId: purchase.id,
+				purchaseIds: purchaseIds.join(","),
 				competitionId: input.competitionId,
-				divisionId: input.divisionId,
-				totalCents: feeBreakdown.totalChargeCents,
-				platformFeeCents: feeBreakdown.platformFeeCents,
-				organizerNetCents: feeBreakdown.organizerNetCents,
+				lineItemCount: lineItems.length,
+				totalCents: totalChargeCents,
 				hasConnectedAccount: !!organizingTeam?.stripeConnectedAccountId,
 			},
 		})
 
 		return {
-			purchaseId: purchase.id,
+			purchaseId: purchaseIds[0],
 			checkoutUrl: checkoutSession.url,
-			totalCents: feeBreakdown.totalChargeCents,
+			totalCents: totalChargeCents,
 			isFree: false,
 		}
 	})

@@ -166,6 +166,16 @@ describe('Stripe Webhook Handler', () => {
       mockConstructEventAsync.mockResolvedValue(event)
       mockWorkflowCreate.mockResolvedValue(undefined)
 
+      // Mock purchase lookup (webhook looks up divisionId from purchase record)
+      mockDb.query.commercePurchaseTable = {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'purchase-1',
+          divisionId: 'div-1',
+          totalCents: 5000,
+        }),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+
       const response = await callWebhook(JSON.stringify(event))
       expect(response.status).toBe(200)
 
@@ -224,6 +234,16 @@ describe('Stripe Webhook Handler', () => {
       )
       mockConstructEventAsync.mockResolvedValue(event)
 
+      // Mock purchase lookup
+      mockDb.query.commercePurchaseTable = {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'purchase-1',
+          divisionId: 'div-1',
+          totalCents: 5000,
+        }),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+
       // Workflow.create throws on duplicate (Cloudflare behavior)
       mockWorkflowCreate.mockRejectedValue(
         new Error('Workflow instance already exists'),
@@ -255,6 +275,16 @@ describe('Stripe Webhook Handler', () => {
       )
       mockConstructEventAsync.mockResolvedValue(event)
 
+      // Mock purchase lookup
+      mockDb.query.commercePurchaseTable = {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'purchase-1',
+          divisionId: 'div-1',
+          totalCents: 5000,
+        }),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+
       // Non-conflict error (e.g., service down)
       mockWorkflowCreate.mockRejectedValue(
         new Error('Internal server error'),
@@ -282,6 +312,16 @@ describe('Stripe Webhook Handler', () => {
       const event = buildStripeEvent('checkout.session.completed', session)
       mockConstructEventAsync.mockResolvedValue(event)
       mockWorkflowCreate.mockResolvedValue(undefined)
+
+      // Mock purchase lookup
+      mockDb.query.commercePurchaseTable = {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'purchase-1',
+          divisionId: 'div-1',
+          totalCents: 5000,
+        }),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
 
       await callWebhook(JSON.stringify(event))
 

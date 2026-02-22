@@ -1,11 +1,8 @@
-import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useNavigate } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { ChevronDown, Loader2, User, Users } from "lucide-react"
+import { CheckCircle2, Loader2, User, Users } from "lucide-react"
 import { useEffect, useState } from "react"
-import { useFieldArray, useForm } from "react-hook-form"
 import { toast } from "sonner"
-import { z } from "zod"
 import { trackEvent } from "@/lib/posthog"
 import { WaiverViewer } from "@/components/compete/waiver-viewer"
 import { Badge } from "@/components/ui/badge"
@@ -18,22 +15,8 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import {
-	Form,
-	FormControl,
-	FormDescription,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormMessage,
-} from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from "@/components/ui/popover"
 import {
 	Select,
 	SelectContent,
@@ -57,34 +40,18 @@ import { getLocalDateKey, isSameDateString } from "@/utils/date-utils"
 import { AffiliateCombobox } from "./affiliate-combobox"
 import { FeeBreakdown } from "./fee-breakdown"
 
-const teammateSchema = z.object({
-	email: z.string().email("Valid email required"),
-	firstName: z.string().max(255).optional(),
-	lastName: z.string().max(255).optional(),
-	affiliateName: z.string().max(255).optional(),
-})
+interface Teammate {
+	email: string
+	firstName: string
+	lastName: string
+	affiliateName: string
+}
 
-const registrationSchema = z.object({
-	divisionId: z.string().min(1, "Please select a division"),
-	// Affiliate is required for all registrations
-	affiliateName: z
-		.string()
-		.min(1, "Please select your affiliate or Independent"),
-	// Team fields (validated based on division.teamSize)
-	teamName: z.string().max(255).optional(),
-	teammates: z.array(teammateSchema).optional(),
-	// Registration question answers
-	answers: z
-		.array(
-			z.object({
-				questionId: z.string(),
-				answer: z.string(),
-			}),
-		)
-		.optional(),
-})
-
-type FormValues = z.infer<typeof registrationSchema>
+interface TeamEntry {
+	divisionId: string
+	teamName: string
+	teammates: Teammate[]
+}
 
 type Props = {
 	competition: Competition & { organizingTeam: Team | null }
@@ -101,137 +68,7 @@ type Props = {
 	userFirstName?: string | null
 	userLastName?: string | null
 	userEmail?: string | null
-}
-
-function DivisionField({
-	form,
-	scalingGroup,
-	publicDivisions,
-	isSubmitting,
-	registrationOpen,
-	handleDivisionChange,
-	isTeamDivision,
-	teamSize,
-	teammatesNeeded,
-}: {
-	form: ReturnType<typeof useForm<FormValues>>
-	scalingGroup: ScalingGroup & { scalingLevels: ScalingLevel[] }
-	publicDivisions: PublicCompetitionDivision[]
-	isSubmitting: boolean
-	registrationOpen: boolean
-	handleDivisionChange: (divisionId: string) => void
-	isTeamDivision: boolean
-	teamSize: number
-	teammatesNeeded: number
-}) {
-	const [divisionOpen, setDivisionOpen] = useState(false)
-	const divisionId = form.watch("divisionId")
-	const selectedLevel = scalingGroup.scalingLevels.find(
-		(l) => l.id === divisionId,
-	)
-
-	return (
-		<FormField
-			control={form.control}
-			name="divisionId"
-			render={({ field }) => (
-				<FormItem>
-					<FormLabel>Division</FormLabel>
-					<Popover open={divisionOpen} onOpenChange={setDivisionOpen}>
-						<PopoverTrigger asChild>
-							<FormControl>
-								{/* biome-ignore lint/a11y/useSemanticElements: Popover-based combobox pattern */}
-								<Button
-									variant="outline"
-									role="combobox"
-									disabled={isSubmitting || !registrationOpen}
-									className="w-full justify-between font-normal"
-								>
-									{selectedLevel?.label || "Select a division"}
-									<ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-								</Button>
-							</FormControl>
-						</PopoverTrigger>
-						<PopoverContent
-							className="min-w-[250px] w-[var(--radix-popover-trigger-width)] p-0"
-							align="start"
-						>
-							<div className="max-h-[300px] overflow-y-auto p-1">
-								{scalingGroup.scalingLevels.map((level) => {
-									const divisionInfo = publicDivisions.find(
-										(d) => d.id === level.id,
-									)
-									const isFull = divisionInfo?.isFull ?? false
-									const spotsAvailable = divisionInfo?.spotsAvailable
-									const maxSpots = divisionInfo?.maxSpots
-									const isSelected = field.value === level.id
-
-									return (
-										<button
-											key={level.id}
-											type="button"
-											disabled={isFull}
-											onClick={() => {
-												handleDivisionChange(level.id)
-												setDivisionOpen(false)
-											}}
-											className={cn(
-												"relative flex w-full cursor-pointer select-none items-center justify-between gap-2 rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
-												isSelected && "bg-accent",
-												isFull && "pointer-events-none opacity-50",
-											)}
-										>
-											<span
-												className={
-													isFull ? "line-through text-muted-foreground" : ""
-												}
-											>
-												{level.label}
-											</span>
-											<div className="flex items-center gap-1">
-												{(level.teamSize ?? 1) > 1 ? (
-													<Badge variant="secondary" className="text-xs">
-														<Users className="w-3 h-3 mr-1" />
-														{level.teamSize}
-													</Badge>
-												) : (
-													<Badge variant="outline" className="text-xs">
-														<User className="w-3 h-3 mr-1" />
-														Indy
-													</Badge>
-												)}
-												{isFull ? (
-													<Badge variant="destructive" className="text-xs">
-														SOLD OUT
-													</Badge>
-												) : maxSpots !== null &&
-													spotsAvailable !== null &&
-													spotsAvailable !== undefined &&
-													spotsAvailable <= 5 ? (
-													<Badge
-														variant="secondary"
-														className="text-xs text-amber-600 dark:text-amber-400"
-													>
-														{spotsAvailable} left
-													</Badge>
-												) : null}
-											</div>
-										</button>
-									)
-								})}
-							</div>
-						</PopoverContent>
-					</Popover>
-					<FormDescription>
-						{isTeamDivision
-							? `Team division - requires ${teamSize} athletes (you + ${teammatesNeeded} teammate${teammatesNeeded > 1 ? "s" : ""})`
-							: "Individual division - compete on your own"}
-					</FormDescription>
-					<FormMessage />
-				</FormItem>
-			)}
-		/>
-	)
+	registeredDivisionIds?: string[]
 }
 
 export function RegistrationForm({
@@ -249,9 +86,26 @@ export function RegistrationForm({
 	userFirstName,
 	userLastName,
 	userEmail,
+	registeredDivisionIds = [],
 }: Props) {
 	const navigate = useNavigate()
 	const [isSubmitting, setIsSubmitting] = useState(false)
+
+	// Multi-select state
+	const [selectedDivisionIds, setSelectedDivisionIds] = useState<string[]>([])
+	const [affiliateName, setAffiliateName] = useState(
+		defaultAffiliateName ?? "",
+	)
+
+	// Team details per division (for team divisions)
+	const [teamEntries, setTeamEntries] = useState<Map<string, TeamEntry>>(
+		new Map(),
+	)
+
+	// Registration question answers
+	const [answers, setAnswers] = useState<
+		Array<{ questionId: string; answer: string }>
+	>(questions.map((q) => ({ questionId: q.id, answer: "" })))
 
 	// Track which waivers have been agreed to
 	const [agreedWaivers, setAgreedWaivers] = useState<Set<string>>(new Set())
@@ -264,6 +118,8 @@ export function RegistrationForm({
 	const allRequiredWaiversAgreed = requiredWaivers.every((w) =>
 		agreedWaivers.has(w.id),
 	)
+
+	const registeredDivisionIdSet = new Set(registeredDivisionIds)
 
 	// Track registration started on mount
 	useEffect(() => {
@@ -281,54 +137,78 @@ export function RegistrationForm({
 		}
 	}, [paymentCanceled])
 
-	const form = useForm<FormValues>({
-		resolver: standardSchemaResolver(registrationSchema),
-		defaultValues: {
-			divisionId: "",
-			teamName: "",
-			affiliateName: defaultAffiliateName ?? "",
-			teammates: [],
-			answers: questions.map((q) => ({ questionId: q.id, answer: "" })),
-		},
-	})
+	// Helper to get division info
+	const getDivision = (divisionId: string) =>
+		scalingGroup.scalingLevels.find((l) => l.id === divisionId)
 
-	const { fields, replace } = useFieldArray({
-		control: form.control,
-		name: "teammates",
-	})
+	const getPublicDivision = (divisionId: string) =>
+		publicDivisions.find((d) => d.id === divisionId)
 
-	const selectedDivisionId = form.watch("divisionId")
-	const selectedDivision = scalingGroup.scalingLevels.find(
-		(level) => level.id === selectedDivisionId,
-	)
-	const isTeamDivision = (selectedDivision?.teamSize ?? 1) > 1
-	const teamSize = selectedDivision?.teamSize ?? 1
-	const teammatesNeeded = teamSize - 1
-
-	// Update teammates array when division changes
-	const handleDivisionChange = (divisionId: string) => {
-		form.setValue("divisionId", divisionId)
-		const division = scalingGroup.scalingLevels.find((l) => l.id === divisionId)
-		const newTeamSize = division?.teamSize ?? 1
-		const newTeammatesNeeded = newTeamSize - 1
-
-		if (newTeammatesNeeded > 0) {
-			// Initialize teammates array with empty objects
-			const currentTeammates = form.getValues("teammates") || []
-			const newTeammates = Array.from(
-				{ length: newTeammatesNeeded },
-				(_, i) => ({
-					email: currentTeammates[i]?.email ?? "",
-					firstName: currentTeammates[i]?.firstName ?? "",
-					lastName: currentTeammates[i]?.lastName ?? "",
-					affiliateName: currentTeammates[i]?.affiliateName ?? "",
-				}),
-			)
-			replace(newTeammates)
+	// Handle division checkbox toggle
+	const handleDivisionToggle = (divisionId: string, checked: boolean) => {
+		if (checked) {
+			setSelectedDivisionIds((prev) => [...prev, divisionId])
+			const division = getDivision(divisionId)
+			if (division && division.teamSize > 1) {
+				// Initialize team entry for team division
+				const teammatesNeeded = division.teamSize - 1
+				setTeamEntries((prev) => {
+					const next = new Map(prev)
+					next.set(divisionId, {
+						divisionId,
+						teamName: "",
+						teammates: Array.from({ length: teammatesNeeded }, () => ({
+							email: "",
+							firstName: "",
+							lastName: "",
+							affiliateName: "",
+						})),
+					})
+					return next
+				})
+			}
 		} else {
-			replace([])
-			form.setValue("teamName", "")
+			setSelectedDivisionIds((prev) => prev.filter((id) => id !== divisionId))
+			setTeamEntries((prev) => {
+				const next = new Map(prev)
+				next.delete(divisionId)
+				return next
+			})
 		}
+	}
+
+	// Update team entry field
+	const updateTeamEntry = (
+		divisionId: string,
+		field: "teamName",
+		value: string,
+	) => {
+		setTeamEntries((prev) => {
+			const next = new Map(prev)
+			const entry = next.get(divisionId)
+			if (entry) {
+				next.set(divisionId, { ...entry, [field]: value })
+			}
+			return next
+		})
+	}
+
+	const updateTeammate = (
+		divisionId: string,
+		index: number,
+		field: keyof Teammate,
+		value: string,
+	) => {
+		setTeamEntries((prev) => {
+			const next = new Map(prev)
+			const entry = next.get(divisionId)
+			if (entry) {
+				const teammates = [...entry.teammates]
+				teammates[index] = { ...teammates[index], [field]: value }
+				next.set(divisionId, { ...entry, teammates })
+			}
+			return next
+		})
 	}
 
 	const handleWaiverCheckChange = (waiverId: string, checked: boolean) => {
@@ -343,30 +223,79 @@ export function RegistrationForm({
 		})
 	}
 
-	const onSubmit = async (data: FormValues) => {
-		// Validate team fields for team divisions
-		if (isTeamDivision) {
-			if (!data.teamName?.trim()) {
-				toast.error("Team name is required for team divisions")
+	const updateAnswer = (questionId: string, value: string) => {
+		setAnswers((prev) =>
+			prev.map((a) => (a.questionId === questionId ? { ...a, answer: value } : a)),
+		)
+	}
+
+	// Build items for multi-division submission
+	const buildRegistrationItems = () => {
+		return selectedDivisionIds.map((divisionId) => {
+			const division = getDivision(divisionId)
+			const isTeam = (division?.teamSize ?? 1) > 1
+			const teamEntry = teamEntries.get(divisionId)
+
+			return {
+				divisionId,
+				teamName: isTeam ? teamEntry?.teamName : undefined,
+				teammates: isTeam ? teamEntry?.teammates : undefined,
+			}
+		})
+	}
+
+	const onSubmit = async (e: React.FormEvent) => {
+		e.preventDefault()
+
+		if (selectedDivisionIds.length === 0) {
+			toast.error("Please select at least one division")
+			return
+		}
+
+		if (!affiliateName.trim()) {
+			toast.error("Please select your affiliate or Independent")
+			return
+		}
+
+		// Validate team fields for each team division
+		for (const divisionId of selectedDivisionIds) {
+			const division = getDivision(divisionId)
+			if (!division || division.teamSize <= 1) continue
+
+			const teamEntry = teamEntries.get(divisionId)
+			if (!teamEntry?.teamName?.trim()) {
+				toast.error(
+					`Team name is required for ${division.label}`,
+				)
 				return
 			}
-			if (!data.teammates || data.teammates.length !== teammatesNeeded) {
-				toast.error(`Please add ${teammatesNeeded} teammate(s)`)
+
+			const teammatesNeeded = division.teamSize - 1
+			if (
+				!teamEntry.teammates ||
+				teamEntry.teammates.length !== teammatesNeeded
+			) {
+				toast.error(
+					`Please add ${teammatesNeeded} teammate(s) for ${division.label}`,
+				)
 				return
 			}
-			for (const teammate of data.teammates) {
+
+			for (const teammate of teamEntry.teammates) {
 				if (!teammate.email?.trim()) {
-					toast.error("All teammate emails are required")
+					toast.error(
+						`All teammate emails are required for ${division.label}`,
+					)
 					return
 				}
 			}
 		}
 
 		// Validate required registration questions
-		if (questions.length > 0 && data.answers) {
+		if (questions.length > 0) {
 			for (const question of questions) {
 				if (question.required) {
-					const answer = data.answers.find((a) => a.questionId === question.id)
+					const answer = answers.find((a) => a.questionId === question.id)
 					if (!answer?.answer?.trim()) {
 						toast.error(
 							`Please answer the required question: ${question.label}`,
@@ -377,7 +306,7 @@ export function RegistrationForm({
 			}
 		}
 
-		// Check waivers are signed
+		// Check waivers
 		if (!allRequiredWaiversAgreed) {
 			toast.error("Please agree to all required waivers before registering")
 			return
@@ -391,7 +320,7 @@ export function RegistrationForm({
 				const result = await signWaiver({
 					data: {
 						waiverId,
-						registrationId: undefined, // Will be linked after registration
+						registrationId: undefined,
 						ipAddress: undefined,
 					},
 				})
@@ -403,15 +332,16 @@ export function RegistrationForm({
 				}
 			}
 
-			// Now proceed with registration
+			// Build registration items
+			const items = buildRegistrationItems()
+
+			// Submit registration
 			const result = await initiateRegistrationPaymentFn({
 				data: {
 					competitionId: competition.id,
-					divisionId: data.divisionId,
-					teamName: isTeamDivision ? data.teamName : undefined,
-					affiliateName: data.affiliateName || undefined,
-					teammates: isTeamDivision ? data.teammates : undefined,
-					answers: data.answers,
+					items,
+					affiliateName: affiliateName || undefined,
+					answers,
 				},
 			})
 
@@ -421,11 +351,12 @@ export function RegistrationForm({
 					competition_id: competition.id,
 					competition_name: competition.name,
 					competition_slug: competition.slug,
+					division_count: items.length,
 				})
 				toast.success("Successfully registered!")
 				navigate({
 					to: `/compete/${competition.slug}/registered`,
-					search: { registration_id: result.registrationId },
+					search: { registration_id: result.registrationId ?? undefined },
 				})
 				return
 			}
@@ -436,9 +367,8 @@ export function RegistrationForm({
 					competition_id: competition.id,
 					competition_name: competition.name,
 					competition_slug: competition.slug,
-					division_id: data.divisionId,
+					division_count: items.length,
 				})
-				// Use window.location for external redirect
 				window.location.href = result.checkoutUrl
 				return
 			}
@@ -448,75 +378,14 @@ export function RegistrationForm({
 			const errorMessage =
 				err instanceof Error ? err.message : "Registration failed"
 
-			// Classify error to avoid sending PII (emails) to analytics
-			const errorType = /is already on a team/i.test(errorMessage)
-				? "email_already_on_team"
-				: /has already been invited/i.test(errorMessage)
-					? "email_already_invited"
-					: /is your own email/i.test(errorMessage)
-						? "own_email"
-						: /Team name ".+" is already taken/i.test(errorMessage)
-							? "team_name_taken"
-							: /Failed to create checkout/i.test(errorMessage)
-								? "checkout_failed"
-								: "unknown"
-
 			trackEvent("competition_registration_failed", {
 				competition_id: competition.id,
 				competition_name: competition.name,
 				competition_slug: competition.slug,
-				division_id: data.divisionId,
-				error_type: errorType,
+				error_type: "unknown",
 			})
 
-			// Check if error is about team name being taken
-			// Error message follows pattern: 'Team name "X" is already taken...'
-			const teamNameErrorMatch = errorMessage.match(
-				/^Team name ".+" is already taken/i,
-			)
-
-			if (teamNameErrorMatch) {
-				// Set field-level error on the team name field
-				form.setError("teamName", {
-					type: "server",
-					message: "This team name is already taken. Please choose another.",
-				})
-				setIsSubmitting(false)
-				return
-			}
-
-			// Check if error is about a specific email being already registered/invited/own email
-			// Error messages follow pattern: "email@example.com is already on a team..."
-			// or "email@example.com has already been invited..."
-			// or "email@example.com is your own email..."
-			const emailErrorMatch = errorMessage.match(
-				/^(.+@.+)\s+(is already on a team|has already been invited|is your own email)/i,
-			)
-
-			if (emailErrorMatch && data.teammates) {
-				const problemEmail = emailErrorMatch[1].toLowerCase()
-				const teammateIndex = data.teammates.findIndex(
-					(t) => t.email.toLowerCase() === problemEmail,
-				)
-
-				if (teammateIndex !== -1) {
-					// Set field-level error on the specific teammate email
-					const friendlyMessage =
-						emailErrorMatch[2].toLowerCase() === "is your own email"
-							? "You can't add yourself as a teammate"
-							: errorMessage
-					form.setError(`teammates.${teammateIndex}.email`, {
-						type: "server",
-						message: friendlyMessage,
-					})
-				} else {
-					// Email might be the current user's - show general toast
-					toast.error(errorMessage)
-				}
-			} else {
-				toast.error(errorMessage)
-			}
-
+			toast.error(errorMessage)
 			setIsSubmitting(false)
 		}
 	}
@@ -524,7 +393,6 @@ export function RegistrationForm({
 	const formatDate = (date: string | Date | number | null): string => {
 		if (!date) return "TBA"
 
-		// Handle YYYY-MM-DD string format
 		if (typeof date === "string") {
 			const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/)
 			if (match) {
@@ -532,30 +400,15 @@ export function RegistrationForm({
 				const year = Number(yearStr)
 				const monthNum = Number(monthStr)
 				const day = Number(dayStr)
-				// Create Date object in UTC to get weekday
 				const d = new Date(Date.UTC(year, monthNum - 1, day))
 				const weekdays = [
-					"Sunday",
-					"Monday",
-					"Tuesday",
-					"Wednesday",
-					"Thursday",
-					"Friday",
-					"Saturday",
+					"Sunday", "Monday", "Tuesday", "Wednesday",
+					"Thursday", "Friday", "Saturday",
 				]
 				const months = [
-					"January",
-					"February",
-					"March",
-					"April",
-					"May",
-					"June",
-					"July",
-					"August",
-					"September",
-					"October",
-					"November",
-					"December",
+					"January", "February", "March", "April",
+					"May", "June", "July", "August",
+					"September", "October", "November", "December",
 				]
 				return `${weekdays[d.getUTCDay()]}, ${months[monthNum - 1]} ${day}, ${year}`
 			}
@@ -576,7 +429,6 @@ export function RegistrationForm({
 			return "Registration dates have not been set yet."
 		}
 
-		// Get today as YYYY-MM-DD for string comparison
 		const now = new Date()
 		const todayStr = getLocalDateKey(now)
 
@@ -590,12 +442,22 @@ export function RegistrationForm({
 	}
 
 	const registrationMessage = getRegistrationMessage()
+	const hasSelectedDivisions = selectedDivisionIds.length > 0
 
 	// Determine if submit should be disabled
 	const submitDisabled =
 		isSubmitting ||
 		!registrationOpen ||
+		!hasSelectedDivisions ||
+		!affiliateName.trim() ||
 		(waivers.length > 0 && !allRequiredWaiversAgreed)
+
+	// Get selected team divisions (for rendering team fields)
+	const selectedTeamDivisions = selectedDivisionIds
+		.map((id) => getDivision(id))
+		.filter(
+			(d): d is ScalingLevel => d !== undefined && d.teamSize > 1,
+		)
 
 	return (
 		<div className="space-y-6">
@@ -603,6 +465,23 @@ export function RegistrationForm({
 				<h1 className="text-3xl font-bold">Register for Competition</h1>
 				<p className="text-muted-foreground">{competition.name}</p>
 			</div>
+
+			{registeredDivisionIds.length > 0 && (
+				<Card className="border-blue-500/20 bg-blue-500/5">
+					<CardContent className="pt-6">
+						<div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+							<CheckCircle2 className="h-4 w-4" />
+							<span className="text-sm font-medium">
+								You're already registered for{" "}
+								{registeredDivisionIds.length === 1
+									? "1 division"
+									: `${registeredDivisionIds.length} divisions`}
+								. Select additional divisions below.
+							</span>
+						</div>
+					</CardContent>
+				</Card>
+			)}
 
 			{!registrationOpen && registrationMessage && (
 				<Card className="border-yellow-500/50 bg-yellow-500/10">
@@ -645,178 +524,285 @@ export function RegistrationForm({
 				</CardContent>
 			</Card>
 
-			<Form {...form}>
-				<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-					<Card>
-						<CardHeader>
-							<CardTitle>Select Your Division</CardTitle>
-							<CardDescription>
-								Choose the division that best matches your skill level
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<DivisionField
-								form={form}
-								scalingGroup={scalingGroup}
-								publicDivisions={publicDivisions}
-								isSubmitting={isSubmitting}
-								registrationOpen={registrationOpen}
-								handleDivisionChange={handleDivisionChange}
-								isTeamDivision={isTeamDivision}
-								teamSize={teamSize}
-								teammatesNeeded={teammatesNeeded}
-							/>
-						</CardContent>
-					</Card>
+			<form onSubmit={onSubmit} className="space-y-6">
+				{/* Division Selection - Multi-select with checkboxes */}
+				<Card>
+					<CardHeader>
+						<CardTitle>Select Division{selectedDivisionIds.length > 1 ? "s" : ""}</CardTitle>
+						<CardDescription>
+							Choose one or more divisions to register for
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<div className="space-y-2">
+							{scalingGroup.scalingLevels.map((level) => {
+								const divisionInfo = getPublicDivision(level.id)
+								const isFull = divisionInfo?.isFull ?? false
+								const spotsAvailable = divisionInfo?.spotsAvailable
+								const maxSpots = divisionInfo?.maxSpots
+								const isAlreadyRegistered = registeredDivisionIdSet.has(
+									level.id,
+								)
+								const isSelected = selectedDivisionIds.includes(level.id)
+								const isDisabled =
+									isFull ||
+									isAlreadyRegistered ||
+									isSubmitting ||
+									!registrationOpen
 
-					{/* Affiliate Selection Card - Required for all registrations */}
+								return (
+									<div
+										key={level.id}
+										className={cn(
+											"flex items-center gap-3 rounded-lg border p-3 transition-colors",
+											isSelected && "border-primary bg-primary/5",
+											isAlreadyRegistered && "opacity-60 bg-green-500/5 border-green-500/20",
+											isFull && !isAlreadyRegistered && "opacity-50",
+										)}
+									>
+										<Checkbox
+											id={`division-${level.id}`}
+											checked={isSelected}
+											onCheckedChange={(checked) =>
+												handleDivisionToggle(level.id, checked === true)
+											}
+											disabled={isDisabled}
+										/>
+										<label
+											htmlFor={`division-${level.id}`}
+											className={cn(
+												"flex-1 flex items-center justify-between cursor-pointer",
+												isDisabled && "cursor-not-allowed",
+											)}
+										>
+											<span
+												className={cn(
+													"font-medium",
+													isFull &&
+														!isAlreadyRegistered &&
+														"line-through text-muted-foreground",
+												)}
+											>
+												{level.label}
+											</span>
+											<div className="flex items-center gap-1.5">
+												{(level.teamSize ?? 1) > 1 ? (
+													<Badge variant="secondary" className="text-xs">
+														<Users className="w-3 h-3 mr-1" />
+														{level.teamSize}
+													</Badge>
+												) : (
+													<Badge variant="outline" className="text-xs">
+														<User className="w-3 h-3 mr-1" />
+														Indy
+													</Badge>
+												)}
+												{isAlreadyRegistered ? (
+													<Badge
+														variant="outline"
+														className="text-xs text-green-600 border-green-500/30"
+													>
+														<CheckCircle2 className="w-3 h-3 mr-1" />
+														Registered
+													</Badge>
+												) : isFull ? (
+													<Badge variant="destructive" className="text-xs">
+														SOLD OUT
+													</Badge>
+												) : maxSpots !== null &&
+													spotsAvailable !== null &&
+													spotsAvailable !== undefined &&
+													spotsAvailable <= 5 ? (
+													<Badge
+														variant="secondary"
+														className="text-xs text-amber-600 dark:text-amber-400"
+													>
+														{spotsAvailable} left
+													</Badge>
+												) : null}
+											</div>
+										</label>
+									</div>
+								)
+							})}
+						</div>
+						{!hasSelectedDivisions && (
+							<p className="text-sm text-muted-foreground mt-3">
+								Select at least one division to continue
+							</p>
+						)}
+					</CardContent>
+				</Card>
+
+				{/* Affiliate Selection Card */}
+				<Card>
+					<CardHeader>
+						<CardTitle>Your Affiliate</CardTitle>
+						<CardDescription>
+							Select your gym or affiliate. Choose "Independent" if you don't
+							train at a gym.
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<div className="space-y-2">
+							<Label>Affiliate *</Label>
+							<AffiliateCombobox
+								value={affiliateName}
+								onChange={setAffiliateName}
+								placeholder="Search or select affiliate..."
+								disabled={isSubmitting || !registrationOpen}
+							/>
+							<p className="text-xs text-muted-foreground">
+								Your gym or affiliate name will be displayed on leaderboards
+							</p>
+						</div>
+					</CardContent>
+				</Card>
+
+				{/* Registration Questions Card */}
+				{questions.length > 0 && (
 					<Card>
 						<CardHeader>
-							<CardTitle>Your Affiliate</CardTitle>
-							<CardDescription>
-								Select your gym or affiliate. Choose "Independent" if you don't
-								train at a gym.
-							</CardDescription>
+							<CardTitle>Registration Questions</CardTitle>
 						</CardHeader>
-						<CardContent>
-							<FormField
-								control={form.control}
-								name="affiliateName"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>Affiliate *</FormLabel>
-										<FormControl>
-											<AffiliateCombobox
-												value={field.value || ""}
-												onChange={field.onChange}
-												placeholder="Search or select affiliate..."
+						<CardContent className="space-y-6">
+							{questions.map((question) => {
+								const answer = answers.find(
+									(a) => a.questionId === question.id,
+								)
+								return (
+									<div key={question.id} className="space-y-2">
+										<Label>
+											{question.label}
+											{question.required && (
+												<span className="text-destructive"> *</span>
+											)}
+										</Label>
+										{question.type === "select" ? (
+											<Select
+												onValueChange={(val) =>
+													updateAnswer(question.id, val)
+												}
+												defaultValue={answer?.answer}
+												disabled={isSubmitting || !registrationOpen}
+											>
+												<SelectTrigger>
+													<SelectValue placeholder="Select an option" />
+												</SelectTrigger>
+												<SelectContent>
+													{question.options?.map((opt) => (
+														<SelectItem key={opt} value={opt}>
+															{opt}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										) : question.type === "number" ? (
+											<Input
+												type="number"
+												value={answer?.answer ?? ""}
+												onChange={(e) =>
+													updateAnswer(question.id, e.target.value)
+												}
 												disabled={isSubmitting || !registrationOpen}
 											/>
-										</FormControl>
-										<FormDescription>
-											Your gym or affiliate name will be displayed on
-											leaderboards
-										</FormDescription>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
+										) : (
+											<Input
+												value={answer?.answer ?? ""}
+												onChange={(e) =>
+													updateAnswer(question.id, e.target.value)
+												}
+												disabled={isSubmitting || !registrationOpen}
+											/>
+										)}
+										{question.helpText && (
+											<p className="text-xs text-muted-foreground">
+												{question.helpText}
+											</p>
+										)}
+									</div>
+								)
+							})}
 						</CardContent>
 					</Card>
+				)}
 
-					{/* Registration Questions Card */}
-					{questions.length > 0 && (
-						<Card>
-							<CardHeader>
-								<CardTitle>Registration Questions</CardTitle>
-							</CardHeader>
-							<CardContent className="space-y-6">
-								{questions.map((question, index) => (
-									<FormField
-										key={question.id}
-										control={form.control}
-										name={`answers.${index}.answer`}
-										render={({ field }) => (
-											<FormItem>
-												<FormLabel>
-													{question.label}
-													{question.required && (
-														<span className="text-destructive"> *</span>
-													)}
-												</FormLabel>
-												<FormControl>
-													{question.type === "select" ? (
-														<Select
-															onValueChange={field.onChange}
-															defaultValue={field.value}
-															disabled={isSubmitting || !registrationOpen}
-														>
-															<SelectTrigger>
-																<SelectValue placeholder="Select an option" />
-															</SelectTrigger>
-															<SelectContent>
-																{question.options?.map((opt) => (
-																	<SelectItem key={opt} value={opt}>
-																		{opt}
-																	</SelectItem>
-																))}
-															</SelectContent>
-														</Select>
-													) : question.type === "number" ? (
-														<Input
-															type="number"
-															{...field}
-															disabled={isSubmitting || !registrationOpen}
-														/>
-													) : (
-														<Input
-															{...field}
-															disabled={isSubmitting || !registrationOpen}
-														/>
-													)}
-												</FormControl>
-												{question.helpText && (
-													<FormDescription>{question.helpText}</FormDescription>
-												)}
-												<FormMessage />
-											</FormItem>
-										)}
-									/>
-								))}
-							</CardContent>
-						</Card>
-					)}
-
-					{/* Registration Fee Card */}
+				{/* Registration Fee Card */}
+				{hasSelectedDivisions && (
 					<Card>
 						<CardHeader>
-							<CardTitle>Registration Fee</CardTitle>
+							<CardTitle>Registration Fee{selectedDivisionIds.length > 1 ? "s" : ""}</CardTitle>
 						</CardHeader>
-						<CardContent>
-							<FeeBreakdown
-								competitionId={competition.id}
-								divisionId={selectedDivisionId || null}
-							/>
+						<CardContent className="space-y-3">
+							{selectedDivisionIds.map((divisionId) => {
+								const division = getDivision(divisionId)
+								return (
+									<div key={divisionId}>
+										{selectedDivisionIds.length > 1 && (
+											<p className="text-sm font-medium mb-1">
+												{division?.label ?? "Division"}
+											</p>
+										)}
+										<FeeBreakdown
+											competitionId={competition.id}
+											divisionId={divisionId}
+										/>
+									</div>
+								)
+							})}
 						</CardContent>
 					</Card>
+				)}
 
-					{/* Team Registration Fields */}
-					{isTeamDivision && (
-						<Card>
+				{/* Team Registration Fields - one section per team division */}
+				{selectedTeamDivisions.map((division) => {
+					const teamEntry = teamEntries.get(division.id)
+					if (!teamEntry) return null
+
+					return (
+						<Card key={division.id}>
 							<CardHeader>
-								<CardTitle>Team Details</CardTitle>
+								<CardTitle>
+									Team Details
+									{selectedTeamDivisions.length > 1 && (
+										<span className="text-muted-foreground font-normal">
+											{" "}
+											- {division.label}
+										</span>
+									)}
+								</CardTitle>
 								<CardDescription>
-									Enter your team name and invite your teammates
+									Enter your team name and invite your teammates for{" "}
+									{division.label} ({division.teamSize} athletes)
 								</CardDescription>
 							</CardHeader>
 							<CardContent className="space-y-6">
-								<FormField
-									control={form.control}
-									name="teamName"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel>Team Name</FormLabel>
-											<FormControl>
-												<Input
-													placeholder="Enter your team name"
-													{...field}
-													disabled={isSubmitting || !registrationOpen}
-												/>
-											</FormControl>
-											<FormDescription>
-												This will be displayed on leaderboards
-											</FormDescription>
-											<FormMessage />
-										</FormItem>
-									)}
-								/>
+								<div className="space-y-2">
+									<Label>Team Name *</Label>
+									<Input
+										placeholder="Enter your team name"
+										value={teamEntry.teamName}
+										onChange={(e) =>
+											updateTeamEntry(
+												division.id,
+												"teamName",
+												e.target.value,
+											)
+										}
+										disabled={isSubmitting || !registrationOpen}
+									/>
+									<p className="text-xs text-muted-foreground">
+										This will be displayed on leaderboards
+									</p>
+								</div>
 
 								{/* Teammates */}
 								<div className="space-y-4">
 									<div className="flex items-center justify-between">
 										<h4 className="text-sm font-medium">Teammates</h4>
 										<Badge variant="outline">
-											{fields.length + 1} of {teamSize} added
+											{teamEntry.teammates.length + 1} of {division.teamSize}{" "}
+											added
 										</Badge>
 									</div>
 
@@ -825,11 +811,8 @@ export function RegistrationForm({
 										<div className="space-y-4">
 											<div className="flex items-center gap-2">
 												<User className="w-4 h-4 text-muted-foreground" />
-												<span className="font-medium">
-													Teammate 1 (You)
-												</span>
+												<span className="font-medium">Teammate 1 (You)</span>
 											</div>
-
 											<div className="grid grid-cols-2 gap-4">
 												<div>
 													<Label className="text-sm font-medium">
@@ -852,7 +835,6 @@ export function RegistrationForm({
 													/>
 												</div>
 											</div>
-
 											<div>
 												<Label className="text-sm font-medium">Email</Label>
 												<Input
@@ -861,15 +843,14 @@ export function RegistrationForm({
 													className="mt-1.5"
 												/>
 											</div>
-
 											<p className="text-xs text-muted-foreground">
 												Update your profile to change this information.
 											</p>
 										</div>
 									</Card>
 
-									{fields.map((field, index) => (
-										<Card key={field.id} className="p-4">
+									{teamEntry.teammates.map((teammate, index) => (
+										<Card key={`${division.id}-teammate-${index}`} className="p-4">
 											<div className="space-y-4">
 												<div className="flex items-center gap-2">
 													<Users className="w-4 h-4 text-muted-foreground" />
@@ -878,81 +859,75 @@ export function RegistrationForm({
 													</span>
 												</div>
 
-												<FormField
-													control={form.control}
-													name={`teammates.${index}.email`}
-													render={({ field }) => (
-														<FormItem>
-															<FormLabel>Email *</FormLabel>
-															<FormControl>
-																<Input
-																	type="email"
-																	placeholder="teammate@email.com"
-																	{...field}
-																	disabled={isSubmitting || !registrationOpen}
-																/>
-															</FormControl>
-															<FormMessage />
-														</FormItem>
-													)}
-												/>
-
-												<div className="grid grid-cols-2 gap-4">
-													<FormField
-														control={form.control}
-														name={`teammates.${index}.firstName`}
-														render={({ field }) => (
-															<FormItem>
-																<FormLabel>First Name</FormLabel>
-																<FormControl>
-																	<Input
-																		placeholder="First name"
-																		{...field}
-																		disabled={isSubmitting || !registrationOpen}
-																	/>
-																</FormControl>
-																<FormMessage />
-															</FormItem>
-														)}
-													/>
-
-													<FormField
-														control={form.control}
-														name={`teammates.${index}.lastName`}
-														render={({ field }) => (
-															<FormItem>
-																<FormLabel>Last Name</FormLabel>
-																<FormControl>
-																	<Input
-																		placeholder="Last name"
-																		{...field}
-																		disabled={isSubmitting || !registrationOpen}
-																	/>
-																</FormControl>
-																<FormMessage />
-															</FormItem>
-														)}
+												<div className="space-y-2">
+													<Label>Email *</Label>
+													<Input
+														type="email"
+														placeholder="teammate@email.com"
+														value={teammate.email}
+														onChange={(e) =>
+															updateTeammate(
+																division.id,
+																index,
+																"email",
+																e.target.value,
+															)
+														}
+														disabled={isSubmitting || !registrationOpen}
 													/>
 												</div>
 
-												<FormField
-													control={form.control}
-													name={`teammates.${index}.affiliateName`}
-													render={({ field }) => (
-														<FormItem>
-															<FormLabel>Affiliate (Optional)</FormLabel>
-															<FormControl>
-																<AffiliateCombobox
-																	value={field.value || ""}
-																	onChange={field.onChange}
-																	placeholder="Search or enter affiliate..."
-																	disabled={isSubmitting || !registrationOpen}
-																/>
-															</FormControl>
-															<FormMessage />
-														</FormItem>
-													)}
-												/>
+												<div className="grid grid-cols-2 gap-4">
+													<div className="space-y-2">
+														<Label>First Name</Label>
+														<Input
+															placeholder="First name"
+															value={teammate.firstName}
+															onChange={(e) =>
+																updateTeammate(
+																	division.id,
+																	index,
+																	"firstName",
+																	e.target.value,
+																)
+															}
+															disabled={isSubmitting || !registrationOpen}
+														/>
+													</div>
+													<div className="space-y-2">
+														<Label>Last Name</Label>
+														<Input
+															placeholder="Last name"
+															value={teammate.lastName}
+															onChange={(e) =>
+																updateTeammate(
+																	division.id,
+																	index,
+																	"lastName",
+																	e.target.value,
+																)
+															}
+															disabled={isSubmitting || !registrationOpen}
+														/>
+													</div>
+												</div>
+
+												<div className="space-y-2">
+													<Label>Affiliate (Optional)</Label>
+													<AffiliateCombobox
+														value={teammate.affiliateName}
+														onChange={(val) =>
+															updateTeammate(
+																division.id,
+																index,
+																"affiliateName",
+																val,
+															)
+														}
+														placeholder="Search or enter affiliate..."
+														disabled={isSubmitting || !registrationOpen}
+													/>
+												</div>
 											</div>
 										</Card>
 									))}
@@ -965,92 +940,94 @@ export function RegistrationForm({
 								</div>
 							</CardContent>
 						</Card>
-					)}
+					)
+				})}
 
-					{/* Waivers Section - Inline */}
-					{waivers.length > 0 && (
-						<Card>
-							<CardHeader>
-								<CardTitle>Waivers & Agreements</CardTitle>
-								<CardDescription>
-									Please review and agree to the following waivers to complete
-									your registration
-								</CardDescription>
-							</CardHeader>
-							<CardContent className="space-y-6">
-								{waivers.map((waiver) => (
-									<div key={waiver.id} className="space-y-4">
-										<div className="flex items-center gap-2">
-											<h4 className="font-medium">{waiver.title}</h4>
-											{waiver.required && (
-												<Badge variant="destructive" className="text-xs">
-													Required
-												</Badge>
-											)}
-										</div>
-
-										{/* Waiver Content */}
-										<div className="border rounded-lg p-4 max-h-64 overflow-y-auto bg-muted/10">
-											<WaiverViewer
-												content={waiver.content}
-												className="prose prose-sm max-w-none dark:prose-invert"
-											/>
-										</div>
-
-										{/* Agreement Checkbox */}
-										<div className="flex items-start gap-3 p-4 bg-muted/20 rounded-lg">
-											<Checkbox
-												id={`waiver-${waiver.id}`}
-												checked={agreedWaivers.has(waiver.id)}
-												onCheckedChange={(checked) =>
-													handleWaiverCheckChange(waiver.id, checked === true)
-												}
-												disabled={isSubmitting || !registrationOpen}
-											/>
-											<Label
-												htmlFor={`waiver-${waiver.id}`}
-												className="text-sm font-medium leading-none cursor-pointer"
-											>
-												I have read and agree to this waiver
-												{waiver.required && (
-													<span className="text-destructive ml-1">*</span>
-												)}
-											</Label>
-										</div>
+				{/* Waivers Section */}
+				{waivers.length > 0 && (
+					<Card>
+						<CardHeader>
+							<CardTitle>Waivers & Agreements</CardTitle>
+							<CardDescription>
+								Please review and agree to the following waivers to complete
+								your registration
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-6">
+							{waivers.map((waiver) => (
+								<div key={waiver.id} className="space-y-4">
+									<div className="flex items-center gap-2">
+										<h4 className="font-medium">{waiver.title}</h4>
+										{waiver.required && (
+											<Badge variant="destructive" className="text-xs">
+												Required
+											</Badge>
+										)}
 									</div>
-								))}
-							</CardContent>
-						</Card>
-					)}
 
-					<div className="flex gap-4">
-						<Button type="submit" disabled={submitDisabled} className="flex-1">
-							{isSubmitting ? (
-								<>
-									<Loader2 className="w-4 h-4 mr-2 animate-spin" />
-									Processing...
-								</>
-							) : !registrationOpen ? (
-								"Registration Closed"
-							) : waivers.length > 0 && !allRequiredWaiversAgreed ? (
-								"Agree to Waivers to Continue"
-							) : isTeamDivision ? (
-								"Register Team"
-							) : (
-								"Complete Registration"
-							)}
-						</Button>
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => navigate({ to: `/compete/${competition.slug}` })}
-							disabled={isSubmitting}
-						>
-							Cancel
-						</Button>
-					</div>
-				</form>
-			</Form>
+									<div className="border rounded-lg p-4 max-h-64 overflow-y-auto bg-muted/10">
+										<WaiverViewer
+											content={waiver.content}
+											className="prose prose-sm max-w-none dark:prose-invert"
+										/>
+									</div>
+
+									<div className="flex items-start gap-3 p-4 bg-muted/20 rounded-lg">
+										<Checkbox
+											id={`waiver-${waiver.id}`}
+											checked={agreedWaivers.has(waiver.id)}
+											onCheckedChange={(checked) =>
+												handleWaiverCheckChange(waiver.id, checked === true)
+											}
+											disabled={isSubmitting || !registrationOpen}
+										/>
+										<Label
+											htmlFor={`waiver-${waiver.id}`}
+											className="text-sm font-medium leading-none cursor-pointer"
+										>
+											I have read and agree to this waiver
+											{waiver.required && (
+												<span className="text-destructive ml-1">*</span>
+											)}
+										</Label>
+									</div>
+								</div>
+							))}
+						</CardContent>
+					</Card>
+				)}
+
+				<div className="flex gap-4">
+					<Button type="submit" disabled={submitDisabled} className="flex-1">
+						{isSubmitting ? (
+							<>
+								<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+								Processing...
+							</>
+						) : !registrationOpen ? (
+							"Registration Closed"
+						) : !hasSelectedDivisions ? (
+							"Select a Division"
+						) : waivers.length > 0 && !allRequiredWaiversAgreed ? (
+							"Agree to Waivers to Continue"
+						) : selectedDivisionIds.length > 1 ? (
+							`Register for ${selectedDivisionIds.length} Divisions`
+						) : selectedTeamDivisions.length > 0 ? (
+							"Register Team"
+						) : (
+							"Complete Registration"
+						)}
+					</Button>
+					<Button
+						type="button"
+						variant="outline"
+						onClick={() => navigate({ to: `/compete/${competition.slug}` })}
+						disabled={isSubmitting}
+					>
+						Cancel
+					</Button>
+				</div>
+			</form>
 		</div>
 	)
 }

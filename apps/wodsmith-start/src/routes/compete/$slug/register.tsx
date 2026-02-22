@@ -3,6 +3,7 @@
  * Port from apps/wodsmith/src/app/(compete)/compete/(public)/[slug]/register/page.tsx
  *
  * This file uses top-level imports for server-only modules.
+ * Supports multi-division registration - users can register for multiple divisions.
  */
 
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router"
@@ -29,8 +30,8 @@ const registerSearchSchema = z.object({
 	canceled: z.enum(["true", "false"]).optional().catch(undefined),
 })
 
-// Server function to check if user is already registered
-const getUserCompetitionRegistrationFn = createServerFn({ method: "GET" })
+// Server function to get ALL user registrations for a competition
+const getUserCompetitionRegistrationsFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) =>
 		z
 			.object({
@@ -42,18 +43,19 @@ const getUserCompetitionRegistrationFn = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		const { getDb } = await import("@/db")
 		const db = getDb()
-		const registration = await db.query.competitionRegistrationsTable.findFirst(
-			{
+		const registrations =
+			await db.query.competitionRegistrationsTable.findMany({
 				where: and(
 					eq(competitionRegistrationsTable.eventId, data.competitionId),
 					eq(competitionRegistrationsTable.userId, data.userId),
 				),
-			},
-		)
+			})
 
 		return {
-			isRegistered: !!registration,
-			registration: registration || null,
+			registrations,
+			registeredDivisionIds: registrations
+				.map((r) => r.divisionId)
+				.filter((id): id is string => id !== null),
 		}
 	})
 
@@ -138,15 +140,14 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			})
 		}
 
-		// 3. Parallel fetch: registration check, affiliate name, waivers, and questions
-		// These all only need competition.id or session.userId
+		// 3. Parallel fetch: existing registrations, affiliate name, waivers, and questions
 		const [
-			{ registration: existingRegistration },
+			{ registeredDivisionIds },
 			userProfile,
 			{ waivers },
 			{ questions },
 		] = await Promise.all([
-			getUserCompetitionRegistrationFn({
+			getUserCompetitionRegistrationsFn({
 				data: {
 					competitionId: competition.id,
 					userId: session.userId,
@@ -163,9 +164,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			}),
 		])
 
-		if (existingRegistration) {
-			throw redirect({ to: "/compete/$slug", params: { slug } })
-		}
+		// No longer redirect if registered - allow registration for additional divisions
 
 		// 4. Check registration window (dates are now YYYY-MM-DD strings)
 		const now = new Date()
@@ -197,6 +196,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 				divisionsConfigured: false,
 				waivers: [],
 				questions: [],
+				registeredDivisionIds: [],
 			}
 		}
 
@@ -230,6 +230,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 				divisionsConfigured: false,
 				waivers: [],
 				questions: [],
+				registeredDivisionIds: [],
 			}
 		}
 
@@ -248,6 +249,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			userFirstName: userProfile.firstName,
 			userLastName: userProfile.lastName,
 			userEmail: userProfile.email,
+			registeredDivisionIds,
 		}
 	},
 })
@@ -268,6 +270,7 @@ function RegisterPage() {
 		userFirstName,
 		userLastName,
 		userEmail,
+		registeredDivisionIds,
 	} = Route.useLoaderData()
 
 	const { canceled } = Route.useSearch()
@@ -307,6 +310,7 @@ function RegisterPage() {
 				userFirstName={userFirstName}
 				userLastName={userLastName}
 				userEmail={userEmail}
+				registeredDivisionIds={registeredDivisionIds}
 			/>
 		</div>
 	)

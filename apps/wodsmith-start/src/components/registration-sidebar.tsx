@@ -6,11 +6,13 @@ import {
 	Clock,
 	Mail,
 	MapPin,
+	Plus,
 	Users,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
+import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
 import type { Team } from "@/db/schemas/teams"
 import { formatDateStringFull, isSameDateString } from "@/utils/date-utils"
 import {
@@ -107,6 +109,18 @@ function getDeadlineUrgency(
 	}
 }
 
+interface UserRegistrationEntry {
+	registration: {
+		id: string
+		divisionId: string | null
+		userId: string
+		teamName: string | null
+		captainUserId: string | null
+		athleteTeamId: string | null
+	}
+	division: PublicCompetitionDivision | null
+}
+
 interface RegistrationSidebarProps {
 	competition: Competition & {
 		organizingTeam: Team | null
@@ -121,6 +135,8 @@ interface RegistrationSidebarProps {
 	isCaptain?: boolean
 	isVolunteer?: boolean
 	organizerContactEmail?: string | null
+	userRegistrations?: UserRegistrationEntry[]
+	session?: { userId: string } | null
 }
 
 function formatDateShort(date: string | Date | number): string {
@@ -151,6 +167,8 @@ export function RegistrationSidebar({
 	isCaptain,
 	isVolunteer = false,
 	organizerContactEmail,
+	userRegistrations = [],
+	session,
 }: RegistrationSidebarProps) {
 	const regClosesAt = competition.registrationClosesAt
 	const regOpensAt = competition.registrationOpensAt
@@ -164,6 +182,8 @@ export function RegistrationSidebar({
 	// Check if registration hasn't opened yet (using competition's timezone)
 	const registrationNotYetOpen =
 		regOpensAt && !hasDateStartedInTimezone(regOpensAt, competitionTimezone)
+
+	const hasMultipleRegistrations = userRegistrations.length > 1
 
 	return (
 		<div className="space-y-4">
@@ -181,7 +201,7 @@ export function RegistrationSidebar({
 				</Card>
 			)}
 
-			{/* Registration CTA Card */}
+			{/* Registration CTA Card - shown when NOT registered at all */}
 			{!isRegistered && registrationOpen && (
 				<Card
 					className={`backdrop-blur-md ${
@@ -269,32 +289,109 @@ export function RegistrationSidebar({
 					</Card>
 				)}
 
-			{/* Already Registered Card */}
+			{/* My Registrations Card - shown when registered */}
 			{isRegistered && (
 				<Card className="border-2 border-green-500/20 bg-white/5 backdrop-blur-md">
 					<CardContent className="p-4">
 						<div className="space-y-3">
 							<div className="flex items-center gap-2 text-green-600">
 								<CheckCircle2 className="h-5 w-5" />
-								<span className="font-semibold">You're Registered!</span>
+								<span className="font-semibold">
+									{hasMultipleRegistrations
+										? "My Registrations"
+										: "You're Registered!"}
+								</span>
 							</div>
-							{userDivision && (
-								<p className="text-sm text-muted-foreground">
-									Division: <span className="font-medium">{userDivision}</span>
-								</p>
+
+							{/* Multiple registrations: show list */}
+							{hasMultipleRegistrations ? (
+								<div className="space-y-2">
+									{userRegistrations.map((entry) => {
+										const isTeam =
+											(entry.division?.teamSize ?? 1) > 1
+										const isEntryCaptain =
+											entry.registration.userId === session?.userId
+										return (
+											<div
+												key={entry.registration.id}
+												className="flex items-center justify-between p-2 rounded-md border border-green-500/10 bg-green-500/5"
+											>
+												<div className="min-w-0">
+													<p className="text-sm font-medium truncate">
+														{entry.division?.label ?? "Division"}
+													</p>
+													{entry.registration.teamName && (
+														<p className="text-xs text-muted-foreground truncate">
+															{entry.registration.teamName}
+														</p>
+													)}
+												</div>
+												<Button
+													asChild
+													variant="ghost"
+													size="sm"
+													className="shrink-0 h-7 text-xs"
+												>
+													<a
+														href={`/compete/${competition.slug}/teams/${entry.registration.id}`}
+													>
+														{isTeam
+															? isEntryCaptain
+																? "Manage"
+																: "View"
+															: "View"}
+													</a>
+												</Button>
+											</div>
+										)
+									})}
+								</div>
+							) : (
+								<>
+									{/* Single registration: original display */}
+									{userDivision && (
+										<p className="text-sm text-muted-foreground">
+											Division:{" "}
+											<span className="font-medium">{userDivision}</span>
+										</p>
+									)}
+									{registrationId && (
+										<Button
+											asChild
+											variant="outline"
+											size="sm"
+											className="w-full"
+										>
+											<a
+												href={`/compete/${competition.slug}/teams/${registrationId}`}
+											>
+												<Users className="mr-2 h-4 w-4" />
+												{isTeamRegistration
+													? isCaptain
+														? "Manage Team"
+														: "View Team"
+													: "View Registration"}
+											</a>
+										</Button>
+									)}
+								</>
 							)}
-							{registrationId && (
-								<Button asChild variant="outline" size="sm" className="w-full">
-									<a
-										href={`/compete/${competition.slug}/teams/${registrationId}`}
+
+							{/* Register for Another Division - shown when registered AND registration is open */}
+							{registrationOpen && (
+								<Button
+									asChild
+									variant="outline"
+									size="sm"
+									className="w-full"
+								>
+									<Link
+										to="/compete/$slug/register"
+										params={{ slug: competition.slug }}
 									>
-										<Users className="mr-2 h-4 w-4" />
-										{isTeamRegistration
-											? isCaptain
-												? "Manage Team"
-												: "View Team"
-											: "View Registration"}
-									</a>
+										<Plus className="mr-2 h-4 w-4" />
+										Register for Another Division
+									</Link>
 								</Button>
 							)}
 						</div>

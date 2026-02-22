@@ -3,7 +3,9 @@ import { useEffect } from "react"
 import { CompetitionHero } from "@/components/competition-hero"
 import { getAppUrlFn } from "@/lib/env"
 import { trackEvent } from "@/lib/posthog"
-import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
+import {
+	getUserCompetitionRegistrationsFn,
+} from "@/server-fns/competition-detail-fns"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
@@ -62,7 +64,7 @@ export const Route = createFileRoute("/compete/$slug")({
 				: false
 
 		// Parallel fetch remaining data from DB
-		const [divisionsResult, sponsorsResult, organizerContactEmail, userRegResult] =
+		const [divisionsResult, sponsorsResult, organizerContactEmail, userRegsResult] =
 			await Promise.all([
 				getPublicCompetitionDivisionsFn({
 					data: { competitionId: competition.id },
@@ -74,23 +76,32 @@ export const Route = createFileRoute("/compete/$slug")({
 					data: { teamId: competition.organizingTeamId },
 				}),
 				session
-					? getUserCompetitionRegistrationFn({
+					? getUserCompetitionRegistrationsFn({
 							data: {
 								competitionId: competition.id,
 								userId: session.userId,
 							},
 						})
-					: Promise.resolve({ registration: null }),
+					: Promise.resolve({ registrations: [] }),
 			])
 
 		const divisions = divisionsResult.divisions
 		const sponsors = sponsorsResult
-		const userRegistration = userRegResult.registration
+		const userRegistrations = userRegsResult.registrations
 
-		// Calculate userDivision from divisions data
+		// Backward compatibility: first registration
+		const userRegistration = userRegistrations[0] ?? null
+
+		// Calculate userDivision from divisions data (for first registration)
 		const userDivision = userRegistration?.divisionId
 			? divisions.find((d) => d.id === userRegistration.divisionId)
 			: null
+
+		// Calculate all user divisions for multi-registration display
+		const userDivisions = userRegistrations.map((reg) => ({
+			registration: reg,
+			division: divisions.find((d) => d.id === reg.divisionId) ?? null,
+		}))
 
 		const appUrl = await getAppUrlFn()
 		const ogBaseUrl = appUrl.includes("localhost")
@@ -102,6 +113,7 @@ export const Route = createFileRoute("/compete/$slug")({
 			ogBaseUrl,
 			competition,
 			userRegistration,
+			userRegistrations,
 			canManage,
 			isVolunteer,
 			registrationStatus,
@@ -109,6 +121,7 @@ export const Route = createFileRoute("/compete/$slug")({
 			divisions,
 			sponsors,
 			userDivision,
+			userDivisions,
 			maxSpots: undefined as number | undefined,
 			organizerContactEmail,
 		}

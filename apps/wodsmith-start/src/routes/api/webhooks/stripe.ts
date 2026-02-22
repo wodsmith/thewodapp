@@ -3,6 +3,7 @@
  *
  * Verifies Stripe signature and dispatches events:
  * - checkout.session.completed → Cloudflare Workflow (async, durable)
+ *   Supports multi-division checkout (dispatches separate workflow per purchase)
  * - checkout.session.expired: Marks abandoned purchases as cancelled (inline)
  * - account.updated: Updates team's Stripe Connect status (inline)
  * - account.application.authorized: Logs OAuth connection confirmation (inline)
@@ -41,33 +42,42 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 				/**
 				 * Handle checkout session expiration
 				 * Marks abandoned purchases as cancelled
+				 * Supports multi-division: cancels all purchases for the session
 				 */
 				async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
 					const db = getDb()
-					const purchaseId = session.metadata?.purchaseId
 
-					if (!purchaseId) return
+					// Handle multi-division: purchaseIds is comma-separated
+					const isMultiDivision = session.metadata?.multiDivision === "true"
+					const purchaseIdsRaw = isMultiDivision
+						? session.metadata?.purchaseIds
+						: session.metadata?.purchaseId
 
-					// Mark purchase as expired/cancelled (only if still pending)
-					await db
-						.update(commercePurchaseTable)
-						.set({ status: COMMERCE_PURCHASE_STATUS.CANCELLED })
-						.where(
-							and(
-								eq(commercePurchaseTable.id, purchaseId),
-								eq(
-									commercePurchaseTable.status,
-									COMMERCE_PURCHASE_STATUS.PENDING,
+					if (!purchaseIdsRaw) return
+
+					const purchaseIds = purchaseIdsRaw.split(",").filter(Boolean)
+
+					for (const purchaseId of purchaseIds) {
+						await db
+							.update(commercePurchaseTable)
+							.set({ status: COMMERCE_PURCHASE_STATUS.CANCELLED })
+							.where(
+								and(
+									eq(commercePurchaseTable.id, purchaseId),
+									eq(
+										commercePurchaseTable.status,
+										COMMERCE_PURCHASE_STATUS.PENDING,
+									),
 								),
-							),
-						)
+							)
 
-					logInfo({
-						message: "[Stripe Webhook] Checkout expired for purchase",
-						attributes: { purchaseId },
-					})
+						logInfo({
+							message: "[Stripe Webhook] Checkout expired for purchase",
+							attributes: { purchaseId },
+						})
+					}
 
-					// Send payment expired notification if we have required metadata
+					// Send payment expired notification for the first purchase
 					const userId = session.metadata?.userId
 					const competitionId = session.metadata?.competitionId
 					const divisionId = session.metadata?.divisionId
@@ -85,7 +95,6 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 									"[Stripe Webhook] Failed to send payment expired notification",
 								error: notifyErr,
 								attributes: {
-									purchaseId,
 									userId,
 									competitionId,
 									divisionId,
@@ -219,24 +228,35 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 					switch (event.type) {
 						case "checkout.session.completed": {
 							const session = event.data.object as Stripe.Checkout.Session
-							const purchaseId = session.metadata?.purchaseId
 							const competitionId = session.metadata?.competitionId
-							const divisionId = session.metadata?.divisionId
 							const userId = session.metadata?.userId
+							const isMultiDivision =
+								session.metadata?.multiDivision === "true"
 
-							if (!purchaseId || !competitionId || !divisionId || !userId) {
+							// Support both single and multi-division checkout
+							// Multi-division: purchaseIds is comma-separated
+							// Single: purchaseId is a single ID (backward compatible)
+							const purchaseIdsRaw = isMultiDivision
+								? session.metadata?.purchaseIds
+								: session.metadata?.purchaseId
+
+							if (!purchaseIdsRaw || !competitionId || !userId) {
 								logError({
 									message:
 										"[Stripe Webhook] Missing required metadata in Checkout Session",
 									attributes: {
-										purchaseId,
+										purchaseIds: purchaseIdsRaw,
 										competitionId,
-										divisionId,
 										userId,
+										isMultiDivision,
 									},
 								})
 								return json({ received: true })
 							}
+
+							const purchaseIds = purchaseIdsRaw
+								.split(",")
+								.filter(Boolean)
 
 							// Extract payment_intent as string
 							const paymentIntent =
@@ -244,73 +264,91 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 									? session.payment_intent
 									: (session.payment_intent?.id ?? null)
 
-							// Dispatch to Cloudflare Workflow — keyed by event.id for idempotency
-							const workflowParams: CheckoutCompletedParams = {
-								stripeEventId: event.id,
-								session: {
-									id: session.id,
-									payment_intent: paymentIntent,
-									amount_total: session.amount_total,
-									customer_email: session.customer_email,
-									metadata: {
-										purchaseId,
-										competitionId,
-										divisionId,
-										userId,
-									},
-								},
-							}
-
-							if (env.STRIPE_CHECKOUT_WORKFLOW) {
-								// Production: dispatch to Cloudflare Workflow (async, durable)
-								try {
-									await env.STRIPE_CHECKOUT_WORKFLOW.create({
-										id: event.id,
-										params: workflowParams,
+							// Dispatch a workflow for EACH purchase (each division independent)
+							for (const purchaseId of purchaseIds) {
+								// Look up division from the purchase record
+								const purchase =
+									await getDb().query.commercePurchaseTable.findFirst({
+										where: eq(commercePurchaseTable.id, purchaseId),
 									})
-									logInfo({
-										message:
-											"[Stripe Webhook] Dispatched checkout to workflow",
-										attributes: {
-											eventId: event.id,
+								const divisionId = purchase?.divisionId ?? ""
+
+								const workflowParams: CheckoutCompletedParams = {
+									stripeEventId: event.id,
+									session: {
+										id: session.id,
+										payment_intent: paymentIntent,
+										amount_total:
+											purchase?.totalCents ?? session.amount_total,
+										customer_email: session.customer_email,
+										metadata: {
 											purchaseId,
 											competitionId,
+											divisionId,
+											userId,
 										},
-									})
-								} catch (workflowErr) {
-									const isConflict =
-										workflowErr instanceof Error &&
-										workflowErr.message.includes("already exists")
-									if (isConflict) {
+									},
+								}
+
+								// Use event.id + purchaseId as key for multi-division idempotency
+								const workflowId =
+									purchaseIds.length > 1
+										? `${event.id}-${purchaseId}`
+										: event.id
+
+								if (env.STRIPE_CHECKOUT_WORKFLOW) {
+									try {
+										await env.STRIPE_CHECKOUT_WORKFLOW.create({
+											id: workflowId,
+											params: workflowParams,
+										})
 										logInfo({
 											message:
-												"[Stripe Webhook] Workflow already exists for event (idempotent)",
-											attributes: { eventId: event.id },
-										})
-									} else {
-										logError({
-											message:
-												"[Stripe Webhook] Failed to dispatch workflow",
-											error: workflowErr,
+												"[Stripe Webhook] Dispatched checkout to workflow",
 											attributes: {
 												eventId: event.id,
+												workflowId,
 												purchaseId,
+												competitionId,
+												divisionId,
 											},
 										})
-										throw workflowErr
+									} catch (workflowErr) {
+										const isConflict =
+											workflowErr instanceof Error &&
+											workflowErr.message.includes("already exists")
+										if (isConflict) {
+											logInfo({
+												message:
+													"[Stripe Webhook] Workflow already exists for event (idempotent)",
+												attributes: { eventId: event.id, workflowId },
+											})
+										} else {
+											logError({
+												message:
+													"[Stripe Webhook] Failed to dispatch workflow",
+												error: workflowErr,
+												attributes: {
+													eventId: event.id,
+													workflowId,
+													purchaseId,
+												},
+											})
+											throw workflowErr
+										}
 									}
+								} else {
+									// Local dev: process inline
+									logInfo({
+										message:
+											"[Stripe Webhook] Workflow binding unavailable, processing inline",
+										attributes: { eventId: event.id, purchaseId },
+									})
+									const { processCheckoutInline } = await import(
+										"@/workflows/stripe-checkout-workflow"
+									)
+									await processCheckoutInline(workflowParams)
 								}
-							} else {
-								// Local dev: Workflow binding unavailable, process inline
-								logInfo({
-									message:
-										"[Stripe Webhook] Workflow binding unavailable, processing inline",
-									attributes: { eventId: event.id },
-								})
-								const { processCheckoutInline } = await import(
-									"@/workflows/stripe-checkout-workflow"
-								)
-								await processCheckoutInline(workflowParams)
 							}
 							break
 						}

@@ -311,29 +311,46 @@ export const getCompetitionRegistrationsFn = createServerFn({ method: "GET" })
 	})
 
 /**
- * Get user's registration for a competition
+ * Get user's registration for a competition (first found)
  * Checks both direct registration (as captain) and team membership
+ * For backward compatibility - returns single registration
  */
 export const getUserCompetitionRegistrationFn = createServerFn({
 	method: "GET",
 })
 	.inputValidator((data: unknown) => getUserRegistrationInputSchema.parse(data))
 	.handler(async ({ data }) => {
+		const result = await getUserCompetitionRegistrationsFn({ data })
+		return { registration: result.registrations[0] ?? null }
+	})
+
+/**
+ * Get ALL of a user's registrations for a competition
+ * Checks both direct registrations (as captain) and team memberships
+ * Supports multi-division registration
+ */
+export const getUserCompetitionRegistrationsFn = createServerFn({
+	method: "GET",
+})
+	.inputValidator((data: unknown) => getUserRegistrationInputSchema.parse(data))
+	.handler(async ({ data }) => {
 		const db = getDb()
 
-		// First check if user is the captain/direct registrant
-		const directRegistration = await db
-			.select({
-				id: competitionRegistrationsTable.id,
-				eventId: competitionRegistrationsTable.eventId,
-				userId: competitionRegistrationsTable.userId,
-				divisionId: competitionRegistrationsTable.divisionId,
-				registeredAt: competitionRegistrationsTable.registeredAt,
-				teamName: competitionRegistrationsTable.teamName,
-				captainUserId: competitionRegistrationsTable.captainUserId,
-				athleteTeamId: competitionRegistrationsTable.athleteTeamId,
-				teamMemberId: competitionRegistrationsTable.teamMemberId,
-			})
+		const registrationColumns = {
+			id: competitionRegistrationsTable.id,
+			eventId: competitionRegistrationsTable.eventId,
+			userId: competitionRegistrationsTable.userId,
+			divisionId: competitionRegistrationsTable.divisionId,
+			registeredAt: competitionRegistrationsTable.registeredAt,
+			teamName: competitionRegistrationsTable.teamName,
+			captainUserId: competitionRegistrationsTable.captainUserId,
+			athleteTeamId: competitionRegistrationsTable.athleteTeamId,
+			teamMemberId: competitionRegistrationsTable.teamMemberId,
+		}
+
+		// Get all direct registrations (as captain/individual)
+		const directRegistrations = await db
+			.select(registrationColumns)
 			.from(competitionRegistrationsTable)
 			.where(
 				and(
@@ -341,14 +358,8 @@ export const getUserCompetitionRegistrationFn = createServerFn({
 					eq(competitionRegistrationsTable.userId, data.userId),
 				),
 			)
-			.limit(1)
 
-		if (directRegistration[0]) {
-			return { registration: directRegistration[0] }
-		}
-
-		// Check if user is a teammate on a team registration
-		// Find teams the user is a member of
+		// Check if user is a teammate on team registrations
 		const userTeamMemberships = await db
 			.select({ teamId: teamMembershipTable.teamId })
 			.from(teamMembershipTable)
@@ -359,39 +370,36 @@ export const getUserCompetitionRegistrationFn = createServerFn({
 				),
 			)
 
-		if (userTeamMemberships.length === 0) {
-			return { registration: null }
+		let teamRegistrations: typeof directRegistrations = []
+		if (userTeamMemberships.length > 0) {
+			const userTeamIds = userTeamMemberships.map((m) => m.teamId)
+
+			teamRegistrations = await db
+				.select(registrationColumns)
+				.from(competitionRegistrationsTable)
+				.where(
+					and(
+						eq(competitionRegistrationsTable.eventId, data.competitionId),
+						sql`${competitionRegistrationsTable.athleteTeamId} IN (${sql.join(
+							userTeamIds.map((id) => sql`${id}`),
+							sql`, `,
+						)})`,
+					),
+				)
 		}
 
-		const userTeamIds = userTeamMemberships.map((m) => m.teamId)
+		// Merge and deduplicate (a captain appears in both direct and team sets)
+		const seenIds = new Set<string>()
+		const allRegistrations: typeof directRegistrations = []
 
-		// Find registration where athleteTeamId is one of user's teams
-		// Note: We'd need to handle batching for many teams, but for now keep it simple
-		const teamRegistration = await db
-			.select({
-				id: competitionRegistrationsTable.id,
-				eventId: competitionRegistrationsTable.eventId,
-				userId: competitionRegistrationsTable.userId,
-				divisionId: competitionRegistrationsTable.divisionId,
-				registeredAt: competitionRegistrationsTable.registeredAt,
-				teamName: competitionRegistrationsTable.teamName,
-				captainUserId: competitionRegistrationsTable.captainUserId,
-				athleteTeamId: competitionRegistrationsTable.athleteTeamId,
-				teamMemberId: competitionRegistrationsTable.teamMemberId,
-			})
-			.from(competitionRegistrationsTable)
-			.where(
-				and(
-					eq(competitionRegistrationsTable.eventId, data.competitionId),
-					sql`${competitionRegistrationsTable.athleteTeamId} IN (${sql.join(
-						userTeamIds.map((id) => sql`${id}`),
-						sql`, `,
-					)})`,
-				),
-			)
-			.limit(1)
+		for (const reg of [...directRegistrations, ...teamRegistrations]) {
+			if (!seenIds.has(reg.id)) {
+				seenIds.add(reg.id)
+				allRegistrations.push(reg)
+			}
+		}
 
-		return { registration: teamRegistration[0] ?? null }
+		return { registrations: allRegistrations }
 	})
 
 /**

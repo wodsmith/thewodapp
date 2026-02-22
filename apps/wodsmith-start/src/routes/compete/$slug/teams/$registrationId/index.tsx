@@ -13,7 +13,7 @@ import {
 	useNavigate,
 } from "@tanstack/react-router"
 import { eq } from "drizzle-orm"
-import { CheckCircle, Clock, Copy, Crown, Mail, Users } from "lucide-react"
+import { CheckCircle, ChevronDown, Clock, Copy, Crown, Mail, Users } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -35,6 +35,7 @@ import {
 	type RegistrationDetails,
 	type TeamRosterResult,
 } from "@/server-fns/registration-fns"
+import { getUserCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
 import {
 	getCompetitionQuestionsFn,
 	getRegistrationAnswersFn,
@@ -65,6 +66,13 @@ type PendingTeammate = {
 	firstName?: string | null
 	lastName?: string | null
 	affiliateName?: string | null
+}
+
+interface UserRegistrationEntry {
+	id: string
+	divisionId: string | null
+	teamName: string | null
+	divisionLabel: string | null
 }
 
 interface LoaderData {
@@ -100,6 +108,7 @@ interface LoaderData {
 		userId: string
 		answer: string
 	}>
+	allUserRegistrations: UserRegistrationEntry[]
 }
 
 export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
@@ -238,6 +247,51 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 
 		const canEditOwnAffiliate = isTeamMember || isRegisteredUser
 
+		// Fetch all user registrations for this competition (for division switcher)
+		let allUserRegistrations: UserRegistrationEntry[] = []
+		if (registration.competition?.id) {
+			try {
+				const { registrations: allRegs } =
+					await getUserCompetitionRegistrationsFn({
+						data: {
+							competitionId: registration.competition.id,
+							userId: session.userId,
+						},
+					})
+
+				// Look up division labels for each registration
+				if (allRegs.length > 1) {
+					const { getDb } = await import("@/db")
+					const { scalingLevelsTable } = await import(
+						"@/db/schemas/scaling"
+					)
+					const db = getDb()
+
+					allUserRegistrations = await Promise.all(
+						allRegs.map(async (reg) => {
+							let divisionLabel: string | null = null
+							if (reg.divisionId) {
+								const div =
+									await db.query.scalingLevelsTable.findFirst({
+										where: eq(scalingLevelsTable.id, reg.divisionId),
+										columns: { label: true },
+									})
+								divisionLabel = div?.label ?? null
+							}
+							return {
+								id: reg.id,
+								divisionId: reg.divisionId,
+								teamName: reg.teamName,
+								divisionLabel,
+							}
+						}),
+					)
+				}
+			} catch {
+				// Non-critical - just won't show division switcher
+			}
+		}
+
 		return {
 			registration,
 			registrationDetails,
@@ -264,9 +318,70 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 			waiverSignatures,
 			registrationQuestions,
 			registrationAnswers,
+			allUserRegistrations,
 		}
 	},
 })
+
+function DivisionSwitcher({
+	registrations,
+	currentRegistrationId,
+	competitionSlug,
+}: {
+	registrations: UserRegistrationEntry[]
+	currentRegistrationId: string
+	competitionSlug: string
+}) {
+	const navigate = useNavigate()
+	const [open, setOpen] = useState(false)
+	const current = registrations.find((r) => r.id === currentRegistrationId)
+
+	return (
+		<div className="relative">
+			<Button
+				variant="outline"
+				onClick={() => setOpen(!open)}
+				className="w-full justify-between"
+			>
+				<span className="truncate">
+					{current?.divisionLabel ?? "Division"}
+					{current?.teamName ? ` - ${current.teamName}` : ""}
+				</span>
+				<ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+			</Button>
+			{open && (
+				<div className="absolute z-10 mt-1 w-full rounded-md border bg-popover shadow-md">
+					{registrations.map((reg) => (
+						<button
+							key={reg.id}
+							type="button"
+							onClick={() => {
+								setOpen(false)
+								if (reg.id !== currentRegistrationId) {
+									navigate({
+										to: "/compete/$slug/teams/$registrationId",
+										params: {
+											slug: competitionSlug,
+											registrationId: reg.id,
+										},
+									})
+								}
+							}}
+							className={`w-full text-left px-3 py-2 text-sm hover:bg-accent ${
+								reg.id === currentRegistrationId
+									? "bg-accent font-medium"
+									: ""
+							}`}
+						>
+							{reg.divisionLabel ?? "Division"}
+							{reg.teamName ? ` - ${reg.teamName}` : ""}
+						</button>
+					))}
+				</div>
+			)}
+		</div>
+	)
+}
 
 function TeamManagementPage() {
 	const {
@@ -288,7 +403,10 @@ function TeamManagementPage() {
 		waiverSignatures,
 		registrationQuestions,
 		registrationAnswers,
+		allUserRegistrations,
 	} = Route.useLoaderData()
+
+	const hasMultipleRegistrations = allUserRegistrations.length > 1
 
 	const { welcome } = Route.useSearch()
 	const navigate = useNavigate()
@@ -347,6 +465,15 @@ function TeamManagementPage() {
 						{division?.label || "Division"}
 					</p>
 				</div>
+
+				{/* Division Switcher - when user has multiple registrations */}
+				{hasMultipleRegistrations && competition && (
+					<DivisionSwitcher
+						registrations={allUserRegistrations}
+						currentRegistrationId={registration.id}
+						competitionSlug={competition.slug}
+					/>
+				)}
 
 				{/* Registration Details */}
 				{registrationDetails && (
@@ -413,6 +540,15 @@ function TeamManagementPage() {
 						{division?.label || "Division"}
 					</p>
 				</div>
+
+				{/* Division Switcher - when user has multiple registrations */}
+				{hasMultipleRegistrations && competition && (
+					<DivisionSwitcher
+						registrations={allUserRegistrations}
+						currentRegistrationId={registration.id}
+						competitionSlug={competition.slug}
+					/>
+				)}
 
 				{/* Registration Details */}
 				{registrationDetails && (
