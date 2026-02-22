@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { CheckCircle2, Loader2, User, Users } from "lucide-react"
-import { useEffect, useState } from "react"
+import { Check, CheckCircle2, ChevronsUpDown, Loader2, Search, User, Users, X } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { trackEvent } from "@/lib/posthog"
 import { WaiverViewer } from "@/components/compete/waiver-viewer"
@@ -17,6 +17,11 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover"
 import {
 	Select,
 	SelectContent,
@@ -51,6 +56,164 @@ interface TeamEntry {
 	divisionId: string
 	teamName: string
 	teammates: Teammate[]
+}
+
+function DivisionMultiSelect({
+	scalingLevels,
+	publicDivisions,
+	selectedIds,
+	registeredDivisionIds,
+	onToggle,
+	disabled,
+}: {
+	scalingLevels: ScalingLevel[]
+	publicDivisions: PublicCompetitionDivision[]
+	selectedIds: string[]
+	registeredDivisionIds: Set<string>
+	onToggle: (id: string, checked: boolean) => void
+	disabled: boolean
+}) {
+	const [open, setOpen] = useState(false)
+	const [search, setSearch] = useState("")
+	const inputRef = useRef<HTMLInputElement>(null)
+
+	const filtered = scalingLevels.filter((l) =>
+		l.label.toLowerCase().includes(search.toLowerCase()),
+	)
+
+	// Focus search input when popover opens
+	useEffect(() => {
+		if (open) {
+			setTimeout(() => inputRef.current?.focus(), 0)
+		} else {
+			setSearch("")
+		}
+	}, [open])
+
+	const getPublicDiv = (id: string) => publicDivisions.find((d) => d.id === id)
+
+	return (
+		<Popover open={open} onOpenChange={setOpen}>
+			<PopoverTrigger asChild>
+				{/* biome-ignore lint/a11y/useSemanticElements: Custom combobox pattern */}
+				<Button
+					variant="outline"
+					role="combobox"
+					aria-expanded={open}
+					className="w-full justify-between font-normal"
+					disabled={disabled}
+				>
+					<span className="truncate text-muted-foreground">
+						{selectedIds.length === 0
+							? "Search divisions..."
+							: `${selectedIds.length} division${selectedIds.length > 1 ? "s" : ""} selected`}
+					</span>
+					<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+				</Button>
+			</PopoverTrigger>
+			<PopoverContent
+				className="w-[var(--radix-popover-trigger-width)] p-0"
+				align="start"
+			>
+				<div className="flex items-center border-b px-3 py-2">
+					<Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+					<Input
+						ref={inputRef}
+						placeholder="Search divisions..."
+						value={search}
+						onChange={(e) => setSearch(e.target.value)}
+						className="h-8 border-0 p-0 placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
+					/>
+				</div>
+				<div className="max-h-[300px] overflow-y-auto p-1">
+					{filtered.length === 0 ? (
+						<p className="py-6 text-center text-sm text-muted-foreground">
+							No divisions found.
+						</p>
+					) : (
+						filtered.map((level) => {
+							const info = getPublicDiv(level.id)
+							const isFull = info?.isFull ?? false
+							const spotsAvailable = info?.spotsAvailable
+							const maxSpots = info?.maxSpots
+							const isRegistered = registeredDivisionIds.has(level.id)
+							const isSelected = selectedIds.includes(level.id)
+							const isItemDisabled = disabled || isFull || isRegistered
+
+							return (
+								<button
+									key={level.id}
+									type="button"
+									onClick={() => {
+										if (!isItemDisabled) {
+											onToggle(level.id, !isSelected)
+										}
+									}}
+									disabled={isItemDisabled}
+									className={cn(
+										"flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+										isSelected && "bg-accent/50",
+										isItemDisabled && "opacity-50 cursor-not-allowed hover:bg-transparent",
+									)}
+								>
+									<Check
+										className={cn(
+											"h-4 w-4 shrink-0",
+											isSelected ? "opacity-100" : "opacity-0",
+										)}
+									/>
+									<span
+										className={cn(
+											"flex-1 text-left font-medium",
+											isFull && !isRegistered && "line-through text-muted-foreground",
+										)}
+									>
+										{level.label}
+									</span>
+									<div className="flex items-center gap-1.5 shrink-0">
+										{(level.teamSize ?? 1) > 1 ? (
+											<Badge variant="secondary" className="text-xs">
+												<Users className="w-3 h-3 mr-1" />
+												{level.teamSize}
+											</Badge>
+										) : (
+											<Badge variant="outline" className="text-xs">
+												<User className="w-3 h-3 mr-1" />
+												Indy
+											</Badge>
+										)}
+										{isRegistered ? (
+											<Badge
+												variant="outline"
+												className="text-xs text-green-600 border-green-500/30"
+											>
+												<CheckCircle2 className="w-3 h-3 mr-1" />
+												Registered
+											</Badge>
+										) : isFull ? (
+											<Badge variant="destructive" className="text-xs">
+												SOLD OUT
+											</Badge>
+										) : maxSpots !== null &&
+											spotsAvailable !== null &&
+											spotsAvailable !== undefined &&
+											spotsAvailable <= 5 ? (
+											<Badge
+												variant="secondary"
+												className="text-xs text-amber-600 dark:text-amber-400"
+											>
+												{spotsAvailable} left
+											</Badge>
+										) : null}
+									</div>
+								</button>
+							)
+						})
+					)}
+				</div>
+			</PopoverContent>
+		</Popover>
+	)
 }
 
 type Props = {
@@ -102,6 +265,40 @@ export function RegistrationForm({
 		new Map(),
 	)
 
+	// Fee data per division (for combined total)
+	const [divisionFees, setDivisionFees] = useState<Map<string, number>>(new Map())
+
+	// Prune fee entries for deselected divisions
+	useEffect(() => {
+		setDivisionFees((prev) => {
+			const selectedSet = new Set(selectedDivisionIds)
+			let changed = false
+			for (const key of prev.keys()) {
+				if (!selectedSet.has(key)) {
+					changed = true
+				}
+			}
+			if (!changed) return prev
+			const next = new Map<string, number>()
+			for (const [k, v] of prev) {
+				if (selectedSet.has(k)) next.set(k, v)
+			}
+			return next
+		})
+	}, [selectedDivisionIds])
+
+	const handleFeesLoaded = (divisionId: string, fees: { isFree: boolean; totalChargeCents?: number } | null) => {
+		setDivisionFees((prev) => {
+			const next = new Map(prev)
+			if (fees && !fees.isFree && fees.totalChargeCents) {
+				next.set(divisionId, fees.totalChargeCents)
+			} else {
+				next.delete(divisionId)
+			}
+			return next
+		})
+	}
+
 	// Registration question answers
 	const [answers, setAnswers] = useState<
 		Array<{ questionId: string; answer: string }>
@@ -140,9 +337,6 @@ export function RegistrationForm({
 	// Helper to get division info
 	const getDivision = (divisionId: string) =>
 		scalingGroup.scalingLevels.find((l) => l.id === divisionId)
-
-	const getPublicDivision = (divisionId: string) =>
-		publicDivisions.find((d) => d.id === divisionId)
 
 	// Handle division checkbox toggle
 	const handleDivisionToggle = (divisionId: string, checked: boolean) => {
@@ -525,7 +719,7 @@ export function RegistrationForm({
 			</Card>
 
 			<form onSubmit={onSubmit} className="space-y-6">
-				{/* Division Selection - Multi-select with checkboxes */}
+				{/* Division Selection - Searchable multi-select dropdown */}
 				<Card>
 					<CardHeader>
 						<CardTitle>Select Division{selectedDivisionIds.length > 1 ? "s" : ""}</CardTitle>
@@ -534,98 +728,36 @@ export function RegistrationForm({
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<div className="space-y-2">
-							{scalingGroup.scalingLevels.map((level) => {
-								const divisionInfo = getPublicDivision(level.id)
-								const isFull = divisionInfo?.isFull ?? false
-								const spotsAvailable = divisionInfo?.spotsAvailable
-								const maxSpots = divisionInfo?.maxSpots
-								const isAlreadyRegistered = registeredDivisionIdSet.has(
-									level.id,
-								)
-								const isSelected = selectedDivisionIds.includes(level.id)
-								const isDisabled =
-									isFull ||
-									isAlreadyRegistered ||
-									isSubmitting ||
-									!registrationOpen
-
-								return (
-									<div
-										key={level.id}
-										className={cn(
-											"flex items-center gap-3 rounded-lg border p-3 transition-colors",
-											isSelected && "border-primary bg-primary/5",
-											isAlreadyRegistered && "opacity-60 bg-green-500/5 border-green-500/20",
-											isFull && !isAlreadyRegistered && "opacity-50",
-										)}
-									>
-										<Checkbox
-											id={`division-${level.id}`}
-											checked={isSelected}
-											onCheckedChange={(checked) =>
-												handleDivisionToggle(level.id, checked === true)
-											}
-											disabled={isDisabled}
-										/>
-										<label
-											htmlFor={`division-${level.id}`}
-											className={cn(
-												"flex-1 flex items-center justify-between cursor-pointer",
-												isDisabled && "cursor-not-allowed",
-											)}
-										>
-											<span
-												className={cn(
-													"font-medium",
-													isFull &&
-														!isAlreadyRegistered &&
-														"line-through text-muted-foreground",
-												)}
+						<DivisionMultiSelect
+							scalingLevels={scalingGroup.scalingLevels}
+							publicDivisions={publicDivisions}
+							selectedIds={selectedDivisionIds}
+							registeredDivisionIds={registeredDivisionIdSet}
+							onToggle={handleDivisionToggle}
+							disabled={isSubmitting || !registrationOpen}
+						/>
+						{/* Selected divisions shown as badges */}
+						{hasSelectedDivisions && (
+							<div className="flex flex-wrap gap-1.5 mt-3">
+								{selectedDivisionIds.map((id) => {
+									const level = getDivision(id)
+									if (!level) return null
+									return (
+										<Badge key={id} variant="secondary" className="pl-2 pr-1 py-1 gap-1">
+											{level.label}
+											<button
+												type="button"
+												onClick={() => handleDivisionToggle(id, false)}
+												className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
+												disabled={isSubmitting || !registrationOpen}
 											>
-												{level.label}
-											</span>
-											<div className="flex items-center gap-1.5">
-												{(level.teamSize ?? 1) > 1 ? (
-													<Badge variant="secondary" className="text-xs">
-														<Users className="w-3 h-3 mr-1" />
-														{level.teamSize}
-													</Badge>
-												) : (
-													<Badge variant="outline" className="text-xs">
-														<User className="w-3 h-3 mr-1" />
-														Indy
-													</Badge>
-												)}
-												{isAlreadyRegistered ? (
-													<Badge
-														variant="outline"
-														className="text-xs text-green-600 border-green-500/30"
-													>
-														<CheckCircle2 className="w-3 h-3 mr-1" />
-														Registered
-													</Badge>
-												) : isFull ? (
-													<Badge variant="destructive" className="text-xs">
-														SOLD OUT
-													</Badge>
-												) : maxSpots !== null &&
-													spotsAvailable !== null &&
-													spotsAvailable !== undefined &&
-													spotsAvailable <= 5 ? (
-													<Badge
-														variant="secondary"
-														className="text-xs text-amber-600 dark:text-amber-400"
-													>
-														{spotsAvailable} left
-													</Badge>
-												) : null}
-											</div>
-										</label>
-									</div>
-								)
-							})}
-						</div>
+												<X className="w-3 h-3" />
+											</button>
+										</Badge>
+									)
+								})}
+							</div>
+						)}
 						{!hasSelectedDivisions && (
 							<p className="text-sm text-muted-foreground mt-3">
 								Select at least one division to continue
@@ -736,9 +868,10 @@ export function RegistrationForm({
 						<CardContent className="space-y-3">
 							{selectedDivisionIds.map((divisionId) => {
 								const division = getDivision(divisionId)
+								const isMulti = selectedDivisionIds.length > 1
 								return (
 									<div key={divisionId}>
-										{selectedDivisionIds.length > 1 && (
+										{isMulti && (
 											<p className="text-sm font-medium mb-1">
 												{division?.label ?? "Division"}
 											</p>
@@ -746,10 +879,20 @@ export function RegistrationForm({
 										<FeeBreakdown
 											competitionId={competition.id}
 											divisionId={divisionId}
+											hideTotal={isMulti}
+											onFeesLoaded={handleFeesLoaded}
 										/>
 									</div>
 								)
 							})}
+							{selectedDivisionIds.length > 1 && divisionFees.size > 0 && (
+								<div className="flex justify-between font-medium pt-2 border-t">
+									<span>Total</span>
+									<span className="text-lg">
+										${(Array.from(divisionFees.values()).reduce((sum, c) => sum + c, 0) / 100).toFixed(2)}
+									</span>
+								</div>
+							)}
 						</CardContent>
 					</Card>
 				)}
