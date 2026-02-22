@@ -31,7 +31,6 @@ import type {
 	VolunteerAvailability,
 	VolunteerMembershipMetadata,
 } from "@/db/schemas/volunteers"
-import { chunk } from "@/utils/batch-query"
 import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
@@ -562,36 +561,28 @@ export const bulkAssignJudgesToHeatFn = createServerFn({ method: "POST" })
 
 		const db = getDb()
 
-		// Each insert row uses ~7 params (id, heatId, membershipId, laneNumber, position, instructions, commonColumns)
-		// 100 param limit, so max 14 rows per batch (14 * 7 = 98)
-		// Use 10 to be safe
-		const INSERT_BATCH_SIZE = 10
-
+		// Insert all assignments in a single query (MySQL has no param limit)
 		const insertedIds: string[] = []
-		await Promise.all(
-			chunk(data.assignments, INSERT_BATCH_SIZE).map((batch) =>
-				db.insert(judgeHeatAssignmentsTable).values(
-					batch.map((a) => {
-						const id = createHeatVolunteerId()
-						insertedIds.push(id)
-						return {
-							id,
-							heatId: data.heatId,
-							membershipId: a.membershipId,
-							laneNumber: a.laneNumber,
-							position: a.position ?? null,
-							instructions: a.instructions ?? null,
-						}
-					}),
-				),
-			),
-		)
+		const values = data.assignments.map((a) => {
+			const id = createHeatVolunteerId()
+			insertedIds.push(id)
+			return {
+				id,
+				heatId: data.heatId,
+				membershipId: a.membershipId,
+				laneNumber: a.laneNumber,
+				position: a.position ?? null,
+				instructions: a.instructions ?? null,
+			}
+		})
+
+		await db.insert(judgeHeatAssignmentsTable).values(values)
 
 		// Select back the created records
 		const results = await db
-				.select()
-				.from(judgeHeatAssignmentsTable)
-				.where(inArray(judgeHeatAssignmentsTable.id, insertedIds))
+			.select()
+			.from(judgeHeatAssignmentsTable)
+			.where(inArray(judgeHeatAssignmentsTable.id, insertedIds))
 
 		return { success: true, data: results }
 	})
@@ -689,33 +680,28 @@ export const copyJudgeAssignmentsToHeatFn = createServerFn({ method: "POST" })
 			return { success: true, data: [] }
 		}
 
-		// Insert into target heat in batches
-		const INSERT_BATCH_SIZE = 10
+		// Insert all into target heat in a single query (MySQL has no param limit)
 		const insertedIds: string[] = []
-		await Promise.all(
-			chunk(sourceAssignments, INSERT_BATCH_SIZE).map((batch) =>
-				db.insert(judgeHeatAssignmentsTable).values(
-					batch.map((a) => {
-						const id = createHeatVolunteerId()
-						insertedIds.push(id)
-						return {
-							id,
-							heatId: data.targetHeatId,
-							membershipId: a.membershipId,
-							laneNumber: a.laneNumber,
-							position: a.position,
-							instructions: a.instructions,
-						}
-					}),
-				),
-			),
-		)
+		const values = sourceAssignments.map((a) => {
+			const id = createHeatVolunteerId()
+			insertedIds.push(id)
+			return {
+				id,
+				heatId: data.targetHeatId,
+				membershipId: a.membershipId,
+				laneNumber: a.laneNumber,
+				position: a.position,
+				instructions: a.instructions,
+			}
+		})
+
+		await db.insert(judgeHeatAssignmentsTable).values(values)
 
 		// Select back the created records
 		const results = await db
-				.select()
-				.from(judgeHeatAssignmentsTable)
-				.where(inArray(judgeHeatAssignmentsTable.id, insertedIds))
+			.select()
+			.from(judgeHeatAssignmentsTable)
+			.where(inArray(judgeHeatAssignmentsTable.id, insertedIds))
 
 		return { success: true, data: results }
 	})
@@ -782,35 +768,30 @@ export const copyJudgeAssignmentsToRemainingHeatsFn = createServerFn({
 			return { success: true, data: [] }
 		}
 
-		// Copy to each remaining heat
-		const INSERT_BATCH_SIZE = 10
+		// Copy to each remaining heat in a single insert per heat (MySQL has no param limit)
 		const results = await Promise.all(
 			targetHeats.map(async (heat) => {
 				const insertedIds: string[] = []
-				await Promise.all(
-					chunk(sourceAssignments, INSERT_BATCH_SIZE).map((batch) =>
-						db.insert(judgeHeatAssignmentsTable).values(
-							batch.map((a) => {
-								const id = createHeatVolunteerId()
-								insertedIds.push(id)
-								return {
-									id,
-									heatId: heat.id,
-									membershipId: a.membershipId,
-									laneNumber: a.laneNumber,
-									position: a.position,
-									instructions: a.instructions,
-								}
-							}),
-						),
-					),
-				)
+				const values = sourceAssignments.map((a) => {
+					const id = createHeatVolunteerId()
+					insertedIds.push(id)
+					return {
+						id,
+						heatId: heat.id,
+						membershipId: a.membershipId,
+						laneNumber: a.laneNumber,
+						position: a.position,
+						instructions: a.instructions,
+					}
+				})
+
+				await db.insert(judgeHeatAssignmentsTable).values(values)
 
 				// Select back the created records for this heat
 				const assignments = await db
-							.select()
-							.from(judgeHeatAssignmentsTable)
-							.where(inArray(judgeHeatAssignmentsTable.id, insertedIds))
+					.select()
+					.from(judgeHeatAssignmentsTable)
+					.where(inArray(judgeHeatAssignmentsTable.id, insertedIds))
 
 				return {
 					heatId: heat.id,

@@ -62,6 +62,9 @@ function createDbMock(config: {
     chain.from = vi.fn(() => chain)
     chain.innerJoin = vi.fn(() => chain)
     chain.leftJoin = vi.fn(() => chain)
+    chain.transaction = vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+      return fn(chain)
+    })
     chain.where = vi.fn(() => {
       whereCount++
       return chain

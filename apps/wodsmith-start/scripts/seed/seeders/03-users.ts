@@ -9,7 +9,7 @@ const PASSWORD_HASH =
 const CROSSFIT_PASSWORD_HASH =
 	"eb1405f82c02e3e74723c82b24e16948:2c25e5090d2496f0a06fcd77f4a41e733abec33e0b0913637060e6619f3963f6"
 
-const EMAIL_VERIFIED = 1750194531
+const EMAIL_VERIFIED = "2025-06-17 18:28:51"
 
 export async function seed(client: Client): Promise<void> {
 	console.log("Seeding users...")
