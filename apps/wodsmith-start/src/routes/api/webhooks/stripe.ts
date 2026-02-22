@@ -47,11 +47,10 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 				async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
 					const db = getDb()
 
-					// Handle multi-division: purchaseIds is comma-separated
-					const isMultiDivision = session.metadata?.multiDivision === "true"
-					const purchaseIdsRaw = isMultiDivision
-						? session.metadata?.purchaseIds
-						: session.metadata?.purchaseId
+					// purchaseIds (plural) is always set — check legacy purchaseId as fallback
+					const purchaseIdsRaw =
+						session.metadata?.purchaseIds ??
+						session.metadata?.purchaseId
 
 					if (!purchaseIdsRaw) return
 
@@ -230,15 +229,11 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 							const session = event.data.object as Stripe.Checkout.Session
 							const competitionId = session.metadata?.competitionId
 							const userId = session.metadata?.userId
-							const isMultiDivision =
-								session.metadata?.multiDivision === "true"
-
-							// Support both single and multi-division checkout
-							// Multi-division: purchaseIds is comma-separated
-							// Single: purchaseId is a single ID (backward compatible)
-							const purchaseIdsRaw = isMultiDivision
-								? session.metadata?.purchaseIds
-								: session.metadata?.purchaseId
+							// purchaseIds (plural) is always set — comma-separated for multi-division
+							// Also check legacy purchaseId (singular) for backward compatibility
+							const purchaseIdsRaw =
+								session.metadata?.purchaseIds ??
+								session.metadata?.purchaseId
 
 							if (!purchaseIdsRaw || !competitionId || !userId) {
 								logError({
@@ -248,8 +243,7 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 										purchaseIds: purchaseIdsRaw,
 										competitionId,
 										userId,
-										isMultiDivision,
-									},
+								},
 								})
 								return json({ received: true })
 							}
@@ -286,7 +280,7 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 											competitionId,
 											divisionId,
 											userId,
-										},
+								},
 									},
 								}
 

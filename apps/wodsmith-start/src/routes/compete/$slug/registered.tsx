@@ -58,37 +58,27 @@ export const Route = createFileRoute("/compete/$slug/registered")({
 			})
 		}
 
-		// Show the most recent registration (last in list)
-		const latestRegistration = registrations[registrations.length - 1]
+		const athleteName = `${session.user.firstName} ${session.user.lastName}`
+		const affiliateName = affiliateResult.affiliateName ?? "Independent"
 
-		const userDivision = latestRegistration.divisionId
-			? divisions.find((d) => d.id === latestRegistration.divisionId)
-			: null
-
-		// Build division labels for multi-registration display
-		const allDivisionLabels = registrations.map((reg) => {
+		const items = registrations.map((reg) => {
 			const div = reg.divisionId
 				? divisions.find((d) => d.id === reg.divisionId)
 				: null
-			return div?.label ?? "Division"
+			return {
+				registrationId: reg.id,
+				divisionLabel: div?.label ?? null,
+				teamName: reg.teamName,
+			}
 		})
 
-		return {
-			athleteName: `${session.user.firstName} ${session.user.lastName}`,
-			divisionLabel:
-				registrations.length > 1
-					? allDivisionLabels.join(", ")
-					: (userDivision?.label ?? null),
-			affiliateName: affiliateResult.affiliateName ?? "Independent",
-			registrationId: latestRegistration.id,
-		}
+		return { athleteName, affiliateName, items }
 	},
 })
 
 function RegisteredPage() {
 	const { competition } = parentRoute.useLoaderData()
-	const { athleteName, divisionLabel, affiliateName, registrationId } =
-		Route.useLoaderData()
+	const { athleteName, affiliateName, items } = Route.useLoaderData()
 	const { slug } = Route.useParams()
 
 	const profileImage =
@@ -101,42 +91,58 @@ function RegisteredPage() {
 				<CompetitionTabs slug={competition.slug} />
 			</div>
 
-			{/* Mobile: share card as full body content */}
+			{/* Mobile: share card */}
 			<div className="flex flex-col items-center gap-6 md:hidden">
 				<CompetitionShareCard
 					competitionName={competition.name}
 					athleteName={athleteName}
-					division={divisionLabel ?? undefined}
 					affiliateName={affiliateName}
 					competitionLogoUrl={profileImage ?? undefined}
+					items={items}
 				/>
-				<Button variant="ghost" size="sm" asChild className="text-slate-400">
-					<Link
-						to="/compete/$slug/teams/$registrationId"
-						params={{ slug, registrationId }}
+				{items.map((item) => (
+					<Button
+						key={item.registrationId}
+						variant="ghost"
+						size="sm"
+						asChild
+						className="text-slate-400"
 					>
-						View Registration
-					</Link>
-				</Button>
+						<Link
+							to="/compete/$slug/teams/$registrationId"
+							params={{ slug, registrationId: item.registrationId }}
+						>
+							View {item.divisionLabel ?? "Registration"}
+						</Link>
+					</Button>
+				))}
 			</div>
 
-			{/* Desktop: banner with everything built in */}
+			{/* Desktop: banner */}
 			<div className="hidden flex-col items-center gap-6 md:flex">
 				<CompetitionRegisteredBanner
 					competitionName={competition.name}
 					athleteName={athleteName}
-					division={divisionLabel ?? undefined}
 					affiliateName={affiliateName}
 					competitionLogoUrl={profileImage ?? undefined}
+					items={items}
 				/>
-				<Button variant="ghost" size="sm" asChild className="text-slate-400">
-					<Link
-						to="/compete/$slug/teams/$registrationId"
-						params={{ slug, registrationId }}
+				{items.map((item) => (
+					<Button
+						key={item.registrationId}
+						variant="ghost"
+						size="sm"
+						asChild
+						className="text-slate-400"
 					>
-						View Registration
-					</Link>
-				</Button>
+						<Link
+							to="/compete/$slug/teams/$registrationId"
+							params={{ slug, registrationId: item.registrationId }}
+						>
+							View {item.divisionLabel ?? "Registration"}
+						</Link>
+					</Button>
+				))}
 			</div>
 		</div>
 	)

@@ -232,6 +232,8 @@ type Props = {
 	userLastName?: string | null
 	userEmail?: string | null
 	registeredDivisionIds?: string[]
+	previousAnswers?: Array<{ questionId: string; answer: string }>
+	signedWaiverIds?: string[]
 }
 
 export function RegistrationForm({
@@ -250,6 +252,8 @@ export function RegistrationForm({
 	userLastName,
 	userEmail,
 	registeredDivisionIds = [],
+	previousAnswers = [],
+	signedWaiverIds = [],
 }: Props) {
 	const navigate = useNavigate()
 	const [isSubmitting, setIsSubmitting] = useState(false)
@@ -299,13 +303,29 @@ export function RegistrationForm({
 		})
 	}
 
-	// Registration question answers
+	// Registration question answers - prefill from previous registration if available
 	const [answers, setAnswers] = useState<
 		Array<{ questionId: string; answer: string }>
-	>(questions.map((q) => ({ questionId: q.id, answer: "" })))
+	>(
+		questions.map((q) => {
+			const prev = previousAnswers.find((a) => a.questionId === q.id)
+			return { questionId: q.id, answer: prev?.answer ?? "" }
+		}),
+	)
 
-	// Track which waivers have been agreed to
-	const [agreedWaivers, setAgreedWaivers] = useState<Set<string>>(new Set())
+	// Track which waivers have been agreed to - prefill from previous signatures
+	const [agreedWaivers, setAgreedWaivers] = useState<Set<string>>(
+		() => {
+			const signedSet = new Set(signedWaiverIds)
+			const preAgreed = new Set<string>()
+			for (const w of waivers) {
+				if (signedSet.has(w.id)) {
+					preAgreed.add(w.id)
+				}
+			}
+			return preAgreed
+		},
+	)
 
 	// Use useServerFn for TanStack Start pattern
 	const signWaiver = useServerFn(signWaiverFn)
@@ -661,9 +681,9 @@ export function RegistrationForm({
 			</div>
 
 			{registeredDivisionIds.length > 0 && (
-				<Card className="border-blue-500/20 bg-blue-500/5">
+				<Card className="border-green-500/20 bg-green-500/5">
 					<CardContent className="pt-6">
-						<div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+						<div className="flex items-center gap-2 text-green-600 dark:text-green-400">
 							<CheckCircle2 className="h-4 w-4" />
 							<span className="text-sm font-medium">
 								You're already registered for{" "}
@@ -815,7 +835,7 @@ export function RegistrationForm({
 												onValueChange={(val) =>
 													updateAnswer(question.id, val)
 												}
-												defaultValue={answer?.answer}
+												value={answer?.answer || undefined}
 												disabled={isSubmitting || !registrationOpen}
 											>
 												<SelectTrigger>

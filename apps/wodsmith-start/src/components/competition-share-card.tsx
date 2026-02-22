@@ -1,19 +1,20 @@
 import { Check, Trophy } from "lucide-react"
+import type { RegistrationItem } from "./competition-registered-banner"
 
 export interface CompetitionShareCardProps {
 	competitionName: string
 	athleteName: string
-	division?: string
 	affiliateName?: string
 	competitionLogoUrl?: string
+	items: RegistrationItem[]
 }
 
 export function CompetitionShareCard({
 	competitionName,
 	athleteName,
-	division,
 	affiliateName,
 	competitionLogoUrl,
+	items,
 }: CompetitionShareCardProps) {
 	return (
 		<div className="relative mx-auto flex w-full flex-col items-center overflow-hidden rounded-3xl bg-linear-to-br from-[#141416] to-[#0e0e10] shadow-2xl shadow-black/40">
@@ -69,22 +70,38 @@ export function CompetitionShareCard({
 				{/* Thin separator */}
 				<div className="h-px w-16 bg-[#2a2a2e]" />
 
-				{/* Athlete name + affiliate + division */}
-				{(athleteName || division || affiliateName) && (
-					<div className="flex flex-col items-center gap-1">
-						{athleteName && (
-							<p className="text-xl font-bold uppercase tracking-tight text-white">
-								{athleteName}
-							</p>
-						)}
-						{affiliateName && (
-							<p className="text-sm font-medium text-slate-400">
-								{affiliateName}
-							</p>
-						)}
-						{division && (
-							<p className="text-sm font-medium text-amber-500">{division}</p>
-						)}
+				{/* Athlete name + affiliate */}
+				<div className="flex flex-col items-center gap-1">
+					{athleteName && (
+						<p className="text-xl font-bold uppercase tracking-tight text-white">
+							{athleteName}
+						</p>
+					)}
+					{affiliateName && (
+						<p className="text-sm font-medium text-slate-400">
+							{affiliateName}
+						</p>
+					)}
+				</div>
+
+				{/* Division pills */}
+				{items.length > 0 && (
+					<div className="flex flex-wrap justify-center gap-2">
+						{items.map((item) => (
+							<span
+								key={item.registrationId}
+								className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1"
+							>
+								<span className="text-xs font-medium text-amber-500">
+									{item.divisionLabel ?? "Division"}
+								</span>
+								{item.teamName && (
+									<span className="text-xs text-slate-400">
+										({item.teamName})
+									</span>
+								)}
+							</span>
+						))}
 					</div>
 				)}
 			</div>

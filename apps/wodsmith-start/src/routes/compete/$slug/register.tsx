@@ -8,13 +8,16 @@
 
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray, isNotNull } from "drizzle-orm"
 import { z } from "zod"
 import { RegistrationForm } from "@/components/registration/registration-form"
 import {
+	competitionRegistrationAnswersTable,
 	competitionRegistrationsTable,
 	scalingGroupsTable,
+	teamMembershipTable,
 	userTable,
+	waiverSignaturesTable,
 } from "@/db/schema"
 import {
 	getPublicCompetitionDivisionsFn,
@@ -43,7 +46,9 @@ const getUserCompetitionRegistrationsFn = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		const { getDb } = await import("@/db")
 		const db = getDb()
-		const registrations =
+
+		// 1. Direct registrations (user is the registrant/captain)
+		const directRegistrations =
 			await db.query.competitionRegistrationsTable.findMany({
 				where: and(
 					eq(competitionRegistrationsTable.eventId, data.competitionId),
@@ -51,11 +56,84 @@ const getUserCompetitionRegistrationsFn = createServerFn({ method: "GET" })
 				),
 			})
 
+		// 2. Team registrations where user is a team member (accepted invite)
+		// Find all athlete teams the user belongs to
+		const userMemberships = await db.query.teamMembershipTable.findMany({
+			where: eq(teamMembershipTable.userId, data.userId),
+			columns: { teamId: true },
+		})
+		const userTeamIds = userMemberships.map((m) => m.teamId)
+
+		let teamRegistrations: typeof directRegistrations = []
+		if (userTeamIds.length > 0) {
+			teamRegistrations =
+				await db.query.competitionRegistrationsTable.findMany({
+					where: and(
+						eq(competitionRegistrationsTable.eventId, data.competitionId),
+						inArray(competitionRegistrationsTable.athleteTeamId, userTeamIds),
+						isNotNull(competitionRegistrationsTable.athleteTeamId),
+					),
+				})
+		}
+
+		// Dedupe by registration ID (captain shows up in both)
+		const allRegistrations = [
+			...directRegistrations,
+			...teamRegistrations.filter(
+				(tr) => !directRegistrations.some((dr) => dr.id === tr.id),
+			),
+		]
+
+		const registeredDivisionIds = allRegistrations
+			.map((r) => r.divisionId)
+			.filter((id): id is string => id !== null)
+
+		// If user has existing registrations, fetch their previous answers and waiver signatures
+		let previousAnswers: Array<{ questionId: string; answer: string }> = []
+		let signedWaiverIds: string[] = []
+
+		if (allRegistrations.length > 0) {
+			const registrationIds = allRegistrations.map((r) => r.id)
+
+			// Fetch answers from any previous registration (they're the same across divisions)
+			const answers =
+				await db.query.competitionRegistrationAnswersTable.findMany({
+					where: and(
+						eq(competitionRegistrationAnswersTable.userId, data.userId),
+						inArray(
+							competitionRegistrationAnswersTable.registrationId,
+							registrationIds,
+						),
+					),
+					columns: { questionId: true, answer: true },
+				})
+
+			// Dedupe by questionId (take first answer found)
+			const seen = new Set<string>()
+			for (const a of answers) {
+				if (!seen.has(a.questionId)) {
+					seen.add(a.questionId)
+					previousAnswers.push({
+						questionId: a.questionId,
+						answer: a.answer,
+					})
+				}
+			}
+
+			// Fetch waiver signatures for this user on waivers from this competition's registrations
+			const signatures =
+				await db.query.waiverSignaturesTable.findMany({
+					where: eq(waiverSignaturesTable.userId, data.userId),
+					columns: { waiverId: true },
+				})
+			signedWaiverIds = [...new Set(signatures.map((s) => s.waiverId))]
+		}
+
 		return {
-			registrations,
-			registeredDivisionIds: registrations
-				.map((r) => r.divisionId)
-				.filter((id): id is string => id !== null),
+			registrations: allRegistrations,
+			registeredDivisionIds,
+			previousAnswers,
+			signedWaiverIds,
 		}
 	})
 
@@ -142,7 +220,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 
 		// 3. Parallel fetch: existing registrations, affiliate name, waivers, and questions
 		const [
-			{ registeredDivisionIds },
+			{ registeredDivisionIds, previousAnswers, signedWaiverIds },
 			userProfile,
 			{ waivers },
 			{ questions },
@@ -197,6 +275,8 @@ export const Route = createFileRoute("/compete/$slug/register")({
 				waivers: [],
 				questions: [],
 				registeredDivisionIds: [],
+				previousAnswers: [],
+				signedWaiverIds: [],
 			}
 		}
 
@@ -250,6 +330,8 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			userLastName: userProfile.lastName,
 			userEmail: userProfile.email,
 			registeredDivisionIds,
+			previousAnswers,
+			signedWaiverIds,
 		}
 	},
 })
@@ -271,6 +353,8 @@ function RegisterPage() {
 		userLastName,
 		userEmail,
 		registeredDivisionIds,
+		previousAnswers,
+		signedWaiverIds,
 	} = Route.useLoaderData()
 
 	const { canceled } = Route.useSearch()
@@ -311,6 +395,8 @@ function RegisterPage() {
 				userLastName={userLastName}
 				userEmail={userEmail}
 				registeredDivisionIds={registeredDivisionIds}
+			previousAnswers={previousAnswers}
+			signedWaiverIds={signedWaiverIds}
 			/>
 		</div>
 	)
