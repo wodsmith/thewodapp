@@ -1,4 +1,9 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router"
+import {
+	createFileRoute,
+	Link,
+	redirect,
+	useRouter,
+} from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import {
 	AlertCircle,
@@ -10,6 +15,7 @@ import {
 	Receipt,
 	Users,
 } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 import { z } from "zod"
 import { CopyInviteLink } from "@/components/registration/copy-invite-link"
 import { ProfileCompletionForm } from "@/components/registration/profile-completion-form"
@@ -28,22 +34,13 @@ import {
 	getRegistrationSuccessDataFn,
 	updateAthleteBasicProfileFn,
 } from "@/server-fns/athlete-profile-fns"
-import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
+import {
+	getRegistrationPurchaseStatusFn,
+	getUserCompetitionRegistrationFn,
+} from "@/server-fns/competition-detail-fns"
 
-/**
- * Refresh button component
- */
-function RefreshButton() {
-	return (
-		<Button
-			variant="ghost"
-			onClick={() => window.location.reload()}
-			className="text-sm"
-		>
-			Refresh Page
-		</Button>
-	)
-}
+const POLL_INTERVAL_MS = 3000
+const MAX_POLL_ATTEMPTS = 40 // ~2 minutes of polling
 
 // ============================================================================
 // Helper Functions
@@ -127,6 +124,8 @@ export const Route = createFileRoute("/compete/$slug/register/success")({
 			teamInvites,
 			baseUrl,
 			slug,
+			competitionId: competition.id,
+			userId: session.userId,
 		}
 	},
 })
@@ -143,10 +142,44 @@ function RegistrationSuccessPage() {
 		teamInvites,
 		baseUrl,
 		slug,
+		competitionId,
+		userId,
 	} = Route.useLoaderData()
 
 	// Use useServerFn for client-side calls
 	const updateAthleteProfile = useServerFn(updateAthleteBasicProfileFn)
+	const checkStatus = useServerFn(getRegistrationPurchaseStatusFn)
+	const router = useRouter()
+
+	const isProcessing = !registration
+	const [polling, setPolling] = useState(isProcessing)
+	const pollCount = useRef(0)
+
+	useEffect(() => {
+		if (!polling) return
+
+		const interval = setInterval(async () => {
+			pollCount.current += 1
+
+			if (pollCount.current >= MAX_POLL_ATTEMPTS) {
+				setPolling(false)
+				clearInterval(interval)
+				return
+			}
+
+			const { status } = await checkStatus({
+				data: { competitionId, userId },
+			})
+
+			if (status === "registered") {
+				setPolling(false)
+				clearInterval(interval)
+				router.invalidate()
+			}
+		}, POLL_INTERVAL_MS)
+
+		return () => clearInterval(interval)
+	}, [polling, checkStatus, competitionId, userId, router])
 
 	const handleProfileUpdate = async (values: {
 		gender: Gender
@@ -156,25 +189,25 @@ function RegistrationSuccessPage() {
 		await updateAthleteProfile({ data: values })
 	}
 
-	if (!registration) {
+	if (isProcessing) {
 		// Payment may still be processing (webhook hasn't completed yet)
 		return (
 			<div className="mx-auto max-w-lg py-12 px-4">
 				<Card>
 					<CardHeader className="text-center">
-						<Loader2 className="w-16 h-16 text-blue-500 mx-auto mb-4 animate-spin" />
-						<CardTitle className="text-2xl">
-							Processing Your Registration...
+						<Loader2 className="w-12 h-12 text-blue-500 mx-auto mb-4 animate-spin" />
+						<CardTitle className="text-xl">
+							Finalizing Your Registration...
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="space-y-4 text-center">
 						<p className="text-muted-foreground">
-							Your payment was successful! We&apos;re finalizing your
-							registration.
+							Your payment was successful! We&apos;re finishing up the
+							registration process.
 						</p>
 						<p className="text-sm text-muted-foreground">
-							This usually takes just a few seconds. You&apos;ll receive a
-							confirmation email shortly.
+							This page will update automatically once your registration is
+							confirmed.
 						</p>
 						<div className="pt-4 flex flex-col gap-2">
 							<Button variant="outline" asChild>
@@ -182,7 +215,18 @@ function RegistrationSuccessPage() {
 									Back to Competition
 								</Link>
 							</Button>
-							<RefreshButton />
+							{!polling && (
+								<Button
+									variant="ghost"
+									className="text-sm"
+									onClick={() => {
+										pollCount.current = 0
+										setPolling(true)
+									}}
+								>
+									Check Again
+								</Button>
+							)}
 						</div>
 					</CardContent>
 				</Card>

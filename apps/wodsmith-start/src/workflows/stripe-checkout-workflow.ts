@@ -16,8 +16,8 @@
  * calls processCheckoutInline() which runs the same logic synchronously.
  */
 
-import { WorkflowEntrypoint } from "cloudflare:workers"
 import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers"
+import { WorkflowEntrypoint } from "cloudflare:workers"
 import { and, count, eq, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
@@ -97,10 +97,10 @@ async function createRegistration(
 
 	if (!existingPurchase) {
 		logError({
-			message: "[Workflow] Purchase not found",
+			message: "[Workflow] Purchase not found — will retry",
 			attributes: { purchaseId },
 		})
-		return null
+		throw new Error(`Purchase not found: ${purchaseId}`)
 	}
 
 	if (existingPurchase.status === COMMERCE_PURCHASE_STATUS.COMPLETED) {
@@ -197,10 +197,10 @@ async function createRegistration(
 
 	if (!competition) {
 		logError({
-			message: "[Workflow] Competition not found for capacity check",
+			message: "[Workflow] Competition not found — will retry",
 			attributes: { competitionId },
 		})
-		return null
+		throw new Error(`Competition not found: ${competitionId}`)
 	}
 
 	const divisionConfig = await db.query.competitionDivisionsTable.findFirst({
@@ -573,8 +573,7 @@ export async function processCheckoutInline(
 		await sendConfirmationEmail(registrationResult)
 	} catch (err) {
 		logWarning({
-			message:
-				"[Inline Checkout] Email notification failed, continuing",
+			message: "[Inline Checkout] Email notification failed, continuing",
 			error: err,
 			attributes: {
 				purchaseId: registrationResult.purchaseId,
@@ -587,8 +586,7 @@ export async function processCheckoutInline(
 		await sendSlackNotification(registrationResult, session)
 	} catch (err) {
 		logWarning({
-			message:
-				"[Inline Checkout] Slack notification failed, continuing",
+			message: "[Inline Checkout] Slack notification failed, continuing",
 			error: err,
 			attributes: {
 				purchaseId: registrationResult.purchaseId,
