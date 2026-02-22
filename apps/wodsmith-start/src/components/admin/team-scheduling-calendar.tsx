@@ -108,6 +108,7 @@ function CalendarSkeleton() {
 
 						return (
 							<div
+								// biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton array, items never reorder
 								key={`skeleton-day-${i}`}
 								className={`min-h-[100px] border-r-2 border-b-2 border-border last:border-r-0 p-2 space-y-2 ${
 									isToday ? "bg-orange/10" : "bg-background"

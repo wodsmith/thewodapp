@@ -64,7 +64,7 @@ const checkOrganizerEntitlements = createServerFn({ method: "GET" }).handler(
 		const activeOrganizingTeamId =
 			cookieTeamId && teamsWithHostCompetitions.includes(cookieTeamId)
 				? cookieTeamId
-				: teamsWithHostCompetitions[0]!
+				: (teamsWithHostCompetitions[0] ?? "")
 
 		// Get limit from session data
 		const activeTeam = session.teams.find(

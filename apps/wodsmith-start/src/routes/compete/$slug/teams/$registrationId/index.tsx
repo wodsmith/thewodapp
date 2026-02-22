@@ -541,7 +541,7 @@ function TeamManagementPage() {
 														<Button
 															variant="ghost"
 															size="sm"
-															onClick={() => copyInviteLink(invite.token!)}
+															onClick={() => copyInviteLink(invite.token ?? "")}
 														>
 															<Copy className="w-4 h-4 mr-1" />
 															Copy Link

@@ -43,7 +43,8 @@
 		"APP_URL": "https://wodsmith.com",
 		"R2_PUBLIC_URL": "https://pub-10ec4eb87e8d4c7383ead07a9dd77fa5.r2.dev",
 		"POSTHOG_KEY": "phc_UCtCVOUXvpuKzF50prCLKIWWCFc61j5CPTbt99OrKsK",
-		"TURNSTILE_SITE_KEY": "0x4AAAAAACF8K4v1TmFMOmtk"
+		"TURNSTILE_SITE_KEY": "0x4AAAAAACF8K4v1TmFMOmtk",
+		"CLOUDFLARE_VECTORIZE_API_TOKEN": ""
 	},
 	/**
 	 * KV Namespace Binding
@@ -67,6 +68,16 @@
 		{
 			"bucket_name": "wodsmith-uploads-dev",
 			"binding": "wodsmith_uploads_dev"
+		}
+	],
+	/**
+	 * Vectorize Index Bindings
+	 * Vector database for AI agent memory (semantic recall)
+	 */
+	"vectorize": [
+		{
+			"binding": "AI_MEMORY",
+			"index_name": "ai-memory"
 		}
 	]
 }
