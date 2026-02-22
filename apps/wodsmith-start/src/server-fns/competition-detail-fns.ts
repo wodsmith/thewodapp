@@ -420,6 +420,11 @@ export const getRegistrationPurchaseStatusFn = createServerFn({
 		getRegistrationPurchaseStatusInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
+		const session = await getSessionFromCookie()
+		if (!session?.userId || session.userId !== data.userId) {
+			throw new Error("Unauthorized")
+		}
+
 		const db = getDb()
 
 		// Check for existing registration first
@@ -437,12 +442,13 @@ export const getRegistrationPurchaseStatusFn = createServerFn({
 			return { status: "registered" as const }
 		}
 
-		// No registration — check for a non-cancelled purchase (workflow may still be processing)
+		// No registration — check for a non-cancelled, non-failed purchase (workflow may still be processing)
 		const purchase = await db.query.commercePurchaseTable.findFirst({
 			where: and(
 				eq(commercePurchaseTable.userId, data.userId),
 				eq(commercePurchaseTable.competitionId, data.competitionId),
 				ne(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.CANCELLED),
+				ne(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.FAILED),
 			),
 			columns: { id: true, status: true },
 		})

@@ -305,7 +305,7 @@ describe('StripeCheckoutWorkflow', () => {
   })
 
   describe('Step 1: create-registration — Failure States', () => {
-    it('returns null when purchase not found', async () => {
+    it('throws when purchase not found (enables workflow retry)', async () => {
       mockDb.query.commercePurchaseTable = {
         findFirst: vi.fn().mockResolvedValue(null),
         findMany: vi.fn().mockResolvedValue([]),
@@ -315,10 +315,10 @@ describe('StripeCheckoutWorkflow', () => {
       const step = createFakeStep()
       const event = createWorkflowEvent(baseParams)
 
-      await workflow.run(event as any, step as any)
+      await expect(workflow.run(event as any, step as any)).rejects.toThrow(
+        'Purchase not found: purchase-123',
+      )
 
-      // Only 1 step called (create-registration returned null), no email/slack
-      expect(step.do).toHaveBeenCalledTimes(1)
       expect(mockRegisterForCompetition).not.toHaveBeenCalled()
     })
 
@@ -468,7 +468,7 @@ describe('StripeCheckoutWorkflow', () => {
       expect(mockDb.update).toHaveBeenCalled()
     })
 
-    it('returns null when competition not found', async () => {
+    it('throws when competition not found (enables workflow retry)', async () => {
       setupHappyPathMocks()
 
       mockDb.query.competitionsTable = {
@@ -480,13 +480,14 @@ describe('StripeCheckoutWorkflow', () => {
       const step = createFakeStep()
       const event = createWorkflowEvent(baseParams)
 
-      await workflow.run(event as any, step as any)
+      await expect(workflow.run(event as any, step as any)).rejects.toThrow(
+        'Competition not found: comp-456',
+      )
 
-      expect(step.do).toHaveBeenCalledTimes(1)
       expect(mockRegisterForCompetition).not.toHaveBeenCalled()
       expect(mockLogError).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: '[Workflow] Competition not found for capacity check',
+          message: '[Workflow] Competition not found — will retry',
         }),
       )
     })

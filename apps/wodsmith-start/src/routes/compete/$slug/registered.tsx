@@ -121,31 +121,53 @@ function RegisteredPage() {
 	useEffect(() => {
 		if (!polling) return
 
-		const interval = setInterval(async () => {
+		let timeoutId: ReturnType<typeof setTimeout>
+		let cancelled = false
+
+		const poll = async () => {
+			if (cancelled) return
 			pollCount.current += 1
 
 			if (pollCount.current >= MAX_POLL_ATTEMPTS) {
 				setPolling(false)
-				clearInterval(interval)
 				return
 			}
 
-			const { status } = await checkStatus({
-				data: {
-					competitionId: loaderData.competitionId,
-					userId: loaderData.userId,
-				},
-			})
+			try {
+				const { status } = await checkStatus({
+					data: {
+						competitionId: loaderData.competitionId,
+						userId: loaderData.userId,
+					},
+				})
 
-			if (status === "registered") {
-				setPolling(false)
-				clearInterval(interval)
-				// Re-run the loader to get full registration data
-				router.invalidate()
+				if (cancelled) return
+
+				if (status === "registered") {
+					setPolling(false)
+					router.invalidate()
+					return
+				}
+
+				if (status === "failed") {
+					setPolling(false)
+					return
+				}
+			} catch {
+				// Transient error — next tick will retry
 			}
-		}, POLL_INTERVAL_MS)
 
-		return () => clearInterval(interval)
+			if (!cancelled) {
+				timeoutId = setTimeout(poll, POLL_INTERVAL_MS)
+			}
+		}
+
+		timeoutId = setTimeout(poll, POLL_INTERVAL_MS)
+
+		return () => {
+			cancelled = true
+			clearTimeout(timeoutId)
+		}
 	}, [
 		polling,
 		checkStatus,
