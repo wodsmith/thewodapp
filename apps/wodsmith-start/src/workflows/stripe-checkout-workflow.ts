@@ -112,20 +112,46 @@ async function createRegistration(
 	}
 
 	// IDEMPOTENCY CHECK 2: Check if registration already exists
+	// Primary: by commercePurchaseId (set after registerForCompetition + update)
 	const existingRegistration =
 		await db.query.competitionRegistrationsTable.findFirst({
 			where: eq(competitionRegistrationsTable.commercePurchaseId, purchaseId),
 		})
 
-	if (existingRegistration) {
+	// Secondary: by (eventId, userId) to catch partial failures where
+	// registerForCompetition succeeded but the commercePurchaseId update failed
+	const existingRegByUser = !existingRegistration
+		? await db.query.competitionRegistrationsTable.findFirst({
+				where: and(
+					eq(competitionRegistrationsTable.eventId, competitionId),
+					eq(competitionRegistrationsTable.userId, userId),
+				),
+			})
+		: null
+
+	const regToReconcile = existingRegistration ?? existingRegByUser
+
+	if (regToReconcile) {
 		logInfo({
 			message:
 				"[Workflow] Registration already exists for purchase, ensuring purchase completed",
 			attributes: {
 				purchaseId,
-				registrationId: existingRegistration.id,
+				registrationId: regToReconcile.id,
+				matchedBy: existingRegistration ? "purchaseId" : "eventId+userId",
 			},
 		})
+		// Ensure registration is linked to purchase and has payment info
+		if (!regToReconcile.commercePurchaseId) {
+			await db
+				.update(competitionRegistrationsTable)
+				.set({
+					commercePurchaseId: purchaseId,
+					paymentStatus: COMMERCE_PAYMENT_STATUS.PAID,
+					paidAt: new Date(),
+				})
+				.where(eq(competitionRegistrationsTable.id, regToReconcile.id))
+		}
 		// Ensure purchase is marked as completed
 		await db
 			.update(commercePurchaseTable)
@@ -476,26 +502,50 @@ export class StripeCheckoutWorkflow extends WorkflowEntrypoint<
 		}
 
 		// Step 2: Send confirmation email (non-critical, retries independently)
-		await step.do(
-			"send-confirmation-email",
-			{
-				retries: { limit: 3, delay: "2 seconds", backoff: "exponential" },
-			},
-			async () => {
-				await sendConfirmationEmail(registrationResult)
-			},
-		)
+		// Wrapped in try-catch so email failure doesn't block Slack notification
+		try {
+			await step.do(
+				"send-confirmation-email",
+				{
+					retries: { limit: 3, delay: "2 seconds", backoff: "exponential" },
+				},
+				async () => {
+					await sendConfirmationEmail(registrationResult)
+				},
+			)
+		} catch (emailErr) {
+			logWarning({
+				message:
+					"[Workflow] Email step failed after retries, continuing to Slack",
+				error: emailErr,
+				attributes: {
+					purchaseId,
+					registrationId: registrationResult.registrationId,
+				},
+			})
+		}
 
 		// Step 3: Send Slack notification (non-critical, retries independently)
-		await step.do(
-			"send-slack-notification",
-			{
-				retries: { limit: 2, delay: "1 second", backoff: "linear" },
-			},
-			async () => {
-				await sendSlackNotification(registrationResult, session)
-			},
-		)
+		try {
+			await step.do(
+				"send-slack-notification",
+				{
+					retries: { limit: 2, delay: "1 second", backoff: "linear" },
+				},
+				async () => {
+					await sendSlackNotification(registrationResult, session)
+				},
+			)
+		} catch (slackErr) {
+			logWarning({
+				message: "[Workflow] Slack step failed after retries",
+				error: slackErr,
+				attributes: {
+					purchaseId,
+					registrationId: registrationResult.registrationId,
+				},
+			})
+		}
 	}
 }
 

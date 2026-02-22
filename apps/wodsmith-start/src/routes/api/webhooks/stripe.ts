@@ -278,12 +278,27 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 										},
 									})
 								} catch (workflowErr) {
-									// Conflict = event already dispatched (idempotent)
-									logInfo({
-										message:
-											"[Stripe Webhook] Workflow already exists for event (idempotent)",
-										attributes: { eventId: event.id },
-									})
+									const isConflict =
+										workflowErr instanceof Error &&
+										workflowErr.message.includes("already exists")
+									if (isConflict) {
+										logInfo({
+											message:
+												"[Stripe Webhook] Workflow already exists for event (idempotent)",
+											attributes: { eventId: event.id },
+										})
+									} else {
+										logError({
+											message:
+												"[Stripe Webhook] Failed to dispatch workflow",
+											error: workflowErr,
+											attributes: {
+												eventId: event.id,
+												purchaseId,
+											},
+										})
+										throw workflowErr
+									}
 								}
 							} else {
 								// Local dev: Workflow binding unavailable, process inline

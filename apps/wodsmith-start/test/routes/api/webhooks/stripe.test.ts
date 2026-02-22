@@ -234,6 +234,37 @@ describe('Stripe Webhook Handler', () => {
       expect(response.status).toBe(200)
     })
 
+    it('returns 500 for non-conflict workflow errors so Stripe retries', async () => {
+      const session = {
+        id: 'cs_test_123',
+        payment_intent: 'pi_test_456',
+        amount_total: 5000,
+        customer_email: 'athlete@test.com',
+        metadata: {
+          purchaseId: 'purchase-1',
+          competitionId: 'comp-1',
+          divisionId: 'div-1',
+          userId: 'user-1',
+        },
+      }
+
+      const event = buildStripeEvent(
+        'checkout.session.completed',
+        session,
+        'evt_fail',
+      )
+      mockConstructEventAsync.mockResolvedValue(event)
+
+      // Non-conflict error (e.g., service down)
+      mockWorkflowCreate.mockRejectedValue(
+        new Error('Internal server error'),
+      )
+
+      const response = await callWebhook(JSON.stringify(event))
+      // Should return 500 so Stripe retries
+      expect(response.status).toBe(500)
+    })
+
     it('extracts payment_intent from object format', async () => {
       const session = {
         id: 'cs_test_123',

@@ -347,7 +347,7 @@ describe('StripeCheckoutWorkflow', () => {
       )
     })
 
-    it('ensures purchase completed when registration already exists (idempotency)', async () => {
+    it('ensures purchase completed when registration already exists by purchaseId (idempotency)', async () => {
       setupHappyPathMocks()
 
       mockDb.query.competitionRegistrationsTable = {
@@ -365,6 +365,36 @@ describe('StripeCheckoutWorkflow', () => {
       await workflow.run(event as any, step as any)
 
       // Should mark purchase as completed but not create new registration
+      expect(mockDb.update).toHaveBeenCalled()
+      expect(mockRegisterForCompetition).not.toHaveBeenCalled()
+      expect(step.do).toHaveBeenCalledTimes(1)
+    })
+
+    it('reconciles registration found by eventId+userId when commercePurchaseId missing (partial failure recovery)', async () => {
+      setupHappyPathMocks()
+
+      // First findFirst (by commercePurchaseId) returns null
+      // Second findFirst (by eventId+userId) returns the orphaned registration
+      mockDb.query.competitionRegistrationsTable = {
+        findFirst: vi
+          .fn()
+          .mockResolvedValueOnce(null) // primary check: no match by purchaseId
+          .mockResolvedValueOnce({
+            id: 'orphaned-reg',
+            commercePurchaseId: null,
+            eventId: testCompetitionId,
+            userId: testUserId,
+          }), // secondary check: found by eventId+userId
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+
+      const workflow = new StripeCheckoutWorkflow({} as any, {} as any)
+      const step = createFakeStep()
+      const event = createWorkflowEvent(baseParams)
+
+      await workflow.run(event as any, step as any)
+
+      // Should link the orphaned registration to the purchase and mark completed
       expect(mockDb.update).toHaveBeenCalled()
       expect(mockRegisterForCompetition).not.toHaveBeenCalled()
       expect(step.do).toHaveBeenCalledTimes(1)
@@ -493,7 +523,7 @@ describe('StripeCheckoutWorkflow', () => {
       )
     })
 
-    it('rethrows email failure for step retry', async () => {
+    it('logs warning and continues to Slack when email fails after retries', async () => {
       setupHappyPathMocks()
 
       mockNotifyRegistrationConfirmed.mockRejectedValue(
@@ -504,9 +534,17 @@ describe('StripeCheckoutWorkflow', () => {
       const step = createFakeStep()
       const event = createWorkflowEvent(baseParams)
 
-      await expect(workflow.run(event as any, step as any)).rejects.toThrow(
-        'Email send failed',
+      // Should not throw — email failure is caught, Slack still runs
+      await workflow.run(event as any, step as any)
+
+      expect(mockLogWarning).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message:
+            '[Workflow] Email step failed after retries, continuing to Slack',
+        }),
       )
+      // Slack should still be called
+      expect(mockNotifyCompetitionRegistration).toHaveBeenCalled()
     })
   })
 
@@ -531,7 +569,7 @@ describe('StripeCheckoutWorkflow', () => {
       })
     })
 
-    it('rethrows Slack failure for step retry', async () => {
+    it('logs warning when Slack fails after retries (does not throw)', async () => {
       setupHappyPathMocks()
 
       mockNotifyCompetitionRegistration.mockRejectedValue(
@@ -542,8 +580,13 @@ describe('StripeCheckoutWorkflow', () => {
       const step = createFakeStep()
       const event = createWorkflowEvent(baseParams)
 
-      await expect(workflow.run(event as any, step as any)).rejects.toThrow(
-        'Slack webhook error',
+      // Should not throw — Slack failure is caught
+      await workflow.run(event as any, step as any)
+
+      expect(mockLogWarning).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: '[Workflow] Slack step failed after retries',
+        }),
       )
     })
   })
