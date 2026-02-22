@@ -318,6 +318,27 @@ interface NotifyRegistrationConfirmedParams {
 	competitionId: string
 	isPaid: boolean
 	amountPaidCents?: number
+	/** Pre-fetched entities to avoid redundant DB queries (used by workflow) */
+	prefetched?: {
+		user?: {
+			id: string
+			email: string | null
+			firstName: string | null
+		}
+		competition?: {
+			id: string
+			name: string
+			slug: string
+			startDate: string | Date | null
+		}
+		registration?: {
+			id: string
+			divisionId: string | null
+			teamName: string | null
+			pendingTeammates: string | null
+		}
+		divisionName?: string
+	}
 }
 
 // ============================================================================
@@ -523,9 +544,7 @@ export async function registerForCompetition(
 
 		if (teammateUsers.length > 0) {
 			const teammateUserIds = teammateUsers.map((u) => u.id)
-			const emailByUserId = new Map(
-				teammateUsers.map((u) => [u.id, u.email]),
-			)
+			const emailByUserId = new Map(teammateUsers.map((u) => [u.id, u.email]))
 
 			// Batch check: are any of these users already registered as captains?
 			const existingRegs = await db
@@ -535,19 +554,14 @@ export async function registerForCompetition(
 				.from(competitionRegistrationsTable)
 				.where(
 					and(
-						eq(
-							competitionRegistrationsTable.eventId,
-							params.competitionId,
-						),
+						eq(competitionRegistrationsTable.eventId, params.competitionId),
 						inArray(competitionRegistrationsTable.userId, teammateUserIds),
 					),
 				)
 
 			if (existingRegs.length > 0) {
 				const regEmail = emailByUserId.get(existingRegs[0].userId)
-				throw new Error(
-					`${regEmail} is already on a team for this competition`,
-				)
+				throw new Error(`${regEmail} is already on a team for this competition`)
 			}
 
 			// Batch check: are any of these users on a competition_team for this competition?
@@ -584,10 +598,7 @@ export async function registerForCompetition(
 				.from(competitionRegistrationsTable)
 				.where(
 					and(
-						eq(
-							competitionRegistrationsTable.eventId,
-							params.competitionId,
-						),
+						eq(competitionRegistrationsTable.eventId, params.competitionId),
 						sql`JSON_CONTAINS(${competitionRegistrationsTable.pendingTeammates}, JSON_OBJECT('email', ${teammateEmail}))`,
 					),
 				)
@@ -767,16 +778,24 @@ export async function registerForCompetition(
 export async function notifyRegistrationConfirmed(
 	params: NotifyRegistrationConfirmedParams,
 ): Promise<void> {
-	const { userId, registrationId, competitionId, isPaid, amountPaidCents } =
-		params
+	const {
+		userId,
+		registrationId,
+		competitionId,
+		isPaid,
+		amountPaidCents,
+		prefetched,
+	} = params
 
 	try {
 		const db = getDb()
 
-		// Fetch user
-		const user = await db.query.userTable.findFirst({
-			where: eq(userTable.id, userId),
-		})
+		// Use prefetched user or fetch from DB
+		const user =
+			prefetched?.user ??
+			(await db.query.userTable.findFirst({
+				where: eq(userTable.id, userId),
+			}))
 
 		if (!user?.email) {
 			logError({
@@ -786,10 +805,12 @@ export async function notifyRegistrationConfirmed(
 			return
 		}
 
-		// Fetch competition
-		const competition = await db.query.competitionsTable.findFirst({
-			where: eq(competitionsTable.id, competitionId),
-		})
+		// Use prefetched competition or fetch from DB
+		const competition =
+			prefetched?.competition ??
+			(await db.query.competitionsTable.findFirst({
+				where: eq(competitionsTable.id, competitionId),
+			}))
 
 		if (!competition) {
 			logError({
@@ -800,12 +821,12 @@ export async function notifyRegistrationConfirmed(
 			return
 		}
 
-		// Fetch registration with division
-		const registration = await db.query.competitionRegistrationsTable.findFirst(
-			{
+		// Use prefetched registration or fetch from DB
+		const registration =
+			prefetched?.registration ??
+			(await db.query.competitionRegistrationsTable.findFirst({
 				where: eq(competitionRegistrationsTable.id, registrationId),
-			},
-		)
+			}))
 
 		if (!registration) {
 			logError({
@@ -816,9 +837,9 @@ export async function notifyRegistrationConfirmed(
 			return
 		}
 
-		// Fetch division if exists
-		let divisionName = "Open"
-		if (registration.divisionId) {
+		// Use prefetched division name or fetch from DB
+		let divisionName = prefetched?.divisionName ?? "Open"
+		if (!prefetched?.divisionName && registration.divisionId) {
 			const division = await db.query.scalingLevelsTable.findFirst({
 				where: eq(scalingLevelsTable.id, registration.divisionId),
 			})
