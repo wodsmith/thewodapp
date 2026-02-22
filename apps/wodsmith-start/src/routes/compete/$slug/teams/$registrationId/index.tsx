@@ -337,20 +337,21 @@ function DivisionSwitcher({
 	const current = registrations.find((r) => r.id === currentRegistrationId)
 
 	return (
-		<div className="relative">
+		<div className="relative shrink-0">
 			<Button
 				variant="outline"
+				size="sm"
 				onClick={() => setOpen(!open)}
-				className="w-full justify-between"
+				className="justify-between gap-2"
 			>
-				<span className="truncate">
+				<span className="truncate max-w-[200px]">
 					{current?.divisionLabel ?? "Division"}
 					{current?.teamName ? ` - ${current.teamName}` : ""}
 				</span>
-				<ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+				<ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
 			</Button>
 			{open && (
-				<div className="absolute z-10 mt-1 w-full rounded-md border bg-popover shadow-md">
+				<div className="absolute right-0 z-10 mt-1 min-w-[200px] rounded-md border bg-popover shadow-md">
 					{registrations.map((reg) => (
 						<button
 							key={reg.id}
@@ -458,22 +459,24 @@ function TeamManagementPage() {
 	if (!isTeamRegistration) {
 		return (
 			<div className="container mx-auto max-w-4xl py-8 space-y-6">
-				<div className="space-y-2">
-					<h1 className="text-3xl font-bold">My Registration</h1>
-					<p className="text-muted-foreground">
-						{competition?.name || "Competition"} –{" "}
-						{division?.label || "Division"}
-					</p>
-				</div>
+				<div className="flex items-start justify-between gap-4">
+					<div className="space-y-2">
+						<h1 className="text-3xl font-bold">My Registration</h1>
+						<p className="text-muted-foreground">
+							{competition?.name || "Competition"} –{" "}
+							{division?.label || "Division"}
+						</p>
+					</div>
 
-				{/* Division Switcher - when user has multiple registrations */}
-				{hasMultipleRegistrations && competition && (
-					<DivisionSwitcher
-						registrations={allUserRegistrations}
-						currentRegistrationId={registration.id}
-						competitionSlug={competition.slug}
-					/>
-				)}
+					{/* Division Switcher - when user has multiple registrations */}
+					{hasMultipleRegistrations && competition && (
+						<DivisionSwitcher
+							registrations={allUserRegistrations}
+							currentRegistrationId={registration.id}
+							competitionSlug={competition.slug}
+						/>
+					)}
+				</div>
 
 				{/* Registration Details */}
 				{registrationDetails && (
@@ -531,24 +534,26 @@ function TeamManagementPage() {
 
 			<div className="container mx-auto max-w-4xl py-8 space-y-6">
 				{/* Header */}
-				<div className="space-y-2">
-					<h1 className="text-3xl font-bold">
-						{registration.teamName || "Team"}
-					</h1>
-					<p className="text-muted-foreground">
-						{competition?.name || "Competition"} –{" "}
-						{division?.label || "Division"}
-					</p>
-				</div>
+				<div className="flex items-start justify-between gap-4">
+					<div className="space-y-2">
+						<h1 className="text-3xl font-bold">
+							{registration.teamName || "Team"}
+						</h1>
+						<p className="text-muted-foreground">
+							{competition?.name || "Competition"} –{" "}
+							{division?.label || "Division"}
+						</p>
+					</div>
 
-				{/* Division Switcher - when user has multiple registrations */}
-				{hasMultipleRegistrations && competition && (
-					<DivisionSwitcher
-						registrations={allUserRegistrations}
-						currentRegistrationId={registration.id}
-						competitionSlug={competition.slug}
-					/>
-				)}
+					{/* Division Switcher - when user has multiple registrations */}
+					{hasMultipleRegistrations && competition && (
+						<DivisionSwitcher
+							registrations={allUserRegistrations}
+							currentRegistrationId={registration.id}
+							competitionSlug={competition.slug}
+						/>
+					)}
+				</div>
 
 				{/* Registration Details */}
 				{registrationDetails && (

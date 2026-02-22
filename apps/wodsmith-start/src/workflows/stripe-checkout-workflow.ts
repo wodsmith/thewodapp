@@ -28,6 +28,7 @@ import {
 	competitionRegistrationAnswersTable,
 	competitionRegistrationsTable,
 	competitionsTable,
+	scalingLevelsTable,
 	userTable,
 } from "@/db/schema"
 import {
@@ -118,13 +119,14 @@ async function createRegistration(
 			where: eq(competitionRegistrationsTable.commercePurchaseId, purchaseId),
 		})
 
-	// Secondary: by (eventId, userId) to catch partial failures where
+	// Secondary: by (eventId, userId, divisionId) to catch partial failures where
 	// registerForCompetition succeeded but the commercePurchaseId update failed
 	const existingRegByUser = !existingRegistration
 		? await db.query.competitionRegistrationsTable.findFirst({
 				where: and(
 					eq(competitionRegistrationsTable.eventId, competitionId),
 					eq(competitionRegistrationsTable.userId, userId),
+					eq(competitionRegistrationsTable.divisionId, divisionId),
 				),
 			})
 		: null
@@ -203,15 +205,28 @@ async function createRegistration(
 		return null
 	}
 
-	const divisionConfig = await db.query.competitionDivisionsTable.findFirst({
-		where: and(
-			eq(competitionDivisionsTable.competitionId, competitionId),
-			eq(competitionDivisionsTable.divisionId, divisionId),
-		),
-		with: {
-			division: true,
-		},
-	})
+	const [divisionConfig] = await db
+		.select({
+			id: competitionDivisionsTable.id,
+			competitionId: competitionDivisionsTable.competitionId,
+			divisionId: competitionDivisionsTable.divisionId,
+			maxSpots: competitionDivisionsTable.maxSpots,
+			division: {
+				label: scalingLevelsTable.label,
+			},
+		})
+		.from(competitionDivisionsTable)
+		.leftJoin(
+			scalingLevelsTable,
+			eq(competitionDivisionsTable.divisionId, scalingLevelsTable.id),
+		)
+		.where(
+			and(
+				eq(competitionDivisionsTable.competitionId, competitionId),
+				eq(competitionDivisionsTable.divisionId, divisionId),
+			),
+		)
+		.limit(1)
 
 	const [registrations, pendingPurchases] = await Promise.all([
 		db
