@@ -1,10 +1,10 @@
-import type { Client } from "@planetscale/database"
+import type { Connection } from "mysql2/promise"
 
 /**
  * Delete all rows from all tables in reverse dependency order.
  * Matches the cleanup section from seed.sql but uses MySQL table names.
  */
-export async function cleanup(client: Client): Promise<void> {
+export async function cleanup(client: Connection): Promise<void> {
 	const tables = [
 		// Competition deep children
 		"score_rounds",

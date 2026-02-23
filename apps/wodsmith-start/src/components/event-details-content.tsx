@@ -248,7 +248,8 @@ function DivisionRow({ division }: { division: DivisionWithDetails }) {
 								<span className="text-xs font-medium text-red-600 dark:text-red-400">
 									SOLD OUT
 								</span>
-							) : division.spotsAvailable !== null && division.spotsAvailable <= 5 ? (
+							) : division.spotsAvailable !== null &&
+								division.spotsAvailable <= 5 ? (
 								<span className="text-xs font-medium text-amber-600 dark:text-amber-400">
 									{division.spotsAvailable} left
 								</span>

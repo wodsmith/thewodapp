@@ -384,10 +384,9 @@ export const assignVolunteerToShiftFn = createServerFn({ method: "POST" })
 			notes: data.notes,
 		})
 
-		const assignment =
-			await db.query.volunteerShiftAssignmentsTable.findFirst({
-				where: eq(volunteerShiftAssignmentsTable.id, newAssignmentId),
-			})
+		const assignment = await db.query.volunteerShiftAssignmentsTable.findFirst({
+			where: eq(volunteerShiftAssignmentsTable.id, newAssignmentId),
+		})
 
 		if (!assignment) {
 			throw new Error("Failed to create shift assignment")

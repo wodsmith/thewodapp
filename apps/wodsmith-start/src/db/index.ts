@@ -56,7 +56,12 @@ export const getDb = createServerOnlyFn((): Database => {
 		disableEval: true,
 	})
 
-	return drizzle({ client: connection, schema, casing: "snake_case", mode: "planetscale" })
+	return drizzle({
+		client: connection,
+		schema,
+		casing: "snake_case",
+		mode: "planetscale",
+	})
 })
 
 // Export env for other modules that need access to bindings (KV, R2, etc.)

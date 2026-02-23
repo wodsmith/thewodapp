@@ -4,7 +4,6 @@
 
 export {
 	ADMIN_USER,
-	createAuthenticatedContext,
 	isAuthenticated,
 	login,
 	loginAsAdmin,
