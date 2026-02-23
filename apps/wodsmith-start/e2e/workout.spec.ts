@@ -8,10 +8,11 @@ test.describe('Workouts', () => {
   })
 
   test('should display workouts and navigate to detail', async ({page}) => {
-    await page.goto('/workouts', {waitUntil: 'domcontentloaded'})
+    await page.goto('/workouts')
 
-    // Heading text is uppercase "WORKOUTS"
-    await expect(page.getByRole('heading', {name: 'WORKOUTS'})).toBeVisible({
+    // Heading text is uppercase "WORKOUTS" — exact match to avoid matching
+    // "Scheduled Workouts" and "No workouts scheduled for today"
+    await expect(page.getByRole('heading', {name: 'WORKOUTS', exact: true})).toBeVisible({
       timeout: 30000,
     })
 
@@ -44,7 +45,8 @@ test.describe('Workouts', () => {
   test('should create a new workout', async ({page}) => {
     const uniqueName = `E2E Test Workout ${Date.now()}`
 
-    await page.goto('/workouts/new', {waitUntil: 'domcontentloaded'})
+    // Use default 'load' to ensure JS bundles are loaded for Radix Select
+    await page.goto('/workouts/new')
 
     // Heading is "CREATE WORKOUT"
     await expect(
@@ -57,12 +59,13 @@ test.describe('Workouts', () => {
     // Fill description
     await page.getByLabel('Description').fill('E2E test workout description')
 
-    // Select scheme — trigger shows placeholder "Select a scheme"
-    await page
-      .getByRole('combobox')
-      .filter({hasText: /select a scheme/i})
-      .click()
-    await page.getByRole('option', {name: 'For Time', exact: true}).click()
+    // Select scheme — Radix Select trigger with placeholder "Select a scheme"
+    const schemeTrigger = page.getByRole('combobox').filter({hasText: /select a scheme/i})
+    await schemeTrigger.click()
+    // Wait for Radix Select dropdown to open before clicking option
+    const forTimeOption = page.getByRole('option', {name: 'For Time', exact: true})
+    await expect(forTimeOption).toBeVisible({timeout: 5000})
+    await forTimeOption.click()
 
     // Submit
     await page.getByRole('button', {name: 'Create Workout'}).click()

@@ -8,8 +8,8 @@ test.describe('Competition Registration', () => {
 
     const comp = TEST_DATA.competition
 
-    // Navigate to public competition page
-    await page.goto(`/compete/${comp.slug}`, {waitUntil: 'domcontentloaded'})
+    // Navigate to public competition page — use default 'load' for JS hydration
+    await page.goto(`/compete/${comp.slug}`)
 
     // Verify competition page loaded
     await expect(
@@ -27,15 +27,15 @@ test.describe('Competition Registration', () => {
       page.getByText(/register for/i),
     ).toBeVisible({timeout: 15000})
 
-    // Select a division (combobox trigger)
+    // Select a division — Popover-based combobox with plain <button> options
     const divisionTrigger = page
       .getByRole('combobox')
       .first()
     await divisionTrigger.click()
 
-    // Select Scaled division
-    const scaledOption = page.getByRole('option', {name: /scaled/i}).first()
-      .or(page.locator('button').filter({hasText: /scaled/i}).first())
+    // Division options render as <button> elements inside a Popover, not role="option"
+    const scaledOption = page.locator('button').filter({hasText: /^Scaled/i}).first()
+    await expect(scaledOption).toBeVisible({timeout: 5000})
     await scaledOption.click()
 
     // Select affiliate — search for Independent

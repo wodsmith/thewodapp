@@ -10,8 +10,8 @@ test.describe('Competition Organizer', () => {
     const uniqueName = `E2E Comp ${Date.now()}`
     const slug = `e2e-comp-${Date.now()}`
 
-    // Navigate to create competition page
-    await page.goto('/compete/organizer/new', {waitUntil: 'domcontentloaded'})
+    // Navigate to create competition page — use default 'load' for JS hydration
+    await page.goto('/compete/organizer/new')
     await expect(
       page.getByText('Create Competition', {exact: true}).first(),
     ).toBeVisible({timeout: 15000})
@@ -99,8 +99,8 @@ test.describe('Competition Organizer', () => {
     await expect(createEventBtn).toBeVisible({timeout: 5000})
     await createEventBtn.click()
 
-    // Fill event dialog
-    await expect(page.getByRole('dialog')).toBeVisible()
+    // Fill event dialog — wait for dialog to appear after React state update
+    await expect(page.getByRole('dialog')).toBeVisible({timeout: 10000})
     await page.getByLabel('Event Name').fill('Event 1 - Fran')
 
     // Submit event creation
