@@ -30,7 +30,10 @@ const config = defineConfig({
 			? [
 					sentryVitePlugin({
 						org: process.env.SENTRY_ORG || "wodsmith",
-						project: process.env.SENTRY_PROJECT || "wodsmith-start",
+						project:
+							process.env.SENTRY_PROJECT_CLIENT ||
+							process.env.SENTRY_PROJECT ||
+							"wodsmith-start",
 						authToken: process.env.SENTRY_AUTH_TOKEN,
 						sourcemaps: {
 							filesToDeleteAfterUpload: ["./**/*.map"],
@@ -43,8 +46,9 @@ const config = defineConfig({
 			: []),
 	],
 	define: {
+		// Client DSN can differ from server DSN (separate Sentry projects)
 		"import.meta.env.VITE_SENTRY_DSN": JSON.stringify(
-			process.env.SENTRY_DSN || "",
+			process.env.SENTRY_DSN_CLIENT || process.env.SENTRY_DSN || "",
 		),
 		"import.meta.env.VITE_SENTRY_RELEASE": JSON.stringify(
 			process.env.GITHUB_SHA?.slice(0, 7) || "",
