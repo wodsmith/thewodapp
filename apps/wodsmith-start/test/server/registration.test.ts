@@ -88,7 +88,6 @@ import {
 // Test Data Factories
 // ============================================================================
 
-const now = new Date("2025-03-15T12:00:00Z")
 
 function makeCompetition(overrides = {}) {
 	return {

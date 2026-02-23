@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -26,11 +26,13 @@ type FeeBreakdownProps = {
 export function FeeBreakdown({ competitionId, divisionId, hideTotal, onFeesLoaded }: FeeBreakdownProps) {
 	const [fees, setFees] = useState<FeeData | null>(null)
 	const [isLoading, setIsLoading] = useState(false)
+	const onFeesLoadedRef = useRef(onFeesLoaded)
+	onFeesLoadedRef.current = onFeesLoaded
 
 	useEffect(() => {
 		if (!divisionId) {
 			setFees(null)
-			onFeesLoaded?.(divisionId ?? "", null)
+			onFeesLoadedRef.current?.(divisionId ?? "", null)
 			return
 		}
 
@@ -41,11 +43,11 @@ export function FeeBreakdown({ competitionId, divisionId, hideTotal, onFeesLoade
 					data: { competitionId, divisionId },
 				})
 				setFees(result)
-				onFeesLoaded?.(divisionId, result)
+				onFeesLoadedRef.current?.(divisionId, result)
 			} catch (error) {
 				console.error("Failed to fetch registration fee breakdown:", error)
 				setFees(null)
-				onFeesLoaded?.(divisionId, null)
+				onFeesLoadedRef.current?.(divisionId, null)
 				toast.error("Failed to load registration fees. Please try again.")
 			} finally {
 				setIsLoading(false)
@@ -53,7 +55,6 @@ export function FeeBreakdown({ competitionId, divisionId, hideTotal, onFeesLoade
 		}
 
 		fetchFees()
-	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [competitionId, divisionId])
 
 	if (!divisionId) {
