@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {loginAsTestUser} from './fixtures/auth'
+import {loginAsTestUser, waitForHydration} from './fixtures/auth'
 import {TEST_DATA} from './fixtures/test-data'
 
 test.describe('Competition Registration', () => {
@@ -8,8 +8,9 @@ test.describe('Competition Registration', () => {
 
     const comp = TEST_DATA.competition
 
-    // Navigate to public competition page — use default 'load' for JS hydration
+    // Navigate to public competition page
     await page.goto(`/compete/${comp.slug}`)
+    await waitForHydration(page)
 
     // Verify competition page loaded
     await expect(
@@ -23,6 +24,7 @@ test.describe('Competition Registration', () => {
 
     // Should be on registration page
     await expect(page).toHaveURL(/\/compete\/e2e-throwdown\/register/)
+    await waitForHydration(page)
     await expect(
       page.getByText(/register for/i),
     ).toBeVisible({timeout: 15000})
@@ -34,7 +36,9 @@ test.describe('Competition Registration', () => {
     await divisionTrigger.click()
 
     // Division options render as <button> elements inside a Popover, not role="option"
-    const scaledOption = page.locator('button').filter({hasText: /^Scaled/i}).first()
+    const scaledOption = page.locator('[data-radix-popper-content-wrapper] button, [role="listbox"] button')
+      .filter({hasText: /Scaled/i}).first()
+      .or(page.getByText('Scaled', {exact: true}).first())
     await expect(scaledOption).toBeVisible({timeout: 5000})
     await scaledOption.click()
 

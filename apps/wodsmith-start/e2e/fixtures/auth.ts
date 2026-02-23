@@ -123,6 +123,23 @@ export async function logout(page: Page): Promise<void> {
 }
 
 /**
+ * Wait for React hydration on the current page.
+ * Checks that at least one interactive element has React fibers attached,
+ * which means React has mounted and event handlers are active.
+ * Call this after page.goto() before interacting with JS-dependent components
+ * (Radix Select, Popover, Dialog, etc.).
+ */
+export async function waitForHydration(page: Page): Promise<void> {
+	await page.waitForFunction(
+		() => {
+			const el = document.querySelector('button, [role="combobox"], input, a')
+			return el && Object.keys(el).some(k => k.startsWith('__reactFiber'))
+		},
+		{ timeout: 15000 },
+	)
+}
+
+/**
  * Check if the current page shows authenticated state
  *
  * Looks for the logout button which only appears when authenticated.

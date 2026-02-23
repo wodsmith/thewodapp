@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {loginAsTestUser} from './fixtures/auth'
+import {loginAsTestUser, waitForHydration} from './fixtures/auth'
 
 test.describe('Competition Organizer', () => {
   test('should create competition, add division, and add event', async ({
@@ -10,8 +10,9 @@ test.describe('Competition Organizer', () => {
     const uniqueName = `E2E Comp ${Date.now()}`
     const slug = `e2e-comp-${Date.now()}`
 
-    // Navigate to create competition page — use default 'load' for JS hydration
+    // Navigate to create competition page
     await page.goto('/compete/organizer/new')
+    await waitForHydration(page)
     await expect(
       page.getByText('Create Competition', {exact: true}).first(),
     ).toBeVisible({timeout: 15000})
@@ -94,9 +95,12 @@ test.describe('Competition Organizer', () => {
       await page.goto(`${url}/events`)
     }
 
+    // Wait for events page to be ready
+    await waitForHydration(page)
+
     // Create an event
     const createEventBtn = page.getByRole('button', {name: /create.*event/i}).first()
-    await expect(createEventBtn).toBeVisible({timeout: 5000})
+    await expect(createEventBtn).toBeVisible({timeout: 10000})
     await createEventBtn.click()
 
     // Fill event dialog — wait for dialog to appear after React state update

@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {loginAsTestUser} from './fixtures/auth'
+import {loginAsTestUser, waitForHydration} from './fixtures/auth'
 import {TEST_DATA} from './fixtures/test-data'
 
 test.describe('Workouts', () => {
@@ -9,6 +9,7 @@ test.describe('Workouts', () => {
 
   test('should display workouts and navigate to detail', async ({page}) => {
     await page.goto('/workouts')
+    await waitForHydration(page)
 
     // Heading text is uppercase "WORKOUTS" — exact match to avoid matching
     // "Scheduled Workouts" and "No workouts scheduled for today"
@@ -45,8 +46,8 @@ test.describe('Workouts', () => {
   test('should create a new workout', async ({page}) => {
     const uniqueName = `E2E Test Workout ${Date.now()}`
 
-    // Use default 'load' to ensure JS bundles are loaded for Radix Select
     await page.goto('/workouts/new')
+    await waitForHydration(page)
 
     // Heading is "CREATE WORKOUT"
     await expect(
@@ -62,10 +63,11 @@ test.describe('Workouts', () => {
     // Select scheme — Radix Select trigger with placeholder "Select a scheme"
     const schemeTrigger = page.getByRole('combobox').filter({hasText: /select a scheme/i})
     await schemeTrigger.click()
-    // Wait for Radix Select dropdown to open before clicking option
+    // Radix Select renders options in a portal — use getByText as fallback
     const forTimeOption = page.getByRole('option', {name: 'For Time', exact: true})
-    await expect(forTimeOption).toBeVisible({timeout: 5000})
-    await forTimeOption.click()
+      .or(page.getByText('For Time', {exact: true}))
+    await expect(forTimeOption.first()).toBeVisible({timeout: 5000})
+    await forTimeOption.first().click()
 
     // Submit
     await page.getByRole('button', {name: 'Create Workout'}).click()

@@ -244,7 +244,7 @@ async function main(): Promise<void> {
 			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			[
 				"e2e_workout_fran",
-				"e2e_personal_team_test",
+				"e2e_test_team",
 				"Fran",
 				"21-15-9 Thrusters (95/65 lb) and Pull-ups",
 				"time",
@@ -260,7 +260,7 @@ async function main(): Promise<void> {
 			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			[
 				"e2e_workout_murph",
-				"e2e_personal_team_test",
+				"e2e_test_team",
 				"Murph",
 				"1 mile Run, 100 Pull-ups, 200 Push-ups, 300 Squats, 1 mile Run",
 				"time",
@@ -276,7 +276,7 @@ async function main(): Promise<void> {
 			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			[
 				"e2e_workout_cindy",
-				"e2e_personal_team_test",
+				"e2e_test_team",
 				"Cindy",
 				"5 Pull-ups, 10 Push-ups, 15 Squats - AMRAP 20 minutes",
 				"rounds-reps",
