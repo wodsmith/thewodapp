@@ -59,7 +59,10 @@ const getUserCompetitionRegistrationsFn = createServerFn({ method: "GET" })
 		// 2. Team registrations where user is a team member (accepted invite)
 		// Find all athlete teams the user belongs to
 		const userMemberships = await db.query.teamMembershipTable.findMany({
-			where: eq(teamMembershipTable.userId, data.userId),
+			where: and(
+				eq(teamMembershipTable.userId, data.userId),
+				eq(teamMembershipTable.isActive, true),
+			),
 			columns: { teamId: true },
 		})
 		const userTeamIds = userMemberships.map((m) => m.teamId)
@@ -311,6 +314,8 @@ export const Route = createFileRoute("/compete/$slug/register")({
 				waivers: [],
 				questions: [],
 				registeredDivisionIds: [],
+				previousAnswers: [],
+				signedWaiverIds: [],
 			}
 		}
 

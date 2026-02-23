@@ -76,29 +76,40 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 						})
 					}
 
-					// Send payment expired notification for the first purchase
+					// Send payment expired notification for each purchase
 					const userId = session.metadata?.userId
 					const competitionId = session.metadata?.competitionId
-					const divisionId = session.metadata?.divisionId
 
-					if (userId && competitionId && divisionId) {
-						try {
-							await notifyPaymentExpired({
-								userId,
-								competitionId,
-								divisionId,
-							})
-						} catch (notifyErr) {
-							logWarning({
-								message:
-									"[Stripe Webhook] Failed to send payment expired notification",
-								error: notifyErr,
-								attributes: {
+					if (userId && competitionId) {
+						for (const purchaseId of purchaseIds) {
+							const purchase =
+								await db.query.commercePurchaseTable.findFirst({
+									where: eq(commercePurchaseTable.id, purchaseId),
+									columns: { divisionId: true },
+								})
+							const divisionId = purchase?.divisionId ?? session.metadata?.divisionId
+
+							if (!divisionId) continue
+
+							try {
+								await notifyPaymentExpired({
 									userId,
 									competitionId,
 									divisionId,
-								},
-							})
+								})
+							} catch (notifyErr) {
+								logWarning({
+									message:
+										"[Stripe Webhook] Failed to send payment expired notification",
+									error: notifyErr,
+									attributes: {
+										userId,
+										competitionId,
+										divisionId,
+										purchaseId,
+									},
+								})
+							}
 						}
 					}
 				}
@@ -259,13 +270,25 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 									: (session.payment_intent?.id ?? null)
 
 							// Dispatch a workflow for EACH purchase (each division independent)
+							// Collect errors so one failure doesn't abort remaining purchases
+							const workflowErrors: Array<{ purchaseId: string; error: unknown }> = []
+
 							for (const purchaseId of purchaseIds) {
 								// Look up division from the purchase record
 								const purchase =
 									await getDb().query.commercePurchaseTable.findFirst({
 										where: eq(commercePurchaseTable.id, purchaseId),
 									})
-								const divisionId = purchase?.divisionId ?? ""
+
+								if (!purchase) {
+									logWarning({
+										message:
+											"[Stripe Webhook] Purchase not found, falling back to session metadata",
+										attributes: { purchaseId, eventId: event.id },
+									})
+								}
+
+								const divisionId = purchase?.divisionId ?? session.metadata?.divisionId ?? ""
 
 								const workflowParams: CheckoutCompletedParams = {
 									stripeEventId: event.id,
@@ -328,7 +351,7 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 													purchaseId,
 												},
 											})
-											throw workflowErr
+											workflowErrors.push({ purchaseId, error: workflowErr })
 										}
 									}
 								} else {
@@ -343,6 +366,13 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 									)
 									await processCheckoutInline(workflowParams)
 								}
+							}
+
+							// If any workflow dispatches failed, throw so Stripe retries
+							if (workflowErrors.length > 0) {
+								throw new Error(
+									`Failed to dispatch ${workflowErrors.length} of ${purchaseIds.length} workflows`,
+								)
 							}
 							break
 						}

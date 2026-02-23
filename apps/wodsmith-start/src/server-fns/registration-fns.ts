@@ -84,7 +84,11 @@ const registrationItemSchema = z.object({
 const initiateRegistrationPaymentInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
 	// Multi-division support: array of division entries
-	items: z.array(registrationItemSchema).min(1, "At least one division is required"),
+	items: z.array(registrationItemSchema).min(1, "At least one division is required")
+		.refine(
+			(items) => new Set(items.map((i) => i.divisionId)).size === items.length,
+			{ message: "Duplicate division selections are not allowed" },
+		),
 	// Shared fields
 	affiliateName: z.string().max(255).optional(),
 	answers: z
@@ -297,17 +301,21 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 		const allFree = totalFeeCents === 0
 
 		// 5. For paid items, verify organizer has Stripe connected
+		// Fetch organizing team once with all needed columns (also used for Stripe connection below)
 		let teamFeeOverrides: TeamFeeOverrides | undefined
-		if (!allFree) {
-			const organizingTeam = await db.query.teamTable.findFirst({
-				where: eq(teamTable.id, competition.organizingTeamId),
-				columns: {
-					stripeAccountStatus: true,
-					organizerFeePercentage: true,
-					organizerFeeFixed: true,
-				},
-			})
+		const organizingTeam = !allFree
+			? await db.query.teamTable.findFirst({
+					where: eq(teamTable.id, competition.organizingTeamId),
+					columns: {
+						stripeConnectedAccountId: true,
+						stripeAccountStatus: true,
+						organizerFeePercentage: true,
+						organizerFeeFixed: true,
+					},
+				})
+			: null
 
+		if (!allFree) {
 			if (organizingTeam?.stripeAccountStatus !== "VERIFIED") {
 				throw new Error(
 					"This competition is temporarily unable to accept paid registrations. " +
@@ -457,6 +465,18 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 					isPaid: false,
 				})
 
+				logEntityCreated({
+					entity: "registration",
+					id: result.registrationId,
+					parentEntity: "competition",
+					parentId: input.competitionId,
+					attributes: {
+						paymentStatus: "FREE",
+						divisionId: item.divisionId,
+						mixedCheckout: true,
+					},
+				})
+
 				continue
 			}
 
@@ -517,16 +537,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			}
 		}
 
-		// 9. Get organizing team's Stripe connection for payouts
-		const organizingTeam = await db.query.teamTable.findFirst({
-			where: eq(teamTable.id, competition.organizingTeamId),
-			columns: {
-				stripeConnectedAccountId: true,
-				stripeAccountStatus: true,
-			},
-		})
-
-		// 10. Create Stripe Checkout Session with multiple line items
+		// 9. Create Stripe Checkout Session with multiple line items
 		const appUrl = getAppUrl()
 		const sessionParams: Stripe.Checkout.SessionCreateParams = {
 			mode: "payment",

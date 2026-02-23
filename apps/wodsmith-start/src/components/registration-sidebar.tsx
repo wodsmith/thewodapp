@@ -310,7 +310,7 @@ export function RegistrationSidebar({
 										const isTeam =
 											(entry.division?.teamSize ?? 1) > 1
 										const isEntryCaptain =
-											entry.registration.userId === session?.userId
+											entry.registration.captainUserId === session?.userId
 										return (
 											<div
 												key={entry.registration.id}

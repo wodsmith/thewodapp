@@ -324,18 +324,27 @@ export const checkCheckoutCompletionFn = createServerFn({ method: "GET" })
 		z.object({ sessionId: z.string() }).parse(data),
 	)
 	.handler(async ({ data }) => {
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Unauthorized")
+		}
+
 		const db = getDb()
 
 		const purchases = await db
 			.select({
 				id: commercePurchaseTable.id,
 				status: commercePurchaseTable.status,
+				userId: commercePurchaseTable.userId,
 			})
 			.from(commercePurchaseTable)
 			.where(
-				eq(
-					commercePurchaseTable.stripeCheckoutSessionId,
-					data.sessionId,
+				and(
+					eq(
+						commercePurchaseTable.stripeCheckoutSessionId,
+						data.sessionId,
+					),
+					eq(commercePurchaseTable.userId, session.userId),
 				),
 			)
 

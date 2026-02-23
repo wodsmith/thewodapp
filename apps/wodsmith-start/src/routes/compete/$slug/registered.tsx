@@ -105,9 +105,12 @@ function RegisteredPage() {
 		if (checkoutSettled || !sessionId) return
 
 		let cancelled = false
+		const MAX_POLL_ATTEMPTS = 60 // ~60 seconds
 
 		const poll = async () => {
-			while (!cancelled) {
+			let attempts = 0
+			while (!cancelled && attempts < MAX_POLL_ATTEMPTS) {
+				attempts++
 				try {
 					const result = await checkCompletion({
 						data: { sessionId },
@@ -129,6 +132,11 @@ function RegisteredPage() {
 					// ignore transient errors, keep polling
 				}
 				await new Promise((r) => setTimeout(r, 1000))
+			}
+			// Timed out - settle anyway so user isn't stuck
+			if (!cancelled) {
+				setCheckoutSettled(true)
+				router.invalidate()
 			}
 		}
 
