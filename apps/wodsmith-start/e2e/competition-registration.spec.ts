@@ -26,7 +26,7 @@ test.describe('Competition Registration', () => {
     await expect(page).toHaveURL(/\/compete\/e2e-throwdown\/register/)
     await waitForHydration(page)
     await expect(
-      page.getByText(/register for/i),
+      page.getByText(/register for/i).first(),
     ).toBeVisible({timeout: 15000})
 
     // Select a division — Popover-based combobox with plain <button> options
