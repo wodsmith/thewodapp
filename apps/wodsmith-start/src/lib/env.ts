@@ -22,6 +22,8 @@ type ExtendedEnv = typeof env & {
 	SLACK_WEBHOOK_URL?: string
 	SLACK_PURCHASE_NOTIFICATIONS_ENABLED?: string
 	SLACK_PURCHASE_NOTIFICATION_TYPES?: string
+	// Sentry error monitoring
+	SENTRY_DSN?: string
 }
 
 const extendedEnv = env as ExtendedEnv

@@ -1,3 +1,4 @@
+import { sentryVitePlugin } from "@sentry/vite-plugin"
 import tailwindcss from "@tailwindcss/vite"
 import { devtools } from "@tanstack/devtools-vite"
 import { tanstackStart } from "@tanstack/react-start/plugin/vite"
@@ -24,9 +25,34 @@ const config = defineConfig({
 		tailwindcss(),
 		tanstackStart(),
 		viteReact(),
+		// Sentry source map upload — must be last, only when auth token available
+		...(process.env.SENTRY_AUTH_TOKEN
+			? [
+					sentryVitePlugin({
+						org: process.env.SENTRY_ORG || "wodsmith",
+						project: process.env.SENTRY_PROJECT || "wodsmith-start",
+						authToken: process.env.SENTRY_AUTH_TOKEN,
+						sourcemaps: {
+							filesToDeleteAfterUpload: ["./**/*.map"],
+						},
+						release: {
+							name: process.env.GITHUB_SHA?.slice(0, 7) || undefined,
+						},
+					}),
+				]
+			: []),
 	],
+	define: {
+		"import.meta.env.VITE_SENTRY_DSN": JSON.stringify(
+			process.env.SENTRY_DSN || "",
+		),
+		"import.meta.env.VITE_SENTRY_RELEASE": JSON.stringify(
+			process.env.GITHUB_SHA?.slice(0, 7) || "",
+		),
+	},
 	build: {
 		target: "esnext",
+		sourcemap: "hidden",
 		rollupOptions: {
 			external: ["node:async_hooks", "cloudflare:workers"],
 		},

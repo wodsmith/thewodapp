@@ -661,6 +661,11 @@ const website = await TanStackStart("app", {
 			SLACK_PURCHASE_NOTIFICATIONS_ENABLED: "true",
 		}),
 
+		// Sentry error monitoring (optional)
+		...(process.env.SENTRY_DSN && {
+			SENTRY_DSN: process.env.SENTRY_DSN,
+		}),
+
 		// Webhook secret: use Alchemy-managed webhook for demo/prod, or .dev.vars for local dev
 		...(stripeWebhook
 			? {

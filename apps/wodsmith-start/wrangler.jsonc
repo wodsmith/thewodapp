@@ -43,7 +43,8 @@
 		"APP_URL": "https://wodsmith.com",
 		"R2_PUBLIC_URL": "https://pub-10ec4eb87e8d4c7383ead07a9dd77fa5.r2.dev",
 		"POSTHOG_KEY": "phc_UCtCVOUXvpuKzF50prCLKIWWCFc61j5CPTbt99OrKsK",
-		"TURNSTILE_SITE_KEY": "0x4AAAAAACF8K4v1TmFMOmtk"
+		"TURNSTILE_SITE_KEY": "0x4AAAAAACF8K4v1TmFMOmtk",
+		"SENTRY_DSN": ""
 	},
 	/**
 	 * KV Namespace Binding
