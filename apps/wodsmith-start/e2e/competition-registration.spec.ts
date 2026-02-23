@@ -41,15 +41,16 @@ test.describe('Competition Registration', () => {
     await expect(scaledBtn).toBeVisible({timeout: 5000})
     await scaledBtn.click()
 
-    // Select affiliate — search for Independent
-    const affiliateInput = page.getByPlaceholder(/search.*affiliate/i).first()
-    const affiliateVisible = await affiliateInput.waitFor({state: 'visible', timeout: 3000}).then(() => true).catch(() => false)
-    if (affiliateVisible) {
-      await affiliateInput.fill('Independent')
-      // Wait for dropdown and select
-      const independentOption = page.getByText(/independent/i).first()
-      await independentOption.click()
-    }
+    // Select affiliate — affiliateName is required
+    // The affiliate combobox is a Popover trigger (second combobox on the page)
+    const affiliateTrigger = page.getByRole('combobox').filter({hasText: /search.*affiliate|select.*affiliate/i}).first()
+      .or(page.getByRole('combobox').nth(1))
+    await affiliateTrigger.click()
+    // "Independent" is always shown at the top of the affiliate popover
+    const independentBtn = page.locator('[data-radix-popper-content-wrapper] button')
+      .filter({hasText: /Independent/i}).first()
+    await expect(independentBtn).toBeVisible({timeout: 5000})
+    await independentBtn.click()
 
     // Submit registration
     const submitBtn = page
