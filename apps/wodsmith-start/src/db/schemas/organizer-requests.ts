@@ -1,6 +1,12 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { datetime, index, mysqlTable, text, varchar } from "drizzle-orm/mysql-core"
+import {
+	datetime,
+	index,
+	mysqlTable,
+	text,
+	varchar,
+} from "drizzle-orm/mysql-core"
 import { commonColumns, createOrganizerRequestId } from "./common"
 import { teamTable } from "./teams"
 import { userTable } from "./users"

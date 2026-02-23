@@ -335,9 +335,7 @@ export async function getCompetitionLeaderboard(params: {
 										competitionRegistrationsTable.id,
 									),
 								)
-								.where(
-									inArray(competitionHeatAssignmentsTable.heatId, chunk),
-								),
+								.where(inArray(competitionHeatAssignmentsTable.heatId, chunk)),
 					)
 				: []
 

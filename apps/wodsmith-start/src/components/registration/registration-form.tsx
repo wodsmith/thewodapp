@@ -825,9 +825,7 @@ export function RegistrationForm({
 										<div className="space-y-4">
 											<div className="flex items-center gap-2">
 												<User className="w-4 h-4 text-muted-foreground" />
-												<span className="font-medium">
-													Teammate 1 (You)
-												</span>
+												<span className="font-medium">Teammate 1 (You)</span>
 											</div>
 
 											<div className="grid grid-cols-2 gap-4">

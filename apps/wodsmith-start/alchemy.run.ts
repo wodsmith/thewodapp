@@ -87,7 +87,12 @@
  */
 
 import alchemy from "alchemy"
-import { Hyperdrive, KVNamespace, R2Bucket, TanStackStart } from "alchemy/cloudflare"
+import {
+	Hyperdrive,
+	KVNamespace,
+	R2Bucket,
+	TanStackStart,
+} from "alchemy/cloudflare"
 import { GitHubComment } from "alchemy/github"
 import { CloudflareStateStore } from "alchemy/state"
 import {
@@ -228,7 +233,10 @@ const branchConfig: Record<string, { name: string; parent: string }> = {
 }
 
 const isPrStage = stage.startsWith("pr-")
-const psBranchName = stage === "prod" ? "main" : (branchConfig[stage]?.name ?? (isPrStage ? "dev" : stage))
+const psBranchName =
+	stage === "prod"
+		? "main"
+		: (branchConfig[stage]?.name ?? (isPrStage ? "dev" : stage))
 const psBranch =
 	stage === "prod" || isPrStage
 		? undefined

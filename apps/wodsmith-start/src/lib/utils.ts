@@ -98,4 +98,3 @@ export function formatSecondsToTime(totalSeconds: number): string {
 	}
 	return `${pad(minutes)}:${pad(seconds)}`
 }
-

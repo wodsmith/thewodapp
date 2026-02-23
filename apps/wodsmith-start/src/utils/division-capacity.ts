@@ -25,7 +25,8 @@ export function calculateDivisionCapacity(
 ): DivisionCapacityResult {
 	const registrationCount = Number(input.registrationCount)
 	const pendingCount = Number(input.pendingCount)
-	const effectiveMax = input.divisionMaxSpots ?? input.competitionDefaultMax ?? null
+	const effectiveMax =
+		input.divisionMaxSpots ?? input.competitionDefaultMax ?? null
 	const totalOccupied = registrationCount + pendingCount
 	const spotsAvailable =
 		effectiveMax !== null ? effectiveMax - totalOccupied : null

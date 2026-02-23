@@ -229,7 +229,6 @@ export function RegistrationSidebar({
 								Registration closes {formatDeadlineDate(regClosesAt)}
 							</p>
 						)}
-
 					</CardContent>
 				</Card>
 			)}

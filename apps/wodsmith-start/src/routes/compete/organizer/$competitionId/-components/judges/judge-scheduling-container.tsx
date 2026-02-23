@@ -243,10 +243,7 @@ export function JudgeSchedulingContainer({
 						// Remove old assignments for this event, add new ones
 						const eventHeatIds = new Set(eventHeats.map((h) => h.id))
 						const withoutEvent = prev.filter((a) => !eventHeatIds.has(a.heatId))
-						return [
-							...withoutEvent,
-							...assignmentsResult,
-						]
+						return [...withoutEvent, ...assignmentsResult]
 					})
 				}
 			}
@@ -290,10 +287,7 @@ export function JudgeSchedulingContainer({
 							const withoutEvent = prev.filter(
 								(a) => !eventHeatIds.has(a.heatId),
 							)
-							return [
-								...withoutEvent,
-								...assignmentsResult,
-							]
+							return [...withoutEvent, ...assignmentsResult]
 						})
 					}
 				} finally {

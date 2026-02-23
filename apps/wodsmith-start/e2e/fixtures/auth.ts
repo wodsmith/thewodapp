@@ -16,46 +16,50 @@ export const ADMIN_USER = TEST_DATA.users.adminUser
 
 /**
  * Login with specified credentials
+ *
+ * Waits for React hydration before interacting with the form.
+ * Without hydration, the form submits as native HTML GET (no method attr)
+ * instead of being handled by React Hook Form's onSubmit handler.
  */
 export async function login(
 	page: Page,
 	credentials: { email: string; password: string },
 ): Promise<void> {
-	await page.goto("/sign-in", { waitUntil: 'domcontentloaded' })
+	// Use default 'load' to ensure JS bundles are loaded (not just HTML parsed)
+	await page.goto("/sign-in")
 
 	if (!page.url().includes('/sign-in')) {
 		return
 	}
 
 	const signInButton = page.getByRole("button", { name: "Sign In" })
-	await signInButton.waitFor({ state: 'visible', timeout: 15000 })
+	await signInButton.waitFor({ state: 'visible', timeout: 30000 })
 
-	// Placeholders: "name@example.com" and "Enter your password"
+	// Wait for React hydration — the form's submit button must have React's
+	// internal fiber attached, otherwise clicking triggers native form GET
+	await page.waitForFunction(
+		() => {
+			const btn = document.querySelector('button[type="submit"]')
+			return btn && Object.keys(btn).some(k => k.startsWith('__reactFiber'))
+		},
+		{ timeout: 30000 },
+	)
+
 	await page.getByPlaceholder("name@example.com").fill(credentials.email)
 	await page.getByPlaceholder("Enter your password").fill(credentials.password)
 
 	await signInButton.click()
 
-	// Wait a bit for the server function to complete
-	await page.waitForTimeout(2000)
-
-	// Check for any error messages on the page
-	const errorAlert = page.locator('[role="alert"], .alert-destructive, [class*="alert"]').first()
-	const hasError = await errorAlert.isVisible().catch(() => false)
-	if (hasError) {
-		const errorText = await errorAlert.textContent().catch(() => 'unknown error')
-		console.log('Sign-in error visible on page:', errorText)
-	}
-
 	// After login, app redirects to "/" (REDIRECT_AFTER_SIGN_IN)
 	await page.waitForURL(/^https?:\/\/[^/]+(\/)?$/, {
-		timeout: 15000,
+		timeout: 30000,
 	})
 
 	await page.waitForLoadState('domcontentloaded')
 
+	// Wait for session cookie to be set
 	let attempts = 0
-	const maxAttempts = 20
+	const maxAttempts = 30
 	while (attempts < maxAttempts) {
 		const cookies = await page.context().cookies()
 		if (cookies.some(c => c.name === 'session')) {
