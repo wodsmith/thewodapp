@@ -198,13 +198,11 @@ jobs:
           PULL_REQUEST: ${{ github.event_name == 'pull_request' && github.event.number || '' }}
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Sentry error monitoring (server = cloudflare project, client = browser project)
+          # Sentry error monitoring
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          SENTRY_DSN_CLIENT: ${{ secrets.SENTRY_DSN_CLIENT }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: wodsmith
           SENTRY_PROJECT: wodsmith-start
-          SENTRY_PROJECT_CLIENT: ${{ secrets.SENTRY_PROJECT_CLIENT }}
 
       - name: Seed PR Database
         if: ${{ github.event_name == 'pull_request' }}
@@ -277,13 +275,11 @@ jobs:
           PULL_REQUEST: ''
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Sentry error monitoring (server = cloudflare project, client = browser project)
+          # Sentry error monitoring
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          SENTRY_DSN_CLIENT: ${{ secrets.SENTRY_DSN_CLIENT }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: wodsmith
           SENTRY_PROJECT: wodsmith-start
-          SENTRY_PROJECT_CLIENT: ${{ secrets.SENTRY_PROJECT_CLIENT }}
 
   # Slack notification - success (production deploys only)
   notify-success:
