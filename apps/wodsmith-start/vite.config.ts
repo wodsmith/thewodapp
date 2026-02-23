@@ -52,7 +52,10 @@ const config = defineConfig({
 	},
 	build: {
 		target: "esnext",
-		sourcemap: "hidden",
+		// Only generate sourcemaps when Sentry can upload and delete them.
+		// "hidden" emits .map files without sourceMappingURL comments in JS output.
+		// Without the Sentry plugin, .map files would ship to production.
+		sourcemap: process.env.SENTRY_AUTH_TOKEN ? "hidden" : false,
 		rollupOptions: {
 			external: ["node:async_hooks", "cloudflare:workers"],
 		},
