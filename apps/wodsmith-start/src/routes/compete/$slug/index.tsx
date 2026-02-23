@@ -71,6 +71,7 @@ function CompetitionOverviewPage() {
 		divisions,
 		sponsors,
 		userDivision,
+		userDivisions,
 		maxSpots,
 		organizerContactEmail,
 	} = parentRoute.useLoaderData()
@@ -152,6 +153,8 @@ function CompetitionOverviewPage() {
 					isCaptain={userRegistration?.userId === session?.userId}
 					isVolunteer={isVolunteer}
 					organizerContactEmail={organizerContactEmail}
+					userRegistrations={userDivisions}
+					session={session}
 				/>
 				<CompetitionLocationCard
 					address={competition.address}
