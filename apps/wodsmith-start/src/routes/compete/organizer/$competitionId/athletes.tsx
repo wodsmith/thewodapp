@@ -49,7 +49,6 @@ import {
 } from "@/components/ui/table"
 import { INVITATION_STATUS } from "@/db/schemas/teams"
 import {
-	getCompetitionByIdFn,
 	getOrganizerRegistrationsFn,
 	getPendingTeammateInvitationsFn,
 	type PendingTeammateInvite,
@@ -91,6 +90,7 @@ const athletesSearchSchema = z.object({
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/athletes",
 )({
+	staleTime: 10_000,
 	component: AthletesPage,
 	validateSearch: athletesSearchSchema,
 	loaderDeps: ({ search }) => ({
@@ -100,19 +100,12 @@ export const Route = createFileRoute(
 		sortBy: search?.sortBy,
 		sortDir: search?.sortDir,
 	}),
-	loader: async ({ params, deps }) => {
+	loader: async ({ params, deps, parentMatchPromise }) => {
 		const { competitionId } = params
 		const divisionFilter = deps?.division
 
-		// Get competition from parent route context to get teamId
-		// We need to fetch it here since we can't access parent loader data in loader
-		const { competition } = await getCompetitionByIdFn({
-			data: { competitionId },
-		})
-
-		if (!competition) {
-			throw new Error("Competition not found")
-		}
+		const parentMatch = await parentMatchPromise
+		const { competition } = parentMatch.loaderData!
 
 		// Parallel fetch: registrations, divisions, questions, answers, waivers, signatures, and pending invites
 		const [

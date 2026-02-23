@@ -19,7 +19,6 @@ import {
 	getPublicCompetitionDivisionsFn,
 	parseCompetitionSettings,
 } from "@/server-fns/competition-divisions-fns"
-import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { cancelPendingPurchaseFn } from "@/server-fns/registration-fns"
 import { getCompetitionQuestionsFn } from "@/server-fns/registration-questions-fns"
 import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
@@ -109,12 +108,13 @@ export const Route = createFileRoute("/compete/$slug/register")({
 	validateSearch: registerSearchSchema,
 	staleTime: 10_000, // Cache for 10 seconds
 	loaderDeps: ({ search }) => ({ canceled: search.canceled }),
-	loader: async ({ params, context, deps }) => {
+	loader: async ({ params, context, deps, parentMatchPromise }) => {
 		const { slug } = params
 		const { canceled } = deps
 
-		// 1. Get competition first (needed for redirects and other fetches)
-		const { competition } = await getCompetitionBySlugFn({ data: { slug } })
+		// 1. Get competition from parent (parent already validated it's non-null)
+		const parentMatch = await parentMatchPromise
+		const competition = parentMatch.loaderData?.competition
 		if (!competition) {
 			throw notFound()
 		}

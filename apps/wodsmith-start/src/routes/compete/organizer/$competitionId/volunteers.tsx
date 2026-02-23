@@ -4,7 +4,6 @@ import { z } from "zod"
 import type { JudgeAssignmentVersion } from "@/db/schema"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getHeatsForCompetitionFn } from "@/server-fns/competition-heats-fns"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
 import {
@@ -45,17 +44,11 @@ interface EventDefaults {
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/volunteers",
 )({
+	staleTime: 10_000,
 	validateSearch: searchParamsSchema,
-	loader: async ({ params }) => {
-		const result = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
-		})
-
-		if (!result.competition) {
-			throw new Error("Competition not found")
-		}
-
-		const competition = result.competition
+	loader: async ({ parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const { competition } = parentMatch.loaderData!
 
 		if (!competition.competitionTeamId) {
 			throw new Error("Competition team not found")

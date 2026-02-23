@@ -21,7 +21,6 @@ import {
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schemas/teams"
 import { workouts as workoutsTable } from "@/db/schemas/workouts"
 import { getSessionFromCookie } from "@/utils/auth"
-import { autochunk } from "@/utils/batch-query"
 import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
@@ -702,7 +701,6 @@ export const unsubscribeFromTrackFn = createServerFn({ method: "POST" })
 
 /**
  * Get all public programming tracks with subscription status for all user's teams
- * Uses autochunk to handle large arrays of team IDs (100 param limit)
  */
 export const getPublicTracksWithSubscriptionsFn = createServerFn({
 	method: "GET",
@@ -737,30 +735,26 @@ export const getPublicTracksWithSubscriptionsFn = createServerFn({
 			.leftJoin(teamTable, eq(programmingTracksTable.ownerTeamId, teamTable.id))
 			.where(eq(programmingTracksTable.isPublic, 1))
 
-		// Get all subscriptions for user's teams (batched to avoid SQL variable limit)
-		const subscriptions = await autochunk(
-			{ items: data.userTeamIds, otherParametersCount: 1 }, // +1 for isActive
-			async (chunk) =>
-				db
-					.select({
-						trackId: teamProgrammingTracksTable.trackId,
-						teamId: teamProgrammingTracksTable.teamId,
-						teamName: teamTable.name,
-						subscribedAt: teamProgrammingTracksTable.subscribedAt,
-						isActive: teamProgrammingTracksTable.isActive,
-					})
-					.from(teamProgrammingTracksTable)
-					.innerJoin(
-						teamTable,
-						eq(teamProgrammingTracksTable.teamId, teamTable.id),
-					)
-					.where(
-						and(
-							inArray(teamProgrammingTracksTable.teamId, chunk),
-							eq(teamProgrammingTracksTable.isActive, 1),
-						),
-					),
-		)
+		// Get all subscriptions for user's teams
+		const subscriptions = await db
+			.select({
+				trackId: teamProgrammingTracksTable.trackId,
+				teamId: teamProgrammingTracksTable.teamId,
+				teamName: teamTable.name,
+				subscribedAt: teamProgrammingTracksTable.subscribedAt,
+				isActive: teamProgrammingTracksTable.isActive,
+			})
+			.from(teamProgrammingTracksTable)
+			.innerJoin(
+				teamTable,
+				eq(teamProgrammingTracksTable.teamId, teamTable.id),
+			)
+			.where(
+				and(
+					inArray(teamProgrammingTracksTable.teamId, data.userTeamIds),
+					eq(teamProgrammingTracksTable.isActive, 1),
+				),
+			)
 
 		// Create a map of track subscriptions grouped by trackId
 		const subscriptionsByTrack = new Map<
@@ -803,7 +797,6 @@ export const getPublicTracksWithSubscriptionsFn = createServerFn({
 
 /**
  * Get teams subscribed to a specific track (filtered to user's teams)
- * Uses autochunk to handle large arrays of team IDs (100 param limit)
  */
 export const getTrackSubscribedTeamsFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) =>
@@ -816,29 +809,24 @@ export const getTrackSubscribedTeamsFn = createServerFn({ method: "GET" })
 
 		const db = getDb()
 
-		// Batched query to avoid SQL variable limit
-		const subscriptions = await autochunk(
-			{ items: data.userTeamIds, otherParametersCount: 2 }, // +2 for trackId and isActive
-			async (chunk) =>
-				db
-					.select({
-						teamId: teamProgrammingTracksTable.teamId,
-						teamName: teamTable.name,
-						subscribedAt: teamProgrammingTracksTable.subscribedAt,
-					})
-					.from(teamProgrammingTracksTable)
-					.innerJoin(
-						teamTable,
-						eq(teamProgrammingTracksTable.teamId, teamTable.id),
-					)
-					.where(
-						and(
-							eq(teamProgrammingTracksTable.trackId, data.trackId),
-							inArray(teamProgrammingTracksTable.teamId, chunk),
-							eq(teamProgrammingTracksTable.isActive, 1),
-						),
-					),
-		)
+		const subscriptions = await db
+			.select({
+				teamId: teamProgrammingTracksTable.teamId,
+				teamName: teamTable.name,
+				subscribedAt: teamProgrammingTracksTable.subscribedAt,
+			})
+			.from(teamProgrammingTracksTable)
+			.innerJoin(
+				teamTable,
+				eq(teamProgrammingTracksTable.teamId, teamTable.id),
+			)
+			.where(
+				and(
+					eq(teamProgrammingTracksTable.trackId, data.trackId),
+					inArray(teamProgrammingTracksTable.teamId, data.userTeamIds),
+					eq(teamProgrammingTracksTable.isActive, 1),
+				),
+			)
 
 		return { teams: subscriptions }
 	})

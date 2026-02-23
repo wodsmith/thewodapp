@@ -82,7 +82,6 @@ import {
 } from "@/lib/demo-data"
 import { computeSortKey, sortKeyToString } from "@/lib/scoring"
 import { requireAdmin } from "@/utils/auth"
-import { chunk } from "@/utils/batch-query"
 import { generateSlug } from "@/utils/slugify"
 import { createCompetition } from "./competition-server-logic"
 
@@ -168,9 +167,6 @@ async function createFakeUsers(
 	const lastNames = shuffleArray(LAST_NAMES)
 
 	const users: Array<{ id: string; firstName: string; lastName: string }> = []
-
-	// Batch insert users (11 params per row based on actual SQL, 100/11 = 9)
-	const batchSize = 5
 	const userInserts: Array<typeof userTable.$inferInsert> = []
 
 	for (let i = 0; i < count; i++) {
@@ -193,9 +189,8 @@ async function createFakeUsers(
 		users.push({ id: userId, firstName, lastName })
 	}
 
-	// Insert in batches
-	for (const batch of chunk(userInserts, batchSize)) {
-		await db.insert(userTable).values(batch)
+	if (userInserts.length > 0) {
+		await db.insert(userTable).values(userInserts)
 	}
 
 	return users
@@ -212,8 +207,6 @@ async function createTeamMemberships(
 	metadata?: string,
 ): Promise<string[]> {
 	const membershipIds: string[] = []
-	const batchSize = 9 // ~10 columns per membership, 100/10 = 10, use 9 for safety
-
 	const membershipInserts: Array<typeof teamMembershipTable.$inferInsert> = []
 
 	for (const userId of userIds) {
@@ -231,8 +224,8 @@ async function createTeamMemberships(
 		membershipIds.push(membershipId)
 	}
 
-	for (const batch of chunk(membershipInserts, batchSize)) {
-		await db.insert(teamMembershipTable).values(batch)
+	if (membershipInserts.length > 0) {
+		await db.insert(teamMembershipTable).values(membershipInserts)
 	}
 
 	return membershipIds
@@ -451,11 +444,12 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 			const workoutIds: string[] = [] // Track workout IDs for scaling descriptions
 			const sponsorIds: string[] = []
 
-			// Create sponsors first
+			// Create sponsors
+			const sponsorInserts: Array<typeof sponsorsTable.$inferInsert> = []
 			for (const sponsor of DEMO_SPONSORS) {
 				const sponsorId = createSponsorId()
 				sponsorIds.push(sponsorId)
-				await db.insert(sponsorsTable).values({
+				sponsorInserts.push({
 					id: sponsorId,
 					competitionId,
 					name: sponsor.name,
@@ -463,14 +457,24 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 					displayOrder: sponsorIds.length - 1,
 				})
 			}
+			if (sponsorInserts.length > 0) {
+				await db.insert(sponsorsTable).values(sponsorInserts)
+			}
 
-			// Create workouts
+			// Create workouts, track workouts, and scaling descriptions
+			const workoutInserts: Array<typeof workoutsTable.$inferInsert> = []
+			const trackWorkoutInserts: Array<typeof trackWorkoutsTable.$inferInsert> =
+				[]
+			const scalingDescInserts: Array<
+				typeof workoutScalingDescriptionsTable.$inferInsert
+			> = []
+
 			for (let i = 0; i < DEMO_WORKOUTS.length; i++) {
 				const template = DEMO_WORKOUTS[i]!
 				const workoutId = `wkt_${createId()}`
 				workoutIds.push(workoutId)
 
-				await db.insert(workoutsTable).values({
+				workoutInserts.push({
 					id: workoutId,
 					name: template.name,
 					description: template.description,
@@ -487,7 +491,7 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 				const trackWorkoutId = createTrackWorkoutId()
 				trackWorkoutIds.push(trackWorkoutId)
 
-				await db.insert(trackWorkoutsTable).values({
+				trackWorkoutInserts.push({
 					id: trackWorkoutId,
 					trackId,
 					workoutId,
@@ -498,25 +502,22 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 					sponsorId: sponsorIds[i],
 				})
 
-				// 6.5 Create workout scaling descriptions for each division
-				// These show the gender-specific weight prescriptions
+				// Create workout scaling descriptions for each division
 				for (const division of DEMO_DIVISIONS) {
 					const divisionId = divisionIds[division.label]!
 					const isTeam = division.teamSize > 1
 
-					// Build the scaling description based on gender
 					let scalingDescription =
 						division.gender === "male"
 							? template.maleScaling
 							: template.femaleScaling
 
-					// Append team notes if it's a team division
 					if (isTeam && template.teamNotes && scalingDescription) {
 						scalingDescription += `\n\n**Team Format:**\n${template.teamNotes}`
 					}
 
 					if (scalingDescription) {
-						await db.insert(workoutScalingDescriptionsTable).values({
+						scalingDescInserts.push({
 							id: createWorkoutScalingDescriptionId(),
 							workoutId,
 							scalingLevelId: divisionId,
@@ -524,6 +525,14 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 						})
 					}
 				}
+			}
+
+			await db.insert(workoutsTable).values(workoutInserts)
+			await db.insert(trackWorkoutsTable).values(trackWorkoutInserts)
+			if (scalingDescInserts.length > 0) {
+				await db
+					.insert(workoutScalingDescriptionsTable)
+					.values(scalingDescInserts)
 			}
 
 			// 7. Create venue
@@ -714,9 +723,10 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 				}
 			}
 
-			// Insert registrations in batches (registrations table has ~17 columns, 100/17 = 5.8)
-			for (const batch of chunk(registrationInserts, 5)) {
-				await db.insert(competitionRegistrationsTable).values(batch)
+			if (registrationInserts.length > 0) {
+				await db
+					.insert(competitionRegistrationsTable)
+					.values(registrationInserts)
 			}
 
 			// 11.5 Create commerce product and purchases for revenue demo
@@ -819,12 +829,12 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 				})
 			}
 
-			// Insert purchases in batches (~18 columns, 100/18 = 5.5)
-			for (const batch of chunk(purchaseInserts, 5)) {
-				await db.insert(commercePurchaseTable).values(batch)
+			if (purchaseInserts.length > 0) {
+				await db.insert(commercePurchaseTable).values(purchaseInserts)
 			}
 
 			// Update registrations with payment status
+			// Group by purchaseId to batch where possible, but each reg may have a different purchaseId
 			for (const reg of registrationInserts) {
 				const purchaseId = registrationPurchaseMap.get(reg.id as string)
 				if (purchaseId) {
@@ -856,6 +866,11 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 			const eventStartTimes = [event1StartTime, event2StartTime]
 
 			// Create heats for first 2 workouts
+			const heatInserts: Array<typeof competitionHeatsTable.$inferInsert> = []
+			const heatAssignmentInserts: Array<
+				typeof competitionHeatAssignmentsTable.$inferInsert
+			> = []
+
 			for (let workoutIdx = 0; workoutIdx < 2; workoutIdx++) {
 				const trackWorkoutId = trackWorkoutIds[workoutIdx]!
 				const eventBaseTime = eventStartTimes[workoutIdx]!
@@ -873,7 +888,7 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 						eventBaseTime.getTime() + divIdx * 15 * 60 * 1000,
 					)
 
-					await db.insert(competitionHeatsTable).values({
+					heatInserts.push({
 						id: heatId,
 						competitionId,
 						trackWorkoutId,
@@ -914,7 +929,7 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 						const assignmentId = createCompetitionHeatAssignmentId()
 						heatAssignmentsCreated.push(assignmentId)
 
-						await db.insert(competitionHeatAssignmentsTable).values({
+						heatAssignmentInserts.push({
 							id: assignmentId,
 							heatId,
 							registrationId: reg.id,
@@ -922,6 +937,15 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 						})
 					}
 				}
+			}
+
+			if (heatInserts.length > 0) {
+				await db.insert(competitionHeatsTable).values(heatInserts)
+			}
+			if (heatAssignmentInserts.length > 0) {
+				await db
+					.insert(competitionHeatAssignmentsTable)
+					.values(heatAssignmentInserts)
 			}
 
 			// 13. Create scores for Event 1 ONLY (it's completed/in the past)
@@ -1073,14 +1097,12 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 				}
 			}
 
-			// Insert scores in batches (scores table has ~22 columns, 100/22 = 4.5)
-			for (const batch of chunk(scoreInserts, 4)) {
-				await db.insert(scoresTable).values(batch)
+			if (scoreInserts.length > 0) {
+				await db.insert(scoresTable).values(scoreInserts)
 			}
 
-			// Insert score rounds in batches (score_rounds has ~9 columns, 100/9 = 11)
-			for (const batch of chunk(scoreRoundInserts, 10)) {
-				await db.insert(scoreRoundsTable).values(batch)
+			if (scoreRoundInserts.length > 0) {
+				await db.insert(scoreRoundsTable).values(scoreRoundInserts)
 			}
 
 			// 14. Create volunteer users
@@ -1133,9 +1155,10 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 				})
 			}
 
-			// Insert rotations in batches (~10 columns, batch of 8)
-			for (const batch of chunk(rotationInserts, 8)) {
-				await db.insert(competitionJudgeRotationsTable).values(batch)
+			if (rotationInserts.length > 0) {
+				await db
+					.insert(competitionJudgeRotationsTable)
+					.values(rotationInserts)
 			}
 
 			// Create a published version for Event 1
@@ -1171,9 +1194,8 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 				}
 			}
 
-			// Insert assignments in batches (~11 columns, batch of 8)
-			for (const batch of chunk(assignmentInserts, 8)) {
-				await db.insert(judgeHeatAssignmentsTable).values(batch)
+			if (assignmentInserts.length > 0) {
+				await db.insert(judgeHeatAssignmentsTable).values(assignmentInserts)
 			}
 
 			// 16. Create waiver
@@ -1227,18 +1249,22 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 			console.error("Demo competition creation failed:", error)
 
 			// Try to clean up created users
-			for (const userId of createdUserIds) {
+			if (createdUserIds.length > 0) {
 				try {
-					await db.delete(userTable).where(eq(userTable.id, userId))
+					await db
+						.delete(userTable)
+						.where(inArray(userTable.id, createdUserIds))
 				} catch {
 					// Ignore cleanup errors
 				}
 			}
 
 			// Try to clean up created teams
-			for (const teamId of createdTeamIds) {
+			if (createdTeamIds.length > 0) {
 				try {
-					await db.delete(teamTable).where(eq(teamTable.id, teamId))
+					await db
+						.delete(teamTable)
+						.where(inArray(teamTable.id, createdTeamIds))
 				} catch {
 					// Ignore cleanup errors
 				}
@@ -1378,11 +1404,12 @@ export const deleteDemoCompetitionFn = createServerFn({ method: "POST" })
 			})
 			deletedCounts.scores = scores.length
 
-			for (const score of scores) {
+			if (scores.length > 0) {
+				const scoreIds = scores.map((s) => s.id)
 				await db
 					.delete(scoreRoundsTable)
-					.where(eq(scoreRoundsTable.scoreId, score.id))
-				await db.delete(scoresTable).where(eq(scoresTable.id, score.id))
+					.where(inArray(scoreRoundsTable.scoreId, scoreIds))
+				await db.delete(scoresTable).where(inArray(scoresTable.id, scoreIds))
 			}
 
 			// 2. Delete judge rotations for this competition
@@ -1397,13 +1424,14 @@ export const deleteDemoCompetitionFn = createServerFn({ method: "POST" })
 				where: eq(competitionHeatsTable.competitionId, data.competitionId),
 			})
 
-			for (const heat of heats) {
+			if (heats.length > 0) {
+				const heatIds = heats.map((h) => h.id)
 				await db
 					.delete(judgeHeatAssignmentsTable)
-					.where(eq(judgeHeatAssignmentsTable.heatId, heat.id))
+					.where(inArray(judgeHeatAssignmentsTable.heatId, heatIds))
 				await db
 					.delete(competitionHeatAssignmentsTable)
-					.where(eq(competitionHeatAssignmentsTable.heatId, heat.id))
+					.where(inArray(competitionHeatAssignmentsTable.heatId, heatIds))
 			}
 
 			// Delete heats explicitly (they reference trackWorkoutId, venueId, divisionId)
@@ -1418,27 +1446,20 @@ export const deleteDemoCompetitionFn = createServerFn({ method: "POST" })
 				.where(eq(commercePurchaseTable.competitionId, data.competitionId))
 
 			// Delete commerce products for this competition
-			const products = await db.query.commerceProductTable.findMany({
-				where: eq(commerceProductTable.resourceId, data.competitionId),
-			})
-			for (const product of products) {
-				await db
-					.delete(commerceProductTable)
-					.where(eq(commerceProductTable.id, product.id))
-			}
+			await db
+				.delete(commerceProductTable)
+				.where(eq(commerceProductTable.resourceId, data.competitionId))
 
-			// 4. Get registrations and delete
+			// 4. Get registration count and delete
 			const regs = await db.query.competitionRegistrationsTable.findMany({
 				where: eq(competitionRegistrationsTable.eventId, data.competitionId),
 				columns: { id: true },
 			})
 			deletedCounts.registrations = regs.length
 
-			for (const reg of regs) {
-				await db
-					.delete(competitionRegistrationsTable)
-					.where(eq(competitionRegistrationsTable.id, reg.id))
-			}
+			await db
+				.delete(competitionRegistrationsTable)
+				.where(eq(competitionRegistrationsTable.eventId, data.competitionId))
 
 			// 4. Delete programming track and related workouts
 			const programmingTrack = await db.query.programmingTracksTable.findFirst({
@@ -1452,12 +1473,18 @@ export const deleteDemoCompetitionFn = createServerFn({ method: "POST" })
 				})
 
 				const workoutIds = trackWorkouts.map((tw) => tw.workoutId)
+				const trackWorkoutIds = trackWorkouts.map((tw) => tw.id)
 
-				// Delete judge assignment versions for each track workout
-				for (const tw of trackWorkouts) {
+				// Delete judge assignment versions for track workouts
+				if (trackWorkoutIds.length > 0) {
 					await db
 						.delete(judgeAssignmentVersionsTable)
-						.where(eq(judgeAssignmentVersionsTable.trackWorkoutId, tw.id))
+						.where(
+							inArray(
+								judgeAssignmentVersionsTable.trackWorkoutId,
+								trackWorkoutIds,
+							),
+						)
 				}
 
 				// Delete track workouts first (references trackId, workoutId, sponsorId)
@@ -1470,23 +1497,23 @@ export const deleteDemoCompetitionFn = createServerFn({ method: "POST" })
 					.delete(programmingTracksTable)
 					.where(eq(programmingTracksTable.id, programmingTrack.id))
 
-				// Delete workout scaling descriptions for each workout
-				for (const workoutId of workoutIds) {
+				// Delete workout scaling descriptions and workouts
+				if (workoutIds.length > 0) {
 					try {
 						await db
 							.delete(workoutScalingDescriptionsTable)
-							.where(eq(workoutScalingDescriptionsTable.workoutId, workoutId))
+							.where(
+								inArray(workoutScalingDescriptionsTable.workoutId, workoutIds),
+							)
 					} catch {
 						// May already be deleted via cascade
 					}
-				}
 
-				// Delete workouts created for this competition
-				for (const workoutId of workoutIds) {
+					// Delete workouts created for this competition
 					try {
 						await db
 							.delete(workoutsTable)
-							.where(eq(workoutsTable.id, workoutId))
+							.where(inArray(workoutsTable.id, workoutIds))
 					} catch {
 						// Workout may be referenced elsewhere
 					}
@@ -1531,11 +1558,11 @@ export const deleteDemoCompetitionFn = createServerFn({ method: "POST" })
 			}
 
 			// 9. Delete team memberships for demo users (in competition_event team and athlete teams)
-			for (const userId of demoUserIds) {
+			if (demoUserIds.length > 0) {
 				try {
 					await db
 						.delete(teamMembershipTable)
-						.where(eq(teamMembershipTable.userId, userId))
+						.where(inArray(teamMembershipTable.userId, demoUserIds))
 				} catch {
 					// Ignore
 				}
@@ -1543,13 +1570,15 @@ export const deleteDemoCompetitionFn = createServerFn({ method: "POST" })
 
 			// 10. Delete athlete teams (competition_team type) before competition
 			deletedCounts.teams = demoTeamIds.length
-			for (const teamId of demoTeamIds) {
+			if (demoTeamIds.length > 0) {
 				try {
 					// Delete any remaining memberships in athlete teams
 					await db
 						.delete(teamMembershipTable)
-						.where(eq(teamMembershipTable.teamId, teamId))
-					await db.delete(teamTable).where(eq(teamTable.id, teamId))
+						.where(inArray(teamMembershipTable.teamId, demoTeamIds))
+					await db
+						.delete(teamTable)
+						.where(inArray(teamTable.id, demoTeamIds))
 				} catch {
 					// Team may have been deleted via cascade
 				}
@@ -1575,13 +1604,13 @@ export const deleteDemoCompetitionFn = createServerFn({ method: "POST" })
 
 			// 12. Delete demo users
 			if (demoUserIds.length > 0) {
-				for (const userId of demoUserIds) {
-					try {
-						await db.delete(userTable).where(eq(userTable.id, userId))
-						deletedCounts.users++
-					} catch {
-						// User may have been deleted already or has other references
-					}
+				try {
+					await db
+						.delete(userTable)
+						.where(inArray(userTable.id, demoUserIds))
+					deletedCounts.users = demoUserIds.length
+				} catch {
+					// User may have been deleted already or has other references
 				}
 			}
 
@@ -1604,18 +1633,21 @@ export const deleteDemoCompetitionFn = createServerFn({ method: "POST" })
 					),
 				})
 
-				for (const user of demoEmailUsers) {
-					if (!demoUserIds.includes(user.id)) {
-						try {
-							// Delete their memberships first
-							await db
-								.delete(teamMembershipTable)
-								.where(eq(teamMembershipTable.userId, user.id))
-							await db.delete(userTable).where(eq(userTable.id, user.id))
-							deletedCounts.users++
-						} catch {
-							// Ignore
-						}
+				const extraUserIds = demoEmailUsers
+					.filter((user) => !demoUserIds.includes(user.id))
+					.map((user) => user.id)
+
+				if (extraUserIds.length > 0) {
+					try {
+						await db
+							.delete(teamMembershipTable)
+							.where(inArray(teamMembershipTable.userId, extraUserIds))
+						await db
+							.delete(userTable)
+							.where(inArray(userTable.id, extraUserIds))
+						deletedCounts.users += extraUserIds.length
+					} catch {
+						// Ignore
 					}
 				}
 			}

@@ -21,7 +21,6 @@ import {
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"
-import { autochunk } from "@/utils/batch-query"
 
 // ============================================================================
 // Input Schemas
@@ -292,20 +291,15 @@ export const getEventResourcesBatchFn = createServerFn({ method: "GET" })
 		const db = getDb()
 
 		// First, filter to only published events
-		const publishedEventIds = await autochunk(
-			{ items: data.eventIds },
-			async (chunk: string[]) => {
-				return db
-					.select({ id: trackWorkoutsTable.id })
-					.from(trackWorkoutsTable)
-					.where(
-						and(
-							inArray(trackWorkoutsTable.id, chunk),
-							eq(trackWorkoutsTable.eventStatus, "published"),
-						),
-					)
-			},
-		)
+		const publishedEventIds = await db
+			.select({ id: trackWorkoutsTable.id })
+			.from(trackWorkoutsTable)
+			.where(
+				and(
+					inArray(trackWorkoutsTable.id, data.eventIds),
+					eq(trackWorkoutsTable.eventStatus, "published"),
+				),
+			)
 
 		const publishedIds = publishedEventIds.map((e) => e.id)
 		if (publishedIds.length === 0) {
@@ -313,16 +307,11 @@ export const getEventResourcesBatchFn = createServerFn({ method: "GET" })
 		}
 
 		// Batch fetch resources for published events only
-		const allResources = await autochunk(
-			{ items: publishedIds },
-			async (chunk: string[]) => {
-				return db
-					.select()
-					.from(eventResourcesTable)
-					.where(inArray(eventResourcesTable.eventId, chunk))
-					.orderBy(eventResourcesTable.sortOrder)
-			},
-		)
+		const allResources = await db
+			.select()
+			.from(eventResourcesTable)
+			.where(inArray(eventResourcesTable.eventId, publishedIds))
+			.orderBy(eventResourcesTable.sortOrder)
 
 		// Group by eventId
 		const resourcesByEvent: Record<string, EventResource[]> = {}
@@ -526,20 +515,15 @@ export const reorderEventResourcesFn = createServerFn({ method: "POST" })
 
 		// Validate all resources belong to this event
 		const resourceIds = data.updates.map((u) => u.resourceId)
-		const existingResources = await autochunk(
-			{ items: resourceIds, otherParametersCount: 1 }, // +1 for eventId
-			async (chunk: string[]) => {
-				return db
-					.select({ id: eventResourcesTable.id })
-					.from(eventResourcesTable)
-					.where(
-						and(
-							eq(eventResourcesTable.eventId, data.eventId),
-							inArray(eventResourcesTable.id, chunk),
-						),
-					)
-			},
-		)
+		const existingResources = await db
+			.select({ id: eventResourcesTable.id })
+			.from(eventResourcesTable)
+			.where(
+				and(
+					eq(eventResourcesTable.eventId, data.eventId),
+					inArray(eventResourcesTable.id, resourceIds),
+				),
+			)
 
 		const existingIds = new Set(existingResources.map((r) => r.id))
 

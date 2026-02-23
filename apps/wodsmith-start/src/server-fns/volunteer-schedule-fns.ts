@@ -36,7 +36,6 @@ import type {
 	TiebreakScheme,
 	WorkoutScheme,
 } from "@/db/schemas/workouts"
-import { autochunk } from "@/utils/batch-query"
 
 // ============================================================================
 // Types
@@ -326,20 +325,15 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 		const trackWorkoutIds = [...new Set(rotations.map((r) => r.trackWorkoutId))]
 
 		// Batch-fetch trackWorkouts
-		const trackWorkouts = await autochunk(
-			{ items: trackWorkoutIds },
-			async (chunk) => {
-				return db
-					.select({
-						id: trackWorkoutsTable.id,
-						workoutId: trackWorkoutsTable.workoutId,
-						notes: trackWorkoutsTable.notes,
-						eventStatus: trackWorkoutsTable.eventStatus,
-					})
-					.from(trackWorkoutsTable)
-					.where(inArray(trackWorkoutsTable.id, chunk))
-			},
-		)
+		const trackWorkouts = await db
+			.select({
+				id: trackWorkoutsTable.id,
+				workoutId: trackWorkoutsTable.workoutId,
+				notes: trackWorkoutsTable.notes,
+				eventStatus: trackWorkoutsTable.eventStatus,
+			})
+			.from(trackWorkoutsTable)
+			.where(inArray(trackWorkoutsTable.id, trackWorkoutIds))
 
 		const trackWorkoutMap = new Map(trackWorkouts.map((tw) => [tw.id, tw]))
 
@@ -348,46 +342,36 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 			...new Set(trackWorkouts.map((tw) => tw.workoutId).filter(Boolean)),
 		]
 
-		const workoutsList = await autochunk(
-			{ items: workoutIds },
-			async (chunk) => {
-				return db
-					.select({
-						id: workouts.id,
-						name: workouts.name,
-						description: workouts.description,
-						scheme: workouts.scheme,
-						scoreType: workouts.scoreType,
-						timeCap: workouts.timeCap,
-						repsPerRound: workouts.repsPerRound,
-						roundsToScore: workouts.roundsToScore,
-						tiebreakScheme: workouts.tiebreakScheme,
-						teamId: workouts.teamId,
-					})
-					.from(workouts)
-					.where(inArray(workouts.id, chunk))
-			},
-		)
+		const workoutsList = await db
+			.select({
+				id: workouts.id,
+				name: workouts.name,
+				description: workouts.description,
+				scheme: workouts.scheme,
+				scoreType: workouts.scoreType,
+				timeCap: workouts.timeCap,
+				repsPerRound: workouts.repsPerRound,
+				roundsToScore: workouts.roundsToScore,
+				tiebreakScheme: workouts.tiebreakScheme,
+				teamId: workouts.teamId,
+			})
+			.from(workouts)
+			.where(inArray(workouts.id, workoutIds))
 
 		const workoutMap = new Map(workoutsList.map((w) => [w.id, w]))
 
 		// Batch-fetch judging sheets for all trackWorkouts
-		const judgingSheetsData = await autochunk(
-			{ items: trackWorkoutIds },
-			async (chunk) => {
-				return db
-					.select({
-						id: eventJudgingSheetsTable.id,
-						trackWorkoutId: eventJudgingSheetsTable.trackWorkoutId,
-						title: eventJudgingSheetsTable.title,
-						url: eventJudgingSheetsTable.url,
-						originalFilename: eventJudgingSheetsTable.originalFilename,
-						fileSize: eventJudgingSheetsTable.fileSize,
-					})
-					.from(eventJudgingSheetsTable)
-					.where(inArray(eventJudgingSheetsTable.trackWorkoutId, chunk))
-			},
-		)
+		const judgingSheetsData = await db
+			.select({
+				id: eventJudgingSheetsTable.id,
+				trackWorkoutId: eventJudgingSheetsTable.trackWorkoutId,
+				title: eventJudgingSheetsTable.title,
+				url: eventJudgingSheetsTable.url,
+				originalFilename: eventJudgingSheetsTable.originalFilename,
+				fileSize: eventJudgingSheetsTable.fileSize,
+			})
+			.from(eventJudgingSheetsTable)
+			.where(inArray(eventJudgingSheetsTable.trackWorkoutId, trackWorkoutIds))
 
 		// Group judging sheets by trackWorkoutId
 		const judgingSheetsByTrackWorkout = new Map<string, JudgingSheet[]>()
@@ -405,36 +389,29 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 		}
 
 		// Batch-fetch heats for all trackWorkouts
-		const heatsData = await autochunk(
-			{ items: trackWorkoutIds },
-			async (chunk) => {
-				return db
-					.select({
-						id: competitionHeatsTable.id,
-						trackWorkoutId: competitionHeatsTable.trackWorkoutId,
-						heatNumber: competitionHeatsTable.heatNumber,
-						scheduledTime: competitionHeatsTable.scheduledTime,
-						durationMinutes: competitionHeatsTable.durationMinutes,
-						divisionId: competitionHeatsTable.divisionId,
-					})
-					.from(competitionHeatsTable)
-					.where(inArray(competitionHeatsTable.trackWorkoutId, chunk))
-			},
-		)
+		const heatsData = await db
+			.select({
+				id: competitionHeatsTable.id,
+				trackWorkoutId: competitionHeatsTable.trackWorkoutId,
+				heatNumber: competitionHeatsTable.heatNumber,
+				scheduledTime: competitionHeatsTable.scheduledTime,
+				durationMinutes: competitionHeatsTable.durationMinutes,
+				divisionId: competitionHeatsTable.divisionId,
+			})
+			.from(competitionHeatsTable)
+			.where(inArray(competitionHeatsTable.trackWorkoutId, trackWorkoutIds))
 
 		// Fetch heat assignments to derive division from registrations
 		const heatIds = heatsData.map((h) => h.id)
 		const assignmentsData =
 			heatIds.length > 0
-				? await autochunk({ items: heatIds }, async (chunk) => {
-						return db
-							.select({
-								heatId: competitionHeatAssignmentsTable.heatId,
-								registrationId: competitionHeatAssignmentsTable.registrationId,
-							})
-							.from(competitionHeatAssignmentsTable)
-							.where(inArray(competitionHeatAssignmentsTable.heatId, chunk))
-					})
+				? await db
+						.select({
+							heatId: competitionHeatAssignmentsTable.heatId,
+							registrationId: competitionHeatAssignmentsTable.registrationId,
+						})
+						.from(competitionHeatAssignmentsTable)
+						.where(inArray(competitionHeatAssignmentsTable.heatId, heatIds))
 				: []
 
 		// Fetch registrations to get division IDs
@@ -443,15 +420,13 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 		]
 		const registrationsData =
 			registrationIds.length > 0
-				? await autochunk({ items: registrationIds }, async (chunk) => {
-						return db
-							.select({
-								id: competitionRegistrationsTable.id,
-								divisionId: competitionRegistrationsTable.divisionId,
-							})
-							.from(competitionRegistrationsTable)
-							.where(inArray(competitionRegistrationsTable.id, chunk))
-					})
+				? await db
+						.select({
+							id: competitionRegistrationsTable.id,
+							divisionId: competitionRegistrationsTable.divisionId,
+						})
+						.from(competitionRegistrationsTable)
+						.where(inArray(competitionRegistrationsTable.id, registrationIds))
 				: []
 
 		const registrationDivisionMap = new Map(
@@ -504,15 +479,13 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 		// Batch-fetch division names (scaling levels)
 		const divisionNames =
 			allDivisionIds.size > 0
-				? await autochunk({ items: [...allDivisionIds] }, async (chunk) => {
-						return db
-							.select({
-								id: scalingLevelsTable.id,
-								label: scalingLevelsTable.label,
-							})
-							.from(scalingLevelsTable)
-							.where(inArray(scalingLevelsTable.id, chunk))
-					})
+				? await db
+						.select({
+							id: scalingLevelsTable.id,
+							label: scalingLevelsTable.label,
+						})
+						.from(scalingLevelsTable)
+						.where(inArray(scalingLevelsTable.id, [...allDivisionIds]))
 				: []
 
 		const divisionNameMap = new Map(divisionNames.map((d) => [d.id, d.label]))
@@ -560,41 +533,31 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 
 			try {
 				// Get scaling levels
-				const scalingLevels = await autochunk(
-					{ items: divisionIds },
-					async (chunk) => {
-						return db
-							.select({
-								divisionId: scalingLevelsTable.id,
-								divisionLabel: scalingLevelsTable.label,
-								position: scalingLevelsTable.position,
-							})
-							.from(scalingLevelsTable)
-							.where(inArray(scalingLevelsTable.id, chunk))
-					},
-				)
+				const scalingLevels = await db
+					.select({
+						divisionId: scalingLevelsTable.id,
+						divisionLabel: scalingLevelsTable.label,
+						position: scalingLevelsTable.position,
+					})
+					.from(scalingLevelsTable)
+					.where(inArray(scalingLevelsTable.id, divisionIds))
 
 				// Get descriptions
-				const descriptions = await autochunk(
-					{ items: divisionIds, otherParametersCount: 1 },
-					async (chunk) => {
-						return db
-							.select({
-								scalingLevelId: workoutScalingDescriptionsTable.scalingLevelId,
-								description: workoutScalingDescriptionsTable.description,
-							})
-							.from(workoutScalingDescriptionsTable)
-							.where(
-								and(
-									eq(workoutScalingDescriptionsTable.workoutId, workout.id),
-									inArray(
-										workoutScalingDescriptionsTable.scalingLevelId,
-										chunk,
-									),
-								),
-							)
-					},
-				)
+				const descriptions = await db
+					.select({
+						scalingLevelId: workoutScalingDescriptionsTable.scalingLevelId,
+						description: workoutScalingDescriptionsTable.description,
+					})
+					.from(workoutScalingDescriptionsTable)
+					.where(
+						and(
+							eq(workoutScalingDescriptionsTable.workoutId, workout.id),
+							inArray(
+								workoutScalingDescriptionsTable.scalingLevelId,
+								divisionIds,
+							),
+						),
+					)
 
 				const descriptionMap = new Map(
 					descriptions.map((d) => [d.scalingLevelId, d.description]),

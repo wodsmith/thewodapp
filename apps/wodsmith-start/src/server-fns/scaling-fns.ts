@@ -234,15 +234,15 @@ export const createScalingGroupFn = createServerFn({ method: "POST" })
 		})
 
 		// Create the scaling levels
-		for (const level of data.levels) {
-			await db.insert(scalingLevelsTable).values({
+		await db.insert(scalingLevelsTable).values(
+			data.levels.map((level) => ({
 				id: createScalingLevelId(),
 				scalingGroupId: groupId,
 				label: level.label,
 				position: level.position,
 				teamSize: 1,
-			})
-		}
+			})),
+		)
 
 		// Select back the created record
 		const [group] = await db

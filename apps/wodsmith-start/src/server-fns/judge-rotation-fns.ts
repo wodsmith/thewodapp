@@ -8,7 +8,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, ne } from "drizzle-orm"
+import { and, eq, inArray, ne } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import type { CompetitionJudgeRotation, LaneShiftPattern } from "@/db/schema"
@@ -1131,9 +1131,9 @@ export const batchUpdateVolunteerRotationsFn = createServerFn({
 			)
 		}
 
-		// Delete existing rotations for this volunteer+event
+		// Delete existing rotations for this volunteer+event using batch operations
 		const existingRotations = await db
-			.select()
+			.select({ id: competitionJudgeRotationsTable.id })
 			.from(competitionJudgeRotationsTable)
 			.where(
 				and(
@@ -1145,8 +1145,18 @@ export const batchUpdateVolunteerRotationsFn = createServerFn({
 				),
 			)
 
-		for (const existing of existingRotations) {
-			await deleteRotationInternal(existing.id, data.teamId)
+		if (existingRotations.length > 0) {
+			const existingIds = existingRotations.map((r) => r.id)
+			await db.transaction(async (tx) => {
+				await tx
+					.update(judgeHeatAssignmentsTable)
+					.set({ rotationId: null })
+					.where(inArray(judgeHeatAssignmentsTable.rotationId, existingIds))
+
+				await tx
+					.delete(competitionJudgeRotationsTable)
+					.where(inArray(competitionJudgeRotationsTable.id, existingIds))
+			})
 		}
 
 		// Create new rotations in sequence
@@ -1191,8 +1201,7 @@ export const deleteVolunteerRotationsFn = createServerFn({ method: "POST" })
 			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
 
-		// Find rotations to delete, then use deleteRotationInternal which
-		// handles clearing FK references in judge_heat_assignments
+		// Find rotations to delete
 		const rotationsToDelete = await db
 			.select({ id: competitionJudgeRotationsTable.id })
 			.from(competitionJudgeRotationsTable)
@@ -1206,8 +1215,20 @@ export const deleteVolunteerRotationsFn = createServerFn({ method: "POST" })
 				),
 			)
 
-		for (const rotation of rotationsToDelete) {
-			await deleteRotationInternal(rotation.id, data.teamId)
+		if (rotationsToDelete.length > 0) {
+			const rotationIds = rotationsToDelete.map((r) => r.id)
+
+			// Batch clear FK references and delete in a transaction
+			await db.transaction(async (tx) => {
+				await tx
+					.update(judgeHeatAssignmentsTable)
+					.set({ rotationId: null })
+					.where(inArray(judgeHeatAssignmentsTable.rotationId, rotationIds))
+
+				await tx
+					.delete(competitionJudgeRotationsTable)
+					.where(inArray(competitionJudgeRotationsTable.id, rotationIds))
+			})
 		}
 
 		return {
@@ -1241,16 +1262,21 @@ export const batchDeleteRotationsFn = createServerFn({ method: "POST" })
 			}
 		}
 
-		// Delete each rotation
-		let deletedCount = 0
-		for (const rotationId of data.rotationIds) {
-			await deleteRotationInternal(rotationId, data.teamId)
-			deletedCount++
-		}
+		// Batch clear FK references and delete in a transaction
+		await db.transaction(async (tx) => {
+			await tx
+				.update(judgeHeatAssignmentsTable)
+				.set({ rotationId: null })
+				.where(inArray(judgeHeatAssignmentsTable.rotationId, data.rotationIds))
+
+			await tx
+				.delete(competitionJudgeRotationsTable)
+				.where(inArray(competitionJudgeRotationsTable.id, data.rotationIds))
+		})
 
 		return {
 			success: true,
-			data: { deletedCount },
+			data: { deletedCount: data.rotationIds.length },
 		}
 	})
 

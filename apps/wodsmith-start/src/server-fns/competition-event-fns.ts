@@ -193,28 +193,28 @@ export const upsertCompetitionEventsFn = createServerFn({ method: "POST" })
 			throw new Error("Competition not found or access denied")
 		}
 
-		// Upsert each event
-		let upsertCount = 0
-		for (const event of data.events) {
-			await db
-				.insert(competitionEventsTable)
-				.values({
-					competitionId: data.competitionId,
-					trackWorkoutId: event.trackWorkoutId,
-					submissionOpensAt: event.submissionOpensAt ?? null,
-					submissionClosesAt: event.submissionClosesAt ?? null,
-				})
-				.onDuplicateKeyUpdate({
-					set: {
+		// Upsert all events in a transaction
+		await db.transaction(async (tx) => {
+			for (const event of data.events) {
+				await tx
+					.insert(competitionEventsTable)
+					.values({
+						competitionId: data.competitionId,
+						trackWorkoutId: event.trackWorkoutId,
 						submissionOpensAt: event.submissionOpensAt ?? null,
 						submissionClosesAt: event.submissionClosesAt ?? null,
-						updatedAt: new Date(),
-					},
-				})
-			upsertCount++
-		}
+					})
+					.onDuplicateKeyUpdate({
+						set: {
+							submissionOpensAt: event.submissionOpensAt ?? null,
+							submissionClosesAt: event.submissionClosesAt ?? null,
+							updatedAt: new Date(),
+						},
+					})
+			}
+		})
 
-		return { success: true, upsertedCount: upsertCount }
+		return { success: true, upsertedCount: data.events.length }
 	})
 
 /**

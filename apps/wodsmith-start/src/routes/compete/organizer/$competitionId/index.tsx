@@ -18,10 +18,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import { getCompetitionRevenueStatsFn } from "@/server-fns/commerce-fns"
-import {
-	getCompetitionByIdFn,
-	getCompetitionRegistrationsFn,
-} from "@/server-fns/competition-detail-fns"
+import { getCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionEventsFn } from "@/server-fns/competition-event-fns"
 import { getHeatsForCompetitionFn } from "@/server-fns/competition-heats-fns"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
@@ -43,17 +40,11 @@ import { QuickActionsSubmissionWindows } from "./-components/quick-actions-submi
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 
 export const Route = createFileRoute("/compete/organizer/$competitionId/")({
+	staleTime: 10_000,
 	component: CompetitionOverviewPage,
-	loader: async ({ params }) => {
-		// Get competition from parent route to access organizingTeamId
-		// We need to fetch it here since we can't access parent loader data in child loader
-		const { competition } = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
-		})
-
-		if (!competition) {
-			throw new Error("Competition not found")
-		}
+	loader: async ({ params, parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const { competition } = parentMatch.loaderData!
 
 		const isOnline = competition.competitionType === "online"
 

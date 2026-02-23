@@ -35,6 +35,7 @@ declare namespace Cloudflare {
 		PLANETSCALE_ORGANIZATION: string;
 		R2_BUCKET: R2Bucket;
 		wodsmith_uploads_dev: R2Bucket;
+		STRIPE_CHECKOUT_WORKFLOW: Workflow;
 	}
 }
 interface Env extends Cloudflare.Env {}

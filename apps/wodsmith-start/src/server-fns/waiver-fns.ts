@@ -19,7 +19,6 @@ import {
 	waiversTable,
 } from "@/db/schemas/waivers"
 import { getSessionFromCookie } from "@/utils/auth"
-import { autochunk } from "@/utils/batch-query"
 import { hasTeamPermission } from "@/utils/team-auth"
 
 // Re-export types for consumers
@@ -217,20 +216,15 @@ export const getWaiverSignaturesForUserFn = createServerFn({ method: "GET" })
 		}
 
 		// Get signatures for this user for any of those waivers
-		// Use autochunk to handle potential large arrays (100 param limit)
-		const signatures = await autochunk(
-			{ items: waiverIds, otherParametersCount: 1 }, // 1 for userId param
-			async (chunk) =>
-				db.query.waiverSignaturesTable.findMany({
-					where: and(
-						eq(waiverSignaturesTable.userId, data.userId),
-						inArray(waiverSignaturesTable.waiverId, chunk),
-					),
-					with: {
-						waiver: true,
-					},
-				}),
-		)
+		const signatures = await db.query.waiverSignaturesTable.findMany({
+			where: and(
+				eq(waiverSignaturesTable.userId, data.userId),
+				inArray(waiverSignaturesTable.waiverId, waiverIds),
+			),
+			with: {
+				waiver: true,
+			},
+		})
 
 		return { signatures }
 	})
@@ -293,19 +287,15 @@ export const getCompetitionWaiverSignaturesFn = createServerFn({
 			const waiverIds = waivers.map((w) => w.id)
 
 			// Get all signatures for these waivers
-			const signatures = await autochunk(
-				{ items: waiverIds, otherParametersCount: 0 },
-				async (chunk) =>
-					db.query.waiverSignaturesTable.findMany({
-						columns: {
-							id: true,
-							waiverId: true,
-							userId: true,
-							signedAt: true,
-						},
-						where: inArray(waiverSignaturesTable.waiverId, chunk),
-					}),
-			)
+			const signatures = await db.query.waiverSignaturesTable.findMany({
+				columns: {
+					id: true,
+					waiverId: true,
+					userId: true,
+					signedAt: true,
+				},
+				where: inArray(waiverSignaturesTable.waiverId, waiverIds),
+			})
 
 			return { signatures }
 		},

@@ -122,6 +122,11 @@ export const createChainableMock = () => {
     set: vi.fn(() => createChainableMock()),
     // Delete
     delete: vi.fn().mockResolvedValue({changes: 0}),
+    // Transaction support
+    transaction: vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+      const txMock = createChainableMock()
+      return fn(txMock)
+    }),
     // Other methods
     get: vi.fn().mockResolvedValue(null),
     // Query API (drizzle relational queries)

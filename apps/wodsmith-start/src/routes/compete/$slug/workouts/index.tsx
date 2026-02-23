@@ -17,16 +17,15 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
-import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
-import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import {
 	getPublicScheduleDataFn,
 	getVenueForTrackWorkoutFn,
 	type PublicScheduleEvent,
 } from "@/server-fns/competition-heats-fns"
 import {
+	getBatchWorkoutDivisionDescriptionsFn,
 	getPublishedCompetitionWorkoutsWithDetailsFn,
-	getWorkoutDivisionDescriptionsFn,
+	type DivisionDescription,
 } from "@/server-fns/competition-workouts-fns"
 import { getSessionFromCookie } from "@/utils/auth"
 import { useDeferredSchedule } from "@/utils/use-deferred-schedule"
@@ -58,16 +57,14 @@ const workoutsSearchSchema = z.object({
 export const Route = createFileRoute("/compete/$slug/workouts/")({
 	component: CompetitionWorkoutsPage,
 	validateSearch: (search) => workoutsSearchSchema.parse(search),
-	loader: async ({ params }) => {
-		// Fetch competition by slug to get the ID
-		const { competition } = await getCompetitionBySlugFn({
-			data: { slug: params.slug },
-		})
+	loader: async ({ parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const competition = parentMatch.loaderData?.competition
+		const divisions = parentMatch.loaderData?.divisions
 
 		if (!competition) {
 			return {
 				workouts: [],
-				divisions: [],
 				divisionDescriptionsMap: {},
 				venueMap: {},
 				athleteRegisteredDivisionId: null,
@@ -84,12 +81,9 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
 			data: { competitionId },
 		})
 
-		// Fetch divisions, workouts, and optionally user's registered division in parallel
-		const [divisionsResult, workoutsResult, athleteDivisionResult] =
+		// Fetch workouts and optionally user's registered division in parallel
+		const [workoutsResult, athleteDivisionResult] =
 			await Promise.all([
-				getPublicCompetitionDivisionsFn({
-					data: { competitionId },
-				}),
 				getPublishedCompetitionWorkoutsWithDetailsFn({
 					data: { competitionId },
 				}),
@@ -98,16 +92,12 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
 				}),
 			])
 
-		const divisions = divisionsResult.divisions
 		const workouts = workoutsResult.workouts
 		const athleteRegisteredDivisionId = athleteDivisionResult.divisionId
 
 		// Fetch division descriptions and venues for all workouts in parallel
 		const divisionIds = divisions?.map((d) => d.id) ?? []
-		const divisionDescriptionsMap: Record<
-			string,
-			Awaited<ReturnType<typeof getWorkoutDivisionDescriptionsFn>>
-		> = {}
+		const divisionDescriptionsMap: Record<string, DivisionDescription[]> = {}
 
 		type VenueInfo = {
 			id: string
@@ -123,20 +113,11 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
 		const venueMap: Record<string, VenueInfo | null> = {}
 
 		if (divisionIds.length > 0 && workouts.length > 0) {
-			const descriptionsPromises = workouts.map(async (event) => {
-				const result = await getWorkoutDivisionDescriptionsFn({
-					data: {
-						workoutId: event.workoutId,
-						divisionIds,
-					},
-				})
-				return { workoutId: event.workoutId, descriptions: result.descriptions }
+			const workoutIds = workouts.map((w) => w.workoutId)
+			const batchResult = await getBatchWorkoutDivisionDescriptionsFn({
+				data: { workoutIds, divisionIds },
 			})
-
-			const results = await Promise.all(descriptionsPromises)
-			for (const { workoutId, descriptions } of results) {
-				divisionDescriptionsMap[workoutId] = { descriptions }
-			}
+			Object.assign(divisionDescriptionsMap, batchResult.descriptionsByWorkout)
 		}
 
 		// Fetch venue data for each workout
@@ -174,7 +155,6 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
 
 		return {
 			workouts,
-			divisions,
 			divisionDescriptionsMap,
 			venueMap,
 			athleteRegisteredDivisionId,
@@ -186,13 +166,12 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
 function CompetitionWorkoutsPage() {
 	const {
 		workouts,
-		divisions,
 		divisionDescriptionsMap,
 		venueMap,
 		athleteRegisteredDivisionId,
 		deferredSchedule,
 	} = Route.useLoaderData()
-	const { competition } = parentRoute.useLoaderData()
+	const { competition, divisions } = parentRoute.useLoaderData()
 	const { slug } = Route.useParams()
 	const search = Route.useSearch()
 	const navigate = useNavigate({ from: Route.fullPath })
@@ -305,7 +284,7 @@ function CompetitionWorkoutsPage() {
 									movements={event.workout.movements}
 									tags={event.workout.tags}
 									divisionDescriptions={
-										divisionDescriptionsResult?.descriptions ?? []
+										divisionDescriptionsResult ?? []
 									}
 									sponsorName={event.sponsorName}
 									sponsorLogoUrl={event.sponsorLogoUrl}

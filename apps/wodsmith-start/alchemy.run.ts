@@ -92,6 +92,7 @@ import {
 	KVNamespace,
 	R2Bucket,
 	TanStackStart,
+	Workflow,
 } from "alchemy/cloudflare"
 import { GitHubComment } from "alchemy/github"
 import { CloudflareStateStore } from "alchemy/state"
@@ -475,6 +476,22 @@ function getDomains(currentStage: string): string[] | undefined {
 }
 
 /**
+ * Cloudflare Workflow for processing Stripe checkout.session.completed events.
+ *
+ * Runs asynchronously with durable steps and per-step retries:
+ * 1. Create registration (DB operations)
+ * 2. Send confirmation email
+ * 3. Send Slack notification
+ *
+ * The webhook handler dispatches to this workflow keyed by Stripe event ID
+ * for idempotency, then returns 200 immediately.
+ */
+const stripeCheckoutWorkflow = Workflow(`stripe-checkout-workflow-${stage}`, {
+	className: "StripeCheckoutWorkflow",
+	workflowName: `stripe-checkout-workflow-${stage}`,
+})
+
+/**
  * TanStack Start application deployment configuration.
  *
  * This deploys the TanStack Start SSR application to Cloudflare Workers with:
@@ -537,6 +554,8 @@ const website = await TanStackStart("app", {
 		R2_BUCKET: r2Bucket,
 		/** Hyperdrive binding for pooled PlanetScale connections */
 		HYPERDRIVE: hyperdrive,
+		/** Workflow for async Stripe checkout processing */
+		STRIPE_CHECKOUT_WORKFLOW: stripeCheckoutWorkflow,
 
 		// App configuration
 		// biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
@@ -603,6 +622,12 @@ const website = await TanStackStart("app", {
 			// biome-ignore lint/style/noNonNullAssertion: hasStripeEnv check guarantees this exists
 			STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY!),
 		}),
+		// Slack notifications (optional - only include if available)
+		...(process.env.SLACK_WEBHOOK_URL && {
+			SLACK_WEBHOOK_URL: alchemy.secret(process.env.SLACK_WEBHOOK_URL),
+			SLACK_PURCHASE_NOTIFICATIONS_ENABLED: "true",
+		}),
+
 		// Webhook secret: use Alchemy-managed webhook for demo/prod, or .dev.vars for local dev
 		...(stripeWebhook
 			? {

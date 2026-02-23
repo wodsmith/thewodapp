@@ -39,7 +39,6 @@ import {
 	workoutTags,
 } from "@/db/schemas/workouts"
 import { getSessionFromCookie } from "@/utils/auth"
-import { autochunk } from "@/utils/batch-query"
 
 // Workout type filter values
 const WORKOUT_TYPE_FILTER_VALUES = ["all", "original", "remix"] as const
@@ -61,7 +60,7 @@ const getWorkoutsInputSchema = z.object({
 type GetWorkoutsInput = z.infer<typeof getWorkoutsInputSchema>
 
 /**
- * Helper function to fetch tags by workout IDs (batched for 100-param limit)
+ * Helper function to fetch tags by workout IDs
  */
 async function fetchTagsByWorkoutId(
 	db: ReturnType<typeof getDb>,
@@ -69,19 +68,15 @@ async function fetchTagsByWorkoutId(
 ): Promise<Map<string, Array<{ id: string; name: string }>>> {
 	if (workoutIds.length === 0) return new Map()
 
-	const workoutTagsData = await autochunk(
-		{ items: workoutIds },
-		async (chunk) =>
-			db
-				.select({
-					workoutId: workoutTags.workoutId,
-					tagId: tags.id,
-					tagName: tags.name,
-				})
-				.from(workoutTags)
-				.innerJoin(tags, eq(workoutTags.tagId, tags.id))
-				.where(inArray(workoutTags.workoutId, chunk)),
-	)
+	const workoutTagsData = await db
+		.select({
+			workoutId: workoutTags.workoutId,
+			tagId: tags.id,
+			tagName: tags.name,
+		})
+		.from(workoutTags)
+		.innerJoin(tags, eq(workoutTags.tagId, tags.id))
+		.where(inArray(workoutTags.workoutId, workoutIds))
 
 	const tagsByWorkoutId = new Map<string, Array<{ id: string; name: string }>>()
 
@@ -99,7 +94,7 @@ async function fetchTagsByWorkoutId(
 }
 
 /**
- * Helper function to fetch movements by workout IDs (batched for 100-param limit)
+ * Helper function to fetch movements by workout IDs
  */
 async function fetchMovementsByWorkoutId(
 	db: ReturnType<typeof getDb>,
@@ -107,20 +102,16 @@ async function fetchMovementsByWorkoutId(
 ): Promise<Map<string, Array<{ id: string; name: string; type: string }>>> {
 	if (workoutIds.length === 0) return new Map()
 
-	const workoutMovementsData = await autochunk(
-		{ items: workoutIds },
-		async (chunk) =>
-			db
-				.select({
-					workoutId: workoutMovements.workoutId,
-					movementId: movements.id,
-					movementName: movements.name,
-					movementType: movements.type,
-				})
-				.from(workoutMovements)
-				.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
-				.where(inArray(workoutMovements.workoutId, chunk)),
-	)
+	const workoutMovementsData = await db
+		.select({
+			workoutId: workoutMovements.workoutId,
+			movementId: movements.id,
+			movementName: movements.name,
+			movementType: movements.type,
+		})
+		.from(workoutMovements)
+		.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
+		.where(inArray(workoutMovements.workoutId, workoutIds))
 
 	const movementsByWorkoutId = new Map<
 		string,
@@ -930,37 +921,33 @@ export const getTodayScoresFn = createServerFn({ method: "GET" })
 		const endOfDay = new Date(today)
 		endOfDay.setHours(23, 59, 59, 999)
 
-		// Fetch today's scores for the user and workouts (batched for param limit)
-		const scoresData = await autochunk(
-			{ items: data.workoutIds, otherParametersCount: 4 },
-			async (chunk) =>
-				db
-					.select({
-						workoutId: scoresTable.workoutId,
-						scoreId: scoresTable.id,
-						scoreValue: scoresTable.scoreValue,
-						scheme: scoresTable.scheme,
-						recordedAt: scoresTable.recordedAt,
-						asRx: scoresTable.asRx,
-						scalingLevelId: scoresTable.scalingLevelId,
-						scalingLabel: scalingLevelsTable.label,
-					})
-					.from(scoresTable)
-					.leftJoin(
-						scalingLevelsTable,
-						eq(scoresTable.scalingLevelId, scalingLevelsTable.id),
-					)
-					.where(
-						and(
-							eq(scoresTable.userId, data.userId),
-							eq(scoresTable.teamId, data.teamId),
-							inArray(scoresTable.workoutId, chunk),
-							gte(scoresTable.recordedAt, startOfDay),
-							lte(scoresTable.recordedAt, endOfDay),
-						),
-					)
-					.orderBy(desc(scoresTable.recordedAt)),
-		)
+		// Fetch today's scores for the user and workouts
+		const scoresData = await db
+			.select({
+				workoutId: scoresTable.workoutId,
+				scoreId: scoresTable.id,
+				scoreValue: scoresTable.scoreValue,
+				scheme: scoresTable.scheme,
+				recordedAt: scoresTable.recordedAt,
+				asRx: scoresTable.asRx,
+				scalingLevelId: scoresTable.scalingLevelId,
+				scalingLabel: scalingLevelsTable.label,
+			})
+			.from(scoresTable)
+			.leftJoin(
+				scalingLevelsTable,
+				eq(scoresTable.scalingLevelId, scalingLevelsTable.id),
+			)
+			.where(
+				and(
+					eq(scoresTable.userId, data.userId),
+					eq(scoresTable.teamId, data.teamId),
+					inArray(scoresTable.workoutId, data.workoutIds),
+					gte(scoresTable.recordedAt, startOfDay),
+					lte(scoresTable.recordedAt, endOfDay),
+				),
+			)
+			.orderBy(desc(scoresTable.recordedAt))
 
 		// Deduplicate by workout ID (keep first/most recent for each workout)
 		const scoresByWorkoutId = new Map<string, TodayScore>()

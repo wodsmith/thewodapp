@@ -17,7 +17,6 @@ import {
 	workoutTags,
 } from "@/db/schemas/workouts"
 import { getSessionFromCookie } from "@/utils/auth"
-import { autochunk } from "@/utils/batch-query"
 
 // Input validation schemas
 const getRemixedWorkoutsInputSchema = z.object({
@@ -289,39 +288,28 @@ export const createWorkoutRemixFn = createServerFn({ method: "POST" })
 			sourceWorkoutId: data.sourceWorkoutId, // Reference to the original workout
 		})
 
-		// Insert workout-tag relationships (batched for param limits)
-		if (tagIds.length > 0) {
-			// 100 param limit. workoutTags table has 5 columns per insert.
-			// Max rows per batch: floor(100 / 5) = 20, but use conservative 15
-			const TAG_INSERT_BATCH_SIZE = 15
-			for (let i = 0; i < tagIds.length; i += TAG_INSERT_BATCH_SIZE) {
-				const batch = tagIds.slice(i, i + TAG_INSERT_BATCH_SIZE)
-				await db.insert(workoutTags).values(
-					batch.map((tagId) => ({
+		// Insert workout-tag and workout-movement relationships in a transaction
+		await db.transaction(async (tx) => {
+			if (tagIds.length > 0) {
+				await tx.insert(workoutTags).values(
+					tagIds.map((tagId) => ({
 						id: `workout_tag_${createId()}`,
 						workoutId: newWorkoutId,
 						tagId,
 					})),
 				)
 			}
-		}
 
-		// Insert workout-movement relationships (batched for param limits)
-		if (movementIds.length > 0) {
-			// workoutMovements table has 5 columns per insert.
-			// Max rows per batch: floor(100 / 5) = 20, but use conservative 15
-			const MOVEMENT_INSERT_BATCH_SIZE = 15
-			for (let i = 0; i < movementIds.length; i += MOVEMENT_INSERT_BATCH_SIZE) {
-				const batch = movementIds.slice(i, i + MOVEMENT_INSERT_BATCH_SIZE)
-				await db.insert(workoutMovements).values(
-					batch.map((movementId) => ({
+			if (movementIds.length > 0) {
+				await tx.insert(workoutMovements).values(
+					movementIds.map((movementId) => ({
 						id: `workout_movement_${createId()}`,
 						workoutId: newWorkoutId,
 						movementId,
 					})),
 				)
 			}
-		}
+		})
 
 		// Get the full workout with tags and movements for return
 		const [createdWorkout] = await db
@@ -333,12 +321,10 @@ export const createWorkoutRemixFn = createServerFn({ method: "POST" })
 		// Get tags for return
 		let workoutTagsData: Array<{ id: string; name: string }> = []
 		if (tagIds.length > 0) {
-			workoutTagsData = await autochunk({ items: tagIds }, async (chunk) =>
-				db
-					.select({ id: tags.id, name: tags.name })
-					.from(tags)
-					.where(inArray(tags.id, chunk)),
-			)
+			workoutTagsData = await db
+				.select({ id: tags.id, name: tags.name })
+				.from(tags)
+				.where(inArray(tags.id, tagIds))
 		}
 
 		// Get movements for return
@@ -348,18 +334,14 @@ export const createWorkoutRemixFn = createServerFn({ method: "POST" })
 			type: string
 		}> = []
 		if (movementIds.length > 0) {
-			workoutMovementsData = await autochunk(
-				{ items: movementIds },
-				async (chunk) =>
-					db
-						.select({
-							id: movements.id,
-							name: movements.name,
-							type: movements.type,
-						})
-						.from(movements)
-						.where(inArray(movements.id, chunk)),
-			)
+			workoutMovementsData = await db
+				.select({
+					id: movements.id,
+					name: movements.name,
+					type: movements.type,
+				})
+				.from(movements)
+				.where(inArray(movements.id, movementIds))
 		}
 
 		return {

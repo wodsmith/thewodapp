@@ -1,9 +1,9 @@
 import { encodeHexLowerCase } from "@oslojs/encoding"
 import { init } from "@paralleldrive/cuid2"
 import { getCookie, setCookie } from "@tanstack/react-start/server"
-import { eq } from "drizzle-orm"
+import { and, eq, gt, inArray, isNull, or } from "drizzle-orm"
 import ms from "ms"
-import { cache } from "react"
+
 import { ACTIVE_TEAM_COOKIE_NAME, SESSION_COOKIE_NAME } from "@/constants"
 import { getDb } from "@/db"
 import {
@@ -12,6 +12,7 @@ import {
 	TEAM_PERMISSIONS,
 	type Team,
 	type TeamMembership,
+	teamEntitlementOverrideTable,
 	teamMembershipTable,
 	userTable,
 } from "@/db/schema"
@@ -155,6 +156,36 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 	const teamPlans = await Promise.all(teamPlansPromises)
 	const planMap = new Map(teamPlans.map((plan, i) => [teamIds[i], plan]))
 
+	// Fetch entitlement overrides for all teams in a single query
+	const overrides =
+		teamIds.length > 0
+			? await db
+					.select({
+						teamId: teamEntitlementOverrideTable.teamId,
+						type: teamEntitlementOverrideTable.type,
+						key: teamEntitlementOverrideTable.key,
+						value: teamEntitlementOverrideTable.value,
+					})
+					.from(teamEntitlementOverrideTable)
+					.where(
+						and(
+							inArray(teamEntitlementOverrideTable.teamId, teamIds),
+							or(
+								isNull(teamEntitlementOverrideTable.expiresAt),
+								gt(teamEntitlementOverrideTable.expiresAt, new Date()),
+							),
+						),
+					)
+			: []
+
+	// Group overrides by teamId
+	const overridesByTeam = new Map<string, typeof overrides>()
+	for (const override of overrides) {
+		const existing = overridesByTeam.get(override.teamId) ?? []
+		existing.push(override)
+		overridesByTeam.set(override.teamId, existing)
+	}
+
 	// Process memberships without async operations
 	return userTeamMemberships.map((membership) => {
 		let roleName = ""
@@ -194,6 +225,27 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 
 		const plan = planMap.get(membership.teamId)
 
+		// Merge entitlement overrides into plan data
+		const teamOverrides = overridesByTeam.get(membership.teamId) ?? []
+		let features = plan ? [...plan.entitlements.features] : []
+		const limits = plan ? { ...plan.entitlements.limits } : {}
+
+		for (const override of teamOverrides) {
+			if (override.type === "feature") {
+				const isEnabled = override.value === "true" || override.value === "1"
+				if (isEnabled && !features.includes(override.key)) {
+					features.push(override.key)
+				} else if (!isEnabled) {
+					features = features.filter((f) => f !== override.key)
+				}
+			} else if (override.type === "limit") {
+				const parsed = Number.parseInt(override.value, 10)
+				if (!Number.isNaN(parsed)) {
+					limits[override.key] = parsed
+				}
+			}
+		}
+
 		const team =
 			membership.team && "name" in membership.team ? membership.team : null
 		return {
@@ -212,8 +264,8 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 				? {
 						id: plan.id,
 						name: plan.name,
-						features: plan.entitlements.features,
-						limits: plan.entitlements.limits,
+						features,
+						limits,
 					}
 				: undefined,
 		}
@@ -459,106 +511,91 @@ export async function getActiveOrPersonalTeamId(
 /**
  * This function can only be called in a Server Components, Server Action or Route Handler
  */
-export const getSessionFromCookie = cache(
-	async (): Promise<SessionValidationResult | null> => {
-		const sessionCookie = getCookie(SESSION_COOKIE_NAME)
+export async function getSessionFromCookie(): Promise<SessionValidationResult | null> {
+	const sessionCookie = getCookie(SESSION_COOKIE_NAME)
 
-		if (!sessionCookie) {
-			return null
-		}
+	if (!sessionCookie) {
+		return null
+	}
 
-		const decoded = decodeSessionCookie(sessionCookie)
+	const decoded = decodeSessionCookie(sessionCookie)
 
-		if (!decoded || !decoded.token || !decoded.userId) {
-			return null
-		}
+	if (!decoded || !decoded.token || !decoded.userId) {
+		return null
+	}
 
-		return validateSessionToken(decoded.token, decoded.userId)
-	},
-)
+	return validateSessionToken(decoded.token, decoded.userId)
+}
 
-export const requireVerifiedEmail = cache(async () => {
+export async function requireVerifiedEmail() {
 	const session = await getSessionFromCookie()
 
 	if (!session) {
 		throw new AppError("NOT_AUTHORIZED", "Not authenticated")
 	}
 
-	// Email verification check removed - emails are auto-verified on signup
-	// if (!session?.user?.emailVerified) {
-	// 	if (doNotThrowError) {
-	// 		return null
-	// 	}
-	//
-	// 	throw new AppError("FORBIDDEN", "Please verify your email first")
-	// }
+	return session
+}
+
+export async function requireAdmin({ doNotThrowError = false }: { doNotThrowError?: boolean } = {}) {
+	const session = await getSessionFromCookie()
+
+	if (!session) {
+		throw new AppError("NOT_AUTHORIZED", "Not authenticated")
+	}
+
+	if (session.user.role !== ROLES_ENUM.ADMIN) {
+		if (doNotThrowError) {
+			return null
+		}
+
+		throw new AppError("FORBIDDEN", "Not authorized")
+	}
 
 	return session
-})
-
-export const requireAdmin = cache(
-	async ({ doNotThrowError = false }: { doNotThrowError?: boolean } = {}) => {
-		const session = await getSessionFromCookie()
-
-		if (!session) {
-			throw new AppError("NOT_AUTHORIZED", "Not authenticated")
-		}
-
-		if (session.user.role !== ROLES_ENUM.ADMIN) {
-			if (doNotThrowError) {
-				return null
-			}
-
-			throw new AppError("FORBIDDEN", "Not authorized")
-		}
-
-		return session
-	},
-)
+}
 
 /**
  * Check if the current user is a site admin
  * Returns false if not authenticated or not an admin (does not throw)
  */
-export const isAdmin = cache(async (): Promise<boolean> => {
+export async function isAdmin(): Promise<boolean> {
 	const session = await getSessionFromCookie()
 	return session?.user?.role === ROLES_ENUM.ADMIN
-})
+}
 
-export const requireAdminForTeam = cache(
-	async ({
-		doNotThrowError = false,
-		teamIdOrSlug,
-	}: {
-		doNotThrowError?: boolean
-		teamIdOrSlug?: string
-	} = {}) => {
-		const session = await getSessionFromCookie()
+export async function requireAdminForTeam({
+	doNotThrowError = false,
+	teamIdOrSlug,
+}: {
+	doNotThrowError?: boolean
+	teamIdOrSlug?: string
+} = {}) {
+	const session = await getSessionFromCookie()
 
-		if (!session) {
-			throw new AppError("NOT_AUTHORIZED", "Not authenticated")
+	if (!session) {
+		throw new AppError("NOT_AUTHORIZED", "Not authenticated")
+	}
+
+	const team = session?.teams?.find(
+		(t) => t.id === teamIdOrSlug || t.slug === teamIdOrSlug,
+	)
+
+	// Allow both OWNER and ADMIN roles
+	if (
+		!team ||
+		(team.role.name !== SYSTEM_ROLES_ENUM.OWNER &&
+			team.role.name !== SYSTEM_ROLES_ENUM.ADMIN)
+	) {
+		if (doNotThrowError) {
+			return null
 		}
 
-		const team = session?.teams?.find(
-			(t) => t.id === teamIdOrSlug || t.slug === teamIdOrSlug,
-		)
+		throw new AppError("FORBIDDEN", "Not authorized")
+	}
 
-		// Allow both OWNER and ADMIN roles
-		if (
-			!team ||
-			(team.role.name !== SYSTEM_ROLES_ENUM.OWNER &&
-				team.role.name !== SYSTEM_ROLES_ENUM.ADMIN)
-		) {
-			if (doNotThrowError) {
-				return null
-			}
-
-			throw new AppError("FORBIDDEN", "Not authorized")
-		}
-
-		return session
-	},
-)
+	return session
+}
 
 interface DisposableEmailResponse {
 	disposable: string

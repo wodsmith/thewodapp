@@ -28,7 +28,6 @@ import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
 import { workouts as workoutsTable } from "@/db/schemas/workouts"
 import { getSessionFromCookie } from "@/utils/auth"
-import { autochunk } from "@/utils/batch-query"
 
 // ============================================================================
 // Types
@@ -254,23 +253,19 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 
 			// Get registrations per division
 			const divisionIds = divisions.map((d) => d.id)
-			const registrationCounts = await autochunk(
-				{ items: divisionIds, otherParametersCount: 1 },
-				async (chunk) =>
-					db
-						.select({
-							divisionId: competitionRegistrationsTable.divisionId,
-							count: sql<number>`cast(count(*) as unsigned)`,
-						})
-						.from(competitionRegistrationsTable)
-						.where(
-							and(
-								eq(competitionRegistrationsTable.eventId, data.competitionId),
-								inArray(competitionRegistrationsTable.divisionId, chunk),
-							),
-						)
-						.groupBy(competitionRegistrationsTable.divisionId),
-			)
+			const registrationCounts = await db
+					.select({
+						divisionId: competitionRegistrationsTable.divisionId,
+						count: sql<number>`cast(count(*) as unsigned)`,
+					})
+					.from(competitionRegistrationsTable)
+					.where(
+						and(
+							eq(competitionRegistrationsTable.eventId, data.competitionId),
+							inArray(competitionRegistrationsTable.divisionId, divisionIds),
+						),
+					)
+					.groupBy(competitionRegistrationsTable.divisionId)
 
 			const registrationCountMap = new Map<string, number>()
 			for (const row of registrationCounts) {
@@ -355,10 +350,7 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 			const eventIds = targetEvents.map((e) => e.id)
 			const allScores =
 				eventIds.length > 0
-					? await autochunk(
-							{ items: eventIds, otherParametersCount: 0 },
-							async (chunk) =>
-								db
+					? await db
 									.select({
 										userId: scoresTable.userId,
 										competitionEventId: scoresTable.competitionEventId,
@@ -366,11 +358,10 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 									.from(scoresTable)
 									.where(
 										and(
-											inArray(scoresTable.competitionEventId, chunk),
+											inArray(scoresTable.competitionEventId, eventIds),
 											isNotNull(scoresTable.scoreValue),
 										),
-									),
-						)
+									)
 					: []
 
 			// Build a map of eventId -> set of userIds with scores

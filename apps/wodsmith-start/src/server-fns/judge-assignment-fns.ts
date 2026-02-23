@@ -366,71 +366,60 @@ export const publishRotationsFn = createServerFn({ method: "POST" })
 		const nextVersion =
 			versions.length > 0 ? (versions[0]?.version ?? 0) + 1 : 1
 
-		// Deactivate previous versions
-		await db
-			.update(judgeAssignmentVersionsTable)
-			.set({ isActive: false, updatedAt: new Date() })
-			.where(
-				eq(judgeAssignmentVersionsTable.trackWorkoutId, data.trackWorkoutId),
-			)
-
-		// Create new version - generate ID, insert, select back
-		const { createJudgeAssignmentVersionId } = await import("@/db/schema")
-		const newVersionId = createJudgeAssignmentVersionId()
-		await db.insert(judgeAssignmentVersionsTable).values({
-			id: newVersionId,
-			trackWorkoutId: data.trackWorkoutId,
-			version: nextVersion,
-			publishedBy: data.publishedBy,
-			notes: data.notes ?? null,
-			isActive: true,
-		})
-
-		const newVersion = await db.query.judgeAssignmentVersionsTable.findFirst({
-			where: eq(judgeAssignmentVersionsTable.id, newVersionId),
-		})
-
-		if (!newVersion) {
-			throw new Error("Failed to create version")
-		}
-
-		// Materialize all rotations
+		// Materialize all rotations (read-only, before transaction)
 		const materializedAssignments = await materializeRotations(
 			data.trackWorkoutId,
 			maxLanes,
 		)
 
-		// Bulk insert assignments using manual chunking
-		// Drizzle inserts all columns including auto-generated ones:
-		// createdAt, updatedAt, updateCounter, id, heatId, membershipId, rotationId, versionId, laneNumber, position, instructions, isManualOverride
-		// That's 11 params per row (instructions is null literal).
-		// 100 bound parameter batch limit.
-		// max rows per batch = floor(100 / 11) = 9, use 8 for safety
-		const INSERT_BATCH_SIZE = 8
-		if (materializedAssignments.length > 0) {
-			const chunks: MaterializedAssignment[][] = []
-			for (
-				let i = 0;
-				i < materializedAssignments.length;
-				i += INSERT_BATCH_SIZE
-			) {
-				chunks.push(materializedAssignments.slice(i, i + INSERT_BATCH_SIZE))
+		const { createJudgeAssignmentVersionId } = await import("@/db/schema")
+		const newVersionId = createJudgeAssignmentVersionId()
+
+		// Use transaction for atomic version switch + assignment creation
+		const newVersion = await db.transaction(async (tx) => {
+			// Deactivate previous versions
+			await tx
+				.update(judgeAssignmentVersionsTable)
+				.set({ isActive: false, updatedAt: new Date() })
+				.where(
+					eq(judgeAssignmentVersionsTable.trackWorkoutId, data.trackWorkoutId),
+				)
+
+			// Create new version
+			await tx.insert(judgeAssignmentVersionsTable).values({
+				id: newVersionId,
+				trackWorkoutId: data.trackWorkoutId,
+				version: nextVersion,
+				publishedBy: data.publishedBy,
+				notes: data.notes ?? null,
+				isActive: true,
+			})
+
+			const version = await tx.query.judgeAssignmentVersionsTable.findFirst({
+				where: eq(judgeAssignmentVersionsTable.id, newVersionId),
+			})
+
+			if (!version) {
+				throw new Error("Failed to create version")
 			}
 
-			for (const chunk of chunks) {
-				await db.insert(judgeHeatAssignmentsTable).values(
-					chunk.map((a) => ({
+			// Bulk insert all assignments in a single query (MySQL has no param limit)
+			if (materializedAssignments.length > 0) {
+				await tx.insert(judgeHeatAssignmentsTable).values(
+					materializedAssignments.map((a) => ({
 						heatId: a.heatId,
 						membershipId: a.membershipId,
 						rotationId: a.rotationId,
 						laneNumber: a.laneNumber,
 						position: a.position,
-						versionId: newVersion.id,
+						versionId: version.id,
 						isManualOverride: false,
 					})),
 				)
 			}
-		}
+
+			return version
+		})
 
 		return newVersion
 	})
@@ -460,31 +449,36 @@ export const rollbackToVersionFn = createServerFn({ method: "POST" })
 			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
 
-		// Deactivate all versions for this event
-		await db
-			.update(judgeAssignmentVersionsTable)
-			.set({ isActive: false, updatedAt: new Date() })
-			.where(
-				eq(
-					judgeAssignmentVersionsTable.trackWorkoutId,
-					targetVersion.trackWorkoutId,
-				),
-			)
+		// Use transaction for atomic version switch
+		const updatedVersion = await db.transaction(async (tx) => {
+			// Deactivate all versions for this event
+			await tx
+				.update(judgeAssignmentVersionsTable)
+				.set({ isActive: false, updatedAt: new Date() })
+				.where(
+					eq(
+						judgeAssignmentVersionsTable.trackWorkoutId,
+						targetVersion.trackWorkoutId,
+					),
+				)
 
-		// Activate the target version - update, then select
-		await db
-			.update(judgeAssignmentVersionsTable)
-			.set({ isActive: true, updatedAt: new Date() })
-			.where(eq(judgeAssignmentVersionsTable.id, data.versionId))
+			// Activate the target version
+			await tx
+				.update(judgeAssignmentVersionsTable)
+				.set({ isActive: true, updatedAt: new Date() })
+				.where(eq(judgeAssignmentVersionsTable.id, data.versionId))
 
-		const updatedVersion =
-			await db.query.judgeAssignmentVersionsTable.findFirst({
-				where: eq(judgeAssignmentVersionsTable.id, data.versionId),
-			})
+			const version =
+				await tx.query.judgeAssignmentVersionsTable.findFirst({
+					where: eq(judgeAssignmentVersionsTable.id, data.versionId),
+				})
 
-		if (!updatedVersion) {
-			throw new Error("Failed to activate version")
-		}
+			if (!version) {
+				throw new Error("Failed to activate version")
+			}
+
+			return version
+		})
 
 		return updatedVersion
 	})

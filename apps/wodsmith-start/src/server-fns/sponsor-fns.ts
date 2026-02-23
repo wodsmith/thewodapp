@@ -438,21 +438,23 @@ export const reorderSponsorGroupsFn = createServerFn({ method: "POST" })
 			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 		)
 
-		// Update each group's displayOrder
-		for (let i = 0; i < data.groupIds.length; i++) {
-			const groupId = data.groupIds[i]
-			if (!groupId) continue
-
-			await db
-				.update(sponsorGroupsTable)
-				.set({ displayOrder: i, updatedAt: new Date() })
-				.where(
-					and(
-						eq(sponsorGroupsTable.id, groupId),
-						eq(sponsorGroupsTable.competitionId, data.competitionId),
-					),
-				)
-		}
+		// Update each group's displayOrder in a transaction
+		await db.transaction(async (tx) => {
+			await Promise.all(
+				data.groupIds.map((groupId, i) => {
+					if (!groupId) return Promise.resolve()
+					return tx
+						.update(sponsorGroupsTable)
+						.set({ displayOrder: i, updatedAt: new Date() })
+						.where(
+							and(
+								eq(sponsorGroupsTable.id, groupId),
+								eq(sponsorGroupsTable.competitionId, data.competitionId),
+							),
+						)
+				}),
+			)
+		})
 
 		return { success: true }
 	})
@@ -653,22 +655,26 @@ export const reorderSponsorsFn = createServerFn({ method: "POST" })
 			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 		)
 
-		// Update each sponsor
-		for (const { sponsorId, groupId, displayOrder } of data.sponsorOrders) {
-			await db
-				.update(sponsorsTable)
-				.set({
-					groupId,
-					displayOrder,
-					updatedAt: new Date(),
-				})
-				.where(
-					and(
-						eq(sponsorsTable.id, sponsorId),
-						eq(sponsorsTable.competitionId, data.competitionId),
-					),
-				)
-		}
+		// Update each sponsor in a transaction
+		await db.transaction(async (tx) => {
+			await Promise.all(
+				data.sponsorOrders.map(({ sponsorId, groupId, displayOrder }) =>
+					tx
+						.update(sponsorsTable)
+						.set({
+							groupId,
+							displayOrder,
+							updatedAt: new Date(),
+						})
+						.where(
+							and(
+								eq(sponsorsTable.id, sponsorId),
+								eq(sponsorsTable.competitionId, data.competitionId),
+							),
+						),
+				),
+			)
+		})
 
 		return { success: true }
 	})

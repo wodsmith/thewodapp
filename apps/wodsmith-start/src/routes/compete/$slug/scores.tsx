@@ -11,7 +11,6 @@ import { useCallback } from "react"
 import { z } from "zod"
 import { ResultsEntryForm } from "@/components/organizer/results/results-entry-form"
 import { Button } from "@/components/ui/button"
-import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import {
 	getCompetitionDivisionsForScoreEntryFn,
 	getCompetitionWorkoutsForScoreEntryFn,
@@ -32,7 +31,7 @@ export const Route = createFileRoute("/compete/$slug/scores")({
 		eventId: search.event,
 		divisionId: search.division,
 	}),
-	loader: async ({ params, deps, context }) => {
+	loader: async ({ params, deps, context, parentMatchPromise }) => {
 		const { slug } = params
 		const session = context.session
 
@@ -44,8 +43,9 @@ export const Route = createFileRoute("/compete/$slug/scores")({
 			})
 		}
 
-		// Get competition by slug
-		const { competition } = await getCompetitionBySlugFn({ data: { slug } })
+		// Get competition from parent
+		const parentMatch = await parentMatchPromise
+		const competition = parentMatch.loaderData?.competition
 
 		if (!competition) {
 			throw new Error("Competition not found")

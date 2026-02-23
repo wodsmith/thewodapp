@@ -14,7 +14,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, count, eq, isNull, sql } from "drizzle-orm"
+import { and, count, eq, inArray, isNull, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { addressesTable } from "@/db/schemas/addresses"
@@ -757,27 +757,24 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
 			// Get invitations for these athlete teams that haven't been claimed by a user
 			// Include both 'pending' and 'accepted' status (accepted = guest submitted form without account)
 			// Exclude those with acceptedAt set (user with account has claimed the invite)
-			const pendingInvites: PendingTeammateInvite[] = []
+			const allInvitations = await db.query.teamInvitationTable.findMany({
+				where: and(
+					inArray(teamInvitationTable.teamId, athleteTeamIds),
+					eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.MEMBER),
+					isNull(teamInvitationTable.acceptedAt), // Not yet claimed by user with account
+				),
+				columns: {
+					id: true,
+					email: true,
+					teamId: true,
+					status: true,
+					metadata: true,
+					createdAt: true,
+				},
+			})
 
-			// Query each team's invitations (batched for large IN arrays)
-			for (const teamId of athleteTeamIds) {
-				const invitations = await db.query.teamInvitationTable.findMany({
-					where: and(
-						eq(teamInvitationTable.teamId, teamId),
-						eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.MEMBER),
-						isNull(teamInvitationTable.acceptedAt), // Not yet claimed by user with account
-					),
-					columns: {
-						id: true,
-						email: true,
-						teamId: true,
-						status: true,
-						metadata: true,
-						createdAt: true,
-					},
-				})
-
-				for (const inv of invitations) {
+			const pendingInvites: PendingTeammateInvite[] = allInvitations.map(
+				(inv) => {
 					// Parse metadata to check for pending data
 					let pendingAnswers: PendingTeammateInvite["pendingAnswers"]
 					let pendingSignatures: PendingTeammateInvite["pendingSignatures"]
@@ -804,14 +801,14 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
 
 					// Get teammate name from captain's registration (pendingTeammates)
 					const guestName = teammateNames.get(
-						`${teamId}-${inv.email.toLowerCase()}`,
+						`${inv.teamId}-${inv.email.toLowerCase()}`,
 					)
 
-					pendingInvites.push({
+					return {
 						id: inv.id,
 						email: inv.email,
-						athleteTeamId: teamId,
-						registrationId: teamToRegistration.get(teamId) || null,
+						athleteTeamId: inv.teamId,
+						registrationId: teamToRegistration.get(inv.teamId) || null,
 						status:
 							(inv.status as InvitationStatus) || INVITATION_STATUS.PENDING,
 						guestName,
@@ -819,9 +816,9 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
 						pendingSignatures,
 						submittedAt,
 						createdAt: inv.createdAt,
-					})
-				}
-			}
+					}
+				},
+			)
 
 			return { pendingInvites }
 		},
@@ -959,29 +956,32 @@ export const deleteCompetitionFn = createServerFn({ method: "POST" })
 			)
 		}
 
-		// Delete the competition (will cascade delete registrations due to schema)
-		await db
-			.delete(competitionsTable)
-			.where(eq(competitionsTable.id, input.competitionId))
+		// Delete the competition and clean up related records in a transaction
+		await db.transaction(async (tx) => {
+			// Delete the competition (will cascade delete registrations due to schema)
+			await tx
+				.delete(competitionsTable)
+				.where(eq(competitionsTable.id, input.competitionId))
 
-		// Clean up competition_event team related records before deleting the team
-		// These tables don't have onDelete cascade, so we must delete manually
-		await db
-			.delete(teamMembershipTable)
-			.where(eq(teamMembershipTable.teamId, competition.competitionTeamId))
+			// Clean up competition_event team related records before deleting the team
+			// These tables don't have onDelete cascade, so we must delete manually
+			await tx
+				.delete(teamMembershipTable)
+				.where(eq(teamMembershipTable.teamId, competition.competitionTeamId))
 
-		await db
-			.delete(teamRoleTable)
-			.where(eq(teamRoleTable.teamId, competition.competitionTeamId))
+			await tx
+				.delete(teamRoleTable)
+				.where(eq(teamRoleTable.teamId, competition.competitionTeamId))
 
-		await db
-			.delete(teamInvitationTable)
-			.where(eq(teamInvitationTable.teamId, competition.competitionTeamId))
+			await tx
+				.delete(teamInvitationTable)
+				.where(eq(teamInvitationTable.teamId, competition.competitionTeamId))
 
-		// Delete the competition_event team
-		await db
-			.delete(teamTable)
-			.where(eq(teamTable.id, competition.competitionTeamId))
+			// Delete the competition_event team
+			await tx
+				.delete(teamTable)
+				.where(eq(teamTable.id, competition.competitionTeamId))
+		})
 
 		return { success: true }
 	})

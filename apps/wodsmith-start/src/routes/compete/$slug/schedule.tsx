@@ -3,7 +3,6 @@ import { CompetitionTabs } from "@/components/competition-tabs"
 import { PublicSubmissionWindows } from "@/components/public-submission-windows"
 import { SchedulePageContent } from "@/components/schedule-page-content"
 import { getPublicCompetitionEventsFn } from "@/server-fns/competition-event-fns"
-import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { getHeatsForCompetitionFn } from "@/server-fns/competition-heats-fns"
 import { getPublishedCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
 
@@ -11,11 +10,9 @@ const parentRoute = getRouteApi("/compete/$slug")
 
 export const Route = createFileRoute("/compete/$slug/schedule")({
 	component: CompetitionSchedulePage,
-	loader: async ({ params }) => {
-		// Fetch competition by slug to get the ID
-		const { competition } = await getCompetitionBySlugFn({
-			data: { slug: params.slug },
-		})
+	loader: async ({ parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const competition = parentMatch.loaderData?.competition
 
 		if (!competition) {
 			return {

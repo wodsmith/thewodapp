@@ -10,8 +10,6 @@ import { CompetitionShareCard } from "@/components/competition-share-card"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import { Button } from "@/components/ui/button"
 import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
-import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
-import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { getUserAffiliateNameFn } from "@/server-fns/registration-fns"
 
 const parentRoute = getRouteApi("/compete/$slug")
@@ -22,7 +20,7 @@ export const Route = createFileRoute("/compete/$slug/registered")({
 		session_id: z.string().optional(),
 		registration_id: z.string().optional(),
 	}),
-	loader: async ({ params, context }) => {
+	loader: async ({ params, context, parentMatchPromise }) => {
 		const { slug } = params
 		const session = context?.session ?? null
 
@@ -33,21 +31,20 @@ export const Route = createFileRoute("/compete/$slug/registered")({
 			})
 		}
 
-		const { competition } = await getCompetitionBySlugFn({ data: { slug } })
+		const parentMatch = await parentMatchPromise
+		const competition = parentMatch.loaderData?.competition
+		const divisions = parentMatch.loaderData?.divisions ?? []
 		if (!competition) {
 			throw redirect({ to: "/compete" })
 		}
 
-		const [{ registration }, { divisions }, affiliateResult] =
+		const [{ registration }, affiliateResult] =
 			await Promise.all([
 				getUserCompetitionRegistrationFn({
 					data: {
 						competitionId: competition.id,
 						userId: session.userId,
 					},
-				}),
-				getPublicCompetitionDivisionsFn({
-					data: { competitionId: competition.id },
 				}),
 				getUserAffiliateNameFn({
 					data: { userId: session.userId },
