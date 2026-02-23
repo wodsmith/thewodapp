@@ -65,7 +65,7 @@ export const getRouter = () => {
 		defaultErrorComponent: DefaultErrorComponent,
 		defaultOnCatch: (error, errorInfo) => {
 			captureException(error, {
-				componentStack: errorInfo.componentStack,
+				componentStack: errorInfo?.componentStack,
 				source: "tanstack-router-error-boundary",
 			})
 		},
