@@ -60,14 +60,15 @@ test.describe('Workouts', () => {
     // Fill description
     await page.getByLabel('Description').fill('E2E test workout description')
 
-    // Select scheme — Radix Select trigger with placeholder "Select a scheme"
-    const schemeTrigger = page.getByRole('combobox').filter({hasText: /select a scheme/i})
-    await schemeTrigger.click()
-    // Radix Select renders options in a portal — use getByText as fallback
-    const forTimeOption = page.getByRole('option', {name: 'For Time', exact: true})
-      .or(page.getByText('For Time', {exact: true}))
-    await expect(forTimeOption.first()).toBeVisible({timeout: 5000})
-    await forTimeOption.first().click()
+    // Select scheme — Radix Select with placeholder "Select a scheme"
+    // Use keyboard interaction: Radix Select opens on Enter/Space and supports type-ahead
+    const schemeTrigger = page.locator('button[role="combobox"]').filter({hasText: /select a scheme/i})
+    await schemeTrigger.scrollIntoViewIfNeeded()
+    await schemeTrigger.focus()
+    await schemeTrigger.press('Enter')
+    // Wait for listbox portal to mount, then click option
+    await page.locator('[role="listbox"]').waitFor({state: 'visible', timeout: 5000})
+    await page.locator('[role="option"]').filter({hasText: 'For Time'}).first().click()
 
     // Submit
     await page.getByRole('button', {name: 'Create Workout'}).click()

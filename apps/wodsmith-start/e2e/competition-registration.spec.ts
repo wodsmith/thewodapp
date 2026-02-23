@@ -35,12 +35,11 @@ test.describe('Competition Registration', () => {
       .first()
     await divisionTrigger.click()
 
-    // Division options render as <button> elements inside a Popover, not role="option"
-    const scaledOption = page.locator('[data-radix-popper-content-wrapper] button, [role="listbox"] button')
+    // Division options render as <button> elements inside a Radix Popover
+    const scaledBtn = page.locator('[data-radix-popper-content-wrapper] button')
       .filter({hasText: /Scaled/i}).first()
-      .or(page.getByText('Scaled', {exact: true}).first())
-    await expect(scaledOption).toBeVisible({timeout: 5000})
-    await scaledOption.click()
+    await expect(scaledBtn).toBeVisible({timeout: 5000})
+    await scaledBtn.click()
 
     // Select affiliate — search for Independent
     const affiliateInput = page.getByPlaceholder(/search.*affiliate/i).first()
