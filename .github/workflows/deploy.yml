@@ -198,8 +198,7 @@ jobs:
           PULL_REQUEST: ${{ github.event_name == 'pull_request' && github.event.number || '' }}
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Sentry error monitoring
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          # Sentry source map upload (DSN is hardcoded in alchemy.run.ts + vite.config.ts)
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: wodsmith
           SENTRY_PROJECT: wodsmith-start
@@ -275,8 +274,7 @@ jobs:
           PULL_REQUEST: ''
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Sentry error monitoring
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          # Sentry source map upload (DSN is hardcoded in alchemy.run.ts + vite.config.ts)
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: wodsmith
           SENTRY_PROJECT: wodsmith-start

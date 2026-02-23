@@ -44,7 +44,7 @@ const config = defineConfig({
 	],
 	define: {
 		"import.meta.env.VITE_SENTRY_DSN": JSON.stringify(
-			process.env.SENTRY_DSN || "",
+			"https://a55d70f610d33fa3108b7faea06accb7@o4510933498462208.ingest.us.sentry.io/4510937818005504",
 		),
 		"import.meta.env.VITE_SENTRY_RELEASE": JSON.stringify(
 			process.env.GITHUB_SHA?.slice(0, 7) || "",

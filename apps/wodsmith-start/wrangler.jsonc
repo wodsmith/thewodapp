@@ -44,7 +44,7 @@
 		"R2_PUBLIC_URL": "https://pub-10ec4eb87e8d4c7383ead07a9dd77fa5.r2.dev",
 		"POSTHOG_KEY": "phc_UCtCVOUXvpuKzF50prCLKIWWCFc61j5CPTbt99OrKsK",
 		"TURNSTILE_SITE_KEY": "0x4AAAAAACF8K4v1TmFMOmtk",
-		"SENTRY_DSN": ""
+		"SENTRY_DSN": "https://a55d70f610d33fa3108b7faea06accb7@o4510933498462208.ingest.us.sentry.io/4510937818005504"
 	},
 	/**
 	 * KV Namespace Binding
