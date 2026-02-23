@@ -206,6 +206,11 @@ function setupHappyPathMocks() {
     findMany: vi.fn().mockResolvedValue([]),
   }
 
+  mockDb.query.scalingLevelsTable = {
+    findFirst: vi.fn().mockResolvedValue({id: testDivisionId, label: 'Rx'}),
+    findMany: vi.fn().mockResolvedValue([]),
+  }
+
   // Chain API: select returns count (used for capacity check)
   // Both Promise.all selects return [{count: 5}] — 5+5=10 < 50 max
   mockDb.setMockReturnValue([{count: 5}])
