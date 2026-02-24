@@ -577,8 +577,7 @@ export async function processCheckoutInline(
 		await sendConfirmationEmail(registrationResult)
 	} catch (err) {
 		logWarning({
-			message:
-				"[Inline Checkout] Email notification failed, continuing",
+			message: "[Inline Checkout] Email notification failed, continuing",
 			error: err,
 			attributes: {
 				purchaseId: registrationResult.purchaseId,
@@ -591,8 +590,7 @@ export async function processCheckoutInline(
 		await sendSlackNotification(registrationResult, session)
 	} catch (err) {
 		logWarning({
-			message:
-				"[Inline Checkout] Slack notification failed, continuing",
+			message: "[Inline Checkout] Slack notification failed, continuing",
 			error: err,
 			attributes: {
 				purchaseId: registrationResult.purchaseId,

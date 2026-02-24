@@ -13,7 +13,15 @@ import {
 	useNavigate,
 } from "@tanstack/react-router"
 import { eq } from "drizzle-orm"
-import { CheckCircle, ChevronDown, Clock, Copy, Crown, Mail, Users } from "lucide-react"
+import {
+	CheckCircle,
+	ChevronDown,
+	Clock,
+	Copy,
+	Crown,
+	Mail,
+	Users,
+} from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -262,20 +270,17 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 				// Look up division labels for each registration
 				if (allRegs.length > 1) {
 					const { getDb } = await import("@/db")
-					const { scalingLevelsTable } = await import(
-						"@/db/schemas/scaling"
-					)
+					const { scalingLevelsTable } = await import("@/db/schemas/scaling")
 					const db = getDb()
 
 					allUserRegistrations = await Promise.all(
 						allRegs.map(async (reg) => {
 							let divisionLabel: string | null = null
 							if (reg.divisionId) {
-								const div =
-									await db.query.scalingLevelsTable.findFirst({
-										where: eq(scalingLevelsTable.id, reg.divisionId),
-										columns: { label: true },
-									})
+								const div = await db.query.scalingLevelsTable.findFirst({
+									where: eq(scalingLevelsTable.id, reg.divisionId),
+									columns: { label: true },
+								})
 								divisionLabel = div?.label ?? null
 							}
 							return {
@@ -369,9 +374,7 @@ function DivisionSwitcher({
 								}
 							}}
 							className={`w-full text-left px-3 py-2 text-sm hover:bg-accent ${
-								reg.id === currentRegistrationId
-									? "bg-accent font-medium"
-									: ""
+								reg.id === currentRegistrationId ? "bg-accent font-medium" : ""
 							}`}
 						>
 							{reg.divisionLabel ?? "Division"}

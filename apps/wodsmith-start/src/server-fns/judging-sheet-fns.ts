@@ -465,10 +465,7 @@ export const reorderJudgingSheetsFn = createServerFn({ method: "POST" })
 						.where(
 							and(
 								eq(eventJudgingSheetsTable.id, update.judgingSheetId),
-								eq(
-									eventJudgingSheetsTable.trackWorkoutId,
-									data.trackWorkoutId,
-								),
+								eq(eventJudgingSheetsTable.trackWorkoutId, data.trackWorkoutId),
 							),
 						),
 				),

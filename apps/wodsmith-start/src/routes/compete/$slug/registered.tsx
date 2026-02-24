@@ -47,18 +47,17 @@ export const Route = createFileRoute("/compete/$slug/registered")({
 			throw redirect({ to: "/compete" })
 		}
 
-		const [{ registrations }, affiliateResult] =
-			await Promise.all([
-				getUserCompetitionRegistrationsFn({
-					data: {
-						competitionId: competition.id,
-						userId: session.userId,
-					},
-				}),
-				getUserAffiliateNameFn({
-					data: { userId: session.userId },
-				}),
-			])
+		const [{ registrations }, affiliateResult] = await Promise.all([
+			getUserCompetitionRegistrationsFn({
+				data: {
+					competitionId: competition.id,
+					userId: session.userId,
+				},
+			}),
+			getUserAffiliateNameFn({
+				data: { userId: session.userId },
+			}),
+		])
 
 		// Only redirect if no session_id — if we came from Stripe checkout,
 		// registrations may still be processing
@@ -89,8 +88,7 @@ export const Route = createFileRoute("/compete/$slug/registered")({
 
 function RegisteredPage() {
 	const { competition } = parentRoute.useLoaderData()
-	const { athleteName, affiliateName, items, sessionId } =
-		Route.useLoaderData()
+	const { athleteName, affiliateName, items, sessionId } = Route.useLoaderData()
 	const { slug } = Route.useParams()
 	const router = useRouter()
 	const checkCompletion = useServerFn(checkCheckoutCompletionFn)

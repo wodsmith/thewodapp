@@ -468,10 +468,9 @@ export const rollbackToVersionFn = createServerFn({ method: "POST" })
 				.set({ isActive: true, updatedAt: new Date() })
 				.where(eq(judgeAssignmentVersionsTable.id, data.versionId))
 
-			const version =
-				await tx.query.judgeAssignmentVersionsTable.findFirst({
-					where: eq(judgeAssignmentVersionsTable.id, data.versionId),
-				})
+			const version = await tx.query.judgeAssignmentVersionsTable.findFirst({
+				where: eq(judgeAssignmentVersionsTable.id, data.versionId),
+			})
 
 			if (!version) {
 				throw new Error("Failed to activate version")

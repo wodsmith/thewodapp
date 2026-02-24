@@ -168,14 +168,14 @@ export const getJudgeVolunteersFn = createServerFn({ method: "GET" })
 		// Fetch users
 		const userIds = [...new Set(judgeVolunteers.map((v) => v.userId))]
 		const users = await db
-				.select({
-					id: userTable.id,
-					firstName: userTable.firstName,
-					lastName: userTable.lastName,
-					avatar: userTable.avatar,
-				})
-				.from(userTable)
-				.where(inArray(userTable.id, userIds))
+			.select({
+				id: userTable.id,
+				firstName: userTable.firstName,
+				lastName: userTable.lastName,
+				avatar: userTable.avatar,
+			})
+			.from(userTable)
+			.where(inArray(userTable.id, userIds))
 		const userMap = new Map(users.map((u) => [u.id, u]))
 
 		// Build result
@@ -254,14 +254,14 @@ export const getJudgeHeatAssignmentsFn = createServerFn({ method: "GET" })
 
 		// Fetch assignments filtered by versionId
 		const assignments = await db
-				.select()
-				.from(judgeHeatAssignmentsTable)
-				.where(
-					and(
-						inArray(judgeHeatAssignmentsTable.heatId, heatIds),
-						eq(judgeHeatAssignmentsTable.versionId, targetVersionId),
-					),
-				)
+			.select()
+			.from(judgeHeatAssignmentsTable)
+			.where(
+				and(
+					inArray(judgeHeatAssignmentsTable.heatId, heatIds),
+					eq(judgeHeatAssignmentsTable.versionId, targetVersionId),
+				),
+			)
 
 		if (assignments.length === 0) {
 			return []
@@ -272,25 +272,25 @@ export const getJudgeHeatAssignmentsFn = createServerFn({ method: "GET" })
 
 		// Fetch memberships
 		const memberships = await db
-					.select({
-						id: teamMembershipTable.id,
-						userId: teamMembershipTable.userId,
-						metadata: teamMembershipTable.metadata,
-					})
-					.from(teamMembershipTable)
-					.where(inArray(teamMembershipTable.id, membershipIds))
+			.select({
+				id: teamMembershipTable.id,
+				userId: teamMembershipTable.userId,
+				metadata: teamMembershipTable.metadata,
+			})
+			.from(teamMembershipTable)
+			.where(inArray(teamMembershipTable.id, membershipIds))
 
 		// Fetch users
 		const userIds = [...new Set(memberships.map((m) => m.userId))]
 		const users = await db
-				.select({
-					id: userTable.id,
-					firstName: userTable.firstName,
-					lastName: userTable.lastName,
-					avatar: userTable.avatar,
-				})
-				.from(userTable)
-				.where(inArray(userTable.id, userIds))
+			.select({
+				id: userTable.id,
+				firstName: userTable.firstName,
+				lastName: userTable.lastName,
+				avatar: userTable.avatar,
+			})
+			.from(userTable)
+			.where(inArray(userTable.id, userIds))
 		const userMap = new Map(users.map((u) => [u.id, u]))
 
 		// Build membership info map
@@ -413,15 +413,15 @@ export const getJudgeConflictsFn = createServerFn({ method: "GET" })
 
 		// Fetch heat details
 		const assignedHeats = await db
-					.select({
-						id: competitionHeatsTable.id,
-						heatNumber: competitionHeatsTable.heatNumber,
-						scheduledTime: competitionHeatsTable.scheduledTime,
-						durationMinutes: competitionHeatsTable.durationMinutes,
-						trackWorkoutId: competitionHeatsTable.trackWorkoutId,
-					})
-					.from(competitionHeatsTable)
-					.where(inArray(competitionHeatsTable.id, assignedHeatIds))
+			.select({
+				id: competitionHeatsTable.id,
+				heatNumber: competitionHeatsTable.heatNumber,
+				scheduledTime: competitionHeatsTable.scheduledTime,
+				durationMinutes: competitionHeatsTable.durationMinutes,
+				trackWorkoutId: competitionHeatsTable.trackWorkoutId,
+			})
+			.from(competitionHeatsTable)
+			.where(inArray(competitionHeatsTable.id, assignedHeatIds))
 
 		// Check for time overlaps
 		const targetStart = new Date(targetHeat.scheduledTime)
@@ -945,27 +945,27 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
 
 		// Get active versions for all events
 		const activeVersions = await db
-					.select()
-					.from(judgeAssignmentVersionsTable)
-					.where(
-						and(
-							inArray(judgeAssignmentVersionsTable.trackWorkoutId, trackWorkoutIds),
-							eq(judgeAssignmentVersionsTable.isActive, true),
-						),
-					)
+			.select()
+			.from(judgeAssignmentVersionsTable)
+			.where(
+				and(
+					inArray(judgeAssignmentVersionsTable.trackWorkoutId, trackWorkoutIds),
+					eq(judgeAssignmentVersionsTable.isActive, true),
+				),
+			)
 		// Get judge assignments for active versions
 		const versionIds = [...new Set(activeVersions.map((v) => v.id))]
 		const judgeAssignments =
 			versionIds.length > 0
 				? await db
-								.select()
-								.from(judgeHeatAssignmentsTable)
-								.where(
-									and(
-										inArray(judgeHeatAssignmentsTable.heatId, heatIds),
-										inArray(judgeHeatAssignmentsTable.versionId, versionIds),
-									),
-								)
+						.select()
+						.from(judgeHeatAssignmentsTable)
+						.where(
+							and(
+								inArray(judgeHeatAssignmentsTable.heatId, heatIds),
+								inArray(judgeHeatAssignmentsTable.versionId, versionIds),
+							),
+						)
 				: []
 
 		// Get membership and user info for judges
@@ -975,12 +975,12 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
 		const memberships =
 			membershipIds.length > 0
 				? await db
-							.select({
-								id: teamMembershipTable.id,
-								userId: teamMembershipTable.userId,
-							})
-							.from(teamMembershipTable)
-							.where(inArray(teamMembershipTable.id, membershipIds))
+						.select({
+							id: teamMembershipTable.id,
+							userId: teamMembershipTable.userId,
+						})
+						.from(teamMembershipTable)
+						.where(inArray(teamMembershipTable.id, membershipIds))
 				: []
 		const membershipMap = new Map(memberships.map((m) => [m.id, m]))
 
@@ -988,13 +988,13 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
 		const users =
 			userIds.length > 0
 				? await db
-							.select({
-								id: userTable.id,
-								firstName: userTable.firstName,
-								lastName: userTable.lastName,
-							})
-							.from(userTable)
-							.where(inArray(userTable.id, userIds))
+						.select({
+							id: userTable.id,
+							firstName: userTable.firstName,
+							lastName: userTable.lastName,
+						})
+						.from(userTable)
+						.where(inArray(userTable.id, userIds))
 				: []
 		const userMap = new Map(users.map((u) => [u.id, u]))
 
@@ -1002,13 +1002,13 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
 		const venues =
 			venueIds.length > 0
 				? await db
-							.select({
-								id: competitionVenuesTable.id,
-								name: competitionVenuesTable.name,
-								laneCount: competitionVenuesTable.laneCount,
-							})
-							.from(competitionVenuesTable)
-							.where(inArray(competitionVenuesTable.id, venueIds))
+						.select({
+							id: competitionVenuesTable.id,
+							name: competitionVenuesTable.name,
+							laneCount: competitionVenuesTable.laneCount,
+						})
+						.from(competitionVenuesTable)
+						.where(inArray(competitionVenuesTable.id, venueIds))
 				: []
 		const venueMap = new Map(venues.map((v) => [v.id, v]))
 
@@ -1016,24 +1016,24 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
 		const divisions =
 			divisionIds.length > 0
 				? await db
-							.select({
-								id: scalingLevelsTable.id,
-								label: scalingLevelsTable.label,
-							})
-							.from(scalingLevelsTable)
-							.where(inArray(scalingLevelsTable.id, divisionIds))
+						.select({
+							id: scalingLevelsTable.id,
+							label: scalingLevelsTable.label,
+						})
+						.from(scalingLevelsTable)
+						.where(inArray(scalingLevelsTable.id, divisionIds))
 				: []
 		const divisionMap = new Map(divisions.map((d) => [d.id, d]))
 
 		// Get track workouts with workout names
 		const trackWorkouts = await db
-					.select({
-						id: trackWorkoutsTable.id,
-						workoutId: trackWorkoutsTable.workoutId,
-						trackOrder: trackWorkoutsTable.trackOrder,
-					})
-					.from(trackWorkoutsTable)
-					.where(inArray(trackWorkoutsTable.id, trackWorkoutIds))
+			.select({
+				id: trackWorkoutsTable.id,
+				workoutId: trackWorkoutsTable.workoutId,
+				trackOrder: trackWorkoutsTable.trackOrder,
+			})
+			.from(trackWorkoutsTable)
+			.where(inArray(trackWorkoutsTable.id, trackWorkoutIds))
 		const trackWorkoutMap = new Map(trackWorkouts.map((tw) => [tw.id, tw]))
 
 		// Get workout names
@@ -1043,24 +1043,24 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
 		const workoutsData =
 			workoutIds.length > 0
 				? await db
-							.select({
-								id: workouts.id,
-								name: workouts.name,
-							})
-							.from(workouts)
-							.where(inArray(workouts.id, workoutIds))
+						.select({
+							id: workouts.id,
+							name: workouts.name,
+						})
+						.from(workouts)
+						.where(inArray(workouts.id, workoutIds))
 				: []
 		const workoutMap = new Map(workoutsData.map((w) => [w.id, w]))
 
 		// Get heat lane assignments for division info
 		const heatAssignments = await db
-				.select({
-					heatId: competitionHeatAssignmentsTable.heatId,
-					laneNumber: competitionHeatAssignmentsTable.laneNumber,
-					registrationId: competitionHeatAssignmentsTable.registrationId,
-				})
-				.from(competitionHeatAssignmentsTable)
-				.where(inArray(competitionHeatAssignmentsTable.heatId, heatIds))
+			.select({
+				heatId: competitionHeatAssignmentsTable.heatId,
+				laneNumber: competitionHeatAssignmentsTable.laneNumber,
+				registrationId: competitionHeatAssignmentsTable.registrationId,
+			})
+			.from(competitionHeatAssignmentsTable)
+			.where(inArray(competitionHeatAssignmentsTable.heatId, heatIds))
 
 		// Get registration divisions (filter out null registrationIds)
 		const registrationIds = [
@@ -1073,12 +1073,12 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
 		const registrations =
 			registrationIds.length > 0
 				? await db
-							.select({
-								id: competitionRegistrationsTable.id,
-								divisionId: competitionRegistrationsTable.divisionId,
-							})
-							.from(competitionRegistrationsTable)
-							.where(inArray(competitionRegistrationsTable.id, registrationIds))
+						.select({
+							id: competitionRegistrationsTable.id,
+							divisionId: competitionRegistrationsTable.divisionId,
+						})
+						.from(competitionRegistrationsTable)
+						.where(inArray(competitionRegistrationsTable.id, registrationIds))
 				: []
 		const registrationDivisionMap = new Map(
 			registrations.map((r) => [r.id, r.divisionId]),
@@ -1095,12 +1095,12 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
 		const regDivisions =
 			regDivisionIds.length > 0
 				? await db
-							.select({
-								id: scalingLevelsTable.id,
-								label: scalingLevelsTable.label,
-							})
-							.from(scalingLevelsTable)
-							.where(inArray(scalingLevelsTable.id, regDivisionIds))
+						.select({
+							id: scalingLevelsTable.id,
+							label: scalingLevelsTable.label,
+						})
+						.from(scalingLevelsTable)
+						.where(inArray(scalingLevelsTable.id, regDivisionIds))
 				: []
 		for (const div of regDivisions) {
 			if (!divisionMap.has(div.id)) {

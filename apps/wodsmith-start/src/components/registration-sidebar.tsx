@@ -306,8 +306,7 @@ export function RegistrationSidebar({
 							{hasMultipleRegistrations ? (
 								<div className="space-y-2">
 									{userRegistrations.map((entry) => {
-										const isTeam =
-											(entry.division?.teamSize ?? 1) > 1
+										const isTeam = (entry.division?.teamSize ?? 1) > 1
 										const isEntryCaptain =
 											entry.registration.captainUserId === session?.userId
 										return (
@@ -378,12 +377,7 @@ export function RegistrationSidebar({
 
 							{/* Register for Another Division - shown when registered AND registration is open */}
 							{registrationOpen && (
-								<Button
-									asChild
-									variant="outline"
-									size="sm"
-									className="w-full"
-								>
+								<Button asChild variant="outline" size="sm" className="w-full">
 									<Link
 										to="/compete/$slug/register"
 										params={{ slug: competition.slug }}

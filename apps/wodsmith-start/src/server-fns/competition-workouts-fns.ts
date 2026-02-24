@@ -751,7 +751,10 @@ export const getWorkoutDivisionDescriptionsFn = createServerFn({
 			.where(
 				and(
 					eq(workoutScalingDescriptionsTable.workoutId, data.workoutId),
-					inArray(workoutScalingDescriptionsTable.scalingLevelId, data.divisionIds),
+					inArray(
+						workoutScalingDescriptionsTable.scalingLevelId,
+						data.divisionIds,
+					),
 				),
 			)
 
@@ -783,7 +786,9 @@ export const getBatchWorkoutDivisionDescriptionsFn = createServerFn({
 	)
 	.handler(async ({ data }) => {
 		if (data.divisionIds.length === 0 || data.workoutIds.length === 0) {
-			return { descriptionsByWorkout: {} as Record<string, DivisionDescription[]> }
+			return {
+				descriptionsByWorkout: {} as Record<string, DivisionDescription[]>,
+			}
 		}
 
 		const db = getDb()
@@ -809,7 +814,10 @@ export const getBatchWorkoutDivisionDescriptionsFn = createServerFn({
 			.where(
 				and(
 					inArray(workoutScalingDescriptionsTable.workoutId, data.workoutIds),
-					inArray(workoutScalingDescriptionsTable.scalingLevelId, data.divisionIds),
+					inArray(
+						workoutScalingDescriptionsTable.scalingLevelId,
+						data.divisionIds,
+					),
 				),
 			)
 
@@ -1379,10 +1387,7 @@ export const saveCompetitionEventFn = createServerFn({ method: "POST" })
 					.where(
 						and(
 							eq(workoutScalingDescriptionsTable.workoutId, data.workoutId),
-							inArray(
-								workoutScalingDescriptionsTable.scalingLevelId,
-								toDelete,
-							),
+							inArray(workoutScalingDescriptionsTable.scalingLevelId, toDelete),
 						),
 					)
 			}

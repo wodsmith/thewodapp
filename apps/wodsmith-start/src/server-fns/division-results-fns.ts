@@ -254,18 +254,18 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 			// Get registrations per division
 			const divisionIds = divisions.map((d) => d.id)
 			const registrationCounts = await db
-					.select({
-						divisionId: competitionRegistrationsTable.divisionId,
-						count: sql<number>`cast(count(*) as unsigned)`,
-					})
-					.from(competitionRegistrationsTable)
-					.where(
-						and(
-							eq(competitionRegistrationsTable.eventId, data.competitionId),
-							inArray(competitionRegistrationsTable.divisionId, divisionIds),
-						),
-					)
-					.groupBy(competitionRegistrationsTable.divisionId)
+				.select({
+					divisionId: competitionRegistrationsTable.divisionId,
+					count: sql<number>`cast(count(*) as unsigned)`,
+				})
+				.from(competitionRegistrationsTable)
+				.where(
+					and(
+						eq(competitionRegistrationsTable.eventId, data.competitionId),
+						inArray(competitionRegistrationsTable.divisionId, divisionIds),
+					),
+				)
+				.groupBy(competitionRegistrationsTable.divisionId)
 
 			const registrationCountMap = new Map<string, number>()
 			for (const row of registrationCounts) {
@@ -351,17 +351,17 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 			const allScores =
 				eventIds.length > 0
 					? await db
-									.select({
-										userId: scoresTable.userId,
-										competitionEventId: scoresTable.competitionEventId,
-									})
-									.from(scoresTable)
-									.where(
-										and(
-											inArray(scoresTable.competitionEventId, eventIds),
-											isNotNull(scoresTable.scoreValue),
-										),
-									)
+							.select({
+								userId: scoresTable.userId,
+								competitionEventId: scoresTable.competitionEventId,
+							})
+							.from(scoresTable)
+							.where(
+								and(
+									inArray(scoresTable.competitionEventId, eventIds),
+									isNotNull(scoresTable.scoreValue),
+								),
+							)
 					: []
 
 			// Build a map of eventId -> set of userIds with scores

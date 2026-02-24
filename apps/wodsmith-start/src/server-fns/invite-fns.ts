@@ -578,10 +578,7 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 							const existingSignatures =
 								await db.query.waiverSignaturesTable.findMany({
 									where: and(
-										inArray(
-											waiverSignaturesTable.waiverId,
-											requiredWaiverIds,
-										),
+										inArray(waiverSignaturesTable.waiverId, requiredWaiverIds),
 										eq(waiverSignaturesTable.userId, session.userId),
 									),
 									columns: { waiverId: true },
@@ -833,9 +830,7 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 							}> = []
 
 							for (const answerData of allAnswers) {
-								const existingId = existingAnswerMap.get(
-									answerData.questionId,
-								)
+								const existingId = existingAnswerMap.get(answerData.questionId)
 								if (existingId) {
 									// Update existing answer
 									await db
@@ -845,10 +840,7 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 											updatedAt: new Date(),
 										})
 										.where(
-											eq(
-												competitionRegistrationAnswersTable.id,
-												existingId,
-											),
+											eq(competitionRegistrationAnswersTable.id, existingId),
 										)
 								} else {
 									newAnswers.push({
@@ -879,15 +871,14 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 
 						if (invitation.metadata && registrationId) {
 							try {
-								inviteMetadata = JSON.parse(
-									invitation.metadata,
-								) as Record<string, unknown>
+								inviteMetadata = JSON.parse(invitation.metadata) as Record<
+									string,
+									unknown
+								>
 								if (Array.isArray(inviteMetadata.pendingSignatures)) {
 									pendingSignatures =
 										inviteMetadata.pendingSignatures as PendingWaiverSignature[]
-									allWaiverIds.push(
-										...pendingSignatures.map((s) => s.waiverId),
-									)
+									allWaiverIds.push(...pendingSignatures.map((s) => s.waiverId))
 								}
 							} catch {
 								// Invalid JSON, ignore
@@ -901,17 +892,12 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 							const existingSigs =
 								await db.query.waiverSignaturesTable.findMany({
 									where: and(
-										inArray(
-											waiverSignaturesTable.waiverId,
-											uniqueWaiverIds,
-										),
+										inArray(waiverSignaturesTable.waiverId, uniqueWaiverIds),
 										eq(waiverSignaturesTable.userId, session.userId),
 									),
 									columns: { waiverId: true },
 								})
-							existingWaiverIds = new Set(
-								existingSigs.map((s) => s.waiverId),
-							)
+							existingWaiverIds = new Set(existingSigs.map((s) => s.waiverId))
 						}
 
 						// Store waiver signatures submitted by authenticated user
@@ -1406,9 +1392,7 @@ export const transferPendingDataToUserFn = createServerFn({ method: "POST" })
 							answer: answerData.answer,
 							updatedAt: new Date(),
 						})
-						.where(
-							eq(competitionRegistrationAnswersTable.id, existingId),
-						)
+						.where(eq(competitionRegistrationAnswersTable.id, existingId))
 				} else {
 					newAnswers.push({
 						questionId: answerData.questionId,
@@ -1421,9 +1405,7 @@ export const transferPendingDataToUserFn = createServerFn({ method: "POST" })
 
 			// Batch insert new answers
 			if (newAnswers.length > 0) {
-				await db
-					.insert(competitionRegistrationAnswersTable)
-					.values(newAnswers)
+				await db.insert(competitionRegistrationAnswersTable).values(newAnswers)
 			}
 		}
 

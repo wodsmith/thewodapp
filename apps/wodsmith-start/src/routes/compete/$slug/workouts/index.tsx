@@ -82,15 +82,14 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
 		})
 
 		// Fetch workouts and optionally user's registered division in parallel
-		const [workoutsResult, athleteDivisionResult] =
-			await Promise.all([
-				getPublishedCompetitionWorkoutsWithDetailsFn({
-					data: { competitionId },
-				}),
-				getAthleteRegisteredDivisionFn({
-					data: { competitionId },
-				}),
-			])
+		const [workoutsResult, athleteDivisionResult] = await Promise.all([
+			getPublishedCompetitionWorkoutsWithDetailsFn({
+				data: { competitionId },
+			}),
+			getAthleteRegisteredDivisionFn({
+				data: { competitionId },
+			}),
+		])
 
 		const workouts = workoutsResult.workouts
 		const athleteRegisteredDivisionId = athleteDivisionResult.divisionId
@@ -283,9 +282,7 @@ function CompetitionWorkoutsPage() {
 									pointsMultiplier={event.pointsMultiplier}
 									movements={event.workout.movements}
 									tags={event.workout.tags}
-									divisionDescriptions={
-										divisionDescriptionsResult ?? []
-									}
+									divisionDescriptions={divisionDescriptionsResult ?? []}
 									sponsorName={event.sponsorName}
 									sponsorLogoUrl={event.sponsorLogoUrl}
 									selectedDivisionId={selectedDivisionId}

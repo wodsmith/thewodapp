@@ -969,10 +969,7 @@ export const getVolunteerAssignmentsFn = createServerFn({ method: "GET" })
 							workoutName: workouts.name,
 						})
 						.from(trackWorkoutsTable)
-						.innerJoin(
-							workouts,
-							eq(trackWorkoutsTable.workoutId, workouts.id),
-						)
+						.innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
 						.where(inArray(trackWorkoutsTable.id, trackWorkoutIds))
 				: []
 

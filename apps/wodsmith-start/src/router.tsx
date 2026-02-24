@@ -1,7 +1,4 @@
-import {
-	type ErrorComponentProps,
-	createRouter,
-} from "@tanstack/react-router"
+import { type ErrorComponentProps, createRouter } from "@tanstack/react-router"
 import { captureException } from "./lib/posthog/utils"
 
 // Import the generated route tree

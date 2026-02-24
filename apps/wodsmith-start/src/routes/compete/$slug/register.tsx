@@ -69,14 +69,15 @@ const getUserCompetitionRegistrationsFn = createServerFn({ method: "GET" })
 
 		let teamRegistrations: typeof directRegistrations = []
 		if (userTeamIds.length > 0) {
-			teamRegistrations =
-				await db.query.competitionRegistrationsTable.findMany({
+			teamRegistrations = await db.query.competitionRegistrationsTable.findMany(
+				{
 					where: and(
 						eq(competitionRegistrationsTable.eventId, data.competitionId),
 						inArray(competitionRegistrationsTable.athleteTeamId, userTeamIds),
 						isNotNull(competitionRegistrationsTable.athleteTeamId),
 					),
-				})
+				},
+			)
 		}
 
 		// Dedupe by registration ID (captain shows up in both)
@@ -124,11 +125,10 @@ const getUserCompetitionRegistrationsFn = createServerFn({ method: "GET" })
 			}
 
 			// Fetch waiver signatures for this user on waivers from this competition's registrations
-			const signatures =
-				await db.query.waiverSignaturesTable.findMany({
-					where: eq(waiverSignaturesTable.userId, data.userId),
-					columns: { waiverId: true },
-				})
+			const signatures = await db.query.waiverSignaturesTable.findMany({
+				where: eq(waiverSignaturesTable.userId, data.userId),
+				columns: { waiverId: true },
+			})
 			signedWaiverIds = [...new Set(signatures.map((s) => s.waiverId))]
 		}
 
@@ -400,8 +400,8 @@ function RegisterPage() {
 				userLastName={userLastName}
 				userEmail={userEmail}
 				registeredDivisionIds={registeredDivisionIds}
-			previousAnswers={previousAnswers}
-			signedWaiverIds={signedWaiverIds}
+				previousAnswers={previousAnswers}
+				signedWaiverIds={signedWaiverIds}
 			/>
 		</div>
 	)

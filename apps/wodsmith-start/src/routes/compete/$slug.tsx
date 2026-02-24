@@ -3,9 +3,7 @@ import { useEffect } from "react"
 import { CompetitionHero } from "@/components/competition-hero"
 import { getAppUrlFn } from "@/lib/env"
 import { trackEvent } from "@/lib/posthog"
-import {
-	getUserCompetitionRegistrationsFn,
-} from "@/server-fns/competition-detail-fns"
+import { getUserCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
@@ -38,7 +36,12 @@ export const Route = createFileRoute("/compete/$slug")({
 		const hasOpened = hasDateStartedInTimezone(regOpensAt, timezone)
 		const hasClosed = isDeadlinePassedInTimezone(regClosesAt, timezone)
 		const registrationStatus = {
-			registrationOpen: !!(regOpensAt && regClosesAt && hasOpened && !hasClosed),
+			registrationOpen: !!(
+				regOpensAt &&
+				regClosesAt &&
+				hasOpened &&
+				!hasClosed
+			),
 			registrationClosed: hasClosed,
 			registrationNotYetOpen: !!(regOpensAt && !hasOpened),
 		}
@@ -64,26 +67,30 @@ export const Route = createFileRoute("/compete/$slug")({
 				: false
 
 		// Parallel fetch remaining data from DB
-		const [divisionsResult, sponsorsResult, organizerContactEmail, userRegsResult] =
-			await Promise.all([
-				getPublicCompetitionDivisionsFn({
-					data: { competitionId: competition.id },
-				}),
-				getCompetitionSponsorsFn({
-					data: { competitionId: competition.id },
-				}),
-				getTeamContactEmailFn({
-					data: { teamId: competition.organizingTeamId },
-				}),
-				session
-					? getUserCompetitionRegistrationsFn({
-							data: {
-								competitionId: competition.id,
-								userId: session.userId,
-							},
-						})
-					: Promise.resolve({ registrations: [] }),
-			])
+		const [
+			divisionsResult,
+			sponsorsResult,
+			organizerContactEmail,
+			userRegsResult,
+		] = await Promise.all([
+			getPublicCompetitionDivisionsFn({
+				data: { competitionId: competition.id },
+			}),
+			getCompetitionSponsorsFn({
+				data: { competitionId: competition.id },
+			}),
+			getTeamContactEmailFn({
+				data: { teamId: competition.organizingTeamId },
+			}),
+			session
+				? getUserCompetitionRegistrationsFn({
+						data: {
+							competitionId: competition.id,
+							userId: session.userId,
+						},
+					})
+				: Promise.resolve({ registrations: [] }),
+		])
 
 		const divisions = divisionsResult.divisions
 		const sponsors = sponsorsResult

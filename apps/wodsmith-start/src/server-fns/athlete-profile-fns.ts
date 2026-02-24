@@ -344,21 +344,25 @@ export const getAthleteProfileDataFn = createServerFn({
 	const userTeamIds = userTeamMemberships.map((m) => m.teamId)
 
 	// Get team registrations
-	const teamRegistrations = userTeamIds.length > 0
-		? await db.query.competitionRegistrationsTable.findMany({
-				where: inArray(competitionRegistrationsTable.athleteTeamId, userTeamIds),
-				with: {
-					competition: {
-						with: {
-							organizingTeam: true,
+	const teamRegistrations =
+		userTeamIds.length > 0
+			? await db.query.competitionRegistrationsTable.findMany({
+					where: inArray(
+						competitionRegistrationsTable.athleteTeamId,
+						userTeamIds,
+					),
+					with: {
+						competition: {
+							with: {
+								organizingTeam: true,
+							},
 						},
+						division: true,
+						athleteTeam: true,
 					},
-					division: true,
-					athleteTeam: true,
-				},
-				orderBy: (table, { desc }) => [desc(table.registeredAt)],
-			})
-		: []
+					orderBy: (table, { desc }) => [desc(table.registeredAt)],
+				})
+			: []
 
 	// Combine and deduplicate by registration ID
 	const allRegistrations = [...directRegistrations, ...teamRegistrations]
