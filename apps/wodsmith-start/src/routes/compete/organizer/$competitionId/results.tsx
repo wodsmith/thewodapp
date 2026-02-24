@@ -40,9 +40,9 @@ import {
 } from "@/server-fns/competition-score-fns"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
 import {
+	type AllEventsResultsStatusResponse,
 	getDivisionResultsStatusFn,
 	publishDivisionResultsFn,
-	type AllEventsResultsStatusResponse,
 } from "@/server-fns/division-results-fns"
 import { getEventSubmissionsFn } from "@/server-fns/submission-verification-fns"
 
@@ -58,21 +58,16 @@ const searchParamsSchema = z.object({
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/results",
 )({
+	staleTime: 10_000,
 	validateSearch: searchParamsSchema,
 	component: ResultsPage,
 	loaderDeps: ({ search }) => ({
 		eventId: search.event,
 		divisionId: search.division,
 	}),
-	loader: async ({ params, deps }) => {
-		// First get competition to know the teamId
-		const { competition } = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
-		})
-
-		if (!competition) {
-			throw new Error("Competition not found")
-		}
+	loader: async ({ params, deps, parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const { competition } = parentMatch.loaderData!
 
 		const isOnline = competition.competitionType === "online"
 
@@ -273,12 +268,12 @@ function OnlineSubmissionsOverview({
 					<Table>
 						<TableHeader>
 							<TableRow>
-								<TableHead className="w-[80px]">Event</TableHead>
+								<TableHead className="w-20">Event</TableHead>
 								<TableHead>Name</TableHead>
 								<TableHead className="text-center">Submissions</TableHead>
 								<TableHead className="text-center">With Video</TableHead>
 								<TableHead className="text-center">Without Video</TableHead>
-								<TableHead className="w-[120px]">Action</TableHead>
+								<TableHead className="w-30">Action</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
@@ -375,8 +370,8 @@ function InPersonResultsEntry({
 	const currentDivisionStatus =
 		selectedEventId && selectedDivisionId
 			? divisionResultsStatus.events
-					.find((e) => e.eventId === selectedEventId)
-					?.divisions.find((d) => d.divisionId === selectedDivisionId)
+				.find((e) => e.eventId === selectedEventId)
+				?.divisions.find((d) => d.divisionId === selectedDivisionId)
 			: null
 
 	// Handle publishing/unpublishing current division results
@@ -456,9 +451,10 @@ function InPersonResultsEntry({
 					workout: params.workout,
 				},
 			})
+			await router.invalidate()
 			return result.data
 		},
-		[],
+		[router],
 	)
 
 	// No events - show empty state

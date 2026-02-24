@@ -3,6 +3,8 @@
  *
  * Tests for sort key computation including secondary_value handling
  * for capped scores and tiebreak values.
+ *
+ * Uses a 123-bit layout (40/40/40 + 3 status) stored as a 38-char zero-padded string.
  */
 
 import { describe, expect, it } from "vitest"
@@ -211,7 +213,76 @@ describe("computeSortKey", () => {
 		})
 	})
 
+	describe("rounds-reps with high round counts", () => {
+		it("should sort rounds-reps correctly when rounds exceed 10", () => {
+			// Reproduce the bug: values > 1,048,575 previously overflowed 20-bit segment
+			const athletes = [
+				{ rounds: 19, reps: 5, name: "19+05" },
+				{ rounds: 29, reps: 6, name: "29+06" },
+				{ rounds: 38, reps: 3, name: "38+03" },
+				{ rounds: 27, reps: 10, name: "27+10" },
+				{ rounds: 27, reps: 4, name: "27+04" },
+				{ rounds: 16, reps: 12, name: "16+12" },
+				{ rounds: 26, reps: 5, name: "26+05" },
+				{ rounds: 32, reps: 2, name: "32+02" },
+			].map(({ rounds, reps, name }) => ({
+				name,
+				// rounds * 100_000 + reps (standard rounds-reps encoding)
+				value: rounds * 100_000 + reps,
+				score: {
+					scheme: "rounds-reps" as const,
+					scoreType: "max" as const,
+					value: rounds * 100_000 + reps,
+					status: "scored" as const,
+				},
+			}))
+
+			const sorted = [...athletes].sort((a, b) => {
+				const keyA = computeSortKey(a.score)
+				const keyB = computeSortKey(b.score)
+				return keyA < keyB ? -1 : keyA > keyB ? 1 : 0
+			})
+
+			// Higher rounds+reps should sort first (descending)
+			expect(sorted[0].name).toBe("38+03")
+			expect(sorted[1].name).toBe("32+02")
+			expect(sorted[2].name).toBe("29+06")
+			expect(sorted[3].name).toBe("27+10")
+			expect(sorted[4].name).toBe("27+04")
+			expect(sorted[5].name).toBe("26+05")
+			expect(sorted[6].name).toBe("19+05")
+			expect(sorted[7].name).toBe("16+12")
+		})
+
+		it("should sort rounds-reps correctly as zero-padded strings", () => {
+			const best = computeSortKey({
+				scheme: "rounds-reps",
+				scoreType: "max",
+				value: 38 * 100_000 + 3, // 38+03
+				status: "scored",
+			})
+			const worst = computeSortKey({
+				scheme: "rounds-reps",
+				scoreType: "max",
+				value: 16 * 100_000 + 12, // 16+12
+				status: "scored",
+			})
+
+			const bestStr = sortKeyToString(best)
+			const worstStr = sortKeyToString(worst)
+
+			// String comparison should also produce correct order
+			expect(bestStr < worstStr).toBe(true)
+		})
+	})
+
 	describe("sortKeyToString", () => {
+		it("should produce 38-character zero-padded string", () => {
+			const key = computeSortKey({ scheme: "time", scoreType: "min", value: 510000, status: "scored" })
+			const str = sortKeyToString(key)
+			expect(str.length).toBe(38)
+		})
+
 		it("should produce string that sorts correctly", () => {
 			const keys = [
 				computeSortKey({ scheme: "time", scoreType: "min", value: 720000, status: "scored" }),

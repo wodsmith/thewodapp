@@ -97,6 +97,10 @@ vi.mock('@tanstack/react-start', () => ({
   createServerFn: () => {
     let handlerFn: any
     return {
+      handler: (fn: any) => {
+        handlerFn = fn
+        return handlerFn
+      },
       inputValidator: () => ({
         handler: (fn: any) => {
           handlerFn = fn

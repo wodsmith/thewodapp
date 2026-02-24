@@ -13,26 +13,26 @@
  * @see docs/plans/configurable-scoring-system.md
  */
 
+import type { WorkoutScheme } from "@/lib/scoring/types"
 import type {
+	PScoreConfig,
 	ScoringConfig,
 	TraditionalConfig,
-	PScoreConfig,
 } from "@/types/scoring"
-import type { WorkoutScheme } from "@/lib/scoring/types"
-import { calculatePScore, type PScoreInput } from "./p-score"
-import { calculateTraditionalPoints } from "./traditional"
 import { calculateCustomPoints } from "./custom"
 import { calculateOnlinePoints } from "./online"
+import { calculatePScore, type PScoreInput } from "./p-score"
+import { calculateTraditionalPoints } from "./traditional"
 
-// Re-export algorithm implementations
-export { calculatePScore, type PScoreInput, type PScoreResult } from "./p-score"
-export { calculateTraditionalPoints } from "./traditional"
 export {
 	calculateCustomPoints,
 	generatePointsTable,
 	WINNER_TAKES_MORE_TABLE,
 } from "./custom"
 export { calculateOnlinePoints } from "./online"
+// Re-export algorithm implementations
+export { calculatePScore, type PScoreInput, type PScoreResult } from "./p-score"
+export { calculateTraditionalPoints } from "./traditional"
 
 /**
  * Input for event score calculation

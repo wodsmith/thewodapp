@@ -7,6 +7,7 @@ import {
 	type CompetitionWithOrganizingTeam,
 	getPublicCompetitionsFn,
 } from "@/server-fns/competition-fns"
+import { getTodayInTimezone } from "@/utils/date-utils"
 
 type CompeteSearch = {
 	q?: string
@@ -33,44 +34,48 @@ export const Route = createFileRoute("/compete/")({
 })
 
 // Helper to determine competition status
-function getCompetitionStatus(comp: CompetitionWithOrganizingTeam, now: Date) {
-	const startDate = new Date(comp.startDate)
-	const endDate = new Date(comp.endDate)
-	const regOpens = comp.registrationOpensAt
-		? new Date(comp.registrationOpensAt)
-		: null
-	const regCloses = comp.registrationClosesAt
-		? new Date(comp.registrationClosesAt)
-		: null
+// Compares YYYY-MM-DD date strings using the competition's timezone
+// so registration closes at 11:59pm in the competition's local time
+function getCompetitionStatus(comp: CompetitionWithOrganizingTeam) {
+	const { startDate, endDate, registrationOpensAt, registrationClosesAt } = comp
+	const today = getTodayInTimezone(comp.timezone ?? "America/Denver")
 
-	// Past if already ended
-	if (endDate < now) {
+	// Past if already ended (end date is before today)
+	if (endDate < today) {
 		return "past"
 	}
 
 	// Active if currently happening
-	if (startDate <= now && endDate >= now) {
+	if (startDate <= today && endDate >= today) {
 		return "active"
 	}
 
 	// Registration open if starts in future AND registration window is active
 	if (
-		startDate > now &&
-		regOpens &&
-		regCloses &&
-		regOpens <= now &&
-		regCloses > now
+		startDate > today &&
+		registrationOpensAt &&
+		registrationClosesAt &&
+		registrationOpensAt <= today &&
+		registrationClosesAt >= today
 	) {
 		return "registration-open"
 	}
 
 	// Registration closed if starts in future AND reg window closed
-	if (startDate > now && regOpens && regCloses && regCloses <= now) {
+	if (
+		startDate > today &&
+		registrationOpensAt &&
+		registrationClosesAt &&
+		registrationClosesAt < today
+	) {
 		return "registration-closed"
 	}
 
 	// Coming soon if starts in future AND (no reg window OR reg not yet open)
-	if (startDate > now && (!regOpens || regOpens > now)) {
+	if (
+		startDate > today &&
+		(!registrationOpensAt || registrationOpensAt > today)
+	) {
 		return "coming-soon"
 	}
 
@@ -90,7 +95,6 @@ function CompetePage() {
 	const { q: searchQuery, past } = Route.useSearch()
 	const navigate = useNavigate({ from: Route.fullPath })
 	const showPast = past === true
-	const now = new Date()
 
 	// Handlers for search state updates
 	const handleSearchChange = (value: string) => {
@@ -121,7 +125,7 @@ function CompetePage() {
 	const visibleCompetitions = showPast
 		? filteredCompetitions
 		: filteredCompetitions.filter(
-				(comp) => getCompetitionStatus(comp, now) !== "past",
+				(comp) => getCompetitionStatus(comp) !== "past",
 			)
 
 	// Sort competitions by start date
@@ -165,7 +169,7 @@ function CompetePage() {
 						<CompetitionRow
 							key={comp.id}
 							competition={comp}
-							status={getCompetitionStatus(comp, now) as CompetitionStatus}
+							status={getCompetitionStatus(comp) as CompetitionStatus}
 							isAuthenticated={isAuthenticated}
 						/>
 					))}

@@ -1,18 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { VolunteerSignupForm } from "./-components/volunteer-signup-form"
 
 export const Route = createFileRoute("/compete/$slug/volunteer")({
-	loader: async ({ params }) => {
-		const result = await getCompetitionBySlugFn({
-			data: { slug: params.slug },
-		})
+	loader: async ({ parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const competition = parentMatch.loaderData?.competition
 
-		if (!result.competition) {
+		if (!competition) {
 			throw new Error("Competition not found")
 		}
 
-		return { competition: result.competition }
+		return { competition }
 	},
 	component: VolunteerSignupPage,
 	head: ({ loaderData }) => {
@@ -54,7 +52,7 @@ function VolunteerSignupPage() {
 	}
 
 	return (
-		<div className="mx-auto max-w-2xl px-4 py-8">
+		<div className="mx-auto max-w-2xl py-8">
 			<VolunteerSignupForm
 				competition={{
 					id: competition.id,

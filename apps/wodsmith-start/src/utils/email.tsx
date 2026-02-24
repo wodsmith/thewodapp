@@ -280,7 +280,7 @@ export async function sendCompetitionTeamInviteEmail({
 	inviterName: string
 }): Promise<void> {
 	const siteUrl = getSiteUrl()
-	const inviteUrl = `${siteUrl}/team-invite?token=${encodeURIComponent(invitationToken)}`
+	const inviteUrl = `${siteUrl}/compete/invite/${encodeURIComponent(invitationToken)}`
 
 	// In dev mode, console.warn shows the URL for easy testing
 	if (!shouldSendEmail()) {

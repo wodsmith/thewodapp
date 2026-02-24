@@ -8,14 +8,17 @@ import {
 	FileText,
 	Filter,
 	Link as LinkIcon,
+	MapPin,
 	Target,
 	Timer,
 	Trophy,
 } from "lucide-react"
 import { z } from "zod"
 import { VideoSubmissionForm } from "@/components/compete/video-submission-form"
+import { EventHeatSchedule } from "@/components/event-heat-schedule"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
 	Select,
@@ -26,14 +29,17 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
-import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
-import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
+import {
+	getPublicEventHeatsFn,
+	getVenueForTrackWorkoutByDivisionFn,
+} from "@/server-fns/competition-heats-fns"
 import {
 	getPublicEventDetailsFn,
 	getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
 import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
 import { getVideoSubmissionFn } from "@/server-fns/video-submission-fns"
+import { getGoogleMapsUrl, hasAddressData } from "@/utils/address"
 import { getSessionFromCookie } from "@/utils/auth"
 
 const eventSearchSchema = z.object({
@@ -61,31 +67,26 @@ const getAthleteRegisteredDivisionFn = createServerFn({ method: "GET" })
 export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 	component: EventDetailsPage,
 	validateSearch: (search) => eventSearchSchema.parse(search),
-	loader: async ({ params }) => {
-		const { slug, eventId } = params
+	loader: async ({ params, parentMatchPromise }) => {
+		const { eventId } = params
 
-		// Fetch competition by slug first
-		const { competition } = await getCompetitionBySlugFn({
-			data: { slug },
-		})
+		const parentMatch = await parentMatchPromise
+		const competition = parentMatch.loaderData?.competition
+		const parentDivisions = parentMatch.loaderData?.divisions
 
 		if (!competition) {
 			throw notFound()
 		}
 
-		// Fetch event details, divisions, judging sheets, athlete's division, and video submission in parallel
+		// Fetch event details, judging sheets, athlete's division, and video submission in parallel
 		const [
 			eventResult,
-			divisionsResult,
 			judgingSheetsResult,
 			athleteDivisionResult,
 			videoSubmissionResult,
 		] = await Promise.all([
 			getPublicEventDetailsFn({
 				data: { eventId, competitionId: competition.id },
-			}),
-			getPublicCompetitionDivisionsFn({
-				data: { competitionId: competition.id },
 			}),
 			getEventJudgingSheetsFn({ data: { trackWorkoutId: eventId } }),
 			getAthleteRegisteredDivisionFn({
@@ -103,8 +104,8 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 			throw notFound()
 		}
 
-		// Fetch division descriptions if there are divisions
-		const divisions = divisionsResult.divisions ?? []
+		// Use divisions from parent
+		const divisions = parentDivisions ?? []
 		let divisionDescriptions: Array<{
 			divisionId: string
 			divisionLabel: string
@@ -122,6 +123,20 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 			divisionDescriptions = descResult.descriptions
 		}
 
+		// Fetch venue for the first division (default)
+		const defaultDivisionId = divisions.length > 0 ? divisions[0].id : null
+		const venueResult = defaultDivisionId
+			? await getVenueForTrackWorkoutByDivisionFn({
+					data: { trackWorkoutId: eventId, divisionId: defaultDivisionId },
+				})
+			: { venue: null }
+
+		// Defer heat schedule fetch - not needed for initial render
+		const deferredEventHeats =
+			eventResult.event.heatStatus === "published"
+				? getPublicEventHeatsFn({ data: { trackWorkoutId: eventId } })
+				: Promise.resolve({ heats: [] })
+
 		return {
 			competition,
 			event: eventResult.event,
@@ -132,7 +147,9 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 			divisionDescriptions,
 			divisions,
 			athleteRegisteredDivisionId: athleteDivisionResult.divisionId,
+			venue: venueResult.venue,
 			videoSubmission: videoSubmissionResult,
+			deferredEventHeats,
 		}
 	},
 })
@@ -164,31 +181,16 @@ function formatHeatTime(date: Date, timezone?: string | null): string {
 	}).format(new Date(date))
 }
 
-function formatEventDate(
-	startDate: string | null,
-	endDate: string | null,
-): string | null {
-	if (!startDate) return null
-
-	const start = new Date(startDate)
-	const formatOptions: Intl.DateTimeFormatOptions = {
+function formatEventDateFromHeatTime(
+	heatTime: Date,
+	timezone?: string | null,
+): string {
+	return new Intl.DateTimeFormat("en-US", {
 		month: "short",
 		day: "numeric",
 		year: "numeric",
-	}
-
-	if (!endDate || start.toDateString() === new Date(endDate).toDateString()) {
-		return new Intl.DateTimeFormat("en-US", formatOptions).format(start)
-	}
-
-	const end = new Date(endDate)
-	const startStr = new Intl.DateTimeFormat("en-US", {
-		month: "short",
-		day: "numeric",
-	}).format(start)
-	const endStr = new Intl.DateTimeFormat("en-US", formatOptions).format(end)
-
-	return `${startStr} - ${endStr}`
+		timeZone: timezone ?? undefined,
+	}).format(new Date(heatTime))
 }
 
 function EventDetailsPage() {
@@ -202,7 +204,9 @@ function EventDetailsPage() {
 		divisionDescriptions,
 		divisions,
 		athleteRegisteredDivisionId,
+		venue,
 		videoSubmission,
+		deferredEventHeats,
 	} = Route.useLoaderData()
 	const { slug } = Route.useParams()
 	const search = Route.useSearch()
@@ -223,15 +227,12 @@ function EventDetailsPage() {
 		(divisions && divisions.length > 0 ? divisions[0].id : undefined)
 	const selectedDivisionId = search.division || defaultDivisionId
 
-	// Get the selected division's description, fallback to workout description
-	// Only use division description if it exists and is not empty
+	// Get the selected division's scale info (separate from base description)
 	const selectedDivision = sortedDivisions.find(
 		(d) => d.divisionId === selectedDivisionId,
 	)
-	const divisionDescription = selectedDivision?.description?.trim()
-	const displayDescription = divisionDescription || workout.description || null
-
-	const eventDate = formatEventDate(competition.startDate, competition.endDate)
+	const divisionScale = selectedDivision?.description?.trim() || null
+	const divisionLabel = selectedDivision?.divisionLabel || null
 
 	const handleDivisionChange = (divisionId: string) => {
 		navigate({
@@ -250,7 +251,7 @@ function EventDetailsPage() {
 				</div>
 
 				{/* Glassmorphism Content Container */}
-				<div className="rounded-2xl border border-black/10 bg-black/5 p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
+				<div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
 					<div className="space-y-8">
 						{/* Header with Division Switcher */}
 						<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -298,9 +299,37 @@ function EventDetailsPage() {
 						</div>
 
 						{/* Event Description */}
-						<div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
-							{displayDescription || "Details coming soon."}
+						<div className="space-y-4">
+							{/* Base workout description */}
+							<div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
+								{workout.description || "Details coming soon."}
+							</div>
+
+							{/* Division-specific scale info */}
+							{divisionScale && (
+								<div className="border-t pt-4 mt-4">
+									<div className="flex items-start gap-3">
+										<Badge
+											variant="secondary"
+											className="shrink-0 text-xs font-medium"
+										>
+											{divisionLabel || "Division"}
+										</Badge>
+										<p className="font-mono text-sm whitespace-pre-wrap leading-relaxed text-muted-foreground">
+											{divisionScale}
+										</p>
+									</div>
+								</div>
+							)}
 						</div>
+
+						{/* Heat Schedule */}
+						{event.heatStatus === "published" && (
+							<EventHeatSchedule
+								deferredHeats={deferredEventHeats}
+								timezone={competition.timezone}
+							/>
+						)}
 
 						{/* Video & Score Submission Form - Below description for online competitions */}
 						{competition.competitionType === "online" && videoSubmission && (
@@ -410,14 +439,19 @@ function EventDetailsPage() {
 							</div>
 						)}
 
-						{eventDate && (
+						{heatTimes && (
 							<div className="flex items-start gap-3">
 								<Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
 								<div>
 									<p className="text-xs text-muted-foreground uppercase tracking-wider">
 										Date
 									</p>
-									<p className="font-medium text-sm">{eventDate}</p>
+									<p className="font-medium text-sm">
+										{formatEventDateFromHeatTime(
+											heatTimes.firstHeatStartTime,
+											competition.timezone,
+										)}
+									</p>
 								</div>
 							</div>
 						)}
@@ -485,6 +519,69 @@ function EventDetailsPage() {
 						</CardContent>
 					</Card>
 				)}
+
+				{/* Venue Card */}
+				<Card>
+					<CardHeader className="pb-3">
+						<CardTitle className="text-lg">Venue</CardTitle>
+					</CardHeader>
+					<CardContent>
+						{venue?.address && hasAddressData(venue.address) ? (
+							<div className="space-y-3">
+								<div className="flex items-start gap-3">
+									<MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+									<div className="flex-1">
+										<p className="font-medium text-sm">{venue.name}</p>
+										<p className="text-sm text-muted-foreground mt-1">
+											{venue.address.streetLine1}
+											{venue.address.streetLine2 && (
+												<>
+													<br />
+													{venue.address.streetLine2}
+												</>
+											)}
+											{(venue.address.city ||
+												venue.address.stateProvince ||
+												venue.address.postalCode) && (
+												<>
+													<br />
+													{[venue.address.city, venue.address.stateProvince]
+														.filter(Boolean)
+														.join(", ")}{" "}
+													{venue.address.postalCode}
+												</>
+											)}
+											{venue.address.countryCode &&
+												venue.address.countryCode !== "US" && (
+													<>
+														<br />
+														{venue.address.countryCode}
+													</>
+												)}
+										</p>
+									</div>
+								</div>
+								<Button variant="outline" size="sm" className="w-full" asChild>
+									<a
+										href={getGoogleMapsUrl(venue.address) ?? undefined}
+										target="_blank"
+										rel="noopener noreferrer"
+									>
+										<MapPin className="h-4 w-4 mr-2" />
+										Get Directions
+									</a>
+								</Button>
+							</div>
+						) : (
+							<div className="flex items-start gap-3">
+								<MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+								<p className="text-sm text-muted-foreground">
+									Venue to be announced
+								</p>
+							</div>
+						)}
+					</CardContent>
+				</Card>
 
 				{/* Event Resources Card */}
 				{resources && resources.length > 0 && (

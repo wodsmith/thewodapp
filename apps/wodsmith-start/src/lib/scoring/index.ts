@@ -49,6 +49,29 @@ export {
 	// Note: getDefaultScoreType is exported from sort
 	// Note: isLowerBetter is exported from sort
 } from "./aggregate"
+// ============ Competition Scoring Algorithms ============
+export {
+	calculateCustomPoints,
+	// Factory function - main entry point
+	calculateEventPoints,
+	// Algorithm implementations
+	calculatePScore,
+	calculateTraditionalPoints,
+	canHaveNegativeScores,
+	DEFAULT_PSCORE_CONFIG,
+	DEFAULT_SCORING_CONFIG,
+	DEFAULT_TRADITIONAL_CONFIG,
+	type EventPointsResult,
+	// Types
+	type EventScoreInput,
+	generatePointsTable,
+	// Utilities
+	getScoringAlgorithmName,
+	type PScoreInput,
+	type PScoreResult,
+	// Constants
+	WINNER_TAKES_MORE_TABLE,
+} from "./algorithms"
 export {
 	COUNT_BASED_SCHEMES,
 	DEFAULT_SCORE_TYPES,
@@ -86,7 +109,6 @@ export {
 	decodeToNumber,
 	// Note: mmToUnit is exported from encode
 } from "./decode"
-
 // ============ Encoding ============
 export {
 	// Distance encoding
@@ -125,7 +147,6 @@ export {
 	getWeightUnitLabel,
 	isSpecialStatus,
 } from "./format"
-
 // ============ Parsing ============
 export {
 	parseScore,
@@ -148,6 +169,12 @@ export {
 	sortScores,
 	statusFromOrder,
 } from "./sort"
+// ============ Tiebreakers ============
+export {
+	applyTiebreakers,
+	type RankedAthlete,
+	type TiebreakerInput,
+} from "./tiebreakers"
 // ============ Types ============
 export type {
 	DistanceUnit,
@@ -183,7 +210,6 @@ export {
 	WEIGHT_UNITS,
 	WORKOUT_SCHEMES,
 } from "./types"
-
 // ============ Validation ============
 export {
 	isOutlier,
@@ -193,34 +219,3 @@ export {
 	validateScoreInput,
 	validateTime,
 } from "./validate"
-
-// ============ Competition Scoring Algorithms ============
-export {
-	// Factory function - main entry point
-	calculateEventPoints,
-	// Algorithm implementations
-	calculatePScore,
-	calculateTraditionalPoints,
-	calculateCustomPoints,
-	generatePointsTable,
-	// Constants
-	WINNER_TAKES_MORE_TABLE,
-	DEFAULT_SCORING_CONFIG,
-	DEFAULT_TRADITIONAL_CONFIG,
-	DEFAULT_PSCORE_CONFIG,
-	// Utilities
-	getScoringAlgorithmName,
-	canHaveNegativeScores,
-	// Types
-	type EventScoreInput,
-	type EventPointsResult,
-	type PScoreInput,
-	type PScoreResult,
-} from "./algorithms"
-
-// ============ Tiebreakers ============
-export {
-	applyTiebreakers,
-	type TiebreakerInput,
-	type RankedAthlete,
-} from "./tiebreakers"

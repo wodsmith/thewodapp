@@ -14,7 +14,7 @@ export const SITE_DOMAIN = "wodsmith.com"
 export const SITE_URL = `https://${SITE_DOMAIN}`
 
 // Auth configuration
-export const REDIRECT_AFTER_SIGN_IN = "/dashboard"
+export const REDIRECT_AFTER_SIGN_IN = "/"
 export const SESSION_COOKIE_NAME = "session"
 export const ACTIVE_TEAM_COOKIE_NAME = "active-team"
 export const PASSWORD_RESET_TOKEN_EXPIRATION_SECONDS = 24 * 60 * 60 // 24 hours

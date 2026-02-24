@@ -8,7 +8,6 @@
 
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { OrganizerDivisionManager } from "@/components/divisions/organizer-division-manager"
-import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import {
 	getCompetitionDivisionsWithCountsFn,
 	listScalingGroupsFn,
@@ -21,16 +20,11 @@ const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/divisions",
 )({
+	staleTime: 10_000,
 	component: DivisionsPage,
-	loader: async ({ params }) => {
-		// First get competition to know the teamId
-		const { competition } = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
-		})
-
-		if (!competition) {
-			throw new Error("Competition not found")
-		}
+	loader: async ({ params, parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const { competition } = parentMatch.loaderData!
 
 		// Parallel fetch divisions and scaling groups
 		const [divisionsResult, scalingGroupsResult] = await Promise.all([

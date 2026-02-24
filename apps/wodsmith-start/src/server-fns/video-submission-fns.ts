@@ -13,11 +13,17 @@ import {
 	competitionRegistrationsTable,
 	competitionsTable,
 } from "@/db/schemas/competitions"
-import { programmingTracksTable, trackWorkoutsTable } from "@/db/schemas/programming"
+import {
+	programmingTracksTable,
+	trackWorkoutsTable,
+} from "@/db/schemas/programming"
 import { scoresTable } from "@/db/schemas/scores"
-import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
-import { workouts } from "@/db/schemas/workouts"
+import {
+	createVideoSubmissionId,
+	videoSubmissionsTable,
+} from "@/db/schemas/video-submissions"
 import type { TiebreakScheme } from "@/db/schemas/workouts"
+import { workouts } from "@/db/schemas/workouts"
 import {
 	computeSortKey,
 	decodeScore,
@@ -25,8 +31,8 @@ import {
 	getDefaultScoreType,
 	parseScore,
 	type ScoreType,
-	sortKeyToString,
 	STATUS_ORDER,
+	sortKeyToString,
 	type WorkoutScheme,
 } from "@/lib/scoring"
 import { getSessionFromCookie } from "@/utils/auth"
@@ -418,24 +424,19 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 
 			submissionId = existingSubmission.id
 		} else {
-			// Create new submission
-			const [newSubmission] = await db
-				.insert(videoSubmissionsTable)
-				.values({
-					registrationId: registration.id,
-					trackWorkoutId: data.trackWorkoutId,
-					userId: session.userId,
-					videoUrl: data.videoUrl,
-					notes: data.notes ?? null,
-					submittedAt: now,
-				})
-				.returning({ id: videoSubmissionsTable.id })
+			// Create new submission - Generate ID first, insert, then query back
+			const id = createVideoSubmissionId()
+			await db.insert(videoSubmissionsTable).values({
+				id,
+				registrationId: registration.id,
+				trackWorkoutId: data.trackWorkoutId,
+				userId: session.userId,
+				videoUrl: data.videoUrl,
+				notes: data.notes ?? null,
+				submittedAt: now,
+			})
 
-			if (!newSubmission) {
-				throw new Error("Failed to create video submission")
-			}
-
-			submissionId = newSubmission.id
+			submissionId = id
 		}
 
 		// Save claimed score if provided
@@ -467,7 +468,11 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 			let status: "scored" | "cap" = "scored"
 			let secondaryValue: number | null = null
 
-			if (scheme === "time-with-cap" && workout.timeCap && encodedValue !== null) {
+			if (
+				scheme === "time-with-cap" &&
+				workout.timeCap &&
+				encodedValue !== null
+			) {
 				const capMs = workout.timeCap * 1000
 				if (encodedValue >= capMs) {
 					status = "cap"
@@ -563,8 +568,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 					asRx: true,
 					recordedAt: now,
 				})
-				.onConflictDoUpdate({
-					target: [scoresTable.competitionEventId, scoresTable.userId],
+				.onDuplicateKeyUpdate({
 					set: {
 						scoreValue: encodedValue,
 						status,

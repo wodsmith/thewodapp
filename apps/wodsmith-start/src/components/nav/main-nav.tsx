@@ -11,9 +11,14 @@ import { NavTeamSwitcher } from "./nav-team-switcher"
 interface MainNavProps {
 	session: SessionValidationResult
 	activeTeamId: string | null
+	hasWorkoutTracking?: boolean
 }
 
-export default function MainNav({ session, activeTeamId }: MainNavProps) {
+export default function MainNav({
+	session,
+	activeTeamId,
+	hasWorkoutTracking,
+}: MainNavProps) {
 	// Filter teams for the switcher (exclude competition-related teams)
 	const switcherTeams =
 		session?.teams?.filter(
@@ -21,11 +26,17 @@ export default function MainNav({ session, activeTeamId }: MainNavProps) {
 		) ?? []
 
 	return (
-		<header className="border-b-2 border-black bg-background p-4 dark:border-dark-border dark:bg-dark-background">
-			<div className="container relative mx-auto flex items-center justify-between">
+		<header className="border-b-2 border-black bg-background dark:border-dark-border dark:bg-dark-background">
+			<div className="container mx-auto relative flex items-center justify-between p-4">
 				{/* Left: Logo */}
 				<a
-					href={session?.user ? "/workouts" : "/"}
+					href={
+						session?.user
+							? hasWorkoutTracking
+								? "/workouts"
+								: "/compete"
+							: "/"
+					}
 					className="flex items-center gap-2"
 				>
 					<img
@@ -51,25 +62,29 @@ export default function MainNav({ session, activeTeamId }: MainNavProps) {
 				<nav className="hidden items-center gap-4 md:flex">
 					{session?.user ? (
 						<>
-							<Link
-								to="/workouts"
-								search={{ view: "row", q: "" }}
-								className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
-							>
-								Workouts
-							</Link>
-							<a
-								href="/log"
-								className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
-							>
-								Log
-							</a>
-							<a
-								href="/team"
-								className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
-							>
-								Team
-							</a>
+							{hasWorkoutTracking && (
+								<>
+									<Link
+										to="/workouts"
+										search={{ view: "row", q: "" }}
+										className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
+									>
+										Workouts
+									</Link>
+									<a
+										href="/log"
+										className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
+									>
+										Log
+									</a>
+									<a
+										href="/team"
+										className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
+									>
+										Team
+									</a>
+								</>
+							)}
 							<a
 								href="/compete"
 								className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
@@ -116,7 +131,11 @@ export default function MainNav({ session, activeTeamId }: MainNavProps) {
 						</div>
 					)}
 				</nav>
-				<MobileNav session={session} activeTeamId={activeTeamId} />
+				<MobileNav
+					session={session}
+					activeTeamId={activeTeamId}
+					hasWorkoutTracking={hasWorkoutTracking}
+				/>
 			</div>
 		</header>
 	)

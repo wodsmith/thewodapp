@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as MaintenanceRouteImport } from './routes/maintenance'
 import { Route as CompeteRouteImport } from './routes/compete'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ProtectedRouteImport } from './routes/_protected'
@@ -35,6 +36,7 @@ import { Route as CompeteSlugIndexRouteImport } from './routes/compete/$slug/ind
 import { Route as AdminTeamsIndexRouteImport } from './routes/admin/teams/index'
 import { Route as AdminOrganizerRequestsIndexRouteImport } from './routes/admin/organizer-requests/index'
 import { Route as AdminEntitlementsIndexRouteImport } from './routes/admin/entitlements/index'
+import { Route as AdminDemoCompetitionsIndexRouteImport } from './routes/admin/demo-competitions/index'
 import { Route as AdminCompetitionsIndexRouteImport } from './routes/admin/competitions/index'
 import { Route as ProtectedWorkoutsIndexRouteImport } from './routes/_protected/workouts/index'
 import { Route as ProtectedTeamIndexRouteImport } from './routes/_protected/team/index'
@@ -52,9 +54,11 @@ import { Route as CompeteInviteTokenRouteImport } from './routes/compete/invite/
 import { Route as CompeteSlugVolunteerRouteImport } from './routes/compete/$slug/volunteer'
 import { Route as CompeteSlugScoresRouteImport } from './routes/compete/$slug/scores'
 import { Route as CompeteSlugScheduleRouteImport } from './routes/compete/$slug/schedule'
+import { Route as CompeteSlugRegisteredRouteImport } from './routes/compete/$slug/registered'
 import { Route as CompeteSlugRegisterRouteImport } from './routes/compete/$slug/register'
 import { Route as CompeteSlugMyScheduleRouteImport } from './routes/compete/$slug/my-schedule'
 import { Route as CompeteSlugLeaderboardRouteImport } from './routes/compete/$slug/leaderboard'
+import { Route as CompeteSlugJudgesScheduleRouteImport } from './routes/compete/$slug/judges-schedule'
 import { Route as ApiWorkoutsSearchRouteImport } from './routes/api/workouts/search'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
 import { Route as ApiCronSubmissionWindowNotificationsRouteImport } from './routes/api/cron/submission-window-notifications'
@@ -98,6 +102,7 @@ import { Route as CompeteOrganizerCompetitionIdScheduleRouteImport } from './rou
 import { Route as CompeteOrganizerCompetitionIdRevenueRouteImport } from './routes/compete/organizer/$competitionId/revenue'
 import { Route as CompeteOrganizerCompetitionIdResultsRouteImport } from './routes/compete/organizer/$competitionId/results'
 import { Route as CompeteOrganizerCompetitionIdPricingRouteImport } from './routes/compete/organizer/$competitionId/pricing'
+import { Route as CompeteOrganizerCompetitionIdLocationsRouteImport } from './routes/compete/organizer/$competitionId/locations'
 import { Route as CompeteOrganizerCompetitionIdEditRouteImport } from './routes/compete/organizer/$competitionId/edit'
 import { Route as CompeteOrganizerCompetitionIdDivisionsRouteImport } from './routes/compete/organizer/$competitionId/divisions'
 import { Route as CompeteOrganizerCompetitionIdDangerZoneRouteImport } from './routes/compete/organizer/$competitionId/danger-zone'
@@ -128,6 +133,7 @@ import { Route as ProtectedAdminTeamsScalingIndexRouteImport } from './routes/_p
 import { Route as ProtectedAdminTeamsProgrammingIndexRouteImport } from './routes/_protected/admin/teams/programming/index'
 import { Route as CompeteOrganizerDashboardSeriesNewRouteImport } from './routes/compete/organizer/_dashboard/series/new'
 import { Route as CompeteOrganizerDashboardSeriesGroupIdRouteImport } from './routes/compete/organizer/_dashboard/series/$groupId'
+import { Route as ApiInternalOgDataCompetitionSlugRouteImport } from './routes/api/internal/og-data/competition/$slug'
 import { Route as CompeteOrganizerDashboardSeriesGroupIdIndexRouteImport } from './routes/compete/organizer/_dashboard/series/$groupId/index'
 import { Route as CompeteOrganizerCompetitionIdEventsEventIdIndexRouteImport } from './routes/compete/organizer/$competitionId/events/$eventId/index'
 import { Route as ProtectedAdminTeamsProgrammingTrackIdIndexRouteImport } from './routes/_protected/admin/teams/programming/$trackId/index'
@@ -144,6 +150,11 @@ const TermsRoute = TermsRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MaintenanceRoute = MaintenanceRouteImport.update({
+  id: '/maintenance',
+  path: '/maintenance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompeteRoute = CompeteRouteImport.update({
@@ -265,6 +276,12 @@ const AdminEntitlementsIndexRoute = AdminEntitlementsIndexRouteImport.update({
   path: '/entitlements/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminDemoCompetitionsIndexRoute =
+  AdminDemoCompetitionsIndexRouteImport.update({
+    id: '/demo-competitions/',
+    path: '/demo-competitions/',
+    getParentRoute: () => AdminRoute,
+  } as any)
 const AdminCompetitionsIndexRoute = AdminCompetitionsIndexRouteImport.update({
   id: '/competitions/',
   path: '/competitions/',
@@ -353,6 +370,11 @@ const CompeteSlugScheduleRoute = CompeteSlugScheduleRouteImport.update({
   path: '/schedule',
   getParentRoute: () => CompeteSlugRoute,
 } as any)
+const CompeteSlugRegisteredRoute = CompeteSlugRegisteredRouteImport.update({
+  id: '/registered',
+  path: '/registered',
+  getParentRoute: () => CompeteSlugRoute,
+} as any)
 const CompeteSlugRegisterRoute = CompeteSlugRegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -368,6 +390,12 @@ const CompeteSlugLeaderboardRoute = CompeteSlugLeaderboardRouteImport.update({
   path: '/leaderboard',
   getParentRoute: () => CompeteSlugRoute,
 } as any)
+const CompeteSlugJudgesScheduleRoute =
+  CompeteSlugJudgesScheduleRouteImport.update({
+    id: '/judges-schedule',
+    path: '/judges-schedule',
+    getParentRoute: () => CompeteSlugRoute,
+  } as any)
 const ApiWorkoutsSearchRoute = ApiWorkoutsSearchRouteImport.update({
   id: '/api/workouts/search',
   path: '/api/workouts/search',
@@ -614,6 +642,12 @@ const CompeteOrganizerCompetitionIdPricingRoute =
     path: '/pricing',
     getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
   } as any)
+const CompeteOrganizerCompetitionIdLocationsRoute =
+  CompeteOrganizerCompetitionIdLocationsRouteImport.update({
+    id: '/locations',
+    path: '/locations',
+    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+  } as any)
 const CompeteOrganizerCompetitionIdEditRoute =
   CompeteOrganizerCompetitionIdEditRouteImport.update({
     id: '/edit',
@@ -793,6 +827,12 @@ const CompeteOrganizerDashboardSeriesGroupIdRoute =
     path: '/series/$groupId',
     getParentRoute: () => CompeteOrganizerDashboardRoute,
   } as any)
+const ApiInternalOgDataCompetitionSlugRoute =
+  ApiInternalOgDataCompetitionSlugRouteImport.update({
+    id: '/api/internal/og-data/competition/$slug',
+    path: '/api/internal/og-data/competition/$slug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const CompeteOrganizerDashboardSeriesGroupIdIndexRoute =
   CompeteOrganizerDashboardSeriesGroupIdIndexRouteImport.update({
     id: '/',
@@ -842,6 +882,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/compete': typeof CompeteRouteWithChildren
+  '/maintenance': typeof MaintenanceRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
@@ -863,9 +904,11 @@ export interface FileRoutesByFullPath {
   '/api/cron/submission-window-notifications': typeof ApiCronSubmissionWindowNotificationsRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
+  '/compete/$slug/judges-schedule': typeof CompeteSlugJudgesScheduleRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
   '/compete/$slug/my-schedule': typeof CompeteSlugMyScheduleRoute
   '/compete/$slug/register': typeof CompeteSlugRegisterRouteWithChildren
+  '/compete/$slug/registered': typeof CompeteSlugRegisteredRoute
   '/compete/$slug/schedule': typeof CompeteSlugScheduleRoute
   '/compete/$slug/scores': typeof CompeteSlugScoresRoute
   '/compete/$slug/volunteer': typeof CompeteSlugVolunteerRoute
@@ -882,6 +925,7 @@ export interface FileRoutesByFullPath {
   '/team': typeof ProtectedTeamIndexRoute
   '/workouts': typeof ProtectedWorkoutsIndexRoute
   '/admin/competitions': typeof AdminCompetitionsIndexRoute
+  '/admin/demo-competitions': typeof AdminDemoCompetitionsIndexRoute
   '/admin/entitlements': typeof AdminEntitlementsIndexRoute
   '/admin/organizer-requests': typeof AdminOrganizerRequestsIndexRoute
   '/admin/teams': typeof AdminTeamsIndexRoute
@@ -902,6 +946,7 @@ export interface FileRoutesByFullPath {
   '/compete/organizer/$competitionId/danger-zone': typeof CompeteOrganizerCompetitionIdDangerZoneRoute
   '/compete/organizer/$competitionId/divisions': typeof CompeteOrganizerCompetitionIdDivisionsRoute
   '/compete/organizer/$competitionId/edit': typeof CompeteOrganizerCompetitionIdEditRoute
+  '/compete/organizer/$competitionId/locations': typeof CompeteOrganizerCompetitionIdLocationsRoute
   '/compete/organizer/$competitionId/pricing': typeof CompeteOrganizerCompetitionIdPricingRoute
   '/compete/organizer/$competitionId/results': typeof CompeteOrganizerCompetitionIdResultsRoute
   '/compete/organizer/$competitionId/revenue': typeof CompeteOrganizerCompetitionIdRevenueRoute
@@ -940,6 +985,7 @@ export interface FileRoutesByFullPath {
   '/compete/organizer/': typeof CompeteOrganizerDashboardIndexRoute
   '/compete/organizer/onboard': typeof CompeteOrganizerOnboardIndexRoute
   '/demo/start/ssr': typeof DemoStartSsrIndexRoute
+  '/api/internal/og-data/competition/$slug': typeof ApiInternalOgDataCompetitionSlugRoute
   '/compete/organizer/series/$groupId': typeof CompeteOrganizerDashboardSeriesGroupIdRouteWithChildren
   '/compete/organizer/series/new': typeof CompeteOrganizerDashboardSeriesNewRoute
   '/admin/teams/programming': typeof ProtectedAdminTeamsProgrammingIndexRoute
@@ -965,6 +1011,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/maintenance': typeof MaintenanceRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
@@ -982,9 +1029,11 @@ export interface FileRoutesByTo {
   '/api/cron/submission-window-notifications': typeof ApiCronSubmissionWindowNotificationsRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
+  '/compete/$slug/judges-schedule': typeof CompeteSlugJudgesScheduleRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
   '/compete/$slug/my-schedule': typeof CompeteSlugMyScheduleRoute
   '/compete/$slug/register': typeof CompeteSlugRegisterRouteWithChildren
+  '/compete/$slug/registered': typeof CompeteSlugRegisteredRoute
   '/compete/$slug/schedule': typeof CompeteSlugScheduleRoute
   '/compete/$slug/scores': typeof CompeteSlugScoresRoute
   '/compete/$slug/volunteer': typeof CompeteSlugVolunteerRoute
@@ -1000,6 +1049,7 @@ export interface FileRoutesByTo {
   '/team': typeof ProtectedTeamIndexRoute
   '/workouts': typeof ProtectedWorkoutsIndexRoute
   '/admin/competitions': typeof AdminCompetitionsIndexRoute
+  '/admin/demo-competitions': typeof AdminDemoCompetitionsIndexRoute
   '/admin/entitlements': typeof AdminEntitlementsIndexRoute
   '/admin/organizer-requests': typeof AdminOrganizerRequestsIndexRoute
   '/admin/teams': typeof AdminTeamsIndexRoute
@@ -1020,6 +1070,7 @@ export interface FileRoutesByTo {
   '/compete/organizer/$competitionId/danger-zone': typeof CompeteOrganizerCompetitionIdDangerZoneRoute
   '/compete/organizer/$competitionId/divisions': typeof CompeteOrganizerCompetitionIdDivisionsRoute
   '/compete/organizer/$competitionId/edit': typeof CompeteOrganizerCompetitionIdEditRoute
+  '/compete/organizer/$competitionId/locations': typeof CompeteOrganizerCompetitionIdLocationsRoute
   '/compete/organizer/$competitionId/pricing': typeof CompeteOrganizerCompetitionIdPricingRoute
   '/compete/organizer/$competitionId/results': typeof CompeteOrganizerCompetitionIdResultsRoute
   '/compete/organizer/$competitionId/revenue': typeof CompeteOrganizerCompetitionIdRevenueRoute
@@ -1057,6 +1108,7 @@ export interface FileRoutesByTo {
   '/compete/organizer/$competitionId': typeof CompeteOrganizerCompetitionIdIndexRoute
   '/compete/organizer/onboard': typeof CompeteOrganizerOnboardIndexRoute
   '/demo/start/ssr': typeof DemoStartSsrIndexRoute
+  '/api/internal/og-data/competition/$slug': typeof ApiInternalOgDataCompetitionSlugRoute
   '/compete/organizer/series/new': typeof CompeteOrganizerDashboardSeriesNewRoute
   '/admin/teams/programming': typeof ProtectedAdminTeamsProgrammingIndexRoute
   '/admin/teams/scaling': typeof ProtectedAdminTeamsScalingIndexRoute
@@ -1086,6 +1138,7 @@ export interface FileRoutesById {
   '/_protected': typeof ProtectedRouteWithChildren
   '/admin': typeof AdminRouteWithChildren
   '/compete': typeof CompeteRouteWithChildren
+  '/maintenance': typeof MaintenanceRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
@@ -1107,9 +1160,11 @@ export interface FileRoutesById {
   '/api/cron/submission-window-notifications': typeof ApiCronSubmissionWindowNotificationsRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
+  '/compete/$slug/judges-schedule': typeof CompeteSlugJudgesScheduleRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
   '/compete/$slug/my-schedule': typeof CompeteSlugMyScheduleRoute
   '/compete/$slug/register': typeof CompeteSlugRegisterRouteWithChildren
+  '/compete/$slug/registered': typeof CompeteSlugRegisteredRoute
   '/compete/$slug/schedule': typeof CompeteSlugScheduleRoute
   '/compete/$slug/scores': typeof CompeteSlugScoresRoute
   '/compete/$slug/volunteer': typeof CompeteSlugVolunteerRoute
@@ -1127,6 +1182,7 @@ export interface FileRoutesById {
   '/_protected/team/': typeof ProtectedTeamIndexRoute
   '/_protected/workouts/': typeof ProtectedWorkoutsIndexRoute
   '/admin/competitions/': typeof AdminCompetitionsIndexRoute
+  '/admin/demo-competitions/': typeof AdminDemoCompetitionsIndexRoute
   '/admin/entitlements/': typeof AdminEntitlementsIndexRoute
   '/admin/organizer-requests/': typeof AdminOrganizerRequestsIndexRoute
   '/admin/teams/': typeof AdminTeamsIndexRoute
@@ -1147,6 +1203,7 @@ export interface FileRoutesById {
   '/compete/organizer/$competitionId/danger-zone': typeof CompeteOrganizerCompetitionIdDangerZoneRoute
   '/compete/organizer/$competitionId/divisions': typeof CompeteOrganizerCompetitionIdDivisionsRoute
   '/compete/organizer/$competitionId/edit': typeof CompeteOrganizerCompetitionIdEditRoute
+  '/compete/organizer/$competitionId/locations': typeof CompeteOrganizerCompetitionIdLocationsRoute
   '/compete/organizer/$competitionId/pricing': typeof CompeteOrganizerCompetitionIdPricingRoute
   '/compete/organizer/$competitionId/results': typeof CompeteOrganizerCompetitionIdResultsRoute
   '/compete/organizer/$competitionId/revenue': typeof CompeteOrganizerCompetitionIdRevenueRoute
@@ -1185,6 +1242,7 @@ export interface FileRoutesById {
   '/compete/organizer/_dashboard/': typeof CompeteOrganizerDashboardIndexRoute
   '/compete/organizer/onboard/': typeof CompeteOrganizerOnboardIndexRoute
   '/demo/start/ssr/': typeof DemoStartSsrIndexRoute
+  '/api/internal/og-data/competition/$slug': typeof ApiInternalOgDataCompetitionSlugRoute
   '/compete/organizer/_dashboard/series/$groupId': typeof CompeteOrganizerDashboardSeriesGroupIdRouteWithChildren
   '/compete/organizer/_dashboard/series/new': typeof CompeteOrganizerDashboardSeriesNewRoute
   '/_protected/admin/teams/programming/': typeof ProtectedAdminTeamsProgrammingIndexRoute
@@ -1214,6 +1272,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/compete'
+    | '/maintenance'
     | '/privacy'
     | '/terms'
     | '/forgot-password'
@@ -1235,9 +1294,11 @@ export interface FileRouteTypes {
     | '/api/cron/submission-window-notifications'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
+    | '/compete/$slug/judges-schedule'
     | '/compete/$slug/leaderboard'
     | '/compete/$slug/my-schedule'
     | '/compete/$slug/register'
+    | '/compete/$slug/registered'
     | '/compete/$slug/schedule'
     | '/compete/$slug/scores'
     | '/compete/$slug/volunteer'
@@ -1254,6 +1315,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/workouts'
     | '/admin/competitions'
+    | '/admin/demo-competitions'
     | '/admin/entitlements'
     | '/admin/organizer-requests'
     | '/admin/teams'
@@ -1274,6 +1336,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/danger-zone'
     | '/compete/organizer/$competitionId/divisions'
     | '/compete/organizer/$competitionId/edit'
+    | '/compete/organizer/$competitionId/locations'
     | '/compete/organizer/$competitionId/pricing'
     | '/compete/organizer/$competitionId/results'
     | '/compete/organizer/$competitionId/revenue'
@@ -1312,6 +1375,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/'
     | '/compete/organizer/onboard'
     | '/demo/start/ssr'
+    | '/api/internal/og-data/competition/$slug'
     | '/compete/organizer/series/$groupId'
     | '/compete/organizer/series/new'
     | '/admin/teams/programming'
@@ -1337,6 +1401,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/maintenance'
     | '/privacy'
     | '/terms'
     | '/forgot-password'
@@ -1354,9 +1419,11 @@ export interface FileRouteTypes {
     | '/api/cron/submission-window-notifications'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
+    | '/compete/$slug/judges-schedule'
     | '/compete/$slug/leaderboard'
     | '/compete/$slug/my-schedule'
     | '/compete/$slug/register'
+    | '/compete/$slug/registered'
     | '/compete/$slug/schedule'
     | '/compete/$slug/scores'
     | '/compete/$slug/volunteer'
@@ -1372,6 +1439,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/workouts'
     | '/admin/competitions'
+    | '/admin/demo-competitions'
     | '/admin/entitlements'
     | '/admin/organizer-requests'
     | '/admin/teams'
@@ -1392,6 +1460,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/danger-zone'
     | '/compete/organizer/$competitionId/divisions'
     | '/compete/organizer/$competitionId/edit'
+    | '/compete/organizer/$competitionId/locations'
     | '/compete/organizer/$competitionId/pricing'
     | '/compete/organizer/$competitionId/results'
     | '/compete/organizer/$competitionId/revenue'
@@ -1429,6 +1498,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId'
     | '/compete/organizer/onboard'
     | '/demo/start/ssr'
+    | '/api/internal/og-data/competition/$slug'
     | '/compete/organizer/series/new'
     | '/admin/teams/programming'
     | '/admin/teams/scaling'
@@ -1457,6 +1527,7 @@ export interface FileRouteTypes {
     | '/_protected'
     | '/admin'
     | '/compete'
+    | '/maintenance'
     | '/privacy'
     | '/terms'
     | '/_auth/forgot-password'
@@ -1478,9 +1549,11 @@ export interface FileRouteTypes {
     | '/api/cron/submission-window-notifications'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
+    | '/compete/$slug/judges-schedule'
     | '/compete/$slug/leaderboard'
     | '/compete/$slug/my-schedule'
     | '/compete/$slug/register'
+    | '/compete/$slug/registered'
     | '/compete/$slug/schedule'
     | '/compete/$slug/scores'
     | '/compete/$slug/volunteer'
@@ -1498,6 +1571,7 @@ export interface FileRouteTypes {
     | '/_protected/team/'
     | '/_protected/workouts/'
     | '/admin/competitions/'
+    | '/admin/demo-competitions/'
     | '/admin/entitlements/'
     | '/admin/organizer-requests/'
     | '/admin/teams/'
@@ -1518,6 +1592,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/danger-zone'
     | '/compete/organizer/$competitionId/divisions'
     | '/compete/organizer/$competitionId/edit'
+    | '/compete/organizer/$competitionId/locations'
     | '/compete/organizer/$competitionId/pricing'
     | '/compete/organizer/$competitionId/results'
     | '/compete/organizer/$competitionId/revenue'
@@ -1556,6 +1631,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/_dashboard/'
     | '/compete/organizer/onboard/'
     | '/demo/start/ssr/'
+    | '/api/internal/og-data/competition/$slug'
     | '/compete/organizer/_dashboard/series/$groupId'
     | '/compete/organizer/_dashboard/series/new'
     | '/_protected/admin/teams/programming/'
@@ -1586,6 +1662,7 @@ export interface RootRouteChildren {
   ProtectedRoute: typeof ProtectedRouteWithChildren
   AdminRoute: typeof AdminRouteWithChildren
   CompeteRoute: typeof CompeteRouteWithChildren
+  MaintenanceRoute: typeof MaintenanceRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
   ApiGetSessionRoute: typeof ApiGetSessionRoute
@@ -1601,6 +1678,7 @@ export interface RootRouteChildren {
   DemoStartSsrFullSsrRoute: typeof DemoStartSsrFullSsrRoute
   DemoStartSsrSpaModeRoute: typeof DemoStartSsrSpaModeRoute
   DemoStartSsrIndexRoute: typeof DemoStartSsrIndexRoute
+  ApiInternalOgDataCompetitionSlugRoute: typeof ApiInternalOgDataCompetitionSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1617,6 +1695,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/maintenance': {
+      id: '/maintenance'
+      path: '/maintenance'
+      fullPath: '/maintenance'
+      preLoaderRoute: typeof MaintenanceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/compete': {
@@ -1787,6 +1872,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminEntitlementsIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/demo-competitions/': {
+      id: '/admin/demo-competitions/'
+      path: '/demo-competitions'
+      fullPath: '/admin/demo-competitions'
+      preLoaderRoute: typeof AdminDemoCompetitionsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/competitions/': {
       id: '/admin/competitions/'
       path: '/competitions'
@@ -1906,6 +1998,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompeteSlugScheduleRouteImport
       parentRoute: typeof CompeteSlugRoute
     }
+    '/compete/$slug/registered': {
+      id: '/compete/$slug/registered'
+      path: '/registered'
+      fullPath: '/compete/$slug/registered'
+      preLoaderRoute: typeof CompeteSlugRegisteredRouteImport
+      parentRoute: typeof CompeteSlugRoute
+    }
     '/compete/$slug/register': {
       id: '/compete/$slug/register'
       path: '/register'
@@ -1925,6 +2024,13 @@ declare module '@tanstack/react-router' {
       path: '/leaderboard'
       fullPath: '/compete/$slug/leaderboard'
       preLoaderRoute: typeof CompeteSlugLeaderboardRouteImport
+      parentRoute: typeof CompeteSlugRoute
+    }
+    '/compete/$slug/judges-schedule': {
+      id: '/compete/$slug/judges-schedule'
+      path: '/judges-schedule'
+      fullPath: '/compete/$slug/judges-schedule'
+      preLoaderRoute: typeof CompeteSlugJudgesScheduleRouteImport
       parentRoute: typeof CompeteSlugRoute
     }
     '/api/workouts/search': {
@@ -2228,6 +2334,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompeteOrganizerCompetitionIdPricingRouteImport
       parentRoute: typeof CompeteOrganizerCompetitionIdRoute
     }
+    '/compete/organizer/$competitionId/locations': {
+      id: '/compete/organizer/$competitionId/locations'
+      path: '/locations'
+      fullPath: '/compete/organizer/$competitionId/locations'
+      preLoaderRoute: typeof CompeteOrganizerCompetitionIdLocationsRouteImport
+      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+    }
     '/compete/organizer/$competitionId/edit': {
       id: '/compete/organizer/$competitionId/edit'
       path: '/edit'
@@ -2438,6 +2551,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompeteOrganizerDashboardSeriesGroupIdRouteImport
       parentRoute: typeof CompeteOrganizerDashboardRoute
     }
+    '/api/internal/og-data/competition/$slug': {
+      id: '/api/internal/og-data/competition/$slug'
+      path: '/api/internal/og-data/competition/$slug'
+      fullPath: '/api/internal/og-data/competition/$slug'
+      preLoaderRoute: typeof ApiInternalOgDataCompetitionSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/compete/organizer/_dashboard/series/$groupId/': {
       id: '/compete/organizer/_dashboard/series/$groupId/'
       path: '/'
@@ -2647,6 +2767,7 @@ interface AdminRouteChildren {
   AdminTeamsTeamIdRoute: typeof AdminTeamsTeamIdRouteWithChildren
   AdminTeamsScheduleRoute: typeof AdminTeamsScheduleRouteWithChildren
   AdminCompetitionsIndexRoute: typeof AdminCompetitionsIndexRoute
+  AdminDemoCompetitionsIndexRoute: typeof AdminDemoCompetitionsIndexRoute
   AdminEntitlementsIndexRoute: typeof AdminEntitlementsIndexRoute
   AdminOrganizerRequestsIndexRoute: typeof AdminOrganizerRequestsIndexRoute
   AdminTeamsIndexRoute: typeof AdminTeamsIndexRoute
@@ -2657,6 +2778,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminTeamsTeamIdRoute: AdminTeamsTeamIdRouteWithChildren,
   AdminTeamsScheduleRoute: AdminTeamsScheduleRouteWithChildren,
   AdminCompetitionsIndexRoute: AdminCompetitionsIndexRoute,
+  AdminDemoCompetitionsIndexRoute: AdminDemoCompetitionsIndexRoute,
   AdminEntitlementsIndexRoute: AdminEntitlementsIndexRoute,
   AdminOrganizerRequestsIndexRoute: AdminOrganizerRequestsIndexRoute,
   AdminTeamsIndexRoute: AdminTeamsIndexRoute,
@@ -2676,9 +2798,11 @@ const CompeteSlugRegisterRouteWithChildren =
   CompeteSlugRegisterRoute._addFileChildren(CompeteSlugRegisterRouteChildren)
 
 interface CompeteSlugRouteChildren {
+  CompeteSlugJudgesScheduleRoute: typeof CompeteSlugJudgesScheduleRoute
   CompeteSlugLeaderboardRoute: typeof CompeteSlugLeaderboardRoute
   CompeteSlugMyScheduleRoute: typeof CompeteSlugMyScheduleRoute
   CompeteSlugRegisterRoute: typeof CompeteSlugRegisterRouteWithChildren
+  CompeteSlugRegisteredRoute: typeof CompeteSlugRegisteredRoute
   CompeteSlugScheduleRoute: typeof CompeteSlugScheduleRoute
   CompeteSlugScoresRoute: typeof CompeteSlugScoresRoute
   CompeteSlugVolunteerRoute: typeof CompeteSlugVolunteerRoute
@@ -2689,9 +2813,11 @@ interface CompeteSlugRouteChildren {
 }
 
 const CompeteSlugRouteChildren: CompeteSlugRouteChildren = {
+  CompeteSlugJudgesScheduleRoute: CompeteSlugJudgesScheduleRoute,
   CompeteSlugLeaderboardRoute: CompeteSlugLeaderboardRoute,
   CompeteSlugMyScheduleRoute: CompeteSlugMyScheduleRoute,
   CompeteSlugRegisterRoute: CompeteSlugRegisterRouteWithChildren,
+  CompeteSlugRegisteredRoute: CompeteSlugRegisteredRoute,
   CompeteSlugScheduleRoute: CompeteSlugScheduleRoute,
   CompeteSlugScoresRoute: CompeteSlugScoresRoute,
   CompeteSlugVolunteerRoute: CompeteSlugVolunteerRoute,
@@ -2711,6 +2837,7 @@ interface CompeteOrganizerCompetitionIdRouteChildren {
   CompeteOrganizerCompetitionIdDangerZoneRoute: typeof CompeteOrganizerCompetitionIdDangerZoneRoute
   CompeteOrganizerCompetitionIdDivisionsRoute: typeof CompeteOrganizerCompetitionIdDivisionsRoute
   CompeteOrganizerCompetitionIdEditRoute: typeof CompeteOrganizerCompetitionIdEditRoute
+  CompeteOrganizerCompetitionIdLocationsRoute: typeof CompeteOrganizerCompetitionIdLocationsRoute
   CompeteOrganizerCompetitionIdPricingRoute: typeof CompeteOrganizerCompetitionIdPricingRoute
   CompeteOrganizerCompetitionIdResultsRoute: typeof CompeteOrganizerCompetitionIdResultsRoute
   CompeteOrganizerCompetitionIdRevenueRoute: typeof CompeteOrganizerCompetitionIdRevenueRoute
@@ -2738,6 +2865,8 @@ const CompeteOrganizerCompetitionIdRouteChildren: CompeteOrganizerCompetitionIdR
       CompeteOrganizerCompetitionIdDivisionsRoute,
     CompeteOrganizerCompetitionIdEditRoute:
       CompeteOrganizerCompetitionIdEditRoute,
+    CompeteOrganizerCompetitionIdLocationsRoute:
+      CompeteOrganizerCompetitionIdLocationsRoute,
     CompeteOrganizerCompetitionIdPricingRoute:
       CompeteOrganizerCompetitionIdPricingRoute,
     CompeteOrganizerCompetitionIdResultsRoute:
@@ -2872,6 +3001,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProtectedRoute: ProtectedRouteWithChildren,
   AdminRoute: AdminRouteWithChildren,
   CompeteRoute: CompeteRouteWithChildren,
+  MaintenanceRoute: MaintenanceRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
   ApiGetSessionRoute: ApiGetSessionRoute,
@@ -2888,6 +3018,7 @@ const rootRouteChildren: RootRouteChildren = {
   DemoStartSsrFullSsrRoute: DemoStartSsrFullSsrRoute,
   DemoStartSsrSpaModeRoute: DemoStartSsrSpaModeRoute,
   DemoStartSsrIndexRoute: DemoStartSsrIndexRoute,
+  ApiInternalOgDataCompetitionSlugRoute: ApiInternalOgDataCompetitionSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

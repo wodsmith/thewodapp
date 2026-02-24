@@ -8,9 +8,9 @@
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import {
+	type ParsedVideoUrl,
 	parseVideoUrl,
 	VIDEO_URL_ERRORS,
-	type ParsedVideoUrl,
 	type VideoPlatform,
 } from "@/schemas/video-url"
 
@@ -279,7 +279,9 @@ async function validateSingleUrl(
  * overwhelming external services or server resources.
  */
 export const batchValidateVideoUrlsFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => batchValidateVideoUrlsInputSchema.parse(data))
+	.inputValidator((data: unknown) =>
+		batchValidateVideoUrlsInputSchema.parse(data),
+	)
 	.handler(
 		async ({
 			data,

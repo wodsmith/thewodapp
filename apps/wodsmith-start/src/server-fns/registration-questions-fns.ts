@@ -13,7 +13,9 @@ import {
 	competitionRegistrationsTable,
 	competitionsTable,
 } from "@/db/schemas/competitions"
+import { createCompetitionRegistrationQuestionId } from "@/db/schemas/common"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { ROLES_ENUM } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"
 
 // ============================================================================
@@ -81,7 +83,7 @@ const reorderQuestionsInputSchema = z.object({
 // ============================================================================
 
 /**
- * Check if user has permission on a team
+ * Check if user has permission on a team (or is a site admin)
  */
 async function hasTeamPermission(
 	teamId: string,
@@ -89,6 +91,9 @@ async function hasTeamPermission(
 ): Promise<boolean> {
 	const session = await getSessionFromCookie()
 	if (!session?.userId) return false
+
+	// Site admins have all permissions
+	if (session.user?.role === ROLES_ENUM.ADMIN) return true
 
 	const team = session.teams?.find((t) => t.id === teamId)
 	if (!team) return false
@@ -239,19 +244,23 @@ export const createQuestionFn = createServerFn({ method: "POST" })
 			...existingQuestions.map((q) => q.sortOrder),
 		)
 
-		const [created] = await db
-			.insert(competitionRegistrationQuestionsTable)
-			.values({
-				competitionId: data.competitionId,
-				type: data.type,
-				label: data.label,
-				helpText: data.helpText ?? null,
-				options: stringifyOptions(data.options),
-				required: data.required,
-				forTeammates: data.forTeammates,
-				sortOrder: maxSortOrder + 1,
+		const id = createCompetitionRegistrationQuestionId()
+		await db.insert(competitionRegistrationQuestionsTable).values({
+			id,
+			competitionId: data.competitionId,
+			type: data.type,
+			label: data.label,
+			helpText: data.helpText ?? null,
+			options: stringifyOptions(data.options),
+			required: data.required,
+			forTeammates: data.forTeammates,
+			sortOrder: maxSortOrder + 1,
+		})
+
+		const created =
+			await db.query.competitionRegistrationQuestionsTable.findFirst({
+				where: eq(competitionRegistrationQuestionsTable.id, id),
 			})
-			.returning()
 
 		if (!created) {
 			throw new Error("Failed to create question")
@@ -324,11 +333,15 @@ export const updateQuestionFn = createServerFn({ method: "POST" })
 		if (data.forTeammates !== undefined)
 			updateData.forTeammates = data.forTeammates
 
-		const [updated] = await db
+		await db
 			.update(competitionRegistrationQuestionsTable)
 			.set(updateData)
 			.where(eq(competitionRegistrationQuestionsTable.id, data.questionId))
-			.returning()
+
+		const updated =
+			await db.query.competitionRegistrationQuestionsTable.findFirst({
+				where: eq(competitionRegistrationQuestionsTable.id, data.questionId),
+			})
 
 		if (!updated) {
 			throw new Error("Failed to update question")
@@ -416,24 +429,26 @@ export const reorderQuestionsFn = createServerFn({ method: "POST" })
 			throw new Error("Competition does not belong to this team")
 		}
 
-		// Update sort orders
-		for (let i = 0; i < data.orderedQuestionIds.length; i++) {
-			const questionId = data.orderedQuestionIds[i]
-			if (!questionId) continue
-
-			await db
-				.update(competitionRegistrationQuestionsTable)
-				.set({ sortOrder: i, updatedAt: new Date() })
-				.where(
-					and(
-						eq(competitionRegistrationQuestionsTable.id, questionId),
-						eq(
-							competitionRegistrationQuestionsTable.competitionId,
-							data.competitionId,
-						),
-					),
-				)
-		}
+		// Update sort orders in a transaction
+		await db.transaction(async (tx) => {
+			await Promise.all(
+				data.orderedQuestionIds.map((questionId, i) => {
+					if (!questionId) return Promise.resolve()
+					return tx
+						.update(competitionRegistrationQuestionsTable)
+						.set({ sortOrder: i, updatedAt: new Date() })
+						.where(
+							and(
+								eq(competitionRegistrationQuestionsTable.id, questionId),
+								eq(
+									competitionRegistrationQuestionsTable.competitionId,
+									data.competitionId,
+								),
+							),
+						)
+				}),
+			)
+		})
 
 		return { success: true }
 	})

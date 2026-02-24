@@ -70,6 +70,11 @@ export async function hasTeamPermission(
 		return false
 	}
 
+	// Admin bypass - site admins have all permissions
+	if (session.user.role === ROLES_ENUM.ADMIN) {
+		return true
+	}
+
 	const team = session.teams?.find((t) => t.id === teamId)
 
 	if (!team) {
@@ -92,6 +97,11 @@ export async function requireTeamPermission(
 		throw new Error("NOT_AUTHORIZED: Not authenticated")
 	}
 
+	// Admin bypass - site admins have all permissions
+	if (session.user.role === ROLES_ENUM.ADMIN) {
+		return
+	}
+
 	const hasPermission = await hasTeamPermission(teamId, permission)
 
 	if (!hasPermission) {
@@ -103,12 +113,18 @@ export async function requireTeamPermission(
 
 /**
  * Check if the user is a member of a specific team
+ * Site admins are considered members of all teams
  */
 export async function isTeamMember(teamId: string): Promise<boolean> {
 	const session = await getSessionFromCookie()
 
 	if (!session) {
 		return false
+	}
+
+	// Admin bypass - site admins are members of all teams
+	if (session.user.role === ROLES_ENUM.ADMIN) {
+		return true
 	}
 
 	return session.teams?.some((team) => team.id === teamId) || false

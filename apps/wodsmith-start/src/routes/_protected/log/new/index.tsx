@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, Search } from "lucide-react"
 import { useState } from "react"
+import { trackEvent } from "@/lib/posthog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -152,14 +153,27 @@ function LogNewPage() {
 				submitData.roundScores = roundScores.map((s) => ({ score: s }))
 			}
 
-			await submitLogFn({
+			const result = await submitLogFn({
 				data: submitData,
+			})
+
+			trackEvent("workout_result_logged", {
+				score_id: result.scoreId,
+				workout_id: workoutId,
+				workout_name: selectedWorkout?.name,
+				workout_scheme: selectedWorkout?.scheme,
+				has_scheduled_instance: false,
 			})
 
 			// Navigate back to workouts or log page
 			navigate({ to: "/workouts/$workoutId", params: { workoutId } })
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to save log")
+			const message = err instanceof Error ? err.message : "Failed to save log"
+			trackEvent("workout_result_logged_failed", {
+				error_message: message,
+				workout_id: workoutId,
+			})
+			setError(message)
 		} finally {
 			setIsSubmitting(false)
 		}

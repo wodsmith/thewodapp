@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
 import { useEffect, useMemo, useState } from "react"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
@@ -282,6 +282,11 @@ const WarmupSet = ({
 
 export const Route = createFileRoute("/_protected/calculator/")({
 	component: BarbellCalculatorPage,
+	beforeLoad: async ({ context }) => {
+		if (!context.hasWorkoutTracking) {
+			throw redirect({ to: "/compete" })
+		}
+	},
 	validateSearch: (search: Record<string, unknown>): CalculatorSearch => {
 		return calculatorSearchSchema.parse(search)
 	},

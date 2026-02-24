@@ -3,7 +3,6 @@
  * These functions are restricted to site admins only
  */
 
-import { AppError } from "@/utils/errors"
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import {
@@ -13,6 +12,7 @@ import {
 	rejectOrganizerRequest,
 } from "@/server/organizer-onboarding"
 import { requireAdmin } from "@/utils/auth"
+import { AppError } from "@/utils/errors"
 
 // ============================================================================
 // Input Schemas

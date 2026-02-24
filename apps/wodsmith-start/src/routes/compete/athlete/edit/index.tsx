@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
+import { trackEvent } from "@/lib/posthog"
 import { AffiliateCombobox } from "@/components/registration/affiliate-combobox"
 import { Button } from "@/components/ui/button"
 import {
@@ -33,10 +34,10 @@ import {
 } from "@/components/ui/select"
 import { GENDER_ENUM } from "@/db/schemas/users"
 import {
+	type AthleteProfileFormValues,
 	athleteProfileExtendedSchema,
 	getAthleteEditDataFn,
 	updateAthleteExtendedProfileFn,
-	type AthleteProfileFormValues,
 } from "@/server-fns/athlete-profile-fns"
 
 // ============================================================================
@@ -165,14 +166,20 @@ function AthleteEditPage() {
 
 		try {
 			await updateProfile({ data: values })
+			trackEvent("athlete_profile_updated", {
+				has_physical_stats: !!(values.heightCm || values.weightKg),
+			})
 			toast.dismiss()
 			toast.success("Profile updated successfully")
 			navigate({ to: "/compete/athlete" })
 		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Failed to update profile"
+			trackEvent("athlete_profile_updated_failed", {
+				error_message: message,
+			})
 			toast.dismiss()
-			toast.error(
-				error instanceof Error ? error.message : "Failed to update profile",
-			)
+			toast.error(message)
 		} finally {
 			setIsPending(false)
 		}

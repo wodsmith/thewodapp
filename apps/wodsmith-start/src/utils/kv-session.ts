@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers"
-import { eq } from "drizzle-orm"
 import { getRequestHeaders } from "@tanstack/react-start/server"
+import { eq } from "drizzle-orm"
 import { MAX_SESSIONS_PER_USER } from "@/constants"
 import { getDb } from "@/db"
 import { teamMembershipTable } from "@/db/schema"
@@ -87,7 +87,7 @@ export interface KVSession {
  * IF YOU MAKE ANY CHANGES TO THE KVSESSION TYPE ABOVE, YOU NEED TO INCREMENT THIS VERSION.
  * THIS IS HOW WE TRACK WHEN WE NEED TO UPDATE THE SESSIONS IN THE KV STORE.
  */
-export const CURRENT_SESSION_VERSION = 5
+export const CURRENT_SESSION_VERSION = 6
 
 /**
  * Get KV namespace from Cloudflare environment

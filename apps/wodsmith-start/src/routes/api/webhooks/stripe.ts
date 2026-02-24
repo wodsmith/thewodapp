@@ -1,360 +1,114 @@
 /**
  * Stripe Webhook Handler for TanStack Start
  *
- * This file uses top-level imports for server-only modules.
- *
- * Handles:
- * - checkout.session.completed: Completes purchase and creates registration
- * - checkout.session.expired: Marks abandoned purchases as cancelled
- * - account.updated: Updates team's Stripe Connect status
- * - account.application.authorized: Logs OAuth connection confirmation
- * - account.application.deauthorized: Clears team Stripe connection
+ * Verifies Stripe signature and dispatches events:
+ * - checkout.session.completed → Cloudflare Workflow (async, durable)
+ *   Supports multi-division checkout (dispatches separate workflow per purchase)
+ * - checkout.session.expired: Marks abandoned purchases as cancelled (inline)
+ * - account.updated: Updates team's Stripe Connect status (inline)
+ * - account.application.authorized: Logs OAuth connection confirmation (inline)
+ * - account.application.deauthorized: Clears team Stripe connection (inline)
  */
 
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
+import { env } from "cloudflare:workers"
+import { and, eq } from "drizzle-orm"
 import type Stripe from "stripe"
 import { getDb } from "@/db"
 import {
-	COMMERCE_PAYMENT_STATUS,
 	COMMERCE_PURCHASE_STATUS,
 	commercePurchaseTable,
-	competitionRegistrationAnswersTable,
-	competitionRegistrationsTable,
 	teamTable,
 } from "@/db/schema"
-import { and, eq } from "drizzle-orm"
+import { getStripeWebhookSecret } from "@/lib/env"
 import {
 	logError,
 	logInfo,
 	logWarning,
 } from "@/lib/logging/posthog-otel-logger"
 import { getStripe } from "@/lib/stripe"
-import { getStripeWebhookSecret } from "@/lib/env"
-import {
-	registerForCompetition,
-	notifyRegistrationConfirmed,
-} from "@/server/registration"
 import { notifyPaymentExpired } from "@/server/notifications"
-import { getDivisionSpotsAvailableFn } from "@/server-fns/competition-divisions-fns"
+import type { CheckoutCompletedParams } from "@/workflows/stripe-checkout-workflow"
 
 export const Route = createFileRoute("/api/webhooks/stripe")({
 	server: {
 		handlers: {
 			POST: async ({ request }) => {
 				// =========================================================================
-				// Handler Functions (defined before use)
+				// Inline Handlers (fast operations that don't need workflows)
 				// =========================================================================
-
-				/**
-				 * Handle successful checkout completion
-				 * Creates the competition registration after payment succeeds
-				 */
-				async function handleCheckoutCompleted(
-					session: Stripe.Checkout.Session,
-				) {
-					const db = getDb()
-					const purchaseId = session.metadata?.purchaseId
-					const competitionId = session.metadata?.competitionId
-					const divisionId = session.metadata?.divisionId
-					const userId = session.metadata?.userId
-
-					if (!purchaseId || !competitionId || !divisionId || !userId) {
-						logError({
-							message:
-								"[Stripe Webhook] Missing required metadata in Checkout Session",
-							attributes: { purchaseId, competitionId, divisionId, userId },
-						})
-						return
-					}
-
-					// IDEMPOTENCY CHECK 1: Get purchase and check status
-					const existingPurchase =
-						await db.query.commercePurchaseTable.findFirst({
-							where: eq(commercePurchaseTable.id, purchaseId),
-						})
-
-					if (!existingPurchase) {
-						logError({
-							message: "[Stripe Webhook] Purchase not found",
-							attributes: { purchaseId },
-						})
-						return
-					}
-
-					if (existingPurchase.status === COMMERCE_PURCHASE_STATUS.COMPLETED) {
-						logInfo({
-							message:
-								"[Stripe Webhook] Purchase already completed, skipping registration",
-							attributes: { purchaseId },
-						})
-						return
-					}
-
-					// IDEMPOTENCY CHECK 2: Check if registration already exists
-					const existingRegistration =
-						await db.query.competitionRegistrationsTable.findFirst({
-							where: eq(
-								competitionRegistrationsTable.commercePurchaseId,
-								purchaseId,
-							),
-						})
-
-					if (existingRegistration) {
-						logInfo({
-							message:
-								"[Stripe Webhook] Registration already exists for purchase, skipping",
-							attributes: {
-								purchaseId,
-								registrationId: existingRegistration.id,
-							},
-						})
-						// Ensure purchase is marked as completed
-						await db
-							.update(commercePurchaseTable)
-							.set({
-								status: COMMERCE_PURCHASE_STATUS.COMPLETED,
-								completedAt: new Date(),
-							})
-							.where(eq(commercePurchaseTable.id, purchaseId))
-						return
-					}
-
-					// Parse stored registration data from purchase metadata
-					let registrationData: {
-						teamName?: string
-						affiliateName?: string
-						teammates?: Array<{
-							email: string
-							firstName?: string
-							lastName?: string
-							affiliateName?: string
-						}>
-						answers?: Array<{
-							questionId: string
-							answer: string
-						}>
-					} = {}
-
-					if (existingPurchase.metadata) {
-						try {
-							registrationData = JSON.parse(existingPurchase.metadata)
-						} catch {
-							logWarning({
-								message: "[Stripe Webhook] Failed to parse purchase metadata",
-								attributes: { purchaseId },
-							})
-						}
-					}
-
-					// Re-check capacity before registration (race condition protection)
-					// Exclude our own pending purchase to avoid self-blocking
-					const capacityCheck = await getDivisionSpotsAvailableFn({
-						data: { competitionId, divisionId, excludePurchaseId: purchaseId },
-					})
-					if (capacityCheck.isFull) {
-						// Division filled during payment - need to handle refund
-						logError({
-							message:
-								"[Stripe Webhook] Division filled during payment - refund needed",
-							attributes: {
-								purchaseId,
-								competitionId,
-								divisionId,
-								userId,
-								maxSpots: capacityCheck.maxSpots,
-								registered: capacityCheck.registered,
-							},
-						})
-						// Mark purchase as failed
-						await db
-							.update(commercePurchaseTable)
-							.set({
-								status: COMMERCE_PURCHASE_STATUS.FAILED,
-								completedAt: new Date(),
-							})
-							.where(eq(commercePurchaseTable.id, purchaseId))
-
-						// Trigger automatic refund via Stripe API
-						const paymentIntentId =
-							typeof session.payment_intent === "string"
-								? session.payment_intent
-								: session.payment_intent?.id
-
-						if (paymentIntentId) {
-							try {
-								const stripe = getStripe()
-								await stripe.refunds.create({
-									payment_intent: paymentIntentId,
-									reason: "requested_by_customer",
-								})
-								logInfo({
-									message:
-										"[Stripe Webhook] Refund issued for division-full scenario",
-									attributes: { purchaseId, paymentIntentId },
-								})
-							} catch (refundError) {
-								logError({
-									message: "[Stripe Webhook] Failed to issue automatic refund",
-									error:
-										refundError instanceof Error
-											? refundError
-											: new Error(String(refundError)),
-									attributes: { purchaseId, paymentIntentId },
-								})
-							}
-						}
-
-						// TODO: Send "division full" notification email to user
-						return
-					}
-
-					try {
-						const result = await registerForCompetition({
-							competitionId,
-							userId,
-							divisionId,
-							teamName: registrationData.teamName,
-							affiliateName: registrationData.affiliateName,
-							teammates: registrationData.teammates,
-						})
-
-						// Update registration with payment info
-						await db
-							.update(competitionRegistrationsTable)
-							.set({
-								commercePurchaseId: purchaseId,
-								paymentStatus: COMMERCE_PAYMENT_STATUS.PAID,
-								paidAt: new Date(),
-							})
-							.where(
-								eq(competitionRegistrationsTable.id, result.registrationId),
-							)
-
-						// Store registration answers if present
-						if (
-							registrationData.answers &&
-							registrationData.answers.length > 0
-						) {
-							for (const answer of registrationData.answers) {
-								await db.insert(competitionRegistrationAnswersTable).values({
-									questionId: answer.questionId,
-									registrationId: result.registrationId,
-									userId,
-									answer: answer.answer,
-								})
-							}
-						}
-
-						// Mark purchase as completed
-						await db
-							.update(commercePurchaseTable)
-							.set({
-								status: COMMERCE_PURCHASE_STATUS.COMPLETED,
-								stripePaymentIntentId:
-									typeof session.payment_intent === "string"
-										? session.payment_intent
-										: session.payment_intent?.id,
-								completedAt: new Date(),
-							})
-							.where(eq(commercePurchaseTable.id, purchaseId))
-
-						logInfo({
-							message: "[Stripe Webhook] Registration created",
-							attributes: {
-								registrationId: result.registrationId,
-								purchaseId,
-								competitionId,
-								userId,
-							},
-						})
-
-						// Send registration confirmation email (paid path)
-						try {
-							await notifyRegistrationConfirmed({
-								userId,
-								registrationId: result.registrationId,
-								competitionId,
-								isPaid: true,
-								amountPaidCents: session.amount_total ?? undefined,
-							})
-						} catch (emailErr) {
-							logError({
-								message: "[Stripe Webhook] Failed to send confirmation email",
-								error: emailErr,
-								attributes: {
-									purchaseId,
-									competitionId,
-									userId,
-									registrationId: result.registrationId,
-								},
-							})
-							// Don't rethrow - registration and payment succeeded
-						}
-					} catch (err) {
-						logError({
-							message: "[Stripe Webhook] Failed to create registration",
-							error: err,
-							attributes: { purchaseId, competitionId, userId },
-						})
-						await db
-							.update(commercePurchaseTable)
-							.set({ status: COMMERCE_PURCHASE_STATUS.FAILED })
-							.where(eq(commercePurchaseTable.id, purchaseId))
-						// Re-throw to trigger Stripe retry
-						throw err
-					}
-				}
 
 				/**
 				 * Handle checkout session expiration
 				 * Marks abandoned purchases as cancelled
+				 * Supports multi-division: cancels all purchases for the session
 				 */
 				async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
 					const db = getDb()
-					const purchaseId = session.metadata?.purchaseId
 
-					if (!purchaseId) return
+					// purchaseIds (plural) is always set — check legacy purchaseId as fallback
+					const purchaseIdsRaw =
+						session.metadata?.purchaseIds ?? session.metadata?.purchaseId
 
-					// Mark purchase as expired/cancelled (only if still pending)
-					await db
-						.update(commercePurchaseTable)
-						.set({ status: COMMERCE_PURCHASE_STATUS.CANCELLED })
-						.where(
-							and(
-								eq(commercePurchaseTable.id, purchaseId),
-								eq(
-									commercePurchaseTable.status,
-									COMMERCE_PURCHASE_STATUS.PENDING,
+					if (!purchaseIdsRaw) return
+
+					const purchaseIds = purchaseIdsRaw.split(",").filter(Boolean)
+
+					for (const purchaseId of purchaseIds) {
+						await db
+							.update(commercePurchaseTable)
+							.set({ status: COMMERCE_PURCHASE_STATUS.CANCELLED })
+							.where(
+								and(
+									eq(commercePurchaseTable.id, purchaseId),
+									eq(
+										commercePurchaseTable.status,
+										COMMERCE_PURCHASE_STATUS.PENDING,
+									),
 								),
-							),
-						)
+							)
 
-					logInfo({
-						message: "[Stripe Webhook] Checkout expired for purchase",
-						attributes: { purchaseId },
-					})
+						logInfo({
+							message: "[Stripe Webhook] Checkout expired for purchase",
+							attributes: { purchaseId },
+						})
+					}
 
-					// Send payment expired notification if we have required metadata
+					// Send payment expired notification for each purchase
 					const userId = session.metadata?.userId
 					const competitionId = session.metadata?.competitionId
-					const divisionId = session.metadata?.divisionId
 
-					if (userId && competitionId && divisionId) {
-						try {
-							await notifyPaymentExpired({
-								userId,
-								competitionId,
-								divisionId,
+					if (userId && competitionId) {
+						for (const purchaseId of purchaseIds) {
+							const purchase = await db.query.commercePurchaseTable.findFirst({
+								where: eq(commercePurchaseTable.id, purchaseId),
+								columns: { divisionId: true },
 							})
-						} catch (notifyErr) {
-							logWarning({
-								message:
-									"[Stripe Webhook] Failed to send payment expired notification",
-								error: notifyErr,
-								attributes: { purchaseId, userId, competitionId, divisionId },
-							})
-							// Don't rethrow - purchase was already marked as cancelled
+							const divisionId =
+								purchase?.divisionId ?? session.metadata?.divisionId
+
+							if (!divisionId) continue
+
+							try {
+								await notifyPaymentExpired({
+									userId,
+									competitionId,
+									divisionId,
+								})
+							} catch (notifyErr) {
+								logWarning({
+									message:
+										"[Stripe Webhook] Failed to send payment expired notification",
+									error: notifyErr,
+									attributes: {
+										userId,
+										competitionId,
+										divisionId,
+										purchaseId,
+									},
+								})
+							}
 						}
 					}
 				}
@@ -481,11 +235,149 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 				// Step 2: Process verified event
 				try {
 					switch (event.type) {
-						case "checkout.session.completed":
-							await handleCheckoutCompleted(
-								event.data.object as Stripe.Checkout.Session,
-							)
+						case "checkout.session.completed": {
+							const session = event.data.object as Stripe.Checkout.Session
+							const competitionId = session.metadata?.competitionId
+							const userId = session.metadata?.userId
+							// purchaseIds (plural) is always set — comma-separated for multi-division
+							// Also check legacy purchaseId (singular) for backward compatibility
+							const purchaseIdsRaw =
+								session.metadata?.purchaseIds ?? session.metadata?.purchaseId
+
+							if (!purchaseIdsRaw || !competitionId || !userId) {
+								logError({
+									message:
+										"[Stripe Webhook] Missing required metadata in Checkout Session",
+									attributes: {
+										purchaseIds: purchaseIdsRaw,
+										competitionId,
+										userId,
+									},
+								})
+								return json({ received: true })
+							}
+
+							const purchaseIds = purchaseIdsRaw.split(",").filter(Boolean)
+
+							// Extract payment_intent as string
+							const paymentIntent =
+								typeof session.payment_intent === "string"
+									? session.payment_intent
+									: (session.payment_intent?.id ?? null)
+
+							// Dispatch a workflow for EACH purchase (each division independent)
+							// Collect errors so one failure doesn't abort remaining purchases
+							const workflowErrors: Array<{
+								purchaseId: string
+								error: unknown
+							}> = []
+
+							for (const purchaseId of purchaseIds) {
+								// Look up division from the purchase record
+								const purchase =
+									await getDb().query.commercePurchaseTable.findFirst({
+										where: eq(commercePurchaseTable.id, purchaseId),
+									})
+
+								if (!purchase) {
+									logWarning({
+										message:
+											"[Stripe Webhook] Purchase not found, falling back to session metadata",
+										attributes: { purchaseId, eventId: event.id },
+									})
+								}
+
+								const divisionId =
+									purchase?.divisionId ?? session.metadata?.divisionId ?? ""
+
+								const workflowParams: CheckoutCompletedParams = {
+									stripeEventId: event.id,
+									session: {
+										id: session.id,
+										payment_intent: paymentIntent,
+										amount_total: purchase?.totalCents ?? session.amount_total,
+										customer_email: session.customer_email,
+										metadata: {
+											purchaseId,
+											competitionId,
+											divisionId,
+											userId,
+										},
+									},
+								}
+
+								// Use event.id + purchaseId as key for multi-division idempotency
+								const workflowId =
+									purchaseIds.length > 1
+										? `${event.id}-${purchaseId}`
+										: event.id
+
+								const workflow = "STRIPE_CHECKOUT_WORKFLOW" in env
+									? (env.STRIPE_CHECKOUT_WORKFLOW as Workflow<CheckoutCompletedParams> | undefined)
+									: undefined
+
+								if (workflow && typeof workflow.create === "function") {
+									try {
+										await workflow.create({
+											id: workflowId,
+											params: workflowParams,
+										})
+										logInfo({
+											message:
+												"[Stripe Webhook] Dispatched checkout to workflow",
+											attributes: {
+												eventId: event.id,
+												workflowId,
+												purchaseId,
+												competitionId,
+												divisionId,
+											},
+										})
+									} catch (workflowErr) {
+										const isConflict =
+											workflowErr instanceof Error &&
+											workflowErr.message.includes("already exists")
+										if (isConflict) {
+											logInfo({
+												message:
+													"[Stripe Webhook] Workflow already exists for event (idempotent)",
+												attributes: { eventId: event.id, workflowId },
+											})
+										} else {
+											logError({
+												message: "[Stripe Webhook] Failed to dispatch workflow",
+												error: workflowErr,
+												attributes: {
+													eventId: event.id,
+													workflowId,
+													purchaseId,
+												},
+											})
+											workflowErrors.push({ purchaseId, error: workflowErr })
+										}
+									}
+								} else {
+									// Local dev: process inline
+									logInfo({
+										message:
+											"[Stripe Webhook] Workflow binding unavailable, processing inline",
+										attributes: { eventId: event.id, purchaseId },
+									})
+									const { processCheckoutInline } = await import(
+										"@/workflows/stripe-checkout-workflow"
+									)
+									await processCheckoutInline(workflowParams)
+								}
+							}
+
+							// If any workflow dispatches failed, throw so Stripe retries
+							if (workflowErrors.length > 0) {
+								throw new Error(
+									`Failed to dispatch ${workflowErrors.length} of ${purchaseIds.length} workflows`,
+								)
+							}
 							break
+						}
 
 						case "checkout.session.expired":
 							await handleCheckoutExpired(
@@ -510,7 +402,10 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 
 						case "account.application.deauthorized":
 							await handleAccountDeauthorized(
-								event.data.object as { id: string; account?: string },
+								event.data.object as {
+									id: string
+									account?: string
+								},
 							)
 							break
 

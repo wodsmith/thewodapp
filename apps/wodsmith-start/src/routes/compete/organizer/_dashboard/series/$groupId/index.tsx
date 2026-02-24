@@ -167,7 +167,10 @@ function SeriesDetailPage() {
 									Edit Series
 								</Link>
 							</Button>
-							<Button variant="outline" onClick={() => setIsAddDialogOpen(true)}>
+							<Button
+								variant="outline"
+								onClick={() => setIsAddDialogOpen(true)}
+							>
 								<ListPlus className="h-4 w-4 mr-2" />
 								Add Existing
 							</Button>

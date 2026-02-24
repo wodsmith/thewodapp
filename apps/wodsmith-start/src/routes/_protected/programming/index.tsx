@@ -1,4 +1,9 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
+import {
+	createFileRoute,
+	Link,
+	redirect,
+	useRouter,
+} from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { BookOpen, Check, Loader2, Plus, Search, Users } from "lucide-react"
 import { useMemo, useState } from "react"
@@ -32,6 +37,11 @@ interface LoaderData {
 
 export const Route = createFileRoute("/_protected/programming/")({
 	component: PublicProgrammingPage,
+	beforeLoad: async ({ context }) => {
+		if (!context.hasWorkoutTracking) {
+			throw redirect({ to: "/compete" })
+		}
+	},
 	loader: async ({ context }): Promise<LoaderData> => {
 		const session = context.session
 		const userTeams = (session?.teams || []) as UserTeam[]

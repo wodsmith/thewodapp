@@ -365,6 +365,13 @@ export function CompetitionEventRow({
 								</span>
 							)}
 
+							{/* Tiebreak badge */}
+							{event.workout.tiebreakScheme && (
+								<span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200 px-2 py-1 rounded shrink-0">
+									TB: {event.workout.tiebreakScheme}
+								</span>
+							)}
+
 							{/* Points multiplier badge */}
 							{event.pointsMultiplier && event.pointsMultiplier !== 100 && (
 								<span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded shrink-0">

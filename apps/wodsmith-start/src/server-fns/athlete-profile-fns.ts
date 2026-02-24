@@ -5,8 +5,8 @@
  * This file uses top-level imports for server-only modules.
  */
 
-import { createServerFn } from "@tanstack/react-start"
 import { redirect } from "@tanstack/react-router"
+import { createServerFn } from "@tanstack/react-start"
 import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
@@ -25,7 +25,6 @@ import {
 } from "@/server/commerce/purchases"
 import { getUserSponsorsFn } from "@/server-fns/sponsor-fns"
 import { getSessionFromCookie } from "@/utils/auth"
-import { autochunk } from "@/utils/batch-query"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 
 // ============================================================================
@@ -337,19 +336,17 @@ export const getAthleteProfileDataFn = createServerFn({
 	const userTeamMemberships = await db.query.teamMembershipTable.findMany({
 		where: and(
 			eq(teamMembershipTable.userId, session.userId),
-			eq(teamMembershipTable.isActive, 1),
+			eq(teamMembershipTable.isActive, true),
 		),
 		columns: { teamId: true },
 	})
 
 	const userTeamIds = userTeamMemberships.map((m) => m.teamId)
 
-	// Get team registrations (batched to avoid SQL variable limit)
-	const teamRegistrations = await autochunk(
-		{ items: userTeamIds },
-		async (chunk: string[]) =>
-			db.query.competitionRegistrationsTable.findMany({
-				where: inArray(competitionRegistrationsTable.athleteTeamId, chunk),
+	// Get team registrations
+	const teamRegistrations = userTeamIds.length > 0
+		? await db.query.competitionRegistrationsTable.findMany({
+				where: inArray(competitionRegistrationsTable.athleteTeamId, userTeamIds),
 				with: {
 					competition: {
 						with: {
@@ -360,8 +357,8 @@ export const getAthleteProfileDataFn = createServerFn({
 					athleteTeam: true,
 				},
 				orderBy: (table, { desc }) => [desc(table.registeredAt)],
-			}),
-	)
+			})
+		: []
 
 	// Combine and deduplicate by registration ID
 	const allRegistrations = [...directRegistrations, ...teamRegistrations]

@@ -1,1 +1,0 @@
-ALTER TABLE `sets` ADD `notes` text;

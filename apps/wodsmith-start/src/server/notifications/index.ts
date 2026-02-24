@@ -10,9 +10,9 @@ export {
 } from "./compete"
 
 export {
-	processSubmissionWindowNotifications,
-	sendWindowOpensNotification,
-	sendWindowClosesReminderNotification,
-	sendWindowClosedNotification,
 	type ProcessedNotificationResult,
+	processSubmissionWindowNotifications,
+	sendWindowClosedNotification,
+	sendWindowClosesReminderNotification,
+	sendWindowOpensNotification,
 } from "./submission-window"

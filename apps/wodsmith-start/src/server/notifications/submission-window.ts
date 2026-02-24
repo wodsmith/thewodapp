@@ -14,18 +14,18 @@ import {
 	competitionEventsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
+	SUBMISSION_WINDOW_NOTIFICATION_TYPES,
+	type SubmissionWindowNotificationType,
 	scoresTable,
 	submissionWindowNotificationsTable,
 	trackWorkoutsTable,
 	userTable,
 	workouts,
-	SUBMISSION_WINDOW_NOTIFICATION_TYPES,
-	type SubmissionWindowNotificationType,
 } from "@/db/schema"
 import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
+import { SubmissionWindowClosedEmail } from "@/react-email/submission-window-closed"
 import { SubmissionWindowOpensEmail } from "@/react-email/submission-window-opens"
 import { SubmissionWindowReminderEmail } from "@/react-email/submission-window-reminder"
-import { SubmissionWindowClosedEmail } from "@/react-email/submission-window-closed"
 import { sendEmail } from "@/utils/email"
 
 // ============================================================================
@@ -74,17 +74,14 @@ function normalizeToUtcDatetime(datetime: string): string {
 	if (hasTimezoneIndicator(normalized)) {
 		return normalized
 	}
-	return normalized + "Z"
+	return `${normalized}Z`
 }
 
 /**
  * Format an ISO 8601 datetime string for display in the user's timezone.
  * Example: "Saturday, March 15, 2025 at 5:00 PM"
  */
-function formatDateTimeForDisplay(
-	isoString: string,
-	timezone: string,
-): string {
+function formatDateTimeForDisplay(isoString: string, timezone: string): string {
 	try {
 		const date = new Date(isoString)
 		return date.toLocaleString("en-US", {
@@ -117,25 +114,40 @@ async function reserveNotification(params: {
 }): Promise<boolean> {
 	const db = getDb()
 	try {
-		// Use onConflictDoNothing - if the unique constraint is violated,
-		// the insert silently does nothing and returns no rows
-		const result = await db
-			.insert(submissionWindowNotificationsTable)
-			.values({
-				competitionId: params.competitionId,
-				competitionEventId: params.competitionEventId,
-				registrationId: params.registrationId,
-				userId: params.userId,
-				type: params.type,
-				sentToEmail: params.sentToEmail,
+		// Check if notification already exists (MySQL doesn't have easy "on conflict do nothing")
+		const existing =
+			await db.query.submissionWindowNotificationsTable.findFirst({
+				where: and(
+					eq(
+						submissionWindowNotificationsTable.competitionEventId,
+						params.competitionEventId,
+					),
+					eq(
+						submissionWindowNotificationsTable.registrationId,
+						params.registrationId,
+					),
+					eq(submissionWindowNotificationsTable.type, params.type),
+				),
 			})
-			.onConflictDoNothing()
-			.returning({ id: submissionWindowNotificationsTable.id })
 
-		// If we got a result back, the insert succeeded (notification reserved)
-		return result.length > 0
+		if (existing) {
+			// Already reserved
+			return false
+		}
+
+		// Insert the notification reservation
+		await db.insert(submissionWindowNotificationsTable).values({
+			competitionId: params.competitionId,
+			competitionEventId: params.competitionEventId,
+			registrationId: params.registrationId,
+			userId: params.userId,
+			type: params.type,
+			sentToEmail: params.sentToEmail,
+		})
+
+		return true
 	} catch (err) {
-		// Log unexpected errors but treat as "already reserved"
+		// Handle duplicate key error (race condition) or other errors
 		logError({
 			message: "[Submission Notification] Error reserving notification",
 			error: err,
@@ -158,8 +170,14 @@ async function deleteNotificationReservation(params: {
 		.delete(submissionWindowNotificationsTable)
 		.where(
 			and(
-				eq(submissionWindowNotificationsTable.competitionEventId, params.competitionEventId),
-				eq(submissionWindowNotificationsTable.registrationId, params.registrationId),
+				eq(
+					submissionWindowNotificationsTable.competitionEventId,
+					params.competitionEventId,
+				),
+				eq(
+					submissionWindowNotificationsTable.registrationId,
+					params.registrationId,
+				),
 				eq(submissionWindowNotificationsTable.type, params.type),
 			),
 		)
@@ -284,7 +302,8 @@ export async function sendWindowOpensNotification(params: {
 			type: SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_OPENS,
 		})
 		logError({
-			message: "[Submission Notification] Failed to send window opens notification",
+			message:
+				"[Submission Notification] Failed to send window opens notification",
 			error: err,
 			attributes: { userId, registrationId, competitionEventId },
 		})
@@ -307,7 +326,10 @@ export async function sendWindowClosesReminderNotification(params: {
 	submissionClosesAt: string
 	timezone: string
 	timeRemaining: "24 hours" | "1 hour" | "15 minutes"
-	notificationType: typeof SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_24H | typeof SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_1H | typeof SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_15M
+	notificationType:
+		| typeof SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_24H
+		| typeof SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_1H
+		| typeof SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_15M
 }): Promise<boolean> {
 	const {
 		userId,
@@ -332,7 +354,12 @@ export async function sendWindowClosesReminderNotification(params: {
 	if (!user?.email) {
 		logError({
 			message: "[Submission Notification] Cannot send reminder - no email",
-			attributes: { userId, registrationId, competitionEventId, notificationType },
+			attributes: {
+				userId,
+				registrationId,
+				competitionEventId,
+				notificationType,
+			},
 		})
 		return false
 	}
@@ -354,7 +381,10 @@ export async function sendWindowClosesReminderNotification(params: {
 
 	try {
 		const athleteName = getAthleteName(user)
-		const formattedCloseTime = formatDateTimeForDisplay(submissionClosesAt, timezone)
+		const formattedCloseTime = formatDateTimeForDisplay(
+			submissionClosesAt,
+			timezone,
+		)
 
 		await sendEmail({
 			to: user.email,
@@ -369,7 +399,12 @@ export async function sendWindowClosesReminderNotification(params: {
 				timezone,
 				timeRemaining,
 			}),
-			tags: [{ name: "type", value: `submission-window-reminder-${timeRemaining.replace(" ", "-")}` }],
+			tags: [
+				{
+					name: "type",
+					value: `submission-window-reminder-${timeRemaining.replace(" ", "-")}`,
+				},
+			],
 		})
 
 		logInfo({
@@ -395,7 +430,12 @@ export async function sendWindowClosesReminderNotification(params: {
 		logError({
 			message: "[Submission Notification] Failed to send reminder notification",
 			error: err,
-			attributes: { userId, registrationId, competitionEventId, notificationType },
+			attributes: {
+				userId,
+				registrationId,
+				competitionEventId,
+				notificationType,
+			},
 		})
 		return false
 	}
@@ -492,7 +532,8 @@ export async function sendWindowClosedNotification(params: {
 			type: SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSED,
 		})
 		logError({
-			message: "[Submission Notification] Failed to send window closed notification",
+			message:
+				"[Submission Notification] Failed to send window closed notification",
 			error: err,
 			attributes: { userId, registrationId, competitionEventId },
 		})
@@ -600,7 +641,9 @@ export async function processSubmissionWindowNotifications(): Promise<ProcessedN
 			const fifteenMinutesFromNow = new Date(now.getTime() + fifteenMinutesMs)
 			const fortyFiveMinutesFromNow = new Date(now.getTime() + 45 * 60 * 1000)
 			const oneHourFromNow = new Date(now.getTime() + oneHourMs)
-			const twentyThreeHours45mFromNow = new Date(now.getTime() + twentyFourHoursMs - fifteenMinutesMs)
+			const twentyThreeHours45mFromNow = new Date(
+				now.getTime() + twentyFourHoursMs - fifteenMinutesMs,
+			)
 			const twentyFourHoursFromNow = new Date(now.getTime() + twentyFourHoursMs)
 
 			for (const { registration, user } of registrations) {
@@ -630,23 +673,31 @@ export async function processSubmissionWindowNotifications(): Promise<ProcessedN
 				// Only process closing notifications if we have a close time
 				if (closesAt) {
 					// 2. Window closes in ~24 hours (23h45m - 24h window)
-					if (closesAt <= twentyFourHoursFromNow && closesAt > twentyThreeHours45mFromNow) {
+					if (
+						closesAt <= twentyFourHoursFromNow &&
+						closesAt > twentyThreeHours45mFromNow
+					) {
 						const sent = await sendWindowClosesReminderNotification({
 							...baseParams,
 							submissionClosesAt: event.submissionClosesAt!,
 							timeRemaining: "24 hours",
-							notificationType: SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_24H,
+							notificationType:
+								SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_24H,
 						})
 						if (sent) result.windowCloses24h++
 					}
 
 					// 3. Window closes in ~1 hour (45m - 1h window)
-					if (closesAt <= oneHourFromNow && closesAt > fortyFiveMinutesFromNow) {
+					if (
+						closesAt <= oneHourFromNow &&
+						closesAt > fortyFiveMinutesFromNow
+					) {
 						const sent = await sendWindowClosesReminderNotification({
 							...baseParams,
 							submissionClosesAt: event.submissionClosesAt!,
 							timeRemaining: "1 hour",
-							notificationType: SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_1H,
+							notificationType:
+								SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_1H,
 						})
 						if (sent) result.windowCloses1h++
 					}
@@ -657,7 +708,8 @@ export async function processSubmissionWindowNotifications(): Promise<ProcessedN
 							...baseParams,
 							submissionClosesAt: event.submissionClosesAt!,
 							timeRemaining: "15 minutes",
-							notificationType: SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_15M,
+							notificationType:
+								SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_CLOSES_15M,
 						})
 						if (sent) result.windowCloses15m++
 					}
@@ -681,7 +733,8 @@ export async function processSubmissionWindowNotifications(): Promise<ProcessedN
 		}
 
 		logInfo({
-			message: "[Submission Notification] Processed all submission window notifications",
+			message:
+				"[Submission Notification] Processed all submission window notifications",
 			attributes: {
 				windowOpens: result.windowOpens,
 				windowCloses24h: result.windowCloses24h,

@@ -5,18 +5,17 @@
  * Fetches event details, divisions, movements, sponsors, and judging sheets.
  */
 
-import { useState } from "react"
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
+import { useState } from "react"
 import {
 	EVENT_DETAILS_FORM_ID,
 	EventDetailsForm,
 } from "@/components/events/event-details-form"
 import { EventResourcesCard } from "@/components/events/event-resources-card"
+import { EventJudgingSheets } from "@/components/organizer/event-judging-sheets"
 import { EventSubmissionWindowCard } from "@/components/organizer/event-submission-window-card"
 import { HeatSchedulePublishingCard } from "@/components/organizer/heat-schedule-publishing-card"
-import { EventJudgingSheets } from "@/components/organizer/event-judging-sheets"
 import { Button } from "@/components/ui/button"
-import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionEventsFn } from "@/server-fns/competition-event-fns"
 import {
@@ -24,9 +23,9 @@ import {
 	getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
 import { getEventResourcesFn } from "@/server-fns/event-resources-fns"
+import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
 import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
-import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
 
 // Get parent route API to access its loader data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -34,16 +33,11 @@ const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/events/$eventId/",
 )({
+	staleTime: 10_000,
 	component: EventEditPage,
-	loader: async ({ params }) => {
-		// First get competition to know the teamId
-		const { competition } = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
-		})
-
-		if (!competition) {
-			throw new Error("Competition not found")
-		}
+	loader: async ({ params, parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const { competition } = parentMatch.loaderData!
 
 		const isOnline = competition.competitionType === "online"
 

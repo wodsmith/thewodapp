@@ -21,8 +21,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import {
-	updateCompetitionWorkoutFn,
 	type CompetitionWorkout,
+	updateCompetitionWorkoutFn,
 } from "@/server-fns/competition-workouts-fns"
 
 interface QuickActionsEventsProps {

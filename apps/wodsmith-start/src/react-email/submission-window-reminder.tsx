@@ -39,9 +39,7 @@ export const SubmissionWindowReminderEmail = ({
 			<Head />
 			<Body style={main}>
 				<Container style={container}>
-					<Heading style={preheader}>
-						{timeRemaining} Left to Submit!
-					</Heading>
+					<Heading style={preheader}>{timeRemaining} Left to Submit!</Heading>
 					<Text style={paragraph}>Hi {athleteName},</Text>
 					<Text style={paragraph}>
 						This is a reminder that the submission window for{" "}

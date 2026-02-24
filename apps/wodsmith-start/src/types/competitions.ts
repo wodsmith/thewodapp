@@ -50,6 +50,16 @@ export interface CompetitionSettings {
 	 * Takes precedence over legacy `scoring` if present
 	 */
 	scoringConfig?: ScoringConfig
+
+	/**
+	 * Per-event, per-division results publishing state.
+	 * Controls leaderboard visibility — unpublished divisions are hidden from athletes.
+	 * Key structure: divisionResults[trackWorkoutId][divisionId].publishedAt
+	 */
+	divisionResults?: Record<
+		string,
+		Record<string, { publishedAt: number | null }>
+	>
 }
 
 /**

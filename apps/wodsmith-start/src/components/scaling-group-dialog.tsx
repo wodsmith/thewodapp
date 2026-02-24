@@ -42,9 +42,9 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import {
 	createScalingGroupFn,
-	updateScalingGroupFn,
 	getScalingGroupWithLevelsFn,
 	type ScalingGroupWithLevels,
+	updateScalingGroupFn,
 } from "@/server-fns/scaling-fns"
 
 const formSchema = z.object({

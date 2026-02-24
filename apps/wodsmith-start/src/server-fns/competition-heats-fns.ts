@@ -3,12 +3,24 @@
  * Port from apps/wodsmith/src/server/competition-heats.ts
  *
  * This file uses top-level imports for server-only modules.
+ *
+ * OBSERVABILITY:
+ * - Heat creation/deletion operations are logged with entity IDs
+ * - Bulk operations include counts
+ * - Heat assignments track athlete placement
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { asc, eq, inArray } from "drizzle-orm"
+import { and, asc, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import {
+	addRequestContextAttribute,
+	logEntityCreated,
+	logEntityDeleted,
+	logInfo,
+} from "@/lib/logging"
+import { addressesTable } from "@/db/schemas/addresses"
 import {
 	type CompetitionHeat,
 	type CompetitionVenue,
@@ -18,15 +30,19 @@ import {
 	competitionVenuesTable,
 } from "@/db/schemas/competitions"
 import {
+	createCompetitionHeatAssignmentId,
+	createCompetitionHeatId,
+	createCompetitionVenueId,
+} from "@/db/schemas/common"
+import {
 	programmingTracksTable,
 	trackWorkoutsTable,
 } from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { userTable } from "@/db/schemas/users"
+import { ROLES_ENUM, userTable } from "@/db/schemas/users"
 import { workouts } from "@/db/schemas/workouts"
 import { getSessionFromCookie } from "@/utils/auth"
-import { chunk, SQL_BATCH_SIZE } from "@/utils/batch-query"
 
 // ============================================================================
 // Heat Publishing Types
@@ -39,8 +55,6 @@ export interface HeatPublishStatus {
 	schedulePublishedAt: Date | null
 	isPublished: boolean
 }
-
-const BATCH_SIZE = SQL_BATCH_SIZE
 
 // ============================================================================
 // Types
@@ -96,6 +110,7 @@ const createVenueInputSchema = z.object({
 	laneCount: z.number().int().min(1).max(100).default(3),
 	transitionMinutes: z.number().int().min(0).max(120).default(3),
 	sortOrder: z.number().int().min(0).optional(),
+	addressId: z.string().min(1).optional(),
 })
 
 const updateVenueInputSchema = z.object({
@@ -104,6 +119,7 @@ const updateVenueInputSchema = z.object({
 	laneCount: z.number().int().min(1).max(100).optional(),
 	transitionMinutes: z.number().int().min(0).max(120).optional(),
 	sortOrder: z.number().int().min(0).optional(),
+	addressId: z.string().min(1).optional(),
 })
 
 const deleteVenueInputSchema = z.object({
@@ -139,6 +155,7 @@ const createHeatInputSchema = z.object({
 
 const updateHeatInputSchema = z.object({
 	heatId: z.string().min(1, "Heat ID is required"),
+	heatNumber: z.number().int().min(1).optional(),
 	scheduledTime: z.coerce.date().nullable().optional(),
 	venueId: z.string().nullable().optional(),
 	divisionId: z.string().nullable().optional(),
@@ -174,6 +191,16 @@ const bulkCreateHeatsInputSchema = z.object({
 	),
 })
 
+const bulkUpdateHeatsInputSchema = z.object({
+	heats: z.array(
+		z.object({
+			heatId: z.string().min(1, "Heat ID is required"),
+			scheduledTime: z.coerce.date().nullable().optional(),
+			durationMinutes: z.number().int().min(1).max(180).nullable().optional(),
+		}),
+	),
+})
+
 const copyHeatsFromEventInputSchema = z.object({
 	sourceTrackWorkoutId: z
 		.string()
@@ -198,6 +225,15 @@ const getEventsWithHeatsInputSchema = z.object({
 
 const getHeatPublishStatusInputSchema = z.object({
 	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+})
+
+const getVenueForTrackWorkoutInputSchema = z.object({
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+})
+
+const getVenueForTrackWorkoutByDivisionInputSchema = z.object({
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+	divisionId: z.string().optional(),
 })
 
 const publishHeatScheduleInputSchema = z.object({
@@ -271,68 +307,53 @@ export const getHeatsForCompetitionFn = createServerFn({ method: "GET" })
 				: []
 		const divisionMap = new Map(divisions.map((d) => [d.id, d]))
 
-		// Fetch assignments in batches to avoid SQLite variable limit
+		// Fetch assignments
 		const heatIds = heats.map((h) => h.id)
-		const assignmentBatches = await Promise.all(
-			chunk(heatIds, BATCH_SIZE).map((batch) =>
-				db
-					.select({
-						id: competitionHeatAssignmentsTable.id,
-						heatId: competitionHeatAssignmentsTable.heatId,
-						laneNumber: competitionHeatAssignmentsTable.laneNumber,
-						registrationId: competitionHeatAssignmentsTable.registrationId,
-					})
-					.from(competitionHeatAssignmentsTable)
-					.where(inArray(competitionHeatAssignmentsTable.heatId, batch))
-					.orderBy(asc(competitionHeatAssignmentsTable.laneNumber)),
-			),
-		)
-		const assignments = assignmentBatches.flat()
+		const assignments = await db
+			.select({
+				id: competitionHeatAssignmentsTable.id,
+				heatId: competitionHeatAssignmentsTable.heatId,
+				laneNumber: competitionHeatAssignmentsTable.laneNumber,
+				registrationId: competitionHeatAssignmentsTable.registrationId,
+			})
+			.from(competitionHeatAssignmentsTable)
+			.where(inArray(competitionHeatAssignmentsTable.heatId, heatIds))
+			.orderBy(asc(competitionHeatAssignmentsTable.laneNumber))
 
-		// Fetch registrations in batches
+		// Fetch registrations
 		const registrationIds = [
 			...new Set(assignments.map((a) => a.registrationId)),
 		]
-		const registrationBatches =
+		const registrations =
 			registrationIds.length > 0
-				? await Promise.all(
-						chunk(registrationIds, BATCH_SIZE).map((batch) =>
-							db
-								.select({
-									id: competitionRegistrationsTable.id,
-									teamName: competitionRegistrationsTable.teamName,
-									userId: competitionRegistrationsTable.userId,
-									divisionId: competitionRegistrationsTable.divisionId,
-									metadata: competitionRegistrationsTable.metadata,
-								})
-								.from(competitionRegistrationsTable)
-								.where(inArray(competitionRegistrationsTable.id, batch)),
-						),
-					)
+				? await db
+						.select({
+							id: competitionRegistrationsTable.id,
+							teamName: competitionRegistrationsTable.teamName,
+							userId: competitionRegistrationsTable.userId,
+							divisionId: competitionRegistrationsTable.divisionId,
+							metadata: competitionRegistrationsTable.metadata,
+						})
+						.from(competitionRegistrationsTable)
+						.where(inArray(competitionRegistrationsTable.id, registrationIds))
 				: []
-		const registrations = registrationBatches.flat()
 
-		// Fetch users in batches
+		// Fetch users
 		const userIds = [...new Set(registrations.map((r) => r.userId))]
-		const userBatches =
+		const users =
 			userIds.length > 0
-				? await Promise.all(
-						chunk(userIds, BATCH_SIZE).map((batch) =>
-							db
-								.select({
-									id: userTable.id,
-									firstName: userTable.firstName,
-									lastName: userTable.lastName,
-								})
-								.from(userTable)
-								.where(inArray(userTable.id, batch)),
-						),
-					)
+				? await db
+						.select({
+							id: userTable.id,
+							firstName: userTable.firstName,
+							lastName: userTable.lastName,
+						})
+						.from(userTable)
+						.where(inArray(userTable.id, userIds))
 				: []
-		const users = userBatches.flat()
 		const userMap = new Map(users.map((u) => [u.id, u]))
 
-		// Fetch divisions for registrations in batches
+		// Fetch divisions for registrations
 		const regDivisionIds = [
 			...new Set(
 				registrations
@@ -340,21 +361,16 @@ export const getHeatsForCompetitionFn = createServerFn({ method: "GET" })
 					.filter((id): id is string => id !== null),
 			),
 		]
-		const regDivBatches =
+		const regDivisions =
 			regDivisionIds.length > 0
-				? await Promise.all(
-						chunk(regDivisionIds, BATCH_SIZE).map((batch) =>
-							db
-								.select({
-									id: scalingLevelsTable.id,
-									label: scalingLevelsTable.label,
-								})
-								.from(scalingLevelsTable)
-								.where(inArray(scalingLevelsTable.id, batch)),
-						),
-					)
+				? await db
+						.select({
+							id: scalingLevelsTable.id,
+							label: scalingLevelsTable.label,
+						})
+						.from(scalingLevelsTable)
+						.where(inArray(scalingLevelsTable.id, regDivisionIds))
 				: []
-		const regDivisions = regDivBatches.flat()
 		const regDivisionMap = new Map(regDivisions.map((d) => [d.id, d]))
 
 		// Build registration map
@@ -410,7 +426,7 @@ export const getHeatsForCompetitionFn = createServerFn({ method: "GET" })
 
 /**
  * Get all venues for a competition
- * Returns venues sorted by sortOrder
+ * Returns venues sorted by sortOrder with address data
  */
 export const getCompetitionVenuesFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) =>
@@ -419,11 +435,23 @@ export const getCompetitionVenuesFn = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
-		const venues = await db
-			.select()
+		const venuesWithAddresses = await db
+			.select({
+				venue: competitionVenuesTable,
+				address: addressesTable,
+			})
 			.from(competitionVenuesTable)
+			.leftJoin(
+				addressesTable,
+				eq(competitionVenuesTable.addressId, addressesTable.id),
+			)
 			.where(eq(competitionVenuesTable.competitionId, data.competitionId))
 			.orderBy(asc(competitionVenuesTable.sortOrder))
+
+		const venues = venuesWithAddresses.map(({ venue, address }) => ({
+			...venue,
+			address,
+		}))
 
 		return { venues }
 	})
@@ -448,16 +476,20 @@ export const createVenueFn = createServerFn({ method: "POST" })
 			sortOrder = existingVenues.length
 		}
 
-		const [venue] = await db
-			.insert(competitionVenuesTable)
-			.values({
-				competitionId: data.competitionId,
-				name: data.name,
-				laneCount: data.laneCount,
-				transitionMinutes: data.transitionMinutes,
-				sortOrder,
-			})
-			.returning()
+		const venueId = createCompetitionVenueId()
+		await db.insert(competitionVenuesTable).values({
+			id: venueId,
+			competitionId: data.competitionId,
+			name: data.name,
+			laneCount: data.laneCount,
+			transitionMinutes: data.transitionMinutes,
+			sortOrder,
+			addressId: data.addressId ?? null,
+		})
+
+		const venue = await db.query.competitionVenuesTable.findFirst({
+			where: eq(competitionVenuesTable.id, venueId),
+		})
 
 		if (!venue) {
 			throw new Error("Failed to create venue")
@@ -484,6 +516,7 @@ export const updateVenueFn = createServerFn({ method: "POST" })
 		if (data.transitionMinutes !== undefined)
 			updateData.transitionMinutes = data.transitionMinutes
 		if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder
+		if (data.addressId !== undefined) updateData.addressId = data.addressId
 
 		await db
 			.update(competitionVenuesTable)
@@ -557,27 +590,22 @@ export const getCompetitionRegistrationsFn = createServerFn({ method: "GET" })
 			return { registrations: [] }
 		}
 
-		// Fetch users in batches
+		// Fetch users
 		const userIds = [...new Set(registrations.map((r) => r.userId))]
-		const userBatches =
+		const users =
 			userIds.length > 0
-				? await Promise.all(
-						chunk(userIds, BATCH_SIZE).map((batch) =>
-							db
-								.select({
-									id: userTable.id,
-									firstName: userTable.firstName,
-									lastName: userTable.lastName,
-								})
-								.from(userTable)
-								.where(inArray(userTable.id, batch)),
-						),
-					)
+				? await db
+						.select({
+							id: userTable.id,
+							firstName: userTable.firstName,
+							lastName: userTable.lastName,
+						})
+						.from(userTable)
+						.where(inArray(userTable.id, userIds))
 				: []
-		const users = userBatches.flat()
 		const userMap = new Map(users.map((u) => [u.id, u]))
 
-		// Fetch divisions in batches
+		// Fetch divisions
 		const divisionIds = [
 			...new Set(
 				registrations
@@ -585,21 +613,16 @@ export const getCompetitionRegistrationsFn = createServerFn({ method: "GET" })
 					.filter((id): id is string => id !== null),
 			),
 		]
-		const divBatches =
+		const divisions =
 			divisionIds.length > 0
-				? await Promise.all(
-						chunk(divisionIds, BATCH_SIZE).map((batch) =>
-							db
-								.select({
-									id: scalingLevelsTable.id,
-									label: scalingLevelsTable.label,
-								})
-								.from(scalingLevelsTable)
-								.where(inArray(scalingLevelsTable.id, batch)),
-						),
-					)
+				? await db
+						.select({
+							id: scalingLevelsTable.id,
+							label: scalingLevelsTable.label,
+						})
+						.from(scalingLevelsTable)
+						.where(inArray(scalingLevelsTable.id, divisionIds))
 				: []
-		const divisions = divBatches.flat()
 		const divisionMap = new Map(divisions.map((d) => [d.id, d]))
 
 		// Build result
@@ -630,23 +653,47 @@ export const createHeatFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
-		const [heat] = await db
-			.insert(competitionHeatsTable)
-			.values({
-				competitionId: data.competitionId,
-				trackWorkoutId: data.trackWorkoutId,
-				heatNumber: data.heatNumber,
-				scheduledTime: data.scheduledTime ?? null,
-				venueId: data.venueId ?? null,
-				divisionId: data.divisionId ?? null,
-				durationMinutes: data.durationMinutes ?? null,
-				notes: data.notes ?? null,
-			})
-			.returning()
+		// Update request context
+		addRequestContextAttribute("competitionId", data.competitionId)
+		addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
+
+		const now = new Date()
+		const heatId = createCompetitionHeatId()
+		await db.insert(competitionHeatsTable).values({
+			id: heatId,
+			competitionId: data.competitionId,
+			trackWorkoutId: data.trackWorkoutId,
+			heatNumber: data.heatNumber,
+			scheduledTime: data.scheduledTime ?? null,
+			venueId: data.venueId ?? null,
+			divisionId: data.divisionId ?? null,
+			durationMinutes: data.durationMinutes ?? null,
+			notes: data.notes ?? null,
+			// Auto-publish when scheduledTime is set
+			schedulePublishedAt: data.scheduledTime ? now : null,
+		})
+
+		const heat = await db.query.competitionHeatsTable.findFirst({
+			where: eq(competitionHeatsTable.id, heatId),
+		})
 
 		if (!heat) {
 			throw new Error("Failed to create heat")
 		}
+
+		addRequestContextAttribute("heatId", heat.id)
+		logEntityCreated({
+			entity: "heat",
+			id: heat.id,
+			parentEntity: "competition",
+			parentId: data.competitionId,
+			attributes: {
+				trackWorkoutId: data.trackWorkoutId,
+				heatNumber: data.heatNumber,
+				venueId: data.venueId,
+				divisionId: data.divisionId,
+			},
+		})
 
 		return { heat }
 	})
@@ -659,12 +706,17 @@ export const updateHeatFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
+		const now = new Date()
 		const updateData: Record<string, unknown> = {
-			updatedAt: new Date(),
+			updatedAt: now,
 		}
 
-		if (data.scheduledTime !== undefined)
+		if (data.heatNumber !== undefined) updateData.heatNumber = data.heatNumber
+		if (data.scheduledTime !== undefined) {
 			updateData.scheduledTime = data.scheduledTime
+			// Auto-publish when scheduledTime is set, unpublish when cleared
+			updateData.schedulePublishedAt = data.scheduledTime ? now : null
+		}
 		if (data.venueId !== undefined) updateData.venueId = data.venueId
 		if (data.divisionId !== undefined) updateData.divisionId = data.divisionId
 		if (data.durationMinutes !== undefined)
@@ -688,9 +740,16 @@ export const deleteHeatFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
+		addRequestContextAttribute("heatId", data.heatId)
+
 		await db
 			.delete(competitionHeatsTable)
 			.where(eq(competitionHeatsTable.id, data.heatId))
+
+		logEntityDeleted({
+			entity: "heat",
+			id: data.heatId,
+		})
 
 		return { success: true }
 	})
@@ -725,34 +784,41 @@ export const reorderHeatsFn = createServerFn({ method: "POST" })
 			)
 		}
 
-		// Use a temporary offset to avoid unique constraint conflicts
+		// Use a transaction with temporary offset to avoid unique constraint conflicts
 		const TEMP_OFFSET = 1000
+		const now = new Date()
 
-		// First pass: set all to temporary values
-		await Promise.all(
-			data.heatIds.map((heatId, index) =>
-				db
-					.update(competitionHeatsTable)
-					.set({
-						heatNumber: TEMP_OFFSET + index,
-						updatedAt: new Date(),
-					})
-					.where(eq(competitionHeatsTable.id, heatId)),
-			),
-		)
+		await db.transaction(async (tx) => {
+			// First pass: set all to temporary values (batch CASE expression)
+			await tx
+				.update(competitionHeatsTable)
+				.set({
+					heatNumber: sql`CASE ${sql.join(
+						data.heatIds.map(
+							(heatId, index) =>
+								sql`WHEN ${competitionHeatsTable.id} = ${heatId} THEN ${TEMP_OFFSET + index}`,
+						),
+						sql` `,
+					)} END`,
+					updatedAt: now,
+				})
+				.where(inArray(competitionHeatsTable.id, data.heatIds))
 
-		// Second pass: set to final values (1-indexed)
-		await Promise.all(
-			data.heatIds.map((heatId, index) =>
-				db
-					.update(competitionHeatsTable)
-					.set({
-						heatNumber: index + 1,
-						updatedAt: new Date(),
-					})
-					.where(eq(competitionHeatsTable.id, heatId)),
-			),
-		)
+			// Second pass: set to final values (1-indexed)
+			await tx
+				.update(competitionHeatsTable)
+				.set({
+					heatNumber: sql`CASE ${sql.join(
+						data.heatIds.map(
+							(heatId, index) =>
+								sql`WHEN ${competitionHeatsTable.id} = ${heatId} THEN ${index + 1}`,
+						),
+						sql` `,
+					)} END`,
+					updatedAt: now,
+				})
+				.where(inArray(competitionHeatsTable.id, data.heatIds))
+		})
 
 		// Return updated heats in the new order
 		const updatedHeats = await db
@@ -852,18 +918,36 @@ export const assignToHeatFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
-		const [assignment] = await db
-			.insert(competitionHeatAssignmentsTable)
-			.values({
-				heatId: data.heatId,
-				registrationId: data.registrationId,
-				laneNumber: data.laneNumber,
-			})
-			.returning()
+		addRequestContextAttribute("heatId", data.heatId)
+
+		const assignmentId = createCompetitionHeatAssignmentId()
+		await db.insert(competitionHeatAssignmentsTable).values({
+			id: assignmentId,
+			heatId: data.heatId,
+			registrationId: data.registrationId,
+			laneNumber: data.laneNumber,
+		})
+
+		const assignment = await db.query.competitionHeatAssignmentsTable.findFirst(
+			{
+				where: eq(competitionHeatAssignmentsTable.id, assignmentId),
+			},
+		)
 
 		if (!assignment) {
 			throw new Error("Failed to create heat assignment")
 		}
+
+		logEntityCreated({
+			entity: "heatAssignment",
+			id: assignment.id,
+			parentEntity: "heat",
+			parentId: data.heatId,
+			attributes: {
+				registrationId: data.registrationId,
+				laneNumber: data.laneNumber,
+			},
+		})
 
 		return { assignment }
 	})
@@ -877,30 +961,40 @@ export const bulkAssignToHeatFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
+		addRequestContextAttribute("heatId", data.heatId)
+
 		if (data.registrationIds.length === 0) {
 			return { assignments: [] }
 		}
 
-		// Each insert row uses 7 params (id, heatId, registrationId, laneNumber, createdAt, updatedAt, updateCounter)
-		// D1 has a 100 param limit, so max 14 rows per batch (14 * 7 = 98)
-		// Use 10 to be safe
-		const INSERT_BATCH_SIZE = 10
-
 		const assignmentsToCreate = data.registrationIds.map(
 			(registrationId, index) => ({
+				id: createCompetitionHeatAssignmentId(),
 				heatId: data.heatId,
 				registrationId,
 				laneNumber: data.startingLane + index,
 			}),
 		)
 
-		const results = await Promise.all(
-			chunk(assignmentsToCreate, INSERT_BATCH_SIZE).map((batch) =>
-				db.insert(competitionHeatAssignmentsTable).values(batch).returning(),
-			),
-		)
+		await db.insert(competitionHeatAssignmentsTable).values(assignmentsToCreate)
 
-		return { assignments: results.flat() }
+		// Fetch created assignments
+		const assignmentIds = assignmentsToCreate.map((a) => a.id)
+		const assignments = await db
+			.select()
+			.from(competitionHeatAssignmentsTable)
+			.where(inArray(competitionHeatAssignmentsTable.id, assignmentIds))
+
+		logInfo({
+			message: "[Heat] Bulk heat assignments created",
+			attributes: {
+				heatId: data.heatId,
+				assignmentCount: assignments.length,
+				startingLane: data.startingLane,
+			},
+		})
+
+		return { assignments }
 	})
 
 /**
@@ -946,11 +1040,10 @@ export const moveAssignmentFn = createServerFn({ method: "POST" })
 		const db = getDb()
 
 		// Get current assignment to find registrationId and current heatId
-		const currentAssignment = await db
-			.select()
-			.from(competitionHeatAssignmentsTable)
-			.where(eq(competitionHeatAssignmentsTable.id, data.assignmentId))
-			.get()
+		const currentAssignment =
+			await db.query.competitionHeatAssignmentsTable.findFirst({
+				where: eq(competitionHeatAssignmentsTable.id, data.assignmentId),
+			})
 
 		if (!currentAssignment) {
 			throw new Error("Assignment not found")
@@ -963,15 +1056,18 @@ export const moveAssignmentFn = createServerFn({ method: "POST" })
 				.set({ laneNumber: data.targetLaneNumber, updatedAt: new Date() })
 				.where(eq(competitionHeatAssignmentsTable.id, data.assignmentId))
 		} else {
-			// Different heat: remove from old, add to new
-			await db
-				.delete(competitionHeatAssignmentsTable)
-				.where(eq(competitionHeatAssignmentsTable.id, data.assignmentId))
+			// Different heat: remove from old, add to new (in a transaction)
+			await db.transaction(async (tx) => {
+				await tx
+					.delete(competitionHeatAssignmentsTable)
+					.where(eq(competitionHeatAssignmentsTable.id, data.assignmentId))
 
-			await db.insert(competitionHeatAssignmentsTable).values({
-				heatId: data.targetHeatId,
-				registrationId: currentAssignment.registrationId,
-				laneNumber: data.targetLaneNumber,
+				await tx.insert(competitionHeatAssignmentsTable).values({
+					id: createCompetitionHeatAssignmentId(),
+					heatId: data.targetHeatId,
+					registrationId: currentAssignment.registrationId,
+					laneNumber: data.targetLaneNumber,
+				})
 			})
 		}
 
@@ -990,35 +1086,39 @@ export const getUnassignedRegistrationsFn = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
-		// Get all heat IDs for this workout
-		const heats = await db
-			.select({ id: competitionHeatsTable.id })
-			.from(competitionHeatsTable)
+		// Get assigned registration IDs for heats in this workout using a subquery
+		const assignedIds = await db
+			.select({
+				registrationId: competitionHeatAssignmentsTable.registrationId,
+			})
+			.from(competitionHeatAssignmentsTable)
+			.innerJoin(
+				competitionHeatsTable,
+				eq(competitionHeatAssignmentsTable.heatId, competitionHeatsTable.id),
+			)
 			.where(eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId))
 
-		const heatIds = heats.map((h) => h.id)
-
-		// Get all assigned registration IDs for these heats (batched)
-		const assignedBatches =
-			heatIds.length > 0
-				? await Promise.all(
-						chunk(heatIds, BATCH_SIZE).map((batch) =>
-							db
-								.select({
-									registrationId:
-										competitionHeatAssignmentsTable.registrationId,
-								})
-								.from(competitionHeatAssignmentsTable)
-								.where(inArray(competitionHeatAssignmentsTable.heatId, batch)),
-						),
-					)
-				: []
-		const assignedIds = [
-			...new Set(assignedBatches.flat().map((a) => a.registrationId)),
+		const assignedRegIds = [
+			...new Set(assignedIds.map((a) => a.registrationId)),
 		]
 
-		// Get all registrations for this competition
-		const allRegistrations = await db
+		// Build WHERE conditions for registrations query
+		const conditions = [
+			eq(competitionRegistrationsTable.eventId, data.competitionId),
+		]
+		if (assignedRegIds.length > 0) {
+			conditions.push(
+				notInArray(competitionRegistrationsTable.id, assignedRegIds),
+			)
+		}
+		if (data.divisionId) {
+			conditions.push(
+				eq(competitionRegistrationsTable.divisionId, data.divisionId),
+			)
+		}
+
+		// Get unassigned registrations with SQL filtering
+		const registrations = await db
 			.select({
 				id: competitionRegistrationsTable.id,
 				teamName: competitionRegistrationsTable.teamName,
@@ -1026,44 +1126,28 @@ export const getUnassignedRegistrationsFn = createServerFn({ method: "GET" })
 				divisionId: competitionRegistrationsTable.divisionId,
 			})
 			.from(competitionRegistrationsTable)
-			.where(eq(competitionRegistrationsTable.eventId, data.competitionId))
-
-		// Filter out assigned registrations (in JS to avoid SQLite variable limits)
-		const assignedSet = new Set(assignedIds)
-		let registrations = allRegistrations.filter((r) => !assignedSet.has(r.id))
-
-		// Optionally filter by division
-		if (data.divisionId) {
-			registrations = registrations.filter(
-				(r) => r.divisionId === data.divisionId,
-			)
-		}
+			.where(and(...conditions))
 
 		if (registrations.length === 0) {
 			return { registrations: [] }
 		}
 
-		// Fetch users in batches
+		// Fetch users
 		const userIds = [...new Set(registrations.map((r) => r.userId))]
-		const userBatches =
+		const users =
 			userIds.length > 0
-				? await Promise.all(
-						chunk(userIds, BATCH_SIZE).map((batch) =>
-							db
-								.select({
-									id: userTable.id,
-									firstName: userTable.firstName,
-									lastName: userTable.lastName,
-								})
-								.from(userTable)
-								.where(inArray(userTable.id, batch)),
-						),
-					)
+				? await db
+						.select({
+							id: userTable.id,
+							firstName: userTable.firstName,
+							lastName: userTable.lastName,
+						})
+						.from(userTable)
+						.where(inArray(userTable.id, userIds))
 				: []
-		const users = userBatches.flat()
 		const userMap = new Map(users.map((u) => [u.id, u]))
 
-		// Fetch divisions in batches
+		// Fetch divisions
 		const divisionIds = [
 			...new Set(
 				registrations
@@ -1071,21 +1155,16 @@ export const getUnassignedRegistrationsFn = createServerFn({ method: "GET" })
 					.filter((id): id is string => id !== null),
 			),
 		]
-		const divBatches =
+		const divisions =
 			divisionIds.length > 0
-				? await Promise.all(
-						chunk(divisionIds, BATCH_SIZE).map((batch) =>
-							db
-								.select({
-									id: scalingLevelsTable.id,
-									label: scalingLevelsTable.label,
-								})
-								.from(scalingLevelsTable)
-								.where(inArray(scalingLevelsTable.id, batch)),
-						),
-					)
+				? await db
+						.select({
+							id: scalingLevelsTable.id,
+							label: scalingLevelsTable.label,
+						})
+						.from(scalingLevelsTable)
+						.where(inArray(scalingLevelsTable.id, divisionIds))
 				: []
-		const divisions = divBatches.flat()
 		const divisionMap = new Map(divisions.map((d) => [d.id, d]))
 
 		// Build result
@@ -1137,6 +1216,10 @@ export const bulkCreateHeatsFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
+		// Update request context
+		addRequestContextAttribute("competitionId", data.competitionId)
+		addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
+
 		if (data.heats.length === 0) {
 			return { heats: [] }
 		}
@@ -1145,7 +1228,9 @@ export const bulkCreateHeatsFn = createServerFn({ method: "POST" })
 		const startNumber = await getNextHeatNumberInternal(data.trackWorkoutId)
 
 		// Prepare heats to create
+		const now = new Date()
 		const heatsToCreate = data.heats.map((heat, index) => ({
+			id: createCompetitionHeatId(),
 			competitionId: data.competitionId,
 			trackWorkoutId: data.trackWorkoutId,
 			heatNumber: startNumber + index,
@@ -1154,19 +1239,79 @@ export const bulkCreateHeatsFn = createServerFn({ method: "POST" })
 			durationMinutes: heat.durationMinutes ?? null,
 			divisionId: heat.divisionId ?? null,
 			notes: null,
+			// Auto-publish when scheduledTime is set
+			schedulePublishedAt: heat.scheduledTime ? now : null,
 		}))
 
-		// D1 has a 100 param limit, competitionHeatsTable has ~12 columns
-		// Max rows per batch = floor(100/12) = 8
-		const INSERT_BATCH_SIZE = 8
+		await db.insert(competitionHeatsTable).values(heatsToCreate)
 
-		const results = await Promise.all(
-			chunk(heatsToCreate, INSERT_BATCH_SIZE).map((batch) =>
-				db.insert(competitionHeatsTable).values(batch).returning(),
-			),
-		)
+		// Fetch created heats
+		const heatIds = heatsToCreate.map((h) => h.id)
+		const createdHeats = await db
+			.select()
+			.from(competitionHeatsTable)
+			.where(inArray(competitionHeatsTable.id, heatIds))
 
-		return { heats: results.flat() }
+		logInfo({
+			message: "[Heat] Bulk heats created",
+			attributes: {
+				competitionId: data.competitionId,
+				trackWorkoutId: data.trackWorkoutId,
+				heatCount: createdHeats.length,
+				heatIds: createdHeats.map((h) => h.id),
+			},
+		})
+
+		return { heats: createdHeats }
+	})
+
+/**
+ * Bulk update existing heats' scheduled times and durations
+ * Updates multiple heats at once, useful for adjusting heat schedules
+ */
+export const bulkUpdateHeatsFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => bulkUpdateHeatsInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		if (data.heats.length === 0) {
+			return { success: true, updatedCount: 0 }
+		}
+
+		const now = new Date()
+
+		// Update each heat in a transaction for atomicity
+		await db.transaction(async (tx) => {
+			for (const heat of data.heats) {
+				const updateData: Record<string, unknown> = {
+					updatedAt: now,
+				}
+
+				if (heat.scheduledTime !== undefined) {
+					updateData.scheduledTime = heat.scheduledTime
+					// Auto-publish when scheduledTime is set, unpublish when cleared
+					updateData.schedulePublishedAt = heat.scheduledTime ? now : null
+				}
+				if (heat.durationMinutes !== undefined) {
+					updateData.durationMinutes = heat.durationMinutes
+				}
+
+				await tx
+					.update(competitionHeatsTable)
+					.set(updateData)
+					.where(eq(competitionHeatsTable.id, heat.heatId))
+			}
+		})
+
+		logInfo({
+			message: "[Heat] Bulk heats updated",
+			attributes: {
+				heatCount: data.heats.length,
+				heatIds: data.heats.map((h) => h.heatId),
+			},
+		})
+
+		return { success: true, updatedCount: data.heats.length }
 	})
 
 /**
@@ -1212,34 +1357,27 @@ export const getEventsWithHeatsFn = createServerFn({ method: "GET" })
 			return { events: [] }
 		}
 
-		// Fetch track workouts with their associated workouts (batched)
-		const trackWorkoutBatches = await Promise.all(
-			chunk(trackWorkoutIds, BATCH_SIZE).map((batch) =>
-				db
-					.select({
-						id: trackWorkoutsTable.id,
-						workoutId: trackWorkoutsTable.workoutId,
-					})
-					.from(trackWorkoutsTable)
-					.where(inArray(trackWorkoutsTable.id, batch)),
-			),
-		)
-		const trackWorkoutList = trackWorkoutBatches.flat()
+		// Fetch track workouts with their associated workouts
+		const trackWorkoutList = await db
+			.select({
+				id: trackWorkoutsTable.id,
+				workoutId: trackWorkoutsTable.workoutId,
+			})
+			.from(trackWorkoutsTable)
+			.where(inArray(trackWorkoutsTable.id, trackWorkoutIds))
 
 		// Fetch workout names
 		const workoutIds = trackWorkoutList.map((tw) => tw.workoutId)
-		const workoutBatches = await Promise.all(
-			chunk(workoutIds, BATCH_SIZE).map((batch) =>
-				db
-					.select({
-						id: workouts.id,
-						name: workouts.name,
-					})
-					.from(workouts)
-					.where(inArray(workouts.id, batch)),
-			),
-		)
-		const workoutListData = workoutBatches.flat()
+		const workoutListData =
+			workoutIds.length > 0
+				? await db
+						.select({
+							id: workouts.id,
+							name: workouts.name,
+						})
+						.from(workouts)
+						.where(inArray(workouts.id, workoutIds))
+				: []
 		const workoutMap = new Map(workoutListData.map((w) => [w.id, w]))
 
 		// Build result
@@ -1319,66 +1457,51 @@ async function getHeatsForWorkoutInternal(
 			: []
 	const divisionMap = new Map(divisions.map((d) => [d.id, d]))
 
-	// Fetch assignments in batches
+	// Fetch assignments
 	const heatIds = heats.map((h) => h.id)
-	const assignmentBatches = await Promise.all(
-		chunk(heatIds, BATCH_SIZE).map((batch) =>
-			db
-				.select({
-					id: competitionHeatAssignmentsTable.id,
-					heatId: competitionHeatAssignmentsTable.heatId,
-					laneNumber: competitionHeatAssignmentsTable.laneNumber,
-					registrationId: competitionHeatAssignmentsTable.registrationId,
-				})
-				.from(competitionHeatAssignmentsTable)
-				.where(inArray(competitionHeatAssignmentsTable.heatId, batch))
-				.orderBy(asc(competitionHeatAssignmentsTable.laneNumber)),
-		),
-	)
-	const assignments = assignmentBatches.flat()
+	const assignments = await db
+		.select({
+			id: competitionHeatAssignmentsTable.id,
+			heatId: competitionHeatAssignmentsTable.heatId,
+			laneNumber: competitionHeatAssignmentsTable.laneNumber,
+			registrationId: competitionHeatAssignmentsTable.registrationId,
+		})
+		.from(competitionHeatAssignmentsTable)
+		.where(inArray(competitionHeatAssignmentsTable.heatId, heatIds))
+		.orderBy(asc(competitionHeatAssignmentsTable.laneNumber))
 
-	// Fetch registrations in batches
+	// Fetch registrations
 	const registrationIds = [...new Set(assignments.map((a) => a.registrationId))]
-	const registrationBatches =
+	const registrations =
 		registrationIds.length > 0
-			? await Promise.all(
-					chunk(registrationIds, BATCH_SIZE).map((batch) =>
-						db
-							.select({
-								id: competitionRegistrationsTable.id,
-								teamName: competitionRegistrationsTable.teamName,
-								userId: competitionRegistrationsTable.userId,
-								divisionId: competitionRegistrationsTable.divisionId,
-								metadata: competitionRegistrationsTable.metadata,
-							})
-							.from(competitionRegistrationsTable)
-							.where(inArray(competitionRegistrationsTable.id, batch)),
-					),
-				)
+			? await db
+					.select({
+						id: competitionRegistrationsTable.id,
+						teamName: competitionRegistrationsTable.teamName,
+						userId: competitionRegistrationsTable.userId,
+						divisionId: competitionRegistrationsTable.divisionId,
+						metadata: competitionRegistrationsTable.metadata,
+					})
+					.from(competitionRegistrationsTable)
+					.where(inArray(competitionRegistrationsTable.id, registrationIds))
 			: []
-	const registrations = registrationBatches.flat()
 
-	// Fetch users in batches
+	// Fetch users
 	const userIds = [...new Set(registrations.map((r) => r.userId))]
-	const userBatches =
+	const users =
 		userIds.length > 0
-			? await Promise.all(
-					chunk(userIds, BATCH_SIZE).map((batch) =>
-						db
-							.select({
-								id: userTable.id,
-								firstName: userTable.firstName,
-								lastName: userTable.lastName,
-							})
-							.from(userTable)
-							.where(inArray(userTable.id, batch)),
-					),
-				)
+			? await db
+					.select({
+						id: userTable.id,
+						firstName: userTable.firstName,
+						lastName: userTable.lastName,
+					})
+					.from(userTable)
+					.where(inArray(userTable.id, userIds))
 			: []
-	const users = userBatches.flat()
 	const userMap = new Map(users.map((u) => [u.id, u]))
 
-	// Fetch divisions for registrations in batches
+	// Fetch divisions for registrations
 	const regDivisionIds = [
 		...new Set(
 			registrations
@@ -1386,21 +1509,16 @@ async function getHeatsForWorkoutInternal(
 				.filter((id): id is string => id !== null),
 		),
 	]
-	const regDivBatches =
+	const regDivisions =
 		regDivisionIds.length > 0
-			? await Promise.all(
-					chunk(regDivisionIds, BATCH_SIZE).map((batch) =>
-						db
-							.select({
-								id: scalingLevelsTable.id,
-								label: scalingLevelsTable.label,
-							})
-							.from(scalingLevelsTable)
-							.where(inArray(scalingLevelsTable.id, batch)),
-					),
-				)
+			? await db
+					.select({
+						id: scalingLevelsTable.id,
+						label: scalingLevelsTable.label,
+					})
+					.from(scalingLevelsTable)
+					.where(inArray(scalingLevelsTable.id, regDivisionIds))
 			: []
-	const regDivisions = regDivBatches.flat()
 	const regDivisionMap = new Map(regDivisions.map((d) => [d.id, d]))
 
 	// Build registration map
@@ -1462,6 +1580,25 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
+		// Update request context
+		addRequestContextAttribute(
+			"sourceTrackWorkoutId",
+			data.sourceTrackWorkoutId,
+		)
+		addRequestContextAttribute(
+			"targetTrackWorkoutId",
+			data.targetTrackWorkoutId,
+		)
+
+		logInfo({
+			message: "[Heat] Copy heats from event started",
+			attributes: {
+				sourceTrackWorkoutId: data.sourceTrackWorkoutId,
+				targetTrackWorkoutId: data.targetTrackWorkoutId,
+				copyAssignments: data.copyAssignments,
+			},
+		})
+
 		// Fetch source heats with assignments (sorted by heat number)
 		const sourceHeats = await getHeatsForWorkoutInternal(
 			data.sourceTrackWorkoutId,
@@ -1475,26 +1612,20 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 		sourceHeats.sort((a, b) => a.heatNumber - b.heatNumber)
 
 		// Get the target workout's competition ID
-		const targetWorkout = await db
-			.select({
-				trackId: trackWorkoutsTable.trackId,
-			})
-			.from(trackWorkoutsTable)
-			.where(eq(trackWorkoutsTable.id, data.targetTrackWorkoutId))
-			.get()
+		const targetWorkout = await db.query.trackWorkoutsTable.findFirst({
+			where: eq(trackWorkoutsTable.id, data.targetTrackWorkoutId),
+			columns: { trackId: true },
+		})
 
 		if (!targetWorkout) {
 			throw new Error("Target track workout not found")
 		}
 
 		// Get competition ID from the track
-		const track = await db
-			.select({
-				competitionId: programmingTracksTable.competitionId,
-			})
-			.from(programmingTracksTable)
-			.where(eq(programmingTracksTable.id, targetWorkout.trackId))
-			.get()
+		const track = await db.query.programmingTracksTable.findFirst({
+			where: eq(programmingTracksTable.id, targetWorkout.trackId),
+			columns: { competitionId: true },
+		})
 
 		if (!track || !track.competitionId) {
 			throw new Error("Competition not found for target track")
@@ -1510,7 +1641,9 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 		const timeSlotMinutes = durationMinutes + data.transitionMinutes
 
 		// Create new heats with calculated times
+		const now = new Date()
 		const heatsToCreate: Array<{
+			id: string
 			competitionId: string
 			trackWorkoutId: string
 			heatNumber: number
@@ -1519,6 +1652,7 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 			durationMinutes: number | null
 			divisionId: string | null
 			notes: string | null
+			schedulePublishedAt: Date
 		}> = []
 
 		for (let i = 0; i < sourceHeats.length; i++) {
@@ -1532,6 +1666,7 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 			)
 
 			heatsToCreate.push({
+				id: createCompetitionHeatId(),
 				competitionId,
 				trackWorkoutId: data.targetTrackWorkoutId,
 				heatNumber: sourceHeat.heatNumber,
@@ -1540,18 +1675,19 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 				durationMinutes: durationMinutes,
 				divisionId: sourceHeat.divisionId,
 				notes: sourceHeat.notes,
+				// Auto-publish since scheduledTime is always set when copying
+				schedulePublishedAt: now,
 			})
 		}
 
-		// Bulk insert heats in batches (competitionHeatsTable has 12 columns)
-		const INSERT_BATCH_SIZE = 8
+		await db.insert(competitionHeatsTable).values(heatsToCreate)
 
-		const createdHeatBatches = await Promise.all(
-			chunk(heatsToCreate, INSERT_BATCH_SIZE).map((batch) =>
-				db.insert(competitionHeatsTable).values(batch).returning(),
-			),
-		)
-		const createdHeats = createdHeatBatches.flat()
+		// Fetch created heats
+		const createdHeatIds = heatsToCreate.map((h) => h.id)
+		const createdHeats = await db
+			.select()
+			.from(competitionHeatsTable)
+			.where(inArray(competitionHeatsTable.id, createdHeatIds))
 
 		// If copying assignments, create heat ID mapping and copy assignments
 		if (data.copyAssignments) {
@@ -1563,6 +1699,7 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 
 			// Copy assignments
 			const assignmentsToCreate: Array<{
+				id: string
 				heatId: string
 				registrationId: string
 				laneNumber: number
@@ -1574,6 +1711,7 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 
 				for (const assignment of sourceHeat.assignments) {
 					assignmentsToCreate.push({
+						id: createCompetitionHeatAssignmentId(),
 						heatId: newHeatId,
 						registrationId: assignment.registration.id,
 						laneNumber: assignment.laneNumber,
@@ -1581,26 +1719,166 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 				}
 			}
 
-			// Bulk insert assignments in batches (7 columns)
-			const ASSIGNMENT_BATCH_SIZE = 10
-
 			if (assignmentsToCreate.length > 0) {
-				await Promise.all(
-					chunk(assignmentsToCreate, ASSIGNMENT_BATCH_SIZE).map((batch) =>
-						db.insert(competitionHeatAssignmentsTable).values(batch),
-					),
-				)
+				await db
+					.insert(competitionHeatAssignmentsTable)
+					.values(assignmentsToCreate)
 			}
 		}
 
 		// Return the newly created heats with assignments
 		const result = await getHeatsForWorkoutInternal(data.targetTrackWorkoutId)
+
+		logInfo({
+			message: "[Heat] Copy heats from event completed",
+			attributes: {
+				sourceTrackWorkoutId: data.sourceTrackWorkoutId,
+				targetTrackWorkoutId: data.targetTrackWorkoutId,
+				heatsCreated: result.length,
+				copyAssignments: data.copyAssignments,
+			},
+		})
+
 		return { heats: result }
 	})
 
 // ============================================================================
 // Heat Publishing Server Functions
 // ============================================================================
+
+/**
+ * Get venue information for a track workout
+ * Finds the first heat for this workout and returns its venue with address
+ * Note: Does not filter by schedulePublishedAt - returns venue even if heats aren't published
+ */
+export const getVenueForTrackWorkoutFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		getVenueForTrackWorkoutInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Find first heat for this workout (no schedulePublishedAt filter)
+		const heats = await db
+			.select({ venueId: competitionHeatsTable.venueId })
+			.from(competitionHeatsTable)
+			.where(eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId))
+			.orderBy(asc(competitionHeatsTable.heatNumber))
+			.limit(1)
+
+		const heat = heats[0]
+
+		if (!heat?.venueId) {
+			return { venue: null }
+		}
+
+		// Fetch venue with address
+		const venuesWithAddress = await db
+			.select({
+				venue: competitionVenuesTable,
+				address: addressesTable,
+			})
+			.from(competitionVenuesTable)
+			.leftJoin(
+				addressesTable,
+				eq(competitionVenuesTable.addressId, addressesTable.id),
+			)
+			.where(eq(competitionVenuesTable.id, heat.venueId))
+			.limit(1)
+
+		const venueWithAddress = venuesWithAddress[0]
+
+		if (!venueWithAddress) {
+			return { venue: null }
+		}
+
+		return {
+			venue: {
+				id: venueWithAddress.venue.id,
+				name: venueWithAddress.venue.name,
+				address: venueWithAddress.address,
+			},
+		}
+	})
+
+/**
+ * Get venue information for a track workout, optionally filtered by division
+ * Finds the first heat for this workout (optionally for a specific division) and returns its venue with address
+ * Falls back to any heat if no division-specific heat is found
+ * Note: Does not filter by schedulePublishedAt - returns venue even if heats aren't published
+ */
+export const getVenueForTrackWorkoutByDivisionFn = createServerFn({
+	method: "GET",
+})
+	.inputValidator((data: unknown) =>
+		getVenueForTrackWorkoutByDivisionInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		let heat: { venueId: string | null } | undefined
+
+		// Try to find heat with division filter first
+		if (data.divisionId) {
+			const divisionHeats = await db
+				.select({ venueId: competitionHeatsTable.venueId })
+				.from(competitionHeatsTable)
+				.where(
+					and(
+						eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId),
+						eq(competitionHeatsTable.divisionId, data.divisionId),
+					),
+				)
+				.orderBy(asc(competitionHeatsTable.heatNumber))
+				.limit(1)
+
+			heat = divisionHeats[0]
+		}
+
+		// Fallback: find any heat for this workout if no division-specific one found
+		if (!heat?.venueId) {
+			const heats = await db
+				.select({ venueId: competitionHeatsTable.venueId })
+				.from(competitionHeatsTable)
+				.where(eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId))
+				.orderBy(asc(competitionHeatsTable.heatNumber))
+				.limit(1)
+
+			heat = heats[0]
+		}
+
+		if (!heat?.venueId) {
+			return { venue: null }
+		}
+
+		// Fetch venue with address
+		const venuesWithAddress = await db
+			.select({
+				venue: competitionVenuesTable,
+				address: addressesTable,
+			})
+			.from(competitionVenuesTable)
+			.leftJoin(
+				addressesTable,
+				eq(competitionVenuesTable.addressId, addressesTable.id),
+			)
+			.where(eq(competitionVenuesTable.id, heat.venueId))
+			.limit(1)
+
+		const venueWithAddress = venuesWithAddress[0]
+
+		if (!venueWithAddress) {
+			return { venue: null }
+		}
+
+		return {
+			venue: {
+				id: venueWithAddress.venue.id,
+				name: venueWithAddress.venue.name,
+				address: venueWithAddress.address,
+			},
+		}
+	})
 
 /**
  * Get publish status for all heats of an event (track workout)
@@ -1648,9 +1926,13 @@ export const publishHeatScheduleFn = createServerFn({ method: "POST" })
 			throw new Error("Not authenticated")
 		}
 
-		// Check permission
+		// Check permission (site admins bypass)
+		const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
 		const team = session.teams?.find((t) => t.id === data.organizingTeamId)
-		if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
+		if (
+			!isSiteAdmin &&
+			!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+		) {
 			throw new Error("Missing required permission")
 		}
 
@@ -1687,9 +1969,13 @@ export const publishAllHeatsForEventFn = createServerFn({ method: "POST" })
 			throw new Error("Not authenticated")
 		}
 
-		// Check permission
+		// Check permission (site admins bypass)
+		const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
 		const team = session.teams?.find((t) => t.id === data.organizingTeamId)
-		if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
+		if (
+			!isSiteAdmin &&
+			!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+		) {
 			throw new Error("Missing required permission")
 		}
 
@@ -1697,7 +1983,7 @@ export const publishAllHeatsForEventFn = createServerFn({ method: "POST" })
 
 		const now = new Date()
 
-		// Get all heats for this track workout
+		// Count heats first for the response
 		const heats = await db
 			.select({ id: competitionHeatsTable.id })
 			.from(competitionHeatsTable)
@@ -1707,24 +1993,265 @@ export const publishAllHeatsForEventFn = createServerFn({ method: "POST" })
 			return { success: true, updatedCount: 0 }
 		}
 
-		// Update all heats in batches to avoid SQLite variable limit
-		const heatIds = heats.map((h) => h.id)
-
-		await Promise.all(
-			chunk(heatIds, BATCH_SIZE).map((batch) =>
-				db
-					.update(competitionHeatsTable)
-					.set({
-						schedulePublishedAt: data.publish ? now : null,
-						updatedAt: now,
-					})
-					.where(inArray(competitionHeatsTable.id, batch)),
-			),
-		)
+		// Update all heats for this track workout in a single query
+		await db
+			.update(competitionHeatsTable)
+			.set({
+				schedulePublishedAt: data.publish ? now : null,
+				updatedAt: now,
+			})
+			.where(eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId))
 
 		return {
 			success: true,
 			updatedCount: heats.length,
 			schedulePublishedAt: data.publish ? now : null,
 		}
+	})
+
+// ============================================================================
+// Public Schedule Types
+// ============================================================================
+
+export interface PublicScheduleHeat {
+	id: string
+	heatNumber: number
+	scheduledTime: Date | null
+	durationMinutes: number | null
+	venue: { id: string; name: string } | null
+	division: { id: string; label: string } | null
+}
+
+export interface PublicScheduleEvent {
+	trackWorkoutId: string
+	eventName: string
+	trackOrder: number
+	heats: PublicScheduleHeat[]
+}
+
+// ============================================================================
+// Public Event Heats Server Function
+// ============================================================================
+
+const getPublicEventHeatsInputSchema = z.object({
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+})
+
+/**
+ * Get published heats for a single event (track workout).
+ * Only returns heats where schedulePublishedAt is set.
+ * Returns heats with venue and division info, ordered by heat number.
+ */
+export const getPublicEventHeatsFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) => getPublicEventHeatsInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Fetch only published heats for this event
+		const heats = await db
+			.select()
+			.from(competitionHeatsTable)
+			.where(
+				and(
+					eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId),
+					isNotNull(competitionHeatsTable.schedulePublishedAt),
+				),
+			)
+			.orderBy(asc(competitionHeatsTable.heatNumber))
+
+		if (heats.length === 0) {
+			return { heats: [] as PublicScheduleHeat[] }
+		}
+
+		// Collect unique IDs for batch lookups
+		const venueIds = [
+			...new Set(
+				heats.map((h) => h.venueId).filter((id): id is string => id !== null),
+			),
+		]
+		const divisionIds = [
+			...new Set(
+				heats
+					.map((h) => h.divisionId)
+					.filter((id): id is string => id !== null),
+			),
+		]
+
+		// Fetch venues
+		const venues =
+			venueIds.length > 0
+				? await db
+						.select({
+							id: competitionVenuesTable.id,
+							name: competitionVenuesTable.name,
+						})
+						.from(competitionVenuesTable)
+						.where(inArray(competitionVenuesTable.id, venueIds))
+				: []
+		const venueMap = new Map(venues.map((v) => [v.id, v]))
+
+		// Fetch divisions
+		const divisions =
+			divisionIds.length > 0
+				? await db
+						.select({
+							id: scalingLevelsTable.id,
+							label: scalingLevelsTable.label,
+						})
+						.from(scalingLevelsTable)
+						.where(inArray(scalingLevelsTable.id, divisionIds))
+				: []
+		const divisionMap = new Map(divisions.map((d) => [d.id, d]))
+
+		// Build result
+		const result: PublicScheduleHeat[] = heats.map((heat) => ({
+			id: heat.id,
+			heatNumber: heat.heatNumber,
+			scheduledTime: heat.scheduledTime,
+			durationMinutes: heat.durationMinutes,
+			venue: heat.venueId ? (venueMap.get(heat.venueId) ?? null) : null,
+			division: heat.divisionId
+				? (divisionMap.get(heat.divisionId) ?? null)
+				: null,
+		}))
+
+		return { heats: result }
+	})
+
+// ============================================================================
+// Public Schedule Server Function
+// ============================================================================
+
+const getPublicScheduleDataInputSchema = z.object({
+	competitionId: z.string().min(1, "Competition ID is required"),
+})
+
+/**
+ * Get published schedule data for the public event home page.
+ * Only returns heats where schedulePublishedAt is set (published heats).
+ * Groups heats by event (trackWorkout) with venue and division info.
+ */
+export const getPublicScheduleDataFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		getPublicScheduleDataInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Fetch only published heats
+		const heats = await db
+			.select()
+			.from(competitionHeatsTable)
+			.where(
+				and(
+					eq(competitionHeatsTable.competitionId, data.competitionId),
+					isNotNull(competitionHeatsTable.schedulePublishedAt),
+				),
+			)
+			.orderBy(
+				asc(competitionHeatsTable.scheduledTime),
+				asc(competitionHeatsTable.heatNumber),
+			)
+
+		if (heats.length === 0) {
+			return { events: [] }
+		}
+
+		// Collect unique IDs for batch lookups
+		const venueIds = [
+			...new Set(
+				heats.map((h) => h.venueId).filter((id): id is string => id !== null),
+			),
+		]
+		const divisionIds = [
+			...new Set(
+				heats
+					.map((h) => h.divisionId)
+					.filter((id): id is string => id !== null),
+			),
+		]
+		const trackWorkoutIds = [...new Set(heats.map((h) => h.trackWorkoutId))]
+
+		// Fetch venues
+		const venues =
+			venueIds.length > 0
+				? await db
+						.select({
+							id: competitionVenuesTable.id,
+							name: competitionVenuesTable.name,
+						})
+						.from(competitionVenuesTable)
+						.where(inArray(competitionVenuesTable.id, venueIds))
+				: []
+		const venueMap = new Map(venues.map((v) => [v.id, v]))
+
+		// Fetch divisions
+		const divisions =
+			divisionIds.length > 0
+				? await db
+						.select({
+							id: scalingLevelsTable.id,
+							label: scalingLevelsTable.label,
+						})
+						.from(scalingLevelsTable)
+						.where(inArray(scalingLevelsTable.id, divisionIds))
+				: []
+		const divisionMap = new Map(divisions.map((d) => [d.id, d]))
+
+		// Fetch trackWorkouts with workout names via JOIN
+		const trackWorkouts = await db
+			.select({
+				id: trackWorkoutsTable.id,
+				workoutId: trackWorkoutsTable.workoutId,
+				trackOrder: trackWorkoutsTable.trackOrder,
+				workoutName: workouts.name,
+			})
+			.from(trackWorkoutsTable)
+			.innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+			.where(inArray(trackWorkoutsTable.id, trackWorkoutIds))
+
+		const trackWorkoutMap = new Map(trackWorkouts.map((tw) => [tw.id, tw]))
+		const workoutNameMap = new Map(
+			trackWorkouts.map((tw) => [tw.workoutId, tw.workoutName]),
+		)
+
+		// Group heats by event
+		const eventMap = new Map<string, PublicScheduleEvent>()
+
+		for (const heat of heats) {
+			const trackWorkout = trackWorkoutMap.get(heat.trackWorkoutId)
+			if (!trackWorkout) continue
+
+			const eventName =
+				workoutNameMap.get(trackWorkout.workoutId) || "Unknown Event"
+
+			let event = eventMap.get(heat.trackWorkoutId)
+			if (!event) {
+				event = {
+					trackWorkoutId: heat.trackWorkoutId,
+					eventName,
+					trackOrder: trackWorkout.trackOrder,
+					heats: [],
+				}
+				eventMap.set(heat.trackWorkoutId, event)
+			}
+
+			event.heats.push({
+				id: heat.id,
+				heatNumber: heat.heatNumber,
+				scheduledTime: heat.scheduledTime,
+				durationMinutes: heat.durationMinutes,
+				venue: heat.venueId ? (venueMap.get(heat.venueId) ?? null) : null,
+				division: heat.divisionId
+					? (divisionMap.get(heat.divisionId) ?? null)
+					: null,
+			})
+		}
+
+		// Sort events by trackOrder
+		const events = Array.from(eventMap.values()).sort(
+			(a, b) => a.trackOrder - b.trackOrder,
+		)
+
+		return { events }
 	})

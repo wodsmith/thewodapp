@@ -1,5 +1,3 @@
-"use client"
-
 import { useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { Calendar, Check, Loader2 } from "lucide-react"
@@ -17,8 +15,8 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { updateCompetitionFn } from "@/server-fns/competition-fns"
 import type { CompetitionWithRelations } from "@/server-fns/competition-fns"
+import { updateCompetitionFn } from "@/server-fns/competition-fns"
 
 interface AddCompetitionsToSeriesDialogProps {
 	open: boolean
@@ -96,7 +94,9 @@ export function AddCompetitionsToSeriesDialog({
 			)
 
 			const results = await Promise.allSettled(updates)
-			const successCount = results.filter((r) => r.status === "fulfilled").length
+			const successCount = results.filter(
+				(r) => r.status === "fulfilled",
+			).length
 			const failureCount = results.length - successCount
 
 			if (successCount > 0) {
@@ -214,7 +214,11 @@ export function AddCompetitionsToSeriesDialog({
 				)}
 
 				<DialogFooter>
-					<Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
+					<Button
+						variant="outline"
+						onClick={handleClose}
+						disabled={isSubmitting}
+					>
 						Cancel
 					</Button>
 					<Button

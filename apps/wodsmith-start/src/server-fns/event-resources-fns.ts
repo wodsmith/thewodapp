@@ -11,16 +11,16 @@ import { z } from "zod"
 import { getDb } from "@/db"
 import { createEventResourceId } from "@/db/schemas/common"
 import {
-	eventResourcesTable,
 	type EventResource,
+	eventResourcesTable,
 } from "@/db/schemas/event-resources"
 import {
 	programmingTracksTable,
 	trackWorkoutsTable,
 } from "@/db/schemas/programming"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { ROLES_ENUM } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"
-import { autochunk } from "@/utils/batch-query"
 
 // ============================================================================
 // Input Schemas
@@ -87,7 +87,7 @@ const reorderEventResourcesInputSchema = z.object({
 // ============================================================================
 
 /**
- * Check if user has permission on a team
+ * Check if user has permission on a team (or is a site admin)
  */
 async function hasTeamPermission(
 	teamId: string,
@@ -95,6 +95,9 @@ async function hasTeamPermission(
 ): Promise<boolean> {
 	const session = await getSessionFromCookie()
 	if (!session?.userId) return false
+
+	// Site admins have all permissions
+	if (session.user?.role === ROLES_ENUM.ADMIN) return true
 
 	const team = session.teams?.find((t) => t.id === teamId)
 	if (!team) return false
@@ -288,20 +291,15 @@ export const getEventResourcesBatchFn = createServerFn({ method: "GET" })
 		const db = getDb()
 
 		// First, filter to only published events
-		const publishedEventIds = await autochunk(
-			{ items: data.eventIds },
-			async (chunk: string[]) => {
-				return db
-					.select({ id: trackWorkoutsTable.id })
-					.from(trackWorkoutsTable)
-					.where(
-						and(
-							inArray(trackWorkoutsTable.id, chunk),
-							eq(trackWorkoutsTable.eventStatus, "published"),
-						),
-					)
-			},
-		)
+		const publishedEventIds = await db
+			.select({ id: trackWorkoutsTable.id })
+			.from(trackWorkoutsTable)
+			.where(
+				and(
+					inArray(trackWorkoutsTable.id, data.eventIds),
+					eq(trackWorkoutsTable.eventStatus, "published"),
+				),
+			)
 
 		const publishedIds = publishedEventIds.map((e) => e.id)
 		if (publishedIds.length === 0) {
@@ -309,16 +307,11 @@ export const getEventResourcesBatchFn = createServerFn({ method: "GET" })
 		}
 
 		// Batch fetch resources for published events only
-		const allResources = await autochunk(
-			{ items: publishedIds },
-			async (chunk: string[]) => {
-				return db
-					.select()
-					.from(eventResourcesTable)
-					.where(inArray(eventResourcesTable.eventId, chunk))
-					.orderBy(eventResourcesTable.sortOrder)
-			},
-		)
+		const allResources = await db
+			.select()
+			.from(eventResourcesTable)
+			.where(inArray(eventResourcesTable.eventId, publishedIds))
+			.orderBy(eventResourcesTable.sortOrder)
 
 		// Group by eventId
 		const resourcesByEvent: Record<string, EventResource[]> = {}
@@ -368,17 +361,20 @@ export const createEventResourceFn = createServerFn({ method: "POST" })
 		// Normalize empty string URL to null
 		const url = data.url === "" ? null : data.url
 
-		const [resource] = await db
-			.insert(eventResourcesTable)
-			.values({
-				id: createEventResourceId(),
-				eventId: data.eventId,
-				title: data.title,
-				description: data.description ?? null,
-				url: url ?? null,
-				sortOrder,
-			})
-			.returning()
+		// Generate ID first, insert, then select back
+		const id = createEventResourceId()
+		await db.insert(eventResourcesTable).values({
+			id,
+			eventId: data.eventId,
+			title: data.title,
+			description: data.description ?? null,
+			url: url ?? null,
+			sortOrder,
+		})
+
+		const resource = await db.query.eventResourcesTable.findFirst({
+			where: eq(eventResourcesTable.id, id),
+		})
 
 		if (!resource) {
 			throw new Error("Failed to create resource")
@@ -519,20 +515,15 @@ export const reorderEventResourcesFn = createServerFn({ method: "POST" })
 
 		// Validate all resources belong to this event
 		const resourceIds = data.updates.map((u) => u.resourceId)
-		const existingResources = await autochunk(
-			{ items: resourceIds, otherParametersCount: 1 }, // +1 for eventId
-			async (chunk: string[]) => {
-				return db
-					.select({ id: eventResourcesTable.id })
-					.from(eventResourcesTable)
-					.where(
-						and(
-							eq(eventResourcesTable.eventId, data.eventId),
-							inArray(eventResourcesTable.id, chunk),
-						),
-					)
-			},
-		)
+		const existingResources = await db
+			.select({ id: eventResourcesTable.id })
+			.from(eventResourcesTable)
+			.where(
+				and(
+					eq(eventResourcesTable.eventId, data.eventId),
+					inArray(eventResourcesTable.id, resourceIds),
+				),
+			)
 
 		const existingIds = new Set(existingResources.map((r) => r.id))
 
