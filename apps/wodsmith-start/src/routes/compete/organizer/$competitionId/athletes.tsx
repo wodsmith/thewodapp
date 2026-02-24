@@ -11,6 +11,7 @@ import {
 	useNavigate,
 	useRouter,
 } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
 import {
 	ArrowDown,
 	ArrowUp,
@@ -18,10 +19,24 @@ import {
 	Calendar,
 	Download,
 	Mail,
+	MoreHorizontal,
+	Trash2,
 	X,
 } from "lucide-react"
+import { useState } from "react"
+import { toast } from "sonner"
 import { z } from "zod"
 import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -32,6 +47,12 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
 	Select,
 	SelectContent,
@@ -54,6 +75,7 @@ import {
 	type PendingTeammateInvite,
 } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
+import { removeRegistrationFn } from "@/server-fns/registration-fns"
 import {
 	getCompetitionQuestionsFn,
 	getCompetitionRegistrationAnswersFn,
@@ -184,9 +206,40 @@ function AthletesPage() {
 	} = Route.useLoaderData()
 	const navigate = useNavigate()
 	const router = useRouter()
+	const removeRegistration = useServerFn(removeRegistrationFn)
+	const [removingRegistration, setRemovingRegistration] = useState<{
+		id: string
+		athleteName: string
+		teamName: string | null
+	} | null>(null)
+	const [isRemoving, setIsRemoving] = useState(false)
 
 	const handleQuestionsChange = () => {
 		router.invalidate()
+	}
+
+	const handleRemoveRegistration = async () => {
+		if (!removingRegistration) return
+		setIsRemoving(true)
+		try {
+			await removeRegistration({
+				data: {
+					registrationId: removingRegistration.id,
+					competitionId: competition.id,
+				},
+			})
+			toast.success("Registration removed successfully")
+			setRemovingRegistration(null)
+			router.invalidate()
+		} catch (error) {
+			toast.error(
+				error instanceof Error
+					? error.message
+					: "Failed to remove registration",
+			)
+		} finally {
+			setIsRemoving(false)
+		}
 	}
 
 	const handleDivisionChange = (value: string) => {
@@ -715,449 +768,485 @@ function AthletesPage() {
 	}
 
 	return (
-		<div className="flex flex-col gap-6">
-			{/* Registration Questions Editor */}
-			<RegistrationQuestionsEditor
-				competitionId={competition.id}
-				teamId={teamId}
-				questions={questions}
-				onQuestionsChange={handleQuestionsChange}
-			/>
+		<>
+			<div className="flex flex-col gap-6">
+				{/* Registration Questions Editor */}
+				<RegistrationQuestionsEditor
+					competitionId={competition.id}
+					teamId={teamId}
+					questions={questions}
+					onQuestionsChange={handleQuestionsChange}
+				/>
 
-			{/* Athletes Section */}
-			<div className="flex items-center justify-between">
-				<div>
-					<h2 className="text-xl font-semibold">Registered Athletes</h2>
-					<p className="text-muted-foreground text-sm">
-						{registrations.length} registration
-						{registrations.length !== 1 ? "s" : ""}
-					</p>
+				{/* Athletes Section */}
+				<div className="flex items-center justify-between">
+					<div>
+						<h2 className="text-xl font-semibold">Registered Athletes</h2>
+						<p className="text-muted-foreground text-sm">
+							{registrations.length} registration
+							{registrations.length !== 1 ? "s" : ""}
+						</p>
+					</div>
+					{registrations.length > 0 && (
+						<Button onClick={handleExportCSV} variant="outline" size="sm">
+							<Download className="h-4 w-4 mr-2" />
+							Export CSV
+						</Button>
+					)}
 				</div>
-				{registrations.length > 0 && (
-					<Button onClick={handleExportCSV} variant="outline" size="sm">
-						<Download className="h-4 w-4 mr-2" />
-						Export CSV
-					</Button>
-				)}
-			</div>
 
-			{registrations.length === 0 && !currentDivisionFilter ? (
-				<Card>
-					<CardHeader>
-						<CardTitle>No Registrations</CardTitle>
-						<CardDescription>
-							No athletes have registered for this competition yet.
-						</CardDescription>
-					</CardHeader>
-				</Card>
-			) : (
-				<div className="flex flex-col gap-4">
-					{/* Filters */}
-					<div className="flex flex-col gap-3">
-						{/* Filter dropdowns */}
-						<div className="flex flex-wrap items-center gap-3">
-							{/* Division filter (single select) */}
-							<Select
-								value={currentDivisionFilter || "all"}
-								onValueChange={handleDivisionChange}
-							>
-								<SelectTrigger className="w-[200px]">
-									<SelectValue placeholder="All Divisions" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="all">All Divisions</SelectItem>
-									{divisions.map((division) => (
-										<SelectItem key={division.id} value={division.id}>
-											{division.label} ({division.registrationCount})
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-
-							{/* Question filters (multi-select via dropdown) */}
-							{questions.map((question) => {
-								const options = questionFilterOptions[question.id] || []
-								const selectedValues = currentQuestionFilters[question.id] || []
-								const availableOptions = options.filter(
-									(o) => !selectedValues.includes(o),
-								)
-								if (options.length === 0 || availableOptions.length === 0)
-									return null
-								return (
-									<Select
-										key={question.id}
-										value="__placeholder__"
-										onValueChange={(value) => {
-											if (value !== "__placeholder__") {
-												toggleQuestionFilter(question.id, value)
-											}
-										}}
-									>
-										<SelectTrigger className="w-[180px]">
-											<span className="text-muted-foreground">
-												+ {question.label}
-											</span>
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="__placeholder__" className="hidden">
-												Select...
+				{registrations.length === 0 && !currentDivisionFilter ? (
+					<Card>
+						<CardHeader>
+							<CardTitle>No Registrations</CardTitle>
+							<CardDescription>
+								No athletes have registered for this competition yet.
+							</CardDescription>
+						</CardHeader>
+					</Card>
+				) : (
+					<div className="flex flex-col gap-4">
+						{/* Filters */}
+						<div className="flex flex-col gap-3">
+							{/* Filter dropdowns */}
+							<div className="flex flex-wrap items-center gap-3">
+								{/* Division filter (single select) */}
+								<Select
+									value={currentDivisionFilter || "all"}
+									onValueChange={handleDivisionChange}
+								>
+									<SelectTrigger className="w-[200px]">
+										<SelectValue placeholder="All Divisions" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="all">All Divisions</SelectItem>
+										{divisions.map((division) => (
+											<SelectItem key={division.id} value={division.id}>
+												{division.label} ({division.registrationCount})
 											</SelectItem>
-											{availableOptions.map((option) => (
-												<SelectItem key={option} value={option}>
-													{option}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								)
-							})}
+										))}
+									</SelectContent>
+								</Select>
 
-							{/* Waiver filter (multi-select via dropdown) */}
-							{waivers.length > 0 &&
-								(() => {
-									const availableWaiverOptions = waivers.flatMap((waiver) => {
-										const items = []
-										const signedKey = `${waiver.id}:signed`
-										const unsignedKey = `${waiver.id}:unsigned`
-										if (!currentWaiverFilters.includes(signedKey)) {
-											items.push({
-												key: signedKey,
-												label: `${waiver.title}: Signed`,
-											})
-										}
-										if (!currentWaiverFilters.includes(unsignedKey)) {
-											items.push({
-												key: unsignedKey,
-												label: `${waiver.title}: Not Signed`,
-											})
-										}
-										return items
-									})
-									if (availableWaiverOptions.length === 0) return null
+								{/* Question filters (multi-select via dropdown) */}
+								{questions.map((question) => {
+									const options = questionFilterOptions[question.id] || []
+									const selectedValues =
+										currentQuestionFilters[question.id] || []
+									const availableOptions = options.filter(
+										(o) => !selectedValues.includes(o),
+									)
+									if (options.length === 0 || availableOptions.length === 0)
+										return null
 									return (
 										<Select
+											key={question.id}
 											value="__placeholder__"
 											onValueChange={(value) => {
 												if (value !== "__placeholder__") {
-													toggleWaiverFilter(value)
+													toggleQuestionFilter(question.id, value)
 												}
 											}}
 										>
-											<SelectTrigger className="w-[200px]">
+											<SelectTrigger className="w-[180px]">
 												<span className="text-muted-foreground">
-													+ Waiver Status
+													+ {question.label}
 												</span>
 											</SelectTrigger>
 											<SelectContent>
 												<SelectItem value="__placeholder__" className="hidden">
 													Select...
 												</SelectItem>
-												{availableWaiverOptions.map((option) => (
-													<SelectItem key={option.key} value={option.key}>
-														{option.label}
+												{availableOptions.map((option) => (
+													<SelectItem key={option} value={option}>
+														{option}
 													</SelectItem>
 												))}
 											</SelectContent>
 										</Select>
 									)
-								})()}
-						</div>
+								})}
 
-						{/* Active filter pills */}
-						{(Object.keys(currentQuestionFilters).length > 0 ||
-							currentWaiverFilters.length > 0) && (
-							<div className="flex flex-wrap items-center gap-2">
-								{/* Question filter pills */}
-								{Object.entries(currentQuestionFilters).flatMap(
-									([questionId, values]) => {
-										const question = questions.find((q) => q.id === questionId)
-										if (!question || !values) return []
-										return values.map((value) => (
+								{/* Waiver filter (multi-select via dropdown) */}
+								{waivers.length > 0 &&
+									(() => {
+										const availableWaiverOptions = waivers.flatMap((waiver) => {
+											const items = []
+											const signedKey = `${waiver.id}:signed`
+											const unsignedKey = `${waiver.id}:unsigned`
+											if (!currentWaiverFilters.includes(signedKey)) {
+												items.push({
+													key: signedKey,
+													label: `${waiver.title}: Signed`,
+												})
+											}
+											if (!currentWaiverFilters.includes(unsignedKey)) {
+												items.push({
+													key: unsignedKey,
+													label: `${waiver.title}: Not Signed`,
+												})
+											}
+											return items
+										})
+										if (availableWaiverOptions.length === 0) return null
+										return (
+											<Select
+												value="__placeholder__"
+												onValueChange={(value) => {
+													if (value !== "__placeholder__") {
+														toggleWaiverFilter(value)
+													}
+												}}
+											>
+												<SelectTrigger className="w-[200px]">
+													<span className="text-muted-foreground">
+														+ Waiver Status
+													</span>
+												</SelectTrigger>
+												<SelectContent>
+													<SelectItem
+														value="__placeholder__"
+														className="hidden"
+													>
+														Select...
+													</SelectItem>
+													{availableWaiverOptions.map((option) => (
+														<SelectItem key={option.key} value={option.key}>
+															{option.label}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										)
+									})()}
+							</div>
+
+							{/* Active filter pills */}
+							{(Object.keys(currentQuestionFilters).length > 0 ||
+								currentWaiverFilters.length > 0) && (
+								<div className="flex flex-wrap items-center gap-2">
+									{/* Question filter pills */}
+									{Object.entries(currentQuestionFilters).flatMap(
+										([questionId, values]) => {
+											const question = questions.find(
+												(q) => q.id === questionId,
+											)
+											if (!question || !values) return []
+											return values.map((value) => (
+												<Badge
+													key={`${questionId}-${value}`}
+													variant="secondary"
+													className="pl-2 pr-1 py-1 flex items-center gap-1"
+												>
+													<span className="text-xs text-muted-foreground">
+														{question.label}:
+													</span>
+													<span>{value}</span>
+													<button
+														type="button"
+														onClick={() =>
+															removeQuestionFilter(questionId, value)
+														}
+														className="ml-1 hover:bg-muted rounded-full p-0.5"
+													>
+														<X className="h-3 w-3" />
+													</button>
+												</Badge>
+											))
+										},
+									)}
+
+									{/* Waiver filter pills */}
+									{currentWaiverFilters.map((filterValue) => {
+										const [waiverId, status] = filterValue.split(":")
+										const waiver = waivers.find((w) => w.id === waiverId)
+										if (!waiver) return null
+										return (
 											<Badge
-												key={`${questionId}-${value}`}
+												key={filterValue}
 												variant="secondary"
 												className="pl-2 pr-1 py-1 flex items-center gap-1"
 											>
 												<span className="text-xs text-muted-foreground">
-													{question.label}:
+													{waiver.title}:
 												</span>
-												<span>{value}</span>
+												<span>
+													{status === "signed" ? "Signed" : "Not Signed"}
+												</span>
 												<button
 													type="button"
-													onClick={() =>
-														removeQuestionFilter(questionId, value)
-													}
+													onClick={() => removeWaiverFilter(filterValue)}
 													className="ml-1 hover:bg-muted rounded-full p-0.5"
 												>
 													<X className="h-3 w-3" />
 												</button>
 											</Badge>
-										))
-									},
-								)}
+										)
+									})}
+								</div>
+							)}
+						</div>
 
-								{/* Waiver filter pills */}
-								{currentWaiverFilters.map((filterValue) => {
-									const [waiverId, status] = filterValue.split(":")
-									const waiver = waivers.find((w) => w.id === waiverId)
-									if (!waiver) return null
-									return (
-										<Badge
-											key={filterValue}
-											variant="secondary"
-											className="pl-2 pr-1 py-1 flex items-center gap-1"
-										>
-											<span className="text-xs text-muted-foreground">
-												{waiver.title}:
-											</span>
-											<span>
-												{status === "signed" ? "Signed" : "Not Signed"}
-											</span>
-											<button
-												type="button"
-												onClick={() => removeWaiverFilter(filterValue)}
-												className="ml-1 hover:bg-muted rounded-full p-0.5"
-											>
-												<X className="h-3 w-3" />
-											</button>
-										</Badge>
-									)
-								})}
-							</div>
-						)}
-					</div>
-
-					{registrations.length === 0 ? (
-						<Card>
-							<CardHeader>
-								<CardTitle>No Registrations</CardTitle>
-								<CardDescription>
-									No athletes are registered in this division.
-								</CardDescription>
-							</CardHeader>
-						</Card>
-					) : (
-						<Card>
-							<CardContent className="p-0">
-								<Table>
-									<TableHeader>
-										<TableRow>
-											<TableHead className="w-[50px]">#</TableHead>
-											<TableHead>
-												<button
-													type="button"
-													onClick={() => handleSort("name")}
-													className="flex items-center hover:text-foreground transition-colors"
-												>
-													Athlete
-													<SortIcon column="name" />
-												</button>
-											</TableHead>
-											<TableHead>
-												<button
-													type="button"
-													onClick={() => handleSort("division")}
-													className="flex items-center hover:text-foreground transition-colors"
-												>
-													Division
-													<SortIcon column="division" />
-												</button>
-											</TableHead>
-											<TableHead>
-												<button
-													type="button"
-													onClick={() => handleSort("teamName")}
-													className="flex items-center hover:text-foreground transition-colors"
-												>
-													Team Name
-													<SortIcon column="teamName" />
-												</button>
-											</TableHead>
-											<TableHead>
-												<button
-													type="button"
-													onClick={() => handleSort("affiliate")}
-													className="flex items-center hover:text-foreground transition-colors"
-												>
-													Affiliate
-													<SortIcon column="affiliate" />
-												</button>
-											</TableHead>
-											{questions.map((question) => (
-												<TableHead key={question.id}>
-													{question.label}
+						{registrations.length === 0 ? (
+							<Card>
+								<CardHeader>
+									<CardTitle>No Registrations</CardTitle>
+									<CardDescription>
+										No athletes are registered in this division.
+									</CardDescription>
+								</CardHeader>
+							</Card>
+						) : (
+							<Card>
+								<CardContent className="p-0">
+									<Table>
+										<TableHeader>
+											<TableRow>
+												<TableHead className="w-[50px]">#</TableHead>
+												<TableHead>
+													<button
+														type="button"
+														onClick={() => handleSort("name")}
+														className="flex items-center hover:text-foreground transition-colors"
+													>
+														Athlete
+														<SortIcon column="name" />
+													</button>
 												</TableHead>
-											))}
-											{waivers.map((waiver) => (
-												<TableHead key={waiver.id}>{waiver.title}</TableHead>
-											))}
-											<TableHead>
-												<button
-													type="button"
-													onClick={() => handleSort("registeredAt")}
-													className="flex items-center hover:text-foreground transition-colors"
+												<TableHead>
+													<button
+														type="button"
+														onClick={() => handleSort("division")}
+														className="flex items-center hover:text-foreground transition-colors"
+													>
+														Division
+														<SortIcon column="division" />
+													</button>
+												</TableHead>
+												<TableHead>
+													<button
+														type="button"
+														onClick={() => handleSort("teamName")}
+														className="flex items-center hover:text-foreground transition-colors"
+													>
+														Team Name
+														<SortIcon column="teamName" />
+													</button>
+												</TableHead>
+												<TableHead>
+													<button
+														type="button"
+														onClick={() => handleSort("affiliate")}
+														className="flex items-center hover:text-foreground transition-colors"
+													>
+														Affiliate
+														<SortIcon column="affiliate" />
+													</button>
+												</TableHead>
+												{questions.map((question) => (
+													<TableHead key={question.id}>
+														{question.label}
+													</TableHead>
+												))}
+												{waivers.map((waiver) => (
+													<TableHead key={waiver.id}>{waiver.title}</TableHead>
+												))}
+												<TableHead>
+													<button
+														type="button"
+														onClick={() => handleSort("registeredAt")}
+														className="flex items-center hover:text-foreground transition-colors"
+													>
+														<Calendar className="h-3.5 w-3.5 mr-1" />
+														Registered
+														<SortIcon column="registeredAt" />
+													</button>
+												</TableHead>
+												<TableHead>
+													<button
+														type="button"
+														onClick={() => handleSort("joinedAt")}
+														className="flex items-center hover:text-foreground transition-colors"
+													>
+														<Calendar className="h-3.5 w-3.5 mr-1" />
+														Joined
+														<SortIcon column="joinedAt" />
+													</button>
+												</TableHead>
+												<TableHead className="w-[50px]" />
+											</TableRow>
+										</TableHeader>
+										<TableBody>
+											{sortedAthleteRows.map((row) => (
+												<TableRow
+													key={`${row.registrationId}-${row.athlete.id}`}
 												>
-													<Calendar className="h-3.5 w-3.5 mr-1" />
-													Registered
-													<SortIcon column="registeredAt" />
-												</button>
-											</TableHead>
-											<TableHead>
-												<button
-													type="button"
-													onClick={() => handleSort("joinedAt")}
-													className="flex items-center hover:text-foreground transition-colors"
-												>
-													<Calendar className="h-3.5 w-3.5 mr-1" />
-													Joined
-													<SortIcon column="joinedAt" />
-												</button>
-											</TableHead>
-										</TableRow>
-									</TableHeader>
-									<TableBody>
-										{sortedAthleteRows.map((row) => (
-											<TableRow key={`${row.registrationId}-${row.athlete.id}`}>
-												<TableCell className="font-mono text-sm text-muted-foreground">
-													{row.ordinalLabel}
-												</TableCell>
-												<TableCell>
-													<div className="flex items-center gap-3">
-														<Avatar className="h-8 w-8">
-															<AvatarImage
-																src={row.athlete.avatar ?? undefined}
-																alt={`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`}
-															/>
-															<AvatarFallback className="text-xs">
-																{row.status === "accepted" &&
-																row.pendingInvite?.guestName
-																	? getInitialsFromName(
-																			row.pendingInvite.guestName,
-																		)
-																	: getInitials(
-																			row.athlete.firstName,
-																			row.athlete.lastName,
-																		)}
-															</AvatarFallback>
-														</Avatar>
-														<div className="flex flex-col">
-															<span className="font-medium">
-																{row.status === "pending" ? (
-																	<>
-																		<span className="italic text-muted-foreground">
-																			Invited
-																		</span>
-																		<Badge
-																			variant="outline"
-																			className="ml-2 text-xs bg-yellow-50 text-yellow-700 border-yellow-300"
-																		>
-																			Pending
-																		</Badge>
-																	</>
-																) : row.status === "accepted" ? (
-																	<>
-																		{/* Show guest name if available */}
-																		{row.pendingInvite?.guestName ? (
-																			<span>{row.pendingInvite.guestName}</span>
-																		) : (
+													<TableCell className="font-mono text-sm text-muted-foreground">
+														{row.ordinalLabel}
+													</TableCell>
+													<TableCell>
+														<div className="flex items-center gap-3">
+															<Avatar className="h-8 w-8">
+																<AvatarImage
+																	src={row.athlete.avatar ?? undefined}
+																	alt={`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`}
+																/>
+																<AvatarFallback className="text-xs">
+																	{row.status === "accepted" &&
+																	row.pendingInvite?.guestName
+																		? getInitialsFromName(
+																				row.pendingInvite.guestName,
+																			)
+																		: getInitials(
+																				row.athlete.firstName,
+																				row.athlete.lastName,
+																			)}
+																</AvatarFallback>
+															</Avatar>
+															<div className="flex flex-col">
+																<span className="font-medium">
+																	{row.status === "pending" ? (
+																		<>
 																			<span className="italic text-muted-foreground">
 																				Invited
 																			</span>
-																		)}
-																		<Badge
-																			variant="outline"
-																			className="ml-2 text-xs bg-green-50 text-green-700 border-green-300"
-																		>
-																			Accepted
-																		</Badge>
-																	</>
-																) : (
-																	<>
-																		{row.athlete.firstName ?? ""}{" "}
-																		{row.athlete.lastName ?? ""}
-																		{row.isCaptain && row.teamName && (
-																			<span className="text-xs text-muted-foreground ml-1">
-																				(captain)
-																			</span>
-																		)}
-																	</>
-																)}
-															</span>
-															<span className="text-xs text-muted-foreground flex items-center gap-1">
-																<Mail className="h-3 w-3" />
-																{row.athlete.email}
-															</span>
+																			<Badge
+																				variant="outline"
+																				className="ml-2 text-xs bg-yellow-50 text-yellow-700 border-yellow-300"
+																			>
+																				Pending
+																			</Badge>
+																		</>
+																	) : row.status === "accepted" ? (
+																		<>
+																			{/* Show guest name if available */}
+																			{row.pendingInvite?.guestName ? (
+																				<span>
+																					{row.pendingInvite.guestName}
+																				</span>
+																			) : (
+																				<span className="italic text-muted-foreground">
+																					Invited
+																				</span>
+																			)}
+																			<Badge
+																				variant="outline"
+																				className="ml-2 text-xs bg-green-50 text-green-700 border-green-300"
+																			>
+																				Accepted
+																			</Badge>
+																		</>
+																	) : (
+																		<>
+																			{row.athlete.firstName ?? ""}{" "}
+																			{row.athlete.lastName ?? ""}
+																			{row.isCaptain && row.teamName && (
+																				<span className="text-xs text-muted-foreground ml-1">
+																					(captain)
+																				</span>
+																			)}
+																		</>
+																	)}
+																</span>
+																<span className="text-xs text-muted-foreground flex items-center gap-1">
+																	<Mail className="h-3 w-3" />
+																	{row.athlete.email}
+																</span>
+															</div>
 														</div>
-													</div>
-												</TableCell>
-												<TableCell>
-													{row.division ? (
-														<Badge variant="outline">
-															{row.division.label}
-														</Badge>
-													) : (
-														<span className="text-muted-foreground">—</span>
-													)}
-												</TableCell>
-												<TableCell>
-													{row.teamName ? (
-														<span className="font-medium">{row.teamName}</span>
-													) : (
-														<span className="text-muted-foreground">—</span>
-													)}
-												</TableCell>
-												<TableCell>
-													{row.athlete.affiliateName ? (
-														<span>{row.athlete.affiliateName}</span>
-													) : (
-														<span className="text-muted-foreground">—</span>
-													)}
-												</TableCell>
-												{questions.map((question) => {
-													// For pending/accepted invites, get answer from pending data
-													if (
-														row.status !== "registered" &&
-														row.pendingInvite
-													) {
-														const pendingAnswer =
-															row.pendingInvite.pendingAnswers?.find(
-																(a) => a.questionId === question.id,
+													</TableCell>
+													<TableCell>
+														{row.division ? (
+															<Badge variant="outline">
+																{row.division.label}
+															</Badge>
+														) : (
+															<span className="text-muted-foreground">—</span>
+														)}
+													</TableCell>
+													<TableCell>
+														{row.teamName ? (
+															<span className="font-medium">
+																{row.teamName}
+															</span>
+														) : (
+															<span className="text-muted-foreground">—</span>
+														)}
+													</TableCell>
+													<TableCell>
+														{row.athlete.affiliateName ? (
+															<span>{row.athlete.affiliateName}</span>
+														) : (
+															<span className="text-muted-foreground">—</span>
+														)}
+													</TableCell>
+													{questions.map((question) => {
+														// For pending/accepted invites, get answer from pending data
+														if (
+															row.status !== "registered" &&
+															row.pendingInvite
+														) {
+															const pendingAnswer =
+																row.pendingInvite.pendingAnswers?.find(
+																	(a) => a.questionId === question.id,
+																)
+															return (
+																<TableCell
+																	key={question.id}
+																	className="text-sm"
+																>
+																	{pendingAnswer?.answer ?? "—"}
+																</TableCell>
 															)
+														}
+														// For registered members, get from registration answers
+														const answers = getAnswersForUser(
+															row.registrationId,
+															row.athlete.id,
+														)
+														const answer = answers.find(
+															(a) => a.questionId === question.id,
+														)
 														return (
 															<TableCell key={question.id} className="text-sm">
-																{pendingAnswer?.answer ?? "—"}
+																{answer?.answer ?? "—"}
 															</TableCell>
 														)
-													}
-													// For registered members, get from registration answers
-													const answers = getAnswersForUser(
-														row.registrationId,
-														row.athlete.id,
-													)
-													const answer = answers.find(
-														(a) => a.questionId === question.id,
-													)
-													return (
-														<TableCell key={question.id} className="text-sm">
-															{answer?.answer ?? "—"}
-														</TableCell>
-													)
-												})}
-												{waivers.map((waiver) => {
-													// For pending/accepted invites, check pending signatures
-													if (
-														row.status !== "registered" &&
-														row.pendingInvite
-													) {
-														const pendingSig =
-															row.pendingInvite.pendingSignatures?.find(
-																(s) => s.waiverId === waiver.id,
+													})}
+													{waivers.map((waiver) => {
+														// For pending/accepted invites, check pending signatures
+														if (
+															row.status !== "registered" &&
+															row.pendingInvite
+														) {
+															const pendingSig =
+																row.pendingInvite.pendingSignatures?.find(
+																	(s) => s.waiverId === waiver.id,
+																)
+															return (
+																<TableCell key={waiver.id} className="text-sm">
+																	{pendingSig ? (
+																		<span className="text-green-600">
+																			{formatDate(pendingSig.signedAt)}
+																		</span>
+																	) : (
+																		<span className="text-muted-foreground">
+																			Not signed
+																		</span>
+																	)}
+																</TableCell>
 															)
+														}
+														// For registered members, get from waiver signatures
+														const signedDate = getWaiverSignedDate(
+															row.athlete.id,
+															waiver.id,
+														)
 														return (
 															<TableCell key={waiver.id} className="text-sm">
-																{pendingSig ? (
+																{signedDate ? (
 																	<span className="text-green-600">
-																		{formatDate(pendingSig.signedAt)}
+																		{formatDate(signedDate)}
 																	</span>
 																) : (
 																	<span className="text-muted-foreground">
@@ -1166,43 +1255,89 @@ function AthletesPage() {
 																)}
 															</TableCell>
 														)
-													}
-													// For registered members, get from waiver signatures
-													const signedDate = getWaiverSignedDate(
-														row.athlete.id,
-														waiver.id,
-													)
-													return (
-														<TableCell key={waiver.id} className="text-sm">
-															{signedDate ? (
-																<span className="text-green-600">
-																	{formatDate(signedDate)}
-																</span>
-															) : (
-																<span className="text-muted-foreground">
-																	Not signed
-																</span>
-															)}
-														</TableCell>
-													)
-												})}
-												<TableCell className="text-muted-foreground text-sm">
-													{row.registeredAt
-														? formatDate(row.registeredAt)
-														: null}
-												</TableCell>
-												<TableCell className="text-muted-foreground text-sm">
-													{row.joinedAt ? formatDate(row.joinedAt) : null}
-												</TableCell>
-											</TableRow>
-										))}
-									</TableBody>
-								</Table>
-							</CardContent>
-						</Card>
-					)}
-				</div>
-			)}
-		</div>
+													})}
+													<TableCell className="text-muted-foreground text-sm">
+														{row.registeredAt
+															? formatDate(row.registeredAt)
+															: null}
+													</TableCell>
+													<TableCell className="text-muted-foreground text-sm">
+														{row.joinedAt ? formatDate(row.joinedAt) : null}
+													</TableCell>
+													<TableCell>
+														{row.isCaptain && (
+															<DropdownMenu>
+																<DropdownMenuTrigger asChild>
+																	<Button
+																		variant="ghost"
+																		size="icon"
+																		className="h-8 w-8"
+																	>
+																		<MoreHorizontal className="h-4 w-4" />
+																	</Button>
+																</DropdownMenuTrigger>
+																<DropdownMenuContent align="end">
+																	<DropdownMenuItem
+																		className="text-destructive focus:text-destructive"
+																		onClick={() =>
+																			setRemovingRegistration({
+																				id: row.registrationId,
+																				athleteName:
+																					`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
+																					row.athlete.email ||
+																					"Unknown",
+																				teamName: row.teamName,
+																			})
+																		}
+																	>
+																		<Trash2 className="h-4 w-4 mr-2" />
+																		Remove Registration
+																	</DropdownMenuItem>
+																</DropdownMenuContent>
+															</DropdownMenu>
+														)}
+													</TableCell>
+												</TableRow>
+											))}
+										</TableBody>
+									</Table>
+								</CardContent>
+							</Card>
+						)}
+					</div>
+				)}
+			</div>
+
+			<AlertDialog
+				open={!!removingRegistration}
+				onOpenChange={(open) => !open && setRemovingRegistration(null)}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Remove Registration</AlertDialogTitle>
+						<AlertDialogDescription>
+							Are you sure you want to remove the registration for{" "}
+							<strong>{removingRegistration?.athleteName}</strong>
+							{removingRegistration?.teamName && (
+								<> (team: {removingRegistration.teamName})</>
+							)}
+							? This will remove them from the competition, delete their heat
+							assignments and scores, and deactivate their team membership. This
+							action cannot be undone.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isRemoving}>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={handleRemoveRegistration}
+							disabled={isRemoving}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							{isRemoving ? "Removing..." : "Remove Registration"}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+		</>
 	)
 }

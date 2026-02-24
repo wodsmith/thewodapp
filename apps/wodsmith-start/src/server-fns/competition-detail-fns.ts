@@ -14,7 +14,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, count, eq, inArray, isNull, sql } from "drizzle-orm"
+import { and, count, eq, inArray, isNull, ne, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { addressesTable } from "@/db/schemas/addresses"
@@ -25,6 +25,7 @@ import {
 import {
 	competitionRegistrationsTable,
 	competitionsTable,
+	REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import {
 	INVITATION_STATUS,
@@ -278,7 +279,12 @@ export const getCompetitionRegistrationCountFn = createServerFn({
 		const result = await db
 			.select({ count: count() })
 			.from(competitionRegistrationsTable)
-			.where(eq(competitionRegistrationsTable.eventId, data.competitionId))
+			.where(
+				and(
+					eq(competitionRegistrationsTable.eventId, data.competitionId),
+					ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+				),
+			)
 
 		const registrationCount = result[0]?.count ?? 0
 
@@ -308,7 +314,12 @@ export const getCompetitionRegistrationsFn = createServerFn({ method: "GET" })
 				athleteTeamId: competitionRegistrationsTable.athleteTeamId,
 			})
 			.from(competitionRegistrationsTable)
-			.where(eq(competitionRegistrationsTable.eventId, data.competitionId))
+			.where(
+				and(
+					eq(competitionRegistrationsTable.eventId, data.competitionId),
+					ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+				),
+			)
 			.orderBy(competitionRegistrationsTable.registeredAt)
 
 		return { registrations }
@@ -340,10 +351,7 @@ export const checkCheckoutCompletionFn = createServerFn({ method: "GET" })
 			.from(commercePurchaseTable)
 			.where(
 				and(
-					eq(
-						commercePurchaseTable.stripeCheckoutSessionId,
-						data.sessionId,
-					),
+					eq(commercePurchaseTable.stripeCheckoutSessionId, data.sessionId),
 					eq(commercePurchaseTable.userId, session.userId),
 				),
 			)
@@ -637,9 +645,10 @@ export const getOrganizerRegistrationsFn = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
-		// Build where clause
+		// Build where clause - exclude removed registrations
 		const whereConditions = [
 			eq(competitionRegistrationsTable.eventId, data.competitionId),
+			ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 		]
 
 		// Get registrations with user and division info using query builder
