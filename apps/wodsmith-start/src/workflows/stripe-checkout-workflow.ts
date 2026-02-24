@@ -29,6 +29,7 @@ import {
 	competitionRegistrationAnswersTable,
 	competitionRegistrationsTable,
 	competitionsTable,
+	scalingLevelsTable,
 	userTable,
 } from "@/db/schema"
 import {
@@ -120,13 +121,14 @@ async function createRegistration(
 			where: eq(competitionRegistrationsTable.commercePurchaseId, purchaseId),
 		})
 
-	// Secondary: by (eventId, userId) to catch partial failures where
+	// Secondary: by (eventId, userId, divisionId) to catch partial failures where
 	// registerForCompetition succeeded but the commercePurchaseId update failed
 	const existingRegByUser = !existingRegistration
 		? await db.query.competitionRegistrationsTable.findFirst({
 				where: and(
 					eq(competitionRegistrationsTable.eventId, competitionId),
 					eq(competitionRegistrationsTable.userId, userId),
+					eq(competitionRegistrationsTable.divisionId, divisionId),
 				),
 			})
 		: null
@@ -210,9 +212,11 @@ async function createRegistration(
 			eq(competitionDivisionsTable.competitionId, competitionId),
 			eq(competitionDivisionsTable.divisionId, divisionId),
 		),
-		with: {
-			division: true,
-		},
+	})
+
+	// Fetch division label separately for notification display
+	const divisionRecord = await db.query.scalingLevelsTable.findFirst({
+		where: eq(scalingLevelsTable.id, divisionId),
 	})
 
 	const [registrations, pendingPurchases] = await Promise.all([
@@ -372,7 +376,7 @@ async function createRegistration(
 				? `${user.firstName || ""} ${user.lastName || ""}`.trim() || null
 				: null,
 			competitionName: competition.name,
-			divisionName: divisionConfig?.division?.label ?? null,
+			divisionName: divisionRecord?.label ?? null,
 			teamName: registrationData.teamName ?? null,
 			registrationDivisionId: divisionId,
 			registrationTeamName: registrationData.teamName ?? null,

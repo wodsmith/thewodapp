@@ -1,19 +1,25 @@
 import { CheckCircle2, Trophy } from "lucide-react"
 
+export interface RegistrationItem {
+	registrationId: string
+	divisionLabel: string | null
+	teamName?: string | null
+}
+
 export interface CompetitionRegisteredBannerProps {
 	competitionName: string
 	athleteName: string
-	division?: string
 	affiliateName?: string
 	competitionLogoUrl?: string
+	items: RegistrationItem[]
 }
 
 export function CompetitionRegisteredBanner({
 	competitionName,
 	athleteName,
-	division,
 	affiliateName,
 	competitionLogoUrl,
+	items,
 }: CompetitionRegisteredBannerProps) {
 	return (
 		<div className="relative mx-auto w-full max-w-2xl overflow-hidden rounded-2xl bg-linear-to-br from-[#141416] to-[#0e0e10] shadow-2xl shadow-black/40">
@@ -55,29 +61,38 @@ export function CompetitionRegisteredBanner({
 						<h2 className="text-left text-2xl font-bold uppercase tracking-tight text-white">
 							{competitionName}
 						</h2>
-						{(athleteName || division || affiliateName) && (
-							<div className="flex items-center gap-3">
-								{athleteName && (
-									<p className="text-lg font-semibold text-slate-300">
-										{athleteName}
+						<div className="flex items-center gap-3">
+							{athleteName && (
+								<p className="text-lg font-semibold text-slate-300">
+									{athleteName}
+								</p>
+							)}
+							{affiliateName && (
+								<>
+									<span className="text-slate-600">·</span>
+									<p className="text-base font-medium text-slate-400">
+										{affiliateName}
 									</p>
-								)}
-								{division && (
-									<>
-										<span className="text-slate-600">·</span>
-										<p className="text-base font-medium text-slate-400">
-											{division}
-										</p>
-									</>
-								)}
-								{affiliateName && (
-									<>
-										<span className="text-slate-600">·</span>
-										<p className="text-base font-medium text-slate-400">
-											{affiliateName}
-										</p>
-									</>
-								)}
+								</>
+							)}
+						</div>
+						{items.length > 0 && (
+							<div className="flex flex-wrap gap-2">
+								{items.map((item) => (
+									<span
+										key={item.registrationId}
+										className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1"
+									>
+										<span className="text-xs font-medium text-amber-500">
+											{item.divisionLabel ?? "Division"}
+										</span>
+										{item.teamName && (
+											<span className="text-xs text-slate-400">
+												({item.teamName})
+											</span>
+										)}
+									</span>
+								))}
 							</div>
 						)}
 					</div>

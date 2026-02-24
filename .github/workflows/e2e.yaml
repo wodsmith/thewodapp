@@ -19,6 +19,19 @@ jobs:
       matrix:
         shardIndex: [1, 2]
         shardTotal: [2]
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: testpassword
+          MYSQL_DATABASE: wodsmith_e2e
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -29,25 +42,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
-      # Check if D1 migrations exist (they are removed during PlanetScale migration)
-      - name: Check E2E database setup
-        id: check-db
-        working-directory: apps/wodsmith-start
-        run: |
-          if [ -d "src/db/migrations" ] && [ "$(ls -A src/db/migrations 2>/dev/null)" ]; then
-            echo "has_migrations=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_migrations=false" >> $GITHUB_OUTPUT
-            echo "::warning::Skipping E2E tests: D1 migrations not found (PlanetScale migration in progress)"
-          fi
-
-      # Generate Alchemy wrangler config for local D1 and Vite
       - name: Setup Alchemy local config
-        if: steps.check-db.outputs.has_migrations == 'true'
         working-directory: apps/wodsmith-start
         run: |
-          mkdir -p .alchemy/local/src/db
-          ln -sf ../../../../src/db/migrations .alchemy/local/src/db/migrations
+          mkdir -p .alchemy/local
           cat > .alchemy/local/wrangler.jsonc << 'EOF'
           {
             "name": "wodsmith-app-e2e",
@@ -60,6 +58,9 @@ jobs:
               "not_found_handling": "none",
               "html_handling": "auto-trailing-slash",
               "run_worker_first": false
+            },
+            "vars": {
+              "DATABASE_URL": "mysql://root:testpassword@127.0.0.1:3306/wodsmith_e2e"
             },
             "kv_namespaces": [
               {
@@ -74,35 +75,32 @@ jobs:
                 "bucket_name": "e2e-uploads",
                 "preview_bucket_name": "e2e-uploads"
               }
-            ],
-            "d1_databases": [
-              {
-                "binding": "DB",
-                "database_id": "e2e-test-db",
-                "database_name": "wodsmith-db-dev",
-                "migrations_dir": "./src/db/migrations",
-                "preview_database_id": "e2e-test-db"
-              }
             ]
           }
           EOF
 
-      # Setup E2E database with migrations and seed data
-      - name: Setup E2E database
-        if: steps.check-db.outputs.has_migrations == 'true'
+      - name: Configure environment
         working-directory: apps/wodsmith-start
-        run: pnpm db:seed:e2e
+        run: echo 'DATABASE_URL=mysql://root:testpassword@127.0.0.1:3306/wodsmith_e2e' >> .dev.vars
+
+      - name: Setup E2E database
+        working-directory: apps/wodsmith-start
+        env:
+          DATABASE_URL: mysql://root:testpassword@127.0.0.1:3306/wodsmith_e2e
+        run: |
+          pnpm db:push
+          pnpm db:seed
+          pnpm db:seed:e2e
 
       # Note: We use vite dev (not vite preview) because the Alchemy Cloudflare
       # plugin only works in dev mode. No build step needed for E2E tests.
       - run: pnpm --filter wodsmith-start exec playwright install chromium --with-deps
-        if: steps.check-db.outputs.has_migrations == 'true'
       - run: pnpm --filter wodsmith-start exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
-        if: steps.check-db.outputs.has_migrations == 'true'
         env:
           CI: true
+          DATABASE_URL: mysql://root:testpassword@127.0.0.1:3306/wodsmith_e2e
       - uses: actions/upload-artifact@v4
-        if: always() && steps.check-db.outputs.has_migrations == 'true'
+        if: always()
         with:
           name: blob-report-${{ matrix.shardIndex }}
           path: apps/wodsmith-start/blob-report/

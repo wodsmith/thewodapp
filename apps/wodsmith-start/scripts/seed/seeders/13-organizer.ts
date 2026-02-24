@@ -1,7 +1,7 @@
-import type { Client } from "@planetscale/database"
+import type { Connection } from "mysql2/promise"
 import { batchInsert, currentTimestamp, now } from "../helpers"
 
-export async function seed(client: Client): Promise<void> {
+export async function seed(client: Connection): Promise<void> {
 	console.log("Seeding organizer data...")
 
 	const ts = now()

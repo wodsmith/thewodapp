@@ -179,10 +179,11 @@ export const competitionRegistrationsTable = mysqlTable(
 		paidAt: datetime(),
 	},
 	(table) => [
-		// One user can only register once per competition
-		uniqueIndex("competition_registrations_event_user_idx").on(
+		// One user can only register once per division per competition
+		uniqueIndex("competition_registrations_event_user_division_idx").on(
 			table.eventId,
 			table.userId,
+			table.divisionId,
 		),
 		index("competition_registrations_user_idx").on(table.userId),
 		index("competition_registrations_event_idx").on(table.eventId),
