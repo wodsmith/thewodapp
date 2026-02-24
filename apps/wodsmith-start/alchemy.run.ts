@@ -246,7 +246,7 @@ const isPrStage = stage.startsWith("pr-")
 const psBranchName =
 	stage === "prod"
 		? "main"
-		: (branchConfig[stage]?.name ?? (isPrStage ? "dev" : stage))
+		: (branchConfig[stage]?.name ?? (isPrStage ? "demo" : stage))
 const psBranch =
 	stage === "prod" || isPrStage
 		? undefined
