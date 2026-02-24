@@ -49,8 +49,7 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 
 					// purchaseIds (plural) is always set — check legacy purchaseId as fallback
 					const purchaseIdsRaw =
-						session.metadata?.purchaseIds ??
-						session.metadata?.purchaseId
+						session.metadata?.purchaseIds ?? session.metadata?.purchaseId
 
 					if (!purchaseIdsRaw) return
 
@@ -82,12 +81,12 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 
 					if (userId && competitionId) {
 						for (const purchaseId of purchaseIds) {
-							const purchase =
-								await db.query.commercePurchaseTable.findFirst({
-									where: eq(commercePurchaseTable.id, purchaseId),
-									columns: { divisionId: true },
-								})
-							const divisionId = purchase?.divisionId ?? session.metadata?.divisionId
+							const purchase = await db.query.commercePurchaseTable.findFirst({
+								where: eq(commercePurchaseTable.id, purchaseId),
+								columns: { divisionId: true },
+							})
+							const divisionId =
+								purchase?.divisionId ?? session.metadata?.divisionId
 
 							if (!divisionId) continue
 
@@ -243,8 +242,7 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 							// purchaseIds (plural) is always set — comma-separated for multi-division
 							// Also check legacy purchaseId (singular) for backward compatibility
 							const purchaseIdsRaw =
-								session.metadata?.purchaseIds ??
-								session.metadata?.purchaseId
+								session.metadata?.purchaseIds ?? session.metadata?.purchaseId
 
 							if (!purchaseIdsRaw || !competitionId || !userId) {
 								logError({
@@ -254,14 +252,12 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 										purchaseIds: purchaseIdsRaw,
 										competitionId,
 										userId,
-								},
+									},
 								})
 								return json({ received: true })
 							}
 
-							const purchaseIds = purchaseIdsRaw
-								.split(",")
-								.filter(Boolean)
+							const purchaseIds = purchaseIdsRaw.split(",").filter(Boolean)
 
 							// Extract payment_intent as string
 							const paymentIntent =
@@ -271,7 +267,10 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 
 							// Dispatch a workflow for EACH purchase (each division independent)
 							// Collect errors so one failure doesn't abort remaining purchases
-							const workflowErrors: Array<{ purchaseId: string; error: unknown }> = []
+							const workflowErrors: Array<{
+								purchaseId: string
+								error: unknown
+							}> = []
 
 							for (const purchaseId of purchaseIds) {
 								// Look up division from the purchase record
@@ -288,22 +287,22 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 									})
 								}
 
-								const divisionId = purchase?.divisionId ?? session.metadata?.divisionId ?? ""
+								const divisionId =
+									purchase?.divisionId ?? session.metadata?.divisionId ?? ""
 
 								const workflowParams: CheckoutCompletedParams = {
 									stripeEventId: event.id,
 									session: {
 										id: session.id,
 										payment_intent: paymentIntent,
-										amount_total:
-											purchase?.totalCents ?? session.amount_total,
+										amount_total: purchase?.totalCents ?? session.amount_total,
 										customer_email: session.customer_email,
 										metadata: {
 											purchaseId,
 											competitionId,
 											divisionId,
 											userId,
-								},
+										},
 									},
 								}
 
@@ -313,9 +312,13 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 										? `${event.id}-${purchaseId}`
 										: event.id
 
-								if (env.STRIPE_CHECKOUT_WORKFLOW) {
+								const workflow = "STRIPE_CHECKOUT_WORKFLOW" in env
+									? (env.STRIPE_CHECKOUT_WORKFLOW as Workflow<CheckoutCompletedParams> | undefined)
+									: undefined
+
+								if (workflow && typeof workflow.create === "function") {
 									try {
-										await env.STRIPE_CHECKOUT_WORKFLOW.create({
+										await workflow.create({
 											id: workflowId,
 											params: workflowParams,
 										})
@@ -342,8 +345,7 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 											})
 										} else {
 											logError({
-												message:
-													"[Stripe Webhook] Failed to dispatch workflow",
+												message: "[Stripe Webhook] Failed to dispatch workflow",
 												error: workflowErr,
 												attributes: {
 													eventId: event.id,
