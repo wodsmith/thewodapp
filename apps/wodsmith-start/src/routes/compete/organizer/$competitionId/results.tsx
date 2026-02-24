@@ -32,7 +32,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
-import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import {
 	getEventScoreEntryDataWithHeatsFn,
