@@ -312,12 +312,13 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 										? `${event.id}-${purchaseId}`
 										: event.id
 
-								if (
-									"STRIPE_CHECKOUT_WORKFLOW" in env &&
-									env.STRIPE_CHECKOUT_WORKFLOW instanceof Workflow
-								) {
+								const workflow = "STRIPE_CHECKOUT_WORKFLOW" in env
+									? (env.STRIPE_CHECKOUT_WORKFLOW as Workflow<CheckoutCompletedParams> | undefined)
+									: undefined
+
+								if (workflow && typeof workflow.create === "function") {
 									try {
-										await env.STRIPE_CHECKOUT_WORKFLOW.create({
+										await workflow.create({
 											id: workflowId,
 											params: workflowParams,
 										})

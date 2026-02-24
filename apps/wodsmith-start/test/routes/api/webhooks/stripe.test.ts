@@ -1,10 +1,6 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest'
 import {FakeDrizzleDb} from '@repo/test-utils'
 
-// Define Workflow global (Cloudflare Workers runtime global not available in Vitest)
-class WorkflowStub {}
-;(globalThis as Record<string, unknown>).Workflow = WorkflowStub
-
 // Mock the database
 const mockDb = new FakeDrizzleDb()
 
@@ -14,13 +10,12 @@ vi.mock('@/db', () => ({
 
 // Mock cloudflare:workers
 const mockWorkflowCreate = vi.fn()
-const mockWorkflowInstance = Object.create(WorkflowStub.prototype)
-mockWorkflowInstance.create = (...args: unknown[]) => mockWorkflowCreate(...args)
-mockWorkflowInstance.get = vi.fn()
-
 vi.mock('cloudflare:workers', () => ({
   env: {
-    STRIPE_CHECKOUT_WORKFLOW: mockWorkflowInstance,
+    STRIPE_CHECKOUT_WORKFLOW: {
+      create: (...args: unknown[]) => mockWorkflowCreate(...args),
+      get: vi.fn(),
+    },
     STRIPE_WEBHOOK_SECRET: 'whsec_test_secret',
     STRIPE_SECRET_KEY: 'sk_test_123',
     APP_URL: 'https://test.wodsmith.com',
