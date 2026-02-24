@@ -230,3 +230,9 @@ export const getSlackPurchaseNotificationTypes = createServerOnlyFn(
 		return extendedEnv.SLACK_PURCHASE_NOTIFICATION_TYPES
 	},
 )
+
+// Sentry configuration accessors
+
+export const getSentryDsn = createServerOnlyFn((): string | undefined => {
+	return extendedEnv.SENTRY_DSN
+})

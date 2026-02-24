@@ -1,19 +1,13 @@
 import type { CloudflareOptions } from "@sentry/cloudflare"
-
-/**
- * Type-safe access to env vars that may or may not exist in the typed Env interface.
- */
-function getEnvVar(envObj: Env, key: string): string | undefined {
-	return (envObj as unknown as Record<string, string | undefined>)[key]
-}
+import { getAppUrl, getNodeEnv, getSentryDsn } from "@/lib/env"
 
 /**
  * Derive environment name from APP_URL for Sentry.
  */
-function getSentryEnvironment(envObj: Env): string {
-	const appUrl = getEnvVar(envObj, "APP_URL")
-	if (appUrl?.includes("demo.wodsmith.com")) return "demo"
-	if (appUrl?.includes("wodsmith.com")) return "production"
+function getSentryEnvironment(): string {
+	const appUrl = getAppUrl()
+	if (appUrl.includes("demo.wodsmith.com")) return "demo"
+	if (appUrl.includes("wodsmith.com")) return "production"
 	return "development"
 }
 
@@ -21,13 +15,13 @@ function getSentryEnvironment(envObj: Env): string {
  * Centralized Sentry config factory for the server.
  * Used by both `withSentry` (server.ts) and `instrumentWorkflowWithSentry` (workflow).
  */
-export function getSentryOptions(envObj: Env): CloudflareOptions {
-	const dsn = getEnvVar(envObj, "SENTRY_DSN")
-	const nodeEnv = getEnvVar(envObj, "NODE_ENV")
+export function getSentryOptions(_envObj: Env): CloudflareOptions {
+	const dsn = getSentryDsn()
+	const nodeEnv = getNodeEnv()
 	return {
 		dsn: dsn || undefined,
 		tracesSampleRate: nodeEnv === "production" ? 0.1 : 1.0,
-		environment: getSentryEnvironment(envObj),
+		environment: getSentryEnvironment(),
 		sendDefaultPii: false,
 	}
 }
