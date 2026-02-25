@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "0645c3e564c8",
+  "session_id": "3dded5ac-a667-436b-a093-ad8efbdf0e31",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-25T06:09:32.887438Z",
+  "branch": "claude/soft-delete-registrations-oq15P",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/wodsmith-start/src/components/registration-sidebar.tsx",
+    "apps/wodsmith-start/src/db/schemas/competitions.ts",
+    "apps/wodsmith-start/src/routes/compete/$slug/teams/$registrationId/index.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes.tsx",
+    "apps/wodsmith-start/src/server-fns/athlete-score-fns.ts",
+    "apps/wodsmith-start/src/server-fns/competition-detail-fns.ts",
+    "apps/wodsmith-start/src/server-fns/competition-divisions-fns.ts",
+    "apps/wodsmith-start/src/server-fns/competition-heats-fns.ts",
+    "apps/wodsmith-start/src/server-fns/competition-score-fns.ts",
+    "apps/wodsmith-start/src/server-fns/division-results-fns.ts",
+    "apps/wodsmith-start/src/server-fns/registration-fns.ts",
+    "apps/wodsmith-start/src/server-fns/video-submission-fns.ts",
+    "apps/wodsmith-start/src/server/competition-leaderboard.ts"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "09547508-de86-4d82-9181-dcc34074013c",
+  "checkpoint_transcript_start": 375,
+  "transcript_lines_at_start": 375,
+  "token_usage": {
+    "input_tokens": 77,
+    "cache_creation_tokens": 46716,
+    "cache_read_tokens": 8208683,
+    "output_tokens": 4469,
+    "api_call_count": 67
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-25T06:09:32.585658Z",
+    "agent_lines": 31,
+    "human_added": 52,
+    "human_modified": 31,
+    "human_removed": 0,
+    "total_committed": 114,
+    "agent_percentage": 27.192982456140353
+  }
+}
