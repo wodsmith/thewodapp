@@ -1372,8 +1372,7 @@ function AthletesPage() {
 							<> (team: {removingRegistration.teamName})</>
 						)}
 						? This will remove them from the competition, delete their heat
-						assignments and scores, and deactivate their team membership. This
-						action cannot be undone.
+						assignments and scores. This action cannot be undone.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 				<AlertDialogFooter>
