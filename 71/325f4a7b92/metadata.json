@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "71325f4a7b92",
+  "strategy": "manual-commit",
+  "branch": "claude/soft-delete-registrations-oq15P",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/src/router.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes.tsx",
+    "apps/wodsmith-start/src/server-fns/registration-fns.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/71/325f4a7b92/0/metadata.json",
+      "transcript": "/71/325f4a7b92/0/full.jsonl",
+      "context": "/71/325f4a7b92/0/context.md",
+      "content_hash": "/71/325f4a7b92/0/content_hash.txt",
+      "prompt": "/71/325f4a7b92/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 39,
+    "cache_creation_tokens": 53403,
+    "cache_read_tokens": 1548834,
+    "output_tokens": 9505,
+    "api_call_count": 37
+  }
+}
