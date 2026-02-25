@@ -7,12 +7,12 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, asc, count, eq, ne, sql } from "drizzle-orm"
 import { z } from "zod"
 import { type Database, getDb } from "@/db"
-import { createScalingGroupId, createScalingLevelId } from "@/db/schemas/common"
 import {
 	COMMERCE_PURCHASE_STATUS,
 	commercePurchaseTable,
 	competitionDivisionsTable,
 } from "@/db/schemas/commerce"
+import { createScalingGroupId, createScalingLevelId } from "@/db/schemas/common"
 import {
 	competitionRegistrationsTable,
 	competitionsTable,
@@ -111,6 +111,7 @@ export interface CompetitionDivisionWithCounts {
 	description: string | null
 	feeCents: number | null
 	maxSpots: number | null
+	teamSize: number
 }
 
 export interface ScalingGroupForTemplate {
@@ -701,6 +702,7 @@ export const getCompetitionDivisionsWithCountsFn = createServerFn({
 				description: competitionDivisionsTable.description,
 				feeCents: competitionDivisionsTable.feeCents,
 				maxSpots: competitionDivisionsTable.maxSpots,
+				teamSize: scalingLevelsTable.teamSize,
 				registrationCount: sql<number>`cast(count(${competitionRegistrationsTable.id}) as unsigned)`,
 			})
 			.from(scalingLevelsTable)
@@ -722,6 +724,7 @@ export const getCompetitionDivisionsWithCountsFn = createServerFn({
 			.where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))
 			.groupBy(
 				scalingLevelsTable.id,
+				scalingLevelsTable.teamSize,
 				competitionDivisionsTable.description,
 				competitionDivisionsTable.feeCents,
 				competitionDivisionsTable.maxSpots,
