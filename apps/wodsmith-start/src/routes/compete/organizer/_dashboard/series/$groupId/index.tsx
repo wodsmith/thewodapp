@@ -4,6 +4,7 @@ import { ArrowLeft, ListPlus, Pencil, Plus } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { AddCompetitionsToSeriesDialog } from "@/components/add-competitions-to-series-dialog"
+import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
 import { OrganizerCompetitionsList } from "@/components/organizer-competitions-list"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,22 +19,24 @@ import {
 	getOrganizerCompetitionsFn,
 	updateCompetitionFn,
 } from "@/server-fns/competition-fns"
+import { getSeriesQuestionsFn } from "@/server-fns/registration-questions-fns"
+import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
 
 export const Route = createFileRoute(
 	"/compete/organizer/_dashboard/series/$groupId/",
 )({
 	component: SeriesDetailPage,
-	loader: async ({ params, context }) => {
+	loader: async ({ params }) => {
 		const { groupId } = params
-		const session = context.session
-		const teamId = session?.teams?.[0]?.id
+		const { teams: organizingTeams } = await getOrganizerTeamsFn()
 
-		if (!teamId) {
+		if (organizingTeams.length === 0) {
 			return {
 				group: null,
 				seriesCompetitions: [],
 				allCompetitions: [],
 				allGroups: [],
+				seriesQuestions: [],
 				teamId: null,
 			}
 		}
@@ -47,14 +50,25 @@ export const Route = createFileRoute(
 				seriesCompetitions: [],
 				allCompetitions: [],
 				allGroups: [],
-				teamId,
+				seriesQuestions: [],
+				teamId: null,
 			}
 		}
 
-		// Fetch all competitions for this team
-		const competitionsResult = await getOrganizerCompetitionsFn({
-			data: { teamId },
-		})
+		// Use the group's organizing team if the user has access, otherwise fall back
+		let teamId = await getActiveTeamIdFn()
+		const groupTeamId = groupResult.group.organizingTeamId
+		if (organizingTeams.some((t) => t.id === groupTeamId)) {
+			teamId = groupTeamId
+		} else if (!organizingTeams.some((t) => t.id === teamId)) {
+			teamId = organizingTeams[0].id
+		}
+
+		// Fetch competitions and series questions in parallel
+		const [competitionsResult, questionsResult] = await Promise.all([
+			getOrganizerCompetitionsFn({ data: { teamId } }),
+			getSeriesQuestionsFn({ data: { groupId } }),
+		])
 
 		// Filter competitions that belong to this series
 		const seriesCompetitions = competitionsResult.competitions.filter(
@@ -68,18 +82,29 @@ export const Route = createFileRoute(
 			allGroups: [
 				{ ...groupResult.group, competitionCount: seriesCompetitions.length },
 			],
+			seriesQuestions: questionsResult.questions,
 			teamId,
 		}
 	},
 })
 
 function SeriesDetailPage() {
-	const { group, seriesCompetitions, allCompetitions, allGroups, teamId } =
-		Route.useLoaderData()
+	const {
+		group,
+		seriesCompetitions,
+		allCompetitions,
+		allGroups,
+		seriesQuestions,
+		teamId,
+	} = Route.useLoaderData()
 	const router = useRouter()
 	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 
 	const updateCompetition = useServerFn(updateCompetitionFn)
+
+	const handleQuestionsChange = () => {
+		router.invalidate()
+	}
 
 	const handleRemoveFromSeries = async (competitionId: string) => {
 		try {
@@ -213,6 +238,15 @@ function SeriesDetailPage() {
 						</div>
 					</CardContent>
 				</Card>
+
+				{/* Series Registration Questions */}
+				<RegistrationQuestionsEditor
+					entityType="series"
+					entityId={group.id}
+					teamId={teamId}
+					questions={seriesQuestions}
+					onQuestionsChange={handleQuestionsChange}
+				/>
 
 				{/* Competitions in Series */}
 				<div>

@@ -11,7 +11,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, isNull } from "drizzle-orm"
+import { and, eq, isNull, or } from "drizzle-orm"
 import type Stripe from "stripe"
 import { z } from "zod"
 import { getDb } from "@/db"
@@ -125,16 +125,35 @@ async function validateRequiredQuestions(
 ): Promise<void> {
 	const db = getDb()
 
-	// Get all required questions for this competition
-	const requiredQuestions = await db
-		.select()
-		.from(competitionRegistrationQuestionsTable)
-		.where(
+	// Look up the competition's groupId
+	const [competition] = await db
+		.select({ groupId: competitionsTable.groupId })
+		.from(competitionsTable)
+		.where(eq(competitionsTable.id, competitionId))
+
+	// Build where clause: competition-specific questions OR series-level questions
+	const conditions = [
+		and(
+			eq(competitionRegistrationQuestionsTable.competitionId, competitionId),
+			eq(competitionRegistrationQuestionsTable.required, true),
+		),
+	]
+	if (competition?.groupId) {
+		conditions.push(
 			and(
-				eq(competitionRegistrationQuestionsTable.competitionId, competitionId),
+				eq(
+					competitionRegistrationQuestionsTable.groupId,
+					competition.groupId,
+				),
 				eq(competitionRegistrationQuestionsTable.required, true),
 			),
 		)
+	}
+
+	const requiredQuestions = await db
+		.select()
+		.from(competitionRegistrationQuestionsTable)
+		.where(or(...conditions))
 
 	if (requiredQuestions.length === 0) return
 

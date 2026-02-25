@@ -9,19 +9,31 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
 
 export const Route = createFileRoute(
 	"/compete/organizer/_dashboard/series/new",
 )({
 	component: NewSeriesPage,
-	loader: async ({ context }) => {
-		const session = context.session
-		const userTeams = session?.teams || []
-		const selectedTeamId = userTeams[0]?.id
+	loader: async () => {
+		// Get teams that can organize competitions (non-personal, with HOST_COMPETITIONS)
+		const { teams: organizingTeams } = await getOrganizerTeamsFn()
 
-		return {
-			selectedTeamId,
+		if (organizingTeams.length === 0) {
+			return { selectedTeamId: null }
 		}
+
+		// Get active team from cookie, or use first organizing team
+		let selectedTeamId = await getActiveTeamIdFn()
+
+		const isSelectedTeamAnOrganizer = organizingTeams.some(
+			(team) => team.id === selectedTeamId,
+		)
+		if (!isSelectedTeamAnOrganizer) {
+			selectedTeamId = organizingTeams[0].id
+		}
+
+		return { selectedTeamId }
 	},
 })
 

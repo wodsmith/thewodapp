@@ -6,7 +6,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, count, eq, inArray } from "drizzle-orm"
+import { and, count, eq, inArray, or } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -522,16 +522,37 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 						competitionId?: string
 					}
 					if (compMeta.competitionId) {
-						// Validate required questions
-						const requiredQuestions =
-							await db.query.competitionRegistrationQuestionsTable.findMany({
-								where: and(
+						// Look up competition's groupId for series-level questions
+						const [comp] = await db
+							.select({ groupId: competitionsTable.groupId })
+							.from(competitionsTable)
+							.where(eq(competitionsTable.id, compMeta.competitionId))
+
+						// Validate required questions (competition-specific + series-level)
+						const questionConditions = [
+							and(
+								eq(
+									competitionRegistrationQuestionsTable.competitionId,
+									compMeta.competitionId,
+								),
+								eq(competitionRegistrationQuestionsTable.required, true),
+							),
+						]
+						if (comp?.groupId) {
+							questionConditions.push(
+								and(
 									eq(
-										competitionRegistrationQuestionsTable.competitionId,
-										compMeta.competitionId,
+										competitionRegistrationQuestionsTable.groupId,
+										comp.groupId,
 									),
 									eq(competitionRegistrationQuestionsTable.required, true),
 								),
+							)
+						}
+
+						const requiredQuestions =
+							await db.query.competitionRegistrationQuestionsTable.findMany({
+								where: or(...questionConditions),
 							})
 
 						const teammateRequiredQuestions = requiredQuestions.filter(

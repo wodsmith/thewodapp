@@ -297,7 +297,10 @@ export const competitionRegistrationQuestionsTable = mysqlTable(
 			.primaryKey()
 			.$defaultFn(() => createCompetitionRegistrationQuestionId())
 			.notNull(),
-		competitionId: varchar({ length: 255 }).notNull(),
+		// Nullable: set for competition-specific questions, null for series-level questions
+		competitionId: varchar({ length: 255 }),
+		// Optional: set for series-level questions, null for competition-specific questions
+		groupId: varchar({ length: 255 }),
 		// Question type: text (free form), select (dropdown), number
 		type: varchar({ length: 20 })
 			.$type<"text" | "select" | "number">()
@@ -321,6 +324,7 @@ export const competitionRegistrationQuestionsTable = mysqlTable(
 			table.competitionId,
 			table.sortOrder,
 		),
+		index("comp_reg_questions_group_idx").on(table.groupId),
 	],
 )
 
@@ -432,6 +436,8 @@ export const competitionGroupsRelations = relations(
 		}),
 		// All competitions in this group
 		competitions: many(competitionsTable),
+		// Series-level registration questions
+		registrationQuestions: many(competitionRegistrationQuestionsTable),
 	}),
 )
 
@@ -579,6 +585,10 @@ export const competitionRegistrationQuestionsRelations = relations(
 		competition: one(competitionsTable, {
 			fields: [competitionRegistrationQuestionsTable.competitionId],
 			references: [competitionsTable.id],
+		}),
+		group: one(competitionGroupsTable, {
+			fields: [competitionRegistrationQuestionsTable.groupId],
+			references: [competitionGroupsTable.id],
 		}),
 		answers: many(competitionRegistrationAnswersTable),
 	}),

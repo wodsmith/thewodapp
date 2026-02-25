@@ -8,6 +8,7 @@
 import {
 	createFileRoute,
 	getRouteApi,
+	Link,
 	useNavigate,
 	useRouter,
 } from "@tanstack/react-router"
@@ -17,6 +18,7 @@ import {
 	ArrowUpDown,
 	Calendar,
 	Download,
+	Link2,
 	Mail,
 	X,
 } from "lucide-react"
@@ -716,11 +718,70 @@ function AthletesPage() {
 
 	return (
 		<div className="flex flex-col gap-6">
-			{/* Registration Questions Editor */}
+			{/* Inherited Series Questions (read-only) */}
+			{questions.some((q) => q.source === "series") && (
+				<Card>
+					<CardHeader>
+						<CardTitle className="flex items-center gap-2">
+							<Link2 className="h-5 w-5" />
+							Series Registration Questions
+						</CardTitle>
+						<CardDescription>
+							These questions are inherited from the series and apply to all
+							competitions.{" "}
+							{competition.groupId && (
+								<Link
+									to="/compete/organizer/series/$groupId"
+									params={{ groupId: competition.groupId }}
+									className="text-primary underline underline-offset-4 hover:text-primary/80"
+								>
+									Manage on series page
+								</Link>
+							)}
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<div className="space-y-2">
+							{questions
+								.filter((q) => q.source === "series")
+								.map((question) => (
+									<div
+										key={question.id}
+										className="flex items-start gap-3 p-4 border rounded-lg bg-muted/50"
+									>
+										<div className="flex-1 space-y-2">
+											<div className="flex items-start justify-between gap-2">
+												<h4 className="font-medium">{question.label}</h4>
+												<Badge variant="outline" className="flex items-center gap-1 shrink-0">
+													<Link2 className="h-3 w-3" />
+													From Series
+												</Badge>
+											</div>
+											{question.helpText && (
+												<p className="text-sm text-muted-foreground">
+													{question.helpText}
+												</p>
+											)}
+											<div className="flex items-center gap-2 flex-wrap">
+												<Badge variant="secondary">{question.type}</Badge>
+												<Badge variant={question.required ? "destructive" : "outline"}>
+													{question.required ? "Required" : "Optional"}
+												</Badge>
+											</div>
+										</div>
+									</div>
+								))}
+						</div>
+					</CardContent>
+				</Card>
+			)}
+
+			{/* Competition-specific Registration Questions Editor */}
 			<RegistrationQuestionsEditor
-				competitionId={competition.id}
+				entityType="competition"
+				entityId={competition.id}
 				teamId={teamId}
-				questions={questions}
+				questions={questions.filter((q) => q.source === "competition")}
 				onQuestionsChange={handleQuestionsChange}
 			/>
 
@@ -985,7 +1046,12 @@ function AthletesPage() {
 											</TableHead>
 											{questions.map((question) => (
 												<TableHead key={question.id}>
-													{question.label}
+													<span className="flex items-center gap-1">
+														{question.label}
+														{question.source === "series" && (
+															<Link2 className="h-3 w-3 text-muted-foreground shrink-0" />
+														)}
+													</span>
 												</TableHead>
 											))}
 											{waivers.map((waiver) => (

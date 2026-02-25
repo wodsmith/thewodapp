@@ -10,17 +10,17 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import { getCompetitionGroupByIdFn } from "@/server-fns/competition-fns"
+import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
 
 export const Route = createFileRoute(
 	"/compete/organizer/_dashboard/series/$groupId/edit",
 )({
 	component: EditSeriesPage,
-	loader: async ({ params, context }) => {
+	loader: async ({ params }) => {
 		const { groupId } = params
-		const session = context.session
-		const teamId = session?.teams?.[0]?.id
+		const { teams: organizingTeams } = await getOrganizerTeamsFn()
 
-		if (!teamId) {
+		if (organizingTeams.length === 0) {
 			return {
 				group: null,
 				teamId: null,
@@ -29,6 +29,22 @@ export const Route = createFileRoute(
 
 		// Fetch group details
 		const groupResult = await getCompetitionGroupByIdFn({ data: { groupId } })
+
+		if (!groupResult.group) {
+			return {
+				group: null,
+				teamId: null,
+			}
+		}
+
+		// Use the group's organizing team if user has access
+		let teamId = await getActiveTeamIdFn()
+		const groupTeamId = groupResult.group.organizingTeamId
+		if (organizingTeams.some((t) => t.id === groupTeamId)) {
+			teamId = groupTeamId
+		} else if (!organizingTeams.some((t) => t.id === teamId)) {
+			teamId = organizingTeams[0].id
+		}
 
 		return {
 			group: groupResult.group,
