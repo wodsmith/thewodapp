@@ -14,6 +14,7 @@ import {
 	competitionDivisionsTable,
 } from "@/db/schemas/commerce"
 import {
+	competitionGroupsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
 } from "@/db/schemas/competitions"
@@ -843,9 +844,10 @@ export const initializeCompetitionDivisionsFn = createServerFn({
 			const newGroup = await createScalingGroup({
 				teamId: data.teamId,
 				title: `${competition.name} Divisions`,
-				description: data.templateGroupId && templateGroupTitle
-					? `Cloned from ${templateGroupTitle}`
-					: `Divisions for ${competition.name}`,
+				description:
+					data.templateGroupId && templateGroupTitle
+						? `Cloned from ${templateGroupTitle}`
+						: `Divisions for ${competition.name}`,
 				tx,
 			})
 
@@ -1342,4 +1344,500 @@ export const getDivisionSpotsAvailableFn = createServerFn({ method: "GET" })
 			available: capacity.spotsAvailable,
 			isFull: capacity.isFull,
 		}
+	})
+
+// ============================================================================
+// Series Division Input Schemas
+// ============================================================================
+
+const getSeriesDivisionsInputSchema = z.object({
+	groupId: z.string().min(1, "Group ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+})
+
+const initializeSeriesDivisionsInputSchema = z.object({
+	groupId: z.string().min(1, "Group ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+	templateGroupId: z.string().optional(),
+})
+
+const addSeriesDivisionInputSchema = z.object({
+	groupId: z.string().min(1, "Group ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+	label: z.string().min(1, "Division name is required").max(100),
+	teamSize: z.number().int().min(1).max(10).default(1),
+})
+
+const updateSeriesDivisionInputSchema = z.object({
+	groupId: z.string().min(1, "Group ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+	divisionId: z.string().min(1, "Division ID is required"),
+	label: z.string().min(1, "Division name is required").max(100),
+})
+
+const deleteSeriesDivisionInputSchema = z.object({
+	groupId: z.string().min(1, "Group ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+	divisionId: z.string().min(1, "Division ID is required"),
+})
+
+const reorderSeriesDivisionsInputSchema = z.object({
+	groupId: z.string().min(1, "Group ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+	orderedDivisionIds: z.array(z.string()).min(1, "Division IDs are required"),
+})
+
+const promoteCompetitionDivisionsToSeriesInputSchema = z.object({
+	groupId: z.string().min(1, "Group ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+	competitionId: z.string().min(1, "Competition ID is required"),
+})
+
+// ============================================================================
+// Series Division Helper
+// ============================================================================
+
+/**
+ * Get the series group and verify ownership
+ */
+async function getSeriesGroupForTeam({
+	groupId,
+	teamId,
+}: {
+	groupId: string
+	teamId: string
+}) {
+	const db = getDb()
+
+	const [group] = await db
+		.select()
+		.from(competitionGroupsTable)
+		.where(eq(competitionGroupsTable.id, groupId))
+
+	if (!group) {
+		throw new Error("Series not found")
+	}
+
+	if (group.organizingTeamId !== teamId) {
+		throw new Error("Series does not belong to this team")
+	}
+
+	return group
+}
+
+// ============================================================================
+// Series Division Server Functions
+// ============================================================================
+
+/**
+ * Get divisions for a series template
+ */
+export const getSeriesDivisionsFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) => getSeriesDivisionsInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		await requireTeamPermission(data.teamId, TEAM_PERMISSIONS.ACCESS_DASHBOARD)
+
+		const group = await getSeriesGroupForTeam({
+			groupId: data.groupId,
+			teamId: data.teamId,
+		})
+
+		if (!group.scalingGroupId) {
+			return { scalingGroupId: null, divisions: [] }
+		}
+
+		const divisions = await listScalingLevels({
+			scalingGroupId: group.scalingGroupId,
+		})
+
+		return {
+			scalingGroupId: group.scalingGroupId,
+			divisions: divisions.map((d) => ({
+				id: d.id,
+				label: d.label,
+				position: d.position,
+				teamSize: d.teamSize,
+			})),
+		}
+	})
+
+/**
+ * Initialize series divisions (create scaling group + default or cloned levels)
+ */
+export const initializeSeriesDivisionsFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		initializeSeriesDivisionsInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		const group = await getSeriesGroupForTeam({
+			groupId: data.groupId,
+			teamId: data.teamId,
+		})
+
+		if (group.scalingGroupId) {
+			throw new Error("Series already has divisions configured")
+		}
+
+		// Read template data before transaction (if cloning)
+		let templateLevels: Awaited<ReturnType<typeof listScalingLevels>> = []
+		let templateGroupTitle: string | undefined
+
+		if (data.templateGroupId) {
+			templateLevels = await listScalingLevels({
+				scalingGroupId: data.templateGroupId,
+			})
+
+			const [templateGroup] = await db
+				.select()
+				.from(scalingGroupsTable)
+				.where(eq(scalingGroupsTable.id, data.templateGroupId))
+
+			templateGroupTitle = templateGroup?.title
+		}
+
+		// Create group + levels atomically
+		const newScalingGroupId = await db.transaction(async (tx) => {
+			const newGroup = await createScalingGroup({
+				teamId: data.teamId,
+				title: `${group.name} Divisions`,
+				description:
+					data.templateGroupId && templateGroupTitle
+						? `Cloned from ${templateGroupTitle}`
+						: `Series divisions for ${group.name}`,
+				tx,
+			})
+
+			if (!newGroup) {
+				throw new Error("Failed to create scaling group")
+			}
+
+			if (data.templateGroupId && templateLevels.length > 0) {
+				for (const level of templateLevels) {
+					await createScalingLevel({
+						scalingGroupId: newGroup.id,
+						label: level.label,
+						position: level.position,
+						teamSize: level.teamSize,
+						tx,
+					})
+				}
+			} else {
+				await createScalingLevel({
+					scalingGroupId: newGroup.id,
+					label: "Open",
+					position: 0,
+					tx,
+				})
+				await createScalingLevel({
+					scalingGroupId: newGroup.id,
+					label: "Scaled",
+					position: 1,
+					tx,
+				})
+			}
+
+			// Update series with the new scaling group ID
+			await tx
+				.update(competitionGroupsTable)
+				.set({ scalingGroupId: newGroup.id, updatedAt: new Date() })
+				.where(eq(competitionGroupsTable.id, data.groupId))
+
+			return newGroup.id
+		})
+
+		return { scalingGroupId: newScalingGroupId }
+	})
+
+/**
+ * Add a division to a series template
+ */
+export const addSeriesDivisionFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => addSeriesDivisionInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		const group = await getSeriesGroupForTeam({
+			groupId: data.groupId,
+			teamId: data.teamId,
+		})
+
+		if (!group.scalingGroupId) {
+			throw new Error("Series does not have divisions configured yet")
+		}
+
+		const level = await createScalingLevel({
+			scalingGroupId: group.scalingGroupId,
+			label: data.label,
+			teamSize: data.teamSize,
+		})
+
+		return { divisionId: level.id }
+	})
+
+/**
+ * Update a series division label
+ */
+export const updateSeriesDivisionFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		updateSeriesDivisionInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		const group = await getSeriesGroupForTeam({
+			groupId: data.groupId,
+			teamId: data.teamId,
+		})
+
+		if (!group.scalingGroupId) {
+			throw new Error("Series does not have divisions configured yet")
+		}
+
+		// Verify division belongs to the series scaling group
+		const [division] = await db
+			.select()
+			.from(scalingLevelsTable)
+			.where(eq(scalingLevelsTable.id, data.divisionId))
+
+		if (!division || division.scalingGroupId !== group.scalingGroupId) {
+			throw new Error("Division not found in this series")
+		}
+
+		await db
+			.update(scalingLevelsTable)
+			.set({ label: data.label, updatedAt: new Date() })
+			.where(eq(scalingLevelsTable.id, data.divisionId))
+
+		return { success: true }
+	})
+
+/**
+ * Delete a division from a series template
+ * No registration check needed since template divisions are not directly referenced
+ */
+export const deleteSeriesDivisionFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		deleteSeriesDivisionInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		const group = await getSeriesGroupForTeam({
+			groupId: data.groupId,
+			teamId: data.teamId,
+		})
+
+		if (!group.scalingGroupId) {
+			throw new Error("Series does not have divisions configured yet")
+		}
+
+		// Verify division belongs to the series scaling group
+		const [division] = await db
+			.select()
+			.from(scalingLevelsTable)
+			.where(eq(scalingLevelsTable.id, data.divisionId))
+
+		if (!division || division.scalingGroupId !== group.scalingGroupId) {
+			throw new Error("Division not found in this series")
+		}
+
+		// Must keep at least 1 division
+		const allDivisions = await listScalingLevels({
+			scalingGroupId: group.scalingGroupId,
+		})
+		if (allDivisions.length <= 1) {
+			throw new Error("Series must have at least one division")
+		}
+
+		await db
+			.delete(scalingLevelsTable)
+			.where(eq(scalingLevelsTable.id, data.divisionId))
+
+		return { success: true }
+	})
+
+/**
+ * Reorder series divisions (drag and drop)
+ */
+export const reorderSeriesDivisionsFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		reorderSeriesDivisionsInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		const group = await getSeriesGroupForTeam({
+			groupId: data.groupId,
+			teamId: data.teamId,
+		})
+
+		if (!group.scalingGroupId) {
+			throw new Error("Series does not have divisions configured yet")
+		}
+
+		const scalingGroupId = group.scalingGroupId
+
+		// Update all positions atomically
+		await db.transaction(async (tx) => {
+			for (let i = 0; i < data.orderedDivisionIds.length; i++) {
+				const id = data.orderedDivisionIds[i]
+				if (!id) continue
+
+				await tx
+					.update(scalingLevelsTable)
+					.set({ position: i, updatedAt: new Date() })
+					.where(
+						and(
+							eq(scalingLevelsTable.id, id),
+							eq(scalingLevelsTable.scalingGroupId, scalingGroupId),
+						),
+					)
+			}
+		})
+
+		return { success: true }
+	})
+
+/**
+ * Promote a competition's divisions to become the series template
+ * Clones the competition's scaling group levels into a NEW series scaling group
+ */
+export const promoteCompetitionDivisionsToSeriesFn = createServerFn({
+	method: "POST",
+})
+	.inputValidator((data: unknown) =>
+		promoteCompetitionDivisionsToSeriesInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		const group = await getSeriesGroupForTeam({
+			groupId: data.groupId,
+			teamId: data.teamId,
+		})
+
+		// Get the competition and its scaling group
+		const [competition] = await db
+			.select()
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+
+		if (!competition) {
+			throw new Error("Competition not found")
+		}
+
+		const settings = parseCompetitionSettings(competition.settings)
+		const competitionScalingGroupId = settings?.divisions?.scalingGroupId
+
+		if (!competitionScalingGroupId) {
+			throw new Error("Competition does not have divisions configured")
+		}
+
+		// Get levels to clone
+		const templateLevels = await listScalingLevels({
+			scalingGroupId: competitionScalingGroupId,
+		})
+
+		if (templateLevels.length === 0) {
+			throw new Error("Competition has no divisions to promote")
+		}
+
+		// Create new series scaling group and clone levels
+		const newScalingGroupId = await db.transaction(async (tx) => {
+			const newGroup = await createScalingGroup({
+				teamId: data.teamId,
+				title: `${group.name} Divisions`,
+				description: `Promoted from ${competition.name}`,
+				tx,
+			})
+
+			if (!newGroup) {
+				throw new Error("Failed to create scaling group")
+			}
+
+			for (const level of templateLevels) {
+				await createScalingLevel({
+					scalingGroupId: newGroup.id,
+					label: level.label,
+					position: level.position,
+					teamSize: level.teamSize,
+					tx,
+				})
+			}
+
+			// Update series with the new scaling group ID
+			await tx
+				.update(competitionGroupsTable)
+				.set({ scalingGroupId: newGroup.id, updatedAt: new Date() })
+				.where(eq(competitionGroupsTable.id, data.groupId))
+
+			return newGroup.id
+		})
+
+		return { scalingGroupId: newScalingGroupId }
 	})

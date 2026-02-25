@@ -12,6 +12,7 @@ import {
 	getCompetitionDivisionsWithCountsFn,
 	listScalingGroupsFn,
 } from "@/server-fns/competition-divisions-fns"
+import { getCompetitionGroupByIdFn } from "@/server-fns/competition-fns"
 import { CapacitySettingsForm } from "./-components/capacity-settings-form"
 
 // Get parent route API to access its loader data
@@ -26,20 +27,27 @@ export const Route = createFileRoute(
 		const parentMatch = await parentMatchPromise
 		const { competition } = parentMatch.loaderData!
 
-		// Parallel fetch divisions and scaling groups
-		const [divisionsResult, scalingGroupsResult] = await Promise.all([
-			getCompetitionDivisionsWithCountsFn({
-				data: {
-					competitionId: params.competitionId,
-					teamId: competition.organizingTeamId,
-				},
-			}),
-			listScalingGroupsFn({
-				data: {
-					teamId: competition.organizingTeamId,
-				},
-			}),
-		])
+		// Parallel fetch divisions, scaling groups, and series info
+		const [divisionsResult, scalingGroupsResult, seriesResult] =
+			await Promise.all([
+				getCompetitionDivisionsWithCountsFn({
+					data: {
+						competitionId: params.competitionId,
+						teamId: competition.organizingTeamId,
+					},
+				}),
+				listScalingGroupsFn({
+					data: {
+						teamId: competition.organizingTeamId,
+					},
+				}),
+				// Fetch series scaling group ID if competition is in a series
+				competition.groupId
+					? getCompetitionGroupByIdFn({
+							data: { groupId: competition.groupId },
+						})
+					: Promise.resolve(null),
+			])
 
 		return {
 			divisions: divisionsResult.divisions,
@@ -47,6 +55,7 @@ export const Route = createFileRoute(
 			scalingGroups: scalingGroupsResult.groups,
 			defaultMaxSpotsPerDivision:
 				divisionsResult.defaultMaxSpotsPerDivision ?? null,
+			seriesScalingGroupId: seriesResult?.group?.scalingGroupId ?? null,
 		}
 	},
 })
@@ -57,6 +66,7 @@ function DivisionsPage() {
 		scalingGroupId,
 		scalingGroups,
 		defaultMaxSpotsPerDivision,
+		seriesScalingGroupId,
 	} = Route.useLoaderData()
 	// Get competition from parent layout loader data
 	const { competition } = parentRoute.useLoaderData()
@@ -84,6 +94,7 @@ function DivisionsPage() {
 				scalingGroupId={scalingGroupId}
 				scalingGroups={scalingGroups}
 				defaultMaxSpotsPerDivision={defaultMaxSpotsPerDivision}
+				seriesScalingGroupId={seriesScalingGroupId}
 			/>
 		</div>
 	)

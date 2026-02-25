@@ -20,7 +20,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { initializeCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
+import { initializeSeriesDivisionsFn } from "@/server-fns/competition-divisions-fns"
 
 interface ScalingGroupWithLevels {
 	id: string
@@ -34,25 +34,20 @@ interface ScalingGroupWithLevels {
 	}>
 }
 
-interface OrganizerTemplateSelectorProps {
+interface SeriesTemplateSelectorProps {
 	teamId: string
-	competitionId: string
+	groupId: string
 	scalingGroups: ScalingGroupWithLevels[]
-	/** If competition is in a series, pre-select the series template */
-	seriesScalingGroupId?: string | null
 	onSuccess: () => void
 }
 
-export function OrganizerTemplateSelector({
+export function SeriesTemplateSelector({
 	teamId,
-	competitionId,
+	groupId,
 	scalingGroups,
-	seriesScalingGroupId,
 	onSuccess,
-}: OrganizerTemplateSelectorProps) {
-	const [selectedTemplateId, setSelectedTemplateId] = useState<string>(
-		seriesScalingGroupId ?? "",
-	)
+}: SeriesTemplateSelectorProps) {
+	const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
 	const [isPending, setIsPending] = useState(false)
 
 	const selectedTemplate = scalingGroups.find(
@@ -62,24 +57,24 @@ export function OrganizerTemplateSelector({
 	const handleApplyTemplate = async () => {
 		setIsPending(true)
 		try {
-			await initializeCompetitionDivisionsFn({
+			await initializeSeriesDivisionsFn({
 				data: {
 					teamId,
-					competitionId,
+					groupId,
 					templateGroupId: selectedTemplateId || undefined,
 				},
 			})
 			toast.success(
 				selectedTemplateId
-					? "Divisions created from template"
-					: "Default divisions created",
+					? "Series divisions created from template"
+					: "Default series divisions created",
 			)
 			onSuccess()
 		} catch (error) {
 			toast.error(
 				error instanceof Error
 					? error.message
-					: "Failed to initialize divisions",
+					: "Failed to initialize series divisions",
 			)
 		} finally {
 			setIsPending(false)
@@ -89,19 +84,19 @@ export function OrganizerTemplateSelector({
 	const handleStartFresh = async () => {
 		setIsPending(true)
 		try {
-			await initializeCompetitionDivisionsFn({
+			await initializeSeriesDivisionsFn({
 				data: {
 					teamId,
-					competitionId,
+					groupId,
 				},
 			})
-			toast.success("Default divisions created")
+			toast.success("Default series divisions created")
 			onSuccess()
 		} catch (error) {
 			toast.error(
 				error instanceof Error
 					? error.message
-					: "Failed to initialize divisions",
+					: "Failed to initialize series divisions",
 			)
 		} finally {
 			setIsPending(false)
@@ -113,18 +108,18 @@ export function OrganizerTemplateSelector({
 			<CardHeader>
 				<CardTitle className="flex items-center gap-2">
 					<Layers className="h-5 w-5" />
-					Set Up Divisions
+					Set Up Series Divisions
 				</CardTitle>
 				<CardDescription>
-					Create divisions for athletes to register in. You can start from a
-					template or create your own.
+					Create template divisions for this series. New competitions added to
+					the series will automatically inherit these divisions.
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-4">
 				{scalingGroups.length > 0 && (
 					<>
 						<div className="space-y-2">
-							<Label htmlFor="template-select">Select a Template</Label>
+							<Label htmlFor="series-template-select">Select a Template</Label>
 							<Select
 								value={selectedTemplateId}
 								onValueChange={setSelectedTemplateId}
@@ -137,11 +132,6 @@ export function OrganizerTemplateSelector({
 										<SelectItem key={group.id} value={group.id}>
 											<div className="flex items-center gap-2">
 												{group.title}
-												{group.id === seriesScalingGroupId && (
-													<Badge variant="default" className="text-xs">
-														Series
-													</Badge>
-												)}
 												{group.isSystem && (
 													<Badge variant="secondary" className="text-xs">
 														System

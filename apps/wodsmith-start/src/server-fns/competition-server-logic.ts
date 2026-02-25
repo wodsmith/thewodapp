@@ -7,14 +7,16 @@
  */
 
 import { createId } from "@paralleldrive/cuid2"
-import { and, count, eq, or } from "drizzle-orm"
+import { and, asc, count, eq, or } from "drizzle-orm"
 import { getDb } from "@/db"
+import { createScalingGroupId, createScalingLevelId } from "@/db/schemas/common"
 import {
 	type Competition,
 	type CompetitionGroup,
 	competitionGroupsTable,
 	competitionsTable,
 } from "@/db/schemas/competitions"
+import { scalingGroupsTable, scalingLevelsTable } from "@/db/schemas/scaling"
 import { teamTable } from "@/db/schemas/teams"
 import { generateSlug } from "@/utils/slugify"
 
@@ -293,6 +295,66 @@ export async function createCompetition(params: {
 		throw new Error(
 			`Failed to create competition: ${competitionError instanceof Error ? competitionError.message : String(competitionError)}`,
 		)
+	}
+
+	// Step 3: Auto-clone series divisions if the series has a template
+	if (params.groupId) {
+		try {
+			const [group] = await db
+				.select()
+				.from(competitionGroupsTable)
+				.where(eq(competitionGroupsTable.id, params.groupId))
+
+			if (group?.scalingGroupId) {
+				// Get series template levels
+				const templateLevels = await db
+					.select()
+					.from(scalingLevelsTable)
+					.where(eq(scalingLevelsTable.scalingGroupId, group.scalingGroupId))
+					.orderBy(asc(scalingLevelsTable.position))
+
+				if (templateLevels.length > 0) {
+					// Create a new scaling group for this competition
+					const newGroupId = createScalingGroupId()
+					await db.insert(scalingGroupsTable).values({
+						id: newGroupId,
+						title: `${params.name} Divisions`,
+						description: `Cloned from ${group.name} series template`,
+						teamId: params.organizingTeamId,
+						isDefault: false,
+						isSystem: false,
+					})
+
+					// Clone levels
+					for (const level of templateLevels) {
+						await db.insert(scalingLevelsTable).values({
+							id: createScalingLevelId(),
+							scalingGroupId: newGroupId,
+							label: level.label,
+							position: level.position,
+							teamSize: level.teamSize,
+						})
+					}
+
+					// Update competition settings with the new scaling group
+					const currentSettings = params.settings
+						? JSON.parse(params.settings)
+						: {}
+					const newSettings = JSON.stringify({
+						...currentSettings,
+						divisions: { scalingGroupId: newGroupId },
+					})
+
+					await db
+						.update(competitionsTable)
+						.set({ settings: newSettings, updatedAt: new Date() })
+						.where(eq(competitionsTable.id, competitionId))
+				}
+			}
+		} catch (cloneError) {
+			// Log but don't fail competition creation if auto-clone fails
+			console.error("Failed to auto-clone series divisions:", cloneError)
+		}
 	}
 
 	return {
