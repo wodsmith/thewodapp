@@ -1,0 +1,59 @@
+Verify each finding against the current code and only fix it if needed.
+
+In `@apps/wodsmith-start/src/db/schemas/competitions.ts` around lines 169 - 173,
+The unique constraint on (eventId, userId, divisionId) prevents re-registration
+because soft-deleted rows (status="removed") still collide; update the table's
+unique index declaration to include the status column (i.e., make it unique over
+eventId, userId, divisionId, status) so "removed" entries do not block new
+"active" registrations; ensure the existing status column (status:
+varchar(...).$type<RegistrationStatus>().default("active").notNull()) remains
+unchanged and update the index definition that currently references (eventId,
+userId, divisionId) to include status.
+
+---
+
+zacjones@MacBookPro wodsmith-start % pnpm db:push
+
+> wodsmith-start@ db:push /Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/apps/wodsmith-start
+> drizzle-kit push
+
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/apps/wodsmith-start/drizzle.config.ts'
+Ignoring invalid configuration option passed to Connection: sslaccept. This is currently a warning, but in future versions of MySQL2, an error will be thrown if you pass an invalid configuration option to a Connection
+Error: unknown error: Code: UNAVAILABLE
+server does not allow insecure connections, client must use SSL/TLS
+
+    at createConnectionPromise (/Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/node_modules/.pnpm/mysql2@3.16.2/node_modules/mysql2/promise.js:19:31)
+    at connectToMySQL (/Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/node_modules/.pnpm/drizzle-kit@0.30.6/node_modules/drizzle-kit/bin.cjs:78652:47)
+    at async mysqlPush (/Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/node_modules/.pnpm/drizzle-kit@0.30.6/node_modules/drizzle-kit/bin.cjs:81692:32)
+    at async Object.handler (/Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/node_modules/.pnpm/drizzle-kit@0.30.6/node_modules/drizzle-kit/bin.cjs:92137:9)
+    at async run (/Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/node_modules/.pnpm/drizzle-kit@0.30.6/node_modules/drizzle-kit/bin.cjs:91408:7) {
+  code: 'ER_UNKNOWN_ERROR',
+  errno: 1105,
+  sqlState: 'HY000'
+}
+zacjones@MacBookPro wodsmith-start %
+
+---
+
+can you use the planetscale mcp to push the change?
+
+---
+
+[Request interrupted by user]
+
+---
+
+I just authed
+
+---
+
+yes, will this result in data loss?
+
+---
+
+lets just not handle re-registration right now. if a team is removed then they are not allowed to re-register and that's fine as a constraint
+
+---
+
+we need to add an alert on the team/athlete registration page that they have been removed from the competition and if this is a mistake to contact the event organizer. also highlight the registration in red on the competition page
