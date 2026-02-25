@@ -21,18 +21,19 @@ import {
 	COMMERCE_PURCHASE_STATUS,
 	commerceProductTable,
 	commercePurchaseTable,
+	competitionExcludedSeriesQuestionsTable,
 	competitionRegistrationAnswersTable,
 	competitionRegistrationQuestionsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
+	createCommerceProductId,
+	createCommercePurchaseId,
 	scalingGroupsTable,
 	scalingLevelsTable,
 	teamInvitationTable,
 	teamMembershipTable,
 	teamTable,
 	userTable,
-	createCommerceProductId,
-	createCommercePurchaseId,
 } from "@/db/schema"
 import {
 	buildFeeConfig,
@@ -84,7 +85,9 @@ const registrationItemSchema = z.object({
 const initiateRegistrationPaymentInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
 	// Multi-division support: array of division entries
-	items: z.array(registrationItemSchema).min(1, "At least one division is required")
+	items: z
+		.array(registrationItemSchema)
+		.min(1, "At least one division is required")
 		.refine(
 			(items) => new Set(items.map((i) => i.divisionId)).size === items.length,
 			{ message: "Duplicate division selections are not allowed" },
@@ -141,26 +144,47 @@ async function validateRequiredQuestions(
 	if (competition?.groupId) {
 		conditions.push(
 			and(
-				eq(
-					competitionRegistrationQuestionsTable.groupId,
-					competition.groupId,
-				),
+				eq(competitionRegistrationQuestionsTable.groupId, competition.groupId),
 				eq(competitionRegistrationQuestionsTable.required, true),
 			),
 		)
 	}
 
-	const requiredQuestions = await db
-		.select()
-		.from(competitionRegistrationQuestionsTable)
-		.where(or(...conditions))
+	// Fetch required questions and excluded series questions in parallel
+	const [requiredQuestions, excludedRows] = await Promise.all([
+		db
+			.select()
+			.from(competitionRegistrationQuestionsTable)
+			.where(or(...conditions)),
+		competition?.groupId
+			? db
+					.select({
+						questionId: competitionExcludedSeriesQuestionsTable.questionId,
+					})
+					.from(competitionExcludedSeriesQuestionsTable)
+					.where(
+						eq(
+							competitionExcludedSeriesQuestionsTable.competitionId,
+							competitionId,
+						),
+					)
+			: Promise.resolve([]),
+	])
 
 	if (requiredQuestions.length === 0) return
+
+	// Filter out excluded series questions
+	const excludedIds = new Set(excludedRows.map((r) => r.questionId))
+	const activeRequiredQuestions = requiredQuestions.filter(
+		(q) => !excludedIds.has(q.id),
+	)
+
+	if (activeRequiredQuestions.length === 0) return
 
 	// Check each required question has an answer
 	const answerMap = new Map(answers?.map((a) => [a.questionId, a.answer]))
 
-	const missingQuestions = requiredQuestions.filter(
+	const missingQuestions = activeRequiredQuestions.filter(
 		(q) => !answerMap.has(q.id) || !answerMap.get(q.id)?.trim(),
 	)
 
