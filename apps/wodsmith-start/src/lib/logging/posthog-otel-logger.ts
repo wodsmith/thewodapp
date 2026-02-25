@@ -27,6 +27,7 @@
 // Import env and waitUntil from cloudflare:workers for server-side access to bindings
 // waitUntil ensures log requests complete even after the response is sent
 import { env, waitUntil } from "cloudflare:workers"
+import * as Sentry from "@sentry/cloudflare"
 import {
 	getContextAttributesForLogging,
 	getRequestDuration,
@@ -383,6 +384,21 @@ export function logError(params: LogParams): void {
 	})
 
 	emitToConsole(severityText, params.message, params.attributes, params.error)
+
+	// Forward errors to Sentry for triage and alerting
+	if (params.error) {
+		try {
+			const errorObj =
+				params.error instanceof Error
+					? params.error
+					: new Error(String(params.error))
+			Sentry.captureException(errorObj, {
+				extra: { logMessage: params.message, ...params.attributes },
+			})
+		} catch {
+			// graceful degradation
+		}
+	}
 }
 
 /**
@@ -429,9 +445,9 @@ export {
 	getRequestContext,
 	getRequestContextField,
 	getRequestDuration,
+	type RequestContext,
 	updateRequestContext,
 	withRequestContext,
-	type RequestContext,
 } from "./request-context"
 
 /**

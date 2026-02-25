@@ -1,3 +1,4 @@
+import { sentryCaptureException } from "../sentry/client"
 import { getPostHog, isPostHogInitialized } from "./client"
 
 /**
@@ -112,6 +113,8 @@ export function captureException(
 	error: unknown,
 	additionalProperties?: Record<string, unknown>,
 ): void {
-	if (typeof window === "undefined" || !isPostHogInitialized()) return
-	getPostHog().captureException(error, additionalProperties)
+	if (typeof window !== "undefined" && isPostHogInitialized()) {
+		getPostHog().captureException(error, additionalProperties)
+	}
+	sentryCaptureException(error, additionalProperties)
 }

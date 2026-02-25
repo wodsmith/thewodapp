@@ -74,6 +74,17 @@ vi.mock('@/utils/division-capacity', () => ({
   }),
 }))
 
+// Mock Sentry — passthrough instrumentWorkflowWithSentry so tests use the base class
+vi.mock('@sentry/cloudflare', () => ({
+  instrumentWorkflowWithSentry: (_opts: unknown, WorkflowClass: unknown) =>
+    WorkflowClass,
+  captureException: vi.fn(),
+}))
+
+vi.mock('@/lib/sentry/server', () => ({
+  getSentryOptions: vi.fn(() => ({})),
+}))
+
 // Mock TanStack
 vi.mock('@tanstack/react-start', () => ({
   createServerFn: () => ({

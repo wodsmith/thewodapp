@@ -8,6 +8,7 @@ import { and, asc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+	competitionGroupsTable,
 	competitionRegistrationAnswersTable,
 	competitionRegistrationQuestionsTable,
 	competitionRegistrationsTable,
@@ -27,7 +28,8 @@ export type QuestionType = (typeof QUESTION_TYPES)[number]
 
 export interface RegistrationQuestion {
 	id: string
-	competitionId: string
+	competitionId: string | null
+	groupId: string | null
 	type: QuestionType
 	label: string
 	helpText: string | null
@@ -35,6 +37,10 @@ export interface RegistrationQuestion {
 	required: boolean
 	forTeammates: boolean
 	sortOrder: number
+}
+
+export interface RegistrationQuestionWithSource extends RegistrationQuestion {
+	source: "series" | "competition"
 }
 
 // ============================================================================
@@ -74,6 +80,28 @@ const deleteQuestionInputSchema = z.object({
 
 const reorderQuestionsInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+	orderedQuestionIds: z.array(z.string()).min(1),
+})
+
+// Series-specific schemas
+const getSeriesQuestionsInputSchema = z.object({
+	groupId: z.string().min(1, "Group ID is required"),
+})
+
+const createSeriesQuestionInputSchema = z.object({
+	groupId: z.string().min(1, "Group ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+	type: z.enum(QUESTION_TYPES),
+	label: z.string().min(1, "Label is required").max(500),
+	helpText: z.string().max(1000).nullable().optional(),
+	options: z.array(z.string().max(200)).max(20).nullable().optional(),
+	required: z.boolean().default(true),
+	forTeammates: z.boolean().default(false),
+})
+
+const reorderSeriesQuestionsInputSchema = z.object({
+	groupId: z.string().min(1, "Group ID is required"),
 	teamId: z.string().min(1, "Team ID is required"),
 	orderedQuestionIds: z.array(z.string()).min(1),
 })
@@ -145,6 +173,7 @@ function toRegistrationQuestion(
 	return {
 		id: row.id,
 		competitionId: row.competitionId,
+		groupId: row.groupId,
 		type: row.type as QuestionType,
 		label: row.label,
 		helpText: row.helpText,
@@ -170,7 +199,14 @@ export const getCompetitionQuestionsFn = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
-		const questions = await db
+		// Get competition to check if it belongs to a series
+		const [competition] = await db
+			.select({ groupId: competitionsTable.groupId })
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+
+		// Fetch competition-specific questions
+		const competitionQuestions = await db
 			.select()
 			.from(competitionRegistrationQuestionsTable)
 			.where(
@@ -181,9 +217,35 @@ export const getCompetitionQuestionsFn = createServerFn({ method: "GET" })
 			)
 			.orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
 
-		return {
-			questions: questions.map(toRegistrationQuestion),
+		// If competition belongs to a series, also fetch series-level questions
+		let seriesQuestions: (typeof competitionRegistrationQuestionsTable.$inferSelect)[] =
+			[]
+		if (competition?.groupId) {
+			seriesQuestions = await db
+				.select()
+				.from(competitionRegistrationQuestionsTable)
+				.where(
+					eq(
+						competitionRegistrationQuestionsTable.groupId,
+						competition.groupId,
+					),
+				)
+				.orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
 		}
+
+		// Merge: series questions first (tagged as 'series'), then competition questions (tagged as 'competition')
+		const questions: RegistrationQuestionWithSource[] = [
+			...seriesQuestions.map((q) => ({
+				...toRegistrationQuestion(q),
+				source: "series" as const,
+			})),
+			...competitionQuestions.map((q) => ({
+				...toRegistrationQuestion(q),
+				source: "competition" as const,
+			})),
+		]
+
+		return { questions }
 	})
 
 /**
@@ -299,14 +361,27 @@ export const updateQuestionFn = createServerFn({ method: "POST" })
 			throw new Error("Question not found")
 		}
 
-		// Verify competition belongs to team
-		const [competition] = await db
-			.select()
-			.from(competitionsTable)
-			.where(eq(competitionsTable.id, question.competitionId))
+		// Verify ownership: competition-level or series-level
+		if (question.competitionId) {
+			const [competition] = await db
+				.select()
+				.from(competitionsTable)
+				.where(eq(competitionsTable.id, question.competitionId))
 
-		if (!competition || competition.organizingTeamId !== data.teamId) {
-			throw new Error("Question does not belong to this team")
+			if (!competition || competition.organizingTeamId !== data.teamId) {
+				throw new Error("Question does not belong to this team")
+			}
+		} else if (question.groupId) {
+			const [group] = await db
+				.select()
+				.from(competitionGroupsTable)
+				.where(eq(competitionGroupsTable.id, question.groupId))
+
+			if (!group || group.organizingTeamId !== data.teamId) {
+				throw new Error("Question does not belong to this team")
+			}
+		} else {
+			throw new Error("Question has no competition or group association")
 		}
 
 		// Validate select type has options
@@ -381,14 +456,27 @@ export const deleteQuestionFn = createServerFn({ method: "POST" })
 			throw new Error("Question not found")
 		}
 
-		// Verify competition belongs to team
-		const [competition] = await db
-			.select()
-			.from(competitionsTable)
-			.where(eq(competitionsTable.id, question.competitionId))
+		// Verify ownership: competition-level or series-level
+		if (question.competitionId) {
+			const [competition] = await db
+				.select()
+				.from(competitionsTable)
+				.where(eq(competitionsTable.id, question.competitionId))
 
-		if (!competition || competition.organizingTeamId !== data.teamId) {
-			throw new Error("Question does not belong to this team")
+			if (!competition || competition.organizingTeamId !== data.teamId) {
+				throw new Error("Question does not belong to this team")
+			}
+		} else if (question.groupId) {
+			const [group] = await db
+				.select()
+				.from(competitionGroupsTable)
+				.where(eq(competitionGroupsTable.id, question.groupId))
+
+			if (!group || group.organizingTeamId !== data.teamId) {
+				throw new Error("Question does not belong to this team")
+			}
+		} else {
+			throw new Error("Question has no competition or group association")
 		}
 
 		// Delete question (answers are cascaded)
@@ -443,6 +531,171 @@ export const reorderQuestionsFn = createServerFn({ method: "POST" })
 								eq(
 									competitionRegistrationQuestionsTable.competitionId,
 									data.competitionId,
+								),
+							),
+						)
+				}),
+			)
+		})
+
+		return { success: true }
+	})
+
+// ============================================================================
+// Series-Level Question Functions
+// ============================================================================
+
+/**
+ * Get all registration questions for a series
+ * Public - no auth required (same pattern as competition questions)
+ */
+export const getSeriesQuestionsFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		getSeriesQuestionsInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		const questions = await db
+			.select()
+			.from(competitionRegistrationQuestionsTable)
+			.where(
+				eq(competitionRegistrationQuestionsTable.groupId, data.groupId),
+			)
+			.orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
+
+		return {
+			questions: questions.map(toRegistrationQuestion),
+		}
+	})
+
+/**
+ * Create a new series-level registration question
+ * Requires MANAGE_PROGRAMMING permission
+ */
+export const createSeriesQuestionFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		createSeriesQuestionInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		// Verify group exists and belongs to team
+		const [group] = await db
+			.select()
+			.from(competitionGroupsTable)
+			.where(eq(competitionGroupsTable.id, data.groupId))
+
+		if (!group) {
+			throw new Error("Series not found")
+		}
+
+		if (group.organizingTeamId !== data.teamId) {
+			throw new Error("Series does not belong to this team")
+		}
+
+		// Validate select type has options
+		if (
+			data.type === "select" &&
+			(!data.options || data.options.length === 0)
+		) {
+			throw new Error("Select questions must have at least one option")
+		}
+
+		// Get next sort order for series questions
+		const existingQuestions = await db
+			.select()
+			.from(competitionRegistrationQuestionsTable)
+			.where(
+				eq(competitionRegistrationQuestionsTable.groupId, data.groupId),
+			)
+
+		const maxSortOrder = Math.max(
+			0,
+			...existingQuestions.map((q) => q.sortOrder),
+		)
+
+		const id = createCompetitionRegistrationQuestionId()
+		await db.insert(competitionRegistrationQuestionsTable).values({
+			id,
+			competitionId: null,
+			groupId: data.groupId,
+			type: data.type,
+			label: data.label,
+			helpText: data.helpText ?? null,
+			options: stringifyOptions(data.options),
+			required: data.required,
+			forTeammates: data.forTeammates,
+			sortOrder: maxSortOrder + 1,
+		})
+
+		const created =
+			await db.query.competitionRegistrationQuestionsTable.findFirst({
+				where: eq(competitionRegistrationQuestionsTable.id, id),
+			})
+
+		if (!created) {
+			throw new Error("Failed to create question")
+		}
+
+		return { question: toRegistrationQuestion(created) }
+	})
+
+/**
+ * Reorder series-level registration questions
+ * Requires MANAGE_PROGRAMMING permission
+ */
+export const reorderSeriesQuestionsFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		reorderSeriesQuestionsInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		// Verify group belongs to team
+		const [group] = await db
+			.select()
+			.from(competitionGroupsTable)
+			.where(eq(competitionGroupsTable.id, data.groupId))
+
+		if (!group || group.organizingTeamId !== data.teamId) {
+			throw new Error("Series does not belong to this team")
+		}
+
+		// Update sort orders
+		await db.transaction(async (tx) => {
+			await Promise.all(
+				data.orderedQuestionIds.map((questionId, i) => {
+					if (!questionId) return Promise.resolve()
+					return tx
+						.update(competitionRegistrationQuestionsTable)
+						.set({ sortOrder: i, updatedAt: new Date() })
+						.where(
+							and(
+								eq(competitionRegistrationQuestionsTable.id, questionId),
+								eq(
+									competitionRegistrationQuestionsTable.groupId,
+									data.groupId,
 								),
 							),
 						)

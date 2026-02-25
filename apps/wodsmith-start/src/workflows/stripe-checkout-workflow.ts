@@ -16,8 +16,9 @@
  * calls processCheckoutInline() which runs the same logic synchronously.
  */
 
-import { WorkflowEntrypoint } from "cloudflare:workers"
 import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers"
+import { WorkflowEntrypoint } from "cloudflare:workers"
+import * as Sentry from "@sentry/cloudflare"
 import { and, count, eq, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
@@ -36,6 +37,7 @@ import {
 	logInfo,
 	logWarning,
 } from "@/lib/logging/posthog-otel-logger"
+import { getSentryOptions } from "@/lib/sentry/server"
 import { notifyCompetitionRegistration } from "@/lib/slack"
 import { getStripe } from "@/lib/stripe"
 import {
@@ -477,7 +479,7 @@ async function sendSlackNotification(
 // Cloudflare Workflow class (production — durable execution with retries)
 // =========================================================================
 
-export class StripeCheckoutWorkflow extends WorkflowEntrypoint<
+class StripeCheckoutWorkflowBase extends WorkflowEntrypoint<
 	Env,
 	CheckoutCompletedParams
 > {
@@ -552,6 +554,11 @@ export class StripeCheckoutWorkflow extends WorkflowEntrypoint<
 		}
 	}
 }
+
+export const StripeCheckoutWorkflow = Sentry.instrumentWorkflowWithSentry(
+	(env: Env) => getSentryOptions(env),
+	StripeCheckoutWorkflowBase,
+)
 
 // =========================================================================
 // Inline processing (local dev fallback — no durable execution)

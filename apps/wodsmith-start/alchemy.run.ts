@@ -88,6 +88,7 @@
 
 import alchemy from "alchemy"
 import {
+	D1Database,
 	Hyperdrive,
 	KVNamespace,
 	R2Bucket,
@@ -201,6 +202,14 @@ const app = await alchemy("wodsmith", {
 	stateStore: process.env.CI
 		? (scope) => new CloudflareStateStore(scope)
 		: undefined,
+})
+
+await D1Database("db", {
+	/**
+	 * Adopt existing D1 database if it already exists.
+	 * Required for production where resources were created before Alchemy.
+	 */
+	adopt: true,
 })
 
 /**
@@ -627,6 +636,10 @@ const website = await TanStackStart("app", {
 			SLACK_WEBHOOK_URL: alchemy.secret(process.env.SLACK_WEBHOOK_URL),
 			SLACK_PURCHASE_NOTIFICATIONS_ENABLED: "true",
 		}),
+
+		// Sentry error monitoring (public DSN — safe to commit)
+		SENTRY_DSN:
+			"https://a55d70f610d33fa3108b7faea06accb7@o4510933498462208.ingest.us.sentry.io/4510937818005504",
 
 		// Webhook secret: use Alchemy-managed webhook for demo/prod, or .dev.vars for local dev
 		...(stripeWebhook

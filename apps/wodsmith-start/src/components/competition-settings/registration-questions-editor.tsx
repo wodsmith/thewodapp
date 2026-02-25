@@ -77,10 +77,12 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import {
 	createQuestionFn,
+	createSeriesQuestionFn,
 	deleteQuestionFn,
 	QUESTION_TYPES,
 	type RegistrationQuestion,
 	reorderQuestionsFn,
+	reorderSeriesQuestionsFn,
 	updateQuestionFn,
 } from "@/server-fns/registration-questions-fns"
 
@@ -100,7 +102,8 @@ const questionFormSchema = z.object({
 type QuestionFormValues = z.infer<typeof questionFormSchema>
 
 interface RegistrationQuestionsEditorProps {
-	competitionId: string
+	entityType: "competition" | "series"
+	entityId: string
 	teamId: string
 	questions: RegistrationQuestion[]
 	onQuestionsChange: () => void
@@ -336,7 +339,8 @@ function QuestionItem({
 // ============================================================================
 
 interface QuestionFormDialogProps {
-	competitionId: string
+	entityType: "competition" | "series"
+	entityId: string
 	teamId: string
 	question: RegistrationQuestion | null
 	open: boolean
@@ -345,7 +349,8 @@ interface QuestionFormDialogProps {
 }
 
 function QuestionFormDialog({
-	competitionId,
+	entityType,
+	entityId,
 	teamId,
 	question,
 	open,
@@ -356,7 +361,8 @@ function QuestionFormDialog({
 	const [optionInput, setOptionInput] = useState("")
 	const isEditing = !!question
 
-	const createQuestion = useServerFn(createQuestionFn)
+	const createCompetitionQuestion = useServerFn(createQuestionFn)
+	const createSeriesQuestion = useServerFn(createSeriesQuestionFn)
 	const updateQuestion = useServerFn(updateQuestionFn)
 
 	const form = useForm<QuestionFormValues>({
@@ -443,10 +449,24 @@ function QuestionFormDialog({
 					},
 				})
 				toast.success("Question updated successfully")
-			} else {
-				await createQuestion({
+			} else if (entityType === "series") {
+				await createSeriesQuestion({
 					data: {
-						competitionId,
+						groupId: entityId,
+						teamId,
+						type: values.type,
+						label: values.label,
+						helpText: values.helpText || null,
+						options: values.type === "select" ? values.options : null,
+						required: values.required,
+						forTeammates: values.forTeammates,
+					},
+				})
+				toast.success("Question created successfully")
+			} else {
+				await createCompetitionQuestion({
+					data: {
+						competitionId: entityId,
 						teamId,
 						type: values.type,
 						label: values.label,
@@ -661,7 +681,8 @@ function QuestionFormDialog({
 // ============================================================================
 
 export function RegistrationQuestionsEditor({
-	competitionId,
+	entityType,
+	entityId,
 	teamId,
 	questions: initialQuestions,
 	onQuestionsChange,
@@ -674,7 +695,8 @@ export function RegistrationQuestionsEditor({
 		useState<RegistrationQuestion | null>(null)
 	const [isFormOpen, setIsFormOpen] = useState(false)
 
-	const reorderQuestions = useServerFn(reorderQuestionsFn)
+	const reorderCompetitionQuestions = useServerFn(reorderQuestionsFn)
+	const reorderSeriesQuestionsServer = useServerFn(reorderSeriesQuestionsFn)
 	const deleteQuestion = useServerFn(deleteQuestionFn)
 
 	// Update local state when prop changes
@@ -690,13 +712,23 @@ export function RegistrationQuestionsEditor({
 			setQuestions(newQuestions)
 
 			try {
-				await reorderQuestions({
-					data: {
-						competitionId,
-						teamId,
-						orderedQuestionIds: newQuestions.map((q) => q.id),
-					},
-				})
+				if (entityType === "series") {
+					await reorderSeriesQuestionsServer({
+						data: {
+							groupId: entityId,
+							teamId,
+							orderedQuestionIds: newQuestions.map((q) => q.id),
+						},
+					})
+				} else {
+					await reorderCompetitionQuestions({
+						data: {
+							competitionId: entityId,
+							teamId,
+							orderedQuestionIds: newQuestions.map((q) => q.id),
+						},
+					})
+				}
 				onQuestionsChange()
 			} catch (_error) {
 				toast.error("Failed to reorder questions")
@@ -752,7 +784,9 @@ export function RegistrationQuestionsEditor({
 						<div>
 							<CardTitle>Registration Questions</CardTitle>
 							<CardDescription>
-								Custom questions athletes must answer during registration
+								{entityType === "series"
+									? "Questions that apply to all competitions in this series"
+									: "Custom questions athletes must answer during registration"}
 							</CardDescription>
 						</div>
 						<Button onClick={handleAddNew}>
@@ -789,7 +823,8 @@ export function RegistrationQuestionsEditor({
 			</Card>
 
 			<QuestionFormDialog
-				competitionId={competitionId}
+				entityType={entityType}
+				entityId={entityId}
 				teamId={teamId}
 				question={editingQuestion}
 				open={isFormOpen}

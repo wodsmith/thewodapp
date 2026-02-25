@@ -17,6 +17,7 @@ import type {
 	ExecutionContext,
 	ScheduledController,
 } from "@cloudflare/workers-types"
+import * as Sentry from "@sentry/cloudflare"
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry"
 import {
 	extractRequestInfo,
@@ -25,6 +26,7 @@ import {
 	logWarning,
 	withRequestContext,
 } from "./lib/logging"
+import { getSentryOptions } from "./lib/sentry/server"
 
 // Workers runtime requires Workflow classes to be exported from the entry point
 export { StripeCheckoutWorkflow } from "./workflows/stripe-checkout-workflow"
@@ -125,11 +127,12 @@ async function fetchWithLogging(
 /**
  * Export the server entry with additional Cloudflare Workers handlers.
  *
+ * Wrapped with Sentry.withSentry for server-side error tracking and APM.
  * This object conforms to Cloudflare's ExportedHandler interface:
  * - `fetch`: Handles all HTTP requests (with logging and request context)
- * - `scheduled`: Handles cron trigger events
+ * - `scheduled`: Handles cron trigger events (monitored by Sentry)
  */
-export default {
+export default Sentry.withSentry((env: Env) => getSentryOptions(env), {
 	// HTTP requests with logging and request context
 	fetch: fetchWithLogging,
 
@@ -147,45 +150,59 @@ export default {
 				path: controller.cron,
 			},
 			async () => {
-				logInfo({
-					message: "[Cron] Scheduled handler triggered",
-					attributes: {
-						cron: controller.cron,
-						scheduledTime: controller.scheduledTime,
+				await Sentry.withMonitor(
+					"submission-window-notifications",
+					async () => {
+						logInfo({
+							message: "[Cron] Scheduled handler triggered",
+							attributes: {
+								cron: controller.cron,
+								scheduledTime: controller.scheduledTime,
+							},
+						})
+
+						try {
+							// Dynamic import to keep cold start fast
+							const { processSubmissionWindowNotifications } = await import(
+								"./server/notifications/submission-window"
+							)
+
+							const result = await processSubmissionWindowNotifications()
+
+							logInfo({
+								message: "[Cron] Submission window notifications processed",
+								attributes: {
+									cron: controller.cron,
+									windowOpens: result.windowOpens,
+									windowCloses24h: result.windowCloses24h,
+									windowCloses1h: result.windowCloses1h,
+									windowCloses15m: result.windowCloses15m,
+									windowClosed: result.windowClosed,
+									errors: result.errors,
+								},
+							})
+						} catch (err) {
+							logError({
+								message:
+									"[Cron] Failed to process submission window notifications",
+								error: err,
+								attributes: {
+									cron: controller.cron,
+									scheduledTime: controller.scheduledTime,
+								},
+							})
+							// Re-throw so Sentry.withMonitor detects failure
+							throw err
+						}
 					},
-				})
-
-				try {
-					// Dynamic import to keep cold start fast
-					const { processSubmissionWindowNotifications } = await import(
-						"./server/notifications/submission-window"
-					)
-
-					const result = await processSubmissionWindowNotifications()
-
-					logInfo({
-						message: "[Cron] Submission window notifications processed",
-						attributes: {
-							cron: controller.cron,
-							windowOpens: result.windowOpens,
-							windowCloses24h: result.windowCloses24h,
-							windowCloses1h: result.windowCloses1h,
-							windowCloses15m: result.windowCloses15m,
-							windowClosed: result.windowClosed,
-							errors: result.errors,
+					{
+						schedule: {
+							type: "crontab",
+							value: "*/15 * * * *",
 						},
-					})
-				} catch (err) {
-					logError({
-						message: "[Cron] Failed to process submission window notifications",
-						error: err,
-						attributes: {
-							cron: controller.cron,
-							scheduledTime: controller.scheduledTime,
-						},
-					})
-				}
+					},
+				)
 			},
 		)
 	},
-}
+} satisfies ExportedHandler<Env>)

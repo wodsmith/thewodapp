@@ -22,6 +22,8 @@ type ExtendedEnv = typeof env & {
 	SLACK_WEBHOOK_URL?: string
 	SLACK_PURCHASE_NOTIFICATIONS_ENABLED?: string
 	SLACK_PURCHASE_NOTIFICATION_TYPES?: string
+	// Sentry error monitoring
+	SENTRY_DSN?: string
 }
 
 const extendedEnv = env as ExtendedEnv
@@ -228,3 +230,9 @@ export const getSlackPurchaseNotificationTypes = createServerOnlyFn(
 		return extendedEnv.SLACK_PURCHASE_NOTIFICATION_TYPES
 	},
 )
+
+// Sentry configuration accessors
+
+export const getSentryDsn = createServerOnlyFn((): string | undefined => {
+	return extendedEnv.SENTRY_DSN
+})

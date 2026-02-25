@@ -1,5 +1,6 @@
-import { type ErrorComponentProps, createRouter } from "@tanstack/react-router"
+import { createRouter, type ErrorComponentProps } from "@tanstack/react-router"
 import { captureException } from "./lib/posthog/utils"
+import { initSentry } from "./lib/sentry/client"
 
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen"
@@ -58,7 +59,7 @@ export const getRouter = () => {
 		defaultPendingMinMs: 200, // Minimum loader display time
 		defaultPendingComponent: DefaultPendingComponent,
 
-		// Error handling - report caught errors to PostHog and show fallback UI
+		// Error handling - report caught errors to PostHog + Sentry and show fallback UI
 		defaultErrorComponent: DefaultErrorComponent,
 		defaultOnCatch: (error, errorInfo) => {
 			captureException(error, {
@@ -67,6 +68,11 @@ export const getRouter = () => {
 			})
 		},
 	})
+
+	// Initialize Sentry client-side APM with TanStack Router integration
+	if (!router.isServer) {
+		initSentry(router)
+	}
 
 	return router
 }
