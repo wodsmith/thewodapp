@@ -11,12 +11,13 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray, isNotNull, sql } from "drizzle-orm"
+import { and, eq, inArray, isNotNull, ne, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
 	competitionRegistrationsTable,
 	competitionsTable,
+	REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import {
 	programmingTracksTable,
@@ -254,18 +255,19 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 			// Get registrations per division
 			const divisionIds = divisions.map((d) => d.id)
 			const registrationCounts = await db
-					.select({
-						divisionId: competitionRegistrationsTable.divisionId,
-						count: sql<number>`cast(count(*) as unsigned)`,
-					})
-					.from(competitionRegistrationsTable)
-					.where(
-						and(
-							eq(competitionRegistrationsTable.eventId, data.competitionId),
-							inArray(competitionRegistrationsTable.divisionId, divisionIds),
-						),
-					)
-					.groupBy(competitionRegistrationsTable.divisionId)
+				.select({
+					divisionId: competitionRegistrationsTable.divisionId,
+					count: sql<number>`cast(count(*) as unsigned)`,
+				})
+				.from(competitionRegistrationsTable)
+				.where(
+					and(
+						eq(competitionRegistrationsTable.eventId, data.competitionId),
+						inArray(competitionRegistrationsTable.divisionId, divisionIds),
+						ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+					),
+				)
+				.groupBy(competitionRegistrationsTable.divisionId)
 
 			const registrationCountMap = new Map<string, number>()
 			for (const row of registrationCounts) {
@@ -328,7 +330,7 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 				return { events: [], totalPublishedCount: 0, totalCombinations: 0 }
 			}
 
-			// Get registrations for score counting
+			// Get registrations for score counting (exclude removed)
 			const registrations = await db
 				.select({
 					id: competitionRegistrationsTable.id,
@@ -336,7 +338,12 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 					divisionId: competitionRegistrationsTable.divisionId,
 				})
 				.from(competitionRegistrationsTable)
-				.where(eq(competitionRegistrationsTable.eventId, data.competitionId))
+				.where(
+					and(
+						eq(competitionRegistrationsTable.eventId, data.competitionId),
+						ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+					),
+				)
 
 			// Build a map of userId -> divisionId
 			const userDivisionMap = new Map<string, string>()
@@ -351,17 +358,17 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 			const allScores =
 				eventIds.length > 0
 					? await db
-									.select({
-										userId: scoresTable.userId,
-										competitionEventId: scoresTable.competitionEventId,
-									})
-									.from(scoresTable)
-									.where(
-										and(
-											inArray(scoresTable.competitionEventId, eventIds),
-											isNotNull(scoresTable.scoreValue),
-										),
-									)
+							.select({
+								userId: scoresTable.userId,
+								competitionEventId: scoresTable.competitionEventId,
+							})
+							.from(scoresTable)
+							.where(
+								and(
+									inArray(scoresTable.competitionEventId, eventIds),
+									isNotNull(scoresTable.scoreValue),
+								),
+							)
 					: []
 
 			// Build a map of eventId -> set of userIds with scores

@@ -11,7 +11,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq } from "drizzle-orm"
+import { and, eq, ne } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -26,6 +26,7 @@ import {
 	competitionEventsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
+	REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import {
 	programmingTracksTable,
@@ -365,6 +366,7 @@ export const submitAthleteScoreFn = createServerFn({ method: "POST" })
 					and(
 						eq(competitionRegistrationsTable.eventId, data.competitionId),
 						eq(competitionRegistrationsTable.userId, session.userId),
+						ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 					),
 				)
 				.limit(1)

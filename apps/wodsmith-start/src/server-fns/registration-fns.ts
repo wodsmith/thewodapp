@@ -11,7 +11,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, isNull, or } from "drizzle-orm"
+import { and, eq, inArray, isNull, ne, or } from "drizzle-orm"
 import type Stripe from "stripe"
 import { z } from "zod"
 import { getDb } from "@/db"
@@ -21,16 +21,22 @@ import {
 	COMMERCE_PURCHASE_STATUS,
 	commerceProductTable,
 	commercePurchaseTable,
+	competitionEventsTable,
+	competitionHeatAssignmentsTable,
 	competitionRegistrationAnswersTable,
 	competitionRegistrationQuestionsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
+	REGISTRATION_STATUS,
+	ROLES_ENUM,
 	scalingGroupsTable,
 	scalingLevelsTable,
+	TEAM_PERMISSIONS,
 	teamInvitationTable,
 	teamMembershipTable,
 	teamTable,
 	userTable,
+	scoresTable,
 	createCommerceProductId,
 	createCommercePurchaseId,
 } from "@/db/schema"
@@ -84,7 +90,9 @@ const registrationItemSchema = z.object({
 const initiateRegistrationPaymentInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
 	// Multi-division support: array of division entries
-	items: z.array(registrationItemSchema).min(1, "At least one division is required")
+	items: z
+		.array(registrationItemSchema)
+		.min(1, "At least one division is required")
 		.refine(
 			(items) => new Set(items.map((i) => i.divisionId)).size === items.length,
 			{ message: "Duplicate division selections are not allowed" },
@@ -264,7 +272,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			throw new Error("Registration has closed")
 		}
 
-		// 3. Check not already registered for any of these divisions
+		// 3. Check not already registered for any of these divisions (exclude removed registrations)
 		for (const item of input.items) {
 			const existingRegistration =
 				await db.query.competitionRegistrationsTable.findFirst({
@@ -272,6 +280,10 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 						eq(competitionRegistrationsTable.eventId, input.competitionId),
 						eq(competitionRegistrationsTable.userId, userId),
 						eq(competitionRegistrationsTable.divisionId, item.divisionId),
+						ne(
+							competitionRegistrationsTable.status,
+							REGISTRATION_STATUS.REMOVED,
+						),
 					),
 				})
 			if (existingRegistration) {
@@ -700,6 +712,7 @@ export const getUserCompetitionRegistrationFn = createServerFn({
 				where: and(
 					eq(competitionRegistrationsTable.eventId, data.competitionId),
 					eq(competitionRegistrationsTable.userId, data.userId),
+					ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 				),
 			},
 		)
@@ -777,6 +790,7 @@ interface PendingInviteData {
 export interface TeamRosterResult {
 	registration: {
 		id: string
+		status: string
 		teamName: string | null
 		captainUserId: string | null
 		userId: string
@@ -953,6 +967,7 @@ export const getTeamRosterFn = createServerFn({ method: "GET" })
 			return {
 				registration: {
 					id: registration.id,
+					status: registration.status,
 					teamName: registration.teamName,
 					captainUserId: registration.captainUserId,
 					userId: registration.userId,
@@ -997,11 +1012,13 @@ export const getTeamRosterFn = createServerFn({ method: "GET" })
 			},
 		})) as unknown as MembershipWithUser[]
 
-		// Get pending invitations
+		// Get pending invitations (exclude cancelled)
+		const { INVITATION_STATUS } = await import("@/db/schema")
 		const invitations = await db.query.teamInvitationTable.findMany({
 			where: and(
 				eq(teamInvitationTable.teamId, registration.athleteTeamId),
 				isNull(teamInvitationTable.acceptedAt),
+				eq(teamInvitationTable.status, INVITATION_STATUS.PENDING),
 			),
 		})
 
@@ -1034,6 +1051,7 @@ export const getTeamRosterFn = createServerFn({ method: "GET" })
 		return {
 			registration: {
 				id: registration.id,
+				status: registration.status,
 				teamName: registration.teamName,
 				captainUserId: registration.captainUserId,
 				userId: registration.userId,
@@ -1056,6 +1074,7 @@ export const getTeamRosterFn = createServerFn({ method: "GET" })
 export interface RegistrationDetails {
 	registrationId: string
 	registeredAt: Date
+	status: string
 	teamName: string | null
 	paymentStatus: string | null
 	paidAt: Date | null
@@ -1200,6 +1219,7 @@ export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
 		return {
 			registrationId: registration.id,
 			registeredAt: registration.registeredAt,
+			status: registration.status,
 			teamName: registration.teamName,
 			paymentStatus: registration.paymentStatus,
 			paidAt: registration.paidAt,
@@ -1279,6 +1299,179 @@ export const cancelPendingPurchaseFn = createServerFn({ method: "POST" })
 			message: "[Registration] Pending purchase cancelled",
 			attributes: {
 				competitionId: data.competitionId,
+			},
+		})
+
+		return { success: true }
+	})
+
+// ============================================================================
+// Remove Registration (Organizer Soft Delete)
+// ============================================================================
+
+const removeRegistrationInputSchema = z.object({
+	registrationId: z.string().min(1, "Registration ID is required"),
+	competitionId: z.string().min(1, "Competition ID is required"),
+})
+
+/**
+ * Remove a registration (soft delete) by an organizer.
+ *
+ * Sets the registration status to REMOVED and deactivates associated
+ * team memberships, heat assignments, and pending invitations.
+ * Requires MANAGE_COMPETITIONS permission on the organizing team.
+ */
+export const removeRegistrationFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => removeRegistrationInputSchema.parse(data))
+	.handler(async ({ data: input }) => {
+		const session = await requireVerifiedEmail()
+
+		const db = getDb()
+
+		updateRequestContext({ userId: session.userId })
+		addRequestContextAttribute("competitionId", input.competitionId)
+		addRequestContextAttribute("registrationId", input.registrationId)
+
+		// 1. Get competition to verify ownership and get organizing team
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, input.competitionId),
+			columns: { id: true, organizingTeamId: true },
+		})
+
+		if (!competition) throw new Error("Competition not found")
+
+		// 2. Require organizer permission (site admins bypass)
+		if (session.user?.role !== ROLES_ENUM.ADMIN) {
+			const team = session.teams?.find(
+				(t) => t.id === competition.organizingTeamId,
+			)
+			if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS)) {
+				throw new Error("Missing required permission: manage_competitions")
+			}
+		}
+
+		// 3. Get the registration and verify it belongs to this competition
+		const registration = await db.query.competitionRegistrationsTable.findFirst(
+			{
+				where: and(
+					eq(competitionRegistrationsTable.id, input.registrationId),
+					eq(competitionRegistrationsTable.eventId, input.competitionId),
+				),
+			},
+		)
+
+		if (!registration) throw new Error("Registration not found")
+
+		if (registration.status === REGISTRATION_STATUS.REMOVED) {
+			throw new Error("Registration is already removed")
+		}
+
+		logInfo({
+			message: "[Registration] Removing registration",
+			attributes: {
+				registrationId: input.registrationId,
+				competitionId: input.competitionId,
+				userId: registration.userId,
+				athleteTeamId: registration.athleteTeamId ?? "none",
+			},
+		})
+
+		// 4. Set registration status to REMOVED
+		await db
+			.update(competitionRegistrationsTable)
+			.set({
+				status: REGISTRATION_STATUS.REMOVED,
+				updatedAt: new Date(),
+			})
+			.where(eq(competitionRegistrationsTable.id, input.registrationId))
+
+		// 5. Deactivate the captain's team membership in the competition_event team
+		await db
+			.update(teamMembershipTable)
+			.set({ isActive: false })
+			.where(eq(teamMembershipTable.id, registration.teamMemberId))
+
+		// 6. For team registrations, deactivate all athlete team memberships and cancel invitations
+		if (registration.athleteTeamId) {
+			// Deactivate all memberships on the athlete team
+			await db
+				.update(teamMembershipTable)
+				.set({ isActive: false })
+				.where(
+					and(
+						eq(teamMembershipTable.teamId, registration.athleteTeamId),
+						eq(teamMembershipTable.isActive, true),
+					),
+				)
+
+			// Cancel pending invitations for the athlete team
+			const { INVITATION_STATUS } = await import("@/db/schema")
+			await db
+				.update(teamInvitationTable)
+				.set({ status: INVITATION_STATUS.CANCELLED })
+				.where(
+					and(
+						eq(teamInvitationTable.teamId, registration.athleteTeamId),
+						eq(teamInvitationTable.status, INVITATION_STATUS.PENDING),
+					),
+				)
+		}
+
+		// 7. Delete heat assignments for this registration
+		await db
+			.delete(competitionHeatAssignmentsTable)
+			.where(
+				eq(
+					competitionHeatAssignmentsTable.registrationId,
+					input.registrationId,
+				),
+			)
+
+		// 8. Delete scores for the registered user(s) in this competition's events
+
+		// Get all competition event IDs
+		const competitionEvents = await db
+			.select({ id: competitionEventsTable.id })
+			.from(competitionEventsTable)
+			.where(eq(competitionEventsTable.competitionId, input.competitionId))
+
+		if (competitionEvents.length > 0) {
+			const eventIds = competitionEvents.map((e) => e.id)
+
+			// Collect all user IDs to clean up scores for
+			const userIds = [registration.userId]
+
+			// For team registrations, also get teammate user IDs
+			if (registration.athleteTeamId) {
+				const teammates = await db
+					.select({ userId: teamMembershipTable.userId })
+					.from(teamMembershipTable)
+					.where(eq(teamMembershipTable.teamId, registration.athleteTeamId))
+
+				for (const tm of teammates) {
+					if (tm.userId && !userIds.includes(tm.userId)) {
+						userIds.push(tm.userId)
+					}
+				}
+			}
+
+			// Delete scores for these users in this competition's events
+			await db
+				.delete(scoresTable)
+				.where(
+					and(
+						inArray(scoresTable.competitionEventId, eventIds),
+						inArray(scoresTable.userId, userIds),
+					),
+				)
+		}
+
+		logInfo({
+			message: "[Registration] Registration removed successfully",
+			attributes: {
+				registrationId: input.registrationId,
+				competitionId: input.competitionId,
+				userId: registration.userId,
 			},
 		})
 

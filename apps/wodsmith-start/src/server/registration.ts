@@ -9,11 +9,12 @@
  */
 
 import { createId } from "@paralleldrive/cuid2"
-import { and, eq, inArray, sql } from "drizzle-orm"
+import { and, eq, inArray, ne, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	competitionRegistrationsTable,
 	competitionsTable,
+	REGISTRATION_STATUS,
 	SYSTEM_ROLES_ENUM,
 	scalingLevelsTable,
 	TEAM_TYPE_ENUM,
@@ -467,12 +468,14 @@ export async function registerForCompetition(
 
 	// 8. Check for duplicate registration in the SAME division (as captain)
 	// Users CAN register for multiple divisions in the same competition
+	// Exclude removed registrations so athletes can re-register after removal
 	const existingRegistration =
 		await db.query.competitionRegistrationsTable.findFirst({
 			where: and(
 				eq(competitionRegistrationsTable.eventId, params.competitionId),
 				eq(competitionRegistrationsTable.userId, params.userId),
 				eq(competitionRegistrationsTable.divisionId, params.divisionId),
+				ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 			),
 		})
 
@@ -561,14 +564,16 @@ export async function registerForCompetition(
 						eq(competitionRegistrationsTable.eventId, params.competitionId),
 						eq(competitionRegistrationsTable.divisionId, params.divisionId),
 						inArray(competitionRegistrationsTable.userId, teammateUserIds),
+						ne(
+							competitionRegistrationsTable.status,
+							REGISTRATION_STATUS.REMOVED,
+						),
 					),
 				)
 
 			if (existingRegs.length > 0) {
 				const regEmail = emailByUserId.get(existingRegs[0].userId)
-				throw new Error(
-					`${regEmail} is already registered for this division`,
-				)
+				throw new Error(`${regEmail} is already registered for this division`)
 			}
 
 			// Batch check: are any of these users on a competition_team for this DIVISION?
@@ -593,9 +598,7 @@ export async function registerForCompetition(
 				const memberEmail = emailByUserId.get(
 					existingCompTeamMemberships[0].userId,
 				)
-				throw new Error(
-					`${memberEmail} is already on a team for this division`,
-				)
+				throw new Error(`${memberEmail} is already on a team for this division`)
 			}
 		}
 

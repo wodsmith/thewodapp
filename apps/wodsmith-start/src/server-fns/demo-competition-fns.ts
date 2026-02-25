@@ -1156,9 +1156,7 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
 			}
 
 			if (rotationInserts.length > 0) {
-				await db
-					.insert(competitionJudgeRotationsTable)
-					.values(rotationInserts)
+				await db.insert(competitionJudgeRotationsTable).values(rotationInserts)
 			}
 
 			// Create a published version for Event 1
@@ -1576,9 +1574,7 @@ export const deleteDemoCompetitionFn = createServerFn({ method: "POST" })
 					await db
 						.delete(teamMembershipTable)
 						.where(inArray(teamMembershipTable.teamId, demoTeamIds))
-					await db
-						.delete(teamTable)
-						.where(inArray(teamTable.id, demoTeamIds))
+					await db.delete(teamTable).where(inArray(teamTable.id, demoTeamIds))
 				} catch {
 					// Team may have been deleted via cascade
 				}
@@ -1605,9 +1601,7 @@ export const deleteDemoCompetitionFn = createServerFn({ method: "POST" })
 			// 12. Delete demo users
 			if (demoUserIds.length > 0) {
 				try {
-					await db
-						.delete(userTable)
-						.where(inArray(userTable.id, demoUserIds))
+					await db.delete(userTable).where(inArray(userTable.id, demoUserIds))
 					deletedCounts.users = demoUserIds.length
 				} catch {
 					// User may have been deleted already or has other references

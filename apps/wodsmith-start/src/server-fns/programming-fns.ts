@@ -745,10 +745,7 @@ export const getPublicTracksWithSubscriptionsFn = createServerFn({
 				isActive: teamProgrammingTracksTable.isActive,
 			})
 			.from(teamProgrammingTracksTable)
-			.innerJoin(
-				teamTable,
-				eq(teamProgrammingTracksTable.teamId, teamTable.id),
-			)
+			.innerJoin(teamTable, eq(teamProgrammingTracksTable.teamId, teamTable.id))
 			.where(
 				and(
 					inArray(teamProgrammingTracksTable.teamId, data.userTeamIds),
@@ -816,10 +813,7 @@ export const getTrackSubscribedTeamsFn = createServerFn({ method: "GET" })
 				subscribedAt: teamProgrammingTracksTable.subscribedAt,
 			})
 			.from(teamProgrammingTracksTable)
-			.innerJoin(
-				teamTable,
-				eq(teamProgrammingTracksTable.teamId, teamTable.id),
-			)
+			.innerJoin(teamTable, eq(teamProgrammingTracksTable.teamId, teamTable.id))
 			.where(
 				and(
 					eq(teamProgrammingTracksTable.trackId, data.trackId),

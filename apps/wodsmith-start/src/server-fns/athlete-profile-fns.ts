@@ -7,12 +7,13 @@
 
 import { redirect } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray } from "drizzle-orm"
+import { and, eq, inArray, ne } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
 	commercePurchaseTable,
 	competitionRegistrationsTable,
+	REGISTRATION_STATUS,
 	teamInvitationTable,
 	teamMembershipTable,
 	userTable,
@@ -319,7 +320,13 @@ export const getAthleteProfileDataFn = createServerFn({
 	// Get direct registrations (user is captain)
 	const directRegistrations =
 		await db.query.competitionRegistrationsTable.findMany({
-			where: eq(competitionRegistrationsTable.userId, session.userId),
+			where: and(
+				eq(competitionRegistrationsTable.userId, session.userId),
+				ne(
+					competitionRegistrationsTable.status,
+					REGISTRATION_STATUS.REMOVED,
+				),
+			),
 			with: {
 				competition: {
 					with: {
@@ -344,21 +351,31 @@ export const getAthleteProfileDataFn = createServerFn({
 	const userTeamIds = userTeamMemberships.map((m) => m.teamId)
 
 	// Get team registrations
-	const teamRegistrations = userTeamIds.length > 0
-		? await db.query.competitionRegistrationsTable.findMany({
-				where: inArray(competitionRegistrationsTable.athleteTeamId, userTeamIds),
-				with: {
-					competition: {
-						with: {
-							organizingTeam: true,
+	const teamRegistrations =
+		userTeamIds.length > 0
+			? await db.query.competitionRegistrationsTable.findMany({
+					where: and(
+						inArray(
+							competitionRegistrationsTable.athleteTeamId,
+							userTeamIds,
+						),
+						ne(
+							competitionRegistrationsTable.status,
+							REGISTRATION_STATUS.REMOVED,
+						),
+					),
+					with: {
+						competition: {
+							with: {
+								organizingTeam: true,
+							},
 						},
+						division: true,
+						athleteTeam: true,
 					},
-					division: true,
-					athleteTeam: true,
-				},
-				orderBy: (table, { desc }) => [desc(table.registeredAt)],
-			})
-		: []
+					orderBy: (table, { desc }) => [desc(table.registeredAt)],
+				})
+			: []
 
 	// Combine and deduplicate by registration ID
 	const allRegistrations = [...directRegistrations, ...teamRegistrations]

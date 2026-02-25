@@ -11,7 +11,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, gt, inArray, isNull, or } from "drizzle-orm"
+import { and, eq, gt, inArray, isNull, ne, or } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -31,6 +31,7 @@ import {
 	competitionRegistrationsTable,
 	competitionsTable,
 	competitionVenuesTable,
+	REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import { entitlementTable } from "@/db/schemas/entitlements"
 import {
@@ -517,13 +518,9 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
 			.where(
 				and(
 					eq(competitionRegistrationsTable.eventId, data.competitionId),
+					ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 					...(data.divisionId
-						? [
-								eq(
-									competitionRegistrationsTable.divisionId,
-									data.divisionId,
-								),
-							]
+						? [eq(competitionRegistrationsTable.divisionId, data.divisionId)]
 						: []),
 				),
 			)
@@ -640,10 +637,7 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
 							lastName: userTable.lastName,
 						})
 						.from(teamMembershipTable)
-						.innerJoin(
-							userTable,
-							eq(teamMembershipTable.userId, userTable.id),
-						)
+						.innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
 						.where(inArray(teamMembershipTable.teamId, athleteTeamIds))
 				: []
 
@@ -1009,8 +1003,7 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 						status: newStatus,
 						statusOrder: getStatusOrder(data.scoreStatus),
 						sortKey: sortKey ? sortKeyToString(sortKey) : null,
-						tiebreakScheme:
-							workoutTiebreakScheme,
+						tiebreakScheme: workoutTiebreakScheme,
 						tiebreakValue,
 						timeCapMs,
 						secondaryValue,
@@ -1024,8 +1017,7 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 							status: newStatus,
 							statusOrder: getStatusOrder(data.scoreStatus),
 							sortKey: sortKey ? sortKeyToString(sortKey) : null,
-							tiebreakScheme:
-								workoutTiebreakScheme,
+							tiebreakScheme: workoutTiebreakScheme,
 							tiebreakValue,
 							timeCapMs,
 							secondaryValue,
@@ -1066,8 +1058,7 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 						if (scheme === "rounds-reps") {
 							const roundsNum =
 								Number.parseInt(round.parts?.[0] ?? round.score, 10) || 0
-							const reps =
-								Number.parseInt(round.parts?.[1] ?? "0", 10) || 0
+							const reps = Number.parseInt(round.parts?.[1] ?? "0", 10) || 0
 							roundValue = roundsNum * 100000 + reps
 						} else if (
 							scheme === "time" ||

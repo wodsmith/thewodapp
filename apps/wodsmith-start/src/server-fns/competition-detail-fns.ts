@@ -14,7 +14,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, count, eq, inArray, isNull, sql } from "drizzle-orm"
+import { and, count, eq, inArray, isNull, ne, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { addressesTable } from "@/db/schemas/addresses"
@@ -25,6 +25,7 @@ import {
 import {
 	competitionRegistrationsTable,
 	competitionsTable,
+	REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import {
 	INVITATION_STATUS,
@@ -278,7 +279,12 @@ export const getCompetitionRegistrationCountFn = createServerFn({
 		const result = await db
 			.select({ count: count() })
 			.from(competitionRegistrationsTable)
-			.where(eq(competitionRegistrationsTable.eventId, data.competitionId))
+			.where(
+				and(
+					eq(competitionRegistrationsTable.eventId, data.competitionId),
+					ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+				),
+			)
 
 		const registrationCount = result[0]?.count ?? 0
 
@@ -308,7 +314,12 @@ export const getCompetitionRegistrationsFn = createServerFn({ method: "GET" })
 				athleteTeamId: competitionRegistrationsTable.athleteTeamId,
 			})
 			.from(competitionRegistrationsTable)
-			.where(eq(competitionRegistrationsTable.eventId, data.competitionId))
+			.where(
+				and(
+					eq(competitionRegistrationsTable.eventId, data.competitionId),
+					ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+				),
+			)
 			.orderBy(competitionRegistrationsTable.registeredAt)
 
 		return { registrations }
@@ -340,10 +351,7 @@ export const checkCheckoutCompletionFn = createServerFn({ method: "GET" })
 			.from(commercePurchaseTable)
 			.where(
 				and(
-					eq(
-						commercePurchaseTable.stripeCheckoutSessionId,
-						data.sessionId,
-					),
+					eq(commercePurchaseTable.stripeCheckoutSessionId, data.sessionId),
 					eq(commercePurchaseTable.userId, session.userId),
 				),
 			)
@@ -391,6 +399,7 @@ export const getUserCompetitionRegistrationsFn = createServerFn({
 			userId: competitionRegistrationsTable.userId,
 			divisionId: competitionRegistrationsTable.divisionId,
 			registeredAt: competitionRegistrationsTable.registeredAt,
+			status: competitionRegistrationsTable.status,
 			teamName: competitionRegistrationsTable.teamName,
 			captainUserId: competitionRegistrationsTable.captainUserId,
 			athleteTeamId: competitionRegistrationsTable.athleteTeamId,
@@ -405,6 +414,10 @@ export const getUserCompetitionRegistrationsFn = createServerFn({
 				and(
 					eq(competitionRegistrationsTable.eventId, data.competitionId),
 					eq(competitionRegistrationsTable.userId, data.userId),
+					ne(
+						competitionRegistrationsTable.status,
+						REGISTRATION_STATUS.REMOVED,
+					),
 				),
 			)
 
@@ -429,6 +442,10 @@ export const getUserCompetitionRegistrationsFn = createServerFn({
 				.where(
 					and(
 						eq(competitionRegistrationsTable.eventId, data.competitionId),
+						ne(
+							competitionRegistrationsTable.status,
+							REGISTRATION_STATUS.REMOVED,
+						),
 						sql`${competitionRegistrationsTable.athleteTeamId} IN (${sql.join(
 							userTeamIds.map((id) => sql`${id}`),
 							sql`, `,
@@ -495,6 +512,7 @@ export const getPendingTeamInvitesFn = createServerFn({ method: "GET" })
 				and(
 					eq(teamInvitationTable.email, data.userId), // Assuming userId is email for now
 					isNull(teamInvitationTable.acceptedAt),
+					eq(teamInvitationTable.status, INVITATION_STATUS.PENDING),
 				),
 			)
 
@@ -637,7 +655,7 @@ export const getOrganizerRegistrationsFn = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
-		// Build where clause
+		// Build where clause - include all registrations (removed shown grayed out)
 		const whereConditions = [
 			eq(competitionRegistrationsTable.eventId, data.competitionId),
 		]
@@ -813,12 +831,13 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
 
 			// Get invitations for these athlete teams that haven't been claimed by a user
 			// Include both 'pending' and 'accepted' status (accepted = guest submitted form without account)
-			// Exclude those with acceptedAt set (user with account has claimed the invite)
+			// Exclude cancelled invitations and those claimed by user with account
 			const allInvitations = await db.query.teamInvitationTable.findMany({
 				where: and(
 					inArray(teamInvitationTable.teamId, athleteTeamIds),
 					eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.MEMBER),
 					isNull(teamInvitationTable.acceptedAt), // Not yet claimed by user with account
+					ne(teamInvitationTable.status, INVITATION_STATUS.CANCELLED),
 				),
 				columns: {
 					id: true,

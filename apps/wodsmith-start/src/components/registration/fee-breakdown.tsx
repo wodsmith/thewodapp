@@ -23,7 +23,12 @@ type FeeBreakdownProps = {
 	onFeesLoaded?: (divisionId: string, fees: FeeData | null) => void
 }
 
-export function FeeBreakdown({ competitionId, divisionId, hideTotal, onFeesLoaded }: FeeBreakdownProps) {
+export function FeeBreakdown({
+	competitionId,
+	divisionId,
+	hideTotal,
+	onFeesLoaded,
+}: FeeBreakdownProps) {
 	const [fees, setFees] = useState<FeeData | null>(null)
 	const [isLoading, setIsLoading] = useState(false)
 	const onFeesLoadedRef = useRef(onFeesLoaded)

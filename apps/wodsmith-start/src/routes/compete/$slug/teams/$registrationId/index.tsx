@@ -13,11 +13,21 @@ import {
 	useNavigate,
 } from "@tanstack/react-router"
 import { eq } from "drizzle-orm"
-import { CheckCircle, ChevronDown, Clock, Copy, Crown, Mail, Users } from "lucide-react"
+import {
+	AlertTriangle,
+	CheckCircle,
+	ChevronDown,
+	Clock,
+	Copy,
+	Crown,
+	Mail,
+	Users,
+} from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
 import { RegistrationAnswersForm } from "@/components/registration/registration-answers-form"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -262,20 +272,17 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 				// Look up division labels for each registration
 				if (allRegs.length > 1) {
 					const { getDb } = await import("@/db")
-					const { scalingLevelsTable } = await import(
-						"@/db/schemas/scaling"
-					)
+					const { scalingLevelsTable } = await import("@/db/schemas/scaling")
 					const db = getDb()
 
 					allUserRegistrations = await Promise.all(
 						allRegs.map(async (reg) => {
 							let divisionLabel: string | null = null
 							if (reg.divisionId) {
-								const div =
-									await db.query.scalingLevelsTable.findFirst({
-										where: eq(scalingLevelsTable.id, reg.divisionId),
-										columns: { label: true },
-									})
+								const div = await db.query.scalingLevelsTable.findFirst({
+									where: eq(scalingLevelsTable.id, reg.divisionId),
+									columns: { label: true },
+								})
 								divisionLabel = div?.label ?? null
 							}
 							return {
@@ -369,9 +376,7 @@ function DivisionSwitcher({
 								}
 							}}
 							className={`w-full text-left px-3 py-2 text-sm hover:bg-accent ${
-								reg.id === currentRegistrationId
-									? "bg-accent font-medium"
-									: ""
+								reg.id === currentRegistrationId ? "bg-accent font-medium" : ""
 							}`}
 						>
 							{reg.divisionLabel ?? "Division"}
@@ -455,10 +460,23 @@ function TeamManagementPage() {
 		!competition?.registrationClosesAt ||
 		new Date() < new Date(competition.registrationClosesAt)
 
+	const isRemoved = registration.status === "removed"
+
 	// For individual registrations, show simpler view
 	if (!isTeamRegistration) {
 		return (
 			<div className="container mx-auto max-w-4xl py-8 space-y-6">
+				{isRemoved && (
+					<Alert variant="destructive">
+						<AlertTriangle className="h-4 w-4" />
+						<AlertTitle>Registration Removed</AlertTitle>
+						<AlertDescription>
+							Your registration has been removed from this competition. If you
+							believe this is a mistake, please contact the event organizer.
+						</AlertDescription>
+					</Alert>
+				)}
+
 				<div className="flex items-start justify-between gap-4">
 					<div className="space-y-2">
 						<h1 className="text-3xl font-bold">My Registration</h1>
@@ -487,7 +505,7 @@ function TeamManagementPage() {
 				)}
 
 				{/* Registration Questions */}
-				{isRegisteredUser && (
+				{isRegisteredUser && !isRemoved && (
 					<RegistrationAnswersForm
 						registrationId={registration.id}
 						questions={registrationQuestions}
@@ -499,7 +517,7 @@ function TeamManagementPage() {
 				)}
 
 				{/* Waivers */}
-				{isRegisteredUser && waivers.length > 0 && (
+				{isRegisteredUser && !isRemoved && waivers.length > 0 && (
 					<WaiverSection
 						waivers={waivers}
 						signatures={waiverSignatures}
@@ -509,12 +527,14 @@ function TeamManagementPage() {
 				)}
 
 				{/* Affiliate */}
-				<AffiliateEditor
-					registrationId={registration.id}
-					userId={currentUserId}
-					currentAffiliate={currentUserAffiliate}
-					canEdit={canEditOwnAffiliate}
-				/>
+				{!isRemoved && (
+					<AffiliateEditor
+						registrationId={registration.id}
+						userId={currentUserId}
+						currentAffiliate={currentUserAffiliate}
+						canEdit={canEditOwnAffiliate}
+					/>
+				)}
 			</div>
 		)
 	}
@@ -533,6 +553,17 @@ function TeamManagementPage() {
 			/>
 
 			<div className="container mx-auto max-w-4xl py-8 space-y-6">
+				{isRemoved && (
+					<Alert variant="destructive">
+						<AlertTriangle className="h-4 w-4" />
+						<AlertTitle>Registration Removed</AlertTitle>
+						<AlertDescription>
+							Your team's registration has been removed from this competition. If
+							you believe this is a mistake, please contact the event organizer.
+						</AlertDescription>
+					</Alert>
+				)}
+
 				{/* Header */}
 				<div className="flex items-start justify-between gap-4">
 					<div className="space-y-2">
@@ -564,7 +595,7 @@ function TeamManagementPage() {
 				)}
 
 				{/* Registration Questions */}
-				{(isTeamMember || isRegisteredUser) && (
+				{(isTeamMember || isRegisteredUser) && !isRemoved && (
 					<RegistrationAnswersForm
 						registrationId={registration.id}
 						questions={registrationQuestions}
@@ -702,7 +733,7 @@ function TeamManagementPage() {
 				</Card>
 
 				{/* Waiver Section - Show for team members */}
-				{(isTeamMember || isRegisteredUser) && waivers.length > 0 && (
+				{(isTeamMember || isRegisteredUser) && !isRemoved && waivers.length > 0 && (
 					<WaiverSection
 						waivers={waivers}
 						signatures={waiverSignatures}
@@ -712,7 +743,7 @@ function TeamManagementPage() {
 				)}
 
 				{/* My Affiliate */}
-				{canEditOwnAffiliate && (
+				{canEditOwnAffiliate && !isRemoved && (
 					<AffiliateEditor
 						registrationId={registration.id}
 						userId={currentUserId}

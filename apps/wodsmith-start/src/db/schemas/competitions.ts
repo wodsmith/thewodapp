@@ -137,6 +137,15 @@ export const competitionsTable = mysqlTable(
 	],
 )
 
+// Registration status constants
+export const REGISTRATION_STATUS = {
+	ACTIVE: "active",
+	REMOVED: "removed",
+} as const
+
+export type RegistrationStatus =
+	(typeof REGISTRATION_STATUS)[keyof typeof REGISTRATION_STATUS]
+
 // Competition Registrations Table
 // Tracks athlete registrations for competitions
 export const competitionRegistrationsTable = mysqlTable(
@@ -157,6 +166,11 @@ export const competitionRegistrationsTable = mysqlTable(
 		divisionId: varchar({ length: 255 }),
 		// When the athlete registered
 		registeredAt: datetime().notNull(),
+		// Registration status: active = participating, removed = soft-deleted by organizer
+		status: varchar({ length: 20 })
+			.$type<RegistrationStatus>()
+			.default("active")
+			.notNull(),
 		// Team info (NULL for individual registrations)
 		teamName: varchar({ length: 255 }),
 		// Who created the registration (same as userId for individuals)
@@ -192,6 +206,10 @@ export const competitionRegistrationsTable = mysqlTable(
 		index("competition_registrations_athlete_team_idx").on(table.athleteTeamId),
 		index("competition_registrations_purchase_idx").on(
 			table.commercePurchaseId,
+		),
+		index("competition_registrations_status_idx").on(
+			table.eventId,
+			table.status,
 		),
 	],
 )

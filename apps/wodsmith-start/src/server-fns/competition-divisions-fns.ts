@@ -4,7 +4,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, count, eq, sql } from "drizzle-orm"
+import { and, asc, count, eq, ne, sql } from "drizzle-orm"
 import { z } from "zod"
 import { type Database, getDb } from "@/db"
 import { createScalingGroupId, createScalingLevelId } from "@/db/schemas/common"
@@ -16,6 +16,7 @@ import {
 import {
 	competitionRegistrationsTable,
 	competitionsTable,
+	REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import { scalingGroupsTable, scalingLevelsTable } from "@/db/schemas/scaling"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
@@ -507,6 +508,7 @@ async function getRegistrationCountForDivision({
 			and(
 				eq(competitionRegistrationsTable.divisionId, divisionId),
 				eq(competitionRegistrationsTable.eventId, competitionId),
+				ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 			),
 		)
 
@@ -593,6 +595,10 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
 					and(
 						eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
 						eq(competitionRegistrationsTable.eventId, data.competitionId),
+						ne(
+							competitionRegistrationsTable.status,
+							REGISTRATION_STATUS.REMOVED,
+						),
 					),
 				)
 				.where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))
@@ -710,6 +716,7 @@ export const getCompetitionDivisionsWithCountsFn = createServerFn({
 				and(
 					eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
 					eq(competitionRegistrationsTable.eventId, data.competitionId),
+					ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 				),
 			)
 			.where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))
@@ -843,9 +850,10 @@ export const initializeCompetitionDivisionsFn = createServerFn({
 			const newGroup = await createScalingGroup({
 				teamId: data.teamId,
 				title: `${competition.name} Divisions`,
-				description: data.templateGroupId && templateGroupTitle
-					? `Cloned from ${templateGroupTitle}`
-					: `Divisions for ${competition.name}`,
+				description:
+					data.templateGroupId && templateGroupTitle
+						? `Cloned from ${templateGroupTitle}`
+						: `Divisions for ${competition.name}`,
 				tx,
 			})
 
@@ -1298,7 +1306,7 @@ export const getDivisionSpotsAvailableFn = createServerFn({ method: "GET" })
 
 		// Get registration count and pending purchases (reservations)
 		const [registrations, pendingPurchases] = await Promise.all([
-			// Count confirmed registrations
+			// Count confirmed registrations (exclude removed)
 			db
 				.select({ count: count() })
 				.from(competitionRegistrationsTable)
@@ -1306,6 +1314,10 @@ export const getDivisionSpotsAvailableFn = createServerFn({ method: "GET" })
 					and(
 						eq(competitionRegistrationsTable.divisionId, data.divisionId),
 						eq(competitionRegistrationsTable.eventId, data.competitionId),
+						ne(
+							competitionRegistrationsTable.status,
+							REGISTRATION_STATUS.REMOVED,
+						),
 					),
 				),
 			// Count pending purchases (reservations) - excludes specified purchaseId to avoid self-blocking

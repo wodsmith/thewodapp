@@ -70,8 +70,7 @@ const checkOrganizerEntitlements = createServerFn({ method: "GET" }).handler(
 		const activeTeam = session.teams.find(
 			(t) => t.id === activeOrganizingTeamId,
 		)
-		const limit =
-			activeTeam?.plan?.limits["max_published_competitions"] ?? 0
+		const limit = activeTeam?.plan?.limits["max_published_competitions"] ?? 0
 		const isPendingApproval = limit === 0
 		const isApproved = limit === -1 || limit > 0
 

@@ -12,6 +12,7 @@ import {
 	useNavigate,
 	useRouter,
 } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
 import {
 	ArrowDown,
 	ArrowUp,
@@ -20,10 +21,24 @@ import {
 	Download,
 	Link2,
 	Mail,
+	MoreHorizontal,
+	Trash2,
 	X,
 } from "lucide-react"
+import { useState } from "react"
+import { toast } from "sonner"
 import { z } from "zod"
 import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -34,6 +49,12 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
 	Select,
 	SelectContent,
@@ -56,6 +77,7 @@ import {
 	type PendingTeammateInvite,
 } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
+import { removeRegistrationFn } from "@/server-fns/registration-fns"
 import {
 	getCompetitionQuestionsFn,
 	getCompetitionRegistrationAnswersFn,
@@ -186,9 +208,40 @@ function AthletesPage() {
 	} = Route.useLoaderData()
 	const navigate = useNavigate()
 	const router = useRouter()
+	const removeRegistration = useServerFn(removeRegistrationFn)
+	const [removingRegistration, setRemovingRegistration] = useState<{
+		id: string
+		athleteName: string
+		teamName: string | null
+	} | null>(null)
+	const [isRemoving, setIsRemoving] = useState(false)
 
 	const handleQuestionsChange = () => {
 		router.invalidate()
+	}
+
+	const handleRemoveRegistration = async () => {
+		if (!removingRegistration) return
+		setIsRemoving(true)
+		try {
+			await removeRegistration({
+				data: {
+					registrationId: removingRegistration.id,
+					competitionId: competition.id,
+				},
+			})
+			toast.success("Registration removed successfully")
+			setRemovingRegistration(null)
+			router.invalidate()
+		} catch (error) {
+			toast.error(
+				error instanceof Error
+					? error.message
+					: "Failed to remove registration",
+			)
+		} finally {
+			setIsRemoving(false)
+		}
 	}
 
 	const handleDivisionChange = (value: string) => {
@@ -373,6 +426,7 @@ function AthletesPage() {
 		ordinal: number
 		ordinalLabel: string
 		registrationId: string
+		registrationStatus: string // 'active' | 'removed'
 		athlete: {
 			id: string
 			firstName: string | null
@@ -447,6 +501,7 @@ function AthletesPage() {
 		allMembers.forEach((member, memberIndex) => {
 			athleteRows.push({
 				registrationId: registration.id,
+				registrationStatus: registration.status,
 				ordinal: rowIndex,
 				ordinalLabel: memberIndex === 0 ? String(rowIndex) : "",
 				athlete: {
@@ -482,6 +537,7 @@ function AthletesPage() {
 
 				athleteRows.push({
 					registrationId: registration.id,
+					registrationStatus: registration.status,
 					ordinal: rowIndex,
 					ordinalLabel: "",
 					athlete: {
@@ -562,8 +618,13 @@ function AthletesPage() {
 		return true
 	})
 
-	// Sort filtered rows
+	// Sort filtered rows — removed registrations always at the bottom
 	const sortedAthleteRows = [...filteredAthleteRows].sort((a, b) => {
+		// Always sort removed to bottom
+		const aRemoved = a.registrationStatus === "removed"
+		const bRemoved = b.registrationStatus === "removed"
+		if (aRemoved !== bRemoved) return aRemoved ? 1 : -1
+
 		if (!currentSortBy) return 0
 
 		const direction = currentSortDir === "desc" ? -1 : 1
@@ -717,6 +778,7 @@ function AthletesPage() {
 	}
 
 	return (
+		<>
 		<div className="flex flex-col gap-6">
 			{/* Inherited Series Questions (read-only) */}
 			{questions.some((q) => q.source === "series") && (
@@ -790,8 +852,8 @@ function AthletesPage() {
 				<div>
 					<h2 className="text-xl font-semibold">Registered Athletes</h2>
 					<p className="text-muted-foreground text-sm">
-						{registrations.length} registration
-						{registrations.length !== 1 ? "s" : ""}
+						{registrations.filter((r) => r.status === "active").length} registration
+						{registrations.filter((r) => r.status === "active").length !== 1 ? "s" : ""}
 					</p>
 				</div>
 				{registrations.length > 0 && (
@@ -1082,8 +1144,13 @@ function AthletesPage() {
 										</TableRow>
 									</TableHeader>
 									<TableBody>
-										{sortedAthleteRows.map((row) => (
-											<TableRow key={`${row.registrationId}-${row.athlete.id}`}>
+										{sortedAthleteRows.map((row) => {
+										const isRowRemoved = row.registrationStatus === "removed"
+										return (
+											<TableRow
+												key={`${row.registrationId}-${row.athlete.id}`}
+												className={isRowRemoved ? "opacity-50 bg-muted/30" : ""}
+											>
 												<TableCell className="font-mono text-sm text-muted-foreground">
 													{row.ordinalLabel}
 												</TableCell>
@@ -1145,6 +1212,14 @@ function AthletesPage() {
 																			<span className="text-xs text-muted-foreground ml-1">
 																				(captain)
 																			</span>
+																		)}
+																		{isRowRemoved && (
+																			<Badge
+																				variant="destructive"
+																				className="ml-2 text-xs"
+																			>
+																				Removed
+																			</Badge>
 																		)}
 																	</>
 																)}
@@ -1260,8 +1335,43 @@ function AthletesPage() {
 												<TableCell className="text-muted-foreground text-sm">
 													{row.joinedAt ? formatDate(row.joinedAt) : null}
 												</TableCell>
+												<TableCell>
+													{row.isCaptain && !isRowRemoved && (
+														<DropdownMenu>
+															<DropdownMenuTrigger asChild>
+																<Button
+																	variant="ghost"
+																	size="icon"
+																	className="h-8 w-8"
+																	aria-label="Open registration actions"
+																>
+																	<MoreHorizontal className="h-4 w-4" />
+																</Button>
+															</DropdownMenuTrigger>
+															<DropdownMenuContent align="end">
+																<DropdownMenuItem
+																	className="text-destructive focus:text-destructive"
+																	onClick={() =>
+																		setRemovingRegistration({
+																			id: row.registrationId,
+																			athleteName:
+																				`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
+																				row.athlete.email ||
+																				"Unknown",
+																			teamName: row.teamName,
+																		})
+																	}
+																>
+																	<Trash2 className="h-4 w-4 mr-2" />
+																	Remove Registration
+																</DropdownMenuItem>
+															</DropdownMenuContent>
+														</DropdownMenu>
+													)}
+												</TableCell>
 											</TableRow>
-										))}
+										)
+									})}
 									</TableBody>
 								</Table>
 							</CardContent>
@@ -1270,5 +1380,36 @@ function AthletesPage() {
 				</div>
 			)}
 		</div>
+
+		<AlertDialog
+			open={!!removingRegistration}
+			onOpenChange={(open) => !open && setRemovingRegistration(null)}
+		>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Remove Registration</AlertDialogTitle>
+					<AlertDialogDescription>
+						Are you sure you want to remove the registration for{" "}
+						<strong>{removingRegistration?.athleteName}</strong>
+						{removingRegistration?.teamName && (
+							<> (team: {removingRegistration.teamName})</>
+						)}
+						? This will remove them from the competition, delete their heat
+						assignments and scores.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel disabled={isRemoving}>Cancel</AlertDialogCancel>
+					<AlertDialogAction
+						onClick={handleRemoveRegistration}
+						disabled={isRemoving}
+						className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+					>
+						{isRemoving ? "Removing..." : "Remove Registration"}
+					</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+		</>
 	)
 }

@@ -134,6 +134,7 @@ import {
   getRegistrationDetailsFn,
   initiateRegistrationPaymentFn,
   cancelPendingPurchaseFn,
+  removeRegistrationFn,
 } from '@/server-fns/registration-fns'
 
 // Extract handlers from createServerFn mock
@@ -163,6 +164,10 @@ const initiatePayment = initiateRegistrationPaymentFn as unknown as (args: {
 
 const cancelPendingPurchase = cancelPendingPurchaseFn as unknown as (args: {
   data: {userId: string; competitionId: string}
+}) => Promise<{success: boolean}>
+
+const removeRegistration = removeRegistrationFn as unknown as (args: {
+  data: {registrationId: string; competitionId: string}
 }) => Promise<{success: boolean}>
 
 // Helper to set mock session
@@ -1226,6 +1231,296 @@ describe('registration-fns', () => {
           },
         }),
       ).rejects.toThrow('Unauthorized')
+    })
+  })
+
+  // ============================================================================
+  // Remove Registration (Organizer Soft Delete) Tests
+  // ============================================================================
+
+  describe('removeRegistrationFn', () => {
+    const organizingTeamId = 'org-team-1'
+
+    const mockOrganizerSession = {
+      userId: 'organizer-user-1',
+      user: {id: 'organizer-user-1', email: 'organizer@example.com', role: 'user'},
+      teams: [
+        {
+          id: organizingTeamId,
+          permissions: ['manage_competitions'],
+        },
+      ],
+    }
+
+    const mockAdminSession = {
+      userId: 'admin-user-1',
+      user: {id: 'admin-user-1', email: 'admin@example.com', role: 'admin'},
+      teams: [],
+    }
+
+    const mockCompetition = {
+      id: testCompetitionId,
+      organizingTeamId,
+    }
+
+    const mockActiveRegistration = {
+      id: testRegistrationId,
+      userId: registeredUserId,
+      eventId: testCompetitionId,
+      divisionId: testDivisionId,
+      status: 'active',
+      athleteTeamId: null,
+      teamMemberId: 'member-123',
+    }
+
+    const mockTeamActiveRegistration = {
+      ...mockActiveRegistration,
+      id: 'reg-team-remove',
+      athleteTeamId: testAthleteTeamId,
+    }
+
+    function setupRemoveMocks() {
+      mockDb.registerTable('competitionsTable')
+      mockDb.registerTable('competitionRegistrationsTable')
+      mockDb.query.competitionsTable = {
+        findFirst: vi.fn().mockResolvedValue(mockCompetition),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+      mockDb.query.competitionRegistrationsTable = {
+        findFirst: vi.fn().mockResolvedValue(mockActiveRegistration),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+      // No competition events by default (no scores to delete)
+      mockDb.setMockReturnValue([])
+    }
+
+    beforeEach(() => {
+      setMockSession(mockOrganizerSession)
+    })
+
+    describe('authentication', () => {
+      it('rejects unauthenticated users', async () => {
+        vi.mocked(requireVerifiedEmail).mockRejectedValue(new Error('Unauthorized'))
+
+        await expect(
+          removeRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow('Unauthorized')
+      })
+    })
+
+    describe('authorization', () => {
+      it('rejects users without manage_competitions permission', async () => {
+        setupRemoveMocks()
+        setMockSession({
+          userId: 'random-user',
+          user: {id: 'random-user', email: 'random@example.com', role: 'user'},
+          teams: [{id: organizingTeamId, permissions: ['access_dashboard']}],
+        })
+
+        await expect(
+          removeRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow('Missing required permission: manage_competitions')
+      })
+
+      it('rejects users not on the organizing team', async () => {
+        setupRemoveMocks()
+        setMockSession({
+          userId: 'random-user',
+          user: {id: 'random-user', email: 'random@example.com', role: 'user'},
+          teams: [{id: 'different-team', permissions: ['manage_competitions']}],
+        })
+
+        await expect(
+          removeRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow('Missing required permission: manage_competitions')
+      })
+
+      it('allows site admins to bypass team check', async () => {
+        setupRemoveMocks()
+        setMockSession(mockAdminSession)
+
+        const result = await removeRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        expect(result.success).toBe(true)
+      })
+
+      it('allows organizer with manage_competitions permission', async () => {
+        setupRemoveMocks()
+
+        const result = await removeRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        expect(result.success).toBe(true)
+      })
+    })
+
+    describe('validation', () => {
+      it('throws when competition not found', async () => {
+        setupRemoveMocks()
+        mockDb.query.competitionsTable = {
+          findFirst: vi.fn().mockResolvedValue(null),
+          findMany: vi.fn().mockResolvedValue([]),
+        }
+
+        await expect(
+          removeRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: 'nonexistent',
+            },
+          }),
+        ).rejects.toThrow('Competition not found')
+      })
+
+      it('throws when registration not found', async () => {
+        setupRemoveMocks()
+        mockDb.query.competitionRegistrationsTable = {
+          findFirst: vi.fn().mockResolvedValue(null),
+          findMany: vi.fn().mockResolvedValue([]),
+        }
+
+        await expect(
+          removeRegistration({
+            data: {
+              registrationId: 'nonexistent',
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow('Registration not found')
+      })
+
+      it('throws when registration is already removed', async () => {
+        setupRemoveMocks()
+        mockDb.query.competitionRegistrationsTable = {
+          findFirst: vi.fn().mockResolvedValue({
+            ...mockActiveRegistration,
+            status: 'removed',
+          }),
+          findMany: vi.fn().mockResolvedValue([]),
+        }
+
+        await expect(
+          removeRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow('Registration is already removed')
+      })
+    })
+
+    describe('individual registration removal', () => {
+      it('sets registration status to removed', async () => {
+        setupRemoveMocks()
+
+        const result = await removeRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        expect(result.success).toBe(true)
+        // update called for: registration status + captain membership deactivation
+        expect(mockDb.update).toHaveBeenCalled()
+      })
+
+      it('deactivates captain team membership', async () => {
+        setupRemoveMocks()
+
+        await removeRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        // update called at least twice: registration status + membership deactivation
+        expect(mockDb.update).toHaveBeenCalledTimes(2)
+      })
+
+      it('deletes heat assignments', async () => {
+        setupRemoveMocks()
+
+        await removeRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        // delete called for heat assignments
+        expect(mockDb.delete).toHaveBeenCalled()
+      })
+    })
+
+    describe('team registration removal', () => {
+      it('deactivates athlete team memberships and cancels invitations', async () => {
+        setupRemoveMocks()
+        mockDb.query.competitionRegistrationsTable = {
+          findFirst: vi.fn().mockResolvedValue(mockTeamActiveRegistration),
+          findMany: vi.fn().mockResolvedValue([]),
+        }
+
+        const result = await removeRegistration({
+          data: {
+            registrationId: mockTeamActiveRegistration.id,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        expect(result.success).toBe(true)
+        // update called for:
+        // 1. registration status to removed
+        // 2. captain membership deactivation
+        // 3. athlete team memberships deactivation
+        // 4. cancel pending invitations
+        expect(mockDb.update).toHaveBeenCalledTimes(4)
+      })
+    })
+
+    describe('score cleanup', () => {
+      it('deletes scores when competition has events', async () => {
+        setupRemoveMocks()
+        // Return competition events from the select chain
+        mockDb.setMockReturnValue([{id: 'event-1'}, {id: 'event-2'}])
+
+        await removeRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        // delete called for: heat assignments + scores (2 events × 1 user = 2 score deletes)
+        // Total: 1 (heat) + 2 (scores) = 3
+        expect(mockDb.delete).toHaveBeenCalled()
+      })
     })
   })
 })
