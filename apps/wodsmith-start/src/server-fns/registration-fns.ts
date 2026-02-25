@@ -27,18 +27,18 @@ import {
 	competitionRegistrationQuestionsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
+	createCommerceProductId,
+	createCommercePurchaseId,
 	REGISTRATION_STATUS,
 	ROLES_ENUM,
 	scalingGroupsTable,
 	scalingLevelsTable,
+	scoresTable,
 	TEAM_PERMISSIONS,
 	teamInvitationTable,
 	teamMembershipTable,
 	teamTable,
 	userTable,
-	scoresTable,
-	createCommerceProductId,
-	createCommercePurchaseId,
 } from "@/db/schema"
 import {
 	buildFeeConfig,
@@ -149,10 +149,7 @@ async function validateRequiredQuestions(
 	if (competition?.groupId) {
 		conditions.push(
 			and(
-				eq(
-					competitionRegistrationQuestionsTable.groupId,
-					competition.groupId,
-				),
+				eq(competitionRegistrationQuestionsTable.groupId, competition.groupId),
 				eq(competitionRegistrationQuestionsTable.required, true),
 			),
 		)
@@ -1476,4 +1473,176 @@ export const removeRegistrationFn = createServerFn({ method: "POST" })
 		})
 
 		return { success: true }
+	})
+
+// ============================================================================
+// Transfer Registration Division
+// ============================================================================
+
+const transferRegistrationDivisionInputSchema = z.object({
+	registrationId: z.string().min(1, "Registration ID is required"),
+	competitionId: z.string().min(1, "Competition ID is required"),
+	targetDivisionId: z.string().min(1, "Target division ID is required"),
+})
+
+/**
+ * Transfer an athlete's registration to a different division.
+ *
+ * - Validates team size compatibility (individual ↔ team blocked)
+ * - Removes heat assignments (division-specific)
+ * - Updates commerce purchase divisionId for bookkeeping
+ * - Does NOT block on capacity (organizer decision)
+ */
+export const transferRegistrationDivisionFn = createServerFn({
+	method: "POST",
+})
+	.inputValidator((data: unknown) =>
+		transferRegistrationDivisionInputSchema.parse(data),
+	)
+	.handler(async ({ data: input }) => {
+		const session = await requireVerifiedEmail()
+		const db = getDb()
+
+		updateRequestContext({ userId: session.userId })
+		addRequestContextAttribute("competitionId", input.competitionId)
+		addRequestContextAttribute("registrationId", input.registrationId)
+		addRequestContextAttribute("targetDivisionId", input.targetDivisionId)
+
+		// 1. Get competition to verify ownership
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, input.competitionId),
+			columns: { id: true, organizingTeamId: true },
+		})
+
+		if (!competition) throw new Error("Competition not found")
+
+		// 2. Require organizer permission (site admins bypass)
+		if (session.user?.role !== ROLES_ENUM.ADMIN) {
+			const team = session.teams?.find(
+				(t) => t.id === competition.organizingTeamId,
+			)
+			if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS)) {
+				throw new Error("Missing required permission: manage_competitions")
+			}
+		}
+
+		// 3. Get the registration
+		const registration = await db.query.competitionRegistrationsTable.findFirst(
+			{
+				where: and(
+					eq(competitionRegistrationsTable.id, input.registrationId),
+					eq(competitionRegistrationsTable.eventId, input.competitionId),
+				),
+			},
+		)
+
+		if (!registration) throw new Error("Registration not found")
+
+		if (registration.status === REGISTRATION_STATUS.REMOVED) {
+			throw new Error("Cannot transfer a removed registration")
+		}
+
+		// 4. Same-division check
+		if (registration.divisionId === input.targetDivisionId) {
+			throw new Error("Registration is already in this division")
+		}
+
+		// 5. Fetch source + target divisions, compare teamSize
+		const sourceDivision = registration.divisionId
+			? await db.query.scalingLevelsTable.findFirst({
+					where: eq(scalingLevelsTable.id, registration.divisionId),
+					columns: { id: true, teamSize: true },
+				})
+			: null
+
+		const targetDivision = await db.query.scalingLevelsTable.findFirst({
+			where: eq(scalingLevelsTable.id, input.targetDivisionId),
+			columns: { id: true, teamSize: true },
+		})
+
+		if (!targetDivision) throw new Error("Target division not found")
+
+		const sourceTeamSize = sourceDivision?.teamSize ?? 1
+		const targetTeamSize = targetDivision.teamSize
+
+		if (sourceTeamSize !== targetTeamSize) {
+			throw new Error(
+				`Cannot transfer between divisions with different team sizes (${sourceTeamSize} → ${targetTeamSize})`,
+			)
+		}
+
+		// 6. Unique constraint check: no existing registration in target division
+		const existingRegistration =
+			await db.query.competitionRegistrationsTable.findFirst({
+				where: and(
+					eq(competitionRegistrationsTable.eventId, input.competitionId),
+					eq(competitionRegistrationsTable.userId, registration.userId),
+					eq(competitionRegistrationsTable.divisionId, input.targetDivisionId),
+					ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+				),
+				columns: { id: true },
+			})
+
+		if (existingRegistration) {
+			throw new Error(
+				"Athlete already has a registration in the target division",
+			)
+		}
+
+		logInfo({
+			message: "[Registration] Transferring registration to new division",
+			attributes: {
+				registrationId: input.registrationId,
+				competitionId: input.competitionId,
+				fromDivisionId: registration.divisionId ?? "none",
+				toDivisionId: input.targetDivisionId,
+				userId: registration.userId,
+			},
+		})
+
+		// 7. Perform all writes in a transaction
+		let removedHeatAssignments = 0
+
+		await db.transaction(async (tx) => {
+			// Update registration divisionId
+			await tx
+				.update(competitionRegistrationsTable)
+				.set({
+					divisionId: input.targetDivisionId,
+					updatedAt: new Date(),
+				})
+				.where(eq(competitionRegistrationsTable.id, input.registrationId))
+
+			// Delete heat assignments (division-specific)
+			const deletedHeatAssignments = await tx
+				.delete(competitionHeatAssignmentsTable)
+				.where(
+					eq(
+						competitionHeatAssignmentsTable.registrationId,
+						input.registrationId,
+					),
+				)
+
+			removedHeatAssignments = deletedHeatAssignments[0]?.affectedRows ?? 0
+
+			// Update commerce purchase divisionId if exists
+			if (registration.commercePurchaseId) {
+				await tx
+					.update(commercePurchaseTable)
+					.set({ divisionId: input.targetDivisionId })
+					.where(eq(commercePurchaseTable.id, registration.commercePurchaseId))
+			}
+		})
+
+		logInfo({
+			message: "[Registration] Division transfer completed",
+			attributes: {
+				registrationId: input.registrationId,
+				competitionId: input.competitionId,
+				toDivisionId: input.targetDivisionId,
+				removedHeatAssignments: String(removedHeatAssignments),
+			},
+		})
+
+		return { success: true, removedHeatAssignments }
 	})

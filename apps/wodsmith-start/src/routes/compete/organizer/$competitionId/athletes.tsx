@@ -15,6 +15,7 @@ import {
 import { useServerFn } from "@tanstack/react-start"
 import {
 	ArrowDown,
+	ArrowRight,
 	ArrowUp,
 	ArrowUpDown,
 	Calendar,
@@ -78,6 +79,7 @@ import {
 } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import { removeRegistrationFn } from "@/server-fns/registration-fns"
+import { TransferDivisionDialog } from "./-components/transfer-division-dialog"
 import {
 	getCompetitionQuestionsFn,
 	getCompetitionRegistrationAnswersFn,
@@ -215,6 +217,14 @@ function AthletesPage() {
 		teamName: string | null
 	} | null>(null)
 	const [isRemoving, setIsRemoving] = useState(false)
+	const [transferTarget, setTransferTarget] = useState<{
+		id: string
+		athleteName: string
+		userId: string
+		divisionId: string | null
+		divisionLabel: string | null
+		teamSize: number
+	} | null>(null)
 
 	const handleQuestionsChange = () => {
 		router.invalidate()
@@ -438,7 +448,7 @@ function AthletesPage() {
 		isCaptain: boolean
 		status: AthleteStatus // 'registered' = has account, 'pending' = invited, 'accepted' = guest accepted
 		pendingInvite?: PendingTeammateInvite // For accessing pending answers (when status is 'pending' or 'accepted')
-		division: { label: string } | null
+		division: { id: string; label: string; teamSize: number } | null
 		teamName: string | null
 		registeredAt: Date | string | null
 		joinedAt: Date | null
@@ -1350,6 +1360,27 @@ function AthletesPage() {
 															</DropdownMenuTrigger>
 															<DropdownMenuContent align="end">
 																<DropdownMenuItem
+																	onClick={() => {
+																		const athleteName =
+																			`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
+																			row.athlete.email ||
+																			"Unknown"
+																		setTransferTarget({
+																			id: row.registrationId,
+																			athleteName,
+																			userId: row.athlete.id,
+																			divisionId: row.division?.id ?? null,
+																			divisionLabel:
+																				row.division?.label ?? null,
+																			teamSize:
+																				row.division?.teamSize ?? 1,
+																		})
+																	}}
+																>
+																	<ArrowRight className="h-4 w-4 mr-2" />
+																	Transfer Division
+																</DropdownMenuItem>
+																<DropdownMenuItem
 																	className="text-destructive focus:text-destructive"
 																	onClick={() =>
 																		setRemovingRegistration({
@@ -1410,6 +1441,24 @@ function AthletesPage() {
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
+
+		{transferTarget && (
+			<TransferDivisionDialog
+				open={!!transferTarget}
+				onOpenChange={(open) => !open && setTransferTarget(null)}
+				registration={transferTarget}
+				divisions={divisions}
+				competitionId={competition.id}
+				registeredDivisionIds={registrations
+					.filter(
+						(r) =>
+							r.userId === transferTarget.userId &&
+							r.divisionId != null &&
+							r.status !== "removed",
+					)
+					.map((r) => r.divisionId!)}
+			/>
+		)}
 		</>
 	)
 }
