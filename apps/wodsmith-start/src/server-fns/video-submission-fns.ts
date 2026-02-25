@@ -5,13 +5,14 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq } from "drizzle-orm"
+import { and, eq, ne } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
 	competitionEventsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
+	REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import {
 	programmingTracksTable,
@@ -182,6 +183,7 @@ async function getAthleteRegistration(
 			and(
 				eq(competitionRegistrationsTable.eventId, competitionId),
 				eq(competitionRegistrationsTable.userId, userId),
+				ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 			),
 		)
 		.limit(1)

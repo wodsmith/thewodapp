@@ -11,7 +11,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm"
+import { and, asc, eq, inArray, isNotNull, ne, notInArray, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -24,6 +24,7 @@ import { addressesTable } from "@/db/schemas/addresses"
 import {
 	type CompetitionHeat,
 	type CompetitionVenue,
+	REGISTRATION_STATUS,
 	competitionHeatAssignmentsTable,
 	competitionHeatsTable,
 	competitionRegistrationsTable,
@@ -583,7 +584,12 @@ export const getCompetitionRegistrationsFn = createServerFn({ method: "GET" })
 				divisionId: competitionRegistrationsTable.divisionId,
 			})
 			.from(competitionRegistrationsTable)
-			.where(eq(competitionRegistrationsTable.eventId, data.competitionId))
+			.where(
+				and(
+					eq(competitionRegistrationsTable.eventId, data.competitionId),
+					ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+				),
+			)
 			.orderBy(asc(competitionRegistrationsTable.registeredAt))
 
 		if (registrations.length === 0) {
@@ -1102,9 +1108,10 @@ export const getUnassignedRegistrationsFn = createServerFn({ method: "GET" })
 			...new Set(assignedIds.map((a) => a.registrationId)),
 		]
 
-		// Build WHERE conditions for registrations query
+		// Build WHERE conditions for registrations query (exclude removed)
 		const conditions = [
 			eq(competitionRegistrationsTable.eventId, data.competitionId),
+			ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 		]
 		if (assignedRegIds.length > 0) {
 			conditions.push(

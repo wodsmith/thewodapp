@@ -788,6 +788,7 @@ interface PendingInviteData {
 export interface TeamRosterResult {
 	registration: {
 		id: string
+		status: string
 		teamName: string | null
 		captainUserId: string | null
 		userId: string
@@ -964,6 +965,7 @@ export const getTeamRosterFn = createServerFn({ method: "GET" })
 			return {
 				registration: {
 					id: registration.id,
+					status: registration.status,
 					teamName: registration.teamName,
 					captainUserId: registration.captainUserId,
 					userId: registration.userId,
@@ -1047,6 +1049,7 @@ export const getTeamRosterFn = createServerFn({ method: "GET" })
 		return {
 			registration: {
 				id: registration.id,
+				status: registration.status,
 				teamName: registration.teamName,
 				captainUserId: registration.captainUserId,
 				userId: registration.userId,
@@ -1069,6 +1072,7 @@ export const getTeamRosterFn = createServerFn({ method: "GET" })
 export interface RegistrationDetails {
 	registrationId: string
 	registeredAt: Date
+	status: string
 	teamName: string | null
 	paymentStatus: string | null
 	paidAt: Date | null
@@ -1213,6 +1217,7 @@ export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
 		return {
 			registrationId: registration.id,
 			registeredAt: registration.registeredAt,
+			status: registration.status,
 			teamName: registration.teamName,
 			paymentStatus: registration.paymentStatus,
 			paidAt: registration.paidAt,

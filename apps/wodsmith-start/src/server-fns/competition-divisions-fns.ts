@@ -508,6 +508,7 @@ async function getRegistrationCountForDivision({
 			and(
 				eq(competitionRegistrationsTable.divisionId, divisionId),
 				eq(competitionRegistrationsTable.eventId, competitionId),
+				ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 			),
 		)
 

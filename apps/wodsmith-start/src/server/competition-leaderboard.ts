@@ -10,13 +10,14 @@
  * @see @/lib/scoring/tiebreakers - Tiebreaker logic
  */
 
-import { and, eq, inArray } from "drizzle-orm"
+import { and, eq, inArray, ne } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	competitionHeatAssignmentsTable,
 	competitionHeatsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
+	REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import {
 	programmingTracksTable,
@@ -361,7 +362,12 @@ export async function getCompetitionLeaderboard(params: {
 			scalingLevelsTable,
 			eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
 		)
-		.where(eq(competitionRegistrationsTable.eventId, params.competitionId))
+		.where(
+		and(
+			eq(competitionRegistrationsTable.eventId, params.competitionId),
+			ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+		),
+	)
 
 	if (registrations.length === 0) {
 		const events = filteredTrackWorkouts.map((tw) => ({

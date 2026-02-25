@@ -399,6 +399,7 @@ export const getUserCompetitionRegistrationsFn = createServerFn({
 			userId: competitionRegistrationsTable.userId,
 			divisionId: competitionRegistrationsTable.divisionId,
 			registeredAt: competitionRegistrationsTable.registeredAt,
+			status: competitionRegistrationsTable.status,
 			teamName: competitionRegistrationsTable.teamName,
 			captainUserId: competitionRegistrationsTable.captainUserId,
 			athleteTeamId: competitionRegistrationsTable.athleteTeamId,
@@ -646,10 +647,9 @@ export const getOrganizerRegistrationsFn = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
-		// Build where clause - exclude removed registrations
+		// Build where clause - include all registrations (removed shown grayed out)
 		const whereConditions = [
 			eq(competitionRegistrationsTable.eventId, data.competitionId),
-			ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 		]
 
 		// Get registrations with user and division info using query builder

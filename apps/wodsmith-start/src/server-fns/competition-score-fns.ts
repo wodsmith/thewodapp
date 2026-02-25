@@ -11,7 +11,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, gt, inArray, isNull, or } from "drizzle-orm"
+import { and, eq, gt, inArray, isNull, ne, or } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -31,6 +31,7 @@ import {
 	competitionRegistrationsTable,
 	competitionsTable,
 	competitionVenuesTable,
+	REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import { entitlementTable } from "@/db/schemas/entitlements"
 import {
@@ -517,6 +518,7 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
 			.where(
 				and(
 					eq(competitionRegistrationsTable.eventId, data.competitionId),
+					ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 					...(data.divisionId
 						? [eq(competitionRegistrationsTable.divisionId, data.divisionId)]
 						: []),

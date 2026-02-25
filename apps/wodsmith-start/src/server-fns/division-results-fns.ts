@@ -11,12 +11,13 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray, isNotNull, sql } from "drizzle-orm"
+import { and, eq, inArray, isNotNull, ne, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
 	competitionRegistrationsTable,
 	competitionsTable,
+	REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import {
 	programmingTracksTable,
@@ -263,6 +264,7 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 					and(
 						eq(competitionRegistrationsTable.eventId, data.competitionId),
 						inArray(competitionRegistrationsTable.divisionId, divisionIds),
+						ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 					),
 				)
 				.groupBy(competitionRegistrationsTable.divisionId)
@@ -328,7 +330,7 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 				return { events: [], totalPublishedCount: 0, totalCombinations: 0 }
 			}
 
-			// Get registrations for score counting
+			// Get registrations for score counting (exclude removed)
 			const registrations = await db
 				.select({
 					id: competitionRegistrationsTable.id,
@@ -336,7 +338,12 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 					divisionId: competitionRegistrationsTable.divisionId,
 				})
 				.from(competitionRegistrationsTable)
-				.where(eq(competitionRegistrationsTable.eventId, data.competitionId))
+				.where(
+					and(
+						eq(competitionRegistrationsTable.eventId, data.competitionId),
+						ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+					),
+				)
 
 			// Build a map of userId -> divisionId
 			const userDivisionMap = new Map<string, string>()

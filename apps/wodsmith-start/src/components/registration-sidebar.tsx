@@ -113,6 +113,7 @@ interface UserRegistrationEntry {
 	registration: {
 		id: string
 		divisionId: string | null
+		status: string
 		userId: string
 		teamName: string | null
 		captainUserId: string | null
@@ -289,16 +290,20 @@ export function RegistrationSidebar({
 				)}
 
 			{/* My Registrations Card - shown when registered */}
-			{isRegistered && (
-				<Card className="border-2 border-green-500/20 bg-white/5 backdrop-blur-md">
+			{isRegistered && (() => {
+				const allRemoved = userRegistrations.length > 0 && userRegistrations.every((e) => e.registration.status === "removed")
+				return (
+				<Card className={`border-2 ${allRemoved ? "border-red-500/20" : "border-green-500/20"} bg-white/5 backdrop-blur-md`}>
 					<CardContent className="p-4">
 						<div className="space-y-3">
-							<div className="flex items-center gap-2 text-green-600">
-								<CheckCircle2 className="h-5 w-5" />
+							<div className={`flex items-center gap-2 ${allRemoved ? "text-red-600" : "text-green-600"}`}>
+								{allRemoved ? <AlertTriangle className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
 								<span className="font-semibold">
-									{hasMultipleRegistrations
-										? "My Registrations"
-										: "You're Registered!"}
+									{allRemoved
+										? "Registration Removed"
+										: hasMultipleRegistrations
+											? "My Registrations"
+											: "You're Registered!"}
 								</span>
 							</div>
 
@@ -309,14 +314,22 @@ export function RegistrationSidebar({
 										const isTeam = (entry.division?.teamSize ?? 1) > 1
 										const isEntryCaptain =
 											entry.registration.captainUserId === session?.userId
+										const isEntryRemoved = entry.registration.status === "removed"
 										return (
 											<div
 												key={entry.registration.id}
-												className="flex items-center justify-between p-2 rounded-md border border-green-500/10 bg-green-500/5"
+												className={`flex items-center justify-between p-2 rounded-md border ${
+													isEntryRemoved
+														? "border-red-500/30 bg-red-500/10 opacity-60"
+														: "border-green-500/10 bg-green-500/5"
+												}`}
 											>
 												<div className="min-w-0">
 													<p className="text-sm font-medium truncate">
 														{entry.division?.label ?? "Division"}
+														{isEntryRemoved && (
+															<span className="text-xs text-red-500 ml-1">(Removed)</span>
+														)}
 													</p>
 													{entry.registration.teamName && (
 														<p className="text-xs text-muted-foreground truncate">
@@ -390,7 +403,8 @@ export function RegistrationSidebar({
 						</div>
 					</CardContent>
 				</Card>
-			)}
+				)
+			})()}
 
 			{/* Date & Location Card */}
 			<Card className="border-white/10 bg-white/5 backdrop-blur-md">

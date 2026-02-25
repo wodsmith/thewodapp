@@ -426,6 +426,7 @@ function AthletesPage() {
 		ordinal: number
 		ordinalLabel: string
 		registrationId: string
+		registrationStatus: string // 'active' | 'removed'
 		athlete: {
 			id: string
 			firstName: string | null
@@ -500,6 +501,7 @@ function AthletesPage() {
 		allMembers.forEach((member, memberIndex) => {
 			athleteRows.push({
 				registrationId: registration.id,
+				registrationStatus: registration.status,
 				ordinal: rowIndex,
 				ordinalLabel: memberIndex === 0 ? String(rowIndex) : "",
 				athlete: {
@@ -535,6 +537,7 @@ function AthletesPage() {
 
 				athleteRows.push({
 					registrationId: registration.id,
+					registrationStatus: registration.status,
 					ordinal: rowIndex,
 					ordinalLabel: "",
 					athlete: {
@@ -615,8 +618,13 @@ function AthletesPage() {
 		return true
 	})
 
-	// Sort filtered rows
+	// Sort filtered rows — removed registrations always at the bottom
 	const sortedAthleteRows = [...filteredAthleteRows].sort((a, b) => {
+		// Always sort removed to bottom
+		const aRemoved = a.registrationStatus === "removed"
+		const bRemoved = b.registrationStatus === "removed"
+		if (aRemoved !== bRemoved) return aRemoved ? 1 : -1
+
 		if (!currentSortBy) return 0
 
 		const direction = currentSortDir === "desc" ? -1 : 1
@@ -844,8 +852,8 @@ function AthletesPage() {
 				<div>
 					<h2 className="text-xl font-semibold">Registered Athletes</h2>
 					<p className="text-muted-foreground text-sm">
-						{registrations.length} registration
-						{registrations.length !== 1 ? "s" : ""}
+						{registrations.filter((r) => r.status === "active").length} registration
+						{registrations.filter((r) => r.status === "active").length !== 1 ? "s" : ""}
 					</p>
 				</div>
 				{registrations.length > 0 && (
@@ -1136,8 +1144,13 @@ function AthletesPage() {
 										</TableRow>
 									</TableHeader>
 									<TableBody>
-										{sortedAthleteRows.map((row) => (
-											<TableRow key={`${row.registrationId}-${row.athlete.id}`}>
+										{sortedAthleteRows.map((row) => {
+										const isRowRemoved = row.registrationStatus === "removed"
+										return (
+											<TableRow
+												key={`${row.registrationId}-${row.athlete.id}`}
+												className={isRowRemoved ? "opacity-50 bg-muted/30" : ""}
+											>
 												<TableCell className="font-mono text-sm text-muted-foreground">
 													{row.ordinalLabel}
 												</TableCell>
@@ -1199,6 +1212,14 @@ function AthletesPage() {
 																			<span className="text-xs text-muted-foreground ml-1">
 																				(captain)
 																			</span>
+																		)}
+																		{isRowRemoved && (
+																			<Badge
+																				variant="destructive"
+																				className="ml-2 text-xs"
+																			>
+																				Removed
+																			</Badge>
 																		)}
 																	</>
 																)}
@@ -1315,7 +1336,7 @@ function AthletesPage() {
 													{row.joinedAt ? formatDate(row.joinedAt) : null}
 												</TableCell>
 												<TableCell>
-													{row.isCaptain && (
+													{row.isCaptain && !isRowRemoved && (
 														<DropdownMenu>
 															<DropdownMenuTrigger asChild>
 																<Button
@@ -1348,7 +1369,8 @@ function AthletesPage() {
 													)}
 												</TableCell>
 											</TableRow>
-										))}
+										)
+									})}
 									</TableBody>
 								</Table>
 							</CardContent>
