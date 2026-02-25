@@ -989,11 +989,13 @@ export const getTeamRosterFn = createServerFn({ method: "GET" })
 			},
 		})) as unknown as MembershipWithUser[]
 
-		// Get pending invitations
+		// Get pending invitations (exclude cancelled)
+		const { INVITATION_STATUS } = await import("@/db/schema")
 		const invitations = await db.query.teamInvitationTable.findMany({
 			where: and(
 				eq(teamInvitationTable.teamId, registration.athleteTeamId),
 				isNull(teamInvitationTable.acceptedAt),
+				eq(teamInvitationTable.status, INVITATION_STATUS.PENDING),
 			),
 		})
 
@@ -1377,13 +1379,15 @@ export const removeRegistrationFn = createServerFn({ method: "POST" })
 					),
 				)
 
-			// Delete pending invitations for the athlete team
+			// Cancel pending invitations for the athlete team
+			const { INVITATION_STATUS } = await import("@/db/schema")
 			await db
-				.delete(teamInvitationTable)
+				.update(teamInvitationTable)
+				.set({ status: INVITATION_STATUS.CANCELLED })
 				.where(
 					and(
 						eq(teamInvitationTable.teamId, registration.athleteTeamId),
-						isNull(teamInvitationTable.acceptedAt),
+						eq(teamInvitationTable.status, INVITATION_STATUS.PENDING),
 					),
 				)
 		}

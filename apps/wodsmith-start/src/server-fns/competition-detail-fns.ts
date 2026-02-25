@@ -503,6 +503,7 @@ export const getPendingTeamInvitesFn = createServerFn({ method: "GET" })
 				and(
 					eq(teamInvitationTable.email, data.userId), // Assuming userId is email for now
 					isNull(teamInvitationTable.acceptedAt),
+					eq(teamInvitationTable.status, INVITATION_STATUS.PENDING),
 				),
 			)
 
@@ -822,12 +823,13 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
 
 			// Get invitations for these athlete teams that haven't been claimed by a user
 			// Include both 'pending' and 'accepted' status (accepted = guest submitted form without account)
-			// Exclude those with acceptedAt set (user with account has claimed the invite)
+			// Exclude cancelled invitations and those claimed by user with account
 			const allInvitations = await db.query.teamInvitationTable.findMany({
 				where: and(
 					inArray(teamInvitationTable.teamId, athleteTeamIds),
 					eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.MEMBER),
 					isNull(teamInvitationTable.acceptedAt), // Not yet claimed by user with account
+					ne(teamInvitationTable.status, INVITATION_STATUS.CANCELLED),
 				),
 				columns: {
 					id: true,
