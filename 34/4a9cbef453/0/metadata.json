@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "344a9cbef453",
+  "session_id": "17218e08-f888-4c70-b79a-2fe5e70d3f96",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-25T06:19:05.060166Z",
+  "branch": "claude/soft-delete-registrations-oq15P",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/test/server-fns/registration-fns.test.ts"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "7e9798c6-a7f0-4e5f-a893-dd62d2c6d214",
+  "token_usage": {
+    "input_tokens": 2456,
+    "cache_creation_tokens": 55428,
+    "cache_read_tokens": 1120620,
+    "output_tokens": 3325,
+    "api_call_count": 23
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-25T06:19:05.005848Z",
+    "agent_lines": 302,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 302,
+    "agent_percentage": 100
+  }
+}
