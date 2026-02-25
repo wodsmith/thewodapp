@@ -11,7 +11,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, isNull, ne, or } from "drizzle-orm"
+import { and, eq, inArray, isNull, ne, or } from "drizzle-orm"
 import type Stripe from "stripe"
 import { z } from "zod"
 import { getDb } from "@/db"
@@ -21,6 +21,7 @@ import {
 	COMMERCE_PURCHASE_STATUS,
 	commerceProductTable,
 	commercePurchaseTable,
+	competitionEventsTable,
 	competitionHeatAssignmentsTable,
 	competitionRegistrationAnswersTable,
 	competitionRegistrationQuestionsTable,
@@ -35,6 +36,7 @@ import {
 	teamMembershipTable,
 	teamTable,
 	userTable,
+	scoresTable,
 	createCommerceProductId,
 	createCommercePurchaseId,
 } from "@/db/schema"
@@ -58,7 +60,7 @@ import {
 	registerForCompetition,
 } from "@/lib/registration-stubs"
 import { getStripe } from "@/lib/stripe"
-import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
+import { requireVerifiedEmail } from "@/utils/auth"
 import {
 	DEFAULT_TIMEZONE,
 	hasDateStartedInTimezone,
@@ -1322,8 +1324,7 @@ const removeRegistrationInputSchema = z.object({
 export const removeRegistrationFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => removeRegistrationInputSchema.parse(data))
 	.handler(async ({ data: input }) => {
-		const session = await getSessionFromCookie()
-		if (!session?.userId) throw new Error("Unauthorized")
+		const session = await requireVerifiedEmail()
 
 		const db = getDb()
 
@@ -1427,7 +1428,6 @@ export const removeRegistrationFn = createServerFn({ method: "POST" })
 			)
 
 		// 8. Delete scores for the registered user(s) in this competition's events
-		const { scoresTable, competitionEventsTable } = await import("@/db/schema")
 
 		// Get all competition event IDs
 		const competitionEvents = await db
@@ -1456,18 +1456,14 @@ export const removeRegistrationFn = createServerFn({ method: "POST" })
 			}
 
 			// Delete scores for these users in this competition's events
-			for (const eventId of eventIds) {
-				for (const userId of userIds) {
-					await db
-						.delete(scoresTable)
-						.where(
-							and(
-								eq(scoresTable.competitionEventId, eventId),
-								eq(scoresTable.userId, userId),
-							),
-						)
-				}
-			}
+			await db
+				.delete(scoresTable)
+				.where(
+					and(
+						inArray(scoresTable.competitionEventId, eventIds),
+						inArray(scoresTable.userId, userIds),
+					),
+				)
 		}
 
 		logInfo({

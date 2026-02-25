@@ -1343,6 +1343,7 @@ function AthletesPage() {
 																	variant="ghost"
 																	size="icon"
 																	className="h-8 w-8"
+																	aria-label="Open registration actions"
 																>
 																	<MoreHorizontal className="h-4 w-4" />
 																</Button>
@@ -1394,7 +1395,7 @@ function AthletesPage() {
 							<> (team: {removingRegistration.teamName})</>
 						)}
 						? This will remove them from the competition, delete their heat
-						assignments and scores. This action cannot be undone.
+						assignments and scores.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 				<AlertDialogFooter>

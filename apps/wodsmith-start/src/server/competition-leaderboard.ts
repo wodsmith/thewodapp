@@ -400,7 +400,12 @@ export async function getCompetitionLeaderboard(params: {
 					})
 					.from(teamMembershipTable)
 					.innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
-					.where(inArray(teamMembershipTable.teamId, athleteTeamIds))
+					.where(
+						and(
+							inArray(teamMembershipTable.teamId, athleteTeamIds),
+							eq(teamMembershipTable.isActive, true),
+						),
+					)
 			: []
 
 	// Group memberships by teamId

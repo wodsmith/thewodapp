@@ -505,7 +505,7 @@ function TeamManagementPage() {
 				)}
 
 				{/* Registration Questions */}
-				{isRegisteredUser && (
+				{isRegisteredUser && !isRemoved && (
 					<RegistrationAnswersForm
 						registrationId={registration.id}
 						questions={registrationQuestions}
@@ -517,7 +517,7 @@ function TeamManagementPage() {
 				)}
 
 				{/* Waivers */}
-				{isRegisteredUser && waivers.length > 0 && (
+				{isRegisteredUser && !isRemoved && waivers.length > 0 && (
 					<WaiverSection
 						waivers={waivers}
 						signatures={waiverSignatures}
@@ -527,12 +527,14 @@ function TeamManagementPage() {
 				)}
 
 				{/* Affiliate */}
-				<AffiliateEditor
-					registrationId={registration.id}
-					userId={currentUserId}
-					currentAffiliate={currentUserAffiliate}
-					canEdit={canEditOwnAffiliate}
-				/>
+				{!isRemoved && (
+					<AffiliateEditor
+						registrationId={registration.id}
+						userId={currentUserId}
+						currentAffiliate={currentUserAffiliate}
+						canEdit={canEditOwnAffiliate}
+					/>
+				)}
 			</div>
 		)
 	}
@@ -593,7 +595,7 @@ function TeamManagementPage() {
 				)}
 
 				{/* Registration Questions */}
-				{(isTeamMember || isRegisteredUser) && (
+				{(isTeamMember || isRegisteredUser) && !isRemoved && (
 					<RegistrationAnswersForm
 						registrationId={registration.id}
 						questions={registrationQuestions}
@@ -731,7 +733,7 @@ function TeamManagementPage() {
 				</Card>
 
 				{/* Waiver Section - Show for team members */}
-				{(isTeamMember || isRegisteredUser) && waivers.length > 0 && (
+				{(isTeamMember || isRegisteredUser) && !isRemoved && waivers.length > 0 && (
 					<WaiverSection
 						waivers={waivers}
 						signatures={waiverSignatures}
@@ -741,7 +743,7 @@ function TeamManagementPage() {
 				)}
 
 				{/* My Affiliate */}
-				{canEditOwnAffiliate && (
+				{canEditOwnAffiliate && !isRemoved && (
 					<AffiliateEditor
 						registrationId={registration.id}
 						userId={currentUserId}

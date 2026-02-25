@@ -414,6 +414,10 @@ export const getUserCompetitionRegistrationsFn = createServerFn({
 				and(
 					eq(competitionRegistrationsTable.eventId, data.competitionId),
 					eq(competitionRegistrationsTable.userId, data.userId),
+					ne(
+						competitionRegistrationsTable.status,
+						REGISTRATION_STATUS.REMOVED,
+					),
 				),
 			)
 
@@ -438,6 +442,10 @@ export const getUserCompetitionRegistrationsFn = createServerFn({
 				.where(
 					and(
 						eq(competitionRegistrationsTable.eventId, data.competitionId),
+						ne(
+							competitionRegistrationsTable.status,
+							REGISTRATION_STATUS.REMOVED,
+						),
 						sql`${competitionRegistrationsTable.athleteTeamId} IN (${sql.join(
 							userTeamIds.map((id) => sql`${id}`),
 							sql`, `,

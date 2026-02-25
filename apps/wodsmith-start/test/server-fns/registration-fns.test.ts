@@ -1301,12 +1301,12 @@ describe('registration-fns', () => {
     }
 
     beforeEach(() => {
-      setMockCookieSession(mockOrganizerSession)
+      setMockSession(mockOrganizerSession)
     })
 
     describe('authentication', () => {
       it('rejects unauthenticated users', async () => {
-        setMockCookieSession(null)
+        vi.mocked(requireVerifiedEmail).mockRejectedValue(new Error('Unauthorized'))
 
         await expect(
           removeRegistration({
@@ -1322,7 +1322,7 @@ describe('registration-fns', () => {
     describe('authorization', () => {
       it('rejects users without manage_competitions permission', async () => {
         setupRemoveMocks()
-        setMockCookieSession({
+        setMockSession({
           userId: 'random-user',
           user: {id: 'random-user', email: 'random@example.com', role: 'user'},
           teams: [{id: organizingTeamId, permissions: ['access_dashboard']}],
@@ -1340,7 +1340,7 @@ describe('registration-fns', () => {
 
       it('rejects users not on the organizing team', async () => {
         setupRemoveMocks()
-        setMockCookieSession({
+        setMockSession({
           userId: 'random-user',
           user: {id: 'random-user', email: 'random@example.com', role: 'user'},
           teams: [{id: 'different-team', permissions: ['manage_competitions']}],
@@ -1358,7 +1358,7 @@ describe('registration-fns', () => {
 
       it('allows site admins to bypass team check', async () => {
         setupRemoveMocks()
-        setMockCookieSession(mockAdminSession)
+        setMockSession(mockAdminSession)
 
         const result = await removeRegistration({
           data: {
