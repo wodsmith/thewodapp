@@ -12,6 +12,7 @@ import {
 	useNavigate,
 	useRouter,
 } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
 import {
 	ArrowDown,
 	ArrowUp,
@@ -19,9 +20,12 @@ import {
 	Calendar,
 	Download,
 	Link2,
+	Loader2,
 	Mail,
 	X,
 } from "lucide-react"
+import { useState } from "react"
+import { toast } from "sonner"
 import { z } from "zod"
 import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -41,6 +45,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import {
 	Table,
 	TableBody,
@@ -59,6 +64,9 @@ import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-di
 import {
 	getCompetitionQuestionsFn,
 	getCompetitionRegistrationAnswersFn,
+	getExcludedSeriesQuestionIdsFn,
+	getSeriesQuestionsFn,
+	toggleSeriesQuestionExclusionFn,
 } from "@/server-fns/registration-questions-fns"
 import {
 	getCompetitionWaiverSignaturesFn,
@@ -109,7 +117,7 @@ export const Route = createFileRoute(
 		const parentMatch = await parentMatchPromise
 		const { competition } = parentMatch.loaderData!
 
-		// Parallel fetch: registrations, divisions, questions, answers, waivers, signatures, and pending invites
+		// Parallel fetch: registrations, divisions, questions, answers, waivers, signatures, pending invites, and series exclusions
 		const [
 			registrationsResult,
 			divisionsResult,
@@ -118,6 +126,8 @@ export const Route = createFileRoute(
 			waiversResult,
 			signaturesResult,
 			pendingInvitesResult,
+			allSeriesQuestionsResult,
+			excludedSeriesQuestionIdsResult,
 		] = await Promise.all([
 			getOrganizerRegistrationsFn({
 				data: { competitionId, divisionFilter },
@@ -140,6 +150,21 @@ export const Route = createFileRoute(
 			getPendingTeammateInvitationsFn({
 				data: { competitionId },
 			}),
+			// Fetch all series questions (unfiltered) for organizer toggle view
+			competition.groupId
+				? getSeriesQuestionsFn({
+						data: { groupId: competition.groupId },
+					})
+				: Promise.resolve({ questions: [] }),
+			// Fetch excluded series question IDs
+			competition.groupId
+				? getExcludedSeriesQuestionIdsFn({
+						data: {
+							competitionId,
+							teamId: competition.organizingTeamId,
+						},
+					})
+				: Promise.resolve({ excludedQuestionIds: [] }),
 		])
 
 		return {
@@ -157,6 +182,9 @@ export const Route = createFileRoute(
 				{} as Record<string, Date>,
 			),
 			pendingInvites: pendingInvitesResult.pendingInvites,
+			allSeriesQuestions: allSeriesQuestionsResult.questions,
+			excludedSeriesQuestionIds:
+				excludedSeriesQuestionIdsResult.excludedQuestionIds,
 			currentDivisionFilter: divisionFilter,
 			currentQuestionFilters: deps?.questionFilters || {},
 			currentWaiverFilters: deps?.waiverFilters || [],
@@ -177,6 +205,8 @@ function AthletesPage() {
 		waivers,
 		signaturesByUser,
 		pendingInvites,
+		allSeriesQuestions,
+		excludedSeriesQuestionIds,
 		currentDivisionFilter,
 		currentQuestionFilters,
 		currentWaiverFilters,
@@ -187,8 +217,72 @@ function AthletesPage() {
 	const navigate = useNavigate()
 	const router = useRouter()
 
+	// Track excluded series question IDs locally for optimistic updates
+	const [excludedIds, setExcludedIds] = useState<Set<string>>(
+		new Set(excludedSeriesQuestionIds),
+	)
+	const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set())
+
+	const toggleExclusion = useServerFn(toggleSeriesQuestionExclusionFn)
+
 	const handleQuestionsChange = () => {
 		router.invalidate()
+	}
+
+	const handleToggleSeriesQuestion = async (
+		questionId: string,
+		currentlyExcluded: boolean,
+	) => {
+		const newExclude = !currentlyExcluded
+
+		// Optimistic update
+		setTogglingIds((prev) => new Set(prev).add(questionId))
+		setExcludedIds((prev) => {
+			const next = new Set(prev)
+			if (newExclude) {
+				next.add(questionId)
+			} else {
+				next.delete(questionId)
+			}
+			return next
+		})
+
+		try {
+			await toggleExclusion({
+				data: {
+					competitionId: competition.id,
+					questionId,
+					teamId,
+					exclude: newExclude,
+				},
+			})
+			toast.success(
+				newExclude
+					? "Series question excluded from this competition"
+					: "Series question included in this competition",
+			)
+			router.invalidate()
+		} catch (error) {
+			// Revert optimistic update
+			setExcludedIds((prev) => {
+				const next = new Set(prev)
+				if (newExclude) {
+					next.delete(questionId)
+				} else {
+					next.add(questionId)
+				}
+				return next
+			})
+			toast.error(
+				error instanceof Error ? error.message : "Failed to update question",
+			)
+		} finally {
+			setTogglingIds((prev) => {
+				const next = new Set(prev)
+				next.delete(questionId)
+				return next
+			})
+		}
 	}
 
 	const handleDivisionChange = (value: string) => {
@@ -718,8 +812,8 @@ function AthletesPage() {
 
 	return (
 		<div className="flex flex-col gap-6">
-			{/* Inherited Series Questions (read-only) */}
-			{questions.some((q) => q.source === "series") && (
+			{/* Inherited Series Questions with toggle controls */}
+			{allSeriesQuestions.length > 0 && (
 				<Card>
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2">
@@ -727,8 +821,8 @@ function AthletesPage() {
 							Series Registration Questions
 						</CardTitle>
 						<CardDescription>
-							These questions are inherited from the series and apply to all
-							competitions.{" "}
+							These questions are inherited from the series. Toggle individual
+							questions on or off for this competition.{" "}
 							{competition.groupId && (
 								<Link
 									to="/compete/organizer/series/$groupId"
@@ -742,20 +836,54 @@ function AthletesPage() {
 					</CardHeader>
 					<CardContent>
 						<div className="space-y-2">
-							{questions
-								.filter((q) => q.source === "series")
-								.map((question) => (
+							{allSeriesQuestions.map((question) => {
+								const isExcluded = excludedIds.has(question.id)
+								const isToggling = togglingIds.has(question.id)
+
+								return (
 									<div
 										key={question.id}
-										className="flex items-start gap-3 p-4 border rounded-lg bg-muted/50"
+										className={`flex items-start gap-3 p-4 border rounded-lg transition-colors ${
+											isExcluded ? "bg-muted/30 opacity-60" : "bg-muted/50"
+										}`}
 									>
+										<div className="flex items-center pt-1">
+											{isToggling ? (
+												<Loader2 className="h-5 w-9 animate-spin text-muted-foreground" />
+											) : (
+												<Switch
+													checked={!isExcluded}
+													onCheckedChange={() =>
+														handleToggleSeriesQuestion(question.id, isExcluded)
+													}
+													aria-label={`${isExcluded ? "Include" : "Exclude"} "${question.label}" for this competition`}
+												/>
+											)}
+										</div>
 										<div className="flex-1 space-y-2">
 											<div className="flex items-start justify-between gap-2">
-												<h4 className="font-medium">{question.label}</h4>
-												<Badge variant="outline" className="flex items-center gap-1 shrink-0">
-													<Link2 className="h-3 w-3" />
-													From Series
-												</Badge>
+												<h4
+													className={`font-medium ${isExcluded ? "line-through text-muted-foreground" : ""}`}
+												>
+													{question.label}
+												</h4>
+												<div className="flex items-center gap-2 shrink-0">
+													{isExcluded && (
+														<Badge
+															variant="outline"
+															className="text-yellow-700 border-yellow-300 bg-yellow-50"
+														>
+															Excluded
+														</Badge>
+													)}
+													<Badge
+														variant="outline"
+														className="flex items-center gap-1"
+													>
+														<Link2 className="h-3 w-3" />
+														From Series
+													</Badge>
+												</div>
 											</div>
 											{question.helpText && (
 												<p className="text-sm text-muted-foreground">
@@ -764,13 +892,18 @@ function AthletesPage() {
 											)}
 											<div className="flex items-center gap-2 flex-wrap">
 												<Badge variant="secondary">{question.type}</Badge>
-												<Badge variant={question.required ? "destructive" : "outline"}>
+												<Badge
+													variant={
+														question.required ? "destructive" : "outline"
+													}
+												>
 													{question.required ? "Required" : "Optional"}
 												</Badge>
 											</div>
 										</div>
 									</div>
-								))}
+								)
+							})}
 						</div>
 					</CardContent>
 				</Card>

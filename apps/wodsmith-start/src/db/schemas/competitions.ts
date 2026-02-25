@@ -359,6 +359,29 @@ export const competitionRegistrationAnswersTable = mysqlTable(
 	],
 )
 
+// Competition Excluded Series Questions Table
+// Tracks which series-level questions are excluded from specific competitions
+// When a series question is excluded for a competition, it won't appear during registration
+export const competitionExcludedSeriesQuestionsTable = mysqlTable(
+	"competition_excluded_series_questions",
+	{
+		...commonColumns,
+		// The competition that excludes the series question
+		competitionId: varchar({ length: 255 }).notNull(),
+		// The series-level question being excluded
+		questionId: varchar({ length: 255 }).notNull(),
+	},
+	(table) => [
+		// One exclusion per competition per question
+		uniqueIndex("comp_excluded_sq_unique_idx").on(
+			table.competitionId,
+			table.questionId,
+		),
+		index("comp_excluded_sq_competition_idx").on(table.competitionId),
+		index("comp_excluded_sq_question_idx").on(table.questionId),
+	],
+)
+
 // Competition Events Table
 // Per-event settings for online competitions (submission windows, etc.)
 export const competitionEventsTable = mysqlTable(
@@ -405,6 +428,9 @@ export type CompetitionRegistrationQuestion = InferSelectModel<
 >
 export type CompetitionRegistrationAnswer = InferSelectModel<
 	typeof competitionRegistrationAnswersTable
+>
+export type CompetitionExcludedSeriesQuestion = InferSelectModel<
+	typeof competitionExcludedSeriesQuestionsTable
 >
 
 // Competition visibility constants
@@ -479,6 +505,8 @@ export const competitionsRelations = relations(
 		events: many(competitionEventsTable),
 		// Judge rotations (from volunteers system)
 		judgeRotations: many(competitionJudgeRotationsTable),
+		// Excluded series questions
+		excludedSeriesQuestions: many(competitionExcludedSeriesQuestionsTable),
 	}),
 )
 
@@ -609,6 +637,21 @@ export const competitionRegistrationAnswersRelations = relations(
 		user: one(userTable, {
 			fields: [competitionRegistrationAnswersTable.userId],
 			references: [userTable.id],
+		}),
+	}),
+)
+
+// Excluded series questions relations
+export const competitionExcludedSeriesQuestionsRelations = relations(
+	competitionExcludedSeriesQuestionsTable,
+	({ one }) => ({
+		competition: one(competitionsTable, {
+			fields: [competitionExcludedSeriesQuestionsTable.competitionId],
+			references: [competitionsTable.id],
+		}),
+		question: one(competitionRegistrationQuestionsTable, {
+			fields: [competitionExcludedSeriesQuestionsTable.questionId],
+			references: [competitionRegistrationQuestionsTable.id],
 		}),
 	}),
 )
