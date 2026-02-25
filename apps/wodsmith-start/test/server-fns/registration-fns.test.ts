@@ -127,7 +127,7 @@ vi.mock('cloudflare:workers', () => ({
 }))
 
 // Import mocked auth so we can change behavior
-import {getSessionFromCookie, requireVerifiedEmail} from '@/utils/auth'
+import {requireVerifiedEmail} from '@/utils/auth'
 import {hasDateStartedInTimezone, isDeadlinePassedInTimezone} from '@/utils/timezone-utils'
 import {
   updateRegistrationAffiliateFn,
@@ -174,12 +174,6 @@ const removeRegistration = removeRegistrationFn as unknown as (args: {
 const setMockSession = (session: unknown) => {
   vi.mocked(requireVerifiedEmail).mockResolvedValue(
     session as Awaited<ReturnType<typeof requireVerifiedEmail>>,
-  )
-}
-
-const setMockCookieSession = (session: unknown) => {
-  vi.mocked(getSessionFromCookie).mockResolvedValue(
-    session as Awaited<ReturnType<typeof getSessionFromCookie>>,
   )
 }
 

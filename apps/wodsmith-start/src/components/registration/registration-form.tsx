@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import {
+	AlertTriangle,
 	Check,
 	CheckCircle2,
 	ChevronsUpDown,
@@ -72,6 +73,7 @@ function DivisionMultiSelect({
 	publicDivisions,
 	selectedIds,
 	registeredDivisionIds,
+	removedDivisionIds,
 	onToggle,
 	disabled,
 }: {
@@ -79,6 +81,7 @@ function DivisionMultiSelect({
 	publicDivisions: PublicCompetitionDivision[]
 	selectedIds: string[]
 	registeredDivisionIds: Set<string>
+	removedDivisionIds: Set<string>
 	onToggle: (id: string, checked: boolean) => void
 	disabled: boolean
 }) {
@@ -146,8 +149,9 @@ function DivisionMultiSelect({
 							const spotsAvailable = info?.spotsAvailable
 							const maxSpots = info?.maxSpots
 							const isRegistered = registeredDivisionIds.has(level.id)
+							const isRemoved = removedDivisionIds.has(level.id)
 							const isSelected = selectedIds.includes(level.id)
-							const isItemDisabled = disabled || isFull || isRegistered
+							const isItemDisabled = disabled || isFull || isRegistered || isRemoved
 
 							return (
 								<button
@@ -194,7 +198,14 @@ function DivisionMultiSelect({
 												Indy
 											</Badge>
 										)}
-										{isRegistered ? (
+										{isRemoved ? (
+											<Badge
+												variant="outline"
+												className="text-xs text-destructive border-destructive/30"
+											>
+												Removed
+											</Badge>
+										) : isRegistered ? (
 											<Badge
 												variant="outline"
 												className="text-xs text-green-600 border-green-500/30"
@@ -244,6 +255,7 @@ type Props = {
 	userLastName?: string | null
 	userEmail?: string | null
 	registeredDivisionIds?: string[]
+	removedDivisionIds?: string[]
 	previousAnswers?: Array<{ questionId: string; answer: string }>
 	signedWaiverIds?: string[]
 }
@@ -264,6 +276,7 @@ export function RegistrationForm({
 	userLastName,
 	userEmail,
 	registeredDivisionIds = [],
+	removedDivisionIds = [],
 	previousAnswers = [],
 	signedWaiverIds = [],
 }: Props) {
@@ -350,6 +363,7 @@ export function RegistrationForm({
 	)
 
 	const registeredDivisionIdSet = new Set(registeredDivisionIds)
+	const removedDivisionIdSet = new Set(removedDivisionIds)
 
 	// Track registration started on mount
 	useEffect(() => {
@@ -703,6 +717,39 @@ export function RegistrationForm({
 				<p className="text-muted-foreground">{competition.name}</p>
 			</div>
 
+			{removedDivisionIds.length > 0 && (
+				<Card className="border-destructive/20 bg-destructive/5">
+					<CardContent className="pt-6">
+						<div className="flex items-start gap-2 text-destructive">
+							<AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+							<div className="text-sm space-y-1">
+								<p className="font-medium">
+									Your registration
+									{removedDivisionIds.length === 1
+										? " was"
+										: "s were"}{" "}
+									removed from this competition:
+								</p>
+								<ul className="list-disc pl-4">
+									{removedDivisionIds.map((id) => {
+										const div = getDivision(id)
+										return (
+											<li key={id}>
+												{div?.label ?? "Unknown division"}
+											</li>
+										)
+									})}
+								</ul>
+								<p className="text-muted-foreground">
+									If you believe this was a mistake, please contact the
+									event organizer.
+								</p>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+			)}
+
 			{registeredDivisionIds.length > 0 && (
 				<Card className="border-green-500/20 bg-green-500/5">
 					<CardContent className="pt-6">
@@ -778,6 +825,7 @@ export function RegistrationForm({
 							publicDivisions={publicDivisions}
 							selectedIds={selectedDivisionIds}
 							registeredDivisionIds={registeredDivisionIdSet}
+							removedDivisionIds={removedDivisionIdSet}
 							onToggle={handleDivisionToggle}
 							disabled={isSubmitting || !registrationOpen}
 						/>

@@ -14,6 +14,7 @@ import { RegistrationForm } from "@/components/registration/registration-form"
 import {
 	competitionRegistrationAnswersTable,
 	competitionRegistrationsTable,
+	REGISTRATION_STATUS,
 	scalingGroupsTable,
 	teamMembershipTable,
 	userTable,
@@ -88,16 +89,27 @@ const getUserCompetitionRegistrationsFn = createServerFn({ method: "GET" })
 			),
 		]
 
-		const registeredDivisionIds = allRegistrations
+		const activeRegistrations = allRegistrations.filter(
+			(r) => r.status !== REGISTRATION_STATUS.REMOVED,
+		)
+		const removedRegistrations = allRegistrations.filter(
+			(r) => r.status === REGISTRATION_STATUS.REMOVED,
+		)
+
+		const registeredDivisionIds = activeRegistrations
 			.map((r) => r.divisionId)
 			.filter((id): id is string => id !== null)
 
-		// If user has existing registrations, fetch their previous answers and waiver signatures
+		const removedDivisionIds = removedRegistrations
+			.map((r) => r.divisionId)
+			.filter((id): id is string => id !== null)
+
+		// If user has existing active registrations, fetch their previous answers and waiver signatures
 		let previousAnswers: Array<{ questionId: string; answer: string }> = []
 		let signedWaiverIds: string[] = []
 
-		if (allRegistrations.length > 0) {
-			const registrationIds = allRegistrations.map((r) => r.id)
+		if (activeRegistrations.length > 0) {
+			const registrationIds = activeRegistrations.map((r) => r.id)
 
 			// Fetch answers from any previous registration (they're the same across divisions)
 			const answers =
@@ -133,8 +145,9 @@ const getUserCompetitionRegistrationsFn = createServerFn({ method: "GET" })
 		}
 
 		return {
-			registrations: allRegistrations,
+			registrations: activeRegistrations,
 			registeredDivisionIds,
+			removedDivisionIds,
 			previousAnswers,
 			signedWaiverIds,
 		}
@@ -223,7 +236,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 
 		// 3. Parallel fetch: existing registrations, affiliate name, waivers, and questions
 		const [
-			{ registeredDivisionIds, previousAnswers, signedWaiverIds },
+			{ registeredDivisionIds, removedDivisionIds, previousAnswers, signedWaiverIds },
 			userProfile,
 			{ waivers },
 			{ questions },
@@ -278,6 +291,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 				waivers: [],
 				questions: [],
 				registeredDivisionIds: [],
+				removedDivisionIds: [],
 				previousAnswers: [],
 				signedWaiverIds: [],
 			}
@@ -314,6 +328,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 				waivers: [],
 				questions: [],
 				registeredDivisionIds: [],
+				removedDivisionIds: [],
 				previousAnswers: [],
 				signedWaiverIds: [],
 			}
@@ -335,6 +350,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			userLastName: userProfile.lastName,
 			userEmail: userProfile.email,
 			registeredDivisionIds,
+			removedDivisionIds,
 			previousAnswers,
 			signedWaiverIds,
 		}
@@ -358,6 +374,7 @@ function RegisterPage() {
 		userLastName,
 		userEmail,
 		registeredDivisionIds,
+		removedDivisionIds,
 		previousAnswers,
 		signedWaiverIds,
 	} = Route.useLoaderData()
@@ -400,6 +417,7 @@ function RegisterPage() {
 				userLastName={userLastName}
 				userEmail={userEmail}
 				registeredDivisionIds={registeredDivisionIds}
+				removedDivisionIds={removedDivisionIds}
 				previousAnswers={previousAnswers}
 				signedWaiverIds={signedWaiverIds}
 			/>
