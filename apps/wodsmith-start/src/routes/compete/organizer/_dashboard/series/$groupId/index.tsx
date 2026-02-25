@@ -5,6 +5,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { AddCompetitionsToSeriesDialog } from "@/components/add-competitions-to-series-dialog"
 import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
+import { SeriesDivisionManager } from "@/components/divisions/series-division-manager"
 import { OrganizerCompetitionsList } from "@/components/organizer-competitions-list"
 import { Button } from "@/components/ui/button"
 import {
@@ -14,6 +15,10 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import {
+	getSeriesDivisionsFn,
+	listScalingGroupsFn,
+} from "@/server-fns/competition-divisions-fns"
 import {
 	getCompetitionGroupByIdFn,
 	getOrganizerCompetitionsFn,
@@ -37,6 +42,9 @@ export const Route = createFileRoute(
 				allCompetitions: [],
 				allGroups: [],
 				seriesQuestions: [],
+				seriesDivisions: [],
+				seriesScalingGroupId: null as string | null,
+				scalingGroups: [],
 				teamId: null,
 			}
 		}
@@ -51,6 +59,9 @@ export const Route = createFileRoute(
 				allCompetitions: [],
 				allGroups: [],
 				seriesQuestions: [],
+				seriesDivisions: [],
+				seriesScalingGroupId: null as string | null,
+				scalingGroups: [],
 				teamId: null,
 			}
 		}
@@ -64,10 +75,17 @@ export const Route = createFileRoute(
 			teamId = organizingTeams[0].id
 		}
 
-		// Fetch competitions and series questions in parallel
-		const [competitionsResult, questionsResult] = await Promise.all([
+		// Fetch competitions, series questions, divisions, and scaling groups in parallel
+		const [
+			competitionsResult,
+			questionsResult,
+			divisionsResult,
+			scalingGroupsResult,
+		] = await Promise.all([
 			getOrganizerCompetitionsFn({ data: { teamId } }),
 			getSeriesQuestionsFn({ data: { groupId } }),
+			getSeriesDivisionsFn({ data: { groupId, teamId } }),
+			listScalingGroupsFn({ data: { teamId } }),
 		])
 
 		// Filter competitions that belong to this series
@@ -83,6 +101,9 @@ export const Route = createFileRoute(
 				{ ...groupResult.group, competitionCount: seriesCompetitions.length },
 			],
 			seriesQuestions: questionsResult.questions,
+			seriesDivisions: divisionsResult.divisions,
+			seriesScalingGroupId: divisionsResult.scalingGroupId,
+			scalingGroups: scalingGroupsResult.groups,
 			teamId,
 		}
 	},
@@ -95,6 +116,9 @@ function SeriesDetailPage() {
 		allCompetitions,
 		allGroups,
 		seriesQuestions,
+		seriesDivisions,
+		seriesScalingGroupId,
+		scalingGroups,
 		teamId,
 	} = Route.useLoaderData()
 	const router = useRouter()
@@ -248,6 +272,15 @@ function SeriesDetailPage() {
 					onQuestionsChange={handleQuestionsChange}
 				/>
 
+				{/* Series Divisions */}
+				<SeriesDivisionManager
+					groupId={group.id}
+					teamId={teamId}
+					divisions={seriesDivisions}
+					scalingGroupId={seriesScalingGroupId}
+					scalingGroups={scalingGroups}
+				/>
+
 				{/* Competitions in Series */}
 				<div>
 					<h2 className="text-xl font-bold mb-4">Competitions in Series</h2>
@@ -267,6 +300,8 @@ function SeriesDetailPage() {
 				onOpenChange={setIsAddDialogOpen}
 				groupId={group.id}
 				groupName={group.name}
+				teamId={teamId}
+				seriesScalingGroupId={seriesScalingGroupId}
 				allCompetitions={allCompetitions}
 				currentSeriesCompetitions={seriesCompetitions}
 			/>

@@ -64,6 +64,8 @@ interface OrganizerDivisionManagerProps {
 	scalingGroupId: string | null
 	scalingGroups: ScalingGroupWithLevels[]
 	defaultMaxSpotsPerDivision: number | null
+	/** If competition is in a series, the series' template scaling group ID */
+	seriesScalingGroupId?: string | null
 }
 
 export function OrganizerDivisionManager({
@@ -73,6 +75,7 @@ export function OrganizerDivisionManager({
 	scalingGroupId,
 	scalingGroups,
 	defaultMaxSpotsPerDivision,
+	seriesScalingGroupId,
 }: OrganizerDivisionManagerProps) {
 	const router = useRouter()
 	const [divisions, setDivisions] = useState(initialDivisions)
@@ -96,6 +99,7 @@ export function OrganizerDivisionManager({
 				teamId={teamId}
 				competitionId={competitionId}
 				scalingGroups={scalingGroups}
+				seriesScalingGroupId={seriesScalingGroupId}
 				onSuccess={() => router.invalidate()}
 			/>
 		)

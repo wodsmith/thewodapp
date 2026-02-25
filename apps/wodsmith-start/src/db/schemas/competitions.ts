@@ -24,7 +24,7 @@ import {
 	createCompetitionVenueId,
 } from "./common"
 import { programmingTracksTable } from "./programming"
-import { scalingLevelsTable } from "./scaling"
+import { scalingGroupsTable, scalingLevelsTable } from "./scaling"
 import { teamMembershipTable, teamTable } from "./teams"
 import { userTable } from "./users"
 import {
@@ -48,6 +48,8 @@ export const competitionGroupsTable = mysqlTable(
 		slug: varchar({ length: 255 }).notNull(),
 		name: varchar({ length: 255 }).notNull(),
 		description: text(),
+		// Optional: scaling group used as the series division template
+		scalingGroupId: varchar({ length: 255 }),
 	},
 	(table) => [
 		// Ensure slug is unique per organizing team
@@ -438,6 +440,11 @@ export const competitionGroupsRelations = relations(
 		competitions: many(competitionsTable),
 		// Series-level registration questions
 		registrationQuestions: many(competitionRegistrationQuestionsTable),
+		// Series division template (scaling group)
+		scalingGroup: one(scalingGroupsTable, {
+			fields: [competitionGroupsTable.scalingGroupId],
+			references: [scalingGroupsTable.id],
+		}),
 	}),
 )
 
