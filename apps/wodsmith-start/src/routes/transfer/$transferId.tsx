@@ -1,5 +1,3 @@
-"use client"
-
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import {
@@ -270,6 +268,30 @@ function TransferAcceptPage() {
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-6">
+					{session.email &&
+						transfer.targetEmail &&
+						session.email.toLowerCase() !==
+							transfer.targetEmail.toLowerCase() && (
+							<div className="flex items-start gap-3 rounded-lg border border-yellow-500/50 bg-yellow-50 p-4 dark:bg-yellow-950/20">
+								<AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
+								<div className="text-sm">
+									<p className="font-medium text-yellow-800 dark:text-yellow-300">
+										Different account
+									</p>
+									<p className="text-yellow-700 dark:text-yellow-400 mt-1">
+										This transfer was sent to{" "}
+										<span className="font-medium">
+											{transfer.targetEmail}
+										</span>
+										, but you&apos;re signed in as{" "}
+										<span className="font-medium">{session.email}</span>. You
+										can still accept it, but make sure this is the right
+										account.
+									</p>
+								</div>
+							</div>
+						)}
+
 					<TransferDetails transfer={transfer} sourceFullName={sourceFullName} />
 
 					<AcceptTransferForm
