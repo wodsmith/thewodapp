@@ -1240,15 +1240,19 @@ function AthletesPage() {
 																type="button"
 																className="text-muted-foreground hover:text-foreground p-0.5 rounded"
 																title="Copy transfer link"
-																onClick={() => {
+																onClick={async () => {
 																	const transfer = pendingTransfers.find(
 																		(t) => t.purchaseId === row.commercePurchaseId,
 																	)
 																	if (transfer) {
-																		navigator.clipboard.writeText(
-																			`${window.location.origin}/transfer/${transfer.id}`,
-																		)
-																		toast.success("Transfer link copied to clipboard")
+																		try {
+																			await navigator.clipboard.writeText(
+																				`${window.location.origin}/transfer/${transfer.id}`,
+																			)
+																			toast.success("Transfer link copied to clipboard")
+																		} catch {
+																			toast.error("Failed to copy link")
+																		}
 																	}
 																}}
 															>
