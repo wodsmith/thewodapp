@@ -1114,6 +1114,7 @@ function AthletesPage() {
 									<TableHeader>
 										<TableRow>
 											<TableHead className="w-[50px]">#</TableHead>
+											<TableHead>Status</TableHead>
 											<TableHead>
 												<button
 													type="button"
@@ -1203,6 +1204,40 @@ function AthletesPage() {
 													{row.ordinalLabel}
 												</TableCell>
 												<TableCell>
+													{isRowRemoved ? (
+														<Badge
+															variant="destructive"
+															className="text-xs"
+														>
+															Removed
+														</Badge>
+													) : row.status === "pending" ? (
+														<Badge
+															variant="outline"
+															className="text-xs bg-yellow-50 text-yellow-700 border-yellow-300"
+														>
+															Invite Pending
+														</Badge>
+													) : row.status === "accepted" ? (
+														<Badge
+															variant="outline"
+															className="text-xs bg-green-50 text-green-700 border-green-300"
+														>
+															Invite Accepted
+														</Badge>
+													) : row.commercePurchaseId &&
+														pendingTransfers.some(
+															(t) => t.purchaseId === row.commercePurchaseId,
+														) ? (
+														<Badge
+															variant="outline"
+															className="text-xs bg-yellow-50 text-yellow-700 border-yellow-300"
+														>
+															Transfer Pending
+														</Badge>
+													) : null}
+												</TableCell>
+												<TableCell>
 													<div className="flex items-center gap-3">
 														<Avatar className="h-8 w-8">
 															<AvatarImage
@@ -1224,20 +1259,11 @@ function AthletesPage() {
 														<div className="flex flex-col">
 															<span className="font-medium">
 																{row.status === "pending" ? (
-																	<>
-																		<span className="italic text-muted-foreground">
-																			Invited
-																		</span>
-																		<Badge
-																			variant="outline"
-																			className="ml-2 text-xs bg-yellow-50 text-yellow-700 border-yellow-300"
-																		>
-																			Pending
-																		</Badge>
-																	</>
+																	<span className="italic text-muted-foreground">
+																		Invited
+																	</span>
 																) : row.status === "accepted" ? (
 																	<>
-																		{/* Show guest name if available */}
 																		{row.pendingInvite?.guestName ? (
 																			<span>{row.pendingInvite.guestName}</span>
 																		) : (
@@ -1245,12 +1271,6 @@ function AthletesPage() {
 																				Invited
 																			</span>
 																		)}
-																		<Badge
-																			variant="outline"
-																			className="ml-2 text-xs bg-green-50 text-green-700 border-green-300"
-																		>
-																			Accepted
-																		</Badge>
 																	</>
 																) : (
 																	<>
@@ -1260,14 +1280,6 @@ function AthletesPage() {
 																			<span className="text-xs text-muted-foreground ml-1">
 																				(captain)
 																			</span>
-																		)}
-																		{isRowRemoved && (
-																			<Badge
-																				variant="destructive"
-																				className="ml-2 text-xs"
-																			>
-																				Removed
-																			</Badge>
 																		)}
 																	</>
 																)}
@@ -1280,27 +1292,13 @@ function AthletesPage() {
 													</div>
 												</TableCell>
 												<TableCell>
-													<div className="flex flex-col gap-1">
-														{row.division ? (
-															<Badge variant="outline">
-																{row.division.label}
-															</Badge>
-														) : (
-															<span className="text-muted-foreground">—</span>
-														)}
-														{row.commercePurchaseId &&
-															pendingTransfers.some(
-																(t) =>
-																	t.purchaseId === row.commercePurchaseId,
-															) && (
-																<Badge
-																	variant="outline"
-																	className="text-xs bg-yellow-50 text-yellow-700 border-yellow-300 w-fit"
-																>
-																	Transfer Pending
-																</Badge>
-															)}
-													</div>
+													{row.division ? (
+														<Badge variant="outline">
+															{row.division.label}
+														</Badge>
+													) : (
+														<span className="text-muted-foreground">—</span>
+													)}
 												</TableCell>
 												<TableCell>
 													{row.teamName ? (
@@ -1430,7 +1428,7 @@ function AthletesPage() {
 																	}}
 																>
 																	<ArrowRight className="h-4 w-4 mr-2" />
-																	Transfer Division
+																	Change Division
 																</DropdownMenuItem>
 																{(() => {
 																	const pendingTransfer = pendingTransfers.find(
@@ -1473,7 +1471,7 @@ function AthletesPage() {
 																			disabled={!row.commercePurchaseId}
 																		>
 																			<UserPlus className="h-4 w-4 mr-2" />
-																			Transfer to Person
+																			Transfer Registration
 																		</DropdownMenuItem>
 																	)
 																})()}
