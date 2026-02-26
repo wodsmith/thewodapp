@@ -1229,12 +1229,32 @@ function AthletesPage() {
 														pendingTransfers.some(
 															(t) => t.purchaseId === row.commercePurchaseId,
 														) ? (
-														<Badge
-															variant="outline"
-															className="text-xs bg-yellow-50 text-yellow-700 border-yellow-300"
-														>
-															Transfer Pending
-														</Badge>
+														<div className="flex items-center gap-1">
+															<Badge
+																variant="outline"
+																className="text-xs bg-yellow-50 text-yellow-700 border-yellow-300"
+															>
+																Transfer Pending
+															</Badge>
+															<button
+																type="button"
+																className="text-muted-foreground hover:text-foreground p-0.5 rounded"
+																title="Copy transfer link"
+																onClick={() => {
+																	const transfer = pendingTransfers.find(
+																		(t) => t.purchaseId === row.commercePurchaseId,
+																	)
+																	if (transfer) {
+																		navigator.clipboard.writeText(
+																			`${window.location.origin}/transfer/${transfer.id}`,
+																		)
+																		toast.success("Transfer link copied to clipboard")
+																	}
+																}}
+															>
+																<Link2 className="h-3.5 w-3.5" />
+															</button>
+														</div>
 													) : null}
 												</TableCell>
 												<TableCell>
