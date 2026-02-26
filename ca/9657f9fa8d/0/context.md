@@ -1,0 +1,8 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+pull the pr comments and address them if needed, please ignore the one about authing the transfer page. we intentially set it as unauthed, we want unauthed users to be able to view it and accept and are fine with protection by obscurity
+

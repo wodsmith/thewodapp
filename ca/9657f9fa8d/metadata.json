@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "ca9657f9fa8d",
+  "strategy": "manual-commit",
+  "branch": "zacjones93/wod-140-transfer-registration-purchase-to-a-different-person",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/src/routes/transfer/$transferId.tsx",
+    "apps/wodsmith-start/src/server-fns/purchase-transfer-accept-fns.ts",
+    "apps/wodsmith-start/src/server-fns/purchase-transfer-fns.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ca/9657f9fa8d/0/metadata.json",
+      "transcript": "/ca/9657f9fa8d/0/full.jsonl",
+      "context": "/ca/9657f9fa8d/0/context.md",
+      "content_hash": "/ca/9657f9fa8d/0/content_hash.txt",
+      "prompt": "/ca/9657f9fa8d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 25,
+    "cache_creation_tokens": 56369,
+    "cache_read_tokens": 1181848,
+    "output_tokens": 8459,
+    "api_call_count": 23
+  }
+}
