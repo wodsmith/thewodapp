@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "22bb2d23d5f0",
+  "session_id": "166262a5-8dde-4e0c-b47c-229d1e2c30ce",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-26T06:15:37.948929Z",
+  "branch": "zacjones93/wod-140-copy-transfer-link",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes.tsx"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "f9dbc534-ab9d-4aec-a5f0-e085178d2785",
+  "checkpoint_transcript_start": 4249,
+  "transcript_lines_at_start": 4249,
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 3065,
+    "cache_read_tokens": 579451,
+    "output_tokens": 1178,
+    "api_call_count": 7
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-26T06:15:37.806035Z",
+    "agent_lines": 9,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 9,
+    "agent_percentage": 100
+  }
+}
