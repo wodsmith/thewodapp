@@ -1,0 +1,14 @@
+pull the pr comments and address them if needed, please ignore the one about authing the transfer page. we intentially set it as unauthed, we want unauthed users to be able to view it and accept and are fine with protection by obscurity
+
+---
+
+Date comparison after serialization (transfer/$transferId.tsx:161) — Wrapped transfer.expiresAt in new Date() to handle
+  string→Date comparison correctly after server serialization. this should respect timezone...
+
+---
+
+commit and push then
+
+---
+
+create a new branch off of main and add link icon that when clicked will copy the transfer registration page to the clipboard for the organizer to hand out if they need to
