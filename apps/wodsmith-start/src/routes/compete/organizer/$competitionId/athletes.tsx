@@ -24,6 +24,7 @@ import {
 	Mail,
 	MoreHorizontal,
 	Trash2,
+	UserPlus,
 	X,
 } from "lucide-react"
 import { useState } from "react"
@@ -79,7 +80,12 @@ import {
 } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import { removeRegistrationFn } from "@/server-fns/registration-fns"
+import {
+	cancelPurchaseTransferFn,
+	getPendingTransfersForCompetitionFn,
+} from "@/server-fns/purchase-transfer-fns"
 import { TransferDivisionDialog } from "./-components/transfer-division-dialog"
+import { TransferRegistrationDialog } from "./-components/transfer-registration-dialog"
 import {
 	getCompetitionQuestionsFn,
 	getCompetitionRegistrationAnswersFn,
@@ -133,7 +139,7 @@ export const Route = createFileRoute(
 		const parentMatch = await parentMatchPromise
 		const { competition } = parentMatch.loaderData!
 
-		// Parallel fetch: registrations, divisions, questions, answers, waivers, signatures, and pending invites
+		// Parallel fetch: registrations, divisions, questions, answers, waivers, signatures, pending invites, and pending transfers
 		const [
 			registrationsResult,
 			divisionsResult,
@@ -142,6 +148,7 @@ export const Route = createFileRoute(
 			waiversResult,
 			signaturesResult,
 			pendingInvitesResult,
+			pendingTransfersResult,
 		] = await Promise.all([
 			getOrganizerRegistrationsFn({
 				data: { competitionId, divisionFilter },
@@ -164,6 +171,9 @@ export const Route = createFileRoute(
 			getPendingTeammateInvitationsFn({
 				data: { competitionId },
 			}),
+			getPendingTransfersForCompetitionFn({
+				data: { competitionId },
+			}),
 		])
 
 		return {
@@ -181,6 +191,7 @@ export const Route = createFileRoute(
 				{} as Record<string, Date>,
 			),
 			pendingInvites: pendingInvitesResult.pendingInvites,
+			pendingTransfers: pendingTransfersResult,
 			currentDivisionFilter: divisionFilter,
 			currentQuestionFilters: deps?.questionFilters || {},
 			currentWaiverFilters: deps?.waiverFilters || [],
@@ -201,6 +212,7 @@ function AthletesPage() {
 		waivers,
 		signaturesByUser,
 		pendingInvites,
+		pendingTransfers,
 		currentDivisionFilter,
 		currentQuestionFilters,
 		currentWaiverFilters,
@@ -211,6 +223,7 @@ function AthletesPage() {
 	const navigate = useNavigate()
 	const router = useRouter()
 	const removeRegistration = useServerFn(removeRegistrationFn)
+	const cancelPurchaseTransfer = useServerFn(cancelPurchaseTransferFn)
 	const [removingRegistration, setRemovingRegistration] = useState<{
 		id: string
 		athleteName: string
@@ -225,9 +238,29 @@ function AthletesPage() {
 		divisionLabel: string | null
 		teamSize: number
 	} | null>(null)
+	const [transferRegistrationTarget, setTransferRegistrationTarget] =
+		useState<{
+			id: string
+			athleteName: string
+			divisionId: string | null
+			divisionLabel: string | null
+			commercePurchaseId: string | null
+		} | null>(null)
 
 	const handleQuestionsChange = () => {
 		router.invalidate()
+	}
+
+	const handleCancelTransfer = async (transferId: string) => {
+		try {
+			await cancelPurchaseTransfer({ data: { transferId } })
+			toast.success("Transfer cancelled successfully")
+			router.invalidate()
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Failed to cancel transfer",
+			)
+		}
 	}
 
 	const handleRemoveRegistration = async () => {
@@ -437,6 +470,7 @@ function AthletesPage() {
 		ordinalLabel: string
 		registrationId: string
 		registrationStatus: string // 'active' | 'removed'
+		commercePurchaseId: string | null
 		athlete: {
 			id: string
 			firstName: string | null
@@ -512,6 +546,9 @@ function AthletesPage() {
 			athleteRows.push({
 				registrationId: registration.id,
 				registrationStatus: registration.status,
+				commercePurchaseId:
+					(registration as { commercePurchaseId?: string | null })
+						?.commercePurchaseId ?? null,
 				ordinal: rowIndex,
 				ordinalLabel: memberIndex === 0 ? String(rowIndex) : "",
 				athlete: {
@@ -548,6 +585,7 @@ function AthletesPage() {
 				athleteRows.push({
 					registrationId: registration.id,
 					registrationStatus: registration.status,
+					commercePurchaseId: null,
 					ordinal: rowIndex,
 					ordinalLabel: "",
 					athlete: {
@@ -1242,13 +1280,27 @@ function AthletesPage() {
 													</div>
 												</TableCell>
 												<TableCell>
-													{row.division ? (
-														<Badge variant="outline">
-															{row.division.label}
-														</Badge>
-													) : (
-														<span className="text-muted-foreground">—</span>
-													)}
+													<div className="flex flex-col gap-1">
+														{row.division ? (
+															<Badge variant="outline">
+																{row.division.label}
+															</Badge>
+														) : (
+															<span className="text-muted-foreground">—</span>
+														)}
+														{row.commercePurchaseId &&
+															pendingTransfers.some(
+																(t) =>
+																	t.purchaseId === row.commercePurchaseId,
+															) && (
+																<Badge
+																	variant="outline"
+																	className="text-xs bg-yellow-50 text-yellow-700 border-yellow-300 w-fit"
+																>
+																	Transfer Pending
+																</Badge>
+															)}
+													</div>
 												</TableCell>
 												<TableCell>
 													{row.teamName ? (
@@ -1380,6 +1432,51 @@ function AthletesPage() {
 																	<ArrowRight className="h-4 w-4 mr-2" />
 																	Transfer Division
 																</DropdownMenuItem>
+																{(() => {
+																	const pendingTransfer = pendingTransfers.find(
+																		(t) =>
+																			t.purchaseId === row.commercePurchaseId,
+																	)
+																	const athleteName =
+																		`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
+																		row.athlete.email ||
+																		"Unknown"
+																	if (pendingTransfer) {
+																		return (
+																			<DropdownMenuItem
+																				className="text-destructive focus:text-destructive"
+																				onClick={() =>
+																					handleCancelTransfer(
+																						pendingTransfer.id,
+																					)
+																				}
+																			>
+																				<X className="h-4 w-4 mr-2" />
+																				Cancel Transfer
+																			</DropdownMenuItem>
+																		)
+																	}
+																	return (
+																		<DropdownMenuItem
+																			onClick={() =>
+																				setTransferRegistrationTarget({
+																					id: row.registrationId,
+																					athleteName,
+																					divisionId:
+																						row.division?.id ?? null,
+																					divisionLabel:
+																						row.division?.label ?? null,
+																					commercePurchaseId:
+																						row.commercePurchaseId ?? null,
+																				})
+																			}
+																			disabled={!row.commercePurchaseId}
+																		>
+																			<UserPlus className="h-4 w-4 mr-2" />
+																			Transfer to Person
+																		</DropdownMenuItem>
+																	)
+																})()}
 																<DropdownMenuItem
 																	className="text-destructive focus:text-destructive"
 																	onClick={() =>
@@ -1457,6 +1554,17 @@ function AthletesPage() {
 							r.status !== "removed",
 					)
 					.map((r) => r.divisionId!)}
+			/>
+		)}
+
+		{transferRegistrationTarget && (
+			<TransferRegistrationDialog
+				open={!!transferRegistrationTarget}
+				onOpenChange={(open) =>
+					!open && setTransferRegistrationTarget(null)
+				}
+				registration={transferRegistrationTarget}
+				competitionId={competition.id}
 			/>
 		)}
 		</>
