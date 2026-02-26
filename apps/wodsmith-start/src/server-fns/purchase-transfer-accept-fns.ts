@@ -349,13 +349,17 @@ export const acceptPurchaseTransferFn = createServerFn({ method: "POST" })
 				answers: data.answers,
 				waiverSignatures: data.waiverSignatures,
 			})
+		} else {
+			throw new Error(
+				`Unsupported product type for transfer: ${transfer.purchase.product.type}`,
+			)
 		}
 
 		// 5. Purchase stays with original payer (invoice belongs to them).
 		//    The transfer record tracks the reassignment.
 
-		// 6. Complete the transfer
-		await db
+		// 6. Complete the transfer (include state check to prevent race with concurrent cancel)
+		const updateResult = await db
 			.update(purchaseTransfersTable)
 			.set({
 				transferState: PURCHASE_TRANSFER_STATUS.COMPLETED,
@@ -364,7 +368,21 @@ export const acceptPurchaseTransferFn = createServerFn({ method: "POST" })
 				completedAt: new Date(),
 				updatedAt: new Date(),
 			})
-			.where(eq(purchaseTransfersTable.id, data.transferId))
+			.where(
+				and(
+					eq(purchaseTransfersTable.id, data.transferId),
+					eq(
+						purchaseTransfersTable.transferState,
+						PURCHASE_TRANSFER_STATUS.INITIATED,
+					),
+				),
+			)
+
+		if ((updateResult[0]?.affectedRows ?? 0) === 0) {
+			throw new Error(
+				"Transfer state changed before accept could complete — it may have been cancelled",
+			)
+		}
 
 		logInfo({
 			message: "[PurchaseTransfer] Transfer accepted successfully",

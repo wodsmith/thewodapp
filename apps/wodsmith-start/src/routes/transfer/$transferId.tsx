@@ -158,7 +158,7 @@ function TransferAcceptPage() {
 	// Transfer EXPIRED
 	if (
 		transfer.transferState === PURCHASE_TRANSFER_STATUS.EXPIRED ||
-		transfer.expiresAt < new Date()
+		new Date(transfer.expiresAt) < new Date()
 	) {
 		return (
 			<div className="container mx-auto max-w-lg py-16">

@@ -363,15 +363,30 @@ export const cancelPurchaseTransferFn = createServerFn({ method: "POST" })
 			},
 		})
 
-		// 5. Update the transfer state to CANCELLED
-		await db
+		// 5. Update the transfer state to CANCELLED (include state check to prevent
+		//    race condition with concurrent accept)
+		const result = await db
 			.update(purchaseTransfersTable)
 			.set({
 				transferState: PURCHASE_TRANSFER_STATUS.CANCELLED,
 				cancelledAt: new Date(),
 				updatedAt: new Date(),
 			})
-			.where(eq(purchaseTransfersTable.id, input.transferId))
+			.where(
+				and(
+					eq(purchaseTransfersTable.id, input.transferId),
+					eq(
+						purchaseTransfersTable.transferState,
+						PURCHASE_TRANSFER_STATUS.INITIATED,
+					),
+				),
+			)
+
+		if ((result[0]?.affectedRows ?? 0) === 0) {
+			throw new Error(
+				"Transfer state changed before cancel could complete — it may have been accepted or already cancelled",
+			)
+		}
 
 		logInfo({
 			message: "[PurchaseTransfer] Purchase transfer cancelled successfully",
@@ -405,6 +420,23 @@ export const getPendingTransfersForCompetitionFn = createServerFn({
 
 		updateRequestContext({ userId: session.userId })
 		addRequestContextAttribute("competitionId", input.competitionId)
+
+		// Authorization: require MANAGE_COMPETITIONS on the organizing team
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, input.competitionId),
+			columns: { id: true, organizingTeamId: true },
+		})
+
+		if (!competition) throw new Error("Competition not found")
+
+		if (session.user?.role !== ROLES_ENUM.ADMIN) {
+			const team = session.teams?.find(
+				(t) => t.id === competition.organizingTeamId,
+			)
+			if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS)) {
+				throw new Error("Missing required permission: manage_competitions")
+			}
+		}
 
 		// Get all INITIATED transfers for purchases in this competition
 		const transfers = await db
