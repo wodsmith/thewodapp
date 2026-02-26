@@ -107,3 +107,6 @@ export const createAddressId = () => `addr_${ulid()}`
 // Volunteer shift ID generators
 export const createVolunteerShiftId = () => `vshf_${ulid()}`
 export const createVolunteerShiftAssignmentId = () => `vshfa_${ulid()}`
+
+// Purchase transfer ID generators
+export const createPurchaseTransferId = () => `ptxfr_${ulid()}`
