@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "f07ea2cc01fb",
+  "session_id": "606817c5-c4e6-4367-a6b4-bbc2c388d1ac",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-26T05:19:31.563884Z",
+  "branch": "zacjones93/wod-140-transfer-registration-purchase-to-a-different-person",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes.tsx"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "0fad70a1-a51d-4547-9281-2ec74fa2c708",
+  "token_usage": {
+    "input_tokens": 26,
+    "cache_creation_tokens": 52196,
+    "cache_read_tokens": 1067038,
+    "output_tokens": 5398,
+    "api_call_count": 22
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-26T05:19:31.444951Z",
+    "agent_lines": 0,
+    "human_added": 18,
+    "human_modified": 216,
+    "human_removed": 0,
+    "total_committed": 63,
+    "agent_percentage": 0
+  }
+}

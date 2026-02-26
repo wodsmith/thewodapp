@@ -1,0 +1,5 @@
+I want a new column for 'status' that is empty if not pending invite or removed. you can put team invite status here as well
+
+---
+
+please put status as the second column after the number
