@@ -995,7 +995,10 @@ export const getTeamRosterFn = createServerFn({ method: "GET" })
 		}
 
 		const memberships = (await db.query.teamMembershipTable.findMany({
-			where: eq(teamMembershipTable.teamId, registration.athleteTeamId),
+			where: and(
+				eq(teamMembershipTable.teamId, registration.athleteTeamId),
+				eq(teamMembershipTable.isActive, true),
+			),
 			with: {
 				user: {
 					columns: {
@@ -1100,6 +1103,10 @@ export interface RegistrationDetails {
 		completedAt: Date | null
 		stripePaymentIntentId: string | null
 	} | null
+	// Whether the current user is the original purchaser (controls invoice visibility)
+	isOriginalPurchaser: boolean
+	// Name of the original purchaser (shown when current user is not the payer)
+	purchaserName: string | null
 }
 
 /**
@@ -1197,6 +1204,8 @@ export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
 
 		// Get purchase details if exists
 		let purchase: RegistrationDetails["purchase"] = null
+		let isOriginalPurchaser = false
+		let purchaserName: string | null = null
 
 		if (registration.commercePurchaseId) {
 			const purchaseRecord = await db.query.commercePurchaseTable.findFirst({
@@ -1209,6 +1218,16 @@ export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
 					status: purchaseRecord.status,
 					completedAt: purchaseRecord.completedAt,
 					stripePaymentIntentId: purchaseRecord.stripePaymentIntentId,
+				}
+				isOriginalPurchaser = purchaseRecord.userId === session.user.id
+				if (!isOriginalPurchaser) {
+					const payer = await db.query.userTable.findFirst({
+						where: eq(userTable.id, purchaseRecord.userId),
+						columns: { firstName: true, lastName: true },
+					})
+					if (payer) {
+						purchaserName = [payer.firstName, payer.lastName].filter(Boolean).join(" ") || null
+					}
 				}
 			}
 		}
@@ -1240,6 +1259,8 @@ export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
 					}
 				: null,
 			purchase,
+			isOriginalPurchaser,
+			purchaserName,
 		}
 	})
 
