@@ -486,7 +486,6 @@ describe('initiatePurchaseTransferFn', () => {
   it('allows transfer when target user has no account yet', async () => {
     setupHappyPath()
     // Override: target user lookup returns null (no account)
-    const originalFindFirst = mockDb.query.userTable.findFirst
     mockDb.query.userTable = {
       findFirst: vi
         .fn()
@@ -528,6 +527,8 @@ describe('cancelPurchaseTransferFn', () => {
 
   it('cancels an INITIATED transfer', async () => {
     setupCancelHappyPath()
+    // update returns [{affectedRows: 1}] for successful CAS update
+    mockDb.setMockReturnValue([{affectedRows: 1}])
 
     const result = await cancelTransfer({
       data: {transferId: testTransferId},
@@ -588,7 +589,15 @@ describe('cancelPurchaseTransferFn', () => {
 // getPendingTransfersForCompetitionFn
 // ============================================================================
 describe('getPendingTransfersForCompetitionFn', () => {
+  function setupGetPendingAuth() {
+    mockDb.query.competitionsTable = {
+      findFirst: vi.fn().mockResolvedValue(mockCompetition),
+      findMany: vi.fn().mockResolvedValue([]),
+    }
+  }
+
   it('returns INITIATED transfers for a competition', async () => {
+    setupGetPendingAuth()
     const mockTransfers = [
       {
         id: 'ptxfr_1',
@@ -619,6 +628,7 @@ describe('getPendingTransfersForCompetitionFn', () => {
   })
 
   it('returns empty array when no pending transfers', async () => {
+    setupGetPendingAuth()
     mockDb.setMockReturnValue([])
 
     const result = await getPendingTransfers({

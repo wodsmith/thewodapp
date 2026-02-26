@@ -235,6 +235,7 @@ const mockTeamMembership = {
 
 const mockPurchase = {
   id: testPurchaseId,
+  userId: registeredUserId,
   totalCents: 7500,
   status: 'COMPLETED',
   completedAt: new Date('2024-01-15'),
@@ -496,6 +497,10 @@ describe('registration-fns', () => {
         mockDb.query.commercePurchaseTable = {
           findFirst: vi.fn().mockResolvedValue(mockPurchase),
           findMany: vi.fn().mockResolvedValue([mockPurchase]),
+        }
+        mockDb.query.userTable = {
+          findFirst: vi.fn().mockResolvedValue({firstName: 'John', lastName: 'Doe'}),
+          findMany: vi.fn().mockResolvedValue([]),
         }
 
         const result = await getRegistrationDetailsFn({

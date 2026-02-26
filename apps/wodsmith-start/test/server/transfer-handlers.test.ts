@@ -53,9 +53,9 @@ const mockRegistration = {
   divisionId: testDivisionId,
   status: 'active',
   commercePurchaseId: testPurchaseId,
-  teamMemberId: testTeamMemberId,
+  teamMemberId: testTeamMemberId as string | null,
   captainUserId: sourceUserId,
-  athleteTeamId: null, // individual by default
+  athleteTeamId: null as string | null, // individual by default
 }
 
 const mockOldMembership = {
@@ -265,7 +265,7 @@ describe('handleCompetitionRegistrationTransfer', () => {
   })
 
   it('handles registration with no teamMemberId gracefully', async () => {
-    const reg = setupHappyPath({teamMemberId: null})
+    setupHappyPath({teamMemberId: null})
 
     mockDb.query.teamMembershipTable = {
       findFirst: vi.fn().mockResolvedValue(null),

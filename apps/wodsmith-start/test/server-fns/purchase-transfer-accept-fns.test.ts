@@ -49,8 +49,6 @@ const mockTargetSession = {
   teams: [],
 }
 
-const mockNoSession = null
-
 // Mock auth - default to target user session
 vi.mock('@/utils/auth', () => ({
   getSessionFromCookie: vi.fn(() => Promise.resolve(mockTargetSession)),
@@ -287,6 +285,8 @@ describe('acceptPurchaseTransferFn', () => {
       findMany: vi.fn().mockResolvedValue([]),
     }
     mockHandleCompetitionRegistrationTransfer.mockResolvedValue(undefined)
+    // CAS update returns affectedRows for race condition check
+    mockDb.setMockReturnValue([{affectedRows: 1}])
   }
 
   it('accepts transfer and calls handler for COMPETITION_REGISTRATION', async () => {
