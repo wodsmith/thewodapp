@@ -37,7 +37,9 @@ export async function handleCompetitionRegistrationTransfer(
 		throw new Error("No active registration found for this purchase")
 	}
 
-	// 2. Check target user doesn't already have active registration in same division
+	// 2. Check target user doesn't already have registration in same division
+	//    The unique index is on (eventId, userId, divisionId) regardless of status,
+	//    so we must handle both active and removed registrations.
 	if (registration.divisionId) {
 		const existingReg =
 			await db.query.competitionRegistrationsTable.findFirst({
@@ -48,13 +50,18 @@ export async function handleCompetitionRegistrationTransfer(
 						competitionRegistrationsTable.divisionId,
 						registration.divisionId,
 					),
-					eq(competitionRegistrationsTable.status, "active"),
 				),
 			})
 		if (existingReg) {
-			throw new Error(
-				"Target user already has an active registration in this division",
-			)
+			if (existingReg.status === "active") {
+				throw new Error(
+					"Target user already has an active registration in this division",
+				)
+			}
+			// Remove the old (non-active) registration so the unique index doesn't block
+			await db
+				.delete(competitionRegistrationsTable)
+				.where(eq(competitionRegistrationsTable.id, existingReg.id))
 		}
 	}
 

@@ -351,14 +351,8 @@ export const acceptPurchaseTransferFn = createServerFn({ method: "POST" })
 			})
 		}
 
-		// 5. Update purchase ownership
-		await db
-			.update(commercePurchaseTable)
-			.set({
-				userId: targetUserId,
-				updatedAt: new Date(),
-			})
-			.where(eq(commercePurchaseTable.id, transfer.purchaseId))
+		// 5. Purchase stays with original payer (invoice belongs to them).
+		//    The transfer record tracks the reassignment.
 
 		// 6. Complete the transfer
 		await db
