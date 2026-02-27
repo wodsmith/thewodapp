@@ -60,12 +60,14 @@ test.describe('Competition Organizer', () => {
     // Wait for navigation back to organizer dashboard
     await page.waitForURL(/\/compete\/organizer/, {timeout: 15000})
 
-    // Find the newly created competition and navigate to it
+    // Find the newly created competition and navigate to its manage page
     await expect(page.getByText(uniqueName)).toBeVisible({timeout: 10000})
-    await page.getByText(uniqueName).click()
+    // The competition name is plain text — click the "Manage" (pencil) link in the same row
+    const compCard = page.locator('div').filter({hasText: uniqueName}).getByRole('link', {name: 'Manage'})
+    await compCard.click()
 
-    // Navigate to divisions page
-    await page.waitForURL(/\/compete\/organizer\//, {timeout: 10000})
+    // Wait for navigation to competition detail page
+    await page.waitForURL(/\/compete\/organizer\//, {timeout: 15000})
     const divisionsLink = page.getByRole('link', {name: /divisions/i})
     const divisionsVisible = await divisionsLink.waitFor({state: 'visible', timeout: 3000}).then(() => true).catch(() => false)
     if (divisionsVisible) {
