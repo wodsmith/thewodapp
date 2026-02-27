@@ -2,7 +2,7 @@ import {expect, test} from '@playwright/test'
 import {loginAsTestUser, waitForHydration} from './fixtures/auth'
 
 test.describe('Competition Organizer', () => {
-  // This test creates a competition, sets up divisions, and creates an event — needs extra time in CI
+  // This test creates a competition, sets up divisions, and creates an event
   test.setTimeout(60_000)
 
   test('should create competition, add division, and add event', async ({
@@ -35,7 +35,6 @@ test.describe('Competition Organizer', () => {
     await page.getByLabel('Competition Name').fill(uniqueName)
 
     // Clear and fill slug
-    // Use getByRole('textbox') to avoid matching Router DevTools buttons containing "slug" in aria-labels
     const slugInput = page.getByRole('textbox', {name: 'Slug'})
     await slugInput.clear()
     await slugInput.fill(slug)
@@ -63,25 +62,14 @@ test.describe('Competition Organizer', () => {
     // Wait for navigation back to organizer dashboard
     await page.waitForURL(/\/compete\/organizer/, {timeout: 15000})
 
-    // Find the newly created competition and navigate to its manage page
+    // Find the newly created competition's Manage link to extract its URL
     await expect(page.getByText(uniqueName)).toBeVisible({timeout: 10000})
-    // The competition name is plain text — click the "Manage" (pencil) link in the same row
-    const compCard = page.locator('div').filter({hasText: uniqueName}).getByRole('link', {name: 'Manage'})
-    await compCard.click()
+    const manageLink = page.locator('div').filter({hasText: uniqueName}).getByRole('link', {name: 'Manage'})
+    const compDetailPath = await manageLink.getAttribute('href')
+    expect(compDetailPath).toBeTruthy()
 
-    // Wait for navigation to competition detail page and extract the competition ID from URL
-    await page.waitForURL(/\/compete\/organizer\//, {timeout: 15000})
-    await waitForHydration(page)
-    const compDetailUrl = page.url().replace(/\/$/, '') // trim trailing slash
-
-    // Navigate to divisions page using absolute URL (avoids stale URL issues)
-    const divisionsLink = page.getByRole('link', {name: /divisions/i})
-    const divisionsVisible = await divisionsLink.waitFor({state: 'visible', timeout: 3000}).then(() => true).catch(() => false)
-    if (divisionsVisible) {
-      await divisionsLink.click()
-    } else {
-      await page.goto(`${compDetailUrl}/divisions`)
-    }
+    // Navigate directly to divisions page
+    await page.goto(`${compDetailPath}/divisions`)
     await waitForHydration(page)
 
     // Set up divisions — click "Start Fresh" for default Open + Scaled
@@ -93,14 +81,8 @@ test.describe('Competition Organizer', () => {
       await expect(page.getByText(/open/i)).toBeVisible({timeout: 10000})
     }
 
-    // Navigate to events page using absolute URL
-    const eventsLink = page.getByRole('link', {name: /events/i})
-    const eventsVisible = await eventsLink.waitFor({state: 'visible', timeout: 3000}).then(() => true).catch(() => false)
-    if (eventsVisible) {
-      await eventsLink.click()
-    } else {
-      await page.goto(`${compDetailUrl}/events`)
-    }
+    // Navigate directly to events page
+    await page.goto(`${compDetailPath}/events`)
     await waitForHydration(page)
 
     // Create an event
