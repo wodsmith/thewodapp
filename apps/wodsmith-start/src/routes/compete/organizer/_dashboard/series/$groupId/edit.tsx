@@ -11,19 +11,15 @@ import {
 } from "@/components/ui/card"
 import { getCompetitionGroupByIdFn } from "@/server-fns/competition-fns"
 import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
-import { getSessionFromCookie } from "@/utils/auth"
 
 export const Route = createFileRoute(
 	"/compete/organizer/_dashboard/series/$groupId/edit",
 )({
 	component: EditSeriesPage,
-	loader: async ({ params }) => {
+	loader: async ({ params, context }) => {
 		const { groupId } = params
-		const [{ teams: organizingTeams }, session] = await Promise.all([
-			getOrganizerTeamsFn(),
-			getSessionFromCookie(),
-		])
-		const isSiteAdmin = session?.user?.role === "admin"
+		const { teams: organizingTeams } = await getOrganizerTeamsFn()
+		const isSiteAdmin = context.session?.user?.role === "admin"
 
 		// Fetch group details (needed for both admin and normal flow)
 		const groupResult = await getCompetitionGroupByIdFn({ data: { groupId } })
