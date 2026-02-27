@@ -87,8 +87,12 @@ export const initiatePurchaseTransferFn = createServerFn({ method: "POST" })
 		if (!product) throw new Error("Product not found")
 
 		// 3. Authorization — for COMPETITION_REGISTRATION, check MANAGE_COMPETITIONS
-		let competition: { id: string; organizingTeamId: string; name: string } | undefined
-		let registration: { id: string; status: string; divisionId: string | null } | undefined
+		let competition:
+			| { id: string; organizingTeamId: string; name: string }
+			| undefined
+		let registration:
+			| { id: string; status: string; divisionId: string | null }
+			| undefined
 		let divisionLabel: string | null = null
 
 		if (product.type === COMMERCE_PRODUCT_TYPE.COMPETITION_REGISTRATION) {
@@ -119,7 +123,10 @@ export const initiatePurchaseTransferFn = createServerFn({ method: "POST" })
 		const existingTransfer = await db.query.purchaseTransfersTable.findFirst({
 			where: and(
 				eq(purchaseTransfersTable.purchaseId, input.purchaseId),
-				eq(purchaseTransfersTable.transferState, PURCHASE_TRANSFER_STATUS.INITIATED),
+				eq(
+					purchaseTransfersTable.transferState,
+					PURCHASE_TRANSFER_STATUS.INITIATED,
+				),
 			),
 			columns: { id: true },
 		})
@@ -250,7 +257,9 @@ export const initiatePurchaseTransferFn = createServerFn({ method: "POST" })
 				competitionName: competition.name,
 				divisionName: divisionLabel,
 				sourceAthleteName:
-					[sourceUser.firstName, sourceUser.lastName].filter(Boolean).join(" ") ||
+					[sourceUser.firstName, sourceUser.lastName]
+						.filter(Boolean)
+						.join(" ") ||
 					sourceUser.email ||
 					"Unknown",
 				expiresAt,
@@ -411,9 +420,7 @@ const getPendingTransfersInputSchema = z.object({
 export const getPendingTransfersForCompetitionFn = createServerFn({
 	method: "GET",
 })
-	.inputValidator((data: unknown) =>
-		getPendingTransfersInputSchema.parse(data),
-	)
+	.inputValidator((data: unknown) => getPendingTransfersInputSchema.parse(data))
 	.handler(async ({ data: input }) => {
 		const session = await requireVerifiedEmail()
 		const db = getDb()

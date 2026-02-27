@@ -61,7 +61,9 @@ export function TransferRegistrationDialog({
 					notes: notes || undefined,
 				},
 			})
-			toast.success("Transfer initiated. An email has been sent to the recipient.")
+			toast.success(
+				"Transfer initiated. An email has been sent to the recipient.",
+			)
 			handleClose(false)
 			router.invalidate()
 		} catch (error) {
@@ -89,7 +91,8 @@ export function TransferRegistrationDialog({
 						{"'"}s registration
 						{registration.divisionLabel && (
 							<>
-								{" "}in{" "}
+								{" "}
+								in{" "}
 								<strong className="text-foreground">
 									{registration.divisionLabel}
 								</strong>

@@ -48,9 +48,7 @@ export const PurchaseTransferEmail = ({
 					</Section>
 
 					{expiresAt && (
-						<Text style={paragraph}>
-							This transfer expires on {expiresAt}.
-						</Text>
+						<Text style={paragraph}>This transfer expires on {expiresAt}.</Text>
 					)}
 
 					<Text style={paragraph}>

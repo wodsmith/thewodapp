@@ -4,6 +4,7 @@ import {
 	ExternalLink,
 	Eye,
 	EyeOff,
+	Layers,
 	Pencil,
 	UserPlus,
 } from "lucide-react"
@@ -27,6 +28,7 @@ interface CompetitionHeaderProps {
 		registrationClosesAt: string | null // YYYY-MM-DD format
 		visibility: "public" | "private"
 		status: "draft" | "published"
+		groupId?: string | null
 	}
 }
 
@@ -112,7 +114,7 @@ export function CompetitionHeader({ competition }: CompetitionHeaderProps) {
 						)}
 				</div>
 			</div>
-			<div className="flex shrink-0 items-center gap-2">
+			<div className="flex shrink-0 flex-wrap items-center gap-2">
 				<a href={`/compete/organizer/${competition.id}/edit`}>
 					<Button variant="outline" size="sm">
 						<Pencil className="mr-2 h-4 w-4" />
@@ -125,6 +127,17 @@ export function CompetitionHeader({ competition }: CompetitionHeaderProps) {
 						View Public Page
 					</Button>
 				</Link>
+				{competition.groupId && (
+					<Link
+						to="/compete/organizer/series/$groupId"
+						params={{ groupId: competition.groupId }}
+					>
+						<Button variant="outline" size="sm">
+							<Layers className="mr-2 h-4 w-4" />
+							Go to Series
+						</Button>
+					</Link>
+				)}
 			</div>
 		</div>
 	)

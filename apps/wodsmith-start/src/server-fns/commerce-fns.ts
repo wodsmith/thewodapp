@@ -8,12 +8,17 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+	COMMERCE_PURCHASE_STATUS,
+	commercePurchaseTable,
 	competitionDivisionsTable,
+	competitionDivisionFeesTable,
+	competitionGroupsTable,
 	competitionsTable,
+	scalingLevelsTable,
 	TEAM_PERMISSIONS,
 	teamTable,
 } from "@/db/schema"
@@ -23,6 +28,36 @@ import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
 
 // Re-export type for consumers
 export type { CompetitionRevenueStats } from "@/server/commerce/fee-calculator"
+
+// ============================================================================
+// Series Revenue Types
+// ============================================================================
+
+export interface SeriesRevenueStats {
+	totalGrossCents: number
+	totalOrganizerNetCents: number
+	totalStripeFeeCents: number
+	totalPlatformFeeCents: number
+	totalPurchaseCount: number
+	byCompetition: Array<{
+		competitionId: string
+		competitionName: string
+		startDate: string
+		grossCents: number
+		organizerNetCents: number
+		purchaseCount: number
+		byDivision: Array<{
+			divisionId: string
+			divisionLabel: string
+			purchaseCount: number
+			registrationFeeCents: number
+			grossCents: number
+			platformFeeCents: number
+			stripeFeeCents: number
+			organizerNetCents: number
+		}>
+	}>
+}
 
 // ============================================================================
 // Permission Helpers
@@ -66,6 +101,14 @@ async function requireTeamPermission(
 
 const getCompetitionDivisionFeesInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
+})
+
+const getSeriesRevenueStatsInputSchema = z.object({
+	groupId: z.string().min(1, "Group ID is required"),
+})
+
+const exportSeriesRevenueCsvInputSchema = z.object({
+	groupId: z.string().min(1, "Group ID is required"),
 })
 
 const getCompetitionRevenueStatsInputSchema = z.object({
@@ -270,4 +313,299 @@ export const updateDivisionFeeFn = createServerFn({ method: "POST" })
 		}
 
 		return { success: true }
+	})
+
+/**
+ * Get aggregated revenue stats for a competition series/group
+ */
+export const getSeriesRevenueStatsFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		getSeriesRevenueStatsInputSchema.parse(data),
+	)
+	.handler(async ({ data }): Promise<SeriesRevenueStats> => {
+		const session = await getSessionFromCookie()
+		if (!session?.userId) throw new Error("Unauthorized")
+
+		const db = getDb()
+
+		// Fetch group and verify access
+		const group = await db.query.competitionGroupsTable.findFirst({
+			where: eq(competitionGroupsTable.id, data.groupId),
+		})
+		if (!group) throw new Error("Series not found")
+
+		await requireTeamPermission(
+			group.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		// Query 1: Get all competitions in the group
+		const competitions = await db
+			.select({
+				id: competitionsTable.id,
+				name: competitionsTable.name,
+				startDate: competitionsTable.startDate,
+				defaultRegistrationFeeCents:
+					competitionsTable.defaultRegistrationFeeCents,
+			})
+			.from(competitionsTable)
+			.where(eq(competitionsTable.groupId, data.groupId))
+
+		if (competitions.length === 0) {
+			return {
+				totalGrossCents: 0,
+				totalOrganizerNetCents: 0,
+				totalStripeFeeCents: 0,
+				totalPlatformFeeCents: 0,
+				totalPurchaseCount: 0,
+				byCompetition: [],
+			}
+		}
+
+		const competitionIds = competitions.map((c) => c.id)
+
+		// Query 2: Aggregated purchases grouped by competitionId and divisionId
+		const aggregatedRows = await db
+			.select({
+				competitionId: commercePurchaseTable.competitionId,
+				divisionId: commercePurchaseTable.divisionId,
+				purchaseCount: sql<string>`COUNT(*)`,
+				grossCents: sql<string>`SUM(${commercePurchaseTable.totalCents})`,
+				platformFeeCents: sql<string>`SUM(${commercePurchaseTable.platformFeeCents})`,
+				stripeFeeCents: sql<string>`SUM(${commercePurchaseTable.stripeFeeCents})`,
+				organizerNetCents: sql<string>`SUM(${commercePurchaseTable.organizerNetCents})`,
+			})
+			.from(commercePurchaseTable)
+			.where(
+				and(
+					inArray(commercePurchaseTable.competitionId, competitionIds),
+					eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.COMPLETED),
+				),
+			)
+			.groupBy(
+				commercePurchaseTable.competitionId,
+				commercePurchaseTable.divisionId,
+			)
+
+		// Collect all division IDs for label lookup
+		const divisionIds = [
+			...new Set(
+				aggregatedRows
+					.map((r) => r.divisionId)
+					.filter((id): id is string => id !== null),
+			),
+		]
+
+		// Query 3: Division labels
+		const divisions =
+			divisionIds.length > 0
+				? await db
+						.select({
+							id: scalingLevelsTable.id,
+							label: scalingLevelsTable.label,
+						})
+						.from(scalingLevelsTable)
+						.where(inArray(scalingLevelsTable.id, divisionIds))
+				: []
+
+		// Query 4: Division fee configs for ticket price display
+		const divisionFeeConfigs =
+			divisionIds.length > 0
+				? await db
+						.select({
+							competitionId: competitionDivisionFeesTable.competitionId,
+							divisionId: competitionDivisionFeesTable.divisionId,
+							feeCents: competitionDivisionFeesTable.feeCents,
+						})
+						.from(competitionDivisionFeesTable)
+						.where(
+							inArray(
+								competitionDivisionFeesTable.competitionId,
+								competitionIds,
+							),
+						)
+				: []
+
+		const divisionLabelMap = new Map(divisions.map((d) => [d.id, d.label]))
+		// Map of "competitionId:divisionId" -> feeCents
+		const divisionFeeMap = new Map(
+			divisionFeeConfigs.map((f) => [
+				`${f.competitionId}:${f.divisionId}`,
+				f.feeCents,
+			]),
+		)
+		const competitionMap = new Map(competitions.map((c) => [c.id, c]))
+
+		// Group aggregated rows by competitionId
+		const byCompetitionMap = new Map<
+			string,
+			{
+				competitionId: string
+				competitionName: string
+				startDate: string
+				grossCents: number
+				organizerNetCents: number
+				purchaseCount: number
+				byDivision: Array<{
+					divisionId: string
+					divisionLabel: string
+					purchaseCount: number
+					registrationFeeCents: number
+					grossCents: number
+					platformFeeCents: number
+					stripeFeeCents: number
+					organizerNetCents: number
+				}>
+			}
+		>()
+
+		for (const row of aggregatedRows) {
+			if (!row.competitionId) continue
+			const comp = competitionMap.get(row.competitionId)
+			if (!comp) continue
+
+			const divisionId = row.divisionId ?? "unknown"
+			const registrationFeeCents =
+				divisionFeeMap.get(`${row.competitionId}:${divisionId}`) ??
+				comp.defaultRegistrationFeeCents ??
+				0
+
+			const divisionEntry = {
+				divisionId,
+				divisionLabel: divisionLabelMap.get(divisionId) ?? "Unknown",
+				purchaseCount: Number(row.purchaseCount),
+				registrationFeeCents,
+				grossCents: Number(row.grossCents),
+				platformFeeCents: Number(row.platformFeeCents),
+				stripeFeeCents: Number(row.stripeFeeCents),
+				organizerNetCents: Number(row.organizerNetCents),
+			}
+
+			const existing = byCompetitionMap.get(row.competitionId)
+			if (existing) {
+				existing.grossCents += divisionEntry.grossCents
+				existing.organizerNetCents += divisionEntry.organizerNetCents
+				existing.purchaseCount += divisionEntry.purchaseCount
+				existing.byDivision.push(divisionEntry)
+			} else {
+				byCompetitionMap.set(row.competitionId, {
+					competitionId: row.competitionId,
+					competitionName: comp.name,
+					startDate: comp.startDate,
+					grossCents: divisionEntry.grossCents,
+					organizerNetCents: divisionEntry.organizerNetCents,
+					purchaseCount: divisionEntry.purchaseCount,
+					byDivision: [divisionEntry],
+				})
+			}
+		}
+
+		// Sort by startDate ASC
+		const byCompetition = Array.from(byCompetitionMap.values()).sort((a, b) =>
+			a.startDate.localeCompare(b.startDate),
+		)
+
+		// Compute series-level totals
+		let totalGrossCents = 0
+		let totalOrganizerNetCents = 0
+		let totalStripeFeeCents = 0
+		let totalPlatformFeeCents = 0
+		let totalPurchaseCount = 0
+
+		for (const row of aggregatedRows) {
+			totalGrossCents += Number(row.grossCents)
+			totalOrganizerNetCents += Number(row.organizerNetCents)
+			totalStripeFeeCents += Number(row.stripeFeeCents)
+			totalPlatformFeeCents += Number(row.platformFeeCents)
+			totalPurchaseCount += Number(row.purchaseCount)
+		}
+
+		return {
+			totalGrossCents,
+			totalOrganizerNetCents,
+			totalStripeFeeCents,
+			totalPlatformFeeCents,
+			totalPurchaseCount,
+			byCompetition,
+		}
+	})
+
+/**
+ * Export series revenue as CSV
+ * Returns a CSV string with one row per competition-division pair
+ */
+export const exportSeriesRevenueCsvFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		exportSeriesRevenueCsvInputSchema.parse(data),
+	)
+	.handler(async ({ data }): Promise<string> => {
+		const session = await getSessionFromCookie()
+		if (!session?.userId) throw new Error("Unauthorized")
+
+		const db = getDb()
+
+		// Fetch group and verify access
+		const group = await db.query.competitionGroupsTable.findFirst({
+			where: eq(competitionGroupsTable.id, data.groupId),
+		})
+		if (!group) throw new Error("Series not found")
+
+		await requireTeamPermission(
+			group.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		// Reuse stats function
+		const stats = await getSeriesRevenueStatsFn({
+			data: { groupId: data.groupId },
+		})
+
+		// Helper: cents to dollar string
+		const toDollars = (cents: number) => (cents / 100).toFixed(2)
+
+		const header = [
+			"Competition Name",
+			"Competition Date",
+			"Division",
+			"Registration Count",
+			"Gross Revenue",
+			"Stripe Fees",
+			"Platform Fees",
+			"Net Revenue",
+		].join(",")
+
+		const rows: string[] = [header]
+
+		for (const comp of stats.byCompetition) {
+			for (const div of comp.byDivision) {
+				rows.push(
+					[
+						`"${comp.competitionName.replace(/"/g, '""')}"`,
+						comp.startDate,
+						`"${div.divisionLabel.replace(/"/g, '""')}"`,
+						div.purchaseCount,
+						toDollars(div.grossCents),
+						toDollars(div.stripeFeeCents),
+						toDollars(div.platformFeeCents),
+						toDollars(div.organizerNetCents),
+					].join(","),
+				)
+			}
+		}
+
+		// Summary row
+		rows.push(
+			[
+				'"TOTAL"',
+				"",
+				"",
+				stats.totalPurchaseCount,
+				toDollars(stats.totalGrossCents),
+				toDollars(stats.totalStripeFeeCents),
+				toDollars(stats.totalPlatformFeeCents),
+				toDollars(stats.totalOrganizerNetCents),
+			].join(","),
+		)
+
+		return rows.join("\n")
 	})

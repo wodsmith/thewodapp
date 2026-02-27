@@ -1231,7 +1231,9 @@ export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
 						columns: { firstName: true, lastName: true },
 					})
 					if (payer) {
-						purchaserName = [payer.firstName, payer.lastName].filter(Boolean).join(" ") || null
+						purchaserName =
+							[payer.firstName, payer.lastName].filter(Boolean).join(" ") ||
+							null
 					}
 				}
 			}
