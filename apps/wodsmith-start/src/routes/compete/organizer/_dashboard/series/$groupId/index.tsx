@@ -29,6 +29,7 @@ import {
 } from "@/server-fns/competition-fns"
 import { getSeriesQuestionsFn } from "@/server-fns/registration-questions-fns"
 import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
+import { getSessionFromCookie } from "@/utils/auth"
 
 export const Route = createFileRoute(
 	"/compete/organizer/_dashboard/series/$groupId/",
@@ -36,21 +37,13 @@ export const Route = createFileRoute(
 	component: SeriesDetailPage,
 	loader: async ({ params }) => {
 		const { groupId } = params
-		const { teams: organizingTeams } = await getOrganizerTeamsFn()
+		const [{ teams: organizingTeams }, session] = await Promise.all([
+			getOrganizerTeamsFn(),
+			getSessionFromCookie(),
+		])
+		const isSiteAdmin = session?.user?.role === "admin"
 
-		if (organizingTeams.length === 0) {
-			return {
-				group: null,
-				seriesCompetitions: [],
-				allCompetitions: [],
-				allGroups: [],
-				seriesQuestions: [],
-				deferredRevenueStats: Promise.resolve(null),
-				teamId: null,
-			}
-		}
-
-		// Fetch group details
+		// Fetch group details (needed for both admin and normal flow)
 		const groupResult = await getCompetitionGroupByIdFn({ data: { groupId } })
 
 		if (!groupResult.group) {
@@ -65,13 +58,28 @@ export const Route = createFileRoute(
 			}
 		}
 
+		if (organizingTeams.length === 0 && !isSiteAdmin) {
+			return {
+				group: null,
+				seriesCompetitions: [],
+				allCompetitions: [],
+				allGroups: [],
+				seriesQuestions: [],
+				deferredRevenueStats: Promise.resolve(null),
+				teamId: null,
+			}
+		}
+
 		// Use the group's organizing team if the user has access, otherwise fall back
-		let teamId = await getActiveTeamIdFn()
 		const groupTeamId = groupResult.group.organizingTeamId
-		if (organizingTeams.some((t) => t.id === groupTeamId)) {
+		let teamId: string
+		if (isSiteAdmin || organizingTeams.some((t) => t.id === groupTeamId)) {
 			teamId = groupTeamId
-		} else if (!organizingTeams.some((t) => t.id === teamId)) {
-			teamId = organizingTeams[0].id
+		} else {
+			const activeTeamId = await getActiveTeamIdFn()
+			teamId =
+				organizingTeams.find((t) => t.id === activeTeamId)?.id ??
+				organizingTeams[0].id
 		}
 
 		// Fetch competitions and series questions in parallel
