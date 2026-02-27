@@ -19,6 +19,7 @@ import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CompeteIndexRouteImport } from './routes/compete/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as TransferTransferIdRouteImport } from './routes/transfer/$transferId'
 import { Route as CompeteOrganizerRouteImport } from './routes/compete/organizer'
 import { Route as CompeteSlugRouteImport } from './routes/compete/$slug'
 import { Route as ApiUploadRouteImport } from './routes/api/upload'
@@ -187,6 +188,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AdminRoute,
+} as any)
+const TransferTransferIdRoute = TransferTransferIdRouteImport.update({
+  id: '/transfer/$transferId',
+  path: '/transfer/$transferId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const CompeteOrganizerRoute = CompeteOrganizerRouteImport.update({
   id: '/organizer',
@@ -881,6 +887,7 @@ export interface FileRoutesByFullPath {
   '/api/upload': typeof ApiUploadRoute
   '/compete/$slug': typeof CompeteSlugRouteWithChildren
   '/compete/organizer': typeof CompeteOrganizerDashboardRouteWithChildren
+  '/transfer/$transferId': typeof TransferTransferIdRoute
   '/admin/': typeof AdminIndexRoute
   '/compete/': typeof CompeteIndexRoute
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
@@ -1006,6 +1013,7 @@ export interface FileRoutesByTo {
   '/api/get-session': typeof ApiGetSessionRoute
   '/api/upload': typeof ApiUploadRoute
   '/compete/organizer': typeof CompeteOrganizerDashboardIndexRoute
+  '/transfer/$transferId': typeof TransferTransferIdRoute
   '/admin': typeof AdminIndexRoute
   '/compete': typeof CompeteIndexRoute
   '/api/cron/submission-window-notifications': typeof ApiCronSubmissionWindowNotificationsRoute
@@ -1133,6 +1141,7 @@ export interface FileRoutesById {
   '/api/upload': typeof ApiUploadRoute
   '/compete/$slug': typeof CompeteSlugRouteWithChildren
   '/compete/organizer': typeof CompeteOrganizerRouteWithChildren
+  '/transfer/$transferId': typeof TransferTransferIdRoute
   '/admin/': typeof AdminIndexRoute
   '/compete/': typeof CompeteIndexRoute
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
@@ -1265,6 +1274,7 @@ export interface FileRouteTypes {
     | '/api/upload'
     | '/compete/$slug'
     | '/compete/organizer'
+    | '/transfer/$transferId'
     | '/admin/'
     | '/compete/'
     | '/admin/teams/$teamId'
@@ -1390,6 +1400,7 @@ export interface FileRouteTypes {
     | '/api/get-session'
     | '/api/upload'
     | '/compete/organizer'
+    | '/transfer/$transferId'
     | '/admin'
     | '/compete'
     | '/api/cron/submission-window-notifications'
@@ -1516,6 +1527,7 @@ export interface FileRouteTypes {
     | '/api/upload'
     | '/compete/$slug'
     | '/compete/organizer'
+    | '/transfer/$transferId'
     | '/admin/'
     | '/compete/'
     | '/admin/teams/$teamId'
@@ -1639,6 +1651,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   ApiGetSessionRoute: typeof ApiGetSessionRoute
   ApiUploadRoute: typeof ApiUploadRoute
+  TransferTransferIdRoute: typeof TransferTransferIdRoute
   ApiCronSubmissionWindowNotificationsRoute: typeof ApiCronSubmissionWindowNotificationsRoute
   ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
   ApiWorkoutsSearchRoute: typeof ApiWorkoutsSearchRoute
@@ -1724,6 +1737,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/transfer/$transferId': {
+      id: '/transfer/$transferId'
+      path: '/transfer/$transferId'
+      fullPath: '/transfer/$transferId'
+      preLoaderRoute: typeof TransferTransferIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/compete/organizer': {
       id: '/compete/organizer'
@@ -2958,6 +2978,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   ApiGetSessionRoute: ApiGetSessionRoute,
   ApiUploadRoute: ApiUploadRoute,
+  TransferTransferIdRoute: TransferTransferIdRoute,
   ApiCronSubmissionWindowNotificationsRoute:
     ApiCronSubmissionWindowNotificationsRoute,
   ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
