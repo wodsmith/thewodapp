@@ -2,6 +2,9 @@ import {expect, test} from '@playwright/test'
 import {loginAsTestUser, waitForHydration} from './fixtures/auth'
 
 test.describe('Competition Organizer', () => {
+  // This test creates a competition, sets up divisions, and creates an event — needs extra time in CI
+  test.setTimeout(60_000)
+
   test('should create competition, add division, and add event', async ({
     page,
   }) => {
@@ -66,17 +69,20 @@ test.describe('Competition Organizer', () => {
     const compCard = page.locator('div').filter({hasText: uniqueName}).getByRole('link', {name: 'Manage'})
     await compCard.click()
 
-    // Wait for navigation to competition detail page
+    // Wait for navigation to competition detail page and extract the competition ID from URL
     await page.waitForURL(/\/compete\/organizer\//, {timeout: 15000})
+    await waitForHydration(page)
+    const compDetailUrl = page.url().replace(/\/$/, '') // trim trailing slash
+
+    // Navigate to divisions page using absolute URL (avoids stale URL issues)
     const divisionsLink = page.getByRole('link', {name: /divisions/i})
     const divisionsVisible = await divisionsLink.waitFor({state: 'visible', timeout: 3000}).then(() => true).catch(() => false)
     if (divisionsVisible) {
       await divisionsLink.click()
     } else {
-      // Navigate directly via URL pattern
-      const url = page.url()
-      await page.goto(`${url}/divisions`)
+      await page.goto(`${compDetailUrl}/divisions`)
     }
+    await waitForHydration(page)
 
     // Set up divisions — click "Start Fresh" for default Open + Scaled
     const startFresh = page.getByRole('button', {name: /start fresh/i})
@@ -87,17 +93,14 @@ test.describe('Competition Organizer', () => {
       await expect(page.getByText(/open/i)).toBeVisible({timeout: 10000})
     }
 
-    // Navigate to events page
+    // Navigate to events page using absolute URL
     const eventsLink = page.getByRole('link', {name: /events/i})
     const eventsVisible = await eventsLink.waitFor({state: 'visible', timeout: 3000}).then(() => true).catch(() => false)
     if (eventsVisible) {
       await eventsLink.click()
     } else {
-      const url = page.url()
-      await page.goto(`${url}/events`)
+      await page.goto(`${compDetailUrl}/events`)
     }
-
-    // Wait for events page to be ready
     await waitForHydration(page)
 
     // Create an event
