@@ -19,6 +19,7 @@ export const SESSION_COOKIE_NAME = "session"
 export const ACTIVE_TEAM_COOKIE_NAME = "active-team"
 export const PASSWORD_RESET_TOKEN_EXPIRATION_SECONDS = 24 * 60 * 60 // 24 hours
 export const EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS = 24 * 60 * 60 // 24 hours
+export const CLAIM_TOKEN_EXPIRATION_SECONDS = 90 * 24 * 60 * 60 // 90 days
 export const MAX_SESSIONS_PER_USER = 5
 export const MAX_TEAMS_JOINED_PER_USER = 10
 

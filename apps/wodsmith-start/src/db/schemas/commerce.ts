@@ -45,6 +45,8 @@ export const COMMERCE_PAYMENT_STATUS = {
 	PENDING_PAYMENT: "PENDING_PAYMENT",
 	PAID: "PAID",
 	FAILED: "FAILED",
+	COMP: "COMP",
+	PAID_OFFLINE: "PAID_OFFLINE",
 } as const
 
 export type CommercePaymentStatus =

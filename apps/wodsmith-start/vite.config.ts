@@ -33,10 +33,7 @@ const config = defineConfig({
 						project: process.env.SENTRY_PROJECT || "wodsmith-start",
 						authToken: process.env.SENTRY_AUTH_TOKEN,
 						sourcemaps: {
-							filesToDeleteAfterUpload: [
-								".output/**/*.map",
-								"dist/**/*.map",
-							],
+							filesToDeleteAfterUpload: [".output/**/*.map", "dist/**/*.map"],
 						},
 						release: {
 							name: process.env.GITHUB_SHA?.slice(0, 7) || undefined,

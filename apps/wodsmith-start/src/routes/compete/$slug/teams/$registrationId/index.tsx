@@ -558,8 +558,9 @@ function TeamManagementPage() {
 						<AlertTriangle className="h-4 w-4" />
 						<AlertTitle>Registration Removed</AlertTitle>
 						<AlertDescription>
-							Your team's registration has been removed from this competition. If
-							you believe this is a mistake, please contact the event organizer.
+							Your team's registration has been removed from this competition.
+							If you believe this is a mistake, please contact the event
+							organizer.
 						</AlertDescription>
 					</Alert>
 				)}
@@ -733,14 +734,16 @@ function TeamManagementPage() {
 				</Card>
 
 				{/* Waiver Section - Show for team members */}
-				{(isTeamMember || isRegisteredUser) && !isRemoved && waivers.length > 0 && (
-					<WaiverSection
-						waivers={waivers}
-						signatures={waiverSignatures}
-						registrationId={registration.id}
-						competitionName={competition?.name || "Competition"}
-					/>
-				)}
+				{(isTeamMember || isRegisteredUser) &&
+					!isRemoved &&
+					waivers.length > 0 && (
+						<WaiverSection
+							waivers={waivers}
+							signatures={waiverSignatures}
+							registrationId={registration.id}
+							competitionName={competition?.name || "Competition"}
+						/>
+					)}
 
 				{/* My Affiliate */}
 				{canEditOwnAffiliate && !isRemoved && (

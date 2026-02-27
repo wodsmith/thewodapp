@@ -236,7 +236,12 @@ export const Route = createFileRoute("/compete/$slug/register")({
 
 		// 3. Parallel fetch: existing registrations, affiliate name, waivers, and questions
 		const [
-			{ registeredDivisionIds, removedDivisionIds, previousAnswers, signedWaiverIds },
+			{
+				registeredDivisionIds,
+				removedDivisionIds,
+				previousAnswers,
+				signedWaiverIds,
+			},
 			userProfile,
 			{ waivers },
 			{ questions },

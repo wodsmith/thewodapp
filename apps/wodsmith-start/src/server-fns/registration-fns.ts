@@ -29,6 +29,9 @@ import {
 	competitionsTable,
 	createCommerceProductId,
 	createCommercePurchaseId,
+	createTeamId,
+	createTeamMembershipId,
+	createUserId,
 	REGISTRATION_STATUS,
 	ROLES_ENUM,
 	scalingGroupsTable,
@@ -47,6 +50,7 @@ import {
 	getRegistrationFee,
 	type TeamFeeOverrides,
 } from "@/lib/commerce-stubs"
+import { CLAIM_TOKEN_EXPIRATION_SECONDS } from "@/constants"
 import { getAppUrl } from "@/lib/env"
 import {
 	addRequestContextAttribute,
@@ -61,6 +65,7 @@ import {
 } from "@/lib/registration-stubs"
 import { getStripe } from "@/lib/stripe"
 import { requireVerifiedEmail } from "@/utils/auth"
+import { createToken, getClaimTokenKey } from "@/utils/auth-utils"
 import {
 	DEFAULT_TIMEZONE,
 	hasDateStartedInTimezone,
@@ -1645,4 +1650,262 @@ export const transferRegistrationDivisionFn = createServerFn({
 		})
 
 		return { success: true, removedHeatAssignments }
+	})
+
+// ============================================================================
+// Manual Registration (Organizer)
+// ============================================================================
+
+const createManualRegistrationInputSchema = z.object({
+	competitionId: z.string().min(1),
+	athleteEmail: z.string().email(),
+	athleteFirstName: z.string().max(255).optional(),
+	athleteLastName: z.string().max(255).optional(),
+	divisionId: z.string().min(1),
+	paymentStatus: z.enum(["COMP", "PAID_OFFLINE"]),
+	answers: z
+		.array(
+			z.object({
+				questionId: z.string().min(1),
+				answer: z.string().max(5000),
+			}),
+		)
+		.optional(),
+	// Team fields (for team divisions)
+	teamName: z.string().max(255).optional(),
+	teammates: z
+		.array(
+			z.object({
+				email: z.string().email(),
+				firstName: z.string().max(255).optional(),
+				lastName: z.string().max(255).optional(),
+			}),
+		)
+		.optional(),
+})
+
+/**
+ * Create a manual registration from the organizer dashboard.
+ *
+ * Looks up or creates a placeholder user, calls registerForCompetition()
+ * with isOrganizerOverride to bypass registration window checks, sets
+ * the appropriate payment status, stores answers, and sends confirmation.
+ */
+export const createManualRegistrationFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		createManualRegistrationInputSchema.parse(data),
+	)
+	.handler(async ({ data: input }) => {
+		const session = await requireVerifiedEmail()
+
+		const db = getDb()
+
+		updateRequestContext({ userId: session.userId })
+		addRequestContextAttribute("competitionId", input.competitionId)
+
+		// 1. Get competition to verify ownership and get organizing team
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, input.competitionId),
+			columns: { id: true, organizingTeamId: true },
+		})
+
+		if (!competition) throw new Error("Competition not found")
+
+		// 2. Require organizer permission (site admins bypass)
+		if (session.user?.role !== ROLES_ENUM.ADMIN) {
+			const team = session.teams?.find(
+				(t) => t.id === competition.organizingTeamId,
+			)
+			if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS)) {
+				throw new Error("Missing required permission: manage_competitions")
+			}
+		}
+
+		// 3. Look up or create athlete user
+		const athleteEmail = input.athleteEmail.toLowerCase()
+		let athleteUser = await db.query.userTable.findFirst({
+			where: eq(userTable.email, athleteEmail),
+		})
+
+		let isNewAthlete = false
+
+		if (!athleteUser) {
+			// Create placeholder user
+			isNewAthlete = true
+			const userId = createUserId()
+			await db.insert(userTable).values({
+				id: userId,
+				email: athleteEmail,
+				firstName: input.athleteFirstName ?? null,
+				lastName: input.athleteLastName ?? null,
+				passwordHash: null,
+				emailVerified: null,
+			})
+
+			athleteUser = await db.query.userTable.findFirst({
+				where: eq(userTable.id, userId),
+			})
+
+			if (!athleteUser) {
+				throw new Error("Failed to create placeholder user")
+			}
+
+			// Create personal team + team membership (required for getUserPersonalTeamId)
+			const personalTeamId = createTeamId()
+			const personalTeamName = `${input.athleteFirstName || "Personal"}'s Team (personal)`
+			const personalTeamSlug = `${
+				input.athleteFirstName?.toLowerCase() || "personal"
+			}-${userId.slice(-6)}`
+
+			await db.insert(teamTable).values({
+				id: personalTeamId,
+				name: personalTeamName,
+				slug: personalTeamSlug,
+				description:
+					"Personal team for individual programming track subscriptions",
+				isPersonalTeam: true,
+				personalTeamOwnerId: userId,
+			})
+
+			await db.insert(teamMembershipTable).values({
+				id: createTeamMembershipId(),
+				teamId: personalTeamId,
+				userId,
+				roleId: "owner",
+				isSystemRole: true,
+				joinedAt: new Date(),
+				isActive: true,
+			})
+
+			logEntityCreated({
+				entity: "user",
+				id: userId,
+				attributes: {
+					email: athleteEmail,
+					isPlaceholder: true,
+					createdByManualRegistration: true,
+				},
+			})
+		}
+
+		// 4. Determine final payment status
+		const divisionFeeCents = await getRegistrationFee(
+			input.competitionId,
+			input.divisionId,
+		)
+
+		const finalPaymentStatus =
+			divisionFeeCents === 0
+				? COMMERCE_PAYMENT_STATUS.FREE
+				: input.paymentStatus
+
+		// 5. Register for competition (bypasses registration window)
+		const result = await registerForCompetition({
+			competitionId: input.competitionId,
+			userId: athleteUser.id,
+			divisionId: input.divisionId,
+			teamName: input.teamName,
+			teammates: input.teammates,
+			isOrganizerOverride: true,
+		})
+
+		// 6. Set payment status on registration
+		await db
+			.update(competitionRegistrationsTable)
+			.set({
+				paymentStatus: finalPaymentStatus,
+				paidAt: finalPaymentStatus === "PAID_OFFLINE" ? new Date() : null,
+			})
+			.where(eq(competitionRegistrationsTable.id, result.registrationId))
+
+		// 7. Store registration answers
+		await storeRegistrationAnswers(
+			result.registrationId,
+			athleteUser.id,
+			input.answers,
+		)
+
+		const { env } = await import("cloudflare:workers")
+
+		// 8. Generate claim token for placeholder users
+		let claimToken: string | undefined
+		if (isNewAthlete) {
+			claimToken = createToken()
+			const claimExpiresAt = new Date(
+				Date.now() + CLAIM_TOKEN_EXPIRATION_SECONDS * 1000,
+			)
+			await env.KV_SESSION.put(
+				getClaimTokenKey(claimToken),
+				JSON.stringify({
+					userId: athleteUser.id,
+					expiresAt: claimExpiresAt.toISOString(),
+				}),
+				{ expirationTtl: CLAIM_TOKEN_EXPIRATION_SECONDS },
+			)
+		}
+
+		// 9. Send confirmation email via workflow (with waiver info)
+		const workflowParams = {
+			userId: athleteUser.id,
+			registrationId: result.registrationId,
+			competitionId: input.competitionId,
+			isPaid: finalPaymentStatus === "PAID_OFFLINE",
+			amountPaidCents:
+				finalPaymentStatus === "PAID_OFFLINE" ? divisionFeeCents : undefined,
+			isPlaceholderUser: isNewAthlete,
+			claimToken,
+		}
+		const workflow =
+			"MANUAL_REGISTRATION_WORKFLOW" in env
+				? (env.MANUAL_REGISTRATION_WORKFLOW as
+						| Workflow<typeof workflowParams>
+						| undefined)
+				: undefined
+
+		if (workflow && typeof workflow.create === "function") {
+			await workflow.create({
+				id: result.registrationId,
+				params: workflowParams,
+			})
+		} else {
+			const { processManualRegistrationInline } = await import(
+				"@/workflows/manual-registration-workflow"
+			)
+			await processManualRegistrationInline(workflowParams)
+		}
+
+		// 9. Log the manual registration
+		logEntityCreated({
+			entity: "registration",
+			id: result.registrationId,
+			parentEntity: "competition",
+			parentId: input.competitionId,
+			attributes: {
+				manualRegistration: true,
+				paymentStatus: finalPaymentStatus,
+				registeredByUserId: session.userId,
+				divisionId: input.divisionId,
+				divisionFeeCents: String(divisionFeeCents),
+				isNewAthlete: String(isNewAthlete),
+			},
+		})
+
+		logInfo({
+			message: "[Registration] Manual registration created by organizer",
+			attributes: {
+				registrationId: result.registrationId,
+				competitionId: input.competitionId,
+				athleteEmail,
+				divisionId: input.divisionId,
+				paymentStatus: finalPaymentStatus,
+				isNewAthlete: String(isNewAthlete),
+			},
+		})
+
+		return {
+			registrationId: result.registrationId,
+			success: true,
+			divisionFeeCents,
+			isNewAthlete,
+		}
 	})

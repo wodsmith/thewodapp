@@ -151,7 +151,8 @@ function DivisionMultiSelect({
 							const isRegistered = registeredDivisionIds.has(level.id)
 							const isRemoved = removedDivisionIds.has(level.id)
 							const isSelected = selectedIds.includes(level.id)
-							const isItemDisabled = disabled || isFull || isRegistered || isRemoved
+							const isItemDisabled =
+								disabled || isFull || isRegistered || isRemoved
 
 							return (
 								<button
@@ -725,24 +726,18 @@ export function RegistrationForm({
 							<div className="text-sm space-y-1">
 								<p className="font-medium">
 									Your registration
-									{removedDivisionIds.length === 1
-										? " was"
-										: "s were"}{" "}
-									removed from this competition:
+									{removedDivisionIds.length === 1 ? " was" : "s were"} removed
+									from this competition:
 								</p>
 								<ul className="list-disc pl-4">
 									{removedDivisionIds.map((id) => {
 										const div = getDivision(id)
-										return (
-											<li key={id}>
-												{div?.label ?? "Unknown division"}
-											</li>
-										)
+										return <li key={id}>{div?.label ?? "Unknown division"}</li>
 									})}
 								</ul>
 								<p className="text-muted-foreground">
-									If you believe this was a mistake, please contact the
-									event organizer.
+									If you believe this was a mistake, please contact the event
+									organizer.
 								</p>
 							</div>
 						</div>

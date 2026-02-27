@@ -264,7 +264,10 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 					and(
 						eq(competitionRegistrationsTable.eventId, data.competitionId),
 						inArray(competitionRegistrationsTable.divisionId, divisionIds),
-						ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+						ne(
+							competitionRegistrationsTable.status,
+							REGISTRATION_STATUS.REMOVED,
+						),
 					),
 				)
 				.groupBy(competitionRegistrationsTable.divisionId)
@@ -341,7 +344,10 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 				.where(
 					and(
 						eq(competitionRegistrationsTable.eventId, data.competitionId),
-						ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+						ne(
+							competitionRegistrationsTable.status,
+							REGISTRATION_STATUS.REMOVED,
+						),
 					),
 				)
 
