@@ -16,6 +16,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import type { SeriesRevenueStats } from "@/server-fns/commerce-fns"
 import {
 	exportSeriesRevenueCsvFn,
@@ -253,7 +254,7 @@ function SeriesDetailPage() {
 								</p>
 							)}
 						</div>
-						<div className="flex items-center gap-2">
+						<div className="flex flex-wrap items-center gap-2">
 							<Button variant="outline" asChild>
 								<Link
 									to="/compete/organizer/series/$groupId/edit"
@@ -284,12 +285,29 @@ function SeriesDetailPage() {
 				</div>
 
 				{/* Revenue Summary */}
-				{seriesRevenueStats && (
+				{seriesRevenueStats ? (
 					<SeriesRevenueSummary
 						stats={seriesRevenueStats}
 						onExportCsv={handleExportCsv}
 						isExporting={isExportingCsv}
 					/>
+				) : (
+					<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+						<div className="grid gap-4 grid-cols-2 sm:grid-cols-3">
+							{[0, 1, 2].map((i) => (
+								<Card key={i} className={i === 2 ? "col-span-2 sm:col-span-1" : ""}>
+									<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+										<Skeleton className="h-4 w-24" />
+										<Skeleton className="h-4 w-4 rounded" />
+									</CardHeader>
+									<CardContent>
+										<Skeleton className="h-8 w-28 mb-1" />
+										<Skeleton className="h-3 w-32" />
+									</CardContent>
+								</Card>
+							))}
+						</div>
+					</div>
 				)}
 
 				{/* Series Info Card */}

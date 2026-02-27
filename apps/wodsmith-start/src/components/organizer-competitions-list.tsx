@@ -18,7 +18,6 @@ import { Card } from "@/components/ui/card"
 import {
 	Collapsible,
 	CollapsibleContent,
-	CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import {
 	Select,
@@ -252,17 +251,25 @@ export function OrganizerCompetitionsList({
 										: "hover:bg-accent",
 									!canExpand && "rounded-lg border border-border bg-card",
 								)}
+								{...(canExpand
+									? {
+											role: "button",
+											tabIndex: 0,
+											onClick: () => toggleExpanded(competition.id),
+											onKeyDown: (e: React.KeyboardEvent) => {
+												if (e.key === "Enter" || e.key === " ") {
+													e.preventDefault()
+													toggleExpanded(competition.id)
+												}
+											},
+										}
+									: {})}
 							>
 								<div className="flex-1 min-w-0">
 									<div className="flex flex-col gap-1">
-										<a
-											href={`/compete/organizer/${competition.id}`}
-											onClick={(e) => e.stopPropagation()}
-										>
-											<h3 className="font-medium text-sm text-foreground hover:underline truncate">
-												{competition.name}
-											</h3>
-										</a>
+										<h3 className="font-medium text-sm text-foreground truncate">
+											{competition.name}
+										</h3>
 										<div className="flex flex-wrap items-center gap-2">
 											<div className="flex items-center gap-1 text-xs text-muted-foreground">
 												<Calendar className="h-3 w-3" />
@@ -371,11 +378,7 @@ export function OrganizerCompetitionsList({
 									onOpenChange={() => toggleExpanded(competition.id)}
 								>
 									<Card>
-										<CollapsibleTrigger asChild>
-											<button type="button" className="w-full text-left">
-												{row}
-											</button>
-										</CollapsibleTrigger>
+										{row}
 										<CollapsibleContent>
 											<div className="px-4 pb-4">
 												<Table>

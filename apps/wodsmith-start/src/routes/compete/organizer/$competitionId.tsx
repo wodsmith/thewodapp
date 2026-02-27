@@ -127,6 +127,7 @@ function CompetitionLayout() {
 						registrationClosesAt: competition.registrationClosesAt,
 						visibility: competition.visibility,
 						status: competition.status,
+						groupId: competition.groupId,
 					}}
 				/>
 
