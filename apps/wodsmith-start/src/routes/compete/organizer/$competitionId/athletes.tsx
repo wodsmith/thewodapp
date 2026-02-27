@@ -23,6 +23,7 @@ import {
 	Link2,
 	Mail,
 	MoreHorizontal,
+	Plus,
 	Trash2,
 	UserPlus,
 	X,
@@ -80,6 +81,7 @@ import {
 } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import { removeRegistrationFn } from "@/server-fns/registration-fns"
+import { ManualRegistrationDialog } from "./-components/manual-registration-dialog"
 import {
 	cancelPurchaseTransferFn,
 	getPendingTransfersForCompetitionFn,
@@ -230,6 +232,7 @@ function AthletesPage() {
 		teamName: string | null
 	} | null>(null)
 	const [isRemoving, setIsRemoving] = useState(false)
+	const [showManualRegistration, setShowManualRegistration] = useState(false)
 	const [transferTarget, setTransferTarget] = useState<{
 		id: string
 		athleteName: string
@@ -904,12 +907,18 @@ function AthletesPage() {
 						{registrations.filter((r) => r.status === "active").length !== 1 ? "s" : ""}
 					</p>
 				</div>
-				{registrations.length > 0 && (
-					<Button onClick={handleExportCSV} variant="outline" size="sm">
-						<Download className="h-4 w-4 mr-2" />
-						Export CSV
+				<div className="flex items-center gap-2">
+					<Button onClick={() => setShowManualRegistration(true)} size="sm">
+						<Plus className="h-4 w-4 mr-2" />
+						Add Registration
 					</Button>
-				)}
+					{registrations.length > 0 && (
+						<Button onClick={handleExportCSV} variant="outline" size="sm">
+							<Download className="h-4 w-4 mr-2" />
+							Export CSV
+						</Button>
+					)}
+				</div>
 			</div>
 
 			{registrations.length === 0 && !currentDivisionFilter ? (
@@ -1560,6 +1569,14 @@ function AthletesPage() {
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
+
+		<ManualRegistrationDialog
+			open={showManualRegistration}
+			onOpenChange={setShowManualRegistration}
+			competitionId={competition.id}
+			divisions={divisions}
+			questions={questions}
+		/>
 
 		{transferTarget && (
 			<TransferDivisionDialog

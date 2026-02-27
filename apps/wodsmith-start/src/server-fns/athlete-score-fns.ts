@@ -366,7 +366,10 @@ export const submitAthleteScoreFn = createServerFn({ method: "POST" })
 					and(
 						eq(competitionRegistrationsTable.eventId, data.competitionId),
 						eq(competitionRegistrationsTable.userId, session.userId),
-						ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+						ne(
+							competitionRegistrationsTable.status,
+							REGISTRATION_STATUS.REMOVED,
+						),
 					),
 				)
 				.limit(1)

@@ -737,7 +737,7 @@ export const getCompetitionDivisionsWithCountsFn = createServerFn({
 			divisions: divisions.map((d) => ({
 				...d,
 				description: d.description ?? null,
-				feeCents: d.feeCents ?? null,
+				feeCents: d.feeCents ?? competition.defaultRegistrationFeeCents ?? null,
 				maxSpots: d.maxSpots ?? null,
 			})) as CompetitionDivisionWithCounts[],
 		}

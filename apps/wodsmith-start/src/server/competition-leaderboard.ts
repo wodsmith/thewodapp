@@ -363,11 +363,11 @@ export async function getCompetitionLeaderboard(params: {
 			eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
 		)
 		.where(
-		and(
-			eq(competitionRegistrationsTable.eventId, params.competitionId),
-			ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
-		),
-	)
+			and(
+				eq(competitionRegistrationsTable.eventId, params.competitionId),
+				ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+			),
+		)
 
 	if (registrations.length === 0) {
 		const events = filteredTrackWorkouts.map((tw) => ({

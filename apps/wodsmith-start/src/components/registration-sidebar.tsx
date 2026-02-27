@@ -290,121 +290,140 @@ export function RegistrationSidebar({
 				)}
 
 			{/* My Registrations Card - shown when registered */}
-			{isRegistered && (() => {
-				const allRemoved = userRegistrations.length > 0 && userRegistrations.every((e) => e.registration.status === "removed")
-				return (
-				<Card className={`border-2 ${allRemoved ? "border-red-500/20" : "border-green-500/20"} bg-white/5 backdrop-blur-md`}>
-					<CardContent className="p-4">
-						<div className="space-y-3">
-							<div className={`flex items-center gap-2 ${allRemoved ? "text-red-600" : "text-green-600"}`}>
-								{allRemoved ? <AlertTriangle className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
-								<span className="font-semibold">
-									{allRemoved
-										? "Registration Removed"
-										: hasMultipleRegistrations
-											? "My Registrations"
-											: "You're Registered!"}
-								</span>
-							</div>
+			{isRegistered &&
+				(() => {
+					const allRemoved =
+						userRegistrations.length > 0 &&
+						userRegistrations.every((e) => e.registration.status === "removed")
+					return (
+						<Card
+							className={`border-2 ${allRemoved ? "border-red-500/20" : "border-green-500/20"} bg-white/5 backdrop-blur-md`}
+						>
+							<CardContent className="p-4">
+								<div className="space-y-3">
+									<div
+										className={`flex items-center gap-2 ${allRemoved ? "text-red-600" : "text-green-600"}`}
+									>
+										{allRemoved ? (
+											<AlertTriangle className="h-5 w-5" />
+										) : (
+											<CheckCircle2 className="h-5 w-5" />
+										)}
+										<span className="font-semibold">
+											{allRemoved
+												? "Registration Removed"
+												: hasMultipleRegistrations
+													? "My Registrations"
+													: "You're Registered!"}
+										</span>
+									</div>
 
-							{/* Multiple registrations: show list */}
-							{hasMultipleRegistrations ? (
-								<div className="space-y-2">
-									{userRegistrations.map((entry) => {
-										const isTeam = (entry.division?.teamSize ?? 1) > 1
-										const isEntryCaptain =
-											entry.registration.captainUserId === session?.userId
-										const isEntryRemoved = entry.registration.status === "removed"
-										return (
-											<div
-												key={entry.registration.id}
-												className={`flex items-center justify-between p-2 rounded-md border ${
-													isEntryRemoved
-														? "border-red-500/30 bg-red-500/10 opacity-60"
-														: "border-green-500/10 bg-green-500/5"
-												}`}
-											>
-												<div className="min-w-0">
-													<p className="text-sm font-medium truncate">
-														{entry.division?.label ?? "Division"}
-														{isEntryRemoved && (
-															<span className="text-xs text-red-500 ml-1">(Removed)</span>
-														)}
-													</p>
-													{entry.registration.teamName && (
-														<p className="text-xs text-muted-foreground truncate">
-															{entry.registration.teamName}
-														</p>
-													)}
-												</div>
+									{/* Multiple registrations: show list */}
+									{hasMultipleRegistrations ? (
+										<div className="space-y-2">
+											{userRegistrations.map((entry) => {
+												const isTeam = (entry.division?.teamSize ?? 1) > 1
+												const isEntryCaptain =
+													entry.registration.captainUserId === session?.userId
+												const isEntryRemoved =
+													entry.registration.status === "removed"
+												return (
+													<div
+														key={entry.registration.id}
+														className={`flex items-center justify-between p-2 rounded-md border ${
+															isEntryRemoved
+																? "border-red-500/30 bg-red-500/10 opacity-60"
+																: "border-green-500/10 bg-green-500/5"
+														}`}
+													>
+														<div className="min-w-0">
+															<p className="text-sm font-medium truncate">
+																{entry.division?.label ?? "Division"}
+																{isEntryRemoved && (
+																	<span className="text-xs text-red-500 ml-1">
+																		(Removed)
+																	</span>
+																)}
+															</p>
+															{entry.registration.teamName && (
+																<p className="text-xs text-muted-foreground truncate">
+																	{entry.registration.teamName}
+																</p>
+															)}
+														</div>
+														<Button
+															asChild
+															variant="ghost"
+															size="sm"
+															className="shrink-0 h-7 text-xs"
+														>
+															<a
+																href={`/compete/${competition.slug}/teams/${entry.registration.id}`}
+															>
+																{isTeam
+																	? isEntryCaptain
+																		? "Manage"
+																		: "View"
+																	: "View"}
+															</a>
+														</Button>
+													</div>
+												)
+											})}
+										</div>
+									) : (
+										<>
+											{/* Single registration: original display */}
+											{userDivision && (
+												<p className="text-sm text-muted-foreground">
+													Division:{" "}
+													<span className="font-medium">{userDivision}</span>
+												</p>
+											)}
+											{registrationId && (
 												<Button
 													asChild
-													variant="ghost"
+													variant="outline"
 													size="sm"
-													className="shrink-0 h-7 text-xs"
+													className="w-full"
 												>
 													<a
-														href={`/compete/${competition.slug}/teams/${entry.registration.id}`}
+														href={`/compete/${competition.slug}/teams/${registrationId}`}
 													>
-														{isTeam
-															? isEntryCaptain
-																? "Manage"
-																: "View"
-															: "View"}
+														<Users className="mr-2 h-4 w-4" />
+														{isTeamRegistration
+															? isCaptain
+																? "Manage Team"
+																: "View Team"
+															: "View Registration"}
 													</a>
 												</Button>
-											</div>
-										)
-									})}
-								</div>
-							) : (
-								<>
-									{/* Single registration: original display */}
-									{userDivision && (
-										<p className="text-sm text-muted-foreground">
-											Division:{" "}
-											<span className="font-medium">{userDivision}</span>
-										</p>
+											)}
+										</>
 									)}
-									{registrationId && (
+
+									{/* Register for Another Division - shown when registered AND registration is open */}
+									{registrationOpen && (
 										<Button
 											asChild
 											variant="outline"
 											size="sm"
 											className="w-full"
 										>
-											<a
-												href={`/compete/${competition.slug}/teams/${registrationId}`}
+											<Link
+												to="/compete/$slug/register"
+												params={{ slug: competition.slug }}
 											>
-												<Users className="mr-2 h-4 w-4" />
-												{isTeamRegistration
-													? isCaptain
-														? "Manage Team"
-														: "View Team"
-													: "View Registration"}
-											</a>
+												<Plus className="mr-2 h-4 w-4" />
+												Register for Another Division
+											</Link>
 										</Button>
 									)}
-								</>
-							)}
-
-							{/* Register for Another Division - shown when registered AND registration is open */}
-							{registrationOpen && (
-								<Button asChild variant="outline" size="sm" className="w-full">
-									<Link
-										to="/compete/$slug/register"
-										params={{ slug: competition.slug }}
-									>
-										<Plus className="mr-2 h-4 w-4" />
-										Register for Another Division
-									</Link>
-								</Button>
-							)}
-						</div>
-					</CardContent>
-				</Card>
-				)
-			})()}
+								</div>
+							</CardContent>
+						</Card>
+					)
+				})()}
 
 			{/* Date & Location Card */}
 			<Card className="border-white/10 bg-white/5 backdrop-blur-md">
