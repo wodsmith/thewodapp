@@ -322,10 +322,7 @@ export const getAthleteProfileDataFn = createServerFn({
 		await db.query.competitionRegistrationsTable.findMany({
 			where: and(
 				eq(competitionRegistrationsTable.userId, session.userId),
-				ne(
-					competitionRegistrationsTable.status,
-					REGISTRATION_STATUS.REMOVED,
-				),
+				ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 			),
 			with: {
 				competition: {
@@ -355,10 +352,7 @@ export const getAthleteProfileDataFn = createServerFn({
 		userTeamIds.length > 0
 			? await db.query.competitionRegistrationsTable.findMany({
 					where: and(
-						inArray(
-							competitionRegistrationsTable.athleteTeamId,
-							userTeamIds,
-						),
+						inArray(competitionRegistrationsTable.athleteTeamId, userTeamIds),
 						ne(
 							competitionRegistrationsTable.status,
 							REGISTRATION_STATUS.REMOVED,

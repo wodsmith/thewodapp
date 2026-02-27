@@ -393,7 +393,10 @@ export async function sendPurchaseTransferEmail({
 
 	// In dev mode, console.warn shows the URL for easy testing
 	if (!shouldSendEmail()) {
-		console.warn("\n\n\nPurchase transfer url: ", `${appUrl}/transfer/${transferId}`)
+		console.warn(
+			"\n\n\nPurchase transfer url: ",
+			`${appUrl}/transfer/${transferId}`,
+		)
 	}
 
 	await sendEmail({

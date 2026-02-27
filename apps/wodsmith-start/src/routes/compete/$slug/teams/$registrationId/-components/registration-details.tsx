@@ -209,26 +209,30 @@ export function RegistrationDetailsCard({
 						)}
 
 						{/* Invoice Link — only shown to the original purchaser */}
-						{purchase?.id && paymentStatus === "PAID" && isOriginalPurchaser && (
-							<div className="pt-2 border-t">
-								<Link
-									to="/compete/athlete/invoices/$purchaseId"
-									params={{ purchaseId: purchase.id }}
-									search={{ returnTo: location.pathname }}
-									className="text-sm text-primary hover:underline flex items-center gap-1"
-								>
-									<Receipt className="w-3.5 h-3.5" />
-									View Invoice
-								</Link>
-							</div>
-						)}
-						{purchase?.id && paymentStatus === "PAID" && !isOriginalPurchaser && (
-							<div className="pt-2 border-t">
-								<p className="text-sm text-muted-foreground">
-									Paid by {purchaserName || "another athlete"}
-								</p>
-							</div>
-						)}
+						{purchase?.id &&
+							paymentStatus === "PAID" &&
+							isOriginalPurchaser && (
+								<div className="pt-2 border-t">
+									<Link
+										to="/compete/athlete/invoices/$purchaseId"
+										params={{ purchaseId: purchase.id }}
+										search={{ returnTo: location.pathname }}
+										className="text-sm text-primary hover:underline flex items-center gap-1"
+									>
+										<Receipt className="w-3.5 h-3.5" />
+										View Invoice
+									</Link>
+								</div>
+							)}
+						{purchase?.id &&
+							paymentStatus === "PAID" &&
+							!isOriginalPurchaser && (
+								<div className="pt-2 border-t">
+									<p className="text-sm text-muted-foreground">
+										Paid by {purchaserName || "another athlete"}
+									</p>
+								</div>
+							)}
 					</div>
 				</CardContent>
 			</Card>

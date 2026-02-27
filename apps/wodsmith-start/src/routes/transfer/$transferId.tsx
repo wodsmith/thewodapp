@@ -133,9 +133,7 @@ function TransferAcceptPage() {
 				<Card>
 					<CardContent className="space-y-4 py-8 text-center">
 						<CheckCircle2 className="mx-auto h-12 w-12 text-green-500" />
-						<h2 className="text-xl font-semibold">
-							Transfer Already Accepted
-						</h2>
+						<h2 className="text-xl font-semibold">Transfer Already Accepted</h2>
 						<p className="text-muted-foreground">
 							This transfer has already been accepted.
 						</p>
@@ -222,7 +220,10 @@ function TransferAcceptPage() {
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-6">
-						<TransferDetails transfer={transfer} sourceFullName={sourceFullName} />
+						<TransferDetails
+							transfer={transfer}
+							sourceFullName={sourceFullName}
+						/>
 
 						<div className="rounded-lg border p-4 text-center space-y-3">
 							<p className="text-sm text-muted-foreground">
@@ -280,10 +281,8 @@ function TransferAcceptPage() {
 									</p>
 									<p className="text-yellow-700 dark:text-yellow-400 mt-1">
 										This transfer was sent to{" "}
-										<span className="font-medium">
-											{transfer.targetEmail}
-										</span>
-										, but you&apos;re signed in as{" "}
+										<span className="font-medium">{transfer.targetEmail}</span>,
+										but you&apos;re signed in as{" "}
 										<span className="font-medium">{session.email}</span>. You
 										can still accept it, but make sure this is the right
 										account.
@@ -292,7 +291,10 @@ function TransferAcceptPage() {
 							</div>
 						)}
 
-					<TransferDetails transfer={transfer} sourceFullName={sourceFullName} />
+					<TransferDetails
+						transfer={transfer}
+						sourceFullName={sourceFullName}
+					/>
 
 					<AcceptTransferForm
 						transferId={transferId}

@@ -414,10 +414,7 @@ export const getUserCompetitionRegistrationsFn = createServerFn({
 				and(
 					eq(competitionRegistrationsTable.eventId, data.competitionId),
 					eq(competitionRegistrationsTable.userId, data.userId),
-					ne(
-						competitionRegistrationsTable.status,
-						REGISTRATION_STATUS.REMOVED,
-					),
+					ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 				),
 			)
 

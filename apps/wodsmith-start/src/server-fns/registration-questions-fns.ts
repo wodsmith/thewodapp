@@ -550,18 +550,14 @@ export const reorderQuestionsFn = createServerFn({ method: "POST" })
  * Public - no auth required (same pattern as competition questions)
  */
 export const getSeriesQuestionsFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
-		getSeriesQuestionsInputSchema.parse(data),
-	)
+	.inputValidator((data: unknown) => getSeriesQuestionsInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		const db = getDb()
 
 		const questions = await db
 			.select()
 			.from(competitionRegistrationQuestionsTable)
-			.where(
-				eq(competitionRegistrationQuestionsTable.groupId, data.groupId),
-			)
+			.where(eq(competitionRegistrationQuestionsTable.groupId, data.groupId))
 			.orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
 
 		return {
@@ -616,9 +612,7 @@ export const createSeriesQuestionFn = createServerFn({ method: "POST" })
 		const existingQuestions = await db
 			.select()
 			.from(competitionRegistrationQuestionsTable)
-			.where(
-				eq(competitionRegistrationQuestionsTable.groupId, data.groupId),
-			)
+			.where(eq(competitionRegistrationQuestionsTable.groupId, data.groupId))
 
 		const maxSortOrder = Math.max(
 			0,
@@ -693,10 +687,7 @@ export const reorderSeriesQuestionsFn = createServerFn({ method: "POST" })
 						.where(
 							and(
 								eq(competitionRegistrationQuestionsTable.id, questionId),
-								eq(
-									competitionRegistrationQuestionsTable.groupId,
-									data.groupId,
-								),
+								eq(competitionRegistrationQuestionsTable.groupId, data.groupId),
 							),
 						)
 				}),
