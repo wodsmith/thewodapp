@@ -62,10 +62,19 @@ test.describe('Competition Organizer', () => {
     // Wait for navigation back to organizer dashboard
     await page.waitForURL(/\/compete\/organizer/, {timeout: 15000})
 
-    // Find the newly created competition's Manage link to extract its URL
+    // Find the newly created competition
     await expect(page.getByText(uniqueName)).toBeVisible({timeout: 10000})
-    const manageLink = page.locator('div').filter({hasText: uniqueName}).getByRole('link', {name: 'Manage'})
-    const compDetailPath = await manageLink.getAttribute('href')
+
+    // Extract the manage URL from the link with title="Manage" button inside it
+    // The list is sorted newest-first, so grab the first manage link that's an organizer detail link
+    // (href like /compete/organizer/<ulid>, not /compete/organizer/new or /compete/organizer/series)
+    const allManageHrefs = await page.locator('a[href^="/compete/organizer/"] button[title="Manage"]').evaluateAll(
+      (buttons) => buttons.map((btn) => (btn.closest('a') as HTMLAnchorElement)?.getAttribute('href')).filter(Boolean)
+    )
+    // Filter to only competition detail links (exclude /new, /series, /settings paths)
+    const compDetailPath = allManageHrefs.find(
+      (href) => href && !href.includes('/new') && !href.includes('/series') && !href.includes('/settings')
+    )
     expect(compDetailPath).toBeTruthy()
 
     // Navigate directly to divisions page
