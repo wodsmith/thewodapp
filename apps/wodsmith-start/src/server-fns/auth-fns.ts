@@ -12,7 +12,6 @@
  */
 
 import { env } from "cloudflare:workers"
-import { init } from "@paralleldrive/cuid2"
 import { createServerFn } from "@tanstack/react-start"
 import { eq } from "drizzle-orm"
 import { z } from "zod"
@@ -44,7 +43,12 @@ import {
 	createAndStoreSession,
 	getSessionFromCookie,
 } from "@/utils/auth"
-import { getResetTokenKey, getVerificationTokenKey } from "@/utils/auth-utils"
+import {
+	createToken,
+	getClaimTokenKey,
+	getResetTokenKey,
+	getVerificationTokenKey,
+} from "@/utils/auth-utils"
 import { sendPasswordResetEmail, sendVerificationEmail } from "@/utils/email"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { hashPassword, verifyPassword } from "@/utils/password-hasher"
@@ -63,11 +67,6 @@ export {
 	type VerifyEmailInput,
 	verifyEmailSchema,
 } from "@/schemas/auth.schema"
-
-// Create a CUID2 generator with 32 character length for tokens
-const createToken = init({
-	length: 32,
-})
 
 const forgotPasswordInputSchema = z.object({
 	email: z.string().email("Please enter a valid email address"),
@@ -135,6 +134,15 @@ export const signInFn = createServerFn({ method: "POST" })
 			throw new Error("Invalid email or password")
 		}
 
+		// Block unverified placeholder users from signing in
+		if (!user.emailVerified) {
+			logWarning({
+				message: "[Auth] Sign-in blocked - email not verified",
+				attributes: { userId: user.id },
+			})
+			throw new Error("Invalid email or password")
+		}
+
 		// Create session and set cookie
 		await createAndStoreSession(user.id, "password")
 
@@ -183,11 +191,158 @@ export const signUpFn = createServerFn({ method: "POST" })
 		})
 
 		if (existingUser) {
-			logWarning({
-				message: "[Auth] Sign-up failed - email already taken",
-				attributes: { email: data.email },
+			const isPlaceholder =
+				!existingUser.passwordHash && !existingUser.emailVerified
+			const isPendingVerification =
+				existingUser.passwordHash && !existingUser.emailVerified
+
+			// State D: Fully verified user — email already taken
+			if (!isPlaceholder && !isPendingVerification) {
+				logWarning({
+					message: "[Auth] Sign-up failed - email already taken",
+					attributes: { email: data.email },
+				})
+				throw new Error("Email already taken")
+			}
+
+			// State C: Has password but not yet verified — resend verification email
+			if (isPendingVerification) {
+				logInfo({
+					message:
+						"[Auth] Sign-up for pending-verification user — resending verification",
+					attributes: { userId: existingUser.id, email: data.email },
+				})
+
+				const verificationToken = createToken()
+				const expiresAt = new Date(
+					Date.now() + EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS * 1000,
+				)
+
+				await env.KV_SESSION.put(
+					getVerificationTokenKey(verificationToken),
+					JSON.stringify({
+						userId: existingUser.id,
+						expiresAt: expiresAt.toISOString(),
+					}),
+					{ expirationTtl: EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS },
+				)
+
+				await sendVerificationEmail({
+					email: data.email,
+					verificationToken,
+					username: existingUser.firstName || data.email,
+				})
+
+				return {
+					success: true,
+					userId: existingUser.id,
+					requiresVerification: true,
+				}
+			}
+
+			// Placeholder user — upgrade with password
+			const hashedPassword = await hashPassword({ password: data.password })
+
+			// State A: Claim token provided — validate and auto-verify
+			if (data.claimToken) {
+				const claimTokenStr = await env.KV_SESSION.get(
+					getClaimTokenKey(data.claimToken),
+				)
+
+				if (!claimTokenStr) {
+					throw new Error(
+						"Invalid or expired claim link. Please check your email for a new link, or sign up without the link to verify via email.",
+					)
+				}
+
+				const claimData = JSON.parse(claimTokenStr) as {
+					userId: string
+					expiresAt: string
+				}
+
+				if (new Date() > new Date(claimData.expiresAt)) {
+					throw new Error(
+						"This claim link has expired. Please sign up without the link to verify via email.",
+					)
+				}
+
+				if (claimData.userId !== existingUser.id) {
+					throw new Error("Claim link does not match this email address.")
+				}
+
+				// Token valid — upgrade with auto-verification
+				await db
+					.update(userTable)
+					.set({
+						passwordHash: hashedPassword,
+						firstName: data.firstName,
+						lastName: data.lastName,
+						emailVerified: new Date(),
+					})
+					.where(eq(userTable.id, existingUser.id))
+
+				await env.KV_SESSION.delete(getClaimTokenKey(data.claimToken))
+
+				updateRequestContext({ userId: existingUser.id })
+				addRequestContextAttribute("upgradedPlaceholderUser", existingUser.id)
+
+				logInfo({
+					message: "[Auth] Placeholder user claimed via token",
+					attributes: { userId: existingUser.id, email: data.email },
+				})
+
+				await createAndStoreSession(existingUser.id, "password")
+
+				return {
+					success: true,
+					userId: existingUser.id,
+					requiresVerification: false,
+				}
+			}
+
+			// State B: No claim token — set password but require email verification
+			await db
+				.update(userTable)
+				.set({
+					passwordHash: hashedPassword,
+					firstName: data.firstName,
+					lastName: data.lastName,
+				})
+				.where(eq(userTable.id, existingUser.id))
+
+			const verificationToken = createToken()
+			const expiresAt = new Date(
+				Date.now() + EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS * 1000,
+			)
+
+			await env.KV_SESSION.put(
+				getVerificationTokenKey(verificationToken),
+				JSON.stringify({
+					userId: existingUser.id,
+					expiresAt: expiresAt.toISOString(),
+				}),
+				{ expirationTtl: EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS },
+			)
+
+			await sendVerificationEmail({
+				email: data.email,
+				verificationToken,
+				username: data.firstName || data.email,
 			})
-			throw new Error("Email already taken")
+
+			updateRequestContext({ userId: existingUser.id })
+			addRequestContextAttribute("upgradedPlaceholderUser", existingUser.id)
+
+			logInfo({
+				message: "[Auth] Placeholder user set password, verification required",
+				attributes: { userId: existingUser.id, email: data.email },
+			})
+
+			return {
+				success: true,
+				userId: existingUser.id,
+				requiresVerification: true,
+			}
 		}
 
 		// Hash the password
@@ -274,7 +429,7 @@ export const signUpFn = createServerFn({ method: "POST" })
 			},
 		})
 
-		return { success: true, userId: user.id }
+		return { success: true, userId: user.id, requiresVerification: false }
 	})
 
 /**
@@ -315,6 +470,54 @@ export const validateResetTokenFn = createServerFn({ method: "GET" })
 			return { valid: true }
 		} catch {
 			return { valid: false, error: "Invalid token format" }
+		}
+	})
+
+/**
+ * Validate claim token exists and is not expired.
+ * Returns user email/name to pre-fill the signup form.
+ */
+export const validateClaimTokenFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z.object({ token: z.string() }).parse(data),
+	)
+	.handler(async ({ data }) => {
+		const claimTokenStr = await env.KV_SESSION.get(getClaimTokenKey(data.token))
+
+		if (!claimTokenStr) {
+			return {
+				valid: false as const,
+				error: "Invalid or expired claim link",
+			}
+		}
+
+		try {
+			const parsed = JSON.parse(claimTokenStr) as {
+				userId: string
+				expiresAt: string
+			}
+
+			if (new Date() > new Date(parsed.expiresAt)) {
+				return {
+					valid: false as const,
+					error: "This claim link has expired",
+				}
+			}
+
+			const db = getDb()
+			const user = await db.query.userTable.findFirst({
+				where: eq(userTable.id, parsed.userId),
+				columns: { email: true, firstName: true, lastName: true },
+			})
+
+			return {
+				valid: true as const,
+				email: user?.email ?? null,
+				firstName: user?.firstName ?? null,
+				lastName: user?.lastName ?? null,
+			}
+		} catch {
+			return { valid: false as const, error: "Invalid claim link" }
 		}
 	})
 

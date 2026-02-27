@@ -30,6 +30,7 @@ import { getSentryOptions } from "./lib/sentry/server"
 
 // Workers runtime requires Workflow classes to be exported from the entry point
 export { StripeCheckoutWorkflow } from "./workflows/stripe-checkout-workflow"
+export { ManualRegistrationWorkflow } from "./workflows/manual-registration-workflow"
 
 // Threshold for logging slow requests (in ms)
 const SLOW_REQUEST_THRESHOLD_MS = 2000
