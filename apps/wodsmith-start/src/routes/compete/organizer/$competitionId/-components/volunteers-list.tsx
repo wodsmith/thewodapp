@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, Copy, UserPlus, X } from "lucide-react"
+import { Check, Copy, Download, UserPlus, X } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -41,9 +41,12 @@ import {
 	VOLUNTEER_ROLE_TYPE_VALUES,
 	type VolunteerRoleType,
 } from "@/db/schemas/volunteers"
+import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
 import { bulkAssignVolunteerRoleFn } from "@/server-fns/volunteer-fns"
 import { InviteVolunteerDialog } from "./invite-volunteer-dialog"
 import { VolunteerRow } from "./volunteer-row"
+
+type VolunteerAnswer = { id: string; questionId: string; answer: string }
 
 interface VolunteerWithAccess {
 	id: string
@@ -70,6 +73,9 @@ interface VolunteersListProps {
 	organizingTeamId: string
 	invitations: TeamInvitation[]
 	volunteers: VolunteerWithAccess[]
+	volunteerQuestions: RegistrationQuestion[]
+	answersByInvitation: Record<string, VolunteerAnswer[]>
+	emailToInvitationId: Record<string, string>
 	volunteerAssignments: Record<
 		string,
 		{
@@ -108,7 +114,20 @@ export function VolunteersList({
 	invitations,
 	volunteers,
 	volunteerAssignments,
+	volunteerQuestions,
+	answersByInvitation,
+	emailToInvitationId,
 }: VolunteersListProps) {
+	/** Look up answers for a volunteer by invitationId (pending) or user email (approved) */
+	function getAnswersForVolunteer(volunteer: VolunteerWithAccess): VolunteerAnswer[] {
+		let invitationId: string | undefined
+		if (volunteer.id.startsWith("tinv_")) {
+			invitationId = volunteer.id
+		} else if (volunteer.user?.email) {
+			invitationId = emailToInvitationId[volunteer.user.email.toLowerCase()]
+		}
+		return invitationId ? (answersByInvitation[invitationId] ?? []) : []
+	}
 	const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
 	const [filter, setFilter] = useState<"all" | "pending" | "approved">("all")
 	const [availabilityFilter, setAvailabilityFilter] = useState<string | null>(
@@ -310,6 +329,123 @@ export function VolunteersList({
 		filteredIds.length > 0 && filteredIds.every((id) => selectedIds.has(id))
 	const someSelected = selectedIds.size > 0
 
+	/**
+	 * Export all visible volunteers to CSV, including registration question answers
+	 */
+	const handleExportCSV = () => {
+		const sanitizeCell = (value: string): string => {
+			const escaped = value.replace(/"/g, '""')
+			return /^[=+\-@]/.test(escaped) ? `'${escaped}` : escaped
+		}
+
+		const headers = [
+			"Name",
+			"Email",
+			"Phone",
+			"Status",
+			"Availability",
+			"Credentials",
+			"Notes",
+		]
+		volunteerQuestions.forEach((q) => headers.push(q.label))
+
+		const rows = allItems.map((item) => {
+			let name: string
+			let email: string
+			let phone = ""
+			let status: string
+			let availability = ""
+			let credentials = ""
+			let notes = ""
+			let invitationId: string | undefined
+
+			if (item.type === "invitation") {
+				const inv = item.data
+				let meta: {
+					signupName?: string
+					signupEmail?: string
+					signupPhone?: string
+					status?: string
+					availability?: string
+					credentials?: string
+					availabilityNotes?: string
+				} = {}
+				try {
+					meta = JSON.parse(inv.metadata || "{}") as typeof meta
+				} catch {}
+				name = meta.signupName ?? inv.email
+				email = meta.signupEmail ?? inv.email
+				phone = meta.signupPhone ?? ""
+				status = meta.status ?? "pending"
+				availability = meta.availability ?? ""
+				credentials = meta.credentials ?? ""
+				notes = meta.availabilityNotes ?? ""
+				invitationId = inv.id
+			} else {
+				const vol = item.data
+				let meta: {
+					signupName?: string
+					signupEmail?: string
+					signupPhone?: string
+					status?: string
+					availability?: string
+					credentials?: string
+					availabilityNotes?: string
+				} = {}
+				try {
+					meta = JSON.parse(vol.metadata || "{}") as typeof meta
+				} catch {}
+				name = vol.user
+					? `${vol.user.firstName ?? ""} ${vol.user.lastName ?? ""}`.trim() ||
+						vol.user.email ||
+						""
+					: (meta.signupName ?? "")
+				email = vol.user?.email ?? meta.signupEmail ?? ""
+				phone = meta.signupPhone ?? ""
+				status = "approved"
+				availability = meta.availability ?? ""
+				credentials = meta.credentials ?? ""
+				notes = meta.availabilityNotes ?? ""
+				// For memberships, find invitationId via email
+				if (vol.user?.email) {
+					invitationId = emailToInvitationId[vol.user.email.toLowerCase()]
+				}
+			}
+
+			const row = [name, email, phone, status, availability, credentials, notes]
+
+			volunteerQuestions.forEach((question) => {
+				const volunteerAnswers = invitationId
+					? (answersByInvitation[invitationId] ?? [])
+					: []
+				const answer = volunteerAnswers.find((a) => a.questionId === question.id)
+				row.push(answer?.answer ?? "")
+			})
+
+			return row
+		})
+
+		const csvContent = [
+			headers.map((h) => `"${sanitizeCell(h)}"`).join(","),
+			...rows.map((row) =>
+				row.map((cell) => `"${sanitizeCell(String(cell))}"`).join(","),
+			),
+		].join("\n")
+
+		const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+		const link = document.createElement("a")
+		const url = URL.createObjectURL(blob)
+		link.setAttribute("href", url)
+		link.setAttribute(
+			"download",
+			`volunteers-${new Date().toISOString().split("T")[0]}.csv`,
+		)
+		document.body.appendChild(link)
+		link.click()
+		document.body.removeChild(link)
+		URL.revokeObjectURL(url)
+	}
+
 	if (invitations.length === 0 && volunteers.length === 0) {
 		return (
 			<Card>
@@ -400,6 +536,10 @@ export function VolunteersList({
 						</SelectItem>
 					</SelectContent>
 				</Select>
+				<Button variant="outline" onClick={handleExportCSV}>
+					<Download className="mr-2 h-4 w-4" />
+					Export CSV
+				</Button>
 				<Button variant="outline" onClick={copySignupLink}>
 					{copied ? (
 						<Check className="mr-2 h-4 w-4" />
@@ -526,6 +666,8 @@ export function VolunteersList({
 															judgeHeats: [],
 														}
 													}
+													answers={getAnswersForVolunteer(volunteerItem)}
+													questions={volunteerQuestions}
 												/>
 											)
 										}
@@ -548,6 +690,8 @@ export function VolunteersList({
 														judgeHeats: [],
 													}
 												}
+												answers={getAnswersForVolunteer(volunteer)}
+												questions={volunteerQuestions}
 											/>
 										)
 									})}

@@ -22,6 +22,7 @@ import {
 	createCompetitionRegistrationId,
 	createCompetitionRegistrationQuestionId,
 	createCompetitionVenueId,
+	createVolunteerRegistrationAnswerId,
 } from "./common"
 import { programmingTracksTable } from "./programming"
 import { scalingLevelsTable } from "./scaling"
@@ -335,6 +336,11 @@ export const competitionRegistrationQuestionsTable = mysqlTable(
 		forTeammates: boolean().default(false).notNull(),
 		// Sort order for display
 		sortOrder: int().default(0).notNull(),
+		// Target audience: athlete (default) or volunteer
+		questionTarget: varchar({ length: 20 })
+			.$type<"athlete" | "volunteer">()
+			.default("athlete")
+			.notNull(),
 	},
 	(table) => [
 		index("comp_reg_questions_competition_idx").on(table.competitionId),
@@ -343,6 +349,7 @@ export const competitionRegistrationQuestionsTable = mysqlTable(
 			table.sortOrder,
 		),
 		index("comp_reg_questions_group_idx").on(table.groupId),
+		index("comp_reg_questions_target_idx").on(table.questionTarget),
 	],
 )
 
@@ -373,6 +380,31 @@ export const competitionRegistrationAnswersTable = mysqlTable(
 			table.questionId,
 			table.registrationId,
 			table.userId,
+		),
+	],
+)
+
+// Volunteer Registration Answers Table
+// Stores volunteer answers to registration questions
+export const volunteerRegistrationAnswersTable = mysqlTable(
+	"volunteer_registration_answers",
+	{
+		...commonColumns,
+		id: varchar({ length: 255 })
+			.primaryKey()
+			.$defaultFn(() => createVolunteerRegistrationAnswerId())
+			.notNull(),
+		questionId: varchar({ length: 255 }).notNull(),
+		// Team invitation ID - works for both direct invites (authenticated) and public sign-ups (unauthenticated)
+		invitationId: varchar({ length: 255 }).notNull(),
+		answer: text().notNull(),
+	},
+	(table) => [
+		index("vol_reg_answers_question_idx").on(table.questionId),
+		index("vol_reg_answers_invitation_idx").on(table.invitationId),
+		uniqueIndex("vol_reg_answers_unique_idx").on(
+			table.questionId,
+			table.invitationId,
 		),
 	],
 )
@@ -423,6 +455,9 @@ export type CompetitionRegistrationQuestion = InferSelectModel<
 >
 export type CompetitionRegistrationAnswer = InferSelectModel<
 	typeof competitionRegistrationAnswersTable
+>
+export type VolunteerRegistrationAnswer = InferSelectModel<
+	typeof volunteerRegistrationAnswersTable
 >
 
 // Competition visibility constants

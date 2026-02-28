@@ -10,6 +10,7 @@ import { getDb } from "@/db"
 import type { TeamMembership, User } from "@/db/schema"
 import {
 	competitionHeatsTable,
+	competitionsTable,
 	entitlementTable,
 	entitlementTypeTable,
 	judgeHeatAssignmentsTable,
@@ -26,11 +27,13 @@ import {
 	createTeamInvitationId,
 	createTeamMembershipId,
 } from "@/db/schemas/common"
+import { volunteerRegistrationAnswersTable } from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import type { VolunteerMembershipMetadata } from "@/db/schemas/volunteers"
 import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
 import { createEntitlement } from "@/server/entitlements"
 import { inviteUserToTeam } from "@/server/team-members"
+import { sendVolunteerDirectInviteEmail } from "@/utils/email"
 import {
 	calculateInviteStatus,
 	isDirectInvite,
@@ -262,6 +265,14 @@ export const submitVolunteerSignupFn = createServerFn({ method: "POST" })
 				availabilityNotes: z.string().optional(),
 				credentials: z.string().optional(),
 				website: z.string().optional(), // Honeypot
+				answers: z
+					.array(
+						z.object({
+							questionId: z.string().min(1),
+							answer: z.string().max(5000),
+						}),
+					)
+					.optional(),
 			})
 			.parse(data),
 	)
@@ -351,6 +362,17 @@ export const submitVolunteerSignupFn = createServerFn({ method: "POST" })
 			throw new Error("Failed to create volunteer invitation")
 		}
 
+		// Save registration question answers if provided
+		if (data.answers && data.answers.length > 0) {
+			for (const { questionId, answer } of data.answers) {
+				await db.insert(volunteerRegistrationAnswersTable).values({
+					questionId,
+					invitationId: invitation.id,
+					answer,
+				})
+			}
+		}
+
 		return { success: true, membershipId: invitation.id }
 	})
 
@@ -394,6 +416,57 @@ export const inviteVolunteerFn = createServerFn({ method: "POST" })
 			metadata.inviteName = data.name
 		}
 
+		const db = getDb()
+
+		// Check for an existing volunteer invitation (application or prior direct invite)
+		const existingInvitations = await db.query.teamInvitationTable.findMany({
+			where: and(
+				eq(teamInvitationTable.teamId, data.competitionTeamId),
+				eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+				eq(teamInvitationTable.isSystemRole, true),
+			),
+			columns: { email: true },
+		})
+
+		if (
+			existingInvitations.some(
+				(inv) => inv.email.toLowerCase() === data.email.toLowerCase(),
+			)
+		) {
+			throw new Error(
+				"This person has already been invited or has applied to volunteer for this competition.",
+			)
+		}
+
+		// Check for an existing approved volunteer membership
+		const existingUser = await db.query.userTable.findFirst({
+			where: eq(userTable.email, data.email.toLowerCase()),
+			columns: { id: true },
+		})
+
+		if (existingUser) {
+			const existingMembership = await db.query.teamMembershipTable.findFirst({
+				where: and(
+					eq(teamMembershipTable.teamId, data.competitionTeamId),
+					eq(teamMembershipTable.userId, existingUser.id),
+					eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+					eq(teamMembershipTable.isSystemRole, true),
+				),
+			})
+			if (existingMembership) {
+				throw new Error(
+					"This person is already a volunteer for this competition.",
+				)
+			}
+		}
+
+		// Look up competition name for the invite email
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, data.competitionId),
+			columns: { name: true },
+		})
+		const competitionName = competition?.name ?? "a competition"
+
 		await inviteUserToTeam({
 			teamId: data.competitionTeamId,
 			email: data.email,
@@ -401,6 +474,14 @@ export const inviteVolunteerFn = createServerFn({ method: "POST" })
 			isSystemRole: true,
 			metadata: JSON.stringify(metadata),
 			skipPermissionCheck: true,
+			emailOverrideFn: async ({ email, token, inviterName }) => {
+				await sendVolunteerDirectInviteEmail({
+					email,
+					invitationToken: token,
+					competitionName,
+					inviterName,
+				})
+			},
 		})
 
 		return { success: true }

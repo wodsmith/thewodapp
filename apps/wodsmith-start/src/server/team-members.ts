@@ -37,6 +37,7 @@ export async function inviteUserToTeam({
 	isSystemRole = true,
 	metadata,
 	skipPermissionCheck = false,
+	emailOverrideFn,
 }: {
 	teamId: string
 	email: string
@@ -44,6 +45,12 @@ export async function inviteUserToTeam({
 	isSystemRole?: boolean
 	metadata?: string
 	skipPermissionCheck?: boolean
+	emailOverrideFn?: (opts: {
+		email: string
+		token: string
+		teamName: string
+		inviterName: string
+	}) => Promise<void>
 }): Promise<{
 	success: boolean
 	userJoined?: boolean
@@ -159,12 +166,21 @@ export async function inviteUserToTeam({
 			: "A team member"
 
 		// Send invitation email
-		await sendTeamInvitationEmail({
-			email,
-			invitationToken: token,
-			teamName: team.name,
-			inviterName,
-		})
+		if (emailOverrideFn) {
+			await emailOverrideFn({
+				email,
+				token,
+				teamName: team.name,
+				inviterName,
+			})
+		} else {
+			await sendTeamInvitationEmail({
+				email,
+				invitationToken: token,
+				teamName: team.name,
+				inviterName,
+			})
+		}
 
 		return {
 			success: true,
@@ -208,12 +224,21 @@ export async function inviteUserToTeam({
 		: "A team member"
 
 	// Send invitation email
-	await sendTeamInvitationEmail({
-		email,
-		invitationToken: token,
-		teamName: team.name,
-		inviterName,
-	})
+	if (emailOverrideFn) {
+		await emailOverrideFn({
+			email,
+			token,
+			teamName: team.name,
+			inviterName,
+		})
+	} else {
+		await sendTeamInvitationEmail({
+			email,
+			invitationToken: token,
+			teamName: team.name,
+			inviterName,
+		})
+	}
 
 	return {
 		success: true,
