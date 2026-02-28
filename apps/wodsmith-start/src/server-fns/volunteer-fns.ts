@@ -17,6 +17,7 @@ import {
 	SYSTEM_ROLES_ENUM,
 	teamInvitationTable,
 	teamMembershipTable,
+	teamTable,
 	trackWorkoutsTable,
 	userTable,
 	volunteerShiftAssignmentsTable,
@@ -24,8 +25,10 @@ import {
 	workouts,
 } from "@/db/schema"
 import {
+	createTeamId,
 	createTeamInvitationId,
 	createTeamMembershipId,
+	createUserId,
 } from "@/db/schemas/common"
 import { volunteerRegistrationAnswersTable } from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
@@ -39,7 +42,12 @@ import {
 	isDirectInvite,
 	isVolunteer,
 } from "@/server/volunteers"
-import { getSessionFromCookie } from "@/utils/auth"
+import {
+	canSignUp,
+	createAndStoreSession,
+	getSessionFromCookie,
+} from "@/utils/auth"
+import { hashPassword } from "@/utils/password-hasher"
 
 import { requireTeamPermission } from "@/utils/team-auth"
 
@@ -247,133 +255,256 @@ export const canInputScoresFn = createServerFn({ method: "GET" })
  * Submit public volunteer signup form
  * No authentication required - this is a public form for volunteer interest
  */
+// ============================================================================
+// Shared volunteer application helper
+// ============================================================================
+
+const volunteerApplicationSchema = z.object({
+	competitionTeamId: competitionTeamIdSchema,
+	signupName: z.string().min(1, "Name is required"),
+	signupEmail: z.string().email("Invalid email address"),
+	signupPhone: z.string().optional(),
+	availability: z
+		.enum([
+			VOLUNTEER_AVAILABILITY.MORNING,
+			VOLUNTEER_AVAILABILITY.AFTERNOON,
+			VOLUNTEER_AVAILABILITY.ALL_DAY,
+		])
+		.default(VOLUNTEER_AVAILABILITY.ALL_DAY),
+	availabilityNotes: z.string().optional(),
+	credentials: z.string().optional(),
+	answers: z
+		.array(
+			z.object({
+				questionId: z.string().min(1),
+				answer: z.string().max(5000),
+			}),
+		)
+		.optional(),
+})
+
+type VolunteerApplicationInput = z.infer<typeof volunteerApplicationSchema>
+
+/**
+ * Creates a volunteer application (team invitation) and saves any question answers.
+ * Throws if the email is already associated with a volunteer invitation or membership.
+ */
+async function createVolunteerApplication(
+	data: VolunteerApplicationInput,
+): Promise<{ membershipId: string }> {
+	const db = getDb()
+
+	// Check for duplicate email sign-up
+	const existingInvitations = await db.query.teamInvitationTable.findMany({
+		where: and(
+			eq(teamInvitationTable.teamId, data.competitionTeamId),
+			eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+			eq(teamInvitationTable.isSystemRole, true),
+		),
+	})
+
+	for (const invitation of existingInvitations) {
+		if (invitation.email.toLowerCase() === data.signupEmail.toLowerCase()) {
+			throw new Error(
+				"This email has already been used to sign up as a volunteer for this competition",
+			)
+		}
+	}
+
+	// Check for existing approved membership
+	const existingUser = await db.query.userTable.findFirst({
+		where: eq(userTable.email, data.signupEmail),
+	})
+
+	if (existingUser) {
+		const existingMembership = await db.query.teamMembershipTable.findFirst({
+			where: and(
+				eq(teamMembershipTable.teamId, data.competitionTeamId),
+				eq(teamMembershipTable.userId, existingUser.id),
+				eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+				eq(teamMembershipTable.isSystemRole, true),
+			),
+		})
+		if (existingMembership) {
+			throw new Error(
+				"An account with this email is already volunteering for this competition",
+			)
+		}
+	}
+
+	const metadata: VolunteerMembershipMetadata = {
+		volunteerRoleTypes: [],
+		credentials: data.credentials,
+		availability: data.availability,
+		status: "pending",
+		inviteSource: "application",
+		signupEmail: data.signupEmail,
+		signupName: data.signupName,
+		signupPhone: data.signupPhone,
+		availabilityNotes: data.availabilityNotes,
+	}
+
+	const oneYearFromNow = new Date()
+	oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1)
+
+	const invitationId = createTeamInvitationId()
+	await db.insert(teamInvitationTable).values({
+		id: invitationId,
+		teamId: data.competitionTeamId,
+		email: data.signupEmail,
+		roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
+		isSystemRole: true,
+		token: crypto.randomUUID(),
+		invitedBy: null,
+		expiresAt: oneYearFromNow,
+		metadata: JSON.stringify(metadata),
+	})
+
+	const invitation = await db.query.teamInvitationTable.findFirst({
+		where: eq(teamInvitationTable.id, invitationId),
+	})
+
+	if (!invitation) {
+		throw new Error("Failed to create volunteer invitation")
+	}
+
+	if (data.answers && data.answers.length > 0) {
+		for (const { questionId, answer } of data.answers) {
+			await db.insert(volunteerRegistrationAnswersTable).values({
+				questionId,
+				invitationId: invitation.id,
+				answer,
+			})
+		}
+	}
+
+	return { membershipId: invitation.id }
+}
+
 export const submitVolunteerSignupFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) =>
 		z
 			.object({
-				competitionTeamId: competitionTeamIdSchema,
-				signupName: z.string().min(1, "Name is required"),
-				signupEmail: z.string().email("Invalid email address"),
-				signupPhone: z.string().optional(),
-				availability: z
-					.enum([
-						VOLUNTEER_AVAILABILITY.MORNING,
-						VOLUNTEER_AVAILABILITY.AFTERNOON,
-						VOLUNTEER_AVAILABILITY.ALL_DAY,
-					])
-					.default(VOLUNTEER_AVAILABILITY.ALL_DAY),
-				availabilityNotes: z.string().optional(),
-				credentials: z.string().optional(),
+				...volunteerApplicationSchema.shape,
 				website: z.string().optional(), // Honeypot
-				answers: z
-					.array(
-						z.object({
-							questionId: z.string().min(1),
-							answer: z.string().max(5000),
-						}),
-					)
-					.optional(),
 			})
 			.parse(data),
 	)
 	.handler(async ({ data }) => {
-		// Honeypot check - if filled, silently succeed (bot detection)
+		if (data.website && data.website.trim() !== "") {
+			return { success: true }
+		}
+		const { membershipId } = await createVolunteerApplication(data)
+		return { success: true, membershipId }
+	})
+
+/**
+ * Creates an account and submits a volunteer application in a single server call.
+ * Used by the public volunteer signup form when the user is not logged in.
+ * Avoids a bad state from two separate client-side calls where the account
+ * could be created but the application could fail.
+ */
+export const createAccountAndApplyAsVolunteerFn = createServerFn({
+	method: "POST",
+})
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				// Account fields
+				firstName: z.string().min(1, "First name is required"),
+				lastName: z.string().min(1, "Last name is required"),
+				password: z
+					.string()
+					.min(8, "Password must be at least 8 characters")
+					.regex(/[A-Z]/, "Must contain an uppercase letter")
+					.regex(/[a-z]/, "Must contain a lowercase letter")
+					.regex(/[0-9]/, "Must contain a number"),
+				// Volunteer application fields
+				...volunteerApplicationSchema.shape,
+				website: z.string().optional(), // Honeypot
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		// Honeypot check
 		if (data.website && data.website.trim() !== "") {
 			return { success: true }
 		}
 
 		const db = getDb()
 
-		// Check for duplicate email sign-up
-		const existingInvitations = await db.query.teamInvitationTable.findMany({
-			where: and(
-				eq(teamInvitationTable.teamId, data.competitionTeamId),
-				eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
-				eq(teamInvitationTable.isSystemRole, true),
-			),
-		})
+		// Check if email is disposable or already fully claimed
+		await canSignUp({ email: data.signupEmail })
 
-		// Check for matching email (case-insensitive)
-		for (const invitation of existingInvitations) {
-			if (invitation.email.toLowerCase() === data.signupEmail.toLowerCase()) {
-				throw new Error(
-					"This email has already been used to sign up as a volunteer for this competition",
-				)
-			}
-		}
-
-		// Also check if there's already an accepted membership with this email
 		const existingUser = await db.query.userTable.findFirst({
 			where: eq(userTable.email, data.signupEmail),
 		})
 
-		if (existingUser) {
-			const existingMembership = await db.query.teamMembershipTable.findFirst({
-				where: and(
-					eq(teamMembershipTable.teamId, data.competitionTeamId),
-					eq(teamMembershipTable.userId, existingUser.id),
-					eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
-					eq(teamMembershipTable.isSystemRole, true),
-				),
-			})
+		const hashedPassword = await hashPassword({ password: data.password })
 
-			if (existingMembership) {
+		let userId: string
+
+		if (existingUser) {
+			// Fully verified account — ask them to sign in instead
+			if (existingUser.emailVerified && existingUser.passwordHash) {
 				throw new Error(
-					"An account with this email is already volunteering for this competition",
+					"An account with this email already exists. Please sign in to apply as a volunteer.",
 				)
 			}
-		}
-
-		// Create volunteer signup metadata
-		const metadata: VolunteerMembershipMetadata = {
-			volunteerRoleTypes: [],
-			credentials: data.credentials,
-			availability: data.availability,
-			status: "pending",
-			inviteSource: "application",
-			signupEmail: data.signupEmail,
-			signupName: data.signupName,
-			signupPhone: data.signupPhone,
-			availabilityNotes: data.availabilityNotes,
-		}
-
-		// Create team invitation for volunteer signup
-		const oneYearFromNow = new Date()
-		oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1)
-
-		const invitationId = createTeamInvitationId()
-		await db.insert(teamInvitationTable).values({
-			id: invitationId,
-			teamId: data.competitionTeamId,
-			email: data.signupEmail,
-			roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
-			isSystemRole: true,
-			token: crypto.randomUUID(),
-			invitedBy: null,
-			expiresAt: oneYearFromNow,
-			metadata: JSON.stringify(metadata),
-		})
-
-		const invitation = await db.query.teamInvitationTable.findFirst({
-			where: eq(teamInvitationTable.id, invitationId),
-		})
-
-		if (!invitation) {
-			throw new Error("Failed to create volunteer invitation")
-		}
-
-		// Save registration question answers if provided
-		if (data.answers && data.answers.length > 0) {
-			for (const { questionId, answer } of data.answers) {
-				await db.insert(volunteerRegistrationAnswersTable).values({
-					questionId,
-					invitationId: invitation.id,
-					answer,
+			// Placeholder or unverified — upgrade with password and auto-verify
+			userId = existingUser.id
+			await db
+				.update(userTable)
+				.set({
+					passwordHash: hashedPassword,
+					firstName: data.firstName,
+					lastName: data.lastName,
+					emailVerified: new Date(),
 				})
-			}
+				.where(eq(userTable.id, existingUser.id))
+		} else {
+			// Brand-new user
+			const newUserId = createUserId()
+			const teamId = createTeamId()
+			userId = newUserId
+
+			await db.insert(userTable).values({
+				id: newUserId,
+				email: data.signupEmail,
+				firstName: data.firstName,
+				lastName: data.lastName,
+				passwordHash: hashedPassword,
+				emailVerified: new Date(),
+			})
+
+			// Create personal team
+			await db.insert(teamTable).values({
+				id: teamId,
+				name: `${data.firstName}'s Team (personal)`,
+				slug: `${data.firstName.toLowerCase()}-${newUserId.slice(-6)}`,
+				description:
+					"Personal team for individual programming track subscriptions",
+				isPersonalTeam: true,
+				personalTeamOwnerId: newUserId,
+			})
+
+			await db.insert(teamMembershipTable).values({
+				teamId,
+				userId: newUserId,
+				roleId: "owner",
+				isSystemRole: true,
+				joinedAt: new Date(),
+				isActive: true,
+			})
 		}
 
-		return { success: true, membershipId: invitation.id }
+		// Log user in
+		await createAndStoreSession(userId, "password")
+
+		// Submit the volunteer application
+		const { membershipId } = await createVolunteerApplication(data)
+
+		return { success: true, membershipId }
 	})
 
 /**

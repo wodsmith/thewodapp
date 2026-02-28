@@ -23,8 +23,10 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
 import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
-import { signUpFn } from "@/server-fns/auth-fns"
-import { submitVolunteerSignupFn } from "@/server-fns/volunteer-fns"
+import {
+	createAccountAndApplyAsVolunteerFn,
+	submitVolunteerSignupFn,
+} from "@/server-fns/volunteer-fns"
 
 interface VolunteerSignupFormProps {
 	competition: {
@@ -54,8 +56,8 @@ export function VolunteerSignupForm({
 	const [error, setError] = useState<string | null>(null)
 	const [answers, setAnswers] = useState<Record<string, string>>({})
 
-	const signUp = useServerFn(signUpFn)
 	const submitVolunteerSignup = useServerFn(submitVolunteerSignupFn)
+	const createAccountAndApply = useServerFn(createAccountAndApplyAsVolunteerFn)
 
 	const handleAnswerChange = (questionId: string, value: string) => {
 		setAnswers((prev) => ({ ...prev, [questionId]: value }))
@@ -88,44 +90,39 @@ export function VolunteerSignupForm({
 			? currentUser.email
 			: (formData.get("email") as string)
 
-		try {
-			// If the user is not logged in, create their account first
-			if (!currentUser) {
-				const password = formData.get("password") as string
+		const sharedFields = {
+			competitionTeamId,
+			signupName,
+			signupEmail,
+			signupPhone: (formData.get("phone") as string) || undefined,
+			credentials: (formData.get("credentials") as string) || undefined,
+			availability: availabilityValue as "morning" | "afternoon" | "all_day",
+			availabilityNotes:
+				(formData.get("availabilityNotes") as string) || undefined,
+			website: (formData.get("website") as string) || undefined,
+			answers: answersArray.length > 0 ? answersArray : undefined,
+		}
 
-				// Split full name into first/last for account creation
+		try {
+			if (currentUser) {
+				// Already logged in — just submit the application
+				await submitVolunteerSignup({ data: sharedFields })
+			} else {
+				// Not logged in — create account + submit application in one server call
+				const password = formData.get("password") as string
 				const nameParts = signupName.trim().split(/\s+/)
 				const firstName = nameParts[0] || signupName
 				const lastName = nameParts.slice(1).join(" ") || ""
 
-				await signUp({
+				await createAccountAndApply({
 					data: {
 						firstName,
 						lastName,
-						email: signupEmail,
 						password,
+						...sharedFields,
 					},
 				})
 			}
-
-			await submitVolunteerSignup({
-				data: {
-					competitionTeamId,
-					signupName,
-					signupEmail,
-					signupPhone: (formData.get("phone") as string) || undefined,
-					credentials: (formData.get("credentials") as string) || undefined,
-					availability: availabilityValue as
-						| "morning"
-						| "afternoon"
-						| "all_day"
-						| undefined,
-					availabilityNotes:
-						(formData.get("availabilityNotes") as string) || undefined,
-					website: (formData.get("website") as string) || undefined,
-					answers: answersArray.length > 0 ? answersArray : undefined,
-				},
-			})
 			setSubmitted(true)
 		} catch (err) {
 			setError(
@@ -153,12 +150,6 @@ export function VolunteerSignupForm({
 							submitted. The organizers will review your application and contact
 							you with next steps.
 						</p>
-						{!currentUser && (
-							<p className="text-sm text-muted-foreground">
-								We've sent a verification email to your inbox. Please verify
-								your email to activate your account.
-							</p>
-						)}
 					</div>
 				</CardContent>
 			</Card>
