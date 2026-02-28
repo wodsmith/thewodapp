@@ -498,11 +498,12 @@ export const createAccountAndApplyAsVolunteerFn = createServerFn({
 			})
 		}
 
-		// Log user in
-		await createAndStoreSession(userId, "password")
-
-		// Submit the volunteer application
+		// Submit the volunteer application first — if this fails, no session is
+		// created and the user can safely retry without hitting "account exists"
 		const { membershipId } = await createVolunteerApplication(data)
+
+		// Log user in only after the application is successfully persisted
+		await createAndStoreSession(userId, "password")
 
 		return { success: true, membershipId }
 	})
@@ -605,6 +606,9 @@ export const inviteVolunteerFn = createServerFn({ method: "POST" })
 			isSystemRole: true,
 			metadata: JSON.stringify(metadata),
 			skipPermissionCheck: true,
+			// Always create an invitation even for existing users so they receive
+			// an email and complete the acceptance form (volunteer questions)
+			forceInvitation: true,
 			emailOverrideFn: async ({ email, token, inviterName }) => {
 				await sendVolunteerDirectInviteEmail({
 					email,

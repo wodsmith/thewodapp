@@ -1009,6 +1009,16 @@ export const submitVolunteerAnswersFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
+		// Verify the invitation exists before writing answers
+		const invitation = await db.query.teamInvitationTable.findFirst({
+			where: eq(teamInvitationTable.id, data.invitationId),
+			columns: { id: true },
+		})
+
+		if (!invitation) {
+			throw new Error("Invalid invitation")
+		}
+
 		if (data.answers.length === 0) {
 			return { success: true }
 		}

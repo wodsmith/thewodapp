@@ -37,6 +37,7 @@ export async function inviteUserToTeam({
 	isSystemRole = true,
 	metadata,
 	skipPermissionCheck = false,
+	forceInvitation = false,
 	emailOverrideFn,
 }: {
 	teamId: string
@@ -45,6 +46,12 @@ export async function inviteUserToTeam({
 	isSystemRole?: boolean
 	metadata?: string
 	skipPermissionCheck?: boolean
+	/**
+	 * When true, skip the auto-join shortcut for existing users and always
+	 * create an invitation. Use this when the invite flow requires the
+	 * invitee to accept via a form (e.g. to answer registration questions).
+	 */
+	forceInvitation?: boolean
 	emailOverrideFn?: (opts: {
 		email: string
 		token: string
@@ -102,27 +109,31 @@ export async function inviteUserToTeam({
 			throw new Error("CONFLICT: User is already a member of this team")
 		}
 
-		// User exists but is not a member, add them directly
-		await db.insert(teamMembershipTable).values({
-			teamId,
-			userId: existingUser.id,
-			roleId,
-			isSystemRole,
-			invitedBy: session.userId,
-			invitedAt: new Date(),
-			joinedAt: new Date(),
-			isActive: true,
-			metadata,
-		})
+		if (!forceInvitation) {
+			// User exists but is not a member, add them directly
+			await db.insert(teamMembershipTable).values({
+				teamId,
+				userId: existingUser.id,
+				roleId,
+				isSystemRole,
+				invitedBy: session.userId,
+				invitedAt: new Date(),
+				joinedAt: new Date(),
+				isActive: true,
+				metadata,
+			})
 
-		// Update the user's session to include this team
-		await updateAllSessionsOfUser(existingUser.id)
+			// Update the user's session to include this team
+			await updateAllSessionsOfUser(existingUser.id)
 
-		return {
-			success: true,
-			userJoined: true,
-			userId: existingUser.id,
+			return {
+				success: true,
+				userJoined: true,
+				userId: existingUser.id,
+			}
 		}
+		// forceInvitation: fall through to create an invitation so the user
+		// receives an email and completes any acceptance flow (e.g. questions form)
 	}
 
 	// User doesn't exist, create an invitation

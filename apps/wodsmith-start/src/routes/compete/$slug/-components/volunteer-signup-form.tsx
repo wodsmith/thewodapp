@@ -110,9 +110,14 @@ export function VolunteerSignupForm({
 			} else {
 				// Not logged in — create account + submit application in one server call
 				const password = formData.get("password") as string
-				const nameParts = signupName.trim().split(/\s+/)
-				const firstName = nameParts[0] || signupName
-				const lastName = nameParts.slice(1).join(" ") || ""
+				const nameParts = signupName.trim().split(/\s+/).filter(Boolean)
+				if (nameParts.length < 2) {
+					setError("Please enter both your first and last name.")
+					setIsPending(false)
+					return
+				}
+				const firstName = nameParts[0]
+				const lastName = nameParts.slice(1).join(" ")
 
 				await createAccountAndApply({
 					data: {
