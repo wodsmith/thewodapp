@@ -5,6 +5,7 @@ import { useNavigate, useRouter } from "@tanstack/react-router"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
+import { trackEvent } from "@/lib/posthog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -113,6 +114,7 @@ interface OrganizerCompetitionFormProps {
 	selectedTeamId: string
 	groups?: CompetitionGroup[]
 	competition?: Competition
+	defaultGroupId?: string
 	onSuccess?: (competitionId: string) => void
 	onCancel?: () => void
 }
@@ -122,6 +124,7 @@ export function OrganizerCompetitionForm({
 	selectedTeamId,
 	groups = [],
 	competition,
+	defaultGroupId,
 	onSuccess,
 	onCancel,
 }: OrganizerCompetitionFormProps) {
@@ -156,7 +159,7 @@ export function OrganizerCompetitionForm({
 			registrationClosesAt: competition?.registrationClosesAt
 				? formatDateForInput(competition.registrationClosesAt)
 				: "",
-			groupId: competition?.groupId ?? "",
+			groupId: competition?.groupId ?? defaultGroupId ?? "",
 			visibility: competition?.visibility ?? "public",
 			status: competition?.status ?? "draft",
 			timezone: competition?.timezone ?? DEFAULT_TIMEZONE,
@@ -229,6 +232,12 @@ export function OrganizerCompetitionForm({
 				})
 
 				if (result.competitionId) {
+					trackEvent("competition_created", {
+						competition_id: result.competitionId,
+						competition_name: data.name,
+						competition_slug: data.slug,
+						organizing_team_id: data.teamId,
+					})
 					toast.success("Competition created successfully")
 					await router.invalidate()
 					onSuccess?.(result.competitionId)
@@ -238,6 +247,12 @@ export function OrganizerCompetitionForm({
 			console.error("Failed to save competition:", error)
 			const message =
 				error instanceof Error ? error.message : "An error occurred"
+			if (!isEditMode) {
+				trackEvent("competition_created_failed", {
+					error_message: message,
+					organizing_team_id: data.teamId,
+				})
+			}
 			toast.error(
 				isEditMode
 					? `Failed to update competition: ${message}`

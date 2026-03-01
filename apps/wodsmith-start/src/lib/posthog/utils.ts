@@ -1,3 +1,4 @@
+import { sentryCaptureException } from "../sentry/client"
 import { getPostHog, isPostHogInitialized } from "./client"
 
 /**
@@ -94,4 +95,26 @@ export function registerSuperProperties(
 ): void {
 	if (typeof window === "undefined" || !isPostHogInitialized()) return
 	getPostHog().register(properties)
+}
+
+/**
+ * Capture an exception in PostHog.
+ * Safe to call on server (no-ops) - only executes on client.
+ *
+ * Use this for errors caught by custom error boundaries that PostHog's
+ * automatic `capture_exceptions` can't see (e.g., TanStack Router error boundaries).
+ *
+ * @example
+ * ```typescript
+ * captureException(error, { source: 'tanstack-router-error-boundary' })
+ * ```
+ */
+export function captureException(
+	error: unknown,
+	additionalProperties?: Record<string, unknown>,
+): void {
+	if (typeof window !== "undefined" && isPostHogInitialized()) {
+		getPostHog().captureException(error, additionalProperties)
+	}
+	sentryCaptureException(error, additionalProperties)
 }

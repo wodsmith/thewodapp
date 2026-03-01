@@ -16,7 +16,7 @@ export async function getUserPersonalTeamId(userId: string): Promise<string> {
 
 	const personalTeam = await db.query.teamTable.findFirst({
 		where: and(
-			eq(teamTable.isPersonalTeam, 1),
+			eq(teamTable.isPersonalTeam, true),
 			eq(teamTable.personalTeamOwnerId, userId),
 		),
 	})
@@ -46,33 +46,28 @@ export async function createPersonalTeamForUser(user: {
 		user.firstName?.toLowerCase() || "personal"
 	}-${user.id.slice(-6)}`
 
-	const personalTeamResult = await db
-		.insert(teamTable)
-		.values({
-			name: personalTeamName,
-			slug: personalTeamSlug,
-			description:
-				"Personal team for individual programming track subscriptions",
-			isPersonalTeam: 1,
-			personalTeamOwnerId: user.id,
-		})
-		.returning()
+	// Generate team ID for use in membership insert
+	const { createTeamId } = await import("@/db/schemas/common")
+	const teamId = createTeamId()
 
-	const personalTeam = personalTeamResult[0]
-
-	if (!personalTeam) {
-		throw new Error("Failed to create personal team")
-	}
+	await db.insert(teamTable).values({
+		id: teamId,
+		name: personalTeamName,
+		slug: personalTeamSlug,
+		description: "Personal team for individual programming track subscriptions",
+		isPersonalTeam: true,
+		personalTeamOwnerId: user.id,
+	})
 
 	// Add the user as a member of their personal team
 	await db.insert(teamMembershipTable).values({
-		teamId: personalTeam.id,
+		teamId,
 		userId: user.id,
 		roleId: "owner",
-		isSystemRole: 1,
+		isSystemRole: true,
 		joinedAt: new Date(),
-		isActive: 1,
+		isActive: true,
 	})
 
-	return { teamId: personalTeam.id }
+	return { teamId }
 }

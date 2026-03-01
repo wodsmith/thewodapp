@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { ClipboardList, Settings, Trophy } from "lucide-react"
+import { ClipboardList, Play, Settings, Trophy } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -77,6 +77,12 @@ function AdminDashboardPage() {
 								<a href="/admin/organizer-requests">
 									<ClipboardList className="mr-2 h-4 w-4" />
 									Organizer Requests
+								</a>
+							</Button>
+							<Button asChild variant="outline">
+								<a href="/admin/demo-competitions">
+									<Play className="mr-2 h-4 w-4" />
+									Demo Competitions
 								</a>
 							</Button>
 						</div>

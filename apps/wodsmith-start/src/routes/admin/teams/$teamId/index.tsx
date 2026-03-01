@@ -53,7 +53,7 @@ function AdminTeamOverviewPage() {
 	const { team } = parentRoute.useLoaderData()
 
 	const activeMemberships = team.memberships.filter(
-		(m: { isActive: number }) => m.isActive === 1,
+		(m: { isActive: boolean }) => m.isActive,
 	)
 
 	return (
@@ -251,7 +251,7 @@ function AdminTeamOverviewPage() {
 									(membership: {
 										id: string
 										roleId: string
-										isSystemRole: number
+										isSystemRole: boolean
 										joinedAt: Date | null
 										user: {
 											id: string

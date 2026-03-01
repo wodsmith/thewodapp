@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { Plus } from "lucide-react"
+import { CreditCard, Plus } from "lucide-react"
 import { OrganizerCompetitionsList } from "@/components/organizer-competitions-list"
 import { TeamFilter } from "@/components/team-filter"
 import { Button } from "@/components/ui/button"
@@ -78,6 +78,10 @@ function OrganizerDashboard() {
 	const { competitions, groups, organizingTeams, activeTeamId } =
 		Route.useLoaderData()
 
+	// Get the active team's slug for the payout settings link
+	const activeTeam = organizingTeams.find((t) => t.id === activeTeamId)
+	const activeTeamSlug = activeTeam?.slug
+
 	if (!activeTeamId) {
 		return (
 			<div className="container mx-auto px-4 py-8">
@@ -103,6 +107,17 @@ function OrganizerDashboard() {
 						</p>
 					</div>
 					<div className="flex flex-col sm:flex-row gap-2">
+						{activeTeamSlug && (
+							<Button variant="outline" className="w-full sm:w-auto" asChild>
+								<Link
+									to="/compete/organizer/settings/payouts/$teamSlug"
+									params={{ teamSlug: activeTeamSlug }}
+								>
+									<CreditCard className="h-4 w-4 mr-2" />
+									Payout Settings
+								</Link>
+							</Button>
+						)}
 						<Button variant="outline" className="w-full sm:w-auto" asChild>
 							<Link to="/compete/organizer/series">Manage Series</Link>
 						</Button>

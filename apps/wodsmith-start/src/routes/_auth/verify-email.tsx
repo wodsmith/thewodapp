@@ -60,9 +60,12 @@ function VerifyEmailPage() {
 
 				setStatus("success")
 
-				// Redirect to dashboard after a short delay
+				// Redirect to sign-in after a short delay
 				setTimeout(() => {
-					router.navigate({ to: REDIRECT_AFTER_SIGN_IN })
+					router.navigate({
+						to: "/sign-in",
+						search: { redirect: REDIRECT_AFTER_SIGN_IN },
+					})
 				}, 2000)
 			} catch (err) {
 				setStatus("error")
@@ -100,14 +103,18 @@ function VerifyEmailPage() {
 					<CardHeader className="text-center">
 						<CardTitle>Email Verified!</CardTitle>
 						<CardDescription>
-							Your email has been verified successfully. Redirecting to
-							dashboard...
+							Your email has been verified successfully. Redirecting to sign
+							in...
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<Link to={REDIRECT_AFTER_SIGN_IN} className="w-full block">
+						<Link
+							to="/sign-in"
+							search={{ redirect: REDIRECT_AFTER_SIGN_IN }}
+							className="w-full block"
+						>
 							<Button variant="outline" className="w-full">
-								Go to Dashboard
+								Go to Sign In
 							</Button>
 						</Link>
 					</CardContent>

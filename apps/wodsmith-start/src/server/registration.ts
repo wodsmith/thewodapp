@@ -9,11 +9,12 @@
  */
 
 import { createId } from "@paralleldrive/cuid2"
-import { and, eq, sql } from "drizzle-orm"
+import { and, count, eq, inArray, ne, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	competitionRegistrationsTable,
 	competitionsTable,
+	REGISTRATION_STATUS,
 	SYSTEM_ROLES_ENUM,
 	scalingLevelsTable,
 	TEAM_TYPE_ENUM,
@@ -21,7 +22,15 @@ import {
 	teamMembershipTable,
 	teamTable,
 	userTable,
+	waiversTable,
+	waiverSignaturesTable,
 } from "@/db/schema"
+import {
+	createTeamId,
+	createTeamMembershipId,
+	createCompetitionRegistrationId,
+} from "@/db/schemas/common"
+import { getSiteUrl } from "@/lib/env"
 import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 import { RegistrationConfirmationEmail } from "@/react-email/registration-confirmation"
 import { parseCompetitionSettings } from "@/server-fns/competition-divisions-fns"
@@ -29,9 +38,9 @@ import { sendCompetitionTeamInviteEmail, sendEmail } from "@/utils/email"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { generateSlug } from "@/utils/slugify"
 import {
+	DEFAULT_TIMEZONE,
 	hasDateStartedInTimezone,
 	isDeadlinePassedInTimezone,
-	DEFAULT_TIMEZONE,
 } from "@/utils/timezone-utils"
 
 // ============================================================================
@@ -197,11 +206,11 @@ async function inviteUserToTeamInternal({
 			teamId,
 			userId: existingUser.id,
 			roleId,
-			isSystemRole: isSystemRole ? 1 : 0,
+			isSystemRole,
 			invitedBy,
 			invitedAt: new Date(),
 			joinedAt: new Date(),
-			isActive: 1,
+			isActive: true,
 		})
 
 		// Also add to competition_event team if this is a competition team
@@ -224,9 +233,9 @@ async function inviteUserToTeamInternal({
 						teamId: competition.competitionTeamId,
 						userId: existingUser.id,
 						roleId: SYSTEM_ROLES_ENUM.MEMBER,
-						isSystemRole: 1,
+						isSystemRole: true,
 						joinedAt: new Date(),
-						isActive: 1,
+						isActive: true,
 					})
 				}
 			}
@@ -245,7 +254,7 @@ async function inviteUserToTeamInternal({
 		teamId,
 		email: email.toLowerCase(),
 		roleId,
-		isSystemRole: isSystemRole ? 1 : 0,
+		isSystemRole,
 		token,
 		invitedBy,
 		expiresAt,
@@ -299,6 +308,8 @@ interface RegisterForCompetitionParams {
 		lastName?: string
 		affiliateName?: string
 	}>
+	/** When true, skip registration window checks (for organizer manual registrations) */
+	isOrganizerOverride?: boolean
 }
 
 interface RegisterForCompetitionResult {
@@ -313,6 +324,33 @@ interface NotifyRegistrationConfirmedParams {
 	competitionId: string
 	isPaid: boolean
 	amountPaidCents?: number
+	/** Number of pending waivers (queried from DB if not provided) */
+	pendingWaiverCount?: number
+	/** Whether the user is a placeholder (created by manual registration) */
+	isPlaceholderUser?: boolean
+	/** Claim token for placeholder users to verify email ownership */
+	claimToken?: string
+	/** Pre-fetched entities to avoid redundant DB queries (used by workflow) */
+	prefetched?: {
+		user?: {
+			id: string
+			email: string | null
+			firstName: string | null
+		}
+		competition?: {
+			id: string
+			name: string
+			slug: string
+			startDate: string | Date | null
+		}
+		registration?: {
+			id: string
+			divisionId: string | null
+			teamName: string | null
+			pendingTeammates: string | null
+		}
+		divisionName?: string
+	}
 }
 
 // ============================================================================
@@ -358,22 +396,25 @@ export async function registerForCompetition(
 	}
 
 	// 2. Check registration window (using competition's timezone)
-	const competitionTimezone = competition.timezone || DEFAULT_TIMEZONE
-	if (
-		!hasDateStartedInTimezone(
-			competition.registrationOpensAt,
-			competitionTimezone,
-		)
-	) {
-		throw new Error("Registration has not opened yet")
-	}
-	if (
-		isDeadlinePassedInTimezone(
-			competition.registrationClosesAt,
-			competitionTimezone,
-		)
-	) {
-		throw new Error("Registration has closed")
+	// Organizer overrides bypass registration window checks
+	if (!params.isOrganizerOverride) {
+		const competitionTimezone = competition.timezone || DEFAULT_TIMEZONE
+		if (
+			!hasDateStartedInTimezone(
+				competition.registrationOpensAt,
+				competitionTimezone,
+			)
+		) {
+			throw new Error("Registration has not opened yet")
+		}
+		if (
+			isDeadlinePassedInTimezone(
+				competition.registrationClosesAt,
+				competitionTimezone,
+			)
+		) {
+			throw new Error("Registration has closed")
+		}
 	}
 
 	// 3. Get the user to validate profile completeness
@@ -439,194 +480,163 @@ export async function registerForCompetition(
 		}
 	}
 
-	// 8. Check for duplicate registration (as captain)
+	// 8. Check for duplicate registration in the SAME division (as captain)
+	// Users CAN register for multiple divisions in the same competition
+	// Exclude removed registrations so athletes can re-register after removal
 	const existingRegistration =
 		await db.query.competitionRegistrationsTable.findFirst({
 			where: and(
 				eq(competitionRegistrationsTable.eventId, params.competitionId),
 				eq(competitionRegistrationsTable.userId, params.userId),
+				eq(competitionRegistrationsTable.divisionId, params.divisionId),
+				ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 			),
 		})
 
 	if (existingRegistration) {
-		throw new Error("You are already registered for this competition")
+		throw new Error(
+			"You are already registered for this division in this competition",
+		)
 	}
 
-	// 8b. Check if user is already on another team for this competition (as teammate)
-	const competitionTeams = await db.query.teamTable.findMany({
-		where: eq(teamTable.type, TEAM_TYPE_ENUM.COMPETITION_TEAM),
-	})
+	// 8b. Check if user is already on another team for this DIVISION (as teammate)
+	// Users can be on different teams in different divisions
+	const existingTeamMembership = await db
+		.select({ teamId: teamMembershipTable.teamId })
+		.from(teamMembershipTable)
+		.innerJoin(teamTable, eq(teamMembershipTable.teamId, teamTable.id))
+		.where(
+			and(
+				eq(teamMembershipTable.userId, params.userId),
+				eq(teamMembershipTable.isActive, true),
+				eq(teamTable.type, TEAM_TYPE_ENUM.COMPETITION_TEAM),
+				sql`JSON_EXTRACT(${teamTable.competitionMetadata}, '$.competitionId') = ${params.competitionId}`,
+				sql`JSON_EXTRACT(${teamTable.competitionMetadata}, '$.divisionId') = ${params.divisionId}`,
+			),
+		)
+		.limit(1)
 
-	for (const team of competitionTeams) {
-		if (!team.competitionMetadata) continue
+	if (existingTeamMembership.length > 0) {
+		throw new Error("You are already on a team for this division")
+	}
 
-		try {
-			const metadata = JSON.parse(team.competitionMetadata) as {
-				competitionId?: string
-			}
-			if (metadata.competitionId !== params.competitionId) continue
-
-			// Check if user is a member of this team
-			const membership = await db.query.teamMembershipTable.findFirst({
-				where: and(
-					eq(teamMembershipTable.teamId, team.id),
-					eq(teamMembershipTable.userId, params.userId),
-					eq(teamMembershipTable.isActive, 1),
+	// 8c. Check if user's email is in pendingTeammates of another registration in the SAME division
+	if (user.email) {
+		const pendingMatch = await db
+			.select({ id: competitionRegistrationsTable.id })
+			.from(competitionRegistrationsTable)
+			.where(
+				and(
+					eq(competitionRegistrationsTable.eventId, params.competitionId),
+					eq(competitionRegistrationsTable.divisionId, params.divisionId),
+					sql`JSON_CONTAINS(${competitionRegistrationsTable.pendingTeammates}, JSON_OBJECT('email', ${user.email.toLowerCase()}))`,
 				),
-			})
-
-			if (membership) {
-				throw new Error("You are already on a team for this competition")
-			}
-		} catch (e) {
-			// Re-throw our custom errors, ignore JSON parse errors
-			if (e instanceof Error && e.message.includes("already on a team")) {
-				throw e
-			}
-		}
-	}
-
-	// 8c. Check if user's email is in pendingTeammates of another registration
-	const allRegistrations =
-		await db.query.competitionRegistrationsTable.findMany({
-			where: eq(competitionRegistrationsTable.eventId, params.competitionId),
-		})
-
-	for (const reg of allRegistrations) {
-		if (!reg.pendingTeammates) continue
-
-		try {
-			const pending = JSON.parse(reg.pendingTeammates) as Array<{
-				email: string
-			}>
-			const isPending = pending.some(
-				(p) => p.email.toLowerCase() === user.email?.toLowerCase(),
 			)
+			.limit(1)
 
-			if (isPending) {
-				throw new Error(
-					"You have already been invited to another team for this competition",
-				)
-			}
-		} catch (e) {
-			// Re-throw our custom errors, ignore JSON parse errors
-			if (
-				e instanceof Error &&
-				(e.message.includes("already been invited") ||
-					e.message.includes("already on a team"))
-			) {
-				throw e
-			}
+		if (pendingMatch.length > 0) {
+			throw new Error(
+				"You have already been invited to another team for this division",
+			)
 		}
 	}
 
 	// 9. For team registrations, check teammates not already registered or on another team
 	if (isTeamDivision && params.teammates) {
-		for (const teammate of params.teammates) {
-			const teammateEmail = teammate.email.toLowerCase()
+		const teammateEmails = params.teammates.map((t) => t.email.toLowerCase())
 
-			// Check if teammate email is the same as the registering user's email
-			if (user.email && teammateEmail === user.email.toLowerCase()) {
+		// Check if any teammate email is the same as the registering user's email
+		for (const teammate of params.teammates) {
+			if (
+				user.email &&
+				teammate.email.toLowerCase() === user.email.toLowerCase()
+			) {
 				throw new Error(
 					`${teammate.email} is your own email. Please enter a different teammate's email.`,
 				)
 			}
+		}
 
-			// Check if email is already in use by a registered user for this competition
-			const teammateUser = await db.query.userTable.findFirst({
-				where: eq(userTable.email, teammateEmail),
-			})
+		// Batch lookup: find all existing users matching teammate emails
+		const teammateUsers = await db
+			.select({ id: userTable.id, email: userTable.email })
+			.from(userTable)
+			.where(inArray(userTable.email, teammateEmails))
 
-			if (teammateUser) {
-				// Check if they're registered as a captain
-				const teammateReg =
-					await db.query.competitionRegistrationsTable.findFirst({
-						where: and(
-							eq(competitionRegistrationsTable.eventId, params.competitionId),
-							eq(competitionRegistrationsTable.userId, teammateUser.id),
-						),
-					})
+		if (teammateUsers.length > 0) {
+			const teammateUserIds = teammateUsers.map((u) => u.id)
+			const emailByUserId = new Map(teammateUsers.map((u) => [u.id, u.email]))
 
-				if (teammateReg) {
-					throw new Error(
-						`${teammate.email} is already on a team for this competition`,
-					)
-				}
-
-				// Check if they're already a member of any competition_team for this competition
-				// Get all competition_teams for this competition
-				const competitionTeams = await db.query.teamTable.findMany({
-					where: eq(teamTable.type, TEAM_TYPE_ENUM.COMPETITION_TEAM),
+			// Batch check: are any of these users already registered as captains in this DIVISION?
+			const existingRegs = await db
+				.select({
+					userId: competitionRegistrationsTable.userId,
 				})
+				.from(competitionRegistrationsTable)
+				.where(
+					and(
+						eq(competitionRegistrationsTable.eventId, params.competitionId),
+						eq(competitionRegistrationsTable.divisionId, params.divisionId),
+						inArray(competitionRegistrationsTable.userId, teammateUserIds),
+						ne(
+							competitionRegistrationsTable.status,
+							REGISTRATION_STATUS.REMOVED,
+						),
+					),
+				)
 
-				// Filter to teams for this competition and check membership
-				for (const team of competitionTeams) {
-					if (!team.competitionMetadata) continue
-
-					try {
-						const metadata = JSON.parse(team.competitionMetadata) as {
-							competitionId?: string
-						}
-						if (metadata.competitionId !== params.competitionId) continue
-
-						// Check if user is a member of this team
-						const membership = await db.query.teamMembershipTable.findFirst({
-							where: and(
-								eq(teamMembershipTable.teamId, team.id),
-								eq(teamMembershipTable.userId, teammateUser.id),
-								eq(teamMembershipTable.isActive, 1),
-							),
-						})
-
-						if (membership) {
-							throw new Error(
-								`${teammate.email} is already on a team for this competition`,
-							)
-						}
-					} catch (e) {
-						// Re-throw our custom errors, ignore JSON parse errors
-						if (e instanceof Error && e.message.includes("already on a team")) {
-							throw e
-						}
-					}
-				}
+			if (existingRegs.length > 0) {
+				const regEmail = emailByUserId.get(existingRegs[0].userId)
+				throw new Error(`${regEmail} is already registered for this division`)
 			}
 
-			// Check if email is already in pendingTeammates of another registration
-			const allRegistrations =
-				await db.query.competitionRegistrationsTable.findMany({
-					where: eq(
-						competitionRegistrationsTable.eventId,
-						params.competitionId,
-					),
+			// Batch check: are any of these users on a competition_team for this DIVISION?
+			const existingCompTeamMemberships = await db
+				.select({
+					userId: teamMembershipTable.userId,
 				})
+				.from(teamMembershipTable)
+				.innerJoin(teamTable, eq(teamMembershipTable.teamId, teamTable.id))
+				.where(
+					and(
+						inArray(teamMembershipTable.userId, teammateUserIds),
+						eq(teamMembershipTable.isActive, true),
+						eq(teamTable.type, TEAM_TYPE_ENUM.COMPETITION_TEAM),
+						sql`JSON_EXTRACT(${teamTable.competitionMetadata}, '$.competitionId') = ${params.competitionId}`,
+						sql`JSON_EXTRACT(${teamTable.competitionMetadata}, '$.divisionId') = ${params.divisionId}`,
+					),
+				)
+				.limit(1)
 
-			for (const reg of allRegistrations) {
-				if (!reg.pendingTeammates) continue
+			if (existingCompTeamMemberships.length > 0) {
+				const memberEmail = emailByUserId.get(
+					existingCompTeamMemberships[0].userId,
+				)
+				throw new Error(`${memberEmail} is already on a team for this division`)
+			}
+		}
 
-				try {
-					const pending = JSON.parse(reg.pendingTeammates) as Array<{
-						email: string
-					}>
-					const isPending = pending.some(
-						(p) => p.email.toLowerCase() === teammateEmail,
-					)
+		// Batch check: are any teammate emails in pendingTeammates of another registration in this DIVISION?
+		for (const teammateEmail of teammateEmails) {
+			const pendingMatch = await db
+				.select({ id: competitionRegistrationsTable.id })
+				.from(competitionRegistrationsTable)
+				.where(
+					and(
+						eq(competitionRegistrationsTable.eventId, params.competitionId),
+						eq(competitionRegistrationsTable.divisionId, params.divisionId),
+						sql`JSON_CONTAINS(${competitionRegistrationsTable.pendingTeammates}, JSON_OBJECT('email', ${teammateEmail}))`,
+					),
+				)
+				.limit(1)
 
-					if (isPending) {
-						throw new Error(
-							`${teammate.email} has already been invited to another team for this competition`,
-						)
-					}
-				} catch (e) {
-					// Re-throw our custom errors, ignore JSON parse errors
-					if (
-						e instanceof Error &&
-						(e.message.includes("already been invited") ||
-							e.message.includes("already on a team"))
-					) {
-						throw e
-					}
-				}
+			if (pendingMatch.length > 0) {
+				const originalEmail = params.teammates.find(
+					(t) => t.email.toLowerCase() === teammateEmail,
+				)?.email
+				throw new Error(
+					`${originalEmail} has already been invited to another team for this division`,
+				)
 			}
 		}
 	}
@@ -659,60 +669,53 @@ export async function registerForCompetition(
 
 		// Create competition_team for athlete squad
 		const teamName = params.teamName ?? "Unknown Team"
-		const newAthleteTeam = await db
-			.insert(teamTable)
-			.values({
-				name: teamName,
-				slug: teamSlug,
-				type: TEAM_TYPE_ENUM.COMPETITION_TEAM,
-				parentOrganizationId: competition.competitionTeamId, // Parent is the event team
-				description: `Team ${params.teamName} competing in ${competition.name}`,
-				creditBalance: 0,
-				competitionMetadata: JSON.stringify({
-					competitionId: params.competitionId,
-					divisionId: params.divisionId,
-				}),
-			})
-			.returning()
+		const athleteTeamIdGenerated = createTeamId()
+		await db.insert(teamTable).values({
+			id: athleteTeamIdGenerated,
+			name: teamName,
+			slug: teamSlug,
+			type: TEAM_TYPE_ENUM.COMPETITION_TEAM,
+			parentOrganizationId: competition.competitionTeamId, // Parent is the event team
+			description: `Team ${params.teamName} competing in ${competition.name}`,
+			creditBalance: 0,
+			competitionMetadata: JSON.stringify({
+				competitionId: params.competitionId,
+				divisionId: params.divisionId,
+			}),
+		})
 
-		const athleteTeam = Array.isArray(newAthleteTeam)
-			? newAthleteTeam[0]
-			: undefined
-		if (!athleteTeam) {
-			throw new Error("Failed to create athlete team")
-		}
-
-		athleteTeamId = athleteTeam.id
+		athleteTeamId = athleteTeamIdGenerated
 
 		// Add captain to athlete team with CAPTAIN role
 		await db.insert(teamMembershipTable).values({
 			teamId: athleteTeamId,
 			userId: params.userId,
 			roleId: SYSTEM_ROLES_ENUM.CAPTAIN,
-			isSystemRole: 1,
+			isSystemRole: true,
 			joinedAt: new Date(),
-			isActive: 1,
+			isActive: true,
 		})
 	}
 
-	// 11. Create team_membership in competition_event team
-	const teamMembershipResult = await db
-		.insert(teamMembershipTable)
-		.values({
+	// 11. Create team_membership in competition_event team (if not already a member from another division)
+	const existingEventMembership = await db.query.teamMembershipTable.findFirst({
+		where: and(
+			eq(teamMembershipTable.teamId, competition.competitionTeamId),
+			eq(teamMembershipTable.userId, params.userId),
+		),
+	})
+
+	const teamMemberId = existingEventMembership?.id ?? createTeamMembershipId()
+	if (!existingEventMembership) {
+		await db.insert(teamMembershipTable).values({
+			id: teamMemberId,
 			teamId: competition.competitionTeamId,
 			userId: params.userId,
 			roleId: SYSTEM_ROLES_ENUM.MEMBER,
-			isSystemRole: 1,
+			isSystemRole: true,
 			joinedAt: new Date(),
-			isActive: 1,
+			isActive: true,
 		})
-		.returning()
-
-	const teamMember = Array.isArray(teamMembershipResult)
-		? teamMembershipResult[0]
-		: undefined
-	if (!teamMember) {
-		throw new Error("Failed to create team membership")
 	}
 
 	// 12. Store pending teammates as JSON for team registrations
@@ -734,27 +737,25 @@ export async function registerForCompetition(
 		: null
 
 	// 14. Create competition_registration record
-	const registrationResult = await db
-		.insert(competitionRegistrationsTable)
-		.values({
-			id: `creg_${createId()}`,
-			eventId: params.competitionId,
-			userId: params.userId,
-			teamMemberId: teamMember.id,
-			divisionId: params.divisionId,
-			registeredAt: new Date(),
-			// Team fields
-			teamName: isTeamDivision ? params.teamName : null,
-			captainUserId: params.userId,
-			athleteTeamId,
-			pendingTeammates: pendingTeammatesJson,
-			metadata: metadataJson,
-		})
-		.returning()
+	const registrationId = createCompetitionRegistrationId()
+	await db.insert(competitionRegistrationsTable).values({
+		id: registrationId,
+		eventId: params.competitionId,
+		userId: params.userId,
+		teamMemberId: teamMemberId,
+		divisionId: params.divisionId,
+		registeredAt: new Date(),
+		// Team fields
+		teamName: isTeamDivision ? params.teamName : null,
+		captainUserId: params.userId,
+		athleteTeamId,
+		pendingTeammates: pendingTeammatesJson,
+		metadata: metadataJson,
+	})
 
-	const registration = Array.isArray(registrationResult)
-		? registrationResult[0]
-		: undefined
+	const registration = await db.query.competitionRegistrationsTable.findFirst({
+		where: eq(competitionRegistrationsTable.id, registrationId),
+	})
 	if (!registration) {
 		throw new Error("Failed to create registration")
 	}
@@ -796,7 +797,7 @@ export async function registerForCompetition(
 
 	return {
 		registrationId: registration.id,
-		teamMemberId: teamMember.id,
+		teamMemberId,
 		athleteTeamId,
 	}
 }
@@ -806,107 +807,167 @@ export async function registerForCompetition(
 // ============================================================================
 
 /**
- * Send registration confirmation email
- * Called after both free and paid registration completes
+ * Send registration confirmation email (throws on error).
+ * Used by workflow steps so errors propagate and trigger retries.
+ */
+export async function sendRegistrationConfirmationEmail(
+	params: NotifyRegistrationConfirmedParams,
+): Promise<void> {
+	const {
+		userId,
+		registrationId,
+		competitionId,
+		isPaid,
+		amountPaidCents,
+		pendingWaiverCount: pendingWaiverCountParam,
+		isPlaceholderUser,
+		claimToken,
+		prefetched,
+	} = params
+
+	const db = getDb()
+
+	// Use prefetched user or fetch from DB
+	const user =
+		prefetched?.user ??
+		(await db.query.userTable.findFirst({
+			where: eq(userTable.id, userId),
+		}))
+
+	if (!user?.email) {
+		throw new Error(
+			`Cannot send registration confirmation - no email for user ${userId}`,
+		)
+	}
+
+	// Use prefetched competition or fetch from DB
+	const competition =
+		prefetched?.competition ??
+		(await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, competitionId),
+		}))
+
+	if (!competition) {
+		throw new Error(
+			`Cannot send registration confirmation - competition ${competitionId} not found`,
+		)
+	}
+
+	// Use prefetched registration or fetch from DB
+	const registration =
+		prefetched?.registration ??
+		(await db.query.competitionRegistrationsTable.findFirst({
+			where: eq(competitionRegistrationsTable.id, registrationId),
+		}))
+
+	if (!registration) {
+		throw new Error(
+			`Cannot send registration confirmation - registration ${registrationId} not found`,
+		)
+	}
+
+	// Use prefetched division name or fetch from DB
+	let divisionName = prefetched?.divisionName ?? "Open"
+	if (!prefetched?.divisionName && registration.divisionId) {
+		const division = await db.query.scalingLevelsTable.findFirst({
+			where: eq(scalingLevelsTable.id, registration.divisionId),
+		})
+		if (division) {
+			divisionName = division.label
+		}
+	}
+
+	// Count pending teammates
+	const pendingTeammateCount = parsePendingTeammateCount(
+		registration.pendingTeammates,
+	)
+
+	// Query pending waiver count if not provided
+	let pendingWaiverCount = pendingWaiverCountParam
+	if (pendingWaiverCount === undefined) {
+		// Count required waivers for this competition that the user hasn't signed
+		const totalWaivers = await db
+			.select({ count: count() })
+			.from(waiversTable)
+			.where(
+				and(
+					eq(waiversTable.competitionId, competitionId),
+					eq(waiversTable.required, true),
+				),
+			)
+
+		const signedWaivers = await db
+			.select({ count: count() })
+			.from(waiverSignaturesTable)
+			.innerJoin(
+				waiversTable,
+				eq(waiverSignaturesTable.waiverId, waiversTable.id),
+			)
+			.where(
+				and(
+					eq(waiversTable.competitionId, competitionId),
+					eq(waiversTable.required, true),
+					eq(waiverSignaturesTable.userId, userId),
+				),
+			)
+
+		const totalCount = Number(totalWaivers[0]?.count ?? 0)
+		const signedCount = Number(signedWaivers[0]?.count ?? 0)
+		pendingWaiverCount = Math.max(0, totalCount - signedCount)
+	}
+
+	const athleteName = getAthleteName(user)
+
+	// Build claim URL for placeholder users
+	const claimUrl =
+		isPlaceholderUser && claimToken
+			? `${getSiteUrl()}/sign-up?claim=${claimToken}`
+			: undefined
+
+	await sendEmail({
+		to: user.email,
+		subject: `Registration Confirmed: ${competition.name}`,
+		template: RegistrationConfirmationEmail({
+			athleteName,
+			competitionName: competition.name,
+			competitionSlug: competition.slug,
+			registrationId: registration.id,
+			competitionDate: formatDate(competition.startDate),
+			divisionName,
+			teamName: registration.teamName ?? undefined,
+			pendingTeammateCount:
+				pendingTeammateCount > 0 ? pendingTeammateCount : undefined,
+			isPaid,
+			amountPaidFormatted: amountPaidCents
+				? formatCents(amountPaidCents)
+				: undefined,
+			pendingWaiverCount:
+				pendingWaiverCount > 0 ? pendingWaiverCount : undefined,
+			isPlaceholderUser,
+			email: user.email,
+			claimUrl,
+		}),
+		tags: [{ name: "type", value: "compete-registration-confirmed" }],
+	})
+}
+
+/**
+ * Send registration confirmation email (backwards-compatible wrapper).
+ * Catches errors and logs them. Used by existing callers (free registration, stripe workflow).
  */
 export async function notifyRegistrationConfirmed(
 	params: NotifyRegistrationConfirmedParams,
 ): Promise<void> {
-	const { userId, registrationId, competitionId, isPaid, amountPaidCents } =
-		params
+	const { userId, registrationId, competitionId } = params
 
 	try {
-		const db = getDb()
-
-		// Fetch user
-		const user = await db.query.userTable.findFirst({
-			where: eq(userTable.id, userId),
-		})
-
-		if (!user?.email) {
-			logError({
-				message: "[Email] Cannot send registration confirmation - no email",
-				attributes: { userId, registrationId },
-			})
-			return
-		}
-
-		// Fetch competition
-		const competition = await db.query.competitionsTable.findFirst({
-			where: eq(competitionsTable.id, competitionId),
-		})
-
-		if (!competition) {
-			logError({
-				message:
-					"[Email] Cannot send registration confirmation - no competition",
-				attributes: { competitionId, registrationId },
-			})
-			return
-		}
-
-		// Fetch registration with division
-		const registration = await db.query.competitionRegistrationsTable.findFirst(
-			{
-				where: eq(competitionRegistrationsTable.id, registrationId),
-			},
-		)
-
-		if (!registration) {
-			logError({
-				message:
-					"[Email] Cannot send registration confirmation - no registration",
-				attributes: { registrationId },
-			})
-			return
-		}
-
-		// Fetch division if exists
-		let divisionName = "Open"
-		if (registration.divisionId) {
-			const division = await db.query.scalingLevelsTable.findFirst({
-				where: eq(scalingLevelsTable.id, registration.divisionId),
-			})
-			if (division) {
-				divisionName = division.label
-			}
-		}
-
-		// Count pending teammates
-		const pendingTeammateCount = parsePendingTeammateCount(
-			registration.pendingTeammates,
-		)
-
-		const athleteName = getAthleteName(user)
-
-		await sendEmail({
-			to: user.email,
-			subject: `Registration Confirmed: ${competition.name}`,
-			template: RegistrationConfirmationEmail({
-				athleteName,
-				competitionName: competition.name,
-				competitionSlug: competition.slug,
-				registrationId: registration.id,
-				competitionDate: formatDate(competition.startDate),
-				divisionName,
-				teamName: registration.teamName ?? undefined,
-				pendingTeammateCount:
-					pendingTeammateCount > 0 ? pendingTeammateCount : undefined,
-				isPaid,
-				amountPaidFormatted: amountPaidCents
-					? formatCents(amountPaidCents)
-					: undefined,
-			}),
-			tags: [{ name: "type", value: "compete-registration-confirmed" }],
-		})
-
+		await sendRegistrationConfirmationEmail(params)
 		logInfo({
 			message: "[Email] Sent registration confirmation",
 			attributes: {
 				userId,
 				registrationId,
 				competitionId,
-				competitionName: competition.name,
 			},
 		})
 	} catch (err) {
@@ -958,9 +1019,9 @@ export async function addToCompetitionEventTeam(
 		teamId: competition.competitionTeamId,
 		userId,
 		roleId: SYSTEM_ROLES_ENUM.MEMBER,
-		isSystemRole: 1,
+		isSystemRole: true,
 		joinedAt: new Date(),
-		isActive: 1,
+		isActive: true,
 	})
 
 	// Update user sessions to include the new team

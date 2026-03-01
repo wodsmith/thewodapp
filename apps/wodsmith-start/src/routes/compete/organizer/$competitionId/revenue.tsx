@@ -3,22 +3,15 @@ import {
 	getCompetitionRevenueStatsFn,
 	getOrganizerStripeStatusFn,
 } from "@/server-fns/commerce-fns"
-import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { RevenueStatsDisplay } from "./-components/revenue-stats-display"
 
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/revenue",
 )({
-	loader: async ({ params }) => {
-		const result = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
-		})
-
-		if (!result.competition) {
-			throw new Error("Competition not found")
-		}
-
-		const competition = result.competition
+	staleTime: 10_000,
+	loader: async ({ parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const { competition } = parentMatch.loaderData!
 
 		// Parallel fetch: revenue stats and stripe status
 		const [revenueResult, stripeResult] = await Promise.all([

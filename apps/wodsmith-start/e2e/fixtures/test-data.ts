@@ -53,6 +53,17 @@ export const TEST_DATA = {
 			roleId: "admin",
 		},
 	},
+	competition: {
+		id: "e2e_competition",
+		name: "E2E Test Throwdown",
+		slug: "e2e-throwdown",
+		teamId: "e2e_test_team",
+	},
+	divisions: {
+		rx: { id: "e2e_div_rx", label: "RX", teamSize: 1 },
+		scaled: { id: "e2e_div_scaled", label: "Scaled", teamSize: 1 },
+		team: { id: "e2e_div_team", label: "Team of 2", teamSize: 2 },
+	},
 	workouts: {
 		fran: {
 			id: "e2e_workout_fran",

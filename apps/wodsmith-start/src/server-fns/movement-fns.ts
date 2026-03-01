@@ -136,8 +136,6 @@ export const getWorkoutsByMovementIdFn = createServerFn({ method: "GET" })
 		}
 
 		// Get the actual workouts
-		// Note: D1 has a 100 parameter limit, but for typical use cases this should be fine
-		// If this becomes an issue, implement batching similar to autochunk in the Next.js version
 		const workoutsData = await db
 			.select()
 			.from(workouts)

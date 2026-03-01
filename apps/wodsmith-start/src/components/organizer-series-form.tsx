@@ -5,6 +5,7 @@ import { useNavigate, useRouter } from "@tanstack/react-router"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
+import { trackEvent } from "@/lib/posthog"
 import { Button } from "@/components/ui/button"
 import {
 	Form,
@@ -100,13 +101,19 @@ export function OrganizerSeriesForm({
 				await router.invalidate()
 			} else {
 				// Create new series
-				await createCompetitionGroupFn({
+				const result = await createCompetitionGroupFn({
 					data: {
 						organizingTeamId,
 						name: data.name,
 						slug: data.slug,
 						description: data.description,
 					},
+				})
+				trackEvent("competition_series_created", {
+					series_id: result.groupId,
+					series_name: data.name,
+					series_slug: data.slug,
+					organizing_team_id: organizingTeamId,
 				})
 				toast.success("Series created successfully")
 				// Invalidate router cache to ensure fresh data
@@ -122,6 +129,12 @@ export function OrganizerSeriesForm({
 		} catch (error) {
 			const message =
 				error instanceof Error ? error.message : "An error occurred"
+			if (!isEditing) {
+				trackEvent("competition_series_created_failed", {
+					error_message: message,
+					organizing_team_id: organizingTeamId,
+				})
+			}
 			toast.error(
 				isEditing
 					? `Failed to update series: ${message}`

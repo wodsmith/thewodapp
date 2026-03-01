@@ -2,6 +2,7 @@
 
 import { Clock } from "lucide-react"
 import { useMemo } from "react"
+import { Checkbox } from "@/components/ui/checkbox"
 import type { HeatWithAssignments } from "@/server-fns/competition-heats-fns"
 import type { CompetitionWorkout } from "@/server-fns/competition-workouts-fns"
 import type { JudgeHeatAssignment } from "@/server-fns/judge-scheduling-fns"
@@ -10,6 +11,8 @@ interface JudgeOverviewProps {
 	events: CompetitionWorkout[]
 	heats: HeatWithAssignments[]
 	judgeAssignments: JudgeHeatAssignment[]
+	filterEmptyLanes: boolean
+	onFilterEmptyLanesChange: (value: boolean) => void
 }
 
 interface EventSummary {
@@ -60,7 +63,23 @@ export function JudgeOverview({
 	events,
 	heats,
 	judgeAssignments,
+	filterEmptyLanes,
+	onFilterEmptyLanesChange,
 }: JudgeOverviewProps) {
+	// Compute occupied lanes per heat from athlete assignments
+	// Key by heat ID instead of heat number to handle multiple events correctly
+	const occupiedLanesByHeatId = useMemo(() => {
+		const map = new Map<string, Set<number>>()
+		for (const heat of heats) {
+			const occupiedLanes = new Set<number>()
+			for (const assignment of heat.assignments) {
+				occupiedLanes.add(assignment.laneNumber)
+			}
+			map.set(heat.id, occupiedLanes)
+		}
+		return map
+	}, [heats])
+
 	const dayGroups = useMemo<DayGroup[]>(() => {
 		const summaries: EventSummary[] = events
 			.map((event) => {
@@ -78,7 +97,14 @@ export function JudgeOverview({
 				// Calculate total required judges (one per lane per heat)
 				const totalRequiredJudges = heats
 					.filter((h) => h.trackWorkoutId === event.id)
-					.reduce((sum, heat) => sum + (heat.venue?.laneCount ?? 10), 0)
+					.reduce((sum, heat) => {
+						const laneCount = heat.venue?.laneCount ?? 10
+						if (filterEmptyLanes) {
+							const occupiedLanes = occupiedLanesByHeatId.get(heat.id)
+							return sum + (occupiedLanes?.size ?? 0)
+						}
+						return sum + laneCount
+					}, 0)
 
 				if (eventHeats.length === 0) {
 					return {
@@ -161,7 +187,7 @@ export function JudgeOverview({
 		}
 
 		return Array.from(groups.values())
-	}, [events, heats, judgeAssignments])
+	}, [events, heats, judgeAssignments, filterEmptyLanes, occupiedLanesByHeatId])
 
 	if (events.length === 0) return null
 
@@ -175,6 +201,21 @@ export function JudgeOverview({
 			<div className="mb-3 flex items-center gap-2">
 				<Clock className="h-4 w-4 text-muted-foreground" />
 				<h3 className="text-sm font-medium">Judge Assignment Overview</h3>
+				<div className="ml-auto flex items-center gap-2">
+					<Checkbox
+						id="filter-empty-lanes-overview"
+						checked={filterEmptyLanes}
+						onCheckedChange={(checked) =>
+							onFilterEmptyLanesChange(checked === true)
+						}
+					/>
+					<label
+						htmlFor="filter-empty-lanes-overview"
+						className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+					>
+						Only show lanes with athletes
+					</label>
+				</div>
 			</div>
 			<div className="space-y-4">
 				{dayGroups.map((group) => (

@@ -21,7 +21,6 @@ import {
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schemas/teams"
 import { workouts as workoutsTable } from "@/db/schemas/workouts"
 import { getSessionFromCookie } from "@/utils/auth"
-import { autochunk } from "@/utils/batch-query"
 import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
@@ -293,18 +292,22 @@ export const createProgrammingTrackFn = createServerFn({ method: "POST" })
 
 		// Create the programming track
 		const trackId = createProgrammingTrackId()
-		const [newTrack] = await db
-			.insert(programmingTracksTable)
-			.values({
-				id: trackId,
-				name: data.name,
-				description: data.description ?? null,
-				type: data.type,
-				ownerTeamId: data.ownerTeamId,
-				isPublic: data.isPublic ? 1 : 0,
-				scalingGroupId: data.scalingGroupId ?? null,
-			})
-			.returning()
+		await db.insert(programmingTracksTable).values({
+			id: trackId,
+			name: data.name,
+			description: data.description ?? null,
+			type: data.type,
+			ownerTeamId: data.ownerTeamId,
+			isPublic: data.isPublic ? 1 : 0,
+			scalingGroupId: data.scalingGroupId ?? null,
+		})
+
+		const newTrack = await db
+			.select()
+			.from(programmingTracksTable)
+			.where(eq(programmingTracksTable.id, trackId))
+			.limit(1)
+			.then((rows) => rows[0])
 
 		if (!newTrack) {
 			throw new Error("Failed to create programming track")
@@ -358,11 +361,17 @@ export const updateProgrammingTrackFn = createServerFn({ method: "POST" })
 		}
 
 		// Update the track
-		const [updatedTrack] = await db
+		await db
 			.update(programmingTracksTable)
 			.set(updateData)
 			.where(eq(programmingTracksTable.id, data.trackId))
-			.returning()
+
+		const updatedTrack = await db
+			.select()
+			.from(programmingTracksTable)
+			.where(eq(programmingTracksTable.id, data.trackId))
+			.limit(1)
+			.then((rows) => rows[0])
 
 		if (!updatedTrack) {
 			throw new Error("Programming track not found")
@@ -388,15 +397,22 @@ export const deleteProgrammingTrackFn = createServerFn({ method: "POST" })
 			throw new Error("Not authenticated")
 		}
 
-		// Delete the track (cascades to track_workouts)
-		const result = await db
-			.delete(programmingTracksTable)
+		// Check track exists before deleting
+		const trackToDelete = await db
+			.select()
+			.from(programmingTracksTable)
 			.where(eq(programmingTracksTable.id, data.trackId))
-			.returning()
+			.limit(1)
+			.then((rows) => rows[0])
 
-		if (!result[0]) {
+		if (!trackToDelete) {
 			throw new Error("Programming track not found")
 		}
+
+		// Delete the track (cascades to track_workouts)
+		await db
+			.delete(programmingTracksTable)
+			.where(eq(programmingTracksTable.id, data.trackId))
 
 		return { success: true }
 	})
@@ -456,16 +472,20 @@ export const addWorkoutToTrackFn = createServerFn({ method: "POST" })
 
 		// Create the track workout
 		const trackWorkoutId = createTrackWorkoutId()
-		const [newTrackWorkout] = await db
-			.insert(trackWorkoutsTable)
-			.values({
-				id: trackWorkoutId,
-				trackId: data.trackId,
-				workoutId: data.workoutId,
-				trackOrder: data.trackOrder,
-				notes: data.notes ?? null,
-			})
-			.returning()
+		await db.insert(trackWorkoutsTable).values({
+			id: trackWorkoutId,
+			trackId: data.trackId,
+			workoutId: data.workoutId,
+			trackOrder: data.trackOrder,
+			notes: data.notes ?? null,
+		})
+
+		const newTrackWorkout = await db
+			.select()
+			.from(trackWorkoutsTable)
+			.where(eq(trackWorkoutsTable.id, trackWorkoutId))
+			.limit(1)
+			.then((rows) => rows[0])
 
 		if (!newTrackWorkout) {
 			throw new Error("Failed to add workout to track")
@@ -490,15 +510,22 @@ export const removeWorkoutFromTrackFn = createServerFn({ method: "POST" })
 			throw new Error("Not authenticated")
 		}
 
-		// Delete the track workout
-		const result = await db
-			.delete(trackWorkoutsTable)
+		// Check track workout exists before deleting
+		const trackWorkoutToDelete = await db
+			.select()
+			.from(trackWorkoutsTable)
 			.where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
-			.returning()
+			.limit(1)
+			.then((rows) => rows[0])
 
-		if (!result[0]) {
+		if (!trackWorkoutToDelete) {
 			throw new Error("Track workout not found")
 		}
+
+		// Delete the track workout
+		await db
+			.delete(trackWorkoutsTable)
+			.where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
 
 		return { success: true }
 	})
@@ -520,14 +547,20 @@ export const updateTrackVisibilityFn = createServerFn({ method: "POST" })
 		}
 
 		// Update the track visibility
-		const [updatedTrack] = await db
+		await db
 			.update(programmingTracksTable)
 			.set({
 				isPublic: data.isPublic ? 1 : 0,
 				updatedAt: new Date(),
 			})
 			.where(eq(programmingTracksTable.id, data.trackId))
-			.returning()
+
+		const updatedTrack = await db
+			.select()
+			.from(programmingTracksTable)
+			.where(eq(programmingTracksTable.id, data.trackId))
+			.limit(1)
+			.then((rows) => rows[0])
 
 		if (!updatedTrack) {
 			throw new Error("Programming track not found")
@@ -570,7 +603,8 @@ export const subscribeToTrackFn = createServerFn({ method: "POST" })
 			.select()
 			.from(programmingTracksTable)
 			.where(eq(programmingTracksTable.id, data.trackId))
-			.get()
+			.limit(1)
+			.then((rows) => rows[0])
 
 		if (!track) {
 			throw new Error("Programming track not found")
@@ -595,7 +629,8 @@ export const subscribeToTrackFn = createServerFn({ method: "POST" })
 					eq(teamProgrammingTracksTable.trackId, data.trackId),
 				),
 			)
-			.get()
+			.limit(1)
+			.then((rows) => rows[0])
 
 		if (existing) {
 			if (existing.isActive) {
@@ -666,7 +701,6 @@ export const unsubscribeFromTrackFn = createServerFn({ method: "POST" })
 
 /**
  * Get all public programming tracks with subscription status for all user's teams
- * Uses autochunk to handle large arrays of team IDs (D1 100 param limit)
  */
 export const getPublicTracksWithSubscriptionsFn = createServerFn({
 	method: "GET",
@@ -701,30 +735,23 @@ export const getPublicTracksWithSubscriptionsFn = createServerFn({
 			.leftJoin(teamTable, eq(programmingTracksTable.ownerTeamId, teamTable.id))
 			.where(eq(programmingTracksTable.isPublic, 1))
 
-		// Get all subscriptions for user's teams (batched to avoid SQL variable limit)
-		const subscriptions = await autochunk(
-			{ items: data.userTeamIds, otherParametersCount: 1 }, // +1 for isActive
-			async (chunk) =>
-				db
-					.select({
-						trackId: teamProgrammingTracksTable.trackId,
-						teamId: teamProgrammingTracksTable.teamId,
-						teamName: teamTable.name,
-						subscribedAt: teamProgrammingTracksTable.subscribedAt,
-						isActive: teamProgrammingTracksTable.isActive,
-					})
-					.from(teamProgrammingTracksTable)
-					.innerJoin(
-						teamTable,
-						eq(teamProgrammingTracksTable.teamId, teamTable.id),
-					)
-					.where(
-						and(
-							inArray(teamProgrammingTracksTable.teamId, chunk),
-							eq(teamProgrammingTracksTable.isActive, 1),
-						),
-					),
-		)
+		// Get all subscriptions for user's teams
+		const subscriptions = await db
+			.select({
+				trackId: teamProgrammingTracksTable.trackId,
+				teamId: teamProgrammingTracksTable.teamId,
+				teamName: teamTable.name,
+				subscribedAt: teamProgrammingTracksTable.subscribedAt,
+				isActive: teamProgrammingTracksTable.isActive,
+			})
+			.from(teamProgrammingTracksTable)
+			.innerJoin(teamTable, eq(teamProgrammingTracksTable.teamId, teamTable.id))
+			.where(
+				and(
+					inArray(teamProgrammingTracksTable.teamId, data.userTeamIds),
+					eq(teamProgrammingTracksTable.isActive, 1),
+				),
+			)
 
 		// Create a map of track subscriptions grouped by trackId
 		const subscriptionsByTrack = new Map<
@@ -767,7 +794,6 @@ export const getPublicTracksWithSubscriptionsFn = createServerFn({
 
 /**
  * Get teams subscribed to a specific track (filtered to user's teams)
- * Uses autochunk to handle large arrays of team IDs (D1 100 param limit)
  */
 export const getTrackSubscribedTeamsFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) =>
@@ -780,29 +806,21 @@ export const getTrackSubscribedTeamsFn = createServerFn({ method: "GET" })
 
 		const db = getDb()
 
-		// Batched query to avoid SQL variable limit
-		const subscriptions = await autochunk(
-			{ items: data.userTeamIds, otherParametersCount: 2 }, // +2 for trackId and isActive
-			async (chunk) =>
-				db
-					.select({
-						teamId: teamProgrammingTracksTable.teamId,
-						teamName: teamTable.name,
-						subscribedAt: teamProgrammingTracksTable.subscribedAt,
-					})
-					.from(teamProgrammingTracksTable)
-					.innerJoin(
-						teamTable,
-						eq(teamProgrammingTracksTable.teamId, teamTable.id),
-					)
-					.where(
-						and(
-							eq(teamProgrammingTracksTable.trackId, data.trackId),
-							inArray(teamProgrammingTracksTable.teamId, chunk),
-							eq(teamProgrammingTracksTable.isActive, 1),
-						),
-					),
-		)
+		const subscriptions = await db
+			.select({
+				teamId: teamProgrammingTracksTable.teamId,
+				teamName: teamTable.name,
+				subscribedAt: teamProgrammingTracksTable.subscribedAt,
+			})
+			.from(teamProgrammingTracksTable)
+			.innerJoin(teamTable, eq(teamProgrammingTracksTable.teamId, teamTable.id))
+			.where(
+				and(
+					eq(teamProgrammingTracksTable.trackId, data.trackId),
+					inArray(teamProgrammingTracksTable.teamId, data.userTeamIds),
+					eq(teamProgrammingTracksTable.isActive, 1),
+				),
+			)
 
 		return { teams: subscriptions }
 	})

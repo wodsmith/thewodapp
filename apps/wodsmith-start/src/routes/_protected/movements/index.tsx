@@ -1,14 +1,24 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import {
+	createFileRoute,
+	Link,
+	redirect,
+	useNavigate,
+} from "@tanstack/react-router"
 import { ChevronDown, Filter, Plus, Search } from "lucide-react"
 import { useMemo, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { getAllMovementsFn } from "@/server-fns/movement-fns"
 import { ROLES_ENUM } from "@/db/schema"
+import { getAllMovementsFn } from "@/server-fns/movement-fns"
 
 export const Route = createFileRoute("/_protected/movements/")({
 	component: MovementsPage,
+	beforeLoad: async ({ context }) => {
+		if (!context.hasWorkoutTracking) {
+			throw redirect({ to: "/compete" })
+		}
+	},
 	validateSearch: (search: Record<string, unknown>) => ({
 		q: (search.q as string) || "",
 		type: (search.type as string) || "",

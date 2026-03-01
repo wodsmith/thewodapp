@@ -89,12 +89,18 @@
 import alchemy from "alchemy"
 import {
 	D1Database,
+	Hyperdrive,
 	KVNamespace,
 	R2Bucket,
 	TanStackStart,
+	Workflow,
 } from "alchemy/cloudflare"
 import { GitHubComment } from "alchemy/github"
 import { CloudflareStateStore } from "alchemy/state"
+import {
+	Branch as PlanetScaleBranch,
+	Password as PlanetScalePassword,
+} from "alchemy/planetscale"
 import { WebhookEndpoint } from "alchemy/stripe"
 
 /**
@@ -198,40 +204,96 @@ const app = await alchemy("wodsmith", {
 		: undefined,
 })
 
-/**
- * Cloudflare D1 SQLite database for application data.
- *
- * D1 is Cloudflare's serverless SQLite database. This binding provides:
- * - Automatic schema migrations from the migrations directory
- * - Type-safe database access via Drizzle ORM
- * - Edge-local reads with global replication
- *
- * @remarks
- * **Environment-specific notes:**
- * - Each stage gets a separate database instance
- * - Migrations run automatically on deployment
- * - Database name is stage-prefixed: `wodsmith-db-{stage}`
- *
- * **Access in application:**
- * ```typescript
- * import { getDb } from "~/db";
- * const db = getDb(env.DB);
- * const users = await db.query.users.findMany();
- * ```
- *
- * @see {@link https://developers.cloudflare.com/d1/ D1 Documentation}
- */
-const db = await D1Database("db", {
-	/**
-	 * Directory containing Drizzle migration SQL files.
-	 * Migrations are applied in filename order on each deployment.
-	 */
-	migrationsDir: "./src/db/migrations",
+await D1Database("db", {
 	/**
 	 * Adopt existing D1 database if it already exists.
 	 * Required for production where resources were created before Alchemy.
 	 */
 	adopt: true,
+})
+
+/**
+ * PlanetScale MySQL database configuration.
+ *
+ * Single shared database across all stages — branches provide isolation.
+ * We pass the database name as a string to avoid Alchemy appending
+ * the stage suffix (e.g. "wodsmith-db-demo").
+ *
+ * @remarks
+ * **Environment variables required:**
+ * - `PLANETSCALE_SERVICE_TOKEN_ID`: PlanetScale service token ID
+ * - `PLANETSCALE_SERVICE_TOKEN`: PlanetScale service token secret
+ * - `PLANETSCALE_ORGANIZATION`: PlanetScale organization name
+ *
+ * @see {@link https://planetscale.com/docs PlanetScale Documentation}
+ */
+const psDbName = "wodsmith-db"
+const psOrg = process.env.PLANETSCALE_ORGANIZATION ?? "wodsmith"
+
+/**
+ * PlanetScale branch hierarchy:
+ * - prod  → "main" (production branch, no Branch resource needed)
+ * - dev   → branches off main
+ * - demo  → branches off main (parallel to dev)
+ * - pr-N  → uses "dev" branch directly (no per-PR branch creation)
+ */
+const branchConfig: Record<string, { name: string; parent: string }> = {
+	dev: { name: "dev", parent: "main" },
+	demo: { name: "demo", parent: "main" },
+}
+
+const isPrStage = stage.startsWith("pr-")
+const psBranchName =
+	stage === "prod"
+		? "main"
+		: (branchConfig[stage]?.name ?? (isPrStage ? "dev" : stage))
+const psBranch =
+	stage === "prod" || isPrStage
+		? undefined
+		: await PlanetScaleBranch(`ps-branch-${stage}`, {
+				organization: psOrg,
+				database: psDbName,
+				name: psBranchName,
+				parentBranch: branchConfig[stage]?.parent ?? "main",
+				isProduction: false,
+				adopt: true,
+			})
+
+const psPassword = await PlanetScalePassword(`ps-password-${stage}`, {
+	organization: psOrg,
+	database: psDbName,
+	branch: psBranch ?? psBranchName,
+	role: "admin",
+})
+
+/**
+ * Cloudflare Hyperdrive for PlanetScale connection pooling and caching.
+ *
+ * Hyperdrive sits between the Worker and PlanetScale, providing:
+ * - Connection pooling (reuses TCP connections across requests)
+ * - SQL query caching (configurable TTL)
+ * - Reduced latency for repeated queries
+ *
+ * The Worker connects to Hyperdrive via the `HYPERDRIVE` binding,
+ * which exposes a `connectionString` for use with standard MySQL drivers (mysql2).
+ */
+const hyperdrive = await Hyperdrive(`hyperdrive-${stage}`, {
+	origin: {
+		host: psPassword.host,
+		database: psDbName,
+		user: psPassword.username,
+		password: psPassword.password.unencrypted,
+		port: 3306,
+		scheme: "mysql",
+	},
+	caching: {
+		disabled: true,
+	},
+	adopt: true,
+	// Local dev: connect directly to PlanetScale (bypassing Hyperdrive pooling)
+	dev: {
+		origin: `mysql://${psPassword.username}:${psPassword.password.unencrypted}@${psPassword.host}:3306/${psDbName}?sslaccept=strict`,
+	},
 })
 
 /**
@@ -423,6 +485,30 @@ function getDomains(currentStage: string): string[] | undefined {
 }
 
 /**
+ * Cloudflare Workflow for processing Stripe checkout.session.completed events.
+ *
+ * Runs asynchronously with durable steps and per-step retries:
+ * 1. Create registration (DB operations)
+ * 2. Send confirmation email
+ * 3. Send Slack notification
+ *
+ * The webhook handler dispatches to this workflow keyed by Stripe event ID
+ * for idempotency, then returns 200 immediately.
+ */
+const stripeCheckoutWorkflow = Workflow(`stripe-checkout-workflow-${stage}`, {
+	className: "StripeCheckoutWorkflow",
+	workflowName: `stripe-checkout-workflow-${stage}`,
+})
+
+const manualRegistrationWorkflow = Workflow(
+	`manual-registration-workflow-${stage}`,
+	{
+		className: "ManualRegistrationWorkflow",
+		workflowName: `manual-registration-workflow-${stage}`,
+	},
+)
+
+/**
  * TanStack Start application deployment configuration.
  *
  * This deploys the TanStack Start SSR application to Cloudflare Workers with:
@@ -458,6 +544,17 @@ function getDomains(currentStage: string): string[] | undefined {
  */
 const website = await TanStackStart("app", {
 	/**
+	 * Cron triggers for scheduled jobs.
+	 *
+	 * The scheduled handler in src/server.ts processes these triggers.
+	 * Currently runs submission window notifications every 15 minutes.
+	 *
+	 * @see src/server.ts for the scheduled handler implementation
+	 * @see https://developers.cloudflare.com/workers/configuration/cron-triggers/
+	 */
+	crons: ["*/15 * * * *"],
+
+	/**
 	 * Cloudflare resource bindings available to the application.
 	 *
 	 * These bindings inject Cloudflare services into the Worker's environment.
@@ -468,14 +565,19 @@ const website = await TanStackStart("app", {
 	 * - Values wrapped in `alchemy.secret()` become encrypted secrets
 	 */
 	bindings: {
-		/** D1 database binding for application data */
-		DB: db,
 		/** KV namespace binding for session storage */
 		KV_SESSION: kvSession,
 		/** R2 bucket binding for file uploads */
 		R2_BUCKET: r2Bucket,
+		/** Hyperdrive binding for pooled PlanetScale connections */
+		HYPERDRIVE: hyperdrive,
+		/** Workflow for async Stripe checkout processing */
+		STRIPE_CHECKOUT_WORKFLOW: stripeCheckoutWorkflow,
+		/** Workflow for manual registration notification with waiver info */
+		MANUAL_REGISTRATION_WORKFLOW: manualRegistrationWorkflow,
 
 		// App configuration
+		// biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
 		APP_URL: process.env.APP_URL!,
 
 		/**
@@ -509,8 +611,15 @@ const website = await TanStackStart("app", {
 		TURNSTILE_SITE_KEY: "0x4AAAAAACF8K4v1TmFMOmtk",
 
 		// Secrets
+		// biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
 		TURNSTILE_SECRET_KEY: alchemy.secret(process.env.TURNSTILE_SECRET_KEY!),
+		// biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
 		RESEND_API_KEY: alchemy.secret(process.env.RESEND_API_KEY!),
+
+		// Cron secret for scheduled job authentication
+		...(process.env.CRON_SECRET && {
+			CRON_SECRET: alchemy.secret(process.env.CRON_SECRET),
+		}),
 
 		// AI configuration (optional - only include if available)
 		...(process.env.OPENAI_API_KEY && {
@@ -523,12 +632,25 @@ const website = await TanStackStart("app", {
 		// Stripe env vars are populated for all environments when available
 		...(hasStripeEnv && {
 			/** Stripe publishable key for client-side Stripe.js initialization */
+			// biome-ignore lint/style/noNonNullAssertion: hasStripeEnv check guarantees this exists
 			STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY!,
 			/** Stripe Connect OAuth client ID */
+			// biome-ignore lint/style/noNonNullAssertion: hasStripeEnv check guarantees this exists
 			STRIPE_CLIENT_ID: process.env.STRIPE_CLIENT_ID!,
 			/** Stripe secret key for server-side API calls */
+			// biome-ignore lint/style/noNonNullAssertion: hasStripeEnv check guarantees this exists
 			STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY!),
 		}),
+		// Slack notifications (optional - only include if available)
+		...(process.env.SLACK_WEBHOOK_URL && {
+			SLACK_WEBHOOK_URL: alchemy.secret(process.env.SLACK_WEBHOOK_URL),
+			SLACK_PURCHASE_NOTIFICATIONS_ENABLED: "true",
+		}),
+
+		// Sentry error monitoring (public DSN — safe to commit)
+		SENTRY_DSN:
+			"https://a55d70f610d33fa3108b7faea06accb7@o4510933498462208.ingest.us.sentry.io/4510937818005504",
+
 		// Webhook secret: use Alchemy-managed webhook for demo/prod, or .dev.vars for local dev
 		...(stripeWebhook
 			? {

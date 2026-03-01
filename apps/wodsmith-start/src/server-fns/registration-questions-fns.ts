@@ -4,16 +4,26 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, eq } from "drizzle-orm"
+import { and, asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+	competitionGroupsTable,
 	competitionRegistrationAnswersTable,
 	competitionRegistrationQuestionsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
+	volunteerRegistrationAnswersTable,
 } from "@/db/schemas/competitions"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import {
+	createCompetitionRegistrationQuestionId,
+} from "@/db/schemas/common"
+import {
+	SYSTEM_ROLES_ENUM,
+	TEAM_PERMISSIONS,
+	teamInvitationTable,
+} from "@/db/schemas/teams"
+import { ROLES_ENUM } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"
 
 // ============================================================================
@@ -25,7 +35,8 @@ export type QuestionType = (typeof QUESTION_TYPES)[number]
 
 export interface RegistrationQuestion {
 	id: string
-	competitionId: string
+	competitionId: string | null
+	groupId: string | null
 	type: QuestionType
 	label: string
 	helpText: string | null
@@ -33,6 +44,11 @@ export interface RegistrationQuestion {
 	required: boolean
 	forTeammates: boolean
 	sortOrder: number
+	questionTarget: "athlete" | "volunteer"
+}
+
+export interface RegistrationQuestionWithSource extends RegistrationQuestion {
+	source: "series" | "competition"
 }
 
 // ============================================================================
@@ -52,6 +68,7 @@ const createQuestionInputSchema = z.object({
 	options: z.array(z.string().max(200)).max(20).nullable().optional(), // For select type
 	required: z.boolean().default(true),
 	forTeammates: z.boolean().default(false),
+	questionTarget: z.enum(["athlete", "volunteer"]).optional().default("athlete"),
 })
 
 const updateQuestionInputSchema = z.object({
@@ -76,12 +93,35 @@ const reorderQuestionsInputSchema = z.object({
 	orderedQuestionIds: z.array(z.string()).min(1),
 })
 
+// Series-specific schemas
+const getSeriesQuestionsInputSchema = z.object({
+	groupId: z.string().min(1, "Group ID is required"),
+})
+
+const createSeriesQuestionInputSchema = z.object({
+	groupId: z.string().min(1, "Group ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+	type: z.enum(QUESTION_TYPES),
+	label: z.string().min(1, "Label is required").max(500),
+	helpText: z.string().max(1000).nullable().optional(),
+	options: z.array(z.string().max(200)).max(20).nullable().optional(),
+	required: z.boolean().default(true),
+	forTeammates: z.boolean().default(false),
+	questionTarget: z.enum(["athlete", "volunteer"]).optional().default("athlete"),
+})
+
+const reorderSeriesQuestionsInputSchema = z.object({
+	groupId: z.string().min(1, "Group ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+	orderedQuestionIds: z.array(z.string()).min(1),
+})
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
 
 /**
- * Check if user has permission on a team
+ * Check if user has permission on a team (or is a site admin)
  */
 async function hasTeamPermission(
 	teamId: string,
@@ -89,6 +129,9 @@ async function hasTeamPermission(
 ): Promise<boolean> {
 	const session = await getSessionFromCookie()
 	if (!session?.userId) return false
+
+	// Site admins have all permissions
+	if (session.user?.role === ROLES_ENUM.ADMIN) return true
 
 	const team = session.teams?.find((t) => t.id === teamId)
 	if (!team) return false
@@ -140,6 +183,7 @@ function toRegistrationQuestion(
 	return {
 		id: row.id,
 		competitionId: row.competitionId,
+		groupId: row.groupId,
 		type: row.type as QuestionType,
 		label: row.label,
 		helpText: row.helpText,
@@ -147,6 +191,7 @@ function toRegistrationQuestion(
 		required: row.required,
 		forTeammates: row.forTeammates,
 		sortOrder: row.sortOrder,
+		questionTarget: row.questionTarget as "athlete" | "volunteer",
 	}
 }
 
@@ -165,20 +210,65 @@ export const getCompetitionQuestionsFn = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
-		const questions = await db
+		// Get competition to check if it belongs to a series
+		const [competition] = await db
+			.select({ groupId: competitionsTable.groupId })
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+
+		// Fetch competition-specific athlete questions
+		const competitionQuestions = await db
 			.select()
 			.from(competitionRegistrationQuestionsTable)
 			.where(
-				eq(
-					competitionRegistrationQuestionsTable.competitionId,
-					data.competitionId,
+				and(
+					eq(
+						competitionRegistrationQuestionsTable.competitionId,
+						data.competitionId,
+					),
+					eq(
+						competitionRegistrationQuestionsTable.questionTarget,
+						"athlete",
+					),
 				),
 			)
 			.orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
 
-		return {
-			questions: questions.map(toRegistrationQuestion),
+		// If competition belongs to a series, also fetch series-level athlete questions
+		let seriesQuestions: (typeof competitionRegistrationQuestionsTable.$inferSelect)[] =
+			[]
+		if (competition?.groupId) {
+			seriesQuestions = await db
+				.select()
+				.from(competitionRegistrationQuestionsTable)
+				.where(
+					and(
+						eq(
+							competitionRegistrationQuestionsTable.groupId,
+							competition.groupId,
+						),
+						eq(
+							competitionRegistrationQuestionsTable.questionTarget,
+							"athlete",
+						),
+					),
+				)
+				.orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
 		}
+
+		// Merge: series questions first (tagged as 'series'), then competition questions (tagged as 'competition')
+		const questions: RegistrationQuestionWithSource[] = [
+			...seriesQuestions.map((q) => ({
+				...toRegistrationQuestion(q),
+				source: "series" as const,
+			})),
+			...competitionQuestions.map((q) => ({
+				...toRegistrationQuestion(q),
+				source: "competition" as const,
+			})),
+		]
+
+		return { questions }
 	})
 
 /**
@@ -239,19 +329,24 @@ export const createQuestionFn = createServerFn({ method: "POST" })
 			...existingQuestions.map((q) => q.sortOrder),
 		)
 
-		const [created] = await db
-			.insert(competitionRegistrationQuestionsTable)
-			.values({
-				competitionId: data.competitionId,
-				type: data.type,
-				label: data.label,
-				helpText: data.helpText ?? null,
-				options: stringifyOptions(data.options),
-				required: data.required,
-				forTeammates: data.forTeammates,
-				sortOrder: maxSortOrder + 1,
+		const id = createCompetitionRegistrationQuestionId()
+		await db.insert(competitionRegistrationQuestionsTable).values({
+			id,
+			competitionId: data.competitionId,
+			type: data.type,
+			label: data.label,
+			helpText: data.helpText ?? null,
+			options: stringifyOptions(data.options),
+			required: data.required,
+			forTeammates: data.forTeammates,
+			sortOrder: maxSortOrder + 1,
+			questionTarget: data.questionTarget ?? "athlete",
+		})
+
+		const created =
+			await db.query.competitionRegistrationQuestionsTable.findFirst({
+				where: eq(competitionRegistrationQuestionsTable.id, id),
 			})
-			.returning()
 
 		if (!created) {
 			throw new Error("Failed to create question")
@@ -290,14 +385,27 @@ export const updateQuestionFn = createServerFn({ method: "POST" })
 			throw new Error("Question not found")
 		}
 
-		// Verify competition belongs to team
-		const [competition] = await db
-			.select()
-			.from(competitionsTable)
-			.where(eq(competitionsTable.id, question.competitionId))
+		// Verify ownership: competition-level or series-level
+		if (question.competitionId) {
+			const [competition] = await db
+				.select()
+				.from(competitionsTable)
+				.where(eq(competitionsTable.id, question.competitionId))
 
-		if (!competition || competition.organizingTeamId !== data.teamId) {
-			throw new Error("Question does not belong to this team")
+			if (!competition || competition.organizingTeamId !== data.teamId) {
+				throw new Error("Question does not belong to this team")
+			}
+		} else if (question.groupId) {
+			const [group] = await db
+				.select()
+				.from(competitionGroupsTable)
+				.where(eq(competitionGroupsTable.id, question.groupId))
+
+			if (!group || group.organizingTeamId !== data.teamId) {
+				throw new Error("Question does not belong to this team")
+			}
+		} else {
+			throw new Error("Question has no competition or group association")
 		}
 
 		// Validate select type has options
@@ -324,11 +432,15 @@ export const updateQuestionFn = createServerFn({ method: "POST" })
 		if (data.forTeammates !== undefined)
 			updateData.forTeammates = data.forTeammates
 
-		const [updated] = await db
+		await db
 			.update(competitionRegistrationQuestionsTable)
 			.set(updateData)
 			.where(eq(competitionRegistrationQuestionsTable.id, data.questionId))
-			.returning()
+
+		const updated =
+			await db.query.competitionRegistrationQuestionsTable.findFirst({
+				where: eq(competitionRegistrationQuestionsTable.id, data.questionId),
+			})
 
 		if (!updated) {
 			throw new Error("Failed to update question")
@@ -368,14 +480,27 @@ export const deleteQuestionFn = createServerFn({ method: "POST" })
 			throw new Error("Question not found")
 		}
 
-		// Verify competition belongs to team
-		const [competition] = await db
-			.select()
-			.from(competitionsTable)
-			.where(eq(competitionsTable.id, question.competitionId))
+		// Verify ownership: competition-level or series-level
+		if (question.competitionId) {
+			const [competition] = await db
+				.select()
+				.from(competitionsTable)
+				.where(eq(competitionsTable.id, question.competitionId))
 
-		if (!competition || competition.organizingTeamId !== data.teamId) {
-			throw new Error("Question does not belong to this team")
+			if (!competition || competition.organizingTeamId !== data.teamId) {
+				throw new Error("Question does not belong to this team")
+			}
+		} else if (question.groupId) {
+			const [group] = await db
+				.select()
+				.from(competitionGroupsTable)
+				.where(eq(competitionGroupsTable.id, question.groupId))
+
+			if (!group || group.organizingTeamId !== data.teamId) {
+				throw new Error("Question does not belong to this team")
+			}
+		} else {
+			throw new Error("Question has no competition or group association")
 		}
 
 		// Delete question (answers are cascaded)
@@ -416,24 +541,183 @@ export const reorderQuestionsFn = createServerFn({ method: "POST" })
 			throw new Error("Competition does not belong to this team")
 		}
 
-		// Update sort orders
-		for (let i = 0; i < data.orderedQuestionIds.length; i++) {
-			const questionId = data.orderedQuestionIds[i]
-			if (!questionId) continue
+		// Update sort orders in a transaction
+		await db.transaction(async (tx) => {
+			await Promise.all(
+				data.orderedQuestionIds.map((questionId, i) => {
+					if (!questionId) return Promise.resolve()
+					return tx
+						.update(competitionRegistrationQuestionsTable)
+						.set({ sortOrder: i, updatedAt: new Date() })
+						.where(
+							and(
+								eq(competitionRegistrationQuestionsTable.id, questionId),
+								eq(
+									competitionRegistrationQuestionsTable.competitionId,
+									data.competitionId,
+								),
+							),
+						)
+				}),
+			)
+		})
 
-			await db
-				.update(competitionRegistrationQuestionsTable)
-				.set({ sortOrder: i, updatedAt: new Date() })
-				.where(
-					and(
-						eq(competitionRegistrationQuestionsTable.id, questionId),
-						eq(
-							competitionRegistrationQuestionsTable.competitionId,
-							data.competitionId,
-						),
-					),
-				)
+		return { success: true }
+	})
+
+// ============================================================================
+// Series-Level Question Functions
+// ============================================================================
+
+/**
+ * Get all registration questions for a series
+ * Public - no auth required (same pattern as competition questions)
+ */
+export const getSeriesQuestionsFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) => getSeriesQuestionsInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		const questions = await db
+			.select()
+			.from(competitionRegistrationQuestionsTable)
+			.where(eq(competitionRegistrationQuestionsTable.groupId, data.groupId))
+			.orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
+
+		return {
+			questions: questions.map(toRegistrationQuestion),
 		}
+	})
+
+/**
+ * Create a new series-level registration question
+ * Requires MANAGE_PROGRAMMING permission
+ */
+export const createSeriesQuestionFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		createSeriesQuestionInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		// Verify group exists and belongs to team
+		const [group] = await db
+			.select()
+			.from(competitionGroupsTable)
+			.where(eq(competitionGroupsTable.id, data.groupId))
+
+		if (!group) {
+			throw new Error("Series not found")
+		}
+
+		if (group.organizingTeamId !== data.teamId) {
+			throw new Error("Series does not belong to this team")
+		}
+
+		// Validate select type has options
+		if (
+			data.type === "select" &&
+			(!data.options || data.options.length === 0)
+		) {
+			throw new Error("Select questions must have at least one option")
+		}
+
+		// Get next sort order for series questions
+		const existingQuestions = await db
+			.select()
+			.from(competitionRegistrationQuestionsTable)
+			.where(eq(competitionRegistrationQuestionsTable.groupId, data.groupId))
+
+		const maxSortOrder = Math.max(
+			0,
+			...existingQuestions.map((q) => q.sortOrder),
+		)
+
+		const id = createCompetitionRegistrationQuestionId()
+		await db.insert(competitionRegistrationQuestionsTable).values({
+			id,
+			competitionId: null,
+			groupId: data.groupId,
+			type: data.type,
+			label: data.label,
+			helpText: data.helpText ?? null,
+			options: stringifyOptions(data.options),
+			required: data.required,
+			forTeammates: data.forTeammates,
+			sortOrder: maxSortOrder + 1,
+			questionTarget: data.questionTarget ?? "athlete",
+		})
+
+		const created =
+			await db.query.competitionRegistrationQuestionsTable.findFirst({
+				where: eq(competitionRegistrationQuestionsTable.id, id),
+			})
+
+		if (!created) {
+			throw new Error("Failed to create question")
+		}
+
+		return { question: toRegistrationQuestion(created) }
+	})
+
+/**
+ * Reorder series-level registration questions
+ * Requires MANAGE_PROGRAMMING permission
+ */
+export const reorderSeriesQuestionsFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		reorderSeriesQuestionsInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		// Verify group belongs to team
+		const [group] = await db
+			.select()
+			.from(competitionGroupsTable)
+			.where(eq(competitionGroupsTable.id, data.groupId))
+
+		if (!group || group.organizingTeamId !== data.teamId) {
+			throw new Error("Series does not belong to this team")
+		}
+
+		// Update sort orders
+		await db.transaction(async (tx) => {
+			await Promise.all(
+				data.orderedQuestionIds.map((questionId, i) => {
+					if (!questionId) return Promise.resolve()
+					return tx
+						.update(competitionRegistrationQuestionsTable)
+						.set({ sortOrder: i, updatedAt: new Date() })
+						.where(
+							and(
+								eq(competitionRegistrationQuestionsTable.id, questionId),
+								eq(competitionRegistrationQuestionsTable.groupId, data.groupId),
+							),
+						)
+				}),
+			)
+		})
 
 		return { success: true }
 	})
@@ -632,4 +916,203 @@ export const getCompetitionRegistrationAnswersFn = createServerFn({
 		)
 
 		return { answersByRegistration }
+	})
+
+// ============================================================================
+// Volunteer Question Functions
+// ============================================================================
+
+/**
+ * Get all volunteer registration questions for a competition
+ * Public - no auth required (volunteers need to see questions)
+ * Merges series questions + competition-specific volunteer questions
+ */
+export const getVolunteerQuestionsFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		getCompetitionQuestionsInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Get competition to check if it belongs to a series
+		const [competition] = await db
+			.select({ groupId: competitionsTable.groupId })
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+
+		// Fetch competition-specific volunteer questions
+		const competitionQuestions = await db
+			.select()
+			.from(competitionRegistrationQuestionsTable)
+			.where(
+				and(
+					eq(
+						competitionRegistrationQuestionsTable.competitionId,
+						data.competitionId,
+					),
+					eq(
+						competitionRegistrationQuestionsTable.questionTarget,
+						"volunteer",
+					),
+				),
+			)
+			.orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
+
+		// If competition belongs to a series, also fetch series-level volunteer questions
+		let seriesQuestions: (typeof competitionRegistrationQuestionsTable.$inferSelect)[] =
+			[]
+		if (competition?.groupId) {
+			seriesQuestions = await db
+				.select()
+				.from(competitionRegistrationQuestionsTable)
+				.where(
+					and(
+						eq(
+							competitionRegistrationQuestionsTable.groupId,
+							competition.groupId,
+						),
+						eq(
+							competitionRegistrationQuestionsTable.questionTarget,
+							"volunteer",
+						),
+					),
+				)
+				.orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
+		}
+
+		const questions: RegistrationQuestion[] = [
+			...seriesQuestions.map(toRegistrationQuestion),
+			...competitionQuestions.map(toRegistrationQuestion),
+		]
+
+		return { questions }
+	})
+
+/**
+ * Submit volunteer registration answers
+ * Inserts answers linked to an invitation ID
+ */
+export const submitVolunteerAnswersFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				invitationId: z.string().min(1, "Invitation ID is required"),
+				answers: z.array(
+					z.object({
+						questionId: z.string().min(1),
+						answer: z.string().max(5000),
+					}),
+				),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Verify the invitation exists before writing answers
+		const invitation = await db.query.teamInvitationTable.findFirst({
+			where: eq(teamInvitationTable.id, data.invitationId),
+			columns: { id: true },
+		})
+
+		if (!invitation) {
+			throw new Error("Invalid invitation")
+		}
+
+		if (data.answers.length === 0) {
+			return { success: true }
+		}
+
+		for (const { questionId, answer } of data.answers) {
+			await db
+				.insert(volunteerRegistrationAnswersTable)
+				.values({
+					questionId,
+					invitationId: data.invitationId,
+					answer,
+				})
+				.onDuplicateKeyUpdate({ set: { answer } })
+		}
+
+		return { success: true }
+	})
+
+/**
+ * Get all volunteer registration answers for a competition
+ * Used by organizers to view volunteer answers in the volunteers table
+ * Returns answers grouped by invitationId + an email→invitationId map for approved volunteers
+ * Requires MANAGE_COMPETITIONS permission
+ */
+export const getVolunteerAnswersFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				competitionTeamId: z.string().min(1, "Competition team ID is required"),
+				organizingTeamId: z.string().min(1, "Organizing team ID is required"),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		await requireTeamPermission(
+			data.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		)
+
+		const db = getDb()
+
+		// Get all volunteer invitations for this competition team (accepted + non-accepted)
+		const allInvitations = await db
+			.select({ id: teamInvitationTable.id, email: teamInvitationTable.email })
+			.from(teamInvitationTable)
+			.where(
+				and(
+					eq(teamInvitationTable.teamId, data.competitionTeamId),
+					eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+					eq(teamInvitationTable.isSystemRole, true),
+				),
+			)
+
+		const invitationIds = allInvitations.map((i) => i.id)
+
+		if (invitationIds.length === 0) {
+			return { answersByInvitation: {}, emailToInvitationId: {} }
+		}
+
+		// Get all volunteer answers for these invitations
+		const answers = await db
+			.select()
+			.from(volunteerRegistrationAnswersTable)
+			.where(
+				inArray(volunteerRegistrationAnswersTable.invitationId, invitationIds),
+			)
+
+		// Group answers by invitationId
+		const answersByInvitation = answers.reduce(
+			(acc, answer) => {
+				if (!acc[answer.invitationId]) {
+					acc[answer.invitationId] = []
+				}
+				acc[answer.invitationId]!.push({
+					id: answer.id,
+					questionId: answer.questionId,
+					answer: answer.answer,
+				})
+				return acc
+			},
+			{} as Record<
+				string,
+				Array<{ id: string; questionId: string; answer: string }>
+			>,
+		)
+
+		// Build email → invitationId map so we can look up answers for approved volunteers
+		const emailToInvitationId = allInvitations.reduce(
+			(acc, inv) => {
+				acc[inv.email.toLowerCase()] = inv.id
+				return acc
+			},
+			{} as Record<string, string>,
+		)
+
+		return { answersByInvitation, emailToInvitationId }
 	})

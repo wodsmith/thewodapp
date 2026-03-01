@@ -12,6 +12,7 @@ import {
 	competitionsTable,
 } from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { ROLES_ENUM } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"
 
 // ============================================================================
@@ -47,6 +48,7 @@ const deleteCompetitionEventInputSchema = z.object({
 
 /**
  * Require team permission or throw error
+ * Site admins bypass this check
  */
 async function requireTeamPermission(
 	teamId: string,
@@ -56,6 +58,9 @@ async function requireTeamPermission(
 	if (!session?.userId) {
 		throw new Error("Not authenticated")
 	}
+
+	// Site admins have all permissions
+	if (session.user?.role === ROLES_ENUM.ADMIN) return
 
 	const team = session.teams?.find((t) => t.id === teamId)
 	if (!team) {
@@ -188,36 +193,28 @@ export const upsertCompetitionEventsFn = createServerFn({ method: "POST" })
 			throw new Error("Competition not found or access denied")
 		}
 
-		// Upsert each event (D1 doesn't support batch upsert well)
-		const upsertedIds: string[] = []
-		for (const event of data.events) {
-			const [result] = await db
-				.insert(competitionEventsTable)
-				.values({
-					competitionId: data.competitionId,
-					trackWorkoutId: event.trackWorkoutId,
-					submissionOpensAt: event.submissionOpensAt ?? null,
-					submissionClosesAt: event.submissionClosesAt ?? null,
-				})
-				.onConflictDoUpdate({
-					target: [
-						competitionEventsTable.competitionId,
-						competitionEventsTable.trackWorkoutId,
-					],
-					set: {
+		// Upsert all events in a transaction
+		await db.transaction(async (tx) => {
+			for (const event of data.events) {
+				await tx
+					.insert(competitionEventsTable)
+					.values({
+						competitionId: data.competitionId,
+						trackWorkoutId: event.trackWorkoutId,
 						submissionOpensAt: event.submissionOpensAt ?? null,
 						submissionClosesAt: event.submissionClosesAt ?? null,
-						updatedAt: new Date(),
-					},
-				})
-				.returning({ id: competitionEventsTable.id })
-
-			if (result) {
-				upsertedIds.push(result.id)
+					})
+					.onDuplicateKeyUpdate({
+						set: {
+							submissionOpensAt: event.submissionOpensAt ?? null,
+							submissionClosesAt: event.submissionClosesAt ?? null,
+							updatedAt: new Date(),
+						},
+					})
 			}
-		}
+		})
 
-		return { success: true, upsertedCount: upsertedIds.length }
+		return { success: true, upsertedCount: data.events.length }
 	})
 
 /**

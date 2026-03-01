@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react"
-import { X } from "lucide-react"
 import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
+import { X } from "lucide-react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
 import { cn } from "@/utils/cn"
 
 interface Workout {

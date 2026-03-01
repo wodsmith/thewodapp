@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "@tanstack/react-router"
-import { Check, X } from "lucide-react"
+import { Calendar, Check, ClipboardList, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -16,9 +16,26 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover"
+import {
+	Sheet,
+	SheetContent,
+	SheetHeader,
+	SheetTitle,
+} from "@/components/ui/sheet"
 import { TableCell, TableRow } from "@/components/ui/table"
 import type { User } from "@/db/schema"
-import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
+import {
+	VOLUNTEER_AVAILABILITY,
+	VOLUNTEER_ROLE_LABELS,
+	VOLUNTEER_ROLE_TYPE_VALUES,
+	type VolunteerRoleType,
+} from "@/db/schemas/volunteers"
+import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
 import {
 	addVolunteerRoleTypeFn,
 	grantScoreAccessFn,
@@ -32,8 +49,8 @@ interface VolunteerWithAccess {
 	userId: string
 	teamId: string
 	roleId: string
-	isSystemRole: number
-	isActive: number
+	isSystemRole: boolean
+	isActive: boolean
 	metadata: string | null
 	joinedAt: Date | null
 	createdAt: Date
@@ -52,25 +69,29 @@ interface VolunteerRowProps {
 	organizingTeamId: string
 	isSelected?: boolean
 	onToggleSelect?: (shiftKey: boolean) => void
-}
-
-type VolunteerRoleType =
-	| "judge"
-	| "head_judge"
-	| "scorekeeper"
-	| "emcee"
-	| "floor_manager"
-	| "media"
-	| "general"
-
-const ROLE_TYPE_LABELS: Record<VolunteerRoleType, string> = {
-	judge: "Judge",
-	head_judge: "Head Judge",
-	scorekeeper: "Scorekeeper",
-	emcee: "Emcee",
-	floor_manager: "Floor Manager",
-	media: "Media",
-	general: "General",
+	answers: Array<{ id: string; questionId: string; answer: string }>
+	questions: RegistrationQuestion[]
+	assignments: {
+		shifts: Array<{
+			id: string
+			shiftId: string
+			name: string
+			roleType: string
+			startTime: Date
+			endTime: Date
+			location: string | null
+			notes: string | null
+		}>
+		judgeHeats: Array<{
+			id: string
+			heatId: string
+			eventName: string
+			heatNumber: number
+			scheduledTime: Date | null
+			laneNumber: number | null
+			position: string | null
+		}>
+	}
 }
 
 function getAvailabilityLabel(availability?: string): string | null {
@@ -138,6 +159,20 @@ function getInitials(
 	return (first + last).toUpperCase() || "?"
 }
 
+function formatShiftTimeCompact(startTime: Date, endTime: Date): string {
+	const start = new Date(startTime)
+	const end = new Date(endTime)
+	const startStr = start.toLocaleTimeString([], {
+		hour: "numeric",
+		minute: "2-digit",
+	})
+	const endStr = end.toLocaleTimeString([], {
+		hour: "numeric",
+		minute: "2-digit",
+	})
+	return `${startStr} - ${endStr}`
+}
+
 export function VolunteerRow({
 	volunteer,
 	competitionId,
@@ -145,7 +180,11 @@ export function VolunteerRow({
 	organizingTeamId,
 	isSelected = false,
 	onToggleSelect,
+	assignments,
+	answers,
+	questions,
 }: VolunteerRowProps) {
+	const [showResponses, setShowResponses] = useState(false)
 	const router = useRouter()
 	const metadata = parseMetadata(volunteer.metadata)
 	const [scoreAccess, setScoreAccess] = useState(volunteer.hasScoreAccess)
@@ -376,13 +415,128 @@ export function VolunteerRow({
 				<div className="flex flex-wrap gap-1">
 					{Array.from(selectedRoles).map((roleType) => (
 						<Badge key={roleType} variant="outline">
-							{ROLE_TYPE_LABELS[roleType]}
+							{VOLUNTEER_ROLE_LABELS[roleType]}
 						</Badge>
 					))}
 					{selectedRoles.size === 0 && (
 						<span className="text-sm text-muted-foreground">—</span>
 					)}
 				</div>
+			</TableCell>
+			<TableCell>
+				{assignments.shifts.length === 0 &&
+				assignments.judgeHeats.length === 0 ? (
+					<span className="text-sm text-muted-foreground">—</span>
+				) : (
+					<div className="flex flex-wrap gap-1">
+						{assignments.shifts.length > 0 && (
+							<Popover>
+								<PopoverTrigger asChild>
+									<button
+										type="button"
+										className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+									>
+										<Calendar className="h-3 w-3 shrink-0" />
+										<span className="underline decoration-dotted">
+											{assignments.shifts.length} shift
+											{assignments.shifts.length !== 1 ? "s" : ""}
+										</span>
+									</button>
+								</PopoverTrigger>
+								<PopoverContent className="w-64 p-2" align="start">
+									<p className="mb-2 text-xs font-medium text-muted-foreground">
+										Assigned Shifts
+									</p>
+									<div className="space-y-1.5">
+										{[...assignments.shifts]
+											.sort(
+												(a, b) =>
+													new Date(a.startTime).getTime() -
+													new Date(b.startTime).getTime(),
+											)
+											.map((shift) => (
+												<div key={shift.id} className="text-sm">
+													<p className="font-medium">{shift.name}</p>
+													<p className="text-xs text-muted-foreground">
+														{formatShiftTimeCompact(
+															shift.startTime,
+															shift.endTime,
+														)}
+													</p>
+												</div>
+											))}
+									</div>
+								</PopoverContent>
+							</Popover>
+						)}
+						{assignments.judgeHeats.length > 0 && (
+							<Popover>
+								<PopoverTrigger asChild>
+									<button
+										type="button"
+										className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+									>
+										<Calendar className="h-3 w-3 shrink-0" />
+										<span className="underline decoration-dotted">
+											{assignments.judgeHeats.length} heat
+											{assignments.judgeHeats.length !== 1 ? "s" : ""}
+										</span>
+									</button>
+								</PopoverTrigger>
+								<PopoverContent className="w-64 p-2" align="start">
+									<p className="mb-2 text-xs font-medium text-muted-foreground">
+										Judge Assignments
+									</p>
+									<div className="space-y-1.5">
+										{[...assignments.judgeHeats]
+											.sort((a, b) => {
+												if (a.scheduledTime && b.scheduledTime) {
+													return (
+														new Date(a.scheduledTime).getTime() -
+														new Date(b.scheduledTime).getTime()
+													)
+												}
+												return a.heatNumber - b.heatNumber
+											})
+											.map((heat) => (
+												<div key={heat.id} className="text-sm">
+													<p className="font-medium">
+														{heat.eventName} - Heat {heat.heatNumber}
+													</p>
+													{heat.scheduledTime && (
+														<p className="text-xs text-muted-foreground">
+															{new Date(heat.scheduledTime).toLocaleDateString(
+																"en-US",
+																{
+																	weekday: "short",
+																	month: "short",
+																	day: "numeric",
+																},
+															)}{" "}
+															{new Date(heat.scheduledTime).toLocaleTimeString(
+																"en-US",
+																{ hour: "numeric", minute: "2-digit" },
+															)}
+														</p>
+													)}
+													{heat.laneNumber !== null && (
+														<p className="text-xs text-muted-foreground">
+															Lane {heat.laneNumber}
+														</p>
+													)}
+													{heat.position && (
+														<p className="text-xs text-muted-foreground">
+															{heat.position}
+														</p>
+													)}
+												</div>
+											))}
+									</div>
+								</PopoverContent>
+							</Popover>
+						)}
+					</div>
+				)}
 			</TableCell>
 			<TableCell>
 				<Checkbox
@@ -392,35 +546,45 @@ export function VolunteerRow({
 				/>
 			</TableCell>
 			<TableCell className="text-right">
-				{isPendingVolunteer ? (
-					<div className="flex items-center justify-end gap-2">
+				<div className="flex items-center justify-end gap-2">
+					{answers.length > 0 && (
 						<Button
 							size="sm"
 							variant="outline"
-							onClick={handleReject}
-							disabled={isPending}
+							onClick={() => setShowResponses(true)}
 						>
-							<X className="mr-1 h-4 w-4" />
-							Reject
+							<ClipboardList className="mr-1 h-4 w-4" />
+							Responses
 						</Button>
-						<Button size="sm" onClick={handleApprove} disabled={isPending}>
-							<Check className="mr-1 h-4 w-4" />
-							Approve
-						</Button>
-					</div>
-				) : (
-					<DropdownMenu>
-						<DropdownMenuTrigger
-							className="rounded-md px-3 py-2 text-sm hover:bg-accent"
-							disabled={isPending}
-						>
-							Edit Roles
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end">
-							<DropdownMenuLabel>Role Types</DropdownMenuLabel>
-							<DropdownMenuSeparator />
-							{(Object.keys(ROLE_TYPE_LABELS) as VolunteerRoleType[]).map(
-								(roleType) => (
+					)}
+					{isPendingVolunteer ? (
+						<>
+							<Button
+								size="sm"
+								variant="outline"
+								onClick={handleReject}
+								disabled={isPending}
+							>
+								<X className="mr-1 h-4 w-4" />
+								Reject
+							</Button>
+							<Button size="sm" onClick={handleApprove} disabled={isPending}>
+								<Check className="mr-1 h-4 w-4" />
+								Approve
+							</Button>
+						</>
+					) : (
+						<DropdownMenu>
+							<DropdownMenuTrigger
+								className="rounded-md px-3 py-2 text-sm hover:bg-accent"
+								disabled={isPending}
+							>
+								Edit Roles
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end">
+								<DropdownMenuLabel>Role Types</DropdownMenuLabel>
+								<DropdownMenuSeparator />
+								{VOLUNTEER_ROLE_TYPE_VALUES.map((roleType) => (
 									<DropdownMenuCheckboxItem
 										key={roleType}
 										checked={selectedRoles.has(roleType)}
@@ -429,14 +593,50 @@ export function VolunteerRow({
 										}
 										disabled={isPending}
 									>
-										{ROLE_TYPE_LABELS[roleType]}
+										{VOLUNTEER_ROLE_LABELS[roleType]}
 									</DropdownMenuCheckboxItem>
-								),
-							)}
-						</DropdownMenuContent>
-					</DropdownMenu>
-				)}
+								))}
+							</DropdownMenuContent>
+						</DropdownMenu>
+					)}
+				</div>
 			</TableCell>
+
+			{/* Responses Drawer */}
+			<Sheet open={showResponses} onOpenChange={setShowResponses}>
+				<SheetContent className="w-[400px] sm:w-[540px]">
+					<SheetHeader>
+						<SheetTitle>Registration Responses — {displayName}</SheetTitle>
+					</SheetHeader>
+					<div className="mt-6 flex flex-col gap-6">
+						{questions.map((question) => {
+							const answer = answers.find((a) => a.questionId === question.id)
+							return (
+								<div key={question.id} className="flex flex-col gap-1">
+									<p className="text-sm font-medium">{question.label}</p>
+									{question.helpText && (
+										<p className="text-xs text-muted-foreground">
+											{question.helpText}
+										</p>
+									)}
+									<p className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+										{answer?.answer ?? (
+											<span className="text-muted-foreground italic">
+												No response
+											</span>
+										)}
+									</p>
+								</div>
+							)
+						})}
+						{questions.length === 0 && (
+							<p className="text-sm text-muted-foreground">
+								No registration questions configured.
+							</p>
+						)}
+					</div>
+				</SheetContent>
+			</Sheet>
 		</TableRow>
 	)
 }
