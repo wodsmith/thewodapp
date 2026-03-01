@@ -1,23 +1,14 @@
 "use client"
 
-import { AlertCircle, ExternalLink, Youtube } from "lucide-react"
-import { useMemo } from "react"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ExternalLink, Youtube } from "lucide-react"
+import { useState } from "react"
 import { cn } from "@/lib/utils"
+import { isSafeUrl } from "@/utils/url"
 
 interface YouTubeEmbedProps {
 	url: string
 	className?: string
 	title?: string
-}
-
-function isSafeUrl(url: string): boolean {
-	try {
-		const parsed = new URL(url)
-		return parsed.protocol === "http:" || parsed.protocol === "https:"
-	} catch {
-		return false
-	}
 }
 
 /**
@@ -74,37 +65,25 @@ export function isYouTubeUrl(url: string): boolean {
 }
 
 export function YouTubeEmbed({ url, className, title }: YouTubeEmbedProps) {
-	const videoId = useMemo(() => extractYouTubeVideoId(url), [url])
+	const videoId = extractYouTubeVideoId(url)
 
 	if (!videoId) {
-		// Not a YouTube URL - show a link instead
 		return (
 			<div
 				className={cn(
-					"relative aspect-video w-full overflow-hidden rounded-lg bg-muted",
+					"relative aspect-video w-full overflow-hidden rounded-lg bg-muted flex items-center justify-center p-4",
 					className,
 				)}
 			>
-				<div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center">
-					<Alert variant="default" className="max-w-sm">
-						<AlertCircle className="h-4 w-4" />
-						<AlertDescription className="text-left">
-							<p className="font-medium mb-2">Video preview unavailable</p>
-							<p className="text-xs text-muted-foreground mb-3">
-								Only YouTube videos can be previewed inline
-							</p>
-							<a
-								href={isSafeUrl(url) ? url : "#"}
-								target="_blank"
-								rel="noopener noreferrer"
-								className="inline-flex items-center gap-2 text-primary hover:underline text-sm"
-							>
-								<ExternalLink className="h-4 w-4" />
-								Open video in new tab
-							</a>
-						</AlertDescription>
-					</Alert>
-				</div>
+				<a
+					href={isSafeUrl(url) ? url : "#"}
+					target="_blank"
+					rel="noopener noreferrer"
+					className="inline-flex items-center gap-2 text-primary hover:underline text-sm"
+				>
+					<ExternalLink className="h-4 w-4" />
+					Open video in new tab
+				</a>
 			</div>
 		)
 	}
@@ -121,6 +100,7 @@ export function YouTubeEmbed({ url, className, title }: YouTubeEmbedProps) {
 				title={title || "YouTube video player"}
 				allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
 				allowFullScreen
+				sandbox="allow-scripts allow-same-origin allow-presentation"
 				className="absolute inset-0 h-full w-full"
 				loading="lazy"
 			/>
@@ -135,7 +115,12 @@ export function YouTubeThumbnail({
 	url: string
 	className?: string
 }) {
-	const videoId = useMemo(() => extractYouTubeVideoId(url), [url])
+	const videoId = extractYouTubeVideoId(url)
+	const [imgSrc, setImgSrc] = useState(
+		videoId
+			? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+			: "",
+	)
 
 	if (!videoId) {
 		return (
@@ -145,7 +130,7 @@ export function YouTubeThumbnail({
 					className,
 				)}
 			>
-				<Youtube className="h-8 w-8 text-muted-foreground" />
+				<Youtube aria-hidden="true" className="h-8 w-8 text-muted-foreground" />
 			</div>
 		)
 	}
@@ -158,19 +143,19 @@ export function YouTubeThumbnail({
 			)}
 		>
 			<img
-				src={`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`}
+				src={imgSrc}
 				alt="Video thumbnail"
 				className="absolute inset-0 h-full w-full object-cover"
 				loading="lazy"
-				onError={(e) => {
-					// Fallback to medium quality if maxres doesn't exist
-					;(e.target as HTMLImageElement).src =
-						`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
+				onError={() => {
+					setImgSrc(
+						`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+					)
 				}}
 			/>
 			<div className="absolute inset-0 flex items-center justify-center">
 				<div className="rounded-full bg-red-600 p-3 shadow-lg">
-					<Youtube className="h-6 w-6 text-white" />
+					<Youtube aria-hidden="true" className="h-6 w-6 text-white" />
 				</div>
 			</div>
 		</div>

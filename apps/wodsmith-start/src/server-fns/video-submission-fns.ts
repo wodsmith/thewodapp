@@ -5,7 +5,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, ne } from "drizzle-orm"
+import { and, eq, inArray, ne } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -356,6 +356,96 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
 				: null,
 			existingScore,
 		}
+	})
+
+/**
+ * Batch-check submission status for multiple track workouts.
+ * Returns a map of trackWorkoutId -> { hasSubmitted, canSubmit }
+ * Only meaningful for online competitions with a registered athlete.
+ */
+export const getBatchSubmissionStatusFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				competitionId: z.string().min(1),
+				trackWorkoutIds: z.array(z.string().min(1)).min(1),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		type Status = { hasSubmitted: boolean; canSubmit: boolean }
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			return { statuses: {} as Record<string, Status> }
+		}
+
+		const db = getDb()
+
+		const registration = await getAthleteRegistration(
+			data.competitionId,
+			session.userId,
+		)
+		if (!registration) {
+			return { statuses: {} as Record<string, Status> }
+		}
+
+		// Fetch submission windows and existing submissions in parallel
+		const [events, submissions] = await Promise.all([
+			db
+				.select({
+					trackWorkoutId: competitionEventsTable.trackWorkoutId,
+					submissionOpensAt: competitionEventsTable.submissionOpensAt,
+					submissionClosesAt: competitionEventsTable.submissionClosesAt,
+				})
+				.from(competitionEventsTable)
+				.where(
+					and(
+						eq(competitionEventsTable.competitionId, data.competitionId),
+						inArray(
+							competitionEventsTable.trackWorkoutId,
+							data.trackWorkoutIds,
+						),
+					),
+				),
+			db
+				.select({
+					trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+				})
+				.from(videoSubmissionsTable)
+				.where(
+					and(
+						eq(videoSubmissionsTable.registrationId, registration.id),
+						inArray(
+							videoSubmissionsTable.trackWorkoutId,
+							data.trackWorkoutIds,
+						),
+					),
+				),
+		])
+
+		const submissionSet = new Set(submissions.map((s) => s.trackWorkoutId))
+		const eventMap = new Map(events.map((e) => [e.trackWorkoutId, e]))
+		const now = new Date()
+
+		const statuses: Record<string, Status> = {}
+
+		for (const twId of data.trackWorkoutIds) {
+			const event = eventMap.get(twId)
+			let canSubmit = true
+
+			if (event?.submissionOpensAt && event?.submissionClosesAt) {
+				const opensAt = new Date(event.submissionOpensAt)
+				const closesAt = new Date(event.submissionClosesAt)
+				canSubmit = now >= opensAt && now <= closesAt
+			}
+
+			statuses[twId] = {
+				hasSubmitted: submissionSet.has(twId),
+				canSubmit,
+			}
+		}
+
+		return { statuses }
 	})
 
 /**

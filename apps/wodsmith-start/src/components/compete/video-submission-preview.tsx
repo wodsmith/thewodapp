@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import type { ScoreType, WorkoutScheme } from "@/lib/scoring"
+import { isSafeUrl } from "@/utils/url"
 import { YouTubeEmbed, isYouTubeUrl } from "./youtube-embed"
 
 interface VideoSubmissionPreviewProps {
@@ -63,15 +64,6 @@ function formatSubmissionTime(
 		minute: "2-digit",
 		timeZone: timezone ?? undefined,
 	}).format(d)
-}
-
-function isSafeUrl(url: string): boolean {
-	try {
-		const parsed = new URL(url)
-		return parsed.protocol === "http:" || parsed.protocol === "https:"
-	} catch {
-		return false
-	}
 }
 
 function formatTiebreakTime(milliseconds: number): string {
@@ -120,7 +112,8 @@ export function VideoSubmissionPreview({
 }: VideoSubmissionPreviewProps) {
 	const isYouTube = isYouTubeUrl(submission.videoUrl)
 	const hasUpdated =
-		submission.updatedAt.getTime() !== submission.submittedAt.getTime()
+		new Date(submission.updatedAt).getTime() !==
+		new Date(submission.submittedAt).getTime()
 
 	return (
 		<Card className="overflow-hidden">
