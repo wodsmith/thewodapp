@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "efb8078481bd",
+  "session_id": "cdfe2df0-fb8f-43c2-b4f2-af9e74395936",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-01T05:47:28.071984Z",
+  "branch": "claude/athlete-video-preview-TYXxj",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/src/components/competition-workout-card.tsx",
+    "apps/wodsmith-start/src/routes/compete/$slug/index.tsx",
+    "apps/wodsmith-start/src/routes/compete/$slug/workouts/index.tsx"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "eb30f680-1b76-4a42-9d1c-4c5418c1aa91",
+  "token_usage": {
+    "input_tokens": 26,
+    "cache_creation_tokens": 81366,
+    "cache_read_tokens": 1388763,
+    "output_tokens": 9670,
+    "api_call_count": 22
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-01T05:47:28.011945Z",
+    "agent_lines": 0,
+    "human_added": 17,
+    "human_modified": 89,
+    "human_removed": 0,
+    "total_committed": 46,
+    "agent_percentage": 0
+  }
+}

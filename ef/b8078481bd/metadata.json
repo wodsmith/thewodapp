@@ -3,11 +3,14 @@
   "checkpoint_id": "efb8078481bd",
   "strategy": "manual-commit",
   "branch": "claude/athlete-video-preview-TYXxj",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "apps/wodsmith-start/src/components/compete/video-submission-form.tsx",
     "apps/wodsmith-start/src/components/compete/video-submission-preview.tsx",
-    "apps/wodsmith-start/src/components/compete/youtube-embed.tsx"
+    "apps/wodsmith-start/src/components/compete/youtube-embed.tsx",
+    "apps/wodsmith-start/src/components/competition-workout-card.tsx",
+    "apps/wodsmith-start/src/routes/compete/$slug/index.tsx",
+    "apps/wodsmith-start/src/routes/compete/$slug/workouts/index.tsx"
   ],
   "sessions": [
     {
@@ -16,13 +19,20 @@
       "context": "/ef/b8078481bd/0/context.md",
       "content_hash": "/ef/b8078481bd/0/content_hash.txt",
       "prompt": "/ef/b8078481bd/0/prompt.txt"
+    },
+    {
+      "metadata": "/ef/b8078481bd/1/metadata.json",
+      "transcript": "/ef/b8078481bd/1/full.jsonl",
+      "context": "/ef/b8078481bd/1/context.md",
+      "content_hash": "/ef/b8078481bd/1/content_hash.txt",
+      "prompt": "/ef/b8078481bd/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 33,
-    "cache_creation_tokens": 145073,
-    "cache_read_tokens": 2515056,
-    "output_tokens": 8256,
-    "api_call_count": 31
+    "input_tokens": 59,
+    "cache_creation_tokens": 226439,
+    "cache_read_tokens": 3903819,
+    "output_tokens": 17926,
+    "api_call_count": 53
   }
 }
