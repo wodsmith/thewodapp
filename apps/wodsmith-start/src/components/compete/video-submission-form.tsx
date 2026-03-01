@@ -27,6 +27,15 @@ import { getSupportedPlatformsText } from "@/schemas/video-url"
 import { submitVideoFn } from "@/server-fns/video-submission-fns"
 import { VideoSubmissionPreview } from "./video-submission-preview"
 
+function isSafeUrl(url: string): boolean {
+	try {
+		const parsed = new URL(url)
+		return parsed.protocol === "http:" || parsed.protocol === "https:"
+	} catch {
+		return false
+	}
+}
+
 interface VideoSubmissionFormProps {
 	trackWorkoutId: string
 	competitionId: string
@@ -201,6 +210,14 @@ export function VideoSubmissionForm({
 	// Show preview by default if there's an existing submission
 	const [isEditing, setIsEditing] = useState(!initialData?.submission)
 
+	// Local state for submission/score to avoid mutating props
+	const [submissionData, setSubmissionData] = useState(
+		initialData?.submission ?? null,
+	)
+	const [scoreData, setScoreData] = useState(
+		initialData?.existingScore ?? null,
+	)
+
 	// Score form state
 	const [scoreInput, setScoreInput] = useState(
 		initialData?.existingScore?.displayScore ?? "",
@@ -329,7 +346,7 @@ export function VideoSubmissionForm({
 										Your submitted video:
 									</p>
 									<a
-										href={initialData.submission.videoUrl}
+										href={isSafeUrl(initialData.submission.videoUrl) ? initialData.submission.videoUrl : "#"}
 										target="_blank"
 										rel="noopener noreferrer"
 										className="flex items-center gap-2 text-sm text-primary hover:underline"
@@ -399,30 +416,31 @@ export function VideoSubmissionForm({
 						: "Submitted successfully!",
 				)
 				setHasSubmitted(true)
-				// Update initialData with new submission info and switch to preview
-				if (initialData) {
-					initialData.submission = {
-						id: result.submissionId ?? initialData.submission?.id ?? "",
-						videoUrl: videoUrl.trim(),
-						notes: notes.trim() || null,
-						submittedAt: initialData.submission?.submittedAt ?? new Date(),
-						updatedAt: new Date(),
-					}
-					if (scoreInput.trim() && workout) {
-						const parsed = parseScore(scoreInput, workout.scheme)
-						initialData.existingScore = {
-							scoreValue: parsed.encoded,
-							displayScore: parsed.formatted ?? scoreInput,
-							status: scoreStatus,
-							secondaryValue: secondaryScore ? Number(secondaryScore) : null,
-							tiebreakValue: tiebreakScore
-								? parseTiebreakValue(tiebreakScore, workout.tiebreakScheme)
-								: null,
-						}
-					}
+				// Update local state with new submission info and switch to preview
+				setSubmissionData({
+					id: result.submissionId ?? submissionData?.id ?? "",
+					videoUrl: videoUrl.trim(),
+					notes: notes.trim() || null,
+					submittedAt: submissionData?.submittedAt ?? new Date(),
+					updatedAt: new Date(),
+				})
+				if (scoreInput.trim() && workout) {
+					const parsed = parseScore(scoreInput, workout.scheme)
+					setScoreData({
+						scoreValue: parsed.encoded,
+						displayScore: parsed.formatted ?? scoreInput,
+						status: scoreStatus,
+						secondaryValue: secondaryScore ? Number(secondaryScore) : null,
+						tiebreakValue: tiebreakScore
+							? parseTiebreakValue(tiebreakScore, workout.tiebreakScheme)
+							: null,
+					})
 				}
 				// Switch to preview mode after successful submission
-				setTimeout(() => setIsEditing(false), 1500)
+				setTimeout(() => {
+					setSuccess(null)
+					setIsEditing(false)
+				}, 1500)
 			}
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to submit")
@@ -435,11 +453,11 @@ export function VideoSubmissionForm({
 	const showSecondaryInput = isTimeCapped && scoreStatus === "cap"
 
 	// Show preview when there's a submission and we're not editing
-	if (hasSubmitted && initialData?.submission && !isEditing) {
+	if (hasSubmitted && submissionData && !isEditing) {
 		return (
 			<VideoSubmissionPreview
-				submission={initialData.submission}
-				score={initialData.existingScore}
+				submission={submissionData}
+				score={scoreData}
 				workout={
 					workout
 						? {

@@ -11,6 +11,15 @@ interface YouTubeEmbedProps {
 	title?: string
 }
 
+function isSafeUrl(url: string): boolean {
+	try {
+		const parsed = new URL(url)
+		return parsed.protocol === "http:" || parsed.protocol === "https:"
+	} catch {
+		return false
+	}
+}
+
 /**
  * Extracts YouTube video ID from various YouTube URL formats
  * Supports: youtube.com/watch?v=, youtu.be/, youtube.com/embed/, youtube.com/shorts/
@@ -85,7 +94,7 @@ export function YouTubeEmbed({ url, className, title }: YouTubeEmbedProps) {
 								Only YouTube videos can be previewed inline
 							</p>
 							<a
-								href={url}
+								href={isSafeUrl(url) ? url : "#"}
 								target="_blank"
 								rel="noopener noreferrer"
 								className="inline-flex items-center gap-2 text-primary hover:underline text-sm"
@@ -113,6 +122,7 @@ export function YouTubeEmbed({ url, className, title }: YouTubeEmbedProps) {
 				allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
 				allowFullScreen
 				className="absolute inset-0 h-full w-full"
+				loading="lazy"
 			/>
 		</div>
 	)
@@ -151,6 +161,7 @@ export function YouTubeThumbnail({
 				src={`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`}
 				alt="Video thumbnail"
 				className="absolute inset-0 h-full w-full object-cover"
+				loading="lazy"
 				onError={(e) => {
 					// Fallback to medium quality if maxres doesn't exist
 					;(e.target as HTMLImageElement).src =

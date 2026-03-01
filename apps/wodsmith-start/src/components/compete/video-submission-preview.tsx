@@ -10,6 +10,7 @@ import {
 	Trophy,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
 	Card,
 	CardContent,
@@ -64,6 +65,22 @@ function formatSubmissionTime(
 	}).format(d)
 }
 
+function isSafeUrl(url: string): boolean {
+	try {
+		const parsed = new URL(url)
+		return parsed.protocol === "http:" || parsed.protocol === "https:"
+	} catch {
+		return false
+	}
+}
+
+function formatTiebreakTime(milliseconds: number): string {
+	const totalSeconds = Math.floor(milliseconds / 1000)
+	const minutes = Math.floor(totalSeconds / 60)
+	const seconds = totalSeconds % 60
+	return `${minutes}:${seconds.toString().padStart(2, "0")}`
+}
+
 function getSchemeLabel(scheme: WorkoutScheme): string {
 	switch (scheme) {
 		case "time":
@@ -114,14 +131,15 @@ export function VideoSubmissionPreview({
 						<CardTitle className="text-lg">Submission Complete</CardTitle>
 					</div>
 					{canEdit && onEdit && (
-						<Badge
+						<Button
 							variant="outline"
-							className="gap-1.5 cursor-pointer hover:bg-accent transition-colors"
+							size="sm"
+							className="gap-1.5 h-auto py-1 px-2 text-xs"
 							onClick={onEdit}
 						>
 							<Edit3 className="h-3 w-3" />
 							Edit
-						</Badge>
+						</Button>
 					)}
 				</div>
 				<CardDescription>
@@ -152,7 +170,7 @@ export function VideoSubmissionPreview({
 									</p>
 								</div>
 								<a
-									href={submission.videoUrl}
+									href={isSafeUrl(submission.videoUrl) ? submission.videoUrl : "#"}
 									target="_blank"
 									rel="noopener noreferrer"
 									className="flex items-center gap-1.5 text-sm text-primary hover:underline shrink-0"
@@ -255,11 +273,4 @@ export function VideoSubmissionPreview({
 			</CardContent>
 		</Card>
 	)
-}
-
-function formatTiebreakTime(milliseconds: number): string {
-	const totalSeconds = Math.floor(milliseconds / 1000)
-	const minutes = Math.floor(totalSeconds / 60)
-	const seconds = totalSeconds % 60
-	return `${minutes}:${seconds.toString().padStart(2, "0")}`
 }
