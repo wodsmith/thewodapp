@@ -88,7 +88,6 @@
 
 import alchemy from "alchemy"
 import {
-	D1Database,
 	Hyperdrive,
 	KVNamespace,
 	R2Bucket,
@@ -204,14 +203,6 @@ const app = await alchemy("wodsmith", {
 		: undefined,
 })
 
-await D1Database("db", {
-	/**
-	 * Adopt existing D1 database if it already exists.
-	 * Required for production where resources were created before Alchemy.
-	 */
-	adopt: true,
-})
-
 /**
  * PlanetScale MySQL database configuration.
  *
@@ -246,7 +237,7 @@ const isPrStage = stage.startsWith("pr-")
 const psBranchName =
 	stage === "prod"
 		? "main"
-		: (branchConfig[stage]?.name ?? (isPrStage ? "dev" : stage))
+		: (branchConfig[stage]?.name ?? (isPrStage ? "demo" : stage))
 const psBranch =
 	stage === "prod" || isPrStage
 		? undefined
