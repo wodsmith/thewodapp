@@ -48,6 +48,7 @@ import {
 } from "@/server-fns/invite-fns"
 import {
 	getCompetitionQuestionsFn,
+	getVolunteerQuestionsFn,
 	type RegistrationQuestion,
 } from "@/server-fns/registration-questions-fns"
 import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
@@ -87,6 +88,15 @@ export const Route = createFileRoute("/compete/invite/$token")({
 			)
 		}
 
+		// Fetch volunteer questions for direct volunteer invites
+		let volunteerQuestions: RegistrationQuestion[] = []
+		if (volunteerInvite?.competition?.id && volunteerInvite.inviteSource === "direct") {
+			const volunteerQuestionsResult = await getVolunteerQuestionsFn({
+				data: { competitionId: volunteerInvite.competition.id },
+			})
+			volunteerQuestions = volunteerQuestionsResult.questions
+		}
+
 		let waivers: Waiver[] = []
 		if (teammateInvite?.competition?.id) {
 			const waiversResult = await getCompetitionWaiversFn({
@@ -110,6 +120,7 @@ export const Route = createFileRoute("/compete/invite/$token")({
 			emailHasAccount,
 			token: params.token,
 			teammateQuestions,
+			volunteerQuestions,
 			waivers,
 			hasPendingData,
 		}
@@ -164,6 +175,7 @@ function InvitePage() {
 		emailHasAccount,
 		token,
 		teammateQuestions,
+		volunteerQuestions,
 		waivers,
 		hasPendingData,
 	} = Route.useLoaderData()
@@ -184,6 +196,7 @@ function InvitePage() {
 				session={session}
 				token={token}
 				emailHasAccount={emailHasAccount}
+				volunteerQuestions={volunteerQuestions}
 			/>
 		)
 	}
@@ -624,11 +637,13 @@ function DirectVolunteerInvite({
 	session,
 	token,
 	emailHasAccount,
+	volunteerQuestions,
 }: {
 	invite: VolunteerInvite
 	session: { userId: string; email: string | null } | null
 	token: string
 	emailHasAccount: boolean
+	volunteerQuestions: RegistrationQuestion[]
 }) {
 	// Check if already accepted
 	if (invite.acceptedAt) {
@@ -703,6 +718,7 @@ function DirectVolunteerInvite({
 							competitionSlug={invite.competition?.slug}
 							competitionId={invite.competition?.id}
 							competitionName={invite.competition?.name}
+							questions={volunteerQuestions}
 						/>
 					</CardContent>
 				</Card>
@@ -739,6 +755,7 @@ function DirectVolunteerInvite({
 							competitionSlug={invite.competition?.slug}
 							competitionId={invite.competition?.id}
 							competitionName={invite.competition?.name}
+							questions={volunteerQuestions}
 						/>
 
 						<div className="flex justify-center">

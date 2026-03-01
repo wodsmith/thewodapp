@@ -24,6 +24,7 @@ import {
 import {
 	competitionRegistrationAnswersTable,
 	competitionRegistrationQuestionsTable,
+	volunteerRegistrationAnswersTable,
 } from "@/db/schemas/competitions"
 import type {
 	PendingInviteAnswer,
@@ -133,6 +134,14 @@ const acceptVolunteerInviteSchema = z.object({
 	availabilityNotes: z.string().optional(),
 	credentials: z.string().optional(),
 	signupPhone: z.string().optional(),
+	answers: z
+		.array(
+			z.object({
+				questionId: z.string().min(1),
+				answer: z.string().max(5000),
+			}),
+		)
+		.optional(),
 })
 
 const submitPendingInviteDataSchema = z.object({
@@ -1125,6 +1134,20 @@ export const acceptVolunteerInviteFn = createServerFn({ method: "POST" })
 				updatedAt: new Date(),
 			})
 			.where(eq(teamInvitationTable.id, invitation.id))
+
+		// Save registration question answers if provided
+		if (data.answers && data.answers.length > 0) {
+			for (const { questionId, answer } of data.answers) {
+				await db
+					.insert(volunteerRegistrationAnswersTable)
+					.values({
+						questionId,
+						invitationId: invitation.id,
+						answer,
+					})
+					.onDuplicateKeyUpdate({ set: { answer } })
+			}
+		}
 
 		// Update the user's session to include this team
 		await updateAllSessionsOfUser(session.userId)

@@ -4,7 +4,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, eq } from "drizzle-orm"
+import { and, asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -13,9 +13,16 @@ import {
 	competitionRegistrationQuestionsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
+	volunteerRegistrationAnswersTable,
 } from "@/db/schemas/competitions"
-import { createCompetitionRegistrationQuestionId } from "@/db/schemas/common"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import {
+	createCompetitionRegistrationQuestionId,
+} from "@/db/schemas/common"
+import {
+	SYSTEM_ROLES_ENUM,
+	TEAM_PERMISSIONS,
+	teamInvitationTable,
+} from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"
 
@@ -37,6 +44,7 @@ export interface RegistrationQuestion {
 	required: boolean
 	forTeammates: boolean
 	sortOrder: number
+	questionTarget: "athlete" | "volunteer"
 }
 
 export interface RegistrationQuestionWithSource extends RegistrationQuestion {
@@ -60,6 +68,7 @@ const createQuestionInputSchema = z.object({
 	options: z.array(z.string().max(200)).max(20).nullable().optional(), // For select type
 	required: z.boolean().default(true),
 	forTeammates: z.boolean().default(false),
+	questionTarget: z.enum(["athlete", "volunteer"]).optional().default("athlete"),
 })
 
 const updateQuestionInputSchema = z.object({
@@ -98,6 +107,7 @@ const createSeriesQuestionInputSchema = z.object({
 	options: z.array(z.string().max(200)).max(20).nullable().optional(),
 	required: z.boolean().default(true),
 	forTeammates: z.boolean().default(false),
+	questionTarget: z.enum(["athlete", "volunteer"]).optional().default("athlete"),
 })
 
 const reorderSeriesQuestionsInputSchema = z.object({
@@ -181,6 +191,7 @@ function toRegistrationQuestion(
 		required: row.required,
 		forTeammates: row.forTeammates,
 		sortOrder: row.sortOrder,
+		questionTarget: row.questionTarget as "athlete" | "volunteer",
 	}
 }
 
@@ -205,19 +216,25 @@ export const getCompetitionQuestionsFn = createServerFn({ method: "GET" })
 			.from(competitionsTable)
 			.where(eq(competitionsTable.id, data.competitionId))
 
-		// Fetch competition-specific questions
+		// Fetch competition-specific athlete questions
 		const competitionQuestions = await db
 			.select()
 			.from(competitionRegistrationQuestionsTable)
 			.where(
-				eq(
-					competitionRegistrationQuestionsTable.competitionId,
-					data.competitionId,
+				and(
+					eq(
+						competitionRegistrationQuestionsTable.competitionId,
+						data.competitionId,
+					),
+					eq(
+						competitionRegistrationQuestionsTable.questionTarget,
+						"athlete",
+					),
 				),
 			)
 			.orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
 
-		// If competition belongs to a series, also fetch series-level questions
+		// If competition belongs to a series, also fetch series-level athlete questions
 		let seriesQuestions: (typeof competitionRegistrationQuestionsTable.$inferSelect)[] =
 			[]
 		if (competition?.groupId) {
@@ -225,9 +242,15 @@ export const getCompetitionQuestionsFn = createServerFn({ method: "GET" })
 				.select()
 				.from(competitionRegistrationQuestionsTable)
 				.where(
-					eq(
-						competitionRegistrationQuestionsTable.groupId,
-						competition.groupId,
+					and(
+						eq(
+							competitionRegistrationQuestionsTable.groupId,
+							competition.groupId,
+						),
+						eq(
+							competitionRegistrationQuestionsTable.questionTarget,
+							"athlete",
+						),
 					),
 				)
 				.orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
@@ -317,6 +340,7 @@ export const createQuestionFn = createServerFn({ method: "POST" })
 			required: data.required,
 			forTeammates: data.forTeammates,
 			sortOrder: maxSortOrder + 1,
+			questionTarget: data.questionTarget ?? "athlete",
 		})
 
 		const created =
@@ -631,6 +655,7 @@ export const createSeriesQuestionFn = createServerFn({ method: "POST" })
 			required: data.required,
 			forTeammates: data.forTeammates,
 			sortOrder: maxSortOrder + 1,
+			questionTarget: data.questionTarget ?? "athlete",
 		})
 
 		const created =
@@ -891,4 +916,203 @@ export const getCompetitionRegistrationAnswersFn = createServerFn({
 		)
 
 		return { answersByRegistration }
+	})
+
+// ============================================================================
+// Volunteer Question Functions
+// ============================================================================
+
+/**
+ * Get all volunteer registration questions for a competition
+ * Public - no auth required (volunteers need to see questions)
+ * Merges series questions + competition-specific volunteer questions
+ */
+export const getVolunteerQuestionsFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		getCompetitionQuestionsInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Get competition to check if it belongs to a series
+		const [competition] = await db
+			.select({ groupId: competitionsTable.groupId })
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+
+		// Fetch competition-specific volunteer questions
+		const competitionQuestions = await db
+			.select()
+			.from(competitionRegistrationQuestionsTable)
+			.where(
+				and(
+					eq(
+						competitionRegistrationQuestionsTable.competitionId,
+						data.competitionId,
+					),
+					eq(
+						competitionRegistrationQuestionsTable.questionTarget,
+						"volunteer",
+					),
+				),
+			)
+			.orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
+
+		// If competition belongs to a series, also fetch series-level volunteer questions
+		let seriesQuestions: (typeof competitionRegistrationQuestionsTable.$inferSelect)[] =
+			[]
+		if (competition?.groupId) {
+			seriesQuestions = await db
+				.select()
+				.from(competitionRegistrationQuestionsTable)
+				.where(
+					and(
+						eq(
+							competitionRegistrationQuestionsTable.groupId,
+							competition.groupId,
+						),
+						eq(
+							competitionRegistrationQuestionsTable.questionTarget,
+							"volunteer",
+						),
+					),
+				)
+				.orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
+		}
+
+		const questions: RegistrationQuestion[] = [
+			...seriesQuestions.map(toRegistrationQuestion),
+			...competitionQuestions.map(toRegistrationQuestion),
+		]
+
+		return { questions }
+	})
+
+/**
+ * Submit volunteer registration answers
+ * Inserts answers linked to an invitation ID
+ */
+export const submitVolunteerAnswersFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				invitationId: z.string().min(1, "Invitation ID is required"),
+				answers: z.array(
+					z.object({
+						questionId: z.string().min(1),
+						answer: z.string().max(5000),
+					}),
+				),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Verify the invitation exists before writing answers
+		const invitation = await db.query.teamInvitationTable.findFirst({
+			where: eq(teamInvitationTable.id, data.invitationId),
+			columns: { id: true },
+		})
+
+		if (!invitation) {
+			throw new Error("Invalid invitation")
+		}
+
+		if (data.answers.length === 0) {
+			return { success: true }
+		}
+
+		for (const { questionId, answer } of data.answers) {
+			await db
+				.insert(volunteerRegistrationAnswersTable)
+				.values({
+					questionId,
+					invitationId: data.invitationId,
+					answer,
+				})
+				.onDuplicateKeyUpdate({ set: { answer } })
+		}
+
+		return { success: true }
+	})
+
+/**
+ * Get all volunteer registration answers for a competition
+ * Used by organizers to view volunteer answers in the volunteers table
+ * Returns answers grouped by invitationId + an email→invitationId map for approved volunteers
+ * Requires MANAGE_COMPETITIONS permission
+ */
+export const getVolunteerAnswersFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				competitionTeamId: z.string().min(1, "Competition team ID is required"),
+				organizingTeamId: z.string().min(1, "Organizing team ID is required"),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		await requireTeamPermission(
+			data.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		)
+
+		const db = getDb()
+
+		// Get all volunteer invitations for this competition team (accepted + non-accepted)
+		const allInvitations = await db
+			.select({ id: teamInvitationTable.id, email: teamInvitationTable.email })
+			.from(teamInvitationTable)
+			.where(
+				and(
+					eq(teamInvitationTable.teamId, data.competitionTeamId),
+					eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+					eq(teamInvitationTable.isSystemRole, true),
+				),
+			)
+
+		const invitationIds = allInvitations.map((i) => i.id)
+
+		if (invitationIds.length === 0) {
+			return { answersByInvitation: {}, emailToInvitationId: {} }
+		}
+
+		// Get all volunteer answers for these invitations
+		const answers = await db
+			.select()
+			.from(volunteerRegistrationAnswersTable)
+			.where(
+				inArray(volunteerRegistrationAnswersTable.invitationId, invitationIds),
+			)
+
+		// Group answers by invitationId
+		const answersByInvitation = answers.reduce(
+			(acc, answer) => {
+				if (!acc[answer.invitationId]) {
+					acc[answer.invitationId] = []
+				}
+				acc[answer.invitationId]!.push({
+					id: answer.id,
+					questionId: answer.questionId,
+					answer: answer.answer,
+				})
+				return acc
+			},
+			{} as Record<
+				string,
+				Array<{ id: string; questionId: string; answer: string }>
+			>,
+		)
+
+		// Build email → invitationId map so we can look up answers for approved volunteers
+		const emailToInvitationId = allInvitations.reduce(
+			(acc, inv) => {
+				acc[inv.email.toLowerCase()] = inv.id
+				return acc
+			},
+			{} as Record<string, string>,
+		)
+
+		return { answersByInvitation, emailToInvitationId }
 	})

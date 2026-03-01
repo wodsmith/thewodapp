@@ -73,6 +73,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { INVITATION_STATUS } from "@/db/schemas/teams"
 import {
 	getOrganizerRegistrationsFn,
@@ -111,6 +112,10 @@ type SortColumn = (typeof sortColumns)[number]
 type SortDirection = "asc" | "desc"
 
 const athletesSearchSchema = z.object({
+	tab: z
+		.enum(["athletes", "registration-rules"])
+		.optional()
+		.default("athletes"),
 	division: z.string().optional(),
 	// questionFilters: { questionId: ["value1", "value2"] }
 	questionFilters: z.record(z.string(), z.array(z.string())).optional(),
@@ -224,6 +229,17 @@ function AthletesPage() {
 	} = Route.useLoaderData()
 	const navigate = useNavigate()
 	const router = useRouter()
+	const { tab } = Route.useSearch()
+	const handleTabChange = (value: string) => {
+		navigate({
+			to: ".",
+			search: (prev) => ({
+				...prev,
+				tab: value as "athletes" | "registration-rules",
+			}),
+			replace: true,
+		})
+	}
 	const removeRegistration = useServerFn(removeRegistrationFn)
 	const cancelPurchaseTransfer = useServerFn(cancelPurchaseTransferFn)
 	const [removingRegistration, setRemovingRegistration] = useState<{
@@ -292,8 +308,7 @@ function AthletesPage() {
 
 	const handleDivisionChange = (value: string) => {
 		navigate({
-			to: "/compete/organizer/$competitionId/athletes",
-			params: { competitionId: competition.id },
+			to: ".",
 			search: (prev) => ({
 				...prev,
 				division: value === "all" ? undefined : value,
@@ -305,8 +320,7 @@ function AthletesPage() {
 	// Toggle a question filter value (add if not present, remove if present)
 	const toggleQuestionFilter = (questionId: string, value: string) => {
 		navigate({
-			to: "/compete/organizer/$competitionId/athletes",
-			params: { competitionId: competition.id },
+			to: ".",
 			search: (prev) => {
 				const newFilters = { ...prev.questionFilters }
 				const currentValues = newFilters[questionId] || []
@@ -337,8 +351,7 @@ function AthletesPage() {
 	// Remove a specific question filter value
 	const removeQuestionFilter = (questionId: string, value: string) => {
 		navigate({
-			to: "/compete/organizer/$competitionId/athletes",
-			params: { competitionId: competition.id },
+			to: ".",
 			search: (prev) => {
 				const newFilters = { ...prev.questionFilters }
 				const currentValues = newFilters[questionId] || []
@@ -363,8 +376,7 @@ function AthletesPage() {
 	// Toggle a waiver filter (add if not present, remove if present)
 	const toggleWaiverFilter = (filterValue: string) => {
 		navigate({
-			to: "/compete/organizer/$competitionId/athletes",
-			params: { competitionId: competition.id },
+			to: ".",
 			search: (prev) => {
 				const currentFilters = prev.waiverFilters || []
 
@@ -388,8 +400,7 @@ function AthletesPage() {
 	// Remove a specific waiver filter
 	const removeWaiverFilter = (filterValue: string) => {
 		navigate({
-			to: "/compete/organizer/$competitionId/athletes",
-			params: { competitionId: competition.id },
+			to: ".",
 			search: (prev) => {
 				const filtered = (prev.waiverFilters || []).filter(
 					(v) => v !== filterValue,
@@ -406,8 +417,7 @@ function AthletesPage() {
 	// Handle column sorting
 	const handleSort = (column: SortColumn) => {
 		navigate({
-			to: "/compete/organizer/$competitionId/athletes",
-			params: { competitionId: competition.id },
+			to: ".",
 			search: (prev) => {
 				// If clicking the same column, toggle direction or clear
 				if (prev.sortBy === column) {
@@ -830,7 +840,12 @@ function AthletesPage() {
 
 	return (
 		<>
-		<div className="flex flex-col gap-6">
+		<Tabs value={tab} onValueChange={handleTabChange} className="w-full">
+			<TabsList className="mb-6">
+				<TabsTrigger value="athletes">Athletes</TabsTrigger>
+				<TabsTrigger value="registration-rules">Registration Rules</TabsTrigger>
+			</TabsList>
+		<TabsContent value="registration-rules" className="flex flex-col gap-6">
 			{/* Inherited Series Questions (read-only) */}
 			{questions.some((q) => q.source === "series") && (
 				<Card>
@@ -897,7 +912,9 @@ function AthletesPage() {
 				questions={questions.filter((q) => q.source === "competition")}
 				onQuestionsChange={handleQuestionsChange}
 			/>
+		</TabsContent>
 
+		<TabsContent value="athletes" className="flex flex-col gap-6">
 			{/* Athletes Section */}
 			<div className="flex items-center justify-between">
 				<div>
@@ -1538,7 +1555,8 @@ function AthletesPage() {
 					)}
 				</div>
 			)}
-		</div>
+		</TabsContent>
+		</Tabs>
 
 		<AlertDialog
 			open={!!removingRegistration}

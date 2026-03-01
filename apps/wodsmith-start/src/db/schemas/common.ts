@@ -110,3 +110,6 @@ export const createVolunteerShiftAssignmentId = () => `vshfa_${ulid()}`
 
 // Purchase transfer ID generators
 export const createPurchaseTransferId = () => `ptxfr_${ulid()}`
+
+// Volunteer registration answer ID generators
+export const createVolunteerRegistrationAnswerId = () => `vra_${ulid()}`

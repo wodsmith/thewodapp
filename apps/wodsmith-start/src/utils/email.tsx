@@ -303,6 +303,43 @@ export async function sendCompetitionTeamInviteEmail({
 }
 
 /**
+ * Sends a volunteer direct invite email.
+ * Used when an organizer directly invites a volunteer to a competition.
+ * Routes to /compete/invite/${token} so the invitee fills out registration questions.
+ */
+export async function sendVolunteerDirectInviteEmail({
+	email,
+	invitationToken,
+	competitionName,
+	inviterName,
+}: {
+	email: string
+	invitationToken: string
+	competitionName: string
+	inviterName: string
+}): Promise<void> {
+	const siteUrl = getSiteUrl()
+	const inviteUrl = `${siteUrl}/compete/invite/${encodeURIComponent(invitationToken)}`
+
+	// In dev mode, console.warn shows the URL for easy testing
+	if (!shouldSendEmail()) {
+		console.warn("\n\n\nVolunteer direct invite url: ", inviteUrl)
+	}
+
+	await sendEmail({
+		to: email,
+		subject: `You've been invited to volunteer at ${competitionName}`,
+		template: TeamInviteEmail({
+			inviteLink: inviteUrl,
+			recipientEmail: email,
+			teamName: competitionName,
+			inviterName,
+		}),
+		tags: [{ name: "type", value: "volunteer-direct-invitation" }],
+	})
+}
+
+/**
  * Sends an organizer request approval email.
  * Uses the unified sendEmail function for consistent logging and error handling.
  */

@@ -107,6 +107,7 @@ interface RegistrationQuestionsEditorProps {
 	teamId: string
 	questions: RegistrationQuestion[]
 	onQuestionsChange: () => void
+	questionTarget?: "athlete" | "volunteer"
 }
 
 interface QuestionItemProps {
@@ -346,6 +347,7 @@ interface QuestionFormDialogProps {
 	open: boolean
 	onClose: () => void
 	onSuccess: () => void
+	questionTarget?: "athlete" | "volunteer"
 }
 
 function QuestionFormDialog({
@@ -356,6 +358,7 @@ function QuestionFormDialog({
 	open,
 	onClose,
 	onSuccess,
+	questionTarget = "athlete",
 }: QuestionFormDialogProps) {
 	const [isSaving, setIsSaving] = useState(false)
 	const [optionInput, setOptionInput] = useState("")
@@ -460,6 +463,7 @@ function QuestionFormDialog({
 						options: values.type === "select" ? values.options : null,
 						required: values.required,
 						forTeammates: values.forTeammates,
+						questionTarget,
 					},
 				})
 				toast.success("Question created successfully")
@@ -474,6 +478,7 @@ function QuestionFormDialog({
 						options: values.type === "select" ? values.options : null,
 						required: values.required,
 						forTeammates: values.forTeammates,
+						questionTarget,
 					},
 				})
 				toast.success("Question created successfully")
@@ -497,10 +502,14 @@ function QuestionFormDialog({
 			<DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>
-						{isEditing ? "Edit" : "Add"} Registration Question
+						{isEditing ? "Edit" : "Add"}{" "}
+						{questionTarget === "volunteer" ? "Volunteer" : "Registration"}{" "}
+						Question
 					</DialogTitle>
 					<DialogDescription>
-						Custom questions that athletes must answer during registration.
+						{questionTarget === "volunteer"
+							? "Custom questions that volunteers must answer when signing up."
+							: "Custom questions that athletes must answer during registration."}
 					</DialogDescription>
 				</DialogHeader>
 
@@ -639,27 +648,29 @@ function QuestionFormDialog({
 							)}
 						/>
 
-						<FormField
-							control={form.control}
-							name="forTeammates"
-							render={({ field }) => (
-								<FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-									<FormControl>
-										<Checkbox
-											checked={field.value}
-											onCheckedChange={field.onChange}
-										/>
-									</FormControl>
-									<div className="space-y-1 leading-none">
-										<FormLabel>Ask Teammates Separately</FormLabel>
-										<FormDescription>
-											For team registrations, ask this question for each
-											teammate individually.
-										</FormDescription>
-									</div>
-								</FormItem>
-							)}
-						/>
+						{questionTarget !== "volunteer" && (
+							<FormField
+								control={form.control}
+								name="forTeammates"
+								render={({ field }) => (
+									<FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+										<FormControl>
+											<Checkbox
+												checked={field.value}
+												onCheckedChange={field.onChange}
+											/>
+										</FormControl>
+										<div className="space-y-1 leading-none">
+											<FormLabel>Ask Teammates Separately</FormLabel>
+											<FormDescription>
+												For team registrations, ask this question for each
+												teammate individually.
+											</FormDescription>
+										</div>
+									</FormItem>
+								)}
+							/>
+						)}
 
 						<DialogFooter>
 							<Button type="button" variant="outline" onClick={onClose}>
@@ -686,6 +697,7 @@ export function RegistrationQuestionsEditor({
 	teamId,
 	questions: initialQuestions,
 	onQuestionsChange,
+	questionTarget = "athlete",
 }: RegistrationQuestionsEditorProps) {
 	const [questions, setQuestions] = useState(initialQuestions)
 	const [instanceId] = useState(() => Symbol("registration-questions"))
@@ -782,11 +794,17 @@ export function RegistrationQuestionsEditor({
 				<CardHeader>
 					<div className="flex items-start justify-between">
 						<div>
-							<CardTitle>Registration Questions</CardTitle>
+							<CardTitle>
+								{questionTarget === "volunteer"
+									? "Volunteer Registration Questions"
+									: "Registration Questions"}
+							</CardTitle>
 							<CardDescription>
-								{entityType === "series"
-									? "Questions that apply to all competitions in this series"
-									: "Custom questions athletes must answer during registration"}
+								{questionTarget === "volunteer"
+									? "Questions volunteers must answer when signing up"
+									: entityType === "series"
+										? "Questions that apply to all competitions in this series"
+										: "Custom questions athletes must answer during registration"}
 							</CardDescription>
 						</div>
 						<Button onClick={handleAddNew}>
@@ -830,6 +848,7 @@ export function RegistrationQuestionsEditor({
 				open={isFormOpen}
 				onClose={handleFormClose}
 				onSuccess={handleFormSuccess}
+				questionTarget={questionTarget}
 			/>
 
 			<AlertDialog
