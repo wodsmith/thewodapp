@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "aba14104929d",
+  "strategy": "manual-commit",
+  "branch": "claude/athlete-video-preview-TYXxj",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/src/components/compete/video-submission-form.tsx",
+    "apps/wodsmith-start/src/components/compete/video-submission-preview.tsx",
+    "apps/wodsmith-start/src/components/compete/youtube-embed.tsx",
+    "apps/wodsmith-start/src/utils/url.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ab/a14104929d/0/metadata.json",
+      "transcript": "/ab/a14104929d/0/full.jsonl",
+      "context": "/ab/a14104929d/0/context.md",
+      "content_hash": "/ab/a14104929d/0/content_hash.txt",
+      "prompt": "/ab/a14104929d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 3726,
+    "cache_creation_tokens": 68461,
+    "cache_read_tokens": 2324684,
+    "output_tokens": 13998,
+    "api_call_count": 33
+  }
+}
