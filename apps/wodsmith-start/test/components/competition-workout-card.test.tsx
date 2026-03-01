@@ -382,6 +382,7 @@ describe("CompetitionWorkoutCard", () => {
 							divisionId: "div-scaled",
 							divisionLabel: "Scaled",
 							description: "55/35 lb thrusters",
+							position: 0,
 						},
 					]}
 				/>,
@@ -400,6 +401,7 @@ describe("CompetitionWorkoutCard", () => {
 							divisionId: "div-scaled",
 							divisionLabel: "Scaled",
 							description: "55/35 lb thrusters",
+							position: 0,
 						},
 					]}
 				/>,

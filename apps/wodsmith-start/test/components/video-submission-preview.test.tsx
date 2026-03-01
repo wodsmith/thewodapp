@@ -12,7 +12,7 @@ vi.mock("lucide-react", () => {
 			"aria-hidden": ariaHidden,
 		}: {
 			className?: string
-			"aria-hidden"?: string | boolean
+			"aria-hidden"?: boolean | "true" | "false"
 		}) => (
 			<span
 				data-testid={`icon-${name}`}
