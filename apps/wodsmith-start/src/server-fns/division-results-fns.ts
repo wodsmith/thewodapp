@@ -11,12 +11,13 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray, isNotNull, sql } from "drizzle-orm"
+import { and, eq, inArray, isNotNull, ne, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
-	competitionsTable,
 	competitionRegistrationsTable,
+	competitionsTable,
+	REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import {
 	programmingTracksTable,
@@ -25,9 +26,9 @@ import {
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoresTable } from "@/db/schemas/scores"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { ROLES_ENUM } from "@/db/schemas/users"
 import { workouts as workoutsTable } from "@/db/schemas/workouts"
 import { getSessionFromCookie } from "@/utils/auth"
-import { autochunk } from "@/utils/batch-query"
 
 // ============================================================================
 // Types
@@ -186,9 +187,13 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 				throw new Error("Not authenticated")
 			}
 
-			// Check permission
+			// Check permission (site admins bypass)
+			const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
 			const team = session.teams?.find((t) => t.id === data.organizingTeamId)
-			if (!team?.permissions.includes(TEAM_PERMISSIONS.ACCESS_DASHBOARD)) {
+			if (
+				!isSiteAdmin &&
+				!team?.permissions.includes(TEAM_PERMISSIONS.ACCESS_DASHBOARD)
+			) {
 				throw new Error("Missing required permission")
 			}
 
@@ -249,23 +254,23 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 
 			// Get registrations per division
 			const divisionIds = divisions.map((d) => d.id)
-			const registrationCounts = await autochunk(
-				{ items: divisionIds, otherParametersCount: 1 },
-				async (chunk) =>
-					db
-						.select({
-							divisionId: competitionRegistrationsTable.divisionId,
-							count: sql<number>`cast(count(*) as integer)`,
-						})
-						.from(competitionRegistrationsTable)
-						.where(
-							and(
-								eq(competitionRegistrationsTable.eventId, data.competitionId),
-								inArray(competitionRegistrationsTable.divisionId, chunk),
-							),
-						)
-						.groupBy(competitionRegistrationsTable.divisionId),
-			)
+			const registrationCounts = await db
+				.select({
+					divisionId: competitionRegistrationsTable.divisionId,
+					count: sql<number>`cast(count(*) as unsigned)`,
+				})
+				.from(competitionRegistrationsTable)
+				.where(
+					and(
+						eq(competitionRegistrationsTable.eventId, data.competitionId),
+						inArray(competitionRegistrationsTable.divisionId, divisionIds),
+						ne(
+							competitionRegistrationsTable.status,
+							REGISTRATION_STATUS.REMOVED,
+						),
+					),
+				)
+				.groupBy(competitionRegistrationsTable.divisionId)
 
 			const registrationCountMap = new Map<string, number>()
 			for (const row of registrationCounts) {
@@ -328,7 +333,7 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 				return { events: [], totalPublishedCount: 0, totalCombinations: 0 }
 			}
 
-			// Get registrations for score counting
+			// Get registrations for score counting (exclude removed)
 			const registrations = await db
 				.select({
 					id: competitionRegistrationsTable.id,
@@ -336,7 +341,15 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 					divisionId: competitionRegistrationsTable.divisionId,
 				})
 				.from(competitionRegistrationsTable)
-				.where(eq(competitionRegistrationsTable.eventId, data.competitionId))
+				.where(
+					and(
+						eq(competitionRegistrationsTable.eventId, data.competitionId),
+						ne(
+							competitionRegistrationsTable.status,
+							REGISTRATION_STATUS.REMOVED,
+						),
+					),
+				)
 
 			// Build a map of userId -> divisionId
 			const userDivisionMap = new Map<string, string>()
@@ -350,22 +363,18 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 			const eventIds = targetEvents.map((e) => e.id)
 			const allScores =
 				eventIds.length > 0
-					? await autochunk(
-							{ items: eventIds, otherParametersCount: 0 },
-							async (chunk) =>
-								db
-									.select({
-										userId: scoresTable.userId,
-										competitionEventId: scoresTable.competitionEventId,
-									})
-									.from(scoresTable)
-									.where(
-										and(
-											inArray(scoresTable.competitionEventId, chunk),
-											isNotNull(scoresTable.scoreValue),
-										),
-									),
-						)
+					? await db
+							.select({
+								userId: scoresTable.userId,
+								competitionEventId: scoresTable.competitionEventId,
+							})
+							.from(scoresTable)
+							.where(
+								and(
+									inArray(scoresTable.competitionEventId, eventIds),
+									isNotNull(scoresTable.scoreValue),
+								),
+							)
 					: []
 
 			// Build a map of eventId -> set of userIds with scores
@@ -480,9 +489,13 @@ export const publishDivisionResultsFn = createServerFn({ method: "POST" })
 				throw new Error("Not authenticated")
 			}
 
-			// Check permission
+			// Check permission (site admins bypass)
+			const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
 			const team = session.teams?.find((t) => t.id === data.organizingTeamId)
-			if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
+			if (
+				!isSiteAdmin &&
+				!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+			) {
 				throw new Error("Missing required permission")
 			}
 
@@ -553,9 +566,13 @@ export const publishAllDivisionResultsFn = createServerFn({ method: "POST" })
 				throw new Error("Not authenticated")
 			}
 
-			// Check permission
+			// Check permission (site admins bypass)
+			const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
 			const team = session.teams?.find((t) => t.id === data.organizingTeamId)
-			if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
+			if (
+				!isSiteAdmin &&
+				!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+			) {
 				throw new Error("Missing required permission")
 			}
 

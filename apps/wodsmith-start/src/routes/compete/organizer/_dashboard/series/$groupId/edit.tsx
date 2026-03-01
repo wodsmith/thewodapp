@@ -10,6 +10,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import { getCompetitionGroupByIdFn } from "@/server-fns/competition-fns"
+import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
 
 export const Route = createFileRoute(
 	"/compete/organizer/_dashboard/series/$groupId/edit",
@@ -17,18 +18,37 @@ export const Route = createFileRoute(
 	component: EditSeriesPage,
 	loader: async ({ params, context }) => {
 		const { groupId } = params
-		const session = context.session
-		const teamId = session?.teams?.[0]?.id
+		const { teams: organizingTeams } = await getOrganizerTeamsFn()
+		const isSiteAdmin = context.session?.user?.role === "admin"
 
-		if (!teamId) {
+		// Fetch group details (needed for both admin and normal flow)
+		const groupResult = await getCompetitionGroupByIdFn({ data: { groupId } })
+
+		if (!groupResult.group) {
 			return {
 				group: null,
 				teamId: null,
 			}
 		}
 
-		// Fetch group details
-		const groupResult = await getCompetitionGroupByIdFn({ data: { groupId } })
+		if (organizingTeams.length === 0 && !isSiteAdmin) {
+			return {
+				group: null,
+				teamId: null,
+			}
+		}
+
+		// Use the group's organizing team if user has access
+		const groupTeamId = groupResult.group.organizingTeamId
+		let teamId: string
+		if (isSiteAdmin || organizingTeams.some((t) => t.id === groupTeamId)) {
+			teamId = groupTeamId
+		} else {
+			const activeTeamId = await getActiveTeamIdFn()
+			teamId =
+				organizingTeams.find((t) => t.id === activeTeamId)?.id ??
+				organizingTeams[0].id
+		}
 
 		return {
 			group: groupResult.group,

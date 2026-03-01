@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
+import { trackEvent } from "@/lib/posthog"
 import { Button } from "@/components/ui/button"
 import {
 	Form,
@@ -55,14 +56,21 @@ function CreateMovementPage() {
 		setIsSubmitting(true)
 
 		try {
-			await createMovement({ data })
+			const result = await createMovement({ data })
+			trackEvent("movement_created", {
+				movement_id: result.movement.id,
+				movement_name: data.name,
+				movement_type: data.type,
+			})
 			navigate({ to: "/movements", search: { q: "", type: "" } })
 		} catch (error) {
-			console.error("Failed to create movement:", error)
-			form.setError("root", {
-				message:
-					error instanceof Error ? error.message : "An unknown error occurred.",
+			const message =
+				error instanceof Error ? error.message : "An unknown error occurred."
+			trackEvent("movement_created_failed", {
+				error_message: message,
 			})
+			console.error("Failed to create movement:", error)
+			form.setError("root", { message })
 		} finally {
 			setIsSubmitting(false)
 		}

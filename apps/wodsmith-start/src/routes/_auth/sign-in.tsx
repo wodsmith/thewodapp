@@ -31,9 +31,9 @@ import { REDIRECT_AFTER_SIGN_IN } from "@/constants"
 import { useIdentifyUser, useTrackEvent } from "@/lib/posthog/hooks"
 import {
 	getSessionFn,
+	type SignInInput,
 	signInFn,
 	signInSchema,
-	type SignInInput,
 } from "@/server-fns/auth-fns"
 
 export const Route = createFileRoute("/_auth/sign-in")({

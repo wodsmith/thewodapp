@@ -23,13 +23,12 @@ import {
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import type { Gender } from "@/db/schema"
-import { getAppUrl } from "@/lib/env"
+import { getAppUrlFn } from "@/lib/env"
 import {
 	getRegistrationSuccessDataFn,
 	updateAthleteBasicProfileFn,
 } from "@/server-fns/athlete-profile-fns"
 import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
-import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 
 /**
  * Refresh button component
@@ -67,7 +66,7 @@ export const Route = createFileRoute("/compete/$slug/register/success")({
 		session_id: z.string().optional(),
 	}),
 	loaderDeps: ({ search }) => ({ session_id: search.session_id }),
-	loader: async ({ params, context, deps }) => {
+	loader: async ({ params, context, deps, parentMatchPromise }) => {
 		const { slug } = params
 		const { session_id } = deps
 		const session = context?.session ?? null
@@ -79,8 +78,9 @@ export const Route = createFileRoute("/compete/$slug/register/success")({
 			})
 		}
 
-		// Get competition
-		const { competition } = await getCompetitionBySlugFn({ data: { slug } })
+		// Get competition from parent
+		const parentMatch = await parentMatchPromise
+		const competition = parentMatch.loaderData?.competition
 		if (!competition) {
 			throw redirect({ to: "/compete" })
 		}
@@ -98,7 +98,7 @@ export const Route = createFileRoute("/compete/$slug/register/success")({
 			competition.passStripeFeesToCustomer ?? false
 
 		// Get the base URL for invite links
-		const baseUrl = getAppUrl()
+		const baseUrl = await getAppUrlFn()
 
 		// Fetch additional data via server function (avoids client-side db import)
 		const { user, isProfileComplete, checkoutSession, purchase, teamInvites } =

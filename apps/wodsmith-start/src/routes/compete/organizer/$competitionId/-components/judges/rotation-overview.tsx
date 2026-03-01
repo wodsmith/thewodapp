@@ -3,7 +3,6 @@
 import { AlertCircle, CheckCircle2 } from "lucide-react"
 import { useMemo } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import type { CompetitionJudgeRotation } from "@/db/schema"
 import type { CoverageStats } from "@/lib/judge-rotation-utils"
 import { PublishRotationsButton } from "./publish-rotations-button"
@@ -97,9 +96,6 @@ export function RotationOverview({
 				</div>
 				<div className="flex-1" />
 				<div className="flex items-center gap-3">
-					<Badge variant="secondary" className="tabular-nums">
-						{rotations.length} rotation{rotations.length !== 1 ? "s" : ""}
-					</Badge>
 					<PublishRotationsButton
 						teamId={teamId}
 						trackWorkoutId={trackWorkoutId}

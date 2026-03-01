@@ -423,10 +423,11 @@ describe("applyTiebreakers", () => {
 			expect(result[1].rank).toBe(1)
 		})
 
-		it("throws error when headToHeadEventId is missing for head_to_head method", () => {
+		it("falls back to no tiebreaker when headToHeadEventId is missing", () => {
 			const input: TiebreakerInput = {
 				athletes: [
 					{ userId: "athlete-1", totalPoints: 200, eventPlacements: new Map() },
+					{ userId: "athlete-2", totalPoints: 200, eventPlacements: new Map() },
 				],
 				config: {
 					primary: "head_to_head",
@@ -434,9 +435,11 @@ describe("applyTiebreakers", () => {
 				},
 			}
 
-			expect(() => applyTiebreakers(input)).toThrow(
-				"headToHeadEventId is required for head_to_head tiebreaker"
-			)
+			const result = applyTiebreakers(input)
+
+			// Without headToHeadEventId, falls back to no tiebreaker - tie remains
+			expect(result[0].rank).toBe(1)
+			expect(result[1].rank).toBe(1)
 		})
 	})
 

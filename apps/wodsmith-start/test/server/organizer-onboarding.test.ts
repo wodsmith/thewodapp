@@ -72,7 +72,11 @@ describe('Organizer Onboarding', () => {
       const mockDb = {
         query: {
           organizerRequestTable: {
-            findFirst: vi.fn().mockResolvedValue(null),
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce(null) // No pending request
+              .mockResolvedValueOnce(null) // No approved request
+              .mockResolvedValueOnce(mockRequest), // Fetch created request
           },
           featureTable: {
             findFirst: vi.fn().mockResolvedValue({
@@ -82,9 +86,12 @@ describe('Organizer Onboarding', () => {
           },
         },
         insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([mockRequest]),
-            onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+          values: vi.fn().mockImplementation(() => {
+            const result = Promise.resolve({insertId: mockRequestId})
+            ;(result as any).onDuplicateKeyUpdate = vi
+              .fn()
+              .mockResolvedValue(undefined)
+            return result
           }),
         }),
       }
@@ -156,13 +163,13 @@ describe('Organizer Onboarding', () => {
       const mockDb = {
         query: {
           organizerRequestTable: {
-            findFirst: vi.fn().mockResolvedValue(null),
+            findFirst: vi.fn()
+              .mockResolvedValueOnce(null) // no existing approved request
+              .mockResolvedValueOnce(null), // post-insert fetch returns null
           },
         },
         insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([]), // Empty array = failed insert
-          }),
+          values: vi.fn().mockResolvedValue(undefined),
         }),
       }
 
@@ -174,7 +181,7 @@ describe('Organizer Onboarding', () => {
           userId: mockUserId,
           reason: mockReason,
         }),
-      ).rejects.toThrow('Failed to create organizer request')
+      ).rejects.toThrow('Failed to retrieve created organizer request')
     })
   })
 
@@ -193,7 +200,10 @@ describe('Organizer Onboarding', () => {
       const mockDb = {
         query: {
           organizerRequestTable: {
-            findFirst: vi.fn().mockResolvedValue(pendingRequest),
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce(pendingRequest) // Get request
+              .mockResolvedValueOnce(approvedRequest), // Fetch updated request
           },
           userTable: {
             findFirst: vi.fn().mockResolvedValue({
@@ -211,14 +221,12 @@ describe('Organizer Onboarding', () => {
         },
         update: vi.fn().mockReturnValue({
           set: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              returning: vi.fn().mockResolvedValue([approvedRequest]),
-            }),
+            where: vi.fn().mockResolvedValue(undefined),
           }),
         }),
         insert: vi.fn().mockReturnValue({
           values: vi.fn().mockReturnValue({
-            onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+            onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
           }),
         }),
       }
@@ -309,14 +317,15 @@ describe('Organizer Onboarding', () => {
       const mockDb = {
         query: {
           organizerRequestTable: {
-            findFirst: vi.fn().mockResolvedValue(pendingRequest),
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce(pendingRequest) // Get request
+              .mockResolvedValueOnce(null), // Fetch updated request returns null
           },
         },
         update: vi.fn().mockReturnValue({
           set: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              returning: vi.fn().mockResolvedValue([]), // Empty array = failed update
-            }),
+            where: vi.fn().mockResolvedValue(undefined),
           }),
         }),
       }
@@ -328,7 +337,7 @@ describe('Organizer Onboarding', () => {
           requestId: mockRequestId,
           adminUserId: mockAdminUserId,
         }),
-      ).rejects.toThrow('Failed to update organizer request')
+      ).rejects.toThrow('Failed to retrieve updated organizer request')
     })
   })
 
@@ -347,7 +356,10 @@ describe('Organizer Onboarding', () => {
       const mockDb = {
         query: {
           organizerRequestTable: {
-            findFirst: vi.fn().mockResolvedValue(pendingRequest),
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce(pendingRequest) // Get request
+              .mockResolvedValueOnce(rejectedRequest), // Fetch updated request
           },
           userTable: {
             findFirst: vi.fn().mockResolvedValue({
@@ -364,9 +376,7 @@ describe('Organizer Onboarding', () => {
         },
         update: vi.fn().mockReturnValue({
           set: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              returning: vi.fn().mockResolvedValue([rejectedRequest]),
-            }),
+            where: vi.fn().mockResolvedValue(undefined),
           }),
         }),
       }
@@ -397,7 +407,10 @@ describe('Organizer Onboarding', () => {
       const mockDb = {
         query: {
           organizerRequestTable: {
-            findFirst: vi.fn().mockResolvedValue(pendingRequest),
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce(pendingRequest) // Get request
+              .mockResolvedValueOnce(rejectedRequest), // Fetch updated request
           },
           userTable: {
             findFirst: vi.fn().mockResolvedValue({
@@ -420,9 +433,7 @@ describe('Organizer Onboarding', () => {
         },
         update: vi.fn().mockReturnValue({
           set: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              returning: vi.fn().mockResolvedValue([rejectedRequest]),
-            }),
+            where: vi.fn().mockResolvedValue(undefined),
           }),
         }),
       }
@@ -490,14 +501,15 @@ describe('Organizer Onboarding', () => {
       const mockDb = {
         query: {
           organizerRequestTable: {
-            findFirst: vi.fn().mockResolvedValue(pendingRequest),
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce(pendingRequest) // Get request
+              .mockResolvedValueOnce(null), // Fetch updated request returns null
           },
         },
         update: vi.fn().mockReturnValue({
           set: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              returning: vi.fn().mockResolvedValue([]), // Empty array = failed update
-            }),
+            where: vi.fn().mockResolvedValue(undefined),
           }),
         }),
       }
@@ -509,7 +521,7 @@ describe('Organizer Onboarding', () => {
           requestId: mockRequestId,
           adminUserId: mockAdminUserId,
         }),
-      ).rejects.toThrow('Failed to update organizer request')
+      ).rejects.toThrow('Failed to retrieve updated organizer request')
     })
   })
 
@@ -722,7 +734,11 @@ describe('Organizer Onboarding', () => {
       const mockDbSubmit = {
         query: {
           organizerRequestTable: {
-            findFirst: vi.fn().mockResolvedValue(null),
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce(null) // No pending
+              .mockResolvedValueOnce(null) // No approved
+              .mockResolvedValueOnce(pendingRequest), // Fetch created
           },
           featureTable: {
             findFirst: vi.fn().mockResolvedValue({
@@ -732,9 +748,12 @@ describe('Organizer Onboarding', () => {
           },
         },
         insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([pendingRequest]),
-            onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+          values: vi.fn().mockImplementation(() => {
+            const result = Promise.resolve({insertId: mockRequestId})
+            ;(result as any).onDuplicateKeyUpdate = vi
+              .fn()
+              .mockResolvedValue(undefined)
+            return result
           }),
         }),
       }
@@ -757,7 +776,10 @@ describe('Organizer Onboarding', () => {
       const mockDbApprove = {
         query: {
           organizerRequestTable: {
-            findFirst: vi.fn().mockResolvedValue(pendingRequest),
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce(pendingRequest) // Get request
+              .mockResolvedValueOnce(approvedRequest), // Fetch updated
           },
           userTable: {
             findFirst: vi.fn().mockResolvedValue({
@@ -775,14 +797,12 @@ describe('Organizer Onboarding', () => {
         },
         update: vi.fn().mockReturnValue({
           set: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              returning: vi.fn().mockResolvedValue([approvedRequest]),
-            }),
+            where: vi.fn().mockResolvedValue(undefined),
           }),
         }),
         insert: vi.fn().mockReturnValue({
           values: vi.fn().mockReturnValue({
-            onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+            onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
           }),
         }),
       }
@@ -812,7 +832,10 @@ describe('Organizer Onboarding', () => {
       const mockDbReject = {
         query: {
           organizerRequestTable: {
-            findFirst: vi.fn().mockResolvedValue(pendingRequest),
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce(pendingRequest) // Get request
+              .mockResolvedValueOnce(rejectedRequest), // Fetch updated
           },
           userTable: {
             findFirst: vi.fn().mockResolvedValue({
@@ -835,9 +858,7 @@ describe('Organizer Onboarding', () => {
         },
         update: vi.fn().mockReturnValue({
           set: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              returning: vi.fn().mockResolvedValue([rejectedRequest]),
-            }),
+            where: vi.fn().mockResolvedValue(undefined),
           }),
         }),
       }
@@ -882,7 +903,7 @@ describe('Entitlement Grant/Revoke Functions', () => {
       it('should look up feature by key and insert entitlement', async () => {
         // ARRANGE: Mock feature lookup and insert
         const mockInsertValues = vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+          onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
         })
         const mockInsert = vi.fn().mockReturnValue({
           values: mockInsertValues,
@@ -917,12 +938,12 @@ describe('Entitlement Grant/Revoke Functions', () => {
         })
       })
 
-      it('should handle upsert (onConflictDoUpdate) for duplicate grants', async () => {
+      it('should handle upsert (onDuplicateKeyUpdate) for duplicate grants', async () => {
         // ARRANGE: Mock feature lookup and upsert
-        const mockOnConflictDoUpdate = vi.fn().mockResolvedValue(undefined)
+        const mockOnDuplicateKeyUpdate = vi.fn().mockResolvedValue(undefined)
         const mockInsert = vi.fn().mockReturnValue({
           values: vi.fn().mockReturnValue({
-            onConflictDoUpdate: mockOnConflictDoUpdate,
+            onDuplicateKeyUpdate: mockOnDuplicateKeyUpdate,
           }),
         })
 
@@ -943,8 +964,8 @@ describe('Entitlement Grant/Revoke Functions', () => {
         // ACT
         await grantTeamFeature(mockTeamId, mockFeatureKey)
 
-        // ASSERT: onConflictDoUpdate was called with correct params
-        expect(mockOnConflictDoUpdate).toHaveBeenCalledWith(
+        // ASSERT: onDuplicateKeyUpdate was called with correct params
+        expect(mockOnDuplicateKeyUpdate).toHaveBeenCalledWith(
           expect.objectContaining({
             set: {
               isActive: 1,
@@ -967,7 +988,7 @@ describe('Entitlement Grant/Revoke Functions', () => {
           },
           insert: vi.fn().mockReturnValue({
             values: vi.fn().mockReturnValue({
-              onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+              onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
             }),
           }),
         }
@@ -1007,9 +1028,9 @@ describe('Entitlement Grant/Revoke Functions', () => {
     describe('with all parameters', () => {
       it('should insert limit override with teamId, type, key, value, and reason', async () => {
         // ARRANGE
-        const mockOnConflictDoUpdate = vi.fn().mockResolvedValue(undefined)
+        const mockOnDuplicateKeyUpdate = vi.fn().mockResolvedValue(undefined)
         const mockValues = vi.fn().mockReturnValue({
-          onConflictDoUpdate: mockOnConflictDoUpdate,
+          onDuplicateKeyUpdate: mockOnDuplicateKeyUpdate,
         })
         const mockInsert = vi.fn().mockReturnValue({
           values: mockValues,
@@ -1045,7 +1066,7 @@ describe('Entitlement Grant/Revoke Functions', () => {
       it('should insert limit override with undefined reason', async () => {
         // ARRANGE
         const mockValues = vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+          onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
         })
         const mockInsert = vi.fn().mockReturnValue({
           values: mockValues,
@@ -1074,10 +1095,10 @@ describe('Entitlement Grant/Revoke Functions', () => {
     describe('upsert behavior', () => {
       it('should handle upsert for duplicate overrides', async () => {
         // ARRANGE
-        const mockOnConflictDoUpdate = vi.fn().mockResolvedValue(undefined)
+        const mockOnDuplicateKeyUpdate = vi.fn().mockResolvedValue(undefined)
         const mockInsert = vi.fn().mockReturnValue({
           values: vi.fn().mockReturnValue({
-            onConflictDoUpdate: mockOnConflictDoUpdate,
+            onDuplicateKeyUpdate: mockOnDuplicateKeyUpdate,
           }),
         })
 
@@ -1095,8 +1116,8 @@ describe('Entitlement Grant/Revoke Functions', () => {
           'Updated limit',
         )
 
-        // ASSERT: onConflictDoUpdate was called with correct params
-        expect(mockOnConflictDoUpdate).toHaveBeenCalledWith(
+        // ASSERT: onDuplicateKeyUpdate was called with correct params
+        expect(mockOnDuplicateKeyUpdate).toHaveBeenCalledWith(
           expect.objectContaining({
             set: {
               value: '5',
@@ -1111,7 +1132,7 @@ describe('Entitlement Grant/Revoke Functions', () => {
       it('should convert numeric value to string', async () => {
         // ARRANGE
         const mockValues = vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+          onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
         })
         const mockInsert = vi.fn().mockReturnValue({
           values: mockValues,
@@ -1137,7 +1158,7 @@ describe('Entitlement Grant/Revoke Functions', () => {
       it('should handle negative values correctly (unlimited = -1)', async () => {
         // ARRANGE
         const mockValues = vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+          onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
         })
         const mockInsert = vi.fn().mockReturnValue({
           values: mockValues,
@@ -1163,7 +1184,7 @@ describe('Entitlement Grant/Revoke Functions', () => {
       it('should handle zero value correctly (pending state)', async () => {
         // ARRANGE
         const mockValues = vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+          onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
         })
         const mockInsert = vi.fn().mockReturnValue({
           values: mockValues,
@@ -1294,7 +1315,7 @@ describe('Entitlement Grant/Revoke Functions', () => {
         },
         insert: vi.fn().mockReturnValue({
           values: vi.fn().mockReturnValue({
-            onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+            onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
           }),
         }),
       }
@@ -1338,7 +1359,7 @@ describe('Entitlement Grant/Revoke Functions', () => {
     it('should set limit to 0 for pending state, then -1 for approved state', async () => {
       const mockInsert = vi.fn().mockReturnValue({
         values: vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+          onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
         }),
       })
 

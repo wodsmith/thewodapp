@@ -7,7 +7,8 @@ export {
 	isPostHogInitialized,
 	posthog,
 } from "./client"
-
+// React provider for TanStack Start
+export { PostHogProvider, usePostHog } from "./provider"
 // Utility functions with proper guards
 export {
 	identifyUser,
@@ -16,6 +17,3 @@ export {
 	setUserProperties,
 	trackEvent,
 } from "./utils"
-
-// React provider for TanStack Start
-export { PostHogProvider, usePostHog } from "./provider"

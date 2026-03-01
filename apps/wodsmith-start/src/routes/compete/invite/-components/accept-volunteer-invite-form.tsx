@@ -8,16 +8,25 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
 import { useTrackEvent } from "@/lib/posthog/hooks"
 import { acceptVolunteerInviteFn } from "@/server-fns/invite-fns"
+import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
 
 interface AcceptVolunteerInviteFormProps {
 	token: string
 	competitionSlug?: string
 	competitionName?: string
 	competitionId?: string
+	questions?: RegistrationQuestion[]
 }
 
 /**
@@ -29,18 +38,37 @@ export function AcceptVolunteerInviteForm({
 	competitionSlug,
 	competitionName,
 	competitionId,
+	questions = [],
 }: AcceptVolunteerInviteFormProps) {
 	const navigate = useNavigate()
 	const [isPending, setIsPending] = useState(false)
 	const [error, setError] = useState<string | null>(null)
+	const [answers, setAnswers] = useState<Record<string, string>>({})
 	const acceptInvite = useServerFn(acceptVolunteerInviteFn)
 	const trackEvent = useTrackEvent()
+
+	const handleAnswerChange = (questionId: string, value: string) => {
+		setAnswers((prev) => ({ ...prev, [questionId]: value }))
+	}
 
 	async function handleSubmit(formData: FormData) {
 		setIsPending(true)
 		setError(null)
 
 		const availabilityValue = formData.get("availability") as string
+
+		// Validate required questions
+		for (const q of questions) {
+			if (q.required && (!answers[q.id] || answers[q.id].trim() === "")) {
+				setError(`Please answer the required question: "${q.label}"`)
+				setIsPending(false)
+				return
+			}
+		}
+
+		const answersArray = Object.entries(answers)
+			.filter(([_, value]) => value && value.trim() !== "")
+			.map(([questionId, answer]) => ({ questionId, answer }))
 
 		try {
 			await acceptInvite({
@@ -54,6 +82,7 @@ export function AcceptVolunteerInviteForm({
 						(formData.get("availabilityNotes") as string) || undefined,
 					credentials: (formData.get("credentials") as string) || undefined,
 					signupPhone: (formData.get("phone") as string) || undefined,
+					answers: answersArray.length > 0 ? answersArray : undefined,
 				},
 			})
 
@@ -183,6 +212,71 @@ export function AcceptVolunteerInviteForm({
 					disabled={isPending}
 				/>
 			</div>
+
+			{/* Volunteer Registration Questions */}
+			{questions.length > 0 && (
+				<div className="space-y-4 border-t pt-4">
+					<p className="text-sm font-medium">Additional Questions</p>
+					{questions.map((question) => (
+						<div key={question.id} className="space-y-2">
+							<Label htmlFor={question.id}>
+								{question.label}
+								{question.required && (
+									<span className="text-destructive ml-1">*</span>
+								)}
+							</Label>
+							{question.helpText && (
+								<p className="text-sm text-muted-foreground">
+									{question.helpText}
+								</p>
+							)}
+							{question.type === "text" && (
+								<Input
+									id={question.id}
+									value={answers[question.id] || ""}
+									onChange={(e) =>
+										handleAnswerChange(question.id, e.target.value)
+									}
+									placeholder="Enter your answer"
+									disabled={isPending}
+								/>
+							)}
+							{question.type === "number" && (
+								<Input
+									id={question.id}
+									type="number"
+									value={answers[question.id] || ""}
+									onChange={(e) =>
+										handleAnswerChange(question.id, e.target.value)
+									}
+									placeholder="Enter a number"
+									disabled={isPending}
+								/>
+							)}
+							{question.type === "select" && question.options && (
+								<Select
+									value={answers[question.id] || ""}
+									onValueChange={(value) =>
+										handleAnswerChange(question.id, value)
+									}
+									disabled={isPending}
+								>
+									<SelectTrigger id={question.id}>
+										<SelectValue placeholder="Select an option" />
+									</SelectTrigger>
+									<SelectContent>
+										{question.options.map((option) => (
+											<SelectItem key={option} value={option}>
+												{option}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							)}
+						</div>
+					))}
+				</div>
+			)}
 
 			{error && (
 				<div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4">

@@ -534,7 +534,6 @@ describe("Video Submission Server Functions (TanStack)", () => {
 		it("creates new video submission successfully", async () => {
 			const registration = createTestRegistration()
 			const competition = createTestCompetition({ competitionType: "online" })
-			const newSubmission = createTestVideoSubmission({ id: "sub-new" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			limitMock
@@ -542,11 +541,6 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([]) // No event = allow submission
 				.mockResolvedValueOnce([]) // No existing submission
-
-			const returningMock = mockDb.getChainMock().returning as ReturnType<
-				typeof vi.fn
-			>
-			returningMock.mockResolvedValueOnce([newSubmission])
 
 			const result = await submitVideoFn({
 				data: {
@@ -557,7 +551,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			})
 
 			expect(result.success).toBe(true)
-			expect(result.submissionId).toBe("sub-new")
+			expect(result.submissionId).toBeDefined()
 			expect(result.isUpdate).toBe(false)
 			expect(mockDb.insert).toHaveBeenCalled()
 		})
@@ -1059,7 +1053,6 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			})
 			const trackWorkout = createTestTrackWorkout({ workoutId: "wk-1" })
 			const track = { ownerTeamId: "team-1" }
-			const newSubmission = createTestVideoSubmission({ id: "sub-new" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			limitMock
@@ -1069,11 +1062,6 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([]) // No existing submission
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
 				.mockResolvedValueOnce([track])
-
-			const returningMock = mockDb.getChainMock().returning as ReturnType<
-				typeof vi.fn
-			>
-			returningMock.mockResolvedValueOnce([newSubmission])
 
 			const result = await submitVideoFn({
 				data: {
@@ -1086,7 +1074,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			})
 
 			expect(result.success).toBe(true)
-			expect(result.submissionId).toBe("sub-new")
+			expect(result.submissionId).toBeDefined()
 			// Verifies insert was called (for both video submission and score)
 			expect(mockDb.insert).toHaveBeenCalled()
 		})

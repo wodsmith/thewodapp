@@ -154,7 +154,7 @@ export const submitLogFn = createServerFn({ method: "POST" })
 				const [systemGroup] = await db
 					.select({ id: scalingGroupsTable.id })
 					.from(scalingGroupsTable)
-					.where(eq(scalingGroupsTable.isSystem, 1))
+					.where(eq(scalingGroupsTable.isSystem, true))
 					.limit(1)
 
 				groupId = systemGroup?.id ?? null
@@ -268,7 +268,7 @@ export const getScalingLevelsFn = createServerFn({ method: "GET" })
 			const [systemGroup] = await db
 				.select({ id: scalingGroupsTable.id })
 				.from(scalingGroupsTable)
-				.where(eq(scalingGroupsTable.isSystem, 1))
+				.where(eq(scalingGroupsTable.isSystem, true))
 				.limit(1)
 
 			groupId = systemGroup?.id ?? null
@@ -604,26 +604,27 @@ export const createLogFn = createServerFn({ method: "POST" })
 
 		// Create the score
 		const scoreId = createScoreId()
-		const [newScore] = await db
-			.insert(scoresTable)
-			.values({
-				id: scoreId,
-				userId: data.userId,
-				teamId: data.teamId,
-				workoutId: data.workoutId,
-				scoreValue: data.scoreValue,
-				scheme,
-				scoreType,
-				asRx: data.asRx,
-				scalingLevelId: data.scalingLevelId ?? null,
-				notes: data.notes ?? null,
-				scheduledWorkoutInstanceId: data.scheduledWorkoutInstanceId ?? null,
-				recordedAt: data.recordedAt ?? new Date(),
-				status: "scored",
-				statusOrder: 0,
-				sortKey,
-			})
-			.returning()
+		await db.insert(scoresTable).values({
+			id: scoreId,
+			userId: data.userId,
+			teamId: data.teamId,
+			workoutId: data.workoutId,
+			scoreValue: data.scoreValue,
+			scheme,
+			scoreType,
+			asRx: data.asRx,
+			scalingLevelId: data.scalingLevelId ?? null,
+			notes: data.notes ?? null,
+			scheduledWorkoutInstanceId: data.scheduledWorkoutInstanceId ?? null,
+			recordedAt: data.recordedAt ?? new Date(),
+			status: "scored",
+			statusOrder: 0,
+			sortKey,
+		})
+
+		const newScore = await db.query.scoresTable.findFirst({
+			where: eq(scoresTable.id, scoreId),
+		})
 
 		if (!newScore) {
 			throw new Error("Failed to create log")
@@ -792,11 +793,14 @@ export const updateLogFn = createServerFn({ method: "POST" })
 		}
 
 		// Update the score
-		const [updatedScore] = await db
+		await db
 			.update(scoresTable)
 			.set(updateData)
 			.where(eq(scoresTable.id, data.id))
-			.returning()
+
+		const updatedScore = await db.query.scoresTable.findFirst({
+			where: eq(scoresTable.id, data.id),
+		})
 
 		if (!updatedScore) {
 			throw new Error("Failed to update score")

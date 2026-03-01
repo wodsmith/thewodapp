@@ -1,14 +1,8 @@
 "use client"
 
 import { useServerFn } from "@tanstack/react-start"
-import {
-	AlertCircle,
-	CheckCircle2,
-	ExternalLink,
-	Loader2,
-	Youtube,
-} from "lucide-react"
-import { useEffect, useState } from "react"
+import { AlertCircle, CheckCircle2, ExternalLink, Loader2 } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -22,10 +16,17 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
+import {
+	VideoUrlInput,
+	type VideoUrlValidationState,
+} from "@/components/ui/video-url-input"
 import type { ParseResult, ScoreType, WorkoutScheme } from "@/lib/scoring"
 import { decodeScore, parseScore } from "@/lib/scoring"
 import { cn } from "@/lib/utils"
+import { getSupportedPlatformsText } from "@/schemas/video-url"
 import { submitVideoFn } from "@/server-fns/video-submission-fns"
+import { isSafeUrl } from "@/utils/url"
+import { VideoSubmissionPreview } from "./video-submission-preview"
 
 interface VideoSubmissionFormProps {
 	trackWorkoutId: string
@@ -152,6 +153,31 @@ function getHelpText(scheme: WorkoutScheme, timeCap?: number | null): string {
 	}
 }
 
+function parseTiebreakValue(
+	input: string,
+	scheme: string | null,
+): number | null {
+	if (!input.trim()) return null
+	if (scheme === "time") {
+		// Parse time input (M:SS or total seconds) to milliseconds
+		const timeParts = input.split(":")
+		if (timeParts.length === 2) {
+			const minutes = Number.parseInt(timeParts[0], 10)
+			const seconds = Number.parseInt(timeParts[1], 10)
+			if (!Number.isNaN(minutes) && !Number.isNaN(seconds)) {
+				return (minutes * 60 + seconds) * 1000
+			}
+		}
+		const totalSeconds = Number.parseInt(input, 10)
+		if (!Number.isNaN(totalSeconds)) {
+			return totalSeconds * 1000
+		}
+		return null
+	}
+	const value = Number.parseInt(input, 10)
+	return Number.isNaN(value) ? null : value
+}
+
 export function VideoSubmissionForm({
 	trackWorkoutId,
 	competitionId,
@@ -161,11 +187,28 @@ export function VideoSubmissionForm({
 	const [videoUrl, setVideoUrl] = useState(
 		initialData?.submission?.videoUrl ?? "",
 	)
+	const [videoValidation, setVideoValidation] =
+		useState<VideoUrlValidationState>({
+			isValid: false,
+			isPending: false,
+			error: null,
+			parsedUrl: null,
+		})
 	const [notes, setNotes] = useState(initialData?.submission?.notes ?? "")
 	const [isSubmitting, setIsSubmitting] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 	const [success, setSuccess] = useState<string | null>(null)
 	const [hasSubmitted, setHasSubmitted] = useState(!!initialData?.submission)
+	// Show preview by default if there's an existing submission
+	const [isEditing, setIsEditing] = useState(!initialData?.submission)
+
+	// Local state for submission/score to avoid mutating props
+	const [submissionData, setSubmissionData] = useState(
+		initialData?.submission ?? null,
+	)
+	const [scoreData, setScoreData] = useState(
+		initialData?.existingScore ?? null,
+	)
 
 	// Score form state
 	const [scoreInput, setScoreInput] = useState(
@@ -183,22 +226,28 @@ export function VideoSubmissionForm({
 		}
 		return tiebreakValue.toString()
 	})
-	const [parseResult, setParseResult] = useState<ParseResult | null>(null)
-
+	const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 	const submitVideo = useServerFn(submitVideoFn)
 
 	const workout = initialData?.workout
 
-	// Parse score input
+	// Transition to preview mode after success message displays
 	useEffect(() => {
-		if (!workout || !scoreInput.trim()) {
-			setParseResult(null)
-			return
+		if (!success) return
+		successTimerRef.current = setTimeout(() => {
+			setSuccess(null)
+			setIsEditing(false)
+		}, 1500)
+		return () => {
+			if (successTimerRef.current) clearTimeout(successTimerRef.current)
 		}
+	}, [success])
 
-		const result = parseScore(scoreInput, workout.scheme)
-		setParseResult(result)
-	}, [scoreInput, workout])
+	// Derived state — parseResult is a pure function of scoreInput + scheme
+	const parseResult: ParseResult | null =
+		workout && scoreInput.trim()
+			? parseScore(scoreInput, workout.scheme)
+			: null
 
 	// Derive status from whether time meets or exceeds time cap
 	const scoreStatus: "scored" | "cap" = (() => {
@@ -278,28 +327,30 @@ export function VideoSubmissionForm({
 							</p>
 						</div>
 					)}
-					{(hasSubmitted || initialData?.existingScore?.displayScore) && (
+					{(hasSubmitted || scoreData?.displayScore) && (
 						<div className="pt-2 border-t space-y-2">
-							{initialData?.existingScore?.displayScore && (
+							{scoreData?.displayScore && (
 								<div>
 									<p className="text-sm font-medium">Your claimed score:</p>
 									<p className="text-lg font-mono font-bold">
-										{initialData.existingScore.displayScore}
-										{initialData.existingScore.status === "cap" && " (Capped)"}
+										{scoreData.displayScore}
+										{scoreData.status === "cap" && " (Capped)"}
 									</p>
 								</div>
 							)}
-							{initialData?.submission && (
+							{submissionData && (
 								<div>
-									<p className="text-sm font-medium mb-1">Your submitted video:</p>
+									<p className="text-sm font-medium mb-1">
+										Your submitted video:
+									</p>
 									<a
-										href={initialData.submission.videoUrl}
+										href={isSafeUrl(submissionData.videoUrl) ? submissionData.videoUrl : "#"}
 										target="_blank"
 										rel="noopener noreferrer"
 										className="flex items-center gap-2 text-sm text-primary hover:underline"
 									>
 										<ExternalLink className="h-4 w-4" />
-										{initialData.submission.videoUrl}
+										{submissionData.videoUrl}
 									</a>
 								</div>
 							)}
@@ -320,20 +371,17 @@ export function VideoSubmissionForm({
 			return
 		}
 
-		// Basic URL validation
-		try {
-			new URL(videoUrl)
-		} catch {
-			setError("Please enter a valid URL")
+		// Use video URL validation from the component
+		if (!videoValidation.isValid) {
+			setError(videoValidation.error ?? "Please enter a valid video URL")
 			return
 		}
 
-		// Validate score if provided and workout exists
+		// Validate score — reuse derived parseResult
 		if (scoreInput.trim() && workout) {
-			const scoreParseResult = parseScore(scoreInput, workout.scheme)
-			if (!scoreParseResult.isValid) {
+			if (!parseResult?.isValid) {
 				setError(
-					`Invalid score: ${scoreParseResult.error || "Please check your score entry"}`,
+					`Invalid score: ${parseResult?.error || "Please check your score entry"}`,
 				)
 				return
 			}
@@ -351,7 +399,9 @@ export function VideoSubmissionForm({
 					score: scoreInput.trim() || undefined,
 					scoreStatus: scoreInput.trim() ? scoreStatus : undefined,
 					secondaryScore:
-						scoreStatus === "cap" ? secondaryScore.trim() || undefined : undefined,
+						scoreStatus === "cap"
+							? secondaryScore.trim() || undefined
+							: undefined,
 					tiebreakScore: tiebreakScore.trim() || undefined,
 				},
 			})
@@ -363,6 +413,25 @@ export function VideoSubmissionForm({
 						: "Submitted successfully!",
 				)
 				setHasSubmitted(true)
+				// Update local state with new submission info and switch to preview
+				setSubmissionData({
+					id: result.submissionId ?? submissionData?.id ?? "",
+					videoUrl: videoUrl.trim(),
+					notes: notes.trim() || null,
+					submittedAt: submissionData?.submittedAt ?? new Date(),
+					updatedAt: new Date(),
+				})
+				if (scoreInput.trim() && workout && parseResult) {
+					setScoreData({
+						scoreValue: parseResult.encoded,
+						displayScore: parseResult.formatted ?? scoreInput,
+						status: scoreStatus,
+						secondaryValue: secondaryScore ? Number(secondaryScore) : null,
+						tiebreakValue: tiebreakScore
+							? parseTiebreakValue(tiebreakScore, workout.tiebreakScheme)
+							: null,
+					})
+				}
 			}
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to submit")
@@ -374,15 +443,56 @@ export function VideoSubmissionForm({
 	const isTimeCapped = workout?.scheme === "time-with-cap"
 	const showSecondaryInput = isTimeCapped && scoreStatus === "cap"
 
+	// Show preview when there's a submission and we're not editing
+	if (hasSubmitted && submissionData && !isEditing) {
+		return (
+			<VideoSubmissionPreview
+				submission={submissionData}
+				score={scoreData}
+				workout={
+					workout
+						? {
+								name: workout.name,
+								scheme: workout.scheme,
+								scoreType: workout.scoreType,
+								timeCap: workout.timeCap,
+								tiebreakScheme: workout.tiebreakScheme,
+							}
+						: undefined
+				}
+				canEdit={initialData.canSubmit}
+				editReason={initialData.reason}
+				timezone={timezone}
+				onEdit={() => setIsEditing(true)}
+			/>
+		)
+	}
+
 	return (
 		<Card>
 			<CardHeader className="pb-3">
-				<CardTitle className="text-lg">Submit Your Result</CardTitle>
-				<CardDescription>
-					{hasSubmitted
-						? "Update your submission below"
-						: "Submit your score and video for this event"}
-				</CardDescription>
+				<div className="flex items-center justify-between">
+					<div>
+						<CardTitle className="text-lg">
+							{hasSubmitted ? "Update Your Result" : "Submit Your Result"}
+						</CardTitle>
+						<CardDescription>
+							{hasSubmitted
+								? "Update your submission below"
+								: "Submit your score and video for this event"}
+						</CardDescription>
+					</div>
+					{hasSubmitted && (
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							onClick={() => setIsEditing(false)}
+						>
+							Cancel
+						</Button>
+					)}
+				</div>
 			</CardHeader>
 			<CardContent>
 				<form onSubmit={handleSubmit} className="space-y-4">
@@ -418,7 +528,9 @@ export function VideoSubmissionForm({
 									</p>
 								)}
 								{parseResult?.error && (
-									<p className="text-xs text-destructive">{parseResult.error}</p>
+									<p className="text-xs text-destructive">
+										{parseResult.error}
+									</p>
 								)}
 							</div>
 
@@ -480,22 +592,19 @@ export function VideoSubmissionForm({
 					{/* Video URL Input */}
 					<div className="space-y-2">
 						<Label htmlFor="videoUrl">Video URL</Label>
-						<div className="flex gap-2">
-							<div className="relative flex-1">
-								<Youtube className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-								<Input
-									id="videoUrl"
-									type="url"
-									placeholder="https://www.youtube.com/watch?v=..."
-									value={videoUrl}
-									onChange={(e) => setVideoUrl(e.target.value)}
-									className="pl-10"
-									disabled={isSubmitting}
-								/>
-							</div>
-						</div>
+						<VideoUrlInput
+							id="videoUrl"
+							value={videoUrl}
+							onChange={setVideoUrl}
+							onValidationChange={setVideoValidation}
+							required
+							disabled={isSubmitting}
+							showPlatformBadge
+							showPreviewLink
+						/>
 						<p className="text-xs text-muted-foreground">
-							Upload your video to YouTube (unlisted is fine) and paste the link
+							Upload your video to {getSupportedPlatformsText()} (unlisted is
+							fine) and paste the link
 						</p>
 					</div>
 
@@ -544,10 +653,13 @@ export function VideoSubmissionForm({
 					</Button>
 
 					{/* Previous Submission Info */}
-					{hasSubmitted && initialData?.submission && (
+					{hasSubmitted && submissionData && (
 						<div className="pt-2 border-t text-xs text-muted-foreground">
 							Last submitted:{" "}
-							{formatSubmissionTime(initialData.submission.submittedAt, timezone)}
+							{formatSubmissionTime(
+								submissionData.submittedAt,
+								timezone,
+							)}
 						</div>
 					)}
 				</form>

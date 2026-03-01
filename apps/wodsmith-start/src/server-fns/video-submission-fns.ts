@@ -5,13 +5,14 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray, ne } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
 	competitionEventsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
+	REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { userTable } from "@/db/schemas/users"
@@ -20,9 +21,12 @@ import {
 	trackWorkoutsTable,
 } from "@/db/schemas/programming"
 import { scoresTable } from "@/db/schemas/scores"
-import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
-import { workouts } from "@/db/schemas/workouts"
+import {
+	createVideoSubmissionId,
+	videoSubmissionsTable,
+} from "@/db/schemas/video-submissions"
 import type { TiebreakScheme } from "@/db/schemas/workouts"
+import { workouts } from "@/db/schemas/workouts"
 import {
 	computeSortKey,
 	decodeScore,
@@ -30,8 +34,8 @@ import {
 	getDefaultScoreType,
 	parseScore,
 	type ScoreType,
-	sortKeyToString,
 	STATUS_ORDER,
+	sortKeyToString,
 	type WorkoutScheme,
 } from "@/lib/scoring"
 import { getSessionFromCookie } from "@/utils/auth"
@@ -188,6 +192,7 @@ async function getAthleteRegistration(
 			and(
 				eq(competitionRegistrationsTable.eventId, competitionId),
 				eq(competitionRegistrationsTable.userId, userId),
+				ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 			),
 		)
 		.limit(1)
@@ -363,6 +368,96 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
 	})
 
 /**
+ * Batch-check submission status for multiple track workouts.
+ * Returns a map of trackWorkoutId -> { hasSubmitted, canSubmit }
+ * Only meaningful for online competitions with a registered athlete.
+ */
+export const getBatchSubmissionStatusFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				competitionId: z.string().min(1),
+				trackWorkoutIds: z.array(z.string().min(1)).min(1),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		type Status = { hasSubmitted: boolean; canSubmit: boolean }
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			return { statuses: {} as Record<string, Status> }
+		}
+
+		const db = getDb()
+
+		const registration = await getAthleteRegistration(
+			data.competitionId,
+			session.userId,
+		)
+		if (!registration) {
+			return { statuses: {} as Record<string, Status> }
+		}
+
+		// Fetch submission windows and existing submissions in parallel
+		const [events, submissions] = await Promise.all([
+			db
+				.select({
+					trackWorkoutId: competitionEventsTable.trackWorkoutId,
+					submissionOpensAt: competitionEventsTable.submissionOpensAt,
+					submissionClosesAt: competitionEventsTable.submissionClosesAt,
+				})
+				.from(competitionEventsTable)
+				.where(
+					and(
+						eq(competitionEventsTable.competitionId, data.competitionId),
+						inArray(
+							competitionEventsTable.trackWorkoutId,
+							data.trackWorkoutIds,
+						),
+					),
+				),
+			db
+				.select({
+					trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+				})
+				.from(videoSubmissionsTable)
+				.where(
+					and(
+						eq(videoSubmissionsTable.registrationId, registration.id),
+						inArray(
+							videoSubmissionsTable.trackWorkoutId,
+							data.trackWorkoutIds,
+						),
+					),
+				),
+		])
+
+		const submissionSet = new Set(submissions.map((s) => s.trackWorkoutId))
+		const eventMap = new Map(events.map((e) => [e.trackWorkoutId, e]))
+		const now = new Date()
+
+		const statuses: Record<string, Status> = {}
+
+		for (const twId of data.trackWorkoutIds) {
+			const event = eventMap.get(twId)
+			let canSubmit = true
+
+			if (event?.submissionOpensAt && event?.submissionClosesAt) {
+				const opensAt = new Date(event.submissionOpensAt)
+				const closesAt = new Date(event.submissionClosesAt)
+				canSubmit = now >= opensAt && now <= closesAt
+			}
+
+			statuses[twId] = {
+				hasSubmitted: submissionSet.has(twId),
+				canSubmit,
+			}
+		}
+
+		return { statuses }
+	})
+
+/**
  * Submit or update a video submission for an event.
  * Also saves the claimed score to the scores table.
  * Athletes can re-submit until the submission window closes.
@@ -430,24 +525,19 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 
 			submissionId = existingSubmission.id
 		} else {
-			// Create new submission
-			const [newSubmission] = await db
-				.insert(videoSubmissionsTable)
-				.values({
-					registrationId: registration.id,
-					trackWorkoutId: data.trackWorkoutId,
-					userId: session.userId,
-					videoUrl: data.videoUrl,
-					notes: data.notes ?? null,
-					submittedAt: now,
-				})
-				.returning({ id: videoSubmissionsTable.id })
+			// Create new submission - Generate ID first, insert, then query back
+			const id = createVideoSubmissionId()
+			await db.insert(videoSubmissionsTable).values({
+				id,
+				registrationId: registration.id,
+				trackWorkoutId: data.trackWorkoutId,
+				userId: session.userId,
+				videoUrl: data.videoUrl,
+				notes: data.notes ?? null,
+				submittedAt: now,
+			})
 
-			if (!newSubmission) {
-				throw new Error("Failed to create video submission")
-			}
-
-			submissionId = newSubmission.id
+			submissionId = id
 		}
 
 		// Save claimed score if provided
@@ -579,8 +669,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 					asRx: true,
 					recordedAt: now,
 				})
-				.onConflictDoUpdate({
-					target: [scoresTable.competitionEventId, scoresTable.userId],
+				.onDuplicateKeyUpdate({
 					set: {
 						scoreValue: encodedValue,
 						status,

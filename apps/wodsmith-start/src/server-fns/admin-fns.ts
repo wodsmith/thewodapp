@@ -9,9 +9,9 @@ import { createServerFn } from "@tanstack/react-start"
 import { desc } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
-	competitionsTable,
 	type Competition,
 	type CompetitionGroup,
+	competitionsTable,
 } from "@/db/schemas/competitions"
 import type { Team } from "@/db/schemas/teams"
 import { requireAdmin } from "@/utils/auth"

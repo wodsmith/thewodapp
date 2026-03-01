@@ -6,17 +6,19 @@ import {
 	Clock,
 	Mail,
 	MapPin,
+	Plus,
 	Users,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
+import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
 import type { Team } from "@/db/schemas/teams"
 import { formatDateStringFull, isSameDateString } from "@/utils/date-utils"
 import {
+	DEFAULT_TIMEZONE,
 	getEndOfDayInTimezone,
 	hasDateStartedInTimezone,
-	DEFAULT_TIMEZONE,
 } from "@/utils/timezone-utils"
 
 /**
@@ -107,6 +109,19 @@ function getDeadlineUrgency(
 	}
 }
 
+interface UserRegistrationEntry {
+	registration: {
+		id: string
+		divisionId: string | null
+		status: string
+		userId: string
+		teamName: string | null
+		captainUserId: string | null
+		athleteTeamId: string | null
+	}
+	division: PublicCompetitionDivision | null
+}
+
 interface RegistrationSidebarProps {
 	competition: Competition & {
 		organizingTeam: Team | null
@@ -114,13 +129,15 @@ interface RegistrationSidebarProps {
 	}
 	isRegistered: boolean
 	registrationOpen: boolean
-	registrationCount: number
 	maxSpots?: number
 	userDivision?: string | null
 	registrationId?: string | null
 	isTeamRegistration?: boolean
 	isCaptain?: boolean
 	isVolunteer?: boolean
+	organizerContactEmail?: string | null
+	userRegistrations?: UserRegistrationEntry[]
+	session?: { userId: string } | null
 }
 
 function formatDateShort(date: string | Date | number): string {
@@ -144,13 +161,15 @@ export function RegistrationSidebar({
 	competition,
 	isRegistered,
 	registrationOpen,
-	registrationCount,
 	maxSpots: _maxSpots, // Reserved for future "X spots left" feature
 	userDivision,
 	registrationId,
 	isTeamRegistration,
 	isCaptain,
 	isVolunteer = false,
+	organizerContactEmail,
+	userRegistrations = [],
+	session,
 }: RegistrationSidebarProps) {
 	const regClosesAt = competition.registrationClosesAt
 	const regOpensAt = competition.registrationOpensAt
@@ -164,6 +183,8 @@ export function RegistrationSidebar({
 	// Check if registration hasn't opened yet (using competition's timezone)
 	const registrationNotYetOpen =
 		regOpensAt && !hasDateStartedInTimezone(regOpensAt, competitionTimezone)
+
+	const hasMultipleRegistrations = userRegistrations.length > 1
 
 	return (
 		<div className="space-y-4">
@@ -181,7 +202,7 @@ export function RegistrationSidebar({
 				</Card>
 			)}
 
-			{/* Registration CTA Card */}
+			{/* Registration CTA Card - shown when NOT registered at all */}
 			{!isRegistered && registrationOpen && (
 				<Card
 					className={`backdrop-blur-md ${
@@ -229,14 +250,6 @@ export function RegistrationSidebar({
 								Registration closes {formatDeadlineDate(regClosesAt)}
 							</p>
 						)}
-
-						{/* Social proof */}
-						{registrationCount > 0 && (
-							<p className="text-xs text-muted-foreground text-center">
-								{registrationCount} athlete{registrationCount !== 1 ? "s" : ""}{" "}
-								registered
-							</p>
-						)}
 					</CardContent>
 				</Card>
 			)}
@@ -276,38 +289,141 @@ export function RegistrationSidebar({
 					</Card>
 				)}
 
-			{/* Already Registered Card */}
-			{isRegistered && (
-				<Card className="border-2 border-green-500/20 bg-white/5 backdrop-blur-md">
-					<CardContent className="p-4">
-						<div className="space-y-3">
-							<div className="flex items-center gap-2 text-green-600">
-								<CheckCircle2 className="h-5 w-5" />
-								<span className="font-semibold">You're Registered!</span>
-							</div>
-							{userDivision && (
-								<p className="text-sm text-muted-foreground">
-									Division: <span className="font-medium">{userDivision}</span>
-								</p>
-							)}
-							{registrationId && (
-								<Button asChild variant="outline" size="sm" className="w-full">
-									<a
-										href={`/compete/${competition.slug}/teams/${registrationId}`}
+			{/* My Registrations Card - shown when registered */}
+			{isRegistered &&
+				(() => {
+					const allRemoved =
+						userRegistrations.length > 0 &&
+						userRegistrations.every((e) => e.registration.status === "removed")
+					return (
+						<Card
+							className={`border-2 ${allRemoved ? "border-red-500/20" : "border-green-500/20"} bg-white/5 backdrop-blur-md`}
+						>
+							<CardContent className="p-4">
+								<div className="space-y-3">
+									<div
+										className={`flex items-center gap-2 ${allRemoved ? "text-red-600" : "text-green-600"}`}
 									>
-										<Users className="mr-2 h-4 w-4" />
-										{isTeamRegistration
-											? isCaptain
-												? "Manage Team"
-												: "View Team"
-											: "View Registration"}
-									</a>
-								</Button>
-							)}
-						</div>
-					</CardContent>
-				</Card>
-			)}
+										{allRemoved ? (
+											<AlertTriangle className="h-5 w-5" />
+										) : (
+											<CheckCircle2 className="h-5 w-5" />
+										)}
+										<span className="font-semibold">
+											{allRemoved
+												? "Registration Removed"
+												: hasMultipleRegistrations
+													? "My Registrations"
+													: "You're Registered!"}
+										</span>
+									</div>
+
+									{/* Multiple registrations: show list */}
+									{hasMultipleRegistrations ? (
+										<div className="space-y-2">
+											{userRegistrations.map((entry) => {
+												const isTeam = (entry.division?.teamSize ?? 1) > 1
+												const isEntryCaptain =
+													entry.registration.captainUserId === session?.userId
+												const isEntryRemoved =
+													entry.registration.status === "removed"
+												return (
+													<div
+														key={entry.registration.id}
+														className={`flex items-center justify-between p-2 rounded-md border ${
+															isEntryRemoved
+																? "border-red-500/30 bg-red-500/10 opacity-60"
+																: "border-green-500/10 bg-green-500/5"
+														}`}
+													>
+														<div className="min-w-0">
+															<p className="text-sm font-medium truncate">
+																{entry.division?.label ?? "Division"}
+																{isEntryRemoved && (
+																	<span className="text-xs text-red-500 ml-1">
+																		(Removed)
+																	</span>
+																)}
+															</p>
+															{entry.registration.teamName && (
+																<p className="text-xs text-muted-foreground truncate">
+																	{entry.registration.teamName}
+																</p>
+															)}
+														</div>
+														<Button
+															asChild
+															variant="ghost"
+															size="sm"
+															className="shrink-0 h-7 text-xs"
+														>
+															<a
+																href={`/compete/${competition.slug}/teams/${entry.registration.id}`}
+															>
+																{isTeam
+																	? isEntryCaptain
+																		? "Manage"
+																		: "View"
+																	: "View"}
+															</a>
+														</Button>
+													</div>
+												)
+											})}
+										</div>
+									) : (
+										<>
+											{/* Single registration: original display */}
+											{userDivision && (
+												<p className="text-sm text-muted-foreground">
+													Division:{" "}
+													<span className="font-medium">{userDivision}</span>
+												</p>
+											)}
+											{registrationId && (
+												<Button
+													asChild
+													variant="outline"
+													size="sm"
+													className="w-full"
+												>
+													<a
+														href={`/compete/${competition.slug}/teams/${registrationId}`}
+													>
+														<Users className="mr-2 h-4 w-4" />
+														{isTeamRegistration
+															? isCaptain
+																? "Manage Team"
+																: "View Team"
+															: "View Registration"}
+													</a>
+												</Button>
+											)}
+										</>
+									)}
+
+									{/* Register for Another Division - shown when registered AND registration is open */}
+									{registrationOpen && (
+										<Button
+											asChild
+											variant="outline"
+											size="sm"
+											className="w-full"
+										>
+											<Link
+												to="/compete/$slug/register"
+												params={{ slug: competition.slug }}
+											>
+												<Plus className="mr-2 h-4 w-4" />
+												Register for Another Division
+											</Link>
+										</Button>
+									)}
+								</div>
+							</CardContent>
+						</Card>
+					)
+				})()}
 
 			{/* Date & Location Card */}
 			<Card className="border-white/10 bg-white/5 backdrop-blur-md">
@@ -345,12 +461,16 @@ export function RegistrationSidebar({
 						<p className="font-medium text-sm">
 							{competition.organizingTeam.name}
 						</p>
-						<div className="mt-2 flex gap-2">
-							<Button variant="outline" size="sm" className="h-8" disabled>
-								<Mail className="mr-1 h-3 w-3" />
-								Email
-							</Button>
-						</div>
+						{organizerContactEmail && (
+							<div className="mt-2 flex gap-2">
+								<Button variant="outline" size="sm" className="h-8" asChild>
+									<a href={`mailto:${organizerContactEmail}`}>
+										<Mail className="mr-1 h-3 w-3" />
+										Email
+									</a>
+								</Button>
+							</div>
+						)}
 					</CardContent>
 				</Card>
 			)}

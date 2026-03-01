@@ -13,10 +13,21 @@ import {
 	useNavigate,
 } from "@tanstack/react-router"
 import { eq } from "drizzle-orm"
-import { CheckCircle, Clock, Copy, Crown, Mail, Users } from "lucide-react"
+import {
+	AlertTriangle,
+	CheckCircle,
+	ChevronDown,
+	Clock,
+	Copy,
+	Crown,
+	Mail,
+	Users,
+} from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
+import { RegistrationAnswersForm } from "@/components/registration/registration-answers-form"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -27,7 +38,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { RegistrationAnswersForm } from "@/components/registration/registration-answers-form"
 import type { Waiver, WaiverSignature } from "@/db/schemas/waivers"
 import {
 	getRegistrationDetailsFn,
@@ -35,6 +45,7 @@ import {
 	type RegistrationDetails,
 	type TeamRosterResult,
 } from "@/server-fns/registration-fns"
+import { getUserCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
 import {
 	getCompetitionQuestionsFn,
 	getRegistrationAnswersFn,
@@ -65,6 +76,13 @@ type PendingTeammate = {
 	firstName?: string | null
 	lastName?: string | null
 	affiliateName?: string | null
+}
+
+interface UserRegistrationEntry {
+	id: string
+	divisionId: string | null
+	teamName: string | null
+	divisionLabel: string | null
 }
 
 interface LoaderData {
@@ -100,6 +118,7 @@ interface LoaderData {
 		userId: string
 		answer: string
 	}>
+	allUserRegistrations: UserRegistrationEntry[]
 }
 
 export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
@@ -165,8 +184,10 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 							"@/db/schemas/competitions"
 						)
 						const db = getDb()
+						const compId = registration.competition?.id
+						if (!compId) return null
 						const comp = await db.query.competitionsTable.findFirst({
-							where: eq(competitionsTable.id, registration.competition!.id),
+							where: eq(competitionsTable.id, compId),
 							columns: { registrationClosesAt: true },
 						})
 						return comp
@@ -236,6 +257,48 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 
 		const canEditOwnAffiliate = isTeamMember || isRegisteredUser
 
+		// Fetch all user registrations for this competition (for division switcher)
+		let allUserRegistrations: UserRegistrationEntry[] = []
+		if (registration.competition?.id) {
+			try {
+				const { registrations: allRegs } =
+					await getUserCompetitionRegistrationsFn({
+						data: {
+							competitionId: registration.competition.id,
+							userId: session.userId,
+						},
+					})
+
+				// Look up division labels for each registration
+				if (allRegs.length > 1) {
+					const { getDb } = await import("@/db")
+					const { scalingLevelsTable } = await import("@/db/schemas/scaling")
+					const db = getDb()
+
+					allUserRegistrations = await Promise.all(
+						allRegs.map(async (reg) => {
+							let divisionLabel: string | null = null
+							if (reg.divisionId) {
+								const div = await db.query.scalingLevelsTable.findFirst({
+									where: eq(scalingLevelsTable.id, reg.divisionId),
+									columns: { label: true },
+								})
+								divisionLabel = div?.label ?? null
+							}
+							return {
+								id: reg.id,
+								divisionId: reg.divisionId,
+								teamName: reg.teamName,
+								divisionLabel,
+							}
+						}),
+					)
+				}
+			} catch {
+				// Non-critical - just won't show division switcher
+			}
+		}
+
 		return {
 			registration,
 			registrationDetails,
@@ -262,9 +325,69 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 			waiverSignatures,
 			registrationQuestions,
 			registrationAnswers,
+			allUserRegistrations,
 		}
 	},
 })
+
+function DivisionSwitcher({
+	registrations,
+	currentRegistrationId,
+	competitionSlug,
+}: {
+	registrations: UserRegistrationEntry[]
+	currentRegistrationId: string
+	competitionSlug: string
+}) {
+	const navigate = useNavigate()
+	const [open, setOpen] = useState(false)
+	const current = registrations.find((r) => r.id === currentRegistrationId)
+
+	return (
+		<div className="relative shrink-0">
+			<Button
+				variant="outline"
+				size="sm"
+				onClick={() => setOpen(!open)}
+				className="justify-between gap-2"
+			>
+				<span className="truncate max-w-[200px]">
+					{current?.divisionLabel ?? "Division"}
+					{current?.teamName ? ` - ${current.teamName}` : ""}
+				</span>
+				<ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+			</Button>
+			{open && (
+				<div className="absolute right-0 z-10 mt-1 min-w-[200px] rounded-md border bg-popover shadow-md">
+					{registrations.map((reg) => (
+						<button
+							key={reg.id}
+							type="button"
+							onClick={() => {
+								setOpen(false)
+								if (reg.id !== currentRegistrationId) {
+									navigate({
+										to: "/compete/$slug/teams/$registrationId",
+										params: {
+											slug: competitionSlug,
+											registrationId: reg.id,
+										},
+									})
+								}
+							}}
+							className={`w-full text-left px-3 py-2 text-sm hover:bg-accent ${
+								reg.id === currentRegistrationId ? "bg-accent font-medium" : ""
+							}`}
+						>
+							{reg.divisionLabel ?? "Division"}
+							{reg.teamName ? ` - ${reg.teamName}` : ""}
+						</button>
+					))}
+				</div>
+			)}
+		</div>
+	)
+}
 
 function TeamManagementPage() {
 	const {
@@ -286,7 +409,10 @@ function TeamManagementPage() {
 		waiverSignatures,
 		registrationQuestions,
 		registrationAnswers,
+		allUserRegistrations,
 	} = Route.useLoaderData()
+
+	const hasMultipleRegistrations = allUserRegistrations.length > 1
 
 	const { welcome } = Route.useSearch()
 	const navigate = useNavigate()
@@ -334,16 +460,40 @@ function TeamManagementPage() {
 		!competition?.registrationClosesAt ||
 		new Date() < new Date(competition.registrationClosesAt)
 
+	const isRemoved = registration.status === "removed"
+
 	// For individual registrations, show simpler view
 	if (!isTeamRegistration) {
 		return (
 			<div className="container mx-auto max-w-4xl py-8 space-y-6">
-				<div className="space-y-2">
-					<h1 className="text-3xl font-bold">My Registration</h1>
-					<p className="text-muted-foreground">
-						{competition?.name || "Competition"} –{" "}
-						{division?.label || "Division"}
-					</p>
+				{isRemoved && (
+					<Alert variant="destructive">
+						<AlertTriangle className="h-4 w-4" />
+						<AlertTitle>Registration Removed</AlertTitle>
+						<AlertDescription>
+							Your registration has been removed from this competition. If you
+							believe this is a mistake, please contact the event organizer.
+						</AlertDescription>
+					</Alert>
+				)}
+
+				<div className="flex items-start justify-between gap-4">
+					<div className="space-y-2">
+						<h1 className="text-3xl font-bold">My Registration</h1>
+						<p className="text-muted-foreground">
+							{competition?.name || "Competition"} –{" "}
+							{division?.label || "Division"}
+						</p>
+					</div>
+
+					{/* Division Switcher - when user has multiple registrations */}
+					{hasMultipleRegistrations && competition && (
+						<DivisionSwitcher
+							registrations={allUserRegistrations}
+							currentRegistrationId={registration.id}
+							competitionSlug={competition.slug}
+						/>
+					)}
 				</div>
 
 				{/* Registration Details */}
@@ -355,7 +505,7 @@ function TeamManagementPage() {
 				)}
 
 				{/* Registration Questions */}
-				{isRegisteredUser && (
+				{isRegisteredUser && !isRemoved && (
 					<RegistrationAnswersForm
 						registrationId={registration.id}
 						questions={registrationQuestions}
@@ -367,7 +517,7 @@ function TeamManagementPage() {
 				)}
 
 				{/* Waivers */}
-				{isRegisteredUser && waivers.length > 0 && (
+				{isRegisteredUser && !isRemoved && waivers.length > 0 && (
 					<WaiverSection
 						waivers={waivers}
 						signatures={waiverSignatures}
@@ -377,12 +527,14 @@ function TeamManagementPage() {
 				)}
 
 				{/* Affiliate */}
-				<AffiliateEditor
-					registrationId={registration.id}
-					userId={currentUserId}
-					currentAffiliate={currentUserAffiliate}
-					canEdit={canEditOwnAffiliate}
-				/>
+				{!isRemoved && (
+					<AffiliateEditor
+						registrationId={registration.id}
+						userId={currentUserId}
+						currentAffiliate={currentUserAffiliate}
+						canEdit={canEditOwnAffiliate}
+					/>
+				)}
 			</div>
 		)
 	}
@@ -401,15 +553,38 @@ function TeamManagementPage() {
 			/>
 
 			<div className="container mx-auto max-w-4xl py-8 space-y-6">
+				{isRemoved && (
+					<Alert variant="destructive">
+						<AlertTriangle className="h-4 w-4" />
+						<AlertTitle>Registration Removed</AlertTitle>
+						<AlertDescription>
+							Your team's registration has been removed from this competition.
+							If you believe this is a mistake, please contact the event
+							organizer.
+						</AlertDescription>
+					</Alert>
+				)}
+
 				{/* Header */}
-				<div className="space-y-2">
-					<h1 className="text-3xl font-bold">
-						{registration.teamName || "Team"}
-					</h1>
-					<p className="text-muted-foreground">
-						{competition?.name || "Competition"} –{" "}
-						{division?.label || "Division"}
-					</p>
+				<div className="flex items-start justify-between gap-4">
+					<div className="space-y-2">
+						<h1 className="text-3xl font-bold">
+							{registration.teamName || "Team"}
+						</h1>
+						<p className="text-muted-foreground">
+							{competition?.name || "Competition"} –{" "}
+							{division?.label || "Division"}
+						</p>
+					</div>
+
+					{/* Division Switcher - when user has multiple registrations */}
+					{hasMultipleRegistrations && competition && (
+						<DivisionSwitcher
+							registrations={allUserRegistrations}
+							currentRegistrationId={registration.id}
+							competitionSlug={competition.slug}
+						/>
+					)}
 				</div>
 
 				{/* Registration Details */}
@@ -421,7 +596,7 @@ function TeamManagementPage() {
 				)}
 
 				{/* Registration Questions */}
-				{(isTeamMember || isRegisteredUser) && (
+				{(isTeamMember || isRegisteredUser) && !isRemoved && (
 					<RegistrationAnswersForm
 						registrationId={registration.id}
 						questions={registrationQuestions}
@@ -559,17 +734,19 @@ function TeamManagementPage() {
 				</Card>
 
 				{/* Waiver Section - Show for team members */}
-				{(isTeamMember || isRegisteredUser) && waivers.length > 0 && (
-					<WaiverSection
-						waivers={waivers}
-						signatures={waiverSignatures}
-						registrationId={registration.id}
-						competitionName={competition?.name || "Competition"}
-					/>
-				)}
+				{(isTeamMember || isRegisteredUser) &&
+					!isRemoved &&
+					waivers.length > 0 && (
+						<WaiverSection
+							waivers={waivers}
+							signatures={waiverSignatures}
+							registrationId={registration.id}
+							competitionName={competition?.name || "Competition"}
+						/>
+					)}
 
 				{/* My Affiliate */}
-				{canEditOwnAffiliate && (
+				{canEditOwnAffiliate && !isRemoved && (
 					<AffiliateEditor
 						registrationId={registration.id}
 						userId={currentUserId}

@@ -1,7 +1,6 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
 import { ArrowLeft, ClipboardList } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { canInputScoresFn } from "@/server-fns/volunteer-fns"
 import {
 	getVolunteerMembershipFn,
@@ -10,7 +9,7 @@ import {
 import { ScheduleView } from "./-components/schedule-view"
 
 export const Route = createFileRoute("/compete/$slug/my-schedule")({
-	loader: async ({ params, context }) => {
+	loader: async ({ params, context, parentMatchPromise }) => {
 		const { slug } = params
 
 		// Check for session - redirect to sign-in if not authenticated
@@ -22,8 +21,9 @@ export const Route = createFileRoute("/compete/$slug/my-schedule")({
 			})
 		}
 
-		// Fetch competition by slug
-		const { competition } = await getCompetitionBySlugFn({ data: { slug } })
+		// Get competition from parent
+		const parentMatch = await parentMatchPromise
+		const competition = parentMatch.loaderData?.competition
 
 		if (!competition) {
 			throw new Error("Competition not found")
@@ -35,6 +35,7 @@ export const Route = createFileRoute("/compete/$slug/my-schedule")({
 				competition,
 				membership: null,
 				events: [],
+				shifts: [],
 				volunteerMetadata: null,
 				hasTeam: false,
 				hasScoreAccess: false,
@@ -54,14 +55,15 @@ export const Route = createFileRoute("/compete/$slug/my-schedule")({
 				competition,
 				membership: null,
 				events: [],
+				shifts: [],
 				volunteerMetadata: null,
 				hasTeam: true,
 				hasScoreAccess: false,
 			}
 		}
 
-		// Get enriched rotations for the volunteer's schedule
-		const [{ events }, hasScoreAccess] = await Promise.all([
+		// Get enriched rotations and shifts for the volunteer's schedule
+		const [{ events, shifts }, hasScoreAccess] = await Promise.all([
 			getVolunteerScheduleDataFn({
 				data: {
 					membershipId: membership.id,
@@ -80,6 +82,7 @@ export const Route = createFileRoute("/compete/$slug/my-schedule")({
 			competition,
 			membership,
 			events,
+			shifts,
 			volunteerMetadata,
 			hasTeam: true,
 			hasScoreAccess,
@@ -110,6 +113,7 @@ function MySchedulePage() {
 		competition,
 		membership,
 		events,
+		shifts,
 		volunteerMetadata,
 		hasTeam,
 		hasScoreAccess,
@@ -162,6 +166,7 @@ function MySchedulePage() {
 				{hasTeam && membership && (
 					<ScheduleView
 						events={events}
+						shifts={shifts}
 						competitionName={competition.name}
 						volunteerMetadata={volunteerMetadata}
 						membershipId={membership.id}

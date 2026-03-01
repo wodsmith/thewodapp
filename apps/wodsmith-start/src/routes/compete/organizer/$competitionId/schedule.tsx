@@ -10,7 +10,6 @@
 
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { SchedulePageClient } from "@/components/organizer/schedule/schedule-page-client"
-import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import {
 	getCompetitionRegistrationsFn,
@@ -25,16 +24,11 @@ const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/schedule",
 )({
+	staleTime: 10_000,
 	component: SchedulePage,
-	loader: async ({ params }) => {
-		// First get competition to know the teamId
-		const { competition } = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
-		})
-
-		if (!competition) {
-			throw new Error("Competition not found")
-		}
+	loader: async ({ params, parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const { competition } = parentMatch.loaderData!
 
 		// Parallel fetch all data needed for the schedule page
 		const [

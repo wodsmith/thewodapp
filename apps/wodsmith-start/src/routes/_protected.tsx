@@ -2,10 +2,12 @@ import { createFileRoute, Outlet } from "@tanstack/react-router"
 import { validateSession } from "@/server-fns/middleware/auth"
 
 export const Route = createFileRoute("/_protected")({
-	beforeLoad: async () => {
+	beforeLoad: async (opts) => {
 		// Validate session on server before rendering protected routes
 		const session = await validateSession()
-		return { session }
+		// Read hasWorkoutTracking from parent context
+		const hasWorkoutTracking = opts.context.hasWorkoutTracking
+		return { session, hasWorkoutTracking }
 	},
 	component: ProtectedLayout,
 })

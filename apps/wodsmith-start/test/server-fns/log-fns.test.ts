@@ -496,10 +496,9 @@ describe('Log Server Functions (TanStack)', () => {
       const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
       limitMock.mockResolvedValueOnce([existingScore])
 
-      const returningMock = mockDb.getChainMock().returning as ReturnType<
-        typeof vi.fn
-      >
-      returningMock.mockResolvedValueOnce([updatedScore])
+      // Source uses db.query.scoresTable.findFirst() after update
+      mockDb.registerTable('scoresTable')
+      mockDb.setMockSingleValue(updatedScore)
 
       const result = await updateLogFn({
         data: {
@@ -523,10 +522,8 @@ describe('Log Server Functions (TanStack)', () => {
       const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
       limitMock.mockResolvedValueOnce([existingScore])
 
-      const returningMock = mockDb.getChainMock().returning as ReturnType<
-        typeof vi.fn
-      >
-      returningMock.mockResolvedValueOnce([updatedScore])
+      mockDb.registerTable('scoresTable')
+      mockDb.setMockSingleValue(updatedScore)
 
       const result = await updateLogFn({
         data: {
@@ -550,10 +547,8 @@ describe('Log Server Functions (TanStack)', () => {
       const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
       limitMock.mockResolvedValueOnce([existingScore])
 
-      const returningMock = mockDb.getChainMock().returning as ReturnType<
-        typeof vi.fn
-      >
-      returningMock.mockResolvedValueOnce([updatedScore])
+      mockDb.registerTable('scoresTable')
+      mockDb.setMockSingleValue(updatedScore)
 
       const result = await updateLogFn({
         data: {
@@ -577,10 +572,8 @@ describe('Log Server Functions (TanStack)', () => {
       const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
       limitMock.mockResolvedValueOnce([existingScore])
 
-      const returningMock = mockDb.getChainMock().returning as ReturnType<
-        typeof vi.fn
-      >
-      returningMock.mockResolvedValueOnce([updatedScore])
+      mockDb.registerTable('scoresTable')
+      mockDb.setMockSingleValue(updatedScore)
 
       const result = await updateLogFn({
         data: {
@@ -604,10 +597,8 @@ describe('Log Server Functions (TanStack)', () => {
       const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
       limitMock.mockResolvedValueOnce([existingScore])
 
-      const returningMock = mockDb.getChainMock().returning as ReturnType<
-        typeof vi.fn
-      >
-      returningMock.mockResolvedValueOnce([updatedScore])
+      mockDb.registerTable('scoresTable')
+      mockDb.setMockSingleValue(updatedScore)
 
       const result = await updateLogFn({
         data: {
@@ -632,10 +623,8 @@ describe('Log Server Functions (TanStack)', () => {
       const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
       limitMock.mockResolvedValueOnce([existingScore])
 
-      const returningMock = mockDb.getChainMock().returning as ReturnType<
-        typeof vi.fn
-      >
-      returningMock.mockResolvedValueOnce([updatedScore])
+      mockDb.registerTable('scoresTable')
+      mockDb.setMockSingleValue(updatedScore)
 
       const result = await updateLogFn({
         data: {
@@ -1155,10 +1144,9 @@ describe('Log Server Functions (TanStack)', () => {
         scoreValue: 300000,
       })
 
-      const returningMock = mockDb.getChainMock().returning as ReturnType<
-        typeof vi.fn
-      >
-      returningMock.mockResolvedValueOnce([newScore])
+      // Source uses db.query.scoresTable.findFirst() after insert
+      mockDb.registerTable('scoresTable')
+      mockDb.setMockSingleValue(newScore)
 
       const result = await createLogFn({
         data: {
@@ -1183,10 +1171,8 @@ describe('Log Server Functions (TanStack)', () => {
         scalingLevelId: 'level-scaled',
       })
 
-      const returningMock = mockDb.getChainMock().returning as ReturnType<
-        typeof vi.fn
-      >
-      returningMock.mockResolvedValueOnce([newScore])
+      mockDb.registerTable('scoresTable')
+      mockDb.setMockSingleValue(newScore)
 
       const result = await createLogFn({
         data: {
@@ -1211,10 +1197,8 @@ describe('Log Server Functions (TanStack)', () => {
         scoreValue: null,
       })
 
-      const returningMock = mockDb.getChainMock().returning as ReturnType<
-        typeof vi.fn
-      >
-      returningMock.mockResolvedValueOnce([newScore])
+      mockDb.registerTable('scoresTable')
+      mockDb.setMockSingleValue(newScore)
 
       const result = await createLogFn({
         data: {
@@ -1323,10 +1307,9 @@ describe('Log Server Functions (TanStack)', () => {
     })
 
     it('throws when creation fails', async () => {
-      const returningMock = mockDb.getChainMock().returning as ReturnType<
-        typeof vi.fn
-      >
-      returningMock.mockResolvedValueOnce([])
+      // Source uses db.query.scoresTable.findFirst() which returns null
+      mockDb.registerTable('scoresTable')
+      mockDb.setMockSingleValue(null)
 
       await expect(
         createLogFn({

@@ -126,13 +126,19 @@ export const ScoreInputRow = forwardRef<
 	const isInvalidWarning = showWarning
 	const hasWarning = parseResult?.error && parseResult?.isValid
 
+	// Determine grid columns based on what fields are shown
+	const gridColsClass = (() => {
+		if (showTiebreak) {
+			return "grid-cols-[60px_1fr_2fr_1fr_100px]"
+		}
+		return "grid-cols-[60px_1fr_2fr_100px]"
+	})()
+
 	return (
 		<div
 			className={cn(
 				"grid items-center gap-3 border-b p-3 transition-colors",
-				showTiebreak
-					? "grid-cols-[60px_1fr_2fr_1fr_100px]"
-					: "grid-cols-[60px_1fr_2fr_100px]",
+				gridColsClass,
 				isInvalidWarning &&
 					"bg-yellow-50 dark:bg-yellow-950/20 border-yellow-300",
 				hasWarning &&

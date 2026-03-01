@@ -1,6 +1,6 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import { index, int, mysqlTable, varchar } from "drizzle-orm/mysql-core"
 import { commonColumns, createEventJudgingSheetId } from "./common"
 import { competitionsTable } from "./competitions"
 import { trackWorkoutsTable } from "./programming"
@@ -13,40 +13,34 @@ import { userTable } from "./users"
  * Organizers can upload PDF files that athletes can download.
  * Multiple sheets per event are supported with titles for organization.
  */
-export const eventJudgingSheetsTable = sqliteTable(
+export const eventJudgingSheetsTable = mysqlTable(
 	"event_judging_sheets",
 	{
 		...commonColumns,
-		id: text()
+		id: varchar({ length: 255 })
 			.primaryKey()
 			.$defaultFn(() => createEventJudgingSheetId())
 			.notNull(),
 		// Link to the competition (for easier querying and authorization)
-		competitionId: text()
-			.notNull()
-			.references(() => competitionsTable.id, { onDelete: "cascade" }),
+		competitionId: varchar({ length: 255 }).notNull(),
 		// Link to the specific event (track_workout)
-		trackWorkoutId: text()
-			.notNull()
-			.references(() => trackWorkoutsTable.id, { onDelete: "cascade" }),
+		trackWorkoutId: varchar({ length: 255 }).notNull(),
 		// Display title for the judging sheet
-		title: text({ length: 255 }).notNull(),
+		title: varchar({ length: 255 }).notNull(),
 		// R2 storage key for the file
-		r2Key: text({ length: 600 }).notNull(),
+		r2Key: varchar({ length: 600 }).notNull(),
 		// Public URL for downloading
-		url: text({ length: 600 }).notNull(),
+		url: varchar({ length: 600 }).notNull(),
 		// Original filename (for display/download)
-		originalFilename: text({ length: 255 }).notNull(),
+		originalFilename: varchar({ length: 255 }).notNull(),
 		// File size in bytes
-		fileSize: integer().notNull(),
+		fileSize: int().notNull(),
 		// MIME type of the file
-		mimeType: text({ length: 100 }).notNull(),
+		mimeType: varchar({ length: 100 }).notNull(),
 		// Who uploaded this sheet
-		uploadedBy: text()
-			.notNull()
-			.references(() => userTable.id, { onDelete: "cascade" }),
+		uploadedBy: varchar({ length: 255 }).notNull(),
 		// Sort order for multiple sheets per event
-		sortOrder: integer().default(0).notNull(),
+		sortOrder: int().default(0).notNull(),
 	},
 	(table) => [
 		index("event_judging_sheets_competition_idx").on(table.competitionId),

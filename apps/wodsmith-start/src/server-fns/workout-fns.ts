@@ -39,7 +39,6 @@ import {
 	workoutTags,
 } from "@/db/schemas/workouts"
 import { getSessionFromCookie } from "@/utils/auth"
-import { autochunk } from "@/utils/batch-query"
 
 // Workout type filter values
 const WORKOUT_TYPE_FILTER_VALUES = ["all", "original", "remix"] as const
@@ -61,7 +60,7 @@ const getWorkoutsInputSchema = z.object({
 type GetWorkoutsInput = z.infer<typeof getWorkoutsInputSchema>
 
 /**
- * Helper function to fetch tags by workout IDs (batched for D1 100-param limit)
+ * Helper function to fetch tags by workout IDs
  */
 async function fetchTagsByWorkoutId(
 	db: ReturnType<typeof getDb>,
@@ -69,19 +68,15 @@ async function fetchTagsByWorkoutId(
 ): Promise<Map<string, Array<{ id: string; name: string }>>> {
 	if (workoutIds.length === 0) return new Map()
 
-	const workoutTagsData = await autochunk(
-		{ items: workoutIds },
-		async (chunk) =>
-			db
-				.select({
-					workoutId: workoutTags.workoutId,
-					tagId: tags.id,
-					tagName: tags.name,
-				})
-				.from(workoutTags)
-				.innerJoin(tags, eq(workoutTags.tagId, tags.id))
-				.where(inArray(workoutTags.workoutId, chunk)),
-	)
+	const workoutTagsData = await db
+		.select({
+			workoutId: workoutTags.workoutId,
+			tagId: tags.id,
+			tagName: tags.name,
+		})
+		.from(workoutTags)
+		.innerJoin(tags, eq(workoutTags.tagId, tags.id))
+		.where(inArray(workoutTags.workoutId, workoutIds))
 
 	const tagsByWorkoutId = new Map<string, Array<{ id: string; name: string }>>()
 
@@ -99,7 +94,7 @@ async function fetchTagsByWorkoutId(
 }
 
 /**
- * Helper function to fetch movements by workout IDs (batched for D1 100-param limit)
+ * Helper function to fetch movements by workout IDs
  */
 async function fetchMovementsByWorkoutId(
 	db: ReturnType<typeof getDb>,
@@ -107,20 +102,16 @@ async function fetchMovementsByWorkoutId(
 ): Promise<Map<string, Array<{ id: string; name: string; type: string }>>> {
 	if (workoutIds.length === 0) return new Map()
 
-	const workoutMovementsData = await autochunk(
-		{ items: workoutIds },
-		async (chunk) =>
-			db
-				.select({
-					workoutId: workoutMovements.workoutId,
-					movementId: movements.id,
-					movementName: movements.name,
-					movementType: movements.type,
-				})
-				.from(workoutMovements)
-				.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
-				.where(inArray(workoutMovements.workoutId, chunk)),
-	)
+	const workoutMovementsData = await db
+		.select({
+			workoutId: workoutMovements.workoutId,
+			movementId: movements.id,
+			movementName: movements.name,
+			movementType: movements.type,
+		})
+		.from(workoutMovements)
+		.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
+		.where(inArray(workoutMovements.workoutId, workoutIds))
 
 	const movementsByWorkoutId = new Map<
 		string,
@@ -400,23 +391,28 @@ export const createWorkoutFn = createServerFn({ method: "POST" })
 
 		// Create the workout
 		const workoutId = `workout_${createId()}`
-		const newWorkout = await db
-			.insert(workouts)
-			.values({
-				id: workoutId,
-				name: data.name,
-				description: data.description,
-				scheme: data.scheme,
-				scoreType: data.scoreType ?? null,
-				scope: data.scope,
-				timeCap: data.timeCap ?? null,
-				roundsToScore: data.roundsToScore ?? null,
-				teamId: data.teamId,
-				sourceWorkoutId: data.sourceWorkoutId ?? null, // For remix tracking
-			})
-			.returning()
+		await db.insert(workouts).values({
+			id: workoutId,
+			name: data.name,
+			description: data.description,
+			scheme: data.scheme,
+			scoreType: data.scoreType ?? null,
+			scope: data.scope,
+			timeCap: data.timeCap ?? null,
+			roundsToScore: data.roundsToScore ?? null,
+			teamId: data.teamId,
+			sourceWorkoutId: data.sourceWorkoutId ?? null, // For remix tracking
+		})
 
-		return { workout: newWorkout[0] }
+		const newWorkout = await db.query.workouts.findFirst({
+			where: eq(workouts.id, workoutId),
+		})
+
+		if (!newWorkout) {
+			throw new Error("Failed to create workout")
+		}
+
+		return { workout: newWorkout }
 	})
 
 // Schema for updating a workout
@@ -448,7 +444,7 @@ export const updateWorkoutFn = createServerFn({ method: "POST" })
 		}
 
 		// Update the workout
-		const updatedWorkout = await db
+		await db
 			.update(workouts)
 			.set({
 				name: data.name,
@@ -461,13 +457,16 @@ export const updateWorkoutFn = createServerFn({ method: "POST" })
 				updatedAt: new Date(),
 			})
 			.where(eq(workouts.id, data.id))
-			.returning()
 
-		if (!updatedWorkout[0]) {
+		const updatedWorkout = await db.query.workouts.findFirst({
+			where: eq(workouts.id, data.id),
+		})
+
+		if (!updatedWorkout) {
 			throw new Error("Workout not found")
 		}
 
-		return { workout: updatedWorkout[0] }
+		return { workout: updatedWorkout }
 	})
 
 // Schema for scheduling a workout
@@ -498,16 +497,18 @@ export const scheduleWorkoutFn = createServerFn({ method: "POST" })
 		scheduledDate.setUTCHours(12, 0, 0, 0)
 
 		// Create the scheduled workout instance
-		const [instance] = await db
-			.insert(scheduledWorkoutInstancesTable)
-			.values({
-				id: createScheduledWorkoutInstanceId(),
-				teamId: data.teamId,
-				trackWorkoutId: null, // No track workout for standalone
-				workoutId: data.workoutId, // Direct workout reference
-				scheduledDate: scheduledDate,
-			})
-			.returning()
+		const instanceId = createScheduledWorkoutInstanceId()
+		await db.insert(scheduledWorkoutInstancesTable).values({
+			id: instanceId,
+			teamId: data.teamId,
+			trackWorkoutId: null, // No track workout for standalone
+			workoutId: data.workoutId, // Direct workout reference
+			scheduledDate: scheduledDate,
+		})
+
+		const instance = await db.query.scheduledWorkoutInstancesTable.findFirst({
+			where: eq(scheduledWorkoutInstancesTable.id, instanceId),
+		})
 
 		if (!instance) {
 			throw new Error("Failed to schedule workout")
@@ -920,37 +921,33 @@ export const getTodayScoresFn = createServerFn({ method: "GET" })
 		const endOfDay = new Date(today)
 		endOfDay.setHours(23, 59, 59, 999)
 
-		// Fetch today's scores for the user and workouts (batched for D1 limit)
-		const scoresData = await autochunk(
-			{ items: data.workoutIds, otherParametersCount: 4 },
-			async (chunk) =>
-				db
-					.select({
-						workoutId: scoresTable.workoutId,
-						scoreId: scoresTable.id,
-						scoreValue: scoresTable.scoreValue,
-						scheme: scoresTable.scheme,
-						recordedAt: scoresTable.recordedAt,
-						asRx: scoresTable.asRx,
-						scalingLevelId: scoresTable.scalingLevelId,
-						scalingLabel: scalingLevelsTable.label,
-					})
-					.from(scoresTable)
-					.leftJoin(
-						scalingLevelsTable,
-						eq(scoresTable.scalingLevelId, scalingLevelsTable.id),
-					)
-					.where(
-						and(
-							eq(scoresTable.userId, data.userId),
-							eq(scoresTable.teamId, data.teamId),
-							inArray(scoresTable.workoutId, chunk),
-							gte(scoresTable.recordedAt, startOfDay),
-							lte(scoresTable.recordedAt, endOfDay),
-						),
-					)
-					.orderBy(desc(scoresTable.recordedAt)),
-		)
+		// Fetch today's scores for the user and workouts
+		const scoresData = await db
+			.select({
+				workoutId: scoresTable.workoutId,
+				scoreId: scoresTable.id,
+				scoreValue: scoresTable.scoreValue,
+				scheme: scoresTable.scheme,
+				recordedAt: scoresTable.recordedAt,
+				asRx: scoresTable.asRx,
+				scalingLevelId: scoresTable.scalingLevelId,
+				scalingLabel: scalingLevelsTable.label,
+			})
+			.from(scoresTable)
+			.leftJoin(
+				scalingLevelsTable,
+				eq(scoresTable.scalingLevelId, scalingLevelsTable.id),
+			)
+			.where(
+				and(
+					eq(scoresTable.userId, data.userId),
+					eq(scoresTable.teamId, data.teamId),
+					inArray(scoresTable.workoutId, data.workoutIds),
+					gte(scoresTable.recordedAt, startOfDay),
+					lte(scoresTable.recordedAt, endOfDay),
+				),
+			)
+			.orderBy(desc(scoresTable.recordedAt))
 
 		// Deduplicate by workout ID (keep first/most recent for each workout)
 		const scoresByWorkoutId = new Map<string, TodayScore>()

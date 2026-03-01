@@ -240,6 +240,214 @@ describe('expandRotationToAssignments', () => {
       expect(assignments).toHaveLength(0) // All assignments invalid
     })
   })
+
+  describe('respectOccupiedLanes option', () => {
+    it('skips heats where natural lane has no athlete', () => {
+      const rotation = createRotation({
+        startingHeat: 1,
+        startingLane: 1,
+        heatsCount: 6,
+        laneShiftPattern: LANE_SHIFT_PATTERN.SHIFT_RIGHT,
+      })
+      // Heats with only lanes 1, 3, 5 occupied (athletes assigned)
+      const heats: HeatInfo[] = Array.from({length: 6}, (_, i) => ({
+        heatNumber: i + 1,
+        laneCount: 5,
+        occupiedLanes: new Set([1, 3, 5]),
+      }))
+
+      const assignments = expandRotationToAssignments(rotation, heats, {
+        respectOccupiedLanes: true,
+      })
+
+      // Natural shift: 1 -> 2 -> 3 -> 4 -> 5 -> 1
+      // Occupied [1,3,5]: H1(L1)✓, H2(L2)✗skip, H3(L3)✓, H4(L4)✗skip, H5(L5)✓, H6(L1)✓
+      expect(assignments).toHaveLength(4)
+      expect(assignments.map((a) => ({h: a.heatNumber, l: a.laneNumber}))).toEqual([
+        {h: 1, l: 1},
+        {h: 3, l: 3},
+        {h: 5, l: 5},
+        {h: 6, l: 1},
+      ])
+    })
+
+    it('includes all heats when natural lanes are all occupied', () => {
+      const rotation = createRotation({
+        startingHeat: 1,
+        startingLane: 2,
+        heatsCount: 3,
+        laneShiftPattern: LANE_SHIFT_PATTERN.SHIFT_RIGHT,
+      })
+      // H1: all lanes occupied, H2-H3: only lanes 3-6 occupied (L1, L2 have no athletes)
+      const heats: HeatInfo[] = [
+        {heatNumber: 1, laneCount: 6, occupiedLanes: new Set([1, 2, 3, 4, 5, 6])},
+        {heatNumber: 2, laneCount: 6, occupiedLanes: new Set([3, 4, 5, 6])},
+        {heatNumber: 3, laneCount: 6, occupiedLanes: new Set([3, 4, 5, 6])},
+      ]
+
+      const assignments = expandRotationToAssignments(rotation, heats, {
+        respectOccupiedLanes: true,
+      })
+
+      // Natural shift from L2: 2 -> 3 -> 4
+      // H1: L2 is occupied → include
+      // H2: L3 is occupied → include
+      // H3: L4 is occupied → include
+      expect(assignments.map((a) => a.laneNumber)).toEqual([2, 3, 4])
+    })
+
+    it('uses standard shifting when respectOccupiedLanes is false', () => {
+      const rotation = createRotation({
+        startingHeat: 1,
+        startingLane: 1,
+        heatsCount: 5,
+        laneShiftPattern: LANE_SHIFT_PATTERN.SHIFT_RIGHT,
+      })
+      // Same heats with occupied lanes set but option is false
+      const heats: HeatInfo[] = Array.from({length: 5}, (_, i) => ({
+        heatNumber: i + 1,
+        laneCount: 5,
+        occupiedLanes: new Set([1, 3, 5]),
+      }))
+
+      const assignments = expandRotationToAssignments(rotation, heats, {
+        respectOccupiedLanes: false,
+      })
+
+      // Should cycle through all lanes: 1 -> 2 -> 3 -> 4 -> 5
+      expect(assignments.map((a) => a.laneNumber)).toEqual([1, 2, 3, 4, 5])
+    })
+
+    it('uses standard shifting when no options provided', () => {
+      const rotation = createRotation({
+        startingHeat: 1,
+        startingLane: 1,
+        heatsCount: 5,
+        laneShiftPattern: LANE_SHIFT_PATTERN.SHIFT_RIGHT,
+      })
+      const heats: HeatInfo[] = Array.from({length: 5}, (_, i) => ({
+        heatNumber: i + 1,
+        laneCount: 5,
+        occupiedLanes: new Set([1, 3, 5]),
+      }))
+
+      // No options = backward compatible behavior
+      const assignments = expandRotationToAssignments(rotation, heats)
+
+      expect(assignments.map((a) => a.laneNumber)).toEqual([1, 2, 3, 4, 5])
+    })
+
+    it('skips heats when starting lane is not occupied', () => {
+      const rotation = createRotation({
+        startingHeat: 1,
+        startingLane: 2, // Lane 2 is NOT occupied
+        heatsCount: 4,
+        laneShiftPattern: LANE_SHIFT_PATTERN.SHIFT_RIGHT,
+      })
+      const heats: HeatInfo[] = Array.from({length: 4}, (_, i) => ({
+        heatNumber: i + 1,
+        laneCount: 5,
+        occupiedLanes: new Set([1, 3, 5]),
+      }))
+
+      const assignments = expandRotationToAssignments(rotation, heats, {
+        respectOccupiedLanes: true,
+      })
+
+      // Natural shift from L2: 2 -> 3 -> 4 -> 5
+      // Occupied [1,3,5]: H1(L2)✗skip, H2(L3)✓, H3(L4)✗skip, H4(L5)✓
+      expect(assignments).toHaveLength(2)
+      expect(assignments.map((a) => ({h: a.heatNumber, l: a.laneNumber}))).toEqual([
+        {h: 2, l: 3},
+        {h: 4, l: 5},
+      ])
+    })
+
+    it('skips heats when natural lane exceeds occupied lanes', () => {
+      const rotation = createRotation({
+        startingHeat: 1,
+        startingLane: 4, // Greater than all occupied (1, 2, 3)
+        heatsCount: 4,
+        laneShiftPattern: LANE_SHIFT_PATTERN.SHIFT_RIGHT,
+      })
+      const heats: HeatInfo[] = Array.from({length: 4}, (_, i) => ({
+        heatNumber: i + 1,
+        laneCount: 5,
+        occupiedLanes: new Set([1, 2, 3]),
+      }))
+
+      const assignments = expandRotationToAssignments(rotation, heats, {
+        respectOccupiedLanes: true,
+      })
+
+      // Natural shift from L4: 4 -> 5 -> 1 -> 2
+      // Occupied [1,2,3]: H1(L4)✗skip, H2(L5)✗skip, H3(L1)✓, H4(L2)✓
+      expect(assignments).toHaveLength(2)
+      expect(assignments.map((a) => ({h: a.heatNumber, l: a.laneNumber}))).toEqual([
+        {h: 3, l: 1},
+        {h: 4, l: 2},
+      ])
+    })
+
+    it('respects STAY pattern even with occupiedLanes', () => {
+      const rotation = createRotation({
+        startingHeat: 1,
+        startingLane: 3,
+        heatsCount: 4,
+        laneShiftPattern: LANE_SHIFT_PATTERN.STAY, // STAY, not SHIFT
+      })
+      const heats: HeatInfo[] = Array.from({length: 4}, (_, i) => ({
+        heatNumber: i + 1,
+        laneCount: 5,
+        occupiedLanes: new Set([1, 3, 5]),
+      }))
+
+      const assignments = expandRotationToAssignments(rotation, heats, {
+        respectOccupiedLanes: true,
+      })
+
+      // STAY pattern should keep lane 3 regardless of occupied lanes option
+      expect(assignments.map((a) => a.laneNumber)).toEqual([3, 3, 3, 3])
+    })
+
+    it('falls back to standard behavior when occupiedLanes is empty', () => {
+      const rotation = createRotation({
+        startingHeat: 1,
+        startingLane: 1,
+        heatsCount: 3,
+        laneShiftPattern: LANE_SHIFT_PATTERN.SHIFT_RIGHT,
+      })
+      const heats: HeatInfo[] = Array.from({length: 3}, (_, i) => ({
+        heatNumber: i + 1,
+        laneCount: 5,
+        occupiedLanes: new Set<number>(), // Empty!
+      }))
+
+      const assignments = expandRotationToAssignments(rotation, heats, {
+        respectOccupiedLanes: true,
+      })
+
+      // Should use standard shifting since occupiedLanes is empty
+      expect(assignments.map((a) => a.laneNumber)).toEqual([1, 2, 3])
+    })
+
+    it('falls back when occupiedLanes is undefined', () => {
+      const rotation = createRotation({
+        startingHeat: 1,
+        startingLane: 1,
+        heatsCount: 3,
+        laneShiftPattern: LANE_SHIFT_PATTERN.SHIFT_RIGHT,
+      })
+      const heats = createHeats(3, 5) // No occupiedLanes set
+
+      const assignments = expandRotationToAssignments(rotation, heats, {
+        respectOccupiedLanes: true,
+      })
+
+      // Should use standard shifting since no occupiedLanes defined
+      expect(assignments.map((a) => a.laneNumber)).toEqual([1, 2, 3])
+    })
+  })
 })
 
 describe('calculateCoverage', () => {
@@ -759,5 +967,125 @@ describe('filterRotationsByAvailability', () => {
       expect(result.get('judge-multi')).toEqual(multiRotations)
       expect(result.get('judge-multi')?.length).toBe(2)
     })
+  })
+})
+
+// ============================================================================
+// calculateCoverage with occupiedLanes Tests
+// ============================================================================
+
+describe('calculateCoverage with occupiedLanes', () => {
+  it('counts only occupied lanes when occupiedLanes is provided', () => {
+    // 3 heats with 5 lanes each, but only lanes 1, 3, 5 have athletes
+    const heats: HeatInfo[] = [
+      {heatNumber: 1, laneCount: 5, occupiedLanes: new Set([1, 3, 5])},
+      {heatNumber: 2, laneCount: 5, occupiedLanes: new Set([1, 3, 5])},
+      {heatNumber: 3, laneCount: 5, occupiedLanes: new Set([1, 3, 5])},
+    ]
+    // Total slots should be 3 occupied lanes × 3 heats = 9 slots
+    // Not 5 lanes × 3 heats = 15 slots
+
+    const rotations = [
+      createRotation({
+        startingHeat: 1,
+        startingLane: 1,
+        heatsCount: 3,
+        laneShiftPattern: LANE_SHIFT_PATTERN.STAY,
+      }),
+    ]
+
+    const stats = calculateCoverage(rotations, heats)
+
+    expect(stats.totalSlots).toBe(9) // Only occupied lanes
+    expect(stats.coveredSlots).toBe(3) // Lane 1 covered in all heats
+    expect(stats.coveragePercent).toBe(33) // 3/9 = 33.33% -> 33%
+    expect(stats.gaps).toHaveLength(6) // Lanes 3 and 5 in all 3 heats
+  })
+
+  it('falls back to all lanes when occupiedLanes is undefined', () => {
+    // Backward compatibility: heats without occupiedLanes count all lanes
+    const heats: HeatInfo[] = [
+      {heatNumber: 1, laneCount: 5},
+      {heatNumber: 2, laneCount: 5},
+    ]
+
+    const rotations = [
+      createRotation({
+        startingHeat: 1,
+        startingLane: 1,
+        heatsCount: 2,
+      }),
+    ]
+
+    const stats = calculateCoverage(rotations, heats)
+
+    expect(stats.totalSlots).toBe(10) // All 5 lanes × 2 heats
+    expect(stats.coveredSlots).toBe(2)
+    expect(stats.gaps).toHaveLength(8)
+  })
+
+  it('handles mixed heats with and without occupiedLanes', () => {
+    const heats: HeatInfo[] = [
+      {heatNumber: 1, laneCount: 4, occupiedLanes: new Set([1, 2])}, // 2 slots
+      {heatNumber: 2, laneCount: 4}, // 4 slots (all lanes)
+      {heatNumber: 3, laneCount: 4, occupiedLanes: new Set([3, 4])}, // 2 slots
+    ]
+
+    const stats = calculateCoverage([], heats)
+
+    expect(stats.totalSlots).toBe(8) // 2 + 4 + 2
+    expect(stats.coveredSlots).toBe(0)
+    expect(stats.gaps).toHaveLength(8)
+  })
+
+  it('only creates gaps for occupied lanes', () => {
+    const heats: HeatInfo[] = [
+      {heatNumber: 1, laneCount: 5, occupiedLanes: new Set([2, 4])},
+    ]
+
+    const stats = calculateCoverage([], heats)
+
+    // Should only report gaps for lanes 2 and 4, not lanes 1, 3, 5
+    expect(stats.gaps).toHaveLength(2)
+    expect(stats.gaps).toEqual(
+      expect.arrayContaining([
+        {heatNumber: 1, laneNumber: 2},
+        {heatNumber: 1, laneNumber: 4},
+      ]),
+    )
+  })
+
+  it('handles occupiedLanes with SHIFT_RIGHT pattern', () => {
+    const heats: HeatInfo[] = [
+      {heatNumber: 1, laneCount: 5, occupiedLanes: new Set([1, 2, 3])},
+      {heatNumber: 2, laneCount: 5, occupiedLanes: new Set([1, 2, 3])},
+      {heatNumber: 3, laneCount: 5, occupiedLanes: new Set([1, 2, 3])},
+    ]
+
+    const rotations = [
+      createRotation({
+        startingHeat: 1,
+        startingLane: 1,
+        heatsCount: 3,
+        laneShiftPattern: LANE_SHIFT_PATTERN.SHIFT_RIGHT, // 1, 2, 3
+      }),
+    ]
+
+    const stats = calculateCoverage(rotations, heats)
+
+    expect(stats.totalSlots).toBe(9) // 3 occupied lanes × 3 heats
+    expect(stats.coveredSlots).toBe(3) // All assigned lanes are occupied
+    expect(stats.coveragePercent).toBe(33)
+  })
+
+  it('handles empty occupiedLanes set', () => {
+    const heats: HeatInfo[] = [
+      {heatNumber: 1, laneCount: 5, occupiedLanes: new Set()},
+    ]
+
+    const stats = calculateCoverage([], heats)
+
+    expect(stats.totalSlots).toBe(0) // No occupied lanes
+    expect(stats.gaps).toHaveLength(0)
   })
 })

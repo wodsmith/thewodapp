@@ -1,29 +1,43 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getRegistrationFeeBreakdownFn } from "@/server-fns/registration-fns"
 
+type FeeData = {
+	isFree: boolean
+	registrationFeeCents?: number
+	platformFeeCents?: number
+	stripeFeeCents?: number
+	totalChargeCents?: number
+	stripeFeesPassedToCustomer?: boolean
+	platformFeesPassedToCustomer?: boolean
+}
+
 type FeeBreakdownProps = {
 	competitionId: string
 	divisionId: string | null
+	/** Hide the per-division total line (when showing a combined total externally) */
+	hideTotal?: boolean
+	/** Report loaded fee data to parent */
+	onFeesLoaded?: (divisionId: string, fees: FeeData | null) => void
 }
 
-export function FeeBreakdown({ competitionId, divisionId }: FeeBreakdownProps) {
-	const [fees, setFees] = useState<{
-		isFree: boolean
-		registrationFeeCents?: number
-		platformFeeCents?: number
-		stripeFeeCents?: number
-		totalChargeCents?: number
-		stripeFeesPassedToCustomer?: boolean
-		platformFeesPassedToCustomer?: boolean
-	} | null>(null)
+export function FeeBreakdown({
+	competitionId,
+	divisionId,
+	hideTotal,
+	onFeesLoaded,
+}: FeeBreakdownProps) {
+	const [fees, setFees] = useState<FeeData | null>(null)
 	const [isLoading, setIsLoading] = useState(false)
+	const onFeesLoadedRef = useRef(onFeesLoaded)
+	onFeesLoadedRef.current = onFeesLoaded
 
 	useEffect(() => {
 		if (!divisionId) {
 			setFees(null)
+			onFeesLoadedRef.current?.(divisionId ?? "", null)
 			return
 		}
 
@@ -34,9 +48,11 @@ export function FeeBreakdown({ competitionId, divisionId }: FeeBreakdownProps) {
 					data: { competitionId, divisionId },
 				})
 				setFees(result)
+				onFeesLoadedRef.current?.(divisionId, result)
 			} catch (error) {
 				console.error("Failed to fetch registration fee breakdown:", error)
 				setFees(null)
+				onFeesLoadedRef.current?.(divisionId, null)
 				toast.error("Failed to load registration fees. Please try again.")
 			} finally {
 				setIsLoading(false)
@@ -94,12 +110,14 @@ export function FeeBreakdown({ competitionId, divisionId }: FeeBreakdownProps) {
 						<span>{formatCents(fees.stripeFeeCents)}</span>
 					</div>
 				)}
-			<div className="flex justify-between font-medium pt-2 border-t">
-				<span>Total</span>
-				<span className="text-lg">
-					{formatCents(fees.totalChargeCents ?? 0)}
-				</span>
-			</div>
+			{!hideTotal && (
+				<div className="flex justify-between font-medium pt-2 border-t">
+					<span>Total</span>
+					<span className="text-lg">
+						{formatCents(fees.totalChargeCents ?? 0)}
+					</span>
+				</div>
+			)}
 		</div>
 	)
 }

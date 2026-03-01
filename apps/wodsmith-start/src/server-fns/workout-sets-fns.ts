@@ -4,7 +4,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { asc, eq } from "drizzle-orm"
+import { asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
@@ -126,16 +126,61 @@ export const getMultipleWorkoutResultSetsFn = createServerFn({ method: "GET" })
 	)
 	.handler(
 		async ({ data }): Promise<Record<string, WorkoutResultSetsResponse>> => {
+			const db = getDb()
+
+			// Batch fetch all parent scores
+			const parentScores = await db
+				.select({
+					id: scoresTable.id,
+					scheme: scoresTable.scheme,
+				})
+				.from(scoresTable)
+				.where(inArray(scoresTable.id, data.scoreIds))
+
+			if (parentScores.length === 0) {
+				return {}
+			}
+
+			const schemeByScoreId = new Map<string, string>()
+			for (const score of parentScores) {
+				schemeByScoreId.set(score.id, score.scheme)
+			}
+
+			// Batch fetch all rounds for all scores
+			const allRounds = await db
+				.select({
+					scoreId: scoreRoundsTable.scoreId,
+					roundNumber: scoreRoundsTable.roundNumber,
+					value: scoreRoundsTable.value,
+					notes: scoreRoundsTable.notes,
+					status: scoreRoundsTable.status,
+				})
+				.from(scoreRoundsTable)
+				.where(inArray(scoreRoundsTable.scoreId, data.scoreIds))
+				.orderBy(asc(scoreRoundsTable.roundNumber))
+
+			// Group rounds by score ID and build results
 			const results: Record<string, WorkoutResultSetsResponse> = {}
 
-			// For batch operations with multiple IDs, we query each individually
-			// This is a simplified implementation - for production, use autochunk
-			for (const scoreId of data.scoreIds) {
-				try {
-					const result = await getWorkoutResultSetsFn({ data: { scoreId } })
-					results[scoreId] = result
-				} catch {
-					// Skip scores that don't exist or have errors
+			for (const score of parentScores) {
+				const scheme = score.scheme as WorkoutScheme
+				const rounds = allRounds.filter((r) => r.scoreId === score.id)
+
+				const sets: FormattedSetData[] = rounds.map((round) => ({
+					roundNumber: round.roundNumber,
+					value: round.value,
+					displayValue: decodeScore(round.value, scheme, {
+						includeUnit: true,
+					}),
+					notes: round.notes,
+					status: round.status,
+				}))
+
+				results[score.id] = {
+					scoreId: score.id,
+					scheme,
+					sets,
+					totalRounds: sets.length,
 				}
 			}
 

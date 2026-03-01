@@ -62,11 +62,17 @@ function createDbMock(config: {
     chain.from = vi.fn(() => chain)
     chain.innerJoin = vi.fn(() => chain)
     chain.leftJoin = vi.fn(() => chain)
+    chain.transaction = vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+      return fn(chain)
+    })
     chain.where = vi.fn(() => {
       whereCount++
       return chain
     })
     chain.orderBy = vi.fn(() => chain)
+    chain.transaction = vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+      return fn(chain)
+    })
     chain.limit = vi.fn(() => {
       queryCount++
 
@@ -426,10 +432,10 @@ describe('Competition Score Server Functions (TanStack)', () => {
       const finalScore = {id: 'score-new'}
 
       // Create insert/update mocks
-      const insertMock = {
+      const insertMock: Record<string, unknown> = {
         insert: vi.fn().mockReturnValue({
           values: vi.fn().mockReturnValue({
-            onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+            onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
           }),
         }),
         delete: vi.fn().mockReturnValue({
@@ -446,6 +452,9 @@ describe('Competition Score Server Functions (TanStack)', () => {
               limit: vi.fn().mockResolvedValue([finalScore]),
             }),
           }),
+        }),
+        transaction: vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+          return fn(insertMock)
         }),
       }
       mockDbInstance = insertMock as unknown as ReturnType<typeof createDbMock>
@@ -483,12 +492,12 @@ describe('Competition Score Server Functions (TanStack)', () => {
 
       let insertedValues: unknown = null
 
-      const insertMock = {
+      const insertMock: Record<string, unknown> = {
         insert: vi.fn().mockReturnValue({
           values: vi.fn().mockImplementation((values) => {
             insertedValues = values
             return {
-              onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+              onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
             }
           }),
         }),
@@ -506,6 +515,9 @@ describe('Competition Score Server Functions (TanStack)', () => {
               limit: vi.fn().mockResolvedValue([finalScore]),
             }),
           }),
+        }),
+        transaction: vi.fn(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+          return fn(insertMock)
         }),
       }
       mockDbInstance = insertMock as unknown as ReturnType<typeof createDbMock>
@@ -579,7 +591,7 @@ describe('Competition Score Server Functions (TanStack)', () => {
         }),
         insert: vi.fn().mockReturnValue({
           values: vi.fn().mockReturnValue({
-            onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+            onDuplicateKeyUpdate: vi.fn().mockResolvedValue(undefined),
           }),
         }),
         delete: vi.fn().mockReturnValue({
