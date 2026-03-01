@@ -14,6 +14,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, eq, inArray, isNull, ne, or } from "drizzle-orm"
 import type Stripe from "stripe"
 import { z } from "zod"
+import { CLAIM_TOKEN_EXPIRATION_SECONDS } from "@/constants"
 import { getDb } from "@/db"
 import {
 	COMMERCE_PAYMENT_STATUS,
@@ -22,6 +23,7 @@ import {
 	commerceProductTable,
 	commercePurchaseTable,
 	competitionEventsTable,
+	competitionExcludedSeriesSettingsTable,
 	competitionHeatAssignmentsTable,
 	competitionRegistrationAnswersTable,
 	competitionRegistrationQuestionsTable,
@@ -34,6 +36,7 @@ import {
 	createUserId,
 	REGISTRATION_STATUS,
 	ROLES_ENUM,
+	SERIES_SETTING_TYPES,
 	scalingGroupsTable,
 	scalingLevelsTable,
 	scoresTable,
@@ -50,7 +53,6 @@ import {
 	getRegistrationFee,
 	type TeamFeeOverrides,
 } from "@/lib/commerce-stubs"
-import { CLAIM_TOKEN_EXPIRATION_SECONDS } from "@/constants"
 import { getAppUrl } from "@/lib/env"
 import {
 	addRequestContextAttribute,
@@ -160,17 +162,47 @@ async function validateRequiredQuestions(
 		)
 	}
 
-	const requiredQuestions = await db
-		.select()
-		.from(competitionRegistrationQuestionsTable)
-		.where(or(...conditions))
+	// Fetch required questions and excluded series settings in parallel
+	const [requiredQuestions, excludedRows] = await Promise.all([
+		db
+			.select()
+			.from(competitionRegistrationQuestionsTable)
+			.where(or(...conditions)),
+		competition?.groupId
+			? db
+					.select({
+						settingId: competitionExcludedSeriesSettingsTable.settingId,
+					})
+					.from(competitionExcludedSeriesSettingsTable)
+					.where(
+						and(
+							eq(
+								competitionExcludedSeriesSettingsTable.competitionId,
+								competitionId,
+							),
+							eq(
+								competitionExcludedSeriesSettingsTable.settingType,
+								SERIES_SETTING_TYPES.REGISTRATION_QUESTION,
+							),
+						),
+					)
+			: Promise.resolve([]),
+	])
 
 	if (requiredQuestions.length === 0) return
+
+	// Filter out excluded series questions
+	const excludedIds = new Set(excludedRows.map((r) => r.settingId))
+	const activeRequiredQuestions = requiredQuestions.filter(
+		(q) => !excludedIds.has(q.id),
+	)
+
+	if (activeRequiredQuestions.length === 0) return
 
 	// Check each required question has an answer
 	const answerMap = new Map(answers?.map((a) => [a.questionId, a.answer]))
 
-	const missingQuestions = requiredQuestions.filter(
+	const missingQuestions = activeRequiredQuestions.filter(
 		(q) => !answerMap.has(q.id) || !answerMap.get(q.id)?.trim(),
 	)
 

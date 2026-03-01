@@ -1,6 +1,6 @@
-import { ulid } from "ulid"
 import { sql } from "drizzle-orm"
 import { datetime, int } from "drizzle-orm/mysql-core"
+import { ulid } from "ulid"
 
 /**
  * Common columns used across all tables
@@ -110,3 +110,6 @@ export const createVolunteerShiftAssignmentId = () => `vshfa_${ulid()}`
 
 // Purchase transfer ID generators
 export const createPurchaseTransferId = () => `ptxfr_${ulid()}`
+
+// Competition excluded series settings ID generator
+export const createCompetitionExcludedSeriesSettingId = () => `cxss_${ulid()}`

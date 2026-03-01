@@ -14,6 +14,7 @@ import { addressesTable } from "./addresses"
 import {
 	commonColumns,
 	createCompetitionEventId,
+	createCompetitionExcludedSeriesSettingId,
 	createCompetitionGroupId,
 	createCompetitionHeatAssignmentId,
 	createCompetitionHeatId,
@@ -377,6 +378,49 @@ export const competitionRegistrationAnswersTable = mysqlTable(
 	],
 )
 
+// Series Setting Types
+// Discriminator for which type of series-level setting is being excluded
+export const SERIES_SETTING_TYPES = {
+	REGISTRATION_QUESTION: "registration_question",
+	WAIVER: "waiver",
+} as const
+
+export type SeriesSettingType =
+	(typeof SERIES_SETTING_TYPES)[keyof typeof SERIES_SETTING_TYPES]
+
+// Competition Excluded Series Settings Table
+// Tracks which series-level settings are excluded from specific competitions
+// Generic: supports registration questions, waivers, and future setting types
+export const competitionExcludedSeriesSettingsTable = mysqlTable(
+	"competition_excluded_series_settings",
+	{
+		...commonColumns,
+		id: varchar({ length: 255 })
+			.primaryKey()
+			.$defaultFn(() => createCompetitionExcludedSeriesSettingId())
+			.notNull(),
+		// The competition opting out of the series setting
+		competitionId: varchar({ length: 255 }).notNull(),
+		// The type of setting being excluded (e.g., "registration_question", "waiver")
+		settingType: varchar({ length: 50 }).$type<SeriesSettingType>().notNull(),
+		// The ID of the specific setting being excluded (question ID, waiver ID, etc.)
+		settingId: varchar({ length: 255 }).notNull(),
+	},
+	(table) => [
+		// One exclusion per competition per setting
+		uniqueIndex("comp_excluded_ss_unique_idx").on(
+			table.competitionId,
+			table.settingType,
+			table.settingId,
+		),
+		index("comp_excluded_ss_competition_idx").on(table.competitionId),
+		index("comp_excluded_ss_type_idx").on(
+			table.competitionId,
+			table.settingType,
+		),
+	],
+)
+
 // Competition Events Table
 // Per-event settings for online competitions (submission windows, etc.)
 export const competitionEventsTable = mysqlTable(
@@ -423,6 +467,9 @@ export type CompetitionRegistrationQuestion = InferSelectModel<
 >
 export type CompetitionRegistrationAnswer = InferSelectModel<
 	typeof competitionRegistrationAnswersTable
+>
+export type CompetitionExcludedSeriesSetting = InferSelectModel<
+	typeof competitionExcludedSeriesSettingsTable
 >
 
 // Competition visibility constants
@@ -497,6 +544,8 @@ export const competitionsRelations = relations(
 		events: many(competitionEventsTable),
 		// Judge rotations (from volunteers system)
 		judgeRotations: many(competitionJudgeRotationsTable),
+		// Excluded series settings
+		excludedSeriesSettings: many(competitionExcludedSeriesSettingsTable),
 	}),
 )
 
@@ -627,6 +676,17 @@ export const competitionRegistrationAnswersRelations = relations(
 		user: one(userTable, {
 			fields: [competitionRegistrationAnswersTable.userId],
 			references: [userTable.id],
+		}),
+	}),
+)
+
+// Excluded series settings relations
+export const competitionExcludedSeriesSettingsRelations = relations(
+	competitionExcludedSeriesSettingsTable,
+	({ one }) => ({
+		competition: one(competitionsTable, {
+			fields: [competitionExcludedSeriesSettingsTable.competitionId],
+			references: [competitionsTable.id],
 		}),
 	}),
 )

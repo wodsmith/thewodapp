@@ -7,14 +7,16 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, asc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import { createCompetitionRegistrationQuestionId } from "@/db/schemas/common"
 import {
+	competitionExcludedSeriesSettingsTable,
 	competitionGroupsTable,
 	competitionRegistrationAnswersTable,
 	competitionRegistrationQuestionsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
+	SERIES_SETTING_TYPES,
 } from "@/db/schemas/competitions"
-import { createCompetitionRegistrationQuestionId } from "@/db/schemas/common"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"
@@ -217,20 +219,43 @@ export const getCompetitionQuestionsFn = createServerFn({ method: "GET" })
 			)
 			.orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
 
-		// If competition belongs to a series, also fetch series-level questions
+		// If competition belongs to a series, also fetch series-level questions (excluding opted-out ones)
 		let seriesQuestions: (typeof competitionRegistrationQuestionsTable.$inferSelect)[] =
 			[]
 		if (competition?.groupId) {
-			seriesQuestions = await db
-				.select()
-				.from(competitionRegistrationQuestionsTable)
-				.where(
-					eq(
-						competitionRegistrationQuestionsTable.groupId,
-						competition.groupId,
+			// Fetch series questions and excluded setting IDs in parallel
+			const [allSeriesQuestions, excludedRows] = await Promise.all([
+				db
+					.select()
+					.from(competitionRegistrationQuestionsTable)
+					.where(
+						eq(
+							competitionRegistrationQuestionsTable.groupId,
+							competition.groupId,
+						),
+					)
+					.orderBy(asc(competitionRegistrationQuestionsTable.sortOrder)),
+				db
+					.select({
+						settingId: competitionExcludedSeriesSettingsTable.settingId,
+					})
+					.from(competitionExcludedSeriesSettingsTable)
+					.where(
+						and(
+							eq(
+								competitionExcludedSeriesSettingsTable.competitionId,
+								data.competitionId,
+							),
+							eq(
+								competitionExcludedSeriesSettingsTable.settingType,
+								SERIES_SETTING_TYPES.REGISTRATION_QUESTION,
+							),
+						),
 					),
-				)
-				.orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
+			])
+
+			const excludedIds = new Set(excludedRows.map((r) => r.settingId))
+			seriesQuestions = allSeriesQuestions.filter((q) => !excludedIds.has(q.id))
 		}
 
 		// Merge: series questions first (tagged as 'series'), then competition questions (tagged as 'competition')
@@ -695,6 +720,168 @@ export const reorderSeriesQuestionsFn = createServerFn({ method: "POST" })
 		})
 
 		return { success: true }
+	})
+
+// ============================================================================
+// Series Setting Exclusion Functions
+// ============================================================================
+
+/**
+ * Get excluded series question IDs for a competition
+ * Requires MANAGE_PROGRAMMING permission
+ */
+export const getExcludedSeriesQuestionIdsFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				competitionId: z.string().min(1, "Competition ID is required"),
+				teamId: z.string().min(1, "Team ID is required"),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		const excluded = await db
+			.select({
+				settingId: competitionExcludedSeriesSettingsTable.settingId,
+			})
+			.from(competitionExcludedSeriesSettingsTable)
+			.where(
+				and(
+					eq(
+						competitionExcludedSeriesSettingsTable.competitionId,
+						data.competitionId,
+					),
+					eq(
+						competitionExcludedSeriesSettingsTable.settingType,
+						SERIES_SETTING_TYPES.REGISTRATION_QUESTION,
+					),
+				),
+			)
+
+		return {
+			excludedQuestionIds: excluded.map((r) => r.settingId),
+		}
+	})
+
+/**
+ * Toggle a series question's exclusion for a specific competition
+ * If currently included, exclude it. If currently excluded, include it.
+ * Requires MANAGE_PROGRAMMING permission
+ */
+export const toggleSeriesQuestionExclusionFn = createServerFn({
+	method: "POST",
+})
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				competitionId: z.string().min(1, "Competition ID is required"),
+				questionId: z.string().min(1, "Question ID is required"),
+				teamId: z.string().min(1, "Team ID is required"),
+				exclude: z.boolean(),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		// Verify competition belongs to team
+		const [competition] = await db
+			.select()
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+
+		if (!competition || competition.organizingTeamId !== data.teamId) {
+			throw new Error("Competition does not belong to this team")
+		}
+
+		// Verify question is a series-level question belonging to this competition's series
+		const [question] = await db
+			.select()
+			.from(competitionRegistrationQuestionsTable)
+			.where(eq(competitionRegistrationQuestionsTable.id, data.questionId))
+
+		if (!question) {
+			throw new Error("Question not found")
+		}
+
+		if (!question.groupId || question.groupId !== competition.groupId) {
+			throw new Error(
+				"Question is not a series question for this competition's series",
+			)
+		}
+
+		if (data.exclude) {
+			// Add exclusion (ignore if already excluded)
+			const existing =
+				await db.query.competitionExcludedSeriesSettingsTable.findFirst({
+					where: and(
+						eq(
+							competitionExcludedSeriesSettingsTable.competitionId,
+							data.competitionId,
+						),
+						eq(
+							competitionExcludedSeriesSettingsTable.settingType,
+							SERIES_SETTING_TYPES.REGISTRATION_QUESTION,
+						),
+						eq(
+							competitionExcludedSeriesSettingsTable.settingId,
+							data.questionId,
+						),
+					),
+				})
+
+			if (!existing) {
+				await db.insert(competitionExcludedSeriesSettingsTable).values({
+					competitionId: data.competitionId,
+					settingType: SERIES_SETTING_TYPES.REGISTRATION_QUESTION,
+					settingId: data.questionId,
+				})
+			}
+		} else {
+			// Remove exclusion
+			await db
+				.delete(competitionExcludedSeriesSettingsTable)
+				.where(
+					and(
+						eq(
+							competitionExcludedSeriesSettingsTable.competitionId,
+							data.competitionId,
+						),
+						eq(
+							competitionExcludedSeriesSettingsTable.settingType,
+							SERIES_SETTING_TYPES.REGISTRATION_QUESTION,
+						),
+						eq(
+							competitionExcludedSeriesSettingsTable.settingId,
+							data.questionId,
+						),
+					),
+				)
+		}
+
+		return { success: true, excluded: data.exclude }
 	})
 
 /**
