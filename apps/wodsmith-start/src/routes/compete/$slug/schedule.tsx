@@ -51,7 +51,9 @@ export const Route = createFileRoute("/compete/$slug/schedule")({
 				competitionStarted:
 					submissionResult.status === "fulfilled"
 						? submissionResult.value.competitionStarted
-						: false,
+						: competition.startDate
+							? new Date() >= new Date(`${competition.startDate}T00:00:00`)
+							: false,
 				isOnline: true,
 				timezone: competition.timezone ?? "America/Denver",
 			}
