@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { ArrowLeft, ListPlus, Pencil, Plus } from "lucide-react"
+import { ArrowLeft, ListPlus, Pencil, Plus, Trophy } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { AddCompetitionsToSeriesDialog } from "@/components/add-competitions-to-series-dialog"
@@ -259,6 +259,15 @@ function SeriesDetailPage() {
 							)}
 						</div>
 						<div className="flex flex-wrap items-center gap-2">
+							<Button variant="outline" asChild>
+								<Link
+									to="/compete/organizer/series/$groupId/leaderboard"
+									params={{ groupId: group.id }}
+								>
+									<Trophy className="h-4 w-4 mr-2" />
+									Global Leaderboard
+								</Link>
+							</Button>
 							<Button variant="outline" asChild>
 								<Link
 									to="/compete/organizer/series/$groupId/edit"

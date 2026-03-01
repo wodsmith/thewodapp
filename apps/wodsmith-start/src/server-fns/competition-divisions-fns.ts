@@ -690,8 +690,14 @@ export const getCompetitionDivisionsWithCountsFn = createServerFn({
 		const scalingGroupId = settings?.divisions?.scalingGroupId ?? null
 
 		if (!scalingGroupId) {
-			return { scalingGroupId: null, divisions: [] }
+			return { scalingGroupId: null, scalingGroupTitle: null, divisions: [] }
 		}
+
+		// Get scaling group title
+		const [scalingGroup] = await db
+			.select({ title: scalingGroupsTable.title })
+			.from(scalingGroupsTable)
+			.where(eq(scalingGroupsTable.id, scalingGroupId))
 
 		// Get divisions with registration counts, descriptions, and capacity
 		const divisions = await db
@@ -733,6 +739,7 @@ export const getCompetitionDivisionsWithCountsFn = createServerFn({
 
 		return {
 			scalingGroupId,
+			scalingGroupTitle: scalingGroup?.title ?? null,
 			defaultMaxSpotsPerDivision: competition.defaultMaxSpotsPerDivision,
 			divisions: divisions.map((d) => ({
 				...d,
@@ -1357,4 +1364,170 @@ export const getDivisionSpotsAvailableFn = createServerFn({ method: "GET" })
 			available: capacity.spotsAvailable,
 			isFull: capacity.isFull,
 		}
+	})
+
+/**
+ * Switch a competition to use a different scaling group directly (no clone).
+ * If the competition has registrations, migrates them to matching divisions in
+ * the new group by label. Throws if any registered division has no label match.
+ * Used to align a competition's divisions with a series' shared scaling group.
+ */
+export const switchCompetitionScalingGroupFn = createServerFn({
+	method: "POST",
+})
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				competitionId: z.string().min(1),
+				teamId: z.string().min(1),
+				newScalingGroupId: z.string().min(1),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		const session = await getSessionFromCookie()
+		if (!session?.userId) throw new Error("Not authenticated")
+
+		await requireTeamPermission(data.teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+
+		const [competition] = await db
+			.select()
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+
+		if (!competition) throw new Error("Competition not found")
+		if (competition.organizingTeamId !== data.teamId)
+			throw new Error("Competition does not belong to this team")
+
+		// Verify the new scaling group exists and is accessible (team or system)
+		const [newGroup] = await db
+			.select()
+			.from(scalingGroupsTable)
+			.where(eq(scalingGroupsTable.id, data.newScalingGroupId))
+
+		if (!newGroup) throw new Error("Scaling group not found")
+		if (newGroup.teamId !== null && newGroup.teamId !== data.teamId)
+			throw new Error("Scaling group does not belong to this team")
+
+		const settings = parseCompetitionSettings(competition.settings)
+		const currentGroupId = settings?.divisions?.scalingGroupId
+
+		// Nothing to do if already using this group
+		if (currentGroupId === data.newScalingGroupId) return { success: true, migratedCount: 0 }
+
+		// Load levels for both groups
+		const newLevels = await listScalingLevels({ scalingGroupId: data.newScalingGroupId })
+		const newLevelByLabel = new Map(
+			newLevels.map((l) => [l.label.toLowerCase().trim(), l]),
+		)
+
+		type Migration = { oldId: string; newId: string; label: string }
+		const migrations: Migration[] = []
+		const unmatchedWithRegs: string[] = []
+		const teamSizeMismatches: string[] = []
+
+		if (currentGroupId) {
+			const oldLevels = await listScalingLevels({ scalingGroupId: currentGroupId })
+
+			for (const oldLevel of oldLevels) {
+				const regCount = await getRegistrationCountForDivision({
+					divisionId: oldLevel.id,
+					competitionId: data.competitionId,
+				})
+				if (regCount === 0) continue
+
+				const newLevel = newLevelByLabel.get(oldLevel.label.toLowerCase().trim())
+				if (!newLevel) {
+					unmatchedWithRegs.push(oldLevel.label)
+				} else if (newLevel.teamSize !== oldLevel.teamSize) {
+					teamSizeMismatches.push(
+						`"${oldLevel.label}" (team size ${oldLevel.teamSize} → ${newLevel.teamSize})`,
+					)
+				} else {
+					migrations.push({ oldId: oldLevel.id, newId: newLevel.id, label: oldLevel.label })
+				}
+			}
+		}
+
+		if (unmatchedWithRegs.length > 0) {
+			throw new Error(
+				`Cannot switch: the following divisions have registered athletes but no matching division (by name) in the new group: ${unmatchedWithRegs.map((l) => `"${l}"`).join(", ")}. Add matching divisions to the target group first.`,
+			)
+		}
+
+		if (teamSizeMismatches.length > 0) {
+			throw new Error(
+				`Cannot switch: the following divisions have registered athletes but the matching division in the new group has a different team size: ${teamSizeMismatches.join(", ")}. Individual and team divisions cannot be merged.`,
+			)
+		}
+
+		// Migrate registrations and division configs, then update settings atomically
+		const newSettings = stringifyCompetitionSettings({
+			...settings,
+			divisions: { scalingGroupId: data.newScalingGroupId },
+		})
+
+		let migratedCount = 0
+		await db.transaction(async (tx) => {
+			for (const { oldId, newId } of migrations) {
+				// Count and migrate registrations
+				const regs = await tx
+					.select({ id: competitionRegistrationsTable.id })
+					.from(competitionRegistrationsTable)
+					.where(
+						and(
+							eq(competitionRegistrationsTable.divisionId, oldId),
+							eq(competitionRegistrationsTable.eventId, data.competitionId),
+						),
+					)
+				migratedCount += regs.length
+
+				await tx
+					.update(competitionRegistrationsTable)
+					.set({ divisionId: newId, updatedAt: new Date() })
+					.where(
+						and(
+							eq(competitionRegistrationsTable.divisionId, oldId),
+							eq(competitionRegistrationsTable.eventId, data.competitionId),
+						),
+					)
+
+				// Migrate competition_divisions config (description, fee, maxSpots)
+				const oldConfig = await tx.query.competitionDivisionsTable.findFirst({
+					where: and(
+						eq(competitionDivisionsTable.competitionId, data.competitionId),
+						eq(competitionDivisionsTable.divisionId, oldId),
+					),
+				})
+				if (oldConfig) {
+					const newConfig = await tx.query.competitionDivisionsTable.findFirst({
+						where: and(
+							eq(competitionDivisionsTable.competitionId, data.competitionId),
+							eq(competitionDivisionsTable.divisionId, newId),
+						),
+					})
+					if (!newConfig) {
+						await tx.insert(competitionDivisionsTable).values({
+							competitionId: data.competitionId,
+							divisionId: newId,
+							feeCents: oldConfig.feeCents,
+							description: oldConfig.description,
+							maxSpots: oldConfig.maxSpots,
+						})
+					}
+					await tx
+						.delete(competitionDivisionsTable)
+						.where(eq(competitionDivisionsTable.id, oldConfig.id))
+				}
+			}
+
+			await tx
+				.update(competitionsTable)
+				.set({ settings: newSettings, updatedAt: new Date() })
+				.where(eq(competitionsTable.id, data.competitionId))
+		})
+
+		return { success: true, migratedCount }
 	})

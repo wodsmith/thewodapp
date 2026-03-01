@@ -119,6 +119,28 @@ export function getEffectiveScoringConfig(
 }
 
 /**
+ * Series (CompetitionGroup) Settings
+ * Stored as JSON in the competition_groups.settings column.
+ */
+export interface SeriesSettings {
+	scoringConfig?: ScoringConfig
+}
+
+/**
+ * Parse series settings from JSON string
+ */
+export function parseSeriesSettings(
+	settings: string | null | undefined,
+): SeriesSettings | null {
+	if (!settings) return null
+	try {
+		return JSON.parse(settings) as SeriesSettings
+	} catch {
+		return null
+	}
+}
+
+/**
  * Convert legacy ScoringSettings to new ScoringConfig format
  */
 export function convertLegacyToScoringConfig(
