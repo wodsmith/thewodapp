@@ -282,8 +282,7 @@ function VolunteersPage() {
 	const isInPerson = competition.competitionType === "in-person"
 
 	// Derive effective tab - fall back to roster if schedule isn't allowed
-	const effectiveTab =
-		!isInPerson && tab === "schedule" ? "roster" : tab
+	const effectiveTab = !isInPerson && tab === "schedule" ? "roster" : tab
 
 	// Sync URL/state when competition type changes and schedule tab is no longer valid
 	useEffect(() => {
@@ -301,7 +300,11 @@ function VolunteersPage() {
 	}
 
 	return (
-		<Tabs value={effectiveTab} onValueChange={handleTabChange} className="w-full">
+		<Tabs
+			value={effectiveTab}
+			onValueChange={handleTabChange}
+			className="w-full"
+		>
 			<TabsList className="mb-6">
 				<TabsTrigger value="roster">Roster</TabsTrigger>
 				<TabsTrigger value="shifts">Shifts</TabsTrigger>

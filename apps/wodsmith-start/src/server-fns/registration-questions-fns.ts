@@ -15,9 +15,7 @@ import {
 	competitionsTable,
 	volunteerRegistrationAnswersTable,
 } from "@/db/schemas/competitions"
-import {
-	createCompetitionRegistrationQuestionId,
-} from "@/db/schemas/common"
+import { createCompetitionRegistrationQuestionId } from "@/db/schemas/common"
 import {
 	SYSTEM_ROLES_ENUM,
 	TEAM_PERMISSIONS,
@@ -68,7 +66,10 @@ const createQuestionInputSchema = z.object({
 	options: z.array(z.string().max(200)).max(20).nullable().optional(), // For select type
 	required: z.boolean().default(true),
 	forTeammates: z.boolean().default(false),
-	questionTarget: z.enum(["athlete", "volunteer"]).optional().default("athlete"),
+	questionTarget: z
+		.enum(["athlete", "volunteer"])
+		.optional()
+		.default("athlete"),
 })
 
 const updateQuestionInputSchema = z.object({
@@ -107,7 +108,10 @@ const createSeriesQuestionInputSchema = z.object({
 	options: z.array(z.string().max(200)).max(20).nullable().optional(),
 	required: z.boolean().default(true),
 	forTeammates: z.boolean().default(false),
-	questionTarget: z.enum(["athlete", "volunteer"]).optional().default("athlete"),
+	questionTarget: z
+		.enum(["athlete", "volunteer"])
+		.optional()
+		.default("athlete"),
 })
 
 const reorderSeriesQuestionsInputSchema = z.object({
@@ -226,10 +230,7 @@ export const getCompetitionQuestionsFn = createServerFn({ method: "GET" })
 						competitionRegistrationQuestionsTable.competitionId,
 						data.competitionId,
 					),
-					eq(
-						competitionRegistrationQuestionsTable.questionTarget,
-						"athlete",
-					),
+					eq(competitionRegistrationQuestionsTable.questionTarget, "athlete"),
 				),
 			)
 			.orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
@@ -247,10 +248,7 @@ export const getCompetitionQuestionsFn = createServerFn({ method: "GET" })
 							competitionRegistrationQuestionsTable.groupId,
 							competition.groupId,
 						),
-						eq(
-							competitionRegistrationQuestionsTable.questionTarget,
-							"athlete",
-						),
+						eq(competitionRegistrationQuestionsTable.questionTarget, "athlete"),
 					),
 				)
 				.orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
@@ -950,10 +948,7 @@ export const getVolunteerQuestionsFn = createServerFn({ method: "GET" })
 						competitionRegistrationQuestionsTable.competitionId,
 						data.competitionId,
 					),
-					eq(
-						competitionRegistrationQuestionsTable.questionTarget,
-						"volunteer",
-					),
+					eq(competitionRegistrationQuestionsTable.questionTarget, "volunteer"),
 				),
 			)
 			.orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
