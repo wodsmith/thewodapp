@@ -206,9 +206,7 @@ export function VideoSubmissionForm({
 	const [submissionData, setSubmissionData] = useState(
 		initialData?.submission ?? null,
 	)
-	const [scoreData, setScoreData] = useState(
-		initialData?.existingScore ?? null,
-	)
+	const [scoreData, setScoreData] = useState(initialData?.existingScore ?? null)
 
 	// Score form state
 	const [scoreInput, setScoreInput] = useState(
@@ -245,9 +243,7 @@ export function VideoSubmissionForm({
 
 	// Derived state — parseResult is a pure function of scoreInput + scheme
 	const parseResult: ParseResult | null =
-		workout && scoreInput.trim()
-			? parseScore(scoreInput, workout.scheme)
-			: null
+		workout && scoreInput.trim() ? parseScore(scoreInput, workout.scheme) : null
 
 	// Derive status from whether time meets or exceeds time cap
 	const scoreStatus: "scored" | "cap" = (() => {
@@ -344,7 +340,11 @@ export function VideoSubmissionForm({
 										Your submitted video:
 									</p>
 									<a
-										href={isSafeUrl(submissionData.videoUrl) ? submissionData.videoUrl : "#"}
+										href={
+											isSafeUrl(submissionData.videoUrl)
+												? submissionData.videoUrl
+												: "#"
+										}
 										target="_blank"
 										rel="noopener noreferrer"
 										className="flex items-center gap-2 text-sm text-primary hover:underline"
@@ -656,10 +656,7 @@ export function VideoSubmissionForm({
 					{hasSubmitted && submissionData && (
 						<div className="pt-2 border-t text-xs text-muted-foreground">
 							Last submitted:{" "}
-							{formatSubmissionTime(
-								submissionData.submittedAt,
-								timezone,
-							)}
+							{formatSubmissionTime(submissionData.submittedAt, timezone)}
 						</div>
 					)}
 				</form>

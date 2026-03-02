@@ -415,10 +415,7 @@ export const getBatchSubmissionStatusFn = createServerFn({ method: "GET" })
 				.where(
 					and(
 						eq(videoSubmissionsTable.registrationId, registration.id),
-						inArray(
-							videoSubmissionsTable.trackWorkoutId,
-							data.trackWorkoutIds,
-						),
+						inArray(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutIds),
 					),
 				),
 		])
