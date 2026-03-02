@@ -5,9 +5,9 @@
  * Fetches event details, divisions, movements, sponsors, and judging sheets.
  */
 
-import { useState } from "react"
 import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
 import { Video } from "lucide-react"
+import { useState } from "react"
 import {
 	EVENT_DETAILS_FORM_ID,
 	EventDetailsForm,
@@ -121,15 +121,17 @@ function EventEditPage() {
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
-							<Link
-								to="/compete/organizer/$competitionId/events/$eventId/submissions"
-								params={{
-									competitionId: competition.id,
-									eventId: event.id,
-								}}
-							>
-								<Button variant="outline">View Submissions</Button>
-							</Link>
+							<Button asChild variant="outline">
+								<Link
+									to="/compete/organizer/$competitionId/events/$eventId/submissions"
+									params={{
+										competitionId: competition.id,
+										eventId: event.id,
+									}}
+								>
+									View Submissions
+								</Link>
+							</Button>
 						</CardContent>
 					</Card>
 				</>

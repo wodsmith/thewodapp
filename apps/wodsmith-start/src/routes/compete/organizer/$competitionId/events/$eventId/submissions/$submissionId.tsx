@@ -5,7 +5,6 @@
  * see the claimed score, and mark as reviewed.
  */
 
-import { useState } from "react"
 import {
 	createFileRoute,
 	getRouteApi,
@@ -24,6 +23,8 @@ import {
 	Undo2,
 	User,
 } from "lucide-react"
+import { useState } from "react"
+import { isYouTubeUrl, YouTubeEmbed } from "@/components/compete/youtube-embed"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -35,13 +36,12 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { YouTubeEmbed, isYouTubeUrl } from "@/components/compete/youtube-embed"
-import { isSafeUrl } from "@/utils/url"
 import {
 	getOrganizerSubmissionDetailFn,
 	markSubmissionReviewedFn,
 	unmarkSubmissionReviewedFn,
 } from "@/server-fns/video-submission-fns"
+import { isSafeUrl } from "@/utils/url"
 
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 
@@ -83,9 +83,13 @@ function SubmissionDetailPage() {
 		setIsUpdating(true)
 		try {
 			if (isReviewed) {
-				await unmarkReviewed({ data: { submissionId: submission.id } })
+				await unmarkReviewed({
+					data: { submissionId: submission.id, competitionId: competition.id },
+				})
 			} else {
-				await markReviewed({ data: { submissionId: submission.id } })
+				await markReviewed({
+					data: { submissionId: submission.id, competitionId: competition.id },
+				})
 			}
 			router.invalidate()
 		} finally {
@@ -114,17 +118,17 @@ function SubmissionDetailPage() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-3">
-					<Link
-						to="/compete/organizer/$competitionId/events/$eventId/submissions"
-						params={{
-							competitionId: competition.id,
-							eventId: params.eventId,
-						}}
-					>
-						<Button variant="ghost" size="icon">
+					<Button asChild variant="ghost" size="icon">
+						<Link
+							to="/compete/organizer/$competitionId/events/$eventId/submissions"
+							params={{
+								competitionId: competition.id,
+								eventId: params.eventId,
+							}}
+						>
 							<ArrowLeft className="h-4 w-4" />
-						</Button>
-					</Link>
+						</Link>
+					</Button>
 					<div>
 						<h1 className="text-2xl font-bold">Review Submission</h1>
 						<p className="text-muted-foreground">
@@ -229,9 +233,7 @@ function SubmissionDetailPage() {
 								<div className="mt-3">
 									<a
 										href={
-											isSafeUrl(submission.videoUrl)
-												? submission.videoUrl
-												: "#"
+											isSafeUrl(submission.videoUrl) ? submission.videoUrl : "#"
 										}
 										target="_blank"
 										rel="noopener noreferrer"
@@ -286,8 +288,7 @@ function SubmissionDetailPage() {
 								</Avatar>
 								<div>
 									<p className="font-medium">
-										{submission.athlete.firstName}{" "}
-										{submission.athlete.lastName}
+										{submission.athlete.firstName} {submission.athlete.lastName}
 									</p>
 									<p className="text-sm text-muted-foreground">
 										{submission.athlete.email}
@@ -362,10 +363,7 @@ function SubmissionDetailPage() {
 							<div className="flex justify-between">
 								<span className="text-muted-foreground">Status</span>
 								{isReviewed ? (
-									<Badge
-										variant="default"
-										className="gap-1 bg-green-600"
-									>
+									<Badge variant="default" className="gap-1 bg-green-600">
 										<CheckCircle2 className="h-3 w-3" />
 										Reviewed
 									</Badge>

@@ -5,7 +5,6 @@
  * Allows organizers to review submissions, filter by division/status, and navigate to individual submissions.
  */
 
-import { useState } from "react"
 import {
 	createFileRoute,
 	getRouteApi,
@@ -20,6 +19,7 @@ import {
 	Play,
 	X,
 } from "lucide-react"
+import { useState } from "react"
 import { z } from "zod"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -31,6 +31,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
 import {
 	Select,
 	SelectContent,
@@ -46,7 +47,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
-import { Progress } from "@/components/ui/progress"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionEventFn } from "@/server-fns/competition-workouts-fns"
@@ -214,10 +214,10 @@ function SubmissionsPage() {
 			}
 			case "score": {
 				// Sort by score value, nulls last
-				if (a.score?.value === null && b.score?.value === null) return 0
-				if (a.score?.value === null) return 1
-				if (b.score?.value === null) return -1
-				return (a.score?.value || 0) - (b.score?.value || 0)
+				if (a.score?.value == null && b.score?.value == null) return 0
+				if (a.score?.value == null) return 1
+				if (b.score?.value == null) return -1
+				return a.score.value - b.score.value
 			}
 			default:
 				return 0
@@ -257,17 +257,17 @@ function SubmissionsPage() {
 						Event #{event.trackOrder} - {event.workout.name}
 					</p>
 				</div>
-				<Link
-					to="/compete/organizer/$competitionId/events/$eventId"
-					params={{
-						competitionId: competition.id,
-						eventId: event.id,
-					}}
-				>
-					<Button variant="outline" size="sm">
+				<Button asChild variant="outline" size="sm">
+					<Link
+						to="/compete/organizer/$competitionId/events/$eventId"
+						params={{
+							competitionId: competition.id,
+							eventId: event.id,
+						}}
+					>
 						Back to Event
-					</Button>
-				</Link>
+					</Link>
+				</Button>
 			</div>
 
 			{/* Progress Card */}
@@ -440,6 +440,16 @@ function SubmissionsPage() {
 									<TableRow
 										key={submission.id}
 										className="cursor-pointer hover:bg-muted/50"
+										onClick={() =>
+											navigate({
+												to: "/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId",
+												params: {
+													competitionId: competition.id,
+													eventId: event.id,
+													submissionId: submission.id,
+												},
+											})
+										}
 									>
 										<TableCell className="font-mono text-sm text-muted-foreground">
 											{index + 1}
@@ -524,19 +534,23 @@ function SubmissionsPage() {
 											)}
 										</TableCell>
 										<TableCell>
-											<Link
-												to="/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId"
-												params={{
-													competitionId: competition.id,
-													eventId: event.id,
-													submissionId: submission.id,
-												}}
+											<Button
+												asChild
+												variant="outline"
+												size="sm"
 												onClick={(e) => e.stopPropagation()}
 											>
-												<Button variant="outline" size="sm">
+												<Link
+													to="/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId"
+													params={{
+														competitionId: competition.id,
+														eventId: event.id,
+														submissionId: submission.id,
+													}}
+												>
 													Review
-												</Button>
-											</Link>
+												</Link>
+											</Button>
 										</TableCell>
 									</TableRow>
 								))}

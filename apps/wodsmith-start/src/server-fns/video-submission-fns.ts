@@ -14,13 +14,14 @@ import {
 	competitionsTable,
 	REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
-import { scalingLevelsTable } from "@/db/schemas/scaling"
-import { userTable } from "@/db/schemas/users"
 import {
 	programmingTracksTable,
 	trackWorkoutsTable,
 } from "@/db/schemas/programming"
+import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoresTable } from "@/db/schemas/scores"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { userTable } from "@/db/schemas/users"
 import {
 	createVideoSubmissionId,
 	videoSubmissionsTable,
@@ -38,8 +39,9 @@ import {
 	sortKeyToString,
 	type WorkoutScheme,
 } from "@/lib/scoring"
-import { autochunk } from "@/utils/batch-query"
 import { getSessionFromCookie } from "@/utils/auth"
+import { autochunk } from "@/utils/batch-query"
+import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
 // Input Schemas
@@ -425,10 +427,7 @@ export const getBatchSubmissionStatusFn = createServerFn({ method: "GET" })
 				.where(
 					and(
 						eq(videoSubmissionsTable.registrationId, registration.id),
-						inArray(
-							videoSubmissionsTable.trackWorkoutId,
-							data.trackWorkoutIds,
-						),
+						inArray(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutIds),
 					),
 				),
 		])
@@ -704,6 +703,22 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
+		// Verify user is authenticated and has organizer permission
+		const [competition] = await db
+			.select({ organizingTeamId: competitionsTable.organizingTeamId })
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+			.limit(1)
+
+		if (!competition) {
+			throw new Error("NOT_FOUND: Competition not found")
+		}
+
+		await requireTeamPermission(
+			competition.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		)
+
 		// Get all video submissions for this event with athlete and registration info
 		const submissions = await db
 			.select({
@@ -869,9 +884,7 @@ export const getSubmissionCountsByEventFn = createServerFn({ method: "GET" })
 						total: count(),
 					})
 					.from(videoSubmissionsTable)
-					.where(
-						inArray(videoSubmissionsTable.trackWorkoutId, chunk),
-					)
+					.where(inArray(videoSubmissionsTable.trackWorkoutId, chunk))
 					.groupBy(videoSubmissionsTable.trackWorkoutId),
 		)
 
@@ -930,6 +943,22 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
 	)
 	.handler(async ({ data }) => {
 		const db = getDb()
+
+		// Verify user has organizer permission for this competition
+		const [competition] = await db
+			.select({ organizingTeamId: competitionsTable.organizingTeamId })
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+			.limit(1)
+
+		if (!competition) {
+			throw new Error("NOT_FOUND: Competition not found")
+		}
+
+		await requireTeamPermission(
+			competition.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		)
 
 		const [submission] = await db
 			.select({
@@ -990,7 +1019,11 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
 			.limit(1)
 
 		let displayScore: string | null = null
-		if (score?.scoreValue !== null && score?.scoreValue !== undefined && score?.scheme) {
+		if (
+			score?.scoreValue !== null &&
+			score?.scoreValue !== undefined &&
+			score?.scheme
+		) {
 			displayScore = decodeScore(
 				score.scoreValue,
 				score.scheme as WorkoutScheme,
@@ -1043,6 +1076,7 @@ export const markSubmissionReviewedFn = createServerFn({ method: "POST" })
 		z
 			.object({
 				submissionId: z.string().min(1),
+				competitionId: z.string().min(1),
 			})
 			.parse(data),
 	)
@@ -1053,6 +1087,22 @@ export const markSubmissionReviewedFn = createServerFn({ method: "POST" })
 		}
 
 		const db = getDb()
+
+		// Verify organizer permission
+		const [competition] = await db
+			.select({ organizingTeamId: competitionsTable.organizingTeamId })
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+			.limit(1)
+
+		if (!competition) {
+			throw new Error("NOT_FOUND: Competition not found")
+		}
+
+		await requireTeamPermission(
+			competition.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		)
 
 		await db
 			.update(videoSubmissionsTable)
@@ -1073,6 +1123,7 @@ export const unmarkSubmissionReviewedFn = createServerFn({ method: "POST" })
 		z
 			.object({
 				submissionId: z.string().min(1),
+				competitionId: z.string().min(1),
 			})
 			.parse(data),
 	)
@@ -1083,6 +1134,22 @@ export const unmarkSubmissionReviewedFn = createServerFn({ method: "POST" })
 		}
 
 		const db = getDb()
+
+		// Verify organizer permission
+		const [competition] = await db
+			.select({ organizingTeamId: competitionsTable.organizingTeamId })
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+			.limit(1)
+
+		if (!competition) {
+			throw new Error("NOT_FOUND: Competition not found")
+		}
+
+		await requireTeamPermission(
+			competition.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		)
 
 		await db
 			.update(videoSubmissionsTable)
