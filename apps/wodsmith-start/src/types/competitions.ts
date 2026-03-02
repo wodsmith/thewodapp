@@ -124,6 +124,12 @@ export function getEffectiveScoringConfig(
  */
 export interface SeriesSettings {
 	scoringConfig?: ScoringConfig
+	/**
+	 * The canonical scaling group for this series.
+	 * When set, this group is used as the primary for division health checks
+	 * instead of inferring the primary via majority vote.
+	 */
+	scalingGroupId?: string
 }
 
 /**
@@ -135,6 +141,20 @@ export function parseSeriesSettings(
 	if (!settings) return null
 	try {
 		return JSON.parse(settings) as SeriesSettings
+	} catch {
+		return null
+	}
+}
+
+/**
+ * Stringify series settings to JSON
+ */
+export function stringifySeriesSettings(
+	settings: SeriesSettings | null | undefined,
+): string | null {
+	if (!settings) return null
+	try {
+		return JSON.stringify(settings)
 	} catch {
 		return null
 	}

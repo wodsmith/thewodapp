@@ -76,6 +76,7 @@ export interface SeriesLeaderboardResult {
 	seriesEvents: Array<{ workoutId: string; name: string; scheme: string }>
 	divisionHealth: SeriesDivisionHealth[]
 	availableDivisions: Array<{ id: string; label: string }>
+	primaryScalingGroupId: string | null
 }
 
 // ============================================================================
@@ -106,6 +107,7 @@ async function computeDivisionHealth(
 	compIds: string[],
 	compNames: Map<string, string>,
 	db: ReturnType<typeof getDb>,
+	canonicalScalingGroupId?: string | null,
 ): Promise<{ health: SeriesDivisionHealth[]; primaryScalingGroupId: string | null }> {
 	if (compIds.length === 0)
 		return { health: [], primaryScalingGroupId: null }
@@ -132,26 +134,29 @@ async function computeDivisionHealth(
 		}
 	}
 
-	// Find primary (most common) scalingGroupId
-	const countMap = new Map<string, number>()
-	for (const sgIds of compScalingGroups.values()) {
-		for (const sgId of sgIds) {
-			countMap.set(sgId, (countMap.get(sgId) ?? 0) + 1)
-		}
-	}
+	let primaryScalingGroupId: string | null = canonicalScalingGroupId ?? null
 
-	let primaryScalingGroupId: string | null = null
-	let maxCount = 0
-	for (const [sgId, count] of countMap) {
-		// On a tie, pick the lexicographically smaller ID for determinism
-		if (
-			count > maxCount ||
-			(count === maxCount &&
-				primaryScalingGroupId !== null &&
-				sgId < primaryScalingGroupId)
-		) {
-			maxCount = count
-			primaryScalingGroupId = sgId
+	if (!primaryScalingGroupId) {
+		// No canonical set — infer primary via majority vote
+		const countMap = new Map<string, number>()
+		for (const sgIds of compScalingGroups.values()) {
+			for (const sgId of sgIds) {
+				countMap.set(sgId, (countMap.get(sgId) ?? 0) + 1)
+			}
+		}
+
+		let maxCount = 0
+		for (const [sgId, count] of countMap) {
+			// On a tie, pick the lexicographically smaller ID for determinism
+			if (
+				count > maxCount ||
+				(count === maxCount &&
+					primaryScalingGroupId !== null &&
+					sgId < primaryScalingGroupId)
+			) {
+				maxCount = count
+				primaryScalingGroupId = sgId
+			}
 		}
 	}
 
@@ -202,6 +207,7 @@ export async function getSeriesLeaderboard(params: {
 			seriesEvents: [],
 			divisionHealth: [],
 			availableDivisions: [],
+			primaryScalingGroupId: null,
 		}
 	}
 
@@ -209,8 +215,9 @@ export async function getSeriesLeaderboard(params: {
 	const compNames = new Map<string, string>(comps.map((c) => [c.id, c.name]))
 
 	// 3. Compute division health early so we can filter to primary-group comps only
+	// If the series has a canonical scaling group set, prefer it over majority vote
 	const { health: divisionHealth, primaryScalingGroupId } =
-		await computeDivisionHealth(compIds, compNames, db)
+		await computeDivisionHealth(compIds, compNames, db, seriesSettings?.scalingGroupId)
 
 	// Load available divisions from the primary scaling group
 	const availableDivisions: Array<{ id: string; label: string }> = []
@@ -240,6 +247,7 @@ export async function getSeriesLeaderboard(params: {
 			seriesEvents: [],
 			divisionHealth,
 			availableDivisions,
+			primaryScalingGroupId,
 		}
 	}
 
@@ -259,6 +267,7 @@ export async function getSeriesLeaderboard(params: {
 			seriesEvents: [],
 			divisionHealth,
 			availableDivisions,
+			primaryScalingGroupId,
 		}
 	}
 
@@ -353,6 +362,7 @@ export async function getSeriesLeaderboard(params: {
 			seriesEvents,
 			divisionHealth,
 			availableDivisions,
+			primaryScalingGroupId,
 		}
 	}
 
@@ -594,5 +604,6 @@ export async function getSeriesLeaderboard(params: {
 		seriesEvents,
 		divisionHealth,
 		availableDivisions,
+		primaryScalingGroupId,
 	}
 }

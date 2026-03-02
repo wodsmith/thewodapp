@@ -20,6 +20,7 @@ export interface SeriesLeaderboardResponse {
 	seriesEvents: Array<{ workoutId: string; name: string; scheme: string }>
 	divisionHealth: SeriesDivisionHealth[]
 	availableDivisions: Array<{ id: string; label: string }>
+	primaryScalingGroupId: string | null
 }
 
 export const getSeriesLeaderboardFn = createServerFn({ method: "GET" })

@@ -16,6 +16,13 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { SeriesRevenueStats } from "@/server-fns/commerce-fns"
 import {
@@ -27,8 +34,14 @@ import {
 	getOrganizerCompetitionsFn,
 	updateCompetitionFn,
 } from "@/server-fns/competition-fns"
+import {
+	listScalingGroupsFn,
+	setSeriesCanonicalScalingGroupFn,
+	type ScalingGroupForTemplate,
+} from "@/server-fns/competition-divisions-fns"
 import { getSeriesQuestionsFn } from "@/server-fns/registration-questions-fns"
 import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
+import { parseSeriesSettings } from "@/types/competitions"
 
 export const Route = createFileRoute(
 	"/compete/organizer/_dashboard/series/$groupId/",
@@ -49,6 +62,8 @@ export const Route = createFileRoute(
 				allCompetitions: [],
 				allGroups: [],
 				seriesQuestions: [],
+				scalingGroups: [],
+				canonicalScalingGroupId: null,
 				deferredRevenueStats: Promise.resolve(null),
 				teamId: null,
 			}
@@ -61,6 +76,8 @@ export const Route = createFileRoute(
 				allCompetitions: [],
 				allGroups: [],
 				seriesQuestions: [],
+				scalingGroups: [],
+				canonicalScalingGroupId: null,
 				deferredRevenueStats: Promise.resolve(null),
 				teamId: null,
 			}
@@ -78,11 +95,13 @@ export const Route = createFileRoute(
 				organizingTeams[0].id
 		}
 
-		// Fetch competitions and series questions in parallel
-		const [competitionsResult, questionsResult] = await Promise.all([
-			getOrganizerCompetitionsFn({ data: { teamId } }),
-			getSeriesQuestionsFn({ data: { groupId } }),
-		])
+		// Fetch competitions, series questions, and scaling groups in parallel
+		const [competitionsResult, questionsResult, scalingGroupsResult] =
+			await Promise.all([
+				getOrganizerCompetitionsFn({ data: { teamId } }),
+				getSeriesQuestionsFn({ data: { groupId } }),
+				listScalingGroupsFn({ data: { teamId } }),
+			])
 
 		// Defer revenue stats - not needed for initial render
 		const deferredRevenueStats = getSeriesRevenueStatsFn({
@@ -94,6 +113,8 @@ export const Route = createFileRoute(
 			(c) => c.groupId === groupId,
 		)
 
+		const seriesSettings = parseSeriesSettings(groupResult.group.settings)
+
 		return {
 			group: groupResult.group,
 			seriesCompetitions,
@@ -102,6 +123,8 @@ export const Route = createFileRoute(
 				{ ...groupResult.group, competitionCount: seriesCompetitions.length },
 			],
 			seriesQuestions: questionsResult.questions,
+			scalingGroups: scalingGroupsResult.groups,
+			canonicalScalingGroupId: seriesSettings?.scalingGroupId ?? null,
 			deferredRevenueStats,
 			teamId,
 		}
@@ -115,6 +138,8 @@ function SeriesDetailPage() {
 		allCompetitions,
 		allGroups,
 		seriesQuestions,
+		scalingGroups,
+		canonicalScalingGroupId: initialCanonicalGroupId,
 		deferredRevenueStats,
 		teamId,
 	} = Route.useLoaderData()
@@ -123,6 +148,10 @@ function SeriesDetailPage() {
 	const [isExportingCsv, setIsExportingCsv] = useState(false)
 	const [seriesRevenueStats, setSeriesRevenueStats] =
 		useState<SeriesRevenueStats | null>(null)
+	const [canonicalGroupId, setCanonicalGroupId] = useState<string | null>(
+		initialCanonicalGroupId,
+	)
+	const [isSavingCanonical, setIsSavingCanonical] = useState(false)
 
 	useEffect(() => {
 		let cancelled = false
@@ -156,9 +185,28 @@ function SeriesDetailPage() {
 
 	const updateCompetition = useServerFn(updateCompetitionFn)
 	const exportCsv = useServerFn(exportSeriesRevenueCsvFn)
+	const setCanonicalScalingGroup = useServerFn(setSeriesCanonicalScalingGroupFn)
 
 	const handleQuestionsChange = () => {
 		router.invalidate()
+	}
+
+	const handleSetCanonical = async (scalingGroupId: string) => {
+		if (!group || !teamId) return
+		setIsSavingCanonical(true)
+		try {
+			await setCanonicalScalingGroup({
+				data: { groupId: group.id, teamId, scalingGroupId },
+			})
+			setCanonicalGroupId(scalingGroupId)
+			toast.success("Division template updated")
+		} catch (e) {
+			toast.error(
+				e instanceof Error ? e.message : "Failed to update division template",
+			)
+		} finally {
+			setIsSavingCanonical(false)
+		}
 	}
 
 	const handleRemoveFromSeries = async (competitionId: string) => {
@@ -349,6 +397,55 @@ function SeriesDetailPage() {
 						</div>
 					</CardContent>
 				</Card>
+
+				{/* Division Settings */}
+				{scalingGroups.length > 0 && (
+					<Card>
+						<CardHeader>
+							<CardTitle>Division Settings</CardTitle>
+							<CardDescription>
+								Set the canonical division template for this series. All
+								competitions should use this template so athletes can be compared
+								on the global leaderboard.
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<div className="flex items-center gap-3">
+								<Select
+									value={canonicalGroupId ?? "__none__"}
+									onValueChange={(val) => {
+										if (val !== "__none__") handleSetCanonical(val)
+									}}
+									disabled={isSavingCanonical}
+								>
+									<SelectTrigger className="w-[320px]">
+										<SelectValue placeholder="Select a division template..." />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="__none__" disabled>
+											Select a division template...
+										</SelectItem>
+										{scalingGroups.map((g: ScalingGroupForTemplate) => (
+											<SelectItem key={g.id} value={g.id}>
+												{g.title}
+												{g.levels.length > 0 && (
+													<span className="ml-1 text-muted-foreground text-xs">
+														({g.levels.map((l) => l.label).join(", ")})
+													</span>
+												)}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								{isSavingCanonical && (
+									<span className="text-sm text-muted-foreground animate-pulse">
+										Saving...
+									</span>
+								)}
+							</div>
+						</CardContent>
+					</Card>
+				)}
 
 				{/* Series Registration Questions */}
 				<RegistrationQuestionsEditor
