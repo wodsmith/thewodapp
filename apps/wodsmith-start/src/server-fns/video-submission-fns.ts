@@ -5,7 +5,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, count, eq, inArray, ne, countDistinct } from "drizzle-orm"
+import { and, count, eq, inArray, isNotNull, ne } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -875,18 +875,23 @@ export const getSubmissionCountsByEventFn = createServerFn({ method: "GET" })
 					.groupBy(videoSubmissionsTable.trackWorkoutId),
 		)
 
-		// Query 2: reviewed count — distinct users with a score per event
+		// Query 2: reviewed count — submissions where reviewedAt is set
 		const reviewedCounts = await autochunk(
 			{ items: data.trackWorkoutIds },
 			async (chunk) =>
 				db
 					.select({
-						competitionEventId: scoresTable.competitionEventId,
-						reviewed: countDistinct(scoresTable.userId),
+						trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+						reviewed: count(),
 					})
-					.from(scoresTable)
-					.where(inArray(scoresTable.competitionEventId, chunk))
-					.groupBy(scoresTable.competitionEventId),
+					.from(videoSubmissionsTable)
+					.where(
+						and(
+							inArray(videoSubmissionsTable.trackWorkoutId, chunk),
+							isNotNull(videoSubmissionsTable.reviewedAt),
+						),
+					)
+					.groupBy(videoSubmissionsTable.trackWorkoutId),
 		)
 
 		// Build result map
@@ -894,7 +899,7 @@ export const getSubmissionCountsByEventFn = createServerFn({ method: "GET" })
 			submissionCounts.map((r) => [r.trackWorkoutId, r.total]),
 		)
 		const revMap = new Map(
-			reviewedCounts.map((r) => [r.competitionEventId, r.reviewed]),
+			reviewedCounts.map((r) => [r.trackWorkoutId, r.reviewed]),
 		)
 
 		const counts: Record<
