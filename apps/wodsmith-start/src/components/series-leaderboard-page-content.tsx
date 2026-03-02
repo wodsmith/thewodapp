@@ -4,10 +4,8 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { AlertTriangle, BarChart3 } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { toast } from "sonner"
 import { SeriesLeaderboardTable } from "@/components/series-leaderboard-table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
 import {
 	Select,
 	SelectContent,
@@ -16,7 +14,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { alignAllSeriesCompsFn } from "@/server-fns/competition-divisions-fns"
 import {
 	getSeriesLeaderboardFn,
 	type SeriesDivisionHealth,
@@ -26,10 +23,9 @@ import type { ScoringAlgorithm } from "@/types/scoring"
 
 interface Props {
 	groupId: string
-	teamId?: string
 }
 
-export function SeriesLeaderboardPageContent({ groupId, teamId }: Props) {
+export function SeriesLeaderboardPageContent({ groupId }: Props) {
 	const navigate = useNavigate()
 	const searchParams = useSearch({ strict: false }) as { division?: string }
 
@@ -43,19 +39,14 @@ export function SeriesLeaderboardPageContent({ groupId, teamId }: Props) {
 	const [availableDivisions, setAvailableDivisions] = useState<
 		Array<{ id: string; label: string }>
 	>([])
-	const [primaryScalingGroupId, setPrimaryScalingGroupId] = useState<
-		string | null
-	>(null)
 	const [scoringAlgorithm, setScoringAlgorithm] =
 		useState<ScoringAlgorithm>("traditional")
 	const [isLoading, setIsLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
-	const [isFixingAll, setIsFixingAll] = useState(false)
 
 	const selectedDivision = searchParams.division ?? ""
 
 	const getLeaderboard = useServerFn(getSeriesLeaderboardFn)
-	const alignAllComps = useServerFn(alignAllSeriesCompsFn)
 
 	useEffect(() => {
 		let cancelled = false
@@ -74,7 +65,6 @@ export function SeriesLeaderboardPageContent({ groupId, teamId }: Props) {
 				setSeriesEvents(result.seriesEvents)
 				setDivisionHealth(result.divisionHealth)
 				setAvailableDivisions(result.availableDivisions)
-				setPrimaryScalingGroupId(result.primaryScalingGroupId)
 				setScoringAlgorithm(result.scoringConfig.algorithm)
 			})
 			.catch((err) => {
@@ -106,48 +96,6 @@ export function SeriesLeaderboardPageContent({ groupId, teamId }: Props) {
 		},
 		[navigate],
 	)
-
-	const handleFixAll = useCallback(async () => {
-		if (!teamId || !primaryScalingGroupId) return
-		setIsFixingAll(true)
-		try {
-			const result = await alignAllComps({
-				data: {
-					groupId,
-					teamId,
-					targetScalingGroupId: primaryScalingGroupId,
-				},
-			})
-			const succeeded = result.results.filter((r) => r.success).length
-			const failed = result.results.filter((r) => !r.success)
-			if (failed.length === 0) {
-				toast.success(
-					`All competitions aligned. ${succeeded} updated.`,
-				)
-			} else {
-				toast.warning(
-					`${succeeded} competitions aligned. ${failed.length} failed — check each competition's divisions.`,
-				)
-			}
-			// Reload leaderboard to reflect the changes
-			setIsLoading(true)
-			getLeaderboard({ data: { groupId, divisionId: selectedDivision || undefined } })
-				.then((res) => {
-					setEntries(res.entries)
-					setSeriesEvents(res.seriesEvents)
-					setDivisionHealth(res.divisionHealth)
-					setAvailableDivisions(res.availableDivisions)
-					setPrimaryScalingGroupId(res.primaryScalingGroupId)
-					setScoringAlgorithm(res.scoringConfig.algorithm)
-				})
-				.catch(() => {})
-				.finally(() => setIsLoading(false))
-		} catch (e) {
-			toast.error(e instanceof Error ? e.message : "Failed to align competitions")
-		} finally {
-			setIsFixingAll(false)
-		}
-	}, [teamId, primaryScalingGroupId, groupId, selectedDivision, alignAllComps, getLeaderboard])
 
 	// Filter entries for selected division
 	const filteredEntries = useMemo(() => {
@@ -216,7 +164,7 @@ export function SeriesLeaderboardPageContent({ groupId, teamId }: Props) {
 				)}
 			</div>
 
-			{/* Division health warnings (organizer-facing) */}
+			{/* Division health warnings */}
 			{mismatches.length > 0 && (
 				<Alert
 					variant="default"
@@ -251,21 +199,6 @@ export function SeriesLeaderboardPageContent({ groupId, teamId }: Props) {
 								</li>
 							))}
 						</ul>
-						{teamId && primaryScalingGroupId && (
-							<div className="mt-3">
-								<Button
-									size="sm"
-									variant="outline"
-									className="border-orange-300 text-orange-700 hover:bg-orange-100 dark:border-orange-700 dark:text-orange-300 dark:hover:bg-orange-900/30"
-									onClick={handleFixAll}
-									disabled={isFixingAll}
-								>
-									{isFixingAll
-										? "Aligning..."
-										: `Fix All ${mismatches.length} Competitions`}
-								</Button>
-							</div>
-						)}
 					</AlertDescription>
 				</Alert>
 			)}
