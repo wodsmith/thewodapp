@@ -3,9 +3,14 @@
   "checkpoint_id": "02f53f984a69",
   "strategy": "manual-commit",
   "branch": "claude/organizer-video-review-list-MYDB5",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
     "apps/wodsmith-start/src/components/ui/calendar.tsx",
+    "apps/wodsmith-start/src/db/schemas/video-submissions.ts",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/events/$eventId.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/events/$eventId/index.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/review.tsx",
+    "apps/wodsmith-start/src/server-fns/video-submission-fns.ts",
     "apps/wodsmith-start/test/components/competition-workout-card.test.tsx",
     "apps/wodsmith-start/test/components/video-submission-preview.test.tsx"
   ],
@@ -16,13 +21,20 @@
       "context": "/02/f53f984a69/0/context.md",
       "content_hash": "/02/f53f984a69/0/content_hash.txt",
       "prompt": "/02/f53f984a69/0/prompt.txt"
+    },
+    {
+      "metadata": "/02/f53f984a69/1/metadata.json",
+      "transcript": "/02/f53f984a69/1/full.jsonl",
+      "context": "/02/f53f984a69/1/context.md",
+      "content_hash": "/02/f53f984a69/1/content_hash.txt",
+      "prompt": "/02/f53f984a69/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 14,
-    "cache_creation_tokens": 24310,
-    "cache_read_tokens": 419892,
-    "output_tokens": 3191,
-    "api_call_count": 10
+    "input_tokens": 55,
+    "cache_creation_tokens": 110037,
+    "cache_read_tokens": 2407593,
+    "output_tokens": 14877,
+    "api_call_count": 45
   }
 }
