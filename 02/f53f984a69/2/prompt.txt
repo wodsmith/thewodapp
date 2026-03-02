@@ -1,0 +1,93 @@
+Implement the following plan:
+
+# Plan: Top-level "Review" nav item + index page for video submissions
+
+## Context
+
+Video submission review currently only lives at `/compete/organizer/$competitionId/events/$eventId/submissions` — buried under individual events with no top-level nav entry. Organizers need a "Review" link in the sidebar and an index page showing all events with submission counts, window status, and review progress at a glance.
+
+## Changes
+
+### 1. Add "Review" to sidebar nav (online competitions only)
+
+**File:** `apps/wodsmith-start/src/components/competition-sidebar.tsx`
+
+- Import `Eye` from `lucide-react`
+- Add conditional entry in "Run Competition" group (same pattern as Schedule/Submission Windows):
+
+```typescript
+...(competitionType === "online"
+  ? [{ label: "Review", href: `${basePath}/review`, icon: Eye }]
+  : []),
+```
+
+Place it after Results in the "Run Competition" group.
+
+### 2. Add breadcrumb label
+
+**File:** `apps/wodsmith-start/src/routes/compete/organizer/$competitionId.tsx`
+
+Add `review: "Review"` to `routeLabels` map (~line 67).
+
+### 3. New server function: `getSubmissionCountsByEventFn`
+
+**File:** `apps/wodsmith-start/src/server-fns/video-submission-fns.ts`
+
+Efficient aggregation query that avoids N+1 — fetches submission + review counts for all events in one call:
+
+- Input: `{ trackWorkoutIds: string[] }`
+- Query 1: `COUNT(*)` grouped by `trackWorkoutId` from `videoSubmissionsTable`
+- Query 2: `COUNT(DISTINCT userId)` grouped by `competitionEventId` from `scoresTable`
+- Both use `autochunk` for D1 safety
+- Returns: `Record<trackWorkoutId, { total, reviewed, pending }>`
+
+### 4. New route: Review index page
+
+**File:** `apps/wodsmith-start/src/routes/compete/organizer/$competitionId/review.tsx` (new)
+
+Follow `submission-windows.tsx` pattern exactly:
+- Online-only guard with redirect
+- `parentMatchPromise` for competition data
+- Loader fetches workouts + competition events (submission windows) + submission counts in parallel
+
+**UI:**
+- Header: "Video Review" + description
+- Aggregate progress card: total reviewed / total submissions across all events
+- Event cards/rows sorted by `trackOrder`:
+  - Event # + workout name
+  - Submission window status badge (Open/Closed/Upcoming/Not Set)
+  - Submission counts (total / reviewed / pending)
+  - Progress bar
+  - "Review" link → existing `/events/$eventId/submissions` page
+
+### 5. Route tree regeneration
+
+Run dev server to auto-regenerate `routeTree.gen.ts`.
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `src/components/competition-sidebar.tsx` | Add `Eye` import + "Review" nav item |
+| `src/routes/compete/organizer/$competitionId.tsx` | Add `review` breadcrumb label |
+| `src/server-fns/video-submission-fns.ts` | Add `getSubmissionCountsByEventFn` |
+| `src/routes/compete/organizer/$competitionId/review.tsx` | **New** route file |
+| `src/routeTree.gen.ts` | Auto-regenerated |
+
+## Verification
+
+1. `pnpm dev` — confirm no build errors, route tree regenerates
+2. Navigate to an online competition → sidebar shows "Review" under "Run Competition"
+3. Navigate to in-person competition → "Review" does NOT appear
+4. Click "Review" → index page loads with all events, counts, window status
+5. Click "Review" on an event row → navigates to existing per-event submissions page
+6. `pnpm type-check` passes
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/zacjones/.REDACTED.jsonl
+
+If this plan can be broken down into multiple independent tasks, consider using the TeamCreate tool to create a team and parallelize the work.
+
+---
+
+commit your work

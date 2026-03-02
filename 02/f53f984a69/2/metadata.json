@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "02f53f984a69",
+  "session_id": "965f5d06-b646-44bf-be22-57446f7b45e1",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-02T04:35:34.6763Z",
+  "branch": "claude/organizer-video-review-list-MYDB5",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/src/components/competition-sidebar.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/review.tsx",
+    "apps/wodsmith-start/src/server-fns/video-submission-fns.ts"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 37,
+    "cache_creation_tokens": 90916,
+    "cache_read_tokens": 2340976,
+    "output_tokens": 9716,
+    "api_call_count": 33
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-02T04:35:34.627534Z",
+    "agent_lines": 330,
+    "human_added": 0,
+    "human_modified": 8,
+    "human_removed": 5,
+    "total_committed": 338,
+    "agent_percentage": 97.63313609467455
+  }
+}
