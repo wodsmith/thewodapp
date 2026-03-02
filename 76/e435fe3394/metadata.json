@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "76e435fe3394",
+  "strategy": "manual-commit",
+  "branch": "claude/organizer-video-review-list-MYDB5",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/events/$eventId/index.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/events/$eventId/submissions/index.tsx",
+    "apps/wodsmith-start/src/server-fns/video-submission-fns.ts",
+    "apps/wodsmith-start/test/server-fns/video-submission-fns.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/76/e435fe3394/0/metadata.json",
+      "transcript": "/76/e435fe3394/0/full.jsonl",
+      "context": "/76/e435fe3394/0/context.md",
+      "content_hash": "/76/e435fe3394/0/content_hash.txt",
+      "prompt": "/76/e435fe3394/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 17698,
+    "cache_read_tokens": 1883597,
+    "output_tokens": 5698,
+    "api_call_count": 17
+  }
+}
