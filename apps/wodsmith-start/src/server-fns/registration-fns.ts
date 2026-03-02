@@ -64,6 +64,8 @@ import {
 	registerForCompetition,
 } from "@/lib/registration-stubs"
 import { getStripe } from "@/lib/stripe"
+import { validateCoupon, recordRedemption } from "@/server/coupons"
+import { type ProductCoupon } from "@/db/schema"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { createToken, getClaimTokenKey } from "@/utils/auth-utils"
 import {
@@ -104,6 +106,7 @@ const initiateRegistrationPaymentInputSchema = z.object({
 		),
 	// Shared fields
 	affiliateName: z.string().max(255).optional(),
+	couponCode: z.string().max(100).optional(),
 	answers: z
 		.array(
 			z.object({
@@ -331,7 +334,31 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 		)
 
 		const totalFeeCents = itemFees.reduce((sum, item) => sum + item.feeCents, 0)
-		const allFree = totalFeeCents === 0
+
+		// Coupon validation
+		let couponDiscount = 0
+		let validatedCoupon: ProductCoupon | null = null
+		if (input.couponCode) {
+			validatedCoupon = await validateCoupon(
+				input.couponCode,
+				input.competitionId,
+			)
+			if (!validatedCoupon) throw new Error("Invalid or expired coupon code")
+			couponDiscount = Math.min(validatedCoupon.amountOffCents, totalFeeCents)
+			logInfo({
+				message: "[Registration] Coupon applied",
+				attributes: {
+					couponCode: input.couponCode,
+					couponId: validatedCoupon.id,
+					discountCents: couponDiscount,
+					originalTotalCents: totalFeeCents,
+				},
+			})
+		}
+
+		// Adjust total after coupon
+		const discountedTotalFeeCents = totalFeeCents - couponDiscount
+		const allFree = discountedTotalFeeCents === 0
 
 		// 5. For paid items, verify organizer has Stripe connected
 		// Fetch organizing team once with all needed columns (also used for Stripe connection below)
@@ -420,6 +447,17 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 					divisionCount: input.items.length,
 				},
 			})
+
+			// Record coupon redemption if a coupon covered the full amount
+			if (validatedCoupon) {
+				await recordRedemption({
+					couponId: validatedCoupon.id,
+					userId,
+					purchaseId: null,
+					competitionId: input.competitionId,
+					amountOffCents: couponDiscount,
+				})
+			}
 
 			return {
 				purchaseId: null,
@@ -514,7 +552,17 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			}
 
 			// Paid division - create purchase record
-			const feeBreakdown = calculateCompetitionFees(item.feeCents, feeConfig)
+			// Calculate proportional discount for this item
+			const itemProportion =
+				totalFeeCents > 0 ? item.feeCents / totalFeeCents : 0
+			const itemDiscount = validatedCoupon
+				? Math.round(couponDiscount * itemProportion)
+				: 0
+			const discountedFeeCents = item.feeCents - itemDiscount
+			const feeBreakdown = calculateCompetitionFees(
+				discountedFeeCents,
+				feeConfig,
+			)
 			const purchaseId = createCommercePurchaseId()
 			purchaseIds.push(purchaseId)
 
@@ -534,6 +582,8 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 					affiliateName: input.affiliateName,
 					teammates: item.teammates,
 					answers: input.answers,
+					couponCode: input.couponCode,
+					couponDiscountCents: itemDiscount,
 				}),
 			})
 
@@ -604,6 +654,27 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 				transfer_data: {
 					destination: organizingTeam.stripeConnectedAccountId,
 				},
+			}
+		}
+
+		// Create transient Stripe coupon and attach to session if applicable
+		if (validatedCoupon && couponDiscount > 0) {
+			const stripeCouponId = `wod-${validatedCoupon.id}-${purchaseIds[0]}`
+			await getStripe().coupons.create({
+				id: stripeCouponId,
+				amount_off: couponDiscount,
+				currency: "usd",
+				duration: "once",
+				max_redemptions: 1,
+				metadata: { couponId: validatedCoupon.id, purchaseId: purchaseIds[0] },
+			})
+			sessionParams.discounts = [{ coupon: stripeCouponId }]
+			sessionParams.metadata = {
+				...sessionParams.metadata,
+				couponId: validatedCoupon.id,
+				stripeCouponId,
+				couponCode: input.couponCode ?? "",
+				couponDiscountCents: couponDiscount.toString(),
 			}
 		}
 

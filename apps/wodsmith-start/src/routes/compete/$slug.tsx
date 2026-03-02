@@ -1,7 +1,15 @@
-import { createFileRoute, notFound, Outlet } from "@tanstack/react-router"
+import {
+	createFileRoute,
+	notFound,
+	Outlet,
+	useNavigate,
+} from "@tanstack/react-router"
 import { useEffect } from "react"
+import { z } from "zod"
 import { CompetitionHero } from "@/components/competition-hero"
 import { getAppUrlFn } from "@/lib/env"
+import { getCouponByCodeFn } from "@/server-fns/coupon-fns"
+import { setCouponCookie } from "@/utils/coupon-cookie"
 import { trackEvent } from "@/lib/posthog"
 import { getUserCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
@@ -17,6 +25,9 @@ import {
 export const Route = createFileRoute("/compete/$slug")({
 	component: CompetitionDetailLayout,
 	staleTime: 10_000, // Cache for 10 seconds (SWR behavior)
+	validateSearch: z.object({
+		coupon: z.string().optional(),
+	}).parse,
 	loader: async ({ params, context }) => {
 		const { slug } = params
 
@@ -170,6 +181,8 @@ export const Route = createFileRoute("/compete/$slug")({
 
 function CompetitionDetailLayout() {
 	const { competition, canManage, isVolunteer } = Route.useLoaderData()
+	const { coupon: couponCode } = Route.useSearch()
+	const navigate = useNavigate()
 
 	const hasBanner = !!competition.bannerImageUrl
 	const profileImage =
@@ -183,6 +196,27 @@ function CompetitionDetailLayout() {
 			competition_name: competition.name,
 		})
 	}, [competition.id, competition.slug, competition.name])
+
+	// Handle coupon link param: validate, set cookie, strip from URL
+	useEffect(() => {
+		if (!couponCode) return
+		getCouponByCodeFn({ data: { code: couponCode } }).then(async (result) => {
+			if (result?.coupon && result.competition) {
+				await setCouponCookie({
+					code: result.coupon.code,
+					competitionSlug: result.competition.slug,
+					amountOffCents: result.coupon.amountOffCents,
+					competitionName: result.competition.name,
+				})
+			}
+			navigate({
+				to: "/compete/$slug",
+				params: { slug: competition.slug },
+				search: {},
+				replace: true,
+			})
+		})
+	}, [couponCode, competition.slug, navigate])
 
 	return (
 		<div className="relative min-h-screen bg-background print:min-h-0 print:bg-white">
