@@ -299,7 +299,10 @@ function SeriesDetailPage() {
 					<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 						<div className="grid gap-4 grid-cols-2 sm:grid-cols-3">
 							{[0, 1, 2].map((i) => (
-								<Card key={i} className={i === 2 ? "col-span-2 sm:col-span-1" : ""}>
+								<Card
+									key={i}
+									className={i === 2 ? "col-span-2 sm:col-span-1" : ""}
+								>
 									<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 										<Skeleton className="h-4 w-24" />
 										<Skeleton className="h-4 w-4 rounded" />

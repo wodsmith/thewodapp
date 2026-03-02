@@ -90,7 +90,10 @@ export const Route = createFileRoute("/compete/invite/$token")({
 
 		// Fetch volunteer questions for direct volunteer invites
 		let volunteerQuestions: RegistrationQuestion[] = []
-		if (volunteerInvite?.competition?.id && volunteerInvite.inviteSource === "direct") {
+		if (
+			volunteerInvite?.competition?.id &&
+			volunteerInvite.inviteSource === "direct"
+		) {
 			const volunteerQuestionsResult = await getVolunteerQuestionsFn({
 				data: { competitionId: volunteerInvite.competition.id },
 			})

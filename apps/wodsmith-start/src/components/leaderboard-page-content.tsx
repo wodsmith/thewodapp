@@ -60,6 +60,7 @@ export function LeaderboardPageContent({
 	const searchParams = useSearch({ strict: false }) as {
 		division?: string
 		event?: string
+		affiliate?: string
 	}
 
 	// Get divisions and competition from parent route loader
@@ -71,6 +72,7 @@ export function LeaderboardPageContent({
 	// URL state for shareable leaderboard views
 	const selectedDivision = searchParams.division ?? defaultDivision
 	const selectedEventId = searchParams.event ?? null
+	const selectedAffiliate = searchParams.affiliate ?? "all"
 
 	const [leaderboard, setLeaderboard] = useState<CompetitionLeaderboardEntry[]>(
 		[],
@@ -293,6 +295,38 @@ export function LeaderboardPageContent({
 			.sort((a, b) => a.trackOrder - b.trackOrder)
 	}, [leaderboard])
 
+	// Extract unique affiliates for filter dropdown
+	const affiliates = useMemo(() => {
+		const affiliateSet = new Set<string>()
+		for (const entry of leaderboard) {
+			if (entry.affiliate) {
+				affiliateSet.add(entry.affiliate)
+			}
+		}
+		return Array.from(affiliateSet).sort()
+	}, [leaderboard])
+
+	// Filter leaderboard by selected affiliate
+	const filteredLeaderboard = useMemo(() => {
+		if (selectedAffiliate === "all") return leaderboard
+		return leaderboard.filter((entry) => entry.affiliate === selectedAffiliate)
+	}, [leaderboard, selectedAffiliate])
+
+	// Handle affiliate change - update URL
+	const handleAffiliateChange = useCallback(
+		(value: string) => {
+			navigate({
+				to: ".",
+				search: (prev: Record<string, unknown>) => ({
+					...prev,
+					affiliate: value === "all" ? undefined : value,
+				}),
+				replace: true,
+			})
+		},
+		[navigate],
+	)
+
 	// Derive division-specific description for preview
 	const selectedDivisionDesc = useMemo(() => {
 		if (!previewData?.divisionDescriptions || !selectedDivision) return null
@@ -439,6 +473,26 @@ export function LeaderboardPageContent({
 						</Select>
 					)}
 
+					{/* Affiliate filter */}
+					{affiliates.length > 0 && (
+						<Select
+							value={selectedAffiliate}
+							onValueChange={handleAffiliateChange}
+						>
+							<SelectTrigger className="w-[200px]">
+								<SelectValue placeholder="Affiliate" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="all">All Affiliates</SelectItem>
+								{affiliates.map((affiliate) => (
+									<SelectItem key={affiliate} value={affiliate}>
+										{affiliate}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					)}
+
 					{/* View Workout button */}
 					{selectedEventId && (
 						<Button variant="outline" size="sm" onClick={handleTogglePreview}>
@@ -491,7 +545,7 @@ export function LeaderboardPageContent({
 
 			<div className="rounded-md border">
 				<CompetitionLeaderboardTable
-					leaderboard={leaderboard}
+					leaderboard={filteredLeaderboard}
 					events={events}
 					selectedEventId={selectedEventId}
 					scoringAlgorithm={scoringAlgorithm}

@@ -194,12 +194,26 @@ function formatMemberName(member: TeamMemberInfo): string {
 /** Team cell for team divisions - shows team name with members underneath */
 function TeamCell({ entry }: { entry: CompetitionLeaderboardEntry }) {
 	if (!entry.isTeamDivision) {
-		return <span className="font-medium">{entry.athleteName}</span>
+		return (
+			<div className="flex flex-col gap-0.5">
+				<span className="font-medium">{entry.athleteName}</span>
+				{entry.affiliate && (
+					<span className="text-[10px] text-muted-foreground leading-tight">
+						{entry.affiliate}
+					</span>
+				)}
+			</div>
+		)
 	}
 
 	return (
 		<div className="flex flex-col gap-0.5">
 			<span className="font-medium">{entry.teamName || "Unknown Team"}</span>
+			{entry.affiliate && (
+				<span className="text-[10px] text-muted-foreground leading-tight">
+					{entry.affiliate}
+				</span>
+			)}
 			{entry.teamMembers.length > 0 && (
 				<span className="text-[10px] text-muted-foreground leading-tight">
 					{entry.teamMembers.map((m) => formatMemberName(m)).join(", ")}
@@ -268,6 +282,11 @@ function MobileLeaderboardRow({
 								<span className="font-medium truncate block">
 									{entry.teamName || "Unknown Team"}
 								</span>
+								{entry.affiliate && (
+									<span className="text-[10px] text-muted-foreground truncate block">
+										{entry.affiliate}
+									</span>
+								)}
 								{entry.teamMembers.length > 0 && (
 									<span className="text-[10px] text-muted-foreground truncate block">
 										{entry.teamMembers
@@ -277,9 +296,16 @@ function MobileLeaderboardRow({
 								)}
 							</>
 						) : (
-							<span className="font-medium truncate block">
-								{entry.athleteName}
-							</span>
+							<>
+								<span className="font-medium truncate block">
+									{entry.athleteName}
+								</span>
+								{entry.affiliate && (
+									<span className="text-[10px] text-muted-foreground truncate block">
+										{entry.affiliate}
+									</span>
+								)}
+							</>
 						)}
 					</div>
 
