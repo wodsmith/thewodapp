@@ -5,7 +5,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, count, eq, inArray, isNotNull, ne } from "drizzle-orm"
+import { and, count, countDistinct, eq, inArray, ne } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -711,7 +711,6 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
 				videoUrl: videoSubmissionsTable.videoUrl,
 				notes: videoSubmissionsTable.notes,
 				submittedAt: videoSubmissionsTable.submittedAt,
-				reviewedAt: videoSubmissionsTable.reviewedAt,
 				registrationId: videoSubmissionsTable.registrationId,
 				userId: videoSubmissionsTable.userId,
 				// Athlete info
@@ -807,10 +806,8 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
 							status: score.status,
 						}
 					: null,
-				// Review status based on whether an organizer has reviewed
-				reviewStatus: submission.reviewedAt
-					? ("reviewed" as const)
-					: ("pending" as const),
+				// Review status: "reviewed" if score exists, "pending" otherwise
+				reviewStatus: score ? ("reviewed" as const) : ("pending" as const),
 			}
 		})
 
@@ -875,23 +872,18 @@ export const getSubmissionCountsByEventFn = createServerFn({ method: "GET" })
 					.groupBy(videoSubmissionsTable.trackWorkoutId),
 		)
 
-		// Query 2: reviewed count — submissions where reviewedAt is set
+		// Query 2: reviewed count — distinct users with a score per event
 		const reviewedCounts = await autochunk(
 			{ items: data.trackWorkoutIds },
 			async (chunk) =>
 				db
 					.select({
-						trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
-						reviewed: count(),
+						competitionEventId: scoresTable.competitionEventId,
+						reviewed: countDistinct(scoresTable.userId),
 					})
-					.from(videoSubmissionsTable)
-					.where(
-						and(
-							inArray(videoSubmissionsTable.trackWorkoutId, chunk),
-							isNotNull(videoSubmissionsTable.reviewedAt),
-						),
-					)
-					.groupBy(videoSubmissionsTable.trackWorkoutId),
+					.from(scoresTable)
+					.where(inArray(scoresTable.competitionEventId, chunk))
+					.groupBy(scoresTable.competitionEventId),
 		)
 
 		// Build result map
@@ -899,7 +891,7 @@ export const getSubmissionCountsByEventFn = createServerFn({ method: "GET" })
 			submissionCounts.map((r) => [r.trackWorkoutId, r.total]),
 		)
 		const revMap = new Map(
-			reviewedCounts.map((r) => [r.trackWorkoutId, r.reviewed]),
+			reviewedCounts.map((r) => [r.competitionEventId, r.reviewed]),
 		)
 
 		const counts: Record<
