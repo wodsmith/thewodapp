@@ -54,6 +54,12 @@ export const videoSubmissionsTable = mysqlTable(
 
 		// When the video was submitted
 		submittedAt: datetime().notNull(),
+
+		// When an organizer reviewed this submission (null = pending)
+		reviewedAt: datetime(),
+
+		// The organizer who reviewed this submission
+		reviewedBy: varchar({ length: 255 }),
 	},
 	(table) => [
 		// One video submission per registration per event
