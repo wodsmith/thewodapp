@@ -1,9 +1,10 @@
 "use client"
 
 import { useRouter } from "@tanstack/react-router"
-import { Plus } from "lucide-react"
+import { Layers, Plus } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -22,11 +23,19 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import {
 	addCompetitionDivisionFn,
 	deleteCompetitionDivisionFn,
 	reorderCompetitionDivisionsFn,
+	switchCompetitionScalingGroupFn,
 	updateCompetitionDivisionFn,
 	updateDivisionCapacityFn,
 	updateDivisionDescriptionFn,
@@ -62,6 +71,7 @@ interface OrganizerDivisionManagerProps {
 	competitionId: string
 	divisions: Division[]
 	scalingGroupId: string | null
+	scalingGroupTitle: string | null
 	scalingGroups: ScalingGroupWithLevels[]
 	defaultMaxSpotsPerDivision: number | null
 }
@@ -71,12 +81,16 @@ export function OrganizerDivisionManager({
 	competitionId,
 	divisions: initialDivisions,
 	scalingGroupId,
+	scalingGroupTitle,
 	scalingGroups,
 	defaultMaxSpotsPerDivision,
 }: OrganizerDivisionManagerProps) {
 	const router = useRouter()
 	const [divisions, setDivisions] = useState(initialDivisions)
 	const [showAddDialog, setShowAddDialog] = useState(false)
+	const [showChangeGroupDialog, setShowChangeGroupDialog] = useState(false)
+	const [selectedNewGroupId, setSelectedNewGroupId] = useState("")
+	const [isSwitching, setIsSwitching] = useState(false)
 	const [newDivisionLabel, setNewDivisionLabel] = useState("")
 	const [newDivisionTeamSize, setNewDivisionTeamSize] = useState(1)
 	const [newDivisionDescription, setNewDivisionDescription] = useState("")
@@ -88,6 +102,35 @@ export function OrganizerDivisionManager({
 	useEffect(() => {
 		setDivisions(initialDivisions)
 	}, [initialDivisions])
+
+
+	const handleSwitchScalingGroup = async () => {
+		if (!selectedNewGroupId) return
+		setIsSwitching(true)
+		try {
+			const result = await switchCompetitionScalingGroupFn({
+				data: {
+					teamId,
+					competitionId,
+					newScalingGroupId: selectedNewGroupId,
+				},
+			})
+			const msg =
+				result.migratedCount > 0
+					? `Scaling group updated — ${result.migratedCount} registration${result.migratedCount !== 1 ? "s" : ""} migrated`
+					: "Scaling group updated"
+			toast.success(msg)
+			setShowChangeGroupDialog(false)
+			setSelectedNewGroupId("")
+			router.invalidate()
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Failed to switch scaling group",
+			)
+		} finally {
+			setIsSwitching(false)
+		}
+	}
 
 	// If no divisions configured, show template selector
 	if (!scalingGroupId || divisions.length === 0) {
@@ -338,6 +381,23 @@ export function OrganizerDivisionManager({
 								Drag to reorder. Athletes will select a division when
 								registering.
 							</CardDescription>
+							{scalingGroupTitle && (
+								<div className="flex items-center gap-2 mt-1">
+									<Layers className="h-3 w-3 text-muted-foreground" />
+									<span className="text-xs text-muted-foreground">
+										{scalingGroupTitle}
+									</span>
+									{scalingGroups.length > 0 && (
+										<button
+											type="button"
+											className="text-xs text-muted-foreground underline hover:text-foreground"
+											onClick={() => setShowChangeGroupDialog(true)}
+										>
+											Change
+										</button>
+									)}
+								</div>
+							)}
 						</div>
 						<Button onClick={() => setShowAddDialog(true)}>
 							<Plus className="h-4 w-4 mr-2" />
@@ -483,6 +543,76 @@ export function OrganizerDivisionManager({
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+
+		<Dialog open={showChangeGroupDialog} onOpenChange={setShowChangeGroupDialog}>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Change Scaling Group</DialogTitle>
+					<DialogDescription>
+						Switch this competition to use a different scaling group. Athletes will use divisions from the new group when registering. If athletes are already registered, they will be migrated to the matching division by label.
+					</DialogDescription>
+				</DialogHeader>
+				<div className="space-y-4 py-4">
+					<div>
+						<Label htmlFor="newScalingGroup">Select Scaling Group</Label>
+						<Select
+							value={selectedNewGroupId}
+							onValueChange={setSelectedNewGroupId}
+						>
+							<SelectTrigger className="mt-2">
+								<SelectValue placeholder="Choose a scaling group" />
+							</SelectTrigger>
+							<SelectContent>
+								{scalingGroups.map((g) => (
+									<SelectItem key={g.id} value={g.id}>
+										<span className="flex items-center gap-2">
+											{g.title}
+											{g.isSystem && (
+												<Badge variant="secondary" className="text-xs">
+													System
+												</Badge>
+											)}
+										</span>
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+						{selectedNewGroupId && (
+							<div className="mt-3 rounded-lg border p-3 bg-muted/50">
+								<p className="text-sm font-medium mb-2">Divisions in this group:</p>
+								<div className="flex flex-wrap gap-2">
+									{scalingGroups
+										.find((g) => g.id === selectedNewGroupId)
+										?.levels.slice().sort((a, b) => a.position - b.position)
+										.map((l) => (
+											<Badge key={l.id} variant="outline">
+												{l.label}
+											</Badge>
+										))}
+								</div>
+							</div>
+						)}
+					</div>
+				</div>
+				<DialogFooter>
+					<Button
+						variant="outline"
+						onClick={() => {
+							setShowChangeGroupDialog(false)
+							setSelectedNewGroupId("")
+						}}
+					>
+						Cancel
+					</Button>
+					<Button
+						onClick={handleSwitchScalingGroup}
+						disabled={isSwitching || !selectedNewGroupId}
+					>
+						{isSwitching ? "Switching..." : "Switch Scaling Group"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 		</>
 	)
 }
