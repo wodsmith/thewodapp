@@ -5,6 +5,7 @@
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import {
+	getSeriesDivisionHealth,
 	getSeriesLeaderboard,
 	type SeriesDivisionHealth,
 	type SeriesLeaderboardEntry,
@@ -35,3 +36,23 @@ export const getSeriesLeaderboardFn = createServerFn({ method: "GET" })
 	.handler(async ({ data }): Promise<SeriesLeaderboardResponse> => {
 		return getSeriesLeaderboard(data)
 	})
+
+export const getSeriesDivisionHealthFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				groupId: z.string().min(1),
+				canonicalScalingGroupId: z.string().nullable().optional(),
+			})
+			.parse(data),
+	)
+	.handler(
+		async ({
+			data,
+		}): Promise<{
+			health: SeriesDivisionHealth[]
+			primaryScalingGroupId: string | null
+		}> => {
+			return getSeriesDivisionHealth(data)
+		},
+	)

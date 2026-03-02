@@ -35,11 +35,14 @@ import {
 	updateCompetitionFn,
 } from "@/server-fns/competition-fns"
 import {
+	alignAllSeriesCompsFn,
 	listScalingGroupsFn,
 	setSeriesCanonicalScalingGroupFn,
 	type ScalingGroupForTemplate,
 } from "@/server-fns/competition-divisions-fns"
 import { getSeriesQuestionsFn } from "@/server-fns/registration-questions-fns"
+import type { SeriesDivisionHealth } from "@/server-fns/series-leaderboard-fns"
+import { getSeriesDivisionHealthFn } from "@/server-fns/series-leaderboard-fns"
 import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
 import { parseSeriesSettings } from "@/types/competitions"
 
@@ -65,6 +68,7 @@ export const Route = createFileRoute(
 				scalingGroups: [],
 				canonicalScalingGroupId: null,
 				deferredRevenueStats: Promise.resolve(null),
+				deferredDivisionHealth: Promise.resolve({ health: [], primaryScalingGroupId: null }),
 				teamId: null,
 			}
 		}
@@ -79,6 +83,7 @@ export const Route = createFileRoute(
 				scalingGroups: [],
 				canonicalScalingGroupId: null,
 				deferredRevenueStats: Promise.resolve(null),
+				deferredDivisionHealth: Promise.resolve({ health: [], primaryScalingGroupId: null }),
 				teamId: null,
 			}
 		}
@@ -103,17 +108,23 @@ export const Route = createFileRoute(
 				listScalingGroupsFn({ data: { teamId } }),
 			])
 
-		// Defer revenue stats - not needed for initial render
-		const deferredRevenueStats = getSeriesRevenueStatsFn({
-			data: { groupId },
-		})
+		const seriesSettings = parseSeriesSettings(groupResult.group.settings)
 
 		// Filter competitions that belong to this series
 		const seriesCompetitions = competitionsResult.competitions.filter(
 			(c) => c.groupId === groupId,
 		)
 
-		const seriesSettings = parseSeriesSettings(groupResult.group.settings)
+		// Defer revenue stats and division health — not needed for initial render
+		const deferredRevenueStats = getSeriesRevenueStatsFn({
+			data: { groupId },
+		})
+		const deferredDivisionHealth = getSeriesDivisionHealthFn({
+			data: {
+				groupId,
+				canonicalScalingGroupId: seriesSettings?.scalingGroupId ?? null,
+			},
+		})
 
 		return {
 			group: groupResult.group,
@@ -126,6 +137,7 @@ export const Route = createFileRoute(
 			scalingGroups: scalingGroupsResult.groups,
 			canonicalScalingGroupId: seriesSettings?.scalingGroupId ?? null,
 			deferredRevenueStats,
+			deferredDivisionHealth,
 			teamId,
 		}
 	},
@@ -141,6 +153,7 @@ function SeriesDetailPage() {
 		scalingGroups,
 		canonicalScalingGroupId: initialCanonicalGroupId,
 		deferredRevenueStats,
+		deferredDivisionHealth,
 		teamId,
 	} = Route.useLoaderData()
 	const router = useRouter()
@@ -152,6 +165,8 @@ function SeriesDetailPage() {
 		initialCanonicalGroupId,
 	)
 	const [isSavingCanonical, setIsSavingCanonical] = useState(false)
+	const [isFixingAll, setIsFixingAll] = useState(false)
+	const [divisionHealth, setDivisionHealth] = useState<SeriesDivisionHealth[]>([])
 
 	useEffect(() => {
 		let cancelled = false
@@ -168,6 +183,20 @@ function SeriesDetailPage() {
 			cancelled = true
 		}
 	}, [deferredRevenueStats])
+
+	useEffect(() => {
+		let cancelled = false
+		deferredDivisionHealth
+			.then((data) => {
+				if (!cancelled) setDivisionHealth(data.health)
+			})
+			.catch(() => {
+				// Division health failed to load — section stays hidden
+			})
+		return () => {
+			cancelled = true
+		}
+	}, [deferredDivisionHealth])
 
 	const revenueByCompetition = useMemo(() => {
 		if (!seriesRevenueStats) return undefined
@@ -186,9 +215,44 @@ function SeriesDetailPage() {
 	const updateCompetition = useServerFn(updateCompetitionFn)
 	const exportCsv = useServerFn(exportSeriesRevenueCsvFn)
 	const setCanonicalScalingGroup = useServerFn(setSeriesCanonicalScalingGroupFn)
+	const alignAllComps = useServerFn(alignAllSeriesCompsFn)
+	const fetchDivisionHealth = useServerFn(getSeriesDivisionHealthFn)
 
 	const handleQuestionsChange = () => {
 		router.invalidate()
+	}
+
+	const handleFixAll = async () => {
+		if (!group || !teamId || !canonicalGroupId) return
+		setIsFixingAll(true)
+		try {
+			const { results } = await alignAllComps({
+				data: {
+					groupId: group.id,
+					teamId,
+					targetScalingGroupId: canonicalGroupId,
+				},
+			})
+			const failed = results.filter((r) => !r.success)
+			if (failed.length === 0) {
+				toast.success(`All competitions aligned to the selected division template`)
+			} else {
+				toast.warning(
+					`${results.length - failed.length} updated, ${failed.length} failed`,
+				)
+			}
+			// Refresh health data to update the mismatch list
+			const refreshed = await fetchDivisionHealth({
+				data: { groupId: group.id, canonicalScalingGroupId: canonicalGroupId },
+			})
+			setDivisionHealth(refreshed.health)
+		} catch (e) {
+			toast.error(
+				e instanceof Error ? e.message : "Failed to align competitions",
+			)
+		} finally {
+			setIsFixingAll(false)
+		}
 	}
 
 	const handleSetCanonical = async (scalingGroupId: string) => {
@@ -442,7 +506,51 @@ function SeriesDetailPage() {
 										Saving...
 									</span>
 								)}
+								{canonicalGroupId && !isSavingCanonical && (
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={handleFixAll}
+										disabled={isFixingAll}
+									>
+										{isFixingAll ? "Fixing..." : "Fix All Competitions"}
+									</Button>
+								)}
 							</div>
+							{/* Mismatched competitions list */}
+							{divisionHealth.filter((h) => !h.matchesPrimary).length > 0 && (
+								<div className="mt-4 space-y-1">
+									<p className="text-sm font-medium text-destructive">
+										{divisionHealth.filter((h) => !h.matchesPrimary).length}{" "}
+										competition
+										{divisionHealth.filter((h) => !h.matchesPrimary).length !== 1
+											? "s"
+											: ""}{" "}
+										not using the canonical template:
+									</p>
+									<ul className="space-y-1">
+										{divisionHealth
+											.filter((h) => !h.matchesPrimary)
+											.map((h) => (
+												<li
+													key={h.competitionId}
+													className="flex items-center justify-between text-sm"
+												>
+													<span className="text-muted-foreground">
+														{h.competitionName}
+													</span>
+													<Link
+														to="/compete/organizer/$competitionId/divisions"
+														params={{ competitionId: h.competitionId }}
+														className="text-xs underline text-muted-foreground hover:text-foreground"
+													>
+														Fix →
+													</Link>
+												</li>
+											))}
+									</ul>
+								</div>
+							)}
 						</CardContent>
 					</Card>
 				)}

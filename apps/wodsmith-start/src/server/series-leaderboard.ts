@@ -607,3 +607,34 @@ export async function getSeriesLeaderboard(params: {
 		primaryScalingGroupId,
 	}
 }
+
+// ============================================================================
+// Lightweight Division Health (for series management page)
+// ============================================================================
+
+export async function getSeriesDivisionHealth(params: {
+	groupId: string
+	canonicalScalingGroupId?: string | null
+}): Promise<{
+	health: SeriesDivisionHealth[]
+	primaryScalingGroupId: string | null
+}> {
+	const db = getDb()
+
+	const comps = await db
+		.select({ id: competitionsTable.id, name: competitionsTable.name })
+		.from(competitionsTable)
+		.where(eq(competitionsTable.groupId, params.groupId))
+
+	if (comps.length === 0) return { health: [], primaryScalingGroupId: null }
+
+	const compIds = comps.map((c) => c.id)
+	const compNames = new Map<string, string>(comps.map((c) => [c.id, c.name]))
+
+	return computeDivisionHealth(
+		compIds,
+		compNames,
+		db,
+		params.canonicalScalingGroupId,
+	)
+}
