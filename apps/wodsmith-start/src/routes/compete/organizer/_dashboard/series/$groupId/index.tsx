@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
+import { usePostHog } from "@/lib/posthog"
 import { useServerFn } from "@tanstack/react-start"
 import { ArrowLeft, ListPlus, Pencil, Plus, Trophy } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
@@ -212,6 +213,10 @@ function SeriesDetailPage() {
 		return map
 	}, [seriesRevenueStats])
 
+	const { posthog } = usePostHog()
+	const globalLeaderboardEnabled =
+		posthog.isFeatureEnabled("competition-global-leaderboard") !== false
+
 	const updateCompetition = useServerFn(updateCompetitionFn)
 	const exportCsv = useServerFn(exportSeriesRevenueCsvFn)
 	const setCanonicalScalingGroup = useServerFn(setSeriesCanonicalScalingGroupFn)
@@ -376,15 +381,17 @@ function SeriesDetailPage() {
 							)}
 						</div>
 						<div className="flex flex-wrap items-center gap-2">
-							<Button variant="outline" asChild>
-								<Link
-									to="/compete/organizer/series/$groupId/leaderboard"
-									params={{ groupId: group.id }}
-								>
-									<Trophy className="h-4 w-4 mr-2" />
-									Global Leaderboard
-								</Link>
-							</Button>
+							{globalLeaderboardEnabled && (
+								<Button variant="outline" asChild>
+									<Link
+										to="/compete/organizer/series/$groupId/leaderboard"
+										params={{ groupId: group.id }}
+									>
+										<Trophy className="h-4 w-4 mr-2" />
+										Global Leaderboard
+									</Link>
+								</Button>
+							)}
 							<Button variant="outline" asChild>
 								<Link
 									to="/compete/organizer/series/$groupId/edit"
@@ -468,7 +475,7 @@ function SeriesDetailPage() {
 				</Card>
 
 				{/* Division Settings */}
-				{scalingGroups.length > 0 && (
+				{scalingGroups.length > 0 && globalLeaderboardEnabled && (
 					<Card>
 						<CardHeader>
 							<CardTitle>Division Settings</CardTitle>

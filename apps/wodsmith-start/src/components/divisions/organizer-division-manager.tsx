@@ -1,6 +1,7 @@
 "use client"
 
 import { useRouter } from "@tanstack/react-router"
+import { usePostHog } from "@/lib/posthog"
 import { Layers, Plus } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
@@ -86,6 +87,9 @@ export function OrganizerDivisionManager({
 	defaultMaxSpotsPerDivision,
 }: OrganizerDivisionManagerProps) {
 	const router = useRouter()
+	const { posthog } = usePostHog()
+	const globalLeaderboardEnabled =
+		posthog.isFeatureEnabled("competition-global-leaderboard") !== false
 	const [divisions, setDivisions] = useState(initialDivisions)
 	const [showAddDialog, setShowAddDialog] = useState(false)
 	const [showChangeGroupDialog, setShowChangeGroupDialog] = useState(false)
@@ -387,7 +391,7 @@ export function OrganizerDivisionManager({
 									<span className="text-xs text-muted-foreground">
 										{scalingGroupTitle}
 									</span>
-									{scalingGroups.length > 0 && (
+									{scalingGroups.length > 0 && globalLeaderboardEnabled && (
 										<button
 											type="button"
 											className="text-xs text-muted-foreground underline hover:text-foreground"
