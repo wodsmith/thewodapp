@@ -264,6 +264,11 @@ function SeriesDetailPage() {
 			})
 			setCanonicalGroupId(scalingGroupId)
 			toast.success("Division template updated")
+			// Refresh health so the mismatch list reflects the new canonical
+			const refreshed = await fetchDivisionHealth({
+				data: { groupId: group.id, canonicalScalingGroupId: scalingGroupId },
+			})
+			setDivisionHealth(refreshed.health)
 		} catch (e) {
 			toast.error(
 				e instanceof Error ? e.message : "Failed to update division template",
