@@ -5,7 +5,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray, ne } from "drizzle-orm"
+import { and, count, eq, inArray, ne, countDistinct } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -38,6 +38,7 @@ import {
 	sortKeyToString,
 	type WorkoutScheme,
 } from "@/lib/scoring"
+import { autochunk } from "@/utils/batch-query"
 import { getSessionFromCookie } from "@/utils/auth"
 
 // ============================================================================
@@ -710,6 +711,7 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
 				videoUrl: videoSubmissionsTable.videoUrl,
 				notes: videoSubmissionsTable.notes,
 				submittedAt: videoSubmissionsTable.submittedAt,
+				reviewedAt: videoSubmissionsTable.reviewedAt,
 				registrationId: videoSubmissionsTable.registrationId,
 				userId: videoSubmissionsTable.userId,
 				// Athlete info
@@ -805,9 +807,10 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
 							status: score.status,
 						}
 					: null,
-				// Review status: "reviewed" if score exists, "pending" otherwise
-				// In the future, this could be more nuanced (e.g., "verified", "disputed")
-				reviewStatus: score ? ("reviewed" as const) : ("pending" as const),
+				// Review status based on whether an organizer has reviewed
+				reviewStatus: submission.reviewedAt
+					? ("reviewed" as const)
+					: ("pending" as const),
 			}
 		})
 
@@ -839,4 +842,71 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
 				pending: pendingCount,
 			},
 		}
+	})
+
+/**
+ * Get submission counts grouped by trackWorkoutId for the review index page.
+ * Returns total submissions and reviewed count (users with scores) per event.
+ */
+export const getSubmissionCountsByEventFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				trackWorkoutIds: z.array(z.string().min(1)).min(1),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Query 1: total submissions per trackWorkoutId
+		const submissionCounts = await autochunk(
+			{ items: data.trackWorkoutIds },
+			async (chunk) =>
+				db
+					.select({
+						trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+						total: count(),
+					})
+					.from(videoSubmissionsTable)
+					.where(
+						inArray(videoSubmissionsTable.trackWorkoutId, chunk),
+					)
+					.groupBy(videoSubmissionsTable.trackWorkoutId),
+		)
+
+		// Query 2: reviewed count — distinct users with a score per event
+		const reviewedCounts = await autochunk(
+			{ items: data.trackWorkoutIds },
+			async (chunk) =>
+				db
+					.select({
+						competitionEventId: scoresTable.competitionEventId,
+						reviewed: countDistinct(scoresTable.userId),
+					})
+					.from(scoresTable)
+					.where(inArray(scoresTable.competitionEventId, chunk))
+					.groupBy(scoresTable.competitionEventId),
+		)
+
+		// Build result map
+		const subMap = new Map(
+			submissionCounts.map((r) => [r.trackWorkoutId, r.total]),
+		)
+		const revMap = new Map(
+			reviewedCounts.map((r) => [r.competitionEventId, r.reviewed]),
+		)
+
+		const counts: Record<
+			string,
+			{ total: number; reviewed: number; pending: number }
+		> = {}
+
+		for (const twId of data.trackWorkoutIds) {
+			const total = subMap.get(twId) ?? 0
+			const reviewed = revMap.get(twId) ?? 0
+			counts[twId] = { total, reviewed, pending: total - reviewed }
+		}
+
+		return { counts }
 	})
