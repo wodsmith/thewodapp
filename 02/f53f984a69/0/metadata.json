@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "02f53f984a69",
+  "session_id": "0b9b4f98-fd09-40a1-9e33-317af1cf3de0",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-02T04:34:59.434426Z",
+  "branch": "claude/organizer-video-review-list-MYDB5",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/src/components/ui/calendar.tsx",
+    "apps/wodsmith-start/test/components/competition-workout-card.test.tsx",
+    "apps/wodsmith-start/test/components/video-submission-preview.test.tsx"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "19951c28-273d-4771-9069-2ff6570ec4bc",
+  "token_usage": {
+    "input_tokens": 14,
+    "cache_creation_tokens": 24310,
+    "cache_read_tokens": 419892,
+    "output_tokens": 3191,
+    "api_call_count": 10
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-02T04:34:59.341934Z",
+    "agent_lines": 4,
+    "human_added": 1112,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1116,
+    "agent_percentage": 0.35842293906810035
+  }
+}
