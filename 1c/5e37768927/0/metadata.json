@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "1c5e37768927",
+  "session_id": "965f5d06-b646-44bf-be22-57446f7b45e1",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-02T04:49:31.632189Z",
+  "branch": "claude/organizer-video-review-list-MYDB5",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/src/server-fns/video-submission-fns.ts"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "a578697d-5745-4bd1-a2db-38840207e69d",
+  "checkpoint_transcript_start": 265,
+  "transcript_lines_at_start": 265,
+  "token_usage": {
+    "input_tokens": 13,
+    "cache_creation_tokens": 6975,
+    "cache_read_tokens": 1045426,
+    "output_tokens": 3191,
+    "api_call_count": 11
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-02T04:49:31.561202Z",
+    "agent_lines": 0,
+    "human_added": 111,
+    "human_modified": 168,
+    "human_removed": 0,
+    "total_committed": 111,
+    "agent_percentage": 0
+  }
+}
