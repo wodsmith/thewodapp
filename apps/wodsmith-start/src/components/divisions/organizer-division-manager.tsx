@@ -583,7 +583,7 @@ export function OrganizerDivisionManager({
 								<div className="flex flex-wrap gap-2">
 									{scalingGroups
 										.find((g) => g.id === selectedNewGroupId)
-										?.levels.sort((a, b) => a.position - b.position)
+										?.levels.slice().sort((a, b) => a.position - b.position)
 										.map((l) => (
 											<Badge key={l.id} variant="outline">
 												{l.label}

@@ -143,7 +143,13 @@ async function computeDivisionHealth(
 	let primaryScalingGroupId: string | null = null
 	let maxCount = 0
 	for (const [sgId, count] of countMap) {
-		if (count > maxCount) {
+		// On a tie, pick the lexicographically smaller ID for determinism
+		if (
+			count > maxCount ||
+			(count === maxCount &&
+				primaryScalingGroupId !== null &&
+				sgId < primaryScalingGroupId)
+		) {
 			maxCount = count
 			primaryScalingGroupId = sgId
 		}
@@ -336,6 +342,9 @@ export async function getSeriesLeaderboard(params: {
 					: []),
 			),
 		)
+		// Deterministic ordering ensures consistent deduplication when an athlete
+		// appears in multiple comps (we keep the first one seen)
+		.orderBy(competitionsTable.id)
 
 	if (allRegistrations.length === 0) {
 		return {

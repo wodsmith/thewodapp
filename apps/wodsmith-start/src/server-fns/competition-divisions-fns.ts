@@ -1419,9 +1419,16 @@ export const switchCompetitionScalingGroupFn = createServerFn({
 
 		// Load levels for both groups
 		const newLevels = await listScalingLevels({ scalingGroupId: data.newScalingGroupId })
-		const newLevelByLabel = new Map(
-			newLevels.map((l) => [l.label.toLowerCase().trim(), l]),
-		)
+		const newLevelByLabel = new Map<string, (typeof newLevels)[number]>()
+		for (const level of newLevels) {
+			const key = level.label.toLowerCase().trim()
+			if (newLevelByLabel.has(key)) {
+				throw new Error(
+					`Cannot switch: target scaling group has duplicate division label "${level.label}". Rename one before switching.`,
+				)
+			}
+			newLevelByLabel.set(key, level)
+		}
 
 		type Migration = { oldId: string; newId: string; label: string }
 		const migrations: Migration[] = []
@@ -1472,7 +1479,7 @@ export const switchCompetitionScalingGroupFn = createServerFn({
 		let migratedCount = 0
 		await db.transaction(async (tx) => {
 			for (const { oldId, newId } of migrations) {
-				// Count and migrate registrations
+				// Count and migrate active registrations only (consistent with pre-validation)
 				const regs = await tx
 					.select({ id: competitionRegistrationsTable.id })
 					.from(competitionRegistrationsTable)
@@ -1480,6 +1487,7 @@ export const switchCompetitionScalingGroupFn = createServerFn({
 						and(
 							eq(competitionRegistrationsTable.divisionId, oldId),
 							eq(competitionRegistrationsTable.eventId, data.competitionId),
+							ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 						),
 					)
 				migratedCount += regs.length
@@ -1491,6 +1499,7 @@ export const switchCompetitionScalingGroupFn = createServerFn({
 						and(
 							eq(competitionRegistrationsTable.divisionId, oldId),
 							eq(competitionRegistrationsTable.eventId, data.competitionId),
+							ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 						),
 					)
 

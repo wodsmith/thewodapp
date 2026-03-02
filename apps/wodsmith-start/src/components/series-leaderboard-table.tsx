@@ -287,35 +287,40 @@ export function SeriesLeaderboardTable({
 						No results yet
 					</div>
 				) : (
-					entries.map((entry) => (
-						<div
-							key={entry.userId}
-							className="flex items-center gap-3 p-3 border-b"
-						>
-							<div className="flex items-center gap-1.5 w-12 shrink-0">
-								{getRankIcon(entry.overallRank)}
-								<span
-									className={cn(
-										"tabular-nums",
-										entry.overallRank <= 3 ? "font-bold" : "font-semibold",
-									)}
-								>
-									{entry.overallRank}
+					table.getRowModel().rows.map((row) => {
+						const entry = row.original
+						return (
+							<div
+								key={row.id}
+								className="flex items-center gap-3 p-3 border-b"
+							>
+								<div className="flex items-center gap-1.5 w-12 shrink-0">
+									{getRankIcon(entry.overallRank)}
+									<span
+										className={cn(
+											"tabular-nums",
+											entry.overallRank <= 3 ? "font-bold" : "font-semibold",
+										)}
+									>
+										{entry.overallRank}
+									</span>
+								</div>
+								<div className="flex-1 min-w-0">
+									<span className="font-medium truncate block">
+										{entry.isTeamDivision && entry.teamName
+											? entry.teamName
+											: entry.athleteName}
+									</span>
+									<span className="text-xs text-muted-foreground truncate block">
+										{entry.competitionName}
+									</span>
+								</div>
+								<span className="text-xs text-muted-foreground tabular-nums shrink-0">
+									{entry.totalPoints} pts
 								</span>
 							</div>
-							<div className="flex-1 min-w-0">
-								<span className="font-medium truncate block">
-									{entry.athleteName}
-								</span>
-								<span className="text-xs text-muted-foreground truncate block">
-									{entry.competitionName}
-								</span>
-							</div>
-							<span className="text-xs text-muted-foreground tabular-nums shrink-0">
-								{entry.totalPoints} pts
-							</span>
-						</div>
-					))
+						)
+					})
 				)}
 			</div>
 
