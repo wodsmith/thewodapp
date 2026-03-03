@@ -136,6 +136,7 @@ function VerificationControls({
 	event,
 	competitionId,
 	trackWorkoutId,
+	logs,
 }: VerificationControlsProps) {
 	const router = useRouter()
 	const verifyFn = useServerFn(verifySubmissionScoreFn)
@@ -374,6 +375,49 @@ function VerificationControls({
 							</span>
 						</div>
 					)}
+
+				{/* Audit Log */}
+				{logs.length > 0 && (
+					<>
+						<Separator />
+						<div className="space-y-2">
+							<p className="text-sm font-medium">Audit Log</p>
+							<div className="space-y-2">
+								{logs.map((log) => (
+									<div
+										key={log.id}
+										className="rounded border px-3 py-2 text-xs space-y-1"
+									>
+										<div className="flex items-center justify-between">
+											<span className="font-medium capitalize">
+												{log.action}
+											</span>
+											<span className="text-muted-foreground">
+												{new Intl.DateTimeFormat("en-US", {
+													dateStyle: "medium",
+													timeStyle: "short",
+												}).format(new Date(log.performedAt))}
+											</span>
+										</div>
+										<p className="text-muted-foreground">
+											by {log.performedByName}
+										</p>
+										{log.action === "adjust" &&
+											log.newScoreValue !== null && (
+												<p className="text-muted-foreground">
+													{log.originalScoreValue ?? "—"} &rarr;{" "}
+													{log.newScoreValue}
+													{log.newStatus && log.newStatus !== log.originalStatus
+														? ` (${log.newStatus})`
+														: ""}
+												</p>
+											)}
+									</div>
+								))}
+							</div>
+						</div>
+					</>
+				)}
 			</CardContent>
 		</Card>
 	)
@@ -384,7 +428,7 @@ function VerificationControls({
 // ============================================================================
 
 function SubmissionDetailPage() {
-	const { submission, verificationSubmission, event } = Route.useLoaderData()
+	const { submission, verificationSubmission, event, verificationLogs } = Route.useLoaderData()
 	const { competition } = parentRoute.useLoaderData()
 	const params = Route.useParams()
 	const router = useRouter()
@@ -702,6 +746,7 @@ function SubmissionDetailPage() {
 							event={event}
 							competitionId={params.competitionId}
 							trackWorkoutId={params.eventId}
+							logs={verificationLogs}
 						/>
 					)}
 				</div>
