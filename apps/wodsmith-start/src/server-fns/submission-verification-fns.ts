@@ -408,6 +408,26 @@ export const getSubmissionDetailFn = createServerFn({ method: "GET" })
 				TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 			)
 
+			// Verify the event belongs to this competition and get submission window
+			const [competitionEvent] = await db
+				.select({
+					id: competitionEventsTable.id,
+					submissionOpensAt: competitionEventsTable.submissionOpensAt,
+					submissionClosesAt: competitionEventsTable.submissionClosesAt,
+				})
+				.from(competitionEventsTable)
+				.where(
+					and(
+						eq(competitionEventsTable.competitionId, data.competitionId),
+						eq(competitionEventsTable.trackWorkoutId, data.trackWorkoutId),
+					),
+				)
+				.limit(1)
+
+			if (!competitionEvent) {
+				throw new Error("Event not found in this competition")
+			}
+
 			// Get the score with user info
 			const [score] = await db
 				.select({
@@ -454,21 +474,6 @@ export const getSubmissionDetailFn = createServerFn({ method: "GET" })
 			if (!trackWorkout) {
 				throw new Error("Event not found")
 			}
-
-			// Get submission window
-			const [competitionEvent] = await db
-				.select({
-					submissionOpensAt: competitionEventsTable.submissionOpensAt,
-					submissionClosesAt: competitionEventsTable.submissionClosesAt,
-				})
-				.from(competitionEventsTable)
-				.where(
-					and(
-						eq(competitionEventsTable.competitionId, data.competitionId),
-						eq(competitionEventsTable.trackWorkoutId, data.trackWorkoutId),
-					),
-				)
-				.limit(1)
 
 			const event: EventDetails = {
 				id: trackWorkout.id,
@@ -653,6 +658,22 @@ export const getEventSubmissionsFn = createServerFn({ method: "GET" })
 			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
 
+		// Verify the event belongs to this competition
+		const [competitionEvent] = await db
+			.select({ id: competitionEventsTable.id })
+			.from(competitionEventsTable)
+			.where(
+				and(
+					eq(competitionEventsTable.competitionId, data.competitionId),
+					eq(competitionEventsTable.trackWorkoutId, data.trackWorkoutId),
+				),
+			)
+			.limit(1)
+
+		if (!competitionEvent) {
+			throw new Error("Event not found in this competition")
+		}
+
 		// Get all scores for this event
 		const scores = await db
 			.select({
@@ -803,6 +824,26 @@ export const getEventDetailsForVerificationFn = createServerFn({
 			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
 
+		// Verify the event belongs to this competition and get submission window
+		const [competitionEvent] = await db
+			.select({
+				id: competitionEventsTable.id,
+				submissionOpensAt: competitionEventsTable.submissionOpensAt,
+				submissionClosesAt: competitionEventsTable.submissionClosesAt,
+			})
+			.from(competitionEventsTable)
+			.where(
+				and(
+					eq(competitionEventsTable.competitionId, data.competitionId),
+					eq(competitionEventsTable.trackWorkoutId, data.trackWorkoutId),
+				),
+			)
+			.limit(1)
+
+		if (!competitionEvent) {
+			return { event: null }
+		}
+
 		// Get the track workout with workout details
 		const [trackWorkout] = await db
 			.select({
@@ -822,21 +863,6 @@ export const getEventDetailsForVerificationFn = createServerFn({
 		if (!trackWorkout) {
 			return { event: null }
 		}
-
-		// Get submission window
-		const [competitionEvent] = await db
-			.select({
-				submissionOpensAt: competitionEventsTable.submissionOpensAt,
-				submissionClosesAt: competitionEventsTable.submissionClosesAt,
-			})
-			.from(competitionEventsTable)
-			.where(
-				and(
-					eq(competitionEventsTable.competitionId, data.competitionId),
-					eq(competitionEventsTable.trackWorkoutId, data.trackWorkoutId),
-				),
-			)
-			.limit(1)
 
 		return {
 			event: {
