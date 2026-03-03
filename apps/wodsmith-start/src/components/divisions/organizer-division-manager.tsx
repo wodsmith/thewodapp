@@ -88,8 +88,18 @@ export function OrganizerDivisionManager({
 }: OrganizerDivisionManagerProps) {
 	const router = useRouter()
 	const { posthog } = usePostHog()
-	const globalLeaderboardEnabled =
-		posthog.isFeatureEnabled("competition-global-leaderboard") !== false
+	const [globalLeaderboardEnabled, setGlobalLeaderboardEnabled] = useState(
+		posthog.isFeatureEnabled("competition-global-leaderboard") !== false,
+	)
+
+	useEffect(() => {
+		const unsubscribe = posthog.onFeatureFlags(() => {
+			setGlobalLeaderboardEnabled(
+				posthog.isFeatureEnabled("competition-global-leaderboard") !== false,
+			)
+		})
+		return unsubscribe
+	}, [posthog])
 	const [divisions, setDivisions] = useState(initialDivisions)
 	const [showAddDialog, setShowAddDialog] = useState(false)
 	const [showChangeGroupDialog, setShowChangeGroupDialog] = useState(false)

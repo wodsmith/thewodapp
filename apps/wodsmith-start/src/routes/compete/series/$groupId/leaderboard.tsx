@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { z } from "zod"
 import { SeriesLeaderboardPageContent } from "@/components/series-leaderboard-page-content"
 import { usePostHog } from "@/lib/posthog"
@@ -17,11 +17,20 @@ function SeriesLeaderboardPage() {
 	const { groupId } = Route.useParams()
 	const { posthog } = usePostHog()
 	const navigate = useNavigate()
-	const flagEnabled = posthog.isFeatureEnabled("competition-global-leaderboard")
+	const [flagEnabled, setFlagEnabled] = useState(
+		() => posthog.isFeatureEnabled("competition-global-leaderboard"),
+	)
+
+	useEffect(() => {
+		const unsubscribe = posthog.onFeatureFlags(() => {
+			setFlagEnabled(posthog.isFeatureEnabled("competition-global-leaderboard"))
+		})
+		return unsubscribe
+	}, [posthog])
 
 	useEffect(() => {
 		if (flagEnabled === false) {
-			navigate({ to: "/compete/series/$groupId", params: { groupId } })
+			navigate({ to: "/compete/series/$groupId", params: { groupId }, replace: true })
 		}
 	}, [flagEnabled, groupId, navigate])
 
