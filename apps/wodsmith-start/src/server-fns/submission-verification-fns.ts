@@ -12,19 +12,36 @@ import { getDb } from "@/db"
 import {
 	competitionEventsTable,
 	competitionRegistrationsTable,
+	competitionsTable,
 } from "@/db/schemas/competitions"
 import { trackWorkoutsTable } from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
-import { scoresTable } from "@/db/schemas/scores"
+import { scoreVerificationLogsTable, scoresTable } from "@/db/schemas/scores"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
 import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
 import { workouts } from "@/db/schemas/workouts"
-import { decodeScore, type WorkoutScheme } from "@/lib/scoring"
+import { logInfo } from "@/lib/logging"
+import {
+	computeSortKey,
+	decodeScore,
+	encodeScore,
+	sortKeyToString,
+	type WorkoutScheme,
+} from "@/lib/scoring"
+import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk } from "@/utils/batch-query"
+import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
 // Types
 // ============================================================================
+
+export interface VerificationInfo {
+	status: "verified" | "adjusted" | null
+	verifiedAt: Date | null
+	verifiedByName: string | null
+}
 
 export interface SubmissionDetail {
 	id: string
@@ -46,6 +63,7 @@ export interface SubmissionDetail {
 		tiebreakValue: string | null
 		secondaryValue: number | null
 	}
+	verification: VerificationInfo
 	videoUrl: string | null
 	submittedAt: Date
 	notes: string | null
@@ -97,9 +115,231 @@ const getEventDetailsForVerificationInputSchema = z.object({
 	trackWorkoutId: z.string().min(1),
 })
 
+const verifySubmissionScoreInputSchema = z.object({
+	competitionId: z.string().min(1),
+	trackWorkoutId: z.string().min(1),
+	scoreId: z.string().min(1),
+	action: z.enum(["verify", "adjust"]),
+	// Required only when action === "adjust"
+	adjustedScore: z.string().optional(),
+	adjustedScoreStatus: z.enum(["scored", "cap"]).optional(),
+	secondaryScore: z.string().optional(),
+	tieBreakScore: z.string().optional(),
+})
+
 // ============================================================================
 // Server Functions
 // ============================================================================
+
+/**
+ * Verify or adjust a submitted competition score
+ */
+export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		verifySubmissionScoreInputSchema.parse(data),
+	)
+	.handler(
+		async ({
+			data,
+		}): Promise<{ success: boolean; verificationStatus: string }> => {
+			const db = getDb()
+
+			const session = await getSessionFromCookie()
+			if (!session?.userId) {
+				throw new Error("Not authenticated")
+			}
+
+			// Load competition to get organizingTeamId
+			const [competition] = await db
+				.select({ organizingTeamId: competitionsTable.organizingTeamId })
+				.from(competitionsTable)
+				.where(eq(competitionsTable.id, data.competitionId))
+				.limit(1)
+
+			if (!competition) {
+				throw new Error("Competition not found")
+			}
+
+			await requireTeamPermission(
+				competition.organizingTeamId,
+				TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+			)
+
+			// Load the score (including current values for audit log)
+			const [score] = await db
+				.select({
+					id: scoresTable.id,
+					userId: scoresTable.userId,
+					scheme: scoresTable.scheme,
+					scoreType: scoresTable.scoreType,
+					tiebreakScheme: scoresTable.tiebreakScheme,
+					timeCapMs: scoresTable.timeCapMs,
+					scoreValue: scoresTable.scoreValue,
+					status: scoresTable.status,
+					secondaryValue: scoresTable.secondaryValue,
+					tiebreakValue: scoresTable.tiebreakValue,
+				})
+				.from(scoresTable)
+				.where(
+					and(
+						eq(scoresTable.id, data.scoreId),
+						eq(scoresTable.competitionEventId, data.trackWorkoutId),
+					),
+				)
+				.limit(1)
+
+			if (!score) {
+				throw new Error("Score not found")
+			}
+
+			const now = new Date()
+
+			if (data.action === "verify") {
+				await db
+					.update(scoresTable)
+					.set({
+						verificationStatus: "verified",
+						verifiedAt: now,
+						verifiedByUserId: session.userId,
+						updatedAt: now,
+					})
+					.where(eq(scoresTable.id, data.scoreId))
+
+				await db.insert(scoreVerificationLogsTable).values({
+					scoreId: data.scoreId,
+					competitionId: data.competitionId,
+					trackWorkoutId: data.trackWorkoutId,
+					athleteUserId: score.userId,
+					action: "verified",
+					performedByUserId: session.userId,
+					performedAt: now,
+				})
+
+				logInfo({
+					message: "[Score] Organizer verified score",
+					attributes: {
+						scoreId: data.scoreId,
+						competitionId: data.competitionId,
+						verifiedByUserId: session.userId,
+					},
+				})
+
+				return { success: true, verificationStatus: "verified" }
+			}
+
+			// action === "adjust"
+			if (!data.adjustedScore || !data.adjustedScoreStatus) {
+				throw new Error(
+					"adjustedScore and adjustedScoreStatus are required for adjust action",
+				)
+			}
+
+			const scheme = score.scheme as WorkoutScheme
+			const newStatus = data.adjustedScoreStatus
+
+			// Encode the adjusted score
+			let encodedValue: number | null = null
+			if (newStatus === "cap" && score.timeCapMs) {
+				encodedValue = score.timeCapMs
+			} else {
+				encodedValue = encodeScore(data.adjustedScore, scheme)
+			}
+
+			// Parse secondary value (reps at cap)
+			let secondaryValue: number | null = null
+			if (data.secondaryScore && newStatus === "cap") {
+				const parsed = Number.parseInt(data.secondaryScore.trim(), 10)
+				if (!Number.isNaN(parsed) && parsed >= 0) {
+					secondaryValue = parsed
+				}
+			}
+
+			// Encode tiebreak if provided
+			let tiebreakValue: number | null = null
+			if (data.tieBreakScore && score.tiebreakScheme) {
+				try {
+					tiebreakValue = encodeScore(
+						data.tieBreakScore,
+						score.tiebreakScheme as WorkoutScheme,
+					)
+				} catch {
+					// Ignore tiebreak encoding errors
+				}
+			}
+
+			// Compute sort key
+			const statusOrder = newStatus === "cap" ? 1 : 0
+			const sortKey =
+				encodedValue !== null
+					? computeSortKey({
+							value: encodedValue,
+							status: newStatus,
+							scheme,
+							scoreType: (score.scoreType as "max" | "min") ?? "max",
+							timeCap:
+								newStatus === "cap" &&
+								score.timeCapMs &&
+								secondaryValue !== null
+									? { ms: score.timeCapMs, secondaryValue }
+									: undefined,
+							tiebreak:
+								tiebreakValue !== null && score.tiebreakScheme
+									? {
+											scheme: score.tiebreakScheme as "time" | "reps",
+											value: tiebreakValue,
+										}
+									: undefined,
+						})
+					: null
+
+			await db
+				.update(scoresTable)
+				.set({
+					scoreValue: encodedValue,
+					status: newStatus,
+					statusOrder,
+					sortKey: sortKey ? sortKeyToString(sortKey) : null,
+					secondaryValue,
+					tiebreakValue,
+					verificationStatus: "adjusted",
+					verifiedAt: now,
+					verifiedByUserId: session.userId,
+					updatedAt: now,
+				})
+				.where(eq(scoresTable.id, data.scoreId))
+
+			await db.insert(scoreVerificationLogsTable).values({
+				scoreId: data.scoreId,
+				competitionId: data.competitionId,
+				trackWorkoutId: data.trackWorkoutId,
+				athleteUserId: score.userId,
+				action: "adjusted",
+				originalScoreValue: score.scoreValue,
+				originalStatus: score.status,
+				originalSecondaryValue: score.secondaryValue,
+				originalTiebreakValue: score.tiebreakValue,
+				newScoreValue: encodedValue,
+				newStatus,
+				newSecondaryValue: secondaryValue,
+				newTiebreakValue: tiebreakValue,
+				performedByUserId: session.userId,
+				performedAt: now,
+			})
+
+			logInfo({
+				message: "[Score] Organizer adjusted score",
+				attributes: {
+					scoreId: data.scoreId,
+					competitionId: data.competitionId,
+					verifiedByUserId: session.userId,
+					newStatus,
+					encodedValue,
+				},
+			})
+
+			return { success: true, verificationStatus: "adjusted" }
+		},
+	)
 
 /**
  * Get a single submission detail for verification
@@ -109,7 +349,10 @@ export const getSubmissionDetailFn = createServerFn({ method: "GET" })
 	.handler(
 		async ({
 			data,
-		}): Promise<{ submission: SubmissionDetail | null; event: EventDetails }> => {
+		}): Promise<{
+			submission: SubmissionDetail | null
+			event: EventDetails
+		}> => {
 			const db = getDb()
 
 			// Get the score with user info
@@ -126,6 +369,9 @@ export const getSubmissionDetailFn = createServerFn({ method: "GET" })
 					notes: scoresTable.notes,
 					recordedAt: scoresTable.recordedAt,
 					scalingLevelId: scoresTable.scalingLevelId,
+					verificationStatus: scoresTable.verificationStatus,
+					verifiedAt: scoresTable.verifiedAt,
+					verifiedByUserId: scoresTable.verifiedByUserId,
 				})
 				.from(scoresTable)
 				.where(
@@ -254,6 +500,24 @@ export const getSubmissionDetailFn = createServerFn({ method: "GET" })
 				}
 			}
 
+			// Get verifier name if verified/adjusted
+			let verifiedByName: string | null = null
+			if (score.verifiedByUserId) {
+				const [verifier] = await db
+					.select({
+						firstName: userTable.firstName,
+						lastName: userTable.lastName,
+					})
+					.from(userTable)
+					.where(eq(userTable.id, score.verifiedByUserId))
+					.limit(1)
+				if (verifier) {
+					verifiedByName =
+						`${verifier.firstName || ""} ${verifier.lastName || ""}`.trim() ||
+						null
+				}
+			}
+
 			// Decode score for display
 			let displayValue = ""
 			if (score.scoreValue !== null) {
@@ -294,6 +558,11 @@ export const getSubmissionDetailFn = createServerFn({ method: "GET" })
 					tiebreakValue: tiebreakDisplay,
 					secondaryValue: score.secondaryValue,
 				},
+				verification: {
+					status: (score.verificationStatus as "verified" | "adjusted") ?? null,
+					verifiedAt: score.verifiedAt ?? null,
+					verifiedByName,
+				},
 				videoUrl,
 				submittedAt: score.recordedAt,
 				notes: score.notes,
@@ -308,128 +577,133 @@ export const getSubmissionDetailFn = createServerFn({ method: "GET" })
  */
 export const getEventSubmissionsFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) => getEventSubmissionsInputSchema.parse(data))
-	.handler(
-		async ({
-			data,
-		}): Promise<{ submissions: SubmissionListItem[] }> => {
-			const db = getDb()
+	.handler(async ({ data }): Promise<{ submissions: SubmissionListItem[] }> => {
+		const db = getDb()
 
-			// Get all scores for this event
-			const scores = await db
+		// Get all scores for this event
+		const scores = await db
+			.select({
+				id: scoresTable.id,
+				userId: scoresTable.userId,
+				scoreValue: scoresTable.scoreValue,
+				status: scoresTable.status,
+				scheme: scoresTable.scheme,
+				scalingLevelId: scoresTable.scalingLevelId,
+				verificationStatus: scoresTable.verificationStatus,
+			})
+			.from(scoresTable)
+			.where(eq(scoresTable.competitionEventId, data.trackWorkoutId))
+
+		if (scores.length === 0) {
+			return { submissions: [] }
+		}
+
+		// Get user info for all scores
+		const userIds = scores.map((s) => s.userId)
+		const users = await autochunk({ items: userIds }, async (chunk) =>
+			db
 				.select({
-					id: scoresTable.id,
-					userId: scoresTable.userId,
-					scoreValue: scoresTable.scoreValue,
-					status: scoresTable.status,
-					scheme: scoresTable.scheme,
-					scalingLevelId: scoresTable.scalingLevelId,
+					id: userTable.id,
+					firstName: userTable.firstName,
+					lastName: userTable.lastName,
 				})
-				.from(scoresTable)
-				.where(eq(scoresTable.competitionEventId, data.trackWorkoutId))
+				.from(userTable)
+				.where(inArray(userTable.id, chunk)),
+		)
+		const userMap = new Map(users.map((u) => [u.id, u]))
 
-			if (scores.length === 0) {
-				return { submissions: [] }
+		// Get division info for all scores
+		const divisionIds = scores
+			.map((s) => s.scalingLevelId)
+			.filter((id): id is string => id !== null)
+		const divisions =
+			divisionIds.length > 0
+				? await autochunk({ items: [...new Set(divisionIds)] }, async (chunk) =>
+						db
+							.select({
+								id: scalingLevelsTable.id,
+								label: scalingLevelsTable.label,
+							})
+							.from(scalingLevelsTable)
+							.where(inArray(scalingLevelsTable.id, chunk)),
+					)
+				: []
+		const divisionMap = new Map(divisions.map((d) => [d.id, d]))
+
+		// Get registration info (for team names)
+		const registrations = await autochunk({ items: userIds }, async (chunk) =>
+			db
+				.select({
+					userId: competitionRegistrationsTable.userId,
+					teamName: competitionRegistrationsTable.teamName,
+				})
+				.from(competitionRegistrationsTable)
+				.where(
+					and(
+						eq(competitionRegistrationsTable.eventId, data.competitionId),
+						inArray(competitionRegistrationsTable.userId, chunk),
+					),
+				),
+		)
+		const registrationMap = new Map(registrations.map((r) => [r.userId, r]))
+
+		// Get video submissions for this event
+		const videoSubmissions = await db
+			.select({ userId: videoSubmissionsTable.userId })
+			.from(videoSubmissionsTable)
+			.where(eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId))
+		const usersWithVideo = new Set(videoSubmissions.map((vs) => vs.userId))
+
+		// Build submission list
+		const submissions: SubmissionListItem[] = scores.map((score) => {
+			const user = userMap.get(score.userId)
+			const division = score.scalingLevelId
+				? divisionMap.get(score.scalingLevelId)
+				: null
+			const registration = registrationMap.get(score.userId)
+
+			// Decode score for display
+			let scoreDisplay = ""
+			if (score.scoreValue !== null) {
+				scoreDisplay = decodeScore(
+					score.scoreValue,
+					score.scheme as WorkoutScheme,
+					{ compact: true },
+				)
 			}
 
-			// Get user info for all scores
-			const userIds = scores.map((s) => s.userId)
-			const users = await autochunk({ items: userIds }, async (chunk) =>
-				db
-					.select({
-						id: userTable.id,
-						firstName: userTable.firstName,
-						lastName: userTable.lastName,
-					})
-					.from(userTable)
-					.where(inArray(userTable.id, chunk)),
-			)
-			const userMap = new Map(users.map((u) => [u.id, u]))
+			// Derive status from verificationStatus
+			const reviewStatus =
+				score.verificationStatus === "verified" ||
+				score.verificationStatus === "adjusted"
+					? "reviewed"
+					: "pending"
 
-			// Get division info for all scores
-			const divisionIds = scores
-				.map((s) => s.scalingLevelId)
-				.filter((id): id is string => id !== null)
-			const divisions =
-				divisionIds.length > 0
-					? await autochunk({ items: [...new Set(divisionIds)] }, async (chunk) =>
-							db
-								.select({
-									id: scalingLevelsTable.id,
-									label: scalingLevelsTable.label,
-								})
-								.from(scalingLevelsTable)
-								.where(inArray(scalingLevelsTable.id, chunk)),
-						)
-					: []
-			const divisionMap = new Map(divisions.map((d) => [d.id, d]))
+			return {
+				id: score.id,
+				athleteName: user
+					? `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Unknown"
+					: "Unknown",
+				teamName: registration?.teamName ?? null,
+				divisionLabel: division?.label ?? "Open",
+				hasVideo: usersWithVideo.has(score.userId),
+				scoreDisplay,
+				status: reviewStatus,
+			}
+		})
 
-			// Get registration info (for team names)
-			const registrations = await autochunk({ items: userIds }, async (chunk) =>
-				db
-					.select({
-						userId: competitionRegistrationsTable.userId,
-						teamName: competitionRegistrationsTable.teamName,
-					})
-					.from(competitionRegistrationsTable)
-					.where(
-						and(
-							eq(competitionRegistrationsTable.eventId, data.competitionId),
-							inArray(competitionRegistrationsTable.userId, chunk),
-						),
-					),
-			)
-			const registrationMap = new Map(registrations.map((r) => [r.userId, r]))
+		// Sort by athlete name
+		submissions.sort((a, b) => a.athleteName.localeCompare(b.athleteName))
 
-			// Get video submissions for this event
-			const videoSubmissions = await db
-				.select({ userId: videoSubmissionsTable.userId })
-				.from(videoSubmissionsTable)
-				.where(eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId))
-			const usersWithVideo = new Set(videoSubmissions.map((vs) => vs.userId))
-
-			// Build submission list
-			const submissions: SubmissionListItem[] = scores.map((score) => {
-				const user = userMap.get(score.userId)
-				const division = score.scalingLevelId
-					? divisionMap.get(score.scalingLevelId)
-					: null
-				const registration = registrationMap.get(score.userId)
-
-				// Decode score for display
-				let scoreDisplay = ""
-				if (score.scoreValue !== null) {
-					scoreDisplay = decodeScore(
-						score.scoreValue,
-						score.scheme as WorkoutScheme,
-						{ compact: true },
-					)
-				}
-
-				return {
-					id: score.id,
-					athleteName: user
-						? `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
-						  "Unknown"
-						: "Unknown",
-					teamName: registration?.teamName ?? null,
-					divisionLabel: division?.label ?? "Open",
-					hasVideo: usersWithVideo.has(score.userId),
-					scoreDisplay,
-					status: score.status,
-				}
-			})
-
-			// Sort by athlete name
-			submissions.sort((a, b) => a.athleteName.localeCompare(b.athleteName))
-
-			return { submissions }
-		},
-	)
+		return { submissions }
+	})
 
 /**
  * Get event details for verification page header
  */
-export const getEventDetailsForVerificationFn = createServerFn({ method: "GET" })
+export const getEventDetailsForVerificationFn = createServerFn({
+	method: "GET",
+})
 	.inputValidator((data: unknown) =>
 		getEventDetailsForVerificationInputSchema.parse(data),
 	)
