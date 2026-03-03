@@ -54,6 +54,9 @@ import {
 import {
 	type EventDetails,
 	type SubmissionDetail,
+	type VerificationLogEntry,
+	getSubmissionDetailFn,
+	getVerificationLogsFn,
 	verifySubmissionScoreFn,
 } from "@/server-fns/submission-verification-fns"
 import { isSafeUrl } from "@/utils/url"
@@ -65,18 +68,54 @@ export const Route = createFileRoute(
 )({
 	component: SubmissionDetailPage,
 	loader: async ({ params }) => {
-		const result = await getOrganizerSubmissionDetailFn({
+		// Fetch review data (required)
+		const reviewResult = await getOrganizerSubmissionDetailFn({
 			data: {
 				submissionId: params.submissionId,
 				competitionId: params.competitionId,
 			},
 		})
 
-		if (!result.submission) {
+		if (!reviewResult.submission) {
 			throw new Error("Submission not found")
 		}
 
-		return { submission: result.submission }
+		// If we have a score ID, fetch verification data and audit logs
+		let verificationSubmission: SubmissionDetail | null = null
+		let event: EventDetails | null = null
+		let verificationLogs: VerificationLogEntry[] = []
+		const scoreId = reviewResult.submission.scoreId
+		if (scoreId) {
+			try {
+				const [verificationResult, logsResult] = await Promise.all([
+					getSubmissionDetailFn({
+						data: {
+							competitionId: params.competitionId,
+							trackWorkoutId: params.eventId,
+							scoreId,
+						},
+					}),
+					getVerificationLogsFn({
+						data: {
+							scoreId,
+							competitionId: params.competitionId,
+						},
+					}),
+				])
+				verificationSubmission = verificationResult.submission
+				event = verificationResult.event
+				verificationLogs = logsResult.logs
+			} catch {
+				// Verification data not available - controls won't show
+			}
+		}
+
+		return {
+			submission: reviewResult.submission,
+			verificationSubmission,
+			event,
+			verificationLogs,
+		}
 	},
 })
 
@@ -89,6 +128,7 @@ interface VerificationControlsProps {
 	event: EventDetails
 	competitionId: string
 	trackWorkoutId: string
+	logs: VerificationLogEntry[]
 }
 
 function VerificationControls({
@@ -344,7 +384,7 @@ function VerificationControls({
 // ============================================================================
 
 function SubmissionDetailPage() {
-	const { submission } = Route.useLoaderData()
+	const { submission, verificationSubmission, event } = Route.useLoaderData()
 	const { competition } = parentRoute.useLoaderData()
 	const params = Route.useParams()
 	const router = useRouter()
@@ -656,12 +696,14 @@ function SubmissionDetailPage() {
 					</Card>
 
 					{/* Verification Controls */}
-					<VerificationControls
-						submission={submission}
-						event={event}
-						competitionId={params.competitionId}
-						trackWorkoutId={params.eventId}
-					/>
+					{verificationSubmission && event && (
+						<VerificationControls
+							submission={verificationSubmission}
+							event={event}
+							competitionId={params.competitionId}
+							trackWorkoutId={params.eventId}
+						/>
+					)}
 				</div>
 			</div>
 		</div>
