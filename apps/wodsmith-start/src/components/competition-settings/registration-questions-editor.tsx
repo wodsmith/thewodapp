@@ -77,10 +77,12 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import {
 	createQuestionFn,
+	createSeriesQuestionFn,
 	deleteQuestionFn,
 	QUESTION_TYPES,
 	type RegistrationQuestion,
 	reorderQuestionsFn,
+	reorderSeriesQuestionsFn,
 	updateQuestionFn,
 } from "@/server-fns/registration-questions-fns"
 
@@ -100,10 +102,12 @@ const questionFormSchema = z.object({
 type QuestionFormValues = z.infer<typeof questionFormSchema>
 
 interface RegistrationQuestionsEditorProps {
-	competitionId: string
+	entityType: "competition" | "series"
+	entityId: string
 	teamId: string
 	questions: RegistrationQuestion[]
 	onQuestionsChange: () => void
+	questionTarget?: "athlete" | "volunteer"
 }
 
 interface QuestionItemProps {
@@ -336,27 +340,32 @@ function QuestionItem({
 // ============================================================================
 
 interface QuestionFormDialogProps {
-	competitionId: string
+	entityType: "competition" | "series"
+	entityId: string
 	teamId: string
 	question: RegistrationQuestion | null
 	open: boolean
 	onClose: () => void
 	onSuccess: () => void
+	questionTarget?: "athlete" | "volunteer"
 }
 
 function QuestionFormDialog({
-	competitionId,
+	entityType,
+	entityId,
 	teamId,
 	question,
 	open,
 	onClose,
 	onSuccess,
+	questionTarget = "athlete",
 }: QuestionFormDialogProps) {
 	const [isSaving, setIsSaving] = useState(false)
 	const [optionInput, setOptionInput] = useState("")
 	const isEditing = !!question
 
-	const createQuestion = useServerFn(createQuestionFn)
+	const createCompetitionQuestion = useServerFn(createQuestionFn)
+	const createSeriesQuestion = useServerFn(createSeriesQuestionFn)
 	const updateQuestion = useServerFn(updateQuestionFn)
 
 	const form = useForm<QuestionFormValues>({
@@ -443,10 +452,10 @@ function QuestionFormDialog({
 					},
 				})
 				toast.success("Question updated successfully")
-			} else {
-				await createQuestion({
+			} else if (entityType === "series") {
+				await createSeriesQuestion({
 					data: {
-						competitionId,
+						groupId: entityId,
 						teamId,
 						type: values.type,
 						label: values.label,
@@ -454,6 +463,22 @@ function QuestionFormDialog({
 						options: values.type === "select" ? values.options : null,
 						required: values.required,
 						forTeammates: values.forTeammates,
+						questionTarget,
+					},
+				})
+				toast.success("Question created successfully")
+			} else {
+				await createCompetitionQuestion({
+					data: {
+						competitionId: entityId,
+						teamId,
+						type: values.type,
+						label: values.label,
+						helpText: values.helpText || null,
+						options: values.type === "select" ? values.options : null,
+						required: values.required,
+						forTeammates: values.forTeammates,
+						questionTarget,
 					},
 				})
 				toast.success("Question created successfully")
@@ -477,10 +502,14 @@ function QuestionFormDialog({
 			<DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>
-						{isEditing ? "Edit" : "Add"} Registration Question
+						{isEditing ? "Edit" : "Add"}{" "}
+						{questionTarget === "volunteer" ? "Volunteer" : "Registration"}{" "}
+						Question
 					</DialogTitle>
 					<DialogDescription>
-						Custom questions that athletes must answer during registration.
+						{questionTarget === "volunteer"
+							? "Custom questions that volunteers must answer when signing up."
+							: "Custom questions that athletes must answer during registration."}
 					</DialogDescription>
 				</DialogHeader>
 
@@ -619,27 +648,29 @@ function QuestionFormDialog({
 							)}
 						/>
 
-						<FormField
-							control={form.control}
-							name="forTeammates"
-							render={({ field }) => (
-								<FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-									<FormControl>
-										<Checkbox
-											checked={field.value}
-											onCheckedChange={field.onChange}
-										/>
-									</FormControl>
-									<div className="space-y-1 leading-none">
-										<FormLabel>Ask Teammates Separately</FormLabel>
-										<FormDescription>
-											For team registrations, ask this question for each
-											teammate individually.
-										</FormDescription>
-									</div>
-								</FormItem>
-							)}
-						/>
+						{questionTarget !== "volunteer" && (
+							<FormField
+								control={form.control}
+								name="forTeammates"
+								render={({ field }) => (
+									<FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+										<FormControl>
+											<Checkbox
+												checked={field.value}
+												onCheckedChange={field.onChange}
+											/>
+										</FormControl>
+										<div className="space-y-1 leading-none">
+											<FormLabel>Ask Teammates Separately</FormLabel>
+											<FormDescription>
+												For team registrations, ask this question for each
+												teammate individually.
+											</FormDescription>
+										</div>
+									</FormItem>
+								)}
+							/>
+						)}
 
 						<DialogFooter>
 							<Button type="button" variant="outline" onClick={onClose}>
@@ -661,10 +692,12 @@ function QuestionFormDialog({
 // ============================================================================
 
 export function RegistrationQuestionsEditor({
-	competitionId,
+	entityType,
+	entityId,
 	teamId,
 	questions: initialQuestions,
 	onQuestionsChange,
+	questionTarget = "athlete",
 }: RegistrationQuestionsEditorProps) {
 	const [questions, setQuestions] = useState(initialQuestions)
 	const [instanceId] = useState(() => Symbol("registration-questions"))
@@ -674,7 +707,8 @@ export function RegistrationQuestionsEditor({
 		useState<RegistrationQuestion | null>(null)
 	const [isFormOpen, setIsFormOpen] = useState(false)
 
-	const reorderQuestions = useServerFn(reorderQuestionsFn)
+	const reorderCompetitionQuestions = useServerFn(reorderQuestionsFn)
+	const reorderSeriesQuestionsServer = useServerFn(reorderSeriesQuestionsFn)
 	const deleteQuestion = useServerFn(deleteQuestionFn)
 
 	// Update local state when prop changes
@@ -690,13 +724,23 @@ export function RegistrationQuestionsEditor({
 			setQuestions(newQuestions)
 
 			try {
-				await reorderQuestions({
-					data: {
-						competitionId,
-						teamId,
-						orderedQuestionIds: newQuestions.map((q) => q.id),
-					},
-				})
+				if (entityType === "series") {
+					await reorderSeriesQuestionsServer({
+						data: {
+							groupId: entityId,
+							teamId,
+							orderedQuestionIds: newQuestions.map((q) => q.id),
+						},
+					})
+				} else {
+					await reorderCompetitionQuestions({
+						data: {
+							competitionId: entityId,
+							teamId,
+							orderedQuestionIds: newQuestions.map((q) => q.id),
+						},
+					})
+				}
 				onQuestionsChange()
 			} catch (_error) {
 				toast.error("Failed to reorder questions")
@@ -750,9 +794,17 @@ export function RegistrationQuestionsEditor({
 				<CardHeader>
 					<div className="flex items-start justify-between">
 						<div>
-							<CardTitle>Registration Questions</CardTitle>
+							<CardTitle>
+								{questionTarget === "volunteer"
+									? "Volunteer Registration Questions"
+									: "Registration Questions"}
+							</CardTitle>
 							<CardDescription>
-								Custom questions athletes must answer during registration
+								{questionTarget === "volunteer"
+									? "Questions volunteers must answer when signing up"
+									: entityType === "series"
+										? "Questions that apply to all competitions in this series"
+										: "Custom questions athletes must answer during registration"}
 							</CardDescription>
 						</div>
 						<Button onClick={handleAddNew}>
@@ -789,12 +841,14 @@ export function RegistrationQuestionsEditor({
 			</Card>
 
 			<QuestionFormDialog
-				competitionId={competitionId}
+				entityType={entityType}
+				entityId={entityId}
 				teamId={teamId}
 				question={editingQuestion}
 				open={isFormOpen}
 				onClose={handleFormClose}
 				onSuccess={handleFormSuccess}
+				questionTarget={questionTarget}
 			/>
 
 			<AlertDialog

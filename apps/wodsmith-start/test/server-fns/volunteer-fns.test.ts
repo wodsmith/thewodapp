@@ -4,6 +4,7 @@ import {FakeDrizzleDb} from '@repo/test-utils'
 import {
   submitVolunteerSignupFn,
   inviteVolunteerFn,
+  createAccountAndApplyAsVolunteerFn,
   addVolunteerRoleTypeFn,
   removeVolunteerRoleTypeFn,
   grantScoreAccessFn,
@@ -53,11 +54,22 @@ const mockOrganizerSession = {
 // Mock auth
 vi.mock('@/utils/auth', () => ({
   getSessionFromCookie: vi.fn(() => Promise.resolve(mockOrganizerSession)),
+  canSignUp: vi.fn(() => Promise.resolve()),
+  createAndStoreSession: vi.fn(() => Promise.resolve()),
+}))
+
+vi.mock('@/utils/password-hasher', () => ({
+  hashPassword: vi.fn(() => Promise.resolve('hashed_password_123')),
 }))
 
 vi.mock('@/utils/team-auth', () => ({
   requireTeamPermission: vi.fn(() => Promise.resolve()),
   hasTeamPermission: vi.fn(() => Promise.resolve(true)),
+}))
+
+// Mock email utilities to avoid pulling in createServerOnlyFn from env.ts
+vi.mock('@/utils/email', () => ({
+  sendVolunteerDirectInviteEmail: vi.fn(() => Promise.resolve()),
 }))
 
 // Mock server modules
@@ -94,10 +106,11 @@ vi.mock('@/utils/batch-query', () => ({
   }),
 }))
 
-import {getSessionFromCookie} from '@/utils/auth'
+import {getSessionFromCookie, canSignUp, createAndStoreSession} from '@/utils/auth'
 import {requireTeamPermission} from '@/utils/team-auth'
 import {inviteUserToTeam} from '@/server/team-members'
 import {createEntitlement} from '@/server/entitlements'
+import {hashPassword} from '@/utils/password-hasher'
 
 const setMockSession = (session: unknown) => {
   vi.mocked(getSessionFromCookie).mockResolvedValue(
@@ -178,6 +191,7 @@ describe('Volunteer Server Functions', () => {
     mockDb.registerTable('volunteerShiftAssignmentsTable')
     mockDb.registerTable('competitionHeatsTable')
     mockDb.registerTable('judgeHeatAssignmentsTable')
+    mockDb.registerTable('teamTable')
     setMockSession(mockOrganizerSession)
   })
 
@@ -442,6 +456,71 @@ describe('Volunteer Server Functions', () => {
           metadata: expect.stringContaining('inviteName'),
         }),
       )
+    })
+
+    it('should reject when email already has a pending application or invite', async () => {
+      // Existing invitation with same email
+      mockDb.query.teamInvitationTable.findMany.mockResolvedValueOnce([
+        createMockInvitation({email: 'judge@example.com'}),
+      ])
+
+      await expect(
+        inviteVolunteerFn({
+          data: {
+            email: 'judge@example.com',
+            competitionTeamId: 'team_comp123',
+            organizingTeamId: 'team-org-123',
+            competitionId: 'comp_test123',
+            roleTypes: ['judge'],
+          },
+        }),
+      ).rejects.toThrow('already been invited or has applied')
+
+      expect(inviteUserToTeam).not.toHaveBeenCalled()
+    })
+
+    it('should reject when user is already an approved volunteer', async () => {
+      // No existing invitations
+      mockDb.query.teamInvitationTable.findMany.mockResolvedValueOnce([])
+      // Existing user found
+      mockDb.query.userTable.findFirst.mockResolvedValueOnce({id: 'user-existing-vol'})
+      // Existing volunteer membership found
+      mockDb.query.teamMembershipTable.findFirst.mockResolvedValueOnce(
+        createMockMembership({userId: 'user-existing-vol'}),
+      )
+
+      await expect(
+        inviteVolunteerFn({
+          data: {
+            email: 'existing-vol@example.com',
+            competitionTeamId: 'team_comp123',
+            organizingTeamId: 'team-org-123',
+            competitionId: 'comp_test123',
+            roleTypes: ['judge'],
+          },
+        }),
+      ).rejects.toThrow('already a volunteer')
+
+      expect(inviteUserToTeam).not.toHaveBeenCalled()
+    })
+
+    it('should be case-insensitive when checking for duplicate email', async () => {
+      // Invitation with lowercase email, invite with uppercase
+      mockDb.query.teamInvitationTable.findMany.mockResolvedValueOnce([
+        createMockInvitation({email: 'judge@example.com'}),
+      ])
+
+      await expect(
+        inviteVolunteerFn({
+          data: {
+            email: 'JUDGE@EXAMPLE.COM',
+            competitionTeamId: 'team_comp123',
+            organizingTeamId: 'team-org-123',
+            competitionId: 'comp_test123',
+            roleTypes: ['judge'],
+          },
+        }),
+      ).rejects.toThrow('already been invited or has applied')
     })
   })
 
@@ -827,6 +906,95 @@ describe('Volunteer Server Functions', () => {
         'team-org-123',
         'manage_competitions',
       )
+    })
+  })
+
+  // ============================================================================
+  // createAccountAndApplyAsVolunteerFn
+  // ============================================================================
+  describe('createAccountAndApplyAsVolunteerFn', () => {
+    const baseInput = {
+      firstName: 'Jane',
+      lastName: 'Doe',
+      password: 'Password123',
+      competitionTeamId: 'team_comp123',
+      signupName: 'Jane Doe',
+      signupEmail: 'jane@example.com',
+      availability: 'all_day' as const,
+    }
+
+    it('should silently succeed for honeypot-filled submissions (bot detection)', async () => {
+      const result = await createAccountAndApplyAsVolunteerFn({
+        data: {...baseInput, website: 'http://spam.com'},
+      })
+
+      expect(result.success).toBe(true)
+      expect(canSignUp).not.toHaveBeenCalled()
+    })
+
+    it('should create a new user account and volunteer application', async () => {
+      // No existing user in account creation check
+      mockDb.query.userTable.findFirst.mockResolvedValueOnce(null)
+      // No duplicate invitations in createVolunteerApplication
+      mockDb.query.teamInvitationTable.findMany.mockResolvedValueOnce([])
+      // No existing user found for membership check in createVolunteerApplication
+      mockDb.query.userTable.findFirst.mockResolvedValueOnce(null)
+      // Created invitation returned after insert
+      mockDb.query.teamInvitationTable.findFirst.mockResolvedValueOnce({id: 'tinv_new123'})
+
+      const result = await createAccountAndApplyAsVolunteerFn({data: baseInput})
+
+      expect(result.success).toBe(true)
+      expect(result.membershipId).toBe('tinv_new123')
+      expect(canSignUp).toHaveBeenCalledWith({email: 'jane@example.com'})
+      expect(hashPassword).toHaveBeenCalledWith({password: 'Password123'})
+      expect(createAndStoreSession).toHaveBeenCalled()
+      // Should insert user, team, membership + invitation
+      expect(mockDb.insert).toHaveBeenCalledTimes(4)
+    })
+
+    it('should upgrade an existing placeholder user and create volunteer application', async () => {
+      const placeholderUser = {
+        id: 'user_placeholder123',
+        email: 'jane@example.com',
+        emailVerified: null,
+        passwordHash: null,
+      }
+      // Existing placeholder found in account creation check
+      mockDb.query.userTable.findFirst.mockResolvedValueOnce(placeholderUser)
+      // No duplicate invitations in createVolunteerApplication
+      mockDb.query.teamInvitationTable.findMany.mockResolvedValueOnce([])
+      // No existing membership for this user
+      mockDb.query.userTable.findFirst.mockResolvedValueOnce(placeholderUser)
+      mockDb.query.teamMembershipTable.findFirst.mockResolvedValueOnce(null)
+      // Created invitation returned after insert
+      mockDb.query.teamInvitationTable.findFirst.mockResolvedValueOnce({id: 'tinv_upgraded456'})
+
+      const result = await createAccountAndApplyAsVolunteerFn({data: baseInput})
+
+      expect(result.success).toBe(true)
+      expect(result.membershipId).toBe('tinv_upgraded456')
+      // Should update existing user (not insert new user/team)
+      expect(mockDb.update).toHaveBeenCalled()
+      expect(createAndStoreSession).toHaveBeenCalledWith('user_placeholder123', 'password')
+      // Only the invitation insert (no user/team inserts)
+      expect(mockDb.insert).toHaveBeenCalledTimes(1)
+    })
+
+    it('should reject an existing fully-verified user', async () => {
+      const verifiedUser = {
+        id: 'user_verified789',
+        email: 'jane@example.com',
+        emailVerified: new Date(),
+        passwordHash: 'already_hashed',
+      }
+      mockDb.query.userTable.findFirst.mockResolvedValueOnce(verifiedUser)
+
+      await expect(
+        createAccountAndApplyAsVolunteerFn({data: baseInput}),
+      ).rejects.toThrow('An account with this email already exists')
+
+      expect(createAndStoreSession).not.toHaveBeenCalled()
     })
   })
 

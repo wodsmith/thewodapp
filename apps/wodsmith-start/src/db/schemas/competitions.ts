@@ -22,6 +22,7 @@ import {
 	createCompetitionRegistrationId,
 	createCompetitionRegistrationQuestionId,
 	createCompetitionVenueId,
+	createVolunteerRegistrationAnswerId,
 } from "./common"
 import { programmingTracksTable } from "./programming"
 import { scalingLevelsTable } from "./scaling"
@@ -48,6 +49,7 @@ export const competitionGroupsTable = mysqlTable(
 		slug: varchar({ length: 255 }).notNull(),
 		name: varchar({ length: 255 }).notNull(),
 		description: text(),
+		settings: text(), // JSON: { scoringConfig: ScoringConfig }
 	},
 	(table) => [
 		// Ensure slug is unique per organizing team
@@ -137,6 +139,15 @@ export const competitionsTable = mysqlTable(
 	],
 )
 
+// Registration status constants
+export const REGISTRATION_STATUS = {
+	ACTIVE: "active",
+	REMOVED: "removed",
+} as const
+
+export type RegistrationStatus =
+	(typeof REGISTRATION_STATUS)[keyof typeof REGISTRATION_STATUS]
+
 // Competition Registrations Table
 // Tracks athlete registrations for competitions
 export const competitionRegistrationsTable = mysqlTable(
@@ -157,6 +168,11 @@ export const competitionRegistrationsTable = mysqlTable(
 		divisionId: varchar({ length: 255 }),
 		// When the athlete registered
 		registeredAt: datetime().notNull(),
+		// Registration status: active = participating, removed = soft-deleted by organizer
+		status: varchar({ length: 20 })
+			.$type<RegistrationStatus>()
+			.default("active")
+			.notNull(),
 		// Team info (NULL for individual registrations)
 		teamName: varchar({ length: 255 }),
 		// Who created the registration (same as userId for individuals)
@@ -192,6 +208,10 @@ export const competitionRegistrationsTable = mysqlTable(
 		index("competition_registrations_athlete_team_idx").on(table.athleteTeamId),
 		index("competition_registrations_purchase_idx").on(
 			table.commercePurchaseId,
+		),
+		index("competition_registrations_status_idx").on(
+			table.eventId,
+			table.status,
 		),
 	],
 )
@@ -297,7 +317,10 @@ export const competitionRegistrationQuestionsTable = mysqlTable(
 			.primaryKey()
 			.$defaultFn(() => createCompetitionRegistrationQuestionId())
 			.notNull(),
-		competitionId: varchar({ length: 255 }).notNull(),
+		// Nullable: set for competition-specific questions, null for series-level questions
+		competitionId: varchar({ length: 255 }),
+		// Optional: set for series-level questions, null for competition-specific questions
+		groupId: varchar({ length: 255 }),
 		// Question type: text (free form), select (dropdown), number
 		type: varchar({ length: 20 })
 			.$type<"text" | "select" | "number">()
@@ -314,6 +337,11 @@ export const competitionRegistrationQuestionsTable = mysqlTable(
 		forTeammates: boolean().default(false).notNull(),
 		// Sort order for display
 		sortOrder: int().default(0).notNull(),
+		// Target audience: athlete (default) or volunteer
+		questionTarget: varchar({ length: 20 })
+			.$type<"athlete" | "volunteer">()
+			.default("athlete")
+			.notNull(),
 	},
 	(table) => [
 		index("comp_reg_questions_competition_idx").on(table.competitionId),
@@ -321,6 +349,8 @@ export const competitionRegistrationQuestionsTable = mysqlTable(
 			table.competitionId,
 			table.sortOrder,
 		),
+		index("comp_reg_questions_group_idx").on(table.groupId),
+		index("comp_reg_questions_target_idx").on(table.questionTarget),
 	],
 )
 
@@ -351,6 +381,31 @@ export const competitionRegistrationAnswersTable = mysqlTable(
 			table.questionId,
 			table.registrationId,
 			table.userId,
+		),
+	],
+)
+
+// Volunteer Registration Answers Table
+// Stores volunteer answers to registration questions
+export const volunteerRegistrationAnswersTable = mysqlTable(
+	"volunteer_registration_answers",
+	{
+		...commonColumns,
+		id: varchar({ length: 255 })
+			.primaryKey()
+			.$defaultFn(() => createVolunteerRegistrationAnswerId())
+			.notNull(),
+		questionId: varchar({ length: 255 }).notNull(),
+		// Team invitation ID - works for both direct invites (authenticated) and public sign-ups (unauthenticated)
+		invitationId: varchar({ length: 255 }).notNull(),
+		answer: text().notNull(),
+	},
+	(table) => [
+		index("vol_reg_answers_question_idx").on(table.questionId),
+		index("vol_reg_answers_invitation_idx").on(table.invitationId),
+		uniqueIndex("vol_reg_answers_unique_idx").on(
+			table.questionId,
+			table.invitationId,
 		),
 	],
 )
@@ -402,6 +457,9 @@ export type CompetitionRegistrationQuestion = InferSelectModel<
 export type CompetitionRegistrationAnswer = InferSelectModel<
 	typeof competitionRegistrationAnswersTable
 >
+export type VolunteerRegistrationAnswer = InferSelectModel<
+	typeof volunteerRegistrationAnswersTable
+>
 
 // Competition visibility constants
 export const COMPETITION_VISIBILITY = {
@@ -432,6 +490,8 @@ export const competitionGroupsRelations = relations(
 		}),
 		// All competitions in this group
 		competitions: many(competitionsTable),
+		// Series-level registration questions
+		registrationQuestions: many(competitionRegistrationQuestionsTable),
 	}),
 )
 
@@ -579,6 +639,10 @@ export const competitionRegistrationQuestionsRelations = relations(
 		competition: one(competitionsTable, {
 			fields: [competitionRegistrationQuestionsTable.competitionId],
 			references: [competitionsTable.id],
+		}),
+		group: one(competitionGroupsTable, {
+			fields: [competitionRegistrationQuestionsTable.groupId],
+			references: [competitionGroupsTable.id],
 		}),
 		answers: many(competitionRegistrationAnswersTable),
 	}),

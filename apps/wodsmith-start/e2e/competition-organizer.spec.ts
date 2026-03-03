@@ -2,6 +2,9 @@ import {expect, test} from '@playwright/test'
 import {loginAsTestUser, waitForHydration} from './fixtures/auth'
 
 test.describe('Competition Organizer', () => {
+  // This test creates a competition, sets up divisions, and creates an event
+  test.setTimeout(60_000)
+
   test('should create competition, add division, and add event', async ({
     page,
   }) => {
@@ -32,7 +35,6 @@ test.describe('Competition Organizer', () => {
     await page.getByLabel('Competition Name').fill(uniqueName)
 
     // Clear and fill slug
-    // Use getByRole('textbox') to avoid matching Router DevTools buttons containing "slug" in aria-labels
     const slugInput = page.getByRole('textbox', {name: 'Slug'})
     await slugInput.clear()
     await slugInput.fill(slug)
@@ -60,21 +62,24 @@ test.describe('Competition Organizer', () => {
     // Wait for navigation back to organizer dashboard
     await page.waitForURL(/\/compete\/organizer/, {timeout: 15000})
 
-    // Find the newly created competition and navigate to it
+    // Find the newly created competition
     await expect(page.getByText(uniqueName)).toBeVisible({timeout: 10000})
-    await page.getByText(uniqueName).click()
 
-    // Navigate to divisions page
-    await page.waitForURL(/\/compete\/organizer\//, {timeout: 10000})
-    const divisionsLink = page.getByRole('link', {name: /divisions/i})
-    const divisionsVisible = await divisionsLink.waitFor({state: 'visible', timeout: 3000}).then(() => true).catch(() => false)
-    if (divisionsVisible) {
-      await divisionsLink.click()
-    } else {
-      // Navigate directly via URL pattern
-      const url = page.url()
-      await page.goto(`${url}/divisions`)
-    }
+    // Extract the manage URL from the link with title="Manage" button inside it
+    // The list is sorted newest-first, so grab the first manage link that's an organizer detail link
+    // (href like /compete/organizer/<ulid>, not /compete/organizer/new or /compete/organizer/series)
+    const allManageHrefs = await page.locator('a[href^="/compete/organizer/"] button[title="Manage"]').evaluateAll(
+      (buttons) => buttons.map((btn) => (btn.closest('a') as HTMLAnchorElement)?.getAttribute('href')).filter(Boolean)
+    )
+    // Filter to only competition detail links (exclude /new, /series, /settings paths)
+    const compDetailPath = allManageHrefs.find(
+      (href) => href && !href.includes('/new') && !href.includes('/series') && !href.includes('/settings')
+    )
+    expect(compDetailPath).toBeTruthy()
+
+    // Navigate directly to divisions page
+    await page.goto(`${compDetailPath}/divisions`)
+    await waitForHydration(page)
 
     // Set up divisions — click "Start Fresh" for default Open + Scaled
     const startFresh = page.getByRole('button', {name: /start fresh/i})
@@ -85,17 +90,8 @@ test.describe('Competition Organizer', () => {
       await expect(page.getByText(/open/i)).toBeVisible({timeout: 10000})
     }
 
-    // Navigate to events page
-    const eventsLink = page.getByRole('link', {name: /events/i})
-    const eventsVisible = await eventsLink.waitFor({state: 'visible', timeout: 3000}).then(() => true).catch(() => false)
-    if (eventsVisible) {
-      await eventsLink.click()
-    } else {
-      const url = page.url()
-      await page.goto(`${url}/events`)
-    }
-
-    // Wait for events page to be ready
+    // Navigate directly to events page
+    await page.goto(`${compDetailPath}/events`)
     await waitForHydration(page)
 
     // Create an event

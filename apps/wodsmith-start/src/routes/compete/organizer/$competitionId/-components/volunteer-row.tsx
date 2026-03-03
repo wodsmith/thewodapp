@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "@tanstack/react-router"
-import { Calendar, Check, X } from "lucide-react"
+import { Calendar, Check, ClipboardList, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -21,6 +21,12 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover"
+import {
+	Sheet,
+	SheetContent,
+	SheetHeader,
+	SheetTitle,
+} from "@/components/ui/sheet"
 import { TableCell, TableRow } from "@/components/ui/table"
 import type { User } from "@/db/schema"
 import {
@@ -29,6 +35,7 @@ import {
 	VOLUNTEER_ROLE_TYPE_VALUES,
 	type VolunteerRoleType,
 } from "@/db/schemas/volunteers"
+import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
 import {
 	addVolunteerRoleTypeFn,
 	grantScoreAccessFn,
@@ -62,6 +69,8 @@ interface VolunteerRowProps {
 	organizingTeamId: string
 	isSelected?: boolean
 	onToggleSelect?: (shiftKey: boolean) => void
+	answers: Array<{ id: string; questionId: string; answer: string }>
+	questions: RegistrationQuestion[]
 	assignments: {
 		shifts: Array<{
 			id: string
@@ -172,7 +181,10 @@ export function VolunteerRow({
 	isSelected = false,
 	onToggleSelect,
 	assignments,
+	answers,
+	questions,
 }: VolunteerRowProps) {
+	const [showResponses, setShowResponses] = useState(false)
 	const router = useRouter()
 	const metadata = parseMetadata(volunteer.metadata)
 	const [scoreAccess, setScoreAccess] = useState(volunteer.hasScoreAccess)
@@ -534,49 +546,97 @@ export function VolunteerRow({
 				/>
 			</TableCell>
 			<TableCell className="text-right">
-				{isPendingVolunteer ? (
-					<div className="flex items-center justify-end gap-2">
+				<div className="flex items-center justify-end gap-2">
+					{answers.length > 0 && (
 						<Button
 							size="sm"
 							variant="outline"
-							onClick={handleReject}
-							disabled={isPending}
+							onClick={() => setShowResponses(true)}
 						>
-							<X className="mr-1 h-4 w-4" />
-							Reject
+							<ClipboardList className="mr-1 h-4 w-4" />
+							Responses
 						</Button>
-						<Button size="sm" onClick={handleApprove} disabled={isPending}>
-							<Check className="mr-1 h-4 w-4" />
-							Approve
-						</Button>
-					</div>
-				) : (
-					<DropdownMenu>
-						<DropdownMenuTrigger
-							className="rounded-md px-3 py-2 text-sm hover:bg-accent"
-							disabled={isPending}
-						>
-							Edit Roles
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end">
-							<DropdownMenuLabel>Role Types</DropdownMenuLabel>
-							<DropdownMenuSeparator />
-							{VOLUNTEER_ROLE_TYPE_VALUES.map((roleType) => (
-								<DropdownMenuCheckboxItem
-									key={roleType}
-									checked={selectedRoles.has(roleType)}
-									onCheckedChange={(checked) =>
-										handleRoleTypeToggle(roleType, checked)
-									}
-									disabled={isPending}
-								>
-									{VOLUNTEER_ROLE_LABELS[roleType]}
-								</DropdownMenuCheckboxItem>
-							))}
-						</DropdownMenuContent>
-					</DropdownMenu>
-				)}
+					)}
+					{isPendingVolunteer ? (
+						<>
+							<Button
+								size="sm"
+								variant="outline"
+								onClick={handleReject}
+								disabled={isPending}
+							>
+								<X className="mr-1 h-4 w-4" />
+								Reject
+							</Button>
+							<Button size="sm" onClick={handleApprove} disabled={isPending}>
+								<Check className="mr-1 h-4 w-4" />
+								Approve
+							</Button>
+						</>
+					) : (
+						<DropdownMenu>
+							<DropdownMenuTrigger
+								className="rounded-md px-3 py-2 text-sm hover:bg-accent"
+								disabled={isPending}
+							>
+								Edit Roles
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end">
+								<DropdownMenuLabel>Role Types</DropdownMenuLabel>
+								<DropdownMenuSeparator />
+								{VOLUNTEER_ROLE_TYPE_VALUES.map((roleType) => (
+									<DropdownMenuCheckboxItem
+										key={roleType}
+										checked={selectedRoles.has(roleType)}
+										onCheckedChange={(checked) =>
+											handleRoleTypeToggle(roleType, checked)
+										}
+										disabled={isPending}
+									>
+										{VOLUNTEER_ROLE_LABELS[roleType]}
+									</DropdownMenuCheckboxItem>
+								))}
+							</DropdownMenuContent>
+						</DropdownMenu>
+					)}
+				</div>
 			</TableCell>
+
+			{/* Responses Drawer */}
+			<Sheet open={showResponses} onOpenChange={setShowResponses}>
+				<SheetContent className="w-[400px] sm:w-[540px]">
+					<SheetHeader>
+						<SheetTitle>Registration Responses — {displayName}</SheetTitle>
+					</SheetHeader>
+					<div className="mt-6 flex flex-col gap-6">
+						{questions.map((question) => {
+							const answer = answers.find((a) => a.questionId === question.id)
+							return (
+								<div key={question.id} className="flex flex-col gap-1">
+									<p className="text-sm font-medium">{question.label}</p>
+									{question.helpText && (
+										<p className="text-xs text-muted-foreground">
+											{question.helpText}
+										</p>
+									)}
+									<p className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+										{answer?.answer ?? (
+											<span className="text-muted-foreground italic">
+												No response
+											</span>
+										)}
+									</p>
+								</div>
+							)
+						})}
+						{questions.length === 0 && (
+							<p className="text-sm text-muted-foreground">
+								No registration questions configured.
+							</p>
+						)}
+					</div>
+				</SheetContent>
+			</Sheet>
 		</TableRow>
 	)
 }

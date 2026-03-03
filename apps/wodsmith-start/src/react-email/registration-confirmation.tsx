@@ -21,6 +21,10 @@ export interface RegistrationConfirmationProps {
 	pendingTeammateCount?: number
 	isPaid?: boolean
 	amountPaidFormatted?: string
+	pendingWaiverCount?: number
+	isPlaceholderUser?: boolean
+	email?: string
+	claimUrl?: string
 }
 
 export const RegistrationConfirmationEmail = ({
@@ -34,6 +38,9 @@ export const RegistrationConfirmationEmail = ({
 	pendingTeammateCount,
 	isPaid = false,
 	amountPaidFormatted,
+	pendingWaiverCount,
+	isPlaceholderUser,
+	claimUrl,
 }: RegistrationConfirmationProps) => {
 	const registrationUrl = `https://${SITE_DOMAIN}/compete/${competitionSlug}/teams/${registrationId}`
 
@@ -83,9 +90,35 @@ export const RegistrationConfirmationEmail = ({
 						</Section>
 					)}
 
+					{pendingWaiverCount !== undefined && pendingWaiverCount > 0 && (
+						<Section style={warningBox}>
+							<Text style={warningText}>
+								You have {pendingWaiverCount}{" "}
+								{pendingWaiverCount === 1 ? "waiver" : "waivers"} to sign before
+								your registration is complete. Please visit your registration
+								page to review and sign{" "}
+								{pendingWaiverCount === 1 ? "it" : "them"}.
+							</Text>
+						</Section>
+					)}
+
+					{isPlaceholderUser && (
+						<Section style={warningBox}>
+							<Text style={warningText}>
+								An account has been created for you. Click the button below to
+								set your password and claim your account.
+							</Text>
+						</Section>
+					)}
+
 					<Section style={buttonContainer}>
-						<Link style={button} href={registrationUrl}>
-							View Registration
+						<Link
+							style={button}
+							href={isPlaceholderUser && claimUrl ? claimUrl : registrationUrl}
+						>
+							{isPlaceholderUser && claimUrl
+								? "Claim Your Account"
+								: "View Registration"}
 						</Link>
 					</Section>
 

@@ -6,7 +6,7 @@ import {
 	useRouter,
 } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { Captcha } from "@/components/captcha"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -35,15 +35,17 @@ import {
 	type SignUpInput,
 	signUpFn,
 	signUpSchema,
+	validateClaimTokenFn,
 } from "@/server-fns/auth-fns"
 
 export const Route = createFileRoute("/_auth/sign-up")({
 	component: SignUpPage,
-	validateSearch: (search: Record<string, unknown>) => {
-		return {
-			redirect: (search.redirect as string) || REDIRECT_AFTER_SIGN_IN,
-		}
-	},
+	validateSearch: (
+		search: Record<string, unknown>,
+	): { redirect: string; claim?: string } => ({
+		redirect: (search.redirect as string) || REDIRECT_AFTER_SIGN_IN,
+		claim: (search.claim as string) || undefined,
+	}),
 	beforeLoad: async ({ search }) => {
 		const session = await getSessionFn()
 		const redirectPath =
@@ -52,14 +54,35 @@ export const Route = createFileRoute("/_auth/sign-up")({
 		if (session) {
 			throw redirect({ to: redirectPath })
 		}
+
+		const claim = (search as { claim?: string }).claim
+		if (claim) {
+			const result = await validateClaimTokenFn({ data: { token: claim } })
+			if (result.valid) {
+				return {
+					claimValid: true as const,
+					claimEmail: result.email,
+					claimFirstName: result.firstName,
+					claimLastName: result.lastName,
+				}
+			}
+			return {
+				claimValid: false as const,
+				claimError: result.error,
+			}
+		}
+
+		return {}
 	},
 })
 
 function SignUpPage() {
 	const router = useRouter()
-	const { redirect: redirectPath } = Route.useSearch()
+	const { redirect: redirectPath, claim } = Route.useSearch()
+	const routeData = Route.useRouteContext()
 	const [error, setError] = useState<string | null>(null)
 	const [isLoading, setIsLoading] = useState(false)
+	const [needsVerification, setNeedsVerification] = useState(false)
 
 	// PostHog tracking hooks
 	const trackEvent = useTrackEvent()
@@ -67,6 +90,21 @@ function SignUpPage() {
 
 	// Use useServerFn for client-side calls
 	const signUp = useServerFn(signUpFn)
+
+	const claimValid =
+		"claimValid" in routeData ? routeData.claimValid : undefined
+	const claimEmail =
+		"claimEmail" in routeData ? (routeData.claimEmail as string | null) : null
+	const claimFirstName =
+		"claimFirstName" in routeData
+			? (routeData.claimFirstName as string | null)
+			: null
+	const claimLastName =
+		"claimLastName" in routeData
+			? (routeData.claimLastName as string | null)
+			: null
+	const claimError =
+		"claimError" in routeData ? (routeData.claimError as string) : undefined
 
 	const form = useForm<SignUpInput>({
 		resolver: standardSchemaResolver(signUpSchema),
@@ -78,12 +116,40 @@ function SignUpPage() {
 		},
 	})
 
+	// Pre-fill form when claim token is valid
+	useEffect(() => {
+		if (claimValid && claimEmail) {
+			form.setValue("email", claimEmail)
+		}
+		if (claimValid && claimFirstName) {
+			form.setValue("firstName", claimFirstName)
+		}
+		if (claimValid && claimLastName) {
+			form.setValue("lastName", claimLastName)
+		}
+	}, [claimValid, claimEmail, claimFirstName, claimLastName, form])
+
 	const onSubmit = async (data: SignUpInput) => {
 		try {
 			setIsLoading(true)
 			setError(null)
 
-			const result = await signUp({ data })
+			const result = await signUp({
+				data: {
+					...data,
+					claimToken: claim,
+				},
+			})
+
+			// Check if email verification is required
+			if (result.requiresVerification) {
+				setNeedsVerification(true)
+				trackEvent("user_signed_up", {
+					auth_method: "email_password",
+					requires_verification: true,
+				})
+				return
+			}
 
 			// Identify user and track successful sign-up
 			identifyUser(result.userId, {
@@ -107,26 +173,87 @@ function SignUpPage() {
 		}
 	}
 
+	// Show "check your email" state after signup without claim token
+	if (needsVerification) {
+		return (
+			<div className="min-h-[90vh] flex items-center px-4 justify-center bg-background my-6 md:my-10">
+				<Card className="w-full max-w-md">
+					<CardHeader className="text-center">
+						<CardTitle className="text-2xl">Check Your Email</CardTitle>
+						<CardDescription>
+							We&apos;ve sent a verification email to your address. Please click
+							the link in the email to verify your account before signing in.
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<Link
+							to="/sign-in"
+							search={{ redirect: redirectPath }}
+							className="w-full block"
+						>
+							<Button variant="outline" className="w-full">
+								Go to Sign In
+							</Button>
+						</Link>
+					</CardContent>
+				</Card>
+			</div>
+		)
+	}
+
+	// Show error if claim token is invalid/expired
+	if (claim && claimValid === false) {
+		return (
+			<div className="min-h-[90vh] flex items-center px-4 justify-center bg-background my-6 md:my-10">
+				<Card className="w-full max-w-md">
+					<CardHeader className="text-center">
+						<CardTitle className="text-2xl">Invalid Link</CardTitle>
+						<CardDescription>
+							{claimError || "This claim link is invalid or has expired."}
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-3">
+						<p className="text-sm text-muted-foreground text-center">
+							You can still create your account by signing up with your email
+							address. You&apos;ll need to verify your email before signing in.
+						</p>
+						<Link to="/sign-up" search={{ redirect: redirectPath }}>
+							<Button variant="outline" className="w-full">
+								Sign Up Without Link
+							</Button>
+						</Link>
+					</CardContent>
+				</Card>
+			</div>
+		)
+	}
+
 	return (
 		<div className="min-h-[90vh] flex items-center px-4 justify-center bg-background my-6 md:my-10">
 			<Card className="w-full max-w-md">
 				<CardHeader className="text-center">
-					<CardTitle className="text-2xl">Create Account</CardTitle>
+					<CardTitle className="text-2xl">
+						{claim && claimValid ? "Claim Your Account" : "Create Account"}
+					</CardTitle>
 					<CardDescription>
-						Already have an account?{" "}
-						<Link
-							to="/sign-in"
-							search={{ redirect: redirectPath }}
-							className="text-primary underline-offset-4 hover:underline"
-						>
-							Sign in
-						</Link>
+						{claim && claimValid ? (
+							"Set your password to complete your account setup."
+						) : (
+							<>
+								Already have an account?{" "}
+								<Link
+									to="/sign-in"
+									search={{ redirect: redirectPath }}
+									className="text-primary underline-offset-4 hover:underline"
+								>
+									Sign in
+								</Link>
+							</>
+						)}
 					</CardDescription>
 				</CardHeader>
 
 				<CardContent>
-					{/* TODO: Add Passkey registration when WebAuthn is implemented */}
-
 					{error && (
 						<Alert variant="destructive" className="mb-6">
 							<AlertDescription>{error}</AlertDescription>
@@ -145,7 +272,9 @@ function SignUpPage() {
 											<Input
 												type="email"
 												placeholder="you@example.com"
-												disabled={isLoading}
+												disabled={
+													isLoading || (claim != null && claimValid === true)
+												}
 												{...field}
 											/>
 										</FormControl>
@@ -218,7 +347,11 @@ function SignUpPage() {
 								/>
 
 								<Button type="submit" className="w-full" disabled={isLoading}>
-									{isLoading ? "Creating account..." : "Create Account"}
+									{isLoading
+										? "Creating account..."
+										: claim && claimValid
+											? "Claim Account"
+											: "Create Account"}
 								</Button>
 							</div>
 						</form>

@@ -9,11 +9,12 @@
  */
 
 import { createId } from "@paralleldrive/cuid2"
-import { and, eq, inArray, sql } from "drizzle-orm"
+import { and, count, eq, inArray, ne, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	competitionRegistrationsTable,
 	competitionsTable,
+	REGISTRATION_STATUS,
 	SYSTEM_ROLES_ENUM,
 	scalingLevelsTable,
 	TEAM_TYPE_ENUM,
@@ -21,12 +22,15 @@ import {
 	teamMembershipTable,
 	teamTable,
 	userTable,
+	waiversTable,
+	waiverSignaturesTable,
 } from "@/db/schema"
 import {
 	createTeamId,
 	createTeamMembershipId,
 	createCompetitionRegistrationId,
 } from "@/db/schemas/common"
+import { getSiteUrl } from "@/lib/env"
 import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 import { RegistrationConfirmationEmail } from "@/react-email/registration-confirmation"
 import { parseCompetitionSettings } from "@/server-fns/competition-divisions-fns"
@@ -304,6 +308,8 @@ interface RegisterForCompetitionParams {
 		lastName?: string
 		affiliateName?: string
 	}>
+	/** When true, skip registration window checks (for organizer manual registrations) */
+	isOrganizerOverride?: boolean
 }
 
 interface RegisterForCompetitionResult {
@@ -318,6 +324,12 @@ interface NotifyRegistrationConfirmedParams {
 	competitionId: string
 	isPaid: boolean
 	amountPaidCents?: number
+	/** Number of pending waivers (queried from DB if not provided) */
+	pendingWaiverCount?: number
+	/** Whether the user is a placeholder (created by manual registration) */
+	isPlaceholderUser?: boolean
+	/** Claim token for placeholder users to verify email ownership */
+	claimToken?: string
 	/** Pre-fetched entities to avoid redundant DB queries (used by workflow) */
 	prefetched?: {
 		user?: {
@@ -384,22 +396,25 @@ export async function registerForCompetition(
 	}
 
 	// 2. Check registration window (using competition's timezone)
-	const competitionTimezone = competition.timezone || DEFAULT_TIMEZONE
-	if (
-		!hasDateStartedInTimezone(
-			competition.registrationOpensAt,
-			competitionTimezone,
-		)
-	) {
-		throw new Error("Registration has not opened yet")
-	}
-	if (
-		isDeadlinePassedInTimezone(
-			competition.registrationClosesAt,
-			competitionTimezone,
-		)
-	) {
-		throw new Error("Registration has closed")
+	// Organizer overrides bypass registration window checks
+	if (!params.isOrganizerOverride) {
+		const competitionTimezone = competition.timezone || DEFAULT_TIMEZONE
+		if (
+			!hasDateStartedInTimezone(
+				competition.registrationOpensAt,
+				competitionTimezone,
+			)
+		) {
+			throw new Error("Registration has not opened yet")
+		}
+		if (
+			isDeadlinePassedInTimezone(
+				competition.registrationClosesAt,
+				competitionTimezone,
+			)
+		) {
+			throw new Error("Registration has closed")
+		}
 	}
 
 	// 3. Get the user to validate profile completeness
@@ -467,12 +482,14 @@ export async function registerForCompetition(
 
 	// 8. Check for duplicate registration in the SAME division (as captain)
 	// Users CAN register for multiple divisions in the same competition
+	// Exclude removed registrations so athletes can re-register after removal
 	const existingRegistration =
 		await db.query.competitionRegistrationsTable.findFirst({
 			where: and(
 				eq(competitionRegistrationsTable.eventId, params.competitionId),
 				eq(competitionRegistrationsTable.userId, params.userId),
 				eq(competitionRegistrationsTable.divisionId, params.divisionId),
+				ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 			),
 		})
 
@@ -561,14 +578,16 @@ export async function registerForCompetition(
 						eq(competitionRegistrationsTable.eventId, params.competitionId),
 						eq(competitionRegistrationsTable.divisionId, params.divisionId),
 						inArray(competitionRegistrationsTable.userId, teammateUserIds),
+						ne(
+							competitionRegistrationsTable.status,
+							REGISTRATION_STATUS.REMOVED,
+						),
 					),
 				)
 
 			if (existingRegs.length > 0) {
 				const regEmail = emailByUserId.get(existingRegs[0].userId)
-				throw new Error(
-					`${regEmail} is already registered for this division`,
-				)
+				throw new Error(`${regEmail} is already registered for this division`)
 			}
 
 			// Batch check: are any of these users on a competition_team for this DIVISION?
@@ -593,9 +612,7 @@ export async function registerForCompetition(
 				const memberEmail = emailByUserId.get(
 					existingCompTeamMemberships[0].userId,
 				)
-				throw new Error(
-					`${memberEmail} is already on a team for this division`,
-				)
+				throw new Error(`${memberEmail} is already on a team for this division`)
 			}
 		}
 
@@ -790,10 +807,10 @@ export async function registerForCompetition(
 // ============================================================================
 
 /**
- * Send registration confirmation email
- * Called after both free and paid registration completes
+ * Send registration confirmation email (throws on error).
+ * Used by workflow steps so errors propagate and trigger retries.
  */
-export async function notifyRegistrationConfirmed(
+export async function sendRegistrationConfirmationEmail(
 	params: NotifyRegistrationConfirmedParams,
 ): Promise<void> {
 	const {
@@ -802,105 +819,155 @@ export async function notifyRegistrationConfirmed(
 		competitionId,
 		isPaid,
 		amountPaidCents,
+		pendingWaiverCount: pendingWaiverCountParam,
+		isPlaceholderUser,
+		claimToken,
 		prefetched,
 	} = params
 
-	try {
-		const db = getDb()
+	const db = getDb()
 
-		// Use prefetched user or fetch from DB
-		const user =
-			prefetched?.user ??
-			(await db.query.userTable.findFirst({
-				where: eq(userTable.id, userId),
-			}))
+	// Use prefetched user or fetch from DB
+	const user =
+		prefetched?.user ??
+		(await db.query.userTable.findFirst({
+			where: eq(userTable.id, userId),
+		}))
 
-		if (!user?.email) {
-			logError({
-				message: "[Email] Cannot send registration confirmation - no email",
-				attributes: { userId, registrationId },
-			})
-			return
-		}
-
-		// Use prefetched competition or fetch from DB
-		const competition =
-			prefetched?.competition ??
-			(await db.query.competitionsTable.findFirst({
-				where: eq(competitionsTable.id, competitionId),
-			}))
-
-		if (!competition) {
-			logError({
-				message:
-					"[Email] Cannot send registration confirmation - no competition",
-				attributes: { competitionId, registrationId },
-			})
-			return
-		}
-
-		// Use prefetched registration or fetch from DB
-		const registration =
-			prefetched?.registration ??
-			(await db.query.competitionRegistrationsTable.findFirst({
-				where: eq(competitionRegistrationsTable.id, registrationId),
-			}))
-
-		if (!registration) {
-			logError({
-				message:
-					"[Email] Cannot send registration confirmation - no registration",
-				attributes: { registrationId },
-			})
-			return
-		}
-
-		// Use prefetched division name or fetch from DB
-		let divisionName = prefetched?.divisionName ?? "Open"
-		if (!prefetched?.divisionName && registration.divisionId) {
-			const division = await db.query.scalingLevelsTable.findFirst({
-				where: eq(scalingLevelsTable.id, registration.divisionId),
-			})
-			if (division) {
-				divisionName = division.label
-			}
-		}
-
-		// Count pending teammates
-		const pendingTeammateCount = parsePendingTeammateCount(
-			registration.pendingTeammates,
+	if (!user?.email) {
+		throw new Error(
+			`Cannot send registration confirmation - no email for user ${userId}`,
 		)
+	}
 
-		const athleteName = getAthleteName(user)
+	// Use prefetched competition or fetch from DB
+	const competition =
+		prefetched?.competition ??
+		(await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, competitionId),
+		}))
 
-		await sendEmail({
-			to: user.email,
-			subject: `Registration Confirmed: ${competition.name}`,
-			template: RegistrationConfirmationEmail({
-				athleteName,
-				competitionName: competition.name,
-				competitionSlug: competition.slug,
-				registrationId: registration.id,
-				competitionDate: formatDate(competition.startDate),
-				divisionName,
-				teamName: registration.teamName ?? undefined,
-				pendingTeammateCount:
-					pendingTeammateCount > 0 ? pendingTeammateCount : undefined,
-				isPaid,
-				amountPaidFormatted: amountPaidCents
-					? formatCents(amountPaidCents)
-					: undefined,
-			}),
-			tags: [{ name: "type", value: "compete-registration-confirmed" }],
+	if (!competition) {
+		throw new Error(
+			`Cannot send registration confirmation - competition ${competitionId} not found`,
+		)
+	}
+
+	// Use prefetched registration or fetch from DB
+	const registration =
+		prefetched?.registration ??
+		(await db.query.competitionRegistrationsTable.findFirst({
+			where: eq(competitionRegistrationsTable.id, registrationId),
+		}))
+
+	if (!registration) {
+		throw new Error(
+			`Cannot send registration confirmation - registration ${registrationId} not found`,
+		)
+	}
+
+	// Use prefetched division name or fetch from DB
+	let divisionName = prefetched?.divisionName ?? "Open"
+	if (!prefetched?.divisionName && registration.divisionId) {
+		const division = await db.query.scalingLevelsTable.findFirst({
+			where: eq(scalingLevelsTable.id, registration.divisionId),
 		})
+		if (division) {
+			divisionName = division.label
+		}
+	}
 
+	// Count pending teammates
+	const pendingTeammateCount = parsePendingTeammateCount(
+		registration.pendingTeammates,
+	)
+
+	// Query pending waiver count if not provided
+	let pendingWaiverCount = pendingWaiverCountParam
+	if (pendingWaiverCount === undefined) {
+		// Count required waivers for this competition that the user hasn't signed
+		const totalWaivers = await db
+			.select({ count: count() })
+			.from(waiversTable)
+			.where(
+				and(
+					eq(waiversTable.competitionId, competitionId),
+					eq(waiversTable.required, true),
+				),
+			)
+
+		const signedWaivers = await db
+			.select({ count: count() })
+			.from(waiverSignaturesTable)
+			.innerJoin(
+				waiversTable,
+				eq(waiverSignaturesTable.waiverId, waiversTable.id),
+			)
+			.where(
+				and(
+					eq(waiversTable.competitionId, competitionId),
+					eq(waiversTable.required, true),
+					eq(waiverSignaturesTable.userId, userId),
+				),
+			)
+
+		const totalCount = Number(totalWaivers[0]?.count ?? 0)
+		const signedCount = Number(signedWaivers[0]?.count ?? 0)
+		pendingWaiverCount = Math.max(0, totalCount - signedCount)
+	}
+
+	const athleteName = getAthleteName(user)
+
+	// Build claim URL for placeholder users
+	const claimUrl =
+		isPlaceholderUser && claimToken
+			? `${getSiteUrl()}/sign-up?claim=${claimToken}`
+			: undefined
+
+	await sendEmail({
+		to: user.email,
+		subject: `Registration Confirmed: ${competition.name}`,
+		template: RegistrationConfirmationEmail({
+			athleteName,
+			competitionName: competition.name,
+			competitionSlug: competition.slug,
+			registrationId: registration.id,
+			competitionDate: formatDate(competition.startDate),
+			divisionName,
+			teamName: registration.teamName ?? undefined,
+			pendingTeammateCount:
+				pendingTeammateCount > 0 ? pendingTeammateCount : undefined,
+			isPaid,
+			amountPaidFormatted: amountPaidCents
+				? formatCents(amountPaidCents)
+				: undefined,
+			pendingWaiverCount:
+				pendingWaiverCount > 0 ? pendingWaiverCount : undefined,
+			isPlaceholderUser,
+			email: user.email,
+			claimUrl,
+		}),
+		tags: [{ name: "type", value: "compete-registration-confirmed" }],
+	})
+}
+
+/**
+ * Send registration confirmation email (backwards-compatible wrapper).
+ * Catches errors and logs them. Used by existing callers (free registration, stripe workflow).
+ */
+export async function notifyRegistrationConfirmed(
+	params: NotifyRegistrationConfirmedParams,
+): Promise<void> {
+	const { userId, registrationId, competitionId } = params
+
+	try {
+		await sendRegistrationConfirmationEmail(params)
 		logInfo({
 			message: "[Email] Sent registration confirmation",
 			attributes: {
 				userId,
 				registrationId,
 				competitionId,
-				competitionName: competition.name,
 			},
 		})
 	} catch (err) {

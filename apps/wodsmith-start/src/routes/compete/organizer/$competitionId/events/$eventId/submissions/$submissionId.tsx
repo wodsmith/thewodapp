@@ -1,14 +1,30 @@
 /**
- * Submission Detail Route
+ * Organizer Video Submission Review Detail Route
  *
- * Organizer page for viewing and verifying an individual athlete video submission.
- * Displays the video, athlete info, score details, and event context.
- * Includes navigation to previous/next submissions.
+ * Single submission review page where organizers can watch the video,
+ * see the claimed score, and mark as reviewed.
  */
 
-// @ts-nocheck - Route types will be generated when dev server runs
-
-import { createFileRoute, getRouteApi, Link, notFound } from "@tanstack/react-router"
+import {
+	createFileRoute,
+	getRouteApi,
+	Link,
+	useRouter,
+} from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
+import {
+	ArrowLeft,
+	Calendar,
+	CheckCircle2,
+	Clock,
+	ExternalLink,
+	FileText,
+	Trophy,
+	Undo2,
+	User,
+} from "lucide-react"
+import { useState } from "react"
+import { isYouTubeUrl, YouTubeEmbed } from "@/components/compete/youtube-embed"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -20,23 +36,13 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { VideoEmbed } from "@/components/video-embed"
 import {
-	ArrowLeft,
-	ChevronLeft,
-	ChevronRight,
-	Clock,
-	ExternalLink,
-	Mail,
-	User,
-} from "lucide-react"
-import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
-import {
-	getEventSubmissionsFn,
-	getSubmissionDetailFn,
-} from "@/server-fns/submission-verification-fns"
+	getOrganizerSubmissionDetailFn,
+	markSubmissionReviewedFn,
+	unmarkSubmissionReviewedFn,
+} from "@/server-fns/video-submission-fns"
+import { isSafeUrl } from "@/utils/url"
 
-// Get parent route API to access its loader data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 
 export const Route = createFileRoute(
@@ -44,88 +50,79 @@ export const Route = createFileRoute(
 )({
 	component: SubmissionDetailPage,
 	loader: async ({ params }) => {
-		// Get competition for context
-		const { competition } = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
+		const result = await getOrganizerSubmissionDetailFn({
+			data: {
+				submissionId: params.submissionId,
+				competitionId: params.competitionId,
+			},
 		})
 
-		if (!competition) {
-			throw new Error("Competition not found")
+		if (!result.submission) {
+			throw new Error("Submission not found")
 		}
 
-		// Fetch submission detail and all submissions (for navigation) in parallel
-		const [detailResult, allSubmissionsResult] = await Promise.all([
-			getSubmissionDetailFn({
-				data: {
-					competitionId: params.competitionId,
-					trackWorkoutId: params.eventId,
-					scoreId: params.submissionId,
-				},
-			}),
-			getEventSubmissionsFn({
-				data: {
-					competitionId: params.competitionId,
-					trackWorkoutId: params.eventId,
-				},
-			}),
-		])
-
-		if (!detailResult.submission) {
-			throw notFound()
-		}
-
-		// Find current position and navigation
-		const allSubmissions = allSubmissionsResult.submissions
-		const currentIndex = allSubmissions.findIndex(
-			(s) => s.id === params.submissionId,
-		)
-
-		const navigation = {
-			previous: currentIndex > 0 ? allSubmissions[currentIndex - 1]?.id : null,
-			next:
-				currentIndex < allSubmissions.length - 1
-					? allSubmissions[currentIndex + 1]?.id
-					: null,
-			current: currentIndex + 1,
-			total: allSubmissions.length,
-		}
-
-		return {
-			submission: detailResult.submission,
-			event: detailResult.event,
-			navigation,
-			timezone: competition.timezone || "America/Denver",
-		}
+		return { submission: result.submission }
 	},
 })
 
-function formatDate(date: Date, timezone: string): string {
-	return new Intl.DateTimeFormat("en-US", {
-		dateStyle: "medium",
-		timeStyle: "short",
-		timeZone: timezone,
-	}).format(date)
-}
-
-function getInitials(firstName: string, lastName: string): string {
-	return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
-}
-
 function SubmissionDetailPage() {
-	const { submission, event, navigation, timezone } = Route.useLoaderData()
+	const { submission } = Route.useLoaderData()
 	const { competition } = parentRoute.useLoaderData()
 	const params = Route.useParams()
+	const router = useRouter()
+
+	const markReviewed = useServerFn(markSubmissionReviewedFn)
+	const unmarkReviewed = useServerFn(unmarkSubmissionReviewedFn)
+
+	const [isUpdating, setIsUpdating] = useState(false)
+
+	const isReviewed = submission.reviewStatus === "reviewed"
+	const isYouTube = isYouTubeUrl(submission.videoUrl)
+
+	const handleToggleReview = async () => {
+		setIsUpdating(true)
+		try {
+			if (isReviewed) {
+				await unmarkReviewed({
+					data: { submissionId: submission.id, competitionId: competition.id },
+				})
+			} else {
+				await markReviewed({
+					data: { submissionId: submission.id, competitionId: competition.id },
+				})
+			}
+			router.invalidate()
+		} finally {
+			setIsUpdating(false)
+		}
+	}
+
+	const formatDate = (date: Date | string) => {
+		return new Date(date).toLocaleDateString(undefined, {
+			year: "numeric",
+			month: "short",
+			day: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
+		})
+	}
+
+	const getInitials = (firstName: string | null, lastName: string | null) => {
+		const first = firstName?.[0] || ""
+		const last = lastName?.[0] || ""
+		return (first + last).toUpperCase() || "?"
+	}
 
 	return (
-		<>
-			{/* Header with Navigation */}
+		<div className="flex flex-col gap-6">
+			{/* Header */}
 			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-4">
-					<Button variant="ghost" size="icon" asChild>
+				<div className="flex items-center gap-3">
+					<Button asChild variant="ghost" size="icon">
 						<Link
 							to="/compete/organizer/$competitionId/events/$eventId/submissions"
 							params={{
-								competitionId: params.competitionId,
+								competitionId: competition.id,
 								eventId: params.eventId,
 							}}
 						>
@@ -133,134 +130,154 @@ function SubmissionDetailPage() {
 						</Link>
 					</Button>
 					<div>
-						<h1 className="text-3xl font-bold">Submission Verification</h1>
-						<p className="text-muted-foreground mt-1">
-							Event #{event.trackOrder} - {event.workout.name}
+						<h1 className="text-2xl font-bold">Review Submission</h1>
+						<p className="text-muted-foreground">
+							{submission.athlete.firstName} {submission.athlete.lastName}
 						</p>
 					</div>
 				</div>
 
-				{/* Navigation Controls */}
-				<div className="flex items-center gap-2">
-					<span className="text-muted-foreground text-sm">
-						{navigation.current} of {navigation.total}
-					</span>
+				{/* Review action */}
+				{isReviewed ? (
 					<Button
 						variant="outline"
-						size="icon"
-						disabled={!navigation.previous}
-						asChild={!!navigation.previous}
+						onClick={handleToggleReview}
+						disabled={isUpdating}
+						className="gap-2"
 					>
-						{navigation.previous ? (
-							<Link
-								to="/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId"
-								params={{
-									competitionId: params.competitionId,
-									eventId: params.eventId,
-									submissionId: navigation.previous,
-								}}
-							>
-								<ChevronLeft className="h-4 w-4" />
-							</Link>
-						) : (
-							<span>
-								<ChevronLeft className="h-4 w-4" />
-							</span>
-						)}
+						<Undo2 className="h-4 w-4" />
+						{isUpdating ? "Updating..." : "Unmark Reviewed"}
 					</Button>
+				) : (
 					<Button
-						variant="outline"
-						size="icon"
-						disabled={!navigation.next}
-						asChild={!!navigation.next}
+						onClick={handleToggleReview}
+						disabled={isUpdating}
+						className="gap-2 bg-green-600 hover:bg-green-700"
 					>
-						{navigation.next ? (
-							<Link
-								to="/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId"
-								params={{
-									competitionId: params.competitionId,
-									eventId: params.eventId,
-									submissionId: navigation.next,
-								}}
-							>
-								<ChevronRight className="h-4 w-4" />
-							</Link>
-						) : (
-							<span>
-								<ChevronRight className="h-4 w-4" />
-							</span>
-						)}
+						<CheckCircle2 className="h-4 w-4" />
+						{isUpdating ? "Updating..." : "Mark as Reviewed"}
 					</Button>
-				</div>
+				)}
 			</div>
 
+			{/* Status banner */}
+			{isReviewed ? (
+				<div className="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3">
+					<div className="flex items-center gap-2">
+						<CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+						<p className="text-sm text-green-700 dark:text-green-300">
+							This submission has been reviewed
+							{submission.reviewedAt && (
+								<span className="ml-1 text-green-600/70 dark:text-green-400/70">
+									on {formatDate(submission.reviewedAt)}
+								</span>
+							)}
+						</p>
+					</div>
+				</div>
+			) : (
+				<div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3">
+					<div className="flex items-center gap-2">
+						<Clock className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+						<p className="text-sm text-yellow-700 dark:text-yellow-300">
+							This submission is pending review
+						</p>
+					</div>
+				</div>
+			)}
+
 			<div className="grid gap-6 lg:grid-cols-3">
-				{/* Main Content - Video Player */}
-				<div className="lg:col-span-2 space-y-6">
-					{/* Video Card */}
+				{/* Video - takes 2 columns */}
+				<div className="lg:col-span-2">
 					<Card>
 						<CardHeader>
-							<CardTitle>Submission Video</CardTitle>
-							{submission.videoUrl && (
-								<CardDescription>
+							<CardTitle>Video</CardTitle>
+						</CardHeader>
+						<CardContent>
+							{isYouTube ? (
+								<YouTubeEmbed
+									url={submission.videoUrl}
+									title="Submission video"
+								/>
+							) : (
+								<div className="rounded-lg border bg-muted/50 p-6">
+									<div className="flex items-center gap-3">
+										<FileText className="h-5 w-5 text-muted-foreground" />
+										<div className="flex-1 min-w-0">
+											<p className="text-sm font-medium truncate">
+												{submission.videoUrl}
+											</p>
+											<p className="text-xs text-muted-foreground">
+												External video link
+											</p>
+										</div>
+										<a
+											href={
+												isSafeUrl(submission.videoUrl)
+													? submission.videoUrl
+													: "#"
+											}
+											target="_blank"
+											rel="noopener noreferrer"
+											className="flex items-center gap-1.5 text-sm text-primary hover:underline shrink-0"
+										>
+											<ExternalLink className="h-4 w-4" />
+											Open
+										</a>
+									</div>
+								</div>
+							)}
+
+							{/* Direct link below embed */}
+							{isYouTube && (
+								<div className="mt-3">
 									<a
-										href={submission.videoUrl}
+										href={
+											isSafeUrl(submission.videoUrl) ? submission.videoUrl : "#"
+										}
 										target="_blank"
 										rel="noopener noreferrer"
-										className="text-primary inline-flex items-center gap-1 hover:underline"
+										className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
 									>
-										Open original <ExternalLink className="h-3 w-3" />
+										<ExternalLink className="h-3.5 w-3.5" />
+										Open in YouTube
 									</a>
-								</CardDescription>
+								</div>
 							)}
-						</CardHeader>
-						<CardContent>
-							<VideoEmbed url={submission.videoUrl} className="w-full" />
 						</CardContent>
 					</Card>
 
-					{/* Event Details Card */}
-					<Card>
-						<CardHeader>
-							<CardTitle>Event Details</CardTitle>
-							<CardDescription>
-								Workout standards and description for reference
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<div className="space-y-4">
-								<div>
-									<h4 className="font-medium">{event.workout.name}</h4>
-									{event.workout.timeCap && (
-										<p className="text-muted-foreground text-sm">
-											Time Cap: {event.workout.timeCap} minutes
-										</p>
-									)}
-								</div>
-								<Separator />
-								<div className="prose prose-sm dark:prose-invert max-w-none">
-									<pre className="bg-muted whitespace-pre-wrap rounded-md p-4 text-sm">
-										{event.workout.description}
-									</pre>
-								</div>
-							</div>
-						</CardContent>
-					</Card>
+					{/* Notes */}
+					{submission.notes && (
+						<Card className="mt-6">
+							<CardHeader>
+								<CardTitle>Athlete Notes</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<p className="text-sm whitespace-pre-wrap">
+									{submission.notes}
+								</p>
+							</CardContent>
+						</Card>
+					)}
 				</div>
 
-				{/* Sidebar - Athlete & Score Info */}
-				<div className="space-y-6">
-					{/* Athlete Info Card */}
+				{/* Sidebar */}
+				<div className="flex flex-col gap-6">
+					{/* Athlete info */}
 					<Card>
 						<CardHeader>
-							<CardTitle>Athlete</CardTitle>
+							<CardTitle className="flex items-center gap-2">
+								<User className="h-4 w-4" />
+								Athlete
+							</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<div className="flex items-start gap-4">
-								<Avatar className="h-16 w-16">
+							<div className="flex items-center gap-3">
+								<Avatar className="h-10 w-10">
 									<AvatarImage
-										src={submission.athlete.avatar || undefined}
-										alt={`${submission.athlete.firstName} ${submission.athlete.lastName}`}
+										src={submission.athlete.avatar ?? undefined}
+										alt={`${submission.athlete.firstName ?? ""} ${submission.athlete.lastName ?? ""}`}
 									/>
 									<AvatarFallback>
 										{getInitials(
@@ -269,119 +286,98 @@ function SubmissionDetailPage() {
 										)}
 									</AvatarFallback>
 								</Avatar>
-								<div className="space-y-1">
-									<h3 className="font-semibold text-lg">
-										{submission.athlete.firstName} {submission.athlete.lastName}
-									</h3>
-									{submission.athlete.teamName && (
-										<p className="text-muted-foreground text-sm">
-											{submission.athlete.teamName}
-										</p>
-									)}
-									<Badge variant="outline">
-										{submission.athlete.divisionLabel}
-									</Badge>
-								</div>
-							</div>
-							<Separator className="my-4" />
-							<div className="space-y-2 text-sm">
-								<div className="flex items-center gap-2 text-muted-foreground">
-									<Mail className="h-4 w-4" />
-									<span>{submission.athlete.email}</span>
-								</div>
-								<div className="flex items-center gap-2 text-muted-foreground">
-									<User className="h-4 w-4" />
-									<span>ID: {submission.athlete.userId.slice(0, 12)}...</span>
-								</div>
-							</div>
-						</CardContent>
-					</Card>
-
-					{/* Score Info Card */}
-					<Card>
-						<CardHeader>
-							<CardTitle>Score Details</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<div className="space-y-4">
 								<div>
-									<p className="text-muted-foreground text-sm">Score</p>
-									<p className="font-mono text-2xl font-bold">
-										{submission.score.displayValue || "-"}
+									<p className="font-medium">
+										{submission.athlete.firstName} {submission.athlete.lastName}
+									</p>
+									<p className="text-sm text-muted-foreground">
+										{submission.athlete.email}
 									</p>
 								</div>
-								<div className="grid grid-cols-2 gap-4">
-									<div>
-										<p className="text-muted-foreground text-sm">Status</p>
-										<Badge
-											variant={
-												submission.score.status === "scored"
-													? "default"
-													: submission.score.status === "cap"
-														? "secondary"
-														: "destructive"
-											}
-											className="mt-1"
-										>
-											{submission.score.status}
-										</Badge>
-									</div>
-									{submission.score.tiebreakValue && (
-										<div>
-											<p className="text-muted-foreground text-sm">Tiebreak</p>
-											<p className="font-mono mt-1">
-												{submission.score.tiebreakValue}
-											</p>
-										</div>
-									)}
-								</div>
-								{submission.score.status === "cap" &&
-									submission.score.secondaryValue !== null && (
-										<div>
-											<p className="text-muted-foreground text-sm">
-												Reps Completed at Cap
-											</p>
-											<p className="font-mono">{submission.score.secondaryValue}</p>
-										</div>
-									)}
-								<Separator />
-								<div className="flex items-center gap-2 text-muted-foreground text-sm">
-									<Clock className="h-4 w-4" />
-									<span>
-										Submitted {formatDate(new Date(submission.submittedAt), timezone)}
-									</span>
-								</div>
 							</div>
+
+							{submission.teamName && (
+								<>
+									<Separator className="my-3" />
+									<p className="text-sm">
+										<span className="text-muted-foreground">Team: </span>
+										{submission.teamName}
+									</p>
+								</>
+							)}
+
+							{submission.division && (
+								<>
+									<Separator className="my-3" />
+									<p className="text-sm">
+										<span className="text-muted-foreground">Division: </span>
+										<Badge variant="outline" className="ml-1">
+											{submission.division.label}
+										</Badge>
+									</p>
+								</>
+							)}
 						</CardContent>
 					</Card>
 
-					{/* Notes Card (if any) */}
-					{submission.notes && (
-						<Card>
-							<CardHeader>
-								<CardTitle>Athlete Notes</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<p className="text-muted-foreground text-sm whitespace-pre-wrap">
-									{submission.notes}
-								</p>
-							</CardContent>
-						</Card>
-					)}
-
-					{/* Placeholder for Future Controls */}
-					<Card className="border-dashed">
+					{/* Claimed score */}
+					<Card>
 						<CardHeader>
-							<CardTitle className="text-muted-foreground">
-								Verification Controls
+							<CardTitle className="flex items-center gap-2">
+								<Trophy className="h-4 w-4 text-amber-500" />
+								Claimed Score
 							</CardTitle>
-							<CardDescription>
-								Penalty and score verification controls will be added here
-							</CardDescription>
+							<CardDescription>Self-reported by athlete</CardDescription>
 						</CardHeader>
+						<CardContent>
+							{submission.score?.displayScore ? (
+								<div>
+									<p className="text-3xl font-mono font-bold">
+										{submission.score.displayScore}
+									</p>
+									{submission.score.status === "cap" && (
+										<Badge variant="secondary" className="mt-2">
+											Capped
+										</Badge>
+									)}
+								</div>
+							) : (
+								<p className="text-muted-foreground">No score submitted</p>
+							)}
+						</CardContent>
+					</Card>
+
+					{/* Submission metadata */}
+					<Card>
+						<CardHeader>
+							<CardTitle className="flex items-center gap-2">
+								<Calendar className="h-4 w-4" />
+								Submission Info
+							</CardTitle>
+						</CardHeader>
+						<CardContent className="space-y-2 text-sm">
+							<div className="flex justify-between">
+								<span className="text-muted-foreground">Submitted</span>
+								<span>{formatDate(submission.submittedAt)}</span>
+							</div>
+							<div className="flex justify-between">
+								<span className="text-muted-foreground">Status</span>
+								{isReviewed ? (
+									<Badge variant="default" className="gap-1 bg-green-600">
+										<CheckCircle2 className="h-3 w-3" />
+										Reviewed
+									</Badge>
+								) : (
+									<Badge variant="secondary" className="gap-1">
+										<Clock className="h-3 w-3" />
+										Pending
+									</Badge>
+								)}
+							</div>
+						</CardContent>
 					</Card>
 				</div>
 			</div>
-		</>
+		</div>
 	)
 }

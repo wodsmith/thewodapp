@@ -14,6 +14,7 @@ import {
 	createCommerceProductId,
 	createCommercePurchaseId,
 	createCompetitionDivisionFeeId,
+	createPurchaseTransferId,
 } from "./common"
 import { competitionsTable } from "./competitions"
 import { scalingLevelsTable } from "./scaling"
@@ -45,6 +46,8 @@ export const COMMERCE_PAYMENT_STATUS = {
 	PENDING_PAYMENT: "PENDING_PAYMENT",
 	PAID: "PAID",
 	FAILED: "FAILED",
+	COMP: "COMP",
+	PAID_OFFLINE: "PAID_OFFLINE",
 } as const
 
 export type CommercePaymentStatus =
@@ -167,12 +170,69 @@ export const competitionDivisionsTable = mysqlTable(
 // Backward compatibility alias
 export const competitionDivisionFeesTable = competitionDivisionsTable
 
+// Transfer states — two-phase: organizer initiates, target user accepts
+export const PURCHASE_TRANSFER_STATUS = {
+	INITIATED: "INITIATED",
+	COMPLETED: "COMPLETED",
+	CANCELLED: "CANCELLED",
+	EXPIRED: "EXPIRED",
+} as const
+
+export type PurchaseTransferStatus =
+	(typeof PURCHASE_TRANSFER_STATUS)[keyof typeof PURCHASE_TRANSFER_STATUS]
+
+/**
+ * Purchase Transfers Table
+ * Tracks transfer of a purchase (and its associated registration) from one person to another.
+ * Two-phase: organizer initiates → target user accepts via email link.
+ */
+export const purchaseTransfersTable = mysqlTable(
+	"purchase_transfers",
+	{
+		...commonColumns,
+		id: varchar({ length: 255 })
+			.primaryKey()
+			.$defaultFn(() => createPurchaseTransferId())
+			.notNull(),
+		// The purchase being transferred
+		purchaseId: varchar({ length: 255 }).notNull(),
+		// Who currently owns the purchase
+		sourceUserId: varchar({ length: 255 }).notNull(),
+		// Email the organizer sent the transfer to
+		targetEmail: varchar({ length: 255 }).notNull(),
+		// Email the target user actually accepted with (may differ from targetEmail)
+		acceptedEmail: varchar({ length: 255 }),
+		// Resolved target userId (set when they accept — NULL until then)
+		targetUserId: varchar({ length: 255 }),
+		// Current state
+		transferState: varchar({ length: 20 })
+			.$type<PurchaseTransferStatus>()
+			.notNull()
+			.default("INITIATED"),
+		// Who initiated the transfer (organizer userId)
+		initiatedBy: varchar({ length: 255 }).notNull(),
+		// Timestamps
+		expiresAt: datetime().notNull(),
+		completedAt: datetime(),
+		cancelledAt: datetime(),
+		// Optional notes from organizer
+		notes: text(),
+	},
+	(table) => [
+		index("purchase_transfers_purchase_idx").on(table.purchaseId),
+		index("purchase_transfers_source_idx").on(table.sourceUserId),
+		index("purchase_transfers_target_email_idx").on(table.targetEmail),
+		index("purchase_transfers_state_idx").on(table.transferState),
+	],
+)
+
 // Type exports
 export type CommerceProduct = InferSelectModel<typeof commerceProductTable>
 export type CommercePurchase = InferSelectModel<typeof commercePurchaseTable>
 export type CompetitionDivision = InferSelectModel<
 	typeof competitionDivisionsTable
 >
+export type PurchaseTransfer = InferSelectModel<typeof purchaseTransfersTable>
 // Backward compatibility alias
 export type CompetitionDivisionFee = CompetitionDivision
 
@@ -214,3 +274,28 @@ export const competitionDivisionsRelations = relations(
 
 // Backward compatibility alias
 export const competitionDivisionFeesRelations = competitionDivisionsRelations
+
+export const purchaseTransfersRelations = relations(
+	purchaseTransfersTable,
+	({ one }) => ({
+		purchase: one(commercePurchaseTable, {
+			fields: [purchaseTransfersTable.purchaseId],
+			references: [commercePurchaseTable.id],
+		}),
+		sourceUser: one(userTable, {
+			fields: [purchaseTransfersTable.sourceUserId],
+			references: [userTable.id],
+			relationName: "transferSourceUser",
+		}),
+		targetUser: one(userTable, {
+			fields: [purchaseTransfersTable.targetUserId],
+			references: [userTable.id],
+			relationName: "transferTargetUser",
+		}),
+		initiator: one(userTable, {
+			fields: [purchaseTransfersTable.initiatedBy],
+			references: [userTable.id],
+			relationName: "transferInitiator",
+		}),
+	}),
+)

@@ -10,13 +10,14 @@
  * @see @/lib/scoring/tiebreakers - Tiebreaker logic
  */
 
-import { and, eq, inArray } from "drizzle-orm"
+import { and, eq, inArray, ne } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	competitionHeatAssignmentsTable,
 	competitionHeatsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
+	REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import {
 	programmingTracksTable,
@@ -115,27 +116,27 @@ async function fetchScores(params: {
 	const db = getDb()
 
 	const scores = await db
-				.select({
-					id: scoresTable.id,
-					userId: scoresTable.userId,
-					competitionEventId: scoresTable.competitionEventId,
-					scheme: scoresTable.scheme,
-					scoreValue: scoresTable.scoreValue,
-					tiebreakScheme: scoresTable.tiebreakScheme,
-					tiebreakValue: scoresTable.tiebreakValue,
-					status: scoresTable.status,
-					statusOrder: scoresTable.statusOrder,
-					sortKey: scoresTable.sortKey,
-					secondaryValue: scoresTable.secondaryValue,
-					timeCapMs: scoresTable.timeCapMs,
-				})
-				.from(scoresTable)
-				.where(
-					and(
-						inArray(scoresTable.competitionEventId, params.trackWorkoutIds),
-						inArray(scoresTable.userId, params.userIds),
-					),
-				)
+		.select({
+			id: scoresTable.id,
+			userId: scoresTable.userId,
+			competitionEventId: scoresTable.competitionEventId,
+			scheme: scoresTable.scheme,
+			scoreValue: scoresTable.scoreValue,
+			tiebreakScheme: scoresTable.tiebreakScheme,
+			tiebreakValue: scoresTable.tiebreakValue,
+			status: scoresTable.status,
+			statusOrder: scoresTable.statusOrder,
+			sortKey: scoresTable.sortKey,
+			secondaryValue: scoresTable.secondaryValue,
+			timeCapMs: scoresTable.timeCapMs,
+		})
+		.from(scoresTable)
+		.where(
+			and(
+				inArray(scoresTable.competitionEventId, params.trackWorkoutIds),
+				inArray(scoresTable.userId, params.userIds),
+			),
+		)
 
 	return scores
 }
@@ -295,13 +296,13 @@ export async function getCompetitionLeaderboard(params: {
 	if (params.divisionId) {
 		const trackWorkoutIds = trackWorkouts.map((tw) => tw.id)
 		const heatsForWorkouts = await db
-					.select({
-						id: competitionHeatsTable.id,
-						trackWorkoutId: competitionHeatsTable.trackWorkoutId,
-						divisionId: competitionHeatsTable.divisionId,
-					})
-					.from(competitionHeatsTable)
-					.where(inArray(competitionHeatsTable.trackWorkoutId, trackWorkoutIds))
+			.select({
+				id: competitionHeatsTable.id,
+				trackWorkoutId: competitionHeatsTable.trackWorkoutId,
+				divisionId: competitionHeatsTable.divisionId,
+			})
+			.from(competitionHeatsTable)
+			.where(inArray(competitionHeatsTable.trackWorkoutId, trackWorkoutIds))
 
 		// Fetch assignments for mixed heats (divisionId=null)
 		const mixedHeatIds = heatsForWorkouts
@@ -311,21 +312,21 @@ export async function getCompetitionLeaderboard(params: {
 		const mixedHeatAssignments =
 			mixedHeatIds.length > 0
 				? await db
-								.select({
-									heatId: competitionHeatAssignmentsTable.heatId,
-									divisionId: competitionRegistrationsTable.divisionId,
-								})
-								.from(competitionHeatAssignmentsTable)
-								.innerJoin(
-									competitionRegistrationsTable,
-									eq(
-										competitionHeatAssignmentsTable.registrationId,
-										competitionRegistrationsTable.id,
-									),
-								)
-								.where(
-									inArray(competitionHeatAssignmentsTable.heatId, mixedHeatIds),
-								)
+						.select({
+							heatId: competitionHeatAssignmentsTable.heatId,
+							divisionId: competitionRegistrationsTable.divisionId,
+						})
+						.from(competitionHeatAssignmentsTable)
+						.innerJoin(
+							competitionRegistrationsTable,
+							eq(
+								competitionHeatAssignmentsTable.registrationId,
+								competitionRegistrationsTable.id,
+							),
+						)
+						.where(
+							inArray(competitionHeatAssignmentsTable.heatId, mixedHeatIds),
+						)
 				: []
 
 		const relevantIds = getRelevantWorkoutIds({
@@ -361,7 +362,12 @@ export async function getCompetitionLeaderboard(params: {
 			scalingLevelsTable,
 			eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
 		)
-		.where(eq(competitionRegistrationsTable.eventId, params.competitionId))
+		.where(
+			and(
+				eq(competitionRegistrationsTable.eventId, params.competitionId),
+				ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+			),
+		)
 
 	if (registrations.length === 0) {
 		const events = filteredTrackWorkouts.map((tw) => ({
@@ -388,13 +394,18 @@ export async function getCompetitionLeaderboard(params: {
 	const allTeamMemberships =
 		athleteTeamIds.length > 0
 			? await db
-						.select({
-							membership: teamMembershipTable,
-							user: userTable,
-						})
-						.from(teamMembershipTable)
-						.innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
-						.where(inArray(teamMembershipTable.teamId, athleteTeamIds))
+					.select({
+						membership: teamMembershipTable,
+						user: userTable,
+					})
+					.from(teamMembershipTable)
+					.innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
+					.where(
+						and(
+							inArray(teamMembershipTable.teamId, athleteTeamIds),
+							eq(teamMembershipTable.isActive, true),
+						),
+					)
 			: []
 
 	// Group memberships by teamId

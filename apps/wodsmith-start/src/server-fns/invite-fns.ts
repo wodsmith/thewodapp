@@ -6,7 +6,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, count, eq, inArray } from "drizzle-orm"
+import { and, count, eq, inArray, or } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -24,6 +24,7 @@ import {
 import {
 	competitionRegistrationAnswersTable,
 	competitionRegistrationQuestionsTable,
+	volunteerRegistrationAnswersTable,
 } from "@/db/schemas/competitions"
 import type {
 	PendingInviteAnswer,
@@ -133,6 +134,14 @@ const acceptVolunteerInviteSchema = z.object({
 	availabilityNotes: z.string().optional(),
 	credentials: z.string().optional(),
 	signupPhone: z.string().optional(),
+	answers: z
+		.array(
+			z.object({
+				questionId: z.string().min(1),
+				answer: z.string().max(5000),
+			}),
+		)
+		.optional(),
 })
 
 const submitPendingInviteDataSchema = z.object({
@@ -522,16 +531,37 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 						competitionId?: string
 					}
 					if (compMeta.competitionId) {
-						// Validate required questions
-						const requiredQuestions =
-							await db.query.competitionRegistrationQuestionsTable.findMany({
-								where: and(
+						// Look up competition's groupId for series-level questions
+						const [comp] = await db
+							.select({ groupId: competitionsTable.groupId })
+							.from(competitionsTable)
+							.where(eq(competitionsTable.id, compMeta.competitionId))
+
+						// Validate required questions (competition-specific + series-level)
+						const questionConditions = [
+							and(
+								eq(
+									competitionRegistrationQuestionsTable.competitionId,
+									compMeta.competitionId,
+								),
+								eq(competitionRegistrationQuestionsTable.required, true),
+							),
+						]
+						if (comp?.groupId) {
+							questionConditions.push(
+								and(
 									eq(
-										competitionRegistrationQuestionsTable.competitionId,
-										compMeta.competitionId,
+										competitionRegistrationQuestionsTable.groupId,
+										comp.groupId,
 									),
 									eq(competitionRegistrationQuestionsTable.required, true),
 								),
+							)
+						}
+
+						const requiredQuestions =
+							await db.query.competitionRegistrationQuestionsTable.findMany({
+								where: or(...questionConditions),
 							})
 
 						const teammateRequiredQuestions = requiredQuestions.filter(
@@ -578,10 +608,7 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 							const existingSignatures =
 								await db.query.waiverSignaturesTable.findMany({
 									where: and(
-										inArray(
-											waiverSignaturesTable.waiverId,
-											requiredWaiverIds,
-										),
+										inArray(waiverSignaturesTable.waiverId, requiredWaiverIds),
 										eq(waiverSignaturesTable.userId, session.userId),
 									),
 									columns: { waiverId: true },
@@ -833,9 +860,7 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 							}> = []
 
 							for (const answerData of allAnswers) {
-								const existingId = existingAnswerMap.get(
-									answerData.questionId,
-								)
+								const existingId = existingAnswerMap.get(answerData.questionId)
 								if (existingId) {
 									// Update existing answer
 									await db
@@ -845,10 +870,7 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 											updatedAt: new Date(),
 										})
 										.where(
-											eq(
-												competitionRegistrationAnswersTable.id,
-												existingId,
-											),
+											eq(competitionRegistrationAnswersTable.id, existingId),
 										)
 								} else {
 									newAnswers.push({
@@ -879,15 +901,14 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 
 						if (invitation.metadata && registrationId) {
 							try {
-								inviteMetadata = JSON.parse(
-									invitation.metadata,
-								) as Record<string, unknown>
+								inviteMetadata = JSON.parse(invitation.metadata) as Record<
+									string,
+									unknown
+								>
 								if (Array.isArray(inviteMetadata.pendingSignatures)) {
 									pendingSignatures =
 										inviteMetadata.pendingSignatures as PendingWaiverSignature[]
-									allWaiverIds.push(
-										...pendingSignatures.map((s) => s.waiverId),
-									)
+									allWaiverIds.push(...pendingSignatures.map((s) => s.waiverId))
 								}
 							} catch {
 								// Invalid JSON, ignore
@@ -901,17 +922,12 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 							const existingSigs =
 								await db.query.waiverSignaturesTable.findMany({
 									where: and(
-										inArray(
-											waiverSignaturesTable.waiverId,
-											uniqueWaiverIds,
-										),
+										inArray(waiverSignaturesTable.waiverId, uniqueWaiverIds),
 										eq(waiverSignaturesTable.userId, session.userId),
 									),
 									columns: { waiverId: true },
 								})
-							existingWaiverIds = new Set(
-								existingSigs.map((s) => s.waiverId),
-							)
+							existingWaiverIds = new Set(existingSigs.map((s) => s.waiverId))
 						}
 
 						// Store waiver signatures submitted by authenticated user
@@ -1118,6 +1134,20 @@ export const acceptVolunteerInviteFn = createServerFn({ method: "POST" })
 				updatedAt: new Date(),
 			})
 			.where(eq(teamInvitationTable.id, invitation.id))
+
+		// Save registration question answers if provided
+		if (data.answers && data.answers.length > 0) {
+			for (const { questionId, answer } of data.answers) {
+				await db
+					.insert(volunteerRegistrationAnswersTable)
+					.values({
+						questionId,
+						invitationId: invitation.id,
+						answer,
+					})
+					.onDuplicateKeyUpdate({ set: { answer } })
+			}
+		}
 
 		// Update the user's session to include this team
 		await updateAllSessionsOfUser(session.userId)
@@ -1406,9 +1436,7 @@ export const transferPendingDataToUserFn = createServerFn({ method: "POST" })
 							answer: answerData.answer,
 							updatedAt: new Date(),
 						})
-						.where(
-							eq(competitionRegistrationAnswersTable.id, existingId),
-						)
+						.where(eq(competitionRegistrationAnswersTable.id, existingId))
 				} else {
 					newAnswers.push({
 						questionId: answerData.questionId,
@@ -1421,9 +1449,7 @@ export const transferPendingDataToUserFn = createServerFn({ method: "POST" })
 
 			// Batch insert new answers
 			if (newAnswers.length > 0) {
-				await db
-					.insert(competitionRegistrationAnswersTable)
-					.values(newAnswers)
+				await db.insert(competitionRegistrationAnswersTable).values(newAnswers)
 			}
 		}
 

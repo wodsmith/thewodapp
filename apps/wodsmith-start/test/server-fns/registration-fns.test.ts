@@ -134,6 +134,8 @@ import {
   getRegistrationDetailsFn,
   initiateRegistrationPaymentFn,
   cancelPendingPurchaseFn,
+  removeRegistrationFn,
+  transferRegistrationDivisionFn,
 } from '@/server-fns/registration-fns'
 
 // Extract handlers from createServerFn mock
@@ -164,6 +166,14 @@ const initiatePayment = initiateRegistrationPaymentFn as unknown as (args: {
 const cancelPendingPurchase = cancelPendingPurchaseFn as unknown as (args: {
   data: {userId: string; competitionId: string}
 }) => Promise<{success: boolean}>
+
+const removeRegistration = removeRegistrationFn as unknown as (args: {
+  data: {registrationId: string; competitionId: string}
+}) => Promise<{success: boolean}>
+
+const transferRegistrationDivision = transferRegistrationDivisionFn as unknown as (args: {
+  data: {registrationId: string; competitionId: string; targetDivisionId: string}
+}) => Promise<{success: boolean; removedHeatAssignments: number}>
 
 // Helper to set mock session
 const setMockSession = (session: unknown) => {
@@ -225,6 +235,7 @@ const mockTeamMembership = {
 
 const mockPurchase = {
   id: testPurchaseId,
+  userId: registeredUserId,
   totalCents: 7500,
   status: 'COMPLETED',
   completedAt: new Date('2024-01-15'),
@@ -486,6 +497,10 @@ describe('registration-fns', () => {
         mockDb.query.commercePurchaseTable = {
           findFirst: vi.fn().mockResolvedValue(mockPurchase),
           findMany: vi.fn().mockResolvedValue([mockPurchase]),
+        }
+        mockDb.query.userTable = {
+          findFirst: vi.fn().mockResolvedValue({firstName: 'John', lastName: 'Doe'}),
+          findMany: vi.fn().mockResolvedValue([]),
         }
 
         const result = await getRegistrationDetailsFn({
@@ -1226,6 +1241,760 @@ describe('registration-fns', () => {
           },
         }),
       ).rejects.toThrow('Unauthorized')
+    })
+  })
+
+  // ============================================================================
+  // Remove Registration (Organizer Soft Delete) Tests
+  // ============================================================================
+
+  describe('removeRegistrationFn', () => {
+    const organizingTeamId = 'org-team-1'
+
+    const mockOrganizerSession = {
+      userId: 'organizer-user-1',
+      user: {id: 'organizer-user-1', email: 'organizer@example.com', role: 'user'},
+      teams: [
+        {
+          id: organizingTeamId,
+          permissions: ['manage_competitions'],
+        },
+      ],
+    }
+
+    const mockAdminSession = {
+      userId: 'admin-user-1',
+      user: {id: 'admin-user-1', email: 'admin@example.com', role: 'admin'},
+      teams: [],
+    }
+
+    const mockCompetition = {
+      id: testCompetitionId,
+      organizingTeamId,
+    }
+
+    const mockActiveRegistration = {
+      id: testRegistrationId,
+      userId: registeredUserId,
+      eventId: testCompetitionId,
+      divisionId: testDivisionId,
+      status: 'active',
+      athleteTeamId: null,
+      teamMemberId: 'member-123',
+    }
+
+    const mockTeamActiveRegistration = {
+      ...mockActiveRegistration,
+      id: 'reg-team-remove',
+      athleteTeamId: testAthleteTeamId,
+    }
+
+    function setupRemoveMocks() {
+      mockDb.registerTable('competitionsTable')
+      mockDb.registerTable('competitionRegistrationsTable')
+      mockDb.query.competitionsTable = {
+        findFirst: vi.fn().mockResolvedValue(mockCompetition),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+      mockDb.query.competitionRegistrationsTable = {
+        findFirst: vi.fn().mockResolvedValue(mockActiveRegistration),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+      // No competition events by default (no scores to delete)
+      mockDb.setMockReturnValue([])
+    }
+
+    beforeEach(() => {
+      setMockSession(mockOrganizerSession)
+    })
+
+    describe('authentication', () => {
+      it('rejects unauthenticated users', async () => {
+        vi.mocked(requireVerifiedEmail).mockRejectedValue(new Error('Unauthorized'))
+
+        await expect(
+          removeRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow('Unauthorized')
+      })
+    })
+
+    describe('authorization', () => {
+      it('rejects users without manage_competitions permission', async () => {
+        setupRemoveMocks()
+        setMockSession({
+          userId: 'random-user',
+          user: {id: 'random-user', email: 'random@example.com', role: 'user'},
+          teams: [{id: organizingTeamId, permissions: ['access_dashboard']}],
+        })
+
+        await expect(
+          removeRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow('Missing required permission: manage_competitions')
+      })
+
+      it('rejects users not on the organizing team', async () => {
+        setupRemoveMocks()
+        setMockSession({
+          userId: 'random-user',
+          user: {id: 'random-user', email: 'random@example.com', role: 'user'},
+          teams: [{id: 'different-team', permissions: ['manage_competitions']}],
+        })
+
+        await expect(
+          removeRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow('Missing required permission: manage_competitions')
+      })
+
+      it('allows site admins to bypass team check', async () => {
+        setupRemoveMocks()
+        setMockSession(mockAdminSession)
+
+        const result = await removeRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        expect(result.success).toBe(true)
+      })
+
+      it('allows organizer with manage_competitions permission', async () => {
+        setupRemoveMocks()
+
+        const result = await removeRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        expect(result.success).toBe(true)
+      })
+    })
+
+    describe('validation', () => {
+      it('throws when competition not found', async () => {
+        setupRemoveMocks()
+        mockDb.query.competitionsTable = {
+          findFirst: vi.fn().mockResolvedValue(null),
+          findMany: vi.fn().mockResolvedValue([]),
+        }
+
+        await expect(
+          removeRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: 'nonexistent',
+            },
+          }),
+        ).rejects.toThrow('Competition not found')
+      })
+
+      it('throws when registration not found', async () => {
+        setupRemoveMocks()
+        mockDb.query.competitionRegistrationsTable = {
+          findFirst: vi.fn().mockResolvedValue(null),
+          findMany: vi.fn().mockResolvedValue([]),
+        }
+
+        await expect(
+          removeRegistration({
+            data: {
+              registrationId: 'nonexistent',
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow('Registration not found')
+      })
+
+      it('throws when registration is already removed', async () => {
+        setupRemoveMocks()
+        mockDb.query.competitionRegistrationsTable = {
+          findFirst: vi.fn().mockResolvedValue({
+            ...mockActiveRegistration,
+            status: 'removed',
+          }),
+          findMany: vi.fn().mockResolvedValue([]),
+        }
+
+        await expect(
+          removeRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow('Registration is already removed')
+      })
+    })
+
+    describe('individual registration removal', () => {
+      it('sets registration status to removed', async () => {
+        setupRemoveMocks()
+
+        const result = await removeRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        expect(result.success).toBe(true)
+        // update called for: registration status + captain membership deactivation
+        expect(mockDb.update).toHaveBeenCalled()
+      })
+
+      it('deactivates captain team membership', async () => {
+        setupRemoveMocks()
+
+        await removeRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        // update called at least twice: registration status + membership deactivation
+        expect(mockDb.update).toHaveBeenCalledTimes(2)
+      })
+
+      it('deletes heat assignments', async () => {
+        setupRemoveMocks()
+
+        await removeRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        // delete called for heat assignments
+        expect(mockDb.delete).toHaveBeenCalled()
+      })
+    })
+
+    describe('team registration removal', () => {
+      it('deactivates athlete team memberships and cancels invitations', async () => {
+        setupRemoveMocks()
+        mockDb.query.competitionRegistrationsTable = {
+          findFirst: vi.fn().mockResolvedValue(mockTeamActiveRegistration),
+          findMany: vi.fn().mockResolvedValue([]),
+        }
+
+        const result = await removeRegistration({
+          data: {
+            registrationId: mockTeamActiveRegistration.id,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        expect(result.success).toBe(true)
+        // update called for:
+        // 1. registration status to removed
+        // 2. captain membership deactivation
+        // 3. athlete team memberships deactivation
+        // 4. cancel pending invitations
+        expect(mockDb.update).toHaveBeenCalledTimes(4)
+      })
+    })
+
+    describe('score cleanup', () => {
+      it('deletes scores when competition has events', async () => {
+        setupRemoveMocks()
+        // Return competition events from the select chain
+        mockDb.setMockReturnValue([{id: 'event-1'}, {id: 'event-2'}])
+
+        await removeRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        // delete called for: heat assignments + scores (2 events × 1 user = 2 score deletes)
+        // Total: 1 (heat) + 2 (scores) = 3
+        expect(mockDb.delete).toHaveBeenCalled()
+      })
+    })
+  })
+
+  describe('transferRegistrationDivisionFn', () => {
+    const organizingTeamId = 'org-team-1'
+    const targetDivisionId = 'div-target-999'
+
+    const mockOrganizerSession = {
+      userId: 'organizer-user-1',
+      user: {id: 'organizer-user-1', email: 'organizer@example.com', role: 'user'},
+      teams: [
+        {
+          id: organizingTeamId,
+          permissions: ['manage_competitions'],
+        },
+      ],
+    }
+
+    const mockAdminSession = {
+      userId: 'admin-user-1',
+      user: {id: 'admin-user-1', email: 'admin@example.com', role: 'admin'},
+      teams: [],
+    }
+
+    const mockCompetition = {
+      id: testCompetitionId,
+      organizingTeamId,
+    }
+
+    const mockActiveRegistration = {
+      id: testRegistrationId,
+      userId: registeredUserId,
+      eventId: testCompetitionId,
+      divisionId: testDivisionId,
+      status: 'active',
+      athleteTeamId: null,
+      commercePurchaseId: null,
+    }
+
+    const mockSourceDivision = {
+      id: testDivisionId,
+      teamSize: 1,
+    }
+
+    const mockTargetDivision = {
+      id: targetDivisionId,
+      teamSize: 1,
+    }
+
+    function setupTransferMocks(overrides?: {
+      registration?: Record<string, unknown>
+      sourceDivision?: Record<string, unknown> | null
+      targetDivision?: Record<string, unknown> | null
+      existingTargetRegistration?: Record<string, unknown> | null
+    }) {
+      mockDb.registerTable('competitionsTable')
+      mockDb.registerTable('competitionRegistrationsTable')
+      mockDb.registerTable('scalingLevelsTable')
+      mockDb.registerTable('competitionHeatAssignmentsTable')
+      mockDb.registerTable('commercePurchaseTable')
+
+      const registration = overrides?.registration ?? mockActiveRegistration
+      const sourceDivision = overrides?.sourceDivision !== undefined
+        ? overrides.sourceDivision
+        : mockSourceDivision
+      const targetDivision = overrides?.targetDivision !== undefined
+        ? overrides.targetDivision
+        : mockTargetDivision
+      const existingTargetRegistration = overrides?.existingTargetRegistration ?? null
+
+      // Competition lookup
+      mockDb.query.competitionsTable = {
+        findFirst: vi.fn().mockResolvedValue(mockCompetition),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+
+      // Registration lookup, then unique constraint check
+      let registrationFindFirstCallCount = 0
+      mockDb.query.competitionRegistrationsTable = {
+        findFirst: vi.fn().mockImplementation(() => {
+          registrationFindFirstCallCount++
+          // First call = registration lookup, second call = unique constraint check
+          if (registrationFindFirstCallCount === 1) {
+            return Promise.resolve(registration)
+          }
+          return Promise.resolve(existingTargetRegistration)
+        }),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+
+      // Source + target division lookups
+      let scalingFindFirstCallCount = 0
+      mockDb.query.scalingLevelsTable = {
+        findFirst: vi.fn().mockImplementation(() => {
+          scalingFindFirstCallCount++
+          if (scalingFindFirstCallCount === 1) {
+            return Promise.resolve(sourceDivision)
+          }
+          return Promise.resolve(targetDivision)
+        }),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+
+      // Transaction mock: set return value for delete (affectedRows)
+      mockDb.setMockReturnValue([{affectedRows: 0}])
+    }
+
+    beforeEach(() => {
+      setMockSession(mockOrganizerSession)
+    })
+
+    describe('authentication', () => {
+      it('rejects unauthenticated users', async () => {
+        vi.mocked(requireVerifiedEmail).mockRejectedValue(new Error('Unauthorized'))
+
+        await expect(
+          transferRegistrationDivision({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+              targetDivisionId,
+            },
+          }),
+        ).rejects.toThrow('Unauthorized')
+      })
+    })
+
+    describe('authorization', () => {
+      it('rejects users without manage_competitions permission', async () => {
+        setupTransferMocks()
+        setMockSession({
+          userId: 'random-user',
+          user: {id: 'random-user', email: 'random@example.com', role: 'user'},
+          teams: [{id: organizingTeamId, permissions: ['access_dashboard']}],
+        })
+
+        await expect(
+          transferRegistrationDivision({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+              targetDivisionId,
+            },
+          }),
+        ).rejects.toThrow('Missing required permission: manage_competitions')
+      })
+
+      it('rejects users not on the organizing team', async () => {
+        setupTransferMocks()
+        setMockSession({
+          userId: 'random-user',
+          user: {id: 'random-user', email: 'random@example.com', role: 'user'},
+          teams: [{id: 'different-team', permissions: ['manage_competitions']}],
+        })
+
+        await expect(
+          transferRegistrationDivision({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+              targetDivisionId,
+            },
+          }),
+        ).rejects.toThrow('Missing required permission: manage_competitions')
+      })
+
+      it('allows site admins to bypass team check', async () => {
+        setupTransferMocks()
+        setMockSession(mockAdminSession)
+
+        const result = await transferRegistrationDivision({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+            targetDivisionId,
+          },
+        })
+
+        expect(result.success).toBe(true)
+      })
+
+      it('allows organizer with manage_competitions permission', async () => {
+        setupTransferMocks()
+
+        const result = await transferRegistrationDivision({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+            targetDivisionId,
+          },
+        })
+
+        expect(result.success).toBe(true)
+      })
+    })
+
+    describe('validation', () => {
+      it('throws when competition not found', async () => {
+        setupTransferMocks()
+        mockDb.query.competitionsTable = {
+          findFirst: vi.fn().mockResolvedValue(null),
+          findMany: vi.fn().mockResolvedValue([]),
+        }
+
+        await expect(
+          transferRegistrationDivision({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: 'nonexistent',
+              targetDivisionId,
+            },
+          }),
+        ).rejects.toThrow('Competition not found')
+      })
+
+      it('throws when registration not found', async () => {
+        setupTransferMocks({registration: undefined})
+        mockDb.query.competitionRegistrationsTable = {
+          findFirst: vi.fn().mockResolvedValue(null),
+          findMany: vi.fn().mockResolvedValue([]),
+        }
+
+        await expect(
+          transferRegistrationDivision({
+            data: {
+              registrationId: 'nonexistent',
+              competitionId: testCompetitionId,
+              targetDivisionId,
+            },
+          }),
+        ).rejects.toThrow('Registration not found')
+      })
+
+      it('throws when registration is removed', async () => {
+        setupTransferMocks({
+          registration: {...mockActiveRegistration, status: 'removed'},
+        })
+
+        await expect(
+          transferRegistrationDivision({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+              targetDivisionId,
+            },
+          }),
+        ).rejects.toThrow('Cannot transfer a removed registration')
+      })
+
+      it('throws when transferring to the same division', async () => {
+        setupTransferMocks({
+          registration: {...mockActiveRegistration, divisionId: targetDivisionId},
+        })
+
+        await expect(
+          transferRegistrationDivision({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+              targetDivisionId,
+            },
+          }),
+        ).rejects.toThrow('Registration is already in this division')
+      })
+
+      it('throws when target division not found', async () => {
+        setupTransferMocks({targetDivision: null})
+
+        await expect(
+          transferRegistrationDivision({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+              targetDivisionId,
+            },
+          }),
+        ).rejects.toThrow('Target division not found')
+      })
+
+      it('throws when team sizes do not match (individual → team)', async () => {
+        setupTransferMocks({
+          targetDivision: {id: targetDivisionId, teamSize: 3},
+        })
+
+        await expect(
+          transferRegistrationDivision({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+              targetDivisionId,
+            },
+          }),
+        ).rejects.toThrow('Cannot transfer between divisions with different team sizes (1 → 3)')
+      })
+
+      it('throws when team sizes do not match (team → individual)', async () => {
+        setupTransferMocks({
+          registration: {...mockActiveRegistration, divisionId: 'div-team'},
+          sourceDivision: {id: 'div-team', teamSize: 2},
+          targetDivision: {id: targetDivisionId, teamSize: 1},
+        })
+
+        await expect(
+          transferRegistrationDivision({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+              targetDivisionId,
+            },
+          }),
+        ).rejects.toThrow('Cannot transfer between divisions with different team sizes (2 → 1)')
+      })
+
+      it('throws when athlete already registered in target division', async () => {
+        setupTransferMocks({
+          existingTargetRegistration: {id: 'existing-reg'},
+        })
+
+        await expect(
+          transferRegistrationDivision({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+              targetDivisionId,
+            },
+          }),
+        ).rejects.toThrow('Athlete already has a registration in the target division')
+      })
+    })
+
+    describe('successful transfer', () => {
+      it('updates registration divisionId in a transaction', async () => {
+        setupTransferMocks()
+
+        const result = await transferRegistrationDivision({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+            targetDivisionId,
+          },
+        })
+
+        expect(result.success).toBe(true)
+        // Transaction should be called
+        expect(mockDb.transaction).toHaveBeenCalledTimes(1)
+        // Update should be called within transaction (divisionId update)
+        expect(mockDb.update).toHaveBeenCalled()
+      })
+
+      it('deletes heat assignments and returns count', async () => {
+        setupTransferMocks()
+        mockDb.setMockReturnValue([{affectedRows: 3}])
+
+        const result = await transferRegistrationDivision({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+            targetDivisionId,
+          },
+        })
+
+        expect(result.success).toBe(true)
+        expect(result.removedHeatAssignments).toBe(3)
+        expect(mockDb.delete).toHaveBeenCalled()
+      })
+
+      it('returns 0 removed heat assignments when none exist', async () => {
+        setupTransferMocks()
+        mockDb.setMockReturnValue([{affectedRows: 0}])
+
+        const result = await transferRegistrationDivision({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+            targetDivisionId,
+          },
+        })
+
+        expect(result.success).toBe(true)
+        expect(result.removedHeatAssignments).toBe(0)
+      })
+
+      it('updates commerce purchase divisionId when present', async () => {
+        setupTransferMocks({
+          registration: {
+            ...mockActiveRegistration,
+            commercePurchaseId: testPurchaseId,
+          },
+        })
+
+        const result = await transferRegistrationDivision({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+            targetDivisionId,
+          },
+        })
+
+        expect(result.success).toBe(true)
+        // update called for: registration divisionId + commerce purchase divisionId
+        expect(mockDb.update).toHaveBeenCalledTimes(2)
+      })
+
+      it('does not update commerce purchase when no purchaseId', async () => {
+        setupTransferMocks({
+          registration: {
+            ...mockActiveRegistration,
+            commercePurchaseId: null,
+          },
+        })
+
+        const result = await transferRegistrationDivision({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+            targetDivisionId,
+          },
+        })
+
+        expect(result.success).toBe(true)
+        // update called only for: registration divisionId
+        expect(mockDb.update).toHaveBeenCalledTimes(1)
+      })
+
+      it('handles transfer from null divisionId (unassigned)', async () => {
+        setupTransferMocks({
+          registration: {...mockActiveRegistration, divisionId: null},
+          sourceDivision: null,
+        })
+        // Override: no source division lookup needed when divisionId is null
+        // The target division lookup should still return the target
+        mockDb.query.scalingLevelsTable = {
+          findFirst: vi.fn().mockResolvedValue(mockTargetDivision),
+          findMany: vi.fn().mockResolvedValue([]),
+        }
+
+        const result = await transferRegistrationDivision({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+            targetDivisionId,
+          },
+        })
+
+        expect(result.success).toBe(true)
+      })
+
+      it('allows transfer between team divisions with matching teamSize', async () => {
+        setupTransferMocks({
+          registration: {...mockActiveRegistration, divisionId: 'div-team-a'},
+          sourceDivision: {id: 'div-team-a', teamSize: 2},
+          targetDivision: {id: targetDivisionId, teamSize: 2},
+        })
+
+        const result = await transferRegistrationDivision({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+            targetDivisionId,
+          },
+        })
+
+        expect(result.success).toBe(true)
+      })
     })
   })
 })

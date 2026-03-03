@@ -11,7 +11,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, isNull } from "drizzle-orm"
+import { and, eq, inArray, isNull, ne, or } from "drizzle-orm"
 import type Stripe from "stripe"
 import { z } from "zod"
 import { getDb } from "@/db"
@@ -21,18 +21,27 @@ import {
 	COMMERCE_PURCHASE_STATUS,
 	commerceProductTable,
 	commercePurchaseTable,
+	competitionEventsTable,
+	competitionHeatAssignmentsTable,
 	competitionRegistrationAnswersTable,
 	competitionRegistrationQuestionsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
+	createCommerceProductId,
+	createCommercePurchaseId,
+	createTeamId,
+	createTeamMembershipId,
+	createUserId,
+	REGISTRATION_STATUS,
+	ROLES_ENUM,
 	scalingGroupsTable,
 	scalingLevelsTable,
+	scoresTable,
+	TEAM_PERMISSIONS,
 	teamInvitationTable,
 	teamMembershipTable,
 	teamTable,
 	userTable,
-	createCommerceProductId,
-	createCommercePurchaseId,
 } from "@/db/schema"
 import {
 	buildFeeConfig,
@@ -41,6 +50,7 @@ import {
 	getRegistrationFee,
 	type TeamFeeOverrides,
 } from "@/lib/commerce-stubs"
+import { CLAIM_TOKEN_EXPIRATION_SECONDS } from "@/constants"
 import { getAppUrl } from "@/lib/env"
 import {
 	addRequestContextAttribute,
@@ -55,6 +65,7 @@ import {
 } from "@/lib/registration-stubs"
 import { getStripe } from "@/lib/stripe"
 import { requireVerifiedEmail } from "@/utils/auth"
+import { createToken, getClaimTokenKey } from "@/utils/auth-utils"
 import {
 	DEFAULT_TIMEZONE,
 	hasDateStartedInTimezone,
@@ -84,7 +95,9 @@ const registrationItemSchema = z.object({
 const initiateRegistrationPaymentInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
 	// Multi-division support: array of division entries
-	items: z.array(registrationItemSchema).min(1, "At least one division is required")
+	items: z
+		.array(registrationItemSchema)
+		.min(1, "At least one division is required")
 		.refine(
 			(items) => new Set(items.map((i) => i.divisionId)).size === items.length,
 			{ message: "Duplicate division selections are not allowed" },
@@ -125,16 +138,32 @@ async function validateRequiredQuestions(
 ): Promise<void> {
 	const db = getDb()
 
-	// Get all required questions for this competition
-	const requiredQuestions = await db
-		.select()
-		.from(competitionRegistrationQuestionsTable)
-		.where(
+	// Look up the competition's groupId
+	const [competition] = await db
+		.select({ groupId: competitionsTable.groupId })
+		.from(competitionsTable)
+		.where(eq(competitionsTable.id, competitionId))
+
+	// Build where clause: competition-specific questions OR series-level questions
+	const conditions = [
+		and(
+			eq(competitionRegistrationQuestionsTable.competitionId, competitionId),
+			eq(competitionRegistrationQuestionsTable.required, true),
+		),
+	]
+	if (competition?.groupId) {
+		conditions.push(
 			and(
-				eq(competitionRegistrationQuestionsTable.competitionId, competitionId),
+				eq(competitionRegistrationQuestionsTable.groupId, competition.groupId),
 				eq(competitionRegistrationQuestionsTable.required, true),
 			),
 		)
+	}
+
+	const requiredQuestions = await db
+		.select()
+		.from(competitionRegistrationQuestionsTable)
+		.where(or(...conditions))
 
 	if (requiredQuestions.length === 0) return
 
@@ -245,7 +274,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			throw new Error("Registration has closed")
 		}
 
-		// 3. Check not already registered for any of these divisions
+		// 3. Check not already registered for any of these divisions (exclude removed registrations)
 		for (const item of input.items) {
 			const existingRegistration =
 				await db.query.competitionRegistrationsTable.findFirst({
@@ -253,6 +282,10 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 						eq(competitionRegistrationsTable.eventId, input.competitionId),
 						eq(competitionRegistrationsTable.userId, userId),
 						eq(competitionRegistrationsTable.divisionId, item.divisionId),
+						ne(
+							competitionRegistrationsTable.status,
+							REGISTRATION_STATUS.REMOVED,
+						),
 					),
 				})
 			if (existingRegistration) {
@@ -681,6 +714,7 @@ export const getUserCompetitionRegistrationFn = createServerFn({
 				where: and(
 					eq(competitionRegistrationsTable.eventId, data.competitionId),
 					eq(competitionRegistrationsTable.userId, data.userId),
+					ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 				),
 			},
 		)
@@ -758,6 +792,7 @@ interface PendingInviteData {
 export interface TeamRosterResult {
 	registration: {
 		id: string
+		status: string
 		teamName: string | null
 		captainUserId: string | null
 		userId: string
@@ -934,6 +969,7 @@ export const getTeamRosterFn = createServerFn({ method: "GET" })
 			return {
 				registration: {
 					id: registration.id,
+					status: registration.status,
 					teamName: registration.teamName,
 					captainUserId: registration.captainUserId,
 					userId: registration.userId,
@@ -964,7 +1000,10 @@ export const getTeamRosterFn = createServerFn({ method: "GET" })
 		}
 
 		const memberships = (await db.query.teamMembershipTable.findMany({
-			where: eq(teamMembershipTable.teamId, registration.athleteTeamId),
+			where: and(
+				eq(teamMembershipTable.teamId, registration.athleteTeamId),
+				eq(teamMembershipTable.isActive, true),
+			),
 			with: {
 				user: {
 					columns: {
@@ -978,11 +1017,13 @@ export const getTeamRosterFn = createServerFn({ method: "GET" })
 			},
 		})) as unknown as MembershipWithUser[]
 
-		// Get pending invitations
+		// Get pending invitations (exclude cancelled)
+		const { INVITATION_STATUS } = await import("@/db/schema")
 		const invitations = await db.query.teamInvitationTable.findMany({
 			where: and(
 				eq(teamInvitationTable.teamId, registration.athleteTeamId),
 				isNull(teamInvitationTable.acceptedAt),
+				eq(teamInvitationTable.status, INVITATION_STATUS.PENDING),
 			),
 		})
 
@@ -1015,6 +1056,7 @@ export const getTeamRosterFn = createServerFn({ method: "GET" })
 		return {
 			registration: {
 				id: registration.id,
+				status: registration.status,
 				teamName: registration.teamName,
 				captainUserId: registration.captainUserId,
 				userId: registration.userId,
@@ -1037,6 +1079,7 @@ export const getTeamRosterFn = createServerFn({ method: "GET" })
 export interface RegistrationDetails {
 	registrationId: string
 	registeredAt: Date
+	status: string
 	teamName: string | null
 	paymentStatus: string | null
 	paidAt: Date | null
@@ -1065,6 +1108,10 @@ export interface RegistrationDetails {
 		completedAt: Date | null
 		stripePaymentIntentId: string | null
 	} | null
+	// Whether the current user is the original purchaser (controls invoice visibility)
+	isOriginalPurchaser: boolean
+	// Name of the original purchaser (shown when current user is not the payer)
+	purchaserName: string | null
 }
 
 /**
@@ -1162,6 +1209,8 @@ export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
 
 		// Get purchase details if exists
 		let purchase: RegistrationDetails["purchase"] = null
+		let isOriginalPurchaser = false
+		let purchaserName: string | null = null
 
 		if (registration.commercePurchaseId) {
 			const purchaseRecord = await db.query.commercePurchaseTable.findFirst({
@@ -1175,12 +1224,25 @@ export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
 					completedAt: purchaseRecord.completedAt,
 					stripePaymentIntentId: purchaseRecord.stripePaymentIntentId,
 				}
+				isOriginalPurchaser = purchaseRecord.userId === session.user.id
+				if (!isOriginalPurchaser) {
+					const payer = await db.query.userTable.findFirst({
+						where: eq(userTable.id, purchaseRecord.userId),
+						columns: { firstName: true, lastName: true },
+					})
+					if (payer) {
+						purchaserName =
+							[payer.firstName, payer.lastName].filter(Boolean).join(" ") ||
+							null
+					}
+				}
 			}
 		}
 
 		return {
 			registrationId: registration.id,
 			registeredAt: registration.registeredAt,
+			status: registration.status,
 			teamName: registration.teamName,
 			paymentStatus: registration.paymentStatus,
 			paidAt: registration.paidAt,
@@ -1204,6 +1266,8 @@ export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
 					}
 				: null,
 			purchase,
+			isOriginalPurchaser,
+			purchaserName,
 		}
 	})
 
@@ -1264,4 +1328,607 @@ export const cancelPendingPurchaseFn = createServerFn({ method: "POST" })
 		})
 
 		return { success: true }
+	})
+
+// ============================================================================
+// Remove Registration (Organizer Soft Delete)
+// ============================================================================
+
+const removeRegistrationInputSchema = z.object({
+	registrationId: z.string().min(1, "Registration ID is required"),
+	competitionId: z.string().min(1, "Competition ID is required"),
+})
+
+/**
+ * Remove a registration (soft delete) by an organizer.
+ *
+ * Sets the registration status to REMOVED and deactivates associated
+ * team memberships, heat assignments, and pending invitations.
+ * Requires MANAGE_COMPETITIONS permission on the organizing team.
+ */
+export const removeRegistrationFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => removeRegistrationInputSchema.parse(data))
+	.handler(async ({ data: input }) => {
+		const session = await requireVerifiedEmail()
+
+		const db = getDb()
+
+		updateRequestContext({ userId: session.userId })
+		addRequestContextAttribute("competitionId", input.competitionId)
+		addRequestContextAttribute("registrationId", input.registrationId)
+
+		// 1. Get competition to verify ownership and get organizing team
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, input.competitionId),
+			columns: { id: true, organizingTeamId: true },
+		})
+
+		if (!competition) throw new Error("Competition not found")
+
+		// 2. Require organizer permission (site admins bypass)
+		if (session.user?.role !== ROLES_ENUM.ADMIN) {
+			const team = session.teams?.find(
+				(t) => t.id === competition.organizingTeamId,
+			)
+			if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS)) {
+				throw new Error("Missing required permission: manage_competitions")
+			}
+		}
+
+		// 3. Get the registration and verify it belongs to this competition
+		const registration = await db.query.competitionRegistrationsTable.findFirst(
+			{
+				where: and(
+					eq(competitionRegistrationsTable.id, input.registrationId),
+					eq(competitionRegistrationsTable.eventId, input.competitionId),
+				),
+			},
+		)
+
+		if (!registration) throw new Error("Registration not found")
+
+		if (registration.status === REGISTRATION_STATUS.REMOVED) {
+			throw new Error("Registration is already removed")
+		}
+
+		logInfo({
+			message: "[Registration] Removing registration",
+			attributes: {
+				registrationId: input.registrationId,
+				competitionId: input.competitionId,
+				userId: registration.userId,
+				athleteTeamId: registration.athleteTeamId ?? "none",
+			},
+		})
+
+		// 4. Set registration status to REMOVED
+		await db
+			.update(competitionRegistrationsTable)
+			.set({
+				status: REGISTRATION_STATUS.REMOVED,
+				updatedAt: new Date(),
+			})
+			.where(eq(competitionRegistrationsTable.id, input.registrationId))
+
+		// 5. Deactivate the captain's team membership in the competition_event team
+		await db
+			.update(teamMembershipTable)
+			.set({ isActive: false })
+			.where(eq(teamMembershipTable.id, registration.teamMemberId))
+
+		// 6. For team registrations, deactivate all athlete team memberships and cancel invitations
+		if (registration.athleteTeamId) {
+			// Deactivate all memberships on the athlete team
+			await db
+				.update(teamMembershipTable)
+				.set({ isActive: false })
+				.where(
+					and(
+						eq(teamMembershipTable.teamId, registration.athleteTeamId),
+						eq(teamMembershipTable.isActive, true),
+					),
+				)
+
+			// Cancel pending invitations for the athlete team
+			const { INVITATION_STATUS } = await import("@/db/schema")
+			await db
+				.update(teamInvitationTable)
+				.set({ status: INVITATION_STATUS.CANCELLED })
+				.where(
+					and(
+						eq(teamInvitationTable.teamId, registration.athleteTeamId),
+						eq(teamInvitationTable.status, INVITATION_STATUS.PENDING),
+					),
+				)
+		}
+
+		// 7. Delete heat assignments for this registration
+		await db
+			.delete(competitionHeatAssignmentsTable)
+			.where(
+				eq(
+					competitionHeatAssignmentsTable.registrationId,
+					input.registrationId,
+				),
+			)
+
+		// 8. Delete scores for the registered user(s) in this competition's events
+
+		// Get all competition event IDs
+		const competitionEvents = await db
+			.select({ id: competitionEventsTable.id })
+			.from(competitionEventsTable)
+			.where(eq(competitionEventsTable.competitionId, input.competitionId))
+
+		if (competitionEvents.length > 0) {
+			const eventIds = competitionEvents.map((e) => e.id)
+
+			// Collect all user IDs to clean up scores for
+			const userIds = [registration.userId]
+
+			// For team registrations, also get teammate user IDs
+			if (registration.athleteTeamId) {
+				const teammates = await db
+					.select({ userId: teamMembershipTable.userId })
+					.from(teamMembershipTable)
+					.where(eq(teamMembershipTable.teamId, registration.athleteTeamId))
+
+				for (const tm of teammates) {
+					if (tm.userId && !userIds.includes(tm.userId)) {
+						userIds.push(tm.userId)
+					}
+				}
+			}
+
+			// Delete scores for these users in this competition's events
+			await db
+				.delete(scoresTable)
+				.where(
+					and(
+						inArray(scoresTable.competitionEventId, eventIds),
+						inArray(scoresTable.userId, userIds),
+					),
+				)
+		}
+
+		logInfo({
+			message: "[Registration] Registration removed successfully",
+			attributes: {
+				registrationId: input.registrationId,
+				competitionId: input.competitionId,
+				userId: registration.userId,
+			},
+		})
+
+		return { success: true }
+	})
+
+// ============================================================================
+// Transfer Registration Division
+// ============================================================================
+
+const transferRegistrationDivisionInputSchema = z.object({
+	registrationId: z.string().min(1, "Registration ID is required"),
+	competitionId: z.string().min(1, "Competition ID is required"),
+	targetDivisionId: z.string().min(1, "Target division ID is required"),
+})
+
+/**
+ * Transfer an athlete's registration to a different division.
+ *
+ * - Validates team size compatibility (individual ↔ team blocked)
+ * - Removes heat assignments (division-specific)
+ * - Updates commerce purchase divisionId for bookkeeping
+ * - Does NOT block on capacity (organizer decision)
+ */
+export const transferRegistrationDivisionFn = createServerFn({
+	method: "POST",
+})
+	.inputValidator((data: unknown) =>
+		transferRegistrationDivisionInputSchema.parse(data),
+	)
+	.handler(async ({ data: input }) => {
+		const session = await requireVerifiedEmail()
+		const db = getDb()
+
+		updateRequestContext({ userId: session.userId })
+		addRequestContextAttribute("competitionId", input.competitionId)
+		addRequestContextAttribute("registrationId", input.registrationId)
+		addRequestContextAttribute("targetDivisionId", input.targetDivisionId)
+
+		// 1. Get competition to verify ownership
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, input.competitionId),
+			columns: { id: true, organizingTeamId: true },
+		})
+
+		if (!competition) throw new Error("Competition not found")
+
+		// 2. Require organizer permission (site admins bypass)
+		if (session.user?.role !== ROLES_ENUM.ADMIN) {
+			const team = session.teams?.find(
+				(t) => t.id === competition.organizingTeamId,
+			)
+			if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS)) {
+				throw new Error("Missing required permission: manage_competitions")
+			}
+		}
+
+		// 3. Get the registration
+		const registration = await db.query.competitionRegistrationsTable.findFirst(
+			{
+				where: and(
+					eq(competitionRegistrationsTable.id, input.registrationId),
+					eq(competitionRegistrationsTable.eventId, input.competitionId),
+				),
+			},
+		)
+
+		if (!registration) throw new Error("Registration not found")
+
+		if (registration.status === REGISTRATION_STATUS.REMOVED) {
+			throw new Error("Cannot transfer a removed registration")
+		}
+
+		// 4. Same-division check
+		if (registration.divisionId === input.targetDivisionId) {
+			throw new Error("Registration is already in this division")
+		}
+
+		// 5. Fetch source + target divisions, compare teamSize
+		const sourceDivision = registration.divisionId
+			? await db.query.scalingLevelsTable.findFirst({
+					where: eq(scalingLevelsTable.id, registration.divisionId),
+					columns: { id: true, teamSize: true },
+				})
+			: null
+
+		const targetDivision = await db.query.scalingLevelsTable.findFirst({
+			where: eq(scalingLevelsTable.id, input.targetDivisionId),
+			columns: { id: true, teamSize: true },
+		})
+
+		if (!targetDivision) throw new Error("Target division not found")
+
+		const sourceTeamSize = sourceDivision?.teamSize ?? 1
+		const targetTeamSize = targetDivision.teamSize
+
+		if (sourceTeamSize !== targetTeamSize) {
+			throw new Error(
+				`Cannot transfer between divisions with different team sizes (${sourceTeamSize} → ${targetTeamSize})`,
+			)
+		}
+
+		// 6. Unique constraint check: no existing registration in target division
+		const existingRegistration =
+			await db.query.competitionRegistrationsTable.findFirst({
+				where: and(
+					eq(competitionRegistrationsTable.eventId, input.competitionId),
+					eq(competitionRegistrationsTable.userId, registration.userId),
+					eq(competitionRegistrationsTable.divisionId, input.targetDivisionId),
+					ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+				),
+				columns: { id: true },
+			})
+
+		if (existingRegistration) {
+			throw new Error(
+				"Athlete already has a registration in the target division",
+			)
+		}
+
+		logInfo({
+			message: "[Registration] Transferring registration to new division",
+			attributes: {
+				registrationId: input.registrationId,
+				competitionId: input.competitionId,
+				fromDivisionId: registration.divisionId ?? "none",
+				toDivisionId: input.targetDivisionId,
+				userId: registration.userId,
+			},
+		})
+
+		// 7. Perform all writes in a transaction
+		let removedHeatAssignments = 0
+
+		await db.transaction(async (tx) => {
+			// Update registration divisionId
+			await tx
+				.update(competitionRegistrationsTable)
+				.set({
+					divisionId: input.targetDivisionId,
+					updatedAt: new Date(),
+				})
+				.where(eq(competitionRegistrationsTable.id, input.registrationId))
+
+			// Delete heat assignments (division-specific)
+			const deletedHeatAssignments = await tx
+				.delete(competitionHeatAssignmentsTable)
+				.where(
+					eq(
+						competitionHeatAssignmentsTable.registrationId,
+						input.registrationId,
+					),
+				)
+
+			removedHeatAssignments = deletedHeatAssignments[0]?.affectedRows ?? 0
+
+			// Update commerce purchase divisionId if exists
+			if (registration.commercePurchaseId) {
+				await tx
+					.update(commercePurchaseTable)
+					.set({ divisionId: input.targetDivisionId })
+					.where(eq(commercePurchaseTable.id, registration.commercePurchaseId))
+			}
+		})
+
+		logInfo({
+			message: "[Registration] Division transfer completed",
+			attributes: {
+				registrationId: input.registrationId,
+				competitionId: input.competitionId,
+				toDivisionId: input.targetDivisionId,
+				removedHeatAssignments: String(removedHeatAssignments),
+			},
+		})
+
+		return { success: true, removedHeatAssignments }
+	})
+
+// ============================================================================
+// Manual Registration (Organizer)
+// ============================================================================
+
+const createManualRegistrationInputSchema = z.object({
+	competitionId: z.string().min(1),
+	athleteEmail: z.string().email(),
+	athleteFirstName: z.string().max(255).optional(),
+	athleteLastName: z.string().max(255).optional(),
+	divisionId: z.string().min(1),
+	paymentStatus: z.enum(["COMP", "PAID_OFFLINE"]),
+	answers: z
+		.array(
+			z.object({
+				questionId: z.string().min(1),
+				answer: z.string().max(5000),
+			}),
+		)
+		.optional(),
+	// Team fields (for team divisions)
+	teamName: z.string().max(255).optional(),
+	teammates: z
+		.array(
+			z.object({
+				email: z.string().email(),
+				firstName: z.string().max(255).optional(),
+				lastName: z.string().max(255).optional(),
+			}),
+		)
+		.optional(),
+})
+
+/**
+ * Create a manual registration from the organizer dashboard.
+ *
+ * Looks up or creates a placeholder user, calls registerForCompetition()
+ * with isOrganizerOverride to bypass registration window checks, sets
+ * the appropriate payment status, stores answers, and sends confirmation.
+ */
+export const createManualRegistrationFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		createManualRegistrationInputSchema.parse(data),
+	)
+	.handler(async ({ data: input }) => {
+		const session = await requireVerifiedEmail()
+
+		const db = getDb()
+
+		updateRequestContext({ userId: session.userId })
+		addRequestContextAttribute("competitionId", input.competitionId)
+
+		// 1. Get competition to verify ownership and get organizing team
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, input.competitionId),
+			columns: { id: true, organizingTeamId: true },
+		})
+
+		if (!competition) throw new Error("Competition not found")
+
+		// 2. Require organizer permission (site admins bypass)
+		if (session.user?.role !== ROLES_ENUM.ADMIN) {
+			const team = session.teams?.find(
+				(t) => t.id === competition.organizingTeamId,
+			)
+			if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS)) {
+				throw new Error("Missing required permission: manage_competitions")
+			}
+		}
+
+		// 3. Look up or create athlete user
+		const athleteEmail = input.athleteEmail.toLowerCase()
+		let athleteUser = await db.query.userTable.findFirst({
+			where: eq(userTable.email, athleteEmail),
+		})
+
+		let isNewAthlete = false
+
+		if (!athleteUser) {
+			// Create placeholder user
+			isNewAthlete = true
+			const userId = createUserId()
+			await db.insert(userTable).values({
+				id: userId,
+				email: athleteEmail,
+				firstName: input.athleteFirstName ?? null,
+				lastName: input.athleteLastName ?? null,
+				passwordHash: null,
+				emailVerified: null,
+			})
+
+			athleteUser = await db.query.userTable.findFirst({
+				where: eq(userTable.id, userId),
+			})
+
+			if (!athleteUser) {
+				throw new Error("Failed to create placeholder user")
+			}
+
+			// Create personal team + team membership (required for getUserPersonalTeamId)
+			const personalTeamId = createTeamId()
+			const personalTeamName = `${input.athleteFirstName || "Personal"}'s Team (personal)`
+			const personalTeamSlug = `${
+				input.athleteFirstName?.toLowerCase() || "personal"
+			}-${userId.slice(-6)}`
+
+			await db.insert(teamTable).values({
+				id: personalTeamId,
+				name: personalTeamName,
+				slug: personalTeamSlug,
+				description:
+					"Personal team for individual programming track subscriptions",
+				isPersonalTeam: true,
+				personalTeamOwnerId: userId,
+			})
+
+			await db.insert(teamMembershipTable).values({
+				id: createTeamMembershipId(),
+				teamId: personalTeamId,
+				userId,
+				roleId: "owner",
+				isSystemRole: true,
+				joinedAt: new Date(),
+				isActive: true,
+			})
+
+			logEntityCreated({
+				entity: "user",
+				id: userId,
+				attributes: {
+					email: athleteEmail,
+					isPlaceholder: true,
+					createdByManualRegistration: true,
+				},
+			})
+		}
+
+		// 4. Determine final payment status
+		const divisionFeeCents = await getRegistrationFee(
+			input.competitionId,
+			input.divisionId,
+		)
+
+		const finalPaymentStatus =
+			divisionFeeCents === 0
+				? COMMERCE_PAYMENT_STATUS.FREE
+				: input.paymentStatus
+
+		// 5. Register for competition (bypasses registration window)
+		const result = await registerForCompetition({
+			competitionId: input.competitionId,
+			userId: athleteUser.id,
+			divisionId: input.divisionId,
+			teamName: input.teamName,
+			teammates: input.teammates,
+			isOrganizerOverride: true,
+		})
+
+		// 6. Set payment status on registration
+		await db
+			.update(competitionRegistrationsTable)
+			.set({
+				paymentStatus: finalPaymentStatus,
+				paidAt: finalPaymentStatus === "PAID_OFFLINE" ? new Date() : null,
+			})
+			.where(eq(competitionRegistrationsTable.id, result.registrationId))
+
+		// 7. Store registration answers
+		await storeRegistrationAnswers(
+			result.registrationId,
+			athleteUser.id,
+			input.answers,
+		)
+
+		const { env } = await import("cloudflare:workers")
+
+		// 8. Generate claim token for placeholder users
+		let claimToken: string | undefined
+		if (isNewAthlete) {
+			claimToken = createToken()
+			const claimExpiresAt = new Date(
+				Date.now() + CLAIM_TOKEN_EXPIRATION_SECONDS * 1000,
+			)
+			await env.KV_SESSION.put(
+				getClaimTokenKey(claimToken),
+				JSON.stringify({
+					userId: athleteUser.id,
+					expiresAt: claimExpiresAt.toISOString(),
+				}),
+				{ expirationTtl: CLAIM_TOKEN_EXPIRATION_SECONDS },
+			)
+		}
+
+		// 9. Send confirmation email via workflow (with waiver info)
+		const workflowParams = {
+			userId: athleteUser.id,
+			registrationId: result.registrationId,
+			competitionId: input.competitionId,
+			isPaid: finalPaymentStatus === "PAID_OFFLINE",
+			amountPaidCents:
+				finalPaymentStatus === "PAID_OFFLINE" ? divisionFeeCents : undefined,
+			isPlaceholderUser: isNewAthlete,
+			claimToken,
+		}
+		const workflow =
+			"MANUAL_REGISTRATION_WORKFLOW" in env
+				? (env.MANUAL_REGISTRATION_WORKFLOW as
+						| Workflow<typeof workflowParams>
+						| undefined)
+				: undefined
+
+		if (workflow && typeof workflow.create === "function") {
+			await workflow.create({
+				id: result.registrationId,
+				params: workflowParams,
+			})
+		} else {
+			const { processManualRegistrationInline } = await import(
+				"@/workflows/manual-registration-workflow"
+			)
+			await processManualRegistrationInline(workflowParams)
+		}
+
+		// 9. Log the manual registration
+		logEntityCreated({
+			entity: "registration",
+			id: result.registrationId,
+			parentEntity: "competition",
+			parentId: input.competitionId,
+			attributes: {
+				manualRegistration: true,
+				paymentStatus: finalPaymentStatus,
+				registeredByUserId: session.userId,
+				divisionId: input.divisionId,
+				divisionFeeCents: String(divisionFeeCents),
+				isNewAthlete: String(isNewAthlete),
+			},
+		})
+
+		logInfo({
+			message: "[Registration] Manual registration created by organizer",
+			attributes: {
+				registrationId: result.registrationId,
+				competitionId: input.competitionId,
+				athleteEmail,
+				divisionId: input.divisionId,
+				paymentStatus: finalPaymentStatus,
+				isNewAthlete: String(isNewAthlete),
+			},
+		})
+
+		return {
+			registrationId: result.registrationId,
+			success: true,
+			divisionFeeCents,
+			isNewAthlete,
+		}
 	})

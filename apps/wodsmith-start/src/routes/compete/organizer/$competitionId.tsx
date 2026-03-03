@@ -74,6 +74,7 @@ const routeLabels: Record<string, string> = {
 	locations: "Locations",
 	volunteers: "Volunteers",
 	results: "Results", // Overridden to "Submissions" for online competitions
+	review: "Review",
 	pricing: "Pricing",
 	revenue: "Revenue",
 	sponsors: "Sponsors",
@@ -132,6 +133,7 @@ function CompetitionLayout() {
 						registrationClosesAt: competition.registrationClosesAt,
 						visibility: competition.visibility,
 						status: competition.status,
+						groupId: competition.groupId,
 					}}
 				/>
 

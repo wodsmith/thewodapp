@@ -5,7 +5,8 @@
  * Fetches event details, divisions, movements, sponsors, and judging sheets.
  */
 
-import { createFileRoute, getRouteApi } from "@tanstack/react-router"
+import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
+import { Video } from "lucide-react"
 import { useState } from "react"
 import {
 	EVENT_DETAILS_FORM_ID,
@@ -16,121 +17,24 @@ import { EventJudgingSheets } from "@/components/organizer/event-judging-sheets"
 import { EventSubmissionWindowCard } from "@/components/organizer/event-submission-window-card"
 import { HeatSchedulePublishingCard } from "@/components/organizer/heat-schedule-publishing-card"
 import { Button } from "@/components/ui/button"
-import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
-import { getCompetitionEventsFn } from "@/server-fns/competition-event-fns"
 import {
-	getCompetitionEventFn,
-	getWorkoutDivisionDescriptionsFn,
-} from "@/server-fns/competition-workouts-fns"
-import { getEventResourcesFn } from "@/server-fns/event-resources-fns"
-import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
-import { getAllMovementsFn } from "@/server-fns/movement-fns"
-import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card"
 
-// Get parent route API to access its loader data
+// Get parent route APIs to access loader data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
+const eventRoute = getRouteApi(
+	"/compete/organizer/$competitionId/events/$eventId",
+)
 
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/events/$eventId/",
 )({
-	staleTime: 10_000,
 	component: EventEditPage,
-	loader: async ({ params, parentMatchPromise }) => {
-		const parentMatch = await parentMatchPromise
-		const { competition } = parentMatch.loaderData!
-
-		const isOnline = competition.competitionType === "online"
-
-		// Parallel fetch event, divisions, movements, sponsors, resources, judging sheets, and competition events
-		const [
-			eventResult,
-			divisionsResult,
-			movementsResult,
-			sponsorsResult,
-			resourcesResult,
-			judgingSheetsResult,
-			competitionEventsResult,
-		] = await Promise.all([
-			getCompetitionEventFn({
-				data: {
-					trackWorkoutId: params.eventId,
-					teamId: competition.organizingTeamId,
-				},
-			}),
-			getCompetitionDivisionsWithCountsFn({
-				data: {
-					competitionId: params.competitionId,
-					teamId: competition.organizingTeamId,
-				},
-			}),
-			getAllMovementsFn(),
-			getCompetitionSponsorsFn({
-				data: { competitionId: params.competitionId },
-			}),
-			getEventResourcesFn({
-				data: {
-					eventId: params.eventId,
-					teamId: competition.organizingTeamId,
-				},
-			}),
-			getEventJudgingSheetsFn({
-				data: { trackWorkoutId: params.eventId },
-			}),
-			// Fetch competition events (submission windows) for online competitions
-			isOnline
-				? getCompetitionEventsFn({
-						data: { competitionId: params.competitionId },
-					})
-				: Promise.resolve({ events: [] }),
-		])
-
-		if (!eventResult.event) {
-			throw new Error("Event not found")
-		}
-
-		// Flatten sponsors from groups and ungrouped
-		const allSponsors = [
-			...sponsorsResult.groups.flatMap((g) => g.sponsors),
-			...sponsorsResult.ungroupedSponsors,
-		]
-
-		// Fetch division descriptions for this workout
-		const divisionIds = divisionsResult.divisions.map((d) => d.id)
-		let divisionDescriptions: Array<{
-			divisionId: string
-			divisionLabel: string
-			description: string | null
-		}> = []
-
-		if (divisionIds.length > 0) {
-			const descriptionsResult = await getWorkoutDivisionDescriptionsFn({
-				data: {
-					workoutId: eventResult.event.workoutId,
-					divisionIds,
-				},
-			})
-			divisionDescriptions = descriptionsResult.descriptions
-		}
-
-		// Find this event's submission window
-		const competitionEvent = competitionEventsResult.events.find(
-			(ce) => ce.trackWorkoutId === params.eventId,
-		)
-
-		return {
-			event: eventResult.event,
-			divisions: divisionsResult.divisions,
-			movements: movementsResult.movements,
-			sponsors: allSponsors,
-			divisionDescriptions,
-			resources: resourcesResult.resources,
-			judgingSheets: judgingSheetsResult.sheets,
-			isOnline,
-			submissionOpensAt: competitionEvent?.submissionOpensAt ?? null,
-			submissionClosesAt: competitionEvent?.submissionClosesAt ?? null,
-			timezone: competition.timezone || "America/Denver",
-		}
-	},
 })
 
 function EventEditPage() {
@@ -146,7 +50,7 @@ function EventEditPage() {
 		submissionOpensAt,
 		submissionClosesAt,
 		timezone,
-	} = Route.useLoaderData()
+	} = eventRoute.useLoaderData()
 	// Get competition from parent layout loader data
 	const { competition } = parentRoute.useLoaderData()
 
@@ -196,13 +100,41 @@ function EventEditPage() {
 
 			{/* Submission Window (online) or Heat Schedule Publishing (in-person) */}
 			{isOnline ? (
-				<EventSubmissionWindowCard
-					competitionId={competition.id}
-					eventName={event.workout.name}
-					submissionOpensAt={submissionOpensAt}
-					submissionClosesAt={submissionClosesAt}
-					timezone={timezone}
-				/>
+				<>
+					<EventSubmissionWindowCard
+						competitionId={competition.id}
+						eventName={event.workout.name}
+						submissionOpensAt={submissionOpensAt}
+						submissionClosesAt={submissionClosesAt}
+						timezone={timezone}
+					/>
+
+					{/* Video Submissions Review Link */}
+					<Card>
+						<CardHeader>
+							<CardTitle className="flex items-center gap-2">
+								<Video className="h-5 w-5" />
+								Video Submissions
+							</CardTitle>
+							<CardDescription>
+								Review athlete video submissions for this event
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<Button asChild variant="outline">
+								<Link
+									to="/compete/organizer/$competitionId/events/$eventId/submissions"
+									params={{
+										competitionId: competition.id,
+										eventId: event.id,
+									}}
+								>
+									View Submissions
+								</Link>
+							</Button>
+						</CardContent>
+					</Card>
+				</>
 			) : (
 				<HeatSchedulePublishingCard
 					trackWorkoutId={event.id}

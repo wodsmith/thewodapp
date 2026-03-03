@@ -500,6 +500,14 @@ const stripeCheckoutWorkflow = Workflow(`stripe-checkout-workflow-${stage}`, {
 	workflowName: `stripe-checkout-workflow-${stage}`,
 })
 
+const manualRegistrationWorkflow = Workflow(
+	`manual-registration-workflow-${stage}`,
+	{
+		className: "ManualRegistrationWorkflow",
+		workflowName: `manual-registration-workflow-${stage}`,
+	},
+)
+
 /**
  * TanStack Start application deployment configuration.
  *
@@ -565,6 +573,8 @@ const website = await TanStackStart("app", {
 		HYPERDRIVE: hyperdrive,
 		/** Workflow for async Stripe checkout processing */
 		STRIPE_CHECKOUT_WORKFLOW: stripeCheckoutWorkflow,
+		/** Workflow for manual registration notification with waiver info */
+		MANUAL_REGISTRATION_WORKFLOW: manualRegistrationWorkflow,
 
 		// App configuration
 		// biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time

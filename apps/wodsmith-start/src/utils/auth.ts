@@ -537,7 +537,11 @@ export async function requireVerifiedEmail() {
 	return session
 }
 
-export async function requireAdmin({ doNotThrowError = false }: { doNotThrowError?: boolean } = {}) {
+export async function requireAdmin({
+	doNotThrowError = false,
+}: {
+	doNotThrowError?: boolean
+} = {}) {
 	const session = await getSessionFromCookie()
 
 	if (!session) {

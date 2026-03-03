@@ -53,6 +53,7 @@ export const SYSTEM_ROLES_ENUM = {
 export const INVITATION_STATUS = {
 	PENDING: "pending", // Invited but not yet responded
 	ACCEPTED: "accepted", // Guest accepted (answered questions/signed waivers)
+	CANCELLED: "cancelled", // Invitation cancelled (e.g. registration removed)
 } as const
 
 export type InvitationStatus =

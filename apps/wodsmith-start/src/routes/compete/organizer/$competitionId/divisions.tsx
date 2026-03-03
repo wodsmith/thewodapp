@@ -44,6 +44,7 @@ export const Route = createFileRoute(
 		return {
 			divisions: divisionsResult.divisions,
 			scalingGroupId: divisionsResult.scalingGroupId,
+			scalingGroupTitle: divisionsResult.scalingGroupTitle ?? null,
 			scalingGroups: scalingGroupsResult.groups,
 			defaultMaxSpotsPerDivision:
 				divisionsResult.defaultMaxSpotsPerDivision ?? null,
@@ -55,6 +56,7 @@ function DivisionsPage() {
 	const {
 		divisions,
 		scalingGroupId,
+		scalingGroupTitle,
 		scalingGroups,
 		defaultMaxSpotsPerDivision,
 	} = Route.useLoaderData()
@@ -82,6 +84,7 @@ function DivisionsPage() {
 				competitionId={competition.id}
 				divisions={divisions}
 				scalingGroupId={scalingGroupId}
+				scalingGroupTitle={scalingGroupTitle}
 				scalingGroups={scalingGroups}
 				defaultMaxSpotsPerDivision={defaultMaxSpotsPerDivision}
 			/>

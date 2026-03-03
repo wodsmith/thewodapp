@@ -1,6 +1,16 @@
 import { useNavigate } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { Check, CheckCircle2, ChevronsUpDown, Loader2, Search, User, Users, X } from "lucide-react"
+import {
+	AlertTriangle,
+	Check,
+	CheckCircle2,
+	ChevronsUpDown,
+	Loader2,
+	Search,
+	User,
+	Users,
+	X,
+} from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { trackEvent } from "@/lib/posthog"
@@ -63,6 +73,7 @@ function DivisionMultiSelect({
 	publicDivisions,
 	selectedIds,
 	registeredDivisionIds,
+	removedDivisionIds,
 	onToggle,
 	disabled,
 }: {
@@ -70,6 +81,7 @@ function DivisionMultiSelect({
 	publicDivisions: PublicCompetitionDivision[]
 	selectedIds: string[]
 	registeredDivisionIds: Set<string>
+	removedDivisionIds: Set<string>
 	onToggle: (id: string, checked: boolean) => void
 	disabled: boolean
 }) {
@@ -137,8 +149,10 @@ function DivisionMultiSelect({
 							const spotsAvailable = info?.spotsAvailable
 							const maxSpots = info?.maxSpots
 							const isRegistered = registeredDivisionIds.has(level.id)
+							const isRemoved = removedDivisionIds.has(level.id)
 							const isSelected = selectedIds.includes(level.id)
-							const isItemDisabled = disabled || isFull || isRegistered
+							const isItemDisabled =
+								disabled || isFull || isRegistered || isRemoved
 
 							return (
 								<button
@@ -153,7 +167,8 @@ function DivisionMultiSelect({
 									className={cn(
 										"flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
 										isSelected && "bg-accent/50",
-										isItemDisabled && "opacity-50 cursor-not-allowed hover:bg-transparent",
+										isItemDisabled &&
+											"opacity-50 cursor-not-allowed hover:bg-transparent",
 									)}
 								>
 									<Check
@@ -165,7 +180,9 @@ function DivisionMultiSelect({
 									<span
 										className={cn(
 											"flex-1 text-left font-medium",
-											isFull && !isRegistered && "line-through text-muted-foreground",
+											isFull &&
+												!isRegistered &&
+												"line-through text-muted-foreground",
 										)}
 									>
 										{level.label}
@@ -182,7 +199,14 @@ function DivisionMultiSelect({
 												Indy
 											</Badge>
 										)}
-										{isRegistered ? (
+										{isRemoved ? (
+											<Badge
+												variant="outline"
+												className="text-xs text-destructive border-destructive/30"
+											>
+												Removed
+											</Badge>
+										) : isRegistered ? (
 											<Badge
 												variant="outline"
 												className="text-xs text-green-600 border-green-500/30"
@@ -232,6 +256,7 @@ type Props = {
 	userLastName?: string | null
 	userEmail?: string | null
 	registeredDivisionIds?: string[]
+	removedDivisionIds?: string[]
 	previousAnswers?: Array<{ questionId: string; answer: string }>
 	signedWaiverIds?: string[]
 }
@@ -252,6 +277,7 @@ export function RegistrationForm({
 	userLastName,
 	userEmail,
 	registeredDivisionIds = [],
+	removedDivisionIds = [],
 	previousAnswers = [],
 	signedWaiverIds = [],
 }: Props) {
@@ -260,9 +286,7 @@ export function RegistrationForm({
 
 	// Multi-select state
 	const [selectedDivisionIds, setSelectedDivisionIds] = useState<string[]>([])
-	const [affiliateName, setAffiliateName] = useState(
-		defaultAffiliateName ?? "",
-	)
+	const [affiliateName, setAffiliateName] = useState(defaultAffiliateName ?? "")
 
 	// Team details per division (for team divisions)
 	const [teamEntries, setTeamEntries] = useState<Map<string, TeamEntry>>(
@@ -270,7 +294,9 @@ export function RegistrationForm({
 	)
 
 	// Fee data per division (for combined total)
-	const [divisionFees, setDivisionFees] = useState<Map<string, number>>(new Map())
+	const [divisionFees, setDivisionFees] = useState<Map<string, number>>(
+		new Map(),
+	)
 
 	// Prune fee entries for deselected divisions
 	useEffect(() => {
@@ -291,7 +317,10 @@ export function RegistrationForm({
 		})
 	}, [selectedDivisionIds])
 
-	const handleFeesLoaded = (divisionId: string, fees: { isFree: boolean; totalChargeCents?: number } | null) => {
+	const handleFeesLoaded = (
+		divisionId: string,
+		fees: { isFree: boolean; totalChargeCents?: number } | null,
+	) => {
 		setDivisionFees((prev) => {
 			const next = new Map(prev)
 			if (fees && !fees.isFree && fees.totalChargeCents) {
@@ -314,18 +343,16 @@ export function RegistrationForm({
 	)
 
 	// Track which waivers have been agreed to - prefill from previous signatures
-	const [agreedWaivers, setAgreedWaivers] = useState<Set<string>>(
-		() => {
-			const signedSet = new Set(signedWaiverIds)
-			const preAgreed = new Set<string>()
-			for (const w of waivers) {
-				if (signedSet.has(w.id)) {
-					preAgreed.add(w.id)
-				}
+	const [agreedWaivers, setAgreedWaivers] = useState<Set<string>>(() => {
+		const signedSet = new Set(signedWaiverIds)
+		const preAgreed = new Set<string>()
+		for (const w of waivers) {
+			if (signedSet.has(w.id)) {
+				preAgreed.add(w.id)
 			}
-			return preAgreed
-		},
-	)
+		}
+		return preAgreed
+	})
 
 	// Use useServerFn for TanStack Start pattern
 	const signWaiver = useServerFn(signWaiverFn)
@@ -337,6 +364,7 @@ export function RegistrationForm({
 	)
 
 	const registeredDivisionIdSet = new Set(registeredDivisionIds)
+	const removedDivisionIdSet = new Set(removedDivisionIds)
 
 	// Track registration started on mount
 	useEffect(() => {
@@ -439,7 +467,9 @@ export function RegistrationForm({
 
 	const updateAnswer = (questionId: string, value: string) => {
 		setAnswers((prev) =>
-			prev.map((a) => (a.questionId === questionId ? { ...a, answer: value } : a)),
+			prev.map((a) =>
+				a.questionId === questionId ? { ...a, answer: value } : a,
+			),
 		)
 	}
 
@@ -478,9 +508,7 @@ export function RegistrationForm({
 
 			const teamEntry = teamEntries.get(divisionId)
 			if (!teamEntry?.teamName?.trim()) {
-				toast.error(
-					`Team name is required for ${division.label}`,
-				)
+				toast.error(`Team name is required for ${division.label}`)
 				return
 			}
 
@@ -497,9 +525,7 @@ export function RegistrationForm({
 
 			for (const teammate of teamEntry.teammates) {
 				if (!teammate.email?.trim()) {
-					toast.error(
-						`All teammate emails are required for ${division.label}`,
-					)
+					toast.error(`All teammate emails are required for ${division.label}`)
 					return
 				}
 			}
@@ -616,13 +642,27 @@ export function RegistrationForm({
 				const day = Number(dayStr)
 				const d = new Date(Date.UTC(year, monthNum - 1, day))
 				const weekdays = [
-					"Sunday", "Monday", "Tuesday", "Wednesday",
-					"Thursday", "Friday", "Saturday",
+					"Sunday",
+					"Monday",
+					"Tuesday",
+					"Wednesday",
+					"Thursday",
+					"Friday",
+					"Saturday",
 				]
 				const months = [
-					"January", "February", "March", "April",
-					"May", "June", "July", "August",
-					"September", "October", "November", "December",
+					"January",
+					"February",
+					"March",
+					"April",
+					"May",
+					"June",
+					"July",
+					"August",
+					"September",
+					"October",
+					"November",
+					"December",
 				]
 				return `${weekdays[d.getUTCDay()]}, ${months[monthNum - 1]} ${day}, ${year}`
 			}
@@ -669,9 +709,7 @@ export function RegistrationForm({
 	// Get selected team divisions (for rendering team fields)
 	const selectedTeamDivisions = selectedDivisionIds
 		.map((id) => getDivision(id))
-		.filter(
-			(d): d is ScalingLevel => d !== undefined && d.teamSize > 1,
-		)
+		.filter((d): d is ScalingLevel => d !== undefined && d.teamSize > 1)
 
 	return (
 		<div className="space-y-6">
@@ -679,6 +717,33 @@ export function RegistrationForm({
 				<h1 className="text-3xl font-bold">Register for Competition</h1>
 				<p className="text-muted-foreground">{competition.name}</p>
 			</div>
+
+			{removedDivisionIds.length > 0 && (
+				<Card className="border-destructive/20 bg-destructive/5">
+					<CardContent className="pt-6">
+						<div className="flex items-start gap-2 text-destructive">
+							<AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+							<div className="text-sm space-y-1">
+								<p className="font-medium">
+									Your registration
+									{removedDivisionIds.length === 1 ? " was" : "s were"} removed
+									from this competition:
+								</p>
+								<ul className="list-disc pl-4">
+									{removedDivisionIds.map((id) => {
+										const div = getDivision(id)
+										return <li key={id}>{div?.label ?? "Unknown division"}</li>
+									})}
+								</ul>
+								<p className="text-muted-foreground">
+									If you believe this was a mistake, please contact the event
+									organizer.
+								</p>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+			)}
 
 			{registeredDivisionIds.length > 0 && (
 				<Card className="border-green-500/20 bg-green-500/5">
@@ -742,7 +807,9 @@ export function RegistrationForm({
 				{/* Division Selection - Searchable multi-select dropdown */}
 				<Card>
 					<CardHeader>
-						<CardTitle>Select Division{selectedDivisionIds.length > 1 ? "s" : ""}</CardTitle>
+						<CardTitle>
+							Select Division{selectedDivisionIds.length > 1 ? "s" : ""}
+						</CardTitle>
 						<CardDescription>
 							Choose one or more divisions to register for
 						</CardDescription>
@@ -753,6 +820,7 @@ export function RegistrationForm({
 							publicDivisions={publicDivisions}
 							selectedIds={selectedDivisionIds}
 							registeredDivisionIds={registeredDivisionIdSet}
+							removedDivisionIds={removedDivisionIdSet}
 							onToggle={handleDivisionToggle}
 							disabled={isSubmitting || !registrationOpen}
 						/>
@@ -763,7 +831,11 @@ export function RegistrationForm({
 									const level = getDivision(id)
 									if (!level) return null
 									return (
-										<Badge key={id} variant="secondary" className="pl-2 pr-1 py-1 gap-1">
+										<Badge
+											key={id}
+											variant="secondary"
+											className="pl-2 pr-1 py-1 gap-1"
+										>
 											{level.label}
 											<button
 												type="button"
@@ -819,9 +891,7 @@ export function RegistrationForm({
 						</CardHeader>
 						<CardContent className="space-y-6">
 							{questions.map((question) => {
-								const answer = answers.find(
-									(a) => a.questionId === question.id,
-								)
+								const answer = answers.find((a) => a.questionId === question.id)
 								return (
 									<div key={question.id} className="space-y-2">
 										<Label>
@@ -832,9 +902,7 @@ export function RegistrationForm({
 										</Label>
 										{question.type === "select" ? (
 											<Select
-												onValueChange={(val) =>
-													updateAnswer(question.id, val)
-												}
+												onValueChange={(val) => updateAnswer(question.id, val)}
 												value={answer?.answer || undefined}
 												disabled={isSubmitting || !registrationOpen}
 											>
@@ -883,7 +951,9 @@ export function RegistrationForm({
 				{hasSelectedDivisions && (
 					<Card>
 						<CardHeader>
-							<CardTitle>Registration Fee{selectedDivisionIds.length > 1 ? "s" : ""}</CardTitle>
+							<CardTitle>
+								Registration Fee{selectedDivisionIds.length > 1 ? "s" : ""}
+							</CardTitle>
 						</CardHeader>
 						<CardContent className="space-y-3">
 							{selectedDivisionIds.map((divisionId) => {
@@ -909,7 +979,13 @@ export function RegistrationForm({
 								<div className="flex justify-between font-medium pt-2 border-t">
 									<span>Total</span>
 									<span className="text-lg">
-										${(Array.from(divisionFees.values()).reduce((sum, c) => sum + c, 0) / 100).toFixed(2)}
+										$
+										{(
+											Array.from(divisionFees.values()).reduce(
+												(sum, c) => sum + c,
+												0,
+											) / 100
+										).toFixed(2)}
 									</span>
 								</div>
 							)}
@@ -946,11 +1022,7 @@ export function RegistrationForm({
 										placeholder="Enter your team name"
 										value={teamEntry.teamName}
 										onChange={(e) =>
-											updateTeamEntry(
-												division.id,
-												"teamName",
-												e.target.value,
-											)
+											updateTeamEntry(division.id, "teamName", e.target.value)
 										}
 										disabled={isSubmitting || !registrationOpen}
 									/>
@@ -1013,7 +1085,10 @@ export function RegistrationForm({
 									</Card>
 
 									{teamEntry.teammates.map((teammate, index) => (
-										<Card key={`${division.id}-teammate-${index}`} className="p-4">
+										<Card
+											key={`${division.id}-teammate-${index}`}
+											className="p-4"
+										>
 											<div className="space-y-4">
 												<div className="flex items-center gap-2">
 													<Users className="w-4 h-4 text-muted-foreground" />

@@ -8,20 +8,40 @@
 import {
 	createFileRoute,
 	getRouteApi,
+	Link,
 	useNavigate,
 	useRouter,
 } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
 import {
 	ArrowDown,
+	ArrowRight,
 	ArrowUp,
 	ArrowUpDown,
 	Calendar,
 	Download,
+	Link2,
 	Mail,
+	MoreHorizontal,
+	Plus,
+	Trash2,
+	UserPlus,
 	X,
 } from "lucide-react"
+import { useState } from "react"
+import { toast } from "sonner"
 import { z } from "zod"
 import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -32,6 +52,12 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
 	Select,
 	SelectContent,
@@ -47,6 +73,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { INVITATION_STATUS } from "@/db/schemas/teams"
 import {
 	getOrganizerRegistrationsFn,
@@ -54,6 +81,14 @@ import {
 	type PendingTeammateInvite,
 } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
+import { removeRegistrationFn } from "@/server-fns/registration-fns"
+import { ManualRegistrationDialog } from "./-components/manual-registration-dialog"
+import {
+	cancelPurchaseTransferFn,
+	getPendingTransfersForCompetitionFn,
+} from "@/server-fns/purchase-transfer-fns"
+import { TransferDivisionDialog } from "./-components/transfer-division-dialog"
+import { TransferRegistrationDialog } from "./-components/transfer-registration-dialog"
 import {
 	getCompetitionQuestionsFn,
 	getCompetitionRegistrationAnswersFn,
@@ -77,6 +112,10 @@ type SortColumn = (typeof sortColumns)[number]
 type SortDirection = "asc" | "desc"
 
 const athletesSearchSchema = z.object({
+	tab: z
+		.enum(["athletes", "registration-rules"])
+		.optional()
+		.default("athletes"),
 	division: z.string().optional(),
 	// questionFilters: { questionId: ["value1", "value2"] }
 	questionFilters: z.record(z.string(), z.array(z.string())).optional(),
@@ -107,7 +146,7 @@ export const Route = createFileRoute(
 		const parentMatch = await parentMatchPromise
 		const { competition } = parentMatch.loaderData!
 
-		// Parallel fetch: registrations, divisions, questions, answers, waivers, signatures, and pending invites
+		// Parallel fetch: registrations, divisions, questions, answers, waivers, signatures, pending invites, and pending transfers
 		const [
 			registrationsResult,
 			divisionsResult,
@@ -116,6 +155,7 @@ export const Route = createFileRoute(
 			waiversResult,
 			signaturesResult,
 			pendingInvitesResult,
+			pendingTransfersResult,
 		] = await Promise.all([
 			getOrganizerRegistrationsFn({
 				data: { competitionId, divisionFilter },
@@ -138,6 +178,9 @@ export const Route = createFileRoute(
 			getPendingTeammateInvitationsFn({
 				data: { competitionId },
 			}),
+			getPendingTransfersForCompetitionFn({
+				data: { competitionId },
+			}),
 		])
 
 		return {
@@ -155,6 +198,7 @@ export const Route = createFileRoute(
 				{} as Record<string, Date>,
 			),
 			pendingInvites: pendingInvitesResult.pendingInvites,
+			pendingTransfers: pendingTransfersResult,
 			currentDivisionFilter: divisionFilter,
 			currentQuestionFilters: deps?.questionFilters || {},
 			currentWaiverFilters: deps?.waiverFilters || [],
@@ -175,6 +219,7 @@ function AthletesPage() {
 		waivers,
 		signaturesByUser,
 		pendingInvites,
+		pendingTransfers,
 		currentDivisionFilter,
 		currentQuestionFilters,
 		currentWaiverFilters,
@@ -184,15 +229,86 @@ function AthletesPage() {
 	} = Route.useLoaderData()
 	const navigate = useNavigate()
 	const router = useRouter()
+	const { tab } = Route.useSearch()
+	const handleTabChange = (value: string) => {
+		navigate({
+			to: ".",
+			search: (prev) => ({
+				...prev,
+				tab: value as "athletes" | "registration-rules",
+			}),
+			replace: true,
+		})
+	}
+	const removeRegistration = useServerFn(removeRegistrationFn)
+	const cancelPurchaseTransfer = useServerFn(cancelPurchaseTransferFn)
+	const [removingRegistration, setRemovingRegistration] = useState<{
+		id: string
+		athleteName: string
+		teamName: string | null
+	} | null>(null)
+	const [isRemoving, setIsRemoving] = useState(false)
+	const [showManualRegistration, setShowManualRegistration] = useState(false)
+	const [transferTarget, setTransferTarget] = useState<{
+		id: string
+		athleteName: string
+		userId: string
+		divisionId: string | null
+		divisionLabel: string | null
+		teamSize: number
+	} | null>(null)
+	const [transferRegistrationTarget, setTransferRegistrationTarget] =
+		useState<{
+			id: string
+			athleteName: string
+			divisionId: string | null
+			divisionLabel: string | null
+			commercePurchaseId: string | null
+		} | null>(null)
 
 	const handleQuestionsChange = () => {
 		router.invalidate()
 	}
 
+	const handleCancelTransfer = async (transferId: string) => {
+		try {
+			await cancelPurchaseTransfer({ data: { transferId } })
+			toast.success("Transfer cancelled successfully")
+			router.invalidate()
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Failed to cancel transfer",
+			)
+		}
+	}
+
+	const handleRemoveRegistration = async () => {
+		if (!removingRegistration) return
+		setIsRemoving(true)
+		try {
+			await removeRegistration({
+				data: {
+					registrationId: removingRegistration.id,
+					competitionId: competition.id,
+				},
+			})
+			toast.success("Registration removed successfully")
+			setRemovingRegistration(null)
+			router.invalidate()
+		} catch (error) {
+			toast.error(
+				error instanceof Error
+					? error.message
+					: "Failed to remove registration",
+			)
+		} finally {
+			setIsRemoving(false)
+		}
+	}
+
 	const handleDivisionChange = (value: string) => {
 		navigate({
-			to: "/compete/organizer/$competitionId/athletes",
-			params: { competitionId: competition.id },
+			to: ".",
 			search: (prev) => ({
 				...prev,
 				division: value === "all" ? undefined : value,
@@ -204,8 +320,7 @@ function AthletesPage() {
 	// Toggle a question filter value (add if not present, remove if present)
 	const toggleQuestionFilter = (questionId: string, value: string) => {
 		navigate({
-			to: "/compete/organizer/$competitionId/athletes",
-			params: { competitionId: competition.id },
+			to: ".",
 			search: (prev) => {
 				const newFilters = { ...prev.questionFilters }
 				const currentValues = newFilters[questionId] || []
@@ -236,8 +351,7 @@ function AthletesPage() {
 	// Remove a specific question filter value
 	const removeQuestionFilter = (questionId: string, value: string) => {
 		navigate({
-			to: "/compete/organizer/$competitionId/athletes",
-			params: { competitionId: competition.id },
+			to: ".",
 			search: (prev) => {
 				const newFilters = { ...prev.questionFilters }
 				const currentValues = newFilters[questionId] || []
@@ -262,8 +376,7 @@ function AthletesPage() {
 	// Toggle a waiver filter (add if not present, remove if present)
 	const toggleWaiverFilter = (filterValue: string) => {
 		navigate({
-			to: "/compete/organizer/$competitionId/athletes",
-			params: { competitionId: competition.id },
+			to: ".",
 			search: (prev) => {
 				const currentFilters = prev.waiverFilters || []
 
@@ -287,8 +400,7 @@ function AthletesPage() {
 	// Remove a specific waiver filter
 	const removeWaiverFilter = (filterValue: string) => {
 		navigate({
-			to: "/compete/organizer/$competitionId/athletes",
-			params: { competitionId: competition.id },
+			to: ".",
 			search: (prev) => {
 				const filtered = (prev.waiverFilters || []).filter(
 					(v) => v !== filterValue,
@@ -305,8 +417,7 @@ function AthletesPage() {
 	// Handle column sorting
 	const handleSort = (column: SortColumn) => {
 		navigate({
-			to: "/compete/organizer/$competitionId/athletes",
-			params: { competitionId: competition.id },
+			to: ".",
 			search: (prev) => {
 				// If clicking the same column, toggle direction or clear
 				if (prev.sortBy === column) {
@@ -371,6 +482,8 @@ function AthletesPage() {
 		ordinal: number
 		ordinalLabel: string
 		registrationId: string
+		registrationStatus: string // 'active' | 'removed'
+		commercePurchaseId: string | null
 		athlete: {
 			id: string
 			firstName: string | null
@@ -382,7 +495,7 @@ function AthletesPage() {
 		isCaptain: boolean
 		status: AthleteStatus // 'registered' = has account, 'pending' = invited, 'accepted' = guest accepted
 		pendingInvite?: PendingTeammateInvite // For accessing pending answers (when status is 'pending' or 'accepted')
-		division: { label: string } | null
+		division: { id: string; label: string; teamSize: number } | null
 		teamName: string | null
 		registeredAt: Date | string | null
 		joinedAt: Date | null
@@ -445,6 +558,10 @@ function AthletesPage() {
 		allMembers.forEach((member, memberIndex) => {
 			athleteRows.push({
 				registrationId: registration.id,
+				registrationStatus: registration.status,
+				commercePurchaseId:
+					(registration as { commercePurchaseId?: string | null })
+						?.commercePurchaseId ?? null,
 				ordinal: rowIndex,
 				ordinalLabel: memberIndex === 0 ? String(rowIndex) : "",
 				athlete: {
@@ -480,6 +597,8 @@ function AthletesPage() {
 
 				athleteRows.push({
 					registrationId: registration.id,
+					registrationStatus: registration.status,
+					commercePurchaseId: null,
 					ordinal: rowIndex,
 					ordinalLabel: "",
 					athlete: {
@@ -560,8 +679,13 @@ function AthletesPage() {
 		return true
 	})
 
-	// Sort filtered rows
+	// Sort filtered rows — removed registrations always at the bottom
 	const sortedAthleteRows = [...filteredAthleteRows].sort((a, b) => {
+		// Always sort removed to bottom
+		const aRemoved = a.registrationStatus === "removed"
+		const bRemoved = b.registrationStatus === "removed"
+		if (aRemoved !== bRemoved) return aRemoved ? 1 : -1
+
 		if (!currentSortBy) return 0
 
 		const direction = currentSortDir === "desc" ? -1 : 1
@@ -715,30 +839,103 @@ function AthletesPage() {
 	}
 
 	return (
-		<div className="flex flex-col gap-6">
-			{/* Registration Questions Editor */}
+		<>
+		<Tabs value={tab} onValueChange={handleTabChange} className="w-full">
+			<TabsList className="mb-6">
+				<TabsTrigger value="athletes">Athletes</TabsTrigger>
+				<TabsTrigger value="registration-rules">Registration Rules</TabsTrigger>
+			</TabsList>
+		<TabsContent value="registration-rules" className="flex flex-col gap-6">
+			{/* Inherited Series Questions (read-only) */}
+			{questions.some((q) => q.source === "series") && (
+				<Card>
+					<CardHeader>
+						<CardTitle className="flex items-center gap-2">
+							<Link2 className="h-5 w-5" />
+							Series Registration Questions
+						</CardTitle>
+						<CardDescription>
+							These questions are inherited from the series and apply to all
+							competitions.{" "}
+							{competition.groupId && (
+								<Link
+									to="/compete/organizer/series/$groupId"
+									params={{ groupId: competition.groupId }}
+									className="text-primary underline underline-offset-4 hover:text-primary/80"
+								>
+									Manage on series page
+								</Link>
+							)}
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<div className="space-y-2">
+							{questions
+								.filter((q) => q.source === "series")
+								.map((question) => (
+									<div
+										key={question.id}
+										className="flex items-start gap-3 p-4 border rounded-lg bg-muted/50"
+									>
+										<div className="flex-1 space-y-2">
+											<div className="flex items-start justify-between gap-2">
+												<h4 className="font-medium">{question.label}</h4>
+												<Badge variant="outline" className="flex items-center gap-1 shrink-0">
+													<Link2 className="h-3 w-3" />
+													From Series
+												</Badge>
+											</div>
+											{question.helpText && (
+												<p className="text-sm text-muted-foreground">
+													{question.helpText}
+												</p>
+											)}
+											<div className="flex items-center gap-2 flex-wrap">
+												<Badge variant="secondary">{question.type}</Badge>
+												<Badge variant={question.required ? "destructive" : "outline"}>
+													{question.required ? "Required" : "Optional"}
+												</Badge>
+											</div>
+										</div>
+									</div>
+								))}
+						</div>
+					</CardContent>
+				</Card>
+			)}
+
+			{/* Competition-specific Registration Questions Editor */}
 			<RegistrationQuestionsEditor
-				competitionId={competition.id}
+				entityType="competition"
+				entityId={competition.id}
 				teamId={teamId}
-				questions={questions}
+				questions={questions.filter((q) => q.source === "competition")}
 				onQuestionsChange={handleQuestionsChange}
 			/>
+		</TabsContent>
 
+		<TabsContent value="athletes" className="flex flex-col gap-6">
 			{/* Athletes Section */}
 			<div className="flex items-center justify-between">
 				<div>
 					<h2 className="text-xl font-semibold">Registered Athletes</h2>
 					<p className="text-muted-foreground text-sm">
-						{registrations.length} registration
-						{registrations.length !== 1 ? "s" : ""}
+						{registrations.filter((r) => r.status === "active").length} registration
+						{registrations.filter((r) => r.status === "active").length !== 1 ? "s" : ""}
 					</p>
 				</div>
-				{registrations.length > 0 && (
-					<Button onClick={handleExportCSV} variant="outline" size="sm">
-						<Download className="h-4 w-4 mr-2" />
-						Export CSV
+				<div className="flex items-center gap-2">
+					<Button onClick={() => setShowManualRegistration(true)} size="sm">
+						<Plus className="h-4 w-4 mr-2" />
+						Add Registration
 					</Button>
-				)}
+					{registrations.length > 0 && (
+						<Button onClick={handleExportCSV} variant="outline" size="sm">
+							<Download className="h-4 w-4 mr-2" />
+							Export CSV
+						</Button>
+					)}
+				</div>
 			</div>
 
 			{registrations.length === 0 && !currentDivisionFilter ? (
@@ -943,6 +1140,7 @@ function AthletesPage() {
 									<TableHeader>
 										<TableRow>
 											<TableHead className="w-[50px]">#</TableHead>
+											<TableHead>Status</TableHead>
 											<TableHead>
 												<button
 													type="button"
@@ -985,7 +1183,12 @@ function AthletesPage() {
 											</TableHead>
 											{questions.map((question) => (
 												<TableHead key={question.id}>
-													{question.label}
+													<span className="flex items-center gap-1">
+														{question.label}
+														{question.source === "series" && (
+															<Link2 className="h-3 w-3 text-muted-foreground shrink-0" />
+														)}
+													</span>
 												</TableHead>
 											))}
 											{waivers.map((waiver) => (
@@ -1016,10 +1219,73 @@ function AthletesPage() {
 										</TableRow>
 									</TableHeader>
 									<TableBody>
-										{sortedAthleteRows.map((row) => (
-											<TableRow key={`${row.registrationId}-${row.athlete.id}`}>
+										{sortedAthleteRows.map((row) => {
+										const isRowRemoved = row.registrationStatus === "removed"
+										return (
+											<TableRow
+												key={`${row.registrationId}-${row.athlete.id}`}
+												className={isRowRemoved ? "opacity-50 bg-muted/30" : ""}
+											>
 												<TableCell className="font-mono text-sm text-muted-foreground">
 													{row.ordinalLabel}
+												</TableCell>
+												<TableCell>
+													{isRowRemoved ? (
+														<Badge
+															variant="destructive"
+															className="text-xs"
+														>
+															Removed
+														</Badge>
+													) : row.status === "pending" ? (
+														<Badge
+															variant="outline"
+															className="text-xs bg-yellow-50 text-yellow-700 border-yellow-300"
+														>
+															Invite Pending
+														</Badge>
+													) : row.status === "accepted" ? (
+														<Badge
+															variant="outline"
+															className="text-xs bg-green-50 text-green-700 border-green-300"
+														>
+															Invite Accepted
+														</Badge>
+													) : row.commercePurchaseId &&
+														pendingTransfers.some(
+															(t) => t.purchaseId === row.commercePurchaseId,
+														) ? (
+														<div className="flex items-center gap-1">
+															<Badge
+																variant="outline"
+																className="text-xs bg-yellow-50 text-yellow-700 border-yellow-300"
+															>
+																Transfer Pending
+															</Badge>
+															<button
+																type="button"
+																className="text-muted-foreground hover:text-foreground p-0.5 rounded"
+																title="Copy transfer link"
+																onClick={async () => {
+																	const transfer = pendingTransfers.find(
+																		(t) => t.purchaseId === row.commercePurchaseId,
+																	)
+																	if (transfer) {
+																		try {
+																			await navigator.clipboard.writeText(
+																				`${window.location.origin}/transfer/${transfer.id}`,
+																			)
+																			toast.success("Transfer link copied to clipboard")
+																		} catch {
+																			toast.error("Failed to copy link")
+																		}
+																	}
+																}}
+															>
+																<Link2 className="h-3.5 w-3.5" />
+															</button>
+														</div>
+													) : null}
 												</TableCell>
 												<TableCell>
 													<div className="flex items-center gap-3">
@@ -1043,20 +1309,11 @@ function AthletesPage() {
 														<div className="flex flex-col">
 															<span className="font-medium">
 																{row.status === "pending" ? (
-																	<>
-																		<span className="italic text-muted-foreground">
-																			Invited
-																		</span>
-																		<Badge
-																			variant="outline"
-																			className="ml-2 text-xs bg-yellow-50 text-yellow-700 border-yellow-300"
-																		>
-																			Pending
-																		</Badge>
-																	</>
+																	<span className="italic text-muted-foreground">
+																		Invited
+																	</span>
 																) : row.status === "accepted" ? (
 																	<>
-																		{/* Show guest name if available */}
 																		{row.pendingInvite?.guestName ? (
 																			<span>{row.pendingInvite.guestName}</span>
 																		) : (
@@ -1064,12 +1321,6 @@ function AthletesPage() {
 																				Invited
 																			</span>
 																		)}
-																		<Badge
-																			variant="outline"
-																			className="ml-2 text-xs bg-green-50 text-green-700 border-green-300"
-																		>
-																			Accepted
-																		</Badge>
 																	</>
 																) : (
 																	<>
@@ -1194,8 +1445,109 @@ function AthletesPage() {
 												<TableCell className="text-muted-foreground text-sm">
 													{row.joinedAt ? formatDate(row.joinedAt) : null}
 												</TableCell>
+												<TableCell>
+													{row.isCaptain && !isRowRemoved && (
+														<DropdownMenu>
+															<DropdownMenuTrigger asChild>
+																<Button
+																	variant="ghost"
+																	size="icon"
+																	className="h-8 w-8"
+																	aria-label="Open registration actions"
+																>
+																	<MoreHorizontal className="h-4 w-4" />
+																</Button>
+															</DropdownMenuTrigger>
+															<DropdownMenuContent align="end">
+																<DropdownMenuItem
+																	onClick={() => {
+																		const athleteName =
+																			`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
+																			row.athlete.email ||
+																			"Unknown"
+																		setTransferTarget({
+																			id: row.registrationId,
+																			athleteName,
+																			userId: row.athlete.id,
+																			divisionId: row.division?.id ?? null,
+																			divisionLabel:
+																				row.division?.label ?? null,
+																			teamSize:
+																				row.division?.teamSize ?? 1,
+																		})
+																	}}
+																>
+																	<ArrowRight className="h-4 w-4 mr-2" />
+																	Change Division
+																</DropdownMenuItem>
+																{(() => {
+																	const pendingTransfer = pendingTransfers.find(
+																		(t) =>
+																			t.purchaseId === row.commercePurchaseId,
+																	)
+																	const athleteName =
+																		`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
+																		row.athlete.email ||
+																		"Unknown"
+																	if (pendingTransfer) {
+																		return (
+																			<DropdownMenuItem
+																				className="text-destructive focus:text-destructive"
+																				onClick={() =>
+																					handleCancelTransfer(
+																						pendingTransfer.id,
+																					)
+																				}
+																			>
+																				<X className="h-4 w-4 mr-2" />
+																				Cancel Transfer
+																			</DropdownMenuItem>
+																		)
+																	}
+																	return (
+																		<DropdownMenuItem
+																			onClick={() =>
+																				setTransferRegistrationTarget({
+																					id: row.registrationId,
+																					athleteName,
+																					divisionId:
+																						row.division?.id ?? null,
+																					divisionLabel:
+																						row.division?.label ?? null,
+																					commercePurchaseId:
+																						row.commercePurchaseId ?? null,
+																				})
+																			}
+																			disabled={!row.commercePurchaseId}
+																		>
+																			<UserPlus className="h-4 w-4 mr-2" />
+																			Transfer Registration
+																		</DropdownMenuItem>
+																	)
+																})()}
+																<DropdownMenuItem
+																	className="text-destructive focus:text-destructive"
+																	onClick={() =>
+																		setRemovingRegistration({
+																			id: row.registrationId,
+																			athleteName:
+																				`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
+																				row.athlete.email ||
+																				"Unknown",
+																			teamName: row.teamName,
+																		})
+																	}
+																>
+																	<Trash2 className="h-4 w-4 mr-2" />
+																	Remove Registration
+																</DropdownMenuItem>
+															</DropdownMenuContent>
+														</DropdownMenu>
+													)}
+												</TableCell>
 											</TableRow>
-										))}
+										)
+									})}
 									</TableBody>
 								</Table>
 							</CardContent>
@@ -1203,6 +1555,75 @@ function AthletesPage() {
 					)}
 				</div>
 			)}
-		</div>
+		</TabsContent>
+		</Tabs>
+
+		<AlertDialog
+			open={!!removingRegistration}
+			onOpenChange={(open) => !open && setRemovingRegistration(null)}
+		>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Remove Registration</AlertDialogTitle>
+					<AlertDialogDescription>
+						Are you sure you want to remove the registration for{" "}
+						<strong>{removingRegistration?.athleteName}</strong>
+						{removingRegistration?.teamName && (
+							<> (team: {removingRegistration.teamName})</>
+						)}
+						? This will remove them from the competition, delete their heat
+						assignments and scores.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel disabled={isRemoving}>Cancel</AlertDialogCancel>
+					<AlertDialogAction
+						onClick={handleRemoveRegistration}
+						disabled={isRemoving}
+						className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+					>
+						{isRemoving ? "Removing..." : "Remove Registration"}
+					</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+
+		<ManualRegistrationDialog
+			open={showManualRegistration}
+			onOpenChange={setShowManualRegistration}
+			competitionId={competition.id}
+			divisions={divisions}
+			questions={questions}
+		/>
+
+		{transferTarget && (
+			<TransferDivisionDialog
+				open={!!transferTarget}
+				onOpenChange={(open) => !open && setTransferTarget(null)}
+				registration={transferTarget}
+				divisions={divisions}
+				competitionId={competition.id}
+				registeredDivisionIds={registrations
+					.filter(
+						(r) =>
+							r.userId === transferTarget.userId &&
+							r.divisionId != null &&
+							r.status !== "removed",
+					)
+					.map((r) => r.divisionId!)}
+			/>
+		)}
+
+		{transferRegistrationTarget && (
+			<TransferRegistrationDialog
+				open={!!transferRegistrationTarget}
+				onOpenChange={(open) =>
+					!open && setTransferRegistrationTarget(null)
+				}
+				registration={transferRegistrationTarget}
+				competitionId={competition.id}
+			/>
+		)}
+		</>
 	)
 }

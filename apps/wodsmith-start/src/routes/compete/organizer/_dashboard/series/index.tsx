@@ -3,20 +3,26 @@ import { FolderOpen, Plus } from "lucide-react"
 import { OrganizerSeriesList } from "@/components/organizer-series-list"
 import { Button } from "@/components/ui/button"
 import { getCompetitionGroupsFn } from "@/server-fns/competition-fns"
+import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
 
 export const Route = createFileRoute("/compete/organizer/_dashboard/series/")({
-	loader: async ({ context }) => {
-		const session = context.session
+	loader: async () => {
+		const { teams: organizingTeams } = await getOrganizerTeamsFn()
 
-		// Get all user teams - for now using first team
-		const userTeams = session?.teams || []
-		const selectedTeamId = userTeams[0]?.id
-
-		if (!selectedTeamId) {
+		if (organizingTeams.length === 0) {
 			return {
 				groups: [],
 				teamId: null,
 			}
+		}
+
+		let selectedTeamId = await getActiveTeamIdFn()
+
+		const isSelectedTeamAnOrganizer = organizingTeams.some(
+			(team) => team.id === selectedTeamId,
+		)
+		if (!isSelectedTeamAnOrganizer) {
+			selectedTeamId = organizingTeams[0].id
 		}
 
 		const { groups } = await getCompetitionGroupsFn({

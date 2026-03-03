@@ -10,7 +10,10 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { getCompetitionGroupsFn } from "@/server-fns/competition-fns"
+import {
+	getCompetitionGroupByIdFn,
+	getCompetitionGroupsFn,
+} from "@/server-fns/competition-fns"
 import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
 
 const searchSchema = z.object({
@@ -20,7 +23,8 @@ const searchSchema = z.object({
 export const Route = createFileRoute("/compete/organizer/_dashboard/new")({
 	component: NewCompetitionPage,
 	validateSearch: searchSchema,
-	loader: async () => {
+	loaderDeps: ({ search }) => ({ groupId: search.groupId }),
+	loader: async ({ deps }) => {
 		// Get teams that can organize competitions (non-personal, with HOST_COMPETITIONS)
 		const { teams: organizingTeams } = await getOrganizerTeamsFn()
 
@@ -34,6 +38,21 @@ export const Route = createFileRoute("/compete/organizer/_dashboard/new")({
 
 		// Get active team from cookie, or use first organizing team
 		let selectedTeamId = await getActiveTeamIdFn()
+
+		// If a groupId is provided, look up the group's organizing team
+		// so the competition is created under the correct team
+		if (deps.groupId) {
+			const groupResult = await getCompetitionGroupByIdFn({
+				data: { groupId: deps.groupId },
+			})
+			if (groupResult.group) {
+				const groupTeamId = groupResult.group.organizingTeamId
+				// Use the group's team if the user has access to it
+				if (organizingTeams.some((t) => t.id === groupTeamId)) {
+					selectedTeamId = groupTeamId
+				}
+			}
+		}
 
 		// Ensure selected team is an organizing team
 		const isSelectedTeamAnOrganizer = organizingTeams.some(

@@ -1,6 +1,7 @@
 import { render } from "@react-email/render"
 import { SITE_DOMAIN } from "@/constants"
 import {
+	getAppUrl,
 	getEmailFrom,
 	getEmailFromName,
 	getEmailReplyTo,
@@ -11,6 +12,7 @@ import {
 } from "@/lib/env"
 import { OrganizerRequestApprovedEmail } from "@/react-email/organizer/request-approved"
 import { OrganizerRequestRejectedEmail } from "@/react-email/organizer/request-rejected"
+import { PurchaseTransferEmail } from "@/react-email/purchase-transfer"
 import { ResetPasswordEmail } from "@/react-email/reset-password"
 import { TeamInviteEmail } from "@/react-email/team-invite"
 import { VerifyEmail } from "@/react-email/verify-email"
@@ -301,6 +303,43 @@ export async function sendCompetitionTeamInviteEmail({
 }
 
 /**
+ * Sends a volunteer direct invite email.
+ * Used when an organizer directly invites a volunteer to a competition.
+ * Routes to /compete/invite/${token} so the invitee fills out registration questions.
+ */
+export async function sendVolunteerDirectInviteEmail({
+	email,
+	invitationToken,
+	competitionName,
+	inviterName,
+}: {
+	email: string
+	invitationToken: string
+	competitionName: string
+	inviterName: string
+}): Promise<void> {
+	const siteUrl = getSiteUrl()
+	const inviteUrl = `${siteUrl}/compete/invite/${encodeURIComponent(invitationToken)}`
+
+	// In dev mode, console.warn shows the URL for easy testing
+	if (!shouldSendEmail()) {
+		console.warn("\n\n\nVolunteer direct invite url: ", inviteUrl)
+	}
+
+	await sendEmail({
+		to: email,
+		subject: `You've been invited to volunteer at ${competitionName}`,
+		template: TeamInviteEmail({
+			inviteLink: inviteUrl,
+			recipientEmail: email,
+			teamName: competitionName,
+			inviterName,
+		}),
+		tags: [{ name: "type", value: "volunteer-direct-invitation" }],
+	})
+}
+
+/**
  * Sends an organizer request approval email.
  * Uses the unified sendEmail function for consistent logging and error handling.
  */
@@ -365,5 +404,55 @@ export async function sendOrganizerRejectionEmail({
 			supportEmail,
 		}),
 		tags: [{ name: "type", value: "organizer-rejection" }],
+	})
+}
+
+/**
+ * Sends a purchase transfer email to the recipient athlete.
+ * Uses the unified sendEmail function for consistent logging and error handling.
+ */
+export async function sendPurchaseTransferEmail({
+	email,
+	transferId,
+	competitionName,
+	divisionName,
+	sourceAthleteName,
+	expiresAt,
+}: {
+	email: string
+	transferId: string
+	competitionName: string
+	divisionName: string | null
+	sourceAthleteName: string
+	expiresAt: Date
+}): Promise<void> {
+	const appUrl = getAppUrl()
+
+	// In dev mode, console.warn shows the URL for easy testing
+	if (!shouldSendEmail()) {
+		console.warn(
+			"\n\n\nPurchase transfer url: ",
+			`${appUrl}/transfer/${transferId}`,
+		)
+	}
+
+	await sendEmail({
+		to: email,
+		subject: `Registration transfer for ${competitionName}`,
+		template: (
+			<PurchaseTransferEmail
+				sourceAthleteName={sourceAthleteName}
+				competitionName={competitionName}
+				divisionName={divisionName ?? undefined}
+				transferId={transferId}
+				appUrl={appUrl}
+				expiresAt={expiresAt.toLocaleDateString("en-US", {
+					month: "long",
+					day: "numeric",
+					year: "numeric",
+				})}
+			/>
+		),
+		tags: [{ name: "type", value: "purchase-transfer" }],
 	})
 }
