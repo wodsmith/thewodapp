@@ -6,7 +6,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray } from "drizzle-orm"
+import { and, desc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -181,6 +181,22 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
 				competition.organizingTeamId,
 				TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 			)
+
+			// Verify the event belongs to this competition
+			const [competitionEvent] = await db
+				.select({ id: competitionEventsTable.id })
+				.from(competitionEventsTable)
+				.where(
+					and(
+						eq(competitionEventsTable.competitionId, data.competitionId),
+						eq(competitionEventsTable.trackWorkoutId, data.trackWorkoutId),
+					),
+				)
+				.limit(1)
+
+			if (!competitionEvent) {
+				throw new Error("Event not found in this competition")
+			}
 
 			// Load the score (including current values for audit log)
 			const [score] = await db
@@ -371,6 +387,26 @@ export const getSubmissionDetailFn = createServerFn({ method: "GET" })
 			event: EventDetails
 		}> => {
 			const db = getDb()
+
+			const session = await getSessionFromCookie()
+			if (!session?.userId) {
+				throw new Error("Not authenticated")
+			}
+
+			const [competition] = await db
+				.select({ organizingTeamId: competitionsTable.organizingTeamId })
+				.from(competitionsTable)
+				.where(eq(competitionsTable.id, data.competitionId))
+				.limit(1)
+
+			if (!competition) {
+				throw new Error("Competition not found")
+			}
+
+			await requireTeamPermission(
+				competition.organizingTeamId,
+				TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+			)
 
 			// Get the score with user info
 			const [score] = await db
@@ -597,6 +633,26 @@ export const getEventSubmissionsFn = createServerFn({ method: "GET" })
 	.handler(async ({ data }): Promise<{ submissions: SubmissionListItem[] }> => {
 		const db = getDb()
 
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		const [competition] = await db
+			.select({ organizingTeamId: competitionsTable.organizingTeamId })
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+			.limit(1)
+
+		if (!competition) {
+			throw new Error("Competition not found")
+		}
+
+		await requireTeamPermission(
+			competition.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		)
+
 		// Get all scores for this event
 		const scores = await db
 			.select({
@@ -727,6 +783,26 @@ export const getEventDetailsForVerificationFn = createServerFn({
 	.handler(async ({ data }): Promise<{ event: EventDetails | null }> => {
 		const db = getDb()
 
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		const [competition] = await db
+			.select({ organizingTeamId: competitionsTable.organizingTeamId })
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+			.limit(1)
+
+		if (!competition) {
+			throw new Error("Competition not found")
+		}
+
+		await requireTeamPermission(
+			competition.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		)
+
 		// Get the track workout with workout details
 		const [trackWorkout] = await db
 			.select({
@@ -824,8 +900,13 @@ export const getVerificationLogsFn = createServerFn({ method: "GET" })
 					trackWorkoutId: scoreVerificationLogsTable.trackWorkoutId,
 				})
 				.from(scoreVerificationLogsTable)
-				.where(eq(scoreVerificationLogsTable.scoreId, data.scoreId))
-				.orderBy(scoreVerificationLogsTable.performedAt)
+				.where(
+					and(
+						eq(scoreVerificationLogsTable.scoreId, data.scoreId),
+						eq(scoreVerificationLogsTable.competitionId, data.competitionId),
+					),
+				)
+				.orderBy(desc(scoreVerificationLogsTable.performedAt))
 
 			if (logs.length === 0) {
 				return { logs: [] }

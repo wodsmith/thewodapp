@@ -276,7 +276,7 @@ function OnlineSubmissionsOverview({
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{data.eventSubmissionStats
+							{[...data.eventSubmissionStats]
 								.sort((a, b) => a.trackOrder - b.trackOrder)
 								.map((stat) => (
 									<TableRow key={stat.eventId}>

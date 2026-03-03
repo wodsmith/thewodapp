@@ -59,6 +59,7 @@ import {
 	getVerificationLogsFn,
 	verifySubmissionScoreFn,
 } from "@/server-fns/submission-verification-fns"
+import { decodeScore, type WorkoutScheme } from "@/lib/scoring"
 import { isSafeUrl } from "@/utils/url"
 
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -402,11 +403,24 @@ function VerificationControls({
 										<p className="text-muted-foreground">
 											by {log.performedByName}
 										</p>
-										{log.action === "adjust" &&
+										{log.action === "adjusted" &&
 											log.newScoreValue !== null && (
 												<p className="text-muted-foreground">
-													{log.originalScoreValue ?? "—"} &rarr;{" "}
-													{log.newScoreValue}
+													{log.originalScoreValue !== null && log.scheme
+														? decodeScore(
+																log.originalScoreValue,
+																log.scheme as WorkoutScheme,
+																{ compact: false },
+															)
+														: "—"}{" "}
+													&rarr;{" "}
+													{log.scheme
+														? decodeScore(
+																log.newScoreValue,
+																log.scheme as WorkoutScheme,
+																{ compact: false },
+															)
+														: log.newScoreValue}
 													{log.newStatus && log.newStatus !== log.originalStatus
 														? ` (${log.newStatus})`
 														: ""}
