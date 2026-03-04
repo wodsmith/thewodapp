@@ -7,9 +7,11 @@ import {
 import { useEffect } from "react"
 import { z } from "zod"
 import { CompetitionHero } from "@/components/competition-hero"
+import { CouponBanner } from "@/components/coupon-banner"
 import { getAppUrlFn } from "@/lib/env"
 import { getCouponByCodeFn } from "@/server-fns/coupon-fns"
-import { setCouponCookie } from "@/utils/coupon-cookie"
+import { toast } from "sonner"
+import { clearCouponSession, setCouponSession } from "@/utils/coupon-cookie"
 import { trackEvent } from "@/lib/posthog"
 import { getUserCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
@@ -197,12 +199,18 @@ function CompetitionDetailLayout() {
 		})
 	}, [competition.id, competition.slug, competition.name])
 
-	// Handle coupon link param: validate, set cookie, strip from URL
+	// Handle coupon link param: validate, store in session, strip from URL
 	useEffect(() => {
 		if (!couponCode) return
-		getCouponByCodeFn({ data: { code: couponCode } }).then(async (result) => {
-			if (result?.coupon && result.competition) {
-				await setCouponCookie({
+		getCouponByCodeFn({ data: { code: couponCode } }).then((result) => {
+			if (!result) {
+				toast.error("This coupon code does not exist.")
+				clearCouponSession()
+			} else if (result.invalid) {
+				toast.error(result.reason)
+				clearCouponSession()
+			} else if (result.coupon && result.competition) {
+				setCouponSession({
 					code: result.coupon.code,
 					competitionSlug: result.competition.slug,
 					amountOffCents: result.coupon.amountOffCents,
@@ -254,6 +262,8 @@ function CompetitionDetailLayout() {
 			<div className="relative container mx-auto px-0 pb-4 print:p-0 print:max-w-none">
 				<Outlet />
 			</div>
+
+			<CouponBanner />
 		</div>
 	)
 }

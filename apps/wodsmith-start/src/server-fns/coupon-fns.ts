@@ -162,7 +162,7 @@ export const listCouponsFn = createServerFn({ method: "GET" })
 
 /**
  * Get a coupon by code. Public — no auth required.
- * Returns coupon and competition info if valid.
+ * Returns coupon and competition info, plus validity status.
  */
 export const getCouponByCodeFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) => getCouponByCodeInputSchema.parse(data))
@@ -180,11 +180,26 @@ export const getCouponByCodeFn = createServerFn({ method: "GET" })
 			return null
 		}
 
+		// Check validity
+		const now = new Date()
+		if (!coupon.isActive) {
+			return { coupon, competition: null, invalid: true as const, reason: "This coupon is no longer active." }
+		}
+		if (coupon.expiresAt && coupon.expiresAt < now) {
+			return { coupon, competition: null, invalid: true as const, reason: "This coupon has expired." }
+		}
+		if (
+			coupon.maxRedemptions != null &&
+			coupon.currentRedemptions >= coupon.maxRedemptions
+		) {
+			return { coupon, competition: null, invalid: true as const, reason: "This coupon has reached its maximum number of uses." }
+		}
+
 		const competition = await db.query.competitionsTable.findFirst({
 			where: eq(competitionsTable.id, coupon.productId),
 		})
 
-		return { coupon, competition }
+		return { coupon, competition, invalid: false as const, reason: null }
 	})
 
 /**

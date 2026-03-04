@@ -552,17 +552,13 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			}
 
 			// Paid division - create purchase record
-			// Calculate proportional discount for this item
+			// Use full fee for Stripe line items; Stripe coupon handles the discount
+			const feeBreakdown = calculateCompetitionFees(item.feeCents, feeConfig)
 			const itemProportion =
 				totalFeeCents > 0 ? item.feeCents / totalFeeCents : 0
 			const itemDiscount = validatedCoupon
 				? Math.round(couponDiscount * itemProportion)
 				: 0
-			const discountedFeeCents = item.feeCents - itemDiscount
-			const feeBreakdown = calculateCompetitionFees(
-				discountedFeeCents,
-				feeConfig,
-			)
 			const purchaseId = createCommercePurchaseId()
 			purchaseIds.push(purchaseId)
 

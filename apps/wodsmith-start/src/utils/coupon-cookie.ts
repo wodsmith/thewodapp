@@ -1,5 +1,5 @@
-const COUPON_COOKIE_NAME = "wod_coupon"
-const COOKIE_EXPIRY_DAYS = 7
+const STORAGE_KEY = "wod_coupon"
+const COUPON_CHANGED_EVENT = "wod_coupon_changed"
 
 export interface CouponCookieData {
 	code: string
@@ -8,55 +8,35 @@ export interface CouponCookieData {
 	competitionName: string
 }
 
-export async function setCouponCookie(data: CouponCookieData): Promise<void> {
-	const value = encodeURIComponent(JSON.stringify(data))
-	const expires = new Date()
-	expires.setDate(expires.getDate() + COOKIE_EXPIRY_DAYS)
-
-	if ("cookieStore" in window) {
-		await cookieStore.set({
-			name: COUPON_COOKIE_NAME,
-			value,
-			expires: expires.getTime(),
-			path: "/",
-			sameSite: "lax",
-		})
-	} else {
-		// biome-ignore lint/suspicious/noDocumentCookie: fallback for browsers without Cookie Store API
-		document.cookie = `${COUPON_COOKIE_NAME}=${value}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`
+export function setCouponSession(data: CouponCookieData): void {
+	try {
+		sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+		window.dispatchEvent(new Event(COUPON_CHANGED_EVENT))
+	} catch {
+		// sessionStorage unavailable (SSR, private browsing edge cases)
 	}
 }
 
-export async function getCouponCookie(): Promise<CouponCookieData | null> {
+export function getCouponSession(): CouponCookieData | null {
 	try {
-		let value: string | undefined
-
-		if ("cookieStore" in window) {
-			const cookie = await cookieStore.get(COUPON_COOKIE_NAME)
-			value = cookie?.value
-		} else {
-			const cookies = document.cookie.split(";")
-			for (const cookie of cookies) {
-				const [name, ...rest] = cookie.trim().split("=")
-				if (name === COUPON_COOKIE_NAME) {
-					value = rest.join("=")
-					break
-				}
-			}
-		}
-
+		const value = sessionStorage.getItem(STORAGE_KEY)
 		if (!value) return null
-		return JSON.parse(decodeURIComponent(value)) as CouponCookieData
+		return JSON.parse(value) as CouponCookieData
 	} catch {
 		return null
 	}
 }
 
-export async function clearCouponCookie(): Promise<void> {
-	if ("cookieStore" in window) {
-		await cookieStore.delete({ name: COUPON_COOKIE_NAME, path: "/" })
-	} else {
-		// biome-ignore lint/suspicious/noDocumentCookie: fallback for browsers without Cookie Store API
-		document.cookie = `${COUPON_COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax`
+export function clearCouponSession(): void {
+	try {
+		sessionStorage.removeItem(STORAGE_KEY)
+		window.dispatchEvent(new Event(COUPON_CHANGED_EVENT))
+	} catch {
+		// noop
 	}
+}
+
+export function onCouponChange(callback: () => void): () => void {
+	window.addEventListener(COUPON_CHANGED_EVENT, callback)
+	return () => window.removeEventListener(COUPON_CHANGED_EVENT, callback)
 }
