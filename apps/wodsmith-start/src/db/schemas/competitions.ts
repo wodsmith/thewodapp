@@ -49,6 +49,7 @@ export const competitionGroupsTable = mysqlTable(
 		slug: varchar({ length: 255 }).notNull(),
 		name: varchar({ length: 255 }).notNull(),
 		description: text(),
+		settings: text(), // JSON: { scoringConfig: ScoringConfig }
 	},
 	(table) => [
 		// Ensure slug is unique per organizing team
