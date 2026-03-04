@@ -82,12 +82,6 @@ const memberSession = {
   teams: [{id: 'team-1', role: {id: 'member'}}],
 }
 
-const regularSession = {
-  userId: 'user-regular',
-  user: {id: 'user-regular', email: 'user@test.com'},
-  teams: [],
-}
-
 const baseCoupon: ProductCoupon = {
   id: 'coupon-1',
   code: 'SAVE20',
@@ -100,6 +94,7 @@ const baseCoupon: ProductCoupon = {
   currentRedemptions: 0,
   expiresAt: null,
   isActive: 1,
+  updateCounter: 0,
   createdAt: new Date('2025-01-01'),
   updatedAt: new Date('2025-01-01'),
 }

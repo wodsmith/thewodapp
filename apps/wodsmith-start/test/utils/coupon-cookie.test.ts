@@ -1,4 +1,4 @@
-import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {type MockInstance, afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import type {CouponCookieData} from '@/utils/coupon-cookie'
 
 import {
@@ -16,9 +16,9 @@ const testCoupon: CouponCookieData = {
 }
 
 describe('coupon-cookie', () => {
-  let dispatchEventSpy: ReturnType<typeof vi.spyOn>
-  let addEventListenerSpy: ReturnType<typeof vi.spyOn>
-  let removeEventListenerSpy: ReturnType<typeof vi.spyOn>
+  let dispatchEventSpy: MockInstance
+  let addEventListenerSpy: MockInstance
+  let removeEventListenerSpy: MockInstance
 
   beforeEach(() => {
     sessionStorage.clear()
