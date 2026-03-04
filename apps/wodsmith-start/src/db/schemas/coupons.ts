@@ -73,7 +73,7 @@ export const productCouponRedemptionsTable = mysqlTable(
 	(table) => [
 		index("product_coupon_redemptions_coupon_idx").on(table.couponId),
 		index("product_coupon_redemptions_user_idx").on(table.userId),
-		index("product_coupon_redemptions_purchase_idx").on(table.purchaseId),
+		uniqueIndex("product_coupon_redemptions_purchase_idx").on(table.purchaseId),
 	],
 )
 

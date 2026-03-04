@@ -22,7 +22,7 @@ const createCouponInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
 	teamId: z.string().min(1, "Team ID is required"),
 	amountOffCents: z.number().int().positive("Amount must be greater than 0"),
-	code: z.string().max(100).optional(),
+	code: z.string().trim().min(1).max(100).optional(),
 	maxRedemptions: z.number().int().positive().optional(),
 	expiresAt: z.string().datetime().optional(),
 })
@@ -112,6 +112,7 @@ export const createCouponFn = createServerFn({ method: "POST" })
 			where: and(
 				eq(productCouponsTable.code, code),
 				eq(productCouponsTable.productId, input.competitionId),
+				eq(productCouponsTable.teamId, input.teamId),
 			),
 		})
 
@@ -234,7 +235,12 @@ export const deactivateCouponFn = createServerFn({ method: "POST" })
 		await db
 			.update(productCouponsTable)
 			.set({ isActive: 0 })
-			.where(eq(productCouponsTable.id, input.couponId))
+			.where(
+				and(
+					eq(productCouponsTable.id, input.couponId),
+					eq(productCouponsTable.teamId, input.teamId),
+				),
+			)
 
 		logInfo({
 			message: "Coupon deactivated",

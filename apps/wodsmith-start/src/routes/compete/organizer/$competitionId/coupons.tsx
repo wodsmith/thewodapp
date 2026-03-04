@@ -141,7 +141,9 @@ function CouponsPage() {
 					maxRedemptions: maxRedemptions
 						? parseInt(maxRedemptions, 10)
 						: undefined,
-					expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
+					expiresAt: expiresAt
+						? new Date(`${expiresAt}T23:59:59`).toISOString()
+						: undefined,
 				},
 			})
 			toast.success("Coupon created")
@@ -172,7 +174,7 @@ function CouponsPage() {
 	}
 
 	function handleCopyLink(code: string) {
-		const url = `${appUrl}/compete/${slug}?coupon=${code}`
+		const url = `${appUrl}/compete/${slug}?coupon=${encodeURIComponent(code)}`
 		navigator.clipboard.writeText(url).then(() => {
 			toast.success("Coupon link copied to clipboard")
 		})

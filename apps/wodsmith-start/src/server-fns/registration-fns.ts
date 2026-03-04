@@ -449,7 +449,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			})
 
 			// Record coupon redemption if a coupon covered the full amount
-			if (validatedCoupon) {
+			if (validatedCoupon && couponDiscount > 0) {
 				await recordRedemption({
 					couponId: validatedCoupon.id,
 					userId,
