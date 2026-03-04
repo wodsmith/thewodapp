@@ -1174,6 +1174,8 @@ export interface RegistrationDetails {
 		status: string
 		completedAt: Date | null
 		stripePaymentIntentId: string | null
+		couponCode: string | null
+		couponDiscountCents: number | null
 	} | null
 	// Whether the current user is the original purchaser (controls invoice visibility)
 	isOriginalPurchaser: boolean
@@ -1284,12 +1286,25 @@ export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
 				where: eq(commercePurchaseTable.id, registration.commercePurchaseId),
 			})
 			if (purchaseRecord) {
+				let couponCode: string | null = null
+				let couponDiscountCents: number | null = null
+				if (purchaseRecord.metadata) {
+					try {
+						const meta = JSON.parse(purchaseRecord.metadata)
+						couponCode = meta.couponCode ?? null
+						couponDiscountCents = meta.couponDiscountCents ?? null
+					} catch {
+						// ignore invalid metadata
+					}
+				}
 				purchase = {
 					id: purchaseRecord.id,
 					totalCents: purchaseRecord.totalCents,
 					status: purchaseRecord.status,
 					completedAt: purchaseRecord.completedAt,
 					stripePaymentIntentId: purchaseRecord.stripePaymentIntentId,
+					couponCode,
+					couponDiscountCents,
 				}
 				isOriginalPurchaser = purchaseRecord.userId === session.user.id
 				if (!isOriginalPurchaser) {
