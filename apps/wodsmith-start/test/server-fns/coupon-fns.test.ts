@@ -64,21 +64,27 @@ const deactivateCoupon = deactivateCouponFn as unknown as (args: {data: any}) =>
 const validateCouponForCheckout = validateCouponForCheckoutFn as unknown as (args: {data: any}) => Promise<any>
 
 // Fixtures
+const siteAdminSession = {
+  userId: 'user-site-admin',
+  user: {id: 'user-site-admin', email: 'siteadmin@test.com', role: 'admin'},
+  teams: [],
+}
+
 const adminSession = {
   userId: 'user-admin',
-  user: {id: 'user-admin', email: 'admin@test.com'},
+  user: {id: 'user-admin', email: 'admin@test.com', role: 'user'},
   teams: [{id: 'team-1', role: {id: 'admin'}}],
 }
 
 const ownerSession = {
   userId: 'user-owner',
-  user: {id: 'user-owner', email: 'owner@test.com'},
+  user: {id: 'user-owner', email: 'owner@test.com', role: 'user'},
   teams: [{id: 'team-1', role: {id: 'owner'}}],
 }
 
 const memberSession = {
   userId: 'user-member',
-  user: {id: 'user-member', email: 'member@test.com'},
+  user: {id: 'user-member', email: 'member@test.com', role: 'user'},
   teams: [{id: 'team-1', role: {id: 'member'}}],
 }
 
@@ -123,6 +129,26 @@ describe('coupon-fns', () => {
           teamId: 'team-1',
           amountOffCents: 2000,
           code: 'SAVE20',
+        },
+      })
+
+      expect(result).toEqual(baseCoupon)
+      expect(mockDb.insert).toHaveBeenCalled()
+    })
+
+    it('allows site admin to create coupons without team membership', async () => {
+      mockRequireVerifiedEmail.mockResolvedValue(siteAdminSession)
+      mockDb.queueMockSingleValues([
+        {id: 'comp-123', organizingTeamId: 'team-1'},
+        baseCoupon,
+      ])
+
+      const result = await createCoupon({
+        data: {
+          competitionId: 'comp-123',
+          teamId: 'team-1',
+          amountOffCents: 2000,
+          code: 'ADMIN20',
         },
       })
 
@@ -194,6 +220,20 @@ describe('coupon-fns', () => {
   describe('listCouponsFn', () => {
     it('returns coupons for admin', async () => {
       const coupons = [baseCoupon, {...baseCoupon, id: 'coupon-2', code: 'SAVE50'}]
+      mockDb.setMockReturnValue(coupons)
+      mockDb.registerTable('productCouponsTable')
+      mockDb.query.productCouponsTable!.findMany.mockResolvedValueOnce(coupons)
+
+      const result = await listCoupons({
+        data: {competitionId: 'comp-123', teamId: 'team-1'},
+      })
+
+      expect(result).toEqual(coupons)
+    })
+
+    it('allows site admin to list coupons without team membership', async () => {
+      mockRequireVerifiedEmail.mockResolvedValue(siteAdminSession)
+      const coupons = [baseCoupon]
       mockDb.setMockReturnValue(coupons)
       mockDb.registerTable('productCouponsTable')
       mockDb.query.productCouponsTable!.findMany.mockResolvedValueOnce(coupons)
@@ -288,6 +328,18 @@ describe('coupon-fns', () => {
 
   describe('deactivateCouponFn', () => {
     it('deactivates a coupon that belongs to the team', async () => {
+      mockDb.setMockSingleValue(baseCoupon)
+
+      const result = await deactivateCoupon({
+        data: {couponId: 'coupon-1', teamId: 'team-1'},
+      })
+
+      expect(result).toEqual({success: true})
+      expect(mockDb.update).toHaveBeenCalled()
+    })
+
+    it('allows site admin to deactivate coupons without team membership', async () => {
+      mockRequireVerifiedEmail.mockResolvedValue(siteAdminSession)
       mockDb.setMockSingleValue(baseCoupon)
 
       const result = await deactivateCoupon({

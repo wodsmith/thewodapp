@@ -7,7 +7,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, eq, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
-import { competitionsTable, productCouponsTable } from "@/db/schema"
+import { competitionsTable, productCouponsTable, ROLES_ENUM } from "@/db/schema"
 import { FEATURES } from "@/config/features"
 import { logInfo, logWarning } from "@/lib/logging"
 import { hasFeature } from "@/server/entitlements"
@@ -59,12 +59,17 @@ export const createCouponFn = createServerFn({ method: "POST" })
 	.handler(async ({ data: input }) => {
 		const session = await requireVerifiedEmail()
 
-		const canManage = session.teams?.find(
-			(t) =>
-				t.id === input.teamId &&
-				(t.role.id === "admin" || t.role.id === "owner"),
-		)
-		if (!canManage) throw new Error("Unauthorized")
+		// Admin bypass - site admins can manage any competition's coupons
+		const isSiteAdmin = session.user.role === ROLES_ENUM.ADMIN
+
+		if (!isSiteAdmin) {
+			const canManage = session.teams?.find(
+				(t) =>
+					t.id === input.teamId &&
+					(t.role.id === "admin" || t.role.id === "owner"),
+			)
+			if (!canManage) throw new Error("Unauthorized")
+		}
 
 		const hasEntitlement = await hasFeature(
 			input.teamId,
@@ -139,12 +144,17 @@ export const listCouponsFn = createServerFn({ method: "GET" })
 	.handler(async ({ data: input }) => {
 		const session = await requireVerifiedEmail()
 
-		const canManage = session.teams?.find(
-			(t) =>
-				t.id === input.teamId &&
-				(t.role.id === "admin" || t.role.id === "owner"),
-		)
-		if (!canManage) throw new Error("Unauthorized")
+		// Admin bypass - site admins can view any competition's coupons
+		const isSiteAdmin = session.user.role === ROLES_ENUM.ADMIN
+
+		if (!isSiteAdmin) {
+			const canManage = session.teams?.find(
+				(t) =>
+					t.id === input.teamId &&
+					(t.role.id === "admin" || t.role.id === "owner"),
+			)
+			if (!canManage) throw new Error("Unauthorized")
+		}
 
 		const db = getDb()
 
@@ -212,12 +222,17 @@ export const deactivateCouponFn = createServerFn({ method: "POST" })
 	.handler(async ({ data: input }) => {
 		const session = await requireVerifiedEmail()
 
-		const canManage = session.teams?.find(
-			(t) =>
-				t.id === input.teamId &&
-				(t.role.id === "admin" || t.role.id === "owner"),
-		)
-		if (!canManage) throw new Error("Unauthorized")
+		// Admin bypass - site admins can deactivate any competition's coupons
+		const isSiteAdmin = session.user.role === ROLES_ENUM.ADMIN
+
+		if (!isSiteAdmin) {
+			const canManage = session.teams?.find(
+				(t) =>
+					t.id === input.teamId &&
+					(t.role.id === "admin" || t.role.id === "owner"),
+			)
+			if (!canManage) throw new Error("Unauthorized")
+		}
 
 		const db = getDb()
 
