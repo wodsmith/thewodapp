@@ -5,7 +5,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray, ne } from "drizzle-orm"
+import { and, count, eq, inArray, isNotNull, ne } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -18,7 +18,10 @@ import {
 	programmingTracksTable,
 	trackWorkoutsTable,
 } from "@/db/schemas/programming"
+import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoresTable } from "@/db/schemas/scores"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { userTable } from "@/db/schemas/users"
 import {
 	createVideoSubmissionId,
 	videoSubmissionsTable,
@@ -37,6 +40,8 @@ import {
 	type WorkoutScheme,
 } from "@/lib/scoring"
 import { getSessionFromCookie } from "@/utils/auth"
+import { autochunk } from "@/utils/batch-query"
+import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
 // Input Schemas
@@ -45,6 +50,13 @@ import { getSessionFromCookie } from "@/utils/auth"
 const getVideoSubmissionInputSchema = z.object({
 	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
 	competitionId: z.string().min(1, "Competition ID is required"),
+})
+
+const getOrganizerSubmissionsInputSchema = z.object({
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+	competitionId: z.string().min(1, "Competition ID is required"),
+	divisionFilter: z.string().optional(),
+	statusFilter: z.enum(["all", "pending", "reviewed"]).optional(),
 })
 
 const submitVideoInputSchema = z.object({
@@ -678,4 +690,474 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 			submissionId,
 			isUpdate: !!existingSubmission,
 		}
+	})
+
+/**
+ * Get all video submissions for an event (organizer view).
+ * Includes athlete info, division, and review status (based on whether a verified score exists).
+ */
+export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		getOrganizerSubmissionsInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Verify user is authenticated and has organizer permission
+		const [competition] = await db
+			.select({ organizingTeamId: competitionsTable.organizingTeamId })
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+			.limit(1)
+
+		if (!competition) {
+			throw new Error("NOT_FOUND: Competition not found")
+		}
+
+		await requireTeamPermission(
+			competition.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		)
+
+		// Get all video submissions for this event with athlete and registration info
+		const submissions = await db
+			.select({
+				id: videoSubmissionsTable.id,
+				videoUrl: videoSubmissionsTable.videoUrl,
+				notes: videoSubmissionsTable.notes,
+				submittedAt: videoSubmissionsTable.submittedAt,
+				reviewedAt: videoSubmissionsTable.reviewedAt,
+				registrationId: videoSubmissionsTable.registrationId,
+				userId: videoSubmissionsTable.userId,
+				// Athlete info
+				athleteFirstName: userTable.firstName,
+				athleteLastName: userTable.lastName,
+				athleteEmail: userTable.email,
+				athleteAvatar: userTable.avatar,
+				// Division info
+				divisionId: competitionRegistrationsTable.divisionId,
+				divisionLabel: scalingLevelsTable.label,
+				// Team name (for team divisions)
+				teamName: competitionRegistrationsTable.teamName,
+			})
+			.from(videoSubmissionsTable)
+			.innerJoin(
+				competitionRegistrationsTable,
+				eq(
+					videoSubmissionsTable.registrationId,
+					competitionRegistrationsTable.id,
+				),
+			)
+			.innerJoin(userTable, eq(videoSubmissionsTable.userId, userTable.id))
+			.leftJoin(
+				scalingLevelsTable,
+				eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
+			)
+			.where(eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId))
+
+		// Get scores for all submissions to determine review status
+		// A submission is "reviewed" if there's a corresponding score entry
+		const submissionUserIds = submissions.map((s) => s.userId)
+
+		const scoresMap: Record<
+			string,
+			{ scoreValue: number | null; status: string; displayScore: string | null }
+		> = {}
+
+		if (submissionUserIds.length > 0) {
+			const scores = await db
+				.select({
+					userId: scoresTable.userId,
+					scoreValue: scoresTable.scoreValue,
+					status: scoresTable.status,
+					scheme: scoresTable.scheme,
+				})
+				.from(scoresTable)
+				.where(eq(scoresTable.competitionEventId, data.trackWorkoutId))
+
+			for (const score of scores) {
+				let displayScore: string | null = null
+				if (score.scoreValue !== null && score.scheme) {
+					displayScore = decodeScore(
+						score.scoreValue,
+						score.scheme as WorkoutScheme,
+						{ compact: false },
+					)
+				}
+				scoresMap[score.userId] = {
+					scoreValue: score.scoreValue,
+					status: score.status,
+					displayScore,
+				}
+			}
+		}
+
+		// Combine submissions with scores
+		const result = submissions.map((submission) => {
+			const score = scoresMap[submission.userId]
+			return {
+				id: submission.id,
+				videoUrl: submission.videoUrl,
+				notes: submission.notes,
+				submittedAt: submission.submittedAt,
+				registrationId: submission.registrationId,
+				athlete: {
+					id: submission.userId,
+					firstName: submission.athleteFirstName,
+					lastName: submission.athleteLastName,
+					email: submission.athleteEmail,
+					avatar: submission.athleteAvatar,
+				},
+				division: submission.divisionId
+					? {
+							id: submission.divisionId,
+							label: submission.divisionLabel,
+						}
+					: null,
+				teamName: submission.teamName,
+				score: score
+					? {
+							value: score.scoreValue,
+							displayScore: score.displayScore,
+							status: score.status,
+						}
+					: null,
+				// Review status based on whether an organizer has reviewed
+				reviewStatus: submission.reviewedAt
+					? ("reviewed" as const)
+					: ("pending" as const),
+			}
+		})
+
+		// Apply filters
+		let filtered = result
+
+		// Division filter
+		if (data.divisionFilter) {
+			filtered = filtered.filter((s) => s.division?.id === data.divisionFilter)
+		}
+
+		// Status filter
+		if (data.statusFilter && data.statusFilter !== "all") {
+			filtered = filtered.filter((s) => s.reviewStatus === data.statusFilter)
+		}
+
+		// Calculate totals
+		const totalSubmissions = result.length
+		const reviewedCount = result.filter(
+			(s) => s.reviewStatus === "reviewed",
+		).length
+		const pendingCount = totalSubmissions - reviewedCount
+
+		return {
+			submissions: filtered,
+			totals: {
+				total: totalSubmissions,
+				reviewed: reviewedCount,
+				pending: pendingCount,
+			},
+		}
+	})
+
+/**
+ * Get submission counts grouped by trackWorkoutId for the review index page.
+ * Returns total submissions and reviewed count (users with scores) per event.
+ */
+export const getSubmissionCountsByEventFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				trackWorkoutIds: z.array(z.string().min(1)).min(1),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Query 1: total submissions per trackWorkoutId
+		const submissionCounts = await autochunk(
+			{ items: data.trackWorkoutIds },
+			async (chunk) =>
+				db
+					.select({
+						trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+						total: count(),
+					})
+					.from(videoSubmissionsTable)
+					.where(inArray(videoSubmissionsTable.trackWorkoutId, chunk))
+					.groupBy(videoSubmissionsTable.trackWorkoutId),
+		)
+
+		// Query 2: reviewed count — submissions where reviewedAt is set
+		const reviewedCounts = await autochunk(
+			{ items: data.trackWorkoutIds },
+			async (chunk) =>
+				db
+					.select({
+						trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+						reviewed: count(),
+					})
+					.from(videoSubmissionsTable)
+					.where(
+						and(
+							inArray(videoSubmissionsTable.trackWorkoutId, chunk),
+							isNotNull(videoSubmissionsTable.reviewedAt),
+						),
+					)
+					.groupBy(videoSubmissionsTable.trackWorkoutId),
+		)
+
+		// Build result map
+		const subMap = new Map(
+			submissionCounts.map((r) => [r.trackWorkoutId, r.total]),
+		)
+		const revMap = new Map(
+			reviewedCounts.map((r) => [r.trackWorkoutId, r.reviewed]),
+		)
+
+		const counts: Record<
+			string,
+			{ total: number; reviewed: number; pending: number }
+		> = {}
+
+		for (const twId of data.trackWorkoutIds) {
+			const total = subMap.get(twId) ?? 0
+			const reviewed = revMap.get(twId) ?? 0
+			counts[twId] = { total, reviewed, pending: total - reviewed }
+		}
+
+		return { counts }
+	})
+
+/**
+ * Get a single video submission by ID for organizer review.
+ */
+export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				submissionId: z.string().min(1),
+				competitionId: z.string().min(1),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Verify user has organizer permission for this competition
+		const [competition] = await db
+			.select({ organizingTeamId: competitionsTable.organizingTeamId })
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+			.limit(1)
+
+		if (!competition) {
+			throw new Error("NOT_FOUND: Competition not found")
+		}
+
+		await requireTeamPermission(
+			competition.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		)
+
+		const [submission] = await db
+			.select({
+				id: videoSubmissionsTable.id,
+				videoUrl: videoSubmissionsTable.videoUrl,
+				notes: videoSubmissionsTable.notes,
+				submittedAt: videoSubmissionsTable.submittedAt,
+				reviewedAt: videoSubmissionsTable.reviewedAt,
+				reviewedBy: videoSubmissionsTable.reviewedBy,
+				trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+				registrationId: videoSubmissionsTable.registrationId,
+				userId: videoSubmissionsTable.userId,
+				// Athlete info
+				athleteFirstName: userTable.firstName,
+				athleteLastName: userTable.lastName,
+				athleteEmail: userTable.email,
+				athleteAvatar: userTable.avatar,
+				// Division info
+				divisionId: competitionRegistrationsTable.divisionId,
+				divisionLabel: scalingLevelsTable.label,
+				// Team name
+				teamName: competitionRegistrationsTable.teamName,
+			})
+			.from(videoSubmissionsTable)
+			.innerJoin(
+				competitionRegistrationsTable,
+				eq(
+					videoSubmissionsTable.registrationId,
+					competitionRegistrationsTable.id,
+				),
+			)
+			.innerJoin(userTable, eq(videoSubmissionsTable.userId, userTable.id))
+			.leftJoin(
+				scalingLevelsTable,
+				eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
+			)
+			.where(eq(videoSubmissionsTable.id, data.submissionId))
+			.limit(1)
+
+		if (!submission) {
+			return { submission: null }
+		}
+
+		// Get score for this user + event
+		const [score] = await db
+			.select({
+				scoreValue: scoresTable.scoreValue,
+				status: scoresTable.status,
+				scheme: scoresTable.scheme,
+			})
+			.from(scoresTable)
+			.where(
+				and(
+					eq(scoresTable.competitionEventId, submission.trackWorkoutId),
+					eq(scoresTable.userId, submission.userId),
+				),
+			)
+			.limit(1)
+
+		let displayScore: string | null = null
+		if (
+			score?.scoreValue !== null &&
+			score?.scoreValue !== undefined &&
+			score?.scheme
+		) {
+			displayScore = decodeScore(
+				score.scoreValue,
+				score.scheme as WorkoutScheme,
+				{ compact: false },
+			)
+		}
+
+		return {
+			submission: {
+				id: submission.id,
+				videoUrl: submission.videoUrl,
+				notes: submission.notes,
+				submittedAt: submission.submittedAt,
+				reviewedAt: submission.reviewedAt,
+				reviewedBy: submission.reviewedBy,
+				trackWorkoutId: submission.trackWorkoutId,
+				athlete: {
+					id: submission.userId,
+					firstName: submission.athleteFirstName,
+					lastName: submission.athleteLastName,
+					email: submission.athleteEmail,
+					avatar: submission.athleteAvatar,
+				},
+				division: submission.divisionId
+					? {
+							id: submission.divisionId,
+							label: submission.divisionLabel,
+						}
+					: null,
+				teamName: submission.teamName,
+				score: score
+					? {
+							value: score.scoreValue,
+							displayScore,
+							status: score.status,
+						}
+					: null,
+				reviewStatus: submission.reviewedAt
+					? ("reviewed" as const)
+					: ("pending" as const),
+			},
+		}
+	})
+
+/**
+ * Mark a video submission as reviewed by an organizer.
+ */
+export const markSubmissionReviewedFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				submissionId: z.string().min(1),
+				competitionId: z.string().min(1),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		const db = getDb()
+
+		// Verify organizer permission
+		const [competition] = await db
+			.select({ organizingTeamId: competitionsTable.organizingTeamId })
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+			.limit(1)
+
+		if (!competition) {
+			throw new Error("NOT_FOUND: Competition not found")
+		}
+
+		await requireTeamPermission(
+			competition.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		)
+
+		await db
+			.update(videoSubmissionsTable)
+			.set({
+				reviewedAt: new Date(),
+				reviewedBy: session.userId,
+			})
+			.where(eq(videoSubmissionsTable.id, data.submissionId))
+
+		return { success: true }
+	})
+
+/**
+ * Unmark a video submission review (set back to pending).
+ */
+export const unmarkSubmissionReviewedFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				submissionId: z.string().min(1),
+				competitionId: z.string().min(1),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		const db = getDb()
+
+		// Verify organizer permission
+		const [competition] = await db
+			.select({ organizingTeamId: competitionsTable.organizingTeamId })
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+			.limit(1)
+
+		if (!competition) {
+			throw new Error("NOT_FOUND: Competition not found")
+		}
+
+		await requireTeamPermission(
+			competition.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		)
+
+		await db
+			.update(videoSubmissionsTable)
+			.set({
+				reviewedAt: null,
+				reviewedBy: null,
+			})
+			.where(eq(videoSubmissionsTable.id, data.submissionId))
+
+		return { success: true }
 	})

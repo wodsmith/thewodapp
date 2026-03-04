@@ -119,6 +119,48 @@ export function getEffectiveScoringConfig(
 }
 
 /**
+ * Series (CompetitionGroup) Settings
+ * Stored as JSON in the competition_groups.settings column.
+ */
+export interface SeriesSettings {
+	scoringConfig?: ScoringConfig
+	/**
+	 * The canonical scaling group for this series.
+	 * When set, this group is used as the primary for division health checks
+	 * instead of inferring the primary via majority vote.
+	 */
+	scalingGroupId?: string
+}
+
+/**
+ * Parse series settings from JSON string
+ */
+export function parseSeriesSettings(
+	settings: string | null | undefined,
+): SeriesSettings | null {
+	if (!settings) return null
+	try {
+		return JSON.parse(settings) as SeriesSettings
+	} catch {
+		return null
+	}
+}
+
+/**
+ * Stringify series settings to JSON
+ */
+export function stringifySeriesSettings(
+	settings: SeriesSettings | null | undefined,
+): string | null {
+	if (!settings) return null
+	try {
+		return JSON.stringify(settings)
+	} catch {
+		return null
+	}
+}
+
+/**
  * Convert legacy ScoringSettings to new ScoringConfig format
  */
 export function convertLegacyToScoringConfig(
