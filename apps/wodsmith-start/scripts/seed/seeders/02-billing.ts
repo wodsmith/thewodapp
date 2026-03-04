@@ -174,6 +174,17 @@ export async function seed(client: Connection): Promise<void> {
 			updated_at: ts,
 			update_counter: 0,
 		},
+		{
+			id: "feat_product_coupons",
+			key: "product_coupons",
+			name: "Product Coupons",
+			description: "Create and manage discount coupons for competitions",
+			category: "team",
+			is_active: 1,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
 	])
 
 	// Limits
