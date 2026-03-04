@@ -113,3 +113,7 @@ export const createPurchaseTransferId = () => `ptxfr_${ulid()}`
 
 // Volunteer registration answer ID generators
 export const createVolunteerRegistrationAnswerId = () => `vra_${ulid()}`
+
+// Product coupon ID generators
+export const createProductCouponId = () => `pcoup_${ulid()}`
+export const createProductCouponRedemptionId = () => `pcred_${ulid()}`

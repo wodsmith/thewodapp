@@ -163,7 +163,9 @@ export function VideoSubmissionPreview({
 									</p>
 								</div>
 								<a
-									href={isSafeUrl(submission.videoUrl) ? submission.videoUrl : "#"}
+									href={
+										isSafeUrl(submission.videoUrl) ? submission.videoUrl : "#"
+									}
 									target="_blank"
 									rel="noopener noreferrer"
 									className="flex items-center gap-1.5 text-sm text-primary hover:underline shrink-0"

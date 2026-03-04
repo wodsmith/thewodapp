@@ -119,7 +119,9 @@ export function VolunteersList({
 	emailToInvitationId,
 }: VolunteersListProps) {
 	/** Look up answers for a volunteer by invitationId (pending) or user email (approved) */
-	function getAnswersForVolunteer(volunteer: VolunteerWithAccess): VolunteerAnswer[] {
+	function getAnswersForVolunteer(
+		volunteer: VolunteerWithAccess,
+	): VolunteerAnswer[] {
 		let invitationId: string | undefined
 		if (volunteer.id.startsWith("tinv_")) {
 			invitationId = volunteer.id
@@ -418,7 +420,9 @@ export function VolunteersList({
 				const volunteerAnswers = invitationId
 					? (answersByInvitation[invitationId] ?? [])
 					: []
-				const answer = volunteerAnswers.find((a) => a.questionId === question.id)
+				const answer = volunteerAnswers.find(
+					(a) => a.questionId === question.id,
+				)
 				row.push(answer?.answer ?? "")
 			})
 

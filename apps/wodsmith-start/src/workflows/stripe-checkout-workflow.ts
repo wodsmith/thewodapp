@@ -44,6 +44,7 @@ import {
 	notifyRegistrationConfirmed,
 	registerForCompetition,
 } from "@/server/registration"
+import { recordRedemption, cleanupStripeCoupon } from "@/server/coupons"
 import { calculateDivisionCapacity } from "@/utils/division-capacity"
 
 export interface CheckoutCompletedParams {
@@ -58,6 +59,10 @@ export interface CheckoutCompletedParams {
 			competitionId: string
 			divisionId: string
 			userId: string
+			couponId?: string
+			stripeCouponId?: string
+			couponCode?: string
+			couponDiscountCents?: string
 		}
 	}
 }
@@ -348,6 +353,27 @@ async function createRegistration(
 				completedAt: new Date(),
 			})
 			.where(eq(commercePurchaseTable.id, purchaseId))
+
+		// Record coupon redemption if present
+		if (session.metadata.couponId && session.metadata.stripeCouponId) {
+			try {
+				await recordRedemption({
+					couponId: session.metadata.couponId,
+					userId,
+					purchaseId,
+					competitionId,
+					amountOffCents: Number(session.metadata.couponDiscountCents || 0),
+					stripeCouponId: session.metadata.stripeCouponId,
+				})
+				await cleanupStripeCoupon(session.metadata.stripeCouponId)
+			} catch (couponErr) {
+				logWarning({
+					message: "[Workflow] Coupon redemption/cleanup failed (non-fatal)",
+					error: couponErr,
+					attributes: { purchaseId, couponId: session.metadata.couponId },
+				})
+			}
+		}
 
 		logInfo({
 			message: "[Workflow] Registration created",

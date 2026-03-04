@@ -302,6 +302,11 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 											competitionId,
 											divisionId,
 											userId,
+											couponId: session.metadata?.couponId,
+											stripeCouponId: session.metadata?.stripeCouponId,
+											couponCode: session.metadata?.couponCode,
+											couponDiscountCents:
+												session.metadata?.couponDiscountCents,
 										},
 									},
 								}

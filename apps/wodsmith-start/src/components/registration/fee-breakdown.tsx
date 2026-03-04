@@ -94,22 +94,28 @@ export function FeeBreakdown({
 					{formatCents(fees.registrationFeeCents ?? 0)}
 				</span>
 			</div>
-			{fees.platformFeesPassedToCustomer &&
-				fees.platformFeeCents &&
-				fees.platformFeeCents > 0 && (
-					<div className="flex justify-between text-muted-foreground">
-						<span>Platform Fee</span>
-						<span>{formatCents(fees.platformFeeCents)}</span>
-					</div>
-				)}
-			{fees.stripeFeesPassedToCustomer &&
-				fees.stripeFeeCents &&
-				fees.stripeFeeCents > 0 && (
-					<div className="flex justify-between text-muted-foreground">
-						<span>Processing Fee</span>
-						<span>{formatCents(fees.stripeFeeCents)}</span>
-					</div>
-				)}
+			{fees.platformFeeCents != null && fees.platformFeeCents > 0 && (
+				<div className="flex justify-between text-muted-foreground">
+					<span>
+						Platform Fee
+						{!fees.platformFeesPassedToCustomer && (
+							<span className="ml-1 text-xs italic">(included)</span>
+						)}
+					</span>
+					<span>{formatCents(fees.platformFeeCents)}</span>
+				</div>
+			)}
+			{fees.stripeFeeCents != null && fees.stripeFeeCents > 0 && (
+				<div className="flex justify-between text-muted-foreground">
+					<span>
+						Processing Fee
+						{!fees.stripeFeesPassedToCustomer && (
+							<span className="ml-1 text-xs italic">(included)</span>
+						)}
+					</span>
+					<span>{formatCents(fees.stripeFeeCents)}</span>
+				</div>
+			)}
 			{!hideTotal && (
 				<div className="flex justify-between font-medium pt-2 border-t">
 					<span>Total</span>

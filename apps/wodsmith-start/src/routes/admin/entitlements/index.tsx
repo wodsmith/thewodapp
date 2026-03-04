@@ -1,6 +1,6 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
+import { createFileRoute, Link } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { Building2, Check, Dumbbell, Search, User, X } from "lucide-react"
+import { Building2, Check, Search, Shield, User, X } from "lucide-react"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -14,6 +14,13 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
+import {
 	Table,
 	TableBody,
 	TableCell,
@@ -22,23 +29,52 @@ import {
 	TableRow,
 } from "@/components/ui/table"
 import {
-	type TeamWithWorkoutTracking,
-	getTeamsWithWorkoutTrackingFn,
-	toggleWorkoutTrackingFn,
+	type TeamWithEntitlement,
+	getFeaturesFn,
+	getTeamsWithEntitlementFn,
+	toggleFeatureEntitlementFn,
 } from "@/server-fns/admin-entitlement-fns"
 
 export const Route = createFileRoute("/admin/entitlements/")({
 	loader: async () => {
-		const result = await getTeamsWithWorkoutTrackingFn()
-		return { teams: result.teams }
+		const [{ features }, { teams }] = await Promise.all([
+			getFeaturesFn(),
+			getTeamsWithEntitlementFn({ data: { featureKey: "workout_tracking" } }),
+		])
+		return { features, teams, initialFeatureKey: "workout_tracking" }
 	},
 	component: EntitlementsPage,
 })
 
 function EntitlementsPage() {
-	const { teams } = Route.useLoaderData()
+	const { features, teams: initialTeams, initialFeatureKey } =
+		Route.useLoaderData()
+	const [selectedFeature, setSelectedFeature] = useState(initialFeatureKey)
+	const [teams, setTeams] = useState(initialTeams)
 	const [search, setSearch] = useState("")
-	const enabledCount = teams.filter((t) => t.hasWorkoutTracking).length
+	const [loadingFeature, setLoadingFeature] = useState(false)
+	const getTeamsFn = useServerFn(getTeamsWithEntitlementFn)
+	const enabledCount = teams.filter((t) => t.hasFeature).length
+
+	const selectedFeatureInfo = features.find((f) => f.key === selectedFeature)
+
+	const handleFeatureChange = async (featureKey: string) => {
+		setSelectedFeature(featureKey)
+		setLoadingFeature(true)
+		try {
+			const result = await getTeamsFn({ data: { featureKey } })
+			setTeams(result.teams)
+		} catch (error) {
+			toast.error("Failed to load teams for feature")
+		} finally {
+			setLoadingFeature(false)
+		}
+	}
+
+	const handleToggleSuccess = async () => {
+		const result = await getTeamsFn({ data: { featureKey: selectedFeature } })
+		setTeams(result.teams)
+	}
 
 	const filtered = useMemo(() => {
 		if (!search.trim()) return teams
@@ -61,11 +97,40 @@ function EntitlementsPage() {
 
 			<div className="space-y-6">
 				<div>
-					<h1 className="text-3xl font-bold">Workout Tracking</h1>
+					<h1 className="text-3xl font-bold">Feature Entitlements</h1>
 					<p className="mt-1 text-muted-foreground">
-						Grant or revoke workout tracking access per team
+						Grant or revoke feature access per team
 					</p>
 				</div>
+
+				<Card>
+					<CardHeader className="pb-4">
+						<CardTitle className="text-base">Feature</CardTitle>
+						<CardDescription>Select a feature to manage</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<Select
+							value={selectedFeature}
+							onValueChange={handleFeatureChange}
+						>
+							<SelectTrigger className="w-full md:w-80">
+								<SelectValue placeholder="Select a feature..." />
+							</SelectTrigger>
+							<SelectContent>
+								{features.map((f) => (
+									<SelectItem key={f.key} value={f.key}>
+										{f.name}
+										{f.category && (
+											<span className="text-muted-foreground ml-1">
+												({f.category})
+											</span>
+										)}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</CardContent>
+				</Card>
 
 				<div className="grid gap-4 md:grid-cols-2">
 					<Card>
@@ -85,13 +150,14 @@ function EntitlementsPage() {
 				<Card>
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2">
-							<Dumbbell className="h-5 w-5" />
-							Workout Tracking Access
+							<Shield className="h-5 w-5" />
+							{selectedFeatureInfo?.name ?? "Feature"} Access
 						</CardTitle>
-						<CardDescription>
-							Teams with this entitlement can see Workouts, Log, Team,
-							Dashboard, Programming, Movements, and Calculator.
-						</CardDescription>
+						{selectedFeatureInfo?.description && (
+							<CardDescription>
+								{selectedFeatureInfo.description}
+							</CardDescription>
+						)}
 					</CardHeader>
 					<CardContent className="space-y-4">
 						<div className="relative">
@@ -103,7 +169,11 @@ function EntitlementsPage() {
 								className="pl-9"
 							/>
 						</div>
-						{filtered.length === 0 ? (
+						{loadingFeature ? (
+							<div className="flex items-center justify-center py-12 text-muted-foreground">
+								Loading...
+							</div>
+						) : filtered.length === 0 ? (
 							<div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
 								<Building2 className="h-12 w-12 mb-4 opacity-50" />
 								<p>
@@ -117,15 +187,19 @@ function EntitlementsPage() {
 										<TableHead>Team</TableHead>
 										<TableHead>Type</TableHead>
 										<TableHead className="text-center">Members</TableHead>
-										<TableHead className="text-center">
-											Workout Tracking
-										</TableHead>
+										<TableHead className="text-center">Status</TableHead>
 										<TableHead className="text-right">Action</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
 									{filtered.map((team) => (
-										<TeamRow key={team.id} team={team} />
+										<TeamRow
+											key={team.id}
+											team={team}
+											featureKey={selectedFeature}
+											featureName={selectedFeatureInfo?.name ?? "Feature"}
+											onToggleSuccess={handleToggleSuccess}
+										/>
 									))}
 								</TableBody>
 							</Table>
@@ -137,28 +211,41 @@ function EntitlementsPage() {
 	)
 }
 
-function TeamRow({ team }: { team: TeamWithWorkoutTracking }) {
-	const router = useRouter()
-	const toggleFn = useServerFn(toggleWorkoutTrackingFn)
+function TeamRow({
+	team,
+	featureKey,
+	featureName,
+	onToggleSuccess,
+}: {
+	team: TeamWithEntitlement
+	featureKey: string
+	featureName: string
+	onToggleSuccess: () => Promise<void>
+}) {
+	const toggleFn = useServerFn(toggleFeatureEntitlementFn)
 	const [loading, setLoading] = useState(false)
 
 	const handleToggle = async () => {
 		setLoading(true)
 		try {
 			await toggleFn({
-				data: { teamId: team.id, enabled: !team.hasWorkoutTracking },
+				data: {
+					teamId: team.id,
+					featureKey,
+					enabled: !team.hasFeature,
+				},
 			})
 			toast.success(
-				team.hasWorkoutTracking
-					? `Revoked workout tracking from ${team.name}`
-					: `Granted workout tracking to ${team.name}`,
+				team.hasFeature
+					? `Revoked ${featureName} from ${team.name}`
+					: `Granted ${featureName} to ${team.name}`,
 			)
-			await router.invalidate()
+			await onToggleSuccess()
 		} catch (error) {
 			toast.error(
 				error instanceof Error
 					? error.message
-					: "Failed to toggle workout tracking",
+					: `Failed to toggle ${featureName}`,
 			)
 		} finally {
 			setLoading(false)
@@ -192,7 +279,7 @@ function TeamRow({ team }: { team: TeamWithWorkoutTracking }) {
 			</TableCell>
 			<TableCell className="text-center">{team.memberCount}</TableCell>
 			<TableCell className="text-center">
-				{team.hasWorkoutTracking ? (
+				{team.hasFeature ? (
 					<Check className="mx-auto h-5 w-5 text-green-600" />
 				) : (
 					<X className="mx-auto h-5 w-5 text-muted-foreground" />
@@ -200,12 +287,12 @@ function TeamRow({ team }: { team: TeamWithWorkoutTracking }) {
 			</TableCell>
 			<TableCell className="text-right">
 				<Button
-					variant={team.hasWorkoutTracking ? "outline" : "default"}
+					variant={team.hasFeature ? "outline" : "default"}
 					size="sm"
 					disabled={loading}
 					onClick={handleToggle}
 				>
-					{loading ? "..." : team.hasWorkoutTracking ? "Revoke" : "Grant"}
+					{loading ? "..." : team.hasFeature ? "Revoke" : "Grant"}
 				</Button>
 			</TableCell>
 		</TableRow>

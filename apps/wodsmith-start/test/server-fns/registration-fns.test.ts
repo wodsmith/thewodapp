@@ -575,6 +575,8 @@ describe('registration-fns', () => {
           status: 'COMPLETED',
           completedAt: mockPurchase.completedAt,
           stripePaymentIntentId: 'pi_test123',
+          couponCode: null,
+          couponDiscountCents: null,
         })
       })
 

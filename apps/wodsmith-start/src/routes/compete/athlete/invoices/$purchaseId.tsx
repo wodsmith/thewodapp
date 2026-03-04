@@ -113,9 +113,13 @@ function InvoiceDetailPage() {
 	const { invoice } = Route.useLoaderData()
 	const { returnTo } = Route.useSearch()
 
-	// Calculate registration fee (total minus fees passed to customer)
-	const registrationFee =
-		invoice.totalCents - invoice.platformFeeCents - invoice.stripeFeeCents
+	const hasMultipleItems = invoice.lineItems.length > 1
+
+	// Subtotal before coupon (sum of all line item totals)
+	const subtotalCents = invoice.lineItems.reduce(
+		(sum, li) => sum + li.totalCents,
+		0,
+	)
 
 	// Default back to invoices list if no returnTo specified
 	const backLink = returnTo || "/compete/athlete/invoices"
@@ -185,39 +189,70 @@ function InvoiceDetailPage() {
 					<Separator />
 
 					{/* Line Items */}
-					<div className="space-y-3">
+					<div className="space-y-4">
 						<h3 className="font-medium">Items</h3>
 
-						{/* Registration Fee */}
-						<div className="flex justify-between">
-							<span>{invoice.product.name}</span>
-							<span>{formatCurrency(registrationFee)}</span>
-						</div>
+						{invoice.lineItems.map((item) => (
+							<div key={item.purchaseId} className="space-y-1">
+								{/* Division heading for multi-division */}
+								{hasMultipleItems && item.divisionLabel && (
+									<p className="font-medium text-sm">{item.divisionLabel}</p>
+								)}
 
-						{/* Platform Fee */}
-						{invoice.platformFeeCents > 0 && (
-							<div className="flex justify-between text-muted-foreground text-sm">
-								<span>Platform Fee</span>
-								<span>{formatCurrency(invoice.platformFeeCents)}</span>
-							</div>
-						)}
+								{/* Registration Fee */}
+								<div className="flex justify-between">
+									<span>{hasMultipleItems ? "Registration Fee" : invoice.product.name}</span>
+									<span>{formatCurrency(item.registrationFeeCents)}</span>
+								</div>
 
-						{/* Payment Processing Fee */}
-						{invoice.stripeFeeCents > 0 && (
-							<div className="flex justify-between text-muted-foreground text-sm">
-								<span>Payment Processing Fee</span>
-								<span>{formatCurrency(invoice.stripeFeeCents)}</span>
+								{/* Platform Fee */}
+								{item.platformFeeCents > 0 && (
+									<div className="flex justify-between text-muted-foreground text-sm">
+										<span>Platform Fee</span>
+										<span>{formatCurrency(item.platformFeeCents)}</span>
+									</div>
+								)}
+
+								{/* Payment Processing Fee */}
+								{item.stripeFeeCents > 0 && (
+									<div className="flex justify-between text-muted-foreground text-sm">
+										<span>Processing Fee</span>
+										<span>{formatCurrency(item.stripeFeeCents)}</span>
+									</div>
+								)}
 							</div>
-						)}
+						))}
 					</div>
 
 					<Separator />
 
-					{/* Total */}
-					<div className="flex justify-between font-medium text-lg">
-						<span>Total</span>
-						<span>{formatCurrency(invoice.totalCents)}</span>
-					</div>
+					{/* Subtotal + Coupon + Total */}
+					{invoice.coupon ? (
+						<div className="space-y-2">
+							<div className="flex justify-between font-medium">
+								<span>Subtotal</span>
+								<span>{formatCurrency(subtotalCents)}</span>
+							</div>
+							<div className="flex justify-between text-green-600">
+								<span>Coupon ({invoice.coupon.code})</span>
+								<span>-{formatCurrency(invoice.coupon.amountOffCents)}</span>
+							</div>
+							<Separator />
+							<div className="flex justify-between font-medium text-lg">
+								<span>Total</span>
+								<span>
+									{formatCurrency(
+										subtotalCents - invoice.coupon.amountOffCents,
+									)}
+								</span>
+							</div>
+						</div>
+					) : (
+						<div className="flex justify-between font-medium text-lg">
+							<span>Total</span>
+							<span>{formatCurrency(invoice.totalCents)}</span>
+						</div>
+					)}
 
 					{/* Payment Method */}
 					{invoice.stripe && invoice.status === "COMPLETED" && (
