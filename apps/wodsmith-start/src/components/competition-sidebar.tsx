@@ -118,17 +118,21 @@ const getNavigation = (
 					href: `${basePath}/volunteers`,
 					icon: UserCheck,
 				},
-				{ label: "Results", href: `${basePath}/results`, icon: Medal },
-			// Review only for online competitions
-			...(competitionType === "online"
-				? [
-						{
-							label: "Review",
-							href: `${basePath}/review`,
-							icon: Eye,
-						},
-					]
-				: []),
+				{
+					label: competitionType === "online" ? "Submissions" : "Results",
+					href: `${basePath}/results`,
+					icon: Medal,
+				},
+				// Review only for online competitions
+				...(competitionType === "online"
+					? [
+							{
+								label: "Review",
+								href: `${basePath}/review`,
+								icon: Eye,
+							},
+						]
+					: []),
 			],
 		},
 		{

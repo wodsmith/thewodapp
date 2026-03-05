@@ -2,7 +2,7 @@
  * Organizer Video Submission Review Detail Route
  *
  * Single submission review page where organizers can watch the video,
- * see the claimed score, and mark as reviewed.
+ * see the claimed score, verify/adjust the score, and mark as reviewed.
  */
 
 import {
@@ -15,6 +15,7 @@ import { useServerFn } from "@tanstack/react-start"
 import {
 	ArrowLeft,
 	Calendar,
+	CheckCircle,
 	CheckCircle2,
 	Clock,
 	ExternalLink,
@@ -35,12 +36,30 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import {
 	getOrganizerSubmissionDetailFn,
 	markSubmissionReviewedFn,
 	unmarkSubmissionReviewedFn,
 } from "@/server-fns/video-submission-fns"
+import {
+	type EventDetails,
+	type SubmissionDetail,
+	type VerificationLogEntry,
+	getSubmissionDetailFn,
+	getVerificationLogsFn,
+	verifySubmissionScoreFn,
+} from "@/server-fns/submission-verification-fns"
+import { decodeScore, type WorkoutScheme } from "@/lib/scoring"
 import { isSafeUrl } from "@/utils/url"
 
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -50,23 +69,380 @@ export const Route = createFileRoute(
 )({
 	component: SubmissionDetailPage,
 	loader: async ({ params }) => {
-		const result = await getOrganizerSubmissionDetailFn({
+		// Fetch review data (required)
+		const reviewResult = await getOrganizerSubmissionDetailFn({
 			data: {
 				submissionId: params.submissionId,
 				competitionId: params.competitionId,
 			},
 		})
 
-		if (!result.submission) {
+		if (!reviewResult.submission) {
 			throw new Error("Submission not found")
 		}
 
-		return { submission: result.submission }
+		// If we have a score ID, fetch verification data and audit logs
+		let verificationSubmission: SubmissionDetail | null = null
+		let event: EventDetails | null = null
+		let verificationLogs: VerificationLogEntry[] = []
+		const scoreId = reviewResult.submission.scoreId
+		if (scoreId) {
+			try {
+				const [verificationResult, logsResult] = await Promise.all([
+					getSubmissionDetailFn({
+						data: {
+							competitionId: params.competitionId,
+							trackWorkoutId: params.eventId,
+							scoreId,
+						},
+					}),
+					getVerificationLogsFn({
+						data: {
+							scoreId,
+							competitionId: params.competitionId,
+						},
+					}),
+				])
+				verificationSubmission = verificationResult.submission
+				event = verificationResult.event
+				verificationLogs = logsResult.logs
+			} catch {
+				// Verification data not available - controls won't show
+			}
+		}
+
+		return {
+			submission: reviewResult.submission,
+			verificationSubmission,
+			event,
+			verificationLogs,
+		}
 	},
 })
 
+// ============================================================================
+// Verification Controls Component
+// ============================================================================
+
+interface VerificationControlsProps {
+	submission: SubmissionDetail
+	event: EventDetails
+	competitionId: string
+	trackWorkoutId: string
+	logs: VerificationLogEntry[]
+}
+
+function VerificationControls({
+	submission,
+	event,
+	competitionId,
+	trackWorkoutId,
+	logs,
+}: VerificationControlsProps) {
+	const router = useRouter()
+	const verifyFn = useServerFn(verifySubmissionScoreFn)
+
+	const [isAdjusting, setIsAdjusting] = useState(false)
+	const [isSubmitting, setIsSubmitting] = useState(false)
+	const [error, setError] = useState<string | null>(null)
+
+	// Adjust form state
+	const [adjustedScore, setAdjustedScore] = useState(
+		submission.score.displayValue,
+	)
+	const [adjustedStatus, setAdjustedStatus] = useState<"scored" | "cap">(
+		submission.score.status === "cap" ? "cap" : "scored",
+	)
+	const [secondaryScore, setSecondaryScore] = useState(
+		submission.score.secondaryValue !== null
+			? String(submission.score.secondaryValue)
+			: "",
+	)
+
+	const verificationStatus = submission.verification.status
+
+	async function handleVerify() {
+		setIsSubmitting(true)
+		setError(null)
+		try {
+			await verifyFn({
+				data: {
+					competitionId,
+					trackWorkoutId,
+					scoreId: submission.id,
+					action: "verify",
+				},
+			})
+			await router.invalidate()
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Verification failed")
+		} finally {
+			setIsSubmitting(false)
+		}
+	}
+
+	async function handleAdjust() {
+		setIsSubmitting(true)
+		setError(null)
+		try {
+			await verifyFn({
+				data: {
+					competitionId,
+					trackWorkoutId,
+					scoreId: submission.id,
+					action: "adjust",
+					adjustedScore,
+					adjustedScoreStatus: adjustedStatus,
+					secondaryScore: secondaryScore || undefined,
+				},
+			})
+			setIsAdjusting(false)
+			await router.invalidate()
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Adjustment failed")
+		} finally {
+			setIsSubmitting(false)
+		}
+	}
+
+	const statusBadge = () => {
+		if (!verificationStatus) {
+			return (
+				<Badge variant="secondary" className="bg-gray-100 text-gray-600">
+					Pending Review
+				</Badge>
+			)
+		}
+		if (verificationStatus === "verified") {
+			return (
+				<Badge className="bg-green-100 text-green-700 border-green-200">
+					Verified
+				</Badge>
+			)
+		}
+		return (
+			<Badge className="bg-amber-100 text-amber-700 border-amber-200">
+				Adjusted
+			</Badge>
+		)
+	}
+
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle>Verification Controls</CardTitle>
+				<CardDescription>
+					Review the video and confirm or correct the athlete&apos;s claimed
+					score
+				</CardDescription>
+			</CardHeader>
+			<CardContent className="space-y-4">
+				{/* Status */}
+				<div className="flex items-center justify-between">
+					<span className="text-sm text-muted-foreground">Status</span>
+					{statusBadge()}
+				</div>
+
+				{/* Claimed score */}
+				<div>
+					<span className="text-sm text-muted-foreground">Athlete claimed</span>
+					<p className="font-mono font-semibold">
+						{submission.score.displayValue || "-"}{" "}
+						{submission.score.status === "cap" && (
+							<span className="text-muted-foreground text-sm font-normal">
+								(capped
+								{submission.score.secondaryValue !== null
+									? `, ${submission.score.secondaryValue} reps`
+									: ""}
+								)
+							</span>
+						)}
+					</p>
+				</div>
+
+				<Separator />
+
+				{/* Action buttons */}
+				{!isAdjusting && (
+					<div className="flex gap-2">
+						<Button
+							className="flex-1"
+							variant={
+								verificationStatus === "verified" ? "secondary" : "default"
+							}
+							disabled={isSubmitting}
+							onClick={handleVerify}
+						>
+							<CheckCircle className="h-4 w-4 mr-2" />
+							{verificationStatus === "verified" ? "Re-verify" : "Verify Score"}
+						</Button>
+						<Button
+							className="flex-1"
+							variant="outline"
+							disabled={isSubmitting}
+							onClick={() => setIsAdjusting(true)}
+						>
+							Adjust Score
+						</Button>
+					</div>
+				)}
+
+				{/* Adjust form */}
+				{isAdjusting && (
+					<div className="space-y-3 rounded-md border p-3">
+						<p className="text-sm font-medium">Adjust Score</p>
+						<div className="space-y-2">
+							<Label htmlFor="adjusted-score" className="text-xs">
+								New score
+							</Label>
+							<Input
+								id="adjusted-score"
+								value={adjustedScore}
+								onChange={(e) => setAdjustedScore(e.target.value)}
+								placeholder={event.workout.timeCap ? "10:30" : "155"}
+								className="font-mono"
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="adjusted-status" className="text-xs">
+								Status
+							</Label>
+							<Select
+								value={adjustedStatus}
+								onValueChange={(v) => setAdjustedStatus(v as "scored" | "cap")}
+							>
+								<SelectTrigger id="adjusted-status">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="scored">Scored</SelectItem>
+									{event.workout.timeCap && (
+										<SelectItem value="cap">Capped</SelectItem>
+									)}
+								</SelectContent>
+							</Select>
+						</div>
+						{adjustedStatus === "cap" && (
+							<div className="space-y-2">
+								<Label htmlFor="secondary-score" className="text-xs">
+									Reps at cap
+								</Label>
+								<Input
+									id="secondary-score"
+									value={secondaryScore}
+									onChange={(e) => setSecondaryScore(e.target.value)}
+									placeholder="e.g. 42"
+									type="number"
+									min="0"
+								/>
+							</div>
+						)}
+						<div className="flex gap-2">
+							<Button
+								className="flex-1"
+								size="sm"
+								disabled={isSubmitting || !adjustedScore.trim()}
+								onClick={handleAdjust}
+							>
+								{isSubmitting ? "Saving..." : "Save Adjustment"}
+							</Button>
+							<Button
+								variant="ghost"
+								size="sm"
+								disabled={isSubmitting}
+								onClick={() => {
+									setIsAdjusting(false)
+									setError(null)
+								}}
+							>
+								Cancel
+							</Button>
+						</div>
+					</div>
+				)}
+
+				{error && <p className="text-destructive text-sm">{error}</p>}
+
+				{/* Reviewer info */}
+				{submission.verification.verifiedAt &&
+					submission.verification.verifiedByName && (
+						<div className="flex items-center gap-2 text-muted-foreground text-xs">
+							<CheckCircle className="h-3 w-3" />
+							<span>
+								Reviewed by {submission.verification.verifiedByName} &middot;{" "}
+								{new Intl.DateTimeFormat("en-US", {
+									dateStyle: "medium",
+								}).format(new Date(submission.verification.verifiedAt))}
+							</span>
+						</div>
+					)}
+
+				{/* Audit Log */}
+				{logs.length > 0 && (
+					<>
+						<Separator />
+						<div className="space-y-2">
+							<p className="text-sm font-medium">Audit Log</p>
+							<div className="space-y-2">
+								{logs.map((log) => (
+									<div
+										key={log.id}
+										className="rounded border px-3 py-2 text-xs space-y-1"
+									>
+										<div className="flex items-center justify-between">
+											<span className="font-medium capitalize">
+												{log.action}
+											</span>
+											<span className="text-muted-foreground">
+												{new Intl.DateTimeFormat("en-US", {
+													dateStyle: "medium",
+													timeStyle: "short",
+												}).format(new Date(log.performedAt))}
+											</span>
+										</div>
+										<p className="text-muted-foreground">
+											by {log.performedByName}
+										</p>
+										{log.action === "adjusted" &&
+											log.newScoreValue !== null && (
+												<p className="text-muted-foreground">
+													{log.originalScoreValue !== null && log.scheme
+														? decodeScore(
+																log.originalScoreValue,
+																log.scheme as WorkoutScheme,
+																{ compact: false },
+															)
+														: "—"}{" "}
+													&rarr;{" "}
+													{log.scheme
+														? decodeScore(
+																log.newScoreValue,
+																log.scheme as WorkoutScheme,
+																{ compact: false },
+															)
+														: log.newScoreValue}
+													{log.newStatus && log.newStatus !== log.originalStatus
+														? ` (${log.newStatus})`
+														: ""}
+												</p>
+											)}
+									</div>
+								))}
+							</div>
+						</div>
+					</>
+				)}
+			</CardContent>
+		</Card>
+	)
+}
+
+// ============================================================================
+// Page Component
+// ============================================================================
+
 function SubmissionDetailPage() {
-	const { submission } = Route.useLoaderData()
+	const { submission, verificationSubmission, event, verificationLogs } = Route.useLoaderData()
 	const { competition } = parentRoute.useLoaderData()
 	const params = Route.useParams()
 	const router = useRouter()
@@ -376,6 +752,17 @@ function SubmissionDetailPage() {
 							</div>
 						</CardContent>
 					</Card>
+
+					{/* Verification Controls */}
+					{verificationSubmission && event && (
+						<VerificationControls
+							submission={verificationSubmission}
+							event={event}
+							competitionId={params.competitionId}
+							trackWorkoutId={params.eventId}
+							logs={verificationLogs}
+						/>
+					)}
 				</div>
 			</div>
 		</div>

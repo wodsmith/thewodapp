@@ -1,8 +1,8 @@
 /**
  * Competition Event Layout Route
  *
- * Layout wrapper for event sub-routes (edit, submissions).
- * Renders an Outlet so child routes display correctly.
+ * Layout route for a single competition event. Loads event details,
+ * divisions, movements, sponsors, and judging sheets for child routes.
  */
 
 import { Outlet, createFileRoute } from "@tanstack/react-router"
@@ -21,7 +21,7 @@ export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/events/$eventId",
 )({
 	staleTime: 10_000,
-	component: EventLayout,
+	component: () => <Outlet />,
 	loader: async ({ params, parentMatchPromise }) => {
 		const parentMatch = await parentMatchPromise
 		const { competition } = parentMatch.loaderData!
@@ -119,7 +119,3 @@ export const Route = createFileRoute(
 		}
 	},
 })
-
-function EventLayout() {
-	return <Outlet />
-}

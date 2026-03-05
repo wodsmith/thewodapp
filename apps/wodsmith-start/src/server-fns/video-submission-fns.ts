@@ -1005,6 +1005,7 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
 		// Get score for this user + event
 		const [score] = await db
 			.select({
+				id: scoresTable.id,
 				scoreValue: scoresTable.scoreValue,
 				status: scoresTable.status,
 				scheme: scoresTable.scheme,
@@ -1054,7 +1055,8 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
 						}
 					: null,
 				teamName: submission.teamName,
-				score: score
+				scoreId: score?.id ?? null,
+			score: score
 					? {
 							value: score.scoreValue,
 							displayScore,
