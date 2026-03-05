@@ -7,6 +7,7 @@ import {
 	ChevronsUpDown,
 	Loader2,
 	Search,
+	Tag,
 	User,
 	Users,
 	X,
@@ -14,6 +15,7 @@ import {
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { trackEvent } from "@/lib/posthog"
+import { clearCouponSession, getCouponSession } from "@/utils/coupon-cookie"
 import { WaiverViewer } from "@/components/compete/waiver-viewer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -283,6 +285,12 @@ export function RegistrationForm({
 }: Props) {
 	const navigate = useNavigate()
 	const [isSubmitting, setIsSubmitting] = useState(false)
+
+	// Active coupon from sessionStorage
+	const [activeCoupon] = useState(() => {
+		const coupon = getCouponSession()
+		return coupon?.competitionSlug === competition.slug ? coupon : null
+	})
 
 	// Multi-select state
 	const [selectedDivisionIds, setSelectedDivisionIds] = useState<string[]>([])
@@ -582,11 +590,13 @@ export function RegistrationForm({
 					items,
 					affiliateName: affiliateName || undefined,
 					answers,
+					couponCode: activeCoupon?.code,
 				},
 			})
 
 			// FREE registration - redirect to registered page
 			if (result.isFree) {
+				if (activeCoupon) clearCouponSession()
 				trackEvent("competition_registration_completed", {
 					competition_id: competition.id,
 					competition_name: competition.name,
@@ -603,6 +613,7 @@ export function RegistrationForm({
 
 			// PAID registration - redirect to Stripe Checkout
 			if (result.checkoutUrl) {
+				if (activeCoupon) clearCouponSession()
 				trackEvent("competition_registration_payment_started", {
 					competition_id: competition.id,
 					competition_name: competition.name,
@@ -959,6 +970,7 @@ export function RegistrationForm({
 							{selectedDivisionIds.map((divisionId) => {
 								const division = getDivision(divisionId)
 								const isMulti = selectedDivisionIds.length > 1
+								const hideDivTotal = isMulti || !!activeCoupon
 								return (
 									<div key={divisionId}>
 										{isMulti && (
@@ -969,26 +981,59 @@ export function RegistrationForm({
 										<FeeBreakdown
 											competitionId={competition.id}
 											divisionId={divisionId}
-											hideTotal={isMulti}
+											hideTotal={hideDivTotal}
 											onFeesLoaded={handleFeesLoaded}
 										/>
 									</div>
 								)
 							})}
-							{selectedDivisionIds.length > 1 && divisionFees.size > 0 && (
-								<div className="flex justify-between font-medium pt-2 border-t">
-									<span>Total</span>
-									<span className="text-lg">
-										$
-										{(
-											Array.from(divisionFees.values()).reduce(
-												(sum, c) => sum + c,
-												0,
-											) / 100
-										).toFixed(2)}
-									</span>
-								</div>
-							)}
+							{divisionFees.size > 0 && (() => {
+								const subtotal = Array.from(divisionFees.values()).reduce(
+									(sum, c) => sum + c,
+									0,
+								)
+								if (!activeCoupon) {
+									// No coupon — show simple total for multi-division
+									if (selectedDivisionIds.length <= 1) return null
+									return (
+										<div className="flex justify-between font-medium pt-2 border-t">
+											<span>Total</span>
+											<span className="text-lg">
+												${(subtotal / 100).toFixed(2)}
+											</span>
+										</div>
+									)
+								}
+								// With coupon — always show subtotal, discount, and adjusted total
+								const discount = Math.min(activeCoupon.amountOffCents, subtotal)
+								const total = subtotal - discount
+								return (
+									<>
+										{selectedDivisionIds.length > 1 && (
+											<div className="flex justify-between text-sm pt-2 border-t">
+												<span>Subtotal</span>
+												<span>${(subtotal / 100).toFixed(2)}</span>
+											</div>
+										)}
+										<div className={cn(
+											"flex justify-between text-sm text-emerald-700 dark:text-emerald-400",
+											selectedDivisionIds.length <= 1 && "pt-2 border-t",
+										)}>
+											<span className="flex items-center gap-1.5">
+												<Tag className="h-3.5 w-3.5" />
+												Coupon ({activeCoupon.code})
+											</span>
+											<span>-${(discount / 100).toFixed(2)}</span>
+										</div>
+										<div className="flex justify-between font-medium pt-2 border-t">
+											<span>Total</span>
+											<span className="text-lg">
+												${(total / 100).toFixed(2)}
+											</span>
+										</div>
+									</>
+								)
+							})()}
 						</CardContent>
 					</Card>
 				)}

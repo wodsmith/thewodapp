@@ -117,9 +117,7 @@ export function YouTubeThumbnail({
 }) {
 	const videoId = extractYouTubeVideoId(url)
 	const [imgSrc, setImgSrc] = useState(
-		videoId
-			? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
-			: "",
+		videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : "",
 	)
 
 	if (!videoId) {
@@ -148,9 +146,7 @@ export function YouTubeThumbnail({
 				className="absolute inset-0 h-full w-full object-cover"
 				loading="lazy"
 				onError={() => {
-					setImgSrc(
-						`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
-					)
+					setImgSrc(`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`)
 				}}
 			/>
 			<div className="absolute inset-0 flex items-center justify-center">

@@ -77,6 +77,7 @@ const routeLabels: Record<string, string> = {
 	review: "Review",
 	pricing: "Pricing",
 	revenue: "Revenue",
+	coupons: "Coupons",
 	sponsors: "Sponsors",
 	settings: "Settings",
 	edit: "Edit",

@@ -24,6 +24,7 @@ import {
 	ReceiptText,
 	Settings,
 	Sparkles,
+	Tag,
 	Trophy,
 	UserCheck,
 	Users,
@@ -139,6 +140,7 @@ const getNavigation = (
 			items: [
 				{ label: "Pricing", href: `${basePath}/pricing`, icon: ReceiptText },
 				{ label: "Revenue", href: `${basePath}/revenue`, icon: DollarSign },
+				{ label: "Coupons", href: `${basePath}/coupons`, icon: Tag },
 				{ label: "Sponsors", href: `${basePath}/sponsors`, icon: Sparkles },
 			],
 		},

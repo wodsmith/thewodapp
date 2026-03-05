@@ -186,11 +186,19 @@ export function RegistrationDetailsCard({
 							{paymentStatus === "FREE" ? (
 								<span className="font-medium text-muted-foreground">$0.00</span>
 							) : (purchase?.totalCents ?? division?.feeCents) != null ? (
-								<span className="font-semibold">
-									{formatCurrency(
-										purchase?.totalCents ?? division?.feeCents ?? 0,
-									)}
-								</span>
+								<div className="text-right">
+									<span className="font-semibold">
+										{formatCurrency(
+											(purchase?.totalCents ?? division?.feeCents ?? 0) -
+												(purchase?.couponDiscountCents ?? 0),
+										)}
+									</span>
+									{purchase?.couponCode && purchase.couponDiscountCents ? (
+										<p className="text-xs text-green-600">
+											{formatCurrency(purchase.couponDiscountCents)} off ({purchase.couponCode})
+										</p>
+									) : null}
+								</div>
 							) : null}
 						</div>
 
