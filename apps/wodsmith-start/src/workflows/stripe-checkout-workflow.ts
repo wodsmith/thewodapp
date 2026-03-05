@@ -45,6 +45,10 @@ import {
 	registerForCompetition,
 } from "@/server/registration"
 import { recordRedemption, cleanupStripeCoupon } from "@/server/coupons"
+import {
+	recordPaymentCompleted,
+	recordRefundCompleted,
+} from "@/server/commerce/financial-events"
 import { calculateDivisionCapacity } from "@/utils/division-capacity"
 
 export interface CheckoutCompletedParams {
@@ -293,6 +297,25 @@ async function createRegistration(
 						paymentIntentId: session.payment_intent,
 					},
 				})
+
+				// Record refund in financial event log
+				try {
+					await recordRefundCompleted({
+						purchaseId,
+						teamId: competition.organizingTeamId,
+						amountCents: existingPurchase.totalCents,
+						stripePaymentIntentId: session.payment_intent,
+						reason:
+							"Division filled during payment - automatic refund",
+					})
+				} catch (eventErr) {
+					logWarning({
+						message:
+							"[Workflow] Failed to record refund event (non-fatal)",
+						error: eventErr,
+						attributes: { purchaseId },
+					})
+				}
 			} catch (refundError) {
 				logError({
 					message: "[Workflow] Failed to issue automatic refund",
@@ -353,6 +376,26 @@ async function createRegistration(
 				completedAt: new Date(),
 			})
 			.where(eq(commercePurchaseTable.id, purchaseId))
+
+		// Record payment in financial event log
+		try {
+			await recordPaymentCompleted({
+				purchaseId,
+				teamId: competition.organizingTeamId,
+				totalCents: existingPurchase.totalCents,
+				platformFeeCents: existingPurchase.platformFeeCents,
+				stripeFeeCents: existingPurchase.stripeFeeCents,
+				organizerNetCents: existingPurchase.organizerNetCents,
+				stripePaymentIntentId: session.payment_intent ?? undefined,
+			})
+		} catch (eventErr) {
+			logWarning({
+				message:
+					"[Workflow] Failed to record payment event (non-fatal)",
+				error: eventErr,
+				attributes: { purchaseId },
+			})
+		}
 
 		// Record coupon redemption if present
 		if (session.metadata.couponId && session.metadata.stripeCouponId) {
