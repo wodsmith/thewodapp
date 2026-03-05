@@ -104,6 +104,8 @@ export function RegistrationDetailsCard({
 		paymentStatus,
 		registeredAt,
 		teamName,
+		isOriginalPurchaser,
+		purchaserName,
 	} = details
 
 	return (
@@ -184,11 +186,19 @@ export function RegistrationDetailsCard({
 							{paymentStatus === "FREE" ? (
 								<span className="font-medium text-muted-foreground">$0.00</span>
 							) : (purchase?.totalCents ?? division?.feeCents) != null ? (
-								<span className="font-semibold">
-									{formatCurrency(
-										purchase?.totalCents ?? division?.feeCents ?? 0,
-									)}
-								</span>
+								<div className="text-right">
+									<span className="font-semibold">
+										{formatCurrency(
+											(purchase?.totalCents ?? division?.feeCents ?? 0) -
+												(purchase?.couponDiscountCents ?? 0),
+										)}
+									</span>
+									{purchase?.couponCode && purchase.couponDiscountCents ? (
+										<p className="text-xs text-green-600">
+											{formatCurrency(purchase.couponDiscountCents)} off ({purchase.couponCode})
+										</p>
+									) : null}
+								</div>
 							) : null}
 						</div>
 
@@ -206,20 +216,31 @@ export function RegistrationDetailsCard({
 							</div>
 						)}
 
-						{/* Invoice Link */}
-						{purchase?.id && paymentStatus === "PAID" && (
-							<div className="pt-2 border-t">
-								<Link
-									to="/compete/athlete/invoices/$purchaseId"
-									params={{ purchaseId: purchase.id }}
-									search={{ returnTo: location.pathname }}
-									className="text-sm text-primary hover:underline flex items-center gap-1"
-								>
-									<Receipt className="w-3.5 h-3.5" />
-									View Invoice
-								</Link>
-							</div>
-						)}
+						{/* Invoice Link — only shown to the original purchaser */}
+						{purchase?.id &&
+							paymentStatus === "PAID" &&
+							isOriginalPurchaser && (
+								<div className="pt-2 border-t">
+									<Link
+										to="/compete/athlete/invoices/$purchaseId"
+										params={{ purchaseId: purchase.id }}
+										search={{ returnTo: location.pathname }}
+										className="text-sm text-primary hover:underline flex items-center gap-1"
+									>
+										<Receipt className="w-3.5 h-3.5" />
+										View Invoice
+									</Link>
+								</div>
+							)}
+						{purchase?.id &&
+							paymentStatus === "PAID" &&
+							!isOriginalPurchaser && (
+								<div className="pt-2 border-t">
+									<p className="text-sm text-muted-foreground">
+										Paid by {purchaserName || "another athlete"}
+									</p>
+								</div>
+							)}
 					</div>
 				</CardContent>
 			</Card>

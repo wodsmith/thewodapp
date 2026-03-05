@@ -1,29 +1,43 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getRegistrationFeeBreakdownFn } from "@/server-fns/registration-fns"
 
+type FeeData = {
+	isFree: boolean
+	registrationFeeCents?: number
+	platformFeeCents?: number
+	stripeFeeCents?: number
+	totalChargeCents?: number
+	stripeFeesPassedToCustomer?: boolean
+	platformFeesPassedToCustomer?: boolean
+}
+
 type FeeBreakdownProps = {
 	competitionId: string
 	divisionId: string | null
+	/** Hide the per-division total line (when showing a combined total externally) */
+	hideTotal?: boolean
+	/** Report loaded fee data to parent */
+	onFeesLoaded?: (divisionId: string, fees: FeeData | null) => void
 }
 
-export function FeeBreakdown({ competitionId, divisionId }: FeeBreakdownProps) {
-	const [fees, setFees] = useState<{
-		isFree: boolean
-		registrationFeeCents?: number
-		platformFeeCents?: number
-		stripeFeeCents?: number
-		totalChargeCents?: number
-		stripeFeesPassedToCustomer?: boolean
-		platformFeesPassedToCustomer?: boolean
-	} | null>(null)
+export function FeeBreakdown({
+	competitionId,
+	divisionId,
+	hideTotal,
+	onFeesLoaded,
+}: FeeBreakdownProps) {
+	const [fees, setFees] = useState<FeeData | null>(null)
 	const [isLoading, setIsLoading] = useState(false)
+	const onFeesLoadedRef = useRef(onFeesLoaded)
+	onFeesLoadedRef.current = onFeesLoaded
 
 	useEffect(() => {
 		if (!divisionId) {
 			setFees(null)
+			onFeesLoadedRef.current?.(divisionId ?? "", null)
 			return
 		}
 
@@ -34,9 +48,11 @@ export function FeeBreakdown({ competitionId, divisionId }: FeeBreakdownProps) {
 					data: { competitionId, divisionId },
 				})
 				setFees(result)
+				onFeesLoadedRef.current?.(divisionId, result)
 			} catch (error) {
 				console.error("Failed to fetch registration fee breakdown:", error)
 				setFees(null)
+				onFeesLoadedRef.current?.(divisionId, null)
 				toast.error("Failed to load registration fees. Please try again.")
 			} finally {
 				setIsLoading(false)
@@ -78,28 +94,36 @@ export function FeeBreakdown({ competitionId, divisionId }: FeeBreakdownProps) {
 					{formatCents(fees.registrationFeeCents ?? 0)}
 				</span>
 			</div>
-			{fees.platformFeesPassedToCustomer &&
-				fees.platformFeeCents &&
-				fees.platformFeeCents > 0 && (
-					<div className="flex justify-between text-muted-foreground">
-						<span>Platform Fee</span>
-						<span>{formatCents(fees.platformFeeCents)}</span>
-					</div>
-				)}
-			{fees.stripeFeesPassedToCustomer &&
-				fees.stripeFeeCents &&
-				fees.stripeFeeCents > 0 && (
-					<div className="flex justify-between text-muted-foreground">
-						<span>Processing Fee</span>
-						<span>{formatCents(fees.stripeFeeCents)}</span>
-					</div>
-				)}
-			<div className="flex justify-between font-medium pt-2 border-t">
-				<span>Total</span>
-				<span className="text-lg">
-					{formatCents(fees.totalChargeCents ?? 0)}
-				</span>
-			</div>
+			{fees.platformFeeCents != null && fees.platformFeeCents > 0 && (
+				<div className="flex justify-between text-muted-foreground">
+					<span>
+						Platform Fee
+						{!fees.platformFeesPassedToCustomer && (
+							<span className="ml-1 text-xs italic">(included)</span>
+						)}
+					</span>
+					<span>{formatCents(fees.platformFeeCents)}</span>
+				</div>
+			)}
+			{fees.stripeFeeCents != null && fees.stripeFeeCents > 0 && (
+				<div className="flex justify-between text-muted-foreground">
+					<span>
+						Processing Fee
+						{!fees.stripeFeesPassedToCustomer && (
+							<span className="ml-1 text-xs italic">(included)</span>
+						)}
+					</span>
+					<span>{formatCents(fees.stripeFeeCents)}</span>
+				</div>
+			)}
+			{!hideTotal && (
+				<div className="flex justify-between font-medium pt-2 border-t">
+					<span>Total</span>
+					<span className="text-lg">
+						{formatCents(fees.totalChargeCents ?? 0)}
+					</span>
+				</div>
+			)}
 		</div>
 	)
 }

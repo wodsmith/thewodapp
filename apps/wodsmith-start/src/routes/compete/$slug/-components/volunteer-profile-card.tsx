@@ -31,6 +31,8 @@ function formatRoleType(role: string): string {
 		medical: "Medical",
 		check_in: "Check-in",
 		staff: "Staff",
+		athlete_control: "Athlete Control",
+		equipment_team: "Equipment Team",
 	}
 	return roleLabels[role] || role
 }

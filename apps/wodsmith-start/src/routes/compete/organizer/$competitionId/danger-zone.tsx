@@ -1,27 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router"
-import {
-	getCompetitionByIdFn,
-	getCompetitionRegistrationsFn,
-} from "@/server-fns/competition-detail-fns"
+import { getCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
 import { DeleteCompetitionForm } from "./-components/delete-competition-form"
 
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/danger-zone",
 )({
-	loader: async ({ params }) => {
-		const [competitionResult, registrationsResult] = await Promise.all([
-			getCompetitionByIdFn({ data: { competitionId: params.competitionId } }),
+	staleTime: 10_000,
+	loader: async ({ params, parentMatchPromise }) => {
+		const [parentMatch, registrationsResult] = await Promise.all([
+			parentMatchPromise,
 			getCompetitionRegistrationsFn({
 				data: { competitionId: params.competitionId },
 			}),
 		])
 
-		if (!competitionResult.competition) {
-			throw new Error("Competition not found")
-		}
+		const { competition } = parentMatch.loaderData!
 
 		return {
-			competition: competitionResult.competition,
+			competition,
 			registrationCount: registrationsResult.registrations.length,
 		}
 	},

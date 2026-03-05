@@ -2,13 +2,10 @@
 
 This is a **monorepo** with multiple applications:
 
-- `apps/wodsmith` - Legacy Next.js application (being migrated)
 - `apps/wodsmith-start` - **Primary app** - TanStack Start application on Cloudflare Workers
 - `apps/docs` - Documentation site
 - `apps/posthog-proxy` - PostHog analytics proxy
 - `packages/*` - Shared packages
-
-**Focus development on `apps/wodsmith-start`** unless specifically working on other apps.
 
 ## Development Commands (wodsmith-start)
 
@@ -147,7 +144,7 @@ Database is modularly structured in `src/db/schemas/`:
 
 ### API Patterns
 
-- Server actions with ZSA: `import { useServerAction } from "@repo/zsa-react"`
+- Server functions with TanStack Start: `createServerFn` (see below)
 - Named object parameters for functions with >1 parameter
 - Consistent error handling with proper HTTP status codes
 - Rate limiting on auth endpoints

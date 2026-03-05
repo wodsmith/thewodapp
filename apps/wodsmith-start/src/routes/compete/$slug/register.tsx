@@ -3,25 +3,29 @@
  * Port from apps/wodsmith/src/app/(compete)/compete/(public)/[slug]/register/page.tsx
  *
  * This file uses top-level imports for server-only modules.
+ * Supports multi-division registration - users can register for multiple divisions.
  */
 
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray, isNotNull } from "drizzle-orm"
 import { z } from "zod"
-import {
-	competitionRegistrationsTable,
-	scalingGroupsTable,
-	userTable,
-} from "@/db/schema"
 import { RegistrationForm } from "@/components/registration/registration-form"
+import {
+	competitionRegistrationAnswersTable,
+	competitionRegistrationsTable,
+	REGISTRATION_STATUS,
+	scalingGroupsTable,
+	teamMembershipTable,
+	userTable,
+	waiverSignaturesTable,
+} from "@/db/schema"
 import {
 	getPublicCompetitionDivisionsFn,
 	parseCompetitionSettings,
 } from "@/server-fns/competition-divisions-fns"
-import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
-import { getCompetitionQuestionsFn } from "@/server-fns/registration-questions-fns"
 import { cancelPendingPurchaseFn } from "@/server-fns/registration-fns"
+import { getCompetitionQuestionsFn } from "@/server-fns/registration-questions-fns"
 import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
 import { getLocalDateKey } from "@/utils/date-utils"
 
@@ -30,8 +34,8 @@ const registerSearchSchema = z.object({
 	canceled: z.enum(["true", "false"]).optional().catch(undefined),
 })
 
-// Server function to check if user is already registered
-const getUserCompetitionRegistrationFn = createServerFn({ method: "GET" })
+// Server function to get ALL user registrations for a competition
+const getUserCompetitionRegistrationsFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) =>
 		z
 			.object({
@@ -43,18 +47,109 @@ const getUserCompetitionRegistrationFn = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		const { getDb } = await import("@/db")
 		const db = getDb()
-		const registration = await db.query.competitionRegistrationsTable.findFirst(
-			{
+
+		// 1. Direct registrations (user is the registrant/captain)
+		const directRegistrations =
+			await db.query.competitionRegistrationsTable.findMany({
 				where: and(
 					eq(competitionRegistrationsTable.eventId, data.competitionId),
 					eq(competitionRegistrationsTable.userId, data.userId),
 				),
-			},
+			})
+
+		// 2. Team registrations where user is a team member (accepted invite)
+		// Find all athlete teams the user belongs to
+		const userMemberships = await db.query.teamMembershipTable.findMany({
+			where: and(
+				eq(teamMembershipTable.userId, data.userId),
+				eq(teamMembershipTable.isActive, true),
+			),
+			columns: { teamId: true },
+		})
+		const userTeamIds = userMemberships.map((m) => m.teamId)
+
+		let teamRegistrations: typeof directRegistrations = []
+		if (userTeamIds.length > 0) {
+			teamRegistrations = await db.query.competitionRegistrationsTable.findMany(
+				{
+					where: and(
+						eq(competitionRegistrationsTable.eventId, data.competitionId),
+						inArray(competitionRegistrationsTable.athleteTeamId, userTeamIds),
+						isNotNull(competitionRegistrationsTable.athleteTeamId),
+					),
+				},
+			)
+		}
+
+		// Dedupe by registration ID (captain shows up in both)
+		const allRegistrations = [
+			...directRegistrations,
+			...teamRegistrations.filter(
+				(tr) => !directRegistrations.some((dr) => dr.id === tr.id),
+			),
+		]
+
+		const activeRegistrations = allRegistrations.filter(
+			(r) => r.status !== REGISTRATION_STATUS.REMOVED,
+		)
+		const removedRegistrations = allRegistrations.filter(
+			(r) => r.status === REGISTRATION_STATUS.REMOVED,
 		)
 
+		const registeredDivisionIds = activeRegistrations
+			.map((r) => r.divisionId)
+			.filter((id): id is string => id !== null)
+
+		const removedDivisionIds = removedRegistrations
+			.map((r) => r.divisionId)
+			.filter((id): id is string => id !== null)
+
+		// If user has existing active registrations, fetch their previous answers and waiver signatures
+		let previousAnswers: Array<{ questionId: string; answer: string }> = []
+		let signedWaiverIds: string[] = []
+
+		if (activeRegistrations.length > 0) {
+			const registrationIds = activeRegistrations.map((r) => r.id)
+
+			// Fetch answers from any previous registration (they're the same across divisions)
+			const answers =
+				await db.query.competitionRegistrationAnswersTable.findMany({
+					where: and(
+						eq(competitionRegistrationAnswersTable.userId, data.userId),
+						inArray(
+							competitionRegistrationAnswersTable.registrationId,
+							registrationIds,
+						),
+					),
+					columns: { questionId: true, answer: true },
+				})
+
+			// Dedupe by questionId (take first answer found)
+			const seen = new Set<string>()
+			for (const a of answers) {
+				if (!seen.has(a.questionId)) {
+					seen.add(a.questionId)
+					previousAnswers.push({
+						questionId: a.questionId,
+						answer: a.answer,
+					})
+				}
+			}
+
+			// Fetch waiver signatures for this user on waivers from this competition's registrations
+			const signatures = await db.query.waiverSignaturesTable.findMany({
+				where: eq(waiverSignaturesTable.userId, data.userId),
+				columns: { waiverId: true },
+			})
+			signedWaiverIds = [...new Set(signatures.map((s) => s.waiverId))]
+		}
+
 		return {
-			isRegistered: !!registration,
-			registration: registration || null,
+			registrations: activeRegistrations,
+			registeredDivisionIds,
+			removedDivisionIds,
+			previousAnswers,
+			signedWaiverIds,
 		}
 	})
 
@@ -78,8 +173,8 @@ const getScalingGroupWithLevelsFn = createServerFn({ method: "GET" })
 		return { scalingGroup }
 	})
 
-// Server function to get user's affiliate name
-const getUserAffiliateNameFn = createServerFn({ method: "GET" })
+// Server function to get user's profile info for registration
+const getUserProfileFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) =>
 		z.object({ userId: z.string() }).parse(data),
 	)
@@ -88,10 +183,20 @@ const getUserAffiliateNameFn = createServerFn({ method: "GET" })
 		const db = getDb()
 		const user = await db.query.userTable.findFirst({
 			where: eq(userTable.id, data.userId),
-			columns: { affiliateName: true },
+			columns: {
+				affiliateName: true,
+				firstName: true,
+				lastName: true,
+				email: true,
+			},
 		})
 
-		return { affiliateName: user?.affiliateName ?? null }
+		return {
+			affiliateName: user?.affiliateName ?? null,
+			firstName: user?.firstName ?? null,
+			lastName: user?.lastName ?? null,
+			email: user?.email ?? null,
+		}
 	})
 
 export const Route = createFileRoute("/compete/$slug/register")({
@@ -99,12 +204,13 @@ export const Route = createFileRoute("/compete/$slug/register")({
 	validateSearch: registerSearchSchema,
 	staleTime: 10_000, // Cache for 10 seconds
 	loaderDeps: ({ search }) => ({ canceled: search.canceled }),
-	loader: async ({ params, context, deps }) => {
+	loader: async ({ params, context, deps, parentMatchPromise }) => {
 		const { slug } = params
 		const { canceled } = deps
 
-		// 1. Get competition first (needed for redirects and other fetches)
-		const { competition } = await getCompetitionBySlugFn({ data: { slug } })
+		// 1. Get competition from parent (parent already validated it's non-null)
+		const parentMatch = await parentMatchPromise
+		const competition = parentMatch.loaderData?.competition
 		if (!competition) {
 			throw notFound()
 		}
@@ -128,21 +234,25 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			})
 		}
 
-		// 3. Parallel fetch: registration check, affiliate name, waivers, and questions
-		// These all only need competition.id or session.userId
+		// 3. Parallel fetch: existing registrations, affiliate name, waivers, and questions
 		const [
-			{ registration: existingRegistration },
-			{ affiliateName },
+			{
+				registeredDivisionIds,
+				removedDivisionIds,
+				previousAnswers,
+				signedWaiverIds,
+			},
+			userProfile,
 			{ waivers },
 			{ questions },
 		] = await Promise.all([
-			getUserCompetitionRegistrationFn({
+			getUserCompetitionRegistrationsFn({
 				data: {
 					competitionId: competition.id,
 					userId: session.userId,
 				},
 			}),
-			getUserAffiliateNameFn({
+			getUserProfileFn({
 				data: { userId: session.userId },
 			}),
 			getCompetitionWaiversFn({
@@ -153,9 +263,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			}),
 		])
 
-		if (existingRegistration) {
-			throw redirect({ to: "/compete/$slug", params: { slug } })
-		}
+		// No longer redirect if registered - allow registration for additional divisions
 
 		// 4. Check registration window (dates are now YYYY-MM-DD strings)
 		const now = new Date()
@@ -187,6 +295,10 @@ export const Route = createFileRoute("/compete/$slug/register")({
 				divisionsConfigured: false,
 				waivers: [],
 				questions: [],
+				registeredDivisionIds: [],
+				removedDivisionIds: [],
+				previousAnswers: [],
+				signedWaiverIds: [],
 			}
 		}
 
@@ -220,6 +332,10 @@ export const Route = createFileRoute("/compete/$slug/register")({
 				divisionsConfigured: false,
 				waivers: [],
 				questions: [],
+				registeredDivisionIds: [],
+				removedDivisionIds: [],
+				previousAnswers: [],
+				signedWaiverIds: [],
 			}
 		}
 
@@ -231,10 +347,17 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			registrationOpen,
 			registrationOpensAt: regOpensAt,
 			registrationClosesAt: regClosesAt,
-			defaultAffiliateName: affiliateName ?? undefined,
+			defaultAffiliateName: userProfile.affiliateName ?? undefined,
 			divisionsConfigured: true,
 			waivers,
 			questions,
+			userFirstName: userProfile.firstName,
+			userLastName: userProfile.lastName,
+			userEmail: userProfile.email,
+			registeredDivisionIds,
+			removedDivisionIds,
+			previousAnswers,
+			signedWaiverIds,
 		}
 	},
 })
@@ -252,6 +375,13 @@ function RegisterPage() {
 		divisionsConfigured,
 		waivers,
 		questions,
+		userFirstName,
+		userLastName,
+		userEmail,
+		registeredDivisionIds,
+		removedDivisionIds,
+		previousAnswers,
+		signedWaiverIds,
 	} = Route.useLoaderData()
 
 	const { canceled } = Route.useSearch()
@@ -288,6 +418,13 @@ function RegisterPage() {
 				defaultAffiliateName={defaultAffiliateName}
 				waivers={waivers}
 				questions={questions}
+				userFirstName={userFirstName}
+				userLastName={userLastName}
+				userEmail={userEmail}
+				registeredDivisionIds={registeredDivisionIds}
+				removedDivisionIds={removedDivisionIds}
+				previousAnswers={previousAnswers}
+				signedWaiverIds={signedWaiverIds}
 			/>
 		</div>
 	)

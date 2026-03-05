@@ -20,6 +20,8 @@ import {
 	scalingLevelsTable,
 	teamMembershipTable,
 	trackWorkoutsTable,
+	volunteerShiftAssignmentsTable,
+	volunteerShiftsTable,
 	workoutScalingDescriptionsTable,
 	workouts,
 } from "@/db/schema"
@@ -27,13 +29,13 @@ import { eventJudgingSheetsTable } from "@/db/schemas/judging-sheets"
 import type {
 	LaneShiftPattern,
 	VolunteerMembershipMetadata,
+	VolunteerRoleType,
 } from "@/db/schemas/volunteers"
 import type {
 	ScoreType,
 	TiebreakScheme,
 	WorkoutScheme,
 } from "@/db/schemas/workouts"
-import { autochunk } from "@/utils/batch-query"
 
 // ============================================================================
 // Types
@@ -109,6 +111,21 @@ export interface EventWithRotations {
 	divisionDescriptions: DivisionDescription[]
 	judgingSheets: JudgingSheet[]
 	rotations: EnrichedRotation[]
+}
+
+export interface VolunteerShiftData {
+	id: string
+	name: string
+	roleType: VolunteerRoleType
+	startTime: Date
+	endTime: Date
+	location: string | null
+	notes: string | null
+}
+
+export interface VolunteerScheduleData {
+	events: EventWithRotations[]
+	shifts: VolunteerShiftData[]
 }
 
 // ============================================================================
@@ -232,13 +249,14 @@ export const getVolunteerMembershipFn = createServerFn({ method: "GET" })
 
 /**
  * Get enriched schedule data for a volunteer
- * Returns events with rotations grouped and enriched with workout/heat info
+ * Returns events with rotations grouped and enriched with workout/heat info,
+ * plus time-based shift assignments
  */
 export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) =>
 		getVolunteerScheduleDataInputSchema.parse(data),
 	)
-	.handler(async ({ data }): Promise<{ events: EventWithRotations[] }> => {
+	.handler(async ({ data }): Promise<VolunteerScheduleData> => {
 		const db = getDb()
 
 		// Get competition divisions for scaling level descriptions
@@ -260,28 +278,62 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 				),
 			)
 
+		// Query volunteer's shift assignments with shift details
+		const shiftAssignments = await db
+			.select({
+				shift: {
+					id: volunteerShiftsTable.id,
+					name: volunteerShiftsTable.name,
+					roleType: volunteerShiftsTable.roleType,
+					startTime: volunteerShiftsTable.startTime,
+					endTime: volunteerShiftsTable.endTime,
+					location: volunteerShiftsTable.location,
+					notes: volunteerShiftsTable.notes,
+				},
+			})
+			.from(volunteerShiftAssignmentsTable)
+			.innerJoin(
+				volunteerShiftsTable,
+				eq(volunteerShiftAssignmentsTable.shiftId, volunteerShiftsTable.id),
+			)
+			.where(
+				and(
+					eq(volunteerShiftAssignmentsTable.membershipId, data.membershipId),
+					eq(volunteerShiftsTable.competitionId, data.competitionId),
+				),
+			)
+
+		// Build shifts array, ordered by startTime
+		const shifts: VolunteerShiftData[] = shiftAssignments
+			.map((sa) => ({
+				id: sa.shift.id,
+				name: sa.shift.name,
+				roleType: sa.shift.roleType,
+				startTime: sa.shift.startTime,
+				endTime: sa.shift.endTime,
+				location: sa.shift.location,
+				notes: sa.shift.notes,
+			}))
+			.sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
+
+		// If no rotations, return just the shifts with empty events
 		if (rotations.length === 0) {
-			return { events: [] }
+			return { events: [], shifts }
 		}
 
 		// Extract unique track workout IDs
 		const trackWorkoutIds = [...new Set(rotations.map((r) => r.trackWorkoutId))]
 
 		// Batch-fetch trackWorkouts
-		const trackWorkouts = await autochunk(
-			{ items: trackWorkoutIds },
-			async (chunk) => {
-				return db
-					.select({
-						id: trackWorkoutsTable.id,
-						workoutId: trackWorkoutsTable.workoutId,
-						notes: trackWorkoutsTable.notes,
-						eventStatus: trackWorkoutsTable.eventStatus,
-					})
-					.from(trackWorkoutsTable)
-					.where(inArray(trackWorkoutsTable.id, chunk))
-			},
-		)
+		const trackWorkouts = await db
+			.select({
+				id: trackWorkoutsTable.id,
+				workoutId: trackWorkoutsTable.workoutId,
+				notes: trackWorkoutsTable.notes,
+				eventStatus: trackWorkoutsTable.eventStatus,
+			})
+			.from(trackWorkoutsTable)
+			.where(inArray(trackWorkoutsTable.id, trackWorkoutIds))
 
 		const trackWorkoutMap = new Map(trackWorkouts.map((tw) => [tw.id, tw]))
 
@@ -290,51 +342,42 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 			...new Set(trackWorkouts.map((tw) => tw.workoutId).filter(Boolean)),
 		]
 
-		const workoutsList = await autochunk(
-			{ items: workoutIds },
-			async (chunk) => {
-				return db
-					.select({
-						id: workouts.id,
-						name: workouts.name,
-						description: workouts.description,
-						scheme: workouts.scheme,
-						scoreType: workouts.scoreType,
-						timeCap: workouts.timeCap,
-						repsPerRound: workouts.repsPerRound,
-						roundsToScore: workouts.roundsToScore,
-						tiebreakScheme: workouts.tiebreakScheme,
-						teamId: workouts.teamId,
-					})
-					.from(workouts)
-					.where(inArray(workouts.id, chunk))
-			},
-		)
+		const workoutsList = await db
+			.select({
+				id: workouts.id,
+				name: workouts.name,
+				description: workouts.description,
+				scheme: workouts.scheme,
+				scoreType: workouts.scoreType,
+				timeCap: workouts.timeCap,
+				repsPerRound: workouts.repsPerRound,
+				roundsToScore: workouts.roundsToScore,
+				tiebreakScheme: workouts.tiebreakScheme,
+				teamId: workouts.teamId,
+			})
+			.from(workouts)
+			.where(inArray(workouts.id, workoutIds))
 
 		const workoutMap = new Map(workoutsList.map((w) => [w.id, w]))
 
 		// Batch-fetch judging sheets for all trackWorkouts
-		const judgingSheetsData = await autochunk(
-			{ items: trackWorkoutIds },
-			async (chunk) => {
-				return db
-					.select({
-						id: eventJudgingSheetsTable.id,
-						trackWorkoutId: eventJudgingSheetsTable.trackWorkoutId,
-						title: eventJudgingSheetsTable.title,
-						url: eventJudgingSheetsTable.url,
-						originalFilename: eventJudgingSheetsTable.originalFilename,
-						fileSize: eventJudgingSheetsTable.fileSize,
-					})
-					.from(eventJudgingSheetsTable)
-					.where(inArray(eventJudgingSheetsTable.trackWorkoutId, chunk))
-			},
-		)
+		const judgingSheetsData = await db
+			.select({
+				id: eventJudgingSheetsTable.id,
+				trackWorkoutId: eventJudgingSheetsTable.trackWorkoutId,
+				title: eventJudgingSheetsTable.title,
+				url: eventJudgingSheetsTable.url,
+				originalFilename: eventJudgingSheetsTable.originalFilename,
+				fileSize: eventJudgingSheetsTable.fileSize,
+			})
+			.from(eventJudgingSheetsTable)
+			.where(inArray(eventJudgingSheetsTable.trackWorkoutId, trackWorkoutIds))
 
 		// Group judging sheets by trackWorkoutId
 		const judgingSheetsByTrackWorkout = new Map<string, JudgingSheet[]>()
 		for (const sheet of judgingSheetsData) {
-			const existing = judgingSheetsByTrackWorkout.get(sheet.trackWorkoutId) || []
+			const existing =
+				judgingSheetsByTrackWorkout.get(sheet.trackWorkoutId) || []
 			existing.push({
 				id: sheet.id,
 				title: sheet.title,
@@ -346,36 +389,29 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 		}
 
 		// Batch-fetch heats for all trackWorkouts
-		const heatsData = await autochunk(
-			{ items: trackWorkoutIds },
-			async (chunk) => {
-				return db
-					.select({
-						id: competitionHeatsTable.id,
-						trackWorkoutId: competitionHeatsTable.trackWorkoutId,
-						heatNumber: competitionHeatsTable.heatNumber,
-						scheduledTime: competitionHeatsTable.scheduledTime,
-						durationMinutes: competitionHeatsTable.durationMinutes,
-						divisionId: competitionHeatsTable.divisionId,
-					})
-					.from(competitionHeatsTable)
-					.where(inArray(competitionHeatsTable.trackWorkoutId, chunk))
-			},
-		)
+		const heatsData = await db
+			.select({
+				id: competitionHeatsTable.id,
+				trackWorkoutId: competitionHeatsTable.trackWorkoutId,
+				heatNumber: competitionHeatsTable.heatNumber,
+				scheduledTime: competitionHeatsTable.scheduledTime,
+				durationMinutes: competitionHeatsTable.durationMinutes,
+				divisionId: competitionHeatsTable.divisionId,
+			})
+			.from(competitionHeatsTable)
+			.where(inArray(competitionHeatsTable.trackWorkoutId, trackWorkoutIds))
 
 		// Fetch heat assignments to derive division from registrations
 		const heatIds = heatsData.map((h) => h.id)
 		const assignmentsData =
 			heatIds.length > 0
-				? await autochunk({ items: heatIds }, async (chunk) => {
-						return db
-							.select({
-								heatId: competitionHeatAssignmentsTable.heatId,
-								registrationId: competitionHeatAssignmentsTable.registrationId,
-							})
-							.from(competitionHeatAssignmentsTable)
-							.where(inArray(competitionHeatAssignmentsTable.heatId, chunk))
-					})
+				? await db
+						.select({
+							heatId: competitionHeatAssignmentsTable.heatId,
+							registrationId: competitionHeatAssignmentsTable.registrationId,
+						})
+						.from(competitionHeatAssignmentsTable)
+						.where(inArray(competitionHeatAssignmentsTable.heatId, heatIds))
 				: []
 
 		// Fetch registrations to get division IDs
@@ -384,15 +420,13 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 		]
 		const registrationsData =
 			registrationIds.length > 0
-				? await autochunk({ items: registrationIds }, async (chunk) => {
-						return db
-							.select({
-								id: competitionRegistrationsTable.id,
-								divisionId: competitionRegistrationsTable.divisionId,
-							})
-							.from(competitionRegistrationsTable)
-							.where(inArray(competitionRegistrationsTable.id, chunk))
-					})
+				? await db
+						.select({
+							id: competitionRegistrationsTable.id,
+							divisionId: competitionRegistrationsTable.divisionId,
+						})
+						.from(competitionRegistrationsTable)
+						.where(inArray(competitionRegistrationsTable.id, registrationIds))
 				: []
 
 		const registrationDivisionMap = new Map(
@@ -445,15 +479,13 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 		// Batch-fetch division names (scaling levels)
 		const divisionNames =
 			allDivisionIds.size > 0
-				? await autochunk({ items: [...allDivisionIds] }, async (chunk) => {
-						return db
-							.select({
-								id: scalingLevelsTable.id,
-								label: scalingLevelsTable.label,
-							})
-							.from(scalingLevelsTable)
-							.where(inArray(scalingLevelsTable.id, chunk))
-					})
+				? await db
+						.select({
+							id: scalingLevelsTable.id,
+							label: scalingLevelsTable.label,
+						})
+						.from(scalingLevelsTable)
+						.where(inArray(scalingLevelsTable.id, [...allDivisionIds]))
 				: []
 
 		const divisionNameMap = new Map(divisionNames.map((d) => [d.id, d.label]))
@@ -501,41 +533,31 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 
 			try {
 				// Get scaling levels
-				const scalingLevels = await autochunk(
-					{ items: divisionIds },
-					async (chunk) => {
-						return db
-							.select({
-								divisionId: scalingLevelsTable.id,
-								divisionLabel: scalingLevelsTable.label,
-								position: scalingLevelsTable.position,
-							})
-							.from(scalingLevelsTable)
-							.where(inArray(scalingLevelsTable.id, chunk))
-					},
-				)
+				const scalingLevels = await db
+					.select({
+						divisionId: scalingLevelsTable.id,
+						divisionLabel: scalingLevelsTable.label,
+						position: scalingLevelsTable.position,
+					})
+					.from(scalingLevelsTable)
+					.where(inArray(scalingLevelsTable.id, divisionIds))
 
 				// Get descriptions
-				const descriptions = await autochunk(
-					{ items: divisionIds, otherParametersCount: 1 },
-					async (chunk) => {
-						return db
-							.select({
-								scalingLevelId: workoutScalingDescriptionsTable.scalingLevelId,
-								description: workoutScalingDescriptionsTable.description,
-							})
-							.from(workoutScalingDescriptionsTable)
-							.where(
-								and(
-									eq(workoutScalingDescriptionsTable.workoutId, workout.id),
-									inArray(
-										workoutScalingDescriptionsTable.scalingLevelId,
-										chunk,
-									),
-								),
-							)
-					},
-				)
+				const descriptions = await db
+					.select({
+						scalingLevelId: workoutScalingDescriptionsTable.scalingLevelId,
+						description: workoutScalingDescriptionsTable.description,
+					})
+					.from(workoutScalingDescriptionsTable)
+					.where(
+						and(
+							eq(workoutScalingDescriptionsTable.workoutId, workout.id),
+							inArray(
+								workoutScalingDescriptionsTable.scalingLevelId,
+								divisionIds,
+							),
+						),
+					)
 
 				const descriptionMap = new Map(
 					descriptions.map((d) => [d.scalingLevelId, d.description]),
@@ -570,8 +592,8 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 			const judgingSheets =
 				judgingSheetsByTrackWorkout.get(rotation.trackWorkoutId) || []
 
-			// Skip if event is not published
-			if (trackWorkout?.eventStatus !== "published") {
+			// Skip if track workout not found
+			if (!trackWorkout) {
 				continue
 			}
 
@@ -683,5 +705,5 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
 		// Group rotations by event
 		const events = groupRotationsByEvent(enriched)
 
-		return { events }
+		return { events, shifts }
 	})

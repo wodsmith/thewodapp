@@ -63,14 +63,20 @@ function CompeteLayout() {
 	for (const match of matches) {
 		const loaderData = match.loaderData as Record<string, unknown> | undefined
 		if (loaderData?.event && typeof loaderData.event === "object") {
-			const event = loaderData.event as { id?: string; workout?: { name?: string } }
+			const event = loaderData.event as {
+				id?: string
+				workout?: { name?: string }
+			}
 			if (event.id && event.workout?.name) {
 				dynamicLabels[event.id] = event.workout.name
 			}
 		}
 		// Add competition name for slug
 		if (loaderData?.competition && typeof loaderData.competition === "object") {
-			const competition = loaderData.competition as { slug?: string; name?: string }
+			const competition = loaderData.competition as {
+				slug?: string
+				name?: string
+			}
 			if (competition.slug && competition.name) {
 				dynamicLabels[competition.slug] = competition.name
 			}
@@ -78,15 +84,19 @@ function CompeteLayout() {
 	}
 
 	return (
-		<div className="flex min-h-screen flex-col">
-			<CompeteNav session={session} canOrganize={canOrganize} />
+		<div className="flex min-h-screen flex-col overflow-x-clip print:min-h-0 print:block">
+			<div className="print:hidden">
+				<CompeteNav session={session} canOrganize={canOrganize} />
+			</div>
 
-			<main className="container mx-auto flex-1 pt-4 sm:p-4">
-				<CompeteBreadcrumb dynamicLabels={dynamicLabels} />
+			<main className="container mx-auto flex-1 p-4 print:p-0 print:max-w-none print:mx-0">
+				<div className="print:hidden">
+					<CompeteBreadcrumb dynamicLabels={dynamicLabels} />
+				</div>
 				<Outlet />
 			</main>
 
-			<footer className="border-black border-t-2 p-4">
+			<footer className="border-black border-t-2 p-4 print:hidden">
 				<div className="container mx-auto">
 					<p className="text-center">
 						&copy; {new Date().getFullYear()} WODsmith. All rights reserved.

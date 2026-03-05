@@ -1,11 +1,12 @@
 "use client"
 
-import { useRouter } from "@tanstack/react-router"
+import { Link, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { Calendar, Eye, EyeOff, Loader2 } from "lucide-react"
+import { Calendar, ClipboardList, Eye, EyeOff, Loader2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
 	Card,
 	CardContent,
@@ -28,12 +29,14 @@ interface QuickActionsHeatsProps {
 	events: CompetitionWorkout[]
 	heats: HeatWithAssignments[]
 	organizingTeamId: string
+	competitionSlug: string
 }
 
 export function QuickActionsHeats({
 	events,
 	heats,
 	organizingTeamId,
+	competitionSlug,
 }: QuickActionsHeatsProps) {
 	const router = useRouter()
 	const updateCompetitionWorkout = useServerFn(updateCompetitionWorkoutFn)
@@ -171,6 +174,21 @@ export function QuickActionsHeats({
 						)
 					})}
 				</div>
+
+				{/* Link to Judges Schedule */}
+				{heats.length > 0 && (
+					<div className="mt-4 pt-4 border-t">
+						<Button variant="outline" size="sm" asChild className="w-full">
+							<Link
+								to="/compete/$slug/judges-schedule"
+								params={{ slug: competitionSlug }}
+							>
+								<ClipboardList className="mr-2 h-4 w-4" />
+								View Judges Schedule
+							</Link>
+						</Button>
+					</div>
+				)}
 			</CardContent>
 		</Card>
 	)

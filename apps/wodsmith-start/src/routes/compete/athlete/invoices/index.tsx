@@ -51,8 +51,42 @@ function getStatusBadge(status: string) {
 // Component
 // ============================================================================
 
+/**
+ * Group purchases by checkout session so multi-division registrations
+ * show as a single invoice row.
+ */
+function groupByInvoice(
+	purchases: ReturnType<typeof Route.useLoaderData>["purchases"],
+) {
+	const groups = new Map<
+		string,
+		{ primary: (typeof purchases)[number]; totalCents: number }
+	>()
+	const standalone: Array<{
+		primary: (typeof purchases)[number]
+		totalCents: number
+	}> = []
+
+	for (const p of purchases) {
+		const key = p.stripeCheckoutSessionId
+		if (!key) {
+			standalone.push({ primary: p, totalCents: p.totalCents })
+			continue
+		}
+		const existing = groups.get(key)
+		if (existing) {
+			existing.totalCents += p.totalCents
+		} else {
+			groups.set(key, { primary: p, totalCents: p.totalCents })
+		}
+	}
+
+	return [...groups.values(), ...standalone]
+}
+
 function InvoicesPage() {
 	const { purchases } = Route.useLoaderData()
+	const invoices = groupByInvoice(purchases)
 
 	return (
 		<div className="mx-auto max-w-4xl space-y-6 pb-12">
@@ -69,7 +103,7 @@ function InvoicesPage() {
 				</div>
 			</div>
 
-			{purchases.length === 0 ? (
+			{invoices.length === 0 ? (
 				<Card>
 					<CardContent className="py-12 text-center">
 						<FileText className="mx-auto h-12 w-12 text-muted-foreground/50" />
@@ -82,7 +116,7 @@ function InvoicesPage() {
 				</Card>
 			) : (
 				<div className="space-y-3">
-					{purchases.map((purchase) => (
+					{invoices.map(({ primary: purchase, totalCents }) => (
 						<Link
 							key={purchase.id}
 							to="/compete/athlete/invoices/$purchaseId"
@@ -112,7 +146,7 @@ function InvoicesPage() {
 									<div className="flex items-center gap-4">
 										{getStatusBadge(purchase.status)}
 										<span className="font-medium">
-											{formatCurrency(purchase.totalCents)}
+											{formatCurrency(totalCents)}
 										</span>
 										<ChevronRight className="h-4 w-4 text-muted-foreground" />
 									</div>

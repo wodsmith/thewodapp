@@ -15,12 +15,16 @@ import {
 	ClipboardSignature,
 	Clock,
 	DollarSign,
+	Eye,
 	Home,
 	Layers,
+	MapPin,
 	Medal,
+	Menu,
 	ReceiptText,
 	Settings,
 	Sparkles,
+	Tag,
 	Trophy,
 	UserCheck,
 	Users,
@@ -108,12 +112,27 @@ const getNavigation = (
 							},
 						]
 					: []),
+				{ label: "Locations", href: `${basePath}/locations`, icon: MapPin },
 				{
 					label: "Volunteers",
 					href: `${basePath}/volunteers`,
 					icon: UserCheck,
 				},
-				{ label: "Results", href: `${basePath}/results`, icon: Medal },
+				{
+					label: competitionType === "online" ? "Submissions" : "Results",
+					href: `${basePath}/results`,
+					icon: Medal,
+				},
+				// Review only for online competitions
+				...(competitionType === "online"
+					? [
+							{
+								label: "Review",
+								href: `${basePath}/review`,
+								icon: Eye,
+							},
+						]
+					: []),
 			],
 		},
 		{
@@ -121,6 +140,7 @@ const getNavigation = (
 			items: [
 				{ label: "Pricing", href: `${basePath}/pricing`, icon: ReceiptText },
 				{ label: "Revenue", href: `${basePath}/revenue`, icon: DollarSign },
+				{ label: "Coupons", href: `${basePath}/coupons`, icon: Tag },
 				{ label: "Sponsors", href: `${basePath}/sponsors`, icon: Sparkles },
 			],
 		},
@@ -274,7 +294,28 @@ export function CompetitionSidebar({
 				</SidebarContent>
 				<CompetitionSidebarFooter />
 			</Sidebar>
-			<SidebarInset>{children}</SidebarInset>
+			<SidebarInset>
+				<header className="flex h-14 items-center gap-2 border-b px-3 md:hidden">
+					<SidebarTrigger className="-ml-1">
+						<Menu className="h-5 w-5" />
+					</SidebarTrigger>
+					<Link to="/compete" className="flex items-center gap-2">
+						<img
+							src="/wodsmith-logo-no-text.png"
+							alt="wodsmith compete"
+							width={24}
+							height={24}
+						/>
+						<span className="text-sm font-semibold">
+							<span className="font-black uppercase">wod</span>smith{" "}
+							<span className="font-medium text-amber-600 dark:text-amber-500">
+								Compete
+							</span>
+						</span>
+					</Link>
+				</header>
+				{children}
+			</SidebarInset>
 		</SidebarProvider>
 	)
 }

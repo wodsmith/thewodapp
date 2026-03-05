@@ -16,8 +16,8 @@ import {
 	teamTable,
 	userTable,
 } from "@/db/schema"
-import { addToCompetitionEventTeam } from "@/server/registration"
 import { notifyTeammateJoined } from "@/server/notifications"
+import { addToCompetitionEventTeam } from "@/server/registration"
 import { getSessionFromCookie } from "@/utils/auth"
 import { sendTeamInvitationEmail } from "@/utils/email"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
@@ -37,6 +37,8 @@ export async function inviteUserToTeam({
 	isSystemRole = true,
 	metadata,
 	skipPermissionCheck = false,
+	forceInvitation = false,
+	emailOverrideFn,
 }: {
 	teamId: string
 	email: string
@@ -44,6 +46,18 @@ export async function inviteUserToTeam({
 	isSystemRole?: boolean
 	metadata?: string
 	skipPermissionCheck?: boolean
+	/**
+	 * When true, skip the auto-join shortcut for existing users and always
+	 * create an invitation. Use this when the invite flow requires the
+	 * invitee to accept via a form (e.g. to answer registration questions).
+	 */
+	forceInvitation?: boolean
+	emailOverrideFn?: (opts: {
+		email: string
+		token: string
+		teamName: string
+		inviterName: string
+	}) => Promise<void>
 }): Promise<{
 	success: boolean
 	userJoined?: boolean
@@ -95,27 +109,31 @@ export async function inviteUserToTeam({
 			throw new Error("CONFLICT: User is already a member of this team")
 		}
 
-		// User exists but is not a member, add them directly
-		await db.insert(teamMembershipTable).values({
-			teamId,
-			userId: existingUser.id,
-			roleId,
-			isSystemRole: isSystemRole ? 1 : 0,
-			invitedBy: session.userId,
-			invitedAt: new Date(),
-			joinedAt: new Date(),
-			isActive: 1,
-			metadata,
-		})
+		if (!forceInvitation) {
+			// User exists but is not a member, add them directly
+			await db.insert(teamMembershipTable).values({
+				teamId,
+				userId: existingUser.id,
+				roleId,
+				isSystemRole,
+				invitedBy: session.userId,
+				invitedAt: new Date(),
+				joinedAt: new Date(),
+				isActive: true,
+				metadata,
+			})
 
-		// Update the user's session to include this team
-		await updateAllSessionsOfUser(existingUser.id)
+			// Update the user's session to include this team
+			await updateAllSessionsOfUser(existingUser.id)
 
-		return {
-			success: true,
-			userJoined: true,
-			userId: existingUser.id,
+			return {
+				success: true,
+				userJoined: true,
+				userId: existingUser.id,
+			}
 		}
+		// forceInvitation: fall through to create an invitation so the user
+		// receives an email and completes any acceptance flow (e.g. questions form)
 	}
 
 	// User doesn't exist, create an invitation
@@ -137,7 +155,7 @@ export async function inviteUserToTeam({
 			.update(teamInvitationTable)
 			.set({
 				roleId,
-				isSystemRole: isSystemRole ? 1 : 0,
+				isSystemRole,
 				token,
 				expiresAt,
 				invitedBy: session.userId,
@@ -159,12 +177,21 @@ export async function inviteUserToTeam({
 			: "A team member"
 
 		// Send invitation email
-		await sendTeamInvitationEmail({
-			email,
-			invitationToken: token,
-			teamName: team.name,
-			inviterName,
-		})
+		if (emailOverrideFn) {
+			await emailOverrideFn({
+				email,
+				token,
+				teamName: team.name,
+				inviterName,
+			})
+		} else {
+			await sendTeamInvitationEmail({
+				email,
+				invitationToken: token,
+				teamName: team.name,
+				inviterName,
+			})
+		}
 
 		return {
 			success: true,
@@ -173,21 +200,25 @@ export async function inviteUserToTeam({
 		}
 	}
 
-	const newInvitation = await db
-		.insert(teamInvitationTable)
-		.values({
-			teamId,
-			email,
-			roleId,
-			isSystemRole: isSystemRole ? 1 : 0,
-			token,
-			invitedBy: session.userId,
-			expiresAt,
-			metadata,
-		})
-		.returning()
+	// Generate invitation ID for later retrieval
+	const { createTeamInvitationId } = await import("@/db/schemas/common")
+	const invitationId = createTeamInvitationId()
 
-	const invitation = newInvitation?.[0]
+	await db.insert(teamInvitationTable).values({
+		id: invitationId,
+		teamId,
+		email,
+		roleId,
+		isSystemRole,
+		token,
+		invitedBy: session.userId,
+		expiresAt,
+		metadata,
+	})
+
+	const invitation = await db.query.teamInvitationTable.findFirst({
+		where: eq(teamInvitationTable.id, invitationId),
+	})
 
 	if (!invitation) {
 		throw new Error("ERROR: Could not create invitation")
@@ -204,12 +235,21 @@ export async function inviteUserToTeam({
 		: "A team member"
 
 	// Send invitation email
-	await sendTeamInvitationEmail({
-		email,
-		invitationToken: token,
-		teamName: team.name,
-		inviterName,
-	})
+	if (emailOverrideFn) {
+		await emailOverrideFn({
+			email,
+			token,
+			teamName: team.name,
+			inviterName,
+		})
+	} else {
+		await sendTeamInvitationEmail({
+			email,
+			invitationToken: token,
+			teamName: team.name,
+			inviterName,
+		})
+	}
 
 	return {
 		success: true,
@@ -302,13 +342,13 @@ export async function acceptTeamInvitation(token: string): Promise<{
 		teamId: invitation.teamId,
 		userId: session.userId,
 		roleId: invitation.roleId,
-		isSystemRole: Number(invitation.isSystemRole),
+		isSystemRole: invitation.isSystemRole,
 		invitedBy: invitation.invitedBy,
 		invitedAt: invitation.createdAt
 			? new Date(invitation.createdAt)
 			: new Date(),
 		joinedAt: new Date(),
-		isActive: 1,
+		isActive: true,
 		metadata: invitation.metadata,
 	})
 

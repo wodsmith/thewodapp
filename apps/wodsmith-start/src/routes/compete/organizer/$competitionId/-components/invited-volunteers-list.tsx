@@ -18,27 +18,12 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
+import {
+	VOLUNTEER_ROLE_LABELS,
+	type VolunteerRoleType,
+} from "@/db/schemas/volunteers"
 import type { DirectVolunteerInvite } from "@/server-fns/volunteer-fns"
 import { formatDate } from "@/utils/format-date-client"
-
-type VolunteerRoleType =
-	| "judge"
-	| "head_judge"
-	| "scorekeeper"
-	| "emcee"
-	| "floor_manager"
-	| "media"
-	| "general"
-
-const ROLE_TYPE_LABELS: Record<VolunteerRoleType, string> = {
-	judge: "Judge",
-	head_judge: "Head Judge",
-	scorekeeper: "Scorekeeper",
-	emcee: "Emcee",
-	floor_manager: "Floor Manager",
-	media: "Media",
-	general: "General",
-}
 
 interface InvitedVolunteersListProps {
 	invites: DirectVolunteerInvite[]
@@ -68,7 +53,7 @@ export function InvitedVolunteersList({ invites }: InvitedVolunteersListProps) {
 		return roleTypes
 			.map((roleType) => {
 				const typedRole = roleType as VolunteerRoleType
-				return ROLE_TYPE_LABELS[typedRole] || roleType
+				return VOLUNTEER_ROLE_LABELS[typedRole] || roleType
 			})
 			.join(", ")
 	}

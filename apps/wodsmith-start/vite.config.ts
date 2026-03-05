@@ -1,3 +1,4 @@
+import { sentryVitePlugin } from "@sentry/vite-plugin"
 import tailwindcss from "@tailwindcss/vite"
 import { devtools } from "@tanstack/devtools-vite"
 import { tanstackStart } from "@tanstack/react-start/plugin/vite"
@@ -24,9 +25,37 @@ const config = defineConfig({
 		tailwindcss(),
 		tanstackStart(),
 		viteReact(),
+		// Sentry source map upload — must be last, only when auth token available
+		...(process.env.SENTRY_AUTH_TOKEN
+			? [
+					sentryVitePlugin({
+						org: process.env.SENTRY_ORG || "wodsmith",
+						project: process.env.SENTRY_PROJECT || "wodsmith-start",
+						authToken: process.env.SENTRY_AUTH_TOKEN,
+						sourcemaps: {
+							filesToDeleteAfterUpload: [".output/**/*.map", "dist/**/*.map"],
+						},
+						release: {
+							name: process.env.GITHUB_SHA?.slice(0, 7) || undefined,
+						},
+					}),
+				]
+			: []),
 	],
+	define: {
+		"import.meta.env.VITE_SENTRY_DSN": JSON.stringify(
+			"https://a55d70f610d33fa3108b7faea06accb7@o4510933498462208.ingest.us.sentry.io/4510937818005504",
+		),
+		"import.meta.env.VITE_SENTRY_RELEASE": JSON.stringify(
+			process.env.GITHUB_SHA?.slice(0, 7) || "",
+		),
+	},
 	build: {
 		target: "esnext",
+		// Only generate sourcemaps when Sentry can upload and delete them.
+		// "hidden" emits .map files without sourceMappingURL comments in JS output.
+		// Without the Sentry plugin, .map files would ship to production.
+		sourcemap: process.env.SENTRY_AUTH_TOKEN ? "hidden" : false,
 		rollupOptions: {
 			external: ["node:async_hooks", "cloudflare:workers"],
 		},

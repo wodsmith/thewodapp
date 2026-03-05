@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, Copy, UserPlus, X } from "lucide-react"
+import { Check, Copy, Download, UserPlus, X } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -35,37 +35,26 @@ import {
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { TeamInvitation, User } from "@/db/schema"
-import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
+import {
+	VOLUNTEER_AVAILABILITY,
+	VOLUNTEER_ROLE_LABELS,
+	VOLUNTEER_ROLE_TYPE_VALUES,
+	type VolunteerRoleType,
+} from "@/db/schemas/volunteers"
+import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
 import { bulkAssignVolunteerRoleFn } from "@/server-fns/volunteer-fns"
 import { InviteVolunteerDialog } from "./invite-volunteer-dialog"
 import { VolunteerRow } from "./volunteer-row"
 
-type VolunteerRoleType =
-	| "judge"
-	| "head_judge"
-	| "scorekeeper"
-	| "emcee"
-	| "floor_manager"
-	| "media"
-	| "general"
-
-const ROLE_TYPE_LABELS: Record<VolunteerRoleType, string> = {
-	judge: "Judge",
-	head_judge: "Head Judge",
-	scorekeeper: "Scorekeeper",
-	emcee: "Emcee",
-	floor_manager: "Floor Manager",
-	media: "Media",
-	general: "General",
-}
+type VolunteerAnswer = { id: string; questionId: string; answer: string }
 
 interface VolunteerWithAccess {
 	id: string
 	userId: string
 	teamId: string
 	roleId: string
-	isSystemRole: number
-	isActive: number
+	isSystemRole: boolean
+	isActive: boolean
 	metadata: string | null
 	joinedAt: Date | null
 	createdAt: Date
@@ -84,6 +73,33 @@ interface VolunteersListProps {
 	organizingTeamId: string
 	invitations: TeamInvitation[]
 	volunteers: VolunteerWithAccess[]
+	volunteerQuestions: RegistrationQuestion[]
+	answersByInvitation: Record<string, VolunteerAnswer[]>
+	emailToInvitationId: Record<string, string>
+	volunteerAssignments: Record<
+		string,
+		{
+			shifts: Array<{
+				id: string
+				shiftId: string
+				name: string
+				roleType: string
+				startTime: Date
+				endTime: Date
+				location: string | null
+				notes: string | null
+			}>
+			judgeHeats: Array<{
+				id: string
+				heatId: string
+				eventName: string
+				heatNumber: number
+				scheduledTime: Date | null
+				laneNumber: number | null
+				position: string | null
+			}>
+		}
+	>
 }
 
 /**
@@ -97,7 +113,23 @@ export function VolunteersList({
 	organizingTeamId,
 	invitations,
 	volunteers,
+	volunteerAssignments,
+	volunteerQuestions,
+	answersByInvitation,
+	emailToInvitationId,
 }: VolunteersListProps) {
+	/** Look up answers for a volunteer by invitationId (pending) or user email (approved) */
+	function getAnswersForVolunteer(
+		volunteer: VolunteerWithAccess,
+	): VolunteerAnswer[] {
+		let invitationId: string | undefined
+		if (volunteer.id.startsWith("tinv_")) {
+			invitationId = volunteer.id
+		} else if (volunteer.user?.email) {
+			invitationId = emailToInvitationId[volunteer.user.email.toLowerCase()]
+		}
+		return invitationId ? (answersByInvitation[invitationId] ?? []) : []
+	}
 	const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
 	const [filter, setFilter] = useState<"all" | "pending" | "approved">("all")
 	const [availabilityFilter, setAvailabilityFilter] = useState<string | null>(
@@ -299,6 +331,125 @@ export function VolunteersList({
 		filteredIds.length > 0 && filteredIds.every((id) => selectedIds.has(id))
 	const someSelected = selectedIds.size > 0
 
+	/**
+	 * Export all visible volunteers to CSV, including registration question answers
+	 */
+	const handleExportCSV = () => {
+		const sanitizeCell = (value: string): string => {
+			const escaped = value.replace(/"/g, '""')
+			return /^[=+\-@]/.test(escaped) ? `'${escaped}` : escaped
+		}
+
+		const headers = [
+			"Name",
+			"Email",
+			"Phone",
+			"Status",
+			"Availability",
+			"Credentials",
+			"Notes",
+		]
+		volunteerQuestions.forEach((q) => headers.push(q.label))
+
+		const rows = allItems.map((item) => {
+			let name: string
+			let email: string
+			let phone = ""
+			let status: string
+			let availability = ""
+			let credentials = ""
+			let notes = ""
+			let invitationId: string | undefined
+
+			if (item.type === "invitation") {
+				const inv = item.data
+				let meta: {
+					signupName?: string
+					signupEmail?: string
+					signupPhone?: string
+					status?: string
+					availability?: string
+					credentials?: string
+					availabilityNotes?: string
+				} = {}
+				try {
+					meta = JSON.parse(inv.metadata || "{}") as typeof meta
+				} catch {}
+				name = meta.signupName ?? inv.email
+				email = meta.signupEmail ?? inv.email
+				phone = meta.signupPhone ?? ""
+				status = meta.status ?? "pending"
+				availability = meta.availability ?? ""
+				credentials = meta.credentials ?? ""
+				notes = meta.availabilityNotes ?? ""
+				invitationId = inv.id
+			} else {
+				const vol = item.data
+				let meta: {
+					signupName?: string
+					signupEmail?: string
+					signupPhone?: string
+					status?: string
+					availability?: string
+					credentials?: string
+					availabilityNotes?: string
+				} = {}
+				try {
+					meta = JSON.parse(vol.metadata || "{}") as typeof meta
+				} catch {}
+				name = vol.user
+					? `${vol.user.firstName ?? ""} ${vol.user.lastName ?? ""}`.trim() ||
+						vol.user.email ||
+						""
+					: (meta.signupName ?? "")
+				email = vol.user?.email ?? meta.signupEmail ?? ""
+				phone = meta.signupPhone ?? ""
+				status = "approved"
+				availability = meta.availability ?? ""
+				credentials = meta.credentials ?? ""
+				notes = meta.availabilityNotes ?? ""
+				// For memberships, find invitationId via email
+				if (vol.user?.email) {
+					invitationId = emailToInvitationId[vol.user.email.toLowerCase()]
+				}
+			}
+
+			const row = [name, email, phone, status, availability, credentials, notes]
+
+			volunteerQuestions.forEach((question) => {
+				const volunteerAnswers = invitationId
+					? (answersByInvitation[invitationId] ?? [])
+					: []
+				const answer = volunteerAnswers.find(
+					(a) => a.questionId === question.id,
+				)
+				row.push(answer?.answer ?? "")
+			})
+
+			return row
+		})
+
+		const csvContent = [
+			headers.map((h) => `"${sanitizeCell(h)}"`).join(","),
+			...rows.map((row) =>
+				row.map((cell) => `"${sanitizeCell(String(cell))}"`).join(","),
+			),
+		].join("\n")
+
+		const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+		const link = document.createElement("a")
+		const url = URL.createObjectURL(blob)
+		link.setAttribute("href", url)
+		link.setAttribute(
+			"download",
+			`volunteers-${new Date().toISOString().split("T")[0]}.csv`,
+		)
+		document.body.appendChild(link)
+		link.click()
+		document.body.removeChild(link)
+		URL.revokeObjectURL(url)
+	}
+
 	if (invitations.length === 0 && volunteers.length === 0) {
 		return (
 			<Card>
@@ -348,16 +499,14 @@ export function VolunteersList({
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="start">
-							{(Object.keys(ROLE_TYPE_LABELS) as VolunteerRoleType[]).map(
-								(roleType) => (
-									<DropdownMenuItem
-										key={roleType}
-										onClick={() => handleBulkAssignRole(roleType)}
-									>
-										{ROLE_TYPE_LABELS[roleType]}
-									</DropdownMenuItem>
-								),
-							)}
+							{VOLUNTEER_ROLE_TYPE_VALUES.map((roleType) => (
+								<DropdownMenuItem
+									key={roleType}
+									onClick={() => handleBulkAssignRole(roleType)}
+								>
+									{VOLUNTEER_ROLE_LABELS[roleType]}
+								</DropdownMenuItem>
+							))}
 						</DropdownMenuContent>
 					</DropdownMenu>
 					<Button size="sm" variant="ghost" onClick={clearSelection}>
@@ -391,6 +540,10 @@ export function VolunteersList({
 						</SelectItem>
 					</SelectContent>
 				</Select>
+				<Button variant="outline" onClick={handleExportCSV}>
+					<Download className="mr-2 h-4 w-4" />
+					Export CSV
+				</Button>
 				<Button variant="outline" onClick={copySignupLink}>
 					{copied ? (
 						<Check className="mr-2 h-4 w-4" />
@@ -459,6 +612,7 @@ export function VolunteersList({
 										<TableHead>Name</TableHead>
 										<TableHead>Email</TableHead>
 										<TableHead>Role Types</TableHead>
+										<TableHead>Assignments</TableHead>
 										<TableHead>Score Access</TableHead>
 										<TableHead className="text-right">Actions</TableHead>
 									</TableRow>
@@ -487,7 +641,7 @@ export function VolunteersList({
 												teamId: invitation.teamId,
 												roleId: invitation.roleId,
 												isSystemRole: invitation.isSystemRole,
-												isActive: 0,
+												isActive: false,
 												metadata: invitation.metadata,
 												joinedAt: null,
 												createdAt: invitation.createdAt,
@@ -510,6 +664,14 @@ export function VolunteersList({
 													onToggleSelect={(shiftKey) =>
 														toggleSelection(invitation.id, shiftKey)
 													}
+													assignments={
+														volunteerAssignments[invitation.id] || {
+															shifts: [],
+															judgeHeats: [],
+														}
+													}
+													answers={getAnswersForVolunteer(volunteerItem)}
+													questions={volunteerQuestions}
 												/>
 											)
 										}
@@ -526,6 +688,14 @@ export function VolunteersList({
 												onToggleSelect={(shiftKey) =>
 													toggleSelection(volunteer.id, shiftKey)
 												}
+												assignments={
+													volunteerAssignments[volunteer.id] || {
+														shifts: [],
+														judgeHeats: [],
+													}
+												}
+												answers={getAnswersForVolunteer(volunteer)}
+												questions={volunteerQuestions}
 											/>
 										)
 									})}

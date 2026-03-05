@@ -8,26 +8,25 @@
 import { createId } from "@paralleldrive/cuid2"
 import { relations } from "drizzle-orm"
 import {
+	boolean,
+	datetime,
 	index,
-	integer,
-	sqliteTable,
+	int,
+	mysqlTable,
 	text,
 	uniqueIndex,
-} from "drizzle-orm/sqlite-core"
+	varchar,
+} from "drizzle-orm/mysql-core"
 import { commonColumns } from "./common"
 import { scalingLevelsTable } from "./scaling"
 import { teamTable } from "./teams"
 import { userTable } from "./users"
-import {
-	SCORE_TYPE_VALUES,
-	TIEBREAK_SCHEME_VALUES,
-	WORKOUT_SCHEME_VALUES,
-	workouts,
-} from "./workouts"
+import { workouts } from "./workouts"
 
 // ID generators
 export const createScoreId = () => `score_${createId()}`
 export const createScoreRoundId = () => `scrd_${createId()}`
+export const createScoreVerificationLogId = () => `svlog_${createId()}`
 
 // Score status values for the new scores table
 // This is a subset focused on competition/scoring context
@@ -40,65 +39,58 @@ export type ScoreStatusNew = (typeof SCORE_STATUS_NEW_VALUES)[number]
  * Stores workout results with encoded integer values for efficient sorting.
  * Replaces the old results + sets tables.
  */
-export const scoresTable = sqliteTable(
+export const scoresTable = mysqlTable(
 	"scores",
 	{
 		...commonColumns,
-		id: text("id").primaryKey().$defaultFn(createScoreId),
+		id: varchar({ length: 255 }).primaryKey().$defaultFn(createScoreId),
 
 		// Ownership
-		userId: text("user_id")
-			.notNull()
-			.references(() => userTable.id),
-		teamId: text("team_id")
-			.notNull()
-			.references(() => teamTable.id),
+		userId: varchar({ length: 255 }).notNull(),
+		teamId: varchar({ length: 255 }).notNull(),
 
 		// What was scored
-		workoutId: text("workout_id")
-			.notNull()
-			.references(() => workouts.id),
-		competitionEventId: text("competition_event_id"), // NULL for personal logs
-		scheduledWorkoutInstanceId: text("scheduled_workout_instance_id"),
+		workoutId: varchar({ length: 255 }).notNull(),
+		competitionEventId: varchar({ length: 255 }), // NULL for personal logs
+		scheduledWorkoutInstanceId: varchar({ length: 255 }),
 
 		// Score classification
-		scheme: text("scheme", { enum: WORKOUT_SCHEME_VALUES }).notNull(),
-		scoreType: text("score_type", { enum: SCORE_TYPE_VALUES })
-			.notNull()
-			.default("max"),
+		scheme: varchar({ length: 255 }).notNull(),
+		scoreType: varchar({ length: 255 }).notNull().default("max"),
 
 		// Primary score (encoded as integer based on scheme)
 		// Time: milliseconds, Rounds+Reps: rounds*100000+reps, Load: grams, Distance: mm
-		scoreValue: integer("score_value"),
+		scoreValue: int(),
 
 		// Tiebreak
-		tiebreakScheme: text("tiebreak_scheme", { enum: TIEBREAK_SCHEME_VALUES }),
-		tiebreakValue: integer("tiebreak_value"),
+		tiebreakScheme: varchar({ length: 255 }),
+		tiebreakValue: int(),
 
 		// Time cap handling (for time-with-cap workouts)
-		timeCapMs: integer("time_cap_ms"),
+		timeCapMs: int(),
 		// Note: secondaryScheme removed - when capped, score is always reps
-		secondaryValue: integer("secondary_value"), // reps completed if capped
+		secondaryValue: int(), // reps completed if capped
 
 		// Status & sorting
-		status: text("status", { enum: SCORE_STATUS_NEW_VALUES })
-			.notNull()
-			.default("scored"),
-		statusOrder: integer("status_order").notNull().default(0), // 0=scored, 1=cap, 2=dq, 3=withdrawn
+		status: varchar({ length: 255 }).notNull().default("scored"),
+		statusOrder: int().notNull().default(0), // 0=scored, 1=cap, 2=dq, 3=withdrawn
 		// Compound sort key: encodes status + normalized score for single-column sorting
-		// Stored as text since SQLite doesn't natively support BIGINT
-		sortKey: text("sort_key"),
+		sortKey: varchar({ length: 255 }),
 
 		// Scaling
-		scalingLevelId: text("scaling_level_id").references(
-			() => scalingLevelsTable.id,
-		),
-		asRx: integer("as_rx", { mode: "boolean" }).notNull().default(false),
+		scalingLevelId: varchar({ length: 255 }),
+		asRx: boolean().notNull().default(false),
 
 		// Metadata
-		notes: text("notes"),
+		notes: text(),
 		// When the workout was performed (Unix timestamp ms)
-		recordedAt: integer("recorded_at", { mode: "timestamp" }).notNull(),
+		recordedAt: datetime().notNull(),
+
+		// Verification (organizer review for online competitions)
+		// null = unreviewed, "verified" = confirmed, "adjusted" = overridden
+		verificationStatus: varchar({ length: 20 }),
+		verifiedAt: datetime(),
+		verifiedByUserId: varchar({ length: 255 }),
 	},
 	(table) => [
 		// User's scores, ordered by date
@@ -132,32 +124,30 @@ export const scoresTable = sqliteTable(
  * Stores individual rounds/sets within a score.
  * For multi-round workouts like "10x3 Back Squat" or "3 rounds for time".
  */
-export const scoreRoundsTable = sqliteTable(
+export const scoreRoundsTable = mysqlTable(
 	"score_rounds",
 	{
-		id: text("id").primaryKey().$defaultFn(createScoreRoundId),
-		scoreId: text("score_id")
-			.notNull()
-			.references(() => scoresTable.id, { onDelete: "cascade" }),
+		id: varchar({ length: 255 }).primaryKey().$defaultFn(createScoreRoundId),
+		scoreId: varchar({ length: 255 }).notNull(),
 
 		// Round ordering (1-indexed)
-		roundNumber: integer("round_number").notNull(),
+		roundNumber: int().notNull(),
 
 		// The value for this round (encoded based on parent score's scheme)
-		value: integer("value").notNull(),
+		value: int().notNull(),
 
 		// Optional: different scheme per round (rare, but possible)
-		schemeOverride: text("scheme_override", { enum: WORKOUT_SCHEME_VALUES }),
+		schemeOverride: varchar({ length: 255 }),
 
 		// Status for this specific round
-		status: text("status", { enum: SCORE_STATUS_NEW_VALUES }),
+		status: varchar({ length: 255 }),
 
 		// For time-capped rounds
-		secondaryValue: integer("secondary_value"),
+		secondaryValue: int(),
 
 		// Metadata
-		notes: text("notes"),
-		createdAt: integer("created_at", { mode: "timestamp" })
+		notes: text(),
+		createdAt: datetime()
 			.$defaultFn(() => new Date())
 			.notNull(),
 	},
@@ -196,6 +186,71 @@ export const scoreRoundsRelations = relations(scoreRoundsTable, ({ one }) => ({
 		references: [scoresTable.id],
 	}),
 }))
+
+/**
+ * Score verification log table
+ *
+ * Append-only audit trail of every organizer verify/adjust action on a score.
+ * For "adjusted" entries, captures the original values before overwrite so
+ * the athlete's claimed score is never permanently lost.
+ */
+export const scoreVerificationLogsTable = mysqlTable(
+	"score_verification_logs",
+	{
+		id: varchar({ length: 255 })
+			.primaryKey()
+			.$defaultFn(createScoreVerificationLogId),
+
+		// The score that was acted on
+		scoreId: varchar({ length: 255 }).notNull(),
+
+		// Competition context (denormalized for easy querying, null for non-competition scores)
+		competitionId: varchar({ length: 255 }),
+		trackWorkoutId: varchar({ length: 255 }),
+
+		// The athlete who owns the score
+		athleteUserId: varchar({ length: 255 }).notNull(),
+
+		// What the organizer did
+		action: varchar({ length: 20 }).notNull(), // "verified" | "adjusted"
+
+		// Values before adjustment (null for "verified" action)
+		originalScoreValue: int(),
+		originalStatus: varchar({ length: 50 }),
+		originalSecondaryValue: int(),
+		originalTiebreakValue: int(),
+
+		// Values after adjustment (null for "verified" action)
+		newScoreValue: int(),
+		newStatus: varchar({ length: 50 }),
+		newSecondaryValue: int(),
+		newTiebreakValue: int(),
+
+		// Who did it and when
+		performedByUserId: varchar({ length: 255 }).notNull(),
+		performedAt: datetime().notNull(),
+	},
+	(table) => [
+		// Look up all log entries for a score
+		index("idx_svlog_score").on(table.scoreId),
+		// Look up all actions by an organizer
+		index("idx_svlog_performer").on(table.performedByUserId, table.performedAt),
+	],
+)
+
+export const scoreVerificationLogsRelations = relations(
+	scoreVerificationLogsTable,
+	({ one }) => ({
+		score: one(scoresTable, {
+			fields: [scoreVerificationLogsTable.scoreId],
+			references: [scoresTable.id],
+		}),
+		performedBy: one(userTable, {
+			fields: [scoreVerificationLogsTable.performedByUserId],
+			references: [userTable.id],
+		}),
+	}),
+)
 
 // Type exports
 export type Score = typeof scoresTable.$inferSelect

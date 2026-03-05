@@ -188,7 +188,8 @@ const Sidebar = React.forwardRef<
 					<SheetContent
 						data-sidebar="sidebar"
 						data-mobile="true"
-						className="w-(--sidebar-width-mobile) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+						className="w-(--sidebar-width-mobile) p-0 text-sidebar-foreground [&>button]:hidden"
+						background="sidebar"
 						side={side}
 					>
 						<SheetHeader className="sr-only">

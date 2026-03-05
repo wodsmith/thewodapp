@@ -64,9 +64,9 @@ vi.mock('@/db', () => ({
         findFirst: vi.fn(),
       },
     },
-    insert: vi.fn().mockReturnThis(),
-    values: vi.fn().mockReturnThis(),
-    returning: vi.fn(),
+    insert: vi.fn(() => ({
+      values: vi.fn().mockResolvedValue(undefined),
+    })),
   })),
 }))
 
@@ -101,30 +101,30 @@ beforeEach(async () => {
 
   // Setup default DB mock
   const {getDb} = await import('@/db')
-  const mockReturning = vi.fn().mockResolvedValue([
-    {
-      id: 'request-123',
-      teamId: 'team-123',
-      userId: 'user-123',
-      reason: 'Want to organize competitions',
-      status: 'pending',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  ])
+  const mockCreatedRequest = {
+    id: 'request-123',
+    teamId: 'team-123',
+    userId: 'user-123',
+    reason: 'Want to organize competitions',
+    status: 'pending',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }
   vi.mocked(getDb).mockReturnValue({
     query: {
       organizerRequestTable: {
-        findFirst: vi.fn().mockResolvedValue(null),
+        findFirst: vi
+          .fn()
+          .mockResolvedValueOnce(null) // No pending request
+          .mockResolvedValueOnce(null) // No approved request
+          .mockResolvedValueOnce(mockCreatedRequest), // Fetch created request
       },
       teamMembershipTable: {
         findFirst: vi.fn().mockResolvedValue(null),
       },
     },
     insert: vi.fn(() => ({
-      values: vi.fn(() => ({
-        returning: mockReturning,
-      })),
+      values: vi.fn().mockResolvedValue(undefined),
     })),
   } as any)
 })
@@ -271,9 +271,7 @@ describe('organizer-onboarding-fns', () => {
           },
         },
         insert: vi.fn(() => ({
-          values: vi.fn(() => ({
-            returning: vi.fn().mockRejectedValue(new Error('Database error')),
-          })),
+          values: vi.fn().mockRejectedValue(new Error('Database error')),
         })),
       } as any)
 

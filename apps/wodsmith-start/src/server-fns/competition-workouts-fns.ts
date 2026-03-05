@@ -9,7 +9,9 @@ import { and, asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+	createProgrammingTrackId,
 	createTagId,
+	createTrackWorkoutId,
 	createWorkoutScalingDescriptionId,
 } from "@/db/schemas/common"
 import {
@@ -27,7 +29,9 @@ import {
 	scalingLevelsTable,
 	workoutScalingDescriptionsTable,
 } from "@/db/schemas/scaling"
+import { sponsorsTable } from "@/db/schemas/sponsors"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { ROLES_ENUM } from "@/db/schemas/users"
 import {
 	movements,
 	SCORE_TYPE_VALUES,
@@ -39,9 +43,7 @@ import {
 	workouts,
 	workoutTags,
 } from "@/db/schemas/workouts"
-import { sponsorsTable } from "@/db/schemas/sponsors"
 import { getSessionFromCookie } from "@/utils/auth"
-import { autochunk, chunk } from "@/utils/batch-query"
 
 // ============================================================================
 // Types
@@ -92,6 +94,11 @@ const getPublishedCompetitionWorkoutsInputSchema = z.object({
 
 const getWorkoutDivisionDescriptionsInputSchema = z.object({
 	workoutId: z.string().min(1, "Workout ID is required"),
+	divisionIds: z.array(z.string()),
+})
+
+const getBatchWorkoutDivisionDescriptionsInputSchema = z.object({
+	workoutIds: z.array(z.string()).min(1, "At least one workout ID is required"),
 	divisionIds: z.array(z.string()),
 })
 
@@ -197,7 +204,7 @@ const saveCompetitionEventInputSchema = z.object({
 // ============================================================================
 
 /**
- * Check if user has permission on a team
+ * Check if user has permission on a team (or is a site admin)
  */
 async function hasTeamPermission(
 	teamId: string,
@@ -205,6 +212,9 @@ async function hasTeamPermission(
 ): Promise<boolean> {
 	const session = await getSessionFromCookie()
 	if (!session?.userId) return false
+
+	// Site admins have all permissions
+	if (session.user?.role === ROLES_ENUM.ADMIN) return true
 
 	const team = session.teams?.find((t) => t.id === teamId)
 	if (!team) return false
@@ -282,14 +292,19 @@ async function findOrCreateTag(tagName: string) {
 	}
 
 	// Create new tag
+	const tagId = createTagId()
+	await db.insert(tags).values({
+		id: tagId,
+		name: tagName,
+		updateCounter: 0,
+	})
+
+	// Fetch the created tag
 	const [newTag] = await db
-		.insert(tags)
-		.values({
-			id: createTagId(),
-			name: tagName,
-			updateCounter: 0,
-		})
-		.returning()
+		.select()
+		.from(tags)
+		.where(eq(tags.id, tagId))
+		.limit(1)
 
 	return newTag
 }
@@ -432,38 +447,26 @@ export const getPublishedCompetitionWorkoutsWithDetailsFn = createServerFn({
 		const workoutIds = trackWorkouts.map((tw) => tw.workoutId)
 
 		// Batch fetch movements for all workouts
-		const allMovements = await autochunk(
-			{ items: workoutIds },
-			async (chunk: string[]) => {
-				const rows = await db
-					.select({
-						workoutId: workoutMovements.workoutId,
-						movementId: movements.id,
-						movementName: movements.name,
-					})
-					.from(workoutMovements)
-					.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
-					.where(inArray(workoutMovements.workoutId, chunk))
-				return rows
-			},
-		)
+		const allMovements = await db
+			.select({
+				workoutId: workoutMovements.workoutId,
+				movementId: movements.id,
+				movementName: movements.name,
+			})
+			.from(workoutMovements)
+			.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
+			.where(inArray(workoutMovements.workoutId, workoutIds))
 
 		// Batch fetch tags for all workouts
-		const allTags = await autochunk(
-			{ items: workoutIds },
-			async (chunk: string[]) => {
-				const rows = await db
-					.select({
-						workoutId: workoutTags.workoutId,
-						tagId: tags.id,
-						tagName: tags.name,
-					})
-					.from(workoutTags)
-					.innerJoin(tags, eq(workoutTags.tagId, tags.id))
-					.where(inArray(workoutTags.workoutId, chunk))
-				return rows
-			},
-		)
+		const allTags = await db
+			.select({
+				workoutId: workoutTags.workoutId,
+				tagId: tags.id,
+				tagName: tags.name,
+			})
+			.from(workoutTags)
+			.innerJoin(tags, eq(workoutTags.tagId, tags.id))
+			.where(inArray(workoutTags.workoutId, workoutIds))
 
 		// Create lookup maps for movements and tags
 		const movementsByWorkout = new Map<
@@ -476,7 +479,7 @@ export const getPublishedCompetitionWorkoutsWithDetailsFn = createServerFn({
 			if (!movementsByWorkout.has(wid)) {
 				movementsByWorkout.set(wid, [])
 			}
-			movementsByWorkout.get(wid)!.push({
+			movementsByWorkout.get(wid)?.push({
 				id: m.movementId,
 				name: m.movementName,
 			})
@@ -489,7 +492,7 @@ export const getPublishedCompetitionWorkoutsWithDetailsFn = createServerFn({
 			if (!tagsByWorkout.has(wid)) {
 				tagsByWorkout.set(wid, [])
 			}
-			tagsByWorkout.get(wid)!.push({
+			tagsByWorkout.get(wid)?.push({
 				id: t.tagId,
 				name: t.tagName,
 			})
@@ -630,47 +633,50 @@ export const getPublicEventDetailsFn = createServerFn({
 			.where(eq(eventResourcesTable.eventId, data.eventId))
 			.orderBy(asc(eventResourcesTable.sortOrder))
 
-		// Fetch heats for this event to get first and last heat times
-		const heats = await db
-			.select({
-				scheduledTime: competitionHeatsTable.scheduledTime,
-				schedulePublishedAt: competitionHeatsTable.schedulePublishedAt,
-				durationMinutes: competitionHeatsTable.durationMinutes,
-			})
-			.from(competitionHeatsTable)
-			.where(eq(competitionHeatsTable.trackWorkoutId, data.eventId))
-			.orderBy(asc(competitionHeatsTable.scheduledTime))
-
-		// Only include heats that are published (have schedulePublishedAt set)
-		const publishedHeats = heats.filter(
-			(h) => h.schedulePublishedAt !== null && h.scheduledTime !== null,
-		)
-
-		// Get first heat start time and last heat end time from published heats
+		// Only fetch heat times if the event's heatStatus is published
 		let heatTimes: {
 			firstHeatStartTime: Date
 			lastHeatEndTime: Date
 		} | null = null
-		if (publishedHeats.length > 0) {
-			const sortedHeats = publishedHeats
-				.filter((h) => h.scheduledTime !== null)
-				.sort((a, b) => a.scheduledTime!.getTime() - b.scheduledTime!.getTime())
 
-			if (sortedHeats.length > 0) {
-				const firstHeat = sortedHeats[0]!
-				const lastHeat = sortedHeats[sortedHeats.length - 1]!
+		if (event.heatStatus === "published") {
+			// Fetch heats for this event to get first and last heat times
+			const heats = await db
+				.select({
+					scheduledTime: competitionHeatsTable.scheduledTime,
+					durationMinutes: competitionHeatsTable.durationMinutes,
+				})
+				.from(competitionHeatsTable)
+				.where(eq(competitionHeatsTable.trackWorkoutId, data.eventId))
+				.orderBy(asc(competitionHeatsTable.scheduledTime))
 
-				// Calculate last heat end time (start time + duration)
-				const lastHeatEndTime = new Date(lastHeat.scheduledTime!.getTime())
-				if (lastHeat.durationMinutes) {
-					lastHeatEndTime.setMinutes(
-						lastHeatEndTime.getMinutes() + lastHeat.durationMinutes,
+			// Only include heats that have a scheduled time
+			const scheduledHeats = heats.filter((h) => h.scheduledTime !== null)
+
+			if (scheduledHeats.length > 0) {
+				const sortedHeats = scheduledHeats
+					.filter(
+						(h): h is typeof h & { scheduledTime: Date } =>
+							h.scheduledTime !== null,
 					)
-				}
+					.sort((a, b) => a.scheduledTime.getTime() - b.scheduledTime.getTime())
 
-				heatTimes = {
-					firstHeatStartTime: firstHeat.scheduledTime!,
-					lastHeatEndTime,
+				if (sortedHeats.length > 0) {
+					const firstHeat = sortedHeats[0]!
+					const lastHeat = sortedHeats[sortedHeats.length - 1]!
+
+					// Calculate last heat end time (start time + duration)
+					const lastHeatEndTime = new Date(lastHeat.scheduledTime.getTime())
+					if (lastHeat.durationMinutes) {
+						lastHeatEndTime.setMinutes(
+							lastHeatEndTime.getMinutes() + lastHeat.durationMinutes,
+						)
+					}
+
+					heatTimes = {
+						firstHeatStartTime: firstHeat.scheduledTime!,
+						lastHeatEndTime,
+					}
 				}
 			}
 		}
@@ -725,41 +731,32 @@ export const getWorkoutDivisionDescriptionsFn = createServerFn({
 
 		const db = getDb()
 
-		// Get the scaling levels (divisions) with their descriptions for this workout (batched)
-		const divisions = await autochunk(
-			{ items: data.divisionIds },
-			async (chunk: string[]) => {
-				const rows = await db
-					.select({
-						divisionId: scalingLevelsTable.id,
-						divisionLabel: scalingLevelsTable.label,
-						position: scalingLevelsTable.position,
-					})
-					.from(scalingLevelsTable)
-					.where(inArray(scalingLevelsTable.id, chunk))
-				return rows
-			},
-		)
+		// Get the scaling levels (divisions) with their descriptions for this workout
+		const divisions = await db
+			.select({
+				divisionId: scalingLevelsTable.id,
+				divisionLabel: scalingLevelsTable.label,
+				position: scalingLevelsTable.position,
+			})
+			.from(scalingLevelsTable)
+			.where(inArray(scalingLevelsTable.id, data.divisionIds))
 
-		// Get existing descriptions for this workout (batched)
-		const descriptions = await autochunk(
-			{ items: data.divisionIds, otherParametersCount: 1 }, // +1 for workoutId
-			async (chunk: string[]) => {
-				const rows = await db
-					.select({
-						scalingLevelId: workoutScalingDescriptionsTable.scalingLevelId,
-						description: workoutScalingDescriptionsTable.description,
-					})
-					.from(workoutScalingDescriptionsTable)
-					.where(
-						and(
-							eq(workoutScalingDescriptionsTable.workoutId, data.workoutId),
-							inArray(workoutScalingDescriptionsTable.scalingLevelId, chunk),
-						),
-					)
-				return rows
-			},
-		)
+		// Get existing descriptions for this workout
+		const descriptions = await db
+			.select({
+				scalingLevelId: workoutScalingDescriptionsTable.scalingLevelId,
+				description: workoutScalingDescriptionsTable.description,
+			})
+			.from(workoutScalingDescriptionsTable)
+			.where(
+				and(
+					eq(workoutScalingDescriptionsTable.workoutId, data.workoutId),
+					inArray(
+						workoutScalingDescriptionsTable.scalingLevelId,
+						data.divisionIds,
+					),
+				),
+			)
 
 		// Create a map for quick lookup
 		const descriptionMap = new Map(
@@ -775,6 +772,77 @@ export const getWorkoutDivisionDescriptionsFn = createServerFn({
 		}))
 
 		return { descriptions: result }
+	})
+
+/**
+ * Get division descriptions for multiple workouts in a single call.
+ * Avoids N+1 by fetching all descriptions for all workoutIds at once.
+ */
+export const getBatchWorkoutDivisionDescriptionsFn = createServerFn({
+	method: "GET",
+})
+	.inputValidator((data: unknown) =>
+		getBatchWorkoutDivisionDescriptionsInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		if (data.divisionIds.length === 0 || data.workoutIds.length === 0) {
+			return {
+				descriptionsByWorkout: {} as Record<string, DivisionDescription[]>,
+			}
+		}
+
+		const db = getDb()
+
+		// Get all divisions (shared across workouts)
+		const divisions = await db
+			.select({
+				divisionId: scalingLevelsTable.id,
+				divisionLabel: scalingLevelsTable.label,
+				position: scalingLevelsTable.position,
+			})
+			.from(scalingLevelsTable)
+			.where(inArray(scalingLevelsTable.id, data.divisionIds))
+
+		// Get descriptions for all workouts at once
+		const allDescriptions = await db
+			.select({
+				workoutId: workoutScalingDescriptionsTable.workoutId,
+				scalingLevelId: workoutScalingDescriptionsTable.scalingLevelId,
+				description: workoutScalingDescriptionsTable.description,
+			})
+			.from(workoutScalingDescriptionsTable)
+			.where(
+				and(
+					inArray(workoutScalingDescriptionsTable.workoutId, data.workoutIds),
+					inArray(
+						workoutScalingDescriptionsTable.scalingLevelId,
+						data.divisionIds,
+					),
+				),
+			)
+
+		// Build description map: workoutId -> scalingLevelId -> description
+		const descMap = new Map<string, Map<string, string | null>>()
+		for (const d of allDescriptions) {
+			if (!descMap.has(d.workoutId)) {
+				descMap.set(d.workoutId, new Map())
+			}
+			descMap.get(d.workoutId)!.set(d.scalingLevelId, d.description)
+		}
+
+		// Build result keyed by workoutId
+		const descriptionsByWorkout: Record<string, DivisionDescription[]> = {}
+		for (const workoutId of data.workoutIds) {
+			const workoutDescMap = descMap.get(workoutId)
+			descriptionsByWorkout[workoutId] = divisions.map((division) => ({
+				divisionId: division.divisionId,
+				divisionLabel: division.divisionLabel,
+				description: workoutDescMap?.get(division.divisionId) ?? null,
+				position: division.position,
+			}))
+		}
+
+		return { descriptionsByWorkout }
 	})
 
 /**
@@ -971,22 +1039,17 @@ export const addWorkoutToCompetitionFn = createServerFn({ method: "POST" })
 			(await getNextCompetitionEventOrder(data.competitionId))
 
 		// Add workout to track
-		const [trackWorkout] = await db
-			.insert(trackWorkoutsTable)
-			.values({
-				trackId: track.id,
-				workoutId: data.workoutId,
-				trackOrder,
-				pointsMultiplier: data.pointsMultiplier ?? 100,
-				notes: data.notes,
-			})
-			.returning()
+		const trackWorkoutId = createTrackWorkoutId()
+		await db.insert(trackWorkoutsTable).values({
+			id: trackWorkoutId,
+			trackId: track.id,
+			workoutId: data.workoutId,
+			trackOrder,
+			pointsMultiplier: data.pointsMultiplier ?? 100,
+			notes: data.notes,
+		})
 
-		if (!trackWorkout) {
-			throw new Error("Failed to add workout to competition")
-		}
-
-		return { trackWorkoutId: trackWorkout.id }
+		return { trackWorkoutId }
 	})
 
 /**
@@ -1056,17 +1119,21 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
 			}
 
 			// Create the programming track for this competition
-			const [createdTrack] = await db
-				.insert(programmingTracksTable)
-				.values({
-					name: `${competition.name} - Events`,
-					description: `Competition events for ${competition.name}`,
-					type: PROGRAMMING_TRACK_TYPE.TEAM_OWNED,
-					ownerTeamId: competition.organizingTeamId,
-					competitionId: competition.id,
-					isPublic: 0,
-				})
-				.returning()
+			const createdTrackId = createProgrammingTrackId()
+			await db.insert(programmingTracksTable).values({
+				id: createdTrackId,
+				name: `${competition.name} - Events`,
+				description: `Competition events for ${competition.name}`,
+				type: PROGRAMMING_TRACK_TYPE.TEAM_OWNED,
+				ownerTeamId: competition.organizingTeamId,
+				competitionId: competition.id,
+				isPublic: 0,
+			})
+
+			// Fetch the created track
+			const createdTrack = await db.query.programmingTracksTable.findFirst({
+				where: eq(programmingTracksTable.id, createdTrackId),
+			})
 
 			if (!createdTrack) {
 				throw new Error("Failed to create programming track for competition")
@@ -1079,27 +1146,22 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
 		const nextOrder = await getNextCompetitionEventOrder(data.competitionId)
 
 		// Create the workout
-		const [workout] = await db
-			.insert(workouts)
-			.values({
-				id: `workout_${createId()}`,
-				name: data.name,
-				scheme: data.scheme as (typeof workouts.$inferInsert)["scheme"],
-				scoreType:
-					data.scoreType as (typeof workouts.$inferInsert)["scoreType"],
-				description: data.description ?? "",
-				teamId: data.teamId,
-				scope: "private", // Competition workouts are private to the organizing team
-				roundsToScore: data.roundsToScore ?? null,
-				repsPerRound: data.repsPerRound ?? null,
-				tiebreakScheme: data.tiebreakScheme ?? null,
-				sourceWorkoutId: data.sourceWorkoutId ?? null, // For remixes
-			})
-			.returning({ id: workouts.id })
+		const workoutId = `workout_${createId()}`
+		await db.insert(workouts).values({
+			id: workoutId,
+			name: data.name,
+			scheme: data.scheme as (typeof workouts.$inferInsert)["scheme"],
+			scoreType: data.scoreType as (typeof workouts.$inferInsert)["scoreType"],
+			description: data.description ?? "",
+			teamId: data.teamId,
+			scope: "private", // Competition workouts are private to the organizing team
+			roundsToScore: data.roundsToScore ?? null,
+			repsPerRound: data.repsPerRound ?? null,
+			tiebreakScheme: data.tiebreakScheme ?? null,
+			sourceWorkoutId: data.sourceWorkoutId ?? null, // For remixes
+		})
 
-		if (!workout) {
-			throw new Error("Failed to create workout")
-		}
+		const workout = { id: workoutId }
 
 		// Handle tags - create new ones from names and use existing IDs
 		const finalTagIds: string[] = []
@@ -1143,23 +1205,18 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
 		}
 
 		// Add to competition track
-		const [trackWorkout] = await db
-			.insert(trackWorkoutsTable)
-			.values({
-				trackId: track.id,
-				workoutId: workout.id,
-				trackOrder: nextOrder,
-				pointsMultiplier: 100,
-			})
-			.returning({ id: trackWorkoutsTable.id })
-
-		if (!trackWorkout) {
-			throw new Error("Failed to add workout to competition")
-		}
+		const trackWorkoutId = createTrackWorkoutId()
+		await db.insert(trackWorkoutsTable).values({
+			id: trackWorkoutId,
+			trackId: track.id,
+			workoutId: workout.id,
+			trackOrder: nextOrder,
+			pointsMultiplier: 100,
+		})
 
 		return {
 			workoutId: workout.id,
-			trackWorkoutId: trackWorkout.id,
+			trackWorkoutId,
 		}
 	})
 
@@ -1274,7 +1331,7 @@ export const saveCompetitionEventFn = createServerFn({ method: "POST" })
 				.delete(workoutMovements)
 				.where(eq(workoutMovements.workoutId, data.workoutId))
 
-			// Insert new movements in batches
+			// Insert new movements
 			if (data.movementIds.length > 0) {
 				const movementValues = data.movementIds.map((movementId) => ({
 					id: `workout_movement_${createId()}`,
@@ -1282,12 +1339,7 @@ export const saveCompetitionEventFn = createServerFn({ method: "POST" })
 					movementId,
 				}))
 
-				// workoutMovements has 6 columns (commonColumns + id, workoutId, movementId)
-				// D1 limit: 100 params, so max rows per batch = floor(100/6) = 16
-				const movementBatches = chunk(movementValues, 16)
-				for (const batch of movementBatches) {
-					await db.insert(workoutMovements).values(batch)
-				}
+				await db.insert(workoutMovements).values(movementValues)
 			}
 		}
 
@@ -1330,48 +1382,49 @@ export const saveCompetitionEventFn = createServerFn({ method: "POST" })
 
 			// Delete descriptions that are explicitly null
 			if (toDelete.length > 0) {
-				// Batch delete by divisionId using autochunk
-				await autochunk(
-					{ items: toDelete, otherParametersCount: 1 }, // +1 for workoutId
-					async (chunk: string[]) => {
-						await db
-							.delete(workoutScalingDescriptionsTable)
-							.where(
-								and(
-									eq(workoutScalingDescriptionsTable.workoutId, data.workoutId),
-									inArray(
-										workoutScalingDescriptionsTable.scalingLevelId,
-										chunk,
-									),
-								),
-							)
-						// Return empty array since delete doesn't return rows
-						return [] as unknown[]
-					},
-				)
+				await db
+					.delete(workoutScalingDescriptionsTable)
+					.where(
+						and(
+							eq(workoutScalingDescriptionsTable.workoutId, data.workoutId),
+							inArray(workoutScalingDescriptionsTable.scalingLevelId, toDelete),
+						),
+					)
 			}
 
 			// Upsert descriptions that have values
-			// Using individual upserts since D1 doesn't support batch upsert well
+			// Manual upsert pattern for MySQL compatibility
 			for (const { divisionId, description } of toUpsert) {
-				await db
-					.insert(workoutScalingDescriptionsTable)
-					.values({
+				// Check if record exists
+				const existing = await db
+					.select({ id: workoutScalingDescriptionsTable.id })
+					.from(workoutScalingDescriptionsTable)
+					.where(
+						and(
+							eq(workoutScalingDescriptionsTable.workoutId, data.workoutId),
+							eq(workoutScalingDescriptionsTable.scalingLevelId, divisionId),
+						),
+					)
+					.limit(1)
+
+				if (existing.length > 0) {
+					// Update existing
+					await db
+						.update(workoutScalingDescriptionsTable)
+						.set({
+							description,
+							updatedAt: new Date(),
+						})
+						.where(eq(workoutScalingDescriptionsTable.id, existing[0]!.id))
+				} else {
+					// Insert new
+					await db.insert(workoutScalingDescriptionsTable).values({
 						id: createWorkoutScalingDescriptionId(),
 						workoutId: data.workoutId,
 						scalingLevelId: divisionId,
 						description,
 					})
-					.onConflictDoUpdate({
-						target: [
-							workoutScalingDescriptionsTable.workoutId,
-							workoutScalingDescriptionsTable.scalingLevelId,
-						],
-						set: {
-							description,
-							updatedAt: new Date(),
-						},
-					})
+				}
 			}
 		}
 

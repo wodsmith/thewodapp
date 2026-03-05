@@ -8,7 +8,7 @@
  *   - "MMM d" → "Jan 15"
  *   - "EEEE, MMMM d, yyyy" → "Monday, January 15, 2024"
  */
-import { parse, isValid, format } from "date-fns"
+import { format, isValid, parse } from "date-fns"
 import { formatInTimeZone } from "date-fns-tz"
 
 /**
@@ -374,6 +374,15 @@ export function getStartOfDayUTC(
 export function getTodayStringUTC(): string {
 	const now = new Date()
 	return formatInTimeZone(now, "UTC", "yyyy-MM-dd")
+}
+
+/**
+ * Get today's date as a YYYY-MM-DD string in a specific IANA timezone.
+ * Useful for comparing dates against a competition's local timezone.
+ * @param timezone - IANA timezone string (e.g., "America/Denver")
+ */
+export function getTodayInTimezone(timezone: string): string {
+	return formatInTimeZone(new Date(), timezone, "yyyy-MM-dd")
 }
 
 /**

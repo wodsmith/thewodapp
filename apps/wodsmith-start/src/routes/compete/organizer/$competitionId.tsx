@@ -16,10 +16,7 @@ import { CompetitionHeader } from "@/components/competition-header"
 import { CompetitionSidebar } from "@/components/competition-sidebar"
 import { OrganizerBreadcrumb } from "@/components/organizer-breadcrumb"
 import { PendingOrganizerBanner } from "@/components/pending-organizer-banner"
-import {
-	checkCanManageCompetitionFn,
-	getCompetitionByIdFn,
-} from "@/server-fns/competition-detail-fns"
+import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 
 export const Route = createFileRoute("/compete/organizer/$competitionId")({
 	component: CompetitionLayout,
@@ -44,13 +41,14 @@ export const Route = createFileRoute("/compete/organizer/$competitionId")({
 			throw notFound()
 		}
 
-		// Verify user can manage this competition
-		const { canManage } = await checkCanManageCompetitionFn({
-			data: {
-				organizingTeamId: competition.organizingTeamId,
-				userId: session.user.id,
-			},
-		})
+		// Verify user can manage this competition using session data
+		const canManage =
+			session.user?.role === "admin" ||
+			!!session.teams?.find(
+				(t) =>
+					t.id === competition.organizingTeamId &&
+					(t.role.id === "admin" || t.role.id === "owner"),
+			)
 
 		if (!canManage) {
 			throw redirect({
@@ -66,16 +64,20 @@ export const Route = createFileRoute("/compete/organizer/$competitionId")({
 })
 
 // Map route paths to breadcrumb labels
+// Note: "results" label is handled dynamically based on competition type
 const routeLabels: Record<string, string> = {
 	divisions: "Divisions",
 	athletes: "Registrations",
 	events: "Events",
 	"submission-windows": "Submission Windows",
 	schedule: "Schedule",
+	locations: "Locations",
 	volunteers: "Volunteers",
-	results: "Results",
+	results: "Results", // Overridden to "Submissions" for online competitions
+	review: "Review",
 	pricing: "Pricing",
 	revenue: "Revenue",
+	coupons: "Coupons",
 	sponsors: "Sponsors",
 	settings: "Settings",
 	edit: "Edit",
@@ -99,7 +101,11 @@ function CompetitionLayout() {
 
 	// Add current page to breadcrumb if not on overview
 	if (lastSegment && lastSegment !== competition.id) {
-		const label = routeLabels[lastSegment] || lastSegment
+		let label = routeLabels[lastSegment] || lastSegment
+		// Show "Submissions" instead of "Results" for online competitions
+		if (lastSegment === "results" && competition.competitionType === "online") {
+			label = "Submissions"
+		}
 		breadcrumbSegments.push({ label })
 	}
 
@@ -128,6 +134,7 @@ function CompetitionLayout() {
 						registrationClosesAt: competition.registrationClosesAt,
 						visibility: competition.visibility,
 						status: competition.status,
+						groupId: competition.groupId,
 					}}
 				/>
 

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
+import { createFileRoute, Link, redirect } from "@tanstack/react-router"
 import { addDays, endOfDay, format, startOfDay, subDays } from "date-fns"
 import {
 	CalendarIcon,
@@ -24,6 +24,11 @@ import {
 
 export const Route = createFileRoute("/_protected/dashboard")({
 	component: DashboardPage,
+	beforeLoad: async ({ context }) => {
+		if (!context.hasWorkoutTracking) {
+			throw redirect({ to: "/compete" })
+		}
+	},
 	loader: async ({ context }) => {
 		const session = context.session
 		const teamId = session?.teams?.[0]?.id

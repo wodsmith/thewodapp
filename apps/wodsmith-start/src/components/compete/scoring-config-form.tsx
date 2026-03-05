@@ -1,6 +1,8 @@
 "use client"
 
+import { RotateCcw } from "lucide-react"
 import { useState } from "react"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -13,13 +15,11 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
-import type { ScoringConfig, ScoringAlgorithm } from "@/types/scoring"
 import {
 	generatePointsTable,
 	WINNER_TAKES_MORE_TABLE,
 } from "@/lib/scoring/algorithms/custom"
-import { RotateCcw } from "lucide-react"
+import type { ScoringAlgorithm, ScoringConfig } from "@/types/scoring"
 
 /**
  * Editable points preview panel - click to edit values inline
@@ -105,7 +105,7 @@ function EditablePointsPreview({
 	const handleSaveEdit = () => {
 		if (editingPosition === null) return
 		const newValue = parseInt(editValue, 10)
-		if (!isNaN(newValue) && newValue >= 0) {
+		if (!Number.isNaN(newValue) && newValue >= 0) {
 			onPointEdit(editingPosition, newValue)
 		}
 		setEditingPosition(null)

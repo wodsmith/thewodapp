@@ -1,0 +1,11 @@
+{
+	"extends": "@repo/typescript-config/base.json",
+	"compilerOptions": {
+		"noEmit": true,
+		"types": ["@cloudflare/workers-types"],
+		"jsx": "react-jsx",
+		"tsBuildInfoFile": ".tsbuildinfo"
+	},
+	"include": ["src"],
+	"exclude": ["node_modules", "dist", "build"]
+}

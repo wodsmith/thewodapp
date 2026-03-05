@@ -1,11 +1,11 @@
 "use client"
 
-import { useCallback, useState } from "react"
+import { useState } from "react"
 import type { CompetitionVenue } from "@/db/schemas/competitions"
 import type { HeatWithAssignments } from "@/server-fns/competition-heats-fns"
 import type { CompetitionWorkout } from "@/server-fns/competition-workouts-fns"
 import { HeatScheduleManager } from "./heat-schedule-manager"
-import { VenueManager } from "./venue-manager"
+import { VenuesSummary } from "./venues-summary"
 
 interface Division {
 	id: string
@@ -52,55 +52,14 @@ export function SchedulePageClient({
 	divisions,
 	registrations,
 }: SchedulePageClientProps) {
-	const [venues, setVenues] = useState(initialVenues)
 	const [heats, setHeats] = useState(initialHeats)
-
-	// Handle venue updates and propagate to heats
-	const handleVenueUpdate = useCallback((updatedVenue: CompetitionVenue) => {
-		setVenues((prev) =>
-			prev.map((v) => (v.id === updatedVenue.id ? updatedVenue : v)),
-		)
-
-		// Update heats that use this venue
-		setHeats((prev) =>
-			prev.map((heat) => {
-				if (heat.venueId === updatedVenue.id) {
-					return { ...heat, venue: updatedVenue }
-				}
-				return heat
-			}),
-		)
-	}, [])
-
-	const handleVenueCreate = useCallback((newVenue: CompetitionVenue) => {
-		setVenues((prev) => [...prev, newVenue])
-	}, [])
-
-	const handleVenueDelete = useCallback((venueId: string) => {
-		setVenues((prev) => prev.filter((v) => v.id !== venueId))
-		// Heats with this venue will have venue set to null via FK cascade
-		setHeats((prev) =>
-			prev.map((heat) => {
-				if (heat.venueId === venueId) {
-					return { ...heat, venue: null }
-				}
-				return heat
-			}),
-		)
-	}, [])
 
 	return (
 		<div className="space-y-8">
-			{/* Venue Manager */}
+			{/* Venues Summary */}
 			<section>
 				<h2 className="text-lg font-semibold mb-4">Venues</h2>
-				<VenueManager
-					competitionId={competitionId}
-					venues={venues}
-					onVenueUpdate={handleVenueUpdate}
-					onVenueCreate={handleVenueCreate}
-					onVenueDelete={handleVenueDelete}
-				/>
+				<VenuesSummary competitionId={competitionId} venues={initialVenues} />
 			</section>
 
 			{/* Heat Schedule Manager */}
@@ -111,7 +70,7 @@ export function SchedulePageClient({
 					organizingTeamId={organizingTeamId}
 					competitionStartDate={competitionStartDate}
 					events={events}
-					venues={venues}
+					venues={initialVenues}
 					heats={heats}
 					divisions={divisions}
 					registrations={registrations}

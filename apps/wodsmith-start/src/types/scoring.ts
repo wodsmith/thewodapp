@@ -11,24 +11,24 @@
 // Re-export all types from the Zod schema file
 // This provides a single import point for types without needing to import Zod
 export type {
+	CustomTableConfig,
+	PScoreConfig,
 	ScoringAlgorithm,
+	ScoringConfig,
+	StatusHandlingConfig,
+	TiebreakerConfig,
 	TiebreakerMethod,
 	TraditionalConfig,
-	PScoreConfig,
-	CustomTableConfig,
-	TiebreakerConfig,
-	StatusHandlingConfig,
-	ScoringConfig,
 } from "@/schemas/scoring.schema"
 
 // Re-export schemas for validation use
 export {
+	customTableConfigSchema,
+	pScoreConfigSchema,
 	scoringAlgorithmSchema,
+	scoringConfigSchema,
+	statusHandlingConfigSchema,
+	tiebreakerConfigSchema,
 	tiebreakerMethodSchema,
 	traditionalConfigSchema,
-	pScoreConfigSchema,
-	customTableConfigSchema,
-	tiebreakerConfigSchema,
-	statusHandlingConfigSchema,
-	scoringConfigSchema,
 } from "@/schemas/scoring.schema"

@@ -7,9 +7,9 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { ScoringConfigForm } from "@/components/compete/scoring-config-form"
 import { Button } from "@/components/ui/button"
-import type { ScoringConfig } from "@/types/scoring"
-import { updateCompetitionScoringConfigFn } from "@/server-fns/competition-detail-fns"
 import { DEFAULT_SCORING_CONFIG } from "@/lib/scoring"
+import { updateCompetitionScoringConfigFn } from "@/server-fns/competition-detail-fns"
+import type { ScoringConfig } from "@/types/scoring"
 
 /**
  * Props for the ScoringSettingsForm component

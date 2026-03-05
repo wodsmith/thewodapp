@@ -2,15 +2,16 @@
  * Commerce Purchases for TanStack Start
  * Handles purchase retrieval and invoice details with Stripe integration.
  */
-import { desc, eq } from "drizzle-orm"
+import { and, desc, eq, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	commerceProductTable,
 	commercePurchaseTable,
 	competitionsTable,
+	productCouponRedemptionsTable,
+	scalingLevelsTable,
 } from "@/db/schema"
 import { getStripe } from "@/lib/stripe"
-import { autochunk } from "@/utils/batch-query"
 
 export type PurchaseWithDetails = {
 	id: string
@@ -20,6 +21,7 @@ export type PurchaseWithDetails = {
 	stripeFeeCents: number
 	organizerNetCents: number
 	stripePaymentIntentId: string | null
+	stripeCheckoutSessionId: string | null
 	completedAt: Date | null
 	createdAt: Date
 	product: {
@@ -56,6 +58,7 @@ export async function getUserPurchases(
 			stripeFeeCents: commercePurchaseTable.stripeFeeCents,
 			organizerNetCents: commercePurchaseTable.organizerNetCents,
 			stripePaymentIntentId: commercePurchaseTable.stripePaymentIntentId,
+			stripeCheckoutSessionId: commercePurchaseTable.stripeCheckoutSessionId,
 			completedAt: commercePurchaseTable.completedAt,
 			createdAt: commercePurchaseTable.createdAt,
 			competitionId: commercePurchaseTable.competitionId,
@@ -77,20 +80,17 @@ export async function getUserPurchases(
 		...new Set(purchases.map((p) => p.competitionId).filter(Boolean)),
 	] as string[]
 
-	const competitions = await autochunk(
-		{ items: competitionIds },
-		async (chunk: string[]) => {
-			const rows = await db.query.competitionsTable.findMany({
-				where: (table, { inArray }) => inArray(table.id, chunk),
-				with: {
-					organizingTeam: {
-						columns: { name: true },
+	const competitions =
+		competitionIds.length > 0
+			? await db.query.competitionsTable.findMany({
+					where: inArray(competitionsTable.id, competitionIds),
+					with: {
+						organizingTeam: {
+							columns: { name: true },
+						},
 					},
-				},
-			})
-			return rows
-		},
-	)
+				})
+			: []
 
 	const competitionMap = new Map(competitions.map((c) => [c.id, c] as const))
 
@@ -104,6 +104,7 @@ export async function getUserPurchases(
 			stripeFeeCents: p.stripeFeeCents,
 			organizerNetCents: p.organizerNetCents,
 			stripePaymentIntentId: p.stripePaymentIntentId,
+			stripeCheckoutSessionId: p.stripeCheckoutSessionId,
 			completedAt: p.completedAt,
 			createdAt: p.createdAt,
 			product: {
@@ -127,7 +128,39 @@ export async function getUserPurchases(
 	})
 }
 
-export type InvoiceDetails = PurchaseWithDetails & {
+export type InvoiceLineItem = {
+	purchaseId: string
+	divisionLabel: string | null
+	totalCents: number
+	platformFeeCents: number
+	stripeFeeCents: number
+	registrationFeeCents: number
+}
+
+export type InvoiceDetails = {
+	/** Primary purchase ID (first in the group) */
+	id: string
+	status: string
+	/** Combined total across all line items */
+	totalCents: number
+	stripePaymentIntentId: string | null
+	completedAt: Date | null
+	createdAt: Date
+	product: {
+		id: string
+		name: string
+		type: string
+		priceCents: number
+	}
+	competition: {
+		id: string
+		name: string
+		slug: string
+		startDate: string | null
+		organizingTeam: {
+			name: string
+		} | null
+	} | null
 	user: {
 		firstName: string | null
 		lastName: string | null
@@ -139,11 +172,17 @@ export type InvoiceDetails = PurchaseWithDetails & {
 		brand: string | null
 		receiptUrl: string | null
 	} | null
+	coupon: {
+		code: string
+		amountOffCents: number
+	} | null
+	/** Per-division line items */
+	lineItems: InvoiceLineItem[]
 }
 
 /**
- * Get detailed invoice data for a single purchase
- * Includes Stripe payment details when available
+ * Get detailed invoice data for a purchase (grouped by checkout session).
+ * If multiple divisions were purchased together, all are returned as line items.
  */
 export async function getInvoiceDetails(
 	purchaseId: string,
@@ -151,9 +190,10 @@ export async function getInvoiceDetails(
 ): Promise<InvoiceDetails | null> {
 	const db = getDb()
 
+	// Load the target purchase with relations
 	const purchase = await db.query.commercePurchaseTable.findFirst({
-		where: (table, { and, eq }) =>
-			and(eq(table.id, purchaseId), eq(table.userId, userId)),
+		where: (table, { and: a, eq: e }) =>
+			a(e(table.id, purchaseId), e(table.userId, userId)),
 		with: {
 			product: true,
 			user: {
@@ -163,12 +203,91 @@ export async function getInvoiceDetails(
 					email: true,
 				},
 			},
+			couponRedemption: {
+				with: {
+					coupon: { columns: { code: true } },
+				},
+			},
 		},
 	})
 
 	if (!purchase) return null
 
-	// Get competition details if available
+	// Find sibling purchases from the same checkout session
+	let allPurchases: Array<{
+		id: string
+		divisionId: string | null
+		totalCents: number
+		platformFeeCents: number
+		stripeFeeCents: number
+	}> = [
+		{
+			id: purchase.id,
+			divisionId: purchase.divisionId,
+			totalCents: purchase.totalCents,
+			platformFeeCents: purchase.platformFeeCents,
+			stripeFeeCents: purchase.stripeFeeCents,
+		},
+	]
+
+	if (purchase.stripeCheckoutSessionId) {
+		const siblings = await db
+			.select({
+				id: commercePurchaseTable.id,
+				divisionId: commercePurchaseTable.divisionId,
+				totalCents: commercePurchaseTable.totalCents,
+				platformFeeCents: commercePurchaseTable.platformFeeCents,
+				stripeFeeCents: commercePurchaseTable.stripeFeeCents,
+			})
+			.from(commercePurchaseTable)
+			.where(
+				and(
+					eq(
+						commercePurchaseTable.stripeCheckoutSessionId,
+						purchase.stripeCheckoutSessionId,
+					),
+					eq(commercePurchaseTable.userId, userId),
+				),
+			)
+
+		if (siblings.length > 1) {
+			allPurchases = siblings
+		}
+	}
+
+	// Fetch division labels
+	const divisionIds = allPurchases
+		.map((p) => p.divisionId)
+		.filter(Boolean) as string[]
+	const divisionMap = new Map<string, string>()
+	if (divisionIds.length > 0) {
+		const divisions = await db
+			.select({
+				id: scalingLevelsTable.id,
+				label: scalingLevelsTable.label,
+			})
+			.from(scalingLevelsTable)
+			.where(inArray(scalingLevelsTable.id, divisionIds))
+		for (const d of divisions) {
+			divisionMap.set(d.id, d.label)
+		}
+	}
+
+	// Build line items
+	const lineItems: InvoiceLineItem[] = allPurchases.map((p) => ({
+		purchaseId: p.id,
+		divisionLabel: p.divisionId ? (divisionMap.get(p.divisionId) ?? null) : null,
+		totalCents: p.totalCents,
+		platformFeeCents: p.platformFeeCents,
+		stripeFeeCents: p.stripeFeeCents,
+		registrationFeeCents:
+			p.totalCents - p.platformFeeCents - p.stripeFeeCents,
+	}))
+
+	// Combined total
+	const totalCents = allPurchases.reduce((sum, p) => sum + p.totalCents, 0)
+
+	// Get competition details
 	let competition: InvoiceDetails["competition"] = null
 	if (purchase.competitionId) {
 		const comp = await db.query.competitionsTable.findFirst({
@@ -192,7 +311,7 @@ export async function getInvoiceDetails(
 		}
 	}
 
-	// Fetch Stripe payment details if we have a payment intent
+	// Fetch Stripe payment details
 	let stripeDetails: InvoiceDetails["stripe"] = null
 	if (purchase.stripePaymentIntentId) {
 		try {
@@ -220,13 +339,38 @@ export async function getInvoiceDetails(
 		}
 	}
 
+	// Build coupon info — get from the coupon table (applied once per transaction)
+	let coupon: InvoiceDetails["coupon"] = null
+	if (purchase.couponRedemption) {
+		coupon = {
+			code: purchase.couponRedemption.coupon.code,
+			amountOffCents: purchase.couponRedemption.amountOffCents,
+		}
+	}
+	// If this purchase didn't have a redemption, check siblings
+	if (!coupon && allPurchases.length > 1) {
+		const siblingIds = allPurchases
+			.filter((p) => p.id !== purchase.id)
+			.map((p) => p.id)
+		if (siblingIds.length > 0) {
+			const siblingRedemption =
+				await db.query.productCouponRedemptionsTable.findFirst({
+					where: inArray(productCouponRedemptionsTable.purchaseId, siblingIds),
+					with: { coupon: { columns: { code: true } } },
+				})
+			if (siblingRedemption) {
+				coupon = {
+					code: siblingRedemption.coupon.code,
+					amountOffCents: siblingRedemption.amountOffCents,
+				}
+			}
+		}
+	}
+
 	return {
 		id: purchase.id,
 		status: purchase.status,
-		totalCents: purchase.totalCents,
-		platformFeeCents: purchase.platformFeeCents,
-		stripeFeeCents: purchase.stripeFeeCents,
-		organizerNetCents: purchase.organizerNetCents,
+		totalCents,
 		stripePaymentIntentId: purchase.stripePaymentIntentId,
 		completedAt: purchase.completedAt,
 		createdAt: purchase.createdAt,
@@ -243,5 +387,7 @@ export async function getInvoiceDetails(
 			email: purchase.user.email,
 		},
 		stripe: stripeDetails,
+		coupon,
+		lineItems,
 	}
 }

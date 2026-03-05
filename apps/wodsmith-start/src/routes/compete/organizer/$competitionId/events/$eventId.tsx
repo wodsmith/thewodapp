@@ -1,22 +1,11 @@
 /**
- * Competition Event Edit Route
+ * Competition Event Layout Route
  *
- * Organizer page for editing a single competition event.
- * Fetches event details, divisions, movements, sponsors, and judging sheets.
+ * Layout route for a single competition event. Loads event details,
+ * divisions, movements, sponsors, and judging sheets for child routes.
  */
 
-import { useState } from "react"
-import { createFileRoute, getRouteApi } from "@tanstack/react-router"
-import {
-	EVENT_DETAILS_FORM_ID,
-	EventDetailsForm,
-} from "@/components/events/event-details-form"
-import { EventResourcesCard } from "@/components/events/event-resources-card"
-import { EventSubmissionWindowCard } from "@/components/organizer/event-submission-window-card"
-import { HeatSchedulePublishingCard } from "@/components/organizer/heat-schedule-publishing-card"
-import { EventJudgingSheets } from "@/components/organizer/event-judging-sheets"
-import { Button } from "@/components/ui/button"
-import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
+import { Outlet, createFileRoute } from "@tanstack/react-router"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionEventsFn } from "@/server-fns/competition-event-fns"
 import {
@@ -24,26 +13,18 @@ import {
 	getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
 import { getEventResourcesFn } from "@/server-fns/event-resources-fns"
+import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
 import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
-import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
-
-// Get parent route API to access its loader data
-const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/events/$eventId",
 )({
-	component: EventEditPage,
-	loader: async ({ params }) => {
-		// First get competition to know the teamId
-		const { competition } = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
-		})
-
-		if (!competition) {
-			throw new Error("Competition not found")
-		}
+	staleTime: 10_000,
+	component: () => <Outlet />,
+	loader: async ({ params, parentMatchPromise }) => {
+		const parentMatch = await parentMatchPromise
+		const { competition } = parentMatch.loaderData!
 
 		const isOnline = competition.competitionType === "online"
 
@@ -138,85 +119,3 @@ export const Route = createFileRoute(
 		}
 	},
 })
-
-function EventEditPage() {
-	const {
-		event,
-		divisions,
-		movements,
-		sponsors,
-		divisionDescriptions,
-		resources,
-		judgingSheets: initialSheets,
-		isOnline,
-		submissionOpensAt,
-		submissionClosesAt,
-		timezone,
-	} = Route.useLoaderData()
-	// Get competition from parent layout loader data
-	const { competition } = parentRoute.useLoaderData()
-
-	// Local state for judging sheets to enable real-time updates
-	const [judgingSheets, setJudgingSheets] = useState(initialSheets)
-
-	return (
-		<>
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div>
-					<h1 className="text-3xl font-bold">Edit Event</h1>
-					<p className="text-muted-foreground mt-1">
-						Event #{event.trackOrder} - {event.workout.name}
-					</p>
-				</div>
-				<Button type="submit" form={EVENT_DETAILS_FORM_ID}>
-					Save Changes
-				</Button>
-			</div>
-
-			{/* Event Details Form */}
-			<EventDetailsForm
-				event={event}
-				competitionId={competition.id}
-				organizingTeamId={competition.organizingTeamId}
-				divisions={divisions}
-				divisionDescriptions={divisionDescriptions}
-				movements={movements}
-				sponsors={sponsors}
-			/>
-
-			{/* Event Resources */}
-			<EventResourcesCard
-				eventId={event.id}
-				teamId={competition.organizingTeamId}
-				initialResources={resources}
-			/>
-
-			{/* Judging Sheets */}
-			<EventJudgingSheets
-				competitionId={competition.id}
-				trackWorkoutId={event.id}
-				sheets={judgingSheets}
-				onSheetsChange={setJudgingSheets}
-			/>
-
-			{/* Submission Window (online) or Heat Schedule Publishing (in-person) */}
-			{isOnline ? (
-				<EventSubmissionWindowCard
-					competitionId={competition.id}
-					eventName={event.workout.name}
-					submissionOpensAt={submissionOpensAt}
-					submissionClosesAt={submissionClosesAt}
-					timezone={timezone}
-				/>
-			) : (
-				<HeatSchedulePublishingCard
-					trackWorkoutId={event.id}
-					eventName={event.workout.name}
-					competitionId={competition.id}
-					organizingTeamId={competition.organizingTeamId}
-				/>
-			)}
-		</>
-	)
-}

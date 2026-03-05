@@ -1,1 +1,0 @@
-ALTER TABLE `team` ADD `stripeAccountType` text(20);
