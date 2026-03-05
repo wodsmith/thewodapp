@@ -93,6 +93,7 @@ export function InvitedVolunteersList({ invites }: InvitedVolunteersListProps) {
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="p-0">
+				<div className="overflow-x-auto">
 				<Table>
 					<TableHeader>
 						<TableRow>
@@ -135,6 +136,7 @@ export function InvitedVolunteersList({ invites }: InvitedVolunteersListProps) {
 						))}
 					</TableBody>
 				</Table>
+				</div>
 			</CardContent>
 		</Card>
 	)

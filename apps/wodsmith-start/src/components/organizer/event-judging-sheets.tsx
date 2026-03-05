@@ -218,7 +218,7 @@ export function EventJudgingSheets({
 						{sheets.map((sheet) => (
 							<div key={sheet.id}>
 								{editingId === sheet.id ? (
-									<div className="flex items-center gap-2 rounded-lg border p-3">
+									<div className="flex flex-wrap items-center gap-2 rounded-lg border p-3">
 										<Input
 											value={editTitle}
 											onChange={(e) => setEditTitle(e.target.value)}
@@ -287,7 +287,7 @@ export function EventJudgingSheets({
 								autoFocus
 							/>
 						</div>
-						<div className="flex items-center gap-2">
+						<div className="flex flex-wrap items-center gap-2">
 							<Button
 								type="button"
 								onClick={handleCreateSheet}

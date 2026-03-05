@@ -283,7 +283,7 @@ export function ManualRegistrationDialog({
 								onChange={(e) => setAthleteEmail(e.target.value)}
 							/>
 						</div>
-						<div className="grid grid-cols-2 gap-4">
+						<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 							<div className="space-y-2">
 								<Label htmlFor="athlete-first-name">First Name</Label>
 								<Input
@@ -393,7 +393,7 @@ export function ManualRegistrationDialog({
 											updateTeammate(index, "email", e.target.value)
 										}
 									/>
-									<div className="grid grid-cols-2 gap-2">
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
 										<Input
 											placeholder="First name"
 											value={teammate.firstName}

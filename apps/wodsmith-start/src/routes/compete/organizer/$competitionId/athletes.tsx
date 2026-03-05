@@ -924,7 +924,7 @@ function AthletesPage() {
 
 				<TabsContent value="athletes" className="flex flex-col gap-6">
 					{/* Athletes Section */}
-					<div className="flex items-center justify-between">
+					<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 						<div>
 							<h2 className="text-xl font-semibold">Registered Athletes</h2>
 							<p className="text-muted-foreground text-sm">
@@ -935,13 +935,13 @@ function AthletesPage() {
 									: ""}
 							</p>
 						</div>
-						<div className="flex items-center gap-2">
-							<Button onClick={() => setShowManualRegistration(true)} size="sm">
+						<div className="flex gap-2 w-full sm:w-auto">
+							<Button onClick={() => setShowManualRegistration(true)} size="sm" className="w-full sm:w-auto">
 								<Plus className="h-4 w-4 mr-2" />
 								Add Registration
 							</Button>
 							{registrations.length > 0 && (
-								<Button onClick={handleExportCSV} variant="outline" size="sm">
+								<Button onClick={handleExportCSV} variant="outline" size="sm" className="w-full sm:w-auto">
 									<Download className="h-4 w-4 mr-2" />
 									Export CSV
 								</Button>
@@ -963,13 +963,13 @@ function AthletesPage() {
 							{/* Filters */}
 							<div className="flex flex-col gap-3">
 								{/* Filter dropdowns */}
-								<div className="flex flex-wrap items-center gap-3">
+								<div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
 									{/* Division filter (single select) */}
 									<Select
 										value={currentDivisionFilter || "all"}
 										onValueChange={handleDivisionChange}
 									>
-										<SelectTrigger className="w-[200px]">
+										<SelectTrigger className="w-full sm:w-[200px]">
 											<SelectValue placeholder="All Divisions" />
 										</SelectTrigger>
 										<SelectContent>
@@ -1002,7 +1002,7 @@ function AthletesPage() {
 													}
 												}}
 											>
-												<SelectTrigger className="w-[180px]">
+												<SelectTrigger className="w-full sm:w-[180px]">
 													<span className="text-muted-foreground">
 														+ {question.label}
 													</span>
@@ -1057,7 +1057,7 @@ function AthletesPage() {
 														}
 													}}
 												>
-													<SelectTrigger className="w-[200px]">
+													<SelectTrigger className="w-full sm:w-[200px]">
 														<span className="text-muted-foreground">
 															+ Waiver Status
 														</span>

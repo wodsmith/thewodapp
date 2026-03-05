@@ -1,7 +1,6 @@
 "use client"
 
 import { useRouter } from "@tanstack/react-router"
-import { usePostHog } from "@/lib/posthog"
 import { Layers, Plus } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
@@ -32,6 +31,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { usePostHog } from "@/lib/posthog"
 import {
 	addCompetitionDivisionFn,
 	deleteCompetitionDivisionFn,
@@ -117,7 +117,6 @@ export function OrganizerDivisionManager({
 		setDivisions(initialDivisions)
 	}, [initialDivisions])
 
-
 	const handleSwitchScalingGroup = async () => {
 		if (!selectedNewGroupId) return
 		setIsSwitching(true)
@@ -139,7 +138,9 @@ export function OrganizerDivisionManager({
 			router.invalidate()
 		} catch (error) {
 			toast.error(
-				error instanceof Error ? error.message : "Failed to switch scaling group",
+				error instanceof Error
+					? error.message
+					: "Failed to switch scaling group",
 			)
 		} finally {
 			setIsSwitching(false)
@@ -388,7 +389,7 @@ export function OrganizerDivisionManager({
 		<>
 			<Card>
 				<CardHeader>
-					<div className="flex items-center justify-between">
+					<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 						<div>
 							<CardTitle>Competition Divisions</CardTitle>
 							<CardDescription>
@@ -413,7 +414,10 @@ export function OrganizerDivisionManager({
 								</div>
 							)}
 						</div>
-						<Button onClick={() => setShowAddDialog(true)}>
+						<Button
+							onClick={() => setShowAddDialog(true)}
+							className="w-full sm:w-auto"
+						>
 							<Plus className="h-4 w-4 mr-2" />
 							Add Division
 						</Button>
@@ -558,75 +562,84 @@ export function OrganizerDivisionManager({
 				</DialogContent>
 			</Dialog>
 
-		<Dialog open={showChangeGroupDialog} onOpenChange={setShowChangeGroupDialog}>
-			<DialogContent>
-				<DialogHeader>
-					<DialogTitle>Change Scaling Group</DialogTitle>
-					<DialogDescription>
-						Switch this competition to use a different scaling group. Athletes will use divisions from the new group when registering. If athletes are already registered, they will be migrated to the matching division by label.
-					</DialogDescription>
-				</DialogHeader>
-				<div className="space-y-4 py-4">
-					<div>
-						<Label htmlFor="newScalingGroup">Select Scaling Group</Label>
-						<Select
-							value={selectedNewGroupId}
-							onValueChange={setSelectedNewGroupId}
-						>
-							<SelectTrigger className="mt-2">
-								<SelectValue placeholder="Choose a scaling group" />
-							</SelectTrigger>
-							<SelectContent>
-								{scalingGroups.map((g) => (
-									<SelectItem key={g.id} value={g.id}>
-										<span className="flex items-center gap-2">
-											{g.title}
-											{g.isSystem && (
-												<Badge variant="secondary" className="text-xs">
-													System
+			<Dialog
+				open={showChangeGroupDialog}
+				onOpenChange={setShowChangeGroupDialog}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Change Scaling Group</DialogTitle>
+						<DialogDescription>
+							Switch this competition to use a different scaling group. Athletes
+							will use divisions from the new group when registering. If
+							athletes are already registered, they will be migrated to the
+							matching division by label.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-4 py-4">
+						<div>
+							<Label htmlFor="newScalingGroup">Select Scaling Group</Label>
+							<Select
+								value={selectedNewGroupId}
+								onValueChange={setSelectedNewGroupId}
+							>
+								<SelectTrigger className="mt-2">
+									<SelectValue placeholder="Choose a scaling group" />
+								</SelectTrigger>
+								<SelectContent>
+									{scalingGroups.map((g) => (
+										<SelectItem key={g.id} value={g.id}>
+											<span className="flex items-center gap-2">
+												{g.title}
+												{g.isSystem && (
+													<Badge variant="secondary" className="text-xs">
+														System
+													</Badge>
+												)}
+											</span>
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+							{selectedNewGroupId && (
+								<div className="mt-3 rounded-lg border p-3 bg-muted/50">
+									<p className="text-sm font-medium mb-2">
+										Divisions in this group:
+									</p>
+									<div className="flex flex-wrap gap-2">
+										{scalingGroups
+											.find((g) => g.id === selectedNewGroupId)
+											?.levels.slice()
+											.sort((a, b) => a.position - b.position)
+											.map((l) => (
+												<Badge key={l.id} variant="outline">
+													{l.label}
 												</Badge>
-											)}
-										</span>
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-						{selectedNewGroupId && (
-							<div className="mt-3 rounded-lg border p-3 bg-muted/50">
-								<p className="text-sm font-medium mb-2">Divisions in this group:</p>
-								<div className="flex flex-wrap gap-2">
-									{scalingGroups
-										.find((g) => g.id === selectedNewGroupId)
-										?.levels.slice().sort((a, b) => a.position - b.position)
-										.map((l) => (
-											<Badge key={l.id} variant="outline">
-												{l.label}
-											</Badge>
-										))}
+											))}
+									</div>
 								</div>
-							</div>
-						)}
+							)}
+						</div>
 					</div>
-				</div>
-				<DialogFooter>
-					<Button
-						variant="outline"
-						onClick={() => {
-							setShowChangeGroupDialog(false)
-							setSelectedNewGroupId("")
-						}}
-					>
-						Cancel
-					</Button>
-					<Button
-						onClick={handleSwitchScalingGroup}
-						disabled={isSwitching || !selectedNewGroupId}
-					>
-						{isSwitching ? "Switching..." : "Switch Scaling Group"}
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => {
+								setShowChangeGroupDialog(false)
+								setSelectedNewGroupId("")
+							}}
+						>
+							Cancel
+						</Button>
+						<Button
+							onClick={handleSwitchScalingGroup}
+							disabled={isSwitching || !selectedNewGroupId}
+						>
+							{isSwitching ? "Switching..." : "Switch Scaling Group"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</>
 	)
 }

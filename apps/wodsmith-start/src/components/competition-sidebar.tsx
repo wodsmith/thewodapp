@@ -295,7 +295,7 @@ export function CompetitionSidebar({
 				<CompetitionSidebarFooter />
 			</Sidebar>
 			<SidebarInset>
-				<header className="flex h-14 items-center gap-2 border-b px-3 md:hidden">
+				<header className="fixed top-0 left-0 right-0 z-40 flex h-14 items-center gap-2 border-b bg-background px-3 md:hidden">
 					<SidebarTrigger className="-ml-1">
 						<Menu className="h-5 w-5" />
 					</SidebarTrigger>
@@ -314,6 +314,7 @@ export function CompetitionSidebar({
 						</span>
 					</Link>
 				</header>
+				<div className="h-14 md:hidden" />
 				{children}
 			</SidebarInset>
 		</SidebarProvider>

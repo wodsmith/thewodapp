@@ -4,6 +4,13 @@ import { z } from "zod"
 import type { JudgeAssignmentVersion } from "@/db/schema"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
 import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getHeatsForCompetitionFn } from "@/server-fns/competition-heats-fns"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
@@ -305,7 +312,25 @@ function VolunteersPage() {
 			onValueChange={handleTabChange}
 			className="w-full"
 		>
-			<TabsList className="mb-6">
+			{/* Mobile: Select dropdown */}
+			<div className="mb-6 sm:hidden">
+				<Select value={effectiveTab} onValueChange={handleTabChange}>
+					<SelectTrigger className="w-full">
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="roster">Roster</SelectItem>
+						<SelectItem value="shifts">Shifts</SelectItem>
+						{isInPerson && (
+							<SelectItem value="schedule">Judge Schedule</SelectItem>
+						)}
+						<SelectItem value="registration-rules">Registration Rules</SelectItem>
+					</SelectContent>
+				</Select>
+			</div>
+
+			{/* Desktop: Tabs */}
+			<TabsList className="mb-6 hidden sm:inline-flex">
 				<TabsTrigger value="roster">Roster</TabsTrigger>
 				<TabsTrigger value="shifts">Shifts</TabsTrigger>
 				{isInPerson && (

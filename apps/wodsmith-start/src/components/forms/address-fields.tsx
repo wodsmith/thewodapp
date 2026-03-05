@@ -258,12 +258,12 @@ export function AddressFields<T extends FieldValues>({
 				)}
 			/>
 
-			<div className="grid grid-cols-6 gap-4">
+			<div className="grid grid-cols-1 sm:grid-cols-6 gap-4">
 				<FormField
 					control={form.control}
 					name={getFieldName("city")}
 					render={({ field }) => (
-						<FormItem className="col-span-2">
+						<FormItem className="sm:col-span-2">
 							<FormLabel>City</FormLabel>
 							<FormControl>
 								<Input
@@ -281,7 +281,7 @@ export function AddressFields<T extends FieldValues>({
 					control={form.control}
 					name={getFieldName("stateProvince")}
 					render={({ field }) => (
-						<FormItem className="col-span-2">
+						<FormItem className="sm:col-span-2">
 							<FormLabel>
 								{countryCode === "CA" ? "Province" : "State"}
 							</FormLabel>
@@ -311,7 +311,7 @@ export function AddressFields<T extends FieldValues>({
 					control={form.control}
 					name={getFieldName("postalCode")}
 					render={({ field }) => (
-						<FormItem className="col-span-2">
+						<FormItem className="sm:col-span-2">
 							<FormLabel>Postal Code</FormLabel>
 							<FormControl>
 								<Input

@@ -604,7 +604,7 @@ export function VolunteerRow({
 
 			{/* Responses Drawer */}
 			<Sheet open={showResponses} onOpenChange={setShowResponses}>
-				<SheetContent className="w-[400px] sm:w-[540px]">
+				<SheetContent className="w-full sm:w-[400px] lg:w-[540px]">
 					<SheetHeader>
 						<SheetTitle>Registration Responses — {displayName}</SheetTitle>
 					</SheetHeader>
