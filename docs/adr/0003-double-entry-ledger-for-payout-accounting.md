@@ -50,7 +50,7 @@ Option A is the gold standard for payout systems (used by Stripe, Airbnb, Uber i
 * Good, because Stripe webhook handlers for disputes/chargebacks now update local state
 * Good, because incrementally upgradable to full double-entry if needed
 * Bad, because adds write overhead (one extra INSERT per financial event)
-* Bad, because existing purchases lack historical event logs (only new events going forward)
+* Good, because backfill from Stripe ensures Jan 2026+ purchases have full event history from day one
 * Neutral, because revenue stats queries remain unchanged — they still read from `commerce_purchases`
 
 ### Non-Goals
@@ -58,7 +58,7 @@ Option A is the gold standard for payout systems (used by Stripe, Airbnb, Uber i
 * Full double-entry ledger with named accounts (ASSETS, LIABILITIES, REVENUE) — deferred to Option A if needed
 * Automated Stripe reconciliation reports — manual comparison for V1
 * Modifying fee calculation logic — that stays as-is
-* Retroactively generating event logs for existing purchases
+* Retroactively generating event logs for purchases **before** January 2026
 
 ## Implementation Plan
 
@@ -185,7 +185,166 @@ This catches fee calculation bugs at INSERT time rather than letting them propag
 
 **Note**: This is a data integrity safeguard, not a replacement for correct fee calculation. The fee calculator already computes these correctly — this just makes the invariant explicit and enforced.
 
-### Phase 5: Reconciliation Query (Future)
+### Phase 5: Backfill Historical Data from Stripe (Jan 2026+)
+
+After the event log table exists (Phase 1) and the recording logic is live (Phases 2-3), backfill all historical transactions from January 1, 2026 onward. This ensures the ledger is complete from the start of meaningful transaction volume — no gap between "old" and "new" data.
+
+**New script: `scripts/backfill-financial-events.ts`**
+
+A one-time CLI script (not a server function) that:
+
+1. **Fetches all COMPLETED purchases from D1** with `completedAt >= 2026-01-01`:
+
+```typescript
+const cutoff = new Date("2026-01-01T00:00:00Z")
+const purchases = await db.select()
+  .from(commercePurchaseTable)
+  .where(
+    and(
+      eq(commercePurchaseTable.status, "COMPLETED"),
+      gte(commercePurchaseTable.completedAt, cutoff),
+    )
+  )
+```
+
+2. **For each purchase with a `stripePaymentIntentId`**, fetch the PaymentIntent from Stripe to get authoritative amounts and check for refunds/disputes:
+
+```typescript
+const stripe = new Stripe(env.STRIPE_SECRET_KEY)
+
+for (const purchase of purchases) {
+  if (!purchase.stripePaymentIntentId) continue
+
+  // Skip if events already exist for this purchase (idempotency)
+  const existing = await db.select({ id: financialEventTable.id })
+    .from(financialEventTable)
+    .where(eq(financialEventTable.purchaseId, purchase.id))
+    .limit(1)
+  if (existing.length > 0) continue
+
+  const pi = await stripe.paymentIntents.retrieve(
+    purchase.stripePaymentIntentId,
+    { expand: ["charges.data.refunds", "charges.data.dispute"] }
+  )
+
+  // ... generate events (see below)
+}
+```
+
+3. **Generate `PAYMENT_COMPLETED` event** for every successful purchase, using the local fee breakdown as metadata:
+
+```typescript
+events.push({
+  purchaseId: purchase.id,
+  teamId: purchase.teamId,
+  eventType: FINANCIAL_EVENT_TYPE.PAYMENT_COMPLETED,
+  amountCents: purchase.totalCents,
+  stripePaymentIntentId: purchase.stripePaymentIntentId,
+  reason: "Backfill: checkout completed",
+  metadata: {
+    platformFeeCents: purchase.platformFeeCents,
+    stripeFeeCents: purchase.stripeFeeCents,
+    organizerNetCents: purchase.organizerNetCents,
+    backfilled: true,
+  },
+  createdAt: purchase.completedAt,        // preserve original timestamp
+  stripeEventTimestamp: purchase.completedAt,
+})
+```
+
+4. **Check for refunds on the PaymentIntent** and generate `REFUND_COMPLETED` events:
+
+```typescript
+for (const charge of pi.charges.data) {
+  if (charge.refunds?.data) {
+    for (const refund of charge.refunds.data) {
+      if (refund.status === "succeeded") {
+        events.push({
+          purchaseId: purchase.id,
+          teamId: purchase.teamId,
+          eventType: FINANCIAL_EVENT_TYPE.REFUND_COMPLETED,
+          amountCents: -refund.amount,           // negative = money out
+          stripePaymentIntentId: purchase.stripePaymentIntentId,
+          stripeRefundId: refund.id,
+          reason: `Backfill: ${refund.reason || "refund via Stripe"}`,
+          metadata: { backfilled: true },
+          createdAt: new Date(refund.created * 1000),
+          stripeEventTimestamp: new Date(refund.created * 1000),
+        })
+      }
+    }
+  }
+}
+```
+
+5. **Check for disputes** and generate `DISPUTE_OPENED` / `DISPUTE_WON` / `DISPUTE_LOST` events:
+
+```typescript
+for (const charge of pi.charges.data) {
+  if (charge.dispute) {
+    const dispute = charge.dispute as Stripe.Dispute
+
+    events.push({
+      purchaseId: purchase.id,
+      teamId: purchase.teamId,
+      eventType: FINANCIAL_EVENT_TYPE.DISPUTE_OPENED,
+      amountCents: -dispute.amount,
+      stripePaymentIntentId: purchase.stripePaymentIntentId,
+      stripeDisputeId: dispute.id,
+      reason: `Backfill: dispute ${dispute.reason}`,
+      metadata: { backfilled: true },
+      createdAt: new Date(dispute.created * 1000),
+      stripeEventTimestamp: new Date(dispute.created * 1000),
+    })
+
+    if (dispute.status === "won") {
+      events.push({
+        purchaseId: purchase.id,
+        teamId: purchase.teamId,
+        eventType: FINANCIAL_EVENT_TYPE.DISPUTE_WON,
+        amountCents: dispute.amount,  // money returned
+        stripeDisputeId: dispute.id,
+        reason: "Backfill: dispute resolved in our favor",
+        metadata: { backfilled: true },
+      })
+    } else if (dispute.status === "lost") {
+      events.push({
+        purchaseId: purchase.id,
+        teamId: purchase.teamId,
+        eventType: FINANCIAL_EVENT_TYPE.DISPUTE_LOST,
+        amountCents: 0,
+        stripeDisputeId: dispute.id,
+        reason: "Backfill: dispute resolved in customer's favor",
+        metadata: { backfilled: true },
+      })
+    }
+  }
+}
+```
+
+6. **Batch insert events** using `autochunk` to respect the D1 100-parameter limit:
+
+```typescript
+import { autochunk } from "@/utils/batch-query"
+
+await autochunk(
+  { items: events, otherParametersCount: 0 },
+  async (chunk) => db.insert(financialEventTable).values(chunk),
+)
+```
+
+**Operational considerations:**
+
+- **Stripe rate limits**: The script should respect Stripe's 100 requests/second limit. Add a 50ms delay between PaymentIntent fetches, or use `p-limit` to cap concurrency at 20.
+- **Idempotency**: The script checks for existing events before inserting, so it's safe to re-run if interrupted.
+- **Dry-run mode**: Add a `--dry-run` flag that logs what would be inserted without writing to D1. Run this first to verify counts.
+- **Progress logging**: Log every 50 purchases processed so operators can monitor progress and estimate completion.
+- **Metadata tagging**: Every backfilled event includes `backfilled: true` in metadata so they're distinguishable from live events in queries.
+- **Run order**: Run this script **after** Phases 1-4 are deployed and **before** enabling any reconciliation queries (Phase 6). The event log must be complete before reconciliation makes sense.
+
+**Also update `commerce_purchases.status`**: If a Stripe PaymentIntent shows as refunded but the local purchase is still COMPLETED, the script should flag it for manual review (log a warning, don't auto-update status). This prevents silent state changes on purchases that may have downstream effects (e.g., registration status).
+
+### Phase 6: Reconciliation Query (Future)
 
 Once the event log is populated, build a reconciliation function:
 
@@ -223,6 +382,7 @@ This lets us answer "does our local state match reality?" for any purchase.
 | `src/routes/api/webhooks/stripe.ts` | Add dispute webhook handlers |
 | `src/server/commerce/financial-events.ts` | **New** — helper functions for inserting events |
 | `src/server-fns/commerce-fns.ts` | Add refund history query for organizer dashboard |
+| `scripts/backfill-financial-events.ts` | **New** — one-time Stripe backfill script for Jan 2026+ data |
 
 ### Dependencies
 
@@ -242,6 +402,13 @@ No new packages. Uses existing Drizzle ORM and Stripe SDK.
 - [ ] CHECK constraint prevents inserting purchases where fees don't sum to total
 - [ ] Existing checkout flow is unaffected (event log is additive)
 - [ ] Revenue stats still work (they read from `commerce_purchases`, not the event log)
+- [ ] Backfill script in dry-run mode reports correct counts matching COMPLETED purchases from Jan 2026+
+- [ ] Backfill script generates `PAYMENT_COMPLETED` events for all historical purchases with `stripePaymentIntentId`
+- [ ] Backfill script discovers and records refunds from Stripe that are not tracked locally
+- [ ] Backfill script discovers and records disputes/chargebacks from Stripe
+- [ ] Backfill script is idempotent — re-running produces no duplicate events
+- [ ] All backfilled events have `backfilled: true` in metadata
+- [ ] Purchases with Stripe refund status but local COMPLETED status are flagged for review (not auto-updated)
 - [ ] `pnpm type-check` passes
 - [ ] `pnpm test` passes
 
