@@ -436,6 +436,9 @@ export function VideoSubmissionForm({
 					notes: notes.trim() || null,
 					submittedAt: submissionData?.submittedAt ?? new Date(),
 					updatedAt: new Date(),
+					reviewStatus: submissionData?.reviewStatus ?? "pending",
+					statusUpdatedAt: submissionData?.statusUpdatedAt ?? null,
+					reviewerNotes: submissionData?.reviewerNotes ?? null,
 				})
 				if (scoreInput.trim() && workout && parseResult) {
 					setScoreData({

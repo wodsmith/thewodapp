@@ -248,6 +248,22 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
 					performedAt: now,
 				})
 
+				// Update the corresponding video submission's review status
+				await db
+					.update(videoSubmissionsTable)
+					.set({
+						reviewStatus: "verified",
+						statusUpdatedAt: now,
+						reviewedAt: now,
+						reviewedBy: session.userId,
+					})
+					.where(
+						and(
+							eq(videoSubmissionsTable.userId, score.userId),
+							eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
+						),
+					)
+
 				logInfo({
 					message: "[Score] Organizer verified score",
 					attributes: {
@@ -358,6 +374,22 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
 				performedByUserId: session.userId,
 				performedAt: now,
 			})
+
+			// Update the corresponding video submission's review status
+			await db
+				.update(videoSubmissionsTable)
+				.set({
+					reviewStatus: "adjusted",
+					statusUpdatedAt: now,
+					reviewedAt: now,
+					reviewedBy: session.userId,
+				})
+				.where(
+					and(
+						eq(videoSubmissionsTable.userId, score.userId),
+						eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
+					),
+				)
 
 			logInfo({
 				message: "[Score] Organizer adjusted score",
