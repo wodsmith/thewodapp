@@ -336,134 +336,234 @@ export function CompetitionEventRow({
 					open={isDescriptionsOpen}
 					onOpenChange={setIsDescriptionsOpen}
 				>
-					<CardContent className="p-4">
-						<div className="flex items-center gap-3">
-							{/* Drag Handle - subtle, shows more prominently on hover */}
-							<button
-								ref={dragHandleRef}
-								type="button"
-								className="cursor-grab active:cursor-grabbing opacity-30 group-hover:opacity-100 transition-opacity p-1 -m-1"
-								aria-label="Drag to reorder"
-							>
-								<GripVertical className="h-5 w-5 text-muted-foreground" />
-							</button>
-
-							{/* Event Number */}
-							<span className="text-sm font-mono text-muted-foreground w-6">
-								#{index + 1}
-							</span>
-
-							{/* Event Name */}
-							<span className="flex-1 font-medium truncate">
-								{event.workout.name}
-							</span>
-
-							{/* Scheme badge */}
-							{event.workout.scheme && (
-								<span className="text-xs bg-muted px-2 py-1 rounded shrink-0">
-									{event.workout.scheme}
-								</span>
-							)}
-
-							{/* Tiebreak badge */}
-							{event.workout.tiebreakScheme && (
-								<span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200 px-2 py-1 rounded shrink-0">
-									TB: {event.workout.tiebreakScheme}
-								</span>
-							)}
-
-							{/* Points multiplier badge */}
-							{event.pointsMultiplier && event.pointsMultiplier !== 100 && (
-								<span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded shrink-0">
-									{event.pointsMultiplier / 100}x
-								</span>
-							)}
-
-							{/* Presented by sponsor badge */}
-							{event.sponsorId && (
-								<span className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 px-2 py-1 rounded shrink-0">
-									Presented by{" "}
-									{sponsors.find((s) => s.id === event.sponsorId)?.name ??
-										"Sponsor"}
-								</span>
-							)}
-
-							{/* Event Status Toggle */}
-							<Select
-								value={localEventStatus}
-								onValueChange={(value) =>
-									handleEventStatusChange(value as EventStatus)
-								}
-								disabled={isUpdatingStatus}
-							>
-								<SelectTrigger className="w-[110px] h-8 text-xs">
-									<SelectValue>
-										<span className="flex items-center gap-1.5">
-											{localEventStatus === EVENT_STATUS.PUBLISHED ? (
-												<Eye className="h-3.5 w-3.5 text-green-600" />
-											) : (
-												<EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
-											)}
-											{localEventStatus === EVENT_STATUS.PUBLISHED
-												? "Published"
-												: "Draft"}
-										</span>
-									</SelectValue>
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value={EVENT_STATUS.DRAFT}>
-										<span className="flex items-center gap-2">
-											<EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
-											Draft
-										</span>
-									</SelectItem>
-									<SelectItem value={EVENT_STATUS.PUBLISHED}>
-										<span className="flex items-center gap-2">
-											<Eye className="h-3.5 w-3.5 text-green-600" />
-											Published
-										</span>
-									</SelectItem>
-								</SelectContent>
-							</Select>
-
-							{/* Actions */}
-							<div className="flex items-center gap-1 shrink-0">
-								{/* Division Descriptions Toggle */}
-								{sortedDivisions.length > 0 && (
-									<CollapsibleTrigger asChild>
-										<Button
-											variant="ghost"
-											size="icon"
-											className={`text-muted-foreground hover:text-foreground ${isDescriptionsOpen ? "bg-muted" : ""}`}
-										>
-											<SlidersHorizontal className="h-4 w-4" />
-										</Button>
-									</CollapsibleTrigger>
-								)}
-								<Button
-									variant="ghost"
-									size="icon"
-									asChild
-									className="text-muted-foreground hover:text-foreground"
+					<CardContent className="p-3 sm:p-4">
+						<div className="flex flex-col gap-2 sm:gap-0">
+							{/* Top row: drag handle, number, name */}
+							<div className="flex items-center gap-2 sm:gap-3">
+								{/* Drag Handle */}
+								<button
+									ref={dragHandleRef}
+									type="button"
+									className="cursor-grab active:cursor-grabbing opacity-30 group-hover:opacity-100 transition-opacity p-1 -m-1"
+									aria-label="Drag to reorder"
 								>
-									<Link
-										to="/compete/organizer/$competitionId/events/$eventId"
-										params={{
-											competitionId: competitionId,
-											eventId: event.id,
-										}}
+									<GripVertical className="h-5 w-5 text-muted-foreground" />
+								</button>
+
+								{/* Event Number */}
+								<span className="text-sm font-mono text-muted-foreground shrink-0">
+									#{index + 1}
+								</span>
+
+								{/* Event Name */}
+								<span className="flex-1 font-medium truncate min-w-0">
+									{event.workout.name}
+								</span>
+
+								{/* Badges - hidden on mobile, shown on desktop */}
+								<div className="hidden sm:flex items-center gap-1.5">
+									{event.workout.scheme && (
+										<span className="text-xs bg-muted px-2 py-1 rounded shrink-0">
+											{event.workout.scheme}
+										</span>
+									)}
+									{event.workout.tiebreakScheme && (
+										<span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200 px-2 py-1 rounded shrink-0">
+											TB: {event.workout.tiebreakScheme}
+										</span>
+									)}
+									{event.pointsMultiplier && event.pointsMultiplier !== 100 && (
+										<span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded shrink-0">
+											{event.pointsMultiplier / 100}x
+										</span>
+									)}
+									{event.sponsorId && (
+										<span className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 px-2 py-1 rounded shrink-0">
+											Presented by{" "}
+											{sponsors.find((s) => s.id === event.sponsorId)?.name ??
+												"Sponsor"}
+										</span>
+									)}
+								</div>
+
+								{/* Event Status Toggle - hidden on mobile */}
+								<div className="hidden sm:block">
+									<Select
+										value={localEventStatus}
+										onValueChange={(value) =>
+											handleEventStatusChange(value as EventStatus)
+										}
+										disabled={isUpdatingStatus}
 									>
-										<Pencil className="h-4 w-4" />
-									</Link>
-								</Button>
-								<Button
-									variant="ghost"
-									size="icon"
-									onClick={onRemove}
-									className="text-muted-foreground hover:text-destructive"
-								>
-									<Trash2 className="h-4 w-4" />
-								</Button>
+										<SelectTrigger className="w-[110px] h-8 text-xs shrink-0">
+											<SelectValue>
+												<span className="flex items-center gap-1.5">
+													{localEventStatus === EVENT_STATUS.PUBLISHED ? (
+														<Eye className="h-3.5 w-3.5 text-green-600" />
+													) : (
+														<EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+													)}
+													{localEventStatus === EVENT_STATUS.PUBLISHED
+														? "Published"
+														: "Draft"}
+												</span>
+											</SelectValue>
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value={EVENT_STATUS.DRAFT}>
+												<span className="flex items-center gap-2">
+													<EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+													Draft
+												</span>
+											</SelectItem>
+											<SelectItem value={EVENT_STATUS.PUBLISHED}>
+												<span className="flex items-center gap-2">
+													<Eye className="h-3.5 w-3.5 text-green-600" />
+													Published
+												</span>
+											</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+
+								{/* Actions - hidden on mobile */}
+								<div className="hidden sm:flex items-center gap-1 shrink-0">
+									{sortedDivisions.length > 0 && (
+										<CollapsibleTrigger asChild>
+											<Button
+												variant="ghost"
+												size="icon"
+												className={`text-muted-foreground hover:text-foreground ${isDescriptionsOpen ? "bg-muted" : ""}`}
+											>
+												<SlidersHorizontal className="h-4 w-4" />
+											</Button>
+										</CollapsibleTrigger>
+									)}
+									<Button
+										variant="ghost"
+										size="icon"
+										asChild
+										className="text-muted-foreground hover:text-foreground"
+									>
+										<Link
+											to="/compete/organizer/$competitionId/events/$eventId"
+											params={{
+												competitionId: competitionId,
+												eventId: event.id,
+											}}
+										>
+											<Pencil className="h-4 w-4" />
+										</Link>
+									</Button>
+									<Button
+										variant="ghost"
+										size="icon"
+										onClick={onRemove}
+										className="text-muted-foreground hover:text-destructive"
+									>
+										<Trash2 className="h-4 w-4" />
+									</Button>
+								</div>
+							</div>
+
+							{/* Second row - badges, status, actions - visible only on mobile */}
+							<div className="flex items-center gap-1.5 sm:hidden">
+								<div className="flex flex-wrap items-center gap-1.5 min-w-0">
+									{event.workout.scheme && (
+										<span className="text-xs bg-muted px-2 py-1 rounded">
+											{event.workout.scheme}
+										</span>
+									)}
+									{event.workout.tiebreakScheme && (
+										<span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200 px-2 py-1 rounded">
+											TB: {event.workout.tiebreakScheme}
+										</span>
+									)}
+									{event.pointsMultiplier && event.pointsMultiplier !== 100 && (
+										<span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+											{event.pointsMultiplier / 100}x
+										</span>
+									)}
+									{event.sponsorId && (
+										<span className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 px-2 py-1 rounded">
+											{sponsors.find((s) => s.id === event.sponsorId)?.name ??
+												"Sponsor"}
+										</span>
+									)}
+									<Select
+										value={localEventStatus}
+										onValueChange={(value) =>
+											handleEventStatusChange(value as EventStatus)
+										}
+										disabled={isUpdatingStatus}
+									>
+										<SelectTrigger className="w-[110px] h-8 text-xs">
+											<SelectValue>
+												<span className="flex items-center gap-1.5">
+													{localEventStatus === EVENT_STATUS.PUBLISHED ? (
+														<Eye className="h-3.5 w-3.5 text-green-600" />
+													) : (
+														<EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+													)}
+													{localEventStatus === EVENT_STATUS.PUBLISHED
+														? "Published"
+														: "Draft"}
+												</span>
+											</SelectValue>
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value={EVENT_STATUS.DRAFT}>
+												<span className="flex items-center gap-2">
+													<EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+													Draft
+												</span>
+											</SelectItem>
+											<SelectItem value={EVENT_STATUS.PUBLISHED}>
+												<span className="flex items-center gap-2">
+													<Eye className="h-3.5 w-3.5 text-green-600" />
+													Published
+												</span>
+											</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+								<div className="flex items-center gap-1 shrink-0 ml-auto">
+									{sortedDivisions.length > 0 && (
+										<CollapsibleTrigger asChild>
+											<Button
+												variant="ghost"
+												size="icon"
+												className={`text-muted-foreground hover:text-foreground ${isDescriptionsOpen ? "bg-muted" : ""}`}
+											>
+												<SlidersHorizontal className="h-4 w-4" />
+											</Button>
+										</CollapsibleTrigger>
+									)}
+									<Button
+										variant="ghost"
+										size="icon"
+										asChild
+										className="text-muted-foreground hover:text-foreground"
+									>
+										<Link
+											to="/compete/organizer/$competitionId/events/$eventId"
+											params={{
+												competitionId: competitionId,
+												eventId: event.id,
+											}}
+										>
+											<Pencil className="h-4 w-4" />
+										</Link>
+									</Button>
+									<Button
+										variant="ghost"
+										size="icon"
+										onClick={onRemove}
+										className="text-muted-foreground hover:text-destructive"
+									>
+										<Trash2 className="h-4 w-4" />
+									</Button>
+								</div>
 							</div>
 						</div>
 

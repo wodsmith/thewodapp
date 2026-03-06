@@ -44,6 +44,7 @@ import {
 	SidebarProvider,
 	SidebarRail,
 	SidebarTrigger,
+	useSidebar,
 } from "@/components/ui/sidebar"
 import { cn } from "@/utils/cn"
 
@@ -162,6 +163,7 @@ const getNavigation = (
 function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
 	const Icon = item.icon
 	const isDestructive = item.variant === "destructive"
+	const { setOpenMobile } = useSidebar()
 
 	return (
 		<SidebarMenuItem>
@@ -176,7 +178,7 @@ function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
 					isDestructive && isActive && "bg-destructive/10 text-destructive",
 				)}
 			>
-				<Link to={item.href}>
+				<Link to={item.href} onClick={() => setOpenMobile(false)}>
 					<Icon
 						className={cn("h-4 w-4", isDestructive && "text-destructive")}
 					/>
