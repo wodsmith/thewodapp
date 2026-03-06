@@ -203,7 +203,7 @@ export function HeatSchedulePublishingCard({
 	return (
 		<Card>
 			<CardHeader className="pb-3">
-				<div className="flex items-center justify-between">
+				<div className="flex flex-wrap items-center justify-between gap-2">
 					<CardTitle className="flex items-center gap-2 text-lg">
 						<Globe className="h-5 w-5" />
 						Heat Schedule Publishing
@@ -223,7 +223,7 @@ export function HeatSchedulePublishingCard({
 			</CardHeader>
 			<CardContent className="space-y-4">
 				{/* Bulk Actions */}
-				<div className="flex gap-2">
+				<div className="flex flex-wrap gap-2">
 					<Button
 						variant={allPublished ? "outline" : "default"}
 						size="sm"
@@ -261,7 +261,7 @@ export function HeatSchedulePublishingCard({
 								key={status.heatId}
 								className="flex items-center justify-between px-4 py-3"
 							>
-								<div className="flex items-center gap-3">
+								<div className="flex items-center gap-2 sm:gap-3">
 									{status.isPublished ? (
 										<CheckCircle2 className="h-5 w-5 text-green-600" />
 									) : (
@@ -272,7 +272,7 @@ export function HeatSchedulePublishingCard({
 											Heat {status.heatNumber}
 										</span>
 										{status.scheduledTime && (
-											<span className="text-sm text-muted-foreground ml-2">
+											<span className="text-sm text-muted-foreground ml-2 hidden sm:inline">
 												{formatTime(status.scheduledTime)}
 											</span>
 										)}

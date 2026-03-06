@@ -261,7 +261,7 @@ export function PricingSettingsForm({
 			{/* Platform Fee Info */}
 			<Card>
 				<CardHeader>
-					<div className="flex items-center justify-between">
+					<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 						<div>
 							<CardTitle>Platform Fee Structure</CardTitle>
 							<CardDescription>
@@ -326,7 +326,7 @@ export function PricingSettingsForm({
 								return (
 									<div
 										key={division.id}
-										className="flex items-center justify-between gap-4 p-4 border rounded-lg"
+										className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 border rounded-lg"
 									>
 										<div className="flex items-center gap-3">
 											{isTeam ? (
@@ -344,7 +344,7 @@ export function PricingSettingsForm({
 										</div>
 
 										<div className="flex items-center gap-3">
-											<div className="relative w-32">
+											<div className="relative w-full sm:w-32">
 												<span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
 													$
 												</span>

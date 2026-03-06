@@ -44,6 +44,7 @@ import {
 	SidebarProvider,
 	SidebarRail,
 	SidebarTrigger,
+	useSidebar,
 } from "@/components/ui/sidebar"
 import { cn } from "@/utils/cn"
 
@@ -162,6 +163,7 @@ const getNavigation = (
 function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
 	const Icon = item.icon
 	const isDestructive = item.variant === "destructive"
+	const { setOpenMobile } = useSidebar()
 
 	return (
 		<SidebarMenuItem>
@@ -176,7 +178,7 @@ function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
 					isDestructive && isActive && "bg-destructive/10 text-destructive",
 				)}
 			>
-				<Link to={item.href}>
+				<Link to={item.href} onClick={() => setOpenMobile(false)}>
 					<Icon
 						className={cn("h-4 w-4", isDestructive && "text-destructive")}
 					/>
@@ -295,7 +297,7 @@ export function CompetitionSidebar({
 				<CompetitionSidebarFooter />
 			</Sidebar>
 			<SidebarInset>
-				<header className="flex h-14 items-center gap-2 border-b px-3 md:hidden">
+				<header className="fixed top-0 left-0 right-0 z-40 flex h-14 items-center gap-2 border-b bg-background px-3 md:hidden">
 					<SidebarTrigger className="-ml-1">
 						<Menu className="h-5 w-5" />
 					</SidebarTrigger>
@@ -314,6 +316,7 @@ export function CompetitionSidebar({
 						</span>
 					</Link>
 				</header>
+				<div className="h-14 md:hidden" />
 				{children}
 			</SidebarInset>
 		</SidebarProvider>

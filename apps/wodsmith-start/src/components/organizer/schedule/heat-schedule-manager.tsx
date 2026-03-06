@@ -1187,7 +1187,7 @@ export function HeatScheduleManager({
 
 			{/* Heat Status Row */}
 			{selectedEvent && (
-				<div className="flex items-center gap-3">
+				<div className="flex flex-col sm:flex-row sm:items-center gap-3">
 					<Label className="whitespace-nowrap text-sm flex items-center gap-1.5">
 						{selectedEvent.heatStatus === "published" ? (
 							<Eye className="h-4 w-4 text-green-600" />
@@ -1206,7 +1206,7 @@ export function HeatScheduleManager({
 						}
 						disabled={isUpdatingWorkout}
 					>
-						<SelectTrigger className="w-[130px]">
+						<SelectTrigger className="w-full sm:w-[130px]">
 							<SelectValue />
 						</SelectTrigger>
 						<SelectContent>
@@ -1233,13 +1233,13 @@ export function HeatScheduleManager({
 			)}
 
 			{/* Event & Venue Selector */}
-			<div className="flex flex-wrap items-center gap-4">
-				<div className="flex items-center gap-2">
+			<div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-4">
+				<div className="flex flex-col sm:flex-row sm:items-center gap-2">
 					<Label htmlFor="event-select" className="whitespace-nowrap">
 						Event:
 					</Label>
 					<Select value={selectedEventId} onValueChange={setSelectedEventId}>
-						<SelectTrigger id="event-select" className="w-[250px]">
+						<SelectTrigger id="event-select" className="w-full sm:w-[250px]">
 							<SelectValue placeholder="Select an event" />
 						</SelectTrigger>
 						<SelectContent>
@@ -1254,12 +1254,12 @@ export function HeatScheduleManager({
 				</div>
 
 				{venues.length > 0 && (
-					<div className="flex items-center gap-2">
+					<div className="flex flex-col sm:flex-row sm:items-center gap-2">
 						<Label htmlFor="venue-select" className="whitespace-nowrap">
 							Venue:
 						</Label>
 						<Select value={selectedVenueId} onValueChange={setSelectedVenueId}>
-							<SelectTrigger id="venue-select" className="w-[180px]">
+							<SelectTrigger id="venue-select" className="w-full sm:w-[180px]">
 								<SelectValue placeholder="Select venue" />
 							</SelectTrigger>
 							<SelectContent>
@@ -1783,7 +1783,7 @@ export function HeatScheduleManager({
 			{selectedEvent && <WorkoutPreview event={selectedEvent} />}
 
 			{/* Stats */}
-			<div className="flex gap-4 text-sm text-muted-foreground">
+			<div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
 				<span>{eventHeats.length} heats</span>
 				<span>•</span>
 				<span>{assignedRegistrationIds.size} assigned</span>

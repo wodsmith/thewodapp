@@ -84,7 +84,7 @@ export function QuickActionsHeats({
 	return (
 		<Card>
 			<CardHeader className="pb-3">
-				<div className="flex items-center justify-between">
+				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 					<div className="flex items-center gap-2">
 						<Calendar className="h-4 w-4 text-muted-foreground" />
 						<div>
@@ -139,7 +139,7 @@ export function QuickActionsHeats({
 									}
 									disabled={isDisabled}
 								>
-									<SelectTrigger className="w-[110px] h-7 text-xs">
+									<SelectTrigger className="w-full sm:w-[110px] h-7 text-xs">
 										{pendingEvents.has(event.id) ? (
 											<Loader2 className="h-3.5 w-3.5 animate-spin" />
 										) : (
