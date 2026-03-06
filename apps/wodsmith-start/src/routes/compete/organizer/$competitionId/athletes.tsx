@@ -28,7 +28,7 @@ import {
 	UserPlus,
 	X,
 } from "lucide-react"
-import { useState } from "react"
+import React, { useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
 import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
@@ -1156,7 +1156,297 @@ function AthletesPage() {
 									</CardHeader>
 								</Card>
 							) : (
-								<Card>
+								<>
+								{/* Mobile card view */}
+								<div className="flex flex-col gap-3 md:hidden">
+									{sortedAthleteRows.map((row) => {
+										const isRowRemoved = row.registrationStatus === "removed"
+										return (
+											<Card
+												key={`mobile-${row.registrationId}-${row.athlete.id}`}
+												className={isRowRemoved ? "opacity-50" : ""}
+											>
+												<CardContent className="p-4">
+													<div className="flex items-start justify-between gap-2">
+														<div className="flex items-center gap-3 min-w-0">
+															<span className="font-mono text-xs text-muted-foreground shrink-0">
+																{row.ordinalLabel}
+															</span>
+															<Avatar className="h-8 w-8 shrink-0">
+																<AvatarImage
+																	src={row.athlete.avatar ?? undefined}
+																	alt={`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`}
+																/>
+																<AvatarFallback className="text-xs">
+																	{row.status === "accepted" &&
+																	row.pendingInvite?.guestName
+																		? getInitialsFromName(
+																				row.pendingInvite.guestName,
+																			)
+																		: getInitials(
+																				row.athlete.firstName,
+																				row.athlete.lastName,
+																			)}
+																</AvatarFallback>
+															</Avatar>
+															<div className="flex flex-col min-w-0">
+																<span className="font-medium truncate">
+																	{row.status === "pending" ? (
+																		<span className="italic text-muted-foreground">
+																			Invited
+																		</span>
+																	) : row.status === "accepted" ? (
+																		row.pendingInvite?.guestName ? (
+																			<span>{row.pendingInvite.guestName}</span>
+																		) : (
+																			<span className="italic text-muted-foreground">
+																				Invited
+																			</span>
+																		)
+																	) : (
+																		<>
+																			{row.athlete.firstName ?? ""}{" "}
+																			{row.athlete.lastName ?? ""}
+																			{row.isCaptain && row.teamName && (
+																				<span className="text-xs text-muted-foreground ml-1">
+																					(captain)
+																				</span>
+																			)}
+																		</>
+																	)}
+																</span>
+																<span className="text-xs text-muted-foreground truncate">
+																	{row.athlete.email}
+																</span>
+															</div>
+														</div>
+														{row.isCaptain && !isRowRemoved && (
+															<DropdownMenu>
+																<DropdownMenuTrigger asChild>
+																	<Button
+																		variant="ghost"
+																		size="icon"
+																		className="h-8 w-8 shrink-0"
+																		aria-label="Open registration actions"
+																	>
+																		<MoreHorizontal className="h-4 w-4" />
+																	</Button>
+																</DropdownMenuTrigger>
+																<DropdownMenuContent align="end">
+																	<DropdownMenuItem
+																		onClick={() => {
+																			const athleteName =
+																				`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
+																				row.athlete.email ||
+																				"Unknown"
+																			setTransferTarget({
+																				id: row.registrationId,
+																				athleteName,
+																				userId: row.athlete.id,
+																				divisionId: row.division?.id ?? null,
+																				divisionLabel: row.division?.label ?? null,
+																				teamSize: row.division?.teamSize ?? 1,
+																			})
+																		}}
+																	>
+																		<ArrowRight className="h-4 w-4 mr-2" />
+																		Change Division
+																	</DropdownMenuItem>
+																	{(() => {
+																		const pendingTransfer = pendingTransfers.find(
+																			(t) => t.purchaseId === row.commercePurchaseId,
+																		)
+																		const athleteName =
+																			`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
+																			row.athlete.email ||
+																			"Unknown"
+																		if (pendingTransfer) {
+																			return (
+																				<DropdownMenuItem
+																					className="text-destructive focus:text-destructive"
+																					onClick={() => handleCancelTransfer(pendingTransfer.id)}
+																				>
+																					<X className="h-4 w-4 mr-2" />
+																					Cancel Transfer
+																				</DropdownMenuItem>
+																			)
+																		}
+																		return (
+																			<DropdownMenuItem
+																				onClick={() =>
+																					setTransferRegistrationTarget({
+																						id: row.registrationId,
+																						athleteName,
+																						divisionId: row.division?.id ?? null,
+																						divisionLabel: row.division?.label ?? null,
+																						commercePurchaseId: row.commercePurchaseId ?? null,
+																					})
+																				}
+																				disabled={!row.commercePurchaseId}
+																			>
+																				<UserPlus className="h-4 w-4 mr-2" />
+																				Transfer Registration
+																			</DropdownMenuItem>
+																		)
+																	})()}
+																	<DropdownMenuItem
+																		className="text-destructive focus:text-destructive"
+																		onClick={() =>
+																			setRemovingRegistration({
+																				id: row.registrationId,
+																				athleteName:
+																					`${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
+																					row.athlete.email ||
+																					"Unknown",
+																				teamName: row.teamName,
+																			})
+																		}
+																	>
+																		<Trash2 className="h-4 w-4 mr-2" />
+																		Remove Registration
+																	</DropdownMenuItem>
+																</DropdownMenuContent>
+															</DropdownMenu>
+														)}
+													</div>
+													<div className="mt-3 flex flex-wrap items-center gap-2">
+														{isRowRemoved ? (
+															<Badge variant="destructive" className="text-xs">
+																Removed
+															</Badge>
+														) : row.status === "pending" ? (
+															<Badge
+																variant="outline"
+																className="text-xs bg-yellow-50 text-yellow-700 border-yellow-300"
+															>
+																Invite Pending
+															</Badge>
+														) : row.status === "accepted" ? (
+															<Badge
+																variant="outline"
+																className="text-xs bg-green-50 text-green-700 border-green-300"
+															>
+																Invite Accepted
+															</Badge>
+														) : row.commercePurchaseId &&
+															pendingTransfers.some(
+																(t) => t.purchaseId === row.commercePurchaseId,
+															) ? (
+															<div className="flex items-center gap-1">
+																<Badge
+																	variant="outline"
+																	className="text-xs bg-yellow-50 text-yellow-700 border-yellow-300"
+																>
+																	Transfer Pending
+																</Badge>
+																<button
+																	type="button"
+																	className="text-muted-foreground hover:text-foreground p-0.5 rounded"
+																	title="Copy transfer link"
+																	onClick={async () => {
+																		const transfer = pendingTransfers.find(
+																			(t) => t.purchaseId === row.commercePurchaseId,
+																		)
+																		if (transfer) {
+																			try {
+																				await navigator.clipboard.writeText(
+																					`${window.location.origin}/transfer/${transfer.id}`,
+																				)
+																				toast.success("Transfer link copied to clipboard")
+																			} catch {
+																				toast.error("Failed to copy link")
+																			}
+																		}
+																	}}
+																>
+																	<Link2 className="h-3.5 w-3.5" />
+																</button>
+															</div>
+														) : null}
+														{row.division && (
+															<Badge variant="outline" className="text-xs">
+																{row.division.label}
+															</Badge>
+														)}
+													</div>
+													<div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+														{row.teamName && (
+															<>
+																<span className="text-muted-foreground">Team</span>
+																<span className="font-medium truncate">{row.teamName}</span>
+															</>
+														)}
+														{row.athlete.affiliateName && (
+															<>
+																<span className="text-muted-foreground">Affiliate</span>
+																<span className="truncate">{row.athlete.affiliateName}</span>
+															</>
+														)}
+														{questions.map((question) => {
+															let answerText: string | null = null
+															if (row.status !== "registered" && row.pendingInvite) {
+																answerText = row.pendingInvite.pendingAnswers?.find(
+																	(a) => a.questionId === question.id,
+																)?.answer ?? null
+															} else {
+																const answers = getAnswersForUser(row.registrationId, row.athlete.id)
+																answerText = answers.find((a) => a.questionId === question.id)?.answer ?? null
+															}
+															if (!answerText) return null
+															return (
+																<React.Fragment key={question.id}>
+																	<span className="text-muted-foreground">{question.label}</span>
+																	<span className="truncate">{answerText}</span>
+																</React.Fragment>
+															)
+														})}
+														{waivers.map((waiver) => {
+															let signedDisplay: React.ReactNode = null
+															if (row.status !== "registered" && row.pendingInvite) {
+																const pendingSig = row.pendingInvite.pendingSignatures?.find(
+																	(s) => s.waiverId === waiver.id,
+																)
+																signedDisplay = pendingSig ? (
+																	<span className="text-green-600">{formatDate(pendingSig.signedAt)}</span>
+																) : (
+																	<span className="text-muted-foreground">Not signed</span>
+																)
+															} else {
+																const signedDate = getWaiverSignedDate(row.athlete.id, waiver.id)
+																signedDisplay = signedDate ? (
+																	<span className="text-green-600">{formatDate(signedDate)}</span>
+																) : (
+																	<span className="text-muted-foreground">Not signed</span>
+																)
+															}
+															return (
+																<React.Fragment key={waiver.id}>
+																	<span className="text-muted-foreground">{waiver.title}</span>
+																	{signedDisplay}
+																</React.Fragment>
+															)
+														})}
+														{row.registeredAt && (
+															<>
+																<span className="text-muted-foreground">Registered</span>
+																<span className="text-muted-foreground">{formatDate(row.registeredAt)}</span>
+															</>
+														)}
+														{row.joinedAt && (
+															<>
+																<span className="text-muted-foreground">Joined</span>
+																<span className="text-muted-foreground">{formatDate(row.joinedAt)}</span>
+															</>
+														)}
+													</div>
+												</CardContent>
+											</Card>
+										)
+									})}
+								</div>
+
+								{/* Desktop table view */}
+								<Card className="hidden md:block">
 									<CardContent className="p-0">
 										<Table>
 											<TableHeader>
@@ -1610,6 +1900,7 @@ function AthletesPage() {
 										</Table>
 									</CardContent>
 								</Card>
+								</>
 							)}
 						</div>
 					)}
