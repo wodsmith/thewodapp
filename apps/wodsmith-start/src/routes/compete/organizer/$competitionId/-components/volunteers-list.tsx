@@ -599,7 +599,95 @@ export function VolunteersList({
 				</TabsList>
 
 				<TabsContent value={filter} className="mt-4">
-					<Card>
+					{/* Mobile card view */}
+					<div className="flex flex-col gap-3 md:hidden">
+						{filteredItems.map((item) => {
+							if (item.type === "invitation") {
+								const invitation = item.data
+								let metadata: {
+									signupName?: string
+									signupEmail?: string
+									credentials?: string
+									status?: "pending" | "approved" | "rejected"
+								} = {}
+								try {
+									metadata = invitation.metadata
+										? JSON.parse(invitation.metadata)
+										: {}
+								} catch {
+									// ignore
+								}
+
+								const volunteerItem: VolunteerWithAccess = {
+									id: invitation.id,
+									userId: "",
+									teamId: invitation.teamId,
+									roleId: invitation.roleId,
+									isSystemRole: invitation.isSystemRole,
+									isActive: false,
+									metadata: invitation.metadata,
+									joinedAt: null,
+									createdAt: invitation.createdAt,
+									expiresAt: invitation.expiresAt,
+									invitedAt: null,
+									invitedBy: invitation.invitedBy,
+									user: null,
+									hasScoreAccess: false,
+									status: metadata.status || "pending",
+								}
+
+								return (
+									<VolunteerRow
+										key={`mobile-${invitation.id}`}
+										volunteer={volunteerItem}
+										competitionId={competitionId}
+										competitionTeamId={competitionTeamId}
+										organizingTeamId={organizingTeamId}
+										isSelected={selectedIds.has(invitation.id)}
+										onToggleSelect={(shiftKey) =>
+											toggleSelection(invitation.id, shiftKey)
+										}
+										assignments={
+											volunteerAssignments[invitation.id] || {
+												shifts: [],
+												judgeHeats: [],
+											}
+										}
+										answers={getAnswersForVolunteer(volunteerItem)}
+										questions={volunteerQuestions}
+										variant="card"
+									/>
+								)
+							}
+
+							const volunteer = item.data
+							return (
+								<VolunteerRow
+									key={`mobile-${volunteer.id}`}
+									volunteer={volunteer}
+									competitionId={competitionId}
+									competitionTeamId={competitionTeamId}
+									organizingTeamId={organizingTeamId}
+									isSelected={selectedIds.has(volunteer.id)}
+									onToggleSelect={(shiftKey) =>
+										toggleSelection(volunteer.id, shiftKey)
+									}
+									assignments={
+										volunteerAssignments[volunteer.id] || {
+											shifts: [],
+											judgeHeats: [],
+										}
+									}
+									answers={getAnswersForVolunteer(volunteer)}
+									questions={volunteerQuestions}
+									variant="card"
+								/>
+							)
+						})}
+					</div>
+
+					{/* Desktop table view */}
+					<Card className="hidden md:block">
 						<CardContent className="p-0">
 							<div className="overflow-x-auto">
 							<Table>
