@@ -29,7 +29,7 @@ export const Route = createFileRoute("/compete/$slug/schedule")({
 
 		// For online competitions, fetch submission windows instead of heats
 		if (isOnline) {
-			const [eventsResult, submissionResult] = await Promise.all([
+			const [eventsResult, submissionResult] = await Promise.allSettled([
 				getPublishedCompetitionWorkoutsFn({
 					data: { competitionId: competition.id },
 				}),
@@ -40,16 +40,27 @@ export const Route = createFileRoute("/compete/$slug/schedule")({
 
 			return {
 				heats: [],
-				events: eventsResult.workouts,
-				submissionWindows: submissionResult.events,
-				competitionStarted: submissionResult.competitionStarted,
+				events:
+					eventsResult.status === "fulfilled"
+						? eventsResult.value.workouts
+						: [],
+				submissionWindows:
+					submissionResult.status === "fulfilled"
+						? submissionResult.value.events
+						: [],
+				competitionStarted:
+					submissionResult.status === "fulfilled"
+						? submissionResult.value.competitionStarted
+						: competition.startDate
+							? new Date() >= new Date(`${competition.startDate}T00:00:00`)
+							: false,
 				isOnline: true,
 				timezone: competition.timezone ?? "America/Denver",
 			}
 		}
 
 		// For in-person competitions, fetch heats as usual
-		const [heatsResult, eventsResult] = await Promise.all([
+		const [heatsResult, eventsResult] = await Promise.allSettled([
 			getHeatsForCompetitionFn({ data: { competitionId: competition.id } }),
 			getPublishedCompetitionWorkoutsFn({
 				data: { competitionId: competition.id },
@@ -57,8 +68,9 @@ export const Route = createFileRoute("/compete/$slug/schedule")({
 		])
 
 		return {
-			heats: heatsResult.heats,
-			events: eventsResult.workouts,
+			heats: heatsResult.status === "fulfilled" ? heatsResult.value.heats : [],
+			events:
+				eventsResult.status === "fulfilled" ? eventsResult.value.workouts : [],
 			submissionWindows: [],
 			competitionStarted: false,
 			isOnline: false,
