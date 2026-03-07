@@ -199,7 +199,7 @@ export function QuickActionsDivisionResults({
 							>
 								<div className="rounded-lg border">
 									{/* Event Header */}
-									<div className="flex items-center justify-between p-3 bg-muted/30">
+									<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-muted/30">
 										<CollapsibleTrigger asChild>
 											<button
 												type="button"
@@ -281,7 +281,7 @@ export function QuickActionsDivisionResults({
 												return (
 													<div
 														key={division.divisionId}
-														className={`flex items-center justify-between gap-2 py-2 border-b last:border-0 ${hasNoScores ? "opacity-50" : ""}`}
+														className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-2 border-b last:border-0 ${hasNoScores ? "opacity-50" : ""}`}
 													>
 														<div className="flex items-center gap-2 min-w-0">
 															<span className="font-medium text-sm truncate">
@@ -324,7 +324,7 @@ export function QuickActionsDivisionResults({
 																}
 																disabled={isDisabled}
 															>
-																<SelectTrigger className="w-[120px] h-8 text-xs">
+																<SelectTrigger className="w-full sm:w-[120px] h-8 text-xs">
 																	<SelectValue>
 																		{isPending ? (
 																			<span className="flex items-center gap-1.5">

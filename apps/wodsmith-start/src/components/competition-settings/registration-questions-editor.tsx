@@ -792,7 +792,7 @@ export function RegistrationQuestionsEditor({
 		<>
 			<Card>
 				<CardHeader>
-					<div className="flex items-start justify-between">
+					<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 						<div>
 							<CardTitle>
 								{questionTarget === "volunteer"
@@ -807,7 +807,7 @@ export function RegistrationQuestionsEditor({
 										: "Custom questions athletes must answer during registration"}
 							</CardDescription>
 						</div>
-						<Button onClick={handleAddNew}>
+						<Button onClick={handleAddNew} className="w-full sm:w-auto">
 							<Plus className="h-4 w-4 mr-2" />
 							Add Question
 						</Button>

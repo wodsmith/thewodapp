@@ -105,7 +105,7 @@ export function QuickActionsEvents({
 	return (
 		<Card>
 			<CardHeader className="pb-3">
-				<div className="flex items-center justify-between">
+				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 					<div>
 						<CardTitle className="text-base">Publish Events</CardTitle>
 						<CardDescription>
@@ -116,6 +116,7 @@ export function QuickActionsEvents({
 						<Button
 							variant="outline"
 							size="sm"
+							className="w-full sm:w-auto"
 							onClick={handlePublishAll}
 							disabled={isPublishingAll}
 						>
@@ -161,7 +162,7 @@ export function QuickActionsEvents({
 										}
 										disabled={isPending || isPublishingAll}
 									>
-										<SelectTrigger className="w-[110px] h-7 text-xs">
+										<SelectTrigger className="w-full sm:w-[110px] h-7 text-xs">
 											<SelectValue>
 												{isPending ? (
 													<span className="flex items-center gap-1.5">

@@ -359,7 +359,7 @@ export function SponsorManager({
 	return (
 		<div className="space-y-6">
 			{/* Header */}
-			<div className="flex items-center justify-between">
+			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<div>
 					<h2 className="text-2xl font-bold tracking-tight">Sponsors</h2>
 					<p className="text-muted-foreground">
@@ -367,11 +367,11 @@ export function SponsorManager({
 					</p>
 				</div>
 				<div className="flex gap-2">
-					<Button variant="outline" onClick={() => setShowAddGroupDialog(true)}>
+					<Button variant="outline" onClick={() => setShowAddGroupDialog(true)} className="flex-1 sm:flex-initial">
 						<Plus className="mr-2 h-4 w-4" />
 						Add Group
 					</Button>
-					<Button onClick={() => setShowAddSponsorDialog(true)}>
+					<Button onClick={() => setShowAddSponsorDialog(true)} className="flex-1 sm:flex-initial">
 						<Plus className="mr-2 h-4 w-4" />
 						Add Sponsor
 					</Button>
