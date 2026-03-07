@@ -163,8 +163,8 @@ export async function seed(client: Connection): Promise<void> {
 
 	// Competition events (submission windows for online qualifier)
 	await batchInsert(client, "competition_events", [
-		{ id: "cevt_online_event1", competition_id: "comp_online_qualifier_2026", track_workout_id: "tw_online_event1", submission_opens_at: pastDatetime(1), submission_closes_at: futureDatetime(6), created_at: ts, updated_at: ts, update_counter: 0 },
-		{ id: "cevt_online_event2", competition_id: "comp_online_qualifier_2026", track_workout_id: "tw_online_event2", submission_opens_at: futureDatetime(3), submission_closes_at: futureDatetime(10), created_at: ts, updated_at: ts, update_counter: 0 },
-		{ id: "cevt_online_event3", competition_id: "comp_online_qualifier_2026", track_workout_id: "tw_online_event3", submission_opens_at: futureDatetime(7), submission_closes_at: futureDatetime(14), created_at: ts, updated_at: ts, update_counter: 0 },
+		{ id: "cevt_online_event1", competition_id: "comp_online_qualifier_2026", track_workout_id: "tw_online_event1", submission_opens_at: pastDatetime(8), submission_closes_at: pastDatetime(1), created_at: ts, updated_at: ts, update_counter: 0 },
+		{ id: "cevt_online_event2", competition_id: "comp_online_qualifier_2026", track_workout_id: "tw_online_event2", submission_opens_at: pastDatetime(1), submission_closes_at: futureDatetime(6), created_at: ts, updated_at: ts, update_counter: 0 },
+		{ id: "cevt_online_event3", competition_id: "comp_online_qualifier_2026", track_workout_id: "tw_online_event3", submission_opens_at: futureDatetime(6), submission_closes_at: futureDatetime(13), created_at: ts, updated_at: ts, update_counter: 0 },
 	])
 }
