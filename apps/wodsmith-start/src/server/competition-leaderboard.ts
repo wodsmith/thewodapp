@@ -257,8 +257,12 @@ export async function getCompetitionLeaderboard(params: {
 	const scoringConfig =
 		getEffectiveScoringConfig(settings) ?? DEFAULT_SCORING_CONFIG
 
-	// Division results publishing state — controls leaderboard visibility
-	const divisionResults = settings?.divisionResults
+	// Division results publishing state — controls leaderboard visibility.
+	// For online competitions, default to empty (everything hidden until explicitly published).
+	// For in-person competitions, absent divisionResults means show all (backwards compat).
+	const divisionResults =
+		settings?.divisionResults ??
+		(competition.competitionType === "online" ? {} : undefined)
 
 	// Get competition track
 	const track = await getCompetitionTrack(params.competitionId)
@@ -495,10 +499,8 @@ export async function getCompetitionLeaderboard(params: {
 			// When divisionResults is absent, all results show (backwards compat).
 			if (divisionResults) {
 				const eventPublishState = divisionResults[trackWorkout.id]
-				if (eventPublishState) {
-					const divisionPublishState = eventPublishState[divisionId]
-					if (!divisionPublishState?.publishedAt) continue
-				}
+				const divisionPublishState = eventPublishState?.[divisionId]
+				if (!divisionPublishState?.publishedAt) continue
 			}
 
 			// Convert to EventScoreInput format
