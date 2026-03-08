@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "e8dff6dd66b5",
+  "session_id": "49528e19-7253-4798-889a-56eb87edf075",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-08T17:23:34.209528Z",
+  "branch": "zac/penalty-guidance",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId.tsx"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "2462083f-a56d-4219-abd2-d41199972411",
+  "checkpoint_transcript_start": 358,
+  "transcript_lines_at_start": 358,
+  "token_usage": {
+    "input_tokens": 38,
+    "cache_creation_tokens": 22723,
+    "cache_read_tokens": 3235501,
+    "output_tokens": 5961,
+    "api_call_count": 34
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-08T17:23:34.060425Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 43,
+    "human_removed": 621,
+    "total_committed": 0,
+    "agent_percentage": 0
+  }
+}

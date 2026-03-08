@@ -1,0 +1,565 @@
+I'm going to give you a report on how CrossFit handles penalties which is the defacto way competitions do it since they run the crossfit games. we don't want to force organizers to adhere to this system but make it clear to them given a current video submission when a performance needs to be penalized how to do that. in another branch I'm building out a review ux that creates a summary of how many no reps per movement someone got (feat/review-notes-with-movement-tagging if you want to look at the changes - don't switch branches but you can inspect). build out an adr for this (004) # CrossFit Games penalty framework: a complete system analysis
+
+**CrossFit operates a dual-track enforcement system** — real-time "no rep" calls at live events and post-hoc video review penalties for online competitions — built around five scoring outcomes, a three-tier review escalation process, and a structured appeals mechanism. The system has undergone significant evolution, most notably in 2025 when CrossFit eliminated the minor/major penalty distinction in favor of discretionary penalties and introduced crowdsourced public video review. For anyone building competition management software, this framework reveals a complex interplay of score adjustments, percentage-based deductions, per-movement time penalties, and tiered disqualification that must account for both online and live competition contexts.
+
+---
+
+## The five scoring outcomes that drive everything
+
+CrossFit's penalty architecture (codified in Section 1.22 of the Competition Rulebook) produces exactly five possible outcomes when a video or performance is reviewed. These outcomes apply primarily to online stages — the Open, Quarterfinals, and In-Affiliate Semifinals — where post-hoc video review is the enforcement mechanism.
+
+**Good Video** means all standards were met and the submitted score stands. **Valid With Penalty** (previously split into minor and major categories) means no-reps were identified and a score adjustment is applied. **Zero Score** means egregious violations occurred — wrong movements, wrong weight, or an unacceptable number of no-reps — but the athlete remains in the competition with their other scores intact. **Invalid** is reserved for malicious intent to manipulate results, and it triggers removal of **all** scores from the competition, effectively a full disqualification.
+
+The critical distinction between zero score and invalid matters enormously for software design: a zero score affects only one workout while invalid removes the athlete entirely from the leaderboard. A separate category — **score adjustment** — can accompany any penalty or stand alone when rep counts simply need correcting without punitive action.
+
+Under the 2024 rulebook, minor penalties addressed "a small number of no-reps" with modest deductions, while major penalties targeted "a significant number of no-reps" with **minimum 15% deductions scaling up to 40%** of total reps or equivalent time. The 2025 rulebook collapsed these into a single "with penalty" designation, giving CrossFit full discretion over the deduction amount for each individual video. This change came directly in response to the 2024 Quarterfinals controversy where **599 penalties** were administered and the rigid percentage bands created outcomes many viewed as disproportionate.
+
+---
+
+## How online video review actually works
+
+The video review process uses a **three-tier escalation system** designed to prevent individual bias. A Level 1 reviewer watches the video and flags issues. If problems are found, the video escalates to a Level 2 senior judge who independently re-reviews it. If the senior judge concurs, it moves to Level 3 — the most senior judge or team lead — who makes the final penalty determination. CrossFit's official position is that "no one judge can have too much influence on any single athlete."
+
+Videos are **not randomly selected** for review. CrossFit prioritizes performances that affect advancement or prize money: top scores on individual workouts, athletes near qualifying cutlines, and top overall standings. During the Open, anyone who has passed the current year's Judges Course ($10, annual) can view and flag published videos on the leaderboard. For the 2025 In-Affiliate Semifinals, CrossFit formalized this into a **public review period** lasting approximately five days, where credentialed reviewers vote "Good Video," "Needs Review," or "Unviewable" on every submission. Videos accumulating significant "Needs Review" votes get escalated to CrossFit's internal team.
+
+Video submission requirements are strict: an uncut, unedited recording from a **three-quarter angle** at minimum **3 feet off the ground**, with a visible clock throughout, no fisheye lenses, all measurements filmed, and the judge visible but not obstructing the athlete's view. For 2025 Semifinals, videos must be publicly viewable on YouTube — no private videos, no alternative platforms. Athletes requested for video review during Quarterfinals have **24 hours** to provide links; failure results in a zero score.
+
+---
+
+## Penalty math: time penalties, rep deductions, and percentage calculations
+
+The specifics of penalty calculation vary by workout format. For **rep-based scores** (AMRAPs), penalties are applied as direct rep subtractions. Under the 2024 system, major penalties deducted **15–25%** of total reps depending on the number and severity of no-reps identified. For example, Pat Vellner's 252-rep score was adjusted to 202 (~20% reduction), while Tia-Clair Toomey went from 232 to 198 (~15%). Minor penalties typically reduced scores by smaller, discretionary amounts.
+
+For **time-based scores** (for-time workouts), CrossFit applies per-no-rep time penalties that vary by movement and context. Documented penalty amounts from official workout descriptions include **10 seconds per no-rep** on snatches, **5 seconds for a false start**, and **5 seconds per instance** of receiving equipment assistance. The rulebook explicitly states that "time penalties may vary by movement and context" and reserves the right to adjust them based on workout specifics and athlete pace.
+
+Real-world time penalty examples illustrate the range: Sam Briggs received a **2 minute 30 second penalty** on 20.1 (dropping from 8:01 to 10:31), Lefteris Theofanidis received **70 seconds** added to his 19.3 time (8:19 to 9:29), and Mikhail Anisimov received a **6-minute penalty** for using the incorrect dumbbell weight. At live Games events, successful appeals have credited athletes specific time amounts: **9 seconds**, **12 seconds**, **14 seconds**, and **30 seconds** in documented cases.
+
+For competition management software, the key design insight is that penalty amounts are **not fixed globally** — they are set per-workout, per-movement, and sometimes per-athlete-pace, requiring a flexible penalty configuration system rather than hard-coded values.
+
+---
+
+## Live event judging operates on fundamentally different principles
+
+At in-person competitions (Semifinals via In-Person Qualifying Events, and the CrossFit Games), enforcement shifts from post-hoc review to **real-time "no rep" calls**. This is the most important architectural distinction in the system: a no-rep at a live event is not a penalty — it simply means the rep doesn't count and must be re-performed immediately. No post-event score adjustment occurs for movement standard issues at live events because the floor judge handles enforcement in real time.
+
+The judging hierarchy at the CrossFit Games places the **CrossFit Level 1 Seminar Staff** (minimum CF-L2, most CF-L3 credentialed) as floor judges for individual divisions. Team, age-group, and adaptive divisions use rigorously vetted volunteer judges with mandatory credentials: active CF-L1, current Judges Course, and prior live competition judging experience. **Head Judges** are CrossFit HQ staff who oversee entire fields of play, communicating corrections to floor judges during workouts. An **Appeals Manager** tracks appeals and communicates decisions.
+
+Closed-circuit cameras record all primary fields of play at the Games, but this footage is used **only for appeal resolution**, not proactive post-event penalization. This is explicitly not an "instant replay" system — athletes cannot challenge calls in real time during workouts.
+
+---
+
+## The two-appeals rule and what can (and cannot) be challenged
+
+At live events, athletes start with **two appeals** for the entire competition. If an appeal is granted, the athlete retains their appeal count. If denied, they lose one. Once both are exhausted, no further appeals are permitted. This creates genuine strategic stakes around when to appeal.
+
+Appealable situations include scorecard or leaderboard errors, counting inconsistencies, load/weight recording errors, course marking mistakes, equipment failures, judge miscommunications, and interference by other athletes. Critically, **range-of-motion judgment calls are not appealable** — squat depth, hip/knee/arm extension, and overhead stabilization are considered final when called on the field.
+
+For online competitions, the appeals process works differently. Athletes receive an email notification when scores are modified, with a brief explanation. They must contact support@crossfitgames.com with their original score, modified score, the stated reason, and their explanation for appealing. Appeals are reviewed by a **different individual** from the original reviewer. CrossFit's final decision is communicated via email and is binding.
+
+Notable successful appeals demonstrate the system in action: Jeff Adler's double-under crossover miscounts were corrected to a new time of 6:58.32, CrossFit Oslo Kriger's recorded lift was corrected from 475 to 485 lb, and Patrick Vellner received 12 seconds credited on a sled pull penalty.
+
+---
+
+## Movement standards are published per-workout, not globally
+
+Each workout releases with an official **scorecard** — a downloadable PDF containing required movements, rep schemes, equipment specifications, floor plans, and step-by-step visual movement standards with numbered photo sequences. These scorecards define what constitutes a valid rep for each specific movement in that specific workout context.
+
+Common standard elements include hip crease passing below knee top for squats, full extension of hips/knees/arms at the top of movements, chest contact at or below the collarbone for chest-to-bar pull-ups, and both feet clearing the object during lateral burpees. The **Uncommon Movement Clause** (Section 1.18) provides a catch-all: "Any movement deemed uncommon or out of the ordinary, or used to amend, shorten, or change the accepted movement standard or range of motion... can and will be disallowed."
+
+For Semifinals in 2025, judging requirements escalated significantly. Each athlete now needs **two judges** — a Head Judge and a Floor Judge — both holding active CF-L1 credentials, the current year's Judges Course, and the new Advanced Judges Course ($40, valid 3 years). The head judge must be introduced on camera at the start of each video. If either judge lacks required credentials, the athlete can receive a **zero score** — and this has been enforced, including against athletes at CrossFit Mayhem whose head judge had an expired credential.
+
+---
+
+## The 2024 penalty crisis and its systemic implications
+
+The 2024 Individual Quarterfinals represented a breaking point for CrossFit's penalty system. **348 athletes received penalties on Workout 1 alone**, primarily for failing to fully extend hips and knees on dumbbell box step-ups — a movement that proved nearly impossible to judge consistently via video. By the end of both reviewed workouts, **599 total penalties** had been administered. **73 athletes** who were inside the qualifying Top 40 in their region were knocked outside the cut line.
+
+The fallout was significant. Camilla Salomonsson Hellman, a four-time Games athlete, dropped from 13th in Europe to 80th overnight. Athletes described receiving penalty notifications with limited detail and no opportunity for dialogue. The Association of Fitness Judges (AFJ) noted the fundamental asymmetry: reviewing at computer speed with slow-motion capability catches standards violations that are nearly impossible to enforce at live competition pace.
+
+CrossFit responded with structural changes for 2025: eliminating the minor/major binary, introducing the public video review system, requiring two credentialed judges for Semifinals, and partnering with the AFJ and PFAA to create themovementstandards.com — a centralized database of vetted movement standards with video demonstrations. By 2025, the penalty count actually increased to **over 3,300** across approximately 64,000 submissions (a 5%+ penalty rate), suggesting the expanded review infrastructure caught more violations rather than fewer.
+
+---
+
+## What this means for competition management software
+
+Building software that models CrossFit's penalty framework requires several key architectural decisions:
+
+- **Flexible penalty configuration per workout**: Penalty amounts (time per no-rep, percentage deductions, fixed-time penalties for procedural violations) must be configurable per workout and per movement, not globally fixed
+- **Multiple penalty outcome types**: The system needs at minimum five outcome states (good, penalized, zero score, invalid/DQ, and standalone score adjustment), each with different leaderboard implications
+- **Cascading score recalculation**: Penalties change raw scores, which change event placements, which change points, which change overall standings — all must recalculate automatically
+- **Multi-tier review workflow**: Video review should support escalation through at least three review levels, with independent assessment at each tier
+- **Appeal tracking with limited inventory**: Live events need per-athlete appeal counters that decrement on denied appeals and persist across the entire competition
+- **Dual enforcement modes**: Online competitions need post-hoc penalty workflows while live events need real-time no-rep tracking integrated with scorecard entry
+- **Public review integration**: Community voting on video submissions with threshold-based escalation to internal review
+- **Judge credential verification**: Automated checking of judge qualifications (course completion, certification status, expiry dates) before accepting score submissions
+- **Tiebreaker logic**: Intermediate tiebreak times at configurable points within workouts, with cascading tiebreak resolution across overall standings
+- **Audit trail and transparency reporting**: CrossFit publishes detailed penalty reports listing every affected athlete with original scores, reasons, and adjusted scores — the software should generate equivalent reports automatically
+
+## Conclusion
+
+CrossFit's penalty system has evolved from ad-hoc crowd-sourced video policing (2013) into a structured three-tier review process with five defined outcomes, workout-specific penalty amounts, and formal appeal mechanisms for both online and live contexts. The 2025 shift from categorical (minor/major) to discretionary penalties and the introduction of public video review represent the most significant recent changes, driven by the 2024 crisis where rigid percentage bands produced widely criticized outcomes. The fundamental tension in the system — that video review at computer speed catches violations invisible at competition pace — remains unresolved and represents the core design challenge for any software modeling this framework. Existing competition platforms (Competition Corner, Wodify Arena, WODwin) handle registration and scoring but lack built-in penalty management, video review workflows, or appeal tracking, leaving a clear gap in the market for purpose-built competition management software.
+
+---
+
+Base directory for this skill: /Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/.claude/skills/team-memory
+
+# Team Memory
+
+Manage a shared team memory system backed by a Cloudflare Worker with semantic search.
+
+## Commands
+
+### /remember — Store an observation
+
+Save a new observation to team memory.
+
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/remember.ts "<observation text>" [--category=<category>] [--priority=<priority>]
+```
+
+**Categories:** `convention`, `gotcha`, `debugging`, `architecture`, `workflow`
+**Priorities:** `critical`, `moderate`, `ephemeral`
+
+Defaults: category=convention, priority=moderate
+
+Examples:
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/remember.ts "PlanetScale returns strings for COUNT columns — always wrap with Number()" --category=gotcha --priority=critical
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/remember.ts "Use ULID for ID generation, not CUID2" --category=convention
+```
+
+### /recall — Search memories
+
+Search team memory by semantic query.
+
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/recall.ts "<query>" [--limit=<n>] [--category=<category>] [--priority=<priority>]
+```
+
+Default limit: 5. Results are ranked by relevance.
+
+Examples:
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/recall.ts "database migration patterns"
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/recall.ts "Stripe" --category=gotcha --limit=10
+```
+
+### /feedback — Rate a memory
+
+Provide feedback on a memory's usefulness.
+
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/feedback.ts <observation-id> <signal> [--note="<reason>"]
+```
+
+**Signals:** `helpful`, `harmful`, `irrelevant`
+
+Examples:
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/feedback.ts 01J5K3M2N7 helpful --note="Saved me from a production bug"
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/feedback.ts 01J5K3M2N7 irrelevant
+```
+
+## Environment
+
+Production URL: `https://team-memory.zacjones93.workers.dev`
+
+All commands below include the env var inline. If `TEAM_MEMORY_URL` is already set in your shell, the prefix is optional.
+
+## Hooks
+
+- **SessionStart**: Reminds the agent about the memory system and how to use /recall for task-relevant lookups
+- **SessionEnd**: Reads transcript JSONL, extracts user/assistant messages, POSTs to `/sessions`
+- **Export**: Syncs memories to MEMORY.md between `<!-- BEGIN TEAM-MEMORY -->` / `<!-- END TEAM-MEMORY -->` markers
+
+
+ARGUMENTS: /recall "penalty scoring review competition"
+
+---
+
+Base directory for this skill: /Users/zacjones/.claude/skills/adr-skill
+
+# ADR Skill
+
+## Philosophy
+
+ADRs created with this skill are **executable specifications for coding agents**. A human approves the decision; an agent implements it. The ADR must contain everything the agent needs to write correct code without asking follow-up questions.
+
+This means:
+- Constraints must be explicit and measurable, not vibes
+- Decisions must be specific enough to act on ("use PostgreSQL 16 with pgvector" not "use a database")
+- Consequences must map to concrete follow-up tasks
+- Non-goals must be stated to prevent scope creep
+- The ADR must be self-contained — no tribal knowledge assumptions
+- **The ADR must include an implementation plan** — which files to touch, which patterns to follow, which tests to write, and how to verify the decision was implemented correctly
+
+## When to Write an ADR
+
+Write an ADR when a decision:
+- **Changes how the system is built or operated** (new dependency, architecture pattern, infrastructure choice, API design)
+- **Is hard to reverse** once code is written against it
+- **Affects other people or agents** who will work in this codebase later
+- **Has real alternatives** that were considered and rejected
+
+Do NOT write an ADR for:
+- Routine implementation choices within an established pattern
+- Bug fixes or typo corrections
+- Decisions already captured in an existing ADR (update it instead)
+- Style preferences already covered by linters or formatters
+
+When in doubt: if a future agent working in this codebase would benefit from knowing *why* this choice was made, write the ADR.
+
+### Proactive ADR Triggers (For Agents)
+
+If you are an agent coding in a repo and you encounter any of these situations, **stop and propose an ADR** before continuing:
+
+- You are about to introduce a new dependency that doesn't already exist in the project
+- You are about to create a new architectural pattern (new way of handling errors, new data access layer, new API convention) that other code will need to follow
+- You are about to make a choice between two or more real alternatives and the tradeoffs are non-obvious
+- You are about to change something that contradicts an existing accepted ADR
+- You realize you're writing a long code comment explaining "why" — that reasoning belongs in an ADR
+
+**How to propose**: Tell the human what decision you've hit, why it matters, and ask if they want to capture it as an ADR. If yes, run the full four-phase workflow. If no, note the decision in a code comment and move on.
+
+## Creating an ADR: Four-Phase Workflow
+
+Every ADR goes through four phases. Do not skip phases.
+
+### Phase 0: Scan the Codebase
+
+Before asking any questions, gather context from the repo:
+
+1. **Find existing ADRs.** Check `docs/decisions/`, `adr/`, `docs/adr/`, `decisions/` for existing records. Read them. Note:
+   - Existing conventions (directory, naming, template style)
+   - Decisions that relate to or constrain the current one
+   - Any ADRs this new decision might supersede
+
+2. **Check the tech stack.** Read `package.json`, `go.mod`, `requirements.txt`, `Cargo.toml`, or equivalent. Note relevant dependencies and versions.
+
+3. **Find related code patterns.** If the decision involves a specific area (e.g., "how we handle auth"), scan for existing implementations. Identify the specific files, directories, and patterns that will be affected by the decision.
+
+4. **Check for ADR references in code.** Look for `ADR-NNNN` references in comments and docs (see "Code ↔ ADR Linking" below). This reveals which existing decisions govern which parts of the codebase.
+
+5. **Note what you found.** Carry this context into Phase 1 — it will sharpen your questions and prevent the ADR from contradicting existing decisions.
+
+### Phase 1: Capture Intent (Socratic)
+
+Interview the human to understand the decision space. Ask questions **one at a time**, building on previous answers. Do not dump a list of questions.
+
+**Core questions** (ask in roughly this order, skip what's already clear from context or Phase 0):
+
+1. **What are you deciding?** — Get a short, specific title. Push for a verb phrase ("Choose X", "Adopt Y", "Replace Z with W").
+2. **Why now?** — What broke, what's changing, or what will break if you do nothing? This is the trigger.
+3. **What constraints exist?** — Tech stack, timeline, budget, team size, existing code, compliance. Be concrete. Reference what you found in Phase 0 ("I see you're already using X — does that constrain this?").
+4. **What does success look like?** — Measurable outcomes. Push past "it works" to specifics (latency, throughput, DX, maintenance burden).
+5. **What options have you considered?** — At least two. For each: what's the core tradeoff? If they only have one option, help them articulate why alternatives were rejected.
+6. **What's your current lean?** — Capture gut intuition early. Often reveals unstated priorities.
+7. **Who needs to know or approve?** — Decision-makers, consulted experts, informed stakeholders.
+8. **What would an agent need to implement this?** — Which files/directories are affected? What existing patterns should it follow? What should it avoid? What tests would prove it's working? This directly feeds the Implementation Plan.
+
+**Adaptive follow-ups**: Based on answers, probe deeper where the decision is fuzzy. Common follow-ups:
+- "What's the worst-case outcome if this decision is wrong?"
+- "What would make you revisit this in 6 months?"
+- "Is there anything you're explicitly choosing NOT to do?"
+- "What prior art or existing patterns in the codebase does this relate to?"
+- "I found [existing ADR/pattern] — does this new decision interact with it?"
+
+**When to stop**: You have enough when you can fill every section of the ADR — including the Implementation Plan — without making things up. If you're guessing at any section, ask another question.
+
+**Intent Summary Gate**: Before moving to Phase 2, present a structured summary of what you captured and ask the human to confirm or correct it:
+
+> **Here's what I'm capturing for the ADR:**
+>
+> - **Title**: {title}
+> - **Trigger**: {why now}
+> - **Constraints**: {list}
+> - **Options**: {option 1} vs {option 2} [vs ...]
+> - **Lean**: {which option and why}
+> - **Non-goals**: {what's explicitly out of scope}
+> - **Related ADRs/code**: {what exists that this interacts with}
+> - **Affected files/areas**: {where in the codebase this lands}
+> - **Verification**: {how we'll know it's implemented correctly}
+>
+> **Does this capture your intent? Anything to add or correct?**
+
+Do NOT proceed to Phase 2 until the human confirms the summary.
+
+### Phase 2: Draft the ADR
+
+1. **Choose the ADR directory.**
+   - If one exists (found in Phase 0), use it.
+   - If none exists, create `docs/decisions/` (MADR default) or `adr/` (simpler repos).
+
+2. **Choose a filename strategy.**
+   - If existing ADRs use numeric prefixes (`0001-...`), continue that.
+   - Otherwise use slug-only filenames (`choose-database.md`).
+
+3. **Choose a template.**
+   - Use `assets/templates/adr-simple.md` for straightforward decisions (one clear winner, minimal tradeoffs).
+   - Use `assets/templates/adr-madr.md` when you need to document multiple options with structured pros/cons/drivers.
+   - See `references/template-variants.md` for guidance.
+
+4. **Fill every section from the confirmed intent summary.** Do not leave placeholder text. Every section should contain real content or be removed (optional sections only).
+
+5. **Write the Implementation Plan.** This is the most important section for agent-first ADRs. It tells the next agent exactly what to do. See the template for structure.
+
+6. **Write Verification criteria as checkboxes.** These must be specific enough that an agent can programmatically or manually check each one.
+
+7. **Generate the file.**
+   - Preferred: run `scripts/new_adr.js` (handles directory, naming, and optional index updates).
+   - If you can't run scripts, copy a template from `assets/templates/` and fill it manually.
+
+### Phase 3: Review Against Checklist
+
+After drafting, review the ADR against the agent-readiness checklist in `references/review-checklist.md`.
+
+**Present the review as a summary**, not a raw checklist dump. Format:
+
+> **ADR Review**
+>
+> ✅ **Passes**: {list what's solid — e.g., "context is self-contained, implementation plan covers affected files, verification criteria are checkable"}
+>
+> ⚠️ **Gaps found**:
+> - {specific gap 1 — e.g., "Implementation Plan doesn't mention test files — which test suite should cover this?"}
+> - {specific gap 2}
+>
+> **Recommendation**: {Ship it / Fix the gaps first / Needs more Phase 1 work}
+
+Only surface failures and notable strengths — do not recite every passing checkbox.
+
+If there are gaps, propose specific fixes. Do not just flag problems — offer solutions and ask the human to approve.
+
+Do not finalize until the ADR passes the checklist or the human explicitly accepts the gaps.
+
+## Consulting ADRs (Read Workflow)
+
+Agents should read existing ADRs **before implementing changes** in a codebase that has them. This is not part of the create-an-ADR workflow — it's a standalone operation any agent should do.
+
+### When to Consult ADRs
+
+- Before starting work on a feature that touches architecture (auth, data layer, API design, infrastructure)
+- When you encounter a pattern in the code and wonder "why is it done this way?"
+- Before proposing a change that might contradict an existing decision
+- When a human says "check the ADRs" or "there's a decision about this"
+- When you find an `ADR-NNNN` reference in a code comment
+
+### How to Consult ADRs
+
+1. **Find the ADR directory.** Check `docs/decisions/`, `adr/`, `docs/adr/`, `decisions/`. Also check for an index file (`README.md` or `index.md`).
+
+2. **Scan titles and statuses.** Read the index or list filenames. Focus on `accepted` ADRs — these are active decisions.
+
+3. **Read relevant ADRs fully.** Don't just read the title — read context, decision, consequences, non-goals, AND the Implementation Plan. The Implementation Plan tells you what patterns to follow and what files are governed by this decision.
+
+4. **Respect the decisions.** If an accepted ADR says "use PostgreSQL," don't propose switching to MongoDB without creating a new ADR that supersedes it. If you find a conflict between what the code does and what the ADR says, flag it to the human.
+
+5. **Follow the Implementation Plan.** When implementing code in an area governed by an ADR, follow the patterns specified in its Implementation Plan. If the plan says "all new queries go through the data-access layer in `src/db/`," do that.
+
+6. **Reference ADRs in your work.** Add `ADR-NNNN` references in code comments and PR descriptions (see "Code ↔ ADR Linking" below).
+
+## Code ↔ ADR Linking
+
+ADRs should be bidirectionally linked to the code they govern.
+
+### ADR → Code (in the Implementation Plan)
+
+The Implementation Plan section names specific files, directories, and patterns:
+
+```markdown
+## Implementation Plan
+- **Affected paths**: `src/db/`, `src/config/database.ts`, `tests/integration/`
+- **Pattern**: all database queries go through `src/db/client.ts`
+```
+
+### Code → ADR (in comments)
+
+When implementing code guided by an ADR, add a comment referencing it:
+
+```typescript
+// ADR-0004: Using better-sqlite3 for test database
+// See: docs/decisions/0004-use-sqlite-for-test-database.md
+import Database from 'better-sqlite3';
+```
+
+Keep these lightweight — one comment at the entry point, not on every line. The goal is discoverability: when a future agent reads this code, they can find the reasoning.
+
+### Why This Matters
+
+- An agent working in `src/db/` can find which ADRs govern that area
+- An agent reading an ADR can find the code that implements it
+- When an ADR is superseded, the code references make it easy to find everything that needs updating
+
+## Other Operations
+
+### Update an Existing ADR
+
+1. Identify the intent:
+   - **Accept / reject**: change status, add any final context.
+   - **Deprecate**: status → `deprecated`, explain replacement path.
+   - **Supersede**: create a new ADR, link both ways (old → new, new → old).
+   - **Add learnings**: append to `## More Information` with a date stamp. Do not rewrite history.
+
+2. Use `scripts/set_adr_status.js` for status changes (supports YAML front matter, bullet status, and section status).
+
+### Post-Acceptance Lifecycle
+
+After an ADR is accepted:
+
+1. **Create implementation tasks.** Each item in the Implementation Plan and each follow-up in Consequences should become a trackable task (issue, ticket, or TODO).
+2. **Reference the ADR in PRs.** Link to the ADR in PR descriptions: "Implements ADR-0004."
+3. **Add code references.** Add `ADR-NNNN` comments at key implementation points.
+4. **Check verification criteria.** Once implementation is complete, walk through the Verification checkboxes. Update the ADR with results in `## More Information`.
+5. **Revisit when triggers fire.** If the ADR specified revisit conditions ("if X happens, reconsider"), monitor for those conditions.
+
+### Index
+
+If the repo has an ADR index/log file (often `README.md` or `index.md` in the ADR dir), keep it updated.
+
+Preferred: let `scripts/new_adr.js --update-index` do it. Otherwise:
+- Add a bullet entry for the new ADR.
+- Keep ordering consistent (numeric if numbered; date or alpha if slugs).
+
+### Bootstrap
+
+When introducing ADRs to a repo that has none:
+
+```bash
+node /path/to/adr-skill/scripts/bootstrap_adr.js
+```
+
+This creates the directory, an index file, and a filled-out first ADR ("Adopt architecture decision records") with real content explaining why the team is using ADRs. Use `--json` for machine-readable output. Use `--dir` to override the directory name.
+
+### Categories (Large Projects)
+
+For repos with many ADRs, organize by subdirectory:
+
+```
+docs/decisions/
+  backend/
+    0001-use-postgres.md
+  frontend/
+    0001-use-react.md
+  infrastructure/
+    0001-use-terraform.md
+```
+
+Numbers are local to each category. Choose a categorization scheme early (by layer, by domain, by team) and document it in the index.
+
+## Resources
+
+### scripts/
+- `scripts/new_adr.js` — create a new ADR file from a template, using repo conventions.
+- `scripts/set_adr_status.js` — update an ADR status in-place (YAML front matter or inline). Use `--json` for machine output.
+- `scripts/bootstrap_adr.js` — create ADR dir, `README.md`, and initial "Adopt ADRs" decision.
+
+### references/
+- `references/review-checklist.md` — agent-readiness checklist for Phase 3 review.
+- `references/adr-conventions.md` — directory, filename, status, and lifecycle conventions.
+- `references/template-variants.md` — when to use simple vs MADR-style templates.
+- `references/examples.md` — filled-out short and long ADR examples with implementation plans.
+
+### assets/
+- `assets/templates/adr-simple.md` — lean template for straightforward decisions.
+- `assets/templates/adr-madr.md` — MADR 4.0 template for decisions with multiple options and structured tradeoffs.
+- `assets/templates/adr-readme.md` — default ADR index scaffold used by `scripts/bootstrap_adr.js`.
+
+### Script Usage
+
+From the target repo root:
+
+```bash
+# Simple ADR
+node /path/to/adr-skill/scripts/new_adr.js --title "Choose database" --status proposed
+
+# MADR-style with options
+node /path/to/adr-skill/scripts/new_adr.js --title "Choose database" --template madr --status proposed
+
+# With index update
+node /path/to/adr-skill/scripts/new_adr.js --title "Choose database" --status proposed --update-index
+
+# Bootstrap a new repo
+node /path/to/adr-skill/scripts/bootstrap_adr.js --dir docs/decisions
+```
+
+Notes:
+- Scripts auto-detect ADR directory and filename strategy.
+- Use `--dir` and `--strategy` to override.
+- Use `--json` to emit machine-readable output.
+
+
+ARGUMENTS: Create ADR-0004 for penalty guidance in WODsmith competition management
+
+---
+
+first off, we are using planetscale mysql so get rid of all instances of D1. I'm thinking we modify whatever tables involved with the 'adjust score' action to include a type that matches the crossfit penalties. so minor/major. and when noreps are logged we can just display ui around guiding people toward minor or major penalities. so if say a athlete has 20+ no reps and is deserving of a major penalty, we could put ui up that suggests that and if they select major penalty we would have a range input of 15-40% so the organizer can select and it would show a before/after of the score adjustment. they could also just input the desired penalty as well. get my drift? update the adr
+
+---
+
+for the guidance, please refer to the crossfit report. I forget what it mentions
+
+---
+
+we want to codify minor and major penalties to display for the athlete and on the leaderboard...
+
+---
+
+so they would just be score adjustment types that can be selected
+
+---
+
+1. On the leaderboard: would a penalized score show something like a
+  badge/indicator next to the score (e.g., "215 reps ⚠️ Major Penalty" or "215
+  reps (-20%)")? Or just the adjusted score with a subtle marker?
+  2. For the athlete: do they see the penalty type + percentage on their score
+  detail page? Like "Original: 252 reps → Penalized: 202 reps (Major Penalty, 20%
+  deduction, 12 no-reps)"?
+  3. Should penaltyType live on the scoresTable itself (not just the verification
+  log) so leaderboard queries can display it without joining to the log table? 1. yes 2. yeah that makes sense 3. seems like thats what you went with
+
+---
+
+what database changes do we need for this adr?
+
+---
+
+I don't like "zero" that doesn't make any sense. and give me a full breakdown with what's on the two tables before adding the denormalization
+
+---
+
+zero meaning it was reviewed and score found valid?
+
+---
+
+we do need to add an 'invalid' state to a submissionn which zeros out a score. so a video could be straight up invalid.. it was edited OR there could be so many no reps that it's deemed invalid so lets add that to verificationStatus. and yeah you can add penaltyPercentage and noRepCount onto scoresTable which get updated for any subsequent score adjustment that is made
+
+---
+
+so the behavior should be if a score is marked as invalid it will zero out on for the athlete
+
+---
+
+alright commit and push this branch and open up a pr so the adr can get a review
+
+---
+
+pull down changes and resolve conflicts
+
+---
+
+I don't see any ui for selecting major or minor penalty..
+
+---
+
+did you pull
+
+---
+
+the assigning adjustments ui is completely gone. wtf fix it
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+lets approach this different. get rid of all your new commits locally and pull from origin before pulling in main
