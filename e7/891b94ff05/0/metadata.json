@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "e7891b94ff05",
+  "session_id": "49528e19-7253-4798-889a-56eb87edf075",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-08T05:57:01.376347Z",
+  "branch": "zac/penalty-guidance",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "docs/adr/0004-penalty-guidance-for-online-score-adjustments.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "c9d9ed50-0bc3-4048-a12d-a8f1bc7508bc",
+  "token_usage": {
+    "input_tokens": 83,
+    "cache_creation_tokens": 67611,
+    "cache_read_tokens": 3025194,
+    "output_tokens": 19498,
+    "api_call_count": 55
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-08T05:57:01.283849Z",
+    "agent_lines": 267,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 267,
+    "agent_percentage": 100
+  }
+}
