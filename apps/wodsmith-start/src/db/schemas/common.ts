@@ -117,3 +117,6 @@ export const createVolunteerRegistrationAnswerId = () => `vra_${ulid()}`
 // Product coupon ID generators
 export const createProductCouponId = () => `pcoup_${ulid()}`
 export const createProductCouponRedemptionId = () => `pcred_${ulid()}`
+
+// Review note ID generators
+export const createReviewNoteId = () => `rnote_${ulid()}`

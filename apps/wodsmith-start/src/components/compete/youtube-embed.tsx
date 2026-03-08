@@ -1,9 +1,50 @@
 "use client"
 
 import { ExternalLink, Youtube } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 import { isSafeUrl } from "@/utils/url"
+
+declare global {
+	interface Window {
+		YT: typeof YT
+		onYouTubeIframeAPIReady: (() => void) | undefined
+	}
+	namespace YT {
+		class Player {
+			constructor(elementId: string, config: PlayerConfig)
+			pauseVideo(): void
+			playVideo(): void
+			getCurrentTime(): number
+			seekTo(seconds: number, allowSeekAhead?: boolean): void
+			destroy(): void
+		}
+		interface PlayerConfig {
+			videoId: string
+			playerVars?: Record<string, number | string>
+			events?: {
+				onReady?: (event: { target: Player }) => void
+			}
+		}
+	}
+}
+
+export interface YouTubePlayerRef {
+	pauseVideo: () => void
+	playVideo: () => void
+	getCurrentTime: () => number
+	seekTo: (seconds: number, allowSeekAhead?: boolean) => void
+}
+
+interface YouTubePlayerEmbedProps {
+	url: string
+	className?: string
+	title?: string
+	onPlayerReady?: (player: YouTubePlayerRef) => void
+}
+
+let iframeApiLoaded = false
+let iframeApiScriptInjected = false
 
 interface YouTubeEmbedProps {
 	url: string
@@ -155,5 +196,115 @@ export function YouTubeThumbnail({
 				</div>
 			</div>
 		</div>
+	)
+}
+
+function loadIframeApi(): Promise<void> {
+	if (iframeApiLoaded && window.YT?.Player) {
+		return Promise.resolve()
+	}
+
+	return new Promise<void>((resolve) => {
+		if (window.YT?.Player) {
+			iframeApiLoaded = true
+			resolve()
+			return
+		}
+
+		const prev = window.onYouTubeIframeAPIReady
+		window.onYouTubeIframeAPIReady = () => {
+			iframeApiLoaded = true
+			prev?.()
+			resolve()
+		}
+
+		if (!iframeApiScriptInjected) {
+			iframeApiScriptInjected = true
+			const script = document.createElement("script")
+			script.src = "https://www.youtube.com/iframe_api"
+			document.head.appendChild(script)
+		}
+	})
+}
+
+export function YouTubePlayerEmbed({
+	url,
+	className,
+	title,
+	onPlayerReady,
+}: YouTubePlayerEmbedProps) {
+	const videoId = extractYouTubeVideoId(url)
+	const reactId = useId()
+	const elementId = `yt-player-${reactId.replace(/:/g, "-")}`
+	const playerRef = useRef<YT.Player | null>(null)
+	const onPlayerReadyRef = useRef(onPlayerReady)
+	onPlayerReadyRef.current = onPlayerReady
+
+	useEffect(() => {
+		if (!videoId) return
+
+		let destroyed = false
+
+		loadIframeApi().then(() => {
+			if (destroyed) return
+
+			playerRef.current = new YT.Player(elementId, {
+				videoId,
+				playerVars: { rel: 0, modestbranding: 1, enablejsapi: 1 },
+				events: {
+					onReady: (event) => {
+						if (destroyed) return
+						const p = event.target
+						const ref: YouTubePlayerRef = {
+							pauseVideo: () => p.pauseVideo(),
+							playVideo: () => p.playVideo(),
+							getCurrentTime: () => p.getCurrentTime(),
+							seekTo: (seconds, allowSeekAhead) =>
+								p.seekTo(seconds, allowSeekAhead),
+						}
+						onPlayerReadyRef.current?.(ref)
+					},
+				},
+			})
+		})
+
+		return () => {
+			destroyed = true
+			playerRef.current?.destroy()
+			playerRef.current = null
+		}
+	}, [videoId, elementId])
+
+	if (!videoId) {
+		return (
+			<div
+				className={cn(
+					"relative aspect-video w-full overflow-hidden rounded-lg bg-muted flex items-center justify-center p-4",
+					className,
+				)}
+			>
+				<a
+					href={isSafeUrl(url) ? url : "#"}
+					target="_blank"
+					rel="noopener noreferrer"
+					className="inline-flex items-center gap-2 text-primary hover:underline text-sm"
+				>
+					<ExternalLink className="h-4 w-4" />
+					Open video in new tab
+				</a>
+			</div>
+		)
+	}
+
+	return (
+		<section
+			className={cn(
+				"relative aspect-video w-full overflow-hidden rounded-lg bg-black",
+				className,
+			)}
+			aria-label={title || "YouTube video player"}
+		>
+			<div id={elementId} className="absolute inset-0 h-full w-full" />
+		</section>
 	)
 }

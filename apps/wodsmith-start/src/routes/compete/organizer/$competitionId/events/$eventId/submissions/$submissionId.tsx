@@ -21,13 +21,21 @@ import {
 	CheckCircle2,
 	Clock,
 	ExternalLink,
-	FileText,
+	MessageSquare,
+	ArrowDownUp,
+	Pencil,
+	Trash2,
 	Trophy,
 	Undo2,
 	User,
 } from "lucide-react"
-import { useState } from "react"
-import { isYouTubeUrl, YouTubeEmbed } from "@/components/compete/youtube-embed"
+import { useCallback, useEffect, useRef, useState } from "react"
+import {
+	VideoPlayerEmbed,
+	supportsInteractivePlayer,
+	getVideoPlatformName,
+	type VideoPlayerRef,
+} from "@/components/compete/video-player-embed"
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -70,6 +78,13 @@ import {
 	type VerificationLogEntry,
 	verifySubmissionScoreFn,
 } from "@/server-fns/submission-verification-fns"
+import {
+	createReviewNoteFn,
+	deleteReviewNoteFn,
+	getReviewNotesFn,
+	getWorkoutMovementsFn,
+	updateReviewNoteFn,
+} from "@/server-fns/review-note-fns"
 import {
 	getOrganizerSubmissionDetailFn,
 	markSubmissionReviewedFn,
@@ -126,11 +141,36 @@ export const Route = createFileRoute(
 			}
 		}
 
+		// Fetch review notes
+		const notesResult = await getReviewNotesFn({
+			data: {
+				videoSubmissionId: params.submissionId,
+				competitionId: params.competitionId,
+			},
+		})
+
+		// Fetch workout movements using trackWorkoutId (eventId param)
+		// This works regardless of whether a score exists
+		let workoutMovements: Array<{ id: string; name: string; type: string }> = []
+		try {
+			const movementsResult = await getWorkoutMovementsFn({
+				data: {
+					trackWorkoutId: params.eventId,
+					competitionId: params.competitionId,
+				},
+			})
+			workoutMovements = movementsResult.movements
+		} catch {
+			// Movements not available
+		}
+
 		return {
 			submission: reviewResult.submission,
 			verificationSubmission,
 			event,
 			verificationLogs,
+			reviewNotes: notesResult.notes,
+			workoutMovements,
 		}
 	},
 })
@@ -903,12 +943,560 @@ function VerificationControls({
 }
 
 // ============================================================================
+// Review Notes Helpers & Components
+// ============================================================================
+
+function formatTimestamp(seconds: number): string {
+	const mins = Math.floor(seconds / 60)
+	const secs = seconds % 60
+	return `${mins}:${secs.toString().padStart(2, "0")}`
+}
+
+interface ReviewNoteFormProps {
+	videoSubmissionId: string
+	competitionId: string
+	movements: Array<{ id: string; name: string; type: string }>
+	playerRef: React.RefObject<VideoPlayerRef | null>
+	formTextareaRef: React.RefObject<HTMLTextAreaElement | null>
+	onNoteCreated: () => void
+}
+
+function ReviewNoteForm({
+	videoSubmissionId,
+	competitionId,
+	movements,
+	playerRef,
+	formTextareaRef,
+	onNoteCreated,
+}: ReviewNoteFormProps) {
+	const createNote = useServerFn(createReviewNoteFn)
+	const [noteType, setNoteType] = useState<"general" | "no-rep">("general")
+	const [content, setContent] = useState("")
+	const [timestampSeconds, setTimestampSeconds] = useState<number | null>(null)
+	const [selectedMovementId, setSelectedMovementId] = useState<string>("")
+	const [isSubmitting, setIsSubmitting] = useState(false)
+
+	const captureTimestamp = useCallback(() => {
+		if (playerRef.current) {
+			const time = Math.round(playerRef.current.getCurrentTime())
+			setTimestampSeconds(time)
+		}
+	}, [playerRef])
+
+	const handleFocus = useCallback(() => {
+		if (playerRef.current) {
+			playerRef.current.pauseVideo()
+			captureTimestamp()
+		}
+	}, [playerRef, captureTimestamp])
+
+	const handleSubmit = async () => {
+		if (!content.trim()) return
+		setIsSubmitting(true)
+		try {
+			await createNote({
+				data: {
+					videoSubmissionId,
+					competitionId,
+					type: noteType,
+					content: content.trim(),
+					timestampSeconds: timestampSeconds ?? undefined,
+					movementId: selectedMovementId && selectedMovementId !== "none" ? selectedMovementId : undefined,
+				},
+			})
+			setContent("")
+			setTimestampSeconds(null)
+			onNoteCreated()
+			playerRef.current?.playVideo()
+		} finally {
+			setIsSubmitting(false)
+		}
+	}
+
+	const handleKeyDown = (e: React.KeyboardEvent) => {
+		if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+			e.preventDefault()
+			handleSubmit()
+		}
+	}
+
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle className="flex items-center gap-2">
+					<MessageSquare className="h-4 w-4" />
+					Add Review Note
+				</CardTitle>
+				<CardDescription>
+					Press{" "}
+					<kbd className="rounded border bg-muted px-1.5 py-0.5 text-xs font-mono">
+						n
+					</kbd>{" "}
+					to pause video and add a note
+				</CardDescription>
+			</CardHeader>
+			<CardContent className="space-y-3">
+				<div className="flex gap-1">
+					<Button
+						type="button"
+						size="sm"
+						variant={noteType === "general" ? "default" : "outline"}
+						className="h-7 text-xs"
+						onClick={() => setNoteType("general")}
+					>
+						General
+					</Button>
+					<Button
+						type="button"
+						size="sm"
+						variant={noteType === "no-rep" ? "destructive" : "outline"}
+						className="h-7 text-xs"
+						onClick={() => setNoteType("no-rep")}
+					>
+						No Rep
+					</Button>
+				</div>
+				{timestampSeconds !== null && (
+					<div className="flex items-center gap-2">
+						<Badge variant="outline" className="font-mono">
+							{formatTimestamp(timestampSeconds)}
+						</Badge>
+						<button
+							type="button"
+							className="text-xs text-muted-foreground hover:text-foreground"
+							onClick={() => setTimestampSeconds(null)}
+						>
+							Clear timestamp
+						</button>
+					</div>
+				)}
+				<Textarea
+					ref={formTextareaRef}
+					value={content}
+					onChange={(e) => setContent(e.target.value)}
+					onFocus={handleFocus}
+					onKeyDown={handleKeyDown}
+					placeholder="No rep, bad form, movement standard..."
+					rows={2}
+					className="text-sm"
+				/>
+				{movements.length > 0 && (
+					<div className="space-y-1">
+						<Label className="text-xs">Movement (optional)</Label>
+						<Select
+							value={selectedMovementId}
+							onValueChange={setSelectedMovementId}
+						>
+							<SelectTrigger className="h-8 text-sm">
+								<SelectValue placeholder="Select movement..." />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="none">None</SelectItem>
+								{movements.map((m) => (
+									<SelectItem key={m.id} value={m.id}>
+										{m.name}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+				)}
+				<div className="flex items-center justify-between">
+					<span className="text-xs text-muted-foreground">
+						{typeof navigator !== "undefined" &&
+						navigator.platform?.includes("Mac")
+							? "\u2318"
+							: "Ctrl"}
+						+Enter to submit
+					</span>
+					<Button
+						size="sm"
+						disabled={isSubmitting || !content.trim()}
+						onClick={handleSubmit}
+					>
+						{isSubmitting ? "Adding..." : "Add Note"}
+					</Button>
+				</div>
+			</CardContent>
+		</Card>
+	)
+}
+
+interface ReviewNotesListProps {
+	notes: Array<{
+		id: string
+		type: string
+		content: string
+		timestampSeconds: number | null
+		movementId: string | null
+		movementName: string | null
+		createdAt: Date
+		reviewer: {
+			id: string
+			firstName: string | null
+			lastName: string | null
+			avatar: string | null
+		}
+	}>
+	movements: Array<{ id: string; name: string }>
+	competitionId: string
+	playerRef: React.RefObject<VideoPlayerRef | null>
+	onNoteUpdated: () => void
+}
+
+type SortOrder = "timestamp-asc" | "timestamp-desc"
+type TypeFilter = "all" | "general" | "no-rep"
+
+function ReviewNotesList({
+	notes,
+	movements,
+	competitionId,
+	playerRef,
+	onNoteUpdated,
+}: ReviewNotesListProps) {
+	const deleteFn = useServerFn(deleteReviewNoteFn)
+	const updateFn = useServerFn(updateReviewNoteFn)
+	const [deletingId, setDeletingId] = useState<string | null>(null)
+	const [editingId, setEditingId] = useState<string | null>(null)
+	const [editContent, setEditContent] = useState("")
+	const [editType, setEditType] = useState<"general" | "no-rep">("general")
+	const [isSaving, setIsSaving] = useState(false)
+	const [sortOrder, setSortOrder] = useState<SortOrder>("timestamp-asc")
+	const [typeFilter, setTypeFilter] = useState<TypeFilter>("all")
+	const [movementFilter, setMovementFilter] = useState<string>("all")
+
+	const handleSeek = (seconds: number) => {
+		if (playerRef.current) {
+			playerRef.current.seekTo(seconds, true)
+			playerRef.current.playVideo()
+		}
+	}
+
+	const handleDelete = async (noteId: string) => {
+		setDeletingId(noteId)
+		try {
+			await deleteFn({ data: { noteId, competitionId } })
+			onNoteUpdated()
+		} finally {
+			setDeletingId(null)
+		}
+	}
+
+	const startEdit = (note: ReviewNotesListProps["notes"][0]) => {
+		setEditingId(note.id)
+		setEditContent(note.content)
+		setEditType((note.type as "general" | "no-rep") || "general")
+	}
+
+	const cancelEdit = () => {
+		setEditingId(null)
+		setEditContent("")
+	}
+
+	const saveEdit = async () => {
+		if (!editingId || !editContent.trim()) return
+		setIsSaving(true)
+		try {
+			await updateFn({
+				data: {
+					noteId: editingId,
+					competitionId,
+					content: editContent.trim(),
+					type: editType,
+				},
+			})
+			setEditingId(null)
+			setEditContent("")
+			onNoteUpdated()
+		} finally {
+			setIsSaving(false)
+		}
+	}
+
+	const handleEditKeyDown = (e: React.KeyboardEvent) => {
+		if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+			e.preventDefault()
+			saveEdit()
+		}
+		if (e.key === "Escape") {
+			cancelEdit()
+		}
+	}
+
+	// Reset movement filter when type filter changes away from no-rep
+	const effectiveMovementFilter = typeFilter === "no-rep" ? movementFilter : "all"
+
+	const filteredNotes = notes.filter((note) => {
+		if (typeFilter !== "all" && note.type !== typeFilter) return false
+		if (effectiveMovementFilter !== "all" && note.movementId !== effectiveMovementFilter) return false
+		return true
+	})
+
+	const sortedNotes = [...filteredNotes].sort((a, b) => {
+		if (a.timestampSeconds === null && b.timestampSeconds === null) return 0
+		if (a.timestampSeconds === null) return 1
+		if (b.timestampSeconds === null) return -1
+		return sortOrder === "timestamp-asc"
+			? a.timestampSeconds - b.timestampSeconds
+			: b.timestampSeconds - a.timestampSeconds
+	})
+
+	if (notes.length === 0) return null
+
+	const toggleSortOrder = () => {
+		setSortOrder(sortOrder === "timestamp-asc" ? "timestamp-desc" : "timestamp-asc")
+	}
+
+	return (
+		<Card>
+			<CardHeader>
+				<div className="flex items-center justify-between">
+					<CardTitle className="text-sm">
+						Review Notes ({filteredNotes.length}{filteredNotes.length !== notes.length ? ` / ${notes.length}` : ""})
+					</CardTitle>
+					<Button
+						variant="ghost"
+						size="sm"
+						className="h-7 text-xs gap-1"
+						onClick={toggleSortOrder}
+					>
+						<ArrowDownUp className="h-3 w-3" />
+						{sortOrder === "timestamp-asc" ? "Time ↑" : "Time ↓"}
+					</Button>
+				</div>
+				<div className="flex flex-wrap items-center gap-2 pt-1">
+					<div className="flex gap-1">
+						{(["all", "general", "no-rep"] as const).map((t) => (
+							<Button
+								key={t}
+								type="button"
+								size="sm"
+								variant={typeFilter === t ? (t === "no-rep" ? "destructive" : "default") : "outline"}
+								className="h-6 text-xs px-2"
+								onClick={() => {
+									setTypeFilter(t)
+									if (t !== "no-rep") setMovementFilter("all")
+								}}
+							>
+								{t === "all" ? "All" : t === "general" ? "General" : "No Rep"}
+							</Button>
+						))}
+					</div>
+					{typeFilter === "no-rep" && movements.length > 0 && (
+						<Select value={effectiveMovementFilter} onValueChange={setMovementFilter}>
+							<SelectTrigger className="h-6 text-xs w-auto min-w-[120px]">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="all">All movements</SelectItem>
+								{movements.map((m) => (
+									<SelectItem key={m.id} value={m.id}>
+										{m.name}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					)}
+				</div>
+			</CardHeader>
+			<CardContent className="space-y-2">
+				{sortedNotes.length === 0 ? (
+					<p className="text-xs text-muted-foreground text-center py-2">No matching notes</p>
+				) : sortedNotes.map((note) => (
+					<div
+						key={note.id}
+						className="group rounded border px-3 py-2 text-sm space-y-1"
+					>
+						<div className="flex items-center justify-between gap-2">
+							<div className="flex items-center gap-2">
+								{editingId === note.id ? (
+									<div className="flex gap-1">
+										<Button
+											type="button"
+											size="sm"
+											variant={editType === "general" ? "default" : "outline"}
+											className="h-5 text-xs px-1.5"
+											onClick={() => setEditType("general")}
+										>
+											General
+										</Button>
+										<Button
+											type="button"
+											size="sm"
+											variant={editType === "no-rep" ? "destructive" : "outline"}
+											className="h-5 text-xs px-1.5"
+											onClick={() => setEditType("no-rep")}
+										>
+											No Rep
+										</Button>
+									</div>
+								) : (
+									<>
+										{note.type === "no-rep" && (
+											<Badge variant="destructive" className="text-xs">
+												No Rep
+											</Badge>
+										)}
+										{note.timestampSeconds !== null && (
+											<button
+												type="button"
+												onClick={() => handleSeek(note.timestampSeconds!)}
+												className="font-mono text-xs text-primary hover:underline"
+											>
+												{formatTimestamp(note.timestampSeconds)}
+											</button>
+										)}
+										{note.movementName && (
+											<Badge variant="secondary" className="text-xs">
+												{note.movementName}
+											</Badge>
+										)}
+									</>
+								)}
+							</div>
+							{editingId !== note.id && (
+								<div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-6 w-6"
+										onClick={() => startEdit(note)}
+									>
+										<Pencil className="h-3 w-3" />
+									</Button>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-6 w-6"
+										disabled={deletingId === note.id}
+										onClick={() => handleDelete(note.id)}
+									>
+										<Trash2 className="h-3 w-3" />
+									</Button>
+								</div>
+							)}
+						</div>
+						{editingId === note.id ? (
+							<div className="space-y-2">
+								<Textarea
+									value={editContent}
+									onChange={(e) => setEditContent(e.target.value)}
+									onKeyDown={handleEditKeyDown}
+									rows={2}
+									className="text-sm"
+									autoFocus
+								/>
+								<div className="flex items-center justify-end gap-2">
+									<Button
+										size="sm"
+										variant="ghost"
+										className="h-7 text-xs"
+										onClick={cancelEdit}
+									>
+										Cancel
+									</Button>
+									<Button
+										size="sm"
+										className="h-7 text-xs"
+										disabled={isSaving || !editContent.trim()}
+										onClick={saveEdit}
+									>
+										{isSaving ? "Saving..." : "Save"}
+									</Button>
+								</div>
+							</div>
+						) : (
+							<>
+								<p className="text-sm">{note.content}</p>
+								<p className="text-xs text-muted-foreground">
+									{note.reviewer.firstName} {note.reviewer.lastName}
+								</p>
+							</>
+						)}
+					</div>
+				))}
+			</CardContent>
+		</Card>
+	)
+}
+
+interface MovementTallyCardProps {
+	notes: Array<{ type: string; movementId: string | null; movementName: string | null }>
+}
+
+function MovementTallyCard({ notes }: MovementTallyCardProps) {
+	const noRepNotes = notes.filter((n) => n.type === "no-rep")
+	const noRepCount = noRepNotes.length
+
+	const tallies = new Map<string, { name: string; count: number }>()
+	for (const note of noRepNotes) {
+		if (note.movementId && note.movementName) {
+			const existing = tallies.get(note.movementId)
+			if (existing) {
+				existing.count++
+			} else {
+				tallies.set(note.movementId, { name: note.movementName, count: 1 })
+			}
+		}
+	}
+
+	if (notes.length === 0) return null
+
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle className="text-sm flex items-center gap-2">
+					<MessageSquare className="h-4 w-4" />
+					Review Summary
+				</CardTitle>
+			</CardHeader>
+			<CardContent className="space-y-2">
+				<div className="flex items-center justify-between text-sm font-medium">
+					<span>No Reps</span>
+					<Badge variant="destructive" className="font-mono">
+						{noRepCount}
+					</Badge>
+				</div>
+				{tallies.size > 0 && (
+					<>
+						<Separator />
+						<p className="text-xs text-muted-foreground font-medium">By Movement</p>
+						{Array.from(tallies.values()).map((t) => (
+							<div
+								key={t.name}
+								className="flex items-center justify-between text-sm"
+							>
+								<span>{t.name}</span>
+								<Badge variant="destructive" className="font-mono">
+									{t.count}
+								</Badge>
+							</div>
+						))}
+					</>
+				)}
+				<Separator />
+				<div className="flex items-center justify-between text-sm text-muted-foreground">
+					<span>Total notes</span>
+					<span>{notes.length}</span>
+				</div>
+			</CardContent>
+		</Card>
+	)
+}
+
+// ============================================================================
 // Page Component
 // ============================================================================
 
 function SubmissionDetailPage() {
-	const { submission, verificationSubmission, event, verificationLogs } =
-		Route.useLoaderData()
+	const {
+		submission,
+		verificationSubmission,
+		event,
+		verificationLogs,
+		reviewNotes,
+		workoutMovements,
+	} = Route.useLoaderData()
 	const { competition } = parentRoute.useLoaderData()
 	const params = Route.useParams()
 	const router = useRouter()
@@ -918,8 +1506,48 @@ function SubmissionDetailPage() {
 
 	const [isUpdating, setIsUpdating] = useState(false)
 
+	const playerRef = useRef<VideoPlayerRef | null>(null)
+	const noteTextareaRef = useRef<HTMLTextAreaElement>(null)
+
+	const handlePlayerReady = useCallback((player: VideoPlayerRef) => {
+		playerRef.current = player
+	}, [])
+
+	// Pull focus back from iframe so keyboard shortcuts work
+	useEffect(() => {
+		const handleBlur = () => {
+			// When focus moves to the iframe, reclaim it after a tick
+			setTimeout(() => {
+				if (document.activeElement?.tagName === "IFRAME") {
+					window.focus()
+				}
+			}, 0)
+		}
+		window.addEventListener("blur", handleBlur)
+		return () => window.removeEventListener("blur", handleBlur)
+	}, [])
+
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			const tag = (e.target as HTMLElement)?.tagName
+			if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return
+
+			if (e.key === "n" || e.key === "N") {
+				e.preventDefault()
+				if (playerRef.current) {
+					playerRef.current.pauseVideo()
+				}
+				noteTextareaRef.current?.focus()
+			}
+		}
+
+		document.addEventListener("keydown", handleKeyDown)
+		return () => document.removeEventListener("keydown", handleKeyDown)
+	}, [])
+
 	const isReviewed = submission.reviewStatus === "reviewed"
-	const isYouTube = isYouTubeUrl(submission.videoUrl)
+	const hasInteractivePlayer = supportsInteractivePlayer(submission.videoUrl)
+	const platformName = getVideoPlatformName(submission.videoUrl)
 
 	const handleToggleReview = async () => {
 		setIsUpdating(true)
@@ -1036,42 +1664,14 @@ function SubmissionDetailPage() {
 							<CardTitle>Video</CardTitle>
 						</CardHeader>
 						<CardContent>
-							{isYouTube ? (
-								<YouTubeEmbed
-									url={submission.videoUrl}
-									title="Submission video"
-								/>
-							) : (
-								<div className="rounded-lg border bg-muted/50 p-6">
-									<div className="flex items-center gap-3">
-										<FileText className="h-5 w-5 text-muted-foreground" />
-										<div className="flex-1 min-w-0">
-											<p className="text-sm font-medium truncate">
-												{submission.videoUrl}
-											</p>
-											<p className="text-xs text-muted-foreground">
-												External video link
-											</p>
-										</div>
-										<a
-											href={
-												isSafeUrl(submission.videoUrl)
-													? submission.videoUrl
-													: "#"
-											}
-											target="_blank"
-											rel="noopener noreferrer"
-											className="flex items-center gap-1.5 text-sm text-primary hover:underline shrink-0"
-										>
-											<ExternalLink className="h-4 w-4" />
-											Open
-										</a>
-									</div>
-								</div>
-							)}
+							<VideoPlayerEmbed
+								url={submission.videoUrl}
+								title="Submission video"
+								onPlayerReady={hasInteractivePlayer ? handlePlayerReady : undefined}
+							/>
 
 							{/* Direct link below embed */}
-							{isYouTube && (
+							{platformName && (
 								<div className="mt-3">
 									<a
 										href={
@@ -1082,7 +1682,7 @@ function SubmissionDetailPage() {
 										className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
 									>
 										<ExternalLink className="h-3.5 w-3.5" />
-										Open in YouTube
+										Open in {platformName}
 									</a>
 								</div>
 							)}
@@ -1102,6 +1702,23 @@ function SubmissionDetailPage() {
 							</CardContent>
 						</Card>
 					)}
+
+					<ReviewNoteForm
+						videoSubmissionId={submission.id}
+						competitionId={competition.id}
+						movements={workoutMovements}
+						playerRef={playerRef}
+						formTextareaRef={noteTextareaRef}
+						onNoteCreated={() => router.invalidate()}
+					/>
+
+					<ReviewNotesList
+						notes={reviewNotes}
+						movements={workoutMovements}
+						competitionId={competition.id}
+						playerRef={playerRef}
+						onNoteUpdated={() => router.invalidate()}
+					/>
 				</div>
 
 				{/* Sidebar */}
@@ -1151,12 +1768,12 @@ function SubmissionDetailPage() {
 							{submission.division && (
 								<>
 									<Separator className="my-3" />
-									<p className="text-sm">
+									<div className="text-sm">
 										<span className="text-muted-foreground">Division: </span>
 										<Badge variant="outline" className="ml-1">
 											{submission.division.label}
 										</Badge>
-									</p>
+									</div>
 								</>
 							)}
 						</CardContent>
@@ -1228,6 +1845,10 @@ function SubmissionDetailPage() {
 							trackWorkoutId={params.eventId}
 							logs={verificationLogs}
 						/>
+					)}
+
+					{reviewNotes.length > 0 && (
+						<MovementTallyCard notes={reviewNotes} />
 					)}
 				</div>
 			</div>
