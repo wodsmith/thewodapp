@@ -20,12 +20,18 @@ import {
 	Clock,
 	ExternalLink,
 	FileText,
+	MessageSquare,
+	Trash2,
 	Trophy,
 	Undo2,
 	User,
 } from "lucide-react"
-import { useState } from "react"
-import { isYouTubeUrl, YouTubeEmbed } from "@/components/compete/youtube-embed"
+import { useCallback, useEffect, useRef, useState } from "react"
+import {
+	isYouTubeUrl,
+	YouTubePlayerEmbed,
+	type YouTubePlayerRef,
+} from "@/components/compete/youtube-embed"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -47,6 +53,12 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import {
+	createReviewNoteFn,
+	deleteReviewNoteFn,
+	getReviewNotesFn,
+	getWorkoutMovementsFn,
+} from "@/server-fns/review-note-fns"
 import {
 	getOrganizerSubmissionDetailFn,
 	markSubmissionReviewedFn,
@@ -112,11 +124,37 @@ export const Route = createFileRoute(
 			}
 		}
 
+		// Fetch review notes
+		const notesResult = await getReviewNotesFn({
+			data: {
+				videoSubmissionId: params.submissionId,
+				competitionId: params.competitionId,
+			},
+		})
+
+		// Fetch workout movements if we have event data
+		let workoutMovements: Array<{ id: string; name: string; type: string }> = []
+		if (event) {
+			try {
+				const movementsResult = await getWorkoutMovementsFn({
+					data: {
+						workoutId: event.workout.id,
+						competitionId: params.competitionId,
+					},
+				})
+				workoutMovements = movementsResult.movements
+			} catch {
+				// Movements not available
+			}
+		}
+
 		return {
 			submission: reviewResult.submission,
 			verificationSubmission,
 			event,
 			verificationLogs,
+			reviewNotes: notesResult.notes,
+			workoutMovements,
 		}
 	},
 })
@@ -454,11 +492,324 @@ function VerificationControls({
 }
 
 // ============================================================================
+// Review Notes Helpers & Components
+// ============================================================================
+
+function formatTimestamp(seconds: number): string {
+	const mins = Math.floor(seconds / 60)
+	const secs = seconds % 60
+	return `${mins}:${secs.toString().padStart(2, "0")}`
+}
+
+interface ReviewNoteFormProps {
+	videoSubmissionId: string
+	competitionId: string
+	movements: Array<{ id: string; name: string; type: string }>
+	playerRef: React.RefObject<YouTubePlayerRef | null>
+	formTextareaRef: React.RefObject<HTMLTextAreaElement | null>
+	onNoteCreated: () => void
+}
+
+function ReviewNoteForm({
+	videoSubmissionId,
+	competitionId,
+	movements,
+	playerRef,
+	formTextareaRef,
+	onNoteCreated,
+}: ReviewNoteFormProps) {
+	const createNote = useServerFn(createReviewNoteFn)
+	const [content, setContent] = useState("")
+	const [timestampSeconds, setTimestampSeconds] = useState<number | null>(null)
+	const [selectedMovementId, setSelectedMovementId] = useState<string>("")
+	const [isSubmitting, setIsSubmitting] = useState(false)
+
+	const captureTimestamp = useCallback(() => {
+		if (playerRef.current) {
+			const time = Math.round(playerRef.current.getCurrentTime())
+			setTimestampSeconds(time)
+		}
+	}, [playerRef])
+
+	const handleFocus = useCallback(() => {
+		if (playerRef.current) {
+			playerRef.current.pauseVideo()
+			captureTimestamp()
+		}
+	}, [playerRef, captureTimestamp])
+
+	const handleSubmit = async () => {
+		if (!content.trim()) return
+		setIsSubmitting(true)
+		try {
+			await createNote({
+				data: {
+					videoSubmissionId,
+					competitionId,
+					content: content.trim(),
+					timestampSeconds: timestampSeconds ?? undefined,
+					movementId: selectedMovementId || undefined,
+				},
+			})
+			setContent("")
+			setTimestampSeconds(null)
+			setSelectedMovementId("")
+			onNoteCreated()
+		} finally {
+			setIsSubmitting(false)
+		}
+	}
+
+	const handleKeyDown = (e: React.KeyboardEvent) => {
+		if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+			e.preventDefault()
+			handleSubmit()
+		}
+	}
+
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle className="flex items-center gap-2">
+					<MessageSquare className="h-4 w-4" />
+					Add Review Note
+				</CardTitle>
+				<CardDescription>
+					Press{" "}
+					<kbd className="rounded border bg-muted px-1.5 py-0.5 text-xs font-mono">
+						n
+					</kbd>{" "}
+					to pause video and add a note
+				</CardDescription>
+			</CardHeader>
+			<CardContent className="space-y-3">
+				{timestampSeconds !== null && (
+					<div className="flex items-center gap-2">
+						<Badge variant="outline" className="font-mono">
+							{formatTimestamp(timestampSeconds)}
+						</Badge>
+						<button
+							type="button"
+							className="text-xs text-muted-foreground hover:text-foreground"
+							onClick={() => setTimestampSeconds(null)}
+						>
+							Clear timestamp
+						</button>
+					</div>
+				)}
+				<Textarea
+					ref={formTextareaRef}
+					value={content}
+					onChange={(e) => setContent(e.target.value)}
+					onFocus={handleFocus}
+					onKeyDown={handleKeyDown}
+					placeholder="No rep, bad form, movement standard..."
+					rows={2}
+					className="text-sm"
+				/>
+				{movements.length > 0 && (
+					<div className="space-y-1">
+						<Label className="text-xs">Movement (optional)</Label>
+						<Select
+							value={selectedMovementId}
+							onValueChange={setSelectedMovementId}
+						>
+							<SelectTrigger className="h-8 text-sm">
+								<SelectValue placeholder="Select movement..." />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="">None</SelectItem>
+								{movements.map((m) => (
+									<SelectItem key={m.id} value={m.id}>
+										{m.name}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+				)}
+				<div className="flex items-center justify-between">
+					<span className="text-xs text-muted-foreground">
+						{typeof navigator !== "undefined" &&
+						navigator.platform?.includes("Mac")
+							? "\u2318"
+							: "Ctrl"}
+						+Enter to submit
+					</span>
+					<Button
+						size="sm"
+						disabled={isSubmitting || !content.trim()}
+						onClick={handleSubmit}
+					>
+						{isSubmitting ? "Adding..." : "Add Note"}
+					</Button>
+				</div>
+			</CardContent>
+		</Card>
+	)
+}
+
+interface ReviewNotesListProps {
+	notes: Array<{
+		id: string
+		content: string
+		timestampSeconds: number | null
+		movementId: string | null
+		movementName: string | null
+		createdAt: Date
+		reviewer: {
+			id: string
+			firstName: string | null
+			lastName: string | null
+			avatar: string | null
+		}
+	}>
+	competitionId: string
+	playerRef: React.RefObject<YouTubePlayerRef | null>
+	onNoteDeleted: () => void
+}
+
+function ReviewNotesList({
+	notes,
+	competitionId,
+	playerRef,
+	onNoteDeleted,
+}: ReviewNotesListProps) {
+	const deleteFn = useServerFn(deleteReviewNoteFn)
+	const [deletingId, setDeletingId] = useState<string | null>(null)
+
+	const handleSeek = (seconds: number) => {
+		if (playerRef.current) {
+			playerRef.current.seekTo(seconds, true)
+			playerRef.current.playVideo()
+		}
+	}
+
+	const handleDelete = async (noteId: string) => {
+		setDeletingId(noteId)
+		try {
+			await deleteFn({ data: { noteId, competitionId } })
+			onNoteDeleted()
+		} finally {
+			setDeletingId(null)
+		}
+	}
+
+	if (notes.length === 0) return null
+
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle className="text-sm">
+					Review Notes ({notes.length})
+				</CardTitle>
+			</CardHeader>
+			<CardContent className="space-y-2">
+				{notes.map((note) => (
+					<div
+						key={note.id}
+						className="group rounded border px-3 py-2 text-sm space-y-1"
+					>
+						<div className="flex items-center justify-between gap-2">
+							<div className="flex items-center gap-2">
+								{note.timestampSeconds !== null && (
+									<button
+										type="button"
+										onClick={() => handleSeek(note.timestampSeconds!)}
+										className="font-mono text-xs text-primary hover:underline"
+									>
+										{formatTimestamp(note.timestampSeconds)}
+									</button>
+								)}
+								{note.movementName && (
+									<Badge variant="secondary" className="text-xs">
+										{note.movementName}
+									</Badge>
+								)}
+							</div>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+								disabled={deletingId === note.id}
+								onClick={() => handleDelete(note.id)}
+							>
+								<Trash2 className="h-3 w-3" />
+							</Button>
+						</div>
+						<p className="text-sm">{note.content}</p>
+						<p className="text-xs text-muted-foreground">
+							{note.reviewer.firstName} {note.reviewer.lastName}
+						</p>
+					</div>
+				))}
+			</CardContent>
+		</Card>
+	)
+}
+
+interface MovementTallyCardProps {
+	notes: Array<{ movementId: string | null; movementName: string | null }>
+}
+
+function MovementTallyCard({ notes }: MovementTallyCardProps) {
+	const tallies = new Map<string, { name: string; count: number }>()
+	for (const note of notes) {
+		if (note.movementId && note.movementName) {
+			const existing = tallies.get(note.movementId)
+			if (existing) {
+				existing.count++
+			} else {
+				tallies.set(note.movementId, { name: note.movementName, count: 1 })
+			}
+		}
+	}
+
+	if (tallies.size === 0) return null
+
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle className="text-sm flex items-center gap-2">
+					<MessageSquare className="h-4 w-4" />
+					Notes Summary
+				</CardTitle>
+			</CardHeader>
+			<CardContent className="space-y-2">
+				{Array.from(tallies.values()).map((t) => (
+					<div
+						key={t.name}
+						className="flex items-center justify-between text-sm"
+					>
+						<span>{t.name}</span>
+						<Badge variant="destructive" className="font-mono">
+							{t.count}
+						</Badge>
+					</div>
+				))}
+				<Separator />
+				<div className="flex items-center justify-between text-sm font-medium">
+					<span>Total notes</span>
+					<span>{notes.length}</span>
+				</div>
+			</CardContent>
+		</Card>
+	)
+}
+
+// ============================================================================
 // Page Component
 // ============================================================================
 
 function SubmissionDetailPage() {
-	const { submission, verificationSubmission, event, verificationLogs } = Route.useLoaderData()
+	const {
+		submission,
+		verificationSubmission,
+		event,
+		verificationLogs,
+		reviewNotes,
+		workoutMovements,
+	} = Route.useLoaderData()
 	const { competition } = parentRoute.useLoaderData()
 	const params = Route.useParams()
 	const router = useRouter()
@@ -467,6 +818,31 @@ function SubmissionDetailPage() {
 	const unmarkReviewed = useServerFn(unmarkSubmissionReviewedFn)
 
 	const [isUpdating, setIsUpdating] = useState(false)
+
+	const playerRef = useRef<YouTubePlayerRef | null>(null)
+	const noteTextareaRef = useRef<HTMLTextAreaElement>(null)
+
+	const handlePlayerReady = useCallback((player: YouTubePlayerRef) => {
+		playerRef.current = player
+	}, [])
+
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			const tag = (e.target as HTMLElement)?.tagName
+			if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return
+
+			if (e.key === "n" || e.key === "N") {
+				e.preventDefault()
+				if (playerRef.current) {
+					playerRef.current.pauseVideo()
+				}
+				noteTextareaRef.current?.focus()
+			}
+		}
+
+		document.addEventListener("keydown", handleKeyDown)
+		return () => document.removeEventListener("keydown", handleKeyDown)
+	}, [])
 
 	const isReviewed = submission.reviewStatus === "reviewed"
 	const isYouTube = isYouTubeUrl(submission.videoUrl)
@@ -587,9 +963,10 @@ function SubmissionDetailPage() {
 						</CardHeader>
 						<CardContent>
 							{isYouTube ? (
-								<YouTubeEmbed
+								<YouTubePlayerEmbed
 									url={submission.videoUrl}
 									title="Submission video"
+									onPlayerReady={handlePlayerReady}
 								/>
 							) : (
 								<div className="rounded-lg border bg-muted/50 p-6">
@@ -652,6 +1029,22 @@ function SubmissionDetailPage() {
 							</CardContent>
 						</Card>
 					)}
+
+					<ReviewNoteForm
+						videoSubmissionId={submission.id}
+						competitionId={competition.id}
+						movements={workoutMovements}
+						playerRef={playerRef}
+						formTextareaRef={noteTextareaRef}
+						onNoteCreated={() => router.invalidate()}
+					/>
+
+					<ReviewNotesList
+						notes={reviewNotes}
+						competitionId={competition.id}
+						playerRef={playerRef}
+						onNoteDeleted={() => router.invalidate()}
+					/>
 				</div>
 
 				{/* Sidebar */}
@@ -778,6 +1171,10 @@ function SubmissionDetailPage() {
 							trackWorkoutId={params.eventId}
 							logs={verificationLogs}
 						/>
+					)}
+
+					{reviewNotes.length > 0 && (
+						<MovementTallyCard notes={reviewNotes} />
 					)}
 				</div>
 			</div>
