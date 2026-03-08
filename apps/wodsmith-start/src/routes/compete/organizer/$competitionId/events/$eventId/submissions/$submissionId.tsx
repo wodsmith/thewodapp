@@ -19,7 +19,6 @@ import {
 	CheckCircle2,
 	Clock,
 	ExternalLink,
-	FileText,
 	MessageSquare,
 	ArrowDownUp,
 	Pencil,
@@ -30,10 +29,11 @@ import {
 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
-	isYouTubeUrl,
-	YouTubePlayerEmbed,
-	type YouTubePlayerRef,
-} from "@/components/compete/youtube-embed"
+	VideoPlayerEmbed,
+	supportsInteractivePlayer,
+	getVideoPlatformName,
+	type VideoPlayerRef,
+} from "@/components/compete/video-player-embed"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -508,7 +508,7 @@ interface ReviewNoteFormProps {
 	videoSubmissionId: string
 	competitionId: string
 	movements: Array<{ id: string; name: string; type: string }>
-	playerRef: React.RefObject<YouTubePlayerRef | null>
+	playerRef: React.RefObject<VideoPlayerRef | null>
 	formTextareaRef: React.RefObject<HTMLTextAreaElement | null>
 	onNoteCreated: () => void
 }
@@ -694,7 +694,7 @@ interface ReviewNotesListProps {
 	}>
 	movements: Array<{ id: string; name: string }>
 	competitionId: string
-	playerRef: React.RefObject<YouTubePlayerRef | null>
+	playerRef: React.RefObject<VideoPlayerRef | null>
 	onNoteUpdated: () => void
 }
 
@@ -1060,14 +1060,14 @@ function SubmissionDetailPage() {
 
 	const [isUpdating, setIsUpdating] = useState(false)
 
-	const playerRef = useRef<YouTubePlayerRef | null>(null)
+	const playerRef = useRef<VideoPlayerRef | null>(null)
 	const noteTextareaRef = useRef<HTMLTextAreaElement>(null)
 
-	const handlePlayerReady = useCallback((player: YouTubePlayerRef) => {
+	const handlePlayerReady = useCallback((player: VideoPlayerRef) => {
 		playerRef.current = player
 	}, [])
 
-	// Pull focus back from YouTube iframe so keyboard shortcuts work
+	// Pull focus back from iframe so keyboard shortcuts work
 	useEffect(() => {
 		const handleBlur = () => {
 			// When focus moves to the iframe, reclaim it after a tick
@@ -1100,7 +1100,8 @@ function SubmissionDetailPage() {
 	}, [])
 
 	const isReviewed = submission.reviewStatus === "reviewed"
-	const isYouTube = isYouTubeUrl(submission.videoUrl)
+	const hasInteractivePlayer = supportsInteractivePlayer(submission.videoUrl)
+	const platformName = getVideoPlatformName(submission.videoUrl)
 
 	const handleToggleReview = async () => {
 		setIsUpdating(true)
@@ -1217,43 +1218,14 @@ function SubmissionDetailPage() {
 							<CardTitle>Video</CardTitle>
 						</CardHeader>
 						<CardContent>
-							{isYouTube ? (
-								<YouTubePlayerEmbed
-									url={submission.videoUrl}
-									title="Submission video"
-									onPlayerReady={handlePlayerReady}
-								/>
-							) : (
-								<div className="rounded-lg border bg-muted/50 p-6">
-									<div className="flex items-center gap-3">
-										<FileText className="h-5 w-5 text-muted-foreground" />
-										<div className="flex-1 min-w-0">
-											<p className="text-sm font-medium truncate">
-												{submission.videoUrl}
-											</p>
-											<p className="text-xs text-muted-foreground">
-												External video link
-											</p>
-										</div>
-										<a
-											href={
-												isSafeUrl(submission.videoUrl)
-													? submission.videoUrl
-													: "#"
-											}
-											target="_blank"
-											rel="noopener noreferrer"
-											className="flex items-center gap-1.5 text-sm text-primary hover:underline shrink-0"
-										>
-											<ExternalLink className="h-4 w-4" />
-											Open
-										</a>
-									</div>
-								</div>
-							)}
+							<VideoPlayerEmbed
+								url={submission.videoUrl}
+								title="Submission video"
+								onPlayerReady={hasInteractivePlayer ? handlePlayerReady : undefined}
+							/>
 
 							{/* Direct link below embed */}
-							{isYouTube && (
+							{platformName && (
 								<div className="mt-3">
 									<a
 										href={
@@ -1264,7 +1236,7 @@ function SubmissionDetailPage() {
 										className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
 									>
 										<ExternalLink className="h-3.5 w-3.5" />
-										Open in YouTube
+										Open in {platformName}
 									</a>
 								</div>
 							)}
