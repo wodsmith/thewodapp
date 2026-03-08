@@ -142,6 +142,7 @@ const verifySubmissionScoreInputSchema = z.object({
 	adjustedScoreStatus: z.enum(["scored", "cap"]).optional(),
 	secondaryScore: z.string().optional(),
 	tieBreakScore: z.string().optional(),
+	reviewerNotes: z.string().optional(),
 })
 
 // ============================================================================
@@ -225,27 +226,64 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
 				throw new Error("Score not found")
 			}
 
+			// Look up the registration for this user in this competition
+			// so we can scope video submission updates correctly
+			const [registration] = await db
+				.select({ id: competitionRegistrationsTable.id })
+				.from(competitionRegistrationsTable)
+				.where(
+					and(
+						eq(competitionRegistrationsTable.eventId, data.competitionId),
+						eq(competitionRegistrationsTable.userId, score.userId),
+					),
+				)
+				.limit(1)
+
 			const now = new Date()
 
 			if (data.action === "verify") {
-				await db
-					.update(scoresTable)
-					.set({
-						verificationStatus: "verified",
-						verifiedAt: now,
-						verifiedByUserId: session.userId,
-						updatedAt: now,
-					})
-					.where(eq(scoresTable.id, data.scoreId))
+				await db.transaction(async (tx) => {
+					await tx
+						.update(scoresTable)
+						.set({
+							verificationStatus: "verified",
+							verifiedAt: now,
+							verifiedByUserId: session.userId,
+							updatedAt: now,
+						})
+						.where(eq(scoresTable.id, data.scoreId))
 
-				await db.insert(scoreVerificationLogsTable).values({
-					scoreId: data.scoreId,
-					competitionId: data.competitionId,
-					trackWorkoutId: data.trackWorkoutId,
-					athleteUserId: score.userId,
-					action: "verified",
-					performedByUserId: session.userId,
-					performedAt: now,
+					await tx.insert(scoreVerificationLogsTable).values({
+						scoreId: data.scoreId,
+						competitionId: data.competitionId,
+						trackWorkoutId: data.trackWorkoutId,
+						athleteUserId: score.userId,
+						action: "verified",
+						performedByUserId: session.userId,
+						performedAt: now,
+					})
+
+					// Update the corresponding video submission's review status
+					if (registration) {
+						await tx
+							.update(videoSubmissionsTable)
+							.set({
+								reviewStatus: "verified",
+								statusUpdatedAt: now,
+								reviewedAt: now,
+								reviewedBy: session.userId,
+								reviewerNotes: data.reviewerNotes || null,
+							})
+							.where(
+								and(
+									eq(videoSubmissionsTable.registrationId, registration.id),
+									eq(
+										videoSubmissionsTable.trackWorkoutId,
+										data.trackWorkoutId,
+									),
+								),
+							)
+					}
 				})
 
 				logInfo({
@@ -325,38 +363,59 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
 						})
 					: null
 
-			await db
-				.update(scoresTable)
-				.set({
-					scoreValue: encodedValue,
-					status: newStatus,
-					statusOrder,
-					sortKey: sortKey ? sortKeyToString(sortKey) : null,
-					secondaryValue,
-					tiebreakValue,
-					verificationStatus: "adjusted",
-					verifiedAt: now,
-					verifiedByUserId: session.userId,
-					updatedAt: now,
-				})
-				.where(eq(scoresTable.id, data.scoreId))
+			await db.transaction(async (tx) => {
+				await tx
+					.update(scoresTable)
+					.set({
+						scoreValue: encodedValue,
+						status: newStatus,
+						statusOrder,
+						sortKey: sortKey ? sortKeyToString(sortKey) : null,
+						secondaryValue,
+						tiebreakValue,
+						verificationStatus: "adjusted",
+						verifiedAt: now,
+						verifiedByUserId: session.userId,
+						updatedAt: now,
+					})
+					.where(eq(scoresTable.id, data.scoreId))
 
-			await db.insert(scoreVerificationLogsTable).values({
-				scoreId: data.scoreId,
-				competitionId: data.competitionId,
-				trackWorkoutId: data.trackWorkoutId,
-				athleteUserId: score.userId,
-				action: "adjusted",
-				originalScoreValue: score.scoreValue,
-				originalStatus: score.status,
-				originalSecondaryValue: score.secondaryValue,
-				originalTiebreakValue: score.tiebreakValue,
-				newScoreValue: encodedValue,
-				newStatus,
-				newSecondaryValue: secondaryValue,
-				newTiebreakValue: tiebreakValue,
-				performedByUserId: session.userId,
-				performedAt: now,
+				await tx.insert(scoreVerificationLogsTable).values({
+					scoreId: data.scoreId,
+					competitionId: data.competitionId,
+					trackWorkoutId: data.trackWorkoutId,
+					athleteUserId: score.userId,
+					action: "adjusted",
+					originalScoreValue: score.scoreValue,
+					originalStatus: score.status,
+					originalSecondaryValue: score.secondaryValue,
+					originalTiebreakValue: score.tiebreakValue,
+					newScoreValue: encodedValue,
+					newStatus,
+					newSecondaryValue: secondaryValue,
+					newTiebreakValue: tiebreakValue,
+					performedByUserId: session.userId,
+					performedAt: now,
+				})
+
+				// Update the corresponding video submission's review status
+				if (registration) {
+					await tx
+						.update(videoSubmissionsTable)
+						.set({
+							reviewStatus: "adjusted",
+							statusUpdatedAt: now,
+							reviewedAt: now,
+							reviewedBy: session.userId,
+							reviewerNotes: data.reviewerNotes || null,
+						})
+						.where(
+							and(
+								eq(videoSubmissionsTable.registrationId, registration.id),
+								eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
+							),
+						)
+				}
 			})
 
 			logInfo({

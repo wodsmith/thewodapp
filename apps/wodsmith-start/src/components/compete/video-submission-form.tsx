@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
+import type { ReviewStatus } from "@/db/schemas/video-submissions"
 import {
 	VideoUrlInput,
 	type VideoUrlValidationState,
@@ -26,6 +27,7 @@ import { cn } from "@/lib/utils"
 import { getSupportedPlatformsText } from "@/schemas/video-url"
 import { submitVideoFn } from "@/server-fns/video-submission-fns"
 import { isSafeUrl } from "@/utils/url"
+import { SubmissionStatusBadge } from "./submission-status-badge"
 import { VideoSubmissionPreview } from "./video-submission-preview"
 
 interface VideoSubmissionFormProps {
@@ -39,6 +41,9 @@ interface VideoSubmissionFormProps {
 			notes: string | null
 			submittedAt: Date
 			updatedAt: Date
+			reviewStatus: ReviewStatus
+			statusUpdatedAt: Date | null
+			reviewerNotes: string | null
 		} | null
 		canSubmit: boolean
 		reason?: string
@@ -324,7 +329,18 @@ export function VideoSubmissionForm({
 						</div>
 					)}
 					{(hasSubmitted || scoreData?.displayScore) && (
-						<div className="pt-2 border-t space-y-2">
+						<div className="pt-2 border-t space-y-3">
+							{/* Review Status Badge */}
+							{initialData?.submission?.reviewStatus && (
+								<div className="flex items-center gap-2">
+									<span className="text-sm font-medium">Status:</span>
+									<SubmissionStatusBadge
+										status={initialData.submission.reviewStatus}
+										statusUpdatedAt={initialData.submission.statusUpdatedAt}
+										reviewerNotes={initialData.submission.reviewerNotes}
+									/>
+								</div>
+							)}
 							{scoreData?.displayScore && (
 								<div>
 									<p className="text-sm font-medium">Your claimed score:</p>
@@ -420,6 +436,9 @@ export function VideoSubmissionForm({
 					notes: notes.trim() || null,
 					submittedAt: submissionData?.submittedAt ?? new Date(),
 					updatedAt: new Date(),
+					reviewStatus: submissionData?.reviewStatus ?? "pending",
+					statusUpdatedAt: submissionData?.statusUpdatedAt ?? null,
+					reviewerNotes: submissionData?.reviewerNotes ?? null,
 				})
 				if (scoreInput.trim() && workout && parseResult) {
 					setScoreData({
@@ -471,8 +490,8 @@ export function VideoSubmissionForm({
 	return (
 		<Card>
 			<CardHeader className="pb-3">
-				<div className="flex items-center justify-between">
-					<div>
+				<div className="flex items-start justify-between gap-2">
+					<div className="space-y-1">
 						<CardTitle className="text-lg">
 							{hasSubmitted ? "Update Your Result" : "Submit Your Result"}
 						</CardTitle>
@@ -483,14 +502,23 @@ export function VideoSubmissionForm({
 						</CardDescription>
 					</div>
 					{hasSubmitted && (
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							onClick={() => setIsEditing(false)}
-						>
-							Cancel
-						</Button>
+						<div className="flex items-center gap-2">
+							{initialData?.submission?.reviewStatus && (
+								<SubmissionStatusBadge
+									status={initialData.submission.reviewStatus}
+									statusUpdatedAt={initialData.submission.statusUpdatedAt}
+									reviewerNotes={initialData.submission.reviewerNotes}
+								/>
+							)}
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								onClick={() => setIsEditing(false)}
+							>
+								Cancel
+							</Button>
+						</div>
 					)}
 				</div>
 			</CardHeader>

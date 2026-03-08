@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
 	Select,
 	SelectContent,
@@ -158,6 +159,7 @@ function VerificationControls({
 			? String(submission.score.secondaryValue)
 			: "",
 	)
+	const [reviewerNotes, setReviewerNotes] = useState("")
 
 	const verificationStatus = submission.verification.status
 
@@ -194,6 +196,7 @@ function VerificationControls({
 					adjustedScore,
 					adjustedScoreStatus: adjustedStatus,
 					secondaryScore: secondaryScore || undefined,
+					reviewerNotes: reviewerNotes.trim() || undefined,
 				},
 			})
 			setIsAdjusting(false)
@@ -337,6 +340,19 @@ function VerificationControls({
 								/>
 							</div>
 						)}
+						<div className="space-y-2">
+							<Label htmlFor="reviewer-notes" className="text-xs">
+								Note to athlete (optional)
+							</Label>
+							<Textarea
+								id="reviewer-notes"
+								value={reviewerNotes}
+								onChange={(e) => setReviewerNotes(e.target.value)}
+								placeholder="Explain the reason for the adjustment..."
+								rows={2}
+								className="text-sm"
+							/>
+						</div>
 						<div className="flex gap-2">
 							<Button
 								className="flex-1"

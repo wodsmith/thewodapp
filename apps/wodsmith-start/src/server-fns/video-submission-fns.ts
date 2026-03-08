@@ -22,6 +22,7 @@ import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoresTable } from "@/db/schemas/scores"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
+import type { ReviewStatus } from "@/db/schemas/video-submissions"
 import {
 	createVideoSubmissionId,
 	videoSubmissionsTable,
@@ -285,6 +286,9 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
 				notes: videoSubmissionsTable.notes,
 				submittedAt: videoSubmissionsTable.submittedAt,
 				updatedAt: videoSubmissionsTable.updatedAt,
+				reviewStatus: videoSubmissionsTable.reviewStatus,
+				statusUpdatedAt: videoSubmissionsTable.statusUpdatedAt,
+				reviewerNotes: videoSubmissionsTable.reviewerNotes,
 			})
 			.from(videoSubmissionsTable)
 			.where(
@@ -344,7 +348,12 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
 		}
 
 		return {
-			submission: submission ?? null,
+			submission: submission
+				? {
+						...submission,
+						reviewStatus: submission.reviewStatus as ReviewStatus,
+					}
+				: null,
 			canSubmit: windowCheck.allowed,
 			reason: windowCheck.reason,
 			isRegistered: true,
@@ -1111,6 +1120,8 @@ export const markSubmissionReviewedFn = createServerFn({ method: "POST" })
 			.set({
 				reviewedAt: new Date(),
 				reviewedBy: session.userId,
+				reviewStatus: "under_review",
+				statusUpdatedAt: new Date(),
 			})
 			.where(eq(videoSubmissionsTable.id, data.submissionId))
 
@@ -1158,6 +1169,8 @@ export const unmarkSubmissionReviewedFn = createServerFn({ method: "POST" })
 			.set({
 				reviewedAt: null,
 				reviewedBy: null,
+				reviewStatus: "pending",
+				statusUpdatedAt: new Date(),
 			})
 			.where(eq(videoSubmissionsTable.id, data.submissionId))
 

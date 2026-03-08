@@ -19,8 +19,10 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import type { ReviewStatus } from "@/db/schemas/video-submissions"
 import type { ScoreType, WorkoutScheme } from "@/lib/scoring"
 import { isSafeUrl } from "@/utils/url"
+import { SubmissionStatusBadge } from "./submission-status-badge"
 import { YouTubeEmbed, isYouTubeUrl } from "./youtube-embed"
 
 interface VideoSubmissionPreviewProps {
@@ -30,6 +32,9 @@ interface VideoSubmissionPreviewProps {
 		notes: string | null
 		submittedAt: Date
 		updatedAt: Date
+		reviewStatus?: ReviewStatus
+		statusUpdatedAt?: Date | null
+		reviewerNotes?: string | null
 	}
 	score?: {
 		scoreValue: number | null
@@ -122,6 +127,13 @@ export function VideoSubmissionPreview({
 					<div className="flex items-center gap-2">
 						<CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
 						<CardTitle className="text-lg">Submission Complete</CardTitle>
+						{submission.reviewStatus && (
+							<SubmissionStatusBadge
+								status={submission.reviewStatus}
+								statusUpdatedAt={submission.statusUpdatedAt ?? null}
+								reviewerNotes={submission.reviewerNotes ?? null}
+							/>
+						)}
 					</div>
 					{canEdit && onEdit && (
 						<Button
