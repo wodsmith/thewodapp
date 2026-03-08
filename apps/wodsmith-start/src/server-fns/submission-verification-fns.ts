@@ -310,10 +310,11 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
 
 			// action === "invalid" — zero the workout score
 			if (data.action === "invalid") {
-				// Compute sort key for a zeroed score (ranks last)
+				// Compute sort key for an invalidated score (ranks last)
+				// Use null value so it sorts last within status group regardless of direction
 				const scheme = score.scheme as WorkoutScheme
 				const zeroSortKey = computeSortKey({
-					value: 0,
+					value: null,
 					status: "scored",
 					scheme,
 					scoreType: (score.scoreType as "max" | "min") ?? "max",
