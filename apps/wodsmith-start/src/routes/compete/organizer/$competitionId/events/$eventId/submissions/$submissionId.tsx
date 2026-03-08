@@ -77,6 +77,8 @@ import {
 	type SubmissionDetail,
 	type VerificationLogEntry,
 	verifySubmissionScoreFn,
+	deleteVerificationLogFn,
+	updateVerificationLogFn,
 } from "@/server-fns/submission-verification-fns"
 import {
 	createReviewNoteFn,
@@ -794,7 +796,6 @@ function VerificationControls({
 							<Button
 								className="flex-1"
 								size="sm"
-								variant="destructive"
 								disabled={
 									isSubmitting ||
 									(useDirectOverride && !directOverrideScore.trim())
@@ -932,63 +933,11 @@ function VerificationControls({
 							<p className="text-sm font-medium">Audit Log</p>
 							<div className="space-y-2">
 								{logs.map((log) => (
-									<div
+									<AuditLogEntry
 										key={log.id}
-										className="rounded border px-3 py-2 text-xs space-y-1"
-									>
-										<div className="flex items-center justify-between">
-											<span className="font-medium capitalize">
-												{log.action}
-												{log.penaltyType && (
-													<Badge
-														variant="outline"
-														className="ml-1.5 text-[10px] px-1.5 py-0 bg-orange-500 text-white border-orange-500"
-													>
-														{log.penaltyType} penalty
-													</Badge>
-												)}
-											</span>
-											<span className="text-muted-foreground">
-												{new Intl.DateTimeFormat("en-US", {
-													dateStyle: "medium",
-													timeStyle: "short",
-												}).format(new Date(log.performedAt))}
-											</span>
-										</div>
-										<p className="text-muted-foreground">
-											by {log.performedByName}
-										</p>
-										{(log.action === "adjusted" || log.action === "invalid") &&
-											log.newScoreValue !== null && (
-												<p className="text-muted-foreground">
-													{log.originalScoreValue !== null && log.scheme
-														? decodeScore(
-																log.originalScoreValue,
-																log.scheme as WorkoutScheme,
-																{ compact: false },
-															)
-														: "—"}{" "}
-													&rarr;{" "}
-													{log.scheme
-														? decodeScore(
-																log.newScoreValue,
-																log.scheme as WorkoutScheme,
-																{ compact: false },
-															)
-														: log.newScoreValue}
-													{log.newStatus && log.newStatus !== log.originalStatus
-														? ` (${log.newStatus})`
-														: ""}
-												</p>
-											)}
-										{log.penaltyPercentage !== null && (
-											<p className="text-muted-foreground">
-												{log.penaltyPercentage}% deduction
-												{log.noRepCount !== null &&
-													` · ${log.noRepCount} no-reps`}
-											</p>
-										)}
-									</div>
+										log={log}
+										competitionId={competitionId}
+									/>
 								))}
 							</div>
 						</div>
@@ -996,6 +945,360 @@ function VerificationControls({
 				)}
 			</CardContent>
 		</Card>
+	)
+}
+
+// ============================================================================
+// Audit Log Entry Component
+// ============================================================================
+
+function AuditLogEntry({
+	log,
+	competitionId,
+}: {
+	log: VerificationLogEntry
+	competitionId: string
+}) {
+	const router = useRouter()
+	const deleteFn = useServerFn(deleteVerificationLogFn)
+	const updateFn = useServerFn(updateVerificationLogFn)
+	const [isEditing, setIsEditing] = useState(false)
+	const [isDeleting, setIsDeleting] = useState(false)
+	const [editPenaltyType, setEditPenaltyType] = useState<
+		"minor" | "major" | null
+	>((log.penaltyType as "minor" | "major") ?? null)
+	const [editPenaltyPct, setEditPenaltyPct] = useState(
+		log.penaltyPercentage ?? 0,
+	)
+	const [editNoRepCount, setEditNoRepCount] = useState(
+		log.noRepCount?.toString() ?? "",
+	)
+
+	async function handleDelete() {
+		setIsDeleting(true)
+		try {
+			await deleteFn({ data: { logId: log.id, competitionId } })
+			await router.invalidate()
+		} catch {
+			setIsDeleting(false)
+		}
+	}
+
+	async function handleUpdate() {
+		try {
+			await updateFn({
+				data: {
+					logId: log.id,
+					competitionId,
+					penaltyType: editPenaltyType,
+					penaltyPercentage:
+						editPenaltyType !== null ? editPenaltyPct : null,
+					noRepCount: editNoRepCount
+						? Number.parseInt(editNoRepCount, 10)
+						: null,
+				},
+			})
+			setIsEditing(false)
+			await router.invalidate()
+		} catch {
+			// keep editing open on error
+		}
+	}
+
+	const [isSaving, setIsSaving] = useState(false)
+
+	if (isEditing) {
+		return (
+			<div className="space-y-3 rounded-md border border-orange-200 p-3">
+				<p className="text-sm font-medium">Edit Penalty</p>
+
+				{/* Penalty guidance */}
+				<div className="rounded-md bg-muted/50 p-2 text-xs space-y-1">
+					<p className="font-medium">Penalty Guidance</p>
+					<p className="text-muted-foreground">
+						<strong>Minor:</strong> Small number of no-reps. Discretionary
+						deduction at your judgment.
+					</p>
+					<p className="text-muted-foreground">
+						<strong>Major:</strong> Significant no-reps. Typical 15-40%
+						deduction.
+					</p>
+				</div>
+
+				{/* Penalty type selector */}
+				<div className="space-y-2">
+					<Label className="text-xs">Penalty type</Label>
+					<RadioGroup
+						value={editPenaltyType ?? "none"}
+						onValueChange={(v) => {
+							if (v === "none") {
+								setEditPenaltyType(null)
+								return
+							}
+							const type = v as "minor" | "major"
+							setEditPenaltyType(type)
+							if (type === "major" && editPenaltyPct < 15) {
+								setEditPenaltyPct(15)
+							}
+						}}
+						className="flex gap-4"
+					>
+						<div className="flex items-center space-x-2">
+							<RadioGroupItem value="none" id={`edit-penalty-none-${log.id}`} />
+							<Label
+								htmlFor={`edit-penalty-none-${log.id}`}
+								className="text-xs font-normal"
+							>
+								None
+							</Label>
+						</div>
+						<div className="flex items-center space-x-2">
+							<RadioGroupItem value="minor" id={`edit-penalty-minor-${log.id}`} />
+							<Label
+								htmlFor={`edit-penalty-minor-${log.id}`}
+								className="text-xs font-normal"
+							>
+								Minor
+							</Label>
+						</div>
+						<div className="flex items-center space-x-2">
+							<RadioGroupItem value="major" id={`edit-penalty-major-${log.id}`} />
+							<Label
+								htmlFor={`edit-penalty-major-${log.id}`}
+								className="text-xs font-normal"
+							>
+								Major
+							</Label>
+						</div>
+					</RadioGroup>
+				</div>
+
+				{editPenaltyType && (
+					<>
+						{/* No-rep count */}
+						<div className="space-y-2">
+							<Label htmlFor={`edit-norep-${log.id}`} className="text-xs">
+								No-rep count (optional)
+							</Label>
+							<Input
+								id={`edit-norep-${log.id}`}
+								value={editNoRepCount}
+								onChange={(e) => setEditNoRepCount(e.target.value)}
+								placeholder="e.g. 12"
+								type="number"
+								min="0"
+								className="font-mono"
+							/>
+						</div>
+
+						{/* Percentage */}
+						<div className="space-y-2">
+							<Label htmlFor={`edit-pct-${log.id}`} className="text-xs">
+								Deduction percentage
+								{editPenaltyType === "major" && (
+									<span className="text-muted-foreground ml-1">
+										(15-40% recommended)
+									</span>
+								)}
+							</Label>
+							<div className="flex items-center gap-2">
+								<input
+									type="range"
+									id={`edit-pct-${log.id}`}
+									min={editPenaltyType === "major" ? 15 : 1}
+									max={editPenaltyType === "major" ? 40 : 100}
+									value={editPenaltyPct}
+									onChange={(e) => setEditPenaltyPct(Number(e.target.value))}
+									className="flex-1 accent-orange-600"
+								/>
+								<span className="text-sm font-mono w-10 text-right">
+									{editPenaltyPct}%
+								</span>
+							</div>
+						</div>
+					</>
+				)}
+
+				{/* Score preview */}
+				{editPenaltyType &&
+					log.originalScoreValue !== null &&
+					log.scheme && (
+						<div className="rounded-md border bg-muted/30 p-3 space-y-2">
+							<p className="text-xs font-medium">Score Preview</p>
+							{(() => {
+								const scheme = log.scheme as WorkoutScheme
+								const lowerBetter = isLowerBetter(scheme)
+								const previewScore = calculatePenaltyScore(
+									log.originalScoreValue!,
+									editPenaltyPct,
+									scheme,
+									log.originalStatus ?? undefined,
+								)
+								const deduction = Math.abs(
+									log.originalScoreValue! - previewScore,
+								)
+								return (
+									<div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+										<div className="text-center">
+											<p className="text-muted-foreground text-[10px] uppercase">
+												Original
+											</p>
+											<p className="font-semibold">
+												{decodeScore(log.originalScoreValue!, scheme, {
+													compact: false,
+												})}
+											</p>
+										</div>
+										<span className="text-muted-foreground">&rarr;</span>
+										<div className="text-center">
+											<p className="text-muted-foreground text-[10px] uppercase">
+												{lowerBetter ? "Addition" : "Deduction"}
+											</p>
+											<p className="text-orange-600 font-semibold">
+												{lowerBetter ? "+" : "-"}
+												{decodeScore(deduction, scheme, { compact: false })}
+											</p>
+										</div>
+										<span className="text-muted-foreground">&rarr;</span>
+										<div className="text-center">
+											<p className="text-muted-foreground text-[10px] uppercase">
+												Adjusted
+											</p>
+											<p className="font-bold text-orange-700">
+												{decodeScore(previewScore, scheme, { compact: false })}
+											</p>
+										</div>
+									</div>
+								)
+							})()}
+						</div>
+					)}
+
+				<div className="flex gap-2">
+					<Button
+						className="flex-1"
+						size="sm"
+						disabled={isSaving}
+						onClick={async () => {
+							setIsSaving(true)
+							await handleUpdate()
+							setIsSaving(false)
+						}}
+					>
+						{isSaving ? "Saving..." : "Save Changes"}
+					</Button>
+					<Button
+						variant="ghost"
+						size="sm"
+						disabled={isSaving}
+						onClick={() => {
+							setIsEditing(false)
+							// Reset to original values
+							setEditPenaltyType(
+								(log.penaltyType as "minor" | "major") ?? null,
+							)
+							setEditPenaltyPct(log.penaltyPercentage ?? 0)
+							setEditNoRepCount(log.noRepCount?.toString() ?? "")
+						}}
+					>
+						Cancel
+					</Button>
+				</div>
+			</div>
+		)
+	}
+
+	return (
+		<div className="group rounded border px-3 py-2 text-xs space-y-1">
+			<div className="flex items-center justify-between">
+				<span className="font-medium capitalize">
+					{log.action}
+					{log.penaltyType && (
+						<Badge
+							variant="outline"
+							className="text-[10px] px-1.5 py-0 bg-orange-500 text-white border-orange-500"
+						>
+							{log.penaltyType} penalty
+						</Badge>
+					)}
+				</span>
+				<div className="flex items-center gap-1">
+					<span className="text-muted-foreground">
+						{new Intl.DateTimeFormat("en-US", {
+							dateStyle: "medium",
+							timeStyle: "short",
+						}).format(new Date(log.performedAt))}
+					</span>
+					<Button
+						size="sm"
+						variant="ghost"
+						className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+						onClick={() => setIsEditing(true)}
+					>
+						<Pencil className="h-3 w-3" />
+					</Button>
+					<AlertDialog>
+						<AlertDialogTrigger asChild>
+							<Button
+								size="sm"
+								variant="ghost"
+								className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+							>
+								<Trash2 className="h-3 w-3" />
+							</Button>
+						</AlertDialogTrigger>
+						<AlertDialogContent>
+							<AlertDialogHeader>
+								<AlertDialogTitle>Delete log entry?</AlertDialogTitle>
+								<AlertDialogDescription>
+									This will permanently remove this audit log entry. This action
+									cannot be undone.
+								</AlertDialogDescription>
+							</AlertDialogHeader>
+							<AlertDialogFooter>
+								<AlertDialogCancel>Cancel</AlertDialogCancel>
+								<AlertDialogAction
+									onClick={handleDelete}
+									disabled={isDeleting}
+								>
+									{isDeleting ? "Deleting..." : "Delete"}
+								</AlertDialogAction>
+							</AlertDialogFooter>
+						</AlertDialogContent>
+					</AlertDialog>
+				</div>
+			</div>
+			<p className="text-muted-foreground">by {log.performedByName}</p>
+			{(log.action === "adjusted" || log.action === "invalid") &&
+				log.newScoreValue !== null && (
+					<p className="text-muted-foreground">
+						{log.originalScoreValue !== null && log.scheme
+							? decodeScore(
+									log.originalScoreValue,
+									log.scheme as WorkoutScheme,
+									{ compact: false },
+								)
+							: "—"}{" "}
+						&rarr;{" "}
+						{log.scheme
+							? decodeScore(
+									log.newScoreValue,
+									log.scheme as WorkoutScheme,
+									{ compact: false },
+								)
+							: log.newScoreValue}
+						{log.newStatus && log.newStatus !== log.originalStatus
+							? ` (${log.newStatus})`
+							: ""}
+					</p>
+				)}
+			{log.penaltyPercentage !== null && (
+				<p className="text-muted-foreground">
+					{log.penaltyPercentage}% deduction
+					{log.noRepCount !== null && ` · ${log.noRepCount} no-reps`}
+				</p>
+			)}
+		</div>
 	)
 }
 

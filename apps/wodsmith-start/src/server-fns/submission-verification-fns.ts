@@ -1155,3 +1155,158 @@ export const getVerificationLogsFn = createServerFn({ method: "GET" })
 			}),
 		}
 	})
+
+// ============================================================================
+// Delete / Update Verification Log Entries
+// ============================================================================
+
+const deleteVerificationLogInputSchema = z.object({
+	logId: z.string().min(1),
+	competitionId: z.string().min(1),
+})
+
+const updateVerificationLogInputSchema = z.object({
+	logId: z.string().min(1),
+	competitionId: z.string().min(1),
+	action: z.string().optional(),
+	penaltyType: z.enum(["minor", "major"]).nullable().optional(),
+	penaltyPercentage: z.number().min(0).max(100).nullable().optional(),
+	noRepCount: z.number().int().min(0).nullable().optional(),
+})
+
+/**
+ * Delete a verification audit log entry
+ */
+export const deleteVerificationLogFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		deleteVerificationLogInputSchema.parse(data),
+	)
+	.handler(async ({ data }): Promise<{ success: boolean }> => {
+		const db = getDb()
+
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		const [competition] = await db
+			.select({ organizingTeamId: competitionsTable.organizingTeamId })
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+			.limit(1)
+
+		if (!competition) {
+			throw new Error("Competition not found")
+		}
+
+		await requireTeamPermission(
+			competition.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		)
+
+		// Verify the log entry belongs to this competition
+		const [log] = await db
+			.select({ id: scoreVerificationLogsTable.id })
+			.from(scoreVerificationLogsTable)
+			.where(
+				and(
+					eq(scoreVerificationLogsTable.id, data.logId),
+					eq(scoreVerificationLogsTable.competitionId, data.competitionId),
+				),
+			)
+			.limit(1)
+
+		if (!log) {
+			throw new Error("Log entry not found")
+		}
+
+		await db
+			.delete(scoreVerificationLogsTable)
+			.where(eq(scoreVerificationLogsTable.id, data.logId))
+
+		logInfo({
+			message: "[Score] Organizer deleted verification log entry",
+			attributes: {
+				logId: data.logId,
+				competitionId: data.competitionId,
+				deletedByUserId: session.userId,
+			},
+		})
+
+		return { success: true }
+	})
+
+/**
+ * Update a verification audit log entry
+ */
+export const updateVerificationLogFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		updateVerificationLogInputSchema.parse(data),
+	)
+	.handler(async ({ data }): Promise<{ success: boolean }> => {
+		const db = getDb()
+
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		const [competition] = await db
+			.select({ organizingTeamId: competitionsTable.organizingTeamId })
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+			.limit(1)
+
+		if (!competition) {
+			throw new Error("Competition not found")
+		}
+
+		await requireTeamPermission(
+			competition.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		)
+
+		// Verify the log entry belongs to this competition
+		const [log] = await db
+			.select({ id: scoreVerificationLogsTable.id })
+			.from(scoreVerificationLogsTable)
+			.where(
+				and(
+					eq(scoreVerificationLogsTable.id, data.logId),
+					eq(scoreVerificationLogsTable.competitionId, data.competitionId),
+				),
+			)
+			.limit(1)
+
+		if (!log) {
+			throw new Error("Log entry not found")
+		}
+
+		const updates: Record<string, unknown> = {}
+		if (data.action !== undefined) updates.action = data.action
+		if (data.penaltyType !== undefined) updates.penaltyType = data.penaltyType
+		if (data.penaltyPercentage !== undefined)
+			updates.penaltyPercentage = data.penaltyPercentage
+		if (data.noRepCount !== undefined) updates.noRepCount = data.noRepCount
+
+		if (Object.keys(updates).length === 0) {
+			return { success: true }
+		}
+
+		await db
+			.update(scoreVerificationLogsTable)
+			.set(updates)
+			.where(eq(scoreVerificationLogsTable.id, data.logId))
+
+		logInfo({
+			message: "[Score] Organizer updated verification log entry",
+			attributes: {
+				logId: data.logId,
+				competitionId: data.competitionId,
+				updatedByUserId: session.userId,
+				updates,
+			},
+		})
+
+		return { success: true }
+	})
