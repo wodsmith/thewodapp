@@ -2,6 +2,7 @@
 
 import {
 	AlertTriangle,
+	Ban,
 	CheckCircle2,
 	Clock,
 	Edit3,
@@ -74,6 +75,15 @@ const statusConfig: Record<ReviewStatus, StatusConfig> = {
 		className:
 			"bg-red-100 text-red-700 border-red-200 dark:bg-red-900 dark:text-red-300 dark:border-red-800",
 		iconClassName: "text-red-500 dark:text-red-400",
+	},
+	invalid: {
+		label: "Invalid",
+		description:
+			"This submission has been marked as invalid. The workout score has been zeroed, but other competition scores are unaffected.",
+		icon: Ban,
+		className:
+			"bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600",
+		iconClassName: "text-gray-500 dark:text-gray-400",
 	},
 }
 
@@ -186,4 +196,5 @@ export const reviewStatusOrder: ReviewStatus[] = [
 	"verified",
 	"adjusted",
 	"penalized",
+	"invalid",
 ]
