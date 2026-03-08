@@ -80,6 +80,11 @@ export interface CompetitionLeaderboardEntry {
 		formattedScore: string
 		/** Formatted tiebreak value if present */
 		formattedTiebreak: string | null
+		/** Penalty info if score was adjusted */
+		penaltyType: "minor" | "major" | null
+		penaltyPercentage: number | null
+		/** Whether score was directly modified (adjusted without penalty) */
+		isDirectlyModified: boolean
 	}>
 }
 
@@ -129,6 +134,9 @@ async function fetchScores(params: {
 			sortKey: scoresTable.sortKey,
 			secondaryValue: scoresTable.secondaryValue,
 			timeCapMs: scoresTable.timeCapMs,
+			verificationStatus: scoresTable.verificationStatus,
+			penaltyType: scoresTable.penaltyType,
+			penaltyPercentage: scoresTable.penaltyPercentage,
 		})
 		.from(scoresTable)
 		.where(
@@ -586,6 +594,10 @@ export async function getCompetitionLeaderboard(params: {
 					rawScore: String(score.scoreValue ?? ""),
 					formattedScore,
 					formattedTiebreak,
+					penaltyType: (score.penaltyType as "minor" | "major") ?? null,
+					penaltyPercentage: score.penaltyPercentage ?? null,
+					isDirectlyModified:
+						score.verificationStatus === "adjusted" && !score.penaltyType,
 				})
 
 				entry.totalPoints += points
@@ -608,6 +620,9 @@ export async function getCompetitionLeaderboard(params: {
 					rawScore: null,
 					formattedScore: "N/A",
 					formattedTiebreak: null,
+					penaltyType: null,
+					penaltyPercentage: null,
+					isDirectlyModified: false,
 				})
 			}
 		}
