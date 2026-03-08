@@ -87,10 +87,18 @@ export const scoresTable = mysqlTable(
 		recordedAt: datetime().notNull(),
 
 		// Verification (organizer review for online competitions)
-		// null = unreviewed, "verified" = confirmed, "adjusted" = overridden
+		// null = unreviewed, "verified" = confirmed, "adjusted" = overridden, "invalid" = zeroed
 		verificationStatus: varchar({ length: 20 }),
 		verifiedAt: datetime(),
 		verifiedByUserId: varchar({ length: 255 }),
+
+		// Penalty classification (denormalized from verification log for leaderboard/athlete display)
+		// null = no penalty, "minor" | "major"
+		penaltyType: varchar("penalty_type", { length: 20 }),
+		// The percentage deduction applied (0-100)
+		penaltyPercentage: int("penalty_percentage"),
+		// Total no-rep count from review notes
+		noRepCount: int("no_rep_count"),
 	},
 	(table) => [
 		// User's scores, ordered by date
@@ -212,7 +220,7 @@ export const scoreVerificationLogsTable = mysqlTable(
 		athleteUserId: varchar({ length: 255 }).notNull(),
 
 		// What the organizer did
-		action: varchar({ length: 20 }).notNull(), // "verified" | "adjusted"
+		action: varchar({ length: 20 }).notNull(), // "verified" | "adjusted" | "invalid"
 
 		// Values before adjustment (null for "verified" action)
 		originalScoreValue: int(),
@@ -225,6 +233,11 @@ export const scoreVerificationLogsTable = mysqlTable(
 		newStatus: varchar({ length: 50 }),
 		newSecondaryValue: int(),
 		newTiebreakValue: int(),
+
+		// Penalty audit trail (snapshot at time of action)
+		penaltyType: varchar("penalty_type", { length: 20 }),
+		penaltyPercentage: int("penalty_percentage"),
+		noRepCount: int("no_rep_count"),
 
 		// Who did it and when
 		performedByUserId: varchar({ length: 255 }).notNull(),

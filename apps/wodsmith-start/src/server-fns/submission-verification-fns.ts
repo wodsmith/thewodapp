@@ -16,7 +16,7 @@ import {
 } from "@/db/schemas/competitions"
 import { trackWorkoutsTable } from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
-import { scoreVerificationLogsTable, scoresTable } from "@/db/schemas/scores"
+import { scoresTable, scoreVerificationLogsTable } from "@/db/schemas/scores"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
 import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
@@ -38,9 +38,12 @@ import { requireTeamPermission } from "@/utils/team-auth"
 // ============================================================================
 
 export interface VerificationInfo {
-	status: "verified" | "adjusted" | null
+	status: "verified" | "adjusted" | "invalid" | null
 	verifiedAt: Date | null
 	verifiedByName: string | null
+	penaltyType: "minor" | "major" | null
+	penaltyPercentage: number | null
+	noRepCount: number | null
 }
 
 export interface SubmissionDetail {
@@ -130,19 +133,26 @@ export interface VerificationLogEntry {
 	newScoreValue: number | null
 	newStatus: string | null
 	scheme: string | null
+	penaltyType: string | null
+	penaltyPercentage: number | null
+	noRepCount: number | null
 }
 
 const verifySubmissionScoreInputSchema = z.object({
 	competitionId: z.string().min(1),
 	trackWorkoutId: z.string().min(1),
 	scoreId: z.string().min(1),
-	action: z.enum(["verify", "adjust"]),
+	action: z.enum(["verify", "adjust", "invalid"]),
 	// Required only when action === "adjust"
 	adjustedScore: z.string().optional(),
 	adjustedScoreStatus: z.enum(["scored", "cap"]).optional(),
 	secondaryScore: z.string().optional(),
 	tieBreakScore: z.string().optional(),
 	reviewerNotes: z.string().optional(),
+	// Penalty fields (for "adjust" action with penalty)
+	penaltyType: z.enum(["minor", "major"]).optional(),
+	penaltyPercentage: z.number().min(0).max(100).optional(),
+	noRepCount: z.number().int().min(0).optional(),
 })
 
 // ============================================================================
@@ -249,6 +259,9 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
 							verificationStatus: "verified",
 							verifiedAt: now,
 							verifiedByUserId: session.userId,
+							penaltyType: null,
+							penaltyPercentage: null,
+							noRepCount: null,
 							updatedAt: now,
 						})
 						.where(eq(scoresTable.id, data.scoreId))
@@ -277,10 +290,7 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
 							.where(
 								and(
 									eq(videoSubmissionsTable.registrationId, registration.id),
-									eq(
-										videoSubmissionsTable.trackWorkoutId,
-										data.trackWorkoutId,
-									),
+									eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
 								),
 							)
 					}
@@ -296,6 +306,86 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
 				})
 
 				return { success: true, verificationStatus: "verified" }
+			}
+
+			// action === "invalid" — zero the workout score
+			if (data.action === "invalid") {
+				// Compute sort key for a zeroed score (ranks last)
+				const scheme = score.scheme as WorkoutScheme
+				const zeroSortKey = computeSortKey({
+					value: 0,
+					status: "scored",
+					scheme,
+					scoreType: (score.scoreType as "max" | "min") ?? "max",
+				})
+
+				await db.transaction(async (tx) => {
+					await tx
+						.update(scoresTable)
+						.set({
+							scoreValue: 0,
+							secondaryValue: null,
+							tiebreakValue: null,
+							status: "scored",
+							statusOrder: 0,
+							sortKey: zeroSortKey ? sortKeyToString(zeroSortKey) : null,
+							verificationStatus: "invalid",
+							verifiedAt: now,
+							verifiedByUserId: session.userId,
+							penaltyType: null,
+							penaltyPercentage: null,
+							noRepCount: data.noRepCount ?? null,
+							updatedAt: now,
+						})
+						.where(eq(scoresTable.id, data.scoreId))
+
+					await tx.insert(scoreVerificationLogsTable).values({
+						scoreId: data.scoreId,
+						competitionId: data.competitionId,
+						trackWorkoutId: data.trackWorkoutId,
+						athleteUserId: score.userId,
+						action: "invalid",
+						originalScoreValue: score.scoreValue,
+						originalStatus: score.status,
+						originalSecondaryValue: score.secondaryValue,
+						originalTiebreakValue: score.tiebreakValue,
+						newScoreValue: 0,
+						newStatus: "scored",
+						noRepCount: data.noRepCount ?? null,
+						performedByUserId: session.userId,
+						performedAt: now,
+					})
+
+					if (registration) {
+						await tx
+							.update(videoSubmissionsTable)
+							.set({
+								reviewStatus: "invalid",
+								statusUpdatedAt: now,
+								reviewedAt: now,
+								reviewedBy: session.userId,
+								reviewerNotes: data.reviewerNotes || null,
+							})
+							.where(
+								and(
+									eq(videoSubmissionsTable.registrationId, registration.id),
+									eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
+								),
+							)
+					}
+				})
+
+				logInfo({
+					message: "[Score] Organizer marked score invalid",
+					attributes: {
+						scoreId: data.scoreId,
+						competitionId: data.competitionId,
+						verifiedByUserId: session.userId,
+						originalScoreValue: score.scoreValue,
+					},
+				})
+
+				return { success: true, verificationStatus: "invalid" }
 			}
 
 			// action === "adjust"
@@ -363,6 +453,9 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
 						})
 					: null
 
+			// Determine review status for video submission based on penalty
+			const videoReviewStatus = data.penaltyType ? "penalized" : "adjusted"
+
 			await db.transaction(async (tx) => {
 				await tx
 					.update(scoresTable)
@@ -376,6 +469,9 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
 						verificationStatus: "adjusted",
 						verifiedAt: now,
 						verifiedByUserId: session.userId,
+						penaltyType: data.penaltyType ?? null,
+						penaltyPercentage: data.penaltyPercentage ?? null,
+						noRepCount: data.noRepCount ?? null,
 						updatedAt: now,
 					})
 					.where(eq(scoresTable.id, data.scoreId))
@@ -394,6 +490,9 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
 					newStatus,
 					newSecondaryValue: secondaryValue,
 					newTiebreakValue: tiebreakValue,
+					penaltyType: data.penaltyType ?? null,
+					penaltyPercentage: data.penaltyPercentage ?? null,
+					noRepCount: data.noRepCount ?? null,
 					performedByUserId: session.userId,
 					performedAt: now,
 				})
@@ -403,7 +502,7 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
 					await tx
 						.update(videoSubmissionsTable)
 						.set({
-							reviewStatus: "adjusted",
+							reviewStatus: videoReviewStatus,
 							statusUpdatedAt: now,
 							reviewedAt: now,
 							reviewedBy: session.userId,
@@ -504,6 +603,9 @@ export const getSubmissionDetailFn = createServerFn({ method: "GET" })
 					verificationStatus: scoresTable.verificationStatus,
 					verifiedAt: scoresTable.verifiedAt,
 					verifiedByUserId: scoresTable.verifiedByUserId,
+					penaltyType: scoresTable.penaltyType,
+					penaltyPercentage: scoresTable.penaltyPercentage,
+					noRepCount: scoresTable.noRepCount,
 				})
 				.from(scoresTable)
 				.where(
@@ -676,9 +778,14 @@ export const getSubmissionDetailFn = createServerFn({ method: "GET" })
 					secondaryValue: score.secondaryValue,
 				},
 				verification: {
-					status: (score.verificationStatus as "verified" | "adjusted") ?? null,
+					status:
+						(score.verificationStatus as "verified" | "adjusted" | "invalid") ??
+						null,
 					verifiedAt: score.verifiedAt ?? null,
 					verifiedByName,
+					penaltyType: (score.penaltyType as "minor" | "major") ?? null,
+					penaltyPercentage: score.penaltyPercentage ?? null,
+					noRepCount: score.noRepCount ?? null,
 				},
 				videoUrl,
 				submittedAt: score.recordedAt,
@@ -828,7 +935,8 @@ export const getEventSubmissionsFn = createServerFn({ method: "GET" })
 			// Derive status from verificationStatus
 			const reviewStatus =
 				score.verificationStatus === "verified" ||
-				score.verificationStatus === "adjusted"
+				score.verificationStatus === "adjusted" ||
+				score.verificationStatus === "invalid"
 					? "reviewed"
 					: "pending"
 
@@ -946,105 +1054,103 @@ export const getEventDetailsForVerificationFn = createServerFn({
  * Get verification audit logs for a score
  */
 export const getVerificationLogsFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
-		getVerificationLogsInputSchema.parse(data),
-	)
-	.handler(
-		async ({
-			data,
-		}): Promise<{ logs: VerificationLogEntry[] }> => {
-			const db = getDb()
+	.inputValidator((data: unknown) => getVerificationLogsInputSchema.parse(data))
+	.handler(async ({ data }): Promise<{ logs: VerificationLogEntry[] }> => {
+		const db = getDb()
 
-			// Verify organizer permission
-			const [competition] = await db
-				.select({ organizingTeamId: competitionsTable.organizingTeamId })
-				.from(competitionsTable)
-				.where(eq(competitionsTable.id, data.competitionId))
-				.limit(1)
+		// Verify organizer permission
+		const [competition] = await db
+			.select({ organizingTeamId: competitionsTable.organizingTeamId })
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+			.limit(1)
 
-			if (!competition) {
-				return { logs: [] }
-			}
+		if (!competition) {
+			return { logs: [] }
+		}
 
-			await requireTeamPermission(
-				competition.organizingTeamId,
-				TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		await requireTeamPermission(
+			competition.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		)
+
+		// Get logs for this score, newest first
+		const logs = await db
+			.select({
+				id: scoreVerificationLogsTable.id,
+				action: scoreVerificationLogsTable.action,
+				performedByUserId: scoreVerificationLogsTable.performedByUserId,
+				performedAt: scoreVerificationLogsTable.performedAt,
+				originalScoreValue: scoreVerificationLogsTable.originalScoreValue,
+				originalStatus: scoreVerificationLogsTable.originalStatus,
+				newScoreValue: scoreVerificationLogsTable.newScoreValue,
+				newStatus: scoreVerificationLogsTable.newStatus,
+				trackWorkoutId: scoreVerificationLogsTable.trackWorkoutId,
+				penaltyType: scoreVerificationLogsTable.penaltyType,
+				penaltyPercentage: scoreVerificationLogsTable.penaltyPercentage,
+				noRepCount: scoreVerificationLogsTable.noRepCount,
+			})
+			.from(scoreVerificationLogsTable)
+			.where(
+				and(
+					eq(scoreVerificationLogsTable.scoreId, data.scoreId),
+					eq(scoreVerificationLogsTable.competitionId, data.competitionId),
+				),
 			)
+			.orderBy(desc(scoreVerificationLogsTable.performedAt))
 
-			// Get logs for this score, newest first
-			const logs = await db
+		if (logs.length === 0) {
+			return { logs: [] }
+		}
+
+		// Get performer names
+		const performerIds = [...new Set(logs.map((l) => l.performedByUserId))]
+		const performers = await autochunk({ items: performerIds }, async (chunk) =>
+			db
 				.select({
-					id: scoreVerificationLogsTable.id,
-					action: scoreVerificationLogsTable.action,
-					performedByUserId: scoreVerificationLogsTable.performedByUserId,
-					performedAt: scoreVerificationLogsTable.performedAt,
-					originalScoreValue: scoreVerificationLogsTable.originalScoreValue,
-					originalStatus: scoreVerificationLogsTable.originalStatus,
-					newScoreValue: scoreVerificationLogsTable.newScoreValue,
-					newStatus: scoreVerificationLogsTable.newStatus,
-					trackWorkoutId: scoreVerificationLogsTable.trackWorkoutId,
+					id: userTable.id,
+					firstName: userTable.firstName,
+					lastName: userTable.lastName,
 				})
-				.from(scoreVerificationLogsTable)
-				.where(
-					and(
-						eq(scoreVerificationLogsTable.scoreId, data.scoreId),
-						eq(scoreVerificationLogsTable.competitionId, data.competitionId),
-					),
-				)
-				.orderBy(desc(scoreVerificationLogsTable.performedAt))
+				.from(userTable)
+				.where(inArray(userTable.id, chunk)),
+		)
+		const performerMap = new Map(performers.map((p) => [p.id, p]))
 
-			if (logs.length === 0) {
-				return { logs: [] }
-			}
+		// Get workout scheme for score decoding
+		let scheme: string | null = null
+		if (logs[0]?.trackWorkoutId) {
+			const [tw] = await db
+				.select({ scheme: workouts.scheme })
+				.from(trackWorkoutsTable)
+				.innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+				.where(eq(trackWorkoutsTable.id, logs[0].trackWorkoutId))
+				.limit(1)
+			scheme = tw?.scheme ?? null
+		}
 
-			// Get performer names
-			const performerIds = [...new Set(logs.map((l) => l.performedByUserId))]
-			const performers = await autochunk(
-				{ items: performerIds },
-				async (chunk) =>
-					db
-						.select({
-							id: userTable.id,
-							firstName: userTable.firstName,
-							lastName: userTable.lastName,
-						})
-						.from(userTable)
-						.where(inArray(userTable.id, chunk)),
-			)
-			const performerMap = new Map(performers.map((p) => [p.id, p]))
+		return {
+			logs: logs.map((log) => {
+				const performer = performerMap.get(log.performedByUserId)
+				const name = performer
+					? `${performer.firstName || ""} ${performer.lastName || ""}`.trim() ||
+						"Unknown"
+					: "Unknown"
 
-			// Get workout scheme for score decoding
-			let scheme: string | null = null
-			if (logs[0]?.trackWorkoutId) {
-				const [tw] = await db
-					.select({ scheme: workouts.scheme })
-					.from(trackWorkoutsTable)
-					.innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
-					.where(eq(trackWorkoutsTable.id, logs[0].trackWorkoutId))
-					.limit(1)
-				scheme = tw?.scheme ?? null
-			}
-
-			return {
-				logs: logs.map((log) => {
-					const performer = performerMap.get(log.performedByUserId)
-					const name = performer
-						? `${performer.firstName || ""} ${performer.lastName || ""}`.trim() ||
-							"Unknown"
-						: "Unknown"
-
-					return {
-						id: log.id,
-						action: log.action,
-						performedByName: name,
-						performedAt: log.performedAt,
-						originalScoreValue: log.originalScoreValue,
-						originalStatus: log.originalStatus,
-						newScoreValue: log.newScoreValue,
-						newStatus: log.newStatus,
-						scheme,
-					}
-				}),
-			}
-		},
-	)
+				return {
+					id: log.id,
+					action: log.action,
+					performedByName: name,
+					performedAt: log.performedAt,
+					originalScoreValue: log.originalScoreValue,
+					originalStatus: log.originalStatus,
+					newScoreValue: log.newScoreValue,
+					newStatus: log.newStatus,
+					scheme,
+					penaltyType: log.penaltyType,
+					penaltyPercentage: log.penaltyPercentage,
+					noRepCount: log.noRepCount,
+				}
+			}),
+		}
+	})
