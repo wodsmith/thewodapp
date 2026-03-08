@@ -1,26 +1,21 @@
 # Complete alchemy.run.ts Example
 
-Full infrastructure definition for TanStack Start + D1 + KV + custom domains.
+Full infrastructure definition for TanStack Start + PlanetScale (via Hyperdrive) + KV + custom domains.
 
 ## Production-Ready Example
 
 ```typescript
 import alchemy from "alchemy"
-import { 
-  D1Database, 
-  KVNamespace, 
-  TanStackStart 
+import {
+  Hyperdrive,
+  KVNamespace,
+  TanStackStart
 } from "alchemy/cloudflare"
 
 // Initialize Alchemy app
 const app = await alchemy("wodsmith-start", {
   stage: process.env.STAGE ?? "dev",
   phase: process.argv.includes("--destroy") ? "destroy" : "up",
-})
-
-// D1 Database with Drizzle migrations
-const db = await D1Database("wodsmith-d1", {
-  migrationsDir: "./drizzle",
 })
 
 // KV for session storage
@@ -31,35 +26,31 @@ const cache = await KVNamespace("cache")
 
 // Main TanStack Start worker
 const worker = await TanStackStart("wodsmith-worker", {
-  // Database bindings
-  d1Databases: {
-    DB: db,
-  },
-  
   // KV bindings
   kvNamespaces: {
     SESSIONS: sessions,
     CACHE: cache,
   },
-  
-  // Public environment variables
-  vars: {
+
+  // Hyperdrive for PlanetScale connection pooling
+  bindings: {
+    HYPERDRIVE: hyperdrive, // Exposes connectionString for mysql2
     PUBLIC_APP_URL: process.env.PUBLIC_APP_URL ?? "http://localhost:3000",
     PUBLIC_POSTHOG_KEY: process.env.PUBLIC_POSTHOG_KEY ?? "",
   },
-  
+
   // Encrypted secrets
   secretTextBindings: {
     AUTH_SECRET: alchemy.secret(process.env.AUTH_SECRET!),
     STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY!),
     RESEND_API_KEY: alchemy.secret(process.env.RESEND_API_KEY!),
   },
-  
+
   // Custom domains (production only)
-  domains: process.env.STAGE === "prod" 
+  domains: process.env.STAGE === "prod"
     ? ["wodsmith.com", "www.wodsmith.com"]
     : undefined,
-    
+
   // Compatibility flags (if needed)
   compatibilityFlags: ["nodejs_compat"],
 })
@@ -76,11 +67,6 @@ await app.finalize()
 ```typescript
 const stage = process.env.STAGE ?? "dev"
 const isProd = stage === "prod"
-
-// Different databases per stage
-const db = await D1Database(`app-${stage}-d1`, {
-  migrationsDir: "./drizzle",
-})
 
 // Stage-specific domains
 const domains = isProd
@@ -129,7 +115,6 @@ STAGE=staging bun alchemy.run.ts --destroy
 
 Alchemy stores state in `.alchemy/{app}/{stage}/`:
 - `state.json` - Resource state
-- `*.sqlite` - D1 local database files
 
 **Important**: Add to `.gitignore`:
 ```
