@@ -10,10 +10,14 @@ import { relations } from "drizzle-orm"
 import {
 	index,
 	int,
+	mysqlEnum,
 	mysqlTable,
 	text,
 	varchar,
 } from "drizzle-orm/mysql-core"
+
+export const reviewNoteTypes = ["general", "no-rep"] as const
+export type ReviewNoteType = (typeof reviewNoteTypes)[number]
 import { commonColumns, createReviewNoteId } from "./common"
 import { videoSubmissionsTable } from "./video-submissions"
 import { userTable } from "./users"
@@ -28,6 +32,7 @@ export const reviewNotesTable = mysqlTable(
 		videoSubmissionId: varchar({ length: 255 }).notNull(),
 		userId: varchar({ length: 255 }).notNull(),
 		teamId: varchar({ length: 255 }).notNull(),
+		type: mysqlEnum("type", reviewNoteTypes).notNull().default("general"),
 		content: text().notNull(),
 		timestampSeconds: int(),
 		movementId: varchar({ length: 255 }),

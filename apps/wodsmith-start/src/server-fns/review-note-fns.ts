@@ -28,6 +28,7 @@ const getReviewNotesInputSchema = z.object({
 const createReviewNoteInputSchema = z.object({
 	videoSubmissionId: z.string().min(1),
 	competitionId: z.string().min(1),
+	type: z.enum(["general", "no-rep"]).default("general"),
 	content: z.string().min(1).max(2000),
 	timestampSeconds: z.number().int().min(0).optional(),
 	movementId: z.string().optional(),
@@ -79,6 +80,7 @@ export const getReviewNotesFn = createServerFn({ method: "GET" })
 		const notes = await db
 			.select({
 				id: reviewNotesTable.id,
+				type: reviewNotesTable.type,
 				content: reviewNotesTable.content,
 				timestampSeconds: reviewNotesTable.timestampSeconds,
 				movementId: reviewNotesTable.movementId,
@@ -103,6 +105,7 @@ export const getReviewNotesFn = createServerFn({ method: "GET" })
 		return {
 			notes: notes.map((n) => ({
 				id: n.id,
+				type: n.type,
 				content: n.content,
 				timestampSeconds: n.timestampSeconds,
 				movementId: n.movementId,
@@ -157,6 +160,7 @@ export const createReviewNoteFn = createServerFn({ method: "POST" })
 			videoSubmissionId: data.videoSubmissionId,
 			userId: session.userId,
 			teamId: competition.organizingTeamId,
+			type: data.type,
 			content: data.content,
 			timestampSeconds: data.timestampSeconds ?? null,
 			movementId: data.movementId ?? null,
@@ -166,6 +170,7 @@ export const createReviewNoteFn = createServerFn({ method: "POST" })
 		const [note] = await db
 			.select({
 				id: reviewNotesTable.id,
+				type: reviewNotesTable.type,
 				content: reviewNotesTable.content,
 				timestampSeconds: reviewNotesTable.timestampSeconds,
 				movementId: reviewNotesTable.movementId,
@@ -185,6 +190,7 @@ export const createReviewNoteFn = createServerFn({ method: "POST" })
 		return {
 			note: {
 				id: note.id,
+				type: note.type,
 				content: note.content,
 				timestampSeconds: note.timestampSeconds,
 				movementId: note.movementId,

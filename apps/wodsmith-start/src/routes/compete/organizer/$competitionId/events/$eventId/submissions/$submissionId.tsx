@@ -519,6 +519,7 @@ function ReviewNoteForm({
 	onNoteCreated,
 }: ReviewNoteFormProps) {
 	const createNote = useServerFn(createReviewNoteFn)
+	const [noteType, setNoteType] = useState<"general" | "no-rep">("general")
 	const [content, setContent] = useState("")
 	const [timestampSeconds, setTimestampSeconds] = useState<number | null>(null)
 	const [selectedMovementId, setSelectedMovementId] = useState<string>("")
@@ -546,11 +547,13 @@ function ReviewNoteForm({
 				data: {
 					videoSubmissionId,
 					competitionId,
+					type: noteType,
 					content: content.trim(),
 					timestampSeconds: timestampSeconds ?? undefined,
-					movementId: selectedMovementId || undefined,
+					movementId: selectedMovementId && selectedMovementId !== "none" ? selectedMovementId : undefined,
 				},
 			})
+			setNoteType("general")
 			setContent("")
 			setTimestampSeconds(null)
 			setSelectedMovementId("")
@@ -583,6 +586,26 @@ function ReviewNoteForm({
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-3">
+				<div className="flex gap-1">
+					<Button
+						type="button"
+						size="sm"
+						variant={noteType === "general" ? "default" : "outline"}
+						className="h-7 text-xs"
+						onClick={() => setNoteType("general")}
+					>
+						General
+					</Button>
+					<Button
+						type="button"
+						size="sm"
+						variant={noteType === "no-rep" ? "destructive" : "outline"}
+						className="h-7 text-xs"
+						onClick={() => setNoteType("no-rep")}
+					>
+						No Rep
+					</Button>
+				</div>
 				{timestampSeconds !== null && (
 					<div className="flex items-center gap-2">
 						<Badge variant="outline" className="font-mono">
@@ -618,7 +641,7 @@ function ReviewNoteForm({
 								<SelectValue placeholder="Select movement..." />
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="">None</SelectItem>
+								<SelectItem value="none">None</SelectItem>
 								{movements.map((m) => (
 									<SelectItem key={m.id} value={m.id}>
 										{m.name}
@@ -652,6 +675,7 @@ function ReviewNoteForm({
 interface ReviewNotesListProps {
 	notes: Array<{
 		id: string
+		type: string
 		content: string
 		timestampSeconds: number | null
 		movementId: string | null
@@ -712,6 +736,11 @@ function ReviewNotesList({
 					>
 						<div className="flex items-center justify-between gap-2">
 							<div className="flex items-center gap-2">
+								{note.type === "no-rep" && (
+									<Badge variant="destructive" className="text-xs">
+										No Rep
+									</Badge>
+								)}
 								{note.timestampSeconds !== null && (
 									<button
 										type="button"
@@ -749,12 +778,15 @@ function ReviewNotesList({
 }
 
 interface MovementTallyCardProps {
-	notes: Array<{ movementId: string | null; movementName: string | null }>
+	notes: Array<{ type: string; movementId: string | null; movementName: string | null }>
 }
 
 function MovementTallyCard({ notes }: MovementTallyCardProps) {
+	const noRepNotes = notes.filter((n) => n.type === "no-rep")
+	const noRepCount = noRepNotes.length
+
 	const tallies = new Map<string, { name: string; count: number }>()
-	for (const note of notes) {
+	for (const note of noRepNotes) {
 		if (note.movementId && note.movementName) {
 			const existing = tallies.get(note.movementId)
 			if (existing) {
@@ -765,30 +797,42 @@ function MovementTallyCard({ notes }: MovementTallyCardProps) {
 		}
 	}
 
-	if (tallies.size === 0) return null
+	if (notes.length === 0) return null
 
 	return (
 		<Card>
 			<CardHeader>
 				<CardTitle className="text-sm flex items-center gap-2">
 					<MessageSquare className="h-4 w-4" />
-					Notes Summary
+					Review Summary
 				</CardTitle>
 			</CardHeader>
 			<CardContent className="space-y-2">
-				{Array.from(tallies.values()).map((t) => (
-					<div
-						key={t.name}
-						className="flex items-center justify-between text-sm"
-					>
-						<span>{t.name}</span>
-						<Badge variant="destructive" className="font-mono">
-							{t.count}
-						</Badge>
-					</div>
-				))}
-				<Separator />
 				<div className="flex items-center justify-between text-sm font-medium">
+					<span>No Reps</span>
+					<Badge variant="destructive" className="font-mono">
+						{noRepCount}
+					</Badge>
+				</div>
+				{tallies.size > 0 && (
+					<>
+						<Separator />
+						<p className="text-xs text-muted-foreground font-medium">By Movement</p>
+						{Array.from(tallies.values()).map((t) => (
+							<div
+								key={t.name}
+								className="flex items-center justify-between text-sm"
+							>
+								<span>{t.name}</span>
+								<Badge variant="destructive" className="font-mono">
+									{t.count}
+								</Badge>
+							</div>
+						))}
+					</>
+				)}
+				<Separator />
+				<div className="flex items-center justify-between text-sm text-muted-foreground">
 					<span>Total notes</span>
 					<span>{notes.length}</span>
 				</div>
@@ -824,6 +868,20 @@ function SubmissionDetailPage() {
 
 	const handlePlayerReady = useCallback((player: YouTubePlayerRef) => {
 		playerRef.current = player
+	}, [])
+
+	// Pull focus back from YouTube iframe so keyboard shortcuts work
+	useEffect(() => {
+		const handleBlur = () => {
+			// When focus moves to the iframe, reclaim it after a tick
+			setTimeout(() => {
+				if (document.activeElement?.tagName === "IFRAME") {
+					window.focus()
+				}
+			}, 0)
+		}
+		window.addEventListener("blur", handleBlur)
+		return () => window.removeEventListener("blur", handleBlur)
 	}, [])
 
 	useEffect(() => {
@@ -1094,12 +1152,12 @@ function SubmissionDetailPage() {
 							{submission.division && (
 								<>
 									<Separator className="my-3" />
-									<p className="text-sm">
+									<div className="text-sm">
 										<span className="text-muted-foreground">Division: </span>
 										<Badge variant="outline" className="ml-1">
 											{submission.division.label}
 										</Badge>
-									</p>
+									</div>
 								</>
 							)}
 						</CardContent>

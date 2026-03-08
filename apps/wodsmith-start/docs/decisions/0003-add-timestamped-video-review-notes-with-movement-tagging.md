@@ -68,6 +68,9 @@ export const reviewNotesTable = mysqlTable("review_notes", {
   // Team context for multi-tenancy
   teamId: varchar({ length: 255 }).notNull(),
 
+  // Note type: 'general' for observations, 'no-rep' for counted penalties
+  type: mysqlEnum("type", ["general", "no-rep"]).notNull().default("general"),
+
   // The note content
   content: text().notNull(),
 
@@ -94,11 +97,12 @@ Create `src/server-fns/review-note-fns.ts`:
 
 1. **`getReviewNotesFn`** — Fetch all notes for a submission, joined with user (reviewer name/avatar) and movement name. Ordered by `timestampSeconds` ascending (null timestamps last). Requires `MANAGE_COMPETITIONS` permission.
 
-2. **`createReviewNoteFn`** — Create a note with content, timestampSeconds (optional), movementId (optional). Validates team membership and permission. Input schema:
+2. **`createReviewNoteFn`** — Create a note with type, content, timestampSeconds (optional), movementId (optional). Validates team membership and permission. Input schema:
    ```typescript
    z.object({
      videoSubmissionId: z.string(),
      competitionId: z.string(),
+     type: z.enum(["general", "no-rep"]).default("general"),
      content: z.string().min(1).max(2000),
      timestampSeconds: z.number().int().min(0).optional(),
      movementId: z.string().optional(),
@@ -148,10 +152,11 @@ Modify `$submissionId.tsx`:
   - Relative time ("2 min ago")
   - Delete button (only for note author or team admin)
 
-**Movement no-rep tally (in sidebar, new card above or below Verification Controls):**
-- Card titled "Review Notes Summary"
-- For each movement that has at least one note: movement name + count badge
-- Total notes count
+**Review summary tally (in sidebar, new card above or below Verification Controls):**
+- Card titled "Review Summary"
+- Total no-rep count (prominent)
+- For each movement with at least one no-rep note: movement name + count badge
+- Total notes count (muted)
 - Only visible when notes exist
 
 ### Route Loader Changes
@@ -236,5 +241,6 @@ Reviewer copies a YouTube share URL (e.g., `https://youtu.be/abc?t=42`) and past
 - YouTube IFrame Player API reference: https://developers.google.com/youtube/iframe_api_reference
 - The `enablejsapi=1` parameter must be added to the embed URL for API control
 - `player.getCurrentTime()` returns seconds as a float — we store as integer (rounded) since sub-second precision isn't needed for review notes
-- Future work: athlete-visible notes (add a `visibility` column: `internal` | `athlete_visible`), auto-penalty suggestions from no-rep tallies, keyboard shortcuts for common movements
+- The `type` enum distinguishes `general` observations from `no-rep` penalties, enabling accurate no-rep tallies separate from general review notes
+- Future work: athlete-visible notes (add a `visibility` column: `internal` | `athlete_visible`), auto-penalty suggestions from no-rep tallies, keyboard shortcuts for common movements, additional note types (e.g., `time-penalty`)
 - The IFrame API requires the iframe NOT be sandboxed — this is acceptable since we already trust YouTube embeds and the iframe is same-origin-isolated by YouTube itself
