@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "f4b99e4ca520",
+  "session_id": "26d733a8-6066-4276-91d2-3c87f831c004",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-08T18:35:25.21234Z",
+  "branch": "zac/penalty-guidance",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/test/components/leaderboard-page-content.test.tsx"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "ded3f0c8-a50f-498f-9d18-f5810e0d3a9d",
+  "checkpoint_transcript_start": 286,
+  "transcript_lines_at_start": 286,
+  "token_usage": {
+    "input_tokens": 19,
+    "cache_creation_tokens": 11247,
+    "cache_read_tokens": 1101481,
+    "output_tokens": 3661,
+    "api_call_count": 14
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-08T18:35:25.109755Z",
+    "agent_lines": 184,
+    "human_added": 0,
+    "human_modified": 14,
+    "human_removed": 0,
+    "total_committed": 198,
+    "agent_percentage": 92.92929292929293
+  }
+}

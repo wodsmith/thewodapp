@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "f4b99e4ca520",
+  "strategy": "manual-commit",
+  "branch": "zac/penalty-guidance",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/test/components/leaderboard-page-content.test.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f4/b99e4ca520/0/metadata.json",
+      "transcript": "/f4/b99e4ca520/0/full.jsonl",
+      "context": "/f4/b99e4ca520/0/context.md",
+      "content_hash": "/f4/b99e4ca520/0/content_hash.txt",
+      "prompt": "/f4/b99e4ca520/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 19,
+    "cache_creation_tokens": 11247,
+    "cache_read_tokens": 1101481,
+    "output_tokens": 3661,
+    "api_call_count": 14
+  }
+}
