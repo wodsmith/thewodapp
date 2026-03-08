@@ -64,7 +64,7 @@ function EntitlementsPage() {
 		try {
 			const result = await getTeamsFn({ data: { featureKey } })
 			setTeams(result.teams)
-		} catch (error) {
+		} catch {
 			toast.error("Failed to load teams for feature")
 		} finally {
 			setLoadingFeature(false)
