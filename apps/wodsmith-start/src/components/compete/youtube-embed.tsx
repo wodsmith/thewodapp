@@ -297,15 +297,14 @@ export function YouTubePlayerEmbed({
 	}
 
 	return (
-		<div
+		<section
 			className={cn(
 				"relative aspect-video w-full overflow-hidden rounded-lg bg-black",
 				className,
 			)}
-			role="region"
-		aria-label={title || "YouTube video player"}
+			aria-label={title || "YouTube video player"}
 		>
 			<div id={elementId} className="absolute inset-0 h-full w-full" />
-		</div>
+		</section>
 	)
 }
