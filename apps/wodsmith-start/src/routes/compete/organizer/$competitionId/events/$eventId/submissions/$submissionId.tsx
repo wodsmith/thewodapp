@@ -69,7 +69,7 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { decodeScore, type WorkoutScheme } from "@/lib/scoring"
+import { decodeScore, isTimeBasedScheme, type WorkoutScheme } from "@/lib/scoring"
 import {
 	type EventDetails,
 	getSubmissionDetailFn,
@@ -189,20 +189,31 @@ interface VerificationControlsProps {
 
 /**
  * Calculates the adjusted score after applying a penalty percentage.
- * For rep-based workouts: deduction = totalReps * percentage / 100
- * For time-based workouts: addition = originalTime * percentage / 100
+ *
+ * Time-based schemes (time, time-with-cap scored, emom): ADD time (higher = worse)
+ * Everything else (reps, rounds-reps, load, etc.): SUBTRACT (lower = worse)
+ *
+ * For time-with-cap with cap status, the penalty applies to secondaryValue (reps)
+ * not the time, so this function isn't used for that case — see handleApplyPenalty.
  */
 function calculatePenaltyScore(
 	rawValue: number,
 	percentage: number,
 	scheme: string,
+	scoreStatus?: string,
 ): number {
-	const isTimeBased = scheme === "time"
-	if (isTimeBased) {
-		// Time-based: add percentage of time as penalty
+	// Time-with-cap capped scores are rep-based (secondary value)
+	// Time-with-cap scored (finished) scores are time-based
+	const isTime =
+		scheme === "time-with-cap"
+			? scoreStatus !== "cap"
+			: isTimeBasedScheme(scheme as WorkoutScheme)
+
+	if (isTime) {
+		// Time-based: add percentage of time as penalty (more time = worse)
 		return Math.round(rawValue + rawValue * (percentage / 100))
 	}
-	// Rep-based: deduct percentage of reps
+	// Rep/count-based: deduct percentage (fewer reps = worse)
 	return Math.max(0, Math.round(rawValue - rawValue * (percentage / 100)))
 }
 
@@ -293,18 +304,40 @@ function VerificationControls({
 		setIsSubmitting(true)
 		setError(null)
 		try {
-			// Calculate the penalized score or use direct override
-			const finalScore = useDirectOverride
-				? directOverrideScore
-				: submission.score.rawValue !== null
-					? String(
-							calculatePenaltyScore(
-								submission.score.rawValue,
-								penaltyPercentage,
-								event.workout.scheme,
-							),
-						)
-					: submission.score.displayValue
+			const penaltyScheme = event.workout.scheme as WorkoutScheme
+			const isCapped =
+				penaltyScheme === "time-with-cap" &&
+				submission.score.status === "cap"
+
+			// For capped time-with-cap: penalty applies to secondaryValue (reps)
+			// For everything else: penalty applies to the primary score
+			let finalScore: string
+			let finalSecondaryScore: string | undefined
+
+			if (useDirectOverride) {
+				finalScore = directOverrideScore
+			} else if (isCapped && submission.score.secondaryValue !== null) {
+				// Capped: keep time as-is, subtract reps from secondary
+				const penalizedReps = calculatePenaltyScore(
+					submission.score.secondaryValue,
+					penaltyPercentage,
+					"reps",
+					"cap",
+				)
+				finalScore = submission.score.displayValue
+				finalSecondaryScore = String(penalizedReps)
+			} else if (submission.score.rawValue !== null) {
+				// Normal: apply penalty to the encoded value, then decode for display
+				const penalizedEncoded = calculatePenaltyScore(
+					submission.score.rawValue,
+					penaltyPercentage,
+					penaltyScheme,
+					submission.score.status,
+				)
+				finalScore = decodeScore(penalizedEncoded, penaltyScheme)
+			} else {
+				finalScore = submission.score.displayValue
+			}
 
 			await verifyFn({
 				data: {
@@ -315,6 +348,7 @@ function VerificationControls({
 					adjustedScore: finalScore,
 					adjustedScoreStatus:
 						submission.score.status === "cap" ? "cap" : "scored",
+					secondaryScore: finalSecondaryScore,
 					reviewerNotes: reviewerNotes.trim() || undefined,
 					penaltyType,
 					penaltyPercentage,
@@ -352,19 +386,33 @@ function VerificationControls({
 	}
 
 	// Compute live preview for penalty
+	const scheme = event.workout.scheme as WorkoutScheme
+	const scoreStatus = submission.score.status
+	// For time-with-cap capped scores, penalty applies to secondaryValue (reps)
+	const isCappedTimeWithCap = scheme === "time-with-cap" && scoreStatus === "cap"
+	const penaltyBaseValue = isCappedTimeWithCap
+		? submission.score.secondaryValue
+		: submission.score.rawValue
+
 	const previewPenaltyScore =
-		submission.score.rawValue !== null
+		penaltyBaseValue !== null
 			? calculatePenaltyScore(
-					submission.score.rawValue,
+					penaltyBaseValue,
 					penaltyPercentage,
-					event.workout.scheme,
+					isCappedTimeWithCap ? "reps" : scheme,
+					scoreStatus,
 				)
 			: null
 	const previewDeduction =
-		submission.score.rawValue !== null && previewPenaltyScore !== null
-			? Math.abs(submission.score.rawValue - previewPenaltyScore)
+		penaltyBaseValue !== null && previewPenaltyScore !== null
+			? Math.abs(penaltyBaseValue - previewPenaltyScore)
 			: null
-	const isTimeBased = event.workout.scheme === "time"
+
+	// Determine if penalty direction is "add" (time) or "subtract" (reps/count)
+	const penaltyAddsToScore =
+		scheme === "time-with-cap"
+			? scoreStatus !== "cap"
+			: isTimeBasedScheme(scheme)
 
 	const statusBadge = () => {
 		if (!verificationStatus) {
@@ -567,7 +615,7 @@ function VerificationControls({
 						{/* Penalty guidance */}
 						<div className="rounded-md bg-muted/50 p-2 text-xs space-y-1">
 							<p className="font-medium">
-								Penalty Guidance (CrossFit framework)
+								Penalty Guidance
 							</p>
 							<p className="text-muted-foreground">
 								<strong>Minor:</strong> Small number of no-reps. Discretionary
@@ -657,26 +705,39 @@ function VerificationControls({
 						</div>
 
 						{/* Before/after preview */}
-						{submission.score.rawValue !== null && (
+						{penaltyBaseValue !== null && (
 							<div className="rounded-md border bg-muted/30 p-3 space-y-2">
-								<p className="text-xs font-medium">Score Preview</p>
+								<p className="text-xs font-medium">
+									Score Preview
+									{isCappedTimeWithCap && (
+										<span className="text-muted-foreground font-normal ml-1">
+											(reps at cap)
+										</span>
+									)}
+								</p>
 								<div className="flex items-center gap-3 text-sm font-mono">
 									<div className="text-center">
 										<p className="text-muted-foreground text-[10px] uppercase">
 											Original
 										</p>
 										<p className="font-semibold">
-											{submission.score.displayValue}
+											{isCappedTimeWithCap
+												? `${penaltyBaseValue} reps`
+												: submission.score.displayValue}
 										</p>
 									</div>
 									<span className="text-muted-foreground">&rarr;</span>
 									<div className="text-center">
 										<p className="text-muted-foreground text-[10px] uppercase">
-											{isTimeBased ? "Addition" : "Deduction"}
+											{penaltyAddsToScore ? "Addition" : "Deduction"}
 										</p>
 										<p className="text-red-600 font-semibold">
-											{isTimeBased ? "+" : "-"}
-											{previewDeduction}
+											{penaltyAddsToScore ? "+" : "-"}
+											{previewDeduction !== null
+												? isCappedTimeWithCap
+													? previewDeduction
+													: decodeScore(previewDeduction, scheme)
+												: "—"}
 										</p>
 									</div>
 									<span className="text-muted-foreground">&rarr;</span>
@@ -687,7 +748,11 @@ function VerificationControls({
 										<p className="font-bold text-red-700">
 											{useDirectOverride
 												? directOverrideScore || "—"
-												: previewPenaltyScore}
+												: previewPenaltyScore !== null
+													? isCappedTimeWithCap
+														? `${previewPenaltyScore} reps`
+														: decodeScore(previewPenaltyScore, scheme)
+													: "—"}
 										</p>
 									</div>
 								</div>
