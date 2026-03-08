@@ -4,14 +4,16 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { asc, eq, sql } from "drizzle-orm"
+import { and, asc, eq, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
-import { competitionsTable } from "@/db/schemas/competitions"
+import { competitionRegistrationsTable, competitionsTable } from "@/db/schemas/competitions"
 import { createReviewNoteId } from "@/db/schemas/common"
+import { trackWorkoutsTable } from "@/db/schemas/programming"
 import { reviewNotesTable } from "@/db/schemas/review-notes"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
+import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
 import { movements, workoutMovements } from "@/db/schemas/workouts"
 import { getSessionFromCookie } from "@/utils/auth"
 import { requireTeamPermission } from "@/utils/team-auth"
@@ -48,9 +50,13 @@ const deleteReviewNoteInputSchema = z.object({
 })
 
 const getWorkoutMovementsInputSchema = z.object({
-	workoutId: z.string().min(1),
+	workoutId: z.string().min(1).optional(),
+	trackWorkoutId: z.string().min(1).optional(),
 	competitionId: z.string().min(1),
-})
+}).refine(
+	(data) => data.workoutId || data.trackWorkoutId,
+	{ message: "Either workoutId or trackWorkoutId is required" },
+)
 
 // ============================================================================
 // Server Functions
@@ -103,7 +109,10 @@ export const getReviewNotesFn = createServerFn({ method: "GET" })
 			.innerJoin(userTable, eq(reviewNotesTable.userId, userTable.id))
 			.leftJoin(movements, eq(reviewNotesTable.movementId, movements.id))
 			.where(
-				eq(reviewNotesTable.videoSubmissionId, data.videoSubmissionId),
+				and(
+					eq(reviewNotesTable.videoSubmissionId, data.videoSubmissionId),
+					eq(reviewNotesTable.teamId, competition.organizingTeamId),
+				),
 			)
 			.orderBy(
 				sql`CASE WHEN ${reviewNotesTable.timestampSeconds} IS NULL THEN 1 ELSE 0 END`,
@@ -160,6 +169,26 @@ export const createReviewNoteFn = createServerFn({ method: "POST" })
 			competition.organizingTeamId,
 			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
+
+		// Verify video submission belongs to this competition
+		const [submission] = await db
+			.select({ id: videoSubmissionsTable.id })
+			.from(videoSubmissionsTable)
+			.innerJoin(
+				competitionRegistrationsTable,
+				eq(videoSubmissionsTable.registrationId, competitionRegistrationsTable.id),
+			)
+			.where(
+				and(
+					eq(videoSubmissionsTable.id, data.videoSubmissionId),
+					eq(competitionRegistrationsTable.eventId, data.competitionId),
+				),
+			)
+			.limit(1)
+
+		if (!submission) {
+			throw new Error("NOT_FOUND: Video submission not found for this competition")
+		}
 
 		const id = createReviewNoteId()
 
@@ -259,7 +288,12 @@ export const updateReviewNoteFn = createServerFn({ method: "POST" })
 		await db
 			.update(reviewNotesTable)
 			.set(updates)
-			.where(eq(reviewNotesTable.id, data.noteId))
+			.where(
+				and(
+					eq(reviewNotesTable.id, data.noteId),
+					eq(reviewNotesTable.teamId, competition.organizingTeamId),
+				),
+			)
 
 		return { success: true }
 	})
@@ -296,11 +330,16 @@ export const deleteReviewNoteFn = createServerFn({ method: "POST" })
 			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
 
-		// Verify note exists
+		// Verify note exists and belongs to this competition's team
 		const [note] = await db
 			.select({ id: reviewNotesTable.id })
 			.from(reviewNotesTable)
-			.where(eq(reviewNotesTable.id, data.noteId))
+			.where(
+				and(
+					eq(reviewNotesTable.id, data.noteId),
+					eq(reviewNotesTable.teamId, competition.organizingTeamId),
+				),
+			)
 			.limit(1)
 
 		if (!note) {
@@ -309,7 +348,12 @@ export const deleteReviewNoteFn = createServerFn({ method: "POST" })
 
 		await db
 			.delete(reviewNotesTable)
-			.where(eq(reviewNotesTable.id, data.noteId))
+			.where(
+				and(
+					eq(reviewNotesTable.id, data.noteId),
+					eq(reviewNotesTable.teamId, competition.organizingTeamId),
+				),
+			)
 
 		return { success: true }
 	})
@@ -343,6 +387,25 @@ export const getWorkoutMovementsFn = createServerFn({ method: "GET" })
 			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
 
+		// Resolve workoutId from trackWorkoutId if needed
+		let resolvedWorkoutId = data.workoutId
+		if (!resolvedWorkoutId && data.trackWorkoutId) {
+			const [trackWorkout] = await db
+				.select({ workoutId: trackWorkoutsTable.workoutId })
+				.from(trackWorkoutsTable)
+				.where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+				.limit(1)
+
+			if (!trackWorkout) {
+				return { movements: [] }
+			}
+			resolvedWorkoutId = trackWorkout.workoutId
+		}
+
+		if (!resolvedWorkoutId) {
+			return { movements: [] }
+		}
+
 		const results = await db
 			.select({
 				id: movements.id,
@@ -351,7 +414,7 @@ export const getWorkoutMovementsFn = createServerFn({ method: "GET" })
 			})
 			.from(workoutMovements)
 			.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
-			.where(eq(workoutMovements.workoutId, data.workoutId))
+			.where(eq(workoutMovements.workoutId, resolvedWorkoutId))
 
 		return {
 			movements: results,

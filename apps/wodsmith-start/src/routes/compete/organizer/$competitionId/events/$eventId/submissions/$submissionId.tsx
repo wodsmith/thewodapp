@@ -135,20 +135,19 @@ export const Route = createFileRoute(
 			},
 		})
 
-		// Fetch workout movements if we have event data
+		// Fetch workout movements using trackWorkoutId (eventId param)
+		// This works regardless of whether a score exists
 		let workoutMovements: Array<{ id: string; name: string; type: string }> = []
-		if (event) {
-			try {
-				const movementsResult = await getWorkoutMovementsFn({
-					data: {
-						workoutId: event.workout.id,
-						competitionId: params.competitionId,
-					},
-				})
-				workoutMovements = movementsResult.movements
-			} catch {
-				// Movements not available
-			}
+		try {
+			const movementsResult = await getWorkoutMovementsFn({
+				data: {
+					trackWorkoutId: params.eventId,
+					competitionId: params.competitionId,
+				},
+			})
+			workoutMovements = movementsResult.movements
+		} catch {
+			// Movements not available
 		}
 
 		return {
