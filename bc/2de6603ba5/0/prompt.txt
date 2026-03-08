@@ -1,0 +1,29 @@
+the red and orange together are pretty hideous on @apps/wodsmith-start/src/routes/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId.tsx make it all orange
+
+---
+
+line 442 you can't even see the red text on the orange background. fix it
+
+---
+
+and fix line 1401 1521 please
+
+---
+
+FIX THE RED TEXT FUCKING REMOVE ALL RED ON THE PAGE
+
+---
+
+then its text-orange-700 which does not work on the orange background
+
+---
+
+that looks shitty though. change it to orange background and white text for all of those please
+
+---
+
+please commit your work, ignore db/indext.ts
+
+---
+
+the submission box on line 526 has buttons that are breaking out of the container on smaller widths
