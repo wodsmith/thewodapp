@@ -523,51 +523,44 @@ function VerificationControls({
 
 				{/* Action buttons */}
 				{!isAdjusting && !isPenalizing && (
-					<div className="space-y-2">
-						<div className="flex gap-2">
-							<Button
-								className="flex-1"
-								variant={
-									verificationStatus === "verified" ? "secondary" : "default"
-								}
-								disabled={isSubmitting}
-								onClick={handleVerify}
-							>
-								<CheckCircle className="h-4 w-4 mr-2" />
-								{verificationStatus === "verified"
-									? "Re-verify"
-									: "Verify Score"}
-							</Button>
-							<Button
-								className="flex-1"
-								variant="outline"
-								disabled={isSubmitting}
-								onClick={() => setIsAdjusting(true)}
-							>
-								Adjust Score
-							</Button>
-						</div>
-						<div className="flex gap-2">
-							<Button
-								className="flex-1"
-								variant="outline"
-								disabled={isSubmitting}
-								onClick={() => setIsPenalizing(true)}
-							>
-								<AlertTriangle className="h-4 w-4 mr-2" />
-								Apply Penalty
-							</Button>
-							<AlertDialog>
-								<AlertDialogTrigger asChild>
-									<Button
-										className="flex-1"
-										variant="outline"
-										disabled={isSubmitting}
-									>
-										<Ban className="h-4 w-4 mr-2" />
-										Mark Invalid
-									</Button>
-								</AlertDialogTrigger>
+					<div className="grid grid-cols-2 gap-2">
+						<Button
+							variant={
+								verificationStatus === "verified" ? "secondary" : "default"
+							}
+							disabled={isSubmitting}
+							onClick={handleVerify}
+						>
+							<CheckCircle className="h-4 w-4 mr-2" />
+							{verificationStatus === "verified"
+								? "Re-verify"
+								: "Verify Score"}
+						</Button>
+						<Button
+							variant="outline"
+							disabled={isSubmitting}
+							onClick={() => setIsAdjusting(true)}
+						>
+							Adjust Score
+						</Button>
+						<Button
+							variant="outline"
+							disabled={isSubmitting}
+							onClick={() => setIsPenalizing(true)}
+						>
+							<AlertTriangle className="h-4 w-4 mr-2" />
+							Apply Penalty
+						</Button>
+						<AlertDialog>
+							<AlertDialogTrigger asChild>
+								<Button
+									variant="outline"
+									disabled={isSubmitting}
+								>
+									<Ban className="h-4 w-4 mr-2" />
+									Mark Invalid
+								</Button>
+							</AlertDialogTrigger>
 								<AlertDialogContent>
 									<AlertDialogHeader>
 										<AlertDialogTitle>Mark Submission Invalid</AlertDialogTitle>
@@ -604,7 +597,6 @@ function VerificationControls({
 								</AlertDialogContent>
 							</AlertDialog>
 						</div>
-					</div>
 				)}
 
 				{/* Penalty form */}
