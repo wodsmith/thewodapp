@@ -17,7 +17,10 @@ vi.mock("@/db", () => ({
 
 // Create test sessions
 const mockAuthenticatedSession = {
+	id: "session-1",
 	userId: "test-user-123",
+	expiresAt: Date.now() + 86400000,
+	createdAt: Date.now(),
 	user: {
 		id: "test-user-123",
 		email: "test@example.com",
@@ -106,7 +109,7 @@ function createTestReviewNote(overrides?: Partial<{
 beforeEach(() => {
 	mockDb.reset()
 	vi.mocked(getSessionFromCookie).mockResolvedValue(
-		mockAuthenticatedSession as Awaited<ReturnType<typeof getSessionFromCookie>>,
+		mockAuthenticatedSession as unknown as Awaited<ReturnType<typeof getSessionFromCookie>>,
 	)
 	vi.mocked(requireTeamPermission).mockResolvedValue(undefined)
 })
