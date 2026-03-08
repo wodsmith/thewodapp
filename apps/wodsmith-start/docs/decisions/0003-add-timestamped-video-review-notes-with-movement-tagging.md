@@ -74,7 +74,7 @@ export const reviewNotesTable = mysqlTable("review_notes", {
   // The note content
   content: text().notNull(),
 
-  // Video timestamp in seconds (fractional allowed via float/decimal)
+  // Video timestamp in whole seconds (rounded to nearest second)
   // Null if timestamp wasn't captured (non-YouTube or manual entry)
   timestampSeconds: int(),
 
