@@ -69,7 +69,7 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { decodeScore, isTimeBasedScheme, type WorkoutScheme } from "@/lib/scoring"
+import { decodeScore, isLowerBetter, type WorkoutScheme } from "@/lib/scoring"
 import {
 	type EventDetails,
 	getSubmissionDetailFn,
@@ -190,8 +190,8 @@ interface VerificationControlsProps {
 /**
  * Calculates the adjusted score after applying a penalty percentage.
  *
- * Time-based schemes (time, time-with-cap scored, emom): ADD time (higher = worse)
- * Everything else (reps, rounds-reps, load, etc.): SUBTRACT (lower = worse)
+ * Lower-is-better schemes (time, time-with-cap scored): ADD to score (higher = worse)
+ * Higher-is-better schemes (reps, emom, load, etc.): SUBTRACT from score (lower = worse)
  *
  * For time-with-cap with cap status, the penalty applies to secondaryValue (reps)
  * not the time, so this function isn't used for that case — see handleApplyPenalty.
@@ -202,18 +202,18 @@ function calculatePenaltyScore(
 	scheme: string,
 	scoreStatus?: string,
 ): number {
-	// Time-with-cap capped scores are rep-based (secondary value)
-	// Time-with-cap scored (finished) scores are time-based
-	const isTime =
+	// Time-with-cap capped scores are rep-based (secondary value) — higher reps is better
+	// Time-with-cap scored (finished) scores are time-based — lower time is better
+	const lowerIsBetter =
 		scheme === "time-with-cap"
 			? scoreStatus !== "cap"
-			: isTimeBasedScheme(scheme as WorkoutScheme)
+			: isLowerBetter(scheme as WorkoutScheme)
 
-	if (isTime) {
-		// Time-based: add percentage of time as penalty (more time = worse)
+	if (lowerIsBetter) {
+		// Lower-is-better: add percentage as penalty (higher = worse)
 		return Math.round(rawValue + rawValue * (percentage / 100))
 	}
-	// Rep/count-based: deduct percentage (fewer reps = worse)
+	// Higher-is-better: deduct percentage as penalty (lower = worse)
 	return Math.max(0, Math.round(rawValue - rawValue * (percentage / 100)))
 }
 
@@ -408,11 +408,11 @@ function VerificationControls({
 			? Math.abs(penaltyBaseValue - previewPenaltyScore)
 			: null
 
-	// Determine if penalty direction is "add" (time) or "subtract" (reps/count)
+	// Determine if penalty direction is "add" (lower-is-better) or "subtract" (higher-is-better)
 	const penaltyAddsToScore =
 		scheme === "time-with-cap"
 			? scoreStatus !== "cap"
-			: isTimeBasedScheme(scheme)
+			: isLowerBetter(scheme)
 
 	const statusBadge = () => {
 		if (!verificationStatus) {
@@ -439,7 +439,7 @@ function VerificationControls({
 		}
 		if (submission.verification.penaltyType) {
 			return (
-				<Badge className="bg-red-100 text-red-700 border-red-200">
+				<Badge variant="outline" className="bg-orange-500 text-white border-orange-500">
 					<AlertTriangle className="h-3 w-3 mr-1" />
 					{submission.verification.penaltyType === "major"
 						? "Major Penalty"
@@ -489,14 +489,14 @@ function VerificationControls({
 
 				{/* Penalty info display (when already penalized) */}
 				{submission.verification.penaltyType && (
-					<div className="rounded-md border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800 p-3 space-y-1">
-						<p className="text-xs font-medium text-red-700 dark:text-red-300">
+					<div className="rounded-md border border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-800 p-3 space-y-1">
+						<p className="text-xs font-medium text-orange-700 dark:text-orange-300">
 							{submission.verification.penaltyType === "major"
 								? "Major"
 								: "Minor"}{" "}
 							Penalty Applied
 						</p>
-						<div className="flex gap-4 text-xs text-red-600 dark:text-red-400">
+						<div className="flex gap-4 text-xs text-orange-600 dark:text-orange-400">
 							{submission.verification.penaltyPercentage !== null && (
 								<span>
 									{submission.verification.penaltyPercentage}% deduction
@@ -609,7 +609,7 @@ function VerificationControls({
 
 				{/* Penalty form */}
 				{isPenalizing && (
-					<div className="space-y-3 rounded-md border border-red-200 p-3">
+					<div className="space-y-3 rounded-md border border-orange-200 p-3">
 						<p className="text-sm font-medium">Apply Penalty</p>
 
 						{/* Penalty guidance */}
@@ -696,7 +696,7 @@ function VerificationControls({
 									max={penaltyType === "major" ? 40 : 100}
 									value={penaltyPercentage}
 									onChange={(e) => setPenaltyPercentage(Number(e.target.value))}
-									className="flex-1 accent-red-600"
+									className="flex-1 accent-orange-600"
 								/>
 								<span className="text-sm font-mono w-10 text-right">
 									{penaltyPercentage}%
@@ -731,7 +731,7 @@ function VerificationControls({
 										<p className="text-muted-foreground text-[10px] uppercase">
 											{penaltyAddsToScore ? "Addition" : "Deduction"}
 										</p>
-										<p className="text-red-600 font-semibold">
+										<p className="text-orange-600 font-semibold">
 											{penaltyAddsToScore ? "+" : "-"}
 											{previewDeduction !== null
 												? isCappedTimeWithCap
@@ -745,7 +745,7 @@ function VerificationControls({
 										<p className="text-muted-foreground text-[10px] uppercase">
 											Adjusted
 										</p>
-										<p className="font-bold text-red-700">
+										<p className="font-bold text-orange-700">
 											{useDirectOverride
 												? directOverrideScore || "—"
 												: previewPenaltyScore !== null
@@ -950,7 +950,7 @@ function VerificationControls({
 												{log.penaltyType && (
 													<Badge
 														variant="outline"
-														className="ml-1.5 text-[10px] px-1.5 py-0 bg-red-50 text-red-700 border-red-200"
+														className="ml-1.5 text-[10px] px-1.5 py-0 bg-orange-500 text-white border-orange-500"
 													>
 														{log.penaltyType} penalty
 													</Badge>
@@ -1398,7 +1398,7 @@ function ReviewNotesList({
 								) : (
 									<>
 										{note.type === "no-rep" && (
-											<Badge variant="destructive" className="text-xs">
+											<Badge variant="outline" className="bg-orange-500 text-white border-orange-500 text-xs">
 												No Rep
 											</Badge>
 										)}
@@ -1518,7 +1518,7 @@ function MovementTallyCard({ notes }: MovementTallyCardProps) {
 			<CardContent className="space-y-2">
 				<div className="flex items-center justify-between text-sm font-medium">
 					<span>No Reps</span>
-					<Badge variant="destructive" className="font-mono">
+					<Badge variant="outline" className="bg-orange-500 text-white border-orange-500 font-mono">
 						{noRepCount}
 					</Badge>
 				</div>
@@ -1532,7 +1532,7 @@ function MovementTallyCard({ notes }: MovementTallyCardProps) {
 								className="flex items-center justify-between text-sm"
 							>
 								<span>{t.name}</span>
-								<Badge variant="destructive" className="font-mono">
+								<Badge variant="outline" className="bg-orange-500 text-white border-orange-500 font-mono">
 									{t.count}
 								</Badge>
 							</div>
