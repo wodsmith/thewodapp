@@ -133,28 +133,39 @@ export function SubmissionStatusBadge({
 	)
 
 	if (!showTooltip) {
-		return badge
+		return (
+			<div className="space-y-1.5">
+				{badge}
+				{reviewerNotes && (
+					<p className="text-xs italic text-muted-foreground">
+						Organizer note: {reviewerNotes}
+					</p>
+				)}
+			</div>
+		)
 	}
 
 	return (
-		<TooltipProvider>
-			<Tooltip>
-				<TooltipTrigger asChild>{badge}</TooltipTrigger>
-				<TooltipContent className="max-w-xs space-y-2">
-					<p>{config.description}</p>
-					{statusUpdatedAt && (
-						<p className="text-xs text-muted-foreground">
-							Updated: {formatStatusDate(statusUpdatedAt)}
-						</p>
-					)}
-					{reviewerNotes && (
-						<p className="text-xs italic border-t pt-2 mt-2">
-							Reviewer note: {reviewerNotes}
-						</p>
-					)}
-				</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
+		<div className="space-y-1.5">
+			<TooltipProvider>
+				<Tooltip>
+					<TooltipTrigger asChild>{badge}</TooltipTrigger>
+					<TooltipContent className="max-w-xs space-y-2">
+						<p>{config.description}</p>
+						{statusUpdatedAt && (
+							<p className="text-xs text-muted-foreground">
+								Updated: {formatStatusDate(statusUpdatedAt)}
+							</p>
+						)}
+					</TooltipContent>
+				</Tooltip>
+			</TooltipProvider>
+			{reviewerNotes && (
+				<p className="text-xs italic text-muted-foreground">
+					Organizer note: {reviewerNotes}
+				</p>
+			)}
+		</div>
 	)
 }
 
