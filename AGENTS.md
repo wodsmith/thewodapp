@@ -111,7 +111,7 @@ Database is modularly structured in `src/db/schemas/`:
 - **Local development**: Use `pnpm db:push` to apply schema changes directly (no migration files)
 - **Before merging**: Generate migrations with `pnpm db:generate --name=feature-name`
 - **Never write SQL migrations manually** - always use drizzle-kit
-- Never use Drizzle transactions (D1 doesn't support them)
+- Use `db.transaction()` when multiple writes need to be atomic (PlanetScale supports transactions)
 - Never pass `id` when inserting (auto-generated with CUID2)
 - Always filter by `teamId` for multi-tenant data
 - Use helper functions in `src/server/` for business logic
