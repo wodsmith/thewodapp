@@ -556,10 +556,8 @@ function ReviewNoteForm({
 					movementId: selectedMovementId && selectedMovementId !== "none" ? selectedMovementId : undefined,
 				},
 			})
-			setNoteType("general")
 			setContent("")
 			setTimestampSeconds(null)
-			setSelectedMovementId("")
 			onNoteCreated()
 			playerRef.current?.playVideo()
 		} finally {
