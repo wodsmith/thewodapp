@@ -21,6 +21,8 @@ import {
 	ExternalLink,
 	FileText,
 	MessageSquare,
+	ArrowDownUp,
+	Pencil,
 	Trash2,
 	Trophy,
 	Undo2,
@@ -58,6 +60,7 @@ import {
 	deleteReviewNoteFn,
 	getReviewNotesFn,
 	getWorkoutMovementsFn,
+	updateReviewNoteFn,
 } from "@/server-fns/review-note-fns"
 import {
 	getOrganizerSubmissionDetailFn,
@@ -558,6 +561,7 @@ function ReviewNoteForm({
 			setTimestampSeconds(null)
 			setSelectedMovementId("")
 			onNoteCreated()
+			playerRef.current?.playVideo()
 		} finally {
 			setIsSubmitting(false)
 		}
@@ -688,19 +692,32 @@ interface ReviewNotesListProps {
 			avatar: string | null
 		}
 	}>
+	movements: Array<{ id: string; name: string }>
 	competitionId: string
 	playerRef: React.RefObject<YouTubePlayerRef | null>
-	onNoteDeleted: () => void
+	onNoteUpdated: () => void
 }
+
+type SortOrder = "timestamp-asc" | "timestamp-desc"
+type TypeFilter = "all" | "general" | "no-rep"
 
 function ReviewNotesList({
 	notes,
+	movements,
 	competitionId,
 	playerRef,
-	onNoteDeleted,
+	onNoteUpdated,
 }: ReviewNotesListProps) {
 	const deleteFn = useServerFn(deleteReviewNoteFn)
+	const updateFn = useServerFn(updateReviewNoteFn)
 	const [deletingId, setDeletingId] = useState<string | null>(null)
+	const [editingId, setEditingId] = useState<string | null>(null)
+	const [editContent, setEditContent] = useState("")
+	const [editType, setEditType] = useState<"general" | "no-rep">("general")
+	const [isSaving, setIsSaving] = useState(false)
+	const [sortOrder, setSortOrder] = useState<SortOrder>("timestamp-asc")
+	const [typeFilter, setTypeFilter] = useState<TypeFilter>("all")
+	const [movementFilter, setMovementFilter] = useState<string>("all")
 
 	const handleSeek = (seconds: number) => {
 		if (playerRef.current) {
@@ -713,63 +730,243 @@ function ReviewNotesList({
 		setDeletingId(noteId)
 		try {
 			await deleteFn({ data: { noteId, competitionId } })
-			onNoteDeleted()
+			onNoteUpdated()
 		} finally {
 			setDeletingId(null)
 		}
 	}
 
+	const startEdit = (note: ReviewNotesListProps["notes"][0]) => {
+		setEditingId(note.id)
+		setEditContent(note.content)
+		setEditType((note.type as "general" | "no-rep") || "general")
+	}
+
+	const cancelEdit = () => {
+		setEditingId(null)
+		setEditContent("")
+	}
+
+	const saveEdit = async () => {
+		if (!editingId || !editContent.trim()) return
+		setIsSaving(true)
+		try {
+			await updateFn({
+				data: {
+					noteId: editingId,
+					competitionId,
+					content: editContent.trim(),
+					type: editType,
+				},
+			})
+			setEditingId(null)
+			setEditContent("")
+			onNoteUpdated()
+		} finally {
+			setIsSaving(false)
+		}
+	}
+
+	const handleEditKeyDown = (e: React.KeyboardEvent) => {
+		if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+			e.preventDefault()
+			saveEdit()
+		}
+		if (e.key === "Escape") {
+			cancelEdit()
+		}
+	}
+
+	// Reset movement filter when type filter changes away from no-rep
+	const effectiveMovementFilter = typeFilter === "no-rep" ? movementFilter : "all"
+
+	const filteredNotes = notes.filter((note) => {
+		if (typeFilter !== "all" && note.type !== typeFilter) return false
+		if (effectiveMovementFilter !== "all" && note.movementId !== effectiveMovementFilter) return false
+		return true
+	})
+
+	const sortedNotes = [...filteredNotes].sort((a, b) => {
+		if (a.timestampSeconds === null && b.timestampSeconds === null) return 0
+		if (a.timestampSeconds === null) return 1
+		if (b.timestampSeconds === null) return -1
+		return sortOrder === "timestamp-asc"
+			? a.timestampSeconds - b.timestampSeconds
+			: b.timestampSeconds - a.timestampSeconds
+	})
+
 	if (notes.length === 0) return null
+
+	const toggleSortOrder = () => {
+		setSortOrder(sortOrder === "timestamp-asc" ? "timestamp-desc" : "timestamp-asc")
+	}
 
 	return (
 		<Card>
 			<CardHeader>
-				<CardTitle className="text-sm">
-					Review Notes ({notes.length})
-				</CardTitle>
+				<div className="flex items-center justify-between">
+					<CardTitle className="text-sm">
+						Review Notes ({filteredNotes.length}{filteredNotes.length !== notes.length ? ` / ${notes.length}` : ""})
+					</CardTitle>
+					<Button
+						variant="ghost"
+						size="sm"
+						className="h-7 text-xs gap-1"
+						onClick={toggleSortOrder}
+					>
+						<ArrowDownUp className="h-3 w-3" />
+						{sortOrder === "timestamp-asc" ? "Time ↑" : "Time ↓"}
+					</Button>
+				</div>
+				<div className="flex flex-wrap items-center gap-2 pt-1">
+					<div className="flex gap-1">
+						{(["all", "general", "no-rep"] as const).map((t) => (
+							<Button
+								key={t}
+								type="button"
+								size="sm"
+								variant={typeFilter === t ? (t === "no-rep" ? "destructive" : "default") : "outline"}
+								className="h-6 text-xs px-2"
+								onClick={() => {
+									setTypeFilter(t)
+									if (t !== "no-rep") setMovementFilter("all")
+								}}
+							>
+								{t === "all" ? "All" : t === "general" ? "General" : "No Rep"}
+							</Button>
+						))}
+					</div>
+					{typeFilter === "no-rep" && movements.length > 0 && (
+						<Select value={effectiveMovementFilter} onValueChange={setMovementFilter}>
+							<SelectTrigger className="h-6 text-xs w-auto min-w-[120px]">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="all">All movements</SelectItem>
+								{movements.map((m) => (
+									<SelectItem key={m.id} value={m.id}>
+										{m.name}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					)}
+				</div>
 			</CardHeader>
 			<CardContent className="space-y-2">
-				{notes.map((note) => (
+				{sortedNotes.length === 0 ? (
+					<p className="text-xs text-muted-foreground text-center py-2">No matching notes</p>
+				) : sortedNotes.map((note) => (
 					<div
 						key={note.id}
 						className="group rounded border px-3 py-2 text-sm space-y-1"
 					>
 						<div className="flex items-center justify-between gap-2">
 							<div className="flex items-center gap-2">
-								{note.type === "no-rep" && (
-									<Badge variant="destructive" className="text-xs">
-										No Rep
-									</Badge>
-								)}
-								{note.timestampSeconds !== null && (
-									<button
-										type="button"
-										onClick={() => handleSeek(note.timestampSeconds!)}
-										className="font-mono text-xs text-primary hover:underline"
-									>
-										{formatTimestamp(note.timestampSeconds)}
-									</button>
-								)}
-								{note.movementName && (
-									<Badge variant="secondary" className="text-xs">
-										{note.movementName}
-									</Badge>
+								{editingId === note.id ? (
+									<div className="flex gap-1">
+										<Button
+											type="button"
+											size="sm"
+											variant={editType === "general" ? "default" : "outline"}
+											className="h-5 text-xs px-1.5"
+											onClick={() => setEditType("general")}
+										>
+											General
+										</Button>
+										<Button
+											type="button"
+											size="sm"
+											variant={editType === "no-rep" ? "destructive" : "outline"}
+											className="h-5 text-xs px-1.5"
+											onClick={() => setEditType("no-rep")}
+										>
+											No Rep
+										</Button>
+									</div>
+								) : (
+									<>
+										{note.type === "no-rep" && (
+											<Badge variant="destructive" className="text-xs">
+												No Rep
+											</Badge>
+										)}
+										{note.timestampSeconds !== null && (
+											<button
+												type="button"
+												onClick={() => handleSeek(note.timestampSeconds!)}
+												className="font-mono text-xs text-primary hover:underline"
+											>
+												{formatTimestamp(note.timestampSeconds)}
+											</button>
+										)}
+										{note.movementName && (
+											<Badge variant="secondary" className="text-xs">
+												{note.movementName}
+											</Badge>
+										)}
+									</>
 								)}
 							</div>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-								disabled={deletingId === note.id}
-								onClick={() => handleDelete(note.id)}
-							>
-								<Trash2 className="h-3 w-3" />
-							</Button>
+							{editingId !== note.id && (
+								<div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-6 w-6"
+										onClick={() => startEdit(note)}
+									>
+										<Pencil className="h-3 w-3" />
+									</Button>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-6 w-6"
+										disabled={deletingId === note.id}
+										onClick={() => handleDelete(note.id)}
+									>
+										<Trash2 className="h-3 w-3" />
+									</Button>
+								</div>
+							)}
 						</div>
-						<p className="text-sm">{note.content}</p>
-						<p className="text-xs text-muted-foreground">
-							{note.reviewer.firstName} {note.reviewer.lastName}
-						</p>
+						{editingId === note.id ? (
+							<div className="space-y-2">
+								<Textarea
+									value={editContent}
+									onChange={(e) => setEditContent(e.target.value)}
+									onKeyDown={handleEditKeyDown}
+									rows={2}
+									className="text-sm"
+									autoFocus
+								/>
+								<div className="flex items-center justify-end gap-2">
+									<Button
+										size="sm"
+										variant="ghost"
+										className="h-7 text-xs"
+										onClick={cancelEdit}
+									>
+										Cancel
+									</Button>
+									<Button
+										size="sm"
+										className="h-7 text-xs"
+										disabled={isSaving || !editContent.trim()}
+										onClick={saveEdit}
+									>
+										{isSaving ? "Saving..." : "Save"}
+									</Button>
+								</div>
+							</div>
+						) : (
+							<>
+								<p className="text-sm">{note.content}</p>
+								<p className="text-xs text-muted-foreground">
+									{note.reviewer.firstName} {note.reviewer.lastName}
+								</p>
+							</>
+						)}
 					</div>
 				))}
 			</CardContent>
@@ -1099,9 +1296,10 @@ function SubmissionDetailPage() {
 
 					<ReviewNotesList
 						notes={reviewNotes}
+						movements={workoutMovements}
 						competitionId={competition.id}
 						playerRef={playerRef}
-						onNoteDeleted={() => router.invalidate()}
+						onNoteUpdated={() => router.invalidate()}
 					/>
 				</div>
 

@@ -34,6 +34,14 @@ const createReviewNoteInputSchema = z.object({
 	movementId: z.string().optional(),
 })
 
+const updateReviewNoteInputSchema = z.object({
+	noteId: z.string().min(1),
+	competitionId: z.string().min(1),
+	type: z.enum(["general", "no-rep"]).optional(),
+	content: z.string().min(1).max(2000).optional(),
+	movementId: z.string().nullable().optional(),
+})
+
 const deleteReviewNoteInputSchema = z.object({
 	noteId: z.string().min(1),
 	competitionId: z.string().min(1),
@@ -204,6 +212,56 @@ export const createReviewNoteFn = createServerFn({ method: "POST" })
 				},
 			},
 		}
+	})
+
+/**
+ * Update a review note (content, type, or movement).
+ */
+export const updateReviewNoteFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => updateReviewNoteInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		const db = getDb()
+
+		// Verify organizer permission
+		const [competition] = await db
+			.select({
+				id: competitionsTable.id,
+				organizingTeamId: competitionsTable.organizingTeamId,
+			})
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+			.limit(1)
+
+		if (!competition) {
+			throw new Error("NOT_FOUND: Competition not found")
+		}
+
+		await requireTeamPermission(
+			competition.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		)
+
+		// Build update fields
+		const updates: Record<string, unknown> = {}
+		if (data.type !== undefined) updates.type = data.type
+		if (data.content !== undefined) updates.content = data.content
+		if (data.movementId !== undefined) updates.movementId = data.movementId
+
+		if (Object.keys(updates).length === 0) {
+			throw new Error("No fields to update")
+		}
+
+		await db
+			.update(reviewNotesTable)
+			.set(updates)
+			.where(eq(reviewNotesTable.id, data.noteId))
+
+		return { success: true }
 	})
 
 /**
