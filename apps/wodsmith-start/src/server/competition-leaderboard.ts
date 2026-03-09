@@ -10,7 +10,7 @@
  * @see @/lib/scoring/tiebreakers - Tiebreaker logic
  */
 
-import { and, eq, inArray, ne } from "drizzle-orm"
+import { and, eq, inArray, ne, or, isNull } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	competitionHeatAssignmentsTable,
@@ -81,6 +81,11 @@ export interface CompetitionLeaderboardEntry {
 		formattedScore: string
 		/** Formatted tiebreak value if present */
 		formattedTiebreak: string | null
+		/** Penalty info if score was adjusted */
+		penaltyType: "minor" | "major" | null
+		penaltyPercentage: number | null
+		/** Whether score was directly modified (adjusted without penalty) */
+		isDirectlyModified: boolean
 		/** Video submission URL (online competitions only) */
 		videoUrl: string | null
 	}>
@@ -132,12 +137,20 @@ async function fetchScores(params: {
 			sortKey: scoresTable.sortKey,
 			secondaryValue: scoresTable.secondaryValue,
 			timeCapMs: scoresTable.timeCapMs,
+			verificationStatus: scoresTable.verificationStatus,
+			penaltyType: scoresTable.penaltyType,
+			penaltyPercentage: scoresTable.penaltyPercentage,
 		})
 		.from(scoresTable)
 		.where(
 			and(
 				inArray(scoresTable.competitionEventId, params.trackWorkoutIds),
 				inArray(scoresTable.userId, params.userIds),
+				// Exclude invalidated scores from leaderboard
+				or(
+					isNull(scoresTable.verificationStatus),
+					ne(scoresTable.verificationStatus, "invalid"),
+				),
 			),
 		)
 
@@ -622,6 +635,10 @@ export async function getCompetitionLeaderboard(params: {
 					rawScore: String(score.scoreValue ?? ""),
 					formattedScore,
 					formattedTiebreak,
+					penaltyType: (score.penaltyType as "minor" | "major") ?? null,
+					penaltyPercentage: score.penaltyPercentage ?? null,
+					isDirectlyModified:
+						score.verificationStatus === "adjusted" && !score.penaltyType,
 					videoUrl: isEventDivisionPublished(trackWorkout.id, divisionId)
 						? (videoUrlMap.get(
 								`${registration.registration.id}:${trackWorkout.id}`,
@@ -649,6 +666,9 @@ export async function getCompetitionLeaderboard(params: {
 					rawScore: null,
 					formattedScore: "N/A",
 					formattedTiebreak: null,
+					penaltyType: null,
+					penaltyPercentage: null,
+					isDirectlyModified: false,
 					videoUrl: isEventDivisionPublished(
 						trackWorkout.id,
 						entry.divisionId,

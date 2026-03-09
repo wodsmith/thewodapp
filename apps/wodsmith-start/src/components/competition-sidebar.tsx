@@ -15,7 +15,6 @@ import {
 	ClipboardSignature,
 	Clock,
 	DollarSign,
-	Eye,
 	Home,
 	Layers,
 	MapPin,
@@ -124,16 +123,6 @@ const getNavigation = (
 					href: `${basePath}/results`,
 					icon: Medal,
 				},
-				// Review only for online competitions
-				...(competitionType === "online"
-					? [
-							{
-								label: "Review",
-								href: `${basePath}/review`,
-								icon: Eye,
-							},
-						]
-					: []),
 			],
 		},
 		{

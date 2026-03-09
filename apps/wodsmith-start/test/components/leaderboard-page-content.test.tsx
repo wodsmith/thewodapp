@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi, beforeEach } from "vitest"
 import type { CompetitionLeaderboardEntry, CompetitionLeaderboardResponse } from "@/server-fns/leaderboard-fns"
 import type { ScoringAlgorithm } from "@/types/scoring"
@@ -117,6 +117,9 @@ const createMockEntry = (
 			rawScore: "300000",
 			formattedScore: "5:00",
 			formattedTiebreak: null,
+			penaltyType: null,
+			penaltyPercentage: null,
+			isDirectlyModified: false,
 			videoUrl: null,
 		},
 		{
@@ -129,6 +132,9 @@ const createMockEntry = (
 			rawScore: "150",
 			formattedScore: "150 reps",
 			formattedTiebreak: null,
+			penaltyType: null,
+			penaltyPercentage: null,
+			isDirectlyModified: false,
 			videoUrl: null,
 		},
 	],
@@ -207,6 +213,9 @@ describe("LeaderboardPageContent", () => {
 							rawScore: "300000",
 							formattedScore: "5:00",
 							formattedTiebreak: null,
+							penaltyType: null,
+							penaltyPercentage: null,
+							isDirectlyModified: false,
 							videoUrl: null,
 						},
 						{
@@ -219,6 +228,9 @@ describe("LeaderboardPageContent", () => {
 							rawScore: "150",
 							formattedScore: "150 reps",
 							formattedTiebreak: null,
+							penaltyType: null,
+							penaltyPercentage: null,
+							isDirectlyModified: false,
 							videoUrl: null,
 						},
 					],
@@ -253,6 +265,9 @@ describe("LeaderboardPageContent", () => {
 							rawScore: "450000",
 							formattedScore: "7:30",
 							formattedTiebreak: null,
+							penaltyType: null,
+							penaltyPercentage: null,
+							isDirectlyModified: false,
 							videoUrl: null,
 						},
 					],
@@ -353,6 +368,208 @@ describe("LeaderboardPageContent", () => {
 			await waitFor(() => {
 				// Should display points (appears in both views)
 				expect(screen.getAllByText(/15\.567/).length).toBeGreaterThan(0)
+			})
+		})
+	})
+
+	describe("Penalty Indicator", () => {
+		it("does not show indicator when score has no penalty or modification", async () => {
+			const entries = [createMockEntry()]
+
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
+
+			render(<LeaderboardPageContent competitionId="comp-1" />)
+
+			await waitFor(() => {
+				expect(screen.getAllByText("John Doe").length).toBeGreaterThan(0)
+			})
+
+			expect(screen.queryByLabelText(/penalty/i)).not.toBeInTheDocument()
+			expect(screen.queryByLabelText(/adjusted/i)).not.toBeInTheDocument()
+		})
+
+		it("shows indicator for major penalty", async () => {
+			const entries = [
+				createMockEntry({
+					eventResults: [
+						{
+							trackWorkoutId: "tw-1",
+							trackOrder: 1,
+							eventName: "Event 1",
+							scheme: "time",
+							rank: 1,
+							points: 100,
+							rawScore: "330000",
+							formattedScore: "5:30",
+							formattedTiebreak: null,
+							penaltyType: "major",
+							penaltyPercentage: 10,
+							isDirectlyModified: false,
+							videoUrl: null,
+						},
+					],
+				}),
+			]
+
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
+
+			render(<LeaderboardPageContent competitionId="comp-1" />)
+
+			await waitFor(() => {
+				expect(screen.getAllByText("5:30").length).toBeGreaterThan(0)
+			})
+
+			const indicators = screen.getAllByLabelText("Major Penalty")
+			expect(indicators.length).toBeGreaterThan(0)
+		})
+
+		it("shows indicator for minor penalty", async () => {
+			const entries = [
+				createMockEntry({
+					eventResults: [
+						{
+							trackWorkoutId: "tw-1",
+							trackOrder: 1,
+							eventName: "Event 1",
+							scheme: "reps",
+							rank: 2,
+							points: 90,
+							rawScore: "135",
+							formattedScore: "135 reps",
+							formattedTiebreak: null,
+							penaltyType: "minor",
+							penaltyPercentage: 5,
+							isDirectlyModified: false,
+							videoUrl: null,
+						},
+					],
+				}),
+			]
+
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
+
+			render(<LeaderboardPageContent competitionId="comp-1" />)
+
+			await waitFor(() => {
+				expect(screen.getAllByText("135 reps").length).toBeGreaterThan(0)
+			})
+
+			const indicators = screen.getAllByLabelText("Minor Penalty")
+			expect(indicators.length).toBeGreaterThan(0)
+		})
+
+		it("shows indicator for directly modified score", async () => {
+			const entries = [
+				createMockEntry({
+					eventResults: [
+						{
+							trackWorkoutId: "tw-1",
+							trackOrder: 1,
+							eventName: "Event 1",
+							scheme: "time",
+							rank: 1,
+							points: 100,
+							rawScore: "290000",
+							formattedScore: "4:50",
+							formattedTiebreak: null,
+							penaltyType: null,
+							penaltyPercentage: null,
+							isDirectlyModified: true,
+							videoUrl: null,
+						},
+					],
+				}),
+			]
+
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
+
+			render(<LeaderboardPageContent competitionId="comp-1" />)
+
+			await waitFor(() => {
+				expect(screen.getAllByText("4:50").length).toBeGreaterThan(0)
+			})
+
+			const indicators = screen.getAllByLabelText("Score Adjusted")
+			expect(indicators.length).toBeGreaterThan(0)
+		})
+
+		it("shows penalty details in popover on click", async () => {
+			const entries = [
+				createMockEntry({
+					eventResults: [
+						{
+							trackWorkoutId: "tw-1",
+							trackOrder: 1,
+							eventName: "Event 1",
+							scheme: "time",
+							rank: 1,
+							points: 100,
+							rawScore: "330000",
+							formattedScore: "5:30",
+							formattedTiebreak: null,
+							penaltyType: "major",
+							penaltyPercentage: 10,
+							isDirectlyModified: false,
+							videoUrl: null,
+						},
+					],
+				}),
+			]
+
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
+
+			render(<LeaderboardPageContent competitionId="comp-1" />)
+
+			await waitFor(() => {
+				expect(screen.getAllByText("5:30").length).toBeGreaterThan(0)
+			})
+
+			const indicator = screen.getAllByLabelText("Major Penalty")[0]
+			fireEvent.click(indicator)
+
+			await waitFor(() => {
+				expect(screen.getByText("Major Penalty")).toBeInTheDocument()
+				expect(screen.getByText("10% deduction applied")).toBeInTheDocument()
+			})
+		})
+
+		it("shows organizer message for directly modified scores in popover", async () => {
+			const entries = [
+				createMockEntry({
+					eventResults: [
+						{
+							trackWorkoutId: "tw-1",
+							trackOrder: 1,
+							eventName: "Event 1",
+							scheme: "time",
+							rank: 1,
+							points: 100,
+							rawScore: "290000",
+							formattedScore: "4:50",
+							formattedTiebreak: null,
+							penaltyType: null,
+							penaltyPercentage: null,
+							isDirectlyModified: true,
+							videoUrl: null,
+						},
+					],
+				}),
+			]
+
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
+
+			render(<LeaderboardPageContent competitionId="comp-1" />)
+
+			await waitFor(() => {
+				expect(screen.getAllByText("4:50").length).toBeGreaterThan(0)
+			})
+
+			const indicator = screen.getAllByLabelText("Score Adjusted")[0]
+			fireEvent.click(indicator)
+
+			await waitFor(() => {
+				expect(screen.getByText("Score Adjusted")).toBeInTheDocument()
+				expect(screen.getByText("This score was modified by an organizer.")).toBeInTheDocument()
 			})
 		})
 	})

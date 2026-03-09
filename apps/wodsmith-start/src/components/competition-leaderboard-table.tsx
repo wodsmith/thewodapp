@@ -11,6 +11,7 @@ import {
 	useReactTable,
 } from "@tanstack/react-table"
 import {
+	AlertTriangle,
 	ArrowDownNarrowWide,
 	ArrowUpDown,
 	ArrowUpNarrowWide,
@@ -25,6 +26,11 @@ import {
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover"
 import {
 	Select,
 	SelectContent,
@@ -124,6 +130,41 @@ function formatPoints(points: number, algorithm: ScoringAlgorithm): string {
 	return `+${points}`
 }
 
+/** Clickable icon for any score modification (penalty or direct adjust) */
+function PenaltyIndicator({
+	result,
+}: {
+	result: CompetitionLeaderboardEntry["eventResults"][number]
+}) {
+	if (!result.penaltyType && !result.isDirectlyModified) return null
+
+	const label = result.penaltyType
+		? `${result.penaltyType === "major" ? "Major" : "Minor"} Penalty`
+		: "Score Adjusted"
+
+	const detail = result.penaltyPercentage != null
+		? `${result.penaltyPercentage}% deduction applied`
+		: "This score was modified by an organizer."
+
+	return (
+		<Popover>
+			<PopoverTrigger asChild>
+				<button
+					type="button"
+					className="inline-flex items-center text-muted-foreground hover:text-foreground"
+					aria-label={label}
+				>
+					<AlertTriangle className="h-3 w-3" />
+				</button>
+			</PopoverTrigger>
+			<PopoverContent className="w-auto max-w-[220px] p-3">
+				<p className="text-sm font-medium">{label}</p>
+				<p className="text-xs text-muted-foreground mt-1">{detail}</p>
+			</PopoverContent>
+		</Popover>
+	)
+}
+
 function EventResultCell({
 	result,
 	scoringAlgorithm,
@@ -138,8 +179,9 @@ function EventResultCell({
 	return (
 		<div className="flex flex-col gap-0.5">
 			{/* Primary: Score value - medium weight for emphasis */}
-			<span className="font-medium tabular-nums">
+			<span className="font-medium tabular-nums inline-flex items-center gap-1">
 				{result.formattedScore}
+				<PenaltyIndicator result={result} />
 				{result.formattedTiebreak && (
 					<span className="text-muted-foreground font-normal ml-1">
 						(TB: {result.formattedTiebreak})
@@ -307,8 +349,9 @@ function MobileLeaderboardRow({
 									</span>
 									{result && result.rank > 0 ? (
 										<div className="flex flex-col gap-0.5">
-											<span className="font-medium tabular-nums">
+											<span className="font-medium tabular-nums inline-flex items-center gap-1">
 												{result.formattedScore}
+												<PenaltyIndicator result={result} />
 												{result.formattedTiebreak && (
 													<span className="text-muted-foreground font-normal ml-1">
 														(TB: {result.formattedTiebreak})
@@ -436,8 +479,9 @@ export function CompetitionLeaderboardTable({
 							return <span className="text-muted-foreground italic">—</span>
 						}
 						return (
-							<span className="font-medium tabular-nums">
+							<span className="font-medium tabular-nums inline-flex items-center gap-1">
 								{result.formattedScore}
+								<PenaltyIndicator result={result} />
 								{result.formattedTiebreak && (
 									<span className="text-muted-foreground font-normal ml-1">
 										(TB: {result.formattedTiebreak})
@@ -486,9 +530,7 @@ export function CompetitionLeaderboardTable({
 				id: `event-${event.id}`,
 				header: ({ column }: LeaderboardHeaderContext) => (
 					<SortableHeader column={column}>
-						<span className="truncate max-w-[100px]" title={event.name}>
-							{event.name}
-						</span>
+						{event.name}
 					</SortableHeader>
 				),
 				accessorFn: (row: CompetitionLeaderboardEntry) => {

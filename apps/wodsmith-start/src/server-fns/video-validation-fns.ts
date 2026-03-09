@@ -130,36 +130,6 @@ async function checkVimeoAccessibility(videoId: string): Promise<boolean> {
 }
 
 /**
- * Check if a Streamable video is accessible by fetching oEmbed data
- * This is a lightweight check that doesn't require API keys
- */
-async function checkStreamableAccessibility(videoId: string): Promise<boolean> {
-	const controller = new AbortController()
-	const timeoutId = setTimeout(() => controller.abort(), OEMBED_TIMEOUT_MS)
-
-	try {
-		const oEmbedUrl = `https://api.streamable.com/oembed.json?url=https://streamable.com/${videoId}`
-		const response = await fetch(oEmbedUrl, {
-			method: "GET",
-			headers: {
-				Accept: "application/json",
-			},
-			signal: controller.signal,
-		})
-
-		clearTimeout(timeoutId)
-
-		// 200 = video exists and is public
-		// 404 = video doesn't exist or is private
-		return response.ok
-	} catch {
-		clearTimeout(timeoutId)
-		// Network error, timeout, or other issue - assume inaccessible
-		return false
-	}
-}
-
-/**
  * Check video accessibility based on platform
  */
 async function checkVideoAccessibility(
@@ -170,8 +140,6 @@ async function checkVideoAccessibility(
 			return checkYouTubeAccessibility(parsed.videoId)
 		case "vimeo":
 			return checkVimeoAccessibility(parsed.videoId)
-		case "streamable":
-			return checkStreamableAccessibility(parsed.videoId)
 		default:
 			return false
 	}
