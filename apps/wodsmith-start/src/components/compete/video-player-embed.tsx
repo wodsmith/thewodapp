@@ -214,7 +214,6 @@ function VimeoPlayer({
 export function VideoPlayerEmbed({
 	url,
 	className,
-	title,
 	onPlayerReady,
 }: VideoPlayerEmbedProps) {
 	const parsed = parseVideoUrl(url)

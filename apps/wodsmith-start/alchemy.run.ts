@@ -88,7 +88,6 @@
 
 import alchemy from "alchemy"
 import {
-	D1Database,
 	Hyperdrive,
 	KVNamespace,
 	R2Bucket,

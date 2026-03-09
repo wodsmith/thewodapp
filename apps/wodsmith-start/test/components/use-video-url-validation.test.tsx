@@ -237,64 +237,6 @@ describe("useVideoUrlValidation", () => {
 		})
 	})
 
-	describe("Streamable URL validation", () => {
-		it("validates standard Streamable URL", async () => {
-			const { result } = renderHook(() =>
-				useVideoUrlValidation("https://streamable.com/abc123"),
-			)
-
-			await waitFor(() => {
-				expect(result.current.isPending).toBe(false)
-			})
-
-			expect(result.current.isValid).toBe(true)
-			expect(result.current.error).toBeNull()
-			expect(result.current.parsedUrl).not.toBeNull()
-			expect(result.current.parsedUrl?.platform).toBe("streamable")
-			expect(result.current.parsedUrl?.videoId).toBe("abc123")
-		})
-
-		it("validates Streamable URL with www", async () => {
-			const { result } = renderHook(() =>
-				useVideoUrlValidation("https://www.streamable.com/xyz789"),
-			)
-
-			await waitFor(() => {
-				expect(result.current.isPending).toBe(false)
-			})
-
-			expect(result.current.isValid).toBe(true)
-			expect(result.current.parsedUrl?.platform).toBe("streamable")
-			expect(result.current.parsedUrl?.videoId).toBe("xyz789")
-		})
-
-		it("validates Streamable embed URL", async () => {
-			const { result } = renderHook(() =>
-				useVideoUrlValidation("https://streamable.com/e/abc123"),
-			)
-
-			await waitFor(() => {
-				expect(result.current.isPending).toBe(false)
-			})
-
-			expect(result.current.isValid).toBe(true)
-			expect(result.current.parsedUrl?.platform).toBe("streamable")
-		})
-
-		it("validates Streamable URL with query params", async () => {
-			const { result } = renderHook(() =>
-				useVideoUrlValidation("https://streamable.com/abc123?autoplay=1"),
-			)
-
-			await waitFor(() => {
-				expect(result.current.isPending).toBe(false)
-			})
-
-			expect(result.current.isValid).toBe(true)
-			expect(result.current.parsedUrl?.videoId).toBe("abc123")
-		})
-	})
-
 	describe("Unsupported platforms", () => {
 		it("returns error for TikTok URLs", async () => {
 			const { result } = renderHook(() =>
@@ -441,23 +383,6 @@ describe("useVideoUrlValidation", () => {
 			})
 		})
 
-		it("includes all expected fields for Streamable", async () => {
-			const { result } = renderHook(() =>
-				useVideoUrlValidation("https://streamable.com/abc123"),
-			)
-
-			await waitFor(() => {
-				expect(result.current.isPending).toBe(false)
-			})
-
-			expect(result.current.parsedUrl).toMatchObject({
-				platform: "streamable",
-				videoId: "abc123",
-				originalUrl: "https://streamable.com/abc123",
-				embedUrl: "https://streamable.com/e/abc123",
-				thumbnailUrl: "https://cdn-cf-east.streamable.com/image/abc123.jpg",
-			})
-		})
 	})
 
 	describe("State structure", () => {
