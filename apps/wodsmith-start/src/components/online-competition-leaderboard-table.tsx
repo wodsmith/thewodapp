@@ -146,6 +146,7 @@ function PenaltyIndicator({
 	)
 }
 
+
 function TeamCell({ entry }: { entry: CompetitionLeaderboardEntry }) {
 	if (!entry.isTeamDivision) {
 		return <span className="font-medium">{entry.athleteName}</span>
