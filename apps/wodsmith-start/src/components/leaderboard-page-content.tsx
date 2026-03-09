@@ -6,6 +6,7 @@ import { BarChart3, Eye, EyeOff } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { CompetitionLeaderboardTable } from "@/components/competition-leaderboard-table"
+import { OnlineCompetitionLeaderboardTable } from "@/components/online-competition-leaderboard-table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible"
@@ -490,12 +491,21 @@ export function LeaderboardPageContent({
 			)}
 
 			<div className="rounded-md border">
-				<CompetitionLeaderboardTable
-					leaderboard={leaderboard}
-					events={events}
-					selectedEventId={selectedEventId}
-					scoringAlgorithm={scoringAlgorithm}
-				/>
+				{competition.competitionType === "online" ? (
+					<OnlineCompetitionLeaderboardTable
+						leaderboard={leaderboard}
+						events={events}
+						selectedEventId={selectedEventId}
+						scoringAlgorithm={scoringAlgorithm}
+					/>
+				) : (
+					<CompetitionLeaderboardTable
+						leaderboard={leaderboard}
+						events={events}
+						selectedEventId={selectedEventId}
+						scoringAlgorithm={scoringAlgorithm}
+					/>
+				)}
 			</div>
 
 			{/* Mobile: Bottom Sheet workout preview */}
