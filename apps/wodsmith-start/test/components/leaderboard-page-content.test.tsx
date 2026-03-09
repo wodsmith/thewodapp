@@ -29,6 +29,11 @@ vi.mock("@tanstack/react-router", () => ({
 				{ id: "div-1", label: "RX" },
 				{ id: "div-2", label: "Scaled" },
 			],
+			competition: {
+				id: "comp-1",
+				slug: "test-comp",
+				competitionType: "in_person",
+			},
 		}),
 	}),
 }))
@@ -112,6 +117,7 @@ const createMockEntry = (
 			rawScore: "300000",
 			formattedScore: "5:00",
 			formattedTiebreak: null,
+			videoUrl: null,
 		},
 		{
 			trackWorkoutId: "tw-2",
@@ -123,6 +129,7 @@ const createMockEntry = (
 			rawScore: "150",
 			formattedScore: "150 reps",
 			formattedTiebreak: null,
+			videoUrl: null,
 		},
 	],
 	...overrides,
@@ -200,6 +207,7 @@ describe("LeaderboardPageContent", () => {
 							rawScore: "300000",
 							formattedScore: "5:00",
 							formattedTiebreak: null,
+							videoUrl: null,
 						},
 						{
 							trackWorkoutId: "tw-2",
@@ -211,6 +219,7 @@ describe("LeaderboardPageContent", () => {
 							rawScore: "150",
 							formattedScore: "150 reps",
 							formattedTiebreak: null,
+							videoUrl: null,
 						},
 					],
 				}),
@@ -244,6 +253,7 @@ describe("LeaderboardPageContent", () => {
 							rawScore: "450000",
 							formattedScore: "7:30",
 							formattedTiebreak: null,
+							videoUrl: null,
 						},
 					],
 				}),
