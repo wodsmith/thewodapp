@@ -18,7 +18,10 @@ import type Stripe from "stripe"
 import { getDb } from "@/db"
 import {
 	COMMERCE_PURCHASE_STATUS,
+	FINANCIAL_EVENT_TYPE,
 	commercePurchaseTable,
+	competitionsTable,
+	financialEventTable,
 	teamTable,
 } from "@/db/schema"
 import { getStripeWebhookSecret } from "@/lib/env"
@@ -28,6 +31,10 @@ import {
 	logWarning,
 } from "@/lib/logging/posthog-otel-logger"
 import { getStripe } from "@/lib/stripe"
+import {
+	recordDisputeEvent,
+	recordRefundCompleted,
+} from "@/server/commerce/financial-events"
 import { notifyPaymentExpired } from "@/server/notifications"
 import type { CheckoutCompletedParams } from "@/workflows/stripe-checkout-workflow"
 
@@ -191,6 +198,188 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 						message: "[Stripe Webhook] Team Stripe account deauthorized",
 						attributes: { teamId: team.id, accountId },
 					})
+				}
+
+				/**
+				 * Find a purchase and its organizer teamId by stripePaymentIntentId.
+				 * Returns null if no matching purchase exists.
+				 */
+				async function findPurchaseByPaymentIntent(paymentIntentId: string) {
+					const db = getDb()
+					const purchase = await db.query.commercePurchaseTable.findFirst({
+						where: eq(
+							commercePurchaseTable.stripePaymentIntentId,
+							paymentIntentId,
+						),
+					})
+					if (!purchase || !purchase.competitionId) return null
+
+					const competition = await db.query.competitionsTable.findFirst({
+						where: eq(competitionsTable.id, purchase.competitionId),
+						columns: { organizingTeamId: true },
+					})
+					if (!competition) return null
+
+					return { purchase, teamId: competition.organizingTeamId }
+				}
+
+				/**
+				 * Handle charge.dispute.created — record DISPUTE_OPENED event
+				 */
+				async function handleDisputeCreated(dispute: Stripe.Dispute) {
+					const paymentIntentId =
+						typeof dispute.payment_intent === "string"
+							? dispute.payment_intent
+							: dispute.payment_intent?.id
+
+					if (!paymentIntentId) {
+						logWarning({
+							message:
+								"[Stripe Webhook] Dispute has no payment_intent",
+							attributes: { disputeId: dispute.id },
+						})
+						return
+					}
+
+					const result =
+						await findPurchaseByPaymentIntent(paymentIntentId)
+					if (!result) {
+						logWarning({
+							message:
+								"[Stripe Webhook] No purchase found for disputed payment_intent",
+							attributes: {
+								paymentIntentId,
+								disputeId: dispute.id,
+							},
+						})
+						return
+					}
+
+					await recordDisputeEvent({
+						purchaseId: result.purchase.id,
+						teamId: result.teamId,
+						eventType: FINANCIAL_EVENT_TYPE.DISPUTE_OPENED,
+						amountCents: -dispute.amount,
+						stripePaymentIntentId: paymentIntentId,
+						stripeDisputeId: dispute.id,
+						reason: `Stripe dispute opened: ${dispute.reason ?? "unknown reason"}`,
+					})
+
+					logInfo({
+						message: "[Stripe Webhook] Recorded DISPUTE_OPENED",
+						attributes: {
+							purchaseId: result.purchase.id,
+							disputeId: dispute.id,
+							amount: dispute.amount,
+						},
+					})
+				}
+
+				/**
+				 * Handle charge.dispute.closed — record DISPUTE_WON or DISPUTE_LOST
+				 */
+				async function handleDisputeClosed(dispute: Stripe.Dispute) {
+					const paymentIntentId =
+						typeof dispute.payment_intent === "string"
+							? dispute.payment_intent
+							: dispute.payment_intent?.id
+
+					if (!paymentIntentId) return
+
+					const result =
+						await findPurchaseByPaymentIntent(paymentIntentId)
+					if (!result) return
+
+					if (dispute.status === "won") {
+						await recordDisputeEvent({
+							purchaseId: result.purchase.id,
+							teamId: result.teamId,
+							eventType: FINANCIAL_EVENT_TYPE.DISPUTE_WON,
+							amountCents: dispute.amount, // money returned
+							stripePaymentIntentId: paymentIntentId,
+							stripeDisputeId: dispute.id,
+							reason: "Dispute resolved in our favor",
+						})
+					} else if (dispute.status === "lost") {
+						await recordDisputeEvent({
+							purchaseId: result.purchase.id,
+							teamId: result.teamId,
+							eventType: FINANCIAL_EVENT_TYPE.DISPUTE_LOST,
+							amountCents: 0,
+							stripePaymentIntentId: paymentIntentId,
+							stripeDisputeId: dispute.id,
+							reason: "Dispute resolved in customer's favor",
+						})
+					}
+
+					logInfo({
+						message: `[Stripe Webhook] Recorded DISPUTE_${dispute.status === "won" ? "WON" : "LOST"}`,
+						attributes: {
+							purchaseId: result.purchase.id,
+							disputeId: dispute.id,
+							status: dispute.status,
+						},
+					})
+				}
+
+				/**
+				 * Handle charge.refunded — record REFUND_COMPLETED if not already tracked.
+				 * This catches refunds issued directly from the Stripe dashboard.
+				 */
+				async function handleChargeRefunded(charge: Stripe.Charge) {
+					const paymentIntentId =
+						typeof charge.payment_intent === "string"
+							? charge.payment_intent
+							: charge.payment_intent?.id
+
+					if (!paymentIntentId) return
+
+					const result =
+						await findPurchaseByPaymentIntent(paymentIntentId)
+					if (!result) return
+
+					const db = getDb()
+
+					// Check each refund on the charge
+					for (const refund of charge.refunds?.data ?? []) {
+						if (refund.status !== "succeeded") continue
+
+						// Skip if we already recorded this refund (idempotency)
+						const existing =
+							await db.query.financialEventTable.findFirst({
+								where: and(
+									eq(
+										financialEventTable.stripeRefundId,
+										refund.id,
+									),
+									eq(
+										financialEventTable.eventType,
+										FINANCIAL_EVENT_TYPE.REFUND_COMPLETED,
+									),
+								),
+								columns: { id: true },
+							})
+						if (existing) continue
+
+						await recordRefundCompleted({
+							purchaseId: result.purchase.id,
+							teamId: result.teamId,
+							amountCents: refund.amount,
+							stripePaymentIntentId: paymentIntentId,
+							stripeRefundId: refund.id,
+							reason: `Refund via Stripe: ${refund.reason ?? "no reason provided"}`,
+						})
+
+						logInfo({
+							message:
+								"[Stripe Webhook] Recorded REFUND_COMPLETED from charge.refunded",
+							attributes: {
+								purchaseId: result.purchase.id,
+								refundId: refund.id,
+								amount: refund.amount,
+							},
+						})
+					}
 				}
 
 				// =========================================================================
@@ -398,7 +587,26 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 							await handleAccountUpdated(event.data.object as Stripe.Account)
 							break
 
-						case "account.application.authorized":
+						// Financial event tracking (disputes, refunds)
+						case "charge.dispute.created":
+							await handleDisputeCreated(
+								event.data.object as Stripe.Dispute,
+							)
+							break
+
+						case "charge.dispute.closed":
+							await handleDisputeClosed(
+								event.data.object as Stripe.Dispute,
+							)
+							break
+
+						case "charge.refunded":
+							await handleChargeRefunded(
+								event.data.object as Stripe.Charge,
+							)
+							break
+
+					case "account.application.authorized":
 							// Standard OAuth connection confirmed - logged for debugging
 							logInfo({
 								message: "[Stripe Webhook] Account application authorized",
