@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "35e69adea976",
+  "strategy": "manual-commit",
+  "branch": "zac/penalty-guidance",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/src/components/compete/video-player-embed.tsx",
+    "apps/wodsmith-start/src/components/ui/video-url-input.tsx",
+    "apps/wodsmith-start/src/components/video-embed.tsx",
+    "apps/wodsmith-start/src/schemas/video-url.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/35/e69adea976/0/metadata.json",
+      "transcript": "/35/e69adea976/0/full.jsonl",
+      "context": "/35/e69adea976/0/context.md",
+      "content_hash": "/35/e69adea976/0/content_hash.txt",
+      "prompt": "/35/e69adea976/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 99,
+    "cache_creation_tokens": 181760,
+    "cache_read_tokens": 6615757,
+    "output_tokens": 17405,
+    "api_call_count": 79
+  }
+}
