@@ -27,6 +27,7 @@ import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoresTable } from "@/db/schemas/scores"
 import { teamMembershipTable } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
+import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
 import { workouts } from "@/db/schemas/workouts"
 import {
 	calculateEventPoints,
@@ -85,6 +86,8 @@ export interface CompetitionLeaderboardEntry {
 		penaltyPercentage: number | null
 		/** Whether score was directly modified (adjusted without penalty) */
 		isDirectlyModified: boolean
+		/** Video submission URL (online competitions only) */
+		videoUrl: string | null
 	}>
 }
 
@@ -441,6 +444,39 @@ export async function getCompetitionLeaderboard(params: {
 
 	const allScores = await fetchScores({ trackWorkoutIds, userIds })
 
+	// Fetch video submissions for online competitions
+	const registrationIds = filteredRegistrations.map((r) => r.registration.id)
+	const videoSubmissions =
+		competition.competitionType === "online" && registrationIds.length > 0
+			? await db
+					.select({
+						registrationId: videoSubmissionsTable.registrationId,
+						trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+						videoUrl: videoSubmissionsTable.videoUrl,
+					})
+					.from(videoSubmissionsTable)
+					.where(
+						inArray(videoSubmissionsTable.registrationId, registrationIds),
+					)
+			: []
+
+	// Index video submissions by registrationId+trackWorkoutId for fast lookup
+	const videoUrlMap = new Map<string, string>()
+	for (const vs of videoSubmissions) {
+		videoUrlMap.set(`${vs.registrationId}:${vs.trackWorkoutId}`, vs.videoUrl)
+	}
+
+	// Helper: check if an event+division is published (for gating video visibility)
+	function isEventDivisionPublished(
+		trackWorkoutId: string,
+		divisionId: string,
+	): boolean {
+		if (!divisionResults) return true // no publish gating
+		const eventPublishState = divisionResults[trackWorkoutId]
+		const divisionPublishState = eventPublishState?.[divisionId]
+		return !!divisionPublishState?.publishedAt
+	}
+
 	// Build leaderboard entries
 	const leaderboardMap = new Map<string, CompetitionLeaderboardEntry>()
 
@@ -598,6 +634,11 @@ export async function getCompetitionLeaderboard(params: {
 					penaltyPercentage: score.penaltyPercentage ?? null,
 					isDirectlyModified:
 						score.verificationStatus === "adjusted" && !score.penaltyType,
+					videoUrl: isEventDivisionPublished(trackWorkout.id, divisionId)
+						? (videoUrlMap.get(
+								`${registration.registration.id}:${trackWorkout.id}`,
+							) ?? null)
+						: null,
 				})
 
 				entry.totalPoints += points
@@ -605,7 +646,7 @@ export async function getCompetitionLeaderboard(params: {
 		}
 
 		// Add empty results for athletes who didn't complete this event
-		for (const [_regId, entry] of leaderboardMap) {
+		for (const [regId, entry] of leaderboardMap) {
 			const hasResult = entry.eventResults.some(
 				(er) => er.trackWorkoutId === trackWorkout.id,
 			)
@@ -623,6 +664,12 @@ export async function getCompetitionLeaderboard(params: {
 					penaltyType: null,
 					penaltyPercentage: null,
 					isDirectlyModified: false,
+					videoUrl: isEventDivisionPublished(
+						trackWorkout.id,
+						entry.divisionId,
+					)
+						? (videoUrlMap.get(`${regId}:${trackWorkout.id}`) ?? null)
+						: null,
 				})
 			}
 		}
