@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "04dce697e765",
+  "strategy": "manual-commit",
+  "branch": "zac/penalty-guidance",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/04/dce697e765/0/metadata.json",
+      "transcript": "/04/dce697e765/0/full.jsonl",
+      "context": "/04/dce697e765/0/context.md",
+      "content_hash": "/04/dce697e765/0/content_hash.txt",
+      "prompt": "/04/dce697e765/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 17,
+    "cache_creation_tokens": 23522,
+    "cache_read_tokens": 365155,
+    "output_tokens": 2121,
+    "api_call_count": 13
+  }
+}
