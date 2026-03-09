@@ -13,6 +13,7 @@ import {
 	useReactTable,
 } from "@tanstack/react-table"
 import {
+	AlertTriangle,
 	ArrowDownNarrowWide,
 	ArrowUpDown,
 	ArrowUpNarrowWide,
@@ -126,6 +127,25 @@ function formatMemberName(member: TeamMemberInfo): string {
 	return member.isCaptain ? `${name} (C)` : name
 }
 
+/** Subtle warning icon indicating a penalty or score adjustment */
+function PenaltyIndicator({
+	result,
+}: {
+	result: CompetitionLeaderboardEntry["eventResults"][number]
+}) {
+	if (!result.penaltyType && !result.isDirectlyModified) return null
+
+	const label = result.penaltyType
+		? `${result.penaltyType === "major" ? "Major" : "Minor"} Penalty${result.penaltyPercentage != null ? ` (${result.penaltyPercentage}%)` : ""}`
+		: "Score Adjusted"
+
+	return (
+		<span title={label}>
+			<AlertTriangle className="h-3 w-3 text-muted-foreground" />
+		</span>
+	)
+}
+
 function TeamCell({ entry }: { entry: CompetitionLeaderboardEntry }) {
 	if (!entry.isTeamDivision) {
 		return <span className="font-medium">{entry.athleteName}</span>
@@ -171,12 +191,14 @@ function SortableHeader({
 	)
 }
 
-/** Check if an entry has any video URLs in its event results */
-function hasAnyVideo(entry: CompetitionLeaderboardEntry): boolean {
-	return entry.eventResults.some((r) => r.videoUrl)
+/** Check if an entry has expandable content (videos or penalties) */
+function hasExpandableContent(entry: CompetitionLeaderboardEntry): boolean {
+	return entry.eventResults.some(
+		(r) => r.videoUrl || r.penaltyType || r.isDirectlyModified,
+	)
 }
 
-/** Desktop expanded row showing video embed */
+/** Desktop expanded row showing videos and penalty details */
 function ExpandedVideoRow({
 	row,
 	selectedEventId,
@@ -188,15 +210,17 @@ function ExpandedVideoRow({
 }) {
 	const entry = row.original
 
-	// In single-event view, show the video for that event
-	// In overall view, show all videos
-	const videosToShow = selectedEventId
+	const resultsToShow = selectedEventId
 		? entry.eventResults.filter(
-				(r) => r.trackWorkoutId === selectedEventId && r.videoUrl,
+				(r) =>
+					r.trackWorkoutId === selectedEventId &&
+					(r.videoUrl || r.penaltyType || r.isDirectlyModified),
 			)
-		: entry.eventResults.filter((r) => r.videoUrl)
+		: entry.eventResults.filter(
+				(r) => r.videoUrl || r.penaltyType || r.isDirectlyModified,
+			)
 
-	if (videosToShow.length === 0) return null
+	if (resultsToShow.length === 0) return null
 
 	return (
 		<TableRow className="table-row bg-muted/30 hover:bg-muted/30">
@@ -204,19 +228,34 @@ function ExpandedVideoRow({
 				<div
 					className={cn(
 						"grid gap-4",
-						videosToShow.length === 1
+						resultsToShow.length === 1
 							? "max-w-2xl"
 							: "grid-cols-1 md:grid-cols-2",
 					)}
 				>
-					{videosToShow.map((result) => (
+					{resultsToShow.map((result) => (
 						<div key={result.trackWorkoutId} className="space-y-2">
 							{!selectedEventId && (
-								<span className="text-sm font-medium text-muted-foreground">
+								<span className="text-sm font-medium text-muted-foreground block">
 									{result.eventName}
 								</span>
 							)}
-							<VideoEmbed url={result.videoUrl} />
+							{result.penaltyType && (
+								<div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+									<AlertTriangle className="h-3 w-3" />
+									{result.penaltyType === "major" ? "Major" : "Minor"} Penalty
+									{result.penaltyPercentage != null && ` · ${result.penaltyPercentage}% deduction`}
+								</div>
+							)}
+							{!result.penaltyType && result.isDirectlyModified && (
+								<div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+									<AlertTriangle className="h-3 w-3" />
+									Score adjusted by organizer
+								</div>
+							)}
+							{result.videoUrl && (
+								<VideoEmbed url={result.videoUrl} />
+							)}
 						</div>
 					))}
 				</div>
@@ -295,8 +334,11 @@ function MobileOnlineLeaderboardRow({
 						)}
 					</div>
 
-					{hasAnyVideo(entry) && (
+					{entry.eventResults.some((r) => r.videoUrl) && (
 						<Video className="h-4 w-4 text-muted-foreground shrink-0" />
+					)}
+					{entry.eventResults.some((r) => r.penaltyType || r.isDirectlyModified) && (
+						<AlertTriangle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
 					)}
 
 					<ChevronDown
@@ -335,6 +377,19 @@ function MobileOnlineLeaderboardRow({
 												#{result.rank}{" "}
 												{formatPoints(result.points, scoringAlgorithm)}
 											</span>
+											{result.penaltyType && (
+												<span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
+													<AlertTriangle className="h-2.5 w-2.5" />
+													{result.penaltyType === "major" ? "Major" : "Minor"} Penalty
+													{result.penaltyPercentage != null && ` · ${result.penaltyPercentage}% deduction`}
+												</span>
+											)}
+											{!result.penaltyType && result.isDirectlyModified && (
+												<span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
+													<AlertTriangle className="h-2.5 w-2.5" />
+													Score adjusted by organizer
+												</span>
+											)}
 										</div>
 									) : (
 										<span className="text-muted-foreground italic">—</span>
@@ -478,8 +533,9 @@ export function OnlineCompetitionLeaderboardTable({
 							return <span className="text-muted-foreground italic">—</span>
 						}
 						return (
-							<span className="font-medium tabular-nums">
+							<span className="font-medium tabular-nums inline-flex items-center gap-1">
 								{result.formattedScore}
+								<PenaltyIndicator result={result} />
 								{result.formattedTiebreak && (
 									<span className="text-muted-foreground font-normal ml-1">
 										(TB: {result.formattedTiebreak})
@@ -510,7 +566,7 @@ export function OnlineCompetitionLeaderboardTable({
 				id: "expand",
 				header: "",
 				cell: ({ row }: LeaderboardCellContext) => {
-					if (!hasAnyVideo(row.original)) return null
+					if (!hasExpandableContent(row.original)) return null
 					return (
 						<button
 							type="button"
@@ -581,8 +637,9 @@ export function OnlineCompetitionLeaderboardTable({
 					}
 					return (
 						<div className="flex flex-col gap-0.5">
-							<span className="font-medium tabular-nums">
+							<span className="font-medium tabular-nums inline-flex items-center gap-1">
 								{result.formattedScore}
+								<PenaltyIndicator result={result} />
 								{result.formattedTiebreak && (
 									<span className="text-muted-foreground font-normal ml-1">
 										(TB: {result.formattedTiebreak})
@@ -629,7 +686,7 @@ export function OnlineCompetitionLeaderboardTable({
 		getExpandedRowModel: getExpandedRowModel(),
 		state: { sorting: validatedSorting },
 		onSortingChange: setSorting,
-		getRowCanExpand: (row) => hasAnyVideo(row.original),
+		getRowCanExpand: (row) => hasExpandableContent(row.original),
 	})
 
 	// Mobile sort options
@@ -787,10 +844,10 @@ export function OnlineCompetitionLeaderboardTable({
 										className={cn(
 											"table-row",
 											row.getIsExpanded() && "border-b-0",
-											hasAnyVideo(row.original) && "cursor-pointer",
+											hasExpandableContent(row.original) && "cursor-pointer",
 										)}
 										onClick={() => {
-											if (hasAnyVideo(row.original)) {
+											if (hasExpandableContent(row.original)) {
 												row.toggleExpanded()
 											}
 										}}
