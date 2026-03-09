@@ -10,7 +10,7 @@
  * @see @/lib/scoring/tiebreakers - Tiebreaker logic
  */
 
-import { and, eq, inArray, ne } from "drizzle-orm"
+import { and, eq, inArray, ne, or, isNull } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	competitionHeatAssignmentsTable,
@@ -146,6 +146,11 @@ async function fetchScores(params: {
 			and(
 				inArray(scoresTable.competitionEventId, params.trackWorkoutIds),
 				inArray(scoresTable.userId, params.userIds),
+				// Exclude invalidated scores from leaderboard
+				or(
+					isNull(scoresTable.verificationStatus),
+					ne(scoresTable.verificationStatus, "invalid"),
+				),
 			),
 		)
 

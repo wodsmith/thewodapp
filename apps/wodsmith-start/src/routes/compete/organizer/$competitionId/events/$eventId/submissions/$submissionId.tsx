@@ -1127,7 +1127,10 @@ function AuditLogEntry({
 							<p className="text-xs font-medium">Score Preview</p>
 							{(() => {
 								const scheme = log.scheme as WorkoutScheme
-								const lowerBetter = isLowerBetter(scheme)
+								const lowerBetter =
+									scheme === "time-with-cap"
+										? log.originalStatus !== "cap"
+										: isLowerBetter(scheme)
 								const previewScore = calculatePenaltyScore(
 									log.originalScoreValue!,
 									editPenaltyPct,

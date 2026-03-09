@@ -1266,9 +1266,15 @@ export const updateVerificationLogFn = createServerFn({ method: "POST" })
 			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
 
-		// Verify the log entry belongs to this competition
+		// Verify the log entry belongs to this competition and get scoreId + context
 		const [log] = await db
-			.select({ id: scoreVerificationLogsTable.id })
+			.select({
+				id: scoreVerificationLogsTable.id,
+				scoreId: scoreVerificationLogsTable.scoreId,
+				trackWorkoutId: scoreVerificationLogsTable.trackWorkoutId,
+				athleteUserId: scoreVerificationLogsTable.athleteUserId,
+				penaltyType: scoreVerificationLogsTable.penaltyType,
+			})
 			.from(scoreVerificationLogsTable)
 			.where(
 				and(
@@ -1282,21 +1288,98 @@ export const updateVerificationLogFn = createServerFn({ method: "POST" })
 			throw new Error("Log entry not found")
 		}
 
-		const updates: Record<string, unknown> = {}
-		if (data.action !== undefined) updates.action = data.action
-		if (data.penaltyType !== undefined) updates.penaltyType = data.penaltyType
+		const logUpdates: Record<string, unknown> = {}
+		if (data.action !== undefined) logUpdates.action = data.action
+		if (data.penaltyType !== undefined)
+			logUpdates.penaltyType = data.penaltyType
 		if (data.penaltyPercentage !== undefined)
-			updates.penaltyPercentage = data.penaltyPercentage
-		if (data.noRepCount !== undefined) updates.noRepCount = data.noRepCount
+			logUpdates.penaltyPercentage = data.penaltyPercentage
+		if (data.noRepCount !== undefined) logUpdates.noRepCount = data.noRepCount
 
-		if (Object.keys(updates).length === 0) {
+		if (Object.keys(logUpdates).length === 0) {
 			return { success: true }
 		}
 
-		await db
-			.update(scoreVerificationLogsTable)
-			.set(updates)
-			.where(eq(scoreVerificationLogsTable.id, data.logId))
+		// Check if penalty fields changed — need to sync to scoresTable
+		const hasPenaltyChange =
+			data.penaltyType !== undefined ||
+			data.penaltyPercentage !== undefined ||
+			data.noRepCount !== undefined
+
+		// Detect penaltyType flip (null ↔ non-null) for review status update
+		const oldPenaltyType = log.penaltyType
+		const newPenaltyType =
+			data.penaltyType !== undefined ? data.penaltyType : oldPenaltyType
+		const penaltyTypeFlipped =
+			data.penaltyType !== undefined &&
+			Boolean(oldPenaltyType) !== Boolean(newPenaltyType)
+
+		const now = new Date()
+
+		await db.transaction(async (tx) => {
+			// Update the log entry
+			await tx
+				.update(scoreVerificationLogsTable)
+				.set(logUpdates)
+				.where(eq(scoreVerificationLogsTable.id, data.logId))
+
+			// Sync penalty fields to the denormalized scoresTable columns
+			if (hasPenaltyChange) {
+				const scoreUpdates: Record<string, unknown> = { updatedAt: now }
+				if (data.penaltyType !== undefined)
+					scoreUpdates.penaltyType = data.penaltyType
+				if (data.penaltyPercentage !== undefined)
+					scoreUpdates.penaltyPercentage = data.penaltyPercentage
+				if (data.noRepCount !== undefined)
+					scoreUpdates.noRepCount = data.noRepCount
+
+				await tx
+					.update(scoresTable)
+					.set(scoreUpdates)
+					.where(eq(scoresTable.id, log.scoreId))
+			}
+
+			// Update video submission reviewStatus when penaltyType flips
+			if (penaltyTypeFlipped && log.trackWorkoutId) {
+				const [registration] = await tx
+					.select({ id: competitionRegistrationsTable.id })
+					.from(competitionRegistrationsTable)
+					.where(
+						and(
+							eq(competitionRegistrationsTable.eventId, data.competitionId),
+							eq(
+								competitionRegistrationsTable.userId,
+								log.athleteUserId,
+							),
+						),
+					)
+					.limit(1)
+
+				if (registration) {
+					const videoReviewStatus = newPenaltyType
+						? "penalized"
+						: "adjusted"
+					await tx
+						.update(videoSubmissionsTable)
+						.set({
+							reviewStatus: videoReviewStatus,
+							statusUpdatedAt: now,
+						})
+						.where(
+							and(
+								eq(
+									videoSubmissionsTable.registrationId,
+									registration.id,
+								),
+								eq(
+									videoSubmissionsTable.trackWorkoutId,
+									log.trackWorkoutId,
+								),
+							),
+						)
+				}
+			}
+		})
 
 		logInfo({
 			message: "[Score] Organizer updated verification log entry",
@@ -1304,7 +1387,7 @@ export const updateVerificationLogFn = createServerFn({ method: "POST" })
 				logId: data.logId,
 				competitionId: data.competitionId,
 				updatedByUserId: session.userId,
-				updates,
+				updates: logUpdates,
 			},
 		})
 
