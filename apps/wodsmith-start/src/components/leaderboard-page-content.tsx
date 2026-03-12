@@ -61,6 +61,7 @@ export function LeaderboardPageContent({
 	const searchParams = useSearch({ strict: false }) as {
 		division?: string
 		event?: string
+		affiliate?: string
 	}
 
 	// Get divisions and competition from parent route loader
@@ -72,6 +73,7 @@ export function LeaderboardPageContent({
 	// URL state for shareable leaderboard views
 	const selectedDivision = searchParams.division ?? defaultDivision
 	const selectedEventId = searchParams.event ?? null
+	const selectedAffiliate = searchParams.affiliate ?? "all"
 
 	const [leaderboard, setLeaderboard] = useState<CompetitionLeaderboardEntry[]>(
 		[],
@@ -253,8 +255,9 @@ export function LeaderboardPageContent({
 				search: (prev: Record<string, unknown>) => ({
 					...prev,
 					division: divisionId,
-					// Reset event when changing divisions
+					// Reset event and affiliate when changing divisions
 					event: undefined,
+					affiliate: undefined,
 				}),
 				replace: true,
 			})
@@ -293,6 +296,44 @@ export function LeaderboardPageContent({
 			}))
 			.sort((a, b) => a.trackOrder - b.trackOrder)
 	}, [leaderboard])
+
+	// Extract unique affiliates for filter dropdown
+	const affiliates = useMemo(() => {
+		const affiliateSet = new Set<string>()
+		for (const entry of leaderboard) {
+			if (entry.affiliate) {
+				affiliateSet.add(entry.affiliate)
+			}
+		}
+		return Array.from(affiliateSet).sort()
+	}, [leaderboard])
+
+	// Validate selectedAffiliate against known affiliates to prevent stale URL params
+	const effectiveAffiliate = useMemo(() => {
+		if (selectedAffiliate === "all") return "all"
+		return affiliates.includes(selectedAffiliate) ? selectedAffiliate : "all"
+	}, [selectedAffiliate, affiliates])
+
+	// Filter leaderboard by selected affiliate
+	const filteredLeaderboard = useMemo(() => {
+		if (effectiveAffiliate === "all") return leaderboard
+		return leaderboard.filter((entry) => entry.affiliate === effectiveAffiliate)
+	}, [leaderboard, effectiveAffiliate])
+
+	// Handle affiliate change - update URL
+	const handleAffiliateChange = useCallback(
+		(value: string) => {
+			navigate({
+				to: ".",
+				search: (prev: Record<string, unknown>) => ({
+					...prev,
+					affiliate: value === "all" ? undefined : value,
+				}),
+				replace: true,
+			})
+		},
+		[navigate],
+	)
 
 	// Derive division-specific description for preview
 	const selectedDivisionDesc = useMemo(() => {
@@ -440,6 +481,26 @@ export function LeaderboardPageContent({
 						</Select>
 					)}
 
+					{/* Affiliate filter */}
+					{(affiliates.length > 0 || effectiveAffiliate !== "all") && (
+						<Select
+							value={effectiveAffiliate}
+							onValueChange={handleAffiliateChange}
+						>
+							<SelectTrigger className="w-[200px]">
+								<SelectValue placeholder="Affiliate" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="all">All Affiliates</SelectItem>
+								{affiliates.map((affiliate) => (
+									<SelectItem key={affiliate} value={affiliate}>
+										{affiliate}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					)}
+
 					{/* View Workout button */}
 					{selectedEventId && (
 						<Button variant="outline" size="sm" onClick={handleTogglePreview}>
@@ -493,14 +554,14 @@ export function LeaderboardPageContent({
 			<div className="rounded-md border">
 				{competition.competitionType === "online" ? (
 					<OnlineCompetitionLeaderboardTable
-						leaderboard={leaderboard}
+						leaderboard={filteredLeaderboard}
 						events={events}
 						selectedEventId={selectedEventId}
 						scoringAlgorithm={scoringAlgorithm}
 					/>
 				) : (
 					<CompetitionLeaderboardTable
-						leaderboard={leaderboard}
+						leaderboard={filteredLeaderboard}
 						events={events}
 						selectedEventId={selectedEventId}
 						scoringAlgorithm={scoringAlgorithm}

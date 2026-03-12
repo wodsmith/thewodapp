@@ -46,6 +46,7 @@ import {
 	getEffectiveScoringConfig,
 	parseCompetitionSettings,
 } from "@/types/competitions"
+import { getAffiliate } from "@/utils/registration-metadata"
 
 // ============================================================================
 // Types
@@ -70,6 +71,8 @@ export interface CompetitionLeaderboardEntry {
 	isTeamDivision: boolean
 	teamName: string | null
 	teamMembers: TeamMemberInfo[]
+	/** Affiliate/gym name from registration metadata */
+	affiliate: string | null
 	eventResults: Array<{
 		trackWorkoutId: string
 		trackOrder: number
@@ -517,6 +520,7 @@ export async function getCompetitionLeaderboard(params: {
 			isTeamDivision,
 			teamName: reg.registration.teamName,
 			teamMembers,
+			affiliate: getAffiliate(reg.registration.metadata, reg.user.id),
 			eventResults: [],
 		})
 	}

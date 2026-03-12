@@ -236,12 +236,26 @@ function formatMemberName(member: TeamMemberInfo): string {
 /** Team cell for team divisions - shows team name with members underneath */
 function TeamCell({ entry }: { entry: CompetitionLeaderboardEntry }) {
 	if (!entry.isTeamDivision) {
-		return <span className="font-medium">{entry.athleteName}</span>
+		return (
+			<div className="flex flex-col gap-0.5">
+				<span className="font-medium">{entry.athleteName}</span>
+				{entry.affiliate && (
+					<span className="text-[10px] text-muted-foreground leading-tight">
+						{entry.affiliate}
+					</span>
+				)}
+			</div>
+		)
 	}
 
 	return (
 		<div className="flex flex-col gap-0.5">
 			<span className="font-medium">{entry.teamName || "Unknown Team"}</span>
+			{entry.affiliate && (
+				<span className="text-[10px] text-muted-foreground leading-tight">
+					{entry.affiliate}
+				</span>
+			)}
 			{entry.teamMembers.length > 0 && (
 				<span className="text-[10px] text-muted-foreground leading-tight">
 					{entry.teamMembers.map((m) => formatMemberName(m)).join(", ")}
@@ -310,6 +324,11 @@ function MobileLeaderboardRow({
 								<span className="font-medium truncate block">
 									{entry.teamName || "Unknown Team"}
 								</span>
+								{entry.affiliate && (
+									<span className="text-[10px] text-muted-foreground truncate block">
+										{entry.affiliate}
+									</span>
+								)}
 								{entry.teamMembers.length > 0 && (
 									<span className="text-[10px] text-muted-foreground truncate block">
 										{entry.teamMembers
@@ -319,9 +338,16 @@ function MobileLeaderboardRow({
 								)}
 							</>
 						) : (
-							<span className="font-medium truncate block">
-								{entry.athleteName}
-							</span>
+							<>
+								<span className="font-medium truncate block">
+									{entry.athleteName}
+								</span>
+								{entry.affiliate && (
+									<span className="text-[10px] text-muted-foreground truncate block">
+										{entry.affiliate}
+									</span>
+								)}
+							</>
 						)}
 					</div>
 
@@ -425,6 +451,12 @@ export function CompetitionLeaderboardTable({
 		[leaderboard],
 	)
 
+	// Show affiliate column only when at least one entry has an affiliate
+	const hasAffiliates = useMemo(
+		() => leaderboard.some((entry) => entry.affiliate),
+		[leaderboard],
+	)
+
 	// Build columns dynamically based on view mode
 	const columns = useMemo<ColumnDef<CompetitionLeaderboardEntry>[]>(() => {
 		// Column header label: "Team" for team divisions, "Athlete" for individual
@@ -462,6 +494,20 @@ export function CompetitionLeaderboardTable({
 						<TeamCell entry={row.original} />
 					),
 				},
+				...(hasAffiliates
+					? [
+							{
+								id: "affiliate",
+								header: "Affiliate",
+								accessorKey: "affiliate" as const,
+								cell: ({ row }: LeaderboardCellContext) => (
+									<span className="text-sm text-muted-foreground">
+										{row.original.affiliate ?? "—"}
+									</span>
+								),
+							} satisfies ColumnDef<CompetitionLeaderboardEntry>,
+						]
+					: []),
 				{
 					id: "score",
 					header: "Score",
@@ -522,6 +568,21 @@ export function CompetitionLeaderboardTable({
 			},
 		]
 
+		if (hasAffiliates) {
+			baseColumns.push({
+				id: "affiliate",
+				header: ({ column }: LeaderboardHeaderContext) => (
+					<SortableHeader column={column}>Affiliate</SortableHeader>
+				),
+				accessorKey: "affiliate",
+				cell: ({ row }: LeaderboardCellContext) => (
+					<span className="text-sm text-muted-foreground">
+						{row.original.affiliate ?? "—"}
+					</span>
+				),
+			})
+		}
+
 		// Add event columns sorted by trackOrder
 		const sortedEvents = [...events].sort((a, b) => a.trackOrder - b.trackOrder)
 
@@ -559,7 +620,7 @@ export function CompetitionLeaderboardTable({
 		}
 
 		return baseColumns
-	}, [events, selectedEventId, isTeamLeaderboard, scoringAlgorithm])
+	}, [events, selectedEventId, isTeamLeaderboard, hasAffiliates, scoringAlgorithm])
 
 	// Ensure sorting state only references columns that exist
 	// This prevents errors when switching between overall and single event views

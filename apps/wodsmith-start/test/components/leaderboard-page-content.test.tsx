@@ -106,6 +106,7 @@ const createMockEntry = (
 	isTeamDivision: false,
 	teamName: null,
 	teamMembers: [],
+	affiliate: null,
 	eventResults: [
 		{
 			trackWorkoutId: "tw-1",

@@ -149,12 +149,26 @@ function PenaltyIndicator({
 
 function TeamCell({ entry }: { entry: CompetitionLeaderboardEntry }) {
 	if (!entry.isTeamDivision) {
-		return <span className="font-medium">{entry.athleteName}</span>
+		return (
+			<div className="flex flex-col gap-0.5">
+				<span className="font-medium">{entry.athleteName}</span>
+				{entry.affiliate && (
+					<span className="text-[10px] text-muted-foreground leading-tight">
+						{entry.affiliate}
+					</span>
+				)}
+			</div>
+		)
 	}
 
 	return (
 		<div className="flex flex-col gap-0.5">
 			<span className="font-medium">{entry.teamName || "Unknown Team"}</span>
+			{entry.affiliate && (
+				<span className="text-[10px] text-muted-foreground leading-tight">
+					{entry.affiliate}
+				</span>
+			)}
 			{entry.teamMembers.length > 0 && (
 				<span className="text-[10px] text-muted-foreground leading-tight">
 					{entry.teamMembers.map((m) => formatMemberName(m)).join(", ")}
@@ -320,6 +334,11 @@ function MobileOnlineLeaderboardRow({
 								<span className="font-medium truncate block">
 									{entry.teamName || "Unknown Team"}
 								</span>
+								{entry.affiliate && (
+									<span className="text-[10px] text-muted-foreground truncate block">
+										{entry.affiliate}
+									</span>
+								)}
 								{entry.teamMembers.length > 0 && (
 									<span className="text-[10px] text-muted-foreground truncate block">
 										{entry.teamMembers
@@ -329,9 +348,16 @@ function MobileOnlineLeaderboardRow({
 								)}
 							</>
 						) : (
-							<span className="font-medium truncate block">
-								{entry.athleteName}
-							</span>
+							<>
+								<span className="font-medium truncate block">
+									{entry.athleteName}
+								</span>
+								{entry.affiliate && (
+									<span className="text-[10px] text-muted-foreground truncate block">
+										{entry.affiliate}
+									</span>
+								)}
+							</>
 						)}
 					</div>
 
@@ -459,6 +485,11 @@ export function OnlineCompetitionLeaderboardTable({
 		[leaderboard],
 	)
 
+	const hasAffiliates = useMemo(
+		() => leaderboard.some((entry) => entry.affiliate),
+		[leaderboard],
+	)
+
 	const columns = useMemo<ColumnDef<CompetitionLeaderboardEntry>[]>(() => {
 		const athleteColumnLabel = isTeamLeaderboard ? "Team" : "Athlete"
 
@@ -517,6 +548,20 @@ export function OnlineCompetitionLeaderboardTable({
 						<TeamCell entry={row.original} />
 					),
 				},
+				...(hasAffiliates
+					? [
+							{
+								id: "affiliate",
+								header: "Affiliate",
+								accessorKey: "affiliate" as const,
+								cell: ({ row }: LeaderboardCellContext) => (
+									<span className="text-sm text-muted-foreground">
+										{row.original.affiliate ?? "—"}
+									</span>
+								),
+							} satisfies ColumnDef<CompetitionLeaderboardEntry>,
+						]
+					: []),
 				{
 					id: "score",
 					header: "Score",
@@ -611,6 +656,21 @@ export function OnlineCompetitionLeaderboardTable({
 			},
 		]
 
+		if (hasAffiliates) {
+			baseColumns.push({
+				id: "affiliate",
+				header: ({ column }: LeaderboardHeaderContext) => (
+					<SortableHeader column={column}>Affiliate</SortableHeader>
+				),
+				accessorKey: "affiliate",
+				cell: ({ row }: LeaderboardCellContext) => (
+					<span className="text-sm text-muted-foreground">
+						{row.original.affiliate ?? "—"}
+					</span>
+				),
+			})
+		}
+
 		const sortedEvents = [...events].sort((a, b) => a.trackOrder - b.trackOrder)
 
 		for (const event of sortedEvents) {
@@ -663,7 +723,7 @@ export function OnlineCompetitionLeaderboardTable({
 		}
 
 		return baseColumns
-	}, [events, selectedEventId, isTeamLeaderboard, scoringAlgorithm])
+	}, [events, selectedEventId, isTeamLeaderboard, hasAffiliates, scoringAlgorithm])
 
 	const validatedSorting = useMemo<SortingState>(() => {
 		const columnIds = new Set(

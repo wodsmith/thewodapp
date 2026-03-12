@@ -5,10 +5,11 @@ import { LeaderboardPageContent } from "@/components/leaderboard-page-content"
 
 const parentRoute = getRouteApi("/compete/$slug")
 
-// Search params schema for division and event selection
+// Search params schema for division, event, and affiliate selection
 const leaderboardSearchSchema = z.object({
 	division: z.string().optional(),
 	event: z.string().optional(),
+	affiliate: z.string().optional(),
 })
 
 export const Route = createFileRoute("/compete/$slug/leaderboard")({
