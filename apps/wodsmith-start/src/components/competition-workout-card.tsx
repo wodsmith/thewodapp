@@ -64,6 +64,7 @@ interface CompetitionWorkoutCardProps {
 		venueName: string | null
 		divisions: string[]
 	} | null
+	isOnline?: boolean
 }
 
 function formatTime(seconds: number): string {
@@ -171,6 +172,7 @@ export function CompetitionWorkoutCard({
 	timeCap,
 	venue,
 	schedule,
+	isOnline,
 }: CompetitionWorkoutCardProps) {
 	// Get the selected division's scale info (if any)
 	// Only show scale for the explicitly selected division - no fallback
@@ -301,8 +303,8 @@ export function CompetitionWorkoutCard({
 						)}
 					</div>
 
-					{/* Venue Section */}
-					<div className="mb-4 sm:mb-6">
+					{/* Venue Section - hidden for online competitions */}
+					{!isOnline && <div className="mb-4 sm:mb-6">
 						{venue?.address && hasAddressData(venue.address) ? (
 							(() => {
 								const mapsUrl = getGoogleMapsUrl(venue.address)
@@ -347,7 +349,7 @@ export function CompetitionWorkoutCard({
 								<span>Venue to be announced</span>
 							</div>
 						)}
-					</div>
+					</div>}
 
 					{/* Content Grid */}
 					<div

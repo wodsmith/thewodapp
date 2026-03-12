@@ -1,9 +1,8 @@
 "use client"
 
 import { Check, ChevronsUpDown } from "lucide-react"
-import { useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import {
 	Popover,
 	PopoverContent,
@@ -42,6 +41,9 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
 	const [open, setOpen] = useState(false)
 	const [search, setSearch] = useState("")
+	const [highlightedIndex, setHighlightedIndex] = useState(0)
+	const inputRef = useRef<HTMLInputElement>(null)
+	const listRef = useRef<HTMLDivElement>(null)
 
 	const filteredOptions = options.filter((option) =>
 		option.label.toLowerCase().includes(search.toLowerCase()),
@@ -49,14 +51,55 @@ export function SearchableSelect({
 
 	const selectedOption = options.find((option) => option.value === value)
 
+	const selectOption = useCallback(
+		(optionValue: string) => {
+			onValueChange(optionValue)
+			setOpen(false)
+			setSearch("")
+			setHighlightedIndex(0)
+		},
+		[onValueChange],
+	)
+
+	// Focus input when popover opens
+	useEffect(() => {
+		if (open) {
+			// Use requestAnimationFrame to ensure the portal has rendered
+			const id = requestAnimationFrame(() => {
+				inputRef.current?.focus()
+			})
+			return () => cancelAnimationFrame(id)
+		}
+	}, [open])
+
+	// Scroll highlighted option into view
+	useEffect(() => {
+		if (!listRef.current) return
+		const items = listRef.current.querySelectorAll("[role='option']")
+		const item = items[highlightedIndex]
+		if (item) {
+			item.scrollIntoView({ block: "nearest" })
+		}
+	}, [highlightedIndex])
+
 	return (
-		<Popover open={open} onOpenChange={setOpen}>
+		<Popover
+			open={open}
+			onOpenChange={(isOpen) => {
+				setOpen(isOpen)
+				if (!isOpen) {
+					setSearch("")
+					setHighlightedIndex(0)
+				}
+			}}
+		>
 			<PopoverTrigger asChild>
 				{/* biome-ignore lint/a11y/useSemanticElements: Custom combobox requires non-semantic elements */}
 				<Button
 					variant="outline"
 					role="combobox"
 					aria-expanded={open}
+					tabIndex={0}
 					className={cn("w-full justify-between font-normal", className)}
 					disabled={disabled}
 				>
@@ -69,13 +112,49 @@ export function SearchableSelect({
 			<PopoverContent
 				className="w-[var(--radix-popover-trigger-width)] p-0"
 				align="start"
+				onOpenAutoFocus={(e) => e.preventDefault()}
+				onCloseAutoFocus={(e) => e.preventDefault()}
 			>
 				<div className="p-2">
-					<Input
+					{/* Using native input to avoid any component-level event interception */}
+					<input
+						ref={inputRef}
 						placeholder={searchPlaceholder}
 						value={search}
-						onChange={(e) => setSearch(e.target.value)}
-						className="h-8"
+						onChange={(e) => {
+							setSearch(e.target.value)
+							setHighlightedIndex(0)
+						}}
+						onKeyDown={(e) => {
+							if (e.key === "ArrowDown") {
+								e.preventDefault()
+								e.stopPropagation()
+								if (filteredOptions.length === 0) return
+								setHighlightedIndex((prev) =>
+									prev < filteredOptions.length - 1 ? prev + 1 : 0,
+								)
+							} else if (e.key === "ArrowUp") {
+								e.preventDefault()
+								e.stopPropagation()
+								if (filteredOptions.length === 0) return
+								setHighlightedIndex((prev) =>
+									prev > 0 ? prev - 1 : filteredOptions.length - 1,
+								)
+							} else if (e.key === "Enter") {
+								e.preventDefault()
+								e.stopPropagation()
+								const option = filteredOptions[highlightedIndex]
+								if (option) {
+									selectOption(option.value)
+								}
+							} else if (e.key === "Escape") {
+								e.preventDefault()
+								setOpen(false)
+								setSearch("")
+								setHighlightedIndex(0)
+							}
+						}}
+						className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
 					/>
 				</div>
 				<ScrollArea className="h-[200px]">
@@ -84,19 +163,21 @@ export function SearchableSelect({
 							{emptyMessage}
 						</p>
 					) : (
-						<div className="p-1">
-							{filteredOptions.map((option) => (
+						<div className="p-1" role="listbox" ref={listRef}>
+							{filteredOptions.map((option, index) => (
 								<button
 									key={option.value}
 									type="button"
-									onClick={() => {
-										onValueChange(option.value)
-										setOpen(false)
-										setSearch("")
-									}}
+									role="option"
+									tabIndex={-1}
+									aria-selected={value === option.value}
+									onClick={() => selectOption(option.value)}
+									onMouseEnter={() => setHighlightedIndex(index)}
 									className={cn(
 										"flex w-full items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
 										value === option.value && "bg-accent",
+										index === highlightedIndex &&
+											"bg-accent text-accent-foreground",
 									)}
 								>
 									<Check
