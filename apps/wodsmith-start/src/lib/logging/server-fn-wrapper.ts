@@ -30,16 +30,16 @@
  */
 
 import {
-	addRequestContextAttribute,
-	logEntityCreated,
-	logEntityDeleted,
-	logEntityUpdated,
-	logError,
-	logInfo,
-	logServerFnError,
-	logServerFnStart,
-	logServerFnSuccess,
-	updateRequestContext,
+  addRequestContextAttribute,
+  logEntityCreated,
+  logEntityDeleted,
+  logEntityUpdated,
+  logError,
+  logInfo,
+  logServerFnError,
+  logServerFnStart,
+  logServerFnSuccess,
+  updateRequestContext,
 } from "./posthog-otel-logger"
 
 /**
@@ -62,53 +62,53 @@ import {
  * ```
  */
 export function withServerFnLogging<TInput, TResult>(
-	fnName: string,
-	handler: (ctx: { data: TInput }) => Promise<TResult>,
-	options?: {
-		/** Extract IDs from result to log (e.g., ["userId", "teamId"]) */
-		resultIds?: string[]
-		/** Log input data (default: true, sanitized) */
-		logInput?: boolean
-		/** Custom attributes to include */
-		attributes?: Record<string, unknown>
-	},
+  fnName: string,
+  handler: (ctx: { data: TInput }) => Promise<TResult>,
+  options?: {
+    /** Extract IDs from result to log (e.g., ["userId", "teamId"]) */
+    resultIds?: string[]
+    /** Log input data (default: true, sanitized) */
+    logInput?: boolean
+    /** Custom attributes to include */
+    attributes?: Record<string, unknown>
+  },
 ): (ctx: { data: TInput }) => Promise<TResult> {
-	const { resultIds = [], logInput = true, attributes = {} } = options ?? {}
+  const { resultIds = [], logInput = true, attributes = {} } = options ?? {}
 
-	return async (ctx: { data: TInput }): Promise<TResult> => {
-		// Log entry
-		if (logInput && ctx.data && typeof ctx.data === "object") {
-			logServerFnStart(fnName, ctx.data as Record<string, unknown>)
-		} else {
-			logServerFnStart(fnName)
-		}
+  return async (ctx: { data: TInput }): Promise<TResult> => {
+    // Log entry
+    if (logInput && ctx.data && typeof ctx.data === "object") {
+      logServerFnStart(fnName, ctx.data as Record<string, unknown>)
+    } else {
+      logServerFnStart(fnName)
+    }
 
-		// Add function name to request context
-		updateRequestContext({ serverFn: fnName })
+    // Add function name to request context
+    updateRequestContext({ serverFn: fnName })
 
-		try {
-			const result = await handler(ctx)
+    try {
+      const result = await handler(ctx)
 
-			// Extract IDs from result if specified
-			const resultAttrs: Record<string, unknown> = { ...attributes }
-			if (result && typeof result === "object") {
-				for (const idKey of resultIds) {
-					const value = (result as Record<string, unknown>)[idKey]
-					if (value !== undefined) {
-						resultAttrs[idKey] = value
-						// Also add to request context for downstream logs
-						addRequestContextAttribute(idKey, value)
-					}
-				}
-			}
+      // Extract IDs from result if specified
+      const resultAttrs: Record<string, unknown> = { ...attributes }
+      if (result && typeof result === "object") {
+        for (const idKey of resultIds) {
+          const value = (result as Record<string, unknown>)[idKey]
+          if (value !== undefined) {
+            resultAttrs[idKey] = value
+            // Also add to request context for downstream logs
+            addRequestContextAttribute(idKey, value)
+          }
+        }
+      }
 
-			logServerFnSuccess(fnName, resultAttrs)
-			return result
-		} catch (error) {
-			logServerFnError(fnName, error, attributes)
-			throw error
-		}
-	}
+      logServerFnSuccess(fnName, resultAttrs)
+      return result
+    } catch (error) {
+      logServerFnError(fnName, error, attributes)
+      throw error
+    }
+  }
 }
 
 /**
@@ -116,7 +116,7 @@ export function withServerFnLogging<TInput, TResult>(
  * Use this for handlers that need full request tracing.
  */
 export type LoggedHandler<TInput, TResult> = (ctx: {
-	data: TInput
+  data: TInput
 }) => Promise<TResult>
 
 /**
@@ -128,15 +128,15 @@ export type LoggedHandler<TInput, TResult> = (ctx: {
  * @param options - Logging options
  */
 export function createLoggedHandler<TInput, TResult>(
-	fnName: string,
-	handler: (ctx: { data: TInput }) => Promise<TResult>,
-	options?: {
-		resultIds?: string[]
-		logInput?: boolean
-		attributes?: Record<string, unknown>
-	},
+  fnName: string,
+  handler: (ctx: { data: TInput }) => Promise<TResult>,
+  options?: {
+    resultIds?: string[]
+    logInput?: boolean
+    attributes?: Record<string, unknown>
+  },
 ): LoggedHandler<TInput, TResult> {
-	return withServerFnLogging(fnName, handler, options)
+  return withServerFnLogging(fnName, handler, options)
 }
 
 /**
@@ -144,22 +144,22 @@ export function createLoggedHandler<TInput, TResult>(
  * Adds the entity ID to request context for correlation.
  */
 export function logCreated(
-	entity: string,
-	id: string,
-	options?: {
-		parentEntity?: string
-		parentId?: string
-		attributes?: Record<string, unknown>
-	},
+  entity: string,
+  id: string,
+  options?: {
+    parentEntity?: string
+    parentId?: string
+    attributes?: Record<string, unknown>
+  },
 ): void {
-	addRequestContextAttribute(`created_${entity}_id`, id)
-	logEntityCreated({
-		entity,
-		id,
-		parentEntity: options?.parentEntity,
-		parentId: options?.parentId,
-		attributes: options?.attributes,
-	})
+  addRequestContextAttribute(`created_${entity}_id`, id)
+  logEntityCreated({
+    entity,
+    id,
+    parentEntity: options?.parentEntity,
+    parentId: options?.parentId,
+    attributes: options?.attributes,
+  })
 }
 
 /**
@@ -167,20 +167,20 @@ export function logCreated(
  * Adds the entity ID to request context for correlation.
  */
 export function logUpdated(
-	entity: string,
-	id: string,
-	options?: {
-		fields?: string[]
-		attributes?: Record<string, unknown>
-	},
+  entity: string,
+  id: string,
+  options?: {
+    fields?: string[]
+    attributes?: Record<string, unknown>
+  },
 ): void {
-	addRequestContextAttribute(`updated_${entity}_id`, id)
-	logEntityUpdated({
-		entity,
-		id,
-		fields: options?.fields,
-		attributes: options?.attributes,
-	})
+  addRequestContextAttribute(`updated_${entity}_id`, id)
+  logEntityUpdated({
+    entity,
+    id,
+    fields: options?.fields,
+    attributes: options?.attributes,
+  })
 }
 
 /**
@@ -188,86 +188,86 @@ export function logUpdated(
  * Adds the entity ID to request context for correlation.
  */
 export function logDeleted(
-	entity: string,
-	id: string,
-	attributes?: Record<string, unknown>,
+  entity: string,
+  id: string,
+  attributes?: Record<string, unknown>,
 ): void {
-	addRequestContextAttribute(`deleted_${entity}_id`, id)
-	logEntityDeleted({ entity, id, attributes })
+  addRequestContextAttribute(`deleted_${entity}_id`, id)
+  logEntityDeleted({ entity, id, attributes })
 }
 
 /**
  * Helper to log multiple created entities (e.g., batch inserts).
  */
 export function logBatchCreated(
-	entity: string,
-	ids: string[],
-	options?: {
-		parentEntity?: string
-		parentId?: string
-	},
+  entity: string,
+  ids: string[],
+  options?: {
+    parentEntity?: string
+    parentId?: string
+  },
 ): void {
-	if (ids.length === 0) return
+  if (ids.length === 0) return
 
-	addRequestContextAttribute(`created_${entity}_ids`, ids)
-	logInfo({
-		message: `[Entity] Created ${ids.length} ${entity}(s)`,
-		attributes: {
-			entity,
-			count: ids.length,
-			entityIds: ids,
-			...(options?.parentEntity ? { parentEntity: options.parentEntity } : {}),
-			...(options?.parentId ? { parentId: options.parentId } : {}),
-		},
-	})
+  addRequestContextAttribute(`created_${entity}_ids`, ids)
+  logInfo({
+    message: `[Entity] Created ${ids.length} ${entity}(s)`,
+    attributes: {
+      entity,
+      count: ids.length,
+      entityIds: ids,
+      ...(options?.parentEntity ? { parentEntity: options.parentEntity } : {}),
+      ...(options?.parentId ? { parentId: options.parentId } : {}),
+    },
+  })
 }
 
 /**
  * Helper to log authorization checks.
  */
 export function logAuthCheck(params: {
-	action: string
-	resource: string
-	resourceId?: string
-	allowed: boolean
-	reason?: string
+  action: string
+  resource: string
+  resourceId?: string
+  allowed: boolean
+  reason?: string
 }): void {
-	const logFn = params.allowed ? logInfo : logError
-	logFn({
-		message: `[Auth] ${params.allowed ? "Allowed" : "Denied"}: ${params.action} on ${params.resource}`,
-		attributes: {
-			authAction: params.action,
-			authResource: params.resource,
-			...(params.resourceId ? { resourceId: params.resourceId } : {}),
-			allowed: params.allowed,
-			...(params.reason ? { reason: params.reason } : {}),
-		},
-	})
+  const logFn = params.allowed ? logInfo : logError
+  logFn({
+    message: `[Auth] ${params.allowed ? "Allowed" : "Denied"}: ${params.action} on ${params.resource}`,
+    attributes: {
+      authAction: params.action,
+      authResource: params.resource,
+      ...(params.resourceId ? { resourceId: params.resourceId } : {}),
+      allowed: params.allowed,
+      ...(params.reason ? { reason: params.reason } : {}),
+    },
+  })
 }
 
 /**
  * Helper to log external API calls (Stripe, email services, etc.).
  */
 export function logExternalCall(params: {
-	service: string
-	operation: string
-	durationMs?: number
-	success: boolean
-	error?: unknown
-	attributes?: Record<string, unknown>
+  service: string
+  operation: string
+  durationMs?: number
+  success: boolean
+  error?: unknown
+  attributes?: Record<string, unknown>
 }): void {
-	const logFn = params.success ? logInfo : logError
-	logFn({
-		message: `[External] ${params.service}.${params.operation} ${params.success ? "succeeded" : "failed"}`,
-		error: params.success ? undefined : params.error,
-		attributes: {
-			externalService: params.service,
-			externalOperation: params.operation,
-			success: params.success,
-			...(params.durationMs !== undefined
-				? { durationMs: params.durationMs }
-				: {}),
-			...(params.attributes ?? {}),
-		},
-	})
+  const logFn = params.success ? logInfo : logError
+  logFn({
+    message: `[External] ${params.service}.${params.operation} ${params.success ? "succeeded" : "failed"}`,
+    error: params.success ? undefined : params.error,
+    attributes: {
+      externalService: params.service,
+      externalOperation: params.operation,
+      success: params.success,
+      ...(params.durationMs !== undefined
+        ? { durationMs: params.durationMs }
+        : {}),
+      ...(params.attributes ?? {}),
+    },
+  })
 }

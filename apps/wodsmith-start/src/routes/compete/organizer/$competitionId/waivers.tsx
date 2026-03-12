@@ -16,32 +16,32 @@ import { WaiverList } from "./-components/waiver-list"
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 
 export const Route = createFileRoute(
-	"/compete/organizer/$competitionId/waivers",
+  "/compete/organizer/$competitionId/waivers",
 )({
-	staleTime: 10_000,
-	loader: async ({ params }) => {
-		// Fetch waivers for this competition
-		const { waivers } = await getCompetitionWaiversFn({
-			data: { competitionId: params.competitionId },
-		})
+  staleTime: 10_000,
+  loader: async ({ params }) => {
+    // Fetch waivers for this competition
+    const { waivers } = await getCompetitionWaiversFn({
+      data: { competitionId: params.competitionId },
+    })
 
-		return {
-			waivers,
-		}
-	},
-	component: WaiversPage,
+    return {
+      waivers,
+    }
+  },
+  component: WaiversPage,
 })
 
 function WaiversPage() {
-	const { waivers } = Route.useLoaderData()
-	// Get competition from parent layout loader data
-	const { competition } = parentRoute.useLoaderData()
+  const { waivers } = Route.useLoaderData()
+  // Get competition from parent layout loader data
+  const { competition } = parentRoute.useLoaderData()
 
-	return (
-		<WaiverList
-			competitionId={competition.id}
-			teamId={competition.organizingTeamId}
-			waivers={waivers}
-		/>
-	)
+  return (
+    <WaiverList
+      competitionId={competition.id}
+      teamId={competition.organizingTeamId}
+      waivers={waivers}
+    />
+  )
 }

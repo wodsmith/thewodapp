@@ -13,15 +13,15 @@
 import { and, eq, inArray, ne, or, isNull } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
-	competitionHeatAssignmentsTable,
-	competitionHeatsTable,
-	competitionRegistrationsTable,
-	competitionsTable,
-	REGISTRATION_STATUS,
+  competitionHeatAssignmentsTable,
+  competitionHeatsTable,
+  competitionRegistrationsTable,
+  competitionsTable,
+  REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import {
-	programmingTracksTable,
-	trackWorkoutsTable,
+  programmingTracksTable,
+  trackWorkoutsTable,
 } from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoresTable } from "@/db/schemas/scores"
@@ -30,21 +30,21 @@ import { userTable } from "@/db/schemas/users"
 import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
 import { workouts } from "@/db/schemas/workouts"
 import {
-	calculateEventPoints,
-	DEFAULT_SCORING_CONFIG,
-	decodeScore,
-	type EventScoreInput,
-	formatScore,
-	getDefaultScoreType,
-	type WorkoutScheme,
+  calculateEventPoints,
+  DEFAULT_SCORING_CONFIG,
+  decodeScore,
+  type EventScoreInput,
+  formatScore,
+  getDefaultScoreType,
+  type WorkoutScheme,
 } from "@/lib/scoring"
 import {
-	applyTiebreakers,
-	type TiebreakerInput,
+  applyTiebreakers,
+  type TiebreakerInput,
 } from "@/lib/scoring/tiebreakers"
 import {
-	getEffectiveScoringConfig,
-	parseCompetitionSettings,
+  getEffectiveScoringConfig,
+  parseCompetitionSettings,
 } from "@/types/competitions"
 import { getAffiliate } from "@/utils/registration-metadata"
 
@@ -53,64 +53,64 @@ import { getAffiliate } from "@/utils/registration-metadata"
 // ============================================================================
 
 export interface TeamMemberInfo {
-	userId: string
-	firstName: string | null
-	lastName: string | null
-	isCaptain: boolean
+  userId: string
+  firstName: string | null
+  lastName: string | null
+  isCaptain: boolean
 }
 
 export interface CompetitionLeaderboardEntry {
-	registrationId: string
-	userId: string
-	athleteName: string
-	divisionId: string
-	divisionLabel: string
-	totalPoints: number
-	overallRank: number
-	// Team info (null for individual divisions)
-	isTeamDivision: boolean
-	teamName: string | null
-	teamMembers: TeamMemberInfo[]
-	/** Affiliate/gym name from registration metadata */
-	affiliate: string | null
-	eventResults: Array<{
-		trackWorkoutId: string
-		trackOrder: number
-		eventName: string
-		scheme: string
-		rank: number
-		points: number
-		rawScore: string | null
-		formattedScore: string
-		/** Formatted tiebreak value if present */
-		formattedTiebreak: string | null
-		/** Penalty info if score was adjusted */
-		penaltyType: "minor" | "major" | null
-		penaltyPercentage: number | null
-		/** Whether score was directly modified (adjusted without penalty) */
-		isDirectlyModified: boolean
-		/** Video submission URL (online competitions only) */
-		videoUrl: string | null
-	}>
+  registrationId: string
+  userId: string
+  athleteName: string
+  divisionId: string
+  divisionLabel: string
+  totalPoints: number
+  overallRank: number
+  // Team info (null for individual divisions)
+  isTeamDivision: boolean
+  teamName: string | null
+  teamMembers: TeamMemberInfo[]
+  /** Affiliate/gym name from registration metadata */
+  affiliate: string | null
+  eventResults: Array<{
+    trackWorkoutId: string
+    trackOrder: number
+    eventName: string
+    scheme: string
+    rank: number
+    points: number
+    rawScore: string | null
+    formattedScore: string
+    /** Formatted tiebreak value if present */
+    formattedTiebreak: string | null
+    /** Penalty info if score was adjusted */
+    penaltyType: "minor" | "major" | null
+    penaltyPercentage: number | null
+    /** Whether score was directly modified (adjusted without penalty) */
+    isDirectlyModified: boolean
+    /** Video submission URL (online competitions only) */
+    videoUrl: string | null
+  }>
 }
 
 export interface EventLeaderboardEntry {
-	registrationId: string
-	userId: string
-	athleteName: string
-	divisionId: string
-	divisionLabel: string
-	rank: number
-	points: number
-	rawScore: string | null
-	formattedScore: string
-	isTimeCapped: boolean
+  registrationId: string
+  userId: string
+  athleteName: string
+  divisionId: string
+  divisionLabel: string
+  rank: number
+  points: number
+  rawScore: string | null
+  formattedScore: string
+  isTimeCapped: boolean
 }
 
 export interface CompetitionLeaderboardResult {
-	entries: CompetitionLeaderboardEntry[]
-	scoringConfig: import("@/types/scoring").ScoringConfig
-	events: Array<{ trackWorkoutId: string; name: string }>
+  entries: CompetitionLeaderboardEntry[]
+  scoringConfig: import("@/types/scoring").ScoringConfig
+  events: Array<{ trackWorkoutId: string; name: string }>
 }
 
 // ============================================================================
@@ -121,72 +121,72 @@ export interface CompetitionLeaderboardResult {
  * Fetch scores from the scores table
  */
 async function fetchScores(params: {
-	trackWorkoutIds: string[]
-	userIds: string[]
+  trackWorkoutIds: string[]
+  userIds: string[]
 }) {
-	const db = getDb()
+  const db = getDb()
 
-	const scores = await db
-		.select({
-			id: scoresTable.id,
-			userId: scoresTable.userId,
-			competitionEventId: scoresTable.competitionEventId,
-			scheme: scoresTable.scheme,
-			scoreValue: scoresTable.scoreValue,
-			tiebreakScheme: scoresTable.tiebreakScheme,
-			tiebreakValue: scoresTable.tiebreakValue,
-			status: scoresTable.status,
-			statusOrder: scoresTable.statusOrder,
-			sortKey: scoresTable.sortKey,
-			secondaryValue: scoresTable.secondaryValue,
-			timeCapMs: scoresTable.timeCapMs,
-			verificationStatus: scoresTable.verificationStatus,
-			penaltyType: scoresTable.penaltyType,
-			penaltyPercentage: scoresTable.penaltyPercentage,
-		})
-		.from(scoresTable)
-		.where(
-			and(
-				inArray(scoresTable.competitionEventId, params.trackWorkoutIds),
-				inArray(scoresTable.userId, params.userIds),
-				// Exclude invalidated scores from leaderboard
-				or(
-					isNull(scoresTable.verificationStatus),
-					ne(scoresTable.verificationStatus, "invalid"),
-				),
-			),
-		)
+  const scores = await db
+    .select({
+      id: scoresTable.id,
+      userId: scoresTable.userId,
+      competitionEventId: scoresTable.competitionEventId,
+      scheme: scoresTable.scheme,
+      scoreValue: scoresTable.scoreValue,
+      tiebreakScheme: scoresTable.tiebreakScheme,
+      tiebreakValue: scoresTable.tiebreakValue,
+      status: scoresTable.status,
+      statusOrder: scoresTable.statusOrder,
+      sortKey: scoresTable.sortKey,
+      secondaryValue: scoresTable.secondaryValue,
+      timeCapMs: scoresTable.timeCapMs,
+      verificationStatus: scoresTable.verificationStatus,
+      penaltyType: scoresTable.penaltyType,
+      penaltyPercentage: scoresTable.penaltyPercentage,
+    })
+    .from(scoresTable)
+    .where(
+      and(
+        inArray(scoresTable.competitionEventId, params.trackWorkoutIds),
+        inArray(scoresTable.userId, params.userIds),
+        // Exclude invalidated scores from leaderboard
+        or(
+          isNull(scoresTable.verificationStatus),
+          ne(scoresTable.verificationStatus, "invalid"),
+        ),
+      ),
+    )
 
-	return scores
+  return scores
 }
 
 /**
  * Map score status to EventScoreInput status
  */
 function mapScoreStatus(status: string | null): EventScoreInput["status"] {
-	switch (status) {
-		case "scored":
-			return "scored"
-		case "cap":
-			return "cap"
-		case "dq":
-		case "dnf":
-			return "dnf"
-		case "withdrawn":
-			return "withdrawn"
-		default:
-			return "dns"
-	}
+  switch (status) {
+    case "scored":
+      return "scored"
+    case "cap":
+      return "cap"
+    case "dq":
+    case "dnf":
+      return "dnf"
+    case "withdrawn":
+      return "withdrawn"
+    default:
+      return "dns"
+  }
 }
 
 /**
  * Get competition track for a competition
  */
 async function getCompetitionTrack(competitionId: string) {
-	const db = getDb()
-	return db.query.programmingTracksTable.findFirst({
-		where: eq(programmingTracksTable.competitionId, competitionId),
-	})
+  const db = getDb()
+  return db.query.programmingTracksTable.findFirst({
+    where: eq(programmingTracksTable.competitionId, competitionId),
+  })
 }
 
 // ============================================================================
@@ -194,14 +194,14 @@ async function getCompetitionTrack(competitionId: string) {
 // ============================================================================
 
 interface HeatInfo {
-	id: string
-	trackWorkoutId: string
-	divisionId: string | null
+  id: string
+  trackWorkoutId: string
+  divisionId: string | null
 }
 
 interface HeatAssignmentInfo {
-	heatId: string
-	divisionId: string | null
+  heatId: string
+  divisionId: string | null
 }
 
 /**
@@ -214,34 +214,34 @@ interface HeatAssignmentInfo {
  * Returns null if no heats exist (backward compat: show all workouts).
  */
 export function getRelevantWorkoutIds(params: {
-	heats: HeatInfo[]
-	mixedHeatAssignments: HeatAssignmentInfo[]
-	divisionId: string
+  heats: HeatInfo[]
+  mixedHeatAssignments: HeatAssignmentInfo[]
+  divisionId: string
 }): Set<string> | null {
-	if (params.heats.length === 0) return null
+  if (params.heats.length === 0) return null
 
-	// Workouts with division-specific heats matching selected division
-	const relevant = new Set(
-		params.heats
-			.filter((h) => h.divisionId === params.divisionId)
-			.map((h) => h.trackWorkoutId),
-	)
+  // Workouts with division-specific heats matching selected division
+  const relevant = new Set(
+    params.heats
+      .filter((h) => h.divisionId === params.divisionId)
+      .map((h) => h.trackWorkoutId),
+  )
 
-	// For mixed heats (divisionId=null), check actual assignments
-	const heatIdToWorkout = new Map(
-		params.heats
-			.filter((h) => h.divisionId === null)
-			.map((h) => [h.id, h.trackWorkoutId]),
-	)
+  // For mixed heats (divisionId=null), check actual assignments
+  const heatIdToWorkout = new Map(
+    params.heats
+      .filter((h) => h.divisionId === null)
+      .map((h) => [h.id, h.trackWorkoutId]),
+  )
 
-	for (const assignment of params.mixedHeatAssignments) {
-		if (assignment.divisionId === params.divisionId) {
-			const twId = heatIdToWorkout.get(assignment.heatId)
-			if (twId) relevant.add(twId)
-		}
-	}
+  for (const assignment of params.mixedHeatAssignments) {
+    if (assignment.divisionId === params.divisionId) {
+      const twId = heatIdToWorkout.get(assignment.heatId)
+      if (twId) relevant.add(twId)
+    }
+  }
 
-	return relevant
+  return relevant
 }
 
 // ============================================================================
@@ -257,531 +257,526 @@ export function getRelevantWorkoutIds(params: {
  * - Status handling (DNF, DNS, withdrawn)
  */
 export async function getCompetitionLeaderboard(params: {
-	competitionId: string
-	divisionId?: string
+  competitionId: string
+  divisionId?: string
 }): Promise<CompetitionLeaderboardResult> {
-	const db = getDb()
+  const db = getDb()
 
-	// Get competition with settings
-	const competition = await db.query.competitionsTable.findFirst({
-		where: eq(competitionsTable.id, params.competitionId),
-	})
+  // Get competition with settings
+  const competition = await db.query.competitionsTable.findFirst({
+    where: eq(competitionsTable.id, params.competitionId),
+  })
 
-	if (!competition) {
-		throw new Error("Competition not found")
-	}
+  if (!competition) {
+    throw new Error("Competition not found")
+  }
 
-	// Parse settings and get scoring config
-	const settings = parseCompetitionSettings(competition.settings)
-	const scoringConfig =
-		getEffectiveScoringConfig(settings) ?? DEFAULT_SCORING_CONFIG
+  // Parse settings and get scoring config
+  const settings = parseCompetitionSettings(competition.settings)
+  const scoringConfig =
+    getEffectiveScoringConfig(settings) ?? DEFAULT_SCORING_CONFIG
 
-	// Division results publishing state — controls leaderboard visibility.
-	// For online competitions, default to empty (everything hidden until explicitly published).
-	// For in-person competitions, absent divisionResults means show all (backwards compat).
-	const divisionResults =
-		settings?.divisionResults ??
-		(competition.competitionType === "online" ? {} : undefined)
+  // Division results publishing state — controls leaderboard visibility.
+  // For online competitions, default to empty (everything hidden until explicitly published).
+  // For in-person competitions, absent divisionResults means show all (backwards compat).
+  const divisionResults =
+    settings?.divisionResults ??
+    (competition.competitionType === "online" ? {} : undefined)
 
-	// Get competition track
-	const track = await getCompetitionTrack(params.competitionId)
-	if (!track) {
-		return { entries: [], scoringConfig, events: [] }
-	}
+  // Get competition track
+  const track = await getCompetitionTrack(params.competitionId)
+  if (!track) {
+    return { entries: [], scoringConfig, events: [] }
+  }
 
-	// Get all track workouts for this competition
-	const trackWorkouts = await db
-		.select({
-			id: trackWorkoutsTable.id,
-			trackOrder: trackWorkoutsTable.trackOrder,
-			pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
-			workoutId: trackWorkoutsTable.workoutId,
-			workout: workouts,
-		})
-		.from(trackWorkoutsTable)
-		.innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
-		.where(
-			and(
-				eq(trackWorkoutsTable.trackId, track.id),
-				eq(trackWorkoutsTable.eventStatus, "published"),
-			),
-		)
-		.orderBy(trackWorkoutsTable.trackOrder)
+  // Get all track workouts for this competition
+  const trackWorkouts = await db
+    .select({
+      id: trackWorkoutsTable.id,
+      trackOrder: trackWorkoutsTable.trackOrder,
+      pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+      workoutId: trackWorkoutsTable.workoutId,
+      workout: workouts,
+    })
+    .from(trackWorkoutsTable)
+    .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+    .where(
+      and(
+        eq(trackWorkoutsTable.trackId, track.id),
+        eq(trackWorkoutsTable.eventStatus, "published"),
+      ),
+    )
+    .orderBy(trackWorkoutsTable.trackOrder)
 
-	if (trackWorkouts.length === 0) {
-		return { entries: [], scoringConfig, events: [] }
-	}
+  if (trackWorkouts.length === 0) {
+    return { entries: [], scoringConfig, events: [] }
+  }
 
-	// Filter workouts by division heat assignments when a division is selected.
-	// If a division has no heats for a workout, that workout shouldn't appear
-	// on that division's leaderboard. If no heats exist at all, show everything.
-	let filteredTrackWorkouts = trackWorkouts
-	if (params.divisionId) {
-		const trackWorkoutIds = trackWorkouts.map((tw) => tw.id)
-		const heatsForWorkouts = await db
-			.select({
-				id: competitionHeatsTable.id,
-				trackWorkoutId: competitionHeatsTable.trackWorkoutId,
-				divisionId: competitionHeatsTable.divisionId,
-			})
-			.from(competitionHeatsTable)
-			.where(inArray(competitionHeatsTable.trackWorkoutId, trackWorkoutIds))
+  // Filter workouts by division heat assignments when a division is selected.
+  // If a division has no heats for a workout, that workout shouldn't appear
+  // on that division's leaderboard. If no heats exist at all, show everything.
+  let filteredTrackWorkouts = trackWorkouts
+  if (params.divisionId) {
+    const trackWorkoutIds = trackWorkouts.map((tw) => tw.id)
+    const heatsForWorkouts = await db
+      .select({
+        id: competitionHeatsTable.id,
+        trackWorkoutId: competitionHeatsTable.trackWorkoutId,
+        divisionId: competitionHeatsTable.divisionId,
+      })
+      .from(competitionHeatsTable)
+      .where(inArray(competitionHeatsTable.trackWorkoutId, trackWorkoutIds))
 
-		// Fetch assignments for mixed heats (divisionId=null)
-		const mixedHeatIds = heatsForWorkouts
-			.filter((h) => h.divisionId === null)
-			.map((h) => h.id)
+    // Fetch assignments for mixed heats (divisionId=null)
+    const mixedHeatIds = heatsForWorkouts
+      .filter((h) => h.divisionId === null)
+      .map((h) => h.id)
 
-		const mixedHeatAssignments =
-			mixedHeatIds.length > 0
-				? await db
-						.select({
-							heatId: competitionHeatAssignmentsTable.heatId,
-							divisionId: competitionRegistrationsTable.divisionId,
-						})
-						.from(competitionHeatAssignmentsTable)
-						.innerJoin(
-							competitionRegistrationsTable,
-							eq(
-								competitionHeatAssignmentsTable.registrationId,
-								competitionRegistrationsTable.id,
-							),
-						)
-						.where(
-							inArray(competitionHeatAssignmentsTable.heatId, mixedHeatIds),
-						)
-				: []
+    const mixedHeatAssignments =
+      mixedHeatIds.length > 0
+        ? await db
+            .select({
+              heatId: competitionHeatAssignmentsTable.heatId,
+              divisionId: competitionRegistrationsTable.divisionId,
+            })
+            .from(competitionHeatAssignmentsTable)
+            .innerJoin(
+              competitionRegistrationsTable,
+              eq(
+                competitionHeatAssignmentsTable.registrationId,
+                competitionRegistrationsTable.id,
+              ),
+            )
+            .where(
+              inArray(competitionHeatAssignmentsTable.heatId, mixedHeatIds),
+            )
+        : []
 
-		const relevantIds = getRelevantWorkoutIds({
-			heats: heatsForWorkouts,
-			mixedHeatAssignments,
-			divisionId: params.divisionId,
-		})
+    const relevantIds = getRelevantWorkoutIds({
+      heats: heatsForWorkouts,
+      mixedHeatAssignments,
+      divisionId: params.divisionId,
+    })
 
-		if (relevantIds) {
-			filteredTrackWorkouts = trackWorkouts.filter((tw) =>
-				relevantIds.has(tw.id),
-			)
+    if (relevantIds) {
+      filteredTrackWorkouts = trackWorkouts.filter((tw) =>
+        relevantIds.has(tw.id),
+      )
 
-			if (filteredTrackWorkouts.length === 0) {
-				return { entries: [], scoringConfig, events: [] }
-			}
-		}
-	}
+      if (filteredTrackWorkouts.length === 0) {
+        return { entries: [], scoringConfig, events: [] }
+      }
+    }
+  }
 
-	// Get all registrations for this competition
-	const registrations = await db
-		.select({
-			registration: competitionRegistrationsTable,
-			user: userTable,
-			division: scalingLevelsTable,
-		})
-		.from(competitionRegistrationsTable)
-		.innerJoin(
-			userTable,
-			eq(competitionRegistrationsTable.userId, userTable.id),
-		)
-		.leftJoin(
-			scalingLevelsTable,
-			eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
-		)
-		.where(
-			and(
-				eq(competitionRegistrationsTable.eventId, params.competitionId),
-				ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
-			),
-		)
+  // Get all registrations for this competition
+  const registrations = await db
+    .select({
+      registration: competitionRegistrationsTable,
+      user: userTable,
+      division: scalingLevelsTable,
+    })
+    .from(competitionRegistrationsTable)
+    .innerJoin(
+      userTable,
+      eq(competitionRegistrationsTable.userId, userTable.id),
+    )
+    .leftJoin(
+      scalingLevelsTable,
+      eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
+    )
+    .where(
+      and(
+        eq(competitionRegistrationsTable.eventId, params.competitionId),
+        ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+      ),
+    )
 
-	if (registrations.length === 0) {
-		const events = filteredTrackWorkouts.map((tw) => ({
-			trackWorkoutId: tw.id,
-			name: tw.workout.name,
-		}))
-		return { entries: [], scoringConfig, events }
-	}
+  if (registrations.length === 0) {
+    const events = filteredTrackWorkouts.map((tw) => ({
+      trackWorkoutId: tw.id,
+      name: tw.workout.name,
+    }))
+    return { entries: [], scoringConfig, events }
+  }
 
-	// Filter by division if specified
-	const filteredRegistrations = params.divisionId
-		? registrations.filter(
-				(r) => r.registration.divisionId === params.divisionId,
-			)
-		: registrations
+  // Filter by division if specified
+  const filteredRegistrations = params.divisionId
+    ? registrations.filter(
+        (r) => r.registration.divisionId === params.divisionId,
+      )
+    : registrations
 
-	// Get team members for team registrations
-	const athleteTeamIds = filteredRegistrations
-		.filter(
-			(r) => r.registration.athleteTeamId && (r.division?.teamSize ?? 1) > 1,
-		)
-		.map((r) => r.registration.athleteTeamId as string)
+  // Get team members for team registrations
+  const athleteTeamIds = filteredRegistrations
+    .filter(
+      (r) => r.registration.athleteTeamId && (r.division?.teamSize ?? 1) > 1,
+    )
+    .map((r) => r.registration.athleteTeamId as string)
 
-	const allTeamMemberships =
-		athleteTeamIds.length > 0
-			? await db
-					.select({
-						membership: teamMembershipTable,
-						user: userTable,
-					})
-					.from(teamMembershipTable)
-					.innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
-					.where(
-						and(
-							inArray(teamMembershipTable.teamId, athleteTeamIds),
-							eq(teamMembershipTable.isActive, true),
-						),
-					)
-			: []
+  const allTeamMemberships =
+    athleteTeamIds.length > 0
+      ? await db
+          .select({
+            membership: teamMembershipTable,
+            user: userTable,
+          })
+          .from(teamMembershipTable)
+          .innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
+          .where(
+            and(
+              inArray(teamMembershipTable.teamId, athleteTeamIds),
+              eq(teamMembershipTable.isActive, true),
+            ),
+          )
+      : []
 
-	// Group memberships by teamId
-	const membershipsByTeamId = new Map<
-		string,
-		Array<{
-			membership: (typeof allTeamMemberships)[number]["membership"]
-			user: (typeof allTeamMemberships)[number]["user"]
-		}>
-	>()
-	for (const m of allTeamMemberships) {
-		const teamId = m.membership.teamId
-		const existing = membershipsByTeamId.get(teamId) || []
-		existing.push(m)
-		membershipsByTeamId.set(teamId, existing)
-	}
+  // Group memberships by teamId
+  const membershipsByTeamId = new Map<
+    string,
+    Array<{
+      membership: (typeof allTeamMemberships)[number]["membership"]
+      user: (typeof allTeamMemberships)[number]["user"]
+    }>
+  >()
+  for (const m of allTeamMemberships) {
+    const teamId = m.membership.teamId
+    const existing = membershipsByTeamId.get(teamId) || []
+    existing.push(m)
+    membershipsByTeamId.set(teamId, existing)
+  }
 
-	// Get all scores for competition events
-	const trackWorkoutIds = filteredTrackWorkouts.map((tw) => tw.id)
-	const userIds = filteredRegistrations.map((r) => r.user.id)
+  // Get all scores for competition events
+  const trackWorkoutIds = filteredTrackWorkouts.map((tw) => tw.id)
+  const userIds = filteredRegistrations.map((r) => r.user.id)
 
-	const allScores = await fetchScores({ trackWorkoutIds, userIds })
+  const allScores = await fetchScores({ trackWorkoutIds, userIds })
 
-	// Fetch video submissions for online competitions
-	const registrationIds = filteredRegistrations.map((r) => r.registration.id)
-	const videoSubmissions =
-		competition.competitionType === "online" && registrationIds.length > 0
-			? await db
-					.select({
-						registrationId: videoSubmissionsTable.registrationId,
-						trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
-						videoUrl: videoSubmissionsTable.videoUrl,
-					})
-					.from(videoSubmissionsTable)
-					.where(
-						inArray(videoSubmissionsTable.registrationId, registrationIds),
-					)
-			: []
+  // Fetch video submissions for online competitions
+  const registrationIds = filteredRegistrations.map((r) => r.registration.id)
+  const videoSubmissions =
+    competition.competitionType === "online" && registrationIds.length > 0
+      ? await db
+          .select({
+            registrationId: videoSubmissionsTable.registrationId,
+            trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+            videoUrl: videoSubmissionsTable.videoUrl,
+          })
+          .from(videoSubmissionsTable)
+          .where(inArray(videoSubmissionsTable.registrationId, registrationIds))
+      : []
 
-	// Index video submissions by registrationId+trackWorkoutId for fast lookup
-	const videoUrlMap = new Map<string, string>()
-	for (const vs of videoSubmissions) {
-		videoUrlMap.set(`${vs.registrationId}:${vs.trackWorkoutId}`, vs.videoUrl)
-	}
+  // Index video submissions by registrationId+trackWorkoutId for fast lookup
+  const videoUrlMap = new Map<string, string>()
+  for (const vs of videoSubmissions) {
+    videoUrlMap.set(`${vs.registrationId}:${vs.trackWorkoutId}`, vs.videoUrl)
+  }
 
-	// Helper: check if an event+division is published (for gating video visibility)
-	function isEventDivisionPublished(
-		trackWorkoutId: string,
-		divisionId: string,
-	): boolean {
-		if (!divisionResults) return true // no publish gating
-		const eventPublishState = divisionResults[trackWorkoutId]
-		const divisionPublishState = eventPublishState?.[divisionId]
-		return !!divisionPublishState?.publishedAt
-	}
+  // Helper: check if an event+division is published (for gating video visibility)
+  function isEventDivisionPublished(
+    trackWorkoutId: string,
+    divisionId: string,
+  ): boolean {
+    if (!divisionResults) return true // no publish gating
+    const eventPublishState = divisionResults[trackWorkoutId]
+    const divisionPublishState = eventPublishState?.[divisionId]
+    return !!divisionPublishState?.publishedAt
+  }
 
-	// Build leaderboard entries
-	const leaderboardMap = new Map<string, CompetitionLeaderboardEntry>()
+  // Build leaderboard entries
+  const leaderboardMap = new Map<string, CompetitionLeaderboardEntry>()
 
-	for (const reg of filteredRegistrations) {
-		const fullName =
-			`${reg.user.firstName || ""} ${reg.user.lastName || ""}`.trim()
+  for (const reg of filteredRegistrations) {
+    const fullName =
+      `${reg.user.firstName || ""} ${reg.user.lastName || ""}`.trim()
 
-		const isTeamDivision = (reg.division?.teamSize ?? 1) > 1
-		const athleteTeamId = reg.registration.athleteTeamId
+    const isTeamDivision = (reg.division?.teamSize ?? 1) > 1
+    const athleteTeamId = reg.registration.athleteTeamId
 
-		// Build team members list for team divisions
-		let teamMembers: TeamMemberInfo[] = []
-		if (isTeamDivision && athleteTeamId) {
-			const memberships = membershipsByTeamId.get(athleteTeamId) || []
-			teamMembers = memberships.map((m) => ({
-				userId: m.user.id,
-				firstName: m.user.firstName,
-				lastName: m.user.lastName,
-				isCaptain: m.membership.userId === reg.registration.captainUserId,
-			}))
-			// Sort so captain appears first
-			teamMembers.sort((a, b) => (b.isCaptain ? 1 : 0) - (a.isCaptain ? 1 : 0))
-		}
+    // Build team members list for team divisions
+    let teamMembers: TeamMemberInfo[] = []
+    if (isTeamDivision && athleteTeamId) {
+      const memberships = membershipsByTeamId.get(athleteTeamId) || []
+      teamMembers = memberships.map((m) => ({
+        userId: m.user.id,
+        firstName: m.user.firstName,
+        lastName: m.user.lastName,
+        isCaptain: m.membership.userId === reg.registration.captainUserId,
+      }))
+      // Sort so captain appears first
+      teamMembers.sort((a, b) => (b.isCaptain ? 1 : 0) - (a.isCaptain ? 1 : 0))
+    }
 
-		leaderboardMap.set(reg.registration.id, {
-			registrationId: reg.registration.id,
-			userId: reg.user.id,
-			athleteName: fullName || reg.user.email || "Unknown",
-			divisionId: reg.registration.divisionId || "open",
-			divisionLabel: reg.division?.label || "Open",
-			totalPoints: 0,
-			overallRank: 0,
-			isTeamDivision,
-			teamName: reg.registration.teamName,
-			teamMembers,
-			affiliate: getAffiliate(reg.registration.metadata, reg.user.id),
-			eventResults: [],
-		})
-	}
+    leaderboardMap.set(reg.registration.id, {
+      registrationId: reg.registration.id,
+      userId: reg.user.id,
+      athleteName: fullName || reg.user.email || "Unknown",
+      divisionId: reg.registration.divisionId || "open",
+      divisionLabel: reg.division?.label || "Open",
+      totalPoints: 0,
+      overallRank: 0,
+      isTeamDivision,
+      teamName: reg.registration.teamName,
+      teamMembers,
+      affiliate: getAffiliate(reg.registration.metadata, reg.user.id),
+      eventResults: [],
+    })
+  }
 
-	// Process each event using configurable scoring
-	for (const trackWorkout of filteredTrackWorkouts) {
-		// Get scores for this event, grouped by division
-		const eventScoresByDivision = new Map<string, typeof allScores>()
+  // Process each event using configurable scoring
+  for (const trackWorkout of filteredTrackWorkouts) {
+    // Get scores for this event, grouped by division
+    const eventScoresByDivision = new Map<string, typeof allScores>()
 
-		for (const score of allScores) {
-			if (score.competitionEventId !== trackWorkout.id) continue
+    for (const score of allScores) {
+      if (score.competitionEventId !== trackWorkout.id) continue
 
-			const registration = filteredRegistrations.find(
-				(r) => r.user.id === score.userId,
-			)
-			if (!registration) continue
+      const registration = filteredRegistrations.find(
+        (r) => r.user.id === score.userId,
+      )
+      if (!registration) continue
 
-			const divisionId = registration.registration.divisionId || "open"
-			const existing = eventScoresByDivision.get(divisionId) || []
-			existing.push(score)
-			eventScoresByDivision.set(divisionId, existing)
-		}
+      const divisionId = registration.registration.divisionId || "open"
+      const existing = eventScoresByDivision.get(divisionId) || []
+      existing.push(score)
+      eventScoresByDivision.set(divisionId, existing)
+    }
 
-		// Calculate points for each division using the scoring algorithm
-		for (const [divisionId, divisionScores] of eventScoresByDivision) {
-			// Filter by division results publishing state.
-			// When divisionResults exists, the organizer has opted into per-event publishing.
-			// Divisions default to "Draft" (hidden) — only show explicitly published ones.
-			// When divisionResults is absent, all results show (backwards compat).
-			if (divisionResults) {
-				const eventPublishState = divisionResults[trackWorkout.id]
-				const divisionPublishState = eventPublishState?.[divisionId]
-				if (!divisionPublishState?.publishedAt) continue
-			}
+    // Calculate points for each division using the scoring algorithm
+    for (const [divisionId, divisionScores] of eventScoresByDivision) {
+      // Filter by division results publishing state.
+      // When divisionResults exists, the organizer has opted into per-event publishing.
+      // Divisions default to "Draft" (hidden) — only show explicitly published ones.
+      // When divisionResults is absent, all results show (backwards compat).
+      if (divisionResults) {
+        const eventPublishState = divisionResults[trackWorkout.id]
+        const divisionPublishState = eventPublishState?.[divisionId]
+        if (!divisionPublishState?.publishedAt) continue
+      }
 
-			// Convert to EventScoreInput format
-			const eventScoreInputs: EventScoreInput[] = divisionScores.map((s) => ({
-				userId: s.userId,
-				value: s.scoreValue ?? 0,
-				status: mapScoreStatus(s.status),
-				sortKey: s.sortKey,
-			}))
+      // Convert to EventScoreInput format
+      const eventScoreInputs: EventScoreInput[] = divisionScores.map((s) => ({
+        userId: s.userId,
+        value: s.scoreValue ?? 0,
+        status: mapScoreStatus(s.status),
+        sortKey: s.sortKey,
+      }))
 
-			// Calculate points using the factory
-			const scheme = trackWorkout.workout.scheme as WorkoutScheme
-			const pointsMap = calculateEventPoints(
-				trackWorkout.id,
-				eventScoreInputs,
-				scheme,
-				scoringConfig,
-			)
+      // Calculate points using the factory
+      const scheme = trackWorkout.workout.scheme as WorkoutScheme
+      const pointsMap = calculateEventPoints(
+        trackWorkout.id,
+        eventScoreInputs,
+        scheme,
+        scoringConfig,
+      )
 
-			// Apply points multiplier
-			const multiplier = (trackWorkout.pointsMultiplier ?? 100) / 100
+      // Apply points multiplier
+      const multiplier = (trackWorkout.pointsMultiplier ?? 100) / 100
 
-			// Update leaderboard entries with results
-			for (const score of divisionScores) {
-				const registration = filteredRegistrations.find(
-					(r) => r.user.id === score.userId,
-				)
-				if (!registration) continue
+      // Update leaderboard entries with results
+      for (const score of divisionScores) {
+        const registration = filteredRegistrations.find(
+          (r) => r.user.id === score.userId,
+        )
+        if (!registration) continue
 
-				const entry = leaderboardMap.get(registration.registration.id)
-				if (!entry) continue
+        const entry = leaderboardMap.get(registration.registration.id)
+        if (!entry) continue
 
-				const pointsResult = pointsMap.get(score.userId)
-				const rank = pointsResult?.rank ?? 0
-				const basePoints = pointsResult?.points ?? 0
-				const points = Math.round(basePoints * multiplier)
+        const pointsResult = pointsMap.get(score.userId)
+        const rank = pointsResult?.rank ?? 0
+        const basePoints = pointsResult?.points ?? 0
+        const points = Math.round(basePoints * multiplier)
 
-				// Format score for display
-				const scoreType =
-					trackWorkout.workout.scoreType ||
-					getDefaultScoreType(trackWorkout.workout.scheme)
+        // Format score for display
+        const scoreType =
+          trackWorkout.workout.scoreType ||
+          getDefaultScoreType(trackWorkout.workout.scheme)
 
-				const scoreObj: Parameters<typeof formatScore>[0] = {
-					scheme: score.scheme as WorkoutScheme,
-					scoreType,
-					value: score.scoreValue ?? 0,
-					status: score.status as "scored" | "cap" | "dq" | "withdrawn",
-				}
+        const scoreObj: Parameters<typeof formatScore>[0] = {
+          scheme: score.scheme as WorkoutScheme,
+          scoreType,
+          value: score.scoreValue ?? 0,
+          status: score.status as "scored" | "cap" | "dq" | "withdrawn",
+        }
 
-				if (score.tiebreakValue !== null && score.tiebreakScheme) {
-					scoreObj.tiebreak = {
-						scheme: score.tiebreakScheme as "reps" | "time",
-						value: score.tiebreakValue,
-					}
-				}
+        if (score.tiebreakValue !== null && score.tiebreakScheme) {
+          scoreObj.tiebreak = {
+            scheme: score.tiebreakScheme as "reps" | "time",
+            value: score.tiebreakValue,
+          }
+        }
 
-				if (score.timeCapMs && score.secondaryValue !== null) {
-					scoreObj.timeCap = {
-						ms: score.timeCapMs,
-						secondaryValue: score.secondaryValue,
-					}
-				}
+        if (score.timeCapMs && score.secondaryValue !== null) {
+          scoreObj.timeCap = {
+            ms: score.timeCapMs,
+            secondaryValue: score.secondaryValue,
+          }
+        }
 
-				const formattedScore = formatScore(scoreObj, { compact: true })
+        const formattedScore = formatScore(scoreObj, { compact: true })
 
-				// Format tiebreak separately
-				let formattedTiebreak: string | null = null
-				if (score.tiebreakValue !== null && score.tiebreakScheme) {
-					formattedTiebreak = decodeScore(
-						score.tiebreakValue,
-						score.tiebreakScheme as WorkoutScheme,
-						{ compact: true },
-					)
-				}
+        // Format tiebreak separately
+        let formattedTiebreak: string | null = null
+        if (score.tiebreakValue !== null && score.tiebreakScheme) {
+          formattedTiebreak = decodeScore(
+            score.tiebreakValue,
+            score.tiebreakScheme as WorkoutScheme,
+            { compact: true },
+          )
+        }
 
-				entry.eventResults.push({
-					trackWorkoutId: trackWorkout.id,
-					trackOrder: trackWorkout.trackOrder,
-					eventName: trackWorkout.workout.name,
-					scheme: trackWorkout.workout.scheme,
-					rank,
-					points,
-					rawScore: String(score.scoreValue ?? ""),
-					formattedScore,
-					formattedTiebreak,
-					penaltyType: (score.penaltyType as "minor" | "major") ?? null,
-					penaltyPercentage: score.penaltyPercentage ?? null,
-					isDirectlyModified:
-						score.verificationStatus === "adjusted" && !score.penaltyType,
-					videoUrl: isEventDivisionPublished(trackWorkout.id, divisionId)
-						? (videoUrlMap.get(
-								`${registration.registration.id}:${trackWorkout.id}`,
-							) ?? null)
-						: null,
-				})
+        entry.eventResults.push({
+          trackWorkoutId: trackWorkout.id,
+          trackOrder: trackWorkout.trackOrder,
+          eventName: trackWorkout.workout.name,
+          scheme: trackWorkout.workout.scheme,
+          rank,
+          points,
+          rawScore: String(score.scoreValue ?? ""),
+          formattedScore,
+          formattedTiebreak,
+          penaltyType: (score.penaltyType as "minor" | "major") ?? null,
+          penaltyPercentage: score.penaltyPercentage ?? null,
+          isDirectlyModified:
+            score.verificationStatus === "adjusted" && !score.penaltyType,
+          videoUrl: isEventDivisionPublished(trackWorkout.id, divisionId)
+            ? (videoUrlMap.get(
+                `${registration.registration.id}:${trackWorkout.id}`,
+              ) ?? null)
+            : null,
+        })
 
-				entry.totalPoints += points
-			}
-		}
+        entry.totalPoints += points
+      }
+    }
 
-		// Add empty results for athletes who didn't complete this event
-		for (const [regId, entry] of leaderboardMap) {
-			const hasResult = entry.eventResults.some(
-				(er) => er.trackWorkoutId === trackWorkout.id,
-			)
-			if (!hasResult) {
-				entry.eventResults.push({
-					trackWorkoutId: trackWorkout.id,
-					trackOrder: trackWorkout.trackOrder,
-					eventName: trackWorkout.workout.name,
-					scheme: trackWorkout.workout.scheme,
-					rank: 0,
-					points: 0,
-					rawScore: null,
-					formattedScore: "N/A",
-					formattedTiebreak: null,
-					penaltyType: null,
-					penaltyPercentage: null,
-					isDirectlyModified: false,
-					videoUrl: isEventDivisionPublished(
-						trackWorkout.id,
-						entry.divisionId,
-					)
-						? (videoUrlMap.get(`${regId}:${trackWorkout.id}`) ?? null)
-						: null,
-				})
-			}
-		}
-	}
+    // Add empty results for athletes who didn't complete this event
+    for (const [regId, entry] of leaderboardMap) {
+      const hasResult = entry.eventResults.some(
+        (er) => er.trackWorkoutId === trackWorkout.id,
+      )
+      if (!hasResult) {
+        entry.eventResults.push({
+          trackWorkoutId: trackWorkout.id,
+          trackOrder: trackWorkout.trackOrder,
+          eventName: trackWorkout.workout.name,
+          scheme: trackWorkout.workout.scheme,
+          rank: 0,
+          points: 0,
+          rawScore: null,
+          formattedScore: "N/A",
+          formattedTiebreak: null,
+          penaltyType: null,
+          penaltyPercentage: null,
+          isDirectlyModified: false,
+          videoUrl: isEventDivisionPublished(trackWorkout.id, entry.divisionId)
+            ? (videoUrlMap.get(`${regId}:${trackWorkout.id}`) ?? null)
+            : null,
+        })
+      }
+    }
+  }
 
-	// Convert to array and apply tiebreakers for overall ranking
-	const leaderboard = Array.from(leaderboardMap.values())
+  // Convert to array and apply tiebreakers for overall ranking
+  const leaderboard = Array.from(leaderboardMap.values())
 
-	// Group by division for ranking
-	const divisionGroups = new Map<string, CompetitionLeaderboardEntry[]>()
-	for (const entry of leaderboard) {
-		const existing = divisionGroups.get(entry.divisionId) || []
-		existing.push(entry)
-		divisionGroups.set(entry.divisionId, existing)
-	}
+  // Group by division for ranking
+  const divisionGroups = new Map<string, CompetitionLeaderboardEntry[]>()
+  for (const entry of leaderboard) {
+    const existing = divisionGroups.get(entry.divisionId) || []
+    existing.push(entry)
+    divisionGroups.set(entry.divisionId, existing)
+  }
 
-	// Apply tiebreakers within each division
-	for (const [_divisionId, entries] of divisionGroups) {
-		// Build event placements map for tiebreaker
-		const tiebreakerInput: TiebreakerInput = {
-			athletes: entries.map((e) => ({
-				userId: e.userId,
-				totalPoints: e.totalPoints,
-				eventPlacements: new Map(
-					e.eventResults
-						.filter((er) => er.rank > 0)
-						.map((er) => [er.trackWorkoutId, er.rank]),
-				),
-			})),
-			config: scoringConfig.tiebreaker,
-			scoringAlgorithm: scoringConfig.algorithm,
-		}
+  // Apply tiebreakers within each division
+  for (const [_divisionId, entries] of divisionGroups) {
+    // Build event placements map for tiebreaker
+    const tiebreakerInput: TiebreakerInput = {
+      athletes: entries.map((e) => ({
+        userId: e.userId,
+        totalPoints: e.totalPoints,
+        eventPlacements: new Map(
+          e.eventResults
+            .filter((er) => er.rank > 0)
+            .map((er) => [er.trackWorkoutId, er.rank]),
+        ),
+      })),
+      config: scoringConfig.tiebreaker,
+      scoringAlgorithm: scoringConfig.algorithm,
+    }
 
-		const rankedAthletes = applyTiebreakers(tiebreakerInput)
+    const rankedAthletes = applyTiebreakers(tiebreakerInput)
 
-		// Update entries with final ranks
-		for (const ranked of rankedAthletes) {
-			const entry = entries.find((e) => e.userId === ranked.userId)
-			if (entry) {
-				entry.overallRank = ranked.rank
-			}
-		}
-	}
+    // Update entries with final ranks
+    for (const ranked of rankedAthletes) {
+      const entry = entries.find((e) => e.userId === ranked.userId)
+      if (entry) {
+        entry.overallRank = ranked.rank
+      }
+    }
+  }
 
-	// Sort by overall rank
-	const sortedEntries = leaderboard.sort((a, b) => {
-		// First by division, then by rank
-		if (a.divisionId !== b.divisionId) {
-			return a.divisionId.localeCompare(b.divisionId)
-		}
-		return a.overallRank - b.overallRank
-	})
+  // Sort by overall rank
+  const sortedEntries = leaderboard.sort((a, b) => {
+    // First by division, then by rank
+    if (a.divisionId !== b.divisionId) {
+      return a.divisionId.localeCompare(b.divisionId)
+    }
+    return a.overallRank - b.overallRank
+  })
 
-	// Build events list for the response
-	const events = filteredTrackWorkouts.map((tw) => ({
-		trackWorkoutId: tw.id,
-		name: tw.workout.name,
-	}))
+  // Build events list for the response
+  const events = filteredTrackWorkouts.map((tw) => ({
+    trackWorkoutId: tw.id,
+    name: tw.workout.name,
+  }))
 
-	return {
-		entries: sortedEntries,
-		scoringConfig,
-		events,
-	}
+  return {
+    entries: sortedEntries,
+    scoringConfig,
+    events,
+  }
 }
 
 /**
  * Get leaderboard for a specific event
  */
 export async function getEventLeaderboard(params: {
-	competitionId: string
-	trackWorkoutId: string
-	divisionId?: string
+  competitionId: string
+  trackWorkoutId: string
+  divisionId?: string
 }): Promise<EventLeaderboardEntry[]> {
-	// Get full leaderboard
-	const { entries } = await getCompetitionLeaderboard({
-		competitionId: params.competitionId,
-		divisionId: params.divisionId,
-	})
+  // Get full leaderboard
+  const { entries } = await getCompetitionLeaderboard({
+    competitionId: params.competitionId,
+    divisionId: params.divisionId,
+  })
 
-	// Extract event results for the specific track workout
-	const eventResults: EventLeaderboardEntry[] = []
+  // Extract event results for the specific track workout
+  const eventResults: EventLeaderboardEntry[] = []
 
-	for (const entry of entries) {
-		const eventResult = entry.eventResults.find(
-			(er) => er.trackWorkoutId === params.trackWorkoutId,
-		)
-		if (eventResult && eventResult.rank > 0) {
-			eventResults.push({
-				registrationId: entry.registrationId,
-				userId: entry.userId,
-				athleteName: entry.athleteName,
-				divisionId: entry.divisionId,
-				divisionLabel: entry.divisionLabel,
-				rank: eventResult.rank,
-				points: eventResult.points,
-				rawScore: eventResult.rawScore,
-				formattedScore: eventResult.formattedScore,
-				isTimeCapped: eventResult.formattedScore.includes("cap"),
-			})
-		}
-	}
+  for (const entry of entries) {
+    const eventResult = entry.eventResults.find(
+      (er) => er.trackWorkoutId === params.trackWorkoutId,
+    )
+    if (eventResult && eventResult.rank > 0) {
+      eventResults.push({
+        registrationId: entry.registrationId,
+        userId: entry.userId,
+        athleteName: entry.athleteName,
+        divisionId: entry.divisionId,
+        divisionLabel: entry.divisionLabel,
+        rank: eventResult.rank,
+        points: eventResult.points,
+        rawScore: eventResult.rawScore,
+        formattedScore: eventResult.formattedScore,
+        isTimeCapped: eventResult.formattedScore.includes("cap"),
+      })
+    }
+  }
 
-	// Sort by rank
-	return eventResults.sort((a, b) => a.rank - b.rank)
+  // Sort by rank
+  return eventResults.sort((a, b) => a.rank - b.rank)
 }

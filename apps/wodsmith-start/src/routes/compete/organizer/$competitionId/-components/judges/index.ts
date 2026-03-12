@@ -11,8 +11,8 @@ export { JudgeHeatCard } from "./judge-heat-card"
 export { JudgeOverview } from "./judge-overview"
 export { JudgeSchedulingContainer } from "./judge-scheduling-container"
 export {
-	type MultiPreviewCell,
-	MultiRotationEditor,
+  type MultiPreviewCell,
+  MultiRotationEditor,
 } from "./multi-rotation-editor"
 export { PublishRotationsButton } from "./publish-rotations-button"
 export { type PreviewCell, RotationEditor } from "./rotation-editor"

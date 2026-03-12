@@ -11,19 +11,19 @@ import { createServerFn, createServerOnlyFn } from "@tanstack/react-start"
  * Some env vars are set as secrets or in wrangler.jsonc but not in worker-configuration.d.ts.
  */
 type ExtendedEnv = typeof env & {
-	RESEND_API_KEY?: string
-	EMAIL_TEST_MODE?: string
-	TURNSTILE_SECRET_KEY?: string
-	NODE_ENV?: string
-	SITE_URL?: string
-	CRON_SECRET?: string
-	INTERNAL_API_SECRET?: string
-	// Slack integration
-	SLACK_WEBHOOK_URL?: string
-	SLACK_PURCHASE_NOTIFICATIONS_ENABLED?: string
-	SLACK_PURCHASE_NOTIFICATION_TYPES?: string
-	// Sentry error monitoring
-	SENTRY_DSN?: string
+  RESEND_API_KEY?: string
+  EMAIL_TEST_MODE?: string
+  TURNSTILE_SECRET_KEY?: string
+  NODE_ENV?: string
+  SITE_URL?: string
+  CRON_SECRET?: string
+  INTERNAL_API_SECRET?: string
+  // Slack integration
+  SLACK_WEBHOOK_URL?: string
+  SLACK_PURCHASE_NOTIFICATIONS_ENABLED?: string
+  SLACK_PURCHASE_NOTIFICATION_TYPES?: string
+  // Sentry error monitoring
+  SENTRY_DSN?: string
 }
 
 const extendedEnv = env as ExtendedEnv
@@ -35,7 +35,7 @@ const extendedEnv = env as ExtendedEnv
  * @returns The APP_URL environment variable or the default "https://wodsmith.com"
  */
 export const getAppUrl = createServerOnlyFn((): string => {
-	return env.APP_URL || "https://wodsmith.com"
+  return env.APP_URL || "https://wodsmith.com"
 })
 
 /**
@@ -44,9 +44,9 @@ export const getAppUrl = createServerOnlyFn((): string => {
  * client-side navigation and would throw with createServerOnlyFn.
  */
 export const getAppUrlFn = createServerFn({ method: "GET" }).handler(
-	async () => {
-		return env.APP_URL || "https://wodsmith.com"
-	},
+  async () => {
+    return env.APP_URL || "https://wodsmith.com"
+  },
 )
 
 /**
@@ -56,7 +56,7 @@ export const getAppUrlFn = createServerFn({ method: "GET" }).handler(
  * @returns The STRIPE_CLIENT_ID environment variable or undefined if not set
  */
 export const getStripeClientId = createServerOnlyFn((): string | undefined => {
-	return env.STRIPE_CLIENT_ID
+  return env.STRIPE_CLIENT_ID
 })
 
 /**
@@ -66,9 +66,9 @@ export const getStripeClientId = createServerOnlyFn((): string | undefined => {
  * @returns The STRIPE_WEBHOOK_SECRET environment variable or undefined if not set
  */
 export const getStripeWebhookSecret = createServerOnlyFn(
-	(): string | undefined => {
-		return env.STRIPE_WEBHOOK_SECRET
-	},
+  (): string | undefined => {
+    return env.STRIPE_WEBHOOK_SECRET
+  },
 )
 
 // Email configuration accessors
@@ -80,7 +80,7 @@ export const getStripeWebhookSecret = createServerOnlyFn(
  * @returns The RESEND_API_KEY environment variable or undefined if not set
  */
 export const getResendApiKey = createServerOnlyFn((): string | undefined => {
-	return extendedEnv.RESEND_API_KEY
+  return extendedEnv.RESEND_API_KEY
 })
 
 /**
@@ -90,7 +90,7 @@ export const getResendApiKey = createServerOnlyFn((): string | undefined => {
  * @returns The EMAIL_FROM environment variable or default "team@mail.wodsmith.com"
  */
 export const getEmailFrom = createServerOnlyFn((): string => {
-	return env.EMAIL_FROM || "team@mail.wodsmith.com"
+  return env.EMAIL_FROM || "team@mail.wodsmith.com"
 })
 
 /**
@@ -100,7 +100,7 @@ export const getEmailFrom = createServerOnlyFn((): string => {
  * @returns The EMAIL_FROM_NAME environment variable or default "WODsmith"
  */
 export const getEmailFromName = createServerOnlyFn((): string => {
-	return env.EMAIL_FROM_NAME || "WODsmith"
+  return env.EMAIL_FROM_NAME || "WODsmith"
 })
 
 /**
@@ -110,7 +110,7 @@ export const getEmailFromName = createServerOnlyFn((): string => {
  * @returns The EMAIL_REPLY_TO environment variable or default "support@mail.wodsmith.com"
  */
 export const getEmailReplyTo = createServerOnlyFn((): string => {
-	return env.EMAIL_REPLY_TO || "support@mail.wodsmith.com"
+  return env.EMAIL_REPLY_TO || "support@mail.wodsmith.com"
 })
 
 /**
@@ -120,7 +120,7 @@ export const getEmailReplyTo = createServerOnlyFn((): string => {
  * @returns True if EMAIL_TEST_MODE is "true", false otherwise
  */
 export const isEmailTestMode = createServerOnlyFn((): boolean => {
-	return extendedEnv.EMAIL_TEST_MODE === "true"
+  return extendedEnv.EMAIL_TEST_MODE === "true"
 })
 
 // Turnstile (CAPTCHA) configuration accessors
@@ -132,9 +132,9 @@ export const isEmailTestMode = createServerOnlyFn((): boolean => {
  * @returns The TURNSTILE_SITE_KEY environment variable or undefined if not set
  */
 export const getTurnstileSiteKey = createServerOnlyFn(
-	(): string | undefined => {
-		return env.TURNSTILE_SITE_KEY
-	},
+  (): string | undefined => {
+    return env.TURNSTILE_SITE_KEY
+  },
 )
 
 /**
@@ -144,9 +144,9 @@ export const getTurnstileSiteKey = createServerOnlyFn(
  * @returns The TURNSTILE_SECRET_KEY environment variable or undefined if not set
  */
 export const getTurnstileSecretKey = createServerOnlyFn(
-	(): string | undefined => {
-		return extendedEnv.TURNSTILE_SECRET_KEY
-	},
+  (): string | undefined => {
+    return extendedEnv.TURNSTILE_SECRET_KEY
+  },
 )
 
 // Environment detection accessors
@@ -158,7 +158,7 @@ export const getTurnstileSecretKey = createServerOnlyFn(
  * @returns The NODE_ENV environment variable or "development" if not set
  */
 export const getNodeEnv = createServerOnlyFn((): string => {
-	return extendedEnv.NODE_ENV || "development"
+  return extendedEnv.NODE_ENV || "development"
 })
 
 /**
@@ -168,7 +168,7 @@ export const getNodeEnv = createServerOnlyFn((): string => {
  * @returns True if NODE_ENV is "production", false otherwise
  */
 export const isProduction = createServerOnlyFn((): boolean => {
-	return extendedEnv.NODE_ENV === "production"
+  return extendedEnv.NODE_ENV === "production"
 })
 
 /**
@@ -178,10 +178,10 @@ export const isProduction = createServerOnlyFn((): boolean => {
  * @returns The SITE_URL environment variable, or localhost in development, or default "https://wodsmith.com"
  */
 export const getSiteUrl = createServerOnlyFn((): string => {
-	if (extendedEnv.NODE_ENV === "development") {
-		return "http://localhost:3000"
-	}
-	return extendedEnv.SITE_URL || "https://wodsmith.com"
+  if (extendedEnv.NODE_ENV === "development") {
+    return "http://localhost:3000"
+  }
+  return extendedEnv.SITE_URL || "https://wodsmith.com"
 })
 
 // Cron configuration accessors
@@ -196,7 +196,7 @@ export const getSiteUrl = createServerOnlyFn((): string => {
  * @returns The CRON_SECRET environment variable or undefined if not set
  */
 export const getCronSecret = createServerOnlyFn((): string | undefined => {
-	return extendedEnv.CRON_SECRET
+  return extendedEnv.CRON_SECRET
 })
 
 // Internal API configuration accessors
@@ -208,31 +208,31 @@ export const getCronSecret = createServerOnlyFn((): string | undefined => {
  * @returns The INTERNAL_API_SECRET environment variable or undefined if not set
  */
 export const getInternalApiSecret = createServerOnlyFn(
-	(): string | undefined => {
-		return extendedEnv.INTERNAL_API_SECRET
-	},
+  (): string | undefined => {
+    return extendedEnv.INTERNAL_API_SECRET
+  },
 )
 
 // Slack configuration accessors
 
 export const getSlackWebhookUrl = createServerOnlyFn((): string | undefined => {
-	return extendedEnv.SLACK_WEBHOOK_URL
+  return extendedEnv.SLACK_WEBHOOK_URL
 })
 
 export const isSlackPurchaseNotificationsEnabled = createServerOnlyFn(
-	(): boolean => {
-		return extendedEnv.SLACK_PURCHASE_NOTIFICATIONS_ENABLED === "true"
-	},
+  (): boolean => {
+    return extendedEnv.SLACK_PURCHASE_NOTIFICATIONS_ENABLED === "true"
+  },
 )
 
 export const getSlackPurchaseNotificationTypes = createServerOnlyFn(
-	(): string | undefined => {
-		return extendedEnv.SLACK_PURCHASE_NOTIFICATION_TYPES
-	},
+  (): string | undefined => {
+    return extendedEnv.SLACK_PURCHASE_NOTIFICATION_TYPES
+  },
 )
 
 // Sentry configuration accessors
 
 export const getSentryDsn = createServerOnlyFn((): string | undefined => {
-	return extendedEnv.SENTRY_DSN
+  return extendedEnv.SENTRY_DSN
 })

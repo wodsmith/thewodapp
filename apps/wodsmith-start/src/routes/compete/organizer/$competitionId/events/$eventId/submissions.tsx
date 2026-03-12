@@ -7,11 +7,11 @@
 import { Outlet, createFileRoute } from "@tanstack/react-router"
 
 export const Route = createFileRoute(
-	"/compete/organizer/$competitionId/events/$eventId/submissions",
+  "/compete/organizer/$competitionId/events/$eventId/submissions",
 )({
-	component: SubmissionsLayout,
+  component: SubmissionsLayout,
 })
 
 function SubmissionsLayout() {
-	return <Outlet />
+  return <Outlet />
 }

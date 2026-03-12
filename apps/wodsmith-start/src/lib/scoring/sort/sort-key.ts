@@ -49,33 +49,33 @@ const DATA_BITS = 120n
  * // → encodes status 1 + primary + inverted secondary (higher reps = lower key)
  */
 export function computeSortKey(
-	score: Pick<Score, "value" | "status" | "scheme" | "scoreType"> &
-		Partial<Pick<Score, "timeCap" | "tiebreak">>,
+  score: Pick<Score, "value" | "status" | "scheme" | "scoreType"> &
+    Partial<Pick<Score, "timeCap" | "tiebreak">>,
 ): bigint {
-	const direction = getSortDirection(score.scheme, score.scoreType)
+  const direction = getSortDirection(score.scheme, score.scoreType)
 
-	// Extract secondary value (reps at cap) if present
-	const secondaryValue = score.timeCap?.secondaryValue ?? 0
+  // Extract secondary value (reps at cap) if present
+  const secondaryValue = score.timeCap?.secondaryValue ?? 0
 
-	// Extract tiebreak value if present
-	// For time-based tiebreaks, lower is better (use as-is)
-	// For reps-based tiebreaks, higher is better (invert)
-	let tiebreakValue = 0n
-	if (score.tiebreak) {
-		const tbDirection = score.tiebreak.scheme === "time" ? "asc" : "desc"
-		tiebreakValue =
-			tbDirection === "asc"
-				? BigInt(score.tiebreak.value)
-				: SEGMENT_MAX - BigInt(score.tiebreak.value)
-	}
+  // Extract tiebreak value if present
+  // For time-based tiebreaks, lower is better (use as-is)
+  // For reps-based tiebreaks, higher is better (invert)
+  let tiebreakValue = 0n
+  if (score.tiebreak) {
+    const tbDirection = score.tiebreak.scheme === "time" ? "asc" : "desc"
+    tiebreakValue =
+      tbDirection === "asc"
+        ? BigInt(score.tiebreak.value)
+        : SEGMENT_MAX - BigInt(score.tiebreak.value)
+  }
 
-	return computeSortKeyWithComponents(
-		score.value,
-		score.status,
-		direction,
-		secondaryValue,
-		tiebreakValue,
-	)
+  return computeSortKeyWithComponents(
+    score.value,
+    score.status,
+    direction,
+    secondaryValue,
+    tiebreakValue,
+  )
 }
 
 /**
@@ -88,39 +88,39 @@ export function computeSortKey(
  * @param tiebreakValue - Pre-normalized tiebreak value
  */
 function computeSortKeyWithComponents(
-	value: number | null,
-	status: ScoreStatus,
-	direction: SortDirection,
-	secondaryValue: number,
-	tiebreakValue: bigint,
+  value: number | null,
+  status: ScoreStatus,
+  direction: SortDirection,
+  secondaryValue: number,
+  tiebreakValue: bigint,
 ): bigint {
-	const statusBits = BigInt(STATUS_ORDER[status]) << STATUS_SHIFT
+  const statusBits = BigInt(STATUS_ORDER[status]) << STATUS_SHIFT
 
-	// Handle null values - they sort last within their status group
-	if (value === null) {
-		return statusBits | MAX_SCORE_VALUE
-	}
+  // Handle null values - they sort last within their status group
+  if (value === null) {
+    return statusBits | MAX_SCORE_VALUE
+  }
 
-	// Normalize primary value based on sort direction
-	// For ascending (lower is better): use value as-is
-	// For descending (higher is better): invert so higher values get lower sort keys
-	const normalizedPrimary =
-		direction === "asc"
-			? BigInt(value) & SEGMENT_MAX
-			: SEGMENT_MAX - (BigInt(value) & SEGMENT_MAX)
+  // Normalize primary value based on sort direction
+  // For ascending (lower is better): use value as-is
+  // For descending (higher is better): invert so higher values get lower sort keys
+  const normalizedPrimary =
+    direction === "asc"
+      ? BigInt(value) & SEGMENT_MAX
+      : SEGMENT_MAX - (BigInt(value) & SEGMENT_MAX)
 
-	// For capped status, secondary value (reps) matters - higher is better, so invert
-	// For scored status, secondary doesn't matter (use 0)
-	const normalizedSecondary =
-		status === "cap" ? SEGMENT_MAX - (BigInt(secondaryValue) & SEGMENT_MAX) : 0n
+  // For capped status, secondary value (reps) matters - higher is better, so invert
+  // For scored status, secondary doesn't matter (use 0)
+  const normalizedSecondary =
+    status === "cap" ? SEGMENT_MAX - (BigInt(secondaryValue) & SEGMENT_MAX) : 0n
 
-	// Combine: status | primary | secondary | tiebreak
-	return (
-		statusBits |
-		(normalizedPrimary << PRIMARY_SHIFT) |
-		(normalizedSecondary << SECONDARY_SHIFT) |
-		(tiebreakValue & SEGMENT_MAX)
-	)
+  // Combine: status | primary | secondary | tiebreak
+  return (
+    statusBits |
+    (normalizedPrimary << PRIMARY_SHIFT) |
+    (normalizedSecondary << SECONDARY_SHIFT) |
+    (tiebreakValue & SEGMENT_MAX)
+  )
 }
 
 /**
@@ -131,11 +131,11 @@ function computeSortKeyWithComponents(
  * @param direction - Sort direction
  */
 export function computeSortKeyWithDirection(
-	value: number | null,
-	status: ScoreStatus,
-	direction: SortDirection,
+  value: number | null,
+  status: ScoreStatus,
+  direction: SortDirection,
 ): bigint {
-	return computeSortKeyWithComponents(value, status, direction, 0, 0n)
+  return computeSortKeyWithComponents(value, status, direction, 0, 0n)
 }
 
 /**
@@ -146,46 +146,46 @@ export function computeSortKeyWithDirection(
  * @param direction - The sort direction used when encoding
  */
 export function extractFromSortKey(
-	sortKey: bigint,
-	direction: SortDirection,
+  sortKey: bigint,
+  direction: SortDirection,
 ): {
-	statusOrder: number
-	value: number | null
+  statusOrder: number
+  value: number | null
 } {
-	// Extract status order from top bits
-	const statusOrder = Number(sortKey >> STATUS_SHIFT)
+  // Extract status order from top bits
+  const statusOrder = Number(sortKey >> STATUS_SHIFT)
 
-	// Extract all non-status bits to check for null
-	const allBits = sortKey & ((1n << DATA_BITS) - 1n)
+  // Extract all non-status bits to check for null
+  const allBits = sortKey & ((1n << DATA_BITS) - 1n)
 
-	// Check for null (MAX_VALUE indicator)
-	if (allBits === MAX_SCORE_VALUE) {
-		return { statusOrder, value: null }
-	}
+  // Check for null (MAX_VALUE indicator)
+  if (allBits === MAX_SCORE_VALUE) {
+    return { statusOrder, value: null }
+  }
 
-	// Extract primary value from its segment
-	const primaryBits = (sortKey >> PRIMARY_SHIFT) & SEGMENT_MAX
+  // Extract primary value from its segment
+  const primaryBits = (sortKey >> PRIMARY_SHIFT) & SEGMENT_MAX
 
-	// Denormalize the primary value
-	const value =
-		direction === "asc"
-			? Number(primaryBits)
-			: Number(SEGMENT_MAX - primaryBits)
+  // Denormalize the primary value
+  const value =
+    direction === "asc"
+      ? Number(primaryBits)
+      : Number(SEGMENT_MAX - primaryBits)
 
-	return { statusOrder, value }
+  return { statusOrder, value }
 }
 
 /**
  * Get the status from a status order number.
  */
 export function statusFromOrder(order: number): ScoreStatus {
-	const entries = Object.entries(STATUS_ORDER)
-	for (const [status, statusOrder] of entries) {
-		if (statusOrder === order) {
-			return status as ScoreStatus
-		}
-	}
-	return "scored"
+  const entries = Object.entries(STATUS_ORDER)
+  for (const [status, statusOrder] of entries) {
+    if (statusOrder === order) {
+      return status as ScoreStatus
+    }
+  }
+  return "scored"
 }
 
 /**
@@ -206,5 +206,5 @@ export function statusFromOrder(order: number): ScoreStatus {
  * sortKeyToString(510000n) // → "00000000000000000000000000000000510000"
  */
 export function sortKeyToString(sortKey: bigint): string {
-	return sortKey.toString().padStart(38, "0")
+  return sortKey.toString().padStart(38, "0")
 }

@@ -23,19 +23,19 @@ import type { TraditionalConfig } from "@/types/scoring"
  * calculateTraditionalPoints(21, { firstPlacePoints: 100, step: 5 }) // 0
  */
 export function calculateTraditionalPoints(
-	place: number,
-	config: TraditionalConfig,
+  place: number,
+  config: TraditionalConfig,
 ): number {
-	const { firstPlacePoints, step } = config
+  const { firstPlacePoints, step } = config
 
-	// Handle invalid places (0 or negative) - return first place points
-	if (place <= 0) {
-		return firstPlacePoints
-	}
+  // Handle invalid places (0 or negative) - return first place points
+  if (place <= 0) {
+    return firstPlacePoints
+  }
 
-	// Calculate points: first place minus (step * positions behind first)
-	const points = firstPlacePoints - (place - 1) * step
+  // Calculate points: first place minus (step * positions behind first)
+  const points = firstPlacePoints - (place - 1) * step
 
-	// Never return negative points
-	return Math.max(0, points)
+  // Never return negative points
+  return Math.max(0, points)
 }

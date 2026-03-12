@@ -21,18 +21,18 @@ import type { DistanceUnit } from "../types"
  * encodeDistance("1", "mi")     // → 1609344 (mm)
  */
 export function encodeDistance(
-	input: string,
-	unit: DistanceUnit = "m",
+  input: string,
+  unit: DistanceUnit = "m",
 ): number | null {
-	const trimmed = input.trim()
-	if (!trimmed) return null
+  const trimmed = input.trim()
+  if (!trimmed) return null
 
-	const value = Number.parseFloat(trimmed)
-	if (Number.isNaN(value) || value < 0) {
-		return null
-	}
+  const value = Number.parseFloat(trimmed)
+  if (Number.isNaN(value) || value < 0) {
+    return null
+  }
 
-	return encodeDistanceFromNumber(value, unit)
+  return encodeDistanceFromNumber(value, unit)
 }
 
 /**
@@ -46,15 +46,15 @@ export function encodeDistance(
  * encodeDistanceFromNumber(100, "ft")  // → 30480
  */
 export function encodeDistanceFromNumber(
-	value: number,
-	unit: DistanceUnit = "m",
+  value: number,
+  unit: DistanceUnit = "m",
 ): number | null {
-	if (Number.isNaN(value) || value < 0) {
-		return null
-	}
+  if (Number.isNaN(value) || value < 0) {
+    return null
+  }
 
-	const mmPerUnit = MM_PER_UNIT[unit]
-	return Math.round(value * mmPerUnit)
+  const mmPerUnit = MM_PER_UNIT[unit]
+  return Math.round(value * mmPerUnit)
 }
 
 /**
@@ -67,6 +67,6 @@ export function encodeDistanceFromNumber(
  * mmToUnit(30480, "ft")    // → 100
  */
 export function mmToUnit(mm: number, unit: DistanceUnit): number {
-	const mmPerUnit = MM_PER_UNIT[unit]
-	return mm / mmPerUnit
+  const mmPerUnit = MM_PER_UNIT[unit]
+  return mm / mmPerUnit
 }

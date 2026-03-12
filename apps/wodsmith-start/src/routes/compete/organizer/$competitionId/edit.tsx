@@ -14,47 +14,47 @@ import { OrganizerCompetitionEditForm } from "./-components/organizer-competitio
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 
 export const Route = createFileRoute("/compete/organizer/$competitionId/edit")({
-	staleTime: 10_000,
-	component: EditCompetitionPage,
-	loader: async ({ parentMatchPromise }) => {
-		const parentMatch = await parentMatchPromise
-		const { competition } = parentMatch.loaderData!
+  staleTime: 10_000,
+  component: EditCompetitionPage,
+  loader: async ({ parentMatchPromise }) => {
+    const parentMatch = await parentMatchPromise
+    const { competition } = parentMatch.loaderData!
 
-		// Fetch competition groups for the organizing team
-		const { groups } = await getCompetitionGroupsFn({
-			data: { teamId: competition.organizingTeamId },
-		})
+    // Fetch competition groups for the organizing team
+    const { groups } = await getCompetitionGroupsFn({
+      data: { teamId: competition.organizingTeamId },
+    })
 
-		return {
-			groups,
-		}
-	},
-	head: () => {
-		return {
-			meta: [
-				{ title: "Edit Competition" },
-				{
-					name: "description",
-					content: "Edit competition details",
-				},
-			],
-		}
-	},
+    return {
+      groups,
+    }
+  },
+  head: () => {
+    return {
+      meta: [
+        { title: "Edit Competition" },
+        {
+          name: "description",
+          content: "Edit competition details",
+        },
+      ],
+    }
+  },
 })
 
 function EditCompetitionPage() {
-	const { groups } = Route.useLoaderData()
-	// Get competition from parent layout loader data
-	const { competition } = parentRoute.useLoaderData()
+  const { groups } = Route.useLoaderData()
+  // Get competition from parent layout loader data
+  const { competition } = parentRoute.useLoaderData()
 
-	return (
-		<div className="max-w-2xl">
-			<div className="mb-8">
-				<h1 className="text-3xl font-bold">Edit Competition</h1>
-				<p className="text-muted-foreground mt-1">Update competition details</p>
-			</div>
+  return (
+    <div className="max-w-2xl">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Edit Competition</h1>
+        <p className="text-muted-foreground mt-1">Update competition details</p>
+      </div>
 
-			<OrganizerCompetitionEditForm competition={competition} groups={groups} />
-		</div>
-	)
+      <OrganizerCompetitionEditForm competition={competition} groups={groups} />
+    </div>
+  )
 }

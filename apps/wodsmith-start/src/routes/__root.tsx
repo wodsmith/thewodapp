@@ -1,12 +1,12 @@
 import { TanStackDevtools } from "@tanstack/react-devtools"
 import {
-	type ErrorComponentProps,
-	createRootRoute,
-	HeadContent,
-	Link,
-	Outlet,
-	Scripts,
-	useRouterState,
+  type ErrorComponentProps,
+  createRootRoute,
+  HeadContent,
+  Link,
+  Outlet,
+  Scripts,
+  useRouterState,
 } from "@tanstack/react-router"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { Toaster } from "sonner"
@@ -20,85 +20,85 @@ import { getActiveTeamIdFn, getThemeCookieFn } from "@/server-fns/session-fns"
 import appCss from "../styles.css?url"
 
 export const Route = createRootRoute({
-	head: () => ({
-		meta: [
-			{
-				charSet: "utf-8",
-			},
-			{
-				name: "viewport",
-				content: "width=device-width, initial-scale=1",
-			},
-			{
-				title: "wodsmith",
-			},
-		],
-		links: [
-			{
-				rel: "stylesheet",
-				href: appCss,
-			},
-		],
-	}),
+  head: () => ({
+    meta: [
+      {
+        charSet: "utf-8",
+      },
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1",
+      },
+      {
+        title: "wodsmith",
+      },
+    ],
+    links: [
+      {
+        rel: "stylesheet",
+        href: appCss,
+      },
+    ],
+  }),
 
-	beforeLoad: async () => {
-		const session = await getOptionalSession()
-		// Read theme cookie for SSR - apply 'dark' class on server if theme is 'dark'
-		// For 'system' or no cookie, default to light (inline script handles client correction)
-		const themeCookie = await getThemeCookieFn()
-		const ssrTheme = themeCookie === "dark" ? "dark" : "light"
-		// Get active team ID from cookie for team switcher
-		const activeTeamId = await getActiveTeamIdFn()
-		// Check workout tracking access
-		const hasWorkoutTracking = session?.user
-			? await checkWorkoutTrackingAccess()
-			: false
-		return { session, ssrTheme, activeTeamId, hasWorkoutTracking }
-	},
+  beforeLoad: async () => {
+    const session = await getOptionalSession()
+    // Read theme cookie for SSR - apply 'dark' class on server if theme is 'dark'
+    // For 'system' or no cookie, default to light (inline script handles client correction)
+    const themeCookie = await getThemeCookieFn()
+    const ssrTheme = themeCookie === "dark" ? "dark" : "light"
+    // Get active team ID from cookie for team switcher
+    const activeTeamId = await getActiveTeamIdFn()
+    // Check workout tracking access
+    const hasWorkoutTracking = session?.user
+      ? await checkWorkoutTrackingAccess()
+      : false
+    return { session, ssrTheme, activeTeamId, hasWorkoutTracking }
+  },
 
-	component: RootComponent,
-	shellComponent: RootDocument,
-	notFoundComponent: NotFoundComponent,
-	errorComponent: RootErrorComponent,
+  component: RootComponent,
+  shellComponent: RootDocument,
+  notFoundComponent: NotFoundComponent,
+  errorComponent: RootErrorComponent,
 })
 
 function RootComponent() {
-	const { session, activeTeamId, hasWorkoutTracking } = Route.useRouteContext()
+  const { session, activeTeamId, hasWorkoutTracking } = Route.useRouteContext()
 
-	// Get both current and target locations to handle navigation transitions smoothly
-	// - location: where we're navigating TO (target)
-	// - resolvedLocation: where we currently ARE (current)
-	// During navigation, these differ; when idle, they're the same
-	const { targetPath, currentPath, isNavigating } = useRouterState({
-		select: (s) => ({
-			targetPath: s.location.pathname,
-			currentPath: s.resolvedLocation?.pathname ?? s.location.pathname,
-			isNavigating: s.isLoading,
-		}),
-	})
+  // Get both current and target locations to handle navigation transitions smoothly
+  // - location: where we're navigating TO (target)
+  // - resolvedLocation: where we currently ARE (current)
+  // During navigation, these differ; when idle, they're the same
+  const { targetPath, currentPath, isNavigating } = useRouterState({
+    select: (s) => ({
+      targetPath: s.location.pathname,
+      currentPath: s.resolvedLocation?.pathname ?? s.location.pathname,
+      isNavigating: s.isLoading,
+    }),
+  })
 
-	// Don't render MainNav on routes that have their own navigation
-	// Hide MainNav if EITHER current OR target route is compete/admin
-	// This prevents layout flash during transitions in both directions
-	const isCompeteRoute =
-		currentPath.startsWith("/compete") ||
-		(isNavigating && targetPath.startsWith("/compete"))
-	const isAdminRoute =
-		currentPath.startsWith("/admin") ||
-		(isNavigating && targetPath.startsWith("/admin"))
+  // Don't render MainNav on routes that have their own navigation
+  // Hide MainNav if EITHER current OR target route is compete/admin
+  // This prevents layout flash during transitions in both directions
+  const isCompeteRoute =
+    currentPath.startsWith("/compete") ||
+    (isNavigating && targetPath.startsWith("/compete"))
+  const isAdminRoute =
+    currentPath.startsWith("/admin") ||
+    (isNavigating && targetPath.startsWith("/admin"))
 
-	return (
-		<>
-			{!isCompeteRoute && !isAdminRoute && (
-				<MainNav
-					session={session}
-					activeTeamId={activeTeamId}
-					hasWorkoutTracking={hasWorkoutTracking}
-				/>
-			)}
-			<Outlet />
-		</>
-	)
+  return (
+    <>
+      {!isCompeteRoute && !isAdminRoute && (
+        <MainNav
+          session={session}
+          activeTeamId={activeTeamId}
+          hasWorkoutTracking={hasWorkoutTracking}
+        />
+      )}
+      <Outlet />
+    </>
+  )
 }
 
 /**
@@ -128,67 +128,67 @@ try {
 `
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-	const { ssrTheme } = Route.useRouteContext()
+  const { ssrTheme } = Route.useRouteContext()
 
-	return (
-		<html lang="en" className={ssrTheme === "dark" ? "group dark" : "group"}>
-			<head>
-				{/* Blocking script to prevent FOUC - runs before React hydrates.
+  return (
+    <html lang="en" className={ssrTheme === "dark" ? "group dark" : "group"}>
+      <head>
+        {/* Blocking script to prevent FOUC - runs before React hydrates.
 			    This corrects for 'system' preference which SSR can't detect.
 			    Safe: themeScript is a static string literal, not user input. */}
-				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: Static theme script, no XSS risk */}
-				<script dangerouslySetInnerHTML={{ __html: themeScript }} />
-				<HeadContent />
-			</head>
-			<body>
-				<PostHogProvider>{children}</PostHogProvider>
-				<Toaster richColors position="top-right" />
-				<TanStackDevtools
-					config={{
-						position: "bottom-right",
-					}}
-					plugins={[
-						{
-							name: "Tanstack Router",
-							render: <TanStackRouterDevtoolsPanel />,
-						},
-					]}
-				/>
-				<Scripts />
-			</body>
-		</html>
-	)
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: Static theme script, no XSS risk */}
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <HeadContent />
+      </head>
+      <body>
+        <PostHogProvider>{children}</PostHogProvider>
+        <Toaster richColors position="top-right" />
+        <TanStackDevtools
+          config={{
+            position: "bottom-right",
+          }}
+          plugins={[
+            {
+              name: "Tanstack Router",
+              render: <TanStackRouterDevtoolsPanel />,
+            },
+          ]}
+        />
+        <Scripts />
+      </body>
+    </html>
+  )
 }
 
 function RootErrorComponent({ reset }: ErrorComponentProps) {
-	return (
-		<div className="flex min-h-screen flex-col items-center justify-center gap-4 p-8">
-			<h1 className="text-4xl font-bold">Something went wrong</h1>
-			<p className="text-lg text-muted-foreground">
-				An unexpected error occurred. Please try again.
-			</p>
-			<button
-				type="button"
-				onClick={reset}
-				className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-			>
-				Try Again
-			</button>
-		</div>
-	)
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-8">
+      <h1 className="text-4xl font-bold">Something went wrong</h1>
+      <p className="text-lg text-muted-foreground">
+        An unexpected error occurred. Please try again.
+      </p>
+      <button
+        type="button"
+        onClick={reset}
+        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+      >
+        Try Again
+      </button>
+    </div>
+  )
 }
 
 function NotFoundComponent() {
-	return (
-		<div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8">
-			<h1 className="text-4xl font-bold">404</h1>
-			<p className="text-lg text-muted-foreground">Page not found</p>
-			<Link
-				to="/"
-				className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-			>
-				Go Home
-			</Link>
-		</div>
-	)
+  return (
+    <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8">
+      <h1 className="text-4xl font-bold">404</h1>
+      <p className="text-lg text-muted-foreground">Page not found</p>
+      <Link
+        to="/"
+        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+      >
+        Go Home
+      </Link>
+    </div>
+  )
 }

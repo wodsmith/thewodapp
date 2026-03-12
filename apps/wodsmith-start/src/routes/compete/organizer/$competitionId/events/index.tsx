@@ -10,8 +10,8 @@ import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { OrganizerEventManager } from "@/components/events/organizer-event-manager"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import {
-	getBatchWorkoutDivisionDescriptionsFn,
-	getCompetitionWorkoutsFn,
+  getBatchWorkoutDivisionDescriptionsFn,
+  getCompetitionWorkoutsFn,
 } from "@/server-fns/competition-workouts-fns"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
 import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
@@ -20,91 +20,91 @@ import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 
 export const Route = createFileRoute(
-	"/compete/organizer/$competitionId/events/",
+  "/compete/organizer/$competitionId/events/",
 )({
-	staleTime: 10_000,
-	component: EventsPage,
-	loader: async ({ params, parentMatchPromise }) => {
-		const parentMatch = await parentMatchPromise
-		const { competition } = parentMatch.loaderData!
+  staleTime: 10_000,
+  component: EventsPage,
+  loader: async ({ params, parentMatchPromise }) => {
+    const parentMatch = await parentMatchPromise
+    const { competition } = parentMatch.loaderData!
 
-		// Parallel fetch events, divisions, movements, sponsors
-		const [eventsResult, divisionsResult, movementsResult, sponsorsResult] =
-			await Promise.all([
-				getCompetitionWorkoutsFn({
-					data: {
-						competitionId: params.competitionId,
-						teamId: competition.organizingTeamId,
-					},
-				}),
-				getCompetitionDivisionsWithCountsFn({
-					data: {
-						competitionId: params.competitionId,
-						teamId: competition.organizingTeamId,
-					},
-				}),
-				getAllMovementsFn(),
-				getCompetitionSponsorsFn({
-					data: { competitionId: params.competitionId },
-				}),
-			])
+    // Parallel fetch events, divisions, movements, sponsors
+    const [eventsResult, divisionsResult, movementsResult, sponsorsResult] =
+      await Promise.all([
+        getCompetitionWorkoutsFn({
+          data: {
+            competitionId: params.competitionId,
+            teamId: competition.organizingTeamId,
+          },
+        }),
+        getCompetitionDivisionsWithCountsFn({
+          data: {
+            competitionId: params.competitionId,
+            teamId: competition.organizingTeamId,
+          },
+        }),
+        getAllMovementsFn(),
+        getCompetitionSponsorsFn({
+          data: { competitionId: params.competitionId },
+        }),
+      ])
 
-		// Flatten sponsors from groups and ungrouped
-		const allSponsors = [
-			...sponsorsResult.groups.flatMap((g) => g.sponsors),
-			...sponsorsResult.ungroupedSponsors,
-		]
+    // Flatten sponsors from groups and ungrouped
+    const allSponsors = [
+      ...sponsorsResult.groups.flatMap((g) => g.sponsors),
+      ...sponsorsResult.ungroupedSponsors,
+    ]
 
-		// Batch fetch division descriptions for all events in a single call
-		const divisionIds = divisionsResult.divisions.map((d) => d.id)
-		let divisionDescriptionsByWorkout: Record<
-			string,
-			Array<{
-				divisionId: string
-				divisionLabel: string
-				description: string | null
-			}>
-		> = {}
+    // Batch fetch division descriptions for all events in a single call
+    const divisionIds = divisionsResult.divisions.map((d) => d.id)
+    let divisionDescriptionsByWorkout: Record<
+      string,
+      Array<{
+        divisionId: string
+        divisionLabel: string
+        description: string | null
+      }>
+    > = {}
 
-		if (divisionIds.length > 0 && eventsResult.workouts.length > 0) {
-			const workoutIds = eventsResult.workouts.map((e) => e.workoutId)
-			const result = await getBatchWorkoutDivisionDescriptionsFn({
-				data: { workoutIds, divisionIds },
-			})
-			divisionDescriptionsByWorkout = result.descriptionsByWorkout
-		}
+    if (divisionIds.length > 0 && eventsResult.workouts.length > 0) {
+      const workoutIds = eventsResult.workouts.map((e) => e.workoutId)
+      const result = await getBatchWorkoutDivisionDescriptionsFn({
+        data: { workoutIds, divisionIds },
+      })
+      divisionDescriptionsByWorkout = result.descriptionsByWorkout
+    }
 
-		return {
-			events: eventsResult.workouts,
-			divisions: divisionsResult.divisions,
-			movements: movementsResult.movements,
-			sponsors: allSponsors,
-			divisionDescriptionsByWorkout,
-			competition,
-		}
-	},
+    return {
+      events: eventsResult.workouts,
+      divisions: divisionsResult.divisions,
+      movements: movementsResult.movements,
+      sponsors: allSponsors,
+      divisionDescriptionsByWorkout,
+      competition,
+    }
+  },
 })
 
 function EventsPage() {
-	const {
-		events,
-		divisions,
-		movements,
-		sponsors,
-		divisionDescriptionsByWorkout,
-	} = Route.useLoaderData()
-	// Get competition from parent layout loader data (for consistency with other pages)
-	const { competition } = parentRoute.useLoaderData()
+  const {
+    events,
+    divisions,
+    movements,
+    sponsors,
+    divisionDescriptionsByWorkout,
+  } = Route.useLoaderData()
+  // Get competition from parent layout loader data (for consistency with other pages)
+  const { competition } = parentRoute.useLoaderData()
 
-	return (
-		<OrganizerEventManager
-			competitionId={competition.id}
-			organizingTeamId={competition.organizingTeamId}
-			events={events}
-			movements={movements}
-			divisions={divisions}
-			divisionDescriptionsByWorkout={divisionDescriptionsByWorkout}
-			sponsors={sponsors}
-		/>
-	)
+  return (
+    <OrganizerEventManager
+      competitionId={competition.id}
+      organizingTeamId={competition.organizingTeamId}
+      events={events}
+      movements={movements}
+      divisions={divisions}
+      divisionDescriptionsByWorkout={divisionDescriptionsByWorkout}
+      sponsors={sponsors}
+    />
+  )
 }

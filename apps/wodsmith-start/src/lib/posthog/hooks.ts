@@ -22,14 +22,14 @@ export { usePostHog } from "./provider"
  * ```
  */
 export function useTrackEvent() {
-	const { posthog } = usePostHog()
+  const { posthog } = usePostHog()
 
-	return useCallback(
-		(event: string, properties?: Record<string, unknown>) => {
-			posthog.capture(event, properties)
-		},
-		[posthog],
-	)
+  return useCallback(
+    (event: string, properties?: Record<string, unknown>) => {
+      posthog.capture(event, properties)
+    },
+    [posthog],
+  )
 }
 
 /**
@@ -52,14 +52,14 @@ export function useTrackEvent() {
  * ```
  */
 export function useIdentifyUser() {
-	const { posthog } = usePostHog()
+  const { posthog } = usePostHog()
 
-	return useCallback(
-		(userId: string, properties?: Record<string, unknown>) => {
-			posthog.identify(userId, properties)
-		},
-		[posthog],
-	)
+  return useCallback(
+    (userId: string, properties?: Record<string, unknown>) => {
+      posthog.identify(userId, properties)
+    },
+    [posthog],
+  )
 }
 
 /**
@@ -79,9 +79,9 @@ export function useIdentifyUser() {
  * ```
  */
 export function useResetUser() {
-	const { posthog } = usePostHog()
+  const { posthog } = usePostHog()
 
-	return useCallback(() => {
-		posthog.reset()
-	}, [posthog])
+  return useCallback(() => {
+    posthog.reset()
+  }, [posthog])
 }

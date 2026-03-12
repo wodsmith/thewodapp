@@ -16,24 +16,24 @@ import { updateAllSessionsOfUser } from "@/utils/kv-session"
 // ============================================================================
 
 const updateUserProfileInputSchema = z.object({
-	firstName: z
-		.string()
-		.min(2, "First name must be at least 2 characters")
-		.max(255, "First name is too long"),
-	lastName: z
-		.string()
-		.min(2, "Last name must be at least 2 characters")
-		.max(255, "Last name is too long"),
-	avatar: z
-		.string()
-		.url("Invalid avatar URL")
-		.max(600, "URL is too long")
-		.optional()
-		.or(z.literal("")),
+  firstName: z
+    .string()
+    .min(2, "First name must be at least 2 characters")
+    .max(255, "First name is too long"),
+  lastName: z
+    .string()
+    .min(2, "Last name must be at least 2 characters")
+    .max(255, "Last name is too long"),
+  avatar: z
+    .string()
+    .url("Invalid avatar URL")
+    .max(600, "URL is too long")
+    .optional()
+    .or(z.literal("")),
 })
 
 export type UpdateUserProfileInput = z.infer<
-	typeof updateUserProfileInputSchema
+  typeof updateUserProfileInputSchema
 >
 
 // ============================================================================
@@ -44,79 +44,79 @@ export type UpdateUserProfileInput = z.infer<
  * Get the current user's profile
  */
 export const getUserProfileFn = createServerFn({ method: "GET" }).handler(
-	async () => {
-		const session = await getSessionFromCookie()
+  async () => {
+    const session = await getSessionFromCookie()
 
-		if (!session?.userId) {
-			throw new Error("Not authenticated")
-		}
+    if (!session?.userId) {
+      throw new Error("Not authenticated")
+    }
 
-		const db = getDb()
+    const db = getDb()
 
-		const user = await db.query.userTable.findFirst({
-			where: eq(userTable.id, session.userId),
-			columns: {
-				id: true,
-				firstName: true,
-				lastName: true,
-				email: true,
-				avatar: true,
-				createdAt: true,
-				updatedAt: true,
-			},
-		})
+    const user = await db.query.userTable.findFirst({
+      where: eq(userTable.id, session.userId),
+      columns: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        avatar: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    })
 
-		if (!user) {
-			throw new Error("User not found")
-		}
+    if (!user) {
+      throw new Error("User not found")
+    }
 
-		return {
-			success: true,
-			data: user,
-		}
-	},
+    return {
+      success: true,
+      data: user,
+    }
+  },
 )
 
 /**
  * Update the current user's profile
  */
 export const updateUserProfileFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => updateUserProfileInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		const session = await getSessionFromCookie()
+  .inputValidator((data: unknown) => updateUserProfileInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
 
-		if (!session?.userId) {
-			throw new Error("Not authenticated")
-		}
+    if (!session?.userId) {
+      throw new Error("Not authenticated")
+    }
 
-		const db = getDb()
+    const db = getDb()
 
-		// Build update object, only including avatar if provided and not empty
-		const updateData: {
-			firstName: string
-			lastName: string
-			avatar?: string | null
-			updatedAt: Date
-		} = {
-			firstName: data.firstName,
-			lastName: data.lastName,
-			updatedAt: new Date(),
-		}
+    // Build update object, only including avatar if provided and not empty
+    const updateData: {
+      firstName: string
+      lastName: string
+      avatar?: string | null
+      updatedAt: Date
+    } = {
+      firstName: data.firstName,
+      lastName: data.lastName,
+      updatedAt: new Date(),
+    }
 
-		// Handle avatar: if empty string, set to null; if provided, use the value
-		if (data.avatar !== undefined) {
-			updateData.avatar = data.avatar === "" ? null : data.avatar
-		}
+    // Handle avatar: if empty string, set to null; if provided, use the value
+    if (data.avatar !== undefined) {
+      updateData.avatar = data.avatar === "" ? null : data.avatar
+    }
 
-		await db
-			.update(userTable)
-			.set(updateData)
-			.where(eq(userTable.id, session.userId))
+    await db
+      .update(userTable)
+      .set(updateData)
+      .where(eq(userTable.id, session.userId))
 
-		// Update all sessions to reflect the new profile data
-		await updateAllSessionsOfUser(session.userId)
+    // Update all sessions to reflect the new profile data
+    await updateAllSessionsOfUser(session.userId)
 
-		return {
-			success: true,
-		}
-	})
+    return {
+      success: true,
+    }
+  })

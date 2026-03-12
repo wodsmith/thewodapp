@@ -13,16 +13,16 @@ import { datetime, int } from "drizzle-orm/mysql-core"
  * - Stored in MySQL datetime column (not timestamp)
  */
 export const commonColumns = {
-	createdAt: datetime()
-		.$defaultFn(() => new Date())
-		.notNull(),
-	updatedAt: datetime()
-		.$defaultFn(() => new Date())
-		.$onUpdateFn(() => new Date())
-		.notNull(),
-	updateCounter: int()
-		.default(0)
-		.$onUpdate(() => sql`update_counter + 1`),
+  createdAt: datetime()
+    .$defaultFn(() => new Date())
+    .notNull(),
+  updatedAt: datetime()
+    .$defaultFn(() => new Date())
+    .$onUpdateFn(() => new Date())
+    .notNull(),
+  updateCounter: int()
+    .default(0)
+    .$onUpdate(() => sql`update_counter + 1`),
 }
 
 // Common ID generation functions using ULID for sortable unique IDs

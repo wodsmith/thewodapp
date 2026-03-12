@@ -5,46 +5,46 @@ import { SeriesLeaderboardPageContent } from "@/components/series-leaderboard-pa
 import { usePostHog } from "@/lib/posthog"
 
 const searchSchema = z.object({
-	division: z.string().optional(),
+  division: z.string().optional(),
 })
 
 export const Route = createFileRoute(
-	"/compete/organizer/_dashboard/series/$groupId/leaderboard",
+  "/compete/organizer/_dashboard/series/$groupId/leaderboard",
 )({
-	validateSearch: searchSchema,
-	component: OrganizerSeriesLeaderboardPage,
+  validateSearch: searchSchema,
+  component: OrganizerSeriesLeaderboardPage,
 })
 
 function OrganizerSeriesLeaderboardPage() {
-	const { groupId } = Route.useParams()
-	const { posthog } = usePostHog()
-	const navigate = useNavigate()
-	const [flagEnabled, setFlagEnabled] = useState(
-		() => posthog.isFeatureEnabled("competition-global-leaderboard"),
-	)
+  const { groupId } = Route.useParams()
+  const { posthog } = usePostHog()
+  const navigate = useNavigate()
+  const [flagEnabled, setFlagEnabled] = useState(() =>
+    posthog.isFeatureEnabled("competition-global-leaderboard"),
+  )
 
-	useEffect(() => {
-		const unsubscribe = posthog.onFeatureFlags(() => {
-			setFlagEnabled(posthog.isFeatureEnabled("competition-global-leaderboard"))
-		})
-		return unsubscribe
-	}, [posthog])
+  useEffect(() => {
+    const unsubscribe = posthog.onFeatureFlags(() => {
+      setFlagEnabled(posthog.isFeatureEnabled("competition-global-leaderboard"))
+    })
+    return unsubscribe
+  }, [posthog])
 
-	useEffect(() => {
-		if (flagEnabled === false) {
-			navigate({
-				to: "/compete/organizer/series/$groupId",
-				replace: true,
-				params: { groupId },
-			})
-		}
-	}, [flagEnabled, groupId, navigate])
+  useEffect(() => {
+    if (flagEnabled === false) {
+      navigate({
+        to: "/compete/organizer/series/$groupId",
+        replace: true,
+        params: { groupId },
+      })
+    }
+  }, [flagEnabled, groupId, navigate])
 
-	if (flagEnabled === false) return null
+  if (flagEnabled === false) return null
 
-	return (
-		<div className="container mx-auto px-4 py-8">
-			<SeriesLeaderboardPageContent groupId={groupId} />
-		</div>
-	)
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <SeriesLeaderboardPageContent groupId={groupId} />
+    </div>
+  )
 }

@@ -11,8 +11,8 @@ import type { KVSession } from "./kv-session"
  * Stub implementation - returns current credits for PoC
  */
 export async function addFreeMonthlyCreditsIfNeeded(
-	session: KVSession,
+  session: KVSession,
 ): Promise<number> {
-	// For PoC, just return the current credits without modification
-	return session.user.currentCredits ?? 0
+  // For PoC, just return the current credits without modification
+  return session.user.currentCredits ?? 0
 }

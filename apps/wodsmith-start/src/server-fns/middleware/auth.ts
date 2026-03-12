@@ -14,18 +14,18 @@ import { getSessionFromCookie } from "@/utils/auth"
  * Returns session data or redirects to sign-in if not authenticated
  */
 export const validateSession = createServerFn({
-	method: "GET",
+  method: "GET",
 }).handler(async (): Promise<SessionValidationResult> => {
-	const session = await getSessionFromCookie()
+  const session = await getSessionFromCookie()
 
-	if (!session) {
-		throw redirect({
-			to: "/sign-in",
-			search: { redirect: "" },
-		})
-	}
+  if (!session) {
+    throw redirect({
+      to: "/sign-in",
+      search: { redirect: "" },
+    })
+  }
 
-	return session
+  return session
 })
 
 /**
@@ -33,8 +33,8 @@ export const validateSession = createServerFn({
  * Returns session data or null if not authenticated (no redirect)
  */
 export const getOptionalSession = createServerFn({
-	method: "GET",
+  method: "GET",
 }).handler(async (): Promise<SessionValidationResult | null> => {
-	const session = await getSessionFromCookie()
-	return session
+  const session = await getSessionFromCookie()
+  return session
 })

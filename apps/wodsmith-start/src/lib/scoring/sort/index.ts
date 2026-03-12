@@ -3,21 +3,21 @@
  */
 
 export {
-	compareScores,
-	createComparator,
-	findRank,
-	sortScores,
+  compareScores,
+  createComparator,
+  findRank,
+  sortScores,
 } from "./compare"
 // Re-export all sort functions
 export {
-	getDefaultScoreType,
-	getSortDirection,
-	isLowerBetter,
+  getDefaultScoreType,
+  getSortDirection,
+  isLowerBetter,
 } from "./direction"
 export {
-	computeSortKey,
-	computeSortKeyWithDirection,
-	extractFromSortKey,
-	sortKeyToString,
-	statusFromOrder,
+  computeSortKey,
+  computeSortKeyWithDirection,
+  extractFromSortKey,
+  sortKeyToString,
+  statusFromOrder,
 } from "./sort-key"
