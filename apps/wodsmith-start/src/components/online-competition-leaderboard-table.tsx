@@ -11,6 +11,7 @@ import {
 	type Row,
 	type SortingState,
 	useReactTable,
+	type ExpandedState,
 } from "@tanstack/react-table"
 import {
 	AlertTriangle,
@@ -206,10 +207,16 @@ function SortableHeader({
 	)
 }
 
-/** Check if an entry has expandable content (videos or penalties) */
-function hasExpandableContent(entry: CompetitionLeaderboardEntry): boolean {
+/** Check if an entry has expandable content (videos or penalties) for a specific event */
+function hasExpandableContent(
+	entry: CompetitionLeaderboardEntry,
+	selectedEventId: string | null,
+): boolean {
+	if (!selectedEventId) return false
 	return entry.eventResults.some(
-		(r) => r.videoUrl || r.penaltyType || r.isDirectlyModified,
+		(r) =>
+			r.trackWorkoutId === selectedEventId &&
+			(r.videoUrl || r.penaltyType || r.isDirectlyModified),
 	)
 }
 
@@ -454,10 +461,12 @@ export function OnlineCompetitionLeaderboardTable({
 	const [sorting, setSorting] = useState<SortingState>([
 		{ id: defaultSortColumn, desc: false },
 	])
+	const [expanded, setExpanded] = useState<ExpandedState>({})
 
 	useEffect(() => {
 		const validSortColumn = selectedEventId ? "eventRank" : "overallRank"
 		setSorting([{ id: validSortColumn, desc: false }])
+		setExpanded({})
 	}, [selectedEventId])
 
 	const tableData = useMemo(() => {
@@ -609,28 +618,6 @@ export function OnlineCompetitionLeaderboardTable({
 		// Overall view
 		const baseColumns: ColumnDef<CompetitionLeaderboardEntry>[] = [
 			{
-				id: "expand",
-				header: "",
-				cell: ({ row }: LeaderboardCellContext) => {
-					if (!hasExpandableContent(row.original)) return null
-					return (
-						<button
-							type="button"
-							className="p-1 hover:bg-muted rounded transition-colors"
-							onClick={() => row.toggleExpanded()}
-						>
-							<ChevronDown
-								className={cn(
-									"h-4 w-4 text-muted-foreground transition-transform",
-									row.getIsExpanded() && "rotate-180",
-								)}
-							/>
-						</button>
-					)
-				},
-				size: 40,
-			},
-			{
 				id: "overallRank",
 				header: ({ column }: LeaderboardHeaderContext) => (
 					<SortableHeader column={column}>Rank</SortableHeader>
@@ -745,9 +732,10 @@ export function OnlineCompetitionLeaderboardTable({
 		getCoreRowModel: getCoreRowModel(),
 		getSortedRowModel: getSortedRowModel(),
 		getExpandedRowModel: getExpandedRowModel(),
-		state: { sorting: validatedSorting },
+		state: { sorting: validatedSorting, expanded },
 		onSortingChange: setSorting,
-		getRowCanExpand: (row) => hasExpandableContent(row.original),
+		onExpandedChange: setExpanded,
+		getRowCanExpand: (row) => hasExpandableContent(row.original, selectedEventId),
 	})
 
 	// Mobile sort options
@@ -905,10 +893,10 @@ export function OnlineCompetitionLeaderboardTable({
 										className={cn(
 											"table-row",
 											row.getIsExpanded() && "border-b-0",
-											hasExpandableContent(row.original) && "cursor-pointer",
+											hasExpandableContent(row.original, selectedEventId) && "cursor-pointer",
 										)}
 										onClick={() => {
-											if (hasExpandableContent(row.original)) {
+											if (hasExpandableContent(row.original, selectedEventId)) {
 												row.toggleExpanded()
 											}
 										}}
