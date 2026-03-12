@@ -199,6 +199,33 @@ function CompetitionWorkoutsPage() {
 	const navigate = useNavigate({ from: Route.fullPath })
 	const timezone = competition.timezone ?? "America/Denver"
 	const scheduleMap = useDeferredSchedule({ deferredSchedule, timezone })
+	const isOnline = competition.competitionType === "online"
+
+	// Fallback venue from the competition's main address
+	// Only create when address has real data to preserve "Venue to be announced" fallback
+	const hasAddressInfo =
+		!isOnline &&
+		(competition.address?.name ||
+			competition.address?.streetLine1 ||
+			competition.address?.city ||
+			competition.address?.stateProvince ||
+			competition.address?.postalCode ||
+			competition.address?.countryCode)
+	const competitionVenue = hasAddressInfo
+		? {
+				id: "competition-main",
+				name: competition.address?.name ?? "Competition Venue",
+				address: competition.address
+					? {
+							streetLine1: competition.address.streetLine1 ?? undefined,
+							city: competition.address.city ?? undefined,
+							stateProvince: competition.address.stateProvince ?? undefined,
+							postalCode: competition.address.postalCode ?? undefined,
+							countryCode: competition.address.countryCode ?? undefined,
+						}
+					: null,
+			}
+		: null
 
 	// Default to athlete's registered division if logged in, otherwise first division
 	const defaultDivisionId =
@@ -312,8 +339,9 @@ function CompetitionWorkoutsPage() {
 									isRegistered={!!athleteRegisteredDivisionId}
 									submissionStatus={submissionStatusMap[event.id] ?? null}
 									timeCap={event.workout.timeCap}
-									venue={venueMap?.[event.id]}
+									venue={venueMap?.[event.id] ?? competitionVenue}
 									schedule={scheduleMap?.get(event.id) ?? null}
+									isOnline={isOnline}
 								/>
 							)
 						})}

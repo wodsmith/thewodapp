@@ -64,6 +64,7 @@ interface CompetitionWorkoutCardProps {
 		venueName: string | null
 		divisions: string[]
 	} | null
+	isOnline?: boolean
 }
 
 function formatTime(seconds: number): string {
@@ -171,6 +172,7 @@ export function CompetitionWorkoutCard({
 	timeCap,
 	venue,
 	schedule,
+	isOnline,
 }: CompetitionWorkoutCardProps) {
 	// Get the selected division's scale info (if any)
 	// Only show scale for the explicitly selected division - no fallback
@@ -301,8 +303,8 @@ export function CompetitionWorkoutCard({
 						)}
 					</div>
 
-					{/* Venue Section */}
-					<div className="mb-4 sm:mb-6">
+					{/* Venue Section - hidden for online competitions */}
+					{!isOnline && <div className="mb-4 sm:mb-6">
 						{venue?.address && hasAddressData(venue.address) ? (
 							(() => {
 								const mapsUrl = getGoogleMapsUrl(venue.address)
@@ -331,13 +333,23 @@ export function CompetitionWorkoutCard({
 									</div>
 								)
 							})()
+						) : venue?.name ? (
+							<div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
+								<MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+								<span className="font-medium">{venue.name}</span>
+							</div>
+						) : schedule?.venueName ? (
+							<div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
+								<MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+								<span className="font-medium">{schedule.venueName}</span>
+							</div>
 						) : (
 							<div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground italic">
 								<MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
 								<span>Venue to be announced</span>
 							</div>
 						)}
-					</div>
+					</div>}
 
 					{/* Content Grid */}
 					<div

@@ -9,6 +9,7 @@ import { EventDetailsContent } from "@/components/event-details-content"
 import { RegistrationSidebar } from "@/components/registration-sidebar"
 import {
 	getPublicScheduleDataFn,
+	getVenueForTrackWorkoutFn,
 	type PublicScheduleEvent,
 } from "@/server-fns/competition-heats-fns"
 import {
@@ -31,7 +32,8 @@ export const Route = createFileRoute("/compete/$slug/")({
 		if (!competition) {
 			return {
 				workouts: [],
-				divisionDescriptionsMap: {},
+				divisionDescriptionsMap: {} as Record<string, DivisionDescription[]>,
+				venueMap: {} as Record<string, null>,
 				submissionStatusMap: {} as Record<string, SubmissionStatus>,
 				deferredSchedule: Promise.resolve({
 					events: [] as PublicScheduleEvent[],
@@ -62,6 +64,48 @@ export const Route = createFileRoute("/compete/$slug/")({
 			Object.assign(divisionDescriptionsMap, batchResult.descriptionsByWorkout)
 		}
 
+		// Fetch venue data for each workout
+		type VenueInfo = {
+			id: string
+			name: string
+			address: {
+				streetLine1?: string
+				city?: string
+				stateProvince?: string
+				postalCode?: string
+				countryCode?: string
+			} | null
+		}
+		const venueMap: Record<string, VenueInfo | null> = {}
+		if (competition.competitionType !== "online" && workouts.length > 0) {
+			const venuePromises = workouts.map(async (event) => {
+				const result = await getVenueForTrackWorkoutFn({
+					data: { trackWorkoutId: event.id },
+				})
+				return { trackWorkoutId: event.id, venueData: result }
+			})
+			const venueResults = await Promise.all(venuePromises)
+			for (const { trackWorkoutId, venueData } of venueResults) {
+				if (venueData.venue) {
+					venueMap[trackWorkoutId] = {
+						id: venueData.venue.id,
+						name: venueData.venue.name,
+						address: venueData.venue.address
+							? {
+									streetLine1: venueData.venue.address.streetLine1 ?? undefined,
+									city: venueData.venue.address.city ?? undefined,
+									stateProvince: venueData.venue.address.stateProvince ?? undefined,
+									postalCode: venueData.venue.address.postalCode ?? undefined,
+									countryCode: venueData.venue.address.countryCode ?? undefined,
+								}
+							: null,
+					}
+				} else {
+					venueMap[trackWorkoutId] = null
+				}
+			}
+		}
+
 		// Fetch submission statuses for online competitions with registered athletes
 		const userRegistration = parentMatch.loaderData?.userRegistration
 		let submissionStatusMap: Record<string, SubmissionStatus> = {}
@@ -82,6 +126,7 @@ export const Route = createFileRoute("/compete/$slug/")({
 		return {
 			workouts,
 			divisionDescriptionsMap,
+			venueMap,
 			submissionStatusMap,
 			deferredSchedule,
 		}
@@ -107,6 +152,7 @@ function CompetitionOverviewPage() {
 	const {
 		workouts,
 		divisionDescriptionsMap,
+		venueMap,
 		submissionStatusMap,
 		deferredSchedule,
 	} = Route.useLoaderData()
@@ -115,6 +161,33 @@ function CompetitionOverviewPage() {
 	const isTeamRegistration = (userDivision?.teamSize ?? 1) > 1
 	const timezone = competition.timezone ?? "America/Denver"
 	const scheduleMap = useDeferredSchedule({ deferredSchedule, timezone })
+	const isOnline = competition.competitionType === "online"
+
+	// Build a venue from the competition's main address for workout cards
+	// Only create when address has real data to preserve "Venue to be announced" fallback
+	const hasAddressInfo =
+		!isOnline &&
+		(competition.address?.name ||
+			competition.address?.streetLine1 ||
+			competition.address?.city ||
+			competition.address?.stateProvince ||
+			competition.address?.postalCode ||
+			competition.address?.countryCode)
+	const competitionVenue = hasAddressInfo
+		? {
+				id: "competition-main",
+				name: competition.address?.name ?? "Competition Venue",
+				address: competition.address
+					? {
+							streetLine1: competition.address.streetLine1 ?? undefined,
+							city: competition.address.city ?? undefined,
+							stateProvince: competition.address.stateProvince ?? undefined,
+							postalCode: competition.address.postalCode ?? undefined,
+							countryCode: competition.address.countryCode ?? undefined,
+						}
+					: null,
+			}
+		: undefined
 
 	return (
 		<div className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -164,6 +237,8 @@ function CompetitionOverviewPage() {
 													}
 													timeCap={event.workout.timeCap}
 													schedule={scheduleMap?.get(event.id) ?? null}
+													isOnline={isOnline}
+													venue={venueMap?.[event.id] ?? competitionVenue}
 												/>
 											)
 										})}

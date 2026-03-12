@@ -209,6 +209,34 @@ function EventDetailsPage() {
 		deferredEventHeats,
 	} = Route.useLoaderData()
 	const { slug } = Route.useParams()
+	const isOnline = competition.competitionType === "online"
+
+	// Use event-specific venue, falling back to competition's main address
+	// Only create fallback when address has real data to preserve "Venue to be announced"
+	const hasAddressInfo =
+		!isOnline &&
+		(competition.address?.name ||
+			competition.address?.streetLine1 ||
+			competition.address?.city ||
+			competition.address?.stateProvince ||
+			competition.address?.postalCode ||
+			competition.address?.countryCode)
+	const displayVenue = venue ?? (hasAddressInfo
+		? {
+				id: "competition-main" as const,
+				name: competition.address?.name ?? "Competition Venue",
+				address: competition.address
+					? {
+							streetLine1: competition.address.streetLine1 ?? null,
+							streetLine2: competition.address.streetLine2 ?? null,
+							city: competition.address.city ?? null,
+							stateProvince: competition.address.stateProvince ?? null,
+							postalCode: competition.address.postalCode ?? null,
+							countryCode: competition.address.countryCode ?? null,
+						}
+					: null,
+			}
+		: null)
 	const search = Route.useSearch()
 	const navigate = useNavigate({ from: Route.fullPath })
 
@@ -520,68 +548,75 @@ function EventDetailsPage() {
 					</Card>
 				)}
 
-				{/* Venue Card */}
-				<Card>
-					<CardHeader className="pb-3">
-						<CardTitle className="text-lg">Venue</CardTitle>
-					</CardHeader>
-					<CardContent>
-						{venue?.address && hasAddressData(venue.address) ? (
-							<div className="space-y-3">
-								<div className="flex items-start gap-3">
-									<MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-									<div className="flex-1">
-										<p className="font-medium text-sm">{venue.name}</p>
-										<p className="text-sm text-muted-foreground mt-1">
-											{venue.address.streetLine1}
-											{venue.address.streetLine2 && (
-												<>
-													<br />
-													{venue.address.streetLine2}
-												</>
-											)}
-											{(venue.address.city ||
-												venue.address.stateProvince ||
-												venue.address.postalCode) && (
-												<>
-													<br />
-													{[venue.address.city, venue.address.stateProvince]
-														.filter(Boolean)
-														.join(", ")}{" "}
-													{venue.address.postalCode}
-												</>
-											)}
-											{venue.address.countryCode &&
-												venue.address.countryCode !== "US" && (
+				{/* Venue Card - hidden for online competitions */}
+				{!isOnline && (
+					<Card>
+						<CardHeader className="pb-3">
+							<CardTitle className="text-lg">Venue</CardTitle>
+						</CardHeader>
+						<CardContent>
+							{displayVenue?.address && hasAddressData(displayVenue.address) ? (
+								<div className="space-y-3">
+									<div className="flex items-start gap-3">
+										<MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+										<div className="flex-1">
+											<p className="font-medium text-sm">{displayVenue.name}</p>
+											<p className="text-sm text-muted-foreground mt-1">
+												{displayVenue.address.streetLine1}
+												{displayVenue.address.streetLine2 && (
 													<>
 														<br />
-														{venue.address.countryCode}
+														{displayVenue.address.streetLine2}
 													</>
 												)}
-										</p>
+												{(displayVenue.address.city ||
+													displayVenue.address.stateProvince ||
+													displayVenue.address.postalCode) && (
+													<>
+														<br />
+														{[displayVenue.address.city, displayVenue.address.stateProvince]
+															.filter(Boolean)
+															.join(", ")}{" "}
+														{displayVenue.address.postalCode}
+													</>
+												)}
+												{displayVenue.address.countryCode &&
+													displayVenue.address.countryCode !== "US" && (
+														<>
+															<br />
+															{displayVenue.address.countryCode}
+														</>
+													)}
+											</p>
+										</div>
 									</div>
+									<Button variant="outline" size="sm" className="w-full" asChild>
+										<a
+											href={getGoogleMapsUrl(displayVenue.address) ?? undefined}
+											target="_blank"
+											rel="noopener noreferrer"
+										>
+											<MapPin className="h-4 w-4 mr-2" />
+											Get Directions
+										</a>
+									</Button>
 								</div>
-								<Button variant="outline" size="sm" className="w-full" asChild>
-									<a
-										href={getGoogleMapsUrl(venue.address) ?? undefined}
-										target="_blank"
-										rel="noopener noreferrer"
-									>
-										<MapPin className="h-4 w-4 mr-2" />
-										Get Directions
-									</a>
-								</Button>
-							</div>
-						) : (
-							<div className="flex items-start gap-3">
-								<MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-								<p className="text-sm text-muted-foreground">
-									Venue to be announced
-								</p>
-							</div>
-						)}
-					</CardContent>
-				</Card>
+							) : displayVenue?.name ? (
+								<div className="flex items-start gap-3">
+									<MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+									<p className="text-sm font-medium">{displayVenue.name}</p>
+								</div>
+							) : (
+								<div className="flex items-start gap-3">
+									<MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+									<p className="text-sm text-muted-foreground">
+										Venue to be announced
+									</p>
+								</div>
+							)}
+						</CardContent>
+					</Card>
+				)}
 
 				{/* Event Resources Card */}
 				{resources && resources.length > 0 && (
