@@ -202,13 +202,19 @@ function CompetitionWorkoutsPage() {
 	const isOnline = competition.competitionType === "online"
 
 	// Fallback venue from the competition's main address
-	const competitionVenue = !isOnline
+	// Only create when address has real data to preserve "Venue to be announced" fallback
+	const hasAddressInfo =
+		!isOnline &&
+		(competition.address?.name ||
+			competition.address?.streetLine1 ||
+			competition.address?.city ||
+			competition.address?.stateProvince ||
+			competition.address?.postalCode ||
+			competition.address?.countryCode)
+	const competitionVenue = hasAddressInfo
 		? {
 				id: "competition-main",
-				name:
-					competition.address?.name ??
-					competition.organizingTeam?.name ??
-					"Competition Venue",
+				name: competition.address?.name ?? "Competition Venue",
 				address: competition.address
 					? {
 							streetLine1: competition.address.streetLine1 ?? undefined,

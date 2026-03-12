@@ -76,7 +76,7 @@ export const Route = createFileRoute("/compete/$slug/")({
 			} | null
 		}
 		const venueMap: Record<string, VenueInfo | null> = {}
-		if (workouts.length > 0) {
+		if (competition.competitionType !== "online" && workouts.length > 0) {
 			const venuePromises = workouts.map(async (event) => {
 				const result = await getVenueForTrackWorkoutFn({
 					data: { trackWorkoutId: event.id },
@@ -163,13 +163,19 @@ function CompetitionOverviewPage() {
 	const isOnline = competition.competitionType === "online"
 
 	// Build a venue from the competition's main address for workout cards
-	const competitionVenue = !isOnline
+	// Only create when address has real data to preserve "Venue to be announced" fallback
+	const hasAddressInfo =
+		!isOnline &&
+		(competition.address?.name ||
+			competition.address?.streetLine1 ||
+			competition.address?.city ||
+			competition.address?.stateProvince ||
+			competition.address?.postalCode ||
+			competition.address?.countryCode)
+	const competitionVenue = hasAddressInfo
 		? {
 				id: "competition-main",
-				name:
-					competition.address?.name ??
-					competition.organizingTeam?.name ??
-					"Competition Venue",
+				name: competition.address?.name ?? "Competition Venue",
 				address: competition.address
 					? {
 							streetLine1: competition.address.streetLine1 ?? undefined,

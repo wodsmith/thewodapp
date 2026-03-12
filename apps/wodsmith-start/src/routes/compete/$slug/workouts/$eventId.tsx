@@ -212,13 +212,19 @@ function EventDetailsPage() {
 	const isOnline = competition.competitionType === "online"
 
 	// Use event-specific venue, falling back to competition's main address
-	const displayVenue = venue ?? (!isOnline
+	// Only create fallback when address has real data to preserve "Venue to be announced"
+	const hasAddressInfo =
+		!isOnline &&
+		(competition.address?.name ||
+			competition.address?.streetLine1 ||
+			competition.address?.city ||
+			competition.address?.stateProvince ||
+			competition.address?.postalCode ||
+			competition.address?.countryCode)
+	const displayVenue = venue ?? (hasAddressInfo
 		? {
 				id: "competition-main" as const,
-				name:
-					competition.address?.name ??
-					competition.organizingTeam?.name ??
-					"Competition Venue",
+				name: competition.address?.name ?? "Competition Venue",
 				address: competition.address
 					? {
 							streetLine1: competition.address.streetLine1 ?? null,

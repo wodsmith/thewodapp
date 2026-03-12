@@ -42,6 +42,7 @@ export function SearchableSelect({
 	const [open, setOpen] = useState(false)
 	const [search, setSearch] = useState("")
 	const [highlightedIndex, setHighlightedIndex] = useState(0)
+	const triggerRef = useRef<HTMLButtonElement>(null)
 	const inputRef = useRef<HTMLInputElement>(null)
 	const listRef = useRef<HTMLDivElement>(null)
 
@@ -96,6 +97,8 @@ export function SearchableSelect({
 			<PopoverTrigger asChild>
 				{/* biome-ignore lint/a11y/useSemanticElements: Custom combobox requires non-semantic elements */}
 				<Button
+					ref={triggerRef}
+					type="button"
 					variant="outline"
 					role="combobox"
 					aria-expanded={open}
@@ -113,7 +116,10 @@ export function SearchableSelect({
 				className="w-[var(--radix-popover-trigger-width)] p-0"
 				align="start"
 				onOpenAutoFocus={(e) => e.preventDefault()}
-				onCloseAutoFocus={(e) => e.preventDefault()}
+				onCloseAutoFocus={(e) => {
+					e.preventDefault()
+					triggerRef.current?.focus()
+				}}
 			>
 				<div className="p-2">
 					{/* Using native input to avoid any component-level event interception */}
