@@ -10,7 +10,7 @@
  * @see @/lib/scoring/tiebreakers - Tiebreaker logic
  */
 
-import { and, eq, inArray, ne } from "drizzle-orm"
+import { and, eq, inArray, ne, or, isNull } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	competitionHeatAssignmentsTable,
@@ -27,6 +27,7 @@ import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoresTable } from "@/db/schemas/scores"
 import { teamMembershipTable } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
+import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
 import { workouts } from "@/db/schemas/workouts"
 import {
 	calculateEventPoints,
@@ -45,6 +46,7 @@ import {
 	getEffectiveScoringConfig,
 	parseCompetitionSettings,
 } from "@/types/competitions"
+import { getAffiliate } from "@/utils/registration-metadata"
 
 // ============================================================================
 // Types
@@ -69,6 +71,8 @@ export interface CompetitionLeaderboardEntry {
 	isTeamDivision: boolean
 	teamName: string | null
 	teamMembers: TeamMemberInfo[]
+	/** Affiliate/gym name from registration metadata */
+	affiliate: string | null
 	eventResults: Array<{
 		trackWorkoutId: string
 		trackOrder: number
@@ -80,6 +84,13 @@ export interface CompetitionLeaderboardEntry {
 		formattedScore: string
 		/** Formatted tiebreak value if present */
 		formattedTiebreak: string | null
+		/** Penalty info if score was adjusted */
+		penaltyType: "minor" | "major" | null
+		penaltyPercentage: number | null
+		/** Whether score was directly modified (adjusted without penalty) */
+		isDirectlyModified: boolean
+		/** Video submission URL (online competitions only) */
+		videoUrl: string | null
 	}>
 }
 
@@ -129,12 +140,20 @@ async function fetchScores(params: {
 			sortKey: scoresTable.sortKey,
 			secondaryValue: scoresTable.secondaryValue,
 			timeCapMs: scoresTable.timeCapMs,
+			verificationStatus: scoresTable.verificationStatus,
+			penaltyType: scoresTable.penaltyType,
+			penaltyPercentage: scoresTable.penaltyPercentage,
 		})
 		.from(scoresTable)
 		.where(
 			and(
 				inArray(scoresTable.competitionEventId, params.trackWorkoutIds),
 				inArray(scoresTable.userId, params.userIds),
+				// Exclude invalidated scores from leaderboard
+				or(
+					isNull(scoresTable.verificationStatus),
+					ne(scoresTable.verificationStatus, "invalid"),
+				),
 			),
 		)
 
@@ -257,8 +276,12 @@ export async function getCompetitionLeaderboard(params: {
 	const scoringConfig =
 		getEffectiveScoringConfig(settings) ?? DEFAULT_SCORING_CONFIG
 
-	// Division results publishing state — controls leaderboard visibility
-	const divisionResults = settings?.divisionResults
+	// Division results publishing state — controls leaderboard visibility.
+	// For online competitions, default to empty (everything hidden until explicitly published).
+	// For in-person competitions, absent divisionResults means show all (backwards compat).
+	const divisionResults =
+		settings?.divisionResults ??
+		(competition.competitionType === "online" ? {} : undefined)
 
 	// Get competition track
 	const track = await getCompetitionTrack(params.competitionId)
@@ -429,6 +452,39 @@ export async function getCompetitionLeaderboard(params: {
 
 	const allScores = await fetchScores({ trackWorkoutIds, userIds })
 
+	// Fetch video submissions for online competitions
+	const registrationIds = filteredRegistrations.map((r) => r.registration.id)
+	const videoSubmissions =
+		competition.competitionType === "online" && registrationIds.length > 0
+			? await db
+					.select({
+						registrationId: videoSubmissionsTable.registrationId,
+						trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+						videoUrl: videoSubmissionsTable.videoUrl,
+					})
+					.from(videoSubmissionsTable)
+					.where(
+						inArray(videoSubmissionsTable.registrationId, registrationIds),
+					)
+			: []
+
+	// Index video submissions by registrationId+trackWorkoutId for fast lookup
+	const videoUrlMap = new Map<string, string>()
+	for (const vs of videoSubmissions) {
+		videoUrlMap.set(`${vs.registrationId}:${vs.trackWorkoutId}`, vs.videoUrl)
+	}
+
+	// Helper: check if an event+division is published (for gating video visibility)
+	function isEventDivisionPublished(
+		trackWorkoutId: string,
+		divisionId: string,
+	): boolean {
+		if (!divisionResults) return true // no publish gating
+		const eventPublishState = divisionResults[trackWorkoutId]
+		const divisionPublishState = eventPublishState?.[divisionId]
+		return !!divisionPublishState?.publishedAt
+	}
+
 	// Build leaderboard entries
 	const leaderboardMap = new Map<string, CompetitionLeaderboardEntry>()
 
@@ -464,6 +520,7 @@ export async function getCompetitionLeaderboard(params: {
 			isTeamDivision,
 			teamName: reg.registration.teamName,
 			teamMembers,
+			affiliate: getAffiliate(reg.registration.metadata, reg.user.id),
 			eventResults: [],
 		})
 	}
@@ -495,10 +552,8 @@ export async function getCompetitionLeaderboard(params: {
 			// When divisionResults is absent, all results show (backwards compat).
 			if (divisionResults) {
 				const eventPublishState = divisionResults[trackWorkout.id]
-				if (eventPublishState) {
-					const divisionPublishState = eventPublishState[divisionId]
-					if (!divisionPublishState?.publishedAt) continue
-				}
+				const divisionPublishState = eventPublishState?.[divisionId]
+				if (!divisionPublishState?.publishedAt) continue
 			}
 
 			// Convert to EventScoreInput format
@@ -584,6 +639,15 @@ export async function getCompetitionLeaderboard(params: {
 					rawScore: String(score.scoreValue ?? ""),
 					formattedScore,
 					formattedTiebreak,
+					penaltyType: (score.penaltyType as "minor" | "major") ?? null,
+					penaltyPercentage: score.penaltyPercentage ?? null,
+					isDirectlyModified:
+						score.verificationStatus === "adjusted" && !score.penaltyType,
+					videoUrl: isEventDivisionPublished(trackWorkout.id, divisionId)
+						? (videoUrlMap.get(
+								`${registration.registration.id}:${trackWorkout.id}`,
+							) ?? null)
+						: null,
 				})
 
 				entry.totalPoints += points
@@ -591,7 +655,7 @@ export async function getCompetitionLeaderboard(params: {
 		}
 
 		// Add empty results for athletes who didn't complete this event
-		for (const [_regId, entry] of leaderboardMap) {
+		for (const [regId, entry] of leaderboardMap) {
 			const hasResult = entry.eventResults.some(
 				(er) => er.trackWorkoutId === trackWorkout.id,
 			)
@@ -606,6 +670,15 @@ export async function getCompetitionLeaderboard(params: {
 					rawScore: null,
 					formattedScore: "N/A",
 					formattedTiebreak: null,
+					penaltyType: null,
+					penaltyPercentage: null,
+					isDirectlyModified: false,
+					videoUrl: isEventDivisionPublished(
+						trackWorkout.id,
+						entry.divisionId,
+					)
+						? (videoUrlMap.get(`${regId}:${trackWorkout.id}`) ?? null)
+						: null,
 				})
 			}
 		}

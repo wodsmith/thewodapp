@@ -244,7 +244,7 @@ export function ShiftList({
 	return (
 		<div className="space-y-6">
 			{/* Header with Add button */}
-			<div className="flex items-center justify-between">
+			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 				<div>
 					<h2 className="text-2xl font-bold tracking-tight">
 						Volunteer Shifts
@@ -253,7 +253,7 @@ export function ShiftList({
 						Manage time-based volunteer shifts for non-judge roles
 					</p>
 				</div>
-				<Button onClick={handleOpenCreateDialog}>
+				<Button onClick={handleOpenCreateDialog} className="w-full sm:w-auto">
 					<Plus className="mr-2 h-4 w-4" />
 					Add Shift
 				</Button>
@@ -272,6 +272,7 @@ export function ShiftList({
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="p-0">
+						<div className="overflow-x-auto">
 						<Table>
 							<TableHeader>
 								<TableRow>
@@ -363,6 +364,7 @@ export function ShiftList({
 								})}
 							</TableBody>
 						</Table>
+						</div>
 					</CardContent>
 				</Card>
 			))}

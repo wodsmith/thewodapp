@@ -3,6 +3,14 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { z } from "zod"
 import type { JudgeAssignmentVersion } from "@/db/schema"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
+import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getHeatsForCompetitionFn } from "@/server-fns/competition-heats-fns"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
@@ -15,6 +23,10 @@ import {
 	getJudgeVolunteersFn,
 	getRotationsForEventFn,
 } from "@/server-fns/judge-scheduling-fns"
+import {
+	getVolunteerAnswersFn,
+	getVolunteerQuestionsFn,
+} from "@/server-fns/registration-questions-fns"
 import {
 	canInputScoresFn,
 	getCompetitionVolunteersFn,
@@ -30,7 +42,10 @@ import { VolunteersList } from "./-components/volunteers-list"
 
 // Search params schema for tab navigation and event selection
 const searchParamsSchema = z.object({
-	tab: z.enum(["roster", "shifts", "schedule"]).optional().default("roster"),
+	tab: z
+		.enum(["roster", "shifts", "schedule", "registration-rules"])
+		.optional()
+		.default("roster"),
 	event: z.string().optional(),
 })
 
@@ -56,7 +71,7 @@ export const Route = createFileRoute(
 
 		const competitionTeamId = competition.competitionTeamId
 
-		// Parallel fetch: invitations, volunteers, events, direct invites, judges, shifts, assignments
+		// Parallel fetch: invitations, volunteers, events, direct invites, judges, shifts, assignments, volunteer questions, volunteer answers
 		const [
 			invitations,
 			volunteers,
@@ -65,6 +80,8 @@ export const Route = createFileRoute(
 			judges,
 			shifts,
 			volunteerAssignments,
+			volunteerQuestionsResult,
+			volunteerAnswersResult,
 		] = await Promise.all([
 			getPendingVolunteerInvitationsFn({
 				data: { competitionTeamId },
@@ -90,7 +107,18 @@ export const Route = createFileRoute(
 			getVolunteerAssignmentsFn({
 				data: { competitionId: competition.id },
 			}),
+			getVolunteerQuestionsFn({
+				data: { competitionId: competition.id },
+			}),
+			getVolunteerAnswersFn({
+				data: {
+					competitionTeamId,
+					organizingTeamId: competition.organizingTeamId,
+				},
+			}),
 		])
+		const volunteerQuestions = volunteerQuestionsResult.questions
+		const { answersByInvitation, emailToInvitationId } = volunteerAnswersResult
 
 		const events = eventsResult.workouts
 
@@ -198,6 +226,9 @@ export const Route = createFileRoute(
 			activeVersionMap,
 			shifts,
 			volunteerAssignments,
+			volunteerQuestions,
+			answersByInvitation,
+			emailToInvitationId,
 		}
 	},
 	component: VolunteersPage,
@@ -220,6 +251,9 @@ function VolunteersPage() {
 		activeVersionMap,
 		shifts,
 		volunteerAssignments,
+		volunteerQuestions,
+		answersByInvitation,
+		emailToInvitationId,
 	} = Route.useLoaderData()
 
 	const { tab, event: eventFromUrl } = Route.useSearch()
@@ -230,7 +264,7 @@ function VolunteersPage() {
 			to: ".",
 			search: (prev) => ({
 				...prev,
-				tab: value as "roster" | "shifts" | "schedule",
+				tab: value as "roster" | "shifts" | "schedule" | "registration-rules",
 			}),
 			replace: true,
 		})
@@ -268,18 +302,41 @@ function VolunteersPage() {
 		}
 	}, [isInPerson, tab, navigate])
 
+	const handleQuestionsChange = () => {
+		// Loader will refetch on next navigation; for now this is a no-op
+	}
+
 	return (
 		<Tabs
 			value={effectiveTab}
 			onValueChange={handleTabChange}
 			className="w-full"
 		>
-			<TabsList className="mb-6">
+			{/* Mobile: Select dropdown */}
+			<div className="mb-6 sm:hidden">
+				<Select value={effectiveTab} onValueChange={handleTabChange}>
+					<SelectTrigger className="w-full">
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="roster">Roster</SelectItem>
+						<SelectItem value="shifts">Shifts</SelectItem>
+						{isInPerson && (
+							<SelectItem value="schedule">Judge Schedule</SelectItem>
+						)}
+						<SelectItem value="registration-rules">Registration Rules</SelectItem>
+					</SelectContent>
+				</Select>
+			</div>
+
+			{/* Desktop: Tabs */}
+			<TabsList className="mb-6 hidden sm:inline-flex">
 				<TabsTrigger value="roster">Roster</TabsTrigger>
 				<TabsTrigger value="shifts">Shifts</TabsTrigger>
 				{isInPerson && (
 					<TabsTrigger value="schedule">Judge Schedule</TabsTrigger>
 				)}
+				<TabsTrigger value="registration-rules">Registration Rules</TabsTrigger>
 			</TabsList>
 
 			{/* Roster Tab - Volunteer Management */}
@@ -318,6 +375,9 @@ function VolunteersPage() {
 						invitations={invitations}
 						volunteers={volunteersWithAccess}
 						volunteerAssignments={volunteerAssignments}
+						volunteerQuestions={volunteerQuestions}
+						answersByInvitation={answersByInvitation}
+						emailToInvitationId={emailToInvitationId}
 					/>
 				</section>
 			</TabsContent>
@@ -357,6 +417,18 @@ function VolunteersPage() {
 					/>
 				</TabsContent>
 			)}
+
+			{/* Registration Rules Tab */}
+			<TabsContent value="registration-rules">
+				<RegistrationQuestionsEditor
+					entityType="competition"
+					entityId={competition.id}
+					teamId={competition.organizingTeamId}
+					questions={volunteerQuestions}
+					onQuestionsChange={handleQuestionsChange}
+					questionTarget="volunteer"
+				/>
+			</TabsContent>
 		</Tabs>
 	)
 }

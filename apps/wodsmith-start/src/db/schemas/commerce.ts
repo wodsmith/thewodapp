@@ -19,6 +19,7 @@ import {
 import { competitionsTable } from "./competitions"
 import { scalingLevelsTable } from "./scaling"
 import { userTable } from "./users"
+import { productCouponRedemptionsTable } from "./coupons"
 
 // Commerce product types
 export const COMMERCE_PRODUCT_TYPE = {
@@ -254,6 +255,10 @@ export const commercePurchaseRelations = relations(
 		product: one(commerceProductTable, {
 			fields: [commercePurchaseTable.productId],
 			references: [commerceProductTable.id],
+		}),
+		couponRedemption: one(productCouponRedemptionsTable, {
+			fields: [commercePurchaseTable.id],
+			references: [productCouponRedemptionsTable.purchaseId],
 		}),
 	}),
 )

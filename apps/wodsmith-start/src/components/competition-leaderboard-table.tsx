@@ -11,6 +11,7 @@ import {
 	useReactTable,
 } from "@tanstack/react-table"
 import {
+	AlertTriangle,
 	ArrowDownNarrowWide,
 	ArrowUpDown,
 	ArrowUpNarrowWide,
@@ -25,6 +26,11 @@ import {
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover"
 import {
 	Select,
 	SelectContent,
@@ -124,6 +130,41 @@ function formatPoints(points: number, algorithm: ScoringAlgorithm): string {
 	return `+${points}`
 }
 
+/** Clickable icon for any score modification (penalty or direct adjust) */
+function PenaltyIndicator({
+	result,
+}: {
+	result: CompetitionLeaderboardEntry["eventResults"][number]
+}) {
+	if (!result.penaltyType && !result.isDirectlyModified) return null
+
+	const label = result.penaltyType
+		? `${result.penaltyType === "major" ? "Major" : "Minor"} Penalty`
+		: "Score Adjusted"
+
+	const detail = result.penaltyPercentage != null
+		? `${result.penaltyPercentage}% deduction applied`
+		: "This score was modified by an organizer."
+
+	return (
+		<Popover>
+			<PopoverTrigger asChild>
+				<button
+					type="button"
+					className="inline-flex items-center text-muted-foreground hover:text-foreground"
+					aria-label={label}
+				>
+					<AlertTriangle className="h-3 w-3" />
+				</button>
+			</PopoverTrigger>
+			<PopoverContent className="w-auto max-w-[220px] p-3">
+				<p className="text-sm font-medium">{label}</p>
+				<p className="text-xs text-muted-foreground mt-1">{detail}</p>
+			</PopoverContent>
+		</Popover>
+	)
+}
+
 function EventResultCell({
 	result,
 	scoringAlgorithm,
@@ -138,8 +179,9 @@ function EventResultCell({
 	return (
 		<div className="flex flex-col gap-0.5">
 			{/* Primary: Score value - medium weight for emphasis */}
-			<span className="font-medium tabular-nums">
+			<span className="font-medium tabular-nums inline-flex items-center gap-1">
 				{result.formattedScore}
+				<PenaltyIndicator result={result} />
 				{result.formattedTiebreak && (
 					<span className="text-muted-foreground font-normal ml-1">
 						(TB: {result.formattedTiebreak})
@@ -194,12 +236,26 @@ function formatMemberName(member: TeamMemberInfo): string {
 /** Team cell for team divisions - shows team name with members underneath */
 function TeamCell({ entry }: { entry: CompetitionLeaderboardEntry }) {
 	if (!entry.isTeamDivision) {
-		return <span className="font-medium">{entry.athleteName}</span>
+		return (
+			<div className="flex flex-col gap-0.5">
+				<span className="font-medium">{entry.athleteName}</span>
+				{entry.affiliate && (
+					<span className="text-[10px] text-muted-foreground leading-tight">
+						{entry.affiliate}
+					</span>
+				)}
+			</div>
+		)
 	}
 
 	return (
 		<div className="flex flex-col gap-0.5">
 			<span className="font-medium">{entry.teamName || "Unknown Team"}</span>
+			{entry.affiliate && (
+				<span className="text-[10px] text-muted-foreground leading-tight">
+					{entry.affiliate}
+				</span>
+			)}
 			{entry.teamMembers.length > 0 && (
 				<span className="text-[10px] text-muted-foreground leading-tight">
 					{entry.teamMembers.map((m) => formatMemberName(m)).join(", ")}
@@ -268,6 +324,11 @@ function MobileLeaderboardRow({
 								<span className="font-medium truncate block">
 									{entry.teamName || "Unknown Team"}
 								</span>
+								{entry.affiliate && (
+									<span className="text-[10px] text-muted-foreground truncate block">
+										{entry.affiliate}
+									</span>
+								)}
 								{entry.teamMembers.length > 0 && (
 									<span className="text-[10px] text-muted-foreground truncate block">
 										{entry.teamMembers
@@ -277,9 +338,16 @@ function MobileLeaderboardRow({
 								)}
 							</>
 						) : (
-							<span className="font-medium truncate block">
-								{entry.athleteName}
-							</span>
+							<>
+								<span className="font-medium truncate block">
+									{entry.athleteName}
+								</span>
+								{entry.affiliate && (
+									<span className="text-[10px] text-muted-foreground truncate block">
+										{entry.affiliate}
+									</span>
+								)}
+							</>
 						)}
 					</div>
 
@@ -307,8 +375,9 @@ function MobileLeaderboardRow({
 									</span>
 									{result && result.rank > 0 ? (
 										<div className="flex flex-col gap-0.5">
-											<span className="font-medium tabular-nums">
+											<span className="font-medium tabular-nums inline-flex items-center gap-1">
 												{result.formattedScore}
+												<PenaltyIndicator result={result} />
 												{result.formattedTiebreak && (
 													<span className="text-muted-foreground font-normal ml-1">
 														(TB: {result.formattedTiebreak})
@@ -382,6 +451,12 @@ export function CompetitionLeaderboardTable({
 		[leaderboard],
 	)
 
+	// Show affiliate column only when at least one entry has an affiliate
+	const hasAffiliates = useMemo(
+		() => leaderboard.some((entry) => entry.affiliate),
+		[leaderboard],
+	)
+
 	// Build columns dynamically based on view mode
 	const columns = useMemo<ColumnDef<CompetitionLeaderboardEntry>[]>(() => {
 		// Column header label: "Team" for team divisions, "Athlete" for individual
@@ -419,6 +494,20 @@ export function CompetitionLeaderboardTable({
 						<TeamCell entry={row.original} />
 					),
 				},
+				...(hasAffiliates
+					? [
+							{
+								id: "affiliate",
+								header: "Affiliate",
+								accessorKey: "affiliate" as const,
+								cell: ({ row }: LeaderboardCellContext) => (
+									<span className="text-sm text-muted-foreground">
+										{row.original.affiliate ?? "—"}
+									</span>
+								),
+							} satisfies ColumnDef<CompetitionLeaderboardEntry>,
+						]
+					: []),
 				{
 					id: "score",
 					header: "Score",
@@ -436,8 +525,9 @@ export function CompetitionLeaderboardTable({
 							return <span className="text-muted-foreground italic">—</span>
 						}
 						return (
-							<span className="font-medium tabular-nums">
+							<span className="font-medium tabular-nums inline-flex items-center gap-1">
 								{result.formattedScore}
+								<PenaltyIndicator result={result} />
 								{result.formattedTiebreak && (
 									<span className="text-muted-foreground font-normal ml-1">
 										(TB: {result.formattedTiebreak})
@@ -478,6 +568,21 @@ export function CompetitionLeaderboardTable({
 			},
 		]
 
+		if (hasAffiliates) {
+			baseColumns.push({
+				id: "affiliate",
+				header: ({ column }: LeaderboardHeaderContext) => (
+					<SortableHeader column={column}>Affiliate</SortableHeader>
+				),
+				accessorKey: "affiliate",
+				cell: ({ row }: LeaderboardCellContext) => (
+					<span className="text-sm text-muted-foreground">
+						{row.original.affiliate ?? "—"}
+					</span>
+				),
+			})
+		}
+
 		// Add event columns sorted by trackOrder
 		const sortedEvents = [...events].sort((a, b) => a.trackOrder - b.trackOrder)
 
@@ -486,9 +591,7 @@ export function CompetitionLeaderboardTable({
 				id: `event-${event.id}`,
 				header: ({ column }: LeaderboardHeaderContext) => (
 					<SortableHeader column={column}>
-						<span className="truncate max-w-[100px]" title={event.name}>
-							{event.name}
-						</span>
+						{event.name}
 					</SortableHeader>
 				),
 				accessorFn: (row: CompetitionLeaderboardEntry) => {
@@ -517,7 +620,7 @@ export function CompetitionLeaderboardTable({
 		}
 
 		return baseColumns
-	}, [events, selectedEventId, isTeamLeaderboard, scoringAlgorithm])
+	}, [events, selectedEventId, isTeamLeaderboard, hasAffiliates, scoringAlgorithm])
 
 	// Ensure sorting state only references columns that exist
 	// This prevents errors when switching between overall and single event views

@@ -26,6 +26,7 @@ import { workouts } from "./workouts"
 // ID generators
 export const createScoreId = () => `score_${createId()}`
 export const createScoreRoundId = () => `scrd_${createId()}`
+export const createScoreVerificationLogId = () => `svlog_${createId()}`
 
 // Score status values for the new scores table
 // This is a subset focused on competition/scoring context
@@ -84,6 +85,20 @@ export const scoresTable = mysqlTable(
 		notes: text(),
 		// When the workout was performed (Unix timestamp ms)
 		recordedAt: datetime().notNull(),
+
+		// Verification (organizer review for online competitions)
+		// null = unreviewed, "verified" = confirmed, "adjusted" = overridden, "invalid" = zeroed
+		verificationStatus: varchar({ length: 20 }),
+		verifiedAt: datetime(),
+		verifiedByUserId: varchar({ length: 255 }),
+
+		// Penalty classification (denormalized from verification log for leaderboard/athlete display)
+		// null = no penalty, "minor" | "major"
+		penaltyType: varchar("penalty_type", { length: 20 }),
+		// The percentage deduction applied (0-100)
+		penaltyPercentage: int("penalty_percentage"),
+		// Total no-rep count from review notes
+		noRepCount: int("no_rep_count"),
 	},
 	(table) => [
 		// User's scores, ordered by date
@@ -179,6 +194,76 @@ export const scoreRoundsRelations = relations(scoreRoundsTable, ({ one }) => ({
 		references: [scoresTable.id],
 	}),
 }))
+
+/**
+ * Score verification log table
+ *
+ * Append-only audit trail of every organizer verify/adjust action on a score.
+ * For "adjusted" entries, captures the original values before overwrite so
+ * the athlete's claimed score is never permanently lost.
+ */
+export const scoreVerificationLogsTable = mysqlTable(
+	"score_verification_logs",
+	{
+		id: varchar({ length: 255 })
+			.primaryKey()
+			.$defaultFn(createScoreVerificationLogId),
+
+		// The score that was acted on
+		scoreId: varchar({ length: 255 }).notNull(),
+
+		// Competition context (denormalized for easy querying, null for non-competition scores)
+		competitionId: varchar({ length: 255 }),
+		trackWorkoutId: varchar({ length: 255 }),
+
+		// The athlete who owns the score
+		athleteUserId: varchar({ length: 255 }).notNull(),
+
+		// What the organizer did
+		action: varchar({ length: 20 }).notNull(), // "verified" | "adjusted" | "invalid"
+
+		// Values before adjustment (null for "verified" action)
+		originalScoreValue: int(),
+		originalStatus: varchar({ length: 50 }),
+		originalSecondaryValue: int(),
+		originalTiebreakValue: int(),
+
+		// Values after adjustment (null for "verified" action)
+		newScoreValue: int(),
+		newStatus: varchar({ length: 50 }),
+		newSecondaryValue: int(),
+		newTiebreakValue: int(),
+
+		// Penalty audit trail (snapshot at time of action)
+		penaltyType: varchar("penalty_type", { length: 20 }),
+		penaltyPercentage: int("penalty_percentage"),
+		noRepCount: int("no_rep_count"),
+
+		// Who did it and when
+		performedByUserId: varchar({ length: 255 }).notNull(),
+		performedAt: datetime().notNull(),
+	},
+	(table) => [
+		// Look up all log entries for a score
+		index("idx_svlog_score").on(table.scoreId),
+		// Look up all actions by an organizer
+		index("idx_svlog_performer").on(table.performedByUserId, table.performedAt),
+	],
+)
+
+export const scoreVerificationLogsRelations = relations(
+	scoreVerificationLogsTable,
+	({ one }) => ({
+		score: one(scoresTable, {
+			fields: [scoreVerificationLogsTable.scoreId],
+			references: [scoresTable.id],
+		}),
+		performedBy: one(userTable, {
+			fields: [scoreVerificationLogsTable.performedByUserId],
+			references: [userTable.id],
+		}),
+	}),
+)
 
 // Type exports
 export type Score = typeof scoresTable.$inferSelect

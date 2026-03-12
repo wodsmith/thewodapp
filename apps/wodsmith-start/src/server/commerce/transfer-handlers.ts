@@ -41,17 +41,13 @@ export async function handleCompetitionRegistrationTransfer(
 	//    The unique index is on (eventId, userId, divisionId) regardless of status,
 	//    so we must handle both active and removed registrations.
 	if (registration.divisionId) {
-		const existingReg =
-			await db.query.competitionRegistrationsTable.findFirst({
-				where: and(
-					eq(competitionRegistrationsTable.eventId, registration.eventId),
-					eq(competitionRegistrationsTable.userId, ctx.targetUserId),
-					eq(
-						competitionRegistrationsTable.divisionId,
-						registration.divisionId,
-					),
-				),
-			})
+		const existingReg = await db.query.competitionRegistrationsTable.findFirst({
+			where: and(
+				eq(competitionRegistrationsTable.eventId, registration.eventId),
+				eq(competitionRegistrationsTable.userId, ctx.targetUserId),
+				eq(competitionRegistrationsTable.divisionId, registration.divisionId),
+			),
+		})
 		if (existingReg) {
 			if (existingReg.status === "active") {
 				throw new Error(
@@ -110,18 +106,13 @@ export async function handleCompetitionRegistrationTransfer(
 	// 6. Delete heat assignments (athlete needs re-scheduling)
 	await db
 		.delete(competitionHeatAssignmentsTable)
-		.where(
-			eq(competitionHeatAssignmentsTable.registrationId, registration.id),
-		)
+		.where(eq(competitionHeatAssignmentsTable.registrationId, registration.id))
 
 	// 7. Delete old registration answers
 	await db
 		.delete(competitionRegistrationAnswersTable)
 		.where(
-			eq(
-				competitionRegistrationAnswersTable.registrationId,
-				registration.id,
-			),
+			eq(competitionRegistrationAnswersTable.registrationId, registration.id),
 		)
 
 	// 8. Save new registration answers if provided

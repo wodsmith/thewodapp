@@ -803,7 +803,7 @@ export function HeatCard({
 							<CardTitle className="text-base">
 								Heat <span className="tabular-nums">{heat.heatNumber}</span>
 							</CardTitle>
-							<div className="flex items-center gap-2 text-sm text-muted-foreground">
+							<div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
 								{heat.scheduledTime && (
 									<span className="flex items-center gap-1">
 										<Clock className="h-3 w-3" />
@@ -824,13 +824,19 @@ export function HeatCard({
 								{heat.assignments.length}/{maxLanes}
 							</Badge>
 							<div className="flex-1" />
-							{Object.entries(assignmentsByDivision).map(
-								([divLabel, count]) => (
-									<Badge key={divLabel} variant="secondary" className="text-xs">
-										{divLabel}: {count}
-									</Badge>
-								),
-							)}
+							<div className="hidden sm:flex sm:items-center sm:gap-1">
+								{Object.entries(assignmentsByDivision).map(
+									([divLabel, count]) => (
+										<Badge
+											key={divLabel}
+											variant="secondary"
+											className="text-xs"
+										>
+											{divLabel}: {count}
+										</Badge>
+									),
+								)}
+							</div>
 							<Button
 								variant="ghost"
 								size="icon"
@@ -906,7 +912,7 @@ export function HeatCard({
 			{closestEdge && <DropIndicator edge={closestEdge} gap="2px" />}
 			<Card className={isDraggingHeat ? "opacity-50" : ""}>
 				<CardHeader className="pb-3">
-					<div className="flex items-center justify-between">
+					<div className="flex items-center justify-between flex-wrap gap-2">
 						<div className="flex items-center gap-2">
 							{onReorder && (
 								<DragHandleButton
@@ -944,7 +950,7 @@ export function HeatCard({
 							</Button>
 						</div>
 					</div>
-					<div className="flex items-center gap-4 text-sm text-muted-foreground">
+					<div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
 						{heat.scheduledTime && (
 							<span className="flex items-center gap-1">
 								<Clock className="h-3 w-3" />

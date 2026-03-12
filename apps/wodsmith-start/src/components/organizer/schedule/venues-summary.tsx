@@ -34,7 +34,10 @@ export function VenuesSummary({ competitionId, venues }: VenuesSummaryProps) {
 		<div className="space-y-3">
 			<div className="flex flex-wrap gap-2">
 				{venues.map((venue) => (
-					<Card key={venue.id} className="flex-1 min-w-[200px]">
+					<Card
+						key={venue.id}
+						className="flex-1 min-w-[160px] sm:min-w-[200px]"
+					>
 						<CardContent className="py-3 px-4">
 							<div className="flex items-center justify-between gap-2">
 								<div className="flex items-center gap-2 min-w-0">

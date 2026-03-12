@@ -205,10 +205,6 @@ const app = await alchemy("wodsmith", {
 })
 
 await D1Database("db", {
-	/**
-	 * Adopt existing D1 database if it already exists.
-	 * Required for production where resources were created before Alchemy.
-	 */
 	adopt: true,
 })
 

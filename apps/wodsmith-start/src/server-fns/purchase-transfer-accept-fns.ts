@@ -102,9 +102,7 @@ const acceptPurchaseTransferInputSchema = z.object({
  * No auth required — the link itself is the authorization.
  */
 export const getPendingTransferFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
-		getPendingTransferInputSchema.parse(data),
-	)
+	.inputValidator((data: unknown) => getPendingTransferInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		const db = getDb()
 
@@ -251,7 +249,11 @@ export const getPendingTransferFn = createServerFn({ method: "GET" })
 			expiresAt: transfer.expiresAt,
 			targetEmail: transfer.targetEmail,
 			notes: transfer.notes,
-			sourceUser: sourceUser ?? { firstName: null, lastName: null, email: null },
+			sourceUser: sourceUser ?? {
+				firstName: null,
+				lastName: null,
+				email: null,
+			},
 			competition: competition ?? null,
 			division,
 			team,

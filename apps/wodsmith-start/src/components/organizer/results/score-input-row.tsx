@@ -129,9 +129,9 @@ export const ScoreInputRow = forwardRef<
 	// Determine grid columns based on what fields are shown
 	const gridColsClass = (() => {
 		if (showTiebreak) {
-			return "grid-cols-[60px_1fr_2fr_1fr_100px]"
+			return "grid-cols-[40px_1fr] sm:grid-cols-[60px_1fr_2fr_1fr_100px]"
 		}
-		return "grid-cols-[60px_1fr_2fr_100px]"
+		return "grid-cols-[40px_1fr] sm:grid-cols-[60px_1fr_2fr_100px]"
 	})()
 
 	return (
@@ -194,7 +194,7 @@ export const ScoreInputRow = forwardRef<
 			</div>
 
 			{/* Score Input */}
-			<div className="space-y-2">
+			<div className="space-y-2 col-span-full sm:col-span-1 pl-10 sm:pl-0">
 				{/* Pass-Fail Scheme */}
 				{isPassFail ? (
 					<div className="relative">
@@ -419,7 +419,7 @@ export const ScoreInputRow = forwardRef<
 
 			{/* Tie-Break Input */}
 			{showTiebreak && (
-				<div className="space-y-2">
+				<div className="space-y-2 col-span-full sm:col-span-1 pl-10 sm:pl-0">
 					<Input
 						ref={tieBreakInputRef}
 						value={tieBreakValue}
@@ -482,7 +482,7 @@ export const ScoreInputRow = forwardRef<
 			)}
 
 			{/* Status */}
-			<div className="text-center">
+			<div className="col-span-full sm:col-span-1 pl-10 sm:pl-0 sm:text-center">
 				{(() => {
 					// Check if there's any input (for multi-round or single)
 					const hasInput = isMultiRound

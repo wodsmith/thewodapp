@@ -64,6 +64,7 @@ export const Route = createFileRoute("/compete/organizer/$competitionId")({
 })
 
 // Map route paths to breadcrumb labels
+// Note: "results" label is handled dynamically based on competition type
 const routeLabels: Record<string, string> = {
 	divisions: "Divisions",
 	athletes: "Registrations",
@@ -72,9 +73,11 @@ const routeLabels: Record<string, string> = {
 	schedule: "Schedule",
 	locations: "Locations",
 	volunteers: "Volunteers",
-	results: "Results",
+	results: "Results", // Overridden to "Submissions" for online competitions
+	review: "Review",
 	pricing: "Pricing",
 	revenue: "Revenue",
+	coupons: "Coupons",
 	sponsors: "Sponsors",
 	settings: "Settings",
 	edit: "Edit",
@@ -98,7 +101,11 @@ function CompetitionLayout() {
 
 	// Add current page to breadcrumb if not on overview
 	if (lastSegment && lastSegment !== competition.id) {
-		const label = routeLabels[lastSegment] || lastSegment
+		let label = routeLabels[lastSegment] || lastSegment
+		// Show "Submissions" instead of "Results" for online competitions
+		if (lastSegment === "results" && competition.competitionType === "online") {
+			label = "Submissions"
+		}
 		breadcrumbSegments.push({ label })
 	}
 
@@ -110,7 +117,7 @@ function CompetitionLayout() {
 			{entitlements.isPendingApproval && (
 				<PendingOrganizerBanner variant="sidebar-inset" />
 			)}
-			<div className="flex flex-1 flex-col gap-6 p-6">
+			<div className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">
 				{/* Breadcrumb */}
 				<OrganizerBreadcrumb segments={breadcrumbSegments} />
 
@@ -127,6 +134,7 @@ function CompetitionLayout() {
 						registrationClosesAt: competition.registrationClosesAt,
 						visibility: competition.visibility,
 						status: competition.status,
+						groupId: competition.groupId,
 					}}
 				/>
 

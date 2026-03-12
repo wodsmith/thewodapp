@@ -2,7 +2,7 @@
  * Video URL Validation Schema
  *
  * Validates video URLs for online competition submissions.
- * Supports YouTube, Vimeo, and Streamable URL formats with video ID extraction.
+ * Supports YouTube and Vimeo URL formats with video ID extraction.
  */
 
 import { z } from "zod"
@@ -10,7 +10,7 @@ import { z } from "zod"
 /**
  * Supported video platforms
  */
-export const VIDEO_PLATFORMS = ["youtube", "vimeo", "streamable"] as const
+export const VIDEO_PLATFORMS = ["youtube", "vimeo"] as const
 export type VideoPlatform = (typeof VIDEO_PLATFORMS)[number]
 
 /**
@@ -78,21 +78,6 @@ const VIMEO_PATTERNS = [
 ] as const
 
 /**
- * Streamable URL patterns:
- * - streamable.com/VIDEO_ID
- * - www.streamable.com/VIDEO_ID
- * - streamable.com/e/VIDEO_ID (embed URL)
- *
- * Streamable video IDs are alphanumeric, typically 5-7 characters
- */
-const STREAMABLE_PATTERNS = [
-	// Standard URL
-	/^(?:https?:\/\/)?(?:www\.)?streamable\.com\/([a-zA-Z0-9]+)(?:\?.*)?$/,
-	// Embed URL
-	/^(?:https?:\/\/)?(?:www\.)?streamable\.com\/e\/([a-zA-Z0-9]+)(?:\?.*)?$/,
-] as const
-
-/**
  * Extract video ID from YouTube URL
  */
 function extractYouTubeId(url: string): string | null {
@@ -116,19 +101,6 @@ function extractVimeoId(url: string): { id: string; hash?: string } | null {
 				id: match[1],
 				hash: match[2] || undefined,
 			}
-		}
-	}
-	return null
-}
-
-/**
- * Extract video ID from Streamable URL
- */
-function extractStreamableId(url: string): string | null {
-	for (const pattern of STREAMABLE_PATTERNS) {
-		const match = url.match(pattern)
-		if (match?.[1]) {
-			return match[1]
 		}
 	}
 	return null
@@ -171,19 +143,6 @@ export function parseVideoUrl(url: string): ParsedVideoUrl | null {
 		}
 	}
 
-	// Try Streamable
-	const streamableId = extractStreamableId(trimmedUrl)
-	if (streamableId) {
-		return {
-			platform: "streamable",
-			videoId: streamableId,
-			originalUrl: trimmedUrl,
-			embedUrl: `https://streamable.com/e/${streamableId}`,
-			// Streamable thumbnails via their CDN
-			thumbnailUrl: `https://cdn-cf-east.streamable.com/image/${streamableId}.jpg`,
-		}
-	}
-
 	return null
 }
 
@@ -198,7 +157,7 @@ export function isSupportedVideoUrl(url: string): boolean {
  * Get a human-readable list of supported platforms
  */
 export function getSupportedPlatformsText(): string {
-	return "YouTube, Vimeo, or Streamable"
+	return "YouTube or Vimeo"
 }
 
 /**

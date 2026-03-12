@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, Copy, UserPlus, X } from "lucide-react"
+import { Check, Copy, Download, UserPlus, X } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -41,9 +41,12 @@ import {
 	VOLUNTEER_ROLE_TYPE_VALUES,
 	type VolunteerRoleType,
 } from "@/db/schemas/volunteers"
+import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
 import { bulkAssignVolunteerRoleFn } from "@/server-fns/volunteer-fns"
 import { InviteVolunteerDialog } from "./invite-volunteer-dialog"
 import { VolunteerRow } from "./volunteer-row"
+
+type VolunteerAnswer = { id: string; questionId: string; answer: string }
 
 interface VolunteerWithAccess {
 	id: string
@@ -70,6 +73,9 @@ interface VolunteersListProps {
 	organizingTeamId: string
 	invitations: TeamInvitation[]
 	volunteers: VolunteerWithAccess[]
+	volunteerQuestions: RegistrationQuestion[]
+	answersByInvitation: Record<string, VolunteerAnswer[]>
+	emailToInvitationId: Record<string, string>
 	volunteerAssignments: Record<
 		string,
 		{
@@ -108,7 +114,22 @@ export function VolunteersList({
 	invitations,
 	volunteers,
 	volunteerAssignments,
+	volunteerQuestions,
+	answersByInvitation,
+	emailToInvitationId,
 }: VolunteersListProps) {
+	/** Look up answers for a volunteer by invitationId (pending) or user email (approved) */
+	function getAnswersForVolunteer(
+		volunteer: VolunteerWithAccess,
+	): VolunteerAnswer[] {
+		let invitationId: string | undefined
+		if (volunteer.id.startsWith("tinv_")) {
+			invitationId = volunteer.id
+		} else if (volunteer.user?.email) {
+			invitationId = emailToInvitationId[volunteer.user.email.toLowerCase()]
+		}
+		return invitationId ? (answersByInvitation[invitationId] ?? []) : []
+	}
 	const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
 	const [filter, setFilter] = useState<"all" | "pending" | "approved">("all")
 	const [availabilityFilter, setAvailabilityFilter] = useState<string | null>(
@@ -310,6 +331,125 @@ export function VolunteersList({
 		filteredIds.length > 0 && filteredIds.every((id) => selectedIds.has(id))
 	const someSelected = selectedIds.size > 0
 
+	/**
+	 * Export all visible volunteers to CSV, including registration question answers
+	 */
+	const handleExportCSV = () => {
+		const sanitizeCell = (value: string): string => {
+			const escaped = value.replace(/"/g, '""')
+			return /^[=+\-@]/.test(escaped) ? `'${escaped}` : escaped
+		}
+
+		const headers = [
+			"Name",
+			"Email",
+			"Phone",
+			"Status",
+			"Availability",
+			"Credentials",
+			"Notes",
+		]
+		volunteerQuestions.forEach((q) => headers.push(q.label))
+
+		const rows = allItems.map((item) => {
+			let name: string
+			let email: string
+			let phone = ""
+			let status: string
+			let availability = ""
+			let credentials = ""
+			let notes = ""
+			let invitationId: string | undefined
+
+			if (item.type === "invitation") {
+				const inv = item.data
+				let meta: {
+					signupName?: string
+					signupEmail?: string
+					signupPhone?: string
+					status?: string
+					availability?: string
+					credentials?: string
+					availabilityNotes?: string
+				} = {}
+				try {
+					meta = JSON.parse(inv.metadata || "{}") as typeof meta
+				} catch {}
+				name = meta.signupName ?? inv.email
+				email = meta.signupEmail ?? inv.email
+				phone = meta.signupPhone ?? ""
+				status = meta.status ?? "pending"
+				availability = meta.availability ?? ""
+				credentials = meta.credentials ?? ""
+				notes = meta.availabilityNotes ?? ""
+				invitationId = inv.id
+			} else {
+				const vol = item.data
+				let meta: {
+					signupName?: string
+					signupEmail?: string
+					signupPhone?: string
+					status?: string
+					availability?: string
+					credentials?: string
+					availabilityNotes?: string
+				} = {}
+				try {
+					meta = JSON.parse(vol.metadata || "{}") as typeof meta
+				} catch {}
+				name = vol.user
+					? `${vol.user.firstName ?? ""} ${vol.user.lastName ?? ""}`.trim() ||
+						vol.user.email ||
+						""
+					: (meta.signupName ?? "")
+				email = vol.user?.email ?? meta.signupEmail ?? ""
+				phone = meta.signupPhone ?? ""
+				status = "approved"
+				availability = meta.availability ?? ""
+				credentials = meta.credentials ?? ""
+				notes = meta.availabilityNotes ?? ""
+				// For memberships, find invitationId via email
+				if (vol.user?.email) {
+					invitationId = emailToInvitationId[vol.user.email.toLowerCase()]
+				}
+			}
+
+			const row = [name, email, phone, status, availability, credentials, notes]
+
+			volunteerQuestions.forEach((question) => {
+				const volunteerAnswers = invitationId
+					? (answersByInvitation[invitationId] ?? [])
+					: []
+				const answer = volunteerAnswers.find(
+					(a) => a.questionId === question.id,
+				)
+				row.push(answer?.answer ?? "")
+			})
+
+			return row
+		})
+
+		const csvContent = [
+			headers.map((h) => `"${sanitizeCell(h)}"`).join(","),
+			...rows.map((row) =>
+				row.map((cell) => `"${sanitizeCell(String(cell))}"`).join(","),
+			),
+		].join("\n")
+
+		const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+		const link = document.createElement("a")
+		const url = URL.createObjectURL(blob)
+		link.setAttribute("href", url)
+		link.setAttribute(
+			"download",
+			`volunteers-${new Date().toISOString().split("T")[0]}.csv`,
+		)
+		document.body.appendChild(link)
+		link.click()
+		document.body.removeChild(link)
+		URL.revokeObjectURL(url)
+	}
+
 	if (invitations.length === 0 && volunteers.length === 0) {
 		return (
 			<Card>
@@ -319,7 +459,7 @@ export function VolunteersList({
 						No volunteers have been added to this competition yet.
 					</CardDescription>
 				</CardHeader>
-				<CardContent className="flex gap-2">
+				<CardContent className="flex flex-col sm:flex-row gap-2">
 					<Button onClick={() => setInviteDialogOpen(true)}>
 						<UserPlus className="mr-2 h-4 w-4" />
 						Invite Volunteer
@@ -348,7 +488,7 @@ export function VolunteersList({
 		<div className="flex flex-col gap-4">
 			{/* Bulk Action Toolbar */}
 			{someSelected && (
-				<div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-2">
+				<div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/50 p-2">
 					<span className="text-sm font-medium">
 						{selectedIds.size} selected
 					</span>
@@ -377,14 +517,14 @@ export function VolunteersList({
 			)}
 
 			{/* Actions */}
-			<div className="flex items-center justify-end gap-2">
+			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
 				<Select
 					value={availabilityFilter ?? "all"}
 					onValueChange={(value) =>
 						setAvailabilityFilter(value === "all" ? null : value)
 					}
 				>
-					<SelectTrigger className="w-[140px]">
+					<SelectTrigger className="w-full sm:w-[140px]">
 						<SelectValue placeholder="Availability" />
 					</SelectTrigger>
 					<SelectContent>
@@ -400,18 +540,24 @@ export function VolunteersList({
 						</SelectItem>
 					</SelectContent>
 				</Select>
-				<Button variant="outline" onClick={copySignupLink}>
-					{copied ? (
-						<Check className="mr-2 h-4 w-4" />
-					) : (
-						<Copy className="mr-2 h-4 w-4" />
-					)}
-					Copy Signup Link
-				</Button>
-				<Button onClick={() => setInviteDialogOpen(true)}>
-					<UserPlus className="mr-2 h-4 w-4" />
-					Invite Volunteer
-				</Button>
+				<div className="flex flex-wrap gap-2 w-full sm:w-auto">
+					<Button variant="outline" onClick={handleExportCSV} className="flex-1 sm:flex-initial">
+						<Download className="mr-2 h-4 w-4" />
+						Export CSV
+					</Button>
+					<Button variant="outline" onClick={copySignupLink} className="flex-1 sm:flex-initial">
+						{copied ? (
+							<Check className="mr-2 h-4 w-4" />
+						) : (
+							<Copy className="mr-2 h-4 w-4" />
+						)}
+						Copy Signup Link
+					</Button>
+					<Button onClick={() => setInviteDialogOpen(true)} className="flex-1 sm:flex-initial">
+						<UserPlus className="mr-2 h-4 w-4" />
+						Invite Volunteer
+					</Button>
+				</div>
 				<InviteVolunteerDialog
 					competitionId={competitionId}
 					competitionTeamId={competitionTeamId}
@@ -453,8 +599,97 @@ export function VolunteersList({
 				</TabsList>
 
 				<TabsContent value={filter} className="mt-4">
-					<Card>
+					{/* Mobile card view */}
+					<div className="flex flex-col gap-3 md:hidden">
+						{filteredItems.map((item) => {
+							if (item.type === "invitation") {
+								const invitation = item.data
+								let metadata: {
+									signupName?: string
+									signupEmail?: string
+									credentials?: string
+									status?: "pending" | "approved" | "rejected"
+								} = {}
+								try {
+									metadata = invitation.metadata
+										? JSON.parse(invitation.metadata)
+										: {}
+								} catch {
+									// ignore
+								}
+
+								const volunteerItem: VolunteerWithAccess = {
+									id: invitation.id,
+									userId: "",
+									teamId: invitation.teamId,
+									roleId: invitation.roleId,
+									isSystemRole: invitation.isSystemRole,
+									isActive: false,
+									metadata: invitation.metadata,
+									joinedAt: null,
+									createdAt: invitation.createdAt,
+									expiresAt: invitation.expiresAt,
+									invitedAt: null,
+									invitedBy: invitation.invitedBy,
+									user: null,
+									hasScoreAccess: false,
+									status: metadata.status || "pending",
+								}
+
+								return (
+									<VolunteerRow
+										key={`mobile-${invitation.id}`}
+										volunteer={volunteerItem}
+										competitionId={competitionId}
+										competitionTeamId={competitionTeamId}
+										organizingTeamId={organizingTeamId}
+										isSelected={selectedIds.has(invitation.id)}
+										onToggleSelect={(shiftKey) =>
+											toggleSelection(invitation.id, shiftKey)
+										}
+										assignments={
+											volunteerAssignments[invitation.id] || {
+												shifts: [],
+												judgeHeats: [],
+											}
+										}
+										answers={getAnswersForVolunteer(volunteerItem)}
+										questions={volunteerQuestions}
+										variant="card"
+									/>
+								)
+							}
+
+							const volunteer = item.data
+							return (
+								<VolunteerRow
+									key={`mobile-${volunteer.id}`}
+									volunteer={volunteer}
+									competitionId={competitionId}
+									competitionTeamId={competitionTeamId}
+									organizingTeamId={organizingTeamId}
+									isSelected={selectedIds.has(volunteer.id)}
+									onToggleSelect={(shiftKey) =>
+										toggleSelection(volunteer.id, shiftKey)
+									}
+									assignments={
+										volunteerAssignments[volunteer.id] || {
+											shifts: [],
+											judgeHeats: [],
+										}
+									}
+									answers={getAnswersForVolunteer(volunteer)}
+									questions={volunteerQuestions}
+									variant="card"
+								/>
+							)
+						})}
+					</div>
+
+					{/* Desktop table view */}
+					<Card className="hidden md:block">
 						<CardContent className="p-0">
+							<div className="overflow-x-auto">
 							<Table>
 								<TableHeader>
 									<TableRow>
@@ -526,6 +761,8 @@ export function VolunteersList({
 															judgeHeats: [],
 														}
 													}
+													answers={getAnswersForVolunteer(volunteerItem)}
+													questions={volunteerQuestions}
 												/>
 											)
 										}
@@ -548,11 +785,14 @@ export function VolunteersList({
 														judgeHeats: [],
 													}
 												}
+												answers={getAnswersForVolunteer(volunteer)}
+												questions={volunteerQuestions}
 											/>
 										)
 									})}
 								</TableBody>
 							</Table>
+							</div>
 						</CardContent>
 					</Card>
 				</TabsContent>

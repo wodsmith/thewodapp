@@ -193,45 +193,6 @@ describe("Video Validation Server Functions", () => {
 			})
 		})
 
-		describe("Streamable URL validation", () => {
-			it("validates standard Streamable URL", async () => {
-				const result = await validateVideoUrlFn({
-					data: { url: "https://streamable.com/abc123" },
-				})
-				expect(result.isValid).toBe(true)
-				expect(result.platform).toBe("streamable")
-				expect(result.videoId).toBe("abc123")
-				expect(result.embedUrl).toBe("https://streamable.com/e/abc123")
-				expect(result.error).toBeNull()
-			})
-
-			it("validates Streamable URL with www", async () => {
-				const result = await validateVideoUrlFn({
-					data: { url: "https://www.streamable.com/xyz789" },
-				})
-				expect(result.isValid).toBe(true)
-				expect(result.platform).toBe("streamable")
-				expect(result.videoId).toBe("xyz789")
-			})
-
-			it("validates Streamable embed URL", async () => {
-				const result = await validateVideoUrlFn({
-					data: { url: "https://streamable.com/e/abc123" },
-				})
-				expect(result.isValid).toBe(true)
-				expect(result.platform).toBe("streamable")
-				expect(result.videoId).toBe("abc123")
-			})
-
-			it("validates Streamable URL with query params", async () => {
-				const result = await validateVideoUrlFn({
-					data: { url: "https://streamable.com/abc123?autoplay=1" },
-				})
-				expect(result.isValid).toBe(true)
-				expect(result.videoId).toBe("abc123")
-			})
-		})
-
 		describe("Unsupported platforms", () => {
 			it("rejects TikTok URLs", async () => {
 				const result = await validateVideoUrlFn({
@@ -323,26 +284,6 @@ describe("Video Validation Server Functions", () => {
 				expect(result.isAccessible).toBe(true)
 				expect(mockFetch).toHaveBeenCalledWith(
 					expect.stringContaining("vimeo.com/api/oembed"),
-					expect.objectContaining({
-						signal: expect.any(AbortSignal),
-					}),
-				)
-			})
-
-			it("checks Streamable accessibility when requested", async () => {
-				const mockFetch = vi.fn().mockResolvedValue({ ok: true })
-				vi.stubGlobal("fetch", mockFetch)
-
-				const result = await validateVideoUrlFn({
-					data: {
-						url: "https://streamable.com/abc123",
-						checkAccessibility: true,
-					},
-				})
-
-				expect(result.isAccessible).toBe(true)
-				expect(mockFetch).toHaveBeenCalledWith(
-					expect.stringContaining("api.streamable.com/oembed"),
 					expect.objectContaining({
 						signal: expect.any(AbortSignal),
 					}),

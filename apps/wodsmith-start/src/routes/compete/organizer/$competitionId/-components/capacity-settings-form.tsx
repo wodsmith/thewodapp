@@ -93,7 +93,7 @@ export function CapacitySettingsForm({ competition }: Props) {
 							placeholder="Unlimited"
 							value={maxSpots}
 							onChange={(e) => setMaxSpots(e.target.value)}
-							className="w-32"
+							className="w-full sm:w-32"
 						/>
 						<span className="text-sm text-muted-foreground">
 							Leave blank for unlimited
