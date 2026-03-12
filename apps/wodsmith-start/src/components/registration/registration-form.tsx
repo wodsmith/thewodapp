@@ -14,8 +14,6 @@ import {
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { trackEvent } from "@/lib/posthog"
-import { clearCouponSession, getCouponSession } from "@/utils/coupon-cookie"
 import { WaiverViewer } from "@/components/compete/waiver-viewer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -48,13 +46,16 @@ import type {
 	Team,
 	Waiver,
 } from "@/db/schema"
+import { trackEvent } from "@/lib/posthog"
 import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
 import { initiateRegistrationPaymentFn } from "@/server-fns/registration-fns"
 import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
 import { signWaiverFn } from "@/server-fns/waiver-fns"
 import { cn } from "@/utils/cn"
+import { clearCouponSession, getCouponSession } from "@/utils/coupon-cookie"
 import { getLocalDateKey, isSameDateString } from "@/utils/date-utils"
 import { AffiliateCombobox } from "./affiliate-combobox"
+import { DivisionBreakdownDialog } from "./division-breakdown-dialog"
 import { FeeBreakdown } from "./fee-breakdown"
 
 interface Teammate {
@@ -835,6 +836,12 @@ export function RegistrationForm({
 							onToggle={handleDivisionToggle}
 							disabled={isSubmitting || !registrationOpen}
 						/>
+						<div className="mt-2">
+							<DivisionBreakdownDialog
+								scalingLevels={scalingGroup.scalingLevels}
+								publicDivisions={publicDivisions}
+							/>
+						</div>
 						{/* Selected divisions shown as badges */}
 						{hasSelectedDivisions && (
 							<div className="flex flex-wrap gap-1.5 mt-3">
@@ -987,53 +994,59 @@ export function RegistrationForm({
 									</div>
 								)
 							})}
-							{divisionFees.size > 0 && (() => {
-								const subtotal = Array.from(divisionFees.values()).reduce(
-									(sum, c) => sum + c,
-									0,
-								)
-								if (!activeCoupon) {
-									// No coupon — show simple total for multi-division
-									if (selectedDivisionIds.length <= 1) return null
-									return (
-										<div className="flex justify-between font-medium pt-2 border-t">
-											<span>Total</span>
-											<span className="text-lg">
-												${(subtotal / 100).toFixed(2)}
-											</span>
-										</div>
+							{divisionFees.size > 0 &&
+								(() => {
+									const subtotal = Array.from(divisionFees.values()).reduce(
+										(sum, c) => sum + c,
+										0,
 									)
-								}
-								// With coupon — always show subtotal, discount, and adjusted total
-								const discount = Math.min(activeCoupon.amountOffCents, subtotal)
-								const total = subtotal - discount
-								return (
-									<>
-										{selectedDivisionIds.length > 1 && (
-											<div className="flex justify-between text-sm pt-2 border-t">
-												<span>Subtotal</span>
-												<span>${(subtotal / 100).toFixed(2)}</span>
+									if (!activeCoupon) {
+										// No coupon — show simple total for multi-division
+										if (selectedDivisionIds.length <= 1) return null
+										return (
+											<div className="flex justify-between font-medium pt-2 border-t">
+												<span>Total</span>
+												<span className="text-lg">
+													${(subtotal / 100).toFixed(2)}
+												</span>
 											</div>
-										)}
-										<div className={cn(
-											"flex justify-between text-sm text-emerald-700 dark:text-emerald-400",
-											selectedDivisionIds.length <= 1 && "pt-2 border-t",
-										)}>
-											<span className="flex items-center gap-1.5">
-												<Tag className="h-3.5 w-3.5" />
-												Coupon ({activeCoupon.code})
-											</span>
-											<span>-${(discount / 100).toFixed(2)}</span>
-										</div>
-										<div className="flex justify-between font-medium pt-2 border-t">
-											<span>Total</span>
-											<span className="text-lg">
-												${(total / 100).toFixed(2)}
-											</span>
-										</div>
-									</>
-								)
-							})()}
+										)
+									}
+									// With coupon — always show subtotal, discount, and adjusted total
+									const discount = Math.min(
+										activeCoupon.amountOffCents,
+										subtotal,
+									)
+									const total = subtotal - discount
+									return (
+										<>
+											{selectedDivisionIds.length > 1 && (
+												<div className="flex justify-between text-sm pt-2 border-t">
+													<span>Subtotal</span>
+													<span>${(subtotal / 100).toFixed(2)}</span>
+												</div>
+											)}
+											<div
+												className={cn(
+													"flex justify-between text-sm text-emerald-700 dark:text-emerald-400",
+													selectedDivisionIds.length <= 1 && "pt-2 border-t",
+												)}
+											>
+												<span className="flex items-center gap-1.5">
+													<Tag className="h-3.5 w-3.5" />
+													Coupon ({activeCoupon.code})
+												</span>
+												<span>-${(discount / 100).toFixed(2)}</span>
+											</div>
+											<div className="flex justify-between font-medium pt-2 border-t">
+												<span>Total</span>
+												<span className="text-lg">
+													${(total / 100).toFixed(2)}
+												</span>
+											</div>
+										</>
+									)
+								})()}
 						</CardContent>
 					</Card>
 				)}
