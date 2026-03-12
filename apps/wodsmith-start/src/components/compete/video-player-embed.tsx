@@ -4,8 +4,7 @@
  * Unified Video Player Embed
  *
  * Platform-aware video player supporting YouTube and Vimeo with interactive
- * playback controls (seek, getCurrentTime). Streamable renders as a basic
- * embed without interactive controls.
+ * playback controls (seek, getCurrentTime).
  */
 
 import { ExternalLink } from "lucide-react"
@@ -209,42 +208,12 @@ function VimeoPlayer({
 	)
 }
 
-// ── Basic iframe embed (Streamable / fallback) ───────────────────────
-
-function BasicEmbed({
-	embedUrl,
-	className,
-	title,
-}: {
-	embedUrl: string
-	className?: string
-	title?: string
-}) {
-	return (
-		<div
-			className={cn(
-				"relative aspect-video w-full overflow-hidden rounded-lg bg-black",
-				className,
-			)}
-		>
-			<iframe
-				src={embedUrl}
-				title={title || "Video player"}
-				allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-				allowFullScreen
-				className="absolute inset-0 h-full w-full"
-				loading="lazy"
-			/>
-		</div>
-	)
-}
 
 // ── Unified component ────────────────────────────────────────────────
 
 export function VideoPlayerEmbed({
 	url,
 	className,
-	title,
 	onPlayerReady,
 }: VideoPlayerEmbedProps) {
 	const parsed = parseVideoUrl(url)
@@ -288,15 +257,7 @@ export function VideoPlayerEmbed({
 					onPlayerReady={onPlayerReady}
 				/>
 			)
-		case "streamable":
-			return (
-				<BasicEmbed
-					embedUrl={parsed.embedUrl}
-					className={className}
-					title={title}
-				/>
-			)
-	}
+		}
 }
 
 /**
@@ -318,7 +279,5 @@ export function getVideoPlatformName(url: string): string | null {
 			return "YouTube"
 		case "vimeo":
 			return "Vimeo"
-		case "streamable":
-			return "Streamable"
-	}
+		}
 }

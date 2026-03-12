@@ -27,6 +27,7 @@ import { userTable } from "./users"
  * - verified: Score has been confirmed as correct
  * - adjusted: Score was modified during review
  * - penalized: Penalties were applied to the submission
+ * - invalid: Submission cannot be scored (wrong movement, edited video, etc.)
  */
 export const reviewStatuses = [
 	"pending",
@@ -34,6 +35,7 @@ export const reviewStatuses = [
 	"verified",
 	"adjusted",
 	"penalized",
+	"invalid",
 ] as const
 export type ReviewStatus = (typeof reviewStatuses)[number]
 

@@ -1,7 +1,7 @@
 /**
  * Video Embed Component
  *
- * Renders an embedded video player for YouTube, Vimeo, or Streamable URLs.
+ * Renders an embedded video player for YouTube or Vimeo URLs.
  * Uses the shared parseVideoUrl parser from @/schemas/video-url.
  */
 
@@ -116,7 +116,7 @@ export function VideoThumbnail({
 		)
 	}
 
-	// Vimeo/Streamable placeholder
+	// Vimeo placeholder
 	return (
 		<div
 			className={`bg-muted flex items-center justify-center rounded ${className}`}

@@ -22,6 +22,7 @@ vi.mock("lucide-react", () => {
 		)
 	return {
 		AlertTriangle: icon("alert-triangle"),
+		Ban: icon("ban"),
 		Calendar: icon("calendar"),
 		CheckCircle2: icon("check-circle"),
 		Clock: icon("clock"),

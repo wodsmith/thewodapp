@@ -5,8 +5,10 @@ import {
 	type ColumnDef,
 	flexRender,
 	getCoreRowModel,
+	getExpandedRowModel,
 	getSortedRowModel,
 	type HeaderContext,
+	type Row,
 	type SortingState,
 	useReactTable,
 } from "@tanstack/react-table"
@@ -18,19 +20,15 @@ import {
 	ChevronDown,
 	Medal,
 	Trophy,
+	Video,
 } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { Fragment, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
 	Collapsible,
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from "@/components/ui/popover"
 import {
 	Select,
 	SelectContent,
@@ -46,6 +44,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
+import { VideoEmbed } from "@/components/video-embed"
 import { getSortDirection } from "@/lib/scoring"
 import type { WorkoutScheme } from "@/lib/scoring/types"
 import { cn } from "@/lib/utils"
@@ -62,7 +61,7 @@ type LeaderboardHeaderContext = HeaderContext<
 	unknown
 >
 
-interface CompetitionLeaderboardTableProps {
+interface OnlineCompetitionLeaderboardTableProps {
 	leaderboard: CompetitionLeaderboardEntry[]
 	events: Array<{
 		id: string
@@ -70,7 +69,7 @@ interface CompetitionLeaderboardTableProps {
 		trackOrder: number
 		scheme: string
 	}>
-	selectedEventId: string | null // null = overall view
+	selectedEventId: string | null
 	scoringAlgorithm: ScoringAlgorithm
 }
 
@@ -112,25 +111,23 @@ function RankCell({ rank, points }: { rank: number; points?: number }) {
 	)
 }
 
-/**
- * Format points display based on scoring algorithm
- * - Online scoring: show raw points (lower is better)
- * - P-Score: show raw points (can be negative)
- * - Other algorithms: show "+points" for positive (higher is better)
- */
 function formatPoints(points: number, algorithm: ScoringAlgorithm): string {
-	// Online and p_score show raw points
 	if (algorithm === "online" || algorithm === "p_score") {
 		return String(points)
 	}
-	// Don't add + to negative numbers
 	if (points < 0) {
 		return String(points)
 	}
 	return `+${points}`
 }
 
-/** Clickable icon for any score modification (penalty or direct adjust) */
+function formatMemberName(member: TeamMemberInfo): string {
+	const name =
+		`${member.firstName || ""} ${member.lastName || ""}`.trim() || "Unknown"
+	return member.isCaptain ? `${name} (C)` : name
+}
+
+/** Subtle warning icon indicating a penalty or score adjustment */
 function PenaltyIndicator({
 	result,
 }: {
@@ -139,61 +136,44 @@ function PenaltyIndicator({
 	if (!result.penaltyType && !result.isDirectlyModified) return null
 
 	const label = result.penaltyType
-		? `${result.penaltyType === "major" ? "Major" : "Minor"} Penalty`
+		? `${result.penaltyType === "major" ? "Major" : "Minor"} Penalty${result.penaltyPercentage != null ? ` (${result.penaltyPercentage}%)` : ""}`
 		: "Score Adjusted"
 
-	const detail = result.penaltyPercentage != null
-		? `${result.penaltyPercentage}% deduction applied`
-		: "This score was modified by an organizer."
-
 	return (
-		<Popover>
-			<PopoverTrigger asChild>
-				<button
-					type="button"
-					className="inline-flex items-center text-muted-foreground hover:text-foreground"
-					aria-label={label}
-				>
-					<AlertTriangle className="h-3 w-3" />
-				</button>
-			</PopoverTrigger>
-			<PopoverContent className="w-auto max-w-[220px] p-3">
-				<p className="text-sm font-medium">{label}</p>
-				<p className="text-xs text-muted-foreground mt-1">{detail}</p>
-			</PopoverContent>
-		</Popover>
+		<span title={label}>
+			<AlertTriangle className="h-3 w-3 text-muted-foreground" />
+		</span>
 	)
 }
 
-function EventResultCell({
-	result,
-	scoringAlgorithm,
-}: {
-	result: CompetitionLeaderboardEntry["eventResults"][number]
-	scoringAlgorithm: ScoringAlgorithm
-}) {
-	if (result.rank === 0) {
-		return <span className="text-muted-foreground italic">—</span>
+
+function TeamCell({ entry }: { entry: CompetitionLeaderboardEntry }) {
+	if (!entry.isTeamDivision) {
+		return (
+			<div className="flex flex-col gap-0.5">
+				<span className="font-medium">{entry.athleteName}</span>
+				{entry.affiliate && (
+					<span className="text-[10px] text-muted-foreground leading-tight">
+						{entry.affiliate}
+					</span>
+				)}
+			</div>
+		)
 	}
 
 	return (
 		<div className="flex flex-col gap-0.5">
-			{/* Primary: Score value - medium weight for emphasis */}
-			<span className="font-medium tabular-nums inline-flex items-center gap-1">
-				{result.formattedScore}
-				<PenaltyIndicator result={result} />
-				{result.formattedTiebreak && (
-					<span className="text-muted-foreground font-normal ml-1">
-						(TB: {result.formattedTiebreak})
-					</span>
-				)}
-			</span>
-			{/* Secondary: Rank & points - lighter, smaller */}
-			<span className="text-xs text-muted-foreground tabular-nums">
-				<span className="font-medium">#{result.rank}</span>
-				<span className="mx-1">·</span>
-				<span>{formatPoints(result.points, scoringAlgorithm)}</span>
-			</span>
+			<span className="font-medium">{entry.teamName || "Unknown Team"}</span>
+			{entry.affiliate && (
+				<span className="text-[10px] text-muted-foreground leading-tight">
+					{entry.affiliate}
+				</span>
+			)}
+			{entry.teamMembers.length > 0 && (
+				<span className="text-[10px] text-muted-foreground leading-tight">
+					{entry.teamMembers.map((m) => formatMemberName(m)).join(", ")}
+				</span>
+			)}
 		</div>
 	)
 }
@@ -226,47 +206,81 @@ function SortableHeader({
 	)
 }
 
-/** Format member name with optional captain indicator */
-function formatMemberName(member: TeamMemberInfo): string {
-	const name =
-		`${member.firstName || ""} ${member.lastName || ""}`.trim() || "Unknown"
-	return member.isCaptain ? `${name} (C)` : name
-}
-
-/** Team cell for team divisions - shows team name with members underneath */
-function TeamCell({ entry }: { entry: CompetitionLeaderboardEntry }) {
-	if (!entry.isTeamDivision) {
-		return (
-			<div className="flex flex-col gap-0.5">
-				<span className="font-medium">{entry.athleteName}</span>
-				{entry.affiliate && (
-					<span className="text-[10px] text-muted-foreground leading-tight">
-						{entry.affiliate}
-					</span>
-				)}
-			</div>
-		)
-	}
-
-	return (
-		<div className="flex flex-col gap-0.5">
-			<span className="font-medium">{entry.teamName || "Unknown Team"}</span>
-			{entry.affiliate && (
-				<span className="text-[10px] text-muted-foreground leading-tight">
-					{entry.affiliate}
-				</span>
-			)}
-			{entry.teamMembers.length > 0 && (
-				<span className="text-[10px] text-muted-foreground leading-tight">
-					{entry.teamMembers.map((m) => formatMemberName(m)).join(", ")}
-				</span>
-			)}
-		</div>
+/** Check if an entry has expandable content (videos or penalties) */
+function hasExpandableContent(entry: CompetitionLeaderboardEntry): boolean {
+	return entry.eventResults.some(
+		(r) => r.videoUrl || r.penaltyType || r.isDirectlyModified,
 	)
 }
 
-/** Mobile expandable row for leaderboard */
-function MobileLeaderboardRow({
+/** Desktop expanded row showing videos and penalty details */
+function ExpandedVideoRow({
+	row,
+	selectedEventId,
+	columnsCount,
+}: {
+	row: Row<CompetitionLeaderboardEntry>
+	selectedEventId: string | null
+	columnsCount: number
+}) {
+	const entry = row.original
+
+	const resultsToShow = selectedEventId
+		? entry.eventResults.filter(
+				(r) =>
+					r.trackWorkoutId === selectedEventId &&
+					(r.videoUrl || r.penaltyType || r.isDirectlyModified),
+			)
+		: entry.eventResults.filter(
+				(r) => r.videoUrl || r.penaltyType || r.isDirectlyModified,
+			)
+
+	if (resultsToShow.length === 0) return null
+
+	return (
+		<TableRow className="table-row bg-muted/30 hover:bg-muted/30">
+			<TableCell colSpan={columnsCount} className="table-cell p-4">
+				<div
+					className={cn(
+						"grid gap-4",
+						resultsToShow.length === 1
+							? "max-w-2xl"
+							: "grid-cols-1 md:grid-cols-2",
+					)}
+				>
+					{resultsToShow.map((result) => (
+						<div key={result.trackWorkoutId} className="space-y-2">
+							{!selectedEventId && (
+								<span className="text-sm font-medium text-muted-foreground block">
+									{result.eventName}
+								</span>
+							)}
+							{result.penaltyType && (
+								<div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+									<AlertTriangle className="h-3 w-3" />
+									{result.penaltyType === "major" ? "Major" : "Minor"} Penalty
+									{result.penaltyPercentage != null && ` · ${result.penaltyPercentage}% deduction`}
+								</div>
+							)}
+							{!result.penaltyType && result.isDirectlyModified && (
+								<div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+									<AlertTriangle className="h-3 w-3" />
+									Score adjusted by organizer
+								</div>
+							)}
+							{result.videoUrl && (
+								<VideoEmbed url={result.videoUrl} />
+							)}
+						</div>
+					))}
+				</div>
+			</TableCell>
+		</TableRow>
+	)
+}
+
+/** Mobile expandable row for online leaderboard */
+function MobileOnlineLeaderboardRow({
 	entry,
 	events,
 	scoringAlgorithm,
@@ -284,7 +298,6 @@ function MobileLeaderboardRow({
 	const icon = getRankIcon(entry.overallRank)
 	const isPodium = entry.overallRank <= 3
 
-	// Sort events by trackOrder - memoized to avoid re-sorting on every render
 	const sortedEvents = useMemo(
 		() => [...events].sort((a, b) => a.trackOrder - b.trackOrder),
 		[events],
@@ -297,7 +310,6 @@ function MobileLeaderboardRow({
 					type="button"
 					className="w-full flex items-center gap-3 p-3 border-b hover:bg-muted/50 transition-colors text-left"
 				>
-					{/* Rank with icon */}
 					<div className="flex items-center gap-1.5 w-12 shrink-0">
 						{icon}
 						<span
@@ -310,14 +322,12 @@ function MobileLeaderboardRow({
 						</span>
 					</div>
 
-					{/* Points */}
 					<div className="w-14 shrink-0">
 						<span className="text-xs text-muted-foreground tabular-nums">
 							{entry.totalPoints} pts
 						</span>
 					</div>
 
-					{/* Athlete/Team name - takes remaining space, right-aligned */}
 					<div className="flex-1 min-w-0 text-right">
 						{entry.isTeamDivision ? (
 							<>
@@ -351,7 +361,13 @@ function MobileLeaderboardRow({
 						)}
 					</div>
 
-					{/* Expand indicator */}
+					{entry.eventResults.some((r) => r.videoUrl) && (
+						<Video className="h-4 w-4 text-muted-foreground shrink-0" />
+					)}
+					{entry.eventResults.some((r) => r.penaltyType || r.isDirectlyModified) && (
+						<AlertTriangle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+					)}
+
 					<ChevronDown
 						className={cn(
 							"h-4 w-4 text-muted-foreground shrink-0 transition-transform",
@@ -362,7 +378,8 @@ function MobileLeaderboardRow({
 			</CollapsibleTrigger>
 
 			<CollapsibleContent>
-				<div className="bg-muted/30 px-3 py-2 border-b">
+				<div className="bg-muted/30 px-3 py-2 border-b space-y-3">
+					{/* Event scores */}
 					<div className="grid grid-cols-2 gap-x-4 gap-y-2">
 						{sortedEvents.map((event) => {
 							const result = entry.eventResults.find(
@@ -375,9 +392,8 @@ function MobileLeaderboardRow({
 									</span>
 									{result && result.rank > 0 ? (
 										<div className="flex flex-col gap-0.5">
-											<span className="font-medium tabular-nums inline-flex items-center gap-1">
+											<span className="font-medium tabular-nums">
 												{result.formattedScore}
-												<PenaltyIndicator result={result} />
 												{result.formattedTiebreak && (
 													<span className="text-muted-foreground font-normal ml-1">
 														(TB: {result.formattedTiebreak})
@@ -388,6 +404,19 @@ function MobileLeaderboardRow({
 												#{result.rank}{" "}
 												{formatPoints(result.points, scoringAlgorithm)}
 											</span>
+											{result.penaltyType && (
+												<span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
+													<AlertTriangle className="h-2.5 w-2.5" />
+													{result.penaltyType === "major" ? "Major" : "Minor"} Penalty
+													{result.penaltyPercentage != null && ` · ${result.penaltyPercentage}% deduction`}
+												</span>
+											)}
+											{!result.penaltyType && result.isDirectlyModified && (
+												<span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
+													<AlertTriangle className="h-2.5 w-2.5" />
+													Score adjusted by organizer
+												</span>
+											)}
 										</div>
 									) : (
 										<span className="text-muted-foreground italic">—</span>
@@ -396,39 +425,46 @@ function MobileLeaderboardRow({
 							)
 						})}
 					</div>
+
+					{/* Video embeds */}
+					{entry.eventResults
+						.filter((r) => r.videoUrl)
+						.map((result) => (
+							<div key={result.trackWorkoutId} className="space-y-1">
+								<span className="text-xs font-medium text-muted-foreground">
+									{result.eventName} Video
+								</span>
+								<VideoEmbed url={result.videoUrl} />
+							</div>
+						))}
 				</div>
 			</CollapsibleContent>
 		</Collapsible>
 	)
 }
 
-export function CompetitionLeaderboardTable({
+export function OnlineCompetitionLeaderboardTable({
 	leaderboard,
 	events,
 	selectedEventId,
 	scoringAlgorithm,
-}: CompetitionLeaderboardTableProps) {
-	// Compute the correct default sort column based on view mode
+}: OnlineCompetitionLeaderboardTableProps) {
 	const defaultSortColumn = selectedEventId ? "eventRank" : "overallRank"
 
 	const [sorting, setSorting] = useState<SortingState>([
 		{ id: defaultSortColumn, desc: false },
 	])
 
-	// Reset sorting when view changes between overall and single event
 	useEffect(() => {
-		// Ensure sorting column exists in current view
 		const validSortColumn = selectedEventId ? "eventRank" : "overallRank"
 		setSorting([{ id: validSortColumn, desc: false }])
 	}, [selectedEventId])
 
-	// Transform data for single event view
 	const tableData = useMemo(() => {
 		if (!selectedEventId) {
 			return leaderboard
 		}
 
-		// For single event view, sort by that event's rank
 		return [...leaderboard].sort((a, b) => {
 			const aResult = a.eventResults.find(
 				(r) => r.trackWorkoutId === selectedEventId,
@@ -437,7 +473,6 @@ export function CompetitionLeaderboardTable({
 				(r) => r.trackWorkoutId === selectedEventId,
 			)
 
-			// No result sorts to bottom
 			if (!aResult || aResult.rank === 0) return 1
 			if (!bResult || bResult.rank === 0) return -1
 
@@ -445,26 +480,46 @@ export function CompetitionLeaderboardTable({
 		})
 	}, [leaderboard, selectedEventId])
 
-	// Determine if this is a team division leaderboard
 	const isTeamLeaderboard = useMemo(
 		() => leaderboard.some((entry) => entry.isTeamDivision),
 		[leaderboard],
 	)
 
-	// Show affiliate column only when at least one entry has an affiliate
 	const hasAffiliates = useMemo(
 		() => leaderboard.some((entry) => entry.affiliate),
 		[leaderboard],
 	)
 
-	// Build columns dynamically based on view mode
 	const columns = useMemo<ColumnDef<CompetitionLeaderboardEntry>[]>(() => {
-		// Column header label: "Team" for team divisions, "Athlete" for individual
 		const athleteColumnLabel = isTeamLeaderboard ? "Team" : "Athlete"
 
 		if (selectedEventId) {
-			// Single event view
 			return [
+				{
+					id: "expand",
+					header: "",
+					cell: ({ row }: LeaderboardCellContext) => {
+						const result = row.original.eventResults.find(
+							(r) => r.trackWorkoutId === selectedEventId,
+						)
+						if (!result?.videoUrl) return null
+						return (
+							<button
+								type="button"
+								className="p-1 hover:bg-muted rounded transition-colors"
+								onClick={() => row.toggleExpanded()}
+							>
+								<ChevronDown
+									className={cn(
+										"h-4 w-4 text-muted-foreground transition-transform",
+										row.getIsExpanded() && "rotate-180",
+									)}
+								/>
+							</button>
+						)
+					},
+					size: 40,
+				},
 				{
 					id: "eventRank",
 					header: "Rank",
@@ -472,7 +527,6 @@ export function CompetitionLeaderboardTable({
 						const result = row.eventResults.find(
 							(r) => r.trackWorkoutId === selectedEventId,
 						)
-						// No result or rank 0 sorts to bottom
 						return result?.rank && result.rank > 0 ? result.rank : 999
 					},
 					cell: ({ row }: LeaderboardCellContext) => {
@@ -537,11 +591,45 @@ export function CompetitionLeaderboardTable({
 						)
 					},
 				},
+				{
+					id: "video",
+					header: "",
+					cell: ({ row }: LeaderboardCellContext) => {
+						const result = row.original.eventResults.find(
+							(r) => r.trackWorkoutId === selectedEventId,
+						)
+						if (!result?.videoUrl) return null
+						return <Video className="h-4 w-4 text-muted-foreground" />
+					},
+					size: 40,
+				},
 			]
 		}
 
-		// Overall view with all events
+		// Overall view
 		const baseColumns: ColumnDef<CompetitionLeaderboardEntry>[] = [
+			{
+				id: "expand",
+				header: "",
+				cell: ({ row }: LeaderboardCellContext) => {
+					if (!hasExpandableContent(row.original)) return null
+					return (
+						<button
+							type="button"
+							className="p-1 hover:bg-muted rounded transition-colors"
+							onClick={() => row.toggleExpanded()}
+						>
+							<ChevronDown
+								className={cn(
+									"h-4 w-4 text-muted-foreground transition-transform",
+									row.getIsExpanded() && "rotate-180",
+								)}
+							/>
+						</button>
+					)
+				},
+				size: 40,
+			},
 			{
 				id: "overallRank",
 				header: ({ column }: LeaderboardHeaderContext) => (
@@ -583,7 +671,6 @@ export function CompetitionLeaderboardTable({
 			})
 		}
 
-		// Add event columns sorted by trackOrder
 		const sortedEvents = [...events].sort((a, b) => a.trackOrder - b.trackOrder)
 
 		for (const event of sortedEvents) {
@@ -591,28 +678,44 @@ export function CompetitionLeaderboardTable({
 				id: `event-${event.id}`,
 				header: ({ column }: LeaderboardHeaderContext) => (
 					<SortableHeader column={column}>
-						{event.name}
+						<span className="truncate max-w-[100px]" title={event.name}>
+							{event.name}
+						</span>
 					</SortableHeader>
 				),
 				accessorFn: (row: CompetitionLeaderboardEntry) => {
 					const result = row.eventResults.find(
 						(r) => r.trackWorkoutId === event.id,
 					)
-					// No result or rank 0 sorts to bottom
 					return result?.rank && result.rank > 0 ? result.rank : 999
 				},
 				cell: ({ row }: LeaderboardCellContext) => {
 					const result = row.original.eventResults.find(
 						(r) => r.trackWorkoutId === event.id,
 					)
-					if (!result) {
+					if (!result || result.rank === 0) {
 						return <span className="text-muted-foreground">-</span>
 					}
 					return (
-						<EventResultCell
-							result={result}
-							scoringAlgorithm={scoringAlgorithm}
-						/>
+						<div className="flex flex-col gap-0.5">
+							<span className="font-medium tabular-nums inline-flex items-center gap-1">
+								{result.formattedScore}
+								<PenaltyIndicator result={result} />
+								{result.formattedTiebreak && (
+									<span className="text-muted-foreground font-normal ml-1">
+										(TB: {result.formattedTiebreak})
+									</span>
+								)}
+							</span>
+							<div className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
+								<span className="font-medium">#{result.rank}</span>
+								<span>·</span>
+								<span>{formatPoints(result.points, scoringAlgorithm)}</span>
+								{result.videoUrl && (
+									<Video className="h-3 w-3 ml-0.5" />
+								)}
+							</div>
+						</div>
 					)
 				},
 				sortingFn: "basic",
@@ -622,15 +725,12 @@ export function CompetitionLeaderboardTable({
 		return baseColumns
 	}, [events, selectedEventId, isTeamLeaderboard, hasAffiliates, scoringAlgorithm])
 
-	// Ensure sorting state only references columns that exist
-	// This prevents errors when switching between overall and single event views
 	const validatedSorting = useMemo<SortingState>(() => {
 		const columnIds = new Set(
 			columns.map((c) => c.id).filter((id): id is string => Boolean(id)),
 		)
 		const validSorting = sorting.filter((s) => columnIds.has(s.id))
 
-		// If no valid sorting, use default for current view
 		if (validSorting.length === 0) {
 			const defaultColumn = selectedEventId ? "eventRank" : "overallRank"
 			return [{ id: defaultColumn, desc: false }]
@@ -644,16 +744,17 @@ export function CompetitionLeaderboardTable({
 		columns,
 		getCoreRowModel: getCoreRowModel(),
 		getSortedRowModel: getSortedRowModel(),
+		getExpandedRowModel: getExpandedRowModel(),
 		state: { sorting: validatedSorting },
 		onSortingChange: setSorting,
+		getRowCanExpand: (row) => hasExpandableContent(row.original),
 	})
 
-	// Build sort options for mobile (include scheme for smart defaults)
+	// Mobile sort options
 	const sortOptions = useMemo(() => {
 		const options: Array<{ id: string; label: string; scheme?: string }> = []
 
 		if (selectedEventId) {
-			// Single event view - rank is the primary sort
 			const selectedEvent = events.find((e) => e.id === selectedEventId)
 			options.push({ id: "eventRank", label: "Rank" })
 			options.push({ id: "athlete", label: "Athlete" })
@@ -663,10 +764,8 @@ export function CompetitionLeaderboardTable({
 				scheme: selectedEvent?.scheme,
 			})
 		} else {
-			// Overall view - rank (by points) is the primary sort
 			options.push({ id: "overallRank", label: "Rank" })
 			options.push({ id: "athlete", label: "Athlete" })
-			// Add event columns with their schemes
 			for (const event of events) {
 				options.push({
 					id: `event-${event.id}`,
@@ -684,25 +783,20 @@ export function CompetitionLeaderboardTable({
 	const currentSortDesc = validatedSorting[0]?.desc ?? false
 
 	const handleSortChange = (columnId: string) => {
-		// If clicking the same column, toggle direction
 		if (columnId === currentSortId) {
 			setSorting([{ id: columnId, desc: !currentSortDesc }])
 		} else {
-			// New column - determine default based on type
-			let defaultDesc = true // Default: descending (higher is better)
+			let defaultDesc = true
 
 			if (columnId.includes("Rank")) {
-				// Rank: ascending (1st place first)
 				defaultDesc = false
 			} else if (columnId === "athlete") {
-				// Athlete: alphabetical ascending
 				defaultDesc = false
 			} else if (columnId === "score" || columnId.startsWith("event-")) {
-				// Score/Event: check scheme - time-based is ascending (lower is better)
 				const option = sortOptions.find((o) => o.id === columnId)
 				if (option?.scheme) {
 					const sortDirection = getSortDirection(option.scheme as WorkoutScheme)
-					defaultDesc = sortDirection === "desc" // desc = higher is better
+					defaultDesc = sortDirection === "desc"
 				}
 			}
 
@@ -716,9 +810,8 @@ export function CompetitionLeaderboardTable({
 
 	return (
 		<div>
-			{/* Mobile view - expandable list */}
+			{/* Mobile view */}
 			<div className="md:hidden">
-				{/* Mobile sort controls */}
 				<div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/20">
 					<span className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground/70 shrink-0">
 						Sort
@@ -750,7 +843,6 @@ export function CompetitionLeaderboardTable({
 					</Button>
 				</div>
 
-				{/* Mobile list */}
 				{tableData.length === 0 ? (
 					<div className="p-8 text-center text-muted-foreground">
 						No results yet
@@ -758,7 +850,7 @@ export function CompetitionLeaderboardTable({
 				) : (
 					<div>
 						{tableData.map((entry) => (
-							<MobileLeaderboardRow
+							<MobileOnlineLeaderboardRow
 								key={entry.registrationId}
 								entry={entry}
 								events={events}
@@ -769,14 +861,21 @@ export function CompetitionLeaderboardTable({
 				)}
 			</div>
 
-			{/* Desktop view - full table */}
+			{/* Desktop view */}
 			<div className="hidden md:block">
 				<Table>
 					<TableHeader>
 						{table.getHeaderGroups().map((headerGroup) => (
 							<TableRow key={headerGroup.id} className="table-row">
 								{headerGroup.headers.map((header) => (
-									<TableHead key={header.id}>
+									<TableHead
+										key={header.id}
+										style={
+											header.column.getSize() !== 150
+												? { width: header.column.getSize() }
+												: undefined
+										}
+									>
 										{header.isPlaceholder
 											? null
 											: flexRender(
@@ -800,16 +899,37 @@ export function CompetitionLeaderboardTable({
 							</TableRow>
 						) : (
 							table.getRowModel().rows.map((row) => (
-								<TableRow key={row.id} className="table-row">
-									{row.getVisibleCells().map((cell) => (
-										<TableCell key={cell.id} className="table-cell">
-											{flexRender(
-												cell.column.columnDef.cell,
-												cell.getContext(),
-											)}
-										</TableCell>
-									))}
-								</TableRow>
+								<Fragment key={row.id}>
+									<TableRow
+										key={row.id}
+										className={cn(
+											"table-row",
+											row.getIsExpanded() && "border-b-0",
+											hasExpandableContent(row.original) && "cursor-pointer",
+										)}
+										onClick={() => {
+											if (hasExpandableContent(row.original)) {
+												row.toggleExpanded()
+											}
+										}}
+									>
+										{row.getVisibleCells().map((cell) => (
+											<TableCell key={cell.id} className="table-cell">
+												{flexRender(
+													cell.column.columnDef.cell,
+													cell.getContext(),
+												)}
+											</TableCell>
+										))}
+									</TableRow>
+									{row.getIsExpanded() && (
+										<ExpandedVideoRow
+											row={row}
+											selectedEventId={selectedEventId}
+											columnsCount={columns.length}
+										/>
+									)}
+								</Fragment>
 							))
 						)}
 					</TableBody>
