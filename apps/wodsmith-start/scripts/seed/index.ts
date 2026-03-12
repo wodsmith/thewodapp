@@ -27,6 +27,8 @@ import { seed as seedProgramming } from "./seeders/10-programming"
 import { seed as seedCompetition } from "./seeders/11-competition"
 import { seed as seedResults } from "./seeders/12-results"
 import { seed as seedOrganizer } from "./seeders/13-organizer"
+import { seed as seedSeriesLeaderboard } from "./seeders/14-series-leaderboard"
+import { seed as seedVideoSubmissions } from "./seeders/14-video-submissions"
 
 const seeders = [
 	{ name: "01-global-defaults", fn: seedGlobalDefaults },
@@ -42,6 +44,8 @@ const seeders = [
 	{ name: "11-competition", fn: seedCompetition },
 	{ name: "12-results", fn: seedResults },
 	{ name: "13-organizer", fn: seedOrganizer },
+	{ name: "14-series-leaderboard", fn: seedSeriesLeaderboard },
+	{ name: "14-video-submissions", fn: seedVideoSubmissions },
 ]
 
 async function main() {

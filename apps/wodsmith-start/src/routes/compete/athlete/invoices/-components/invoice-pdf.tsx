@@ -170,8 +170,11 @@ type InvoicePDFProps = {
 }
 
 export function InvoicePDF({ invoice }: InvoicePDFProps) {
-	const registrationFee =
-		invoice.totalCents - invoice.platformFeeCents - invoice.stripeFeeCents
+	const hasMultipleItems = invoice.lineItems.length > 1
+	const subtotalCents = invoice.lineItems.reduce(
+		(sum, li) => sum + li.totalCents,
+		0,
+	)
 
 	const getBadgeStyle = () => {
 		switch (invoice.status) {
@@ -251,40 +254,67 @@ export function InvoicePDF({ invoice }: InvoicePDFProps) {
 				<View style={styles.section}>
 					<Text style={styles.sectionTitle}>Items</Text>
 
-					{/* Registration Fee */}
-					<View style={styles.lineItem}>
-						<Text>{invoice.product.name}</Text>
-						<Text>{formatCurrency(registrationFee)}</Text>
-					</View>
+					{invoice.lineItems.map((item) => (
+						<View key={item.purchaseId} style={{ marginBottom: 8 }}>
+							{hasMultipleItems && item.divisionLabel && (
+								<Text style={{ fontWeight: "bold", fontSize: 10, marginBottom: 4 }}>
+									{item.divisionLabel}
+								</Text>
+							)}
 
-					{/* Platform Fee */}
-					{invoice.platformFeeCents > 0 && (
-						<View style={styles.lineItem}>
-							<Text style={styles.lineItemFee}>Platform Fee</Text>
-							<Text style={styles.lineItemFee}>
-								{formatCurrency(invoice.platformFeeCents)}
-							</Text>
-						</View>
-					)}
+							<View style={styles.lineItem}>
+								<Text>{hasMultipleItems ? "Registration Fee" : invoice.product.name}</Text>
+								<Text>{formatCurrency(item.registrationFeeCents)}</Text>
+							</View>
 
-					{/* Payment Processing Fee */}
-					{invoice.stripeFeeCents > 0 && (
-						<View style={styles.lineItem}>
-							<Text style={styles.lineItemFee}>Payment Processing Fee</Text>
-							<Text style={styles.lineItemFee}>
-								{formatCurrency(invoice.stripeFeeCents)}
-							</Text>
+							{item.platformFeeCents > 0 && (
+								<View style={styles.lineItem}>
+									<Text style={styles.lineItemFee}>Platform Fee</Text>
+									<Text style={styles.lineItemFee}>
+										{formatCurrency(item.platformFeeCents)}
+									</Text>
+								</View>
+							)}
+
+							{item.stripeFeeCents > 0 && (
+								<View style={styles.lineItem}>
+									<Text style={styles.lineItemFee}>Processing Fee</Text>
+									<Text style={styles.lineItemFee}>
+										{formatCurrency(item.stripeFeeCents)}
+									</Text>
+								</View>
+							)}
 						</View>
-					)}
+					))}
 				</View>
 
 				<View style={styles.divider} />
 
-				{/* Total */}
-				<View style={styles.total}>
-					<Text>Total</Text>
-					<Text>{formatCurrency(invoice.totalCents)}</Text>
-				</View>
+				{/* Subtotal + Coupon + Total */}
+				{invoice.coupon ? (
+					<View>
+						<View style={styles.lineItem}>
+							<Text style={{ fontWeight: "bold" }}>Subtotal</Text>
+							<Text style={{ fontWeight: "bold" }}>{formatCurrency(subtotalCents)}</Text>
+						</View>
+						<View style={styles.lineItem}>
+							<Text style={{ color: "#16a34a" }}>Coupon ({invoice.coupon.code})</Text>
+							<Text style={{ color: "#16a34a" }}>
+								-{formatCurrency(invoice.coupon.amountOffCents)}
+							</Text>
+						</View>
+						<View style={[styles.divider, { marginVertical: 6 }]} />
+						<View style={styles.total}>
+							<Text>Total</Text>
+							<Text>{formatCurrency(subtotalCents - invoice.coupon.amountOffCents)}</Text>
+						</View>
+					</View>
+				) : (
+					<View style={styles.total}>
+						<Text>Total</Text>
+						<Text>{formatCurrency(invoice.totalCents)}</Text>
+					</View>
+				)}
 
 				{/* Payment Method */}
 				{invoice.stripe && invoice.status === "COMPLETED" && (

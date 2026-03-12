@@ -64,7 +64,7 @@ export function CompetitionHeader({ competition }: CompetitionHeaderProps) {
 	return (
 		<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 			<div className="min-w-0 flex-1">
-				<h1 className="text-3xl font-bold">{competition.name}</h1>
+				<h1 className="text-2xl font-bold sm:text-3xl">{competition.name}</h1>
 				<div className="mt-2 flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:items-center sm:gap-4">
 					<div className="flex items-center gap-2">
 						{competition.status === "draft" ? (

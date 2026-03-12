@@ -326,7 +326,7 @@ function CompetitionOverviewPage() {
 			<div className="grid gap-4 md:grid-cols-2">
 				{/* Registrations Card */}
 				<Card>
-					<CardHeader className="flex flex-row items-center justify-between">
+					<CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 						<div>
 							<CardTitle>Registrations</CardTitle>
 							<CardDescription>Athletes registered</CardDescription>
@@ -370,7 +370,7 @@ function CompetitionOverviewPage() {
 
 				{/* Revenue Summary Card */}
 				<Card>
-					<CardHeader className="flex flex-row items-center justify-between">
+					<CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 						<div>
 							<CardTitle>Revenue</CardTitle>
 							<CardDescription>Paid registrations</CardDescription>

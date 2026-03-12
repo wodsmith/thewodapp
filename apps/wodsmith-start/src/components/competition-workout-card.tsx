@@ -3,9 +3,14 @@
 import { Link } from "@tanstack/react-router"
 import {
 	ArrowRight,
+	CheckCircle2,
+	ClipboardCheck,
 	Clock,
 	Dumbbell,
+	Edit3,
+	Eye,
 	Hash,
+	Lock,
 	MapPin,
 	Target,
 	Timer,
@@ -17,6 +22,11 @@ import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import type { DivisionDescription } from "@/server-fns/competition-workouts-fns"
 import { getGoogleMapsUrl, hasAddressData } from "@/utils/address"
+
+export interface SubmissionStatus {
+	hasSubmitted: boolean
+	canSubmit: boolean
+}
 
 interface CompetitionWorkoutCardProps {
 	eventId: string
@@ -33,6 +43,8 @@ interface CompetitionWorkoutCardProps {
 	sponsorName?: string
 	sponsorLogoUrl?: string | null
 	selectedDivisionId?: string
+	isRegistered?: boolean
+	submissionStatus?: SubmissionStatus | null
 	timeCap?: number | null // in seconds
 	venue?: {
 		id: string
@@ -70,6 +82,75 @@ function getSchemeLabel(scheme: string, timeCap?: number | null): string {
 	return scheme.replace(/-/g, " ").toUpperCase()
 }
 
+function getCtaConfig(
+	isRegistered?: boolean,
+	submissionStatus?: SubmissionStatus | null,
+) {
+	if (!isRegistered) {
+		return {
+			label: "View Details",
+			icon: ArrowRight,
+			variant: "outline" as const,
+			badge: null,
+		}
+	}
+
+	if (!submissionStatus) {
+		// Registered but no submission tracking (in-person comp)
+		return {
+			label: "View Details",
+			icon: ArrowRight,
+			variant: "outline" as const,
+			badge: null,
+		}
+	}
+
+	const { hasSubmitted, canSubmit } = submissionStatus
+
+	if (hasSubmitted && canSubmit) {
+		return {
+			label: "Edit Submission",
+			icon: Edit3,
+			variant: "outline" as const,
+			badge: {
+				label: "Submitted",
+				className:
+					"bg-green-100 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-900",
+			},
+		}
+	}
+
+	if (hasSubmitted && !canSubmit) {
+		return {
+			label: "View Submission",
+			icon: Eye,
+			variant: "outline" as const,
+			badge: {
+				label: "Submitted",
+				className:
+					"bg-green-100 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-900",
+			},
+		}
+	}
+
+	if (!hasSubmitted && canSubmit) {
+		return {
+			label: "Submit Score",
+			icon: ClipboardCheck,
+			variant: "default" as const,
+			badge: null,
+		}
+	}
+
+	// !hasSubmitted && !canSubmit — window closed, never submitted
+	return {
+		label: "Submission Closed",
+		icon: Lock,
+		variant: "outline" as const,
+		badge: null,
+	}
+}
+
 export function CompetitionWorkoutCard({
 	eventId,
 	slug,
@@ -85,6 +166,8 @@ export function CompetitionWorkoutCard({
 	sponsorName,
 	sponsorLogoUrl,
 	selectedDivisionId,
+	isRegistered,
+	submissionStatus,
 	timeCap,
 	venue,
 	schedule,
@@ -106,6 +189,9 @@ export function CompetitionWorkoutCard({
 	const hasMovementsOrTags =
 		(movements && movements.length > 0) || (tags && tags.length > 0)
 
+	const cta = getCtaConfig(isRegistered, submissionStatus)
+	const CtaIcon = cta.icon
+
 	return (
 		<Card className="overflow-hidden border-l-4 border-l-primary/40 hover:border-l-primary transition-all">
 			<div className="flex flex-col md:flex-row">
@@ -120,9 +206,23 @@ export function CompetitionWorkoutCard({
 									{trackOrder.toString().padStart(2, "0")}
 								</span>
 								<div className="sm:pt-1">
-									<h3 className="text-xl sm:text-2xl font-bold tracking-tight">
-										{name}
-									</h3>
+									<div className="flex items-center gap-2">
+										<h3 className="text-xl sm:text-2xl font-bold tracking-tight">
+											{name}
+										</h3>
+										{cta.badge && (
+											<Badge
+												variant="outline"
+												className={cn(
+													"text-[10px] sm:text-xs font-medium",
+													cta.badge.className,
+												)}
+											>
+												<CheckCircle2 className="h-3 w-3 mr-1" />
+												{cta.badge.label}
+											</Badge>
+										)}
+									</div>
 									{sponsorName && (
 										<div className="flex items-center gap-2 mt-1">
 											{sponsorLogoUrl && (
@@ -142,9 +242,9 @@ export function CompetitionWorkoutCard({
 								</div>
 							</div>
 
-							{/* Desktop View Details Button */}
+							{/* Desktop CTA Button */}
 							<Button
-								variant="outline"
+								variant={cta.variant}
 								size="sm"
 								asChild
 								className="hidden shrink-0 sm:flex"
@@ -153,8 +253,8 @@ export function CompetitionWorkoutCard({
 									to="/compete/$slug/workouts/$eventId"
 									params={{ slug, eventId }}
 								>
-									View Details
-									<ArrowRight className="ml-2 h-4 w-4" />
+									{cta.label}
+									<CtaIcon className="ml-2 h-4 w-4" />
 								</Link>
 							</Button>
 						</div>
@@ -327,7 +427,7 @@ export function CompetitionWorkoutCard({
 
 					{/* Mobile CTA - full width at bottom */}
 					<Button
-						variant="default"
+						variant={cta.variant}
 						size="lg"
 						asChild
 						className="w-full mt-4 sm:hidden"
@@ -336,8 +436,8 @@ export function CompetitionWorkoutCard({
 							to="/compete/$slug/workouts/$eventId"
 							params={{ slug, eventId }}
 						>
-							View Details
-							<ArrowRight className="ml-2 h-4 w-4" />
+							{cta.label}
+							<CtaIcon className="ml-2 h-4 w-4" />
 						</Link>
 					</Button>
 				</div>

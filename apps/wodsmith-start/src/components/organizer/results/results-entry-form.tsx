@@ -367,11 +367,11 @@ export function ResultsEntryForm({
 					</div>
 				</CardHeader>
 				<CardContent>
-					<div className="flex items-center gap-6">
-						<div className="flex items-center gap-3">
+					<div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+						<div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
 							<span className="text-sm font-medium">Event:</span>
 							<Select value={selectedEventId} onValueChange={handleEventChange}>
-								<SelectTrigger className="w-[280px]">
+								<SelectTrigger className="w-full sm:w-[280px]">
 									<SelectValue placeholder="Select event..." />
 								</SelectTrigger>
 								<SelectContent>
@@ -390,7 +390,7 @@ export function ResultsEntryForm({
 								value={selectedDivisionId || "all"}
 								onValueChange={handleDivisionChange}
 							>
-								<SelectTrigger className="w-[200px]">
+								<SelectTrigger className="w-full sm:w-[200px]">
 									<SelectValue placeholder="All Divisions" />
 								</SelectTrigger>
 								<SelectContent>
@@ -477,7 +477,7 @@ export function ResultsEntryForm({
 				<CardContent className="p-0">
 					{/* Table Header */}
 					<div
-						className={`grid gap-3 border-b bg-muted/30 p-3 text-sm font-medium text-muted-foreground ${hasTiebreak ? "grid-cols-[60px_1fr_2fr_1fr_100px]" : "grid-cols-[60px_1fr_2fr_100px]"}`}
+						className={`hidden sm:grid gap-3 border-b bg-muted/30 p-3 text-sm font-medium text-muted-foreground ${hasTiebreak ? "grid-cols-[60px_1fr_2fr_1fr_100px]" : "grid-cols-[60px_1fr_2fr_100px]"}`}
 					>
 						<div className="text-center">{hasHeats ? "LANE" : "#"}</div>
 						<div>TEAM / ATHLETE</div>

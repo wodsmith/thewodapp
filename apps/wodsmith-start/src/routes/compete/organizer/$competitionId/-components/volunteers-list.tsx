@@ -459,7 +459,7 @@ export function VolunteersList({
 						No volunteers have been added to this competition yet.
 					</CardDescription>
 				</CardHeader>
-				<CardContent className="flex gap-2">
+				<CardContent className="flex flex-col sm:flex-row gap-2">
 					<Button onClick={() => setInviteDialogOpen(true)}>
 						<UserPlus className="mr-2 h-4 w-4" />
 						Invite Volunteer
@@ -488,7 +488,7 @@ export function VolunteersList({
 		<div className="flex flex-col gap-4">
 			{/* Bulk Action Toolbar */}
 			{someSelected && (
-				<div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-2">
+				<div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/50 p-2">
 					<span className="text-sm font-medium">
 						{selectedIds.size} selected
 					</span>
@@ -517,14 +517,14 @@ export function VolunteersList({
 			)}
 
 			{/* Actions */}
-			<div className="flex items-center justify-end gap-2">
+			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
 				<Select
 					value={availabilityFilter ?? "all"}
 					onValueChange={(value) =>
 						setAvailabilityFilter(value === "all" ? null : value)
 					}
 				>
-					<SelectTrigger className="w-[140px]">
+					<SelectTrigger className="w-full sm:w-[140px]">
 						<SelectValue placeholder="Availability" />
 					</SelectTrigger>
 					<SelectContent>
@@ -540,22 +540,24 @@ export function VolunteersList({
 						</SelectItem>
 					</SelectContent>
 				</Select>
-				<Button variant="outline" onClick={handleExportCSV}>
-					<Download className="mr-2 h-4 w-4" />
-					Export CSV
-				</Button>
-				<Button variant="outline" onClick={copySignupLink}>
-					{copied ? (
-						<Check className="mr-2 h-4 w-4" />
-					) : (
-						<Copy className="mr-2 h-4 w-4" />
-					)}
-					Copy Signup Link
-				</Button>
-				<Button onClick={() => setInviteDialogOpen(true)}>
-					<UserPlus className="mr-2 h-4 w-4" />
-					Invite Volunteer
-				</Button>
+				<div className="flex flex-wrap gap-2 w-full sm:w-auto">
+					<Button variant="outline" onClick={handleExportCSV} className="flex-1 sm:flex-initial">
+						<Download className="mr-2 h-4 w-4" />
+						Export CSV
+					</Button>
+					<Button variant="outline" onClick={copySignupLink} className="flex-1 sm:flex-initial">
+						{copied ? (
+							<Check className="mr-2 h-4 w-4" />
+						) : (
+							<Copy className="mr-2 h-4 w-4" />
+						)}
+						Copy Signup Link
+					</Button>
+					<Button onClick={() => setInviteDialogOpen(true)} className="flex-1 sm:flex-initial">
+						<UserPlus className="mr-2 h-4 w-4" />
+						Invite Volunteer
+					</Button>
+				</div>
 				<InviteVolunteerDialog
 					competitionId={competitionId}
 					competitionTeamId={competitionTeamId}
@@ -597,8 +599,97 @@ export function VolunteersList({
 				</TabsList>
 
 				<TabsContent value={filter} className="mt-4">
-					<Card>
+					{/* Mobile card view */}
+					<div className="flex flex-col gap-3 md:hidden">
+						{filteredItems.map((item) => {
+							if (item.type === "invitation") {
+								const invitation = item.data
+								let metadata: {
+									signupName?: string
+									signupEmail?: string
+									credentials?: string
+									status?: "pending" | "approved" | "rejected"
+								} = {}
+								try {
+									metadata = invitation.metadata
+										? JSON.parse(invitation.metadata)
+										: {}
+								} catch {
+									// ignore
+								}
+
+								const volunteerItem: VolunteerWithAccess = {
+									id: invitation.id,
+									userId: "",
+									teamId: invitation.teamId,
+									roleId: invitation.roleId,
+									isSystemRole: invitation.isSystemRole,
+									isActive: false,
+									metadata: invitation.metadata,
+									joinedAt: null,
+									createdAt: invitation.createdAt,
+									expiresAt: invitation.expiresAt,
+									invitedAt: null,
+									invitedBy: invitation.invitedBy,
+									user: null,
+									hasScoreAccess: false,
+									status: metadata.status || "pending",
+								}
+
+								return (
+									<VolunteerRow
+										key={`mobile-${invitation.id}`}
+										volunteer={volunteerItem}
+										competitionId={competitionId}
+										competitionTeamId={competitionTeamId}
+										organizingTeamId={organizingTeamId}
+										isSelected={selectedIds.has(invitation.id)}
+										onToggleSelect={(shiftKey) =>
+											toggleSelection(invitation.id, shiftKey)
+										}
+										assignments={
+											volunteerAssignments[invitation.id] || {
+												shifts: [],
+												judgeHeats: [],
+											}
+										}
+										answers={getAnswersForVolunteer(volunteerItem)}
+										questions={volunteerQuestions}
+										variant="card"
+									/>
+								)
+							}
+
+							const volunteer = item.data
+							return (
+								<VolunteerRow
+									key={`mobile-${volunteer.id}`}
+									volunteer={volunteer}
+									competitionId={competitionId}
+									competitionTeamId={competitionTeamId}
+									organizingTeamId={organizingTeamId}
+									isSelected={selectedIds.has(volunteer.id)}
+									onToggleSelect={(shiftKey) =>
+										toggleSelection(volunteer.id, shiftKey)
+									}
+									assignments={
+										volunteerAssignments[volunteer.id] || {
+											shifts: [],
+											judgeHeats: [],
+										}
+									}
+									answers={getAnswersForVolunteer(volunteer)}
+									questions={volunteerQuestions}
+									variant="card"
+								/>
+							)
+						})}
+					</div>
+
+					{/* Desktop table view */}
+					<Card className="hidden md:block">
 						<CardContent className="p-0">
+							<div className="overflow-x-auto">
 							<Table>
 								<TableHeader>
 									<TableRow>
@@ -701,6 +792,7 @@ export function VolunteersList({
 									})}
 								</TableBody>
 							</Table>
+							</div>
 						</CardContent>
 					</Card>
 				</TabsContent>

@@ -226,7 +226,10 @@ export function OrganizerDivisionItem({
 							placeholder="Enter division name"
 							className="flex-1"
 						/>
-						<Badge variant="secondary" className="flex items-center gap-1">
+						<Badge
+							variant="secondary"
+							className="hidden sm:flex items-center gap-1"
+						>
 							<Users className="h-3 w-3" />
 							{registrationCount}
 						</Badge>
@@ -272,7 +275,7 @@ export function OrganizerDivisionItem({
 						</CollapsibleTrigger>
 					</div>
 					<CollapsibleContent>
-						<div className="px-3 pb-3 pl-14 space-y-3">
+						<div className="px-3 pb-3 pl-3 sm:pl-14 space-y-3">
 							<div className="flex items-center gap-3">
 								<label
 									htmlFor={`maxSpots-${id}`}

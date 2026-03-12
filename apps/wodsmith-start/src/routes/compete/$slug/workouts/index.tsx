@@ -7,7 +7,10 @@ import { createServerFn } from "@tanstack/react-start"
 import { Dumbbell, Filter } from "lucide-react"
 import { z } from "zod"
 import { CompetitionTabs } from "@/components/competition-tabs"
-import { CompetitionWorkoutCard } from "@/components/competition-workout-card"
+import {
+	CompetitionWorkoutCard,
+	type SubmissionStatus,
+} from "@/components/competition-workout-card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
 	Select,
@@ -27,6 +30,7 @@ import {
 	getPublishedCompetitionWorkoutsWithDetailsFn,
 	type DivisionDescription,
 } from "@/server-fns/competition-workouts-fns"
+import { getBatchSubmissionStatusFn } from "@/server-fns/video-submission-fns"
 import { getSessionFromCookie } from "@/utils/auth"
 import { useDeferredSchedule } from "@/utils/use-deferred-schedule"
 
@@ -68,6 +72,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
 				divisionDescriptionsMap: {},
 				venueMap: {},
 				athleteRegisteredDivisionId: null,
+				submissionStatusMap: {} as Record<string, SubmissionStatus>,
 				deferredSchedule: Promise.resolve({
 					events: [] as PublicScheduleEvent[],
 				}),
@@ -152,11 +157,28 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
 			}
 		}
 
+		// Fetch submission statuses for online competitions
+		let submissionStatusMap: Record<string, SubmissionStatus> = {}
+		if (
+			competition.competitionType === "online" &&
+			athleteRegisteredDivisionId &&
+			workouts.length > 0
+		) {
+			const result = await getBatchSubmissionStatusFn({
+				data: {
+					competitionId,
+					trackWorkoutIds: workouts.map((w) => w.id),
+				},
+			})
+			submissionStatusMap = result.statuses
+		}
+
 		return {
 			workouts,
 			divisionDescriptionsMap,
 			venueMap,
 			athleteRegisteredDivisionId,
+			submissionStatusMap,
 			deferredSchedule,
 		}
 	},
@@ -168,6 +190,7 @@ function CompetitionWorkoutsPage() {
 		divisionDescriptionsMap,
 		venueMap,
 		athleteRegisteredDivisionId,
+		submissionStatusMap,
 		deferredSchedule,
 	} = Route.useLoaderData()
 	const { competition, divisions } = parentRoute.useLoaderData()
@@ -286,6 +309,8 @@ function CompetitionWorkoutsPage() {
 									sponsorName={event.sponsorName}
 									sponsorLogoUrl={event.sponsorLogoUrl}
 									selectedDivisionId={selectedDivisionId}
+									isRegistered={!!athleteRegisteredDivisionId}
+									submissionStatus={submissionStatusMap[event.id] ?? null}
 									timeCap={event.workout.timeCap}
 									venue={venueMap?.[event.id]}
 									schedule={scheduleMap?.get(event.id) ?? null}

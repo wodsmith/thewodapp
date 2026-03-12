@@ -124,10 +124,10 @@ export function HeatScoreGroup({
 						</div>
 					</div>
 
-					<div className="flex items-center gap-4 text-sm text-muted-foreground">
+					<div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
 						{/* Venue */}
 						{heat.venue && (
-							<div className="flex items-center gap-1">
+							<div className="hidden sm:flex items-center gap-1">
 								<MapPin className="h-3.5 w-3.5" />
 								<span>{heat.venue.name}</span>
 							</div>
@@ -135,7 +135,7 @@ export function HeatScoreGroup({
 
 						{/* Time */}
 						{formattedTime && (
-							<div className="flex items-center gap-1">
+							<div className="hidden sm:flex items-center gap-1">
 								<Clock className="h-3.5 w-3.5" />
 								<span>{formattedTime}</span>
 							</div>
