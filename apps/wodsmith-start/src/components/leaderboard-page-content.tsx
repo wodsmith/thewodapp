@@ -254,8 +254,9 @@ export function LeaderboardPageContent({
 				search: (prev: Record<string, unknown>) => ({
 					...prev,
 					division: divisionId,
-					// Reset event when changing divisions
+					// Reset event and affiliate when changing divisions
 					event: undefined,
+					affiliate: undefined,
 				}),
 				replace: true,
 			})
@@ -306,11 +307,17 @@ export function LeaderboardPageContent({
 		return Array.from(affiliateSet).sort()
 	}, [leaderboard])
 
+	// Validate selectedAffiliate against known affiliates to prevent stale URL params
+	const effectiveAffiliate = useMemo(() => {
+		if (selectedAffiliate === "all") return "all"
+		return affiliates.includes(selectedAffiliate) ? selectedAffiliate : "all"
+	}, [selectedAffiliate, affiliates])
+
 	// Filter leaderboard by selected affiliate
 	const filteredLeaderboard = useMemo(() => {
-		if (selectedAffiliate === "all") return leaderboard
-		return leaderboard.filter((entry) => entry.affiliate === selectedAffiliate)
-	}, [leaderboard, selectedAffiliate])
+		if (effectiveAffiliate === "all") return leaderboard
+		return leaderboard.filter((entry) => entry.affiliate === effectiveAffiliate)
+	}, [leaderboard, effectiveAffiliate])
 
 	// Handle affiliate change - update URL
 	const handleAffiliateChange = useCallback(
@@ -474,9 +481,9 @@ export function LeaderboardPageContent({
 					)}
 
 					{/* Affiliate filter */}
-					{affiliates.length > 0 && (
+					{(affiliates.length > 0 || effectiveAffiliate !== "all") && (
 						<Select
-							value={selectedAffiliate}
+							value={effectiveAffiliate}
 							onValueChange={handleAffiliateChange}
 						>
 							<SelectTrigger className="w-[200px]">

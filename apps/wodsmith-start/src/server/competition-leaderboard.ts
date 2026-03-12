@@ -45,7 +45,7 @@ import {
 	getEffectiveScoringConfig,
 	parseCompetitionSettings,
 } from "@/types/competitions"
-import { z } from "zod"
+import { getAffiliate } from "@/utils/registration-metadata"
 
 // ============================================================================
 // Types
@@ -108,26 +108,6 @@ export interface CompetitionLeaderboardResult {
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-const registrationMetadataSchema = z
-	.object({
-		affiliates: z.record(z.string(), z.string()).optional(),
-	})
-	.passthrough()
-
-/**
- * Extract affiliate from registration metadata with runtime validation
- */
-function getAffiliate(metadata: string | null, userId: string): string | null {
-	if (!metadata) return null
-	try {
-		const result = registrationMetadataSchema.safeParse(JSON.parse(metadata))
-		if (!result.success) return null
-		return result.data.affiliates?.[userId] ?? null
-	} catch {
-		return null
-	}
-}
 
 /**
  * Fetch scores from the scores table

@@ -1107,6 +1107,7 @@ function AthletesPage() {
 																removeQuestionFilter(questionId, value)
 															}
 															className="ml-1 hover:bg-muted rounded-full p-0.5"
+															aria-label={`Remove filter ${question.label}: ${value}`}
 														>
 															<X className="h-3 w-3" />
 														</button>
@@ -1136,6 +1137,7 @@ function AthletesPage() {
 														type="button"
 														onClick={() => removeWaiverFilter(filterValue)}
 														className="ml-1 hover:bg-muted rounded-full p-0.5"
+														aria-label={`Remove waiver filter ${waiver.title}: ${status === "signed" ? "Signed" : "Not Signed"}`}
 													>
 														<X className="h-3 w-3" />
 													</button>
@@ -1146,12 +1148,14 @@ function AthletesPage() {
 								)}
 							</div>
 
-							{registrations.length === 0 ? (
+							{sortedAthleteRows.length === 0 ? (
 								<Card>
 									<CardHeader>
 										<CardTitle>No Registrations</CardTitle>
 										<CardDescription>
-											No athletes are registered in this division.
+											{registrations.length === 0
+												? "No athletes are registered in this division."
+												: "No athletes match the current filters."}
 										</CardDescription>
 									</CardHeader>
 								</Card>
@@ -1529,6 +1533,9 @@ function AthletesPage() {
 															Joined
 															<SortIcon column="joinedAt" />
 														</button>
+													</TableHead>
+													<TableHead className="w-[40px]">
+														<span className="sr-only">Actions</span>
 													</TableHead>
 												</TableRow>
 											</TableHeader>
