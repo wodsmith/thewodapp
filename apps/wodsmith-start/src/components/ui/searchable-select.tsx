@@ -163,14 +163,12 @@ export function SearchableSelect({
 							{emptyMessage}
 						</p>
 					) : (
-						<div className="p-1" role="listbox" ref={listRef}>
+						<div className="p-1" ref={listRef}>
 							{filteredOptions.map((option, index) => (
 								<button
 									key={option.value}
 									type="button"
-									role="option"
 									tabIndex={-1}
-									aria-selected={value === option.value}
 									onClick={() => selectOption(option.value)}
 									onMouseEnter={() => setHighlightedIndex(index)}
 									className={cn(
