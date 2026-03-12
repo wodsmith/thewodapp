@@ -32,7 +32,8 @@ export const Route = createFileRoute("/compete/$slug/")({
 		if (!competition) {
 			return {
 				workouts: [],
-				divisionDescriptionsMap: {},
+				divisionDescriptionsMap: {} as Record<string, DivisionDescription[]>,
+				venueMap: {} as Record<string, null>,
 				submissionStatusMap: {} as Record<string, SubmissionStatus>,
 				deferredSchedule: Promise.resolve({
 					events: [] as PublicScheduleEvent[],
