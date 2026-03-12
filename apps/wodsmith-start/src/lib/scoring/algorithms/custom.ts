@@ -21,8 +21,8 @@ import { calculateTraditionalPoints } from "./traditional"
  * Covers places 1-30.
  */
 export const WINNER_TAKES_MORE_TABLE = [
-	100, 85, 75, 67, 62, 58, 55, 52, 50, 48, 46, 44, 42, 40, 38, 36, 34, 32, 30,
-	28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 5,
+  100, 85, 75, 67, 62, 58, 55, 52, 50, 48, 46, 44, 42, 40, 38, 36, 34, 32, 30,
+  28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 5,
 ] as const
 
 /**
@@ -41,28 +41,28 @@ export const WINNER_TAKES_MORE_TABLE = [
  * // [100, 95, 90, 85, 80]
  */
 export function generatePointsTable(
-	baseTemplate: CustomTableConfig["baseTemplate"],
-	count: number,
-	traditionalConfig?: TraditionalConfig,
+  baseTemplate: CustomTableConfig["baseTemplate"],
+  count: number,
+  traditionalConfig?: TraditionalConfig,
 ): number[] {
-	const table: number[] = []
+  const table: number[] = []
 
-	for (let place = 1; place <= count; place++) {
-		if (baseTemplate === "winner_takes_more") {
-			// Use the winner_takes_more table, floor at 0 for places beyond 30
-			const points =
-				place <= WINNER_TAKES_MORE_TABLE.length
-					? WINNER_TAKES_MORE_TABLE[place - 1]
-					: 0
-			table.push(points)
-		} else {
-			// 'traditional' uses traditional calculation
-			const config = traditionalConfig ?? { firstPlacePoints: 100, step: 5 }
-			table.push(calculateTraditionalPoints(place, config))
-		}
-	}
+  for (let place = 1; place <= count; place++) {
+    if (baseTemplate === "winner_takes_more") {
+      // Use the winner_takes_more table, floor at 0 for places beyond 30
+      const points =
+        place <= WINNER_TAKES_MORE_TABLE.length
+          ? WINNER_TAKES_MORE_TABLE[place - 1]
+          : 0
+      table.push(points)
+    } else {
+      // 'traditional' uses traditional calculation
+      const config = traditionalConfig ?? { firstPlacePoints: 100, step: 5 }
+      table.push(calculateTraditionalPoints(place, config))
+    }
+  }
 
-	return table
+  return table
 }
 
 /**
@@ -86,30 +86,30 @@ export function generatePointsTable(
  * }) // 85 (from table)
  */
 export function calculateCustomPoints(
-	place: number,
-	config: CustomTableConfig,
-	traditionalConfig?: TraditionalConfig,
+  place: number,
+  config: CustomTableConfig,
+  traditionalConfig?: TraditionalConfig,
 ): number {
-	const { baseTemplate, overrides } = config
+  const { baseTemplate, overrides } = config
 
-	// Handle invalid places (0 or negative) - treat as 1st place
-	const effectivePlace = Math.max(1, place)
+  // Handle invalid places (0 or negative) - treat as 1st place
+  const effectivePlace = Math.max(1, place)
 
-	// Check for override first
-	const placeKey = String(effectivePlace)
-	if (overrides && placeKey in overrides) {
-		return overrides[placeKey]
-	}
+  // Check for override first
+  const placeKey = String(effectivePlace)
+  if (overrides && placeKey in overrides) {
+    return overrides[placeKey]
+  }
 
-	// Calculate base points from template
-	if (baseTemplate === "winner_takes_more") {
-		// Use the winner_takes_more table, floor at 0 for places beyond 30
-		return effectivePlace <= WINNER_TAKES_MORE_TABLE.length
-			? WINNER_TAKES_MORE_TABLE[effectivePlace - 1]
-			: 0
-	}
+  // Calculate base points from template
+  if (baseTemplate === "winner_takes_more") {
+    // Use the winner_takes_more table, floor at 0 for places beyond 30
+    return effectivePlace <= WINNER_TAKES_MORE_TABLE.length
+      ? WINNER_TAKES_MORE_TABLE[effectivePlace - 1]
+      : 0
+  }
 
-	// 'traditional' uses traditional calculation
-	const config2 = traditionalConfig ?? { firstPlacePoints: 100, step: 5 }
-	return calculateTraditionalPoints(effectivePlace, config2)
+  // 'traditional' uses traditional calculation
+  const config2 = traditionalConfig ?? { firstPlacePoints: 100, step: 5 }
+  return calculateTraditionalPoints(effectivePlace, config2)
 }

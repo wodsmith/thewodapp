@@ -10,21 +10,21 @@
 
 // Re-export types
 export type {
-	FeeBreakdown,
-	FeeConfiguration,
+  FeeBreakdown,
+  FeeConfiguration,
 } from "@/server/commerce/fee-calculator"
 
 // Re-export functions
 export {
-	getCompetitionRevenueStats,
-	getRegistrationFee,
+  getCompetitionRevenueStats,
+  getRegistrationFee,
 } from "@/server/commerce/fee-calculator"
 export type { TeamFeeOverrides } from "@/server/commerce/utils"
 export {
-	buildFeeConfig,
-	calculateCompetitionFees,
-	FOUNDING_ORGANIZER_DEFAULTS,
-	formatCents,
-	getTeamPlatformFee,
-	PLATFORM_DEFAULTS,
+  buildFeeConfig,
+  calculateCompetitionFees,
+  FOUNDING_ORGANIZER_DEFAULTS,
+  formatCents,
+  getTeamPlatformFee,
+  PLATFORM_DEFAULTS,
 } from "@/server/commerce/utils"

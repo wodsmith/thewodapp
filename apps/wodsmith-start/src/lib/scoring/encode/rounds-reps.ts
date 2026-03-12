@@ -24,42 +24,42 @@ import { ROUNDS_REPS_MULTIPLIER } from "../constants"
  * encodeRoundsReps("0+45")  // → 45
  */
 export function encodeRoundsReps(input: string): number | null {
-	const trimmed = input.trim()
-	if (!trimmed) return null
+  const trimmed = input.trim()
+  if (!trimmed) return null
 
-	// Check for + or . separator
-	const hasPlus = trimmed.includes("+")
-	const hasPeriod = trimmed.includes(".")
+  // Check for + or . separator
+  const hasPlus = trimmed.includes("+")
+  const hasPeriod = trimmed.includes(".")
 
-	if (hasPlus || hasPeriod) {
-		const delimiter = hasPlus ? "+" : "."
-		const parts = trimmed.split(delimiter)
-		if (parts.length !== 2) return null
+  if (hasPlus || hasPeriod) {
+    const delimiter = hasPlus ? "+" : "."
+    const parts = trimmed.split(delimiter)
+    if (parts.length !== 2) return null
 
-		const [roundsStr, repsStr] = parts
-		const rounds = Number.parseInt(roundsStr?.trim() ?? "", 10)
-		const reps = Number.parseInt(repsStr?.trim() ?? "", 10)
+    const [roundsStr, repsStr] = parts
+    const rounds = Number.parseInt(roundsStr?.trim() ?? "", 10)
+    const reps = Number.parseInt(repsStr?.trim() ?? "", 10)
 
-		if (
-			Number.isNaN(rounds) ||
-			Number.isNaN(reps) ||
-			rounds < 0 ||
-			reps < 0 ||
-			reps >= ROUNDS_REPS_MULTIPLIER
-		) {
-			return null
-		}
+    if (
+      Number.isNaN(rounds) ||
+      Number.isNaN(reps) ||
+      rounds < 0 ||
+      reps < 0 ||
+      reps >= ROUNDS_REPS_MULTIPLIER
+    ) {
+      return null
+    }
 
-		return rounds * ROUNDS_REPS_MULTIPLIER + reps
-	}
+    return rounds * ROUNDS_REPS_MULTIPLIER + reps
+  }
 
-	// No separator - treat as complete rounds
-	const rounds = Number.parseInt(trimmed, 10)
-	if (Number.isNaN(rounds) || rounds < 0) {
-		return null
-	}
+  // No separator - treat as complete rounds
+  const rounds = Number.parseInt(trimmed, 10)
+  if (Number.isNaN(rounds) || rounds < 0) {
+    return null
+  }
 
-	return rounds * ROUNDS_REPS_MULTIPLIER
+  return rounds * ROUNDS_REPS_MULTIPLIER
 }
 
 /**
@@ -70,18 +70,18 @@ export function encodeRoundsReps(input: string): number | null {
  * encodeRoundsRepsFromParts(10, 0)  // → 1000000
  */
 export function encodeRoundsRepsFromParts(
-	rounds: number,
-	reps: number,
+  rounds: number,
+  reps: number,
 ): number | null {
-	if (
-		Number.isNaN(rounds) ||
-		Number.isNaN(reps) ||
-		rounds < 0 ||
-		reps < 0 ||
-		reps >= ROUNDS_REPS_MULTIPLIER
-	) {
-		return null
-	}
+  if (
+    Number.isNaN(rounds) ||
+    Number.isNaN(reps) ||
+    rounds < 0 ||
+    reps < 0 ||
+    reps >= ROUNDS_REPS_MULTIPLIER
+  ) {
+    return null
+  }
 
-	return rounds * ROUNDS_REPS_MULTIPLIER + reps
+  return rounds * ROUNDS_REPS_MULTIPLIER + reps
 }

@@ -30,52 +30,52 @@ import { formatStatus, isSpecialStatus } from "./status"
  * // → "225 lbs"
  */
 export function formatScore(score: Score, options?: FormatOptions): string {
-	const showStatus = options?.showStatus ?? true
+  const showStatus = options?.showStatus ?? true
 
-	// Handle special statuses
-	if (isSpecialStatus(score.status)) {
-		return formatSpecialStatus(score, options, showStatus)
-	}
+  // Handle special statuses
+  if (isSpecialStatus(score.status)) {
+    return formatSpecialStatus(score, options, showStatus)
+  }
 
-	// Normal scored result
-	if (score.value === null) {
-		return "N/A"
-	}
+  // Normal scored result
+  if (score.value === null) {
+    return "N/A"
+  }
 
-	return decodeScore(score.value, score.scheme, options)
+  return decodeScore(score.value, score.scheme, options)
 }
 
 /**
  * Format scores with special status (cap, dq, withdrawn).
  */
 function formatSpecialStatus(
-	score: Score,
-	options?: FormatOptions,
-	showStatus: boolean = true,
+  score: Score,
+  options?: FormatOptions,
+  showStatus: boolean = true,
 ): string {
-	const statusPrefix = showStatus ? formatStatus(score.status) : ""
+  const statusPrefix = showStatus ? formatStatus(score.status) : ""
 
-	switch (score.status) {
-		case "cap": {
-			// For capped results, show the secondary score (always reps)
-			if (score.timeCap?.secondaryValue !== undefined) {
-				const repsFormatted = `${score.timeCap.secondaryValue} reps`
-				return showStatus ? `${statusPrefix} (${repsFormatted})` : repsFormatted
-			}
-			return statusPrefix || "CAP"
-		}
+  switch (score.status) {
+    case "cap": {
+      // For capped results, show the secondary score (always reps)
+      if (score.timeCap?.secondaryValue !== undefined) {
+        const repsFormatted = `${score.timeCap.secondaryValue} reps`
+        return showStatus ? `${statusPrefix} (${repsFormatted})` : repsFormatted
+      }
+      return statusPrefix || "CAP"
+    }
 
-		case "dq":
-			return statusPrefix || "DQ"
+    case "dq":
+      return statusPrefix || "DQ"
 
-		case "withdrawn":
-			return statusPrefix || "WD"
+    case "withdrawn":
+      return statusPrefix || "WD"
 
-		default:
-			return score.value !== null
-				? decodeScore(score.value, score.scheme, options)
-				: "N/A"
-	}
+    default:
+      return score.value !== null
+        ? decodeScore(score.value, score.scheme, options)
+        : "N/A"
+  }
 }
 
 /**
@@ -87,10 +87,10 @@ function formatSpecialStatus(
  * // → "12:34" (no milliseconds shown)
  */
 export function formatScoreCompact(
-	score: Score,
-	options?: FormatOptions,
+  score: Score,
+  options?: FormatOptions,
 ): string {
-	return formatScore(score, { ...options, compact: true })
+  return formatScore(score, { ...options, compact: true })
 }
 
 /**
@@ -109,24 +109,24 @@ export function formatScoreCompact(
  * // → ["225 lbs", "235 lbs"]
  */
 export function formatRounds(
-	rounds: ScoreRound[],
-	scheme: WorkoutScheme,
-	options?: FormatOptions,
+  rounds: ScoreRound[],
+  scheme: WorkoutScheme,
+  options?: FormatOptions,
 ): string[] {
-	return rounds.map((round) => {
-		const effectiveScheme = round.schemeOverride ?? scheme
+  return rounds.map((round) => {
+    const effectiveScheme = round.schemeOverride ?? scheme
 
-		// Handle rounds with special status
-		if (round.status && isSpecialStatus(round.status)) {
-			const statusStr = formatStatus(round.status)
-			if (round.secondaryValue !== undefined) {
-				return `${statusStr} (${round.secondaryValue})`
-			}
-			return statusStr
-		}
+    // Handle rounds with special status
+    if (round.status && isSpecialStatus(round.status)) {
+      const statusStr = formatStatus(round.status)
+      if (round.secondaryValue !== undefined) {
+        return `${statusStr} (${round.secondaryValue})`
+      }
+      return statusStr
+    }
 
-		return decodeScore(round.value, effectiveScheme, options)
-	})
+    return decodeScore(round.value, effectiveScheme, options)
+  })
 }
 
 /**
@@ -137,21 +137,21 @@ export function formatRounds(
  * // → "5+12 (TB: 8:30)"
  */
 export function formatScoreWithTiebreak(
-	score: Score,
-	options?: FormatOptions,
+  score: Score,
+  options?: FormatOptions,
 ): string {
-	const mainScore = formatScore(score, options)
+  const mainScore = formatScore(score, options)
 
-	if (!score.tiebreak) {
-		return mainScore
-	}
+  if (!score.tiebreak) {
+    return mainScore
+  }
 
-	const tiebreakFormatted =
-		score.tiebreak.scheme === "time"
-			? decodeScore(score.tiebreak.value, "time", { compact: true })
-			: score.tiebreak.value.toString()
+  const tiebreakFormatted =
+    score.tiebreak.scheme === "time"
+      ? decodeScore(score.tiebreak.value, "time", { compact: true })
+      : score.tiebreak.value.toString()
 
-	return `${mainScore} (TB: ${tiebreakFormatted})`
+  return `${mainScore} (TB: ${tiebreakFormatted})`
 }
 
 /**
@@ -163,11 +163,11 @@ export function formatScoreWithTiebreak(
  * // → "12:34.567" or "CAP (142 reps)" or "5+12 (TB: 8:30)"
  */
 export function formatScoreForList(
-	score: Score,
-	options?: FormatOptions,
+  score: Score,
+  options?: FormatOptions,
 ): string {
-	if (score.tiebreak) {
-		return formatScoreWithTiebreak(score, options)
-	}
-	return formatScore(score, options)
+  if (score.tiebreak) {
+    return formatScoreWithTiebreak(score, options)
+  }
+  return formatScore(score, options)
 }

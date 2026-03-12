@@ -1,14 +1,14 @@
 import { render } from "@react-email/render"
 import { SITE_DOMAIN } from "@/constants"
 import {
-	getAppUrl,
-	getEmailFrom,
-	getEmailFromName,
-	getEmailReplyTo,
-	getResendApiKey,
-	getSiteUrl,
-	isEmailTestMode,
-	isProduction,
+  getAppUrl,
+  getEmailFrom,
+  getEmailFromName,
+  getEmailReplyTo,
+  getResendApiKey,
+  getSiteUrl,
+  isEmailTestMode,
+  isProduction,
 } from "@/lib/env"
 import { OrganizerRequestApprovedEmail } from "@/react-email/organizer/request-approved"
 import { OrganizerRequestRejectedEmail } from "@/react-email/organizer/request-rejected"
@@ -27,24 +27,24 @@ import { VerifyEmail } from "@/react-email/verify-email"
  * e.g., "john.doe@example.com" -> "jo***@example.com"
  */
 function maskEmail(email: string): string {
-	const atIndex = email.indexOf("@")
-	if (atIndex <= 0) return "***"
+  const atIndex = email.indexOf("@")
+  if (atIndex <= 0) return "***"
 
-	const localPart = email.slice(0, atIndex)
-	const domain = email.slice(atIndex)
+  const localPart = email.slice(0, atIndex)
+  const domain = email.slice(atIndex)
 
-	// Show first 2 chars of local part (or 1 if very short), mask the rest
-	const visibleChars = Math.min(2, localPart.length)
-	const maskedLocal = `${localPart.slice(0, visibleChars)}***`
+  // Show first 2 chars of local part (or 1 if very short), mask the rest
+  const visibleChars = Math.min(2, localPart.length)
+  const maskedLocal = `${localPart.slice(0, visibleChars)}***`
 
-	return maskedLocal + domain
+  return maskedLocal + domain
 }
 
 /**
  * Masks multiple email addresses for safe logging.
  */
 function maskEmails(emails: string[]): string {
-	return emails.map(maskEmail).join(",")
+  return emails.map(maskEmail).join(",")
 }
 
 // ============================================================================
@@ -52,11 +52,11 @@ function maskEmails(emails: string[]): string {
 // ============================================================================
 
 export interface SendEmailOptions {
-	to: string | string[]
-	subject: string
-	template: React.ReactElement
-	tags?: { name: string; value: string }[]
-	replyTo?: string
+  to: string | string[]
+  subject: string
+  template: React.ReactElement
+  tags?: { name: string; value: string }[]
+  replyTo?: string
 }
 
 // ============================================================================
@@ -68,7 +68,7 @@ export interface SendEmailOptions {
  * Returns true in production or when EMAIL_TEST_MODE is enabled.
  */
 function shouldSendEmail(): boolean {
-	return isProduction() || isEmailTestMode()
+  return isProduction() || isEmailTestMode()
 }
 
 // ============================================================================
@@ -81,86 +81,86 @@ function shouldSendEmail(): boolean {
  * - In development: logs to console (unless EMAIL_TEST_MODE=true)
  */
 export async function sendEmail({
-	to,
-	subject,
-	template,
-	tags = [],
-	replyTo,
+  to,
+  subject,
+  template,
+  tags = [],
+  replyTo,
 }: SendEmailOptions): Promise<void> {
-	const recipients = Array.isArray(to) ? to : [to]
-	const emailType = tags.find((t) => t.name === "type")?.value ?? "unknown"
+  const recipients = Array.isArray(to) ? to : [to]
+  const emailType = tags.find((t) => t.name === "type")?.value ?? "unknown"
 
-	if (!shouldSendEmail()) {
-		console.warn(
-			`\n[Email Preview] To: ${recipients.join(", ")}\nSubject: ${subject}\nType: ${emailType}\n`,
-		)
-		console.log("[Email] Skipped (dev mode)", {
-			recipientCount: recipients.length,
-			subject,
-			emailType,
-		})
-		return
-	}
+  if (!shouldSendEmail()) {
+    console.warn(
+      `\n[Email Preview] To: ${recipients.join(", ")}\nSubject: ${subject}\nType: ${emailType}\n`,
+    )
+    console.log("[Email] Skipped (dev mode)", {
+      recipientCount: recipients.length,
+      subject,
+      emailType,
+    })
+    return
+  }
 
-	const resendApiKey = getResendApiKey()
-	if (!resendApiKey) {
-		console.error("[Email] RESEND_API_KEY not configured", {
-			recipientCount: recipients.length,
-			subject,
-			emailType,
-		})
-		return
-	}
+  const resendApiKey = getResendApiKey()
+  if (!resendApiKey) {
+    console.error("[Email] RESEND_API_KEY not configured", {
+      recipientCount: recipients.length,
+      subject,
+      emailType,
+    })
+    return
+  }
 
-	// Default email sender config (fallback for development)
-	// Uses mail.wodsmith.com subdomain which is verified in Resend
-	const emailFrom = getEmailFrom()
-	const emailFromName = getEmailFromName()
-	const emailReplyTo = getEmailReplyTo()
+  // Default email sender config (fallback for development)
+  // Uses mail.wodsmith.com subdomain which is verified in Resend
+  const emailFrom = getEmailFrom()
+  const emailFromName = getEmailFromName()
+  const emailReplyTo = getEmailReplyTo()
 
-	try {
-		const html = await render(template)
+  try {
+    const html = await render(template)
 
-		const response = await fetch("https://api.resend.com/emails", {
-			method: "POST",
-			headers: {
-				Authorization: `Bearer ${resendApiKey}`,
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				from: `${emailFromName} <${emailFrom}>`,
-				to: recipients,
-				subject,
-				html,
-				reply_to: replyTo ?? emailReplyTo,
-				tags,
-			}),
-		})
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: `${emailFromName} <${emailFrom}>`,
+        to: recipients,
+        subject,
+        html,
+        reply_to: replyTo ?? emailReplyTo,
+        tags,
+      }),
+    })
 
-		if (!response.ok) {
-			const error = await response.json()
-			throw new Error(`Resend API error: ${JSON.stringify(error)}`)
-		}
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(`Resend API error: ${JSON.stringify(error)}`)
+    }
 
-		const result = (await response.json()) as { id: string }
+    const result = (await response.json()) as { id: string }
 
-		console.log("[Email] Sent successfully", {
-			recipientCount: recipients.length,
-			recipientMasked: maskEmails(recipients),
-			subject,
-			emailType,
-			resendId: result.id,
-		})
-	} catch (err) {
-		console.error("[Email] Failed to send", {
-			error: err,
-			recipientCount: recipients.length,
-			recipientMasked: maskEmails(recipients),
-			subject,
-			emailType,
-		})
-		// Don't re-throw - email failures shouldn't break primary actions
-	}
+    console.log("[Email] Sent successfully", {
+      recipientCount: recipients.length,
+      recipientMasked: maskEmails(recipients),
+      subject,
+      emailType,
+      resendId: result.id,
+    })
+  } catch (err) {
+    console.error("[Email] Failed to send", {
+      error: err,
+      recipientCount: recipients.length,
+      recipientMasked: maskEmails(recipients),
+      subject,
+      emailType,
+    })
+    // Don't re-throw - email failures shouldn't break primary actions
+  }
 }
 
 // ============================================================================
@@ -172,28 +172,28 @@ export async function sendEmail({
  * Uses the unified sendEmail function for consistent logging and error handling.
  */
 export async function sendPasswordResetEmail({
-	email,
-	resetToken,
-	username,
+  email,
+  resetToken,
+  username,
 }: {
-	email: string
-	resetToken: string
-	username: string
+  email: string
+  resetToken: string
+  username: string
 }): Promise<void> {
-	const siteUrl = getSiteUrl()
-	const resetUrl = `${siteUrl}/reset-password?token=${resetToken}`
+  const siteUrl = getSiteUrl()
+  const resetUrl = `${siteUrl}/reset-password?token=${resetToken}`
 
-	// In dev mode, console.warn shows the URL for easy testing
-	if (!shouldSendEmail()) {
-		console.warn("\n\n\nPassword reset url: ", resetUrl)
-	}
+  // In dev mode, console.warn shows the URL for easy testing
+  if (!shouldSendEmail()) {
+    console.warn("\n\n\nPassword reset url: ", resetUrl)
+  }
 
-	await sendEmail({
-		to: email,
-		subject: `Reset your password for ${SITE_DOMAIN}`,
-		template: ResetPasswordEmail({ resetLink: resetUrl, username }),
-		tags: [{ name: "type", value: "password-reset" }],
-	})
+  await sendEmail({
+    to: email,
+    subject: `Reset your password for ${SITE_DOMAIN}`,
+    template: ResetPasswordEmail({ resetLink: resetUrl, username }),
+    tags: [{ name: "type", value: "password-reset" }],
+  })
 }
 
 /**
@@ -201,28 +201,28 @@ export async function sendPasswordResetEmail({
  * Uses the unified sendEmail function for consistent logging and error handling.
  */
 export async function sendVerificationEmail({
-	email,
-	verificationToken,
-	username,
+  email,
+  verificationToken,
+  username,
 }: {
-	email: string
-	verificationToken: string
-	username: string
+  email: string
+  verificationToken: string
+  username: string
 }): Promise<void> {
-	const siteUrl = getSiteUrl()
-	const verificationUrl = `${siteUrl}/verify-email?token=${verificationToken}`
+  const siteUrl = getSiteUrl()
+  const verificationUrl = `${siteUrl}/verify-email?token=${verificationToken}`
 
-	// In dev mode, console.warn shows the URL for easy testing
-	if (!shouldSendEmail()) {
-		console.warn("\n\n\nVerification url: ", verificationUrl)
-	}
+  // In dev mode, console.warn shows the URL for easy testing
+  if (!shouldSendEmail()) {
+    console.warn("\n\n\nVerification url: ", verificationUrl)
+  }
 
-	await sendEmail({
-		to: email,
-		subject: `Verify your email for ${SITE_DOMAIN}`,
-		template: VerifyEmail({ verificationLink: verificationUrl, username }),
-		tags: [{ name: "type", value: "email-verification" }],
-	})
+  await sendEmail({
+    to: email,
+    subject: `Verify your email for ${SITE_DOMAIN}`,
+    template: VerifyEmail({ verificationLink: verificationUrl, username }),
+    tags: [{ name: "type", value: "email-verification" }],
+  })
 }
 
 /**
@@ -230,35 +230,35 @@ export async function sendVerificationEmail({
  * Uses the unified sendEmail function for consistent logging and error handling.
  */
 export async function sendTeamInvitationEmail({
-	email,
-	invitationToken,
-	teamName,
-	inviterName,
+  email,
+  invitationToken,
+  teamName,
+  inviterName,
 }: {
-	email: string
-	invitationToken: string
-	teamName: string
-	inviterName: string
+  email: string
+  invitationToken: string
+  teamName: string
+  inviterName: string
 }): Promise<void> {
-	const siteUrl = getSiteUrl()
-	const inviteUrl = `${siteUrl}/team-invite?token=${encodeURIComponent(invitationToken)}`
+  const siteUrl = getSiteUrl()
+  const inviteUrl = `${siteUrl}/team-invite?token=${encodeURIComponent(invitationToken)}`
 
-	// In dev mode, console.warn shows the URL for easy testing
-	if (!shouldSendEmail()) {
-		console.warn("\n\n\nTeam invitation url: ", inviteUrl)
-	}
+  // In dev mode, console.warn shows the URL for easy testing
+  if (!shouldSendEmail()) {
+    console.warn("\n\n\nTeam invitation url: ", inviteUrl)
+  }
 
-	await sendEmail({
-		to: email,
-		subject: `You've been invited to join a team on ${SITE_DOMAIN}`,
-		template: TeamInviteEmail({
-			inviteLink: inviteUrl,
-			recipientEmail: email,
-			teamName,
-			inviterName,
-		}),
-		tags: [{ name: "type", value: "team-invitation" }],
-	})
+  await sendEmail({
+    to: email,
+    subject: `You've been invited to join a team on ${SITE_DOMAIN}`,
+    template: TeamInviteEmail({
+      inviteLink: inviteUrl,
+      recipientEmail: email,
+      teamName,
+      inviterName,
+    }),
+    tags: [{ name: "type", value: "team-invitation" }],
+  })
 }
 
 /**
@@ -267,39 +267,39 @@ export async function sendTeamInvitationEmail({
  * Uses the unified sendEmail function for consistent logging and error handling.
  */
 export async function sendCompetitionTeamInviteEmail({
-	email,
-	invitationToken,
-	teamName,
-	competitionName,
-	divisionName,
-	inviterName,
+  email,
+  invitationToken,
+  teamName,
+  competitionName,
+  divisionName,
+  inviterName,
 }: {
-	email: string
-	invitationToken: string
-	teamName: string
-	competitionName: string
-	divisionName: string
-	inviterName: string
+  email: string
+  invitationToken: string
+  teamName: string
+  competitionName: string
+  divisionName: string
+  inviterName: string
 }): Promise<void> {
-	const siteUrl = getSiteUrl()
-	const inviteUrl = `${siteUrl}/compete/invite/${encodeURIComponent(invitationToken)}`
+  const siteUrl = getSiteUrl()
+  const inviteUrl = `${siteUrl}/compete/invite/${encodeURIComponent(invitationToken)}`
 
-	// In dev mode, console.warn shows the URL for easy testing
-	if (!shouldSendEmail()) {
-		console.warn("\n\n\nCompetition team invitation url: ", inviteUrl)
-	}
+  // In dev mode, console.warn shows the URL for easy testing
+  if (!shouldSendEmail()) {
+    console.warn("\n\n\nCompetition team invitation url: ", inviteUrl)
+  }
 
-	await sendEmail({
-		to: email,
-		subject: `Join ${teamName} for ${competitionName}`,
-		template: TeamInviteEmail({
-			inviteLink: inviteUrl,
-			recipientEmail: email,
-			teamName: `${teamName} (${divisionName})`,
-			inviterName,
-		}),
-		tags: [{ name: "type", value: "competition-team-invitation" }],
-	})
+  await sendEmail({
+    to: email,
+    subject: `Join ${teamName} for ${competitionName}`,
+    template: TeamInviteEmail({
+      inviteLink: inviteUrl,
+      recipientEmail: email,
+      teamName: `${teamName} (${divisionName})`,
+      inviterName,
+    }),
+    tags: [{ name: "type", value: "competition-team-invitation" }],
+  })
 }
 
 /**
@@ -308,35 +308,35 @@ export async function sendCompetitionTeamInviteEmail({
  * Routes to /compete/invite/${token} so the invitee fills out registration questions.
  */
 export async function sendVolunteerDirectInviteEmail({
-	email,
-	invitationToken,
-	competitionName,
-	inviterName,
+  email,
+  invitationToken,
+  competitionName,
+  inviterName,
 }: {
-	email: string
-	invitationToken: string
-	competitionName: string
-	inviterName: string
+  email: string
+  invitationToken: string
+  competitionName: string
+  inviterName: string
 }): Promise<void> {
-	const siteUrl = getSiteUrl()
-	const inviteUrl = `${siteUrl}/compete/invite/${encodeURIComponent(invitationToken)}`
+  const siteUrl = getSiteUrl()
+  const inviteUrl = `${siteUrl}/compete/invite/${encodeURIComponent(invitationToken)}`
 
-	// In dev mode, console.warn shows the URL for easy testing
-	if (!shouldSendEmail()) {
-		console.warn("\n\n\nVolunteer direct invite url: ", inviteUrl)
-	}
+  // In dev mode, console.warn shows the URL for easy testing
+  if (!shouldSendEmail()) {
+    console.warn("\n\n\nVolunteer direct invite url: ", inviteUrl)
+  }
 
-	await sendEmail({
-		to: email,
-		subject: `You've been invited to volunteer at ${competitionName}`,
-		template: TeamInviteEmail({
-			inviteLink: inviteUrl,
-			recipientEmail: email,
-			teamName: competitionName,
-			inviterName,
-		}),
-		tags: [{ name: "type", value: "volunteer-direct-invitation" }],
-	})
+  await sendEmail({
+    to: email,
+    subject: `You've been invited to volunteer at ${competitionName}`,
+    template: TeamInviteEmail({
+      inviteLink: inviteUrl,
+      recipientEmail: email,
+      teamName: competitionName,
+      inviterName,
+    }),
+    tags: [{ name: "type", value: "volunteer-direct-invitation" }],
+  })
 }
 
 /**
@@ -344,37 +344,37 @@ export async function sendVolunteerDirectInviteEmail({
  * Uses the unified sendEmail function for consistent logging and error handling.
  */
 export async function sendOrganizerApprovalEmail({
-	email,
-	recipientName,
-	teamName,
-	teamSlug,
-	adminNotes,
+  email,
+  recipientName,
+  teamName,
+  teamSlug,
+  adminNotes,
 }: {
-	email: string
-	recipientName: string
-	teamName: string
-	teamSlug: string
-	adminNotes?: string
+  email: string
+  recipientName: string
+  teamName: string
+  teamSlug: string
+  adminNotes?: string
 }): Promise<void> {
-	const siteUrl = getSiteUrl()
-	const dashboardUrl = `${siteUrl}/${teamSlug}/compete/organizer`
+  const siteUrl = getSiteUrl()
+  const dashboardUrl = `${siteUrl}/${teamSlug}/compete/organizer`
 
-	// In dev mode, console.warn shows the URL for easy testing
-	if (!shouldSendEmail()) {
-		console.warn("\n\n\nOrganizer dashboard url: ", dashboardUrl)
-	}
+  // In dev mode, console.warn shows the URL for easy testing
+  if (!shouldSendEmail()) {
+    console.warn("\n\n\nOrganizer dashboard url: ", dashboardUrl)
+  }
 
-	await sendEmail({
-		to: email,
-		subject: `Your organizer application has been approved - ${SITE_DOMAIN}`,
-		template: OrganizerRequestApprovedEmail({
-			teamName,
-			recipientName,
-			dashboardLink: dashboardUrl,
-			adminNotes,
-		}),
-		tags: [{ name: "type", value: "organizer-approval" }],
-	})
+  await sendEmail({
+    to: email,
+    subject: `Your organizer application has been approved - ${SITE_DOMAIN}`,
+    template: OrganizerRequestApprovedEmail({
+      teamName,
+      recipientName,
+      dashboardLink: dashboardUrl,
+      adminNotes,
+    }),
+    tags: [{ name: "type", value: "organizer-approval" }],
+  })
 }
 
 /**
@@ -382,29 +382,29 @@ export async function sendOrganizerApprovalEmail({
  * Uses the unified sendEmail function for consistent logging and error handling.
  */
 export async function sendOrganizerRejectionEmail({
-	email,
-	recipientName,
-	teamName,
-	adminNotes,
+  email,
+  recipientName,
+  teamName,
+  adminNotes,
 }: {
-	email: string
-	recipientName: string
-	teamName: string
-	adminNotes?: string
+  email: string
+  recipientName: string
+  teamName: string
+  adminNotes?: string
 }): Promise<void> {
-	const supportEmail = getEmailReplyTo()
+  const supportEmail = getEmailReplyTo()
 
-	await sendEmail({
-		to: email,
-		subject: `Update on your organizer application - ${SITE_DOMAIN}`,
-		template: OrganizerRequestRejectedEmail({
-			teamName,
-			recipientName,
-			adminNotes,
-			supportEmail,
-		}),
-		tags: [{ name: "type", value: "organizer-rejection" }],
-	})
+  await sendEmail({
+    to: email,
+    subject: `Update on your organizer application - ${SITE_DOMAIN}`,
+    template: OrganizerRequestRejectedEmail({
+      teamName,
+      recipientName,
+      adminNotes,
+      supportEmail,
+    }),
+    tags: [{ name: "type", value: "organizer-rejection" }],
+  })
 }
 
 /**
@@ -412,47 +412,47 @@ export async function sendOrganizerRejectionEmail({
  * Uses the unified sendEmail function for consistent logging and error handling.
  */
 export async function sendPurchaseTransferEmail({
-	email,
-	transferId,
-	competitionName,
-	divisionName,
-	sourceAthleteName,
-	expiresAt,
+  email,
+  transferId,
+  competitionName,
+  divisionName,
+  sourceAthleteName,
+  expiresAt,
 }: {
-	email: string
-	transferId: string
-	competitionName: string
-	divisionName: string | null
-	sourceAthleteName: string
-	expiresAt: Date
+  email: string
+  transferId: string
+  competitionName: string
+  divisionName: string | null
+  sourceAthleteName: string
+  expiresAt: Date
 }): Promise<void> {
-	const appUrl = getAppUrl()
+  const appUrl = getAppUrl()
 
-	// In dev mode, console.warn shows the URL for easy testing
-	if (!shouldSendEmail()) {
-		console.warn(
-			"\n\n\nPurchase transfer url: ",
-			`${appUrl}/transfer/${transferId}`,
-		)
-	}
+  // In dev mode, console.warn shows the URL for easy testing
+  if (!shouldSendEmail()) {
+    console.warn(
+      "\n\n\nPurchase transfer url: ",
+      `${appUrl}/transfer/${transferId}`,
+    )
+  }
 
-	await sendEmail({
-		to: email,
-		subject: `Registration transfer for ${competitionName}`,
-		template: (
-			<PurchaseTransferEmail
-				sourceAthleteName={sourceAthleteName}
-				competitionName={competitionName}
-				divisionName={divisionName ?? undefined}
-				transferId={transferId}
-				appUrl={appUrl}
-				expiresAt={expiresAt.toLocaleDateString("en-US", {
-					month: "long",
-					day: "numeric",
-					year: "numeric",
-				})}
-			/>
-		),
-		tags: [{ name: "type", value: "purchase-transfer" }],
-	})
+  await sendEmail({
+    to: email,
+    subject: `Registration transfer for ${competitionName}`,
+    template: (
+      <PurchaseTransferEmail
+        sourceAthleteName={sourceAthleteName}
+        competitionName={competitionName}
+        divisionName={divisionName ?? undefined}
+        transferId={transferId}
+        appUrl={appUrl}
+        expiresAt={expiresAt.toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })}
+      />
+    ),
+    tags: [{ name: "type", value: "purchase-transfer" }],
+  })
 }

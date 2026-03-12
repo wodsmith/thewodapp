@@ -2,30 +2,30 @@
 
 import { useRouter } from "@tanstack/react-router"
 import {
-	createContext,
-	type ReactNode,
-	useContext,
-	useEffect,
-	useMemo,
-	useRef,
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
 } from "react"
 
 import {
-	capturePageleave,
-	capturePageview,
-	getPostHog,
-	initPostHog,
-	type posthog,
+  capturePageleave,
+  capturePageview,
+  getPostHog,
+  initPostHog,
+  type posthog,
 } from "./client"
 
 interface PostHogContextValue {
-	posthog: typeof posthog
+  posthog: typeof posthog
 }
 
 const PostHogContext = createContext<PostHogContextValue | null>(null)
 
 interface PostHogProviderProps {
-	children: ReactNode
+  children: ReactNode
 }
 
 /**
@@ -45,54 +45,54 @@ interface PostHogProviderProps {
  * ```
  */
 export function PostHogProvider({ children }: PostHogProviderProps) {
-	const router = useRouter()
-	const previousPathRef = useRef<string>("")
+  const router = useRouter()
+  const previousPathRef = useRef<string>("")
 
-	// Initialize PostHog on mount (client-side only)
-	useEffect(() => {
-		initPostHog()
+  // Initialize PostHog on mount (client-side only)
+  useEffect(() => {
+    initPostHog()
 
-		// Capture initial pageview
-		capturePageview()
+    // Capture initial pageview
+    capturePageview()
 
-		// Store initial path
-		previousPathRef.current = window.location.pathname
-	}, [])
+    // Store initial path
+    previousPathRef.current = window.location.pathname
+  }, [])
 
-	// Track route changes
-	useEffect(() => {
-		const unsubscribe = router.subscribe("onResolved", (event) => {
-			const newPath = event.toLocation.pathname
+  // Track route changes
+  useEffect(() => {
+    const unsubscribe = router.subscribe("onResolved", (event) => {
+      const newPath = event.toLocation.pathname
 
-			// Only capture if path actually changed (avoid duplicate events)
-			if (newPath !== previousPathRef.current) {
-				capturePageview(event.toLocation.href)
-				previousPathRef.current = newPath
-			}
-		})
+      // Only capture if path actually changed (avoid duplicate events)
+      if (newPath !== previousPathRef.current) {
+        capturePageview(event.toLocation.href)
+        previousPathRef.current = newPath
+      }
+    })
 
-		return () => {
-			unsubscribe()
-		}
-	}, [router])
+    return () => {
+      unsubscribe()
+    }
+  }, [router])
 
-	// Capture page leave on unmount
-	useEffect(() => {
-		return () => {
-			capturePageleave()
-		}
-	}, [])
+  // Capture page leave on unmount
+  useEffect(() => {
+    return () => {
+      capturePageleave()
+    }
+  }, [])
 
-	const value = useMemo<PostHogContextValue>(
-		() => ({
-			posthog: getPostHog(),
-		}),
-		[],
-	)
+  const value = useMemo<PostHogContextValue>(
+    () => ({
+      posthog: getPostHog(),
+    }),
+    [],
+  )
 
-	return (
-		<PostHogContext.Provider value={value}>{children}</PostHogContext.Provider>
-	)
+  return (
+    <PostHogContext.Provider value={value}>{children}</PostHogContext.Provider>
+  )
 }
 
 /**
@@ -112,11 +112,11 @@ export function PostHogProvider({ children }: PostHogProviderProps) {
  * ```
  */
 export function usePostHog(): PostHogContextValue {
-	const context = useContext(PostHogContext)
+  const context = useContext(PostHogContext)
 
-	if (!context) {
-		throw new Error("usePostHog must be used within a PostHogProvider")
-	}
+  if (!context) {
+    throw new Error("usePostHog must be used within a PostHogProvider")
+  }
 
-	return context
+  return context
 }

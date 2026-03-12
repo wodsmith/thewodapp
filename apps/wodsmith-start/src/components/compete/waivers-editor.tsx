@@ -13,10 +13,10 @@ import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin"
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin"
 import { HeadingNode, QuoteNode } from "@lexical/rich-text"
 import type {
-	Klass,
-	LexicalNode,
-	LexicalNodeReplacement,
-	SerializedEditorState,
+  Klass,
+  LexicalNode,
+  LexicalNodeReplacement,
+  SerializedEditorState,
 } from "lexical"
 import { ParagraphNode, TextNode } from "lexical"
 
@@ -27,31 +27,31 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { WaiversEditorToolbar } from "./waivers-editor-toolbar"
 
 const nodes: ReadonlyArray<Klass<LexicalNode> | LexicalNodeReplacement> = [
-	HeadingNode,
-	ParagraphNode,
-	TextNode,
-	QuoteNode,
-	ListNode,
-	ListItemNode,
-	LinkNode,
-	AutoLinkNode,
+  HeadingNode,
+  ParagraphNode,
+  TextNode,
+  QuoteNode,
+  ListNode,
+  ListItemNode,
+  LinkNode,
+  AutoLinkNode,
 ]
 
 const editorConfig: InitialConfigType = {
-	namespace: "WaiversEditor",
-	theme: editorTheme,
-	nodes,
-	onError: (error: Error) => {
-		console.error("WaiversEditor error:", error)
-	},
+  namespace: "WaiversEditor",
+  theme: editorTheme,
+  nodes,
+  onError: (error: Error) => {
+    console.error("WaiversEditor error:", error)
+  },
 }
 
 interface WaiversEditorProps {
-	value?: SerializedEditorState
-	onChange?: (value: SerializedEditorState) => void
-	placeholder?: string
-	/** Max height for the content area (toolbar stays fixed). Use CSS value like "50vh" or "300px" */
-	maxContentHeight?: string
+  value?: SerializedEditorState
+  onChange?: (value: SerializedEditorState) => void
+  placeholder?: string
+  /** Max height for the content area (toolbar stays fixed). Use CSS value like "50vh" or "300px" */
+  maxContentHeight?: string
 }
 
 /**
@@ -70,50 +70,50 @@ interface WaiversEditorProps {
  * ```
  */
 export function WaiversEditor({
-	value,
-	onChange,
-	placeholder = "Enter waiver content...",
-	maxContentHeight,
+  value,
+  onChange,
+  placeholder = "Enter waiver content...",
+  maxContentHeight,
 }: WaiversEditorProps) {
-	return (
-		<div className="overflow-hidden rounded-lg border shadow">
-			<LexicalComposer
-				initialConfig={{
-					...editorConfig,
-					...(value ? { editorState: JSON.stringify(value) } : {}),
-				}}
-			>
-				<TooltipProvider>
-					<div className="relative flex flex-col">
-						<WaiversEditorToolbar />
-						<div
-							className="relative overflow-y-auto"
-							style={
-								maxContentHeight ? { maxHeight: maxContentHeight } : undefined
-							}
-						>
-							<RichTextPlugin
-								contentEditable={
-									<div className="min-h-[200px]">
-										<ContentEditable placeholder={placeholder} />
-									</div>
-								}
-								ErrorBoundary={LexicalErrorBoundary}
-							/>
-						</div>
-					</div>
+  return (
+    <div className="overflow-hidden rounded-lg border shadow">
+      <LexicalComposer
+        initialConfig={{
+          ...editorConfig,
+          ...(value ? { editorState: JSON.stringify(value) } : {}),
+        }}
+      >
+        <TooltipProvider>
+          <div className="relative flex flex-col">
+            <WaiversEditorToolbar />
+            <div
+              className="relative overflow-y-auto"
+              style={
+                maxContentHeight ? { maxHeight: maxContentHeight } : undefined
+              }
+            >
+              <RichTextPlugin
+                contentEditable={
+                  <div className="min-h-[200px]">
+                    <ContentEditable placeholder={placeholder} />
+                  </div>
+                }
+                ErrorBoundary={LexicalErrorBoundary}
+              />
+            </div>
+          </div>
 
-					<HistoryPlugin />
-					<ListPlugin />
-					<LinkPlugin />
-					<OnChangePlugin
-						ignoreSelectionChange={true}
-						onChange={(editorState) => {
-							onChange?.(editorState.toJSON())
-						}}
-					/>
-				</TooltipProvider>
-			</LexicalComposer>
-		</div>
-	)
+          <HistoryPlugin />
+          <ListPlugin />
+          <LinkPlugin />
+          <OnChangePlugin
+            ignoreSelectionChange={true}
+            onChange={(editorState) => {
+              onChange?.(editorState.toJSON())
+            }}
+          />
+        </TooltipProvider>
+      </LexicalComposer>
+    </div>
+  )
 }

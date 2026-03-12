@@ -29,8 +29,8 @@
 import { env, waitUntil } from "cloudflare:workers"
 import * as Sentry from "@sentry/cloudflare"
 import {
-	getContextAttributesForLogging,
-	getRequestDuration,
+  getContextAttributesForLogging,
+  getRequestDuration,
 } from "./request-context"
 
 /**
@@ -38,22 +38,22 @@ import {
  * @see https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-severitynumber
  */
 const SeverityNumber = {
-	TRACE: 1,
-	DEBUG: 5,
-	INFO: 9,
-	WARN: 13,
-	ERROR: 17,
-	FATAL: 21,
+  TRACE: 1,
+  DEBUG: 5,
+  INFO: 9,
+  WARN: 13,
+  ERROR: 17,
+  FATAL: 21,
 } as const
 
 type SeverityNumberType = (typeof SeverityNumber)[keyof typeof SeverityNumber]
 
 interface LogParams {
-	message: string
-	attributes?: Record<string, unknown>
-	error?: unknown
-	severityNumber?: SeverityNumberType
-	severityText?: string
+  message: string
+  attributes?: Record<string, unknown>
+  error?: unknown
+  severityNumber?: SeverityNumberType
+  severityText?: string
 }
 
 const DEFAULT_ENDPOINT = "https://us.i.posthog.com/i/v1/logs"
@@ -66,21 +66,21 @@ let endpoint: string
  * Type-safe access to env vars that may or may not exist
  */
 function getEnvVar(key: string): string | undefined {
-	// Cast through unknown to safely access potentially undefined keys
-	return (env as unknown as Record<string, string | undefined>)[key]
+  // Cast through unknown to safely access potentially undefined keys
+  return (env as unknown as Record<string, string | undefined>)[key]
 }
 
 function initConfig() {
-	if (posthogToken !== undefined) return
+  if (posthogToken !== undefined) return
 
-	// Access PostHog key from Cloudflare Workers env bindings
-	// Falls back to VITE_ env for local dev with Vite
-	posthogToken = getEnvVar("POSTHOG_KEY") ?? import.meta.env.VITE_POSTHOG_KEY
-	endpoint =
-		getEnvVar("POSTHOG_LOGS_ENDPOINT") ??
-		import.meta.env.VITE_POSTHOG_LOGS_ENDPOINT ??
-		DEFAULT_ENDPOINT
-	isPostHogEnabled = !!posthogToken
+  // Access PostHog key from Cloudflare Workers env bindings
+  // Falls back to VITE_ env for local dev with Vite
+  posthogToken = getEnvVar("POSTHOG_KEY") ?? import.meta.env.VITE_POSTHOG_KEY
+  endpoint =
+    getEnvVar("POSTHOG_LOGS_ENDPOINT") ??
+    import.meta.env.VITE_POSTHOG_LOGS_ENDPOINT ??
+    DEFAULT_ENDPOINT
+  isPostHogEnabled = !!posthogToken
 }
 
 /**
@@ -91,159 +91,159 @@ function initConfig() {
  * @param params - Log parameters including message, severity, and attributes
  */
 function sendLogToPostHog(params: {
-	message: string
-	severityNumber: SeverityNumberType
-	severityText: string
-	attributes: Record<string, unknown>
+  message: string
+  severityNumber: SeverityNumberType
+  severityText: string
+  attributes: Record<string, unknown>
 }): void {
-	if (!isPostHogEnabled || !posthogToken) return
+  if (!isPostHogEnabled || !posthogToken) return
 
-	const now = Date.now()
-	const body = {
-		resourceLogs: [
-			{
-				resource: {
-					attributes: [
-						{ key: "service.name", value: { stringValue: "wodsmith-start" } },
-						{ key: "service.namespace", value: { stringValue: "web" } },
-						{
-							key: "deployment.environment.name",
-							value: {
-								stringValue:
-									getEnvVar("ENVIRONMENT") ??
-									(import.meta.env.DEV ? "development" : "production"),
-							},
-						},
-					],
-				},
-				scopeLogs: [
-					{
-						scope: { name: "posthog-otel-logger", version: "1.0.0" },
-						logRecords: [
-							{
-								timeUnixNano: String(now * 1_000_000),
-								severityNumber: params.severityNumber,
-								severityText: params.severityText,
-								body: { stringValue: params.message },
-								attributes: Object.entries(params.attributes).map(
-									([key, value]) => ({
-										key,
-										value: formatAttributeValue(value),
-									}),
-								),
-							},
-						],
-					},
-				],
-			},
-		],
-	}
+  const now = Date.now()
+  const body = {
+    resourceLogs: [
+      {
+        resource: {
+          attributes: [
+            { key: "service.name", value: { stringValue: "wodsmith-start" } },
+            { key: "service.namespace", value: { stringValue: "web" } },
+            {
+              key: "deployment.environment.name",
+              value: {
+                stringValue:
+                  getEnvVar("ENVIRONMENT") ??
+                  (import.meta.env.DEV ? "development" : "production"),
+              },
+            },
+          ],
+        },
+        scopeLogs: [
+          {
+            scope: { name: "posthog-otel-logger", version: "1.0.0" },
+            logRecords: [
+              {
+                timeUnixNano: String(now * 1_000_000),
+                severityNumber: params.severityNumber,
+                severityText: params.severityText,
+                body: { stringValue: params.message },
+                attributes: Object.entries(params.attributes).map(
+                  ([key, value]) => ({
+                    key,
+                    value: formatAttributeValue(value),
+                  }),
+                ),
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  }
 
-	// Create AbortController with 5s timeout to prevent hanging requests
-	const controller = new AbortController()
-	const timeoutId = setTimeout(() => controller.abort(), 5000)
+  // Create AbortController with 5s timeout to prevent hanging requests
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 5000)
 
-	const fetchPromise = (async () => {
-		try {
-			const response = await fetch(endpoint, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${posthogToken}`,
-				},
-				body: JSON.stringify(body),
-				signal: controller.signal,
-			})
+  const fetchPromise = (async () => {
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${posthogToken}`,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
 
-			if (!response.ok) {
-				console.error(
-					"[posthog-otel] Failed to send log:",
-					response.status,
-					await response.text(),
-				)
-			}
-		} catch (err) {
-			if (err instanceof Error && err.name === "AbortError") {
-				console.error("[posthog-otel] Request timed out after 5s")
-			} else {
-				console.error("[posthog-otel] Error sending log:", err)
-			}
-		} finally {
-			clearTimeout(timeoutId)
-		}
-	})()
+      if (!response.ok) {
+        console.error(
+          "[posthog-otel] Failed to send log:",
+          response.status,
+          await response.text(),
+        )
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        console.error("[posthog-otel] Request timed out after 5s")
+      } else {
+        console.error("[posthog-otel] Error sending log:", err)
+      }
+    } finally {
+      clearTimeout(timeoutId)
+    }
+  })()
 
-	// Use cloudflare:workers waitUntil to ensure the request completes
-	// This is equivalent to OpenNext's getCloudflareContext().ctx.waitUntil
-	try {
-		waitUntil(fetchPromise)
-	} catch (_err) {
-		// waitUntil may not be available in some contexts (e.g., local dev without workers)
-		// The fetch will still be attempted but may not complete if execution terminates early
-	}
+  // Use cloudflare:workers waitUntil to ensure the request completes
+  // This is equivalent to OpenNext's getCloudflareContext().ctx.waitUntil
+  try {
+    waitUntil(fetchPromise)
+  } catch (_err) {
+    // waitUntil may not be available in some contexts (e.g., local dev without workers)
+    // The fetch will still be attempted but may not complete if execution terminates early
+  }
 }
 
 function formatAttributeValue(value: unknown): Record<string, unknown> {
-	if (typeof value === "string") {
-		return { stringValue: value }
-	}
-	if (typeof value === "number") {
-		return Number.isInteger(value)
-			? { intValue: String(value) }
-			: { doubleValue: value }
-	}
-	if (typeof value === "boolean") {
-		return { boolValue: value }
-	}
-	if (Array.isArray(value)) {
-		return {
-			arrayValue: {
-				values: value.map((v) => formatAttributeValue(v)),
-			},
-		}
-	}
-	if (value !== null && typeof value === "object") {
-		return { stringValue: JSON.stringify(value) }
-	}
-	return { stringValue: String(value) }
+  if (typeof value === "string") {
+    return { stringValue: value }
+  }
+  if (typeof value === "number") {
+    return Number.isInteger(value)
+      ? { intValue: String(value) }
+      : { doubleValue: value }
+  }
+  if (typeof value === "boolean") {
+    return { boolValue: value }
+  }
+  if (Array.isArray(value)) {
+    return {
+      arrayValue: {
+        values: value.map((v) => formatAttributeValue(v)),
+      },
+    }
+  }
+  if (value !== null && typeof value === "object") {
+    return { stringValue: JSON.stringify(value) }
+  }
+  return { stringValue: String(value) }
 }
 
 function enrichAttributes({
-	attributes,
-	error,
-	severityText,
+  attributes,
+  error,
+  severityText,
 }: Pick<LogParams, "attributes" | "error" | "severityText">) {
-	// Get request context attributes (requestId, userId, teamId, etc.)
-	const contextAttrs = getContextAttributesForLogging()
+  // Get request context attributes (requestId, userId, teamId, etc.)
+  const contextAttrs = getContextAttributesForLogging()
 
-	const baseAttrs = {
-		...contextAttrs,
-		...attributes,
-		severity_text: severityText,
-	}
+  const baseAttrs = {
+    ...contextAttrs,
+    ...attributes,
+    severity_text: severityText,
+  }
 
-	if (!error) {
-		return baseAttrs
-	}
+  if (!error) {
+    return baseAttrs
+  }
 
-	const errorValue =
-		error instanceof Error
-			? { message: error.message, stack: error.stack }
-			: { message: String(error) }
+  const errorValue =
+    error instanceof Error
+      ? { message: error.message, stack: error.stack }
+      : { message: String(error) }
 
-	return {
-		...baseAttrs,
-		error: errorValue,
-	}
+  return {
+    ...baseAttrs,
+    error: errorValue,
+  }
 }
 
 /**
  * Check if we're in development mode
  */
 function isDev(): boolean {
-	return (
-		getEnvVar("ENVIRONMENT") === "development" || import.meta.env.DEV === true
-	)
+  return (
+    getEnvVar("ENVIRONMENT") === "development" || import.meta.env.DEV === true
+  )
 }
 
 /**
@@ -252,54 +252,54 @@ function isDev(): boolean {
  * Includes request context (requestId, userId, etc.) for easier local debugging.
  */
 function emitToConsole(
-	severityText: string,
-	message: string,
-	attributes?: Record<string, unknown>,
-	error?: unknown,
+  severityText: string,
+  message: string,
+  attributes?: Record<string, unknown>,
+  error?: unknown,
 ) {
-	// Always emit to console in development, or when PostHog is disabled
-	if (isDev() || !isPostHogEnabled) {
-		// Include request context in console output
-		const contextAttrs = getContextAttributesForLogging()
-		const logData = { ...contextAttrs, ...attributes }
+  // Always emit to console in development, or when PostHog is disabled
+  if (isDev() || !isPostHogEnabled) {
+    // Include request context in console output
+    const contextAttrs = getContextAttributesForLogging()
+    const logData = { ...contextAttrs, ...attributes }
 
-		if (error) {
-			logData.error =
-				error instanceof Error
-					? { message: error.message, stack: error.stack }
-					: String(error)
-		}
+    if (error) {
+      logData.error =
+        error instanceof Error
+          ? { message: error.message, stack: error.stack }
+          : String(error)
+    }
 
-		const hasLogData = Object.keys(logData).length > 0
+    const hasLogData = Object.keys(logData).length > 0
 
-		// Format requestId prefix for easier log correlation
-		const requestIdPrefix = contextAttrs.requestId
-			? `[${contextAttrs.requestId}] `
-			: ""
+    // Format requestId prefix for easier log correlation
+    const requestIdPrefix = contextAttrs.requestId
+      ? `[${contextAttrs.requestId}] `
+      : ""
 
-		switch (severityText) {
-			case "ERROR":
-				if (hasLogData) {
-					console.error(`[ERROR] ${requestIdPrefix}${message}`, logData)
-				} else {
-					console.error(`[ERROR] ${requestIdPrefix}${message}`)
-				}
-				break
-			case "WARN":
-				if (hasLogData) {
-					console.warn(`[WARN] ${requestIdPrefix}${message}`, logData)
-				} else {
-					console.warn(`[WARN] ${requestIdPrefix}${message}`)
-				}
-				break
-			default:
-				if (hasLogData) {
-					console.info(`[INFO] ${requestIdPrefix}${message}`, logData)
-				} else {
-					console.info(`[INFO] ${requestIdPrefix}${message}`)
-				}
-		}
-	}
+    switch (severityText) {
+      case "ERROR":
+        if (hasLogData) {
+          console.error(`[ERROR] ${requestIdPrefix}${message}`, logData)
+        } else {
+          console.error(`[ERROR] ${requestIdPrefix}${message}`)
+        }
+        break
+      case "WARN":
+        if (hasLogData) {
+          console.warn(`[WARN] ${requestIdPrefix}${message}`, logData)
+        } else {
+          console.warn(`[WARN] ${requestIdPrefix}${message}`)
+        }
+        break
+      default:
+        if (hasLogData) {
+          console.info(`[INFO] ${requestIdPrefix}${message}`, logData)
+        } else {
+          console.info(`[INFO] ${requestIdPrefix}${message}`)
+        }
+    }
+  }
 }
 
 /**
@@ -312,22 +312,22 @@ function emitToConsole(
  * @param params.error - Optional error object to include
  */
 export function logInfo(params: LogParams): void {
-	initConfig()
-	const severityNumber = params.severityNumber ?? SeverityNumber.INFO
-	const severityText = params.severityText ?? "INFO"
+  initConfig()
+  const severityNumber = params.severityNumber ?? SeverityNumber.INFO
+  const severityText = params.severityText ?? "INFO"
 
-	sendLogToPostHog({
-		message: params.message,
-		severityNumber,
-		severityText,
-		attributes: enrichAttributes({
-			attributes: params.attributes,
-			error: params.error,
-			severityText,
-		}),
-	})
+  sendLogToPostHog({
+    message: params.message,
+    severityNumber,
+    severityText,
+    attributes: enrichAttributes({
+      attributes: params.attributes,
+      error: params.error,
+      severityText,
+    }),
+  })
 
-	emitToConsole(severityText, params.message, params.attributes, params.error)
+  emitToConsole(severityText, params.message, params.attributes, params.error)
 }
 
 /**
@@ -340,22 +340,22 @@ export function logInfo(params: LogParams): void {
  * @param params.error - Optional error object to include
  */
 export function logWarning(params: LogParams): void {
-	initConfig()
-	const severityText = params.severityText ?? "WARN"
-	const severityNumber = params.severityNumber ?? SeverityNumber.WARN
+  initConfig()
+  const severityText = params.severityText ?? "WARN"
+  const severityNumber = params.severityNumber ?? SeverityNumber.WARN
 
-	sendLogToPostHog({
-		message: params.message,
-		severityNumber,
-		severityText,
-		attributes: enrichAttributes({
-			attributes: params.attributes,
-			error: params.error,
-			severityText,
-		}),
-	})
+  sendLogToPostHog({
+    message: params.message,
+    severityNumber,
+    severityText,
+    attributes: enrichAttributes({
+      attributes: params.attributes,
+      error: params.error,
+      severityText,
+    }),
+  })
 
-	emitToConsole(severityText, params.message, params.attributes, params.error)
+  emitToConsole(severityText, params.message, params.attributes, params.error)
 }
 
 /**
@@ -368,37 +368,37 @@ export function logWarning(params: LogParams): void {
  * @param params.error - Optional error object to include (recommended)
  */
 export function logError(params: LogParams): void {
-	initConfig()
-	const severityText = params.severityText ?? "ERROR"
-	const severityNumber = params.severityNumber ?? SeverityNumber.ERROR
+  initConfig()
+  const severityText = params.severityText ?? "ERROR"
+  const severityNumber = params.severityNumber ?? SeverityNumber.ERROR
 
-	sendLogToPostHog({
-		message: params.message,
-		severityNumber,
-		severityText,
-		attributes: enrichAttributes({
-			attributes: params.attributes,
-			error: params.error,
-			severityText,
-		}),
-	})
+  sendLogToPostHog({
+    message: params.message,
+    severityNumber,
+    severityText,
+    attributes: enrichAttributes({
+      attributes: params.attributes,
+      error: params.error,
+      severityText,
+    }),
+  })
 
-	emitToConsole(severityText, params.message, params.attributes, params.error)
+  emitToConsole(severityText, params.message, params.attributes, params.error)
 
-	// Forward errors to Sentry for triage and alerting
-	if (params.error) {
-		try {
-			const errorObj =
-				params.error instanceof Error
-					? params.error
-					: new Error(String(params.error))
-			Sentry.captureException(errorObj, {
-				extra: { logMessage: params.message, ...params.attributes },
-			})
-		} catch {
-			// graceful degradation
-		}
-	}
+  // Forward errors to Sentry for triage and alerting
+  if (params.error) {
+    try {
+      const errorObj =
+        params.error instanceof Error
+          ? params.error
+          : new Error(String(params.error))
+      Sentry.captureException(errorObj, {
+        extra: { logMessage: params.message, ...params.attributes },
+      })
+    } catch {
+      // graceful degradation
+    }
+  }
 }
 
 /**
@@ -408,24 +408,24 @@ export function logError(params: LogParams): void {
  * @param params - Log parameters (severityNumber and severityText are fixed)
  */
 export function logDebug(
-	params: Omit<LogParams, "severityNumber" | "severityText">,
+  params: Omit<LogParams, "severityNumber" | "severityText">,
 ) {
-	if (isDev()) {
-		const logData = params.attributes ? { ...params.attributes } : {}
-		if (params.error) {
-			logData.error =
-				params.error instanceof Error
-					? { message: params.error.message, stack: params.error.stack }
-					: String(params.error)
-		}
+  if (isDev()) {
+    const logData = params.attributes ? { ...params.attributes } : {}
+    if (params.error) {
+      logData.error =
+        params.error instanceof Error
+          ? { message: params.error.message, stack: params.error.stack }
+          : String(params.error)
+    }
 
-		const hasLogData = Object.keys(logData).length > 0
-		if (hasLogData) {
-			console.debug(`[DEBUG] ${params.message}`, logData)
-		} else {
-			console.debug(`[DEBUG] ${params.message}`)
-		}
-	}
+    const hasLogData = Object.keys(logData).length > 0
+    if (hasLogData) {
+      console.debug(`[DEBUG] ${params.message}`, logData)
+    } else {
+      console.debug(`[DEBUG] ${params.message}`)
+    }
+  }
 }
 
 /**
@@ -433,21 +433,21 @@ export function logDebug(
  * No-op with fetch-based implementation since logs are sent immediately.
  */
 export async function flushLogs(): Promise<void> {
-	// No-op - logs are sent immediately with fetch
+  // No-op - logs are sent immediately with fetch
 }
 
 // Re-export request context utilities for convenience
 export {
-	addRequestContextAttribute,
-	createOperationSpan,
-	extractRequestInfo,
-	getOrCreateRequestId,
-	getRequestContext,
-	getRequestContextField,
-	getRequestDuration,
-	type RequestContext,
-	updateRequestContext,
-	withRequestContext,
+  addRequestContextAttribute,
+  createOperationSpan,
+  extractRequestInfo,
+  getOrCreateRequestId,
+  getRequestContext,
+  getRequestContextField,
+  getRequestDuration,
+  type RequestContext,
+  updateRequestContext,
+  withRequestContext,
 } from "./request-context"
 
 /**
@@ -458,17 +458,17 @@ export {
  * @param input - Input data (will be sanitized to remove sensitive fields)
  */
 export function logServerFnStart(
-	fnName: string,
-	input?: Record<string, unknown>,
+  fnName: string,
+  input?: Record<string, unknown>,
 ): void {
-	const sanitizedInput = input ? sanitizeInput(input) : undefined
-	logInfo({
-		message: `[ServerFn] ${fnName} started`,
-		attributes: {
-			serverFn: fnName,
-			...(sanitizedInput ? { input: sanitizedInput } : {}),
-		},
-	})
+  const sanitizedInput = input ? sanitizeInput(input) : undefined
+  logInfo({
+    message: `[ServerFn] ${fnName} started`,
+    attributes: {
+      serverFn: fnName,
+      ...(sanitizedInput ? { input: sanitizedInput } : {}),
+    },
+  })
 }
 
 /**
@@ -479,18 +479,18 @@ export function logServerFnStart(
  * @param result - Optional result metadata (IDs, counts, etc.)
  */
 export function logServerFnSuccess(
-	fnName: string,
-	result?: Record<string, unknown>,
+  fnName: string,
+  result?: Record<string, unknown>,
 ): void {
-	const duration = getRequestDuration()
-	logInfo({
-		message: `[ServerFn] ${fnName} completed`,
-		attributes: {
-			serverFn: fnName,
-			...(duration !== undefined ? { durationMs: duration } : {}),
-			...(result ?? {}),
-		},
-	})
+  const duration = getRequestDuration()
+  logInfo({
+    message: `[ServerFn] ${fnName} completed`,
+    attributes: {
+      serverFn: fnName,
+      ...(duration !== undefined ? { durationMs: duration } : {}),
+      ...(result ?? {}),
+    },
+  })
 }
 
 /**
@@ -502,20 +502,20 @@ export function logServerFnSuccess(
  * @param context - Additional context about the error
  */
 export function logServerFnError(
-	fnName: string,
-	error: unknown,
-	context?: Record<string, unknown>,
+  fnName: string,
+  error: unknown,
+  context?: Record<string, unknown>,
 ): void {
-	const duration = getRequestDuration()
-	logError({
-		message: `[ServerFn] ${fnName} failed`,
-		error,
-		attributes: {
-			serverFn: fnName,
-			...(duration !== undefined ? { durationMs: duration } : {}),
-			...(context ?? {}),
-		},
-	})
+  const duration = getRequestDuration()
+  logError({
+    message: `[ServerFn] ${fnName} failed`,
+    error,
+    attributes: {
+      serverFn: fnName,
+      ...(duration !== undefined ? { durationMs: duration } : {}),
+      ...(context ?? {}),
+    },
+  })
 }
 
 /**
@@ -523,18 +523,18 @@ export function logServerFnError(
  * Call at the start of request handling.
  */
 export function logRequest(params: {
-	method: string
-	path: string
-	userAgent?: string
+  method: string
+  path: string
+  userAgent?: string
 }): void {
-	logInfo({
-		message: `[HTTP] ${params.method} ${params.path}`,
-		attributes: {
-			httpMethod: params.method,
-			httpPath: params.path,
-			...(params.userAgent ? { userAgent: params.userAgent } : {}),
-		},
-	})
+  logInfo({
+    message: `[HTTP] ${params.method} ${params.path}`,
+    attributes: {
+      httpMethod: params.method,
+      httpPath: params.path,
+      ...(params.userAgent ? { userAgent: params.userAgent } : {}),
+    },
+  })
 }
 
 /**
@@ -542,27 +542,27 @@ export function logRequest(params: {
  * Call when sending a response.
  */
 export function logResponse(params: {
-	method: string
-	path: string
-	status: number
-	durationMs?: number
+  method: string
+  path: string
+  status: number
+  durationMs?: number
 }): void {
-	const level =
-		params.status >= 500 ? "error" : params.status >= 400 ? "warn" : "info"
-	const logFn =
-		level === "error" ? logError : level === "warn" ? logWarning : logInfo
+  const level =
+    params.status >= 500 ? "error" : params.status >= 400 ? "warn" : "info"
+  const logFn =
+    level === "error" ? logError : level === "warn" ? logWarning : logInfo
 
-	logFn({
-		message: `[HTTP] ${params.method} ${params.path} -> ${params.status}`,
-		attributes: {
-			httpMethod: params.method,
-			httpPath: params.path,
-			httpStatus: params.status,
-			...(params.durationMs !== undefined
-				? { durationMs: params.durationMs }
-				: {}),
-		},
-	})
+  logFn({
+    message: `[HTTP] ${params.method} ${params.path} -> ${params.status}`,
+    attributes: {
+      httpMethod: params.method,
+      httpPath: params.path,
+      httpStatus: params.status,
+      ...(params.durationMs !== undefined
+        ? { durationMs: params.durationMs }
+        : {}),
+    },
+  })
 }
 
 /**
@@ -570,24 +570,24 @@ export function logResponse(params: {
  * Use for tracking important database operations.
  */
 export function logDbOperation(params: {
-	operation: "insert" | "update" | "delete" | "query"
-	table: string
-	durationMs?: number
-	rowCount?: number
-	ids?: string[]
+  operation: "insert" | "update" | "delete" | "query"
+  table: string
+  durationMs?: number
+  rowCount?: number
+  ids?: string[]
 }): void {
-	logInfo({
-		message: `[DB] ${params.operation} ${params.table}`,
-		attributes: {
-			dbOperation: params.operation,
-			dbTable: params.table,
-			...(params.durationMs !== undefined
-				? { durationMs: params.durationMs }
-				: {}),
-			...(params.rowCount !== undefined ? { rowCount: params.rowCount } : {}),
-			...(params.ids?.length ? { affectedIds: params.ids } : {}),
-		},
-	})
+  logInfo({
+    message: `[DB] ${params.operation} ${params.table}`,
+    attributes: {
+      dbOperation: params.operation,
+      dbTable: params.table,
+      ...(params.durationMs !== undefined
+        ? { durationMs: params.durationMs }
+        : {}),
+      ...(params.rowCount !== undefined ? { rowCount: params.rowCount } : {}),
+      ...(params.ids?.length ? { affectedIds: params.ids } : {}),
+    },
+  })
 }
 
 /**
@@ -595,22 +595,22 @@ export function logDbOperation(params: {
  * Use when creating new records to track what was created.
  */
 export function logEntityCreated(params: {
-	entity: string
-	id: string
-	parentId?: string
-	parentEntity?: string
-	attributes?: Record<string, unknown>
+  entity: string
+  id: string
+  parentId?: string
+  parentEntity?: string
+  attributes?: Record<string, unknown>
 }): void {
-	logInfo({
-		message: `[Entity] Created ${params.entity}`,
-		attributes: {
-			entity: params.entity,
-			entityId: params.id,
-			...(params.parentId ? { parentId: params.parentId } : {}),
-			...(params.parentEntity ? { parentEntity: params.parentEntity } : {}),
-			...(params.attributes ?? {}),
-		},
-	})
+  logInfo({
+    message: `[Entity] Created ${params.entity}`,
+    attributes: {
+      entity: params.entity,
+      entityId: params.id,
+      ...(params.parentId ? { parentId: params.parentId } : {}),
+      ...(params.parentEntity ? { parentEntity: params.parentEntity } : {}),
+      ...(params.attributes ?? {}),
+    },
+  })
 }
 
 /**
@@ -618,20 +618,20 @@ export function logEntityCreated(params: {
  * Use when updating records to track what was modified.
  */
 export function logEntityUpdated(params: {
-	entity: string
-	id: string
-	fields?: string[]
-	attributes?: Record<string, unknown>
+  entity: string
+  id: string
+  fields?: string[]
+  attributes?: Record<string, unknown>
 }): void {
-	logInfo({
-		message: `[Entity] Updated ${params.entity}`,
-		attributes: {
-			entity: params.entity,
-			entityId: params.id,
-			...(params.fields?.length ? { updatedFields: params.fields } : {}),
-			...(params.attributes ?? {}),
-		},
-	})
+  logInfo({
+    message: `[Entity] Updated ${params.entity}`,
+    attributes: {
+      entity: params.entity,
+      entityId: params.id,
+      ...(params.fields?.length ? { updatedFields: params.fields } : {}),
+      ...(params.attributes ?? {}),
+    },
+  })
 }
 
 /**
@@ -639,18 +639,18 @@ export function logEntityUpdated(params: {
  * Use when deleting records to track what was removed.
  */
 export function logEntityDeleted(params: {
-	entity: string
-	id: string
-	attributes?: Record<string, unknown>
+  entity: string
+  id: string
+  attributes?: Record<string, unknown>
 }): void {
-	logInfo({
-		message: `[Entity] Deleted ${params.entity}`,
-		attributes: {
-			entity: params.entity,
-			entityId: params.id,
-			...(params.attributes ?? {}),
-		},
-	})
+  logInfo({
+    message: `[Entity] Deleted ${params.entity}`,
+    attributes: {
+      entity: params.entity,
+      entityId: params.id,
+      ...(params.attributes ?? {}),
+    },
+  })
 }
 
 /**
@@ -658,36 +658,36 @@ export function logEntityDeleted(params: {
  * Used to prevent logging passwords, tokens, etc.
  */
 function sanitizeInput(
-	input: Record<string, unknown>,
+  input: Record<string, unknown>,
 ): Record<string, unknown> {
-	const sensitiveFields = [
-		"password",
-		"passwordHash",
-		"token",
-		"secret",
-		"apiKey",
-		"authorization",
-		"creditCard",
-		"ssn",
-		"captchaToken",
-	]
+  const sensitiveFields = [
+    "password",
+    "passwordHash",
+    "token",
+    "secret",
+    "apiKey",
+    "authorization",
+    "creditCard",
+    "ssn",
+    "captchaToken",
+  ]
 
-	const sanitized: Record<string, unknown> = {}
-	for (const [key, value] of Object.entries(input)) {
-		const lowerKey = key.toLowerCase()
-		if (
-			sensitiveFields.some((field) => lowerKey.includes(field.toLowerCase()))
-		) {
-			sanitized[key] = "[REDACTED]"
-		} else if (
-			typeof value === "object" &&
-			value !== null &&
-			!Array.isArray(value)
-		) {
-			sanitized[key] = sanitizeInput(value as Record<string, unknown>)
-		} else {
-			sanitized[key] = value
-		}
-	}
-	return sanitized
+  const sanitized: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(input)) {
+    const lowerKey = key.toLowerCase()
+    if (
+      sensitiveFields.some((field) => lowerKey.includes(field.toLowerCase()))
+    ) {
+      sanitized[key] = "[REDACTED]"
+    } else if (
+      typeof value === "object" &&
+      value !== null &&
+      !Array.isArray(value)
+    ) {
+      sanitized[key] = sanitizeInput(value as Record<string, unknown>)
+    } else {
+      sanitized[key] = value
+    }
+  }
+  return sanitized
 }

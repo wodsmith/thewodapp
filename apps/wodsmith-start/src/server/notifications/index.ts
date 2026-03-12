@@ -4,15 +4,15 @@
  */
 
 export {
-	notifyPaymentExpired,
-	notifyRegistrationConfirmed,
-	notifyTeammateJoined,
+  notifyPaymentExpired,
+  notifyRegistrationConfirmed,
+  notifyTeammateJoined,
 } from "./compete"
 
 export {
-	type ProcessedNotificationResult,
-	processSubmissionWindowNotifications,
-	sendWindowClosedNotification,
-	sendWindowClosesReminderNotification,
-	sendWindowOpensNotification,
+  type ProcessedNotificationResult,
+  processSubmissionWindowNotifications,
+  sendWindowClosedNotification,
+  sendWindowClosesReminderNotification,
+  sendWindowOpensNotification,
 } from "./submission-window"

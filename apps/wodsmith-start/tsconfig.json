@@ -1,38 +1,38 @@
 {
-	"include": [
-		"**/*.ts",
-		"**/*.tsx",
-		"./src/types/env.d.ts",
-		"./test/vitest.d.ts"
-	],
-	"exclude": ["alchemy.run.ts"],
-	"compilerOptions": {
-		"target": "ES2022",
-		"jsx": "react-jsx",
-		"module": "ESNext",
-		"lib": ["ES2022", "DOM", "DOM.Iterable"],
-		"types": [
-			"./worker-configuration.d.ts",
-			"node",
-			"vite/client",
-			"@cloudflare/workers-types"
-		],
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "./src/types/env.d.ts",
+    "./test/vitest.d.ts"
+  ],
+  "exclude": ["alchemy.run.ts"],
+  "compilerOptions": {
+    "target": "ES2022",
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": [
+      "./worker-configuration.d.ts",
+      "node",
+      "vite/client",
+      "@cloudflare/workers-types"
+    ],
 
-		/* Bundler mode */
-		"moduleResolution": "bundler",
-		"allowImportingTsExtensions": true,
-		"verbatimModuleSyntax": false,
-		"noEmit": true,
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": false,
+    "noEmit": true,
 
-		/* Linting */
-		"skipLibCheck": true,
-		"strict": true,
-		"noUnusedLocals": true,
-		"noUnusedParameters": true,
-		"noFallthroughCasesInSwitch": true,
-		"noUncheckedSideEffectImports": true,
-		"paths": {
-			"@/*": ["./src/*"]
-		}
-	}
+    /* Linting */
+    "skipLibCheck": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
 }

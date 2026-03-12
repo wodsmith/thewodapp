@@ -8,20 +8,20 @@ import { FEATURES } from "@/config/features"
 import { LIMITS } from "@/config/limits"
 import { getDb } from "@/db"
 import {
-	createOrganizerRequestId,
-	featureTable,
-	ORGANIZER_REQUEST_STATUS,
-	type OrganizerRequest,
-	organizerRequestTable,
-	teamEntitlementOverrideTable,
-	teamFeatureEntitlementTable,
-	teamTable,
-	userTable,
+  createOrganizerRequestId,
+  featureTable,
+  ORGANIZER_REQUEST_STATUS,
+  type OrganizerRequest,
+  organizerRequestTable,
+  teamEntitlementOverrideTable,
+  teamFeatureEntitlementTable,
+  teamTable,
+  userTable,
 } from "@/db/schema"
 import { logInfo } from "@/lib/logging/posthog-otel-logger"
 import {
-	sendOrganizerApprovalEmail,
-	sendOrganizerRejectionEmail,
+  sendOrganizerApprovalEmail,
+  sendOrganizerRejectionEmail,
 } from "@/utils/email"
 import { invalidateTeamMembersSessions } from "@/utils/kv-session"
 
@@ -31,38 +31,38 @@ import { invalidateTeamMembersSessions } from "@/utils/kv-session"
  * Uses onDuplicateKeyUpdate to handle duplicates
  */
 export async function grantTeamFeature(
-	teamId: string,
-	featureKey: string,
+  teamId: string,
+  featureKey: string,
 ): Promise<void> {
-	const db = getDb()
+  const db = getDb()
 
-	// Look up feature by key to get its ID
-	const feature = await db.query.featureTable.findFirst({
-		where: eq(featureTable.key, featureKey),
-	})
+  // Look up feature by key to get its ID
+  const feature = await db.query.featureTable.findFirst({
+    where: eq(featureTable.key, featureKey),
+  })
 
-	if (!feature) {
-		throw new Error(`Feature not found: ${featureKey}`)
-	}
+  if (!feature) {
+    throw new Error(`Feature not found: ${featureKey}`)
+  }
 
-	await db
-		.insert(teamFeatureEntitlementTable)
-		.values({
-			teamId,
-			featureId: feature.id,
-			source: "override",
-			isActive: 1,
-		})
-		.onDuplicateKeyUpdate({
-			set: {
-				isActive: 1,
-				source: "override",
-			},
-		})
+  await db
+    .insert(teamFeatureEntitlementTable)
+    .values({
+      teamId,
+      featureId: feature.id,
+      source: "override",
+      isActive: 1,
+    })
+    .onDuplicateKeyUpdate({
+      set: {
+        isActive: 1,
+        source: "override",
+      },
+    })
 
-	// Invalidate sessions for all team members so they get the new feature
-	// This ensures team.plan.features is updated in their cached session
-	await invalidateTeamMembersSessions(teamId)
+  // Invalidate sessions for all team members so they get the new feature
+  // This ensures team.plan.features is updated in their cached session
+  await invalidateTeamMembersSessions(teamId)
 }
 
 /**
@@ -70,34 +70,34 @@ export async function grantTeamFeature(
  * Sets isActive = 0 on the teamFeatureEntitlementTable entry
  */
 export async function revokeTeamFeature(
-	teamId: string,
-	featureKey: string,
+  teamId: string,
+  featureKey: string,
 ): Promise<void> {
-	const db = getDb()
+  const db = getDb()
 
-	// Look up feature by key to get its ID
-	const feature = await db.query.featureTable.findFirst({
-		where: eq(featureTable.key, featureKey),
-	})
+  // Look up feature by key to get its ID
+  const feature = await db.query.featureTable.findFirst({
+    where: eq(featureTable.key, featureKey),
+  })
 
-	if (!feature) {
-		throw new Error(`Feature not found: ${featureKey}`)
-	}
+  if (!feature) {
+    throw new Error(`Feature not found: ${featureKey}`)
+  }
 
-	// Deactivate the feature entitlement (set isActive = 0)
-	await db
-		.update(teamFeatureEntitlementTable)
-		.set({ isActive: 0 })
-		.where(
-			and(
-				eq(teamFeatureEntitlementTable.teamId, teamId),
-				eq(teamFeatureEntitlementTable.featureId, feature.id),
-			),
-		)
+  // Deactivate the feature entitlement (set isActive = 0)
+  await db
+    .update(teamFeatureEntitlementTable)
+    .set({ isActive: 0 })
+    .where(
+      and(
+        eq(teamFeatureEntitlementTable.teamId, teamId),
+        eq(teamFeatureEntitlementTable.featureId, feature.id),
+      ),
+    )
 
-	// Invalidate sessions for all team members so they lose the feature
-	// This ensures team.plan.features is updated in their cached session
-	await invalidateTeamMembersSessions(teamId)
+  // Invalidate sessions for all team members so they lose the feature
+  // This ensures team.plan.features is updated in their cached session
+  await invalidateTeamMembersSessions(teamId)
 }
 
 /**
@@ -106,50 +106,50 @@ export async function revokeTeamFeature(
  * Uses onDuplicateKeyUpdate to handle duplicates
  */
 export async function setTeamLimitOverride(
-	teamId: string,
-	limitKey: string,
-	value: number,
-	reason?: string,
+  teamId: string,
+  limitKey: string,
+  value: number,
+  reason?: string,
 ): Promise<void> {
-	const db = getDb()
+  const db = getDb()
 
-	await db
-		.insert(teamEntitlementOverrideTable)
-		.values({
-			teamId,
-			type: "limit",
-			key: limitKey,
-			value: String(value),
-			reason,
-		})
-		.onDuplicateKeyUpdate({
-			set: {
-				value: String(value),
-				reason,
-			},
-		})
+  await db
+    .insert(teamEntitlementOverrideTable)
+    .values({
+      teamId,
+      type: "limit",
+      key: limitKey,
+      value: String(value),
+      reason,
+    })
+    .onDuplicateKeyUpdate({
+      set: {
+        value: String(value),
+        reason,
+      },
+    })
 
-	// Invalidate sessions for all team members so they get the updated limit
-	await invalidateTeamMembersSessions(teamId)
+  // Invalidate sessions for all team members so they get the updated limit
+  await invalidateTeamMembersSessions(teamId)
 }
 
 export interface OrganizerRequestWithDetails extends OrganizerRequest {
-	team: {
-		id: string
-		name: string
-		slug: string
-	}
-	user: {
-		id: string
-		firstName: string | null
-		lastName: string | null
-		email: string | null
-	}
-	reviewer?: {
-		id: string
-		firstName: string | null
-		lastName: string | null
-	} | null
+  team: {
+    id: string
+    name: string
+    slug: string
+  }
+  user: {
+    id: string
+    firstName: string | null
+    lastName: string | null
+    email: string | null
+  }
+  reviewer?: {
+    id: string
+    firstName: string | null
+    lastName: string | null
+  } | null
 }
 
 /**
@@ -158,407 +158,407 @@ export interface OrganizerRequestWithDetails extends OrganizerRequest {
  * (pending approval)
  */
 export async function submitOrganizerRequest({
-	teamId,
-	userId,
-	reason,
+  teamId,
+  userId,
+  reason,
 }: {
-	teamId: string
-	userId: string
-	reason: string
+  teamId: string
+  userId: string
+  reason: string
 }): Promise<OrganizerRequest> {
-	const db = getDb()
+  const db = getDb()
 
-	// Check if there's already a pending or approved request for this team
-	const existingRequest = await db.query.organizerRequestTable.findFirst({
-		where: and(
-			eq(organizerRequestTable.teamId, teamId),
-			eq(organizerRequestTable.status, ORGANIZER_REQUEST_STATUS.PENDING),
-		),
-	})
+  // Check if there's already a pending or approved request for this team
+  const existingRequest = await db.query.organizerRequestTable.findFirst({
+    where: and(
+      eq(organizerRequestTable.teamId, teamId),
+      eq(organizerRequestTable.status, ORGANIZER_REQUEST_STATUS.PENDING),
+    ),
+  })
 
-	if (existingRequest) {
-		throw new Error("A pending organizer request already exists for this team")
-	}
+  if (existingRequest) {
+    throw new Error("A pending organizer request already exists for this team")
+  }
 
-	// Check if already approved
-	const approvedRequest = await db.query.organizerRequestTable.findFirst({
-		where: and(
-			eq(organizerRequestTable.teamId, teamId),
-			eq(organizerRequestTable.status, ORGANIZER_REQUEST_STATUS.APPROVED),
-		),
-	})
+  // Check if already approved
+  const approvedRequest = await db.query.organizerRequestTable.findFirst({
+    where: and(
+      eq(organizerRequestTable.teamId, teamId),
+      eq(organizerRequestTable.status, ORGANIZER_REQUEST_STATUS.APPROVED),
+    ),
+  })
 
-	if (approvedRequest) {
-		throw new Error("This team is already approved as an organizer")
-	}
+  if (approvedRequest) {
+    throw new Error("This team is already approved as an organizer")
+  }
 
-	// Create the request
-	const requestId = createOrganizerRequestId()
-	await db.insert(organizerRequestTable).values({
-		id: requestId,
-		teamId,
-		userId,
-		reason,
-		status: ORGANIZER_REQUEST_STATUS.PENDING,
-	})
+  // Create the request
+  const requestId = createOrganizerRequestId()
+  await db.insert(organizerRequestTable).values({
+    id: requestId,
+    teamId,
+    userId,
+    reason,
+    status: ORGANIZER_REQUEST_STATUS.PENDING,
+  })
 
-	// Fetch the inserted record
-	const request = await db.query.organizerRequestTable.findFirst({
-		where: eq(organizerRequestTable.id, requestId),
-	})
+  // Fetch the inserted record
+  const request = await db.query.organizerRequestTable.findFirst({
+    where: eq(organizerRequestTable.id, requestId),
+  })
 
-	if (!request) {
-		throw new Error("Failed to retrieve created organizer request")
-	}
+  if (!request) {
+    throw new Error("Failed to retrieve created organizer request")
+  }
 
-	// Grant HOST_COMPETITIONS feature (allows creating private competitions)
-	await grantTeamFeature(teamId, FEATURES.HOST_COMPETITIONS)
+  // Grant HOST_COMPETITIONS feature (allows creating private competitions)
+  await grantTeamFeature(teamId, FEATURES.HOST_COMPETITIONS)
 
-	// Set MAX_PUBLISHED_COMPETITIONS to 0 (pending approval - can't publish yet)
-	await setTeamLimitOverride(
-		teamId,
-		LIMITS.MAX_PUBLISHED_COMPETITIONS,
-		0,
-		"Organizer request pending approval",
-	)
+  // Set MAX_PUBLISHED_COMPETITIONS to 0 (pending approval - can't publish yet)
+  await setTeamLimitOverride(
+    teamId,
+    LIMITS.MAX_PUBLISHED_COMPETITIONS,
+    0,
+    "Organizer request pending approval",
+  )
 
-	logInfo({
-		message: "[organizer-onboarding] Organizer request submitted",
-		attributes: { teamId, userId, requestId: request.id },
-	})
+  logInfo({
+    message: "[organizer-onboarding] Organizer request submitted",
+    attributes: { teamId, userId, requestId: request.id },
+  })
 
-	return request
+  return request
 }
 
 /**
  * Get the organizer request for a team
  */
 export async function getOrganizerRequest(
-	teamId: string,
+  teamId: string,
 ): Promise<OrganizerRequest | null> {
-	const db = getDb()
+  const db = getDb()
 
-	// Get the most recent request for this team
-	const request = await db.query.organizerRequestTable.findFirst({
-		where: eq(organizerRequestTable.teamId, teamId),
-		orderBy: desc(organizerRequestTable.createdAt),
-	})
+  // Get the most recent request for this team
+  const request = await db.query.organizerRequestTable.findFirst({
+    where: eq(organizerRequestTable.teamId, teamId),
+    orderBy: desc(organizerRequestTable.createdAt),
+  })
 
-	return request ?? null
+  return request ?? null
 }
 
 /**
  * Get all pending organizer requests (for admin review)
  */
 export async function getPendingOrganizerRequests(): Promise<
-	OrganizerRequestWithDetails[]
+  OrganizerRequestWithDetails[]
 > {
-	return getAllOrganizerRequests({ statusFilter: "pending" })
+  return getAllOrganizerRequests({ statusFilter: "pending" })
 }
 
 /**
  * Get all organizer requests with optional status filter (for admin review)
  */
 export async function getAllOrganizerRequests({
-	statusFilter,
+  statusFilter,
 }: {
-	statusFilter?: "pending" | "approved" | "rejected" | "all"
+  statusFilter?: "pending" | "approved" | "rejected" | "all"
 } = {}): Promise<OrganizerRequestWithDetails[]> {
-	const db = getDb()
+  const db = getDb()
 
-	const requests = await db
-		.select({
-			id: organizerRequestTable.id,
-			teamId: organizerRequestTable.teamId,
-			userId: organizerRequestTable.userId,
-			reason: organizerRequestTable.reason,
-			status: organizerRequestTable.status,
-			adminNotes: organizerRequestTable.adminNotes,
-			reviewedBy: organizerRequestTable.reviewedBy,
-			reviewedAt: organizerRequestTable.reviewedAt,
-			createdAt: organizerRequestTable.createdAt,
-			updatedAt: organizerRequestTable.updatedAt,
-			updateCounter: organizerRequestTable.updateCounter,
-			teamName: teamTable.name,
-			teamSlug: teamTable.slug,
-			userFirstName: userTable.firstName,
-			userLastName: userTable.lastName,
-			userEmail: userTable.email,
-		})
-		.from(organizerRequestTable)
-		.innerJoin(teamTable, eq(organizerRequestTable.teamId, teamTable.id))
-		.innerJoin(userTable, eq(organizerRequestTable.userId, userTable.id))
-		.where(
-			statusFilter && statusFilter !== "all"
-				? eq(organizerRequestTable.status, statusFilter)
-				: undefined,
-		)
-		.orderBy(desc(organizerRequestTable.createdAt))
+  const requests = await db
+    .select({
+      id: organizerRequestTable.id,
+      teamId: organizerRequestTable.teamId,
+      userId: organizerRequestTable.userId,
+      reason: organizerRequestTable.reason,
+      status: organizerRequestTable.status,
+      adminNotes: organizerRequestTable.adminNotes,
+      reviewedBy: organizerRequestTable.reviewedBy,
+      reviewedAt: organizerRequestTable.reviewedAt,
+      createdAt: organizerRequestTable.createdAt,
+      updatedAt: organizerRequestTable.updatedAt,
+      updateCounter: organizerRequestTable.updateCounter,
+      teamName: teamTable.name,
+      teamSlug: teamTable.slug,
+      userFirstName: userTable.firstName,
+      userLastName: userTable.lastName,
+      userEmail: userTable.email,
+    })
+    .from(organizerRequestTable)
+    .innerJoin(teamTable, eq(organizerRequestTable.teamId, teamTable.id))
+    .innerJoin(userTable, eq(organizerRequestTable.userId, userTable.id))
+    .where(
+      statusFilter && statusFilter !== "all"
+        ? eq(organizerRequestTable.status, statusFilter)
+        : undefined,
+    )
+    .orderBy(desc(organizerRequestTable.createdAt))
 
-	// Fetch reviewer details separately for requests that have reviewedBy
-	const reviewerIds = [
-		...new Set(
-			requests
-				.filter((r) => r.reviewedBy)
-				.map((r) => r.reviewedBy)
-				.filter((id): id is string => id !== null),
-		),
-	]
-	const reviewerMap = new Map<
-		string,
-		{ id: string; firstName: string | null; lastName: string | null }
-	>()
+  // Fetch reviewer details separately for requests that have reviewedBy
+  const reviewerIds = [
+    ...new Set(
+      requests
+        .filter((r) => r.reviewedBy)
+        .map((r) => r.reviewedBy)
+        .filter((id): id is string => id !== null),
+    ),
+  ]
+  const reviewerMap = new Map<
+    string,
+    { id: string; firstName: string | null; lastName: string | null }
+  >()
 
-	if (reviewerIds.length > 0) {
-		const reviewers = await db
-			.select({
-				id: userTable.id,
-				firstName: userTable.firstName,
-				lastName: userTable.lastName,
-			})
-			.from(userTable)
-			.where(inArray(userTable.id, reviewerIds))
-		for (const r of reviewers) {
-			reviewerMap.set(r.id, r)
-		}
-	}
+  if (reviewerIds.length > 0) {
+    const reviewers = await db
+      .select({
+        id: userTable.id,
+        firstName: userTable.firstName,
+        lastName: userTable.lastName,
+      })
+      .from(userTable)
+      .where(inArray(userTable.id, reviewerIds))
+    for (const r of reviewers) {
+      reviewerMap.set(r.id, r)
+    }
+  }
 
-	return requests.map((r) => ({
-		id: r.id,
-		teamId: r.teamId,
-		userId: r.userId,
-		reason: r.reason,
-		status: r.status,
-		adminNotes: r.adminNotes,
-		reviewedBy: r.reviewedBy,
-		reviewedAt: r.reviewedAt,
-		createdAt: r.createdAt,
-		updatedAt: r.updatedAt,
-		updateCounter: r.updateCounter,
-		team: {
-			id: r.teamId,
-			name: r.teamName,
-			slug: r.teamSlug,
-		},
-		user: {
-			id: r.userId,
-			firstName: r.userFirstName,
-			lastName: r.userLastName,
-			email: r.userEmail,
-		},
-		reviewer: r.reviewedBy ? (reviewerMap.get(r.reviewedBy) ?? null) : null,
-	}))
+  return requests.map((r) => ({
+    id: r.id,
+    teamId: r.teamId,
+    userId: r.userId,
+    reason: r.reason,
+    status: r.status,
+    adminNotes: r.adminNotes,
+    reviewedBy: r.reviewedBy,
+    reviewedAt: r.reviewedAt,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+    updateCounter: r.updateCounter,
+    team: {
+      id: r.teamId,
+      name: r.teamName,
+      slug: r.teamSlug,
+    },
+    user: {
+      id: r.userId,
+      firstName: r.userFirstName,
+      lastName: r.userLastName,
+      email: r.userEmail,
+    },
+    reviewer: r.reviewedBy ? (reviewerMap.get(r.reviewedBy) ?? null) : null,
+  }))
 }
 
 /**
  * Approve an organizer request
  */
 export async function approveOrganizerRequest({
-	requestId,
-	adminUserId,
-	adminNotes,
+  requestId,
+  adminUserId,
+  adminNotes,
 }: {
-	requestId: string
-	adminUserId: string
-	adminNotes?: string
+  requestId: string
+  adminUserId: string
+  adminNotes?: string
 }): Promise<OrganizerRequest> {
-	const db = getDb()
+  const db = getDb()
 
-	// Get the request
-	const request = await db.query.organizerRequestTable.findFirst({
-		where: eq(organizerRequestTable.id, requestId),
-	})
+  // Get the request
+  const request = await db.query.organizerRequestTable.findFirst({
+    where: eq(organizerRequestTable.id, requestId),
+  })
 
-	if (!request) {
-		throw new Error("Organizer request not found")
-	}
+  if (!request) {
+    throw new Error("Organizer request not found")
+  }
 
-	if (request.status !== ORGANIZER_REQUEST_STATUS.PENDING) {
-		throw new Error("Request has already been processed")
-	}
+  if (request.status !== ORGANIZER_REQUEST_STATUS.PENDING) {
+    throw new Error("Request has already been processed")
+  }
 
-	// Update the request
-	await db
-		.update(organizerRequestTable)
-		.set({
-			status: ORGANIZER_REQUEST_STATUS.APPROVED,
-			reviewedBy: adminUserId,
-			reviewedAt: new Date(),
-			adminNotes,
-		})
-		.where(eq(organizerRequestTable.id, requestId))
+  // Update the request
+  await db
+    .update(organizerRequestTable)
+    .set({
+      status: ORGANIZER_REQUEST_STATUS.APPROVED,
+      reviewedBy: adminUserId,
+      reviewedAt: new Date(),
+      adminNotes,
+    })
+    .where(eq(organizerRequestTable.id, requestId))
 
-	// Fetch the updated record
-	const updatedRequest = await db.query.organizerRequestTable.findFirst({
-		where: eq(organizerRequestTable.id, requestId),
-	})
+  // Fetch the updated record
+  const updatedRequest = await db.query.organizerRequestTable.findFirst({
+    where: eq(organizerRequestTable.id, requestId),
+  })
 
-	if (!updatedRequest) {
-		throw new Error("Failed to retrieve updated organizer request")
-	}
+  if (!updatedRequest) {
+    throw new Error("Failed to retrieve updated organizer request")
+  }
 
-	// Set MAX_PUBLISHED_COMPETITIONS to -1 (unlimited)
-	await setTeamLimitOverride(
-		request.teamId,
-		LIMITS.MAX_PUBLISHED_COMPETITIONS,
-		-1,
-		"Organizer request approved",
-	)
+  // Set MAX_PUBLISHED_COMPETITIONS to -1 (unlimited)
+  await setTeamLimitOverride(
+    request.teamId,
+    LIMITS.MAX_PUBLISHED_COMPETITIONS,
+    -1,
+    "Organizer request approved",
+  )
 
-	logInfo({
-		message: "[organizer-onboarding] Organizer request approved",
-		attributes: {
-			teamId: request.teamId,
-			requestId,
-			adminUserId,
-		},
-	})
+  logInfo({
+    message: "[organizer-onboarding] Organizer request approved",
+    attributes: {
+      teamId: request.teamId,
+      requestId,
+      adminUserId,
+    },
+  })
 
-	// Get requester and team info for email
-	const requester = await db.query.userTable.findFirst({
-		where: eq(userTable.id, request.userId),
-		columns: { firstName: true, lastName: true, email: true },
-	})
+  // Get requester and team info for email
+  const requester = await db.query.userTable.findFirst({
+    where: eq(userTable.id, request.userId),
+    columns: { firstName: true, lastName: true, email: true },
+  })
 
-	const team = await db.query.teamTable.findFirst({
-		where: eq(teamTable.id, request.teamId),
-		columns: { name: true, slug: true },
-	})
+  const team = await db.query.teamTable.findFirst({
+    where: eq(teamTable.id, request.teamId),
+    columns: { name: true, slug: true },
+  })
 
-	if (requester?.email && team) {
-		await sendOrganizerApprovalEmail({
-			email: requester.email,
-			recipientName:
-				`${requester.firstName || ""} ${requester.lastName || ""}`.trim() ||
-				"there",
-			teamName: team.name,
-			teamSlug: team.slug,
-			adminNotes,
-		})
-	}
+  if (requester?.email && team) {
+    await sendOrganizerApprovalEmail({
+      email: requester.email,
+      recipientName:
+        `${requester.firstName || ""} ${requester.lastName || ""}`.trim() ||
+        "there",
+      teamName: team.name,
+      teamSlug: team.slug,
+      adminNotes,
+    })
+  }
 
-	return updatedRequest
+  return updatedRequest
 }
 
 /**
  * Reject an organizer request
  */
 export async function rejectOrganizerRequest({
-	requestId,
-	adminUserId,
-	adminNotes,
-	revokeFeature = false,
+  requestId,
+  adminUserId,
+  adminNotes,
+  revokeFeature = false,
 }: {
-	requestId: string
-	adminUserId: string
-	adminNotes?: string
-	revokeFeature?: boolean
+  requestId: string
+  adminUserId: string
+  adminNotes?: string
+  revokeFeature?: boolean
 }): Promise<OrganizerRequest> {
-	const db = getDb()
+  const db = getDb()
 
-	// Get the request
-	const request = await db.query.organizerRequestTable.findFirst({
-		where: eq(organizerRequestTable.id, requestId),
-	})
+  // Get the request
+  const request = await db.query.organizerRequestTable.findFirst({
+    where: eq(organizerRequestTable.id, requestId),
+  })
 
-	if (!request) {
-		throw new Error("Organizer request not found")
-	}
+  if (!request) {
+    throw new Error("Organizer request not found")
+  }
 
-	if (request.status !== ORGANIZER_REQUEST_STATUS.PENDING) {
-		throw new Error("Request has already been processed")
-	}
+  if (request.status !== ORGANIZER_REQUEST_STATUS.PENDING) {
+    throw new Error("Request has already been processed")
+  }
 
-	// Update the request
-	await db
-		.update(organizerRequestTable)
-		.set({
-			status: ORGANIZER_REQUEST_STATUS.REJECTED,
-			reviewedBy: adminUserId,
-			reviewedAt: new Date(),
-			adminNotes,
-		})
-		.where(eq(organizerRequestTable.id, requestId))
+  // Update the request
+  await db
+    .update(organizerRequestTable)
+    .set({
+      status: ORGANIZER_REQUEST_STATUS.REJECTED,
+      reviewedBy: adminUserId,
+      reviewedAt: new Date(),
+      adminNotes,
+    })
+    .where(eq(organizerRequestTable.id, requestId))
 
-	// Fetch the updated record
-	const updatedRequest = await db.query.organizerRequestTable.findFirst({
-		where: eq(organizerRequestTable.id, requestId),
-	})
+  // Fetch the updated record
+  const updatedRequest = await db.query.organizerRequestTable.findFirst({
+    where: eq(organizerRequestTable.id, requestId),
+  })
 
-	if (!updatedRequest) {
-		throw new Error("Failed to retrieve updated organizer request")
-	}
+  if (!updatedRequest) {
+    throw new Error("Failed to retrieve updated organizer request")
+  }
 
-	// Optionally revoke the HOST_COMPETITIONS feature
-	if (revokeFeature) {
-		await revokeTeamFeature(request.teamId, FEATURES.HOST_COMPETITIONS)
-	}
+  // Optionally revoke the HOST_COMPETITIONS feature
+  if (revokeFeature) {
+    await revokeTeamFeature(request.teamId, FEATURES.HOST_COMPETITIONS)
+  }
 
-	logInfo({
-		message: "[organizer-onboarding] Organizer request rejected",
-		attributes: {
-			teamId: request.teamId,
-			requestId,
-			adminUserId,
-			revokeFeature,
-		},
-	})
+  logInfo({
+    message: "[organizer-onboarding] Organizer request rejected",
+    attributes: {
+      teamId: request.teamId,
+      requestId,
+      adminUserId,
+      revokeFeature,
+    },
+  })
 
-	// Get requester and team info for email
-	const requester = await db.query.userTable.findFirst({
-		where: eq(userTable.id, request.userId),
-		columns: { firstName: true, lastName: true, email: true },
-	})
+  // Get requester and team info for email
+  const requester = await db.query.userTable.findFirst({
+    where: eq(userTable.id, request.userId),
+    columns: { firstName: true, lastName: true, email: true },
+  })
 
-	const team = await db.query.teamTable.findFirst({
-		where: eq(teamTable.id, request.teamId),
-		columns: { name: true },
-	})
+  const team = await db.query.teamTable.findFirst({
+    where: eq(teamTable.id, request.teamId),
+    columns: { name: true },
+  })
 
-	if (requester?.email && team) {
-		await sendOrganizerRejectionEmail({
-			email: requester.email,
-			recipientName:
-				`${requester.firstName || ""} ${requester.lastName || ""}`.trim() ||
-				"there",
-			teamName: team.name,
-			adminNotes,
-		})
-	}
+  if (requester?.email && team) {
+    await sendOrganizerRejectionEmail({
+      email: requester.email,
+      recipientName:
+        `${requester.firstName || ""} ${requester.lastName || ""}`.trim() ||
+        "there",
+      teamName: team.name,
+      adminNotes,
+    })
+  }
 
-	return updatedRequest
+  return updatedRequest
 }
 
 /**
  * Check if a team has an approved organizer request
  */
 export async function isApprovedOrganizer(teamId: string): Promise<boolean> {
-	const db = getDb()
+  const db = getDb()
 
-	const request = await db.query.organizerRequestTable.findFirst({
-		where: and(
-			eq(organizerRequestTable.teamId, teamId),
-			eq(organizerRequestTable.status, ORGANIZER_REQUEST_STATUS.APPROVED),
-		),
-	})
+  const request = await db.query.organizerRequestTable.findFirst({
+    where: and(
+      eq(organizerRequestTable.teamId, teamId),
+      eq(organizerRequestTable.status, ORGANIZER_REQUEST_STATUS.APPROVED),
+    ),
+  })
 
-	return !!request
+  return !!request
 }
 
 /**
  * Check if a team has a pending organizer request
  */
 export async function hasPendingOrganizerRequest(
-	teamId: string,
+  teamId: string,
 ): Promise<boolean> {
-	const db = getDb()
+  const db = getDb()
 
-	const request = await db.query.organizerRequestTable.findFirst({
-		where: and(
-			eq(organizerRequestTable.teamId, teamId),
-			eq(organizerRequestTable.status, ORGANIZER_REQUEST_STATUS.PENDING),
-		),
-	})
+  const request = await db.query.organizerRequestTable.findFirst({
+    where: and(
+      eq(organizerRequestTable.teamId, teamId),
+      eq(organizerRequestTable.status, ORGANIZER_REQUEST_STATUS.PENDING),
+    ),
+  })
 
-	return !!request
+  return !!request
 }

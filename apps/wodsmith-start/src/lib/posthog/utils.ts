@@ -15,11 +15,11 @@ import { getPostHog, isPostHogInitialized } from "./client"
  * ```
  */
 export function trackEvent(
-	event: string,
-	properties?: Record<string, unknown>,
+  event: string,
+  properties?: Record<string, unknown>,
 ): void {
-	if (typeof window === "undefined" || !isPostHogInitialized()) return
-	getPostHog().capture(event, properties)
+  if (typeof window === "undefined" || !isPostHogInitialized()) return
+  getPostHog().capture(event, properties)
 }
 
 /**
@@ -40,11 +40,11 @@ export function trackEvent(
  * ```
  */
 export function identifyUser(
-	userId: string,
-	properties?: Record<string, unknown>,
+  userId: string,
+  properties?: Record<string, unknown>,
 ): void {
-	if (typeof window === "undefined" || !isPostHogInitialized()) return
-	getPostHog().identify(userId, properties)
+  if (typeof window === "undefined" || !isPostHogInitialized()) return
+  getPostHog().identify(userId, properties)
 }
 
 /**
@@ -61,8 +61,8 @@ export function identifyUser(
  * ```
  */
 export function resetUser(): void {
-	if (typeof window === "undefined" || !isPostHogInitialized()) return
-	getPostHog().reset()
+  if (typeof window === "undefined" || !isPostHogInitialized()) return
+  getPostHog().reset()
 }
 
 /**
@@ -76,8 +76,8 @@ export function resetUser(): void {
  * ```
  */
 export function setUserProperties(properties: Record<string, unknown>): void {
-	if (typeof window === "undefined" || !isPostHogInitialized()) return
-	getPostHog().setPersonProperties(properties)
+  if (typeof window === "undefined" || !isPostHogInitialized()) return
+  getPostHog().setPersonProperties(properties)
 }
 
 /**
@@ -91,10 +91,10 @@ export function setUserProperties(properties: Record<string, unknown>): void {
  * ```
  */
 export function registerSuperProperties(
-	properties: Record<string, unknown>,
+  properties: Record<string, unknown>,
 ): void {
-	if (typeof window === "undefined" || !isPostHogInitialized()) return
-	getPostHog().register(properties)
+  if (typeof window === "undefined" || !isPostHogInitialized()) return
+  getPostHog().register(properties)
 }
 
 /**
@@ -110,11 +110,11 @@ export function registerSuperProperties(
  * ```
  */
 export function captureException(
-	error: unknown,
-	additionalProperties?: Record<string, unknown>,
+  error: unknown,
+  additionalProperties?: Record<string, unknown>,
 ): void {
-	if (typeof window !== "undefined" && isPostHogInitialized()) {
-		getPostHog().captureException(error, additionalProperties)
-	}
-	sentryCaptureException(error, additionalProperties)
+  if (typeof window !== "undefined" && isPostHogInitialized()) {
+    getPostHog().captureException(error, additionalProperties)
+  }
+  sentryCaptureException(error, additionalProperties)
 }

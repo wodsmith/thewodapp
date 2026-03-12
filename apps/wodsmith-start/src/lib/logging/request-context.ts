@@ -30,22 +30,22 @@ const createRequestId = init({ length: 12 })
  * Request context data that flows through the request lifecycle
  */
 export interface RequestContext {
-	/** Unique identifier for this request (for tracing) */
-	requestId: string
-	/** Timestamp when the request started */
-	startTime: number
-	/** User ID if authenticated */
-	userId?: string
-	/** Active team ID if applicable */
-	teamId?: string
-	/** HTTP method (GET, POST, etc.) */
-	method?: string
-	/** Request path/URL */
-	path?: string
-	/** Server function name if applicable */
-	serverFn?: string
-	/** Additional custom attributes */
-	attributes?: Record<string, unknown>
+  /** Unique identifier for this request (for tracing) */
+  requestId: string
+  /** Timestamp when the request started */
+  startTime: number
+  /** User ID if authenticated */
+  userId?: string
+  /** Active team ID if applicable */
+  teamId?: string
+  /** HTTP method (GET, POST, etc.) */
+  method?: string
+  /** Request path/URL */
+  path?: string
+  /** Server function name if applicable */
+  serverFn?: string
+  /** Additional custom attributes */
+  attributes?: Record<string, unknown>
 }
 
 // AsyncLocalStorage instance for request-scoped context
@@ -56,7 +56,7 @@ const requestContextStorage = new AsyncLocalStorage<RequestContext>()
  * Returns undefined if called outside of a request context.
  */
 export function getRequestContext(): RequestContext | undefined {
-	return requestContextStorage.getStore()
+  return requestContextStorage.getStore()
 }
 
 /**
@@ -64,9 +64,9 @@ export function getRequestContext(): RequestContext | undefined {
  * Returns undefined if the context or field doesn't exist.
  */
 export function getRequestContextField<K extends keyof RequestContext>(
-	field: K,
+  field: K,
 ): RequestContext[K] | undefined {
-	return requestContextStorage.getStore()?.[field]
+  return requestContextStorage.getStore()?.[field]
 }
 
 /**
@@ -74,7 +74,7 @@ export function getRequestContextField<K extends keyof RequestContext>(
  * Useful for logging when you may or may not be in a request context.
  */
 export function getOrCreateRequestId(): string {
-	return requestContextStorage.getStore()?.requestId ?? createRequestId()
+  return requestContextStorage.getStore()?.requestId ?? createRequestId()
 }
 
 /**
@@ -88,12 +88,12 @@ export function getOrCreateRequestId(): string {
  * ```
  */
 export function updateRequestContext(
-	updates: Partial<Omit<RequestContext, "requestId" | "startTime">>,
+  updates: Partial<Omit<RequestContext, "requestId" | "startTime">>,
 ): void {
-	const store = requestContextStorage.getStore()
-	if (store) {
-		Object.assign(store, updates)
-	}
+  const store = requestContextStorage.getStore()
+  if (store) {
+    Object.assign(store, updates)
+  }
 }
 
 /**
@@ -107,11 +107,11 @@ export function updateRequestContext(
  * ```
  */
 export function addRequestContextAttribute(key: string, value: unknown): void {
-	const store = requestContextStorage.getStore()
-	if (store) {
-		store.attributes = store.attributes ?? {}
-		store.attributes[key] = value
-	}
+  const store = requestContextStorage.getStore()
+  if (store) {
+    store.attributes = store.attributes ?? {}
+    store.attributes[key] = value
+  }
 }
 
 /**
@@ -138,15 +138,15 @@ export function addRequestContextAttribute(key: string, value: unknown): void {
  * ```
  */
 export function withRequestContext<T>(
-	initialContext: Partial<Omit<RequestContext, "requestId" | "startTime">>,
-	fn: () => T,
+  initialContext: Partial<Omit<RequestContext, "requestId" | "startTime">>,
+  fn: () => T,
 ): T {
-	const context: RequestContext = {
-		requestId: createRequestId(),
-		startTime: Date.now(),
-		...initialContext,
-	}
-	return requestContextStorage.run(context, fn)
+  const context: RequestContext = {
+    requestId: createRequestId(),
+    startTime: Date.now(),
+    ...initialContext,
+  }
+  return requestContextStorage.run(context, fn)
 }
 
 /**
@@ -155,28 +155,28 @@ export function withRequestContext<T>(
  * Filters out undefined values.
  */
 export function getContextAttributesForLogging(): Record<string, unknown> {
-	const context = requestContextStorage.getStore()
-	if (!context) {
-		return {}
-	}
+  const context = requestContextStorage.getStore()
+  if (!context) {
+    return {}
+  }
 
-	const attrs: Record<string, unknown> = {
-		requestId: context.requestId,
-	}
+  const attrs: Record<string, unknown> = {
+    requestId: context.requestId,
+  }
 
-	// Add optional fields only if they have values
-	if (context.userId) attrs.userId = context.userId
-	if (context.teamId) attrs.teamId = context.teamId
-	if (context.method) attrs.method = context.method
-	if (context.path) attrs.path = context.path
-	if (context.serverFn) attrs.serverFn = context.serverFn
+  // Add optional fields only if they have values
+  if (context.userId) attrs.userId = context.userId
+  if (context.teamId) attrs.teamId = context.teamId
+  if (context.method) attrs.method = context.method
+  if (context.path) attrs.path = context.path
+  if (context.serverFn) attrs.serverFn = context.serverFn
 
-	// Merge any custom attributes
-	if (context.attributes) {
-		Object.assign(attrs, context.attributes)
-	}
+  // Merge any custom attributes
+  if (context.attributes) {
+    Object.assign(attrs, context.attributes)
+  }
 
-	return attrs
+  return attrs
 }
 
 /**
@@ -184,8 +184,8 @@ export function getContextAttributesForLogging(): Record<string, unknown> {
  * Returns undefined if not in a request context.
  */
 export function getRequestDuration(): number | undefined {
-	const startTime = requestContextStorage.getStore()?.startTime
-	return startTime ? Date.now() - startTime : undefined
+  const startTime = requestContextStorage.getStore()?.startTime
+  return startTime ? Date.now() - startTime : undefined
 }
 
 /**
@@ -205,44 +205,44 @@ export function getRequestDuration(): number | undefined {
  * ```
  */
 export function createOperationSpan(operationName: string): {
-	startTime: number
-	endSpan: (attributes?: Record<string, unknown>) => {
-		durationMs: number
-		attributes: Record<string, unknown>
-	}
+  startTime: number
+  endSpan: (attributes?: Record<string, unknown>) => {
+    durationMs: number
+    attributes: Record<string, unknown>
+  }
 } {
-	const startTime = Date.now()
-	const context = getRequestContext()
+  const startTime = Date.now()
+  const context = getRequestContext()
 
-	return {
-		startTime,
-		endSpan: (attributes?: Record<string, unknown>) => {
-			const durationMs = Date.now() - startTime
-			return {
-				durationMs,
-				attributes: {
-					requestId: context?.requestId,
-					operation: operationName,
-					durationMs,
-					...attributes,
-				},
-			}
-		},
-	}
+  return {
+    startTime,
+    endSpan: (attributes?: Record<string, unknown>) => {
+      const durationMs = Date.now() - startTime
+      return {
+        durationMs,
+        attributes: {
+          requestId: context?.requestId,
+          operation: operationName,
+          durationMs,
+          ...attributes,
+        },
+      }
+    },
+  }
 }
 
 /**
  * Extract request info from a Request object for context initialization.
  */
 export function extractRequestInfo(request: Request): {
-	method: string
-	path: string
-	userAgent?: string
+  method: string
+  path: string
+  userAgent?: string
 } {
-	const url = new URL(request.url)
-	return {
-		method: request.method,
-		path: url.pathname,
-		userAgent: request.headers.get("user-agent") ?? undefined,
-	}
+  const url = new URL(request.url)
+  return {
+    method: request.method,
+    path: url.pathname,
+    userAgent: request.headers.get("user-agent") ?? undefined,
+  }
 }

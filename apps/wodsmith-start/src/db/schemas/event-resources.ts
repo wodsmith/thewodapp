@@ -14,41 +14,41 @@ import { trackWorkoutsTable } from "./programming"
  * Each event can have multiple resources, ordered by sortOrder.
  */
 export const eventResourcesTable = mysqlTable(
-	"event_resources",
-	{
-		...commonColumns,
-		id: varchar({ length: 255 })
-			.primaryKey()
-			.$defaultFn(() => createEventResourceId())
-			.notNull(),
-		// Foreign key to track_workout (competition event)
-		eventId: varchar({ length: 255 }).notNull(),
-		// Title is required
-		title: varchar({ length: 255 }).notNull(),
-		// Description is optional, supports markdown formatting
-		description: text(),
-		// URL is optional, for video links, external resources, etc.
-		url: varchar({ length: 2048 }),
-		// Sort order for display (1, 2, 3...)
-		sortOrder: int().notNull().default(1),
-	},
-	(table) => [
-		// Index for efficient lookup by event
-		index("event_resources_event_idx").on(table.eventId),
-		// Composite index for ordered retrieval by event
-		index("event_resources_event_order_idx").on(table.eventId, table.sortOrder),
-	],
+  "event_resources",
+  {
+    ...commonColumns,
+    id: varchar({ length: 255 })
+      .primaryKey()
+      .$defaultFn(() => createEventResourceId())
+      .notNull(),
+    // Foreign key to track_workout (competition event)
+    eventId: varchar({ length: 255 }).notNull(),
+    // Title is required
+    title: varchar({ length: 255 }).notNull(),
+    // Description is optional, supports markdown formatting
+    description: text(),
+    // URL is optional, for video links, external resources, etc.
+    url: varchar({ length: 2048 }),
+    // Sort order for display (1, 2, 3...)
+    sortOrder: int().notNull().default(1),
+  },
+  (table) => [
+    // Index for efficient lookup by event
+    index("event_resources_event_idx").on(table.eventId),
+    // Composite index for ordered retrieval by event
+    index("event_resources_event_order_idx").on(table.eventId, table.sortOrder),
+  ],
 )
 
 // Relations
 export const eventResourcesRelations = relations(
-	eventResourcesTable,
-	({ one }) => ({
-		event: one(trackWorkoutsTable, {
-			fields: [eventResourcesTable.eventId],
-			references: [trackWorkoutsTable.id],
-		}),
-	}),
+  eventResourcesTable,
+  ({ one }) => ({
+    event: one(trackWorkoutsTable, {
+      fields: [eventResourcesTable.eventId],
+      references: [trackWorkoutsTable.id],
+    }),
+  }),
 )
 
 // Type exports

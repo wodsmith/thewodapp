@@ -22,13 +22,13 @@ import { getSentryOptions } from "@/lib/sentry/server"
 import { sendRegistrationConfirmationEmail } from "@/server/registration"
 
 export interface ManualRegistrationNotifyParams {
-	userId: string
-	registrationId: string
-	competitionId: string
-	isPaid: boolean
-	amountPaidCents?: number
-	isPlaceholderUser: boolean
-	claimToken?: string
+  userId: string
+  registrationId: string
+  competitionId: string
+  isPaid: boolean
+  amountPaidCents?: number
+  isPlaceholderUser: boolean
+  claimToken?: string
 }
 
 // =========================================================================
@@ -36,51 +36,51 @@ export interface ManualRegistrationNotifyParams {
 // =========================================================================
 
 async function sendConfirmationEmail(
-	params: ManualRegistrationNotifyParams,
+  params: ManualRegistrationNotifyParams,
 ): Promise<void> {
-	const db = getDb()
+  const db = getDb()
 
-	// Query pending waiver count
-	const totalWaivers = await db
-		.select({ count: count() })
-		.from(waiversTable)
-		.where(
-			and(
-				eq(waiversTable.competitionId, params.competitionId),
-				eq(waiversTable.required, true),
-			),
-		)
+  // Query pending waiver count
+  const totalWaivers = await db
+    .select({ count: count() })
+    .from(waiversTable)
+    .where(
+      and(
+        eq(waiversTable.competitionId, params.competitionId),
+        eq(waiversTable.required, true),
+      ),
+    )
 
-	const signedWaivers = await db
-		.select({ count: count() })
-		.from(waiverSignaturesTable)
-		.innerJoin(
-			waiversTable,
-			eq(waiverSignaturesTable.waiverId, waiversTable.id),
-		)
-		.where(
-			and(
-				eq(waiversTable.competitionId, params.competitionId),
-				eq(waiversTable.required, true),
-				eq(waiverSignaturesTable.userId, params.userId),
-			),
-		)
+  const signedWaivers = await db
+    .select({ count: count() })
+    .from(waiverSignaturesTable)
+    .innerJoin(
+      waiversTable,
+      eq(waiverSignaturesTable.waiverId, waiversTable.id),
+    )
+    .where(
+      and(
+        eq(waiversTable.competitionId, params.competitionId),
+        eq(waiversTable.required, true),
+        eq(waiverSignaturesTable.userId, params.userId),
+      ),
+    )
 
-	const totalCount = Number(totalWaivers[0]?.count ?? 0)
-	const signedCount = Number(signedWaivers[0]?.count ?? 0)
-	const pendingWaiverCount = Math.max(0, totalCount - signedCount)
+  const totalCount = Number(totalWaivers[0]?.count ?? 0)
+  const signedCount = Number(signedWaivers[0]?.count ?? 0)
+  const pendingWaiverCount = Math.max(0, totalCount - signedCount)
 
-	// sendRegistrationConfirmationEmail throws on error (enables workflow retry)
-	await sendRegistrationConfirmationEmail({
-		userId: params.userId,
-		registrationId: params.registrationId,
-		competitionId: params.competitionId,
-		isPaid: params.isPaid,
-		amountPaidCents: params.amountPaidCents,
-		pendingWaiverCount,
-		isPlaceholderUser: params.isPlaceholderUser,
-		claimToken: params.claimToken,
-	})
+  // sendRegistrationConfirmationEmail throws on error (enables workflow retry)
+  await sendRegistrationConfirmationEmail({
+    userId: params.userId,
+    registrationId: params.registrationId,
+    competitionId: params.competitionId,
+    isPaid: params.isPaid,
+    amountPaidCents: params.amountPaidCents,
+    pendingWaiverCount,
+    isPlaceholderUser: params.isPlaceholderUser,
+    claimToken: params.claimToken,
+  })
 }
 
 // =========================================================================
@@ -88,46 +88,46 @@ async function sendConfirmationEmail(
 // =========================================================================
 
 class ManualRegistrationWorkflowBase extends WorkflowEntrypoint<
-	Env,
-	ManualRegistrationNotifyParams
+  Env,
+  ManualRegistrationNotifyParams
 > {
-	async run(
-		event: WorkflowEvent<ManualRegistrationNotifyParams>,
-		step: WorkflowStep,
-	) {
-		const params = event.payload
+  async run(
+    event: WorkflowEvent<ManualRegistrationNotifyParams>,
+    step: WorkflowStep,
+  ) {
+    const params = event.payload
 
-		try {
-			await step.do(
-				"send-confirmation-email",
-				{
-					retries: {
-						limit: 3,
-						delay: "2 seconds",
-						backoff: "exponential",
-					},
-				},
-				async () => {
-					await sendConfirmationEmail(params)
-				},
-			)
-		} catch (emailErr) {
-			logWarning({
-				message: "[Workflow] Manual registration email failed after retries",
-				error: emailErr,
-				attributes: {
-					registrationId: params.registrationId,
-					competitionId: params.competitionId,
-					userId: params.userId,
-				},
-			})
-		}
-	}
+    try {
+      await step.do(
+        "send-confirmation-email",
+        {
+          retries: {
+            limit: 3,
+            delay: "2 seconds",
+            backoff: "exponential",
+          },
+        },
+        async () => {
+          await sendConfirmationEmail(params)
+        },
+      )
+    } catch (emailErr) {
+      logWarning({
+        message: "[Workflow] Manual registration email failed after retries",
+        error: emailErr,
+        attributes: {
+          registrationId: params.registrationId,
+          competitionId: params.competitionId,
+          userId: params.userId,
+        },
+      })
+    }
+  }
 }
 
 export const ManualRegistrationWorkflow = Sentry.instrumentWorkflowWithSentry(
-	(env: Env) => getSentryOptions(env),
-	ManualRegistrationWorkflowBase,
+  (env: Env) => getSentryOptions(env),
+  ManualRegistrationWorkflowBase,
 )
 
 // =========================================================================
@@ -139,27 +139,27 @@ export const ManualRegistrationWorkflow = Sentry.instrumentWorkflowWithSentry(
  * Used in local dev where the MANUAL_REGISTRATION_WORKFLOW binding isn't available.
  */
 export async function processManualRegistrationInline(
-	params: ManualRegistrationNotifyParams,
+  params: ManualRegistrationNotifyParams,
 ): Promise<void> {
-	try {
-		await sendConfirmationEmail(params)
-		logInfo({
-			message: "[Inline ManualRegistration] Confirmation email sent",
-			attributes: {
-				registrationId: params.registrationId,
-				competitionId: params.competitionId,
-				userId: params.userId,
-			},
-		})
-	} catch (err) {
-		logWarning({
-			message: "[Inline ManualRegistration] Email notification failed",
-			error: err,
-			attributes: {
-				registrationId: params.registrationId,
-				competitionId: params.competitionId,
-				userId: params.userId,
-			},
-		})
-	}
+  try {
+    await sendConfirmationEmail(params)
+    logInfo({
+      message: "[Inline ManualRegistration] Confirmation email sent",
+      attributes: {
+        registrationId: params.registrationId,
+        competitionId: params.competitionId,
+        userId: params.userId,
+      },
+    })
+  } catch (err) {
+    logWarning({
+      message: "[Inline ManualRegistration] Email notification failed",
+      error: err,
+      attributes: {
+        registrationId: params.registrationId,
+        competitionId: params.competitionId,
+        userId: params.userId,
+      },
+    })
+  }
 }

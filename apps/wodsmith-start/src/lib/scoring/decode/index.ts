@@ -3,10 +3,10 @@
  */
 
 import {
-	isCountBasedScheme,
-	isDistanceBasedScheme,
-	isLoadBasedScheme,
-	isTimeBasedScheme,
+  isCountBasedScheme,
+  isDistanceBasedScheme,
+  isLoadBasedScheme,
+  isTimeBasedScheme,
 } from "../constants"
 import type { DistanceUnit, FormatOptions, WorkoutScheme } from "../types"
 import { decodeDistance, mmToUnit } from "./distance"
@@ -36,70 +36,70 @@ export { decodeTime, decodeTimeToSeconds } from "./time"
  * decodeScore(150, "reps")                         // → "150"
  */
 export function decodeScore(
-	value: number,
-	scheme: WorkoutScheme,
-	options?: FormatOptions,
+  value: number,
+  scheme: WorkoutScheme,
+  options?: FormatOptions,
 ): string {
-	// Time-based schemes
-	// Show ms if non-zero, or if alwaysShowMs option is set
-	if (isTimeBasedScheme(scheme)) {
-		return decodeTime(value, {
-			alwaysShowMs: options?.compact === false, // Show .000 when not compact
-		})
-	}
+  // Time-based schemes
+  // Show ms if non-zero, or if alwaysShowMs option is set
+  if (isTimeBasedScheme(scheme)) {
+    return decodeTime(value, {
+      alwaysShowMs: options?.compact === false, // Show .000 when not compact
+    })
+  }
 
-	// Rounds + Reps
-	if (scheme === "rounds-reps") {
-		return decodeRoundsReps(value, { compact: options?.compact })
-	}
+  // Rounds + Reps
+  if (scheme === "rounds-reps") {
+    return decodeRoundsReps(value, { compact: options?.compact })
+  }
 
-	// Load (weight)
-	if (isLoadBasedScheme(scheme)) {
-		return decodeLoad(value, {
-			unit: options?.weightUnit ?? "lbs",
-			includeUnit: options?.includeUnit,
-		})
-	}
+  // Load (weight)
+  if (isLoadBasedScheme(scheme)) {
+    return decodeLoad(value, {
+      unit: options?.weightUnit ?? "lbs",
+      includeUnit: options?.includeUnit,
+    })
+  }
 
-	// Distance
-	if (isDistanceBasedScheme(scheme)) {
-		const defaultUnit: DistanceUnit = scheme === "feet" ? "ft" : "m"
-		return decodeDistance(value, {
-			unit: options?.distanceUnit ?? defaultUnit,
-			includeUnit: options?.includeUnit,
-		})
-	}
+  // Distance
+  if (isDistanceBasedScheme(scheme)) {
+    const defaultUnit: DistanceUnit = scheme === "feet" ? "ft" : "m"
+    return decodeDistance(value, {
+      unit: options?.distanceUnit ?? defaultUnit,
+      includeUnit: options?.includeUnit,
+    })
+  }
 
-	// Count-based schemes (reps, calories, points)
-	if (isCountBasedScheme(scheme)) {
-		const suffix = getCountSuffix(scheme, options?.includeUnit)
-		return suffix ? `${value}${suffix}` : value.toString()
-	}
+  // Count-based schemes (reps, calories, points)
+  if (isCountBasedScheme(scheme)) {
+    const suffix = getCountSuffix(scheme, options?.includeUnit)
+    return suffix ? `${value}${suffix}` : value.toString()
+  }
 
-	// Pass/fail
-	if (scheme === "pass-fail") {
-		return value === 1 ? "Pass" : "Fail"
-	}
+  // Pass/fail
+  if (scheme === "pass-fail") {
+    return value === 1 ? "Pass" : "Fail"
+  }
 
-	return value.toString()
+  return value.toString()
 }
 
 /**
  * Get the unit suffix for count-based schemes.
  */
 function getCountSuffix(scheme: WorkoutScheme, includeUnit?: boolean): string {
-	if (!includeUnit) return ""
+  if (!includeUnit) return ""
 
-	switch (scheme) {
-		case "reps":
-			return " reps"
-		case "calories":
-			return " cal"
-		case "points":
-			return " pts"
-		default:
-			return ""
-	}
+  switch (scheme) {
+    case "reps":
+      return " reps"
+    case "calories":
+      return " cal"
+    case "points":
+      return " pts"
+    default:
+      return ""
+  }
 }
 
 /**
@@ -115,26 +115,26 @@ function getCountSuffix(scheme: WorkoutScheme, includeUnit?: boolean): string {
  * decodeToNumber(102058, "load", { weightUnit: "lbs" }) // → 225
  */
 export function decodeToNumber(
-	value: number,
-	scheme: WorkoutScheme,
-	options?: FormatOptions,
+  value: number,
+  scheme: WorkoutScheme,
+  options?: FormatOptions,
 ): number {
-	// Time-based: return seconds
-	if (isTimeBasedScheme(scheme)) {
-		return decodeTimeToSeconds(value)
-	}
+  // Time-based: return seconds
+  if (isTimeBasedScheme(scheme)) {
+    return decodeTimeToSeconds(value)
+  }
 
-	// Load: return in specified unit
-	if (isLoadBasedScheme(scheme)) {
-		return gramsToUnit(value, options?.weightUnit ?? "lbs")
-	}
+  // Load: return in specified unit
+  if (isLoadBasedScheme(scheme)) {
+    return gramsToUnit(value, options?.weightUnit ?? "lbs")
+  }
 
-	// Distance: return in specified unit
-	if (isDistanceBasedScheme(scheme)) {
-		const defaultUnit: DistanceUnit = scheme === "feet" ? "ft" : "m"
-		return mmToUnit(value, options?.distanceUnit ?? defaultUnit)
-	}
+  // Distance: return in specified unit
+  if (isDistanceBasedScheme(scheme)) {
+    const defaultUnit: DistanceUnit = scheme === "feet" ? "ft" : "m"
+    return mmToUnit(value, options?.distanceUnit ?? defaultUnit)
+  }
 
-	// All others: return as-is
-	return value
+  // All others: return as-is
+  return value
 }

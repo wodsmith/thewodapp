@@ -13,17 +13,17 @@ import { getActiveTeamId } from "@/utils/team-auth"
  * Returns false if no session or no active team
  */
 export const checkWorkoutTrackingAccess = createServerFn({
-	method: "GET",
+  method: "GET",
 }).handler(async (): Promise<boolean> => {
-	const session = await getSessionFromCookie()
-	if (!session?.user) {
-		return false
-	}
+  const session = await getSessionFromCookie()
+  if (!session?.user) {
+    return false
+  }
 
-	const activeTeamId = await getActiveTeamId()
-	if (!activeTeamId) {
-		return false
-	}
+  const activeTeamId = await getActiveTeamId()
+  if (!activeTeamId) {
+    return false
+  }
 
-	return hasFeature(activeTeamId, FEATURES.WORKOUT_TRACKING)
+  return hasFeature(activeTeamId, FEATURES.WORKOUT_TRACKING)
 })

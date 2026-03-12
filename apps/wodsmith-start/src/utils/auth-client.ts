@@ -12,6 +12,6 @@ import { useRouteContext } from "@tanstack/react-router"
  * @returns The current session or null if not authenticated
  */
 export function useSession() {
-	const context = useRouteContext({ from: "__root__" })
-	return context.session
+  const context = useRouteContext({ from: "__root__" })
+  return context.session
 }

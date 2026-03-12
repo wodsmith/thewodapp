@@ -13,11 +13,11 @@ import { PostHog } from "posthog-node"
 
 // Use VITE_ prefix for environment variables in TanStack Start
 const POSTHOG_API_KEY =
-	import.meta.env.VITE_POSTHOG_KEY ||
-	"phc_UCtCVOUXvpuKzF50prCLKIWWCFc61j5CPTbt99OrKsK"
+  import.meta.env.VITE_POSTHOG_KEY ||
+  "phc_UCtCVOUXvpuKzF50prCLKIWWCFc61j5CPTbt99OrKsK"
 
 const POSTHOG_HOST =
-	import.meta.env.VITE_POSTHOG_HOST || "https://us.i.posthog.com"
+  import.meta.env.VITE_POSTHOG_HOST || "https://us.i.posthog.com"
 
 let serverClient: PostHog | null = null
 
@@ -28,15 +28,15 @@ let serverClient: PostHog | null = null
  * @returns PostHog client configured for server-side usage
  */
 export function getServerPostHog(): PostHog {
-	if (!serverClient) {
-		serverClient = new PostHog(POSTHOG_API_KEY, {
-			host: POSTHOG_HOST,
-			// Disable automatic flushing - we'll manually flush or use waitUntil
-			flushAt: 1,
-			flushInterval: 0,
-		})
-	}
-	return serverClient
+  if (!serverClient) {
+    serverClient = new PostHog(POSTHOG_API_KEY, {
+      host: POSTHOG_HOST,
+      // Disable automatic flushing - we'll manually flush or use waitUntil
+      flushAt: 1,
+      flushInterval: 0,
+    })
+  }
+  return serverClient
 }
 
 /**
@@ -44,8 +44,8 @@ export function getServerPostHog(): PostHog {
  * Call this before process shutdown to ensure all events are sent.
  */
 export async function shutdownPostHog(): Promise<void> {
-	if (serverClient) {
-		await serverClient.shutdown()
-		serverClient = null
-	}
+  if (serverClient) {
+    await serverClient.shutdown()
+    serverClient = null
+  }
 }
