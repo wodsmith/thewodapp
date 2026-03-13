@@ -15,7 +15,7 @@ on:
       stage:
         description: 'Deployment stage'
         required: true
-        default: 'prod'
+        default: 'demo'
         type: choice
         options:
           - prod
@@ -28,8 +28,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # Push to main deploys to staging (not prod). Prod requires manual workflow_dispatch.
-  STAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.stage || (github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'staging') }}
+  # workflow_dispatch uses selected stage; PRs get pr-N; push-to-main deploys demo (via deploy-demo job)
+  STAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.stage || (github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'demo') }}
 
 jobs:
   # Slack notification - start (production deploys only, manual workflow_dispatch)
