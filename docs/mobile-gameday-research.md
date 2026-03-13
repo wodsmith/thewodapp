@@ -55,6 +55,75 @@ Build a cross-platform app with Dart and Flutter's own rendering engine (Skia/Im
 
 ---
 
+## Cost Breakdown
+
+### Development Cost Estimates
+
+Estimates assume a senior US contractor ($100-150/hr for React/TypeScript, $100-200/hr for Swift, $75-150/hr for Dart). The team already knows React/TypeScript — Swift and Dart options include learning curve overhead.
+
+| Approach | Estimated Dev Hours | Effective Rate | Estimated Dev Cost |
+|----------|-------------------|----------------|-------------------|
+| **Capacitor** | 120-200 hrs (API layer + native plugins, no UI rewrite) | $100-150/hr (existing skills) | **$12,000-$30,000** |
+| **React Native / Expo** | 300-500 hrs (full UI rewrite, shared logic) | $100-150/hr (React skills transfer, RN specifics to learn) | **$30,000-$75,000** |
+| **PWA** | 80-150 hrs (service worker, offline caching, manifest) | $100-150/hr (existing skills) | **$8,000-$22,500** |
+| **Native Swift** | 500-800 hrs (full rewrite, new language) | $100-200/hr (must hire or learn Swift) | **$50,000-$160,000** |
+| **Flutter** | 400-700 hrs (full rewrite in Dart) | $75-150/hr (must hire or learn Dart) | **$30,000-$105,000** |
+
+### App Store Fees
+
+| Fee | Cost | Frequency |
+|-----|------|-----------|
+| Apple Developer Program | $99 | Annual |
+| Google Play Developer | $25 | One-time |
+
+### Build & CI Services
+
+| Service | Free Tier | Paid Plan | Best For |
+|---------|-----------|-----------|----------|
+| **EAS Build** (Expo) | 15 iOS + 15 Android builds/mo | $19/mo (Starter) – $199/mo (Production) | React Native / Expo |
+| **Appflow** (Ionic) | None | $499/mo | Capacitor (optional — can use GitHub Actions instead) |
+| **Xcode Cloud** | 25 hrs/mo (incl. w/ Apple Dev Program) | $49.99/mo (100 hrs) – $399.99/mo (1,000 hrs) | Native Swift |
+| **GitHub Actions** (macOS) | 2,000 min/mo Linux (macOS at 10x multiplier = ~200 min) | ~$0.06-0.08/min macOS | Any approach |
+
+**Practical note:** Capacitor builds via GitHub Actions macOS runners cost ~$4-6 per build (~60 min). At 20 builds/month that's ~$100/mo — far cheaper than Appflow's $499/mo. Appflow is only worth it for teams that need its managed pipeline.
+
+### OTA Update Services
+
+| Service | Free Tier | Recommended Plan | Best For |
+|---------|-----------|-----------------|----------|
+| **Capgo** | — | $12/mo (1K MAU) – $33/mo (10K MAU) | Capacitor |
+| **EAS Update** | 1,000 MAU (incl. in free plan) | Included in EAS plans ($19-199/mo) | React Native / Expo |
+
+### Push Notifications
+
+| Service | Cost |
+|---------|------|
+| **Firebase Cloud Messaging (FCM)** | Free — no per-message or volume limits |
+| **Apple Push Notification service (APNs)** | Free — included with Apple Developer Program |
+
+Third-party services (OneSignal, Pusher) only needed if you want analytics dashboards or advanced segmentation — not required for basic push.
+
+### Ongoing Maintenance
+
+| Category | Capacitor | React Native / Expo | PWA | Native Swift | Flutter |
+|----------|-----------|--------------------| ----|-------------|---------|
+| App Store review cycles | 2-4x/year (major) + OTA for JS fixes | 2-4x/year (major) + OTA for JS fixes | N/A (web deploy) | Every release | Every release |
+| OS compatibility updates | ~20-40 hrs/yr | ~40-80 hrs/yr (RN upgrade cycles) | ~10-20 hrs/yr | ~40-80 hrs/yr | ~30-60 hrs/yr |
+| Dependency updates | Low (web deps + ~10 plugins) | Medium (RN + native modules) | Lowest (web only) | Medium (Swift/Apple SDK) | Medium (Dart packages) |
+| Estimated annual maint. cost | **$5,000-$10,000** | **$10,000-$20,000** | **$2,000-$5,000** | **$15,000-$30,000** | **$10,000-$20,000** |
+
+### Total Cost Comparison
+
+| | Capacitor | React Native / Expo | PWA | Native Swift | Flutter |
+|-|-----------|--------------------| ----|-------------|---------|
+| **Year 1 (dev + infra + store fees)** | $13,000-$32,000 | $32,000-$78,000 | $8,200-$22,800 | $50,200-$160,500 | $30,200-$105,400 |
+| **Year 1 infra breakdown** | $124 store + $12-33/mo OTA + CI | $124 store + $19-199/mo EAS | $0 | $124 store + $0-50/mo Xcode Cloud | $124 store + CI |
+| **Ongoing Annual (maint + infra)** | **$5,500-$11,000** | **$11,000-$22,500** | **$2,000-$5,000** | **$16,000-$31,000** | **$10,500-$21,000** |
+
+**Key takeaway:** Capacitor's Year 1 cost is 40-60% less than React Native and 75-80% less than Native Swift, primarily because it requires no UI rewrite and uses the team's existing React/TypeScript skills. Infrastructure costs are negligible across all options — the dominant cost is developer time.
+
+---
+
 ## Recommendation
 
 **Capacitor** as the primary approach, with **React Native/Expo** as the upgrade path if native performance becomes necessary.
