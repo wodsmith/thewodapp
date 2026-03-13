@@ -28,12 +28,13 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  STAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.stage || (github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'prod') }}
+  # Push to main deploys to staging (not prod). Prod requires manual workflow_dispatch.
+  STAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.stage || (github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'staging') }}
 
 jobs:
-  # Slack notification - start (production deploys only, must be from main branch)
+  # Slack notification - start (production deploys only, manual workflow_dispatch)
   notify-start:
-    if: github.ref == 'refs/heads/main' && ((github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.stage == 'prod'))
+    if: github.event_name == 'workflow_dispatch' && inputs.stage == 'prod' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 2
     name: Notify Deploy Start
@@ -136,6 +137,8 @@ jobs:
       deployments: write
       pull-requests: write
     name: Deploy to Cloudflare Workers
+    # Prod deploys require approval via GitHub environment protection rules
+    environment: ${{ env.STAGE == 'prod' && 'production' || env.STAGE }}
     defaults:
       run:
         working-directory: apps/wodsmith-start
