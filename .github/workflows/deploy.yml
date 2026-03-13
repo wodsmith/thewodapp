@@ -254,9 +254,13 @@ jobs:
         env:
           PLANETSCALE_SERVICE_TOKEN_ID: ${{ secrets.PLANETSCALE_SERVICE_TOKEN_ID }}
           PLANETSCALE_SERVICE_TOKEN: ${{ secrets.PLANETSCALE_SERVICE_TOKEN }}
+          PLANETSCALE_ORGANIZATION: ${{ secrets.PLANETSCALE_ORGANIZATION }}
         run: |
+          # Debug: list branches to verify access
+          pscale branch list wodsmith-db --org "$PLANETSCALE_ORGANIZATION" || true
+
           CREDS=$(pscale password create wodsmith-db demo ci-schema-push \
-            --org wodsmith --role admin --ttl 5m --format json)
+            --org "$PLANETSCALE_ORGANIZATION" --role admin --ttl 5m --format json)
 
           HOST=$(echo "$CREDS" | jq -r '.access_host_url')
           USER=$(echo "$CREDS" | jq -r '.username')
