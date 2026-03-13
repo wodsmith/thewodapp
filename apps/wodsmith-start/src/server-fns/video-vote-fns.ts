@@ -42,10 +42,6 @@ const castVoteInputSchema = z
     { message: "A reason is required for downvotes", path: ["reason"] },
   )
 
-const removeVoteInputSchema = z.object({
-  videoSubmissionId: z.string().min(1),
-})
-
 const getVoteCountsInputSchema = z.object({
   videoSubmissionIds: z.array(z.string().min(1)).min(1).max(100),
 })
@@ -62,7 +58,7 @@ const getFlaggedSubmissionsInputSchema = z.object({
 
 /**
  * Cast a vote (upvote or downvote) on a video submission.
- * If the user already voted, their vote is updated.
+ * Once cast, a vote cannot be changed or removed.
  * Users cannot vote on their own submissions.
  */
 export const castVideoVoteFn = createServerFn({ method: "POST" })
@@ -94,55 +90,34 @@ export const castVideoVoteFn = createServerFn({ method: "POST" })
       throw new Error("You cannot vote on your own submission")
     }
 
-    const now = new Date()
-
-    // Upsert: insert or update existing vote
-    await db
-      .insert(videoVotesTable)
-      .values({
-        id: createVideoVoteId(),
-        videoSubmissionId: data.videoSubmissionId,
-        userId: session.userId,
-        voteType: data.voteType,
-        reason: data.voteType === "downvote" ? (data.reason ?? null) : null,
-        reasonDetail:
-          data.voteType === "downvote" ? (data.reasonDetail ?? null) : null,
-        votedAt: now,
-      })
-      .onDuplicateKeyUpdate({
-        set: {
-          voteType: data.voteType,
-          reason: data.voteType === "downvote" ? (data.reason ?? null) : null,
-          reasonDetail:
-            data.voteType === "downvote" ? (data.reasonDetail ?? null) : null,
-          updatedAt: now,
-        },
-      })
-
-    return { success: true }
-  })
-
-/**
- * Remove the current user's vote on a video submission.
- */
-export const removeVideoVoteFn = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => removeVoteInputSchema.parse(data))
-  .handler(async ({ data }) => {
-    const session = await getSessionFromCookie()
-    if (!session?.userId) {
-      throw new Error("You must be signed in")
-    }
-
-    const db = getDb()
-
-    await db
-      .delete(videoVotesTable)
+    // Check if user already voted — votes cannot be changed
+    const [existingVote] = await db
+      .select({ id: videoVotesTable.id })
+      .from(videoVotesTable)
       .where(
         and(
           eq(videoVotesTable.videoSubmissionId, data.videoSubmissionId),
           eq(videoVotesTable.userId, session.userId),
         ),
       )
+      .limit(1)
+
+    if (existingVote) {
+      throw new Error("You have already voted on this submission")
+    }
+
+    const now = new Date()
+
+    await db.insert(videoVotesTable).values({
+      id: createVideoVoteId(),
+      videoSubmissionId: data.videoSubmissionId,
+      userId: session.userId,
+      voteType: data.voteType,
+      reason: data.voteType === "downvote" ? (data.reason ?? null) : null,
+      reasonDetail:
+        data.voteType === "downvote" ? (data.reasonDetail ?? null) : null,
+      votedAt: now,
+    })
 
     return { success: true }
   })

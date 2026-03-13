@@ -292,8 +292,6 @@ function ExpandedVideoRow({
                   {result.videoSubmissionId && (
                     <VideoVoteButtons
                       videoSubmissionId={result.videoSubmissionId}
-                      upvotes={voteCounts[result.videoSubmissionId]?.upvotes ?? 0}
-                      downvotes={voteCounts[result.videoSubmissionId]?.downvotes ?? 0}
                       userVote={voteCounts[result.videoSubmissionId]?.userVote ?? null}
                     />
                   )}
@@ -472,8 +470,6 @@ function MobileOnlineLeaderboardRow({
                 {result.videoSubmissionId && (
                   <VideoVoteButtons
                     videoSubmissionId={result.videoSubmissionId}
-                    upvotes={voteCounts[result.videoSubmissionId]?.upvotes ?? 0}
-                    downvotes={voteCounts[result.videoSubmissionId]?.downvotes ?? 0}
                     userVote={voteCounts[result.videoSubmissionId]?.userVote ?? null}
                   />
                 )}

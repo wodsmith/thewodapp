@@ -13,10 +13,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/utils/cn"
-import {
-  castVideoVoteFn,
-  removeVideoVoteFn,
-} from "@/server-fns/video-vote-fns"
+import { castVideoVoteFn } from "@/server-fns/video-vote-fns"
 import type { DownvoteReason } from "@/db/schemas/video-votes"
 
 const DOWNVOTE_REASON_LABELS: Record<DownvoteReason, string> = {
@@ -29,25 +26,17 @@ const DOWNVOTE_REASON_LABELS: Record<DownvoteReason, string> = {
 
 interface VideoVoteButtonsProps {
   videoSubmissionId: string
-  upvotes: number
-  downvotes: number
   userVote: "upvote" | "downvote" | null
   onVoteChange?: (newState: {
-    upvotes: number
-    downvotes: number
     userVote: "upvote" | "downvote" | null
   }) => void
 }
 
 export function VideoVoteButtons({
   videoSubmissionId,
-  upvotes: initialUpvotes,
-  downvotes: initialDownvotes,
   userVote: initialUserVote,
   onVoteChange,
 }: VideoVoteButtonsProps) {
-  const [upvotes, setUpvotes] = useState(initialUpvotes)
-  const [downvotes, setDownvotes] = useState(initialDownvotes)
   const [userVote, setUserVote] = useState(initialUserVote)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [downvoteOpen, setDownvoteOpen] = useState(false)
@@ -55,42 +44,19 @@ export function VideoVoteButtons({
   const [reasonDetail, setReasonDetail] = useState("")
 
   const castVote = useServerFn(castVideoVoteFn)
-  const removeVote = useServerFn(removeVideoVoteFn)
 
-  const updateState = (
-    newUpvotes: number,
-    newDownvotes: number,
-    newUserVote: "upvote" | "downvote" | null,
-  ) => {
-    setUpvotes(newUpvotes)
-    setDownvotes(newDownvotes)
-    setUserVote(newUserVote)
-    onVoteChange?.({
-      upvotes: newUpvotes,
-      downvotes: newDownvotes,
-      userVote: newUserVote,
-    })
-  }
+  const hasVoted = userVote !== null
 
   const handleUpvote = async () => {
-    if (isSubmitting) return
+    if (isSubmitting || hasVoted) return
     setIsSubmitting(true)
 
     try {
-      if (userVote === "upvote") {
-        // Remove upvote
-        await removeVote({ data: { videoSubmissionId } })
-        updateState(upvotes - 1, downvotes, null)
-      } else {
-        // Cast upvote (replaces downvote if exists)
-        await castVote({
-          data: { videoSubmissionId, voteType: "upvote" },
-        })
-        const newDownvotes =
-          userVote === "downvote" ? downvotes - 1 : downvotes
-        const newUpvotes = upvotes + 1
-        updateState(newUpvotes, newDownvotes, "upvote")
-      }
+      await castVote({
+        data: { videoSubmissionId, voteType: "upvote" },
+      })
+      setUserVote("upvote")
+      onVoteChange?.({ userVote: "upvote" })
     } catch (error) {
       console.error("Failed to vote:", error)
     } finally {
@@ -99,7 +65,7 @@ export function VideoVoteButtons({
   }
 
   const handleDownvoteSubmit = async () => {
-    if (isSubmitting || !selectedReason) return
+    if (isSubmitting || hasVoted || !selectedReason) return
     setIsSubmitting(true)
 
     try {
@@ -111,28 +77,13 @@ export function VideoVoteButtons({
           reasonDetail: reasonDetail.trim() || undefined,
         },
       })
-      const newUpvotes = userVote === "upvote" ? upvotes - 1 : upvotes
-      const newDownvotes = userVote === "downvote" ? downvotes : downvotes + 1
-      updateState(newUpvotes, newDownvotes, "downvote")
+      setUserVote("downvote")
+      onVoteChange?.({ userVote: "downvote" })
       setDownvoteOpen(false)
       setSelectedReason("")
       setReasonDetail("")
     } catch (error) {
       console.error("Failed to downvote:", error)
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleRemoveDownvote = async () => {
-    if (isSubmitting) return
-    setIsSubmitting(true)
-
-    try {
-      await removeVote({ data: { videoSubmissionId } })
-      updateState(upvotes, downvotes - 1, null)
-    } catch (error) {
-      console.error("Failed to remove vote:", error)
     } finally {
       setIsSubmitting(false)
     }
@@ -149,37 +100,31 @@ export function VideoVoteButtons({
           userVote === "upvote" && "text-green-600 dark:text-green-400",
         )}
         onClick={handleUpvote}
-        disabled={isSubmitting}
+        disabled={isSubmitting || hasVoted}
       >
         <ThumbsUp className="h-3.5 w-3.5" />
-        {upvotes > 0 && <span className="tabular-nums">{upvotes}</span>}
       </Button>
 
-      {/* Downvote button — opens reason popover, or removes if already downvoted */}
+      {/* Downvote button — opens reason popover if not yet voted */}
       {userVote === "downvote" ? (
         <Button
           variant="ghost"
           size="sm"
           className="h-7 gap-1 px-2 text-xs text-red-600 dark:text-red-400"
-          onClick={handleRemoveDownvote}
-          disabled={isSubmitting}
+          disabled
         >
           <ThumbsDown className="h-3.5 w-3.5" />
-          {downvotes > 0 && <span className="tabular-nums">{downvotes}</span>}
         </Button>
       ) : (
-        <Popover open={downvoteOpen} onOpenChange={setDownvoteOpen}>
+        <Popover open={downvoteOpen} onOpenChange={hasVoted ? undefined : setDownvoteOpen}>
           <PopoverTrigger asChild>
             <Button
               variant="ghost"
               size="sm"
               className="h-7 gap-1 px-2 text-xs"
-              disabled={isSubmitting}
+              disabled={isSubmitting || hasVoted}
             >
               <ThumbsDown className="h-3.5 w-3.5" />
-              {downvotes > 0 && (
-                <span className="tabular-nums">{downvotes}</span>
-              )}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-72" align="start">
