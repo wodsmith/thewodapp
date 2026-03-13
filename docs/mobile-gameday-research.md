@@ -77,6 +77,81 @@ Build a cross-platform app with Dart and Flutter's own rendering engine (Skia/Im
 
 ---
 
+## Architecture: Separate App vs Monorepo
+
+The gameday mobile app should live **outside** wodsmith-start. The core question is whether it belongs in the same monorepo (as a sibling app) or in a completely separate repository. Both approaches keep wodsmith-start clean — the difference is how shared code is consumed.
+
+### Option 1: Separate Repository (Recommended)
+
+The Capacitor app lives in its own repo (e.g., `wodsmith-gameday`) and consumes wodsmith-start's backend via REST API routes. Shared types are published as a package or pulled via git submodule.
+
+**Pros:**
+
+- **Total separation of concerns.** wodsmith-start's dependency tree, build config, CI pipeline, and deploy process are completely untouched. Mobile concerns (Capacitor plugins, native build tooling, Xcode/Android Studio configs) never enter the web app's world.
+- **Independent deployment cadence.** The gameday app ships on its own schedule — app store submissions, OTA updates via Capgo, and native build cycles have zero coupling to wodsmith-start deploys.
+- **Clean ownership boundary.** Different contributors, different review standards, different test strategies. A web deploy can't accidentally break the mobile build and vice versa.
+- **Smaller CI.** Each repo runs only its own checks. No "run mobile tests on every web PR" overhead.
+
+**Cons:**
+
+- **Shared types require explicit sync.** Zod schemas, API response types, and domain constants must be published (npm package, git submodule, or copy-paste). Drift is possible if not automated.
+- **Two repos to manage.** PRs, issues, and releases live in separate places.
+
+**How shared types work across repos:**
+
+1. **Published package (best).** Extract shared schemas/types into `@wodsmith/shared` published to npm (or a private registry). Both repos depend on it. Version pinning prevents drift.
+2. **Git submodule.** A `shared/` submodule in both repos pointing to a common source. More friction but no registry needed.
+3. **API-first contract.** The mobile app treats the API as the contract. Generate TypeScript types from OpenAPI specs or a shared schema package. The mobile app never imports from wodsmith-start directly.
+
+### Option 2: Monorepo Sibling App
+
+The Capacitor app lives in the same monorepo as wodsmith-start (e.g., `apps/wodsmith-gameday`) with shared code in `packages/`.
+
+**Pros:**
+
+- **Atomic changes.** A single PR can update an API route, its types, and the mobile consumer simultaneously. No version coordination needed.
+- **Trivial code sharing.** Import from `@wodsmith/schemas` or `@wodsmith/utils` — standard monorepo workspace references, always at head.
+- **Single CI.** One pipeline validates everything. Type errors across boundaries are caught immediately.
+
+**Cons:**
+
+- **Muddies wodsmith-start's concerns.** Even though the mobile app is a separate directory, the monorepo's root config (pnpm-workspace, turbo/nx pipeline, CI matrix) must account for Capacitor, native builds, Xcode, Android SDK, etc. This is exactly the kind of cross-contamination the user wants to avoid.
+- **Coupled deploys.** CI runs against the whole workspace — a mobile change can block a web deploy if the pipeline isn't carefully partitioned.
+- **Heavier root.** Native build dependencies (CocoaPods, Gradle) pollute the dev environment for web-only contributors.
+
+### Recommendation: Separate Repository + Shared Package
+
+**Start with a separate repo.** This enforces the cleanest boundary and ensures wodsmith-start stays entirely focused on the web platform.
+
+The key enabler is an **API-first architecture**:
+
+1. **Build REST API routes in wodsmith-start** (`src/routes/api/`). These already exist for some features and are the natural extension point. This work benefits the web app too (third-party integrations, webhooks, future clients).
+
+2. **Extract shared types into `@wodsmith/shared`** — a small package containing Zod schemas, TypeScript interfaces, and domain constants. Publish to npm (private scope) or use a GitHub Packages registry. Both repos pin to the same version.
+
+3. **The gameday app is a standalone Capacitor project** that:
+   - Builds as a pure SPA (no SSR, no server functions)
+   - Calls wodsmith-start API routes for all data
+   - Uses bearer token auth (not cookies)
+   - Has its own CI/CD for native builds and app store submission
+   - Ships OTA updates via Capgo independently
+
+This approach means:
+- **wodsmith-start never knows the mobile app exists.** No Capacitor config, no native dependencies, no mobile-specific build steps.
+- **The gameday app can ship daily** without touching wodsmith-start's deploy pipeline.
+- **If the team later decides to move into the monorepo**, the migration is straightforward — move the directory, update imports to workspace references, remove the published package. The reverse is much harder.
+
+### When to Reconsider
+
+Move to a monorepo sibling if:
+- Shared code changes are happening multiple times per week and version coordination becomes painful
+- The team grows and wants atomic cross-project PRs as the default workflow
+- A shared package registry feels like unnecessary infrastructure
+
+But for a v1 gameday app with a small team, the separate repo keeps complexity where it belongs — in the mobile project, not in wodsmith-start.
+
+---
+
 ## Appendix A: Capacitor Deep Dive
 
 ### How It Works
