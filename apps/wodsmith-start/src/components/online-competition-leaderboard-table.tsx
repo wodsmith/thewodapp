@@ -13,6 +13,7 @@ import {
   useReactTable,
   type ExpandedState,
 } from "@tanstack/react-table"
+import { useServerFn } from "@tanstack/react-start"
 import {
   AlertTriangle,
   ArrowDownNarrowWide,
@@ -46,6 +47,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { VideoEmbed } from "@/components/video-embed"
+import { VideoVoteButtons } from "@/components/compete/video-vote-buttons"
+import { getVideoVoteCountsFn } from "@/server-fns/video-vote-fns"
 import { getSortDirection } from "@/lib/scoring"
 import type { WorkoutScheme } from "@/lib/scoring/types"
 import { cn } from "@/lib/utils"
@@ -219,15 +222,23 @@ function hasExpandableContent(
   )
 }
 
+/** Vote counts cache type */
+type VoteCounts = Record<
+  string,
+  { upvotes: number; downvotes: number; userVote: "upvote" | "downvote" | null }
+>
+
 /** Desktop expanded row showing videos and penalty details */
 function ExpandedVideoRow({
   row,
   selectedEventId,
   columnsCount,
+  voteCounts,
 }: {
   row: Row<CompetitionLeaderboardEntry>
   selectedEventId: string | null
   columnsCount: number
+  voteCounts: VoteCounts
 }) {
   const entry = row.original
 
@@ -275,7 +286,19 @@ function ExpandedVideoRow({
                   Score adjusted by organizer
                 </div>
               )}
-              {result.videoUrl && <VideoEmbed url={result.videoUrl} />}
+              {result.videoUrl && (
+                <div className="space-y-1">
+                  <VideoEmbed url={result.videoUrl} />
+                  {result.videoSubmissionId && (
+                    <VideoVoteButtons
+                      videoSubmissionId={result.videoSubmissionId}
+                      upvotes={voteCounts[result.videoSubmissionId]?.upvotes ?? 0}
+                      downvotes={voteCounts[result.videoSubmissionId]?.downvotes ?? 0}
+                      userVote={voteCounts[result.videoSubmissionId]?.userVote ?? null}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -289,6 +312,7 @@ function MobileOnlineLeaderboardRow({
   entry,
   events,
   scoringAlgorithm,
+  voteCounts,
 }: {
   entry: CompetitionLeaderboardEntry
   events: Array<{
@@ -298,6 +322,7 @@ function MobileOnlineLeaderboardRow({
     scheme: string
   }>
   scoringAlgorithm: ScoringAlgorithm
+  voteCounts: VoteCounts
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const icon = getRankIcon(entry.overallRank)
@@ -444,6 +469,14 @@ function MobileOnlineLeaderboardRow({
                   {result.eventName} Video
                 </span>
                 <VideoEmbed url={result.videoUrl} />
+                {result.videoSubmissionId && (
+                  <VideoVoteButtons
+                    videoSubmissionId={result.videoSubmissionId}
+                    upvotes={voteCounts[result.videoSubmissionId]?.upvotes ?? 0}
+                    downvotes={voteCounts[result.videoSubmissionId]?.downvotes ?? 0}
+                    userVote={voteCounts[result.videoSubmissionId]?.userVote ?? null}
+                  />
+                )}
               </div>
             ))}
         </div>
@@ -464,6 +497,56 @@ export function OnlineCompetitionLeaderboardTable({
     { id: defaultSortColumn, desc: false },
   ])
   const [expanded, setExpanded] = useState<ExpandedState>({})
+  const [voteCounts, setVoteCounts] = useState<VoteCounts>({})
+
+  const getVoteCounts = useServerFn(getVideoVoteCountsFn)
+
+  // Collect all video submission IDs from leaderboard data
+  const videoSubmissionIds = useMemo(() => {
+    const ids: string[] = []
+    for (const entry of leaderboard) {
+      for (const result of entry.eventResults) {
+        if (result.videoSubmissionId) {
+          ids.push(result.videoSubmissionId)
+        }
+      }
+    }
+    return [...new Set(ids)]
+  }, [leaderboard])
+
+  // Fetch vote counts when leaderboard data changes
+  useEffect(() => {
+    if (videoSubmissionIds.length === 0) {
+      setVoteCounts({})
+      return
+    }
+
+    let cancelled = false
+
+    async function fetchVotes() {
+      try {
+        // Batch in chunks of 100 (server limit)
+        const allVotes: VoteCounts = {}
+        for (let i = 0; i < videoSubmissionIds.length; i += 100) {
+          const chunk = videoSubmissionIds.slice(i, i + 100)
+          const result = await getVoteCounts({
+            data: { videoSubmissionIds: chunk },
+          })
+          Object.assign(allVotes, result.votes)
+        }
+        if (!cancelled) {
+          setVoteCounts(allVotes)
+        }
+      } catch (err) {
+        console.error("Failed to fetch vote counts:", err)
+      }
+    }
+
+    fetchVotes()
+    return () => {
+      cancelled = true
+    }
+  }, [videoSubmissionIds, getVoteCounts])
 
   useEffect(() => {
     const validSortColumn = selectedEventId ? "eventRank" : "overallRank"
@@ -850,6 +933,7 @@ export function OnlineCompetitionLeaderboardTable({
                 entry={entry}
                 events={events}
                 scoringAlgorithm={scoringAlgorithm}
+                voteCounts={voteCounts}
               />
             ))}
           </div>
@@ -923,6 +1007,7 @@ export function OnlineCompetitionLeaderboardTable({
                       row={row}
                       selectedEventId={selectedEventId}
                       columnsCount={columns.length}
+                      voteCounts={voteCounts}
                     />
                   )}
                 </Fragment>

@@ -91,6 +91,8 @@ export interface CompetitionLeaderboardEntry {
     isDirectlyModified: boolean
     /** Video submission URL (online competitions only) */
     videoUrl: string | null
+    /** Video submission ID for voting (online competitions only) */
+    videoSubmissionId: string | null
   }>
 }
 
@@ -458,6 +460,7 @@ export async function getCompetitionLeaderboard(params: {
     competition.competitionType === "online" && registrationIds.length > 0
       ? await db
           .select({
+            id: videoSubmissionsTable.id,
             registrationId: videoSubmissionsTable.registrationId,
             trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
             videoUrl: videoSubmissionsTable.videoUrl,
@@ -467,9 +470,15 @@ export async function getCompetitionLeaderboard(params: {
       : []
 
   // Index video submissions by registrationId+trackWorkoutId for fast lookup
-  const videoUrlMap = new Map<string, string>()
+  const videoMap = new Map<
+    string,
+    { url: string; submissionId: string }
+  >()
   for (const vs of videoSubmissions) {
-    videoUrlMap.set(`${vs.registrationId}:${vs.trackWorkoutId}`, vs.videoUrl)
+    videoMap.set(`${vs.registrationId}:${vs.trackWorkoutId}`, {
+      url: vs.videoUrl,
+      submissionId: vs.id,
+    })
   }
 
   // Helper: check if an event+division is published (for gating video visibility)
@@ -642,9 +651,14 @@ export async function getCompetitionLeaderboard(params: {
           isDirectlyModified:
             score.verificationStatus === "adjusted" && !score.penaltyType,
           videoUrl: isEventDivisionPublished(trackWorkout.id, divisionId)
-            ? (videoUrlMap.get(
+            ? (videoMap.get(
                 `${registration.registration.id}:${trackWorkout.id}`,
-              ) ?? null)
+              )?.url ?? null)
+            : null,
+          videoSubmissionId: isEventDivisionPublished(trackWorkout.id, divisionId)
+            ? (videoMap.get(
+                `${registration.registration.id}:${trackWorkout.id}`,
+              )?.submissionId ?? null)
             : null,
         })
 
@@ -672,7 +686,10 @@ export async function getCompetitionLeaderboard(params: {
           penaltyPercentage: null,
           isDirectlyModified: false,
           videoUrl: isEventDivisionPublished(trackWorkout.id, entry.divisionId)
-            ? (videoUrlMap.get(`${regId}:${trackWorkout.id}`) ?? null)
+            ? (videoMap.get(`${regId}:${trackWorkout.id}`)?.url ?? null)
+            : null,
+          videoSubmissionId: isEventDivisionPublished(trackWorkout.id, entry.divisionId)
+            ? (videoMap.get(`${regId}:${trackWorkout.id}`)?.submissionId ?? null)
             : null,
         })
       }
