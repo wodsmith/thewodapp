@@ -1,212 +1,217 @@
-# Mobile Gameday App: Research Report
+# Mobile Gameday App: Approach Evaluation
 
-> Compiled 2026-03-13 from research beads th-0nc (Capacitor), th-1jn (Tauri 2.0), th-3wt (React Native/Expo), th-yfh (PWA)
+> Decision report for wodsmith-compete gameday mobile app. Updated 2026-03-13.
 
-## Executive Summary
+## Context
 
-Four mobile approaches were evaluated for building the wodsmith-compete gameday app: **React Native/Expo**, **Capacitor**, **Tauri 2.0 Mobile**, and **PWA**. The app requires score submission, heat schedules, leaderboards, offline support at venues with poor connectivity, and video capture.
+WODsmith Compete is a competition management platform for CrossFit and functional fitness events. We want to build a **gameday app** — a distilled mobile experience for athletes at competitions. Core needs:
 
-**Recommendation: Capacitor** as the primary approach, with PWA as a complementary layer.
+- **Score submission** — athletes enter their own scores or judges submit on their behalf
+- **Heat schedules** — athletes see when and where they compete next
+- **Leaderboards** — live standings throughout the day
+- **Offline reliability** — venues often have poor or no connectivity
+- **Video capture** — record and submit movement standard videos
 
-Capacitor offers the highest code reuse from the existing TanStack Start + React 19 codebase, the fastest path to app store distribution, and a mature plugin ecosystem covering all gameday requirements. The existing shadcn/ui + Tailwind components render directly in the WebView with zero rewrite. The app's form-heavy, data-display nature is squarely in Capacitor's performance sweet spot.
+Our backend uses a **PlanetScale MySQL database**. We are **not locked into Cloudflare** — mobile clients can connect to any backend via API. The existing web app is built with TanStack Start (React 19, TypeScript) and uses Drizzle ORM.
 
-React Native/Expo is the strongest choice if native performance or complex animations become requirements, but demands a complete UI rewrite (~40-60% code reuse, all UI from scratch). Tauri 2.0 Mobile is technically capable but too immature for production mobile. PWA provides zero-install access for athletes but iOS limitations (cache eviction, no background sync) make it unreliable as the sole offline solution.
+---
+
+## Options Overview
+
+### Native Swift (iOS-First)
+
+Build a native iOS app in Swift/SwiftUI, adding Android later (Kotlin or cross-platform). This produces the highest-quality iOS experience with full access to every Apple API. Offline support is straightforward with Core Data or SwiftData backed by SQLite. The tradeoff is zero code reuse with the existing React/TypeScript codebase — the entire app is written from scratch. Going iOS-first means Android users wait, and maintaining two native codebases long-term requires platform-specific expertise.
+
+### React Native / Expo
+
+Build a cross-platform app using React and native UI components, managed through Expo's toolchain. The team's React and TypeScript skills transfer directly, and ~40-60% of non-UI code (schemas, stores, utilities, API clients) can be shared via a monorepo. The UI must be rewritten entirely since web components (shadcn/ui, Tailwind) don't work in React Native. Expo provides cloud builds, OTA updates, and a rich SDK for camera, push, biometric auth, and offline storage. This is the most mature cross-platform React option.
+
+### Capacitor (Wrap Existing Web App)
+
+Wrap the existing web app in a native shell (WKWebView on iOS, Android WebView) with plugin bridges to native APIs. This offers the highest code reuse — existing React + shadcn/ui + Tailwind renders directly in the WebView with no UI rewrite. Native features (camera, push, SQLite, biometrics) are accessed through a mature plugin ecosystem. The tradeoff is a WebView performance ceiling, though for a form-heavy, list-based app this is rarely a problem. OTA updates via Capgo let you push fixes without app store review.
+
+### PWA (Progressive Web App)
+
+Enhance the existing web app with a service worker for offline caching, a manifest for home screen install, and Web Push for notifications. Athletes access the app via URL — no download required. Android support is excellent (install prompt, reliable offline, Play Store distribution via TWA). iOS is workable but fragile: cache eviction after ~7 days of inactivity, push only works for home-screen-installed PWAs, and no background sync. Best suited as a complementary channel rather than the sole solution.
+
+### Flutter
+
+Build a cross-platform app with Dart and Flutter's own rendering engine (Skia/Impeller). Flutter produces genuinely native-feeling UI on both platforms from a single codebase, with strong offline support via drift (SQLite) or Hive. The rendering engine means pixel-perfect control and smooth animations. The tradeoff is zero code reuse with the existing TypeScript codebase — all logic must be rewritten in Dart. The team would need to learn Dart, and the Flutter ecosystem, while large, is less React-familiar than Expo.
 
 ---
 
 ## Comparison Matrix
 
-| Factor | Capacitor | React Native / Expo | Tauri 2.0 Mobile | PWA |
-|--------|-----------|--------------------|--------------------|-----|
-| **Code reuse from TanStack Start** | Very High (~80-90%) | Moderate (~40-60%) | High (~70-80%) | Very High (~90%+) |
-| **UI component reuse** | Full (shadcn/ui, Tailwind) | None (full rewrite) | Full (webview) | Full (same app) |
-| **Offline capability** | Good (SQLite plugin, IndexedDB) | Excellent (expo-sqlite, Legend State) | Good (SQLite via plugin) | Fragile on iOS (cache eviction) |
-| **Native API access** | Mature plugin ecosystem | Extensive (Expo SDK) | Growing, gaps remain | Limited (Web APIs only) |
-| **Video capture** | Native camera plugin | expo-camera | Webview + plugins | getUserMedia / file input |
-| **Push notifications** | Native plugin | expo-notifications | Plugin available | iOS: Home Screen PWA only |
-| **App Store distribution** | Yes (native app) | Yes (EAS Build/Submit) | Yes (Xcode/Android Studio) | Android TWA only; iOS hostile |
-| **OTA updates** | Capgo (JS/asset updates) | EAS Update | No standard solution | Instant (SW update) |
-| **Build complexity** | Low (npx cap sync) | Medium (EAS Build) | High (Rust + Xcode/AS) | None (same deploy) |
-| **Production maturity (mobile)** | Mature | Mature | Early | Mature (web), fragile (iOS offline) |
-| **Performance ceiling** | WebView (adequate for forms/lists) | Native (highest) | WebView + Rust backend | WebView (same as web) |
-| **Learning curve for team** | Low (web-only skills) | High (React Native specifics) | Moderate (Rust for native) | Low (existing skills) |
-| **CI/CD tooling** | Mature (Appflow) | Mature (EAS) | Limited | N/A |
-| **Bundle size** | Small (native webview) | Medium | Small (native webview) | N/A (web-served) |
-| **Background sync** | Plugin available | expo-background-task (limited) | Unclear | No iOS support |
-| **Auth approach needed** | Bearer tokens (cookies broken in WebView) | Bearer tokens (expo-secure-store) | HTTP client (bearer tokens) | Existing cookies work |
+| Dimension | Native Swift | React Native / Expo | Capacitor | PWA | Flutter |
+|-----------|-------------|--------------------| ----------|-----|---------|
+| **Time to first working prototype** | Slow (full rewrite) | Medium (UI rewrite, shared logic) | Fast (wrap existing app) | Fastest (enhance existing) | Slow (full rewrite in Dart) |
+| **Offline reliability at venues** | Excellent (Core Data/SQLite) | Excellent (expo-sqlite, Legend State) | Good (SQLite plugin, IndexedDB) | Fragile on iOS (cache eviction) | Excellent (drift/SQLite, Hive) |
+| **Native feel / performance** | Best | Very good (native components) | Adequate for forms/lists (WebView) | Web-level | Very good (own render engine) |
+| **Code reuse with React/TS codebase** | None | Moderate (~40-60% non-UI) | Very high (~80-90%) | Full (~90%+) | None |
+| **App Store distribution** | Native (easiest approval) | Yes (EAS Build/Submit) | Yes (native binary) | Android TWA only; iOS hostile | Yes (native binary) |
+| **Team skillset required** | Swift/SwiftUI (new) | React (familiar) + RN specifics | Web only (existing) | Web only (existing) | Dart (new) |
+| **Long-term maintenance burden** | High (separate codebase per platform) | Medium (one codebase, RN upgrade cycles) | Low (one codebase, web skills) | Lowest (same app) | Medium (one codebase, Dart ecosystem) |
+| **Database connectivity** | Direct MySQL via API or SDK | API calls to PlanetScale | API calls to PlanetScale | API calls to PlanetScale | Direct MySQL via API or SDK |
 
 ---
 
-## Critical Shared Finding: Server Function Incompatibility
+## Recommendation
 
-All native app approaches share one critical finding: **`createServerFn` does NOT work from mobile apps**. The function posts to `/__server` on the current origin, which doesn't exist in a native app context.
+**Capacitor** as the primary approach, with **React Native/Expo** as the upgrade path if native performance becomes necessary.
 
-**Required for any native approach:**
-1. Expose REST API routes in `src/routes/api/` as a parallel API surface
-2. Abstract business logic into `src/server/` callable from both server functions (web) and API routes (mobile)
-3. Add bearer token auth support (cookies unreliable in WebViews/native)
-4. Configure CORS for native app origins (`capacitor://localhost`, `http://localhost`)
+**Why Capacitor wins for gameday:**
 
-This API layer benefits the web app too (third-party integrations, webhooks) and is needed regardless of which mobile approach is chosen.
+1. **Speed to market.** The existing React + shadcn/ui + Tailwind app renders directly in the WebView. No UI rewrite. The main engineering work is building an API layer (needed by any mobile approach) and integrating native plugins for camera, push, and offline storage.
 
----
+2. **Right tool for the job.** A gameday app is forms, lists, schedules, and leaderboards — exactly the kind of content where WebView performance is indistinguishable from native. This isn't a graphics-intensive game or a gesture-heavy social app.
 
-## Approach Details
+3. **Team leverage.** The team knows React and TypeScript. Capacitor keeps everything in that world. No new language to learn, no new component library to master, no new build system to debug.
 
-### 1. Capacitor (Recommended)
+4. **Risk management.** If Capacitor proves insufficient (unlikely for this use case), the API layer and backend work transfer directly to a React Native or Swift rewrite. Nothing is wasted.
 
-**What:** Wraps the web app in a native WebView shell (WKWebView on iOS, Android WebView). Web assets bundled into native binary. Plugin bridge connects JS to native APIs.
+**Why not Swift or Flutter?** Both produce superior native experiences, but the gameday app doesn't need that. The months spent rewriting in a new language/framework would be better spent shipping features athletes actually want. Neither reuses any existing code.
 
-**Key strengths for gameday:**
-- Existing React + shadcn/ui + Tailwind renders directly — no UI rewrite
-- TanStack Start supports SPA build mode for Capacitor
-- Mature plugin ecosystem covers all gameday needs (camera, push, offline storage, barcode)
-- Capacitor HTTP plugin bypasses CORS entirely for native builds
-- OTA updates via Capgo without app store resubmission
-- Capacitor 8.2.0 stable with Swift Package Manager, edge-to-edge Android
+**Why not PWA alone?** iOS offline fragility is a dealbreaker for a competition app where connectivity is unreliable. PWA makes a good complementary channel for athletes who won't download an app, but it can't be the primary offline solution.
 
-**Key risks:**
-- `createServerFn` incompatible — API route layer required (Medium-High effort)
-- Cookie auth broken in WebView — bearer tokens required
-- Android WebView performance worse on low-end devices (app is form-heavy, so acceptable)
-- No service workers on iOS WKWebView (not needed — assets bundled locally)
-
-**Offline strategy:**
-- App shell always offline (assets in binary)
-- Capacitor SQLite plugin or IndexedDB for data cache
-- Pre-cache competition data before gameday
-- Queue submissions locally, upload on reconnect
-- `@capacitor/background-runner` for background sync attempts
-
-**Implementation phases:**
-1. Foundation: API routes + bearer token auth + CORS
-2. Capacitor shell: SPA build, iOS/Android projects, basic navigation
-3. Native features: push notifications, direct video capture, QR check-in
-4. Offline support: pre-cache data, queue submissions, background sync
-
-### 2. React Native / Expo
-
-**What:** Native UI framework using React paradigm. Platform-specific components (not WebView). Expo SDK provides managed workflow with cloud builds.
-
-**Key strengths for gameday:**
-- Best native performance (no WebView ceiling)
-- expo-sqlite + Legend State provides robust offline-first architecture
-- EAS Build handles iOS/Android builds without a Mac (30 free builds/month)
-- Extensive Expo SDK: camera, push, biometric auth, keep-awake, haptics
-- Strong offline sync patterns with WatermelonDB or Legend State
-
-**Key risks:**
-- Complete UI rewrite required — shadcn/ui, Tailwind, Radix all DOM-based
-- ~40-60% code reuse (schemas, stores, utils share; all UI is new)
-- Higher learning curve (React Native specifics, Metro bundler, native debugging)
-- Push notifications require dev builds on SDK 53+ (no Expo Go)
-
-**When to choose over Capacitor:**
-- Complex animations/gestures needed beyond form entry
-- App grows beyond gameday into daily gym tool with rich interactions
-- Native performance matters (large scrolling lists with complex layouts)
-
-### 3. Tauri 2.0 Mobile
-
-**What:** Rust backend + native WebView. Same web frontend in the webview, Rust handles native APIs via plugin system.
-
-**Key strengths:**
-- Web frontend reuse from existing codebase
-- Rust backend for performance-sensitive scoring calculations
-- Small bundle size (native webview, no bundled engine)
-- SQLite offline via tauri-plugin-sql
-
-**Key risks:**
-- Mobile ecosystem maturity behind Capacitor/React Native
-- iOS development experience described as painful by community
-- No automated CI/CD for mobile builds (tauri-action not yet supported)
-- Smaller community, fewer production mobile apps as references
-- Requires Rust expertise for native plugin development
-
-**Verdict:** Viable but risky. Functional for motivated teams, not yet battle-tested. Consider only if team wants long-term Rust investment for performance-sensitive features.
-
-### 4. PWA (Progressive Web App)
-
-**What:** Enhanced web app with service worker for offline, manifest for install, Web Push for notifications.
-
-**Key strengths:**
-- Zero install — athletes access via URL, add to home screen
-- Same codebase, same deploy, no app store process
-- manifest.json already exists in the codebase with proper icons
-- Camera/MediaRecorder fully supported on all modern browsers
-- Android: native install prompt, reliable offline, Play Store via TWA
-- iOS 26 improves installed PWA experience
-
-**Key risks:**
-- iOS cache eviction after ~7 days of inactivity (unreliable offline for infrequent users)
-- No Background Sync API on iOS
-- TanStack Start + vite-plugin-pwa broken in production (post-build workaround needed)
-- iOS push only works for Home Screen-installed PWAs
-- App Store distribution not viable (Apple hostile to PWA wrappers)
-- Video upload at venues needs resumable upload (tus protocol)
-
-**Best use:** Complementary to a native app. Athletes who don't want to download an app can use the PWA for basic viewing. Not reliable enough as the sole offline solution for gameday.
+**Why not React Native now?** It's the right choice if the app grows beyond gameday into a daily gym tool with rich interactions, complex animations, or heavy native integrations. For the initial gameday scope, the complete UI rewrite isn't justified.
 
 ---
 
-## Recommendation: Capacitor + PWA Complement
+## Appendix A: Capacitor Deep Dive
 
-### Primary: Capacitor
+### How It Works
 
-Capacitor is the right choice for wodsmith-compete because:
+Capacitor creates a native iOS/Android project that embeds a WebView loading your bundled web assets. A plugin bridge connects JavaScript to native APIs. The web app runs locally (no server needed at runtime), with API calls to your backend for data.
 
-1. **Highest code reuse** — existing React + shadcn/ui + Tailwind renders in WebView unchanged
-2. **Fastest path to market** — no UI rewrite, just add API layer and native shell
-3. **Adequate performance** — the app is forms, lists, and data display (Capacitor's sweet spot)
-4. **Mature ecosystem** — battle-tested plugins for every gameday requirement
-5. **Fits the stack** — stays in the web paradigm the team knows (TanStack Start, React 19)
-6. **OTA updates** — push bug fixes during competition season without app store review
+### Integration with Existing Stack
 
-### Complementary: PWA
+- TanStack Start supports **SPA build mode** for Capacitor — builds a client-only bundle without SSR
+- `createServerFn` does NOT work from a mobile app (posts to `/__server` on the current origin, which doesn't exist). All mobile data access goes through **REST API routes** in `src/routes/api/`
+- Cookie-based auth is broken in WebViews — use **bearer tokens** stored via Capacitor Preferences or Secure Storage plugin
+- CORS must be configured for Capacitor origins (`capacitor://localhost`, `http://localhost`)
 
-Add PWA support as a lightweight complement:
-- Athletes who refuse to install an app get basic access via browser
-- Post-build service worker with Workbox for offline caching
-- Install onboarding for Home Screen PWA on iOS
-- TWA packaging for Google Play Store (additional distribution channel)
+### Offline Strategy
 
-### When to Reconsider
+- App shell is always offline — web assets are bundled in the native binary
+- Use **@capacitor-community/sqlite** for structured offline data (schedules, athlete lists, scores)
+- Pre-cache competition data when athlete opens the app (on WiFi before venue)
+- Queue score submissions locally, sync when connectivity returns
+- `@capacitor/background-runner` for opportunistic background sync
 
-Upgrade to React Native/Expo if:
-- WebView performance becomes a bottleneck (unlikely for form-heavy app)
-- App scope expands to require complex native interactions
-- Team has bandwidth for full UI rewrite
+### Native Features via Plugins
 
-### Required Infrastructure (Any Approach)
+| Feature | Plugin | Status |
+|---------|--------|--------|
+| Camera / video | @capacitor/camera | Stable |
+| Push notifications | @capacitor/push-notifications | Stable (FCM/APNs) |
+| Barcode/QR scanning | @capacitor-mlkit/barcode-scanning | Stable |
+| Biometric auth | @aparajita/capacitor-biometric-auth | Stable |
+| SQLite offline DB | @capacitor-community/sqlite | Stable |
+| OTA updates | @capgo/capacitor-updater | Stable |
+| Background tasks | @capacitor/background-runner | Stable |
+| Network detection | @capacitor/network | Stable |
 
-Regardless of mobile approach, these changes are needed:
+### Build & Distribution
 
-1. **API routes** in `src/routes/api/` — REST endpoints mirroring key server functions
-2. **Bearer token auth** — extend session validation to accept `Authorization` header
-3. **CORS configuration** — allow Capacitor origins on Workers
-4. **Business logic extraction** — move logic from server functions to `src/server/` shared layer
+- `npx cap sync` copies web assets and syncs plugins
+- Build via Xcode (iOS) and Android Studio (Android) — standard native toolchains
+- Appflow (Ionic's CI/CD) or GitHub Actions for automated builds
+- OTA updates via Capgo push JS/asset changes without app store review
 
-Key API routes needed:
+### Key Risks
 
-| Endpoint | Server Function Equivalent |
-|----------|---------------------------|
-| `GET /api/competitions/:slug/workouts` | `getPublishedCompetitionWorkoutsWithDetailsFn` |
-| `GET /api/competitions/:slug/events/:eventId` | `getPublicEventDetailsFn` |
-| `GET /api/submissions/:eventId` | `getVideoSubmissionFn` |
-| `POST /api/submissions/:eventId` | `submitVideoFn` |
-| `GET /api/submissions/status?events=...` | `getBatchSubmissionStatusFn` |
-| `GET /api/athlete/profile` | `getAthleteProfileDataFn` |
+- WebView performance on low-end Android devices (mitigated: app is form-heavy)
+- Bearer token auth migration required (effort: ~1-2 days)
+- API route layer required (effort: ~3-5 days, benefits web app too)
+
+---
+
+## Appendix B: React Native / Expo Deep Dive
+
+### How It Works
+
+React Native renders native UI components (not WebView) using React as the component model. Expo provides a managed workflow with cloud builds (EAS), OTA updates, and a curated SDK of native modules. The Hermes JavaScript engine runs the app logic.
+
+### Code Sharing in a Monorepo
+
+| What | Shares? | Notes |
+|------|---------|-------|
+| Zod schemas | Yes | Platform-agnostic validation |
+| Zustand stores | Yes | Works identically in RN |
+| TanStack Query | Yes | Data fetching layer |
+| API client / types | Yes | Fetch calls, response types |
+| Utility functions | Yes | Any pure TypeScript |
+| shadcn/ui components | **No** | DOM-based, need RN equivalent |
+| Tailwind CSS | **No** | NativeWind is a partial substitute |
+| TanStack Router | **No** | Expo Router for native navigation |
+
+Monorepo structure: shared packages in `packages/` (schemas, utils, api-client, stores), mobile app in `apps/wodsmith-mobile`.
+
+### Offline Strategy
+
+- **expo-sqlite + Legend State** — reactive state that persists to SQLite, syncs via custom plugin to API
+- **WatermelonDB** — purpose-built for complex offline-first apps, pull-based delta sync
+- Both approaches use local SQLite as source of truth, sync to PlanetScale MySQL via API
+
+### Build & Distribution
+
+- EAS Build: cloud builds for iOS/Android (no Mac required). 30 free builds/month
+- EAS Submit: automated App Store Connect / Google Play submission
+- EAS Update: OTA JS-only updates without app store review
+- Target SDK 53+ with New Architecture from day one
+
+### Key Risks
+
+- Complete UI rewrite required (~40-60% total code reuse)
+- Higher learning curve for team (RN specifics, Metro bundler, native debugging)
+- Push notifications require dev builds (no Expo Go) on SDK 53+
+
+---
+
+## Appendix C: PWA Deep Dive
+
+### How It Works
+
+A PWA adds a service worker (for offline caching and background tasks), a web manifest (for home screen install), and Web Push API (for notifications) to the existing web app. No native binary — the browser IS the runtime.
+
+### Offline Strategy
+
+| Strategy | Use For |
+|----------|---------|
+| Cache-First | App shell, CSS/JS, fonts, logos |
+| Network-First | Live scores, leaderboards |
+| Stale-While-Revalidate | Athlete profiles, workout descriptions, event info |
+
+- Pre-cache all event data on first open
+- On iOS, re-cache critical assets on every launch (cache may be evicted after ~7 days)
+- Use Workbox for service worker caching strategies
+
+### TanStack Start Compatibility
+
+TanStack Start has no first-party PWA support. `vite-plugin-pwa` is broken in production builds due to SSR detection. The workaround is a **post-build script** using Workbox's `injectManifest()` to generate the service worker — proven but not first-party.
+
+### Platform Support
+
+| Capability | Android | iOS |
+|-----------|---------|-----|
+| Offline caching | Excellent | Fragile (eviction after ~7 days) |
+| Push notifications | Full | Home Screen PWA only (iOS 16.4+) |
+| Install prompt | Native `beforeinstallprompt` | Manual "Add to Home Screen" |
+| Camera/video | Full | Full (MediaRecorder supported) |
+| App Store | Google Play via TWA | Not viable (Apple hostile) |
+| Background sync | Supported | Not supported |
+
+### Best Role for Gameday
+
+PWA works best as a **complementary channel**: athletes who won't install an app can access schedules and leaderboards via browser. It should not be the primary offline solution for score submission at venues with poor connectivity — iOS limitations make it too unreliable for that critical path.
 
 ---
 
 ## Sources
 
 - Capacitor Documentation: capacitorjs.com/docs
-- TanStack Start + Capacitor: dev.to/aaronksaunders/tanstack-start-to-mobile-building-robust-apps-with-capacitor-24ae
 - Expo Documentation: docs.expo.dev
-- Tauri 2.0 Mobile: v2.tauri.app/start/prerequisites
-- Workbox Caching Strategies: developer.chrome.com/docs/workbox/caching-strategies-overview
-- Capacitor 8 Release: ionic.io/blog/announcing-capacitor-8
+- Apple SwiftUI: developer.apple.com/xcode/swiftui
+- Flutter: flutter.dev
+- Workbox: developer.chrome.com/docs/workbox
 - TanStack Start SPA Mode: tanstack.com/start/latest/docs/framework/react/guide/spa-mode
-- @pushforge/builder (PWA push on Workers): github.com/nicejob/pushforge
-- Bubblewrap (TWA): github.com/GoogleChromeLabs/bubblewrap
