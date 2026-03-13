@@ -250,24 +250,23 @@ jobs:
       - name: Setup pscale
         uses: planetscale/setup-pscale-action@v1
 
-      - name: Push schema to PlanetScale demo branch
+      - name: Generate PlanetScale demo branch password
         env:
           PLANETSCALE_SERVICE_TOKEN_ID: ${{ secrets.PLANETSCALE_SERVICE_TOKEN_ID }}
           PLANETSCALE_SERVICE_TOKEN: ${{ secrets.PLANETSCALE_SERVICE_TOKEN }}
-          PLANETSCALE_ORGANIZATION: ${{ secrets.PLANETSCALE_ORGANIZATION }}
         run: |
-          # Debug: list branches to verify access
-          pscale branch list wodsmith-db --org "$PLANETSCALE_ORGANIZATION" || true
+          response=$(pscale password create ${{ secrets.PLANETSCALE_DATABASE_NAME }} demo "" -f json --org ${{ secrets.PLANETSCALE_ORGANIZATION }})
 
-          CREDS=$(pscale password create wodsmith-db demo ci-schema-push \
-            --org "$PLANETSCALE_ORGANIZATION" --role admin --ttl 5m --format json)
+          host=$(echo "$response" | jq -r '.access_host_url')
+          username=$(echo "$response" | jq -r '.username')
+          password=$(echo "$response" | jq -r '.plain_text')
 
-          HOST=$(echo "$CREDS" | jq -r '.access_host_url')
-          USER=$(echo "$CREDS" | jq -r '.username')
-          PASS=$(echo "$CREDS" | jq -r '.plain_text')
+          database_url="mysql://$username:$password@$host/${{ secrets.PLANETSCALE_DATABASE_NAME }}?sslmode=verify_identity&sslca=/etc/ssl/certs/ca-certificates.crt"
+          echo "DATABASE_URL=$database_url" >> $GITHUB_ENV
+          echo "::add-mask::$database_url"
 
-          DATABASE_URL="mysql://${USER}:${PASS}@${HOST}/wodsmith-db?ssl={\"rejectUnauthorized\":true}" \
-            pnpm exec drizzle-kit push
+      - name: Push schema to PlanetScale demo branch
+        run: pnpm exec drizzle-kit push
 
       - name: Deploy with Alchemy
         run: pnpm run deploy
