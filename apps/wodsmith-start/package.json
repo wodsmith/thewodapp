@@ -134,6 +134,7 @@
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/ms": "^0.7.34",
     "@types/node": "^22.19.3",
     "@types/react": "^19.2.0",
