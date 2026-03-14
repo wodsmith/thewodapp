@@ -261,16 +261,16 @@ jobs:
           host=$(echo "$response" | jq -r '.access_host_url')
           username=$(echo "$response" | jq -r '.username')
           password=$(echo "$response" | jq -r '.plain_text')
-          ssl_mode="verify_identity"
-          ssl_ca="/etc/ssl/certs/ca-certificates.crt"
-
           echo "PASSWORD_ID=$id" >> $GITHUB_ENV
-          database_url="mysql://$username:$password@$host/${{ secrets.PLANETSCALE_DATABASE_NAME }}?sslmode=$ssl_mode&sslca=$ssl_ca"
+          database_url="mysql://$username:$password@$host/${{ secrets.PLANETSCALE_DATABASE_NAME }}"
           echo "DATABASE_URL=$database_url" >> $GITHUB_ENV
           echo "::add-mask::$database_url"
 
       - name: Push schema to PlanetScale demo branch
-        run: pnpm exec drizzle-kit push
+        run: pnpm --filter wodsmith-start exec drizzle-kit push
+        working-directory: .
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
 
 
       - name: Deploy with Alchemy
