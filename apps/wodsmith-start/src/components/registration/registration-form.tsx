@@ -49,6 +49,7 @@ import type {
 	Waiver,
 } from "@/db/schema"
 import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
+import type { CompetitionCapacityResult } from "@/utils/competition-capacity"
 import { initiateRegistrationPaymentFn } from "@/server-fns/registration-fns"
 import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
 import { signWaiverFn } from "@/server-fns/waiver-fns"
@@ -246,6 +247,7 @@ type Props = {
 	competition: Competition & { organizingTeam: Team | null }
 	scalingGroup: ScalingGroup & { scalingLevels: ScalingLevel[] }
 	publicDivisions: PublicCompetitionDivision[]
+	competitionCapacity?: CompetitionCapacityResult | null
 	userId: string
 	registrationOpen: boolean
 	registrationOpensAt: string | null // YYYY-MM-DD format
@@ -267,6 +269,7 @@ export function RegistrationForm({
 	competition,
 	scalingGroup,
 	publicDivisions,
+	competitionCapacity,
 	userId: _userId,
 	registrationOpen,
 	registrationOpensAt,
@@ -710,9 +713,11 @@ export function RegistrationForm({
 	const hasSelectedDivisions = selectedDivisionIds.length > 0
 
 	// Determine if submit should be disabled
+	const competitionFull = competitionCapacity?.isFull ?? false
 	const submitDisabled =
 		isSubmitting ||
 		!registrationOpen ||
+		competitionFull ||
 		!hasSelectedDivisions ||
 		!affiliateName.trim() ||
 		(waivers.length > 0 && !allRequiredWaiversAgreed)
@@ -728,6 +733,35 @@ export function RegistrationForm({
 				<h1 className="text-3xl font-bold">Register for Competition</h1>
 				<p className="text-muted-foreground">{competition.name}</p>
 			</div>
+
+			{competitionCapacity?.isFull && (
+				<Card className="border-amber-500/50 bg-amber-500/10">
+					<CardContent className="pt-6">
+						<div className="flex items-start gap-2 text-amber-600">
+							<AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
+							<div>
+								<p className="font-semibold">Competition is full</p>
+								<p className="text-sm text-muted-foreground">
+									This competition has reached its maximum number of registrations.
+								</p>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+			)}
+
+			{competitionCapacity && !competitionCapacity.isFull && competitionCapacity.spotsAvailable !== null && competitionCapacity.spotsAvailable <= 5 && (
+				<Card className="border-amber-500/50 bg-amber-500/10">
+					<CardContent className="pt-6">
+						<div className="flex items-center gap-2 text-amber-600">
+							<Users className="h-4 w-4 shrink-0" />
+							<p className="text-sm font-semibold">
+								Only {competitionCapacity.spotsAvailable} spot{competitionCapacity.spotsAvailable === 1 ? '' : 's'} left across all divisions!
+							</p>
+						</div>
+					</CardContent>
+				</Card>
+			)}
 
 			{removedDivisionIds.length > 0 && (
 				<Card className="border-destructive/20 bg-destructive/5">
@@ -833,7 +867,7 @@ export function RegistrationForm({
 							registeredDivisionIds={registeredDivisionIdSet}
 							removedDivisionIds={removedDivisionIdSet}
 							onToggle={handleDivisionToggle}
-							disabled={isSubmitting || !registrationOpen}
+							disabled={isSubmitting || !registrationOpen || competitionFull}
 						/>
 						{/* Selected divisions shown as badges */}
 						{hasSelectedDivisions && (
