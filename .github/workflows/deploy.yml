@@ -257,16 +257,21 @@ jobs:
         run: |
           response=$(pscale password create ${{ secrets.PLANETSCALE_DATABASE_NAME }} demo "" -f json --org ${{ secrets.PLANETSCALE_ORGANIZATION }})
 
+          id=$(echo "$response" | jq -r '.id')
           host=$(echo "$response" | jq -r '.access_host_url')
           username=$(echo "$response" | jq -r '.username')
           password=$(echo "$response" | jq -r '.plain_text')
+          ssl_mode="verify_identity"
+          ssl_ca="/etc/ssl/certs/ca-certificates.crt"
 
-          database_url="mysql://$username:$password@$host/${{ secrets.PLANETSCALE_DATABASE_NAME }}?sslmode=verify_identity&sslca=/etc/ssl/certs/ca-certificates.crt"
+          echo "PASSWORD_ID=$id" >> $GITHUB_ENV
+          database_url="mysql://$username:$password@$host/${{ secrets.PLANETSCALE_DATABASE_NAME }}?sslmode=$ssl_mode&sslca=$ssl_ca"
           echo "DATABASE_URL=$database_url" >> $GITHUB_ENV
           echo "::add-mask::$database_url"
 
       - name: Push schema to PlanetScale demo branch
         run: pnpm exec drizzle-kit push
+
 
       - name: Deploy with Alchemy
         run: pnpm run deploy
@@ -277,6 +282,7 @@ jobs:
           ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
           ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
           # PlanetScale
+          DATABASE_URL: ${{ env.DATABASE_URL }}
           PLANETSCALE_SERVICE_TOKEN_ID: ${{ secrets.PLANETSCALE_SERVICE_TOKEN_ID }}
           PLANETSCALE_SERVICE_TOKEN: ${{ secrets.PLANETSCALE_SERVICE_TOKEN }}
           PLANETSCALE_ORGANIZATION: ${{ secrets.PLANETSCALE_ORGANIZATION }}
