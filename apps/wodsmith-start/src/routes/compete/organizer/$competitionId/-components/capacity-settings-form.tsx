@@ -22,6 +22,7 @@ interface Props {
 		id: string
 		organizingTeamId: string
 		defaultMaxSpotsPerDivision: number | null
+		maxTotalRegistrations: number | null
 	}
 }
 
@@ -30,6 +31,9 @@ export function CapacitySettingsForm({ competition }: Props) {
 	const [isSubmitting, setIsSubmitting] = useState(false)
 	const [maxSpots, setMaxSpots] = useState<string>(
 		competition.defaultMaxSpotsPerDivision?.toString() ?? "",
+	)
+	const [maxTotal, setMaxTotal] = useState<string>(
+		competition.maxTotalRegistrations?.toString() ?? "",
 	)
 
 	const updateCapacity = useServerFn(updateCompetitionDefaultCapacityFn)
@@ -48,11 +52,23 @@ export function CapacitySettingsForm({ competition }: Props) {
 				return
 			}
 
+			const parsedTotal = maxTotal.trim() === "" ? null : parseInt(maxTotal, 10)
+
+			if (
+				parsedTotal !== null &&
+				(Number.isNaN(parsedTotal) || parsedTotal < 1)
+			) {
+				toast.error("Please enter a valid number (1 or higher)")
+				setIsSubmitting(false)
+				return
+			}
+
 			await updateCapacity({
 				data: {
 					competitionId: competition.id,
 					teamId: competition.organizingTeamId,
 					defaultMaxSpotsPerDivision: parsedValue,
+					maxTotalRegistrations: parsedTotal,
 				},
 			})
 			toast.success("Capacity settings updated")
@@ -66,8 +82,13 @@ export function CapacitySettingsForm({ competition }: Props) {
 
 	const hasChanges = (() => {
 		const parsed = maxSpots.trim() === "" ? null : parseInt(maxSpots, 10)
-		if (parsed !== null && Number.isNaN(parsed)) return false // Invalid input, no save
-		return parsed !== competition.defaultMaxSpotsPerDivision
+		if (parsed !== null && Number.isNaN(parsed)) return false
+		const parsedTotal = maxTotal.trim() === "" ? null : parseInt(maxTotal, 10)
+		if (parsedTotal !== null && Number.isNaN(parsedTotal)) return false
+		return (
+			parsed !== competition.defaultMaxSpotsPerDivision ||
+			parsedTotal !== competition.maxTotalRegistrations
+		)
 	})()
 
 	return (
@@ -75,14 +96,34 @@ export function CapacitySettingsForm({ competition }: Props) {
 			<CardHeader>
 				<div className="flex items-center gap-2">
 					<Users className="h-5 w-5 text-muted-foreground" />
-					<CardTitle>Division Capacity</CardTitle>
+					<CardTitle>Capacity Settings</CardTitle>
 				</div>
 				<CardDescription>
-					Set default maximum spots per division. Individual divisions can
-					override this setting.
+					Set registration limits for this competition.
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-6">
+				<div className="space-y-2">
+					<Label htmlFor="maxTotal">Total competition cap</Label>
+					<div className="flex items-center gap-4">
+						<Input
+							id="maxTotal"
+							type="number"
+							min={1}
+							placeholder="Unlimited"
+							value={maxTotal}
+							onChange={(e) => setMaxTotal(e.target.value)}
+							className="w-full sm:w-32"
+						/>
+						<span className="text-sm text-muted-foreground">
+							Leave blank for unlimited
+						</span>
+					</div>
+					<p className="text-xs text-muted-foreground">
+						Maximum total registrations across all divisions.
+					</p>
+				</div>
+
 				<div className="space-y-2">
 					<Label htmlFor="maxSpots">Default spots per division</Label>
 					<div className="flex items-center gap-4">

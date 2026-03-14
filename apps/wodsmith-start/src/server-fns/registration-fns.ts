@@ -73,7 +73,10 @@ import {
 	hasDateStartedInTimezone,
 	isDeadlinePassedInTimezone,
 } from "@/utils/timezone-utils"
-import { getDivisionSpotsAvailableFn } from "./competition-divisions-fns"
+import {
+	getDivisionSpotsAvailableFn,
+	getCompetitionSpotsAvailableFn,
+} from "./competition-divisions-fns"
 
 // ============================================================================
 // Input Schemas
@@ -148,10 +151,12 @@ async function validateRequiredQuestions(
 		.where(eq(competitionsTable.id, competitionId))
 
 	// Build where clause: competition-specific questions OR series-level questions
+	// Only validate athlete-targeted questions (volunteer questions are separate)
 	const conditions = [
 		and(
 			eq(competitionRegistrationQuestionsTable.competitionId, competitionId),
 			eq(competitionRegistrationQuestionsTable.required, true),
+			eq(competitionRegistrationQuestionsTable.questionTarget, "athlete"),
 		),
 	]
 	if (competition?.groupId) {
@@ -159,6 +164,7 @@ async function validateRequiredQuestions(
 			and(
 				eq(competitionRegistrationQuestionsTable.groupId, competition.groupId),
 				eq(competitionRegistrationQuestionsTable.required, true),
+				eq(competitionRegistrationQuestionsTable.questionTarget, "athlete"),
 			),
 		)
 	}
@@ -319,7 +325,17 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			}
 		}
 
-		// 3.6. Validate required questions have answers
+		// 3.6. Check competition-wide capacity
+		const competitionCapacity = await getCompetitionSpotsAvailableFn({
+			data: { competitionId: input.competitionId },
+		})
+		if (competitionCapacity.isFull) {
+			throw new Error(
+				"This competition is full. Registration is no longer available.",
+			)
+		}
+
+		// 3.7. Validate required questions have answers
 		await validateRequiredQuestions(input.competitionId, input.answers)
 
 		// 4. Get registration fee for each division
