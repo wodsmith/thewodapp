@@ -17,6 +17,8 @@ import {
   Clock,
   ExternalLink,
   Play,
+  ThumbsDown,
+  ThumbsUp,
   X,
 } from "lucide-react"
 import { useState } from "react"
@@ -51,6 +53,9 @@ import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionEventFn } from "@/server-fns/competition-workouts-fns"
 import { getOrganizerSubmissionsFn } from "@/server-fns/video-submission-fns"
+import { cn } from "@/utils/cn"
+
+const FLAGGED_THRESHOLD = 3
 
 // Get parent route API to access its loader data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -59,7 +64,17 @@ const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 const submissionsSearchSchema = z.object({
   division: z.string().optional(),
   status: z.enum(["all", "pending", "reviewed"]).optional(),
-  sort: z.enum(["newest", "oldest", "athlete", "division", "score"]).optional(),
+  sort: z
+    .enum([
+      "newest",
+      "oldest",
+      "athlete",
+      "division",
+      "score",
+      "most_downvoted",
+      "most_upvoted",
+    ])
+    .optional(),
 })
 
 export const Route = createFileRoute(
@@ -219,6 +234,10 @@ function SubmissionsPage() {
         if (b.score?.value == null) return -1
         return a.score.value - b.score.value
       }
+      case "most_downvoted":
+        return b.votes.downvotes - a.votes.downvotes
+      case "most_upvoted":
+        return b.votes.upvotes - a.votes.upvotes
       default:
         return 0
     }
@@ -343,6 +362,8 @@ function SubmissionsPage() {
               <SelectItem value="athlete">Athlete Name</SelectItem>
               <SelectItem value="division">Division</SelectItem>
               <SelectItem value="score">Score</SelectItem>
+              <SelectItem value="most_downvoted">Most Downvoted</SelectItem>
+              <SelectItem value="most_upvoted">Most Upvoted</SelectItem>
             </SelectContent>
           </Select>
 
@@ -430,6 +451,7 @@ function SubmissionsPage() {
                       Submitted
                     </span>
                   </TableHead>
+                  <TableHead>Votes</TableHead>
                   <TableHead>Video</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-[100px]">Action</TableHead>
@@ -439,7 +461,11 @@ function SubmissionsPage() {
                 {sortedSubmissions.map((submission, index) => (
                   <TableRow
                     key={submission.id}
-                    className="cursor-pointer hover:bg-muted/50"
+                    className={cn(
+                      "cursor-pointer hover:bg-muted/50",
+                      submission.votes.downvotes >= FLAGGED_THRESHOLD &&
+                        "bg-red-50 dark:bg-red-950/20",
+                    )}
                     onClick={() =>
                       navigate({
                         to: "/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId",
@@ -506,6 +532,25 @@ function SubmissionsPage() {
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {formatDate(submission.submittedAt)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="flex items-center gap-0.5 text-green-600 dark:text-green-400">
+                          <ThumbsUp className="h-3.5 w-3.5" />
+                          {submission.votes.upvotes}
+                        </span>
+                        <span
+                          className={cn(
+                            "flex items-center gap-0.5",
+                            submission.votes.downvotes >= FLAGGED_THRESHOLD
+                              ? "text-red-600 dark:text-red-400 font-medium"
+                              : "text-muted-foreground",
+                          )}
+                        >
+                          <ThumbsDown className="h-3.5 w-3.5" />
+                          {submission.votes.downvotes}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <a

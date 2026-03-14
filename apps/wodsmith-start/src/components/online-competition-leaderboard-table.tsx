@@ -49,6 +49,7 @@ import {
 import { VideoEmbed } from "@/components/video-embed"
 import { VideoVoteButtons } from "@/components/compete/video-vote-buttons"
 import { getVideoVoteCountsFn } from "@/server-fns/video-vote-fns"
+import { useSession } from "@/utils/auth-client"
 import { getSortDirection } from "@/lib/scoring"
 import type { WorkoutScheme } from "@/lib/scoring/types"
 import { cn } from "@/lib/utils"
@@ -234,13 +235,21 @@ function ExpandedVideoRow({
   selectedEventId,
   columnsCount,
   voteCounts,
+  isLoggedIn,
+  currentUserId,
 }: {
   row: Row<CompetitionLeaderboardEntry>
   selectedEventId: string | null
   columnsCount: number
   voteCounts: VoteCounts
+  isLoggedIn: boolean
+  currentUserId: string | null
 }) {
   const entry = row.original
+  const isOwnSubmission =
+    currentUserId != null &&
+    (entry.userId === currentUserId ||
+      entry.teamMembers.some((m) => m.userId === currentUserId))
 
   const resultsToShow = selectedEventId
     ? entry.eventResults.filter(
@@ -289,10 +298,11 @@ function ExpandedVideoRow({
               {result.videoUrl && (
                 <div className="space-y-1">
                   <VideoEmbed url={result.videoUrl} />
-                  {result.videoSubmissionId && (
+                  {result.videoSubmissionId && !isOwnSubmission && (
                     <VideoVoteButtons
                       videoSubmissionId={result.videoSubmissionId}
                       userVote={voteCounts[result.videoSubmissionId]?.userVote ?? null}
+                      isLoggedIn={isLoggedIn}
                     />
                   )}
                 </div>
@@ -311,6 +321,8 @@ function MobileOnlineLeaderboardRow({
   events,
   scoringAlgorithm,
   voteCounts,
+  isLoggedIn,
+  currentUserId,
 }: {
   entry: CompetitionLeaderboardEntry
   events: Array<{
@@ -321,8 +333,14 @@ function MobileOnlineLeaderboardRow({
   }>
   scoringAlgorithm: ScoringAlgorithm
   voteCounts: VoteCounts
+  isLoggedIn: boolean
+  currentUserId: string | null
 }) {
   const [isOpen, setIsOpen] = useState(false)
+  const isOwnSubmission =
+    currentUserId != null &&
+    (entry.userId === currentUserId ||
+      entry.teamMembers.some((m) => m.userId === currentUserId))
   const icon = getRankIcon(entry.overallRank)
   const isPodium = entry.overallRank <= 3
 
@@ -467,10 +485,11 @@ function MobileOnlineLeaderboardRow({
                   {result.eventName} Video
                 </span>
                 <VideoEmbed url={result.videoUrl} />
-                {result.videoSubmissionId && (
+                {result.videoSubmissionId && !isOwnSubmission && (
                   <VideoVoteButtons
                     videoSubmissionId={result.videoSubmissionId}
                     userVote={voteCounts[result.videoSubmissionId]?.userVote ?? null}
+                    isLoggedIn={isLoggedIn}
                   />
                 )}
               </div>
@@ -487,6 +506,10 @@ export function OnlineCompetitionLeaderboardTable({
   selectedEventId,
   scoringAlgorithm,
 }: OnlineCompetitionLeaderboardTableProps) {
+  const session = useSession()
+  const isLoggedIn = !!session?.userId
+  const currentUserId = session?.userId ?? null
+
   const defaultSortColumn = selectedEventId ? "eventRank" : "overallRank"
 
   const [sorting, setSorting] = useState<SortingState>([
@@ -930,6 +953,8 @@ export function OnlineCompetitionLeaderboardTable({
                 events={events}
                 scoringAlgorithm={scoringAlgorithm}
                 voteCounts={voteCounts}
+                isLoggedIn={isLoggedIn}
+                currentUserId={currentUserId}
               />
             ))}
           </div>
@@ -1004,6 +1029,8 @@ export function OnlineCompetitionLeaderboardTable({
                       selectedEventId={selectedEventId}
                       columnsCount={columns.length}
                       voteCounts={voteCounts}
+                      isLoggedIn={isLoggedIn}
+                      currentUserId={currentUserId}
                     />
                   )}
                 </Fragment>

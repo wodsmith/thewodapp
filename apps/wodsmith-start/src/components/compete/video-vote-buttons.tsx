@@ -1,7 +1,7 @@
 "use client"
 
 import { useServerFn } from "@tanstack/react-start"
-import { ThumbsDown, ThumbsUp } from "lucide-react"
+import { LogIn, ThumbsDown, ThumbsUp } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
@@ -14,19 +14,15 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/utils/cn"
 import { castVideoVoteFn } from "@/server-fns/video-vote-fns"
-import type { DownvoteReason } from "@/db/schemas/video-votes"
-
-const DOWNVOTE_REASON_LABELS: Record<DownvoteReason, string> = {
-  suspected_no_rep: "Suspected no-rep",
-  video_quality: "Video quality issues",
-  wrong_movement: "Wrong movement standard",
-  incomplete_workout: "Incomplete workout",
-  other: "Other",
-}
+import {
+  DOWNVOTE_REASON_LABELS,
+  type DownvoteReason,
+} from "@/db/schemas/video-votes"
 
 interface VideoVoteButtonsProps {
   videoSubmissionId: string
   userVote: "upvote" | "downvote" | null
+  isLoggedIn?: boolean
   onVoteChange?: (newState: {
     userVote: "upvote" | "downvote" | null
   }) => void
@@ -35,10 +31,12 @@ interface VideoVoteButtonsProps {
 export function VideoVoteButtons({
   videoSubmissionId,
   userVote: initialUserVote,
+  isLoggedIn = true,
   onVoteChange,
 }: VideoVoteButtonsProps) {
   const [userVote, setUserVote] = useState(initialUserVote)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [downvoteOpen, setDownvoteOpen] = useState(false)
   const [selectedReason, setSelectedReason] = useState<DownvoteReason | "">("")
   const [reasonDetail, setReasonDetail] = useState("")
@@ -50,6 +48,7 @@ export function VideoVoteButtons({
   const handleUpvote = async () => {
     if (isSubmitting || hasVoted) return
     setIsSubmitting(true)
+    setError(null)
 
     try {
       await castVote({
@@ -57,8 +56,10 @@ export function VideoVoteButtons({
       })
       setUserVote("upvote")
       onVoteChange?.({ userVote: "upvote" })
-    } catch (error) {
-      console.error("Failed to vote:", error)
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to vote. Please try again."
+      setError(message)
     } finally {
       setIsSubmitting(false)
     }
@@ -67,6 +68,7 @@ export function VideoVoteButtons({
   const handleDownvoteSubmit = async () => {
     if (isSubmitting || hasVoted || !selectedReason) return
     setIsSubmitting(true)
+    setError(null)
 
     try {
       await castVote({
@@ -82,14 +84,41 @@ export function VideoVoteButtons({
       setDownvoteOpen(false)
       setSelectedReason("")
       setReasonDetail("")
-    } catch (error) {
-      console.error("Failed to downvote:", error)
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to vote. Please try again."
+      setError(message)
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  if (!isLoggedIn) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 opacity-50">
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled>
+            <ThumbsUp className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled>
+            <ThumbsDown className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <a
+          href="/sign-in"
+          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+        >
+          <LogIn className="h-3 w-3" />
+          Sign in to vote
+        </a>
+      </div>
+    )
+  }
+
   return (
+    <div className="space-y-1">
     <div className="flex items-center gap-1">
       {/* Upvote button */}
       <Button
@@ -170,6 +199,10 @@ export function VideoVoteButtons({
           </PopoverContent>
         </Popover>
       )}
+    </div>
+    {error && (
+      <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+    )}
     </div>
   )
 }

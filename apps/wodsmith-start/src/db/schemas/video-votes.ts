@@ -36,6 +36,17 @@ export const downvoteReasons = [
 export type DownvoteReason = (typeof downvoteReasons)[number]
 
 /**
+ * Human-readable labels for downvote reason categories
+ */
+export const DOWNVOTE_REASON_LABELS: Record<DownvoteReason, string> = {
+  suspected_no_rep: "Suspected no-rep",
+  video_quality: "Video quality issues",
+  wrong_movement: "Wrong movement standard",
+  incomplete_workout: "Incomplete workout",
+  other: "Other",
+}
+
+/**
  * Video Votes Table
  *
  * Each user can cast one vote (up or down) per video submission.
