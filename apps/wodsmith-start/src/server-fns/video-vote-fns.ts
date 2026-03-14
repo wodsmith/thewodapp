@@ -9,7 +9,10 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, count, eq, inArray, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
-import { competitionsTable } from "@/db/schemas/competitions"
+import {
+  competitionRegistrationsTable,
+  competitionsTable,
+} from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import {
   createVideoVoteId,
@@ -235,6 +238,26 @@ export const getSubmissionVoteDetailsFn = createServerFn({ method: "GET" })
       competition.organizingTeamId,
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
+
+    // Verify the submission belongs to this competition
+    const [submission] = await db
+      .select({ id: videoSubmissionsTable.id })
+      .from(videoSubmissionsTable)
+      .innerJoin(
+        competitionRegistrationsTable,
+        eq(videoSubmissionsTable.registrationId, competitionRegistrationsTable.id),
+      )
+      .where(
+        and(
+          eq(videoSubmissionsTable.id, data.videoSubmissionId),
+          eq(competitionRegistrationsTable.eventId, data.competitionId),
+        ),
+      )
+      .limit(1)
+
+    if (!submission) {
+      throw new Error("NOT_FOUND: Submission not found for this competition")
+    }
 
     // Get vote counts
     const voteCounts = await db

@@ -19,6 +19,22 @@ import {
   type DownvoteReason,
 } from "@/db/schemas/video-votes"
 
+const KNOWN_VOTE_ERRORS = [
+  "You have already voted on this submission",
+  "You cannot vote on your own submission",
+  "You must be signed in to vote",
+]
+
+function getUserFacingVoteError(err: unknown): string {
+  if (err instanceof Error) {
+    const msg = err.message
+    if (KNOWN_VOTE_ERRORS.some((known) => msg.includes(known))) {
+      return msg
+    }
+  }
+  return "Failed to vote. Please try again."
+}
+
 interface VideoVoteButtonsProps {
   videoSubmissionId: string
   userVote: "upvote" | "downvote" | null
@@ -57,9 +73,7 @@ export function VideoVoteButtons({
       setUserVote("upvote")
       onVoteChange?.({ userVote: "upvote" })
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to vote. Please try again."
-      setError(message)
+      setError(getUserFacingVoteError(err))
     } finally {
       setIsSubmitting(false)
     }
@@ -85,11 +99,7 @@ export function VideoVoteButtons({
       setSelectedReason("")
       setReasonDetail("")
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to vote. Please try again."
-      setError(message)
+      setError(getUserFacingVoteError(err))
     } finally {
       setIsSubmitting(false)
     }
