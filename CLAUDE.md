@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Non-Negotiable Commit Rules
+
+**Typechecks MUST pass before every commit. No exceptions.**
+
+- Run `cd apps/wodsmith-start && pnpm type-check` (or `tsc --noEmit`) before committing
+- Fix ALL type errors — do not suppress with `@ts-ignore` or `any` casts
+- A commit with typecheck failures will be rejected at the merge gate
+
 ## Monorepo Structure
 
 This is a **monorepo** with multiple applications:
