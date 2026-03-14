@@ -31,14 +31,13 @@ import {
   competitionEventsTable,
   competitionsTable,
 } from "@/db/schemas/competitions"
-import { programmingTracksTable, trackWorkoutsTable } from "@/db/schemas/programming"
+
 import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
 import {
   SCORE_STATUS_VALUES,
   type ScoreStatus,
   type ScoreType,
   type TiebreakScheme,
-  type WorkoutScheme,
   workouts,
 } from "@/db/schemas/workouts"
 import {
