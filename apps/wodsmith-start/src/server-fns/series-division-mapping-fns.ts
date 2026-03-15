@@ -854,6 +854,14 @@ export const autoMapSeriesDivisionsFn = createServerFn({ method: "GET" })
 				.from(competitionsTable)
 				.where(eq(competitionsTable.groupId, data.groupId))
 
+			// Load existing saved mappings so we don't overwrite them
+			const existingMappings = await db
+				.select()
+				.from(seriesDivisionMappingsTable)
+				.where(
+					eq(seriesDivisionMappingsTable.groupId, data.groupId),
+				)
+
 			const competitionMappings: SeriesDivisionMappingData[] = []
 
 			for (const comp of comps) {
@@ -883,14 +891,41 @@ export const autoMapSeriesDivisionsFn = createServerFn({ method: "GET" })
 					)
 					.orderBy(scalingLevelsTable.position)
 
+				// Check for existing saved mappings for this competition
+				const compExistingMappings = existingMappings.filter(
+					(m) => m.competitionId === comp.id,
+				)
+				const existingLookup = new Map(
+					compExistingMappings.map((m) => [
+						m.competitionDivisionId,
+						m.seriesDivisionId,
+					]),
+				)
+
+				// Auto-map only unmapped divisions; preserve existing mappings
 				const autoMapped = autoMapDivisions(
 					compDivisions,
 					seriesDivisions,
 				)
+				const merged = autoMapped.map((m) => {
+					const existingSeriesDivId = existingLookup.get(
+						m.competitionDivisionId,
+					)
+					if (existingSeriesDivId) {
+						// Keep existing mapping
+						return {
+							...m,
+							seriesDivisionId: existingSeriesDivId,
+							confidence: "exact" as const,
+						}
+					}
+					return m
+				})
+
 				competitionMappings.push({
 					competitionId: comp.id,
 					competitionName: comp.name,
-					mappings: autoMapped,
+					mappings: merged,
 				})
 			}
 
