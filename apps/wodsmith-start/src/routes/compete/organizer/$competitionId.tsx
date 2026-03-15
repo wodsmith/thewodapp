@@ -6,11 +6,11 @@
  */
 
 import {
-	createFileRoute,
-	notFound,
-	Outlet,
-	redirect,
-	useMatches,
+  createFileRoute,
+  notFound,
+  Outlet,
+  redirect,
+  useMatches,
 } from "@tanstack/react-router"
 import { CompetitionHeader } from "@/components/competition-header"
 import { CompetitionSidebar } from "@/components/competition-sidebar"
@@ -19,128 +19,128 @@ import { PendingOrganizerBanner } from "@/components/pending-organizer-banner"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 
 export const Route = createFileRoute("/compete/organizer/$competitionId")({
-	component: CompetitionLayout,
-	staleTime: 10_000, // Cache for 10 seconds (SWR behavior)
-	loader: async ({ params, context }) => {
-		const session = context.session
+  component: CompetitionLayout,
+  staleTime: 10_000, // Cache for 10 seconds (SWR behavior)
+  loader: async ({ params, context }) => {
+    const session = context.session
 
-		// Require authentication
-		if (!session?.user?.id) {
-			throw redirect({
-				to: "/sign-in",
-				search: { redirect: `/compete/organizer/${params.competitionId}` },
-			})
-		}
+    // Require authentication
+    if (!session?.user?.id) {
+      throw redirect({
+        to: "/sign-in",
+        search: { redirect: `/compete/organizer/${params.competitionId}` },
+      })
+    }
 
-		// Get competition by ID
-		const { competition } = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
-		})
+    // Get competition by ID
+    const { competition } = await getCompetitionByIdFn({
+      data: { competitionId: params.competitionId },
+    })
 
-		if (!competition) {
-			throw notFound()
-		}
+    if (!competition) {
+      throw notFound()
+    }
 
-		// Verify user can manage this competition using session data
-		const canManage =
-			session.user?.role === "admin" ||
-			!!session.teams?.find(
-				(t) =>
-					t.id === competition.organizingTeamId &&
-					(t.role.id === "admin" || t.role.id === "owner"),
-			)
+    // Verify user can manage this competition using session data
+    const canManage =
+      session.user?.role === "admin" ||
+      !!session.teams?.find(
+        (t) =>
+          t.id === competition.organizingTeamId &&
+          (t.role.id === "admin" || t.role.id === "owner"),
+      )
 
-		if (!canManage) {
-			throw redirect({
-				to: "/compete",
-				search: {},
-			})
-		}
+    if (!canManage) {
+      throw redirect({
+        to: "/compete",
+        search: {},
+      })
+    }
 
-		return {
-			competition,
-		}
-	},
+    return {
+      competition,
+    }
+  },
 })
 
 // Map route paths to breadcrumb labels
 // Note: "results" label is handled dynamically based on competition type
 const routeLabels: Record<string, string> = {
-	divisions: "Divisions",
-	athletes: "Registrations",
-	events: "Events",
-	"submission-windows": "Submission Windows",
-	schedule: "Schedule",
-	locations: "Locations",
-	volunteers: "Volunteers",
-	results: "Results", // Overridden to "Submissions" for online competitions
-	review: "Review",
-	pricing: "Pricing",
-	revenue: "Revenue",
-	coupons: "Coupons",
-	sponsors: "Sponsors",
-	settings: "Settings",
-	edit: "Edit",
-	"danger-zone": "Danger Zone",
+  divisions: "Divisions",
+  athletes: "Registrations",
+  events: "Events",
+  "submission-windows": "Submission Windows",
+  schedule: "Schedule",
+  locations: "Locations",
+  volunteers: "Volunteers",
+  results: "Results", // Overridden to "Submissions" for online competitions
+  review: "Review",
+  pricing: "Pricing",
+  revenue: "Revenue",
+  coupons: "Coupons",
+  sponsors: "Sponsors",
+  settings: "Settings",
+  edit: "Edit",
+  "danger-zone": "Danger Zone",
 }
 
 function CompetitionLayout() {
-	const { competition } = Route.useLoaderData()
-	const { entitlements } = Route.useRouteContext()
-	const matches = useMatches()
+  const { competition } = Route.useLoaderData()
+  const { entitlements } = Route.useRouteContext()
+  const matches = useMatches()
 
-	// Get the current child route segment for breadcrumb
-	const currentPath = matches[matches.length - 1]?.pathname ?? ""
-	const segments = currentPath.split("/").filter(Boolean)
-	const lastSegment = segments[segments.length - 1]
+  // Get the current child route segment for breadcrumb
+  const currentPath = matches[matches.length - 1]?.pathname ?? ""
+  const segments = currentPath.split("/").filter(Boolean)
+  const lastSegment = segments[segments.length - 1]
 
-	// Build breadcrumb segments
-	const breadcrumbSegments: Array<{ label: string; href?: string }> = [
-		{ label: competition.name },
-	]
+  // Build breadcrumb segments
+  const breadcrumbSegments: Array<{ label: string; href?: string }> = [
+    { label: competition.name },
+  ]
 
-	// Add current page to breadcrumb if not on overview
-	if (lastSegment && lastSegment !== competition.id) {
-		let label = routeLabels[lastSegment] || lastSegment
-		// Show "Submissions" instead of "Results" for online competitions
-		if (lastSegment === "results" && competition.competitionType === "online") {
-			label = "Submissions"
-		}
-		breadcrumbSegments.push({ label })
-	}
+  // Add current page to breadcrumb if not on overview
+  if (lastSegment && lastSegment !== competition.id) {
+    let label = routeLabels[lastSegment] || lastSegment
+    // Show "Submissions" instead of "Results" for online competitions
+    if (lastSegment === "results" && competition.competitionType === "online") {
+      label = "Submissions"
+    }
+    breadcrumbSegments.push({ label })
+  }
 
-	return (
-		<CompetitionSidebar
-			competitionId={competition.id}
-			competitionType={competition.competitionType}
-		>
-			{entitlements.isPendingApproval && (
-				<PendingOrganizerBanner variant="sidebar-inset" />
-			)}
-			<div className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">
-				{/* Breadcrumb */}
-				<OrganizerBreadcrumb segments={breadcrumbSegments} />
+  return (
+    <CompetitionSidebar
+      competitionId={competition.id}
+      competitionType={competition.competitionType}
+    >
+      {entitlements.isPendingApproval && (
+        <PendingOrganizerBanner variant="sidebar-inset" />
+      )}
+      <div className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">
+        {/* Breadcrumb */}
+        <OrganizerBreadcrumb segments={breadcrumbSegments} />
 
-				{/* Competition Header */}
-				<CompetitionHeader
-					competition={{
-						id: competition.id,
-						name: competition.name,
-						slug: competition.slug,
-						description: competition.description,
-						startDate: competition.startDate,
-						endDate: competition.endDate,
-						registrationOpensAt: competition.registrationOpensAt,
-						registrationClosesAt: competition.registrationClosesAt,
-						visibility: competition.visibility,
-						status: competition.status,
-						groupId: competition.groupId,
-					}}
-				/>
+        {/* Competition Header */}
+        <CompetitionHeader
+          competition={{
+            id: competition.id,
+            name: competition.name,
+            slug: competition.slug,
+            description: competition.description,
+            startDate: competition.startDate,
+            endDate: competition.endDate,
+            registrationOpensAt: competition.registrationOpensAt,
+            registrationClosesAt: competition.registrationClosesAt,
+            visibility: competition.visibility,
+            status: competition.status,
+            groupId: competition.groupId,
+          }}
+        />
 
-				{/* Child route content */}
-				<Outlet />
-			</div>
-		</CompetitionSidebar>
-	)
+        {/* Child route content */}
+        <Outlet />
+      </div>
+    </CompetitionSidebar>
+  )
 }

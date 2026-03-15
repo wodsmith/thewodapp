@@ -10,23 +10,23 @@ let isInitialized = false
  * Call once after router creation, on the client only.
  */
 export function initSentry(router: Router<any, any, any>): void {
-	if (typeof window === "undefined") return
-	if (isInitialized) return
-	if (import.meta.env.DEV) return
+  if (typeof window === "undefined") return
+  if (isInitialized) return
+  if (import.meta.env.DEV) return
 
-	const dsn = import.meta.env.VITE_SENTRY_DSN
-	if (!dsn) return
+  const dsn = import.meta.env.VITE_SENTRY_DSN
+  if (!dsn) return
 
-	Sentry.init({
-		dsn,
-		integrations: [tanstackRouterBrowserTracingIntegration(router)],
-		tracesSampleRate: 0.1,
-		environment: "production",
-		release: import.meta.env.VITE_SENTRY_RELEASE || undefined,
-		sendDefaultPii: false,
-	})
+  Sentry.init({
+    dsn,
+    integrations: [tanstackRouterBrowserTracingIntegration(router)],
+    tracesSampleRate: 0.1,
+    environment: "production",
+    release: import.meta.env.VITE_SENTRY_RELEASE || undefined,
+    sendDefaultPii: false,
+  })
 
-	isInitialized = true
+  isInitialized = true
 }
 
 /**
@@ -34,16 +34,16 @@ export function initSentry(router: Router<any, any, any>): void {
  * Safe to call even when Sentry is not initialized (no-ops gracefully).
  */
 export function sentryCaptureException(
-	error: unknown,
-	context?: Record<string, unknown>,
+  error: unknown,
+  context?: Record<string, unknown>,
 ): void {
-	if (!isInitialized) return
-	try {
-		const errorObj = error instanceof Error ? error : new Error(String(error))
-		Sentry.captureException(errorObj, {
-			extra: context,
-		})
-	} catch {
-		// graceful degradation
-	}
+  if (!isInitialized) return
+  try {
+    const errorObj = error instanceof Error ? error : new Error(String(error))
+    Sentry.captureException(errorObj, {
+      extra: context,
+    })
+  } catch {
+    // graceful degradation
+  }
 }

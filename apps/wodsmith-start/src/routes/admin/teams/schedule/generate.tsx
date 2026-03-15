@@ -8,11 +8,11 @@
 import { createFileRoute, redirect } from "@tanstack/react-router"
 
 export const Route = createFileRoute("/admin/teams/schedule/generate")({
-	beforeLoad: () => {
-		// TODO: Implement schedule generation UI
-		// For now, redirect to main schedule page
-		throw redirect({
-			to: "/admin/teams/schedule",
-		})
-	},
+  beforeLoad: () => {
+    // TODO: Implement schedule generation UI
+    // For now, redirect to main schedule page
+    throw redirect({
+      to: "/admin/teams/schedule",
+    })
+  },
 })

@@ -5,125 +5,125 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { getRegistrationFeeBreakdownFn } from "@/server-fns/registration-fns"
 
 type FeeData = {
-	isFree: boolean
-	registrationFeeCents?: number
-	platformFeeCents?: number
-	stripeFeeCents?: number
-	totalChargeCents?: number
-	stripeFeesPassedToCustomer?: boolean
-	platformFeesPassedToCustomer?: boolean
+  isFree: boolean
+  registrationFeeCents?: number
+  platformFeeCents?: number
+  stripeFeeCents?: number
+  totalChargeCents?: number
+  stripeFeesPassedToCustomer?: boolean
+  platformFeesPassedToCustomer?: boolean
 }
 
 type FeeBreakdownProps = {
-	competitionId: string
-	divisionId: string | null
-	/** Hide the per-division total line (when showing a combined total externally) */
-	hideTotal?: boolean
-	/** Report loaded fee data to parent */
-	onFeesLoaded?: (divisionId: string, fees: FeeData | null) => void
+  competitionId: string
+  divisionId: string | null
+  /** Hide the per-division total line (when showing a combined total externally) */
+  hideTotal?: boolean
+  /** Report loaded fee data to parent */
+  onFeesLoaded?: (divisionId: string, fees: FeeData | null) => void
 }
 
 export function FeeBreakdown({
-	competitionId,
-	divisionId,
-	hideTotal,
-	onFeesLoaded,
+  competitionId,
+  divisionId,
+  hideTotal,
+  onFeesLoaded,
 }: FeeBreakdownProps) {
-	const [fees, setFees] = useState<FeeData | null>(null)
-	const [isLoading, setIsLoading] = useState(false)
-	const onFeesLoadedRef = useRef(onFeesLoaded)
-	onFeesLoadedRef.current = onFeesLoaded
+  const [fees, setFees] = useState<FeeData | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const onFeesLoadedRef = useRef(onFeesLoaded)
+  onFeesLoadedRef.current = onFeesLoaded
 
-	useEffect(() => {
-		if (!divisionId) {
-			setFees(null)
-			onFeesLoadedRef.current?.(divisionId ?? "", null)
-			return
-		}
+  useEffect(() => {
+    if (!divisionId) {
+      setFees(null)
+      onFeesLoadedRef.current?.(divisionId ?? "", null)
+      return
+    }
 
-		const fetchFees = async () => {
-			setIsLoading(true)
-			try {
-				const result = await getRegistrationFeeBreakdownFn({
-					data: { competitionId, divisionId },
-				})
-				setFees(result)
-				onFeesLoadedRef.current?.(divisionId, result)
-			} catch (error) {
-				console.error("Failed to fetch registration fee breakdown:", error)
-				setFees(null)
-				onFeesLoadedRef.current?.(divisionId, null)
-				toast.error("Failed to load registration fees. Please try again.")
-			} finally {
-				setIsLoading(false)
-			}
-		}
+    const fetchFees = async () => {
+      setIsLoading(true)
+      try {
+        const result = await getRegistrationFeeBreakdownFn({
+          data: { competitionId, divisionId },
+        })
+        setFees(result)
+        onFeesLoadedRef.current?.(divisionId, result)
+      } catch (error) {
+        console.error("Failed to fetch registration fee breakdown:", error)
+        setFees(null)
+        onFeesLoadedRef.current?.(divisionId, null)
+        toast.error("Failed to load registration fees. Please try again.")
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-		fetchFees()
-	}, [competitionId, divisionId])
+    fetchFees()
+  }, [competitionId, divisionId])
 
-	if (!divisionId) {
-		return (
-			<p className="text-muted-foreground text-sm">
-				Select a division to see pricing
-			</p>
-		)
-	}
+  if (!divisionId) {
+    return (
+      <p className="text-muted-foreground text-sm">
+        Select a division to see pricing
+      </p>
+    )
+  }
 
-	if (isLoading) return <Skeleton className="h-20 w-full" />
+  if (isLoading) return <Skeleton className="h-20 w-full" />
 
-	if (!fees) return <Skeleton className="h-20 w-full" />
+  if (!fees) return <Skeleton className="h-20 w-full" />
 
-	if (fees.isFree) {
-		return (
-			<div className="flex items-center gap-2">
-				<Badge variant="secondary" className="text-green-600 bg-green-100">
-					Free Registration
-				</Badge>
-			</div>
-		)
-	}
+  if (fees.isFree) {
+    return (
+      <div className="flex items-center gap-2">
+        <Badge variant="secondary" className="text-green-600 bg-green-100">
+          Free Registration
+        </Badge>
+      </div>
+    )
+  }
 
-	const formatCents = (cents: number) => `$${(cents / 100).toFixed(2)}`
+  const formatCents = (cents: number) => `$${(cents / 100).toFixed(2)}`
 
-	return (
-		<div className="space-y-2 text-sm">
-			<div className="flex justify-between">
-				<span>Registration Fee</span>
-				<span className="font-medium">
-					{formatCents(fees.registrationFeeCents ?? 0)}
-				</span>
-			</div>
-			{fees.platformFeeCents != null && fees.platformFeeCents > 0 && (
-				<div className="flex justify-between text-muted-foreground">
-					<span>
-						Platform Fee
-						{!fees.platformFeesPassedToCustomer && (
-							<span className="ml-1 text-xs italic">(included)</span>
-						)}
-					</span>
-					<span>{formatCents(fees.platformFeeCents)}</span>
-				</div>
-			)}
-			{fees.stripeFeeCents != null && fees.stripeFeeCents > 0 && (
-				<div className="flex justify-between text-muted-foreground">
-					<span>
-						Processing Fee
-						{!fees.stripeFeesPassedToCustomer && (
-							<span className="ml-1 text-xs italic">(included)</span>
-						)}
-					</span>
-					<span>{formatCents(fees.stripeFeeCents)}</span>
-				</div>
-			)}
-			{!hideTotal && (
-				<div className="flex justify-between font-medium pt-2 border-t">
-					<span>Total</span>
-					<span className="text-lg">
-						{formatCents(fees.totalChargeCents ?? 0)}
-					</span>
-				</div>
-			)}
-		</div>
-	)
+  return (
+    <div className="space-y-2 text-sm">
+      <div className="flex justify-between">
+        <span>Registration Fee</span>
+        <span className="font-medium">
+          {formatCents(fees.registrationFeeCents ?? 0)}
+        </span>
+      </div>
+      {fees.platformFeeCents != null && fees.platformFeeCents > 0 && (
+        <div className="flex justify-between text-muted-foreground">
+          <span>
+            Platform Fee
+            {!fees.platformFeesPassedToCustomer && (
+              <span className="ml-1 text-xs italic">(included)</span>
+            )}
+          </span>
+          <span>{formatCents(fees.platformFeeCents)}</span>
+        </div>
+      )}
+      {fees.stripeFeeCents != null && fees.stripeFeeCents > 0 && (
+        <div className="flex justify-between text-muted-foreground">
+          <span>
+            Processing Fee
+            {!fees.stripeFeesPassedToCustomer && (
+              <span className="ml-1 text-xs italic">(included)</span>
+            )}
+          </span>
+          <span>{formatCents(fees.stripeFeeCents)}</span>
+        </div>
+      )}
+      {!hideTotal && (
+        <div className="flex justify-between font-medium pt-2 border-t">
+          <span>Total</span>
+          <span className="text-lg">
+            {formatCents(fees.totalChargeCents ?? 0)}
+          </span>
+        </div>
+      )}
+    </div>
+  )
 }

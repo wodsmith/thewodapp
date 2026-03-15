@@ -15,17 +15,17 @@ import { z } from "zod"
 import { getDb } from "@/db"
 import { createTeamId } from "@/db/schemas/common"
 import {
-	SYSTEM_ROLES_ENUM,
-	TEAM_PERMISSIONS,
-	TEAM_TYPE_ENUM,
-	type Team,
-	type TeamMembership,
-	teamInvitationTable,
-	teamMembershipTable,
-	teamRoleTable,
-	teamSubscriptionTable,
-	teamTable,
-	userTable,
+  SYSTEM_ROLES_ENUM,
+  TEAM_PERMISSIONS,
+  TEAM_TYPE_ENUM,
+  type Team,
+  type TeamMembership,
+  teamInvitationTable,
+  teamMembershipTable,
+  teamRoleTable,
+  teamSubscriptionTable,
+  teamTable,
+  userTable,
 } from "@/db/schema"
 import { getSessionFromCookie, setActiveTeamCookie } from "@/utils/auth"
 import { sendTeamInvitationEmail } from "@/utils/email"
@@ -46,54 +46,54 @@ const MAX_TEAMS_JOINED_PER_USER = 100
 
 /** User fields included in team member queries */
 type MemberUser = {
-	id: string
-	firstName: string | null
-	lastName: string | null
-	email: string | null
-	avatar: string | null
+  id: string
+  firstName: string | null
+  lastName: string | null
+  email: string | null
+  avatar: string | null
 }
 
 /** Membership with user relation included */
 type TeamMembershipWithUser = TeamMembership & {
-	user: MemberUser | null
+  user: MemberUser | null
 }
 
 /** Membership with team relation included */
 type TeamMembershipWithTeam = TeamMembership & {
-	team: Team | null
+  team: Team | null
 }
 
 export interface TeamMemberInfo {
-	id: string
-	userId: string
-	roleId: string
-	roleName: string
-	isSystemRole: boolean
-	isActive: boolean
-	joinedAt: Date | null
-	user: {
-		id: string | undefined
-		firstName: string | null | undefined
-		lastName: string | null | undefined
-		email: string | null | undefined
-		avatar: string | null | undefined
-	}
+  id: string
+  userId: string
+  roleId: string
+  roleName: string
+  isSystemRole: boolean
+  isActive: boolean
+  joinedAt: Date | null
+  user: {
+    id: string | undefined
+    firstName: string | null | undefined
+    lastName: string | null | undefined
+    email: string | null | undefined
+    avatar: string | null | undefined
+  }
 }
 
 export interface TeamInvitationInfo {
-	id: string
-	email: string
-	roleId: string
-	isSystemRole: boolean
-	createdAt: Date
-	expiresAt: Date | null
-	invitedBy: {
-		id: string | undefined
-		firstName: string | null | undefined
-		lastName: string | null | undefined
-		email: string | null | undefined
-		avatar: string | null | undefined
-	}
+  id: string
+  email: string
+  roleId: string
+  isSystemRole: boolean
+  createdAt: Date
+  expiresAt: Date | null
+  invitedBy: {
+    id: string | undefined
+    firstName: string | null | undefined
+    lastName: string | null | undefined
+    email: string | null | undefined
+    avatar: string | null | undefined
+  }
 }
 
 // ============================================================================
@@ -101,70 +101,70 @@ export interface TeamInvitationInfo {
 // ============================================================================
 
 const createTeamInputSchema = z.object({
-	name: z.string().min(1, "Name is required").max(100, "Name is too long"),
-	description: z.string().max(1000, "Description is too long").optional(),
+  name: z.string().min(1, "Name is required").max(100, "Name is too long"),
+  description: z.string().max(1000, "Description is too long").optional(),
 })
 
 const updateTeamInputSchema = z.object({
-	teamId: z.string().min(1, "Team ID is required"),
-	data: z.object({
-		name: z
-			.string()
-			.min(1, "Name is required")
-			.max(100, "Name is too long")
-			.optional(),
-		description: z.string().max(1000, "Description is too long").optional(),
-		avatarUrl: z
-			.string()
-			.url("Invalid avatar URL")
-			.max(600, "URL is too long")
-			.optional(),
-		billingEmail: z
-			.string()
-			.email("Invalid email")
-			.max(255, "Email is too long")
-			.optional(),
-		settings: z.string().max(10000, "Settings are too large").optional(),
-	}),
+  teamId: z.string().min(1, "Team ID is required"),
+  data: z.object({
+    name: z
+      .string()
+      .min(1, "Name is required")
+      .max(100, "Name is too long")
+      .optional(),
+    description: z.string().max(1000, "Description is too long").optional(),
+    avatarUrl: z
+      .string()
+      .url("Invalid avatar URL")
+      .max(600, "URL is too long")
+      .optional(),
+    billingEmail: z
+      .string()
+      .email("Invalid email")
+      .max(255, "Email is too long")
+      .optional(),
+    settings: z.string().max(10000, "Settings are too large").optional(),
+  }),
 })
 
 const deleteTeamInputSchema = z.object({
-	teamId: z.string().min(1, "Team ID is required"),
+  teamId: z.string().min(1, "Team ID is required"),
 })
 
 const teamIdSchema = z.object({
-	teamId: z.string().min(1, "Team ID is required"),
+  teamId: z.string().min(1, "Team ID is required"),
 })
 
 const setActiveTeamInputSchema = z.object({
-	teamId: z.string().min(1, "Team ID is required"),
+  teamId: z.string().min(1, "Team ID is required"),
 })
 
 const teamSlugSchema = z.object({
-	slug: z.string().min(1, "Slug is required"),
+  slug: z.string().min(1, "Slug is required"),
 })
 
 const inviteUserInputSchema = z.object({
-	teamId: z.string().min(1, "Team ID is required"),
-	email: z.string().email("Invalid email").max(255, "Email is too long"),
-	roleId: z.string().min(1, "Role is required"),
-	isSystemRole: z.boolean().optional().default(true),
+  teamId: z.string().min(1, "Team ID is required"),
+  email: z.string().email("Invalid email").max(255, "Email is too long"),
+  roleId: z.string().min(1, "Role is required"),
+  isSystemRole: z.boolean().optional().default(true),
 })
 
 const cancelInvitationInputSchema = z.object({
-	invitationId: z.string().min(1, "Invitation ID is required"),
+  invitationId: z.string().min(1, "Invitation ID is required"),
 })
 
 const updateMemberRoleInputSchema = z.object({
-	teamId: z.string().min(1, "Team ID is required"),
-	userId: z.string().min(1, "User ID is required"),
-	roleId: z.string().min(1, "Role is required"),
-	isSystemRole: z.boolean().optional().default(true),
+  teamId: z.string().min(1, "Team ID is required"),
+  userId: z.string().min(1, "User ID is required"),
+  roleId: z.string().min(1, "Role is required"),
+  isSystemRole: z.boolean().optional().default(true),
 })
 
 const removeTeamMemberInputSchema = z.object({
-	teamId: z.string().min(1, "Team ID is required"),
-	userId: z.string().min(1, "User ID is required"),
+  teamId: z.string().min(1, "Team ID is required"),
+  userId: z.string().min(1, "User ID is required"),
 })
 
 // ============================================================================
@@ -175,14 +175,14 @@ const removeTeamMemberInputSchema = z.object({
  * Require verified email authentication
  */
 async function requireVerifiedEmail() {
-	const session = await getSessionFromCookie()
-	if (!session?.userId) {
-		throw new Error("Not authenticated")
-	}
-	if (!session.user.emailVerified) {
-		throw new Error("Email not verified")
-	}
-	return session
+  const session = await getSessionFromCookie()
+  if (!session?.userId) {
+    throw new Error("Not authenticated")
+  }
+  if (!session.user.emailVerified) {
+    throw new Error("Email not verified")
+  }
+  return session
 }
 
 // ============================================================================
@@ -194,24 +194,24 @@ async function requireVerifiedEmail() {
  * This stores the preference in a cookie for persistence across sessions
  */
 export const setActiveTeamFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => setActiveTeamInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		const session = await getSessionFromCookie()
-		if (!session?.userId) {
-			throw new AppError("NOT_AUTHORIZED", "Not authenticated")
-		}
+  .inputValidator((data: unknown) => setActiveTeamInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) {
+      throw new AppError("NOT_AUTHORIZED", "Not authenticated")
+    }
 
-		// Validate that the user is a member of the team
-		const isMember = session.teams?.some((team) => team.id === data.teamId)
-		if (!isMember) {
-			throw new AppError("FORBIDDEN", "You are not a member of this team")
-		}
+    // Validate that the user is a member of the team
+    const isMember = session.teams?.some((team) => team.id === data.teamId)
+    if (!isMember) {
+      throw new AppError("FORBIDDEN", "You are not a member of this team")
+    }
 
-		// Set the active team cookie
-		await setActiveTeamCookie(data.teamId)
+    // Set the active team cookie
+    await setActiveTeamCookie(data.teamId)
 
-		return { success: true, teamId: data.teamId }
-	})
+    return { success: true, teamId: data.teamId }
+  })
 
 // ============================================================================
 // Server Functions - Team CRUD
@@ -221,267 +221,267 @@ export const setActiveTeamFn = createServerFn({ method: "POST" })
  * Create a new team with the current user as owner
  */
 export const createTeamFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => createTeamInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		const session = await requireVerifiedEmail()
-		const userId = session.userId
-		const db = getDb()
+  .inputValidator((data: unknown) => createTeamInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await requireVerifiedEmail()
+    const userId = session.userId
+    const db = getDb()
 
-		// Generate unique slug for the team
-		let slug = generateSlug(data.name)
-		let slugIsUnique = false
-		let attempts = 0
+    // Generate unique slug for the team
+    let slug = generateSlug(data.name)
+    let slugIsUnique = false
+    let attempts = 0
 
-		// Make sure slug is unique
-		while (!slugIsUnique && attempts < 5) {
-			const existingTeam = await db.query.teamTable.findFirst({
-				where: eq(teamTable.slug, slug),
-			})
+    // Make sure slug is unique
+    while (!slugIsUnique && attempts < 5) {
+      const existingTeam = await db.query.teamTable.findFirst({
+        where: eq(teamTable.slug, slug),
+      })
 
-			if (!existingTeam) {
-				slugIsUnique = true
-			} else {
-				// Add a random suffix to make the slug unique
-				slug = `${generateSlug(data.name)}-${createId().substring(0, 4)}`
-				attempts++
-			}
-		}
+      if (!existingTeam) {
+        slugIsUnique = true
+      } else {
+        // Add a random suffix to make the slug unique
+        slug = `${generateSlug(data.name)}-${createId().substring(0, 4)}`
+        attempts++
+      }
+    }
 
-		if (!slugIsUnique) {
-			throw new AppError(
-				"ERROR",
-				"Could not generate a unique slug for the team",
-			)
-		}
+    if (!slugIsUnique) {
+      throw new AppError(
+        "ERROR",
+        "Could not generate a unique slug for the team",
+      )
+    }
 
-		// Insert the team with default free plan
-		const teamId = createTeamId()
-		await db.insert(teamTable).values({
-			id: teamId,
-			name: data.name,
-			slug,
-			description: data.description,
-			creditBalance: 0,
-			currentPlanId: "free", // All new teams start on free plan
-		})
+    // Insert the team with default free plan
+    const teamId = createTeamId()
+    await db.insert(teamTable).values({
+      id: teamId,
+      name: data.name,
+      slug,
+      description: data.description,
+      creditBalance: 0,
+      currentPlanId: "free", // All new teams start on free plan
+    })
 
-		// Fetch the created team to return
-		const team = await db.query.teamTable.findFirst({
-			where: eq(teamTable.id, teamId),
-		})
+    // Fetch the created team to return
+    const team = await db.query.teamTable.findFirst({
+      where: eq(teamTable.id, teamId),
+    })
 
-		if (!team) {
-			throw new AppError("ERROR", "Could not create team")
-		}
+    if (!team) {
+      throw new AppError("ERROR", "Could not create team")
+    }
 
-		// Add the creator as an owner
-		await db.insert(teamMembershipTable).values({
-			teamId,
-			userId,
-			roleId: SYSTEM_ROLES_ENUM.OWNER,
-			isSystemRole: true,
-			invitedBy: userId,
-			invitedAt: new Date(),
-			joinedAt: new Date(),
-			isActive: true,
-		})
+    // Add the creator as an owner
+    await db.insert(teamMembershipTable).values({
+      teamId,
+      userId,
+      roleId: SYSTEM_ROLES_ENUM.OWNER,
+      isSystemRole: true,
+      invitedBy: userId,
+      invitedAt: new Date(),
+      joinedAt: new Date(),
+      isActive: true,
+    })
 
-		// Create default custom role for the team
-		await db.insert(teamRoleTable).values({
-			teamId,
-			name: "Editor",
-			description: "Can edit team content",
-			permissions: [
-				TEAM_PERMISSIONS.ACCESS_DASHBOARD,
-				TEAM_PERMISSIONS.CREATE_COMPONENTS,
-				TEAM_PERMISSIONS.EDIT_COMPONENTS,
-			],
-			isEditable: true,
-		})
+    // Create default custom role for the team
+    await db.insert(teamRoleTable).values({
+      teamId,
+      name: "Editor",
+      description: "Can edit team content",
+      permissions: [
+        TEAM_PERMISSIONS.ACCESS_DASHBOARD,
+        TEAM_PERMISSIONS.CREATE_COMPONENTS,
+        TEAM_PERMISSIONS.EDIT_COMPONENTS,
+      ],
+      isEditable: true,
+    })
 
-		// Create team subscription for free plan
-		const now = new Date()
-		const oneMonthFromNow = new Date(now)
-		oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1)
+    // Create team subscription for free plan
+    const now = new Date()
+    const oneMonthFromNow = new Date(now)
+    oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1)
 
-		await db.insert(teamSubscriptionTable).values({
-			teamId,
-			planId: "free",
-			status: "active",
-			currentPeriodStart: now,
-			currentPeriodEnd: oneMonthFromNow,
-			cancelAtPeriodEnd: 0,
-		})
+    await db.insert(teamSubscriptionTable).values({
+      teamId,
+      planId: "free",
+      status: "active",
+      currentPeriodStart: now,
+      currentPeriodEnd: oneMonthFromNow,
+      cancelAtPeriodEnd: 0,
+    })
 
-		// Update the user's session to include the new team
-		await updateAllSessionsOfUser(userId)
+    // Update the user's session to include the new team
+    await updateAllSessionsOfUser(userId)
 
-		return {
-			success: true,
-			data: {
-				teamId,
-				name: data.name,
-				slug,
-			},
-		}
-	})
+    return {
+      success: true,
+      data: {
+        teamId,
+        name: data.name,
+        slug,
+      },
+    }
+  })
 
 /**
  * Update a team's details
  */
 export const updateTeamFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => updateTeamInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		// Check if user has permission to update team settings
-		await requireTeamPermission(
-			data.teamId,
-			TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS,
-		)
+  .inputValidator((data: unknown) => updateTeamInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    // Check if user has permission to update team settings
+    await requireTeamPermission(
+      data.teamId,
+      TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS,
+    )
 
-		const db = getDb()
+    const db = getDb()
 
-		// If name is being updated, check if we need to update the slug
-		if (data.data.name) {
-			const currentTeam = await db.query.teamTable.findFirst({
-				where: eq(teamTable.id, data.teamId),
-			})
+    // If name is being updated, check if we need to update the slug
+    if (data.data.name) {
+      const currentTeam = await db.query.teamTable.findFirst({
+        where: eq(teamTable.id, data.teamId),
+      })
 
-			if (currentTeam && currentTeam.name !== data.data.name) {
-				// Generate new slug based on the new name
-				let newSlug = generateSlug(data.data.name)
-				let slugIsUnique = false
-				let attempts = 0
+      if (currentTeam && currentTeam.name !== data.data.name) {
+        // Generate new slug based on the new name
+        let newSlug = generateSlug(data.data.name)
+        let slugIsUnique = false
+        let attempts = 0
 
-				while (!slugIsUnique && attempts < 5) {
-					const existingTeam = await db.query.teamTable.findFirst({
-						where: and(
-							eq(teamTable.slug, newSlug),
-							// Make sure we don't check against our own team
-							not(eq(teamTable.id, data.teamId)),
-						),
-					})
+        while (!slugIsUnique && attempts < 5) {
+          const existingTeam = await db.query.teamTable.findFirst({
+            where: and(
+              eq(teamTable.slug, newSlug),
+              // Make sure we don't check against our own team
+              not(eq(teamTable.id, data.teamId)),
+            ),
+          })
 
-					if (!existingTeam) {
-						slugIsUnique = true
-					} else {
-						// Add a random suffix to make the slug unique
-						newSlug = `${generateSlug(data.data.name)}-${createId().substring(0, 4)}`
-						attempts++
-					}
-				}
+          if (!existingTeam) {
+            slugIsUnique = true
+          } else {
+            // Add a random suffix to make the slug unique
+            newSlug = `${generateSlug(data.data.name)}-${createId().substring(0, 4)}`
+            attempts++
+          }
+        }
 
-				if (!slugIsUnique) {
-					throw new AppError(
-						"ERROR",
-						"Could not generate a unique slug for the team",
-					)
-				}
+        if (!slugIsUnique) {
+          throw new AppError(
+            "ERROR",
+            "Could not generate a unique slug for the team",
+          )
+        }
 
-				// Update team with new slug
-				await db
-					.update(teamTable)
-					.set({
-						...data.data,
-						slug: newSlug,
-					})
-					.where(eq(teamTable.id, data.teamId))
+        // Update team with new slug
+        await db
+          .update(teamTable)
+          .set({
+            ...data.data,
+            slug: newSlug,
+          })
+          .where(eq(teamTable.id, data.teamId))
 
-				return { success: true, data: { ...data.data, slug: newSlug } }
-			}
-		}
+        return { success: true, data: { ...data.data, slug: newSlug } }
+      }
+    }
 
-		// Update team without changing slug
-		await db
-			.update(teamTable)
-			.set(data.data)
-			.where(eq(teamTable.id, data.teamId))
+    // Update team without changing slug
+    await db
+      .update(teamTable)
+      .set(data.data)
+      .where(eq(teamTable.id, data.teamId))
 
-		return { success: true, data: data.data }
-	})
+    return { success: true, data: data.data }
+  })
 
 /**
  * Delete a team
  */
 export const deleteTeamFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => deleteTeamInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		// Check if user has permission to delete team
-		await requireTeamPermission(data.teamId, TEAM_PERMISSIONS.DELETE_TEAM)
+  .inputValidator((data: unknown) => deleteTeamInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    // Check if user has permission to delete team
+    await requireTeamPermission(data.teamId, TEAM_PERMISSIONS.DELETE_TEAM)
 
-		const db = getDb()
+    const db = getDb()
 
-		// Get all user IDs from the team memberships to update their sessions later
-		const memberships = await db.query.teamMembershipTable.findMany({
-			where: eq(teamMembershipTable.teamId, data.teamId),
-			columns: {
-				userId: true,
-			},
-		})
+    // Get all user IDs from the team memberships to update their sessions later
+    const memberships = await db.query.teamMembershipTable.findMany({
+      where: eq(teamMembershipTable.teamId, data.teamId),
+      columns: {
+        userId: true,
+      },
+    })
 
-		const userIds = [...new Set(memberships.map((m) => m.userId))]
+    const userIds = [...new Set(memberships.map((m) => m.userId))]
 
-		// Delete team and related data
-		await db.delete(teamTable).where(eq(teamTable.id, data.teamId))
+    // Delete team and related data
+    await db.delete(teamTable).where(eq(teamTable.id, data.teamId))
 
-		// Update sessions for all affected users in parallel
-		await Promise.all(userIds.map((userId) => updateAllSessionsOfUser(userId)))
+    // Update sessions for all affected users in parallel
+    await Promise.all(userIds.map((userId) => updateAllSessionsOfUser(userId)))
 
-		return { success: true }
-	})
+    return { success: true }
+  })
 
 /**
  * Get all teams for the current user
  */
 export const getUserTeamsFn = createServerFn({ method: "GET" }).handler(
-	async () => {
-		const session = await requireVerifiedEmail()
-		const db = getDb()
+  async () => {
+    const session = await requireVerifiedEmail()
+    const db = getDb()
 
-		const userTeams = (await db.query.teamMembershipTable.findMany({
-			where: eq(teamMembershipTable.userId, session.userId),
-			with: {
-				team: true,
-			},
-		})) as TeamMembershipWithTeam[]
+    const userTeams = (await db.query.teamMembershipTable.findMany({
+      where: eq(teamMembershipTable.userId, session.userId),
+      with: {
+        team: true,
+      },
+    })) as TeamMembershipWithTeam[]
 
-		// Filter out competition-related teams (competition_event and competition_team)
-		const teams = userTeams
-			.map((membership) => membership.team)
-			.filter(
-				(team): team is Team =>
-					team !== null &&
-					team.type !== TEAM_TYPE_ENUM.COMPETITION_EVENT &&
-					team.type !== TEAM_TYPE_ENUM.COMPETITION_TEAM,
-			)
+    // Filter out competition-related teams (competition_event and competition_team)
+    const teams = userTeams
+      .map((membership) => membership.team)
+      .filter(
+        (team): team is Team =>
+          team !== null &&
+          team.type !== TEAM_TYPE_ENUM.COMPETITION_EVENT &&
+          team.type !== TEAM_TYPE_ENUM.COMPETITION_TEAM,
+      )
 
-		return { success: true, data: teams }
-	},
+    return { success: true, data: teams }
+  },
 )
 
 /**
  * Get a team by slug
  */
 export const getTeamBySlugFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) => teamSlugSchema.parse(data))
-	.handler(async ({ data }) => {
-		const db = getDb()
+  .inputValidator((data: unknown) => teamSlugSchema.parse(data))
+  .handler(async ({ data }) => {
+    const db = getDb()
 
-		const team = await db.query.teamTable.findFirst({
-			where: eq(teamTable.slug, data.slug),
-		})
+    const team = await db.query.teamTable.findFirst({
+      where: eq(teamTable.slug, data.slug),
+    })
 
-		if (!team) {
-			throw new AppError("NOT_FOUND", "Team not found")
-		}
+    if (!team) {
+      throw new AppError("NOT_FOUND", "Team not found")
+    }
 
-		// Check if user is a member of this team
-		await requireTeamPermission(team.id, TEAM_PERMISSIONS.ACCESS_DASHBOARD)
+    // Check if user is a member of this team
+    await requireTeamPermission(team.id, TEAM_PERMISSIONS.ACCESS_DASHBOARD)
 
-		// Exclude creditBalance from response
-		const { creditBalance: _, ...teamWithoutCredits } = team
+    // Exclude creditBalance from response
+    const { creditBalance: _, ...teamWithoutCredits } = team
 
-		return { success: true, data: teamWithoutCredits }
-	})
+    return { success: true, data: teamWithoutCredits }
+  })
 
 // ============================================================================
 // Server Functions - Team Members
@@ -491,202 +491,202 @@ export const getTeamBySlugFn = createServerFn({ method: "GET" })
  * Get all members of a team
  */
 export const getTeamMembersFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) => teamIdSchema.parse(data))
-	.handler(
-		async ({ data }): Promise<{ success: boolean; data: TeamMemberInfo[] }> => {
-			// Check if user has access to the team
-			await requireTeamPermission(
-				data.teamId,
-				TEAM_PERMISSIONS.ACCESS_DASHBOARD,
-			)
+  .inputValidator((data: unknown) => teamIdSchema.parse(data))
+  .handler(
+    async ({ data }): Promise<{ success: boolean; data: TeamMemberInfo[] }> => {
+      // Check if user has access to the team
+      await requireTeamPermission(
+        data.teamId,
+        TEAM_PERMISSIONS.ACCESS_DASHBOARD,
+      )
 
-			const db = getDb()
+      const db = getDb()
 
-			const members = (await db.query.teamMembershipTable.findMany({
-				where: eq(teamMembershipTable.teamId, data.teamId),
-				with: {
-					user: {
-						columns: {
-							id: true,
-							firstName: true,
-							lastName: true,
-							email: true,
-							avatar: true,
-						},
-					},
-				},
-			})) as TeamMembershipWithUser[]
+      const members = (await db.query.teamMembershipTable.findMany({
+        where: eq(teamMembershipTable.teamId, data.teamId),
+        with: {
+          user: {
+            columns: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              avatar: true,
+            },
+          },
+        },
+      })) as TeamMembershipWithUser[]
 
-			// Get all team roles for this team (for custom roles)
-			const teamRoles = await db.query.teamRoleTable.findMany({
-				where: eq(teamRoleTable.teamId, data.teamId),
-			})
+      // Get all team roles for this team (for custom roles)
+      const teamRoles = await db.query.teamRoleTable.findMany({
+        where: eq(teamRoleTable.teamId, data.teamId),
+      })
 
-			// Map roles by ID for easy lookup
-			const roleMap = new Map(teamRoles.map((role) => [role.id, role.name]))
+      // Map roles by ID for easy lookup
+      const roleMap = new Map(teamRoles.map((role) => [role.id, role.name]))
 
-			const memberInfos: TeamMemberInfo[] = members.map((member) => {
-				let roleName = "Unknown"
+      const memberInfos: TeamMemberInfo[] = members.map((member) => {
+        let roleName = "Unknown"
 
-				// For system roles, use the roleId directly as the name
-				if (member.isSystemRole) {
-					// Capitalize the first letter for display
-					roleName =
-						member.roleId.charAt(0).toUpperCase() + member.roleId.slice(1)
-				} else {
-					// For custom roles, look up the name in our roleMap
-					roleName = roleMap.get(member.roleId) || "Custom Role"
-				}
+        // For system roles, use the roleId directly as the name
+        if (member.isSystemRole) {
+          // Capitalize the first letter for display
+          roleName =
+            member.roleId.charAt(0).toUpperCase() + member.roleId.slice(1)
+        } else {
+          // For custom roles, look up the name in our roleMap
+          roleName = roleMap.get(member.roleId) || "Custom Role"
+        }
 
-				// Handle user relation - can be array or single object
-				const user = Array.isArray(member.user) ? member.user[0] : member.user
+        // Handle user relation - can be array or single object
+        const user = Array.isArray(member.user) ? member.user[0] : member.user
 
-				return {
-					id: member.id,
-					userId: member.userId,
-					roleId: member.roleId,
-					roleName,
-					isSystemRole: Boolean(member.isSystemRole),
-					isActive: Boolean(member.isActive),
-					joinedAt: member.joinedAt ? new Date(member.joinedAt) : null,
-					user: {
-						id: user?.id,
-						firstName: user?.firstName,
-						lastName: user?.lastName,
-						email: user?.email,
-						avatar: user?.avatar,
-					},
-				}
-			})
+        return {
+          id: member.id,
+          userId: member.userId,
+          roleId: member.roleId,
+          roleName,
+          isSystemRole: Boolean(member.isSystemRole),
+          isActive: Boolean(member.isActive),
+          joinedAt: member.joinedAt ? new Date(member.joinedAt) : null,
+          user: {
+            id: user?.id,
+            firstName: user?.firstName,
+            lastName: user?.lastName,
+            email: user?.email,
+            avatar: user?.avatar,
+          },
+        }
+      })
 
-			return { success: true, data: memberInfos }
-		},
-	)
+      return { success: true, data: memberInfos }
+    },
+  )
 
 /**
  * Update a team member's role
  */
 export const updateMemberRoleFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => updateMemberRoleInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		// Check if user has permission to change member roles
-		await requireTeamPermission(
-			data.teamId,
-			TEAM_PERMISSIONS.CHANGE_MEMBER_ROLES,
-		)
+  .inputValidator((data: unknown) => updateMemberRoleInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    // Check if user has permission to change member roles
+    await requireTeamPermission(
+      data.teamId,
+      TEAM_PERMISSIONS.CHANGE_MEMBER_ROLES,
+    )
 
-		const db = getDb()
+    const db = getDb()
 
-		// Get team info to check if it's a personal team
-		const team = await db.query.teamTable.findFirst({
-			where: eq(teamTable.id, data.teamId),
-		})
+    // Get team info to check if it's a personal team
+    const team = await db.query.teamTable.findFirst({
+      where: eq(teamTable.id, data.teamId),
+    })
 
-		if (!team) {
-			throw new AppError("NOT_FOUND", "Team not found")
-		}
+    if (!team) {
+      throw new AppError("NOT_FOUND", "Team not found")
+    }
 
-		// Prevent role changes in personal teams
-		if (team.isPersonalTeam) {
-			throw new AppError("FORBIDDEN", "Cannot change roles in a personal team")
-		}
+    // Prevent role changes in personal teams
+    if (team.isPersonalTeam) {
+      throw new AppError("FORBIDDEN", "Cannot change roles in a personal team")
+    }
 
-		// Verify membership exists
-		const membership = await db.query.teamMembershipTable.findFirst({
-			where: and(
-				eq(teamMembershipTable.teamId, data.teamId),
-				eq(teamMembershipTable.userId, data.userId),
-			),
-		})
+    // Verify membership exists
+    const membership = await db.query.teamMembershipTable.findFirst({
+      where: and(
+        eq(teamMembershipTable.teamId, data.teamId),
+        eq(teamMembershipTable.userId, data.userId),
+      ),
+    })
 
-		if (!membership) {
-			throw new AppError("NOT_FOUND", "Team membership not found")
-		}
+    if (!membership) {
+      throw new AppError("NOT_FOUND", "Team membership not found")
+    }
 
-		// Update the role
-		await db
-			.update(teamMembershipTable)
-			.set({
-				roleId: data.roleId,
-				isSystemRole: data.isSystemRole,
-				updatedAt: new Date(),
-			})
-			.where(
-				and(
-					eq(teamMembershipTable.teamId, data.teamId),
-					eq(teamMembershipTable.userId, data.userId),
-				),
-			)
+    // Update the role
+    await db
+      .update(teamMembershipTable)
+      .set({
+        roleId: data.roleId,
+        isSystemRole: data.isSystemRole,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(teamMembershipTable.teamId, data.teamId),
+          eq(teamMembershipTable.userId, data.userId),
+        ),
+      )
 
-		// Update the user's session to reflect the new role
-		await updateAllSessionsOfUser(data.userId)
+    // Update the user's session to reflect the new role
+    await updateAllSessionsOfUser(data.userId)
 
-		return { success: true }
-	})
+    return { success: true }
+  })
 
 /**
  * Remove a member from a team
  */
 export const removeTeamMemberFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => removeTeamMemberInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		// Check if user has permission to remove members
-		await requireTeamPermission(data.teamId, TEAM_PERMISSIONS.REMOVE_MEMBERS)
+  .inputValidator((data: unknown) => removeTeamMemberInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    // Check if user has permission to remove members
+    await requireTeamPermission(data.teamId, TEAM_PERMISSIONS.REMOVE_MEMBERS)
 
-		const db = getDb()
+    const db = getDb()
 
-		// Get team info to check if it's a personal team
-		const team = await db.query.teamTable.findFirst({
-			where: eq(teamTable.id, data.teamId),
-		})
+    // Get team info to check if it's a personal team
+    const team = await db.query.teamTable.findFirst({
+      where: eq(teamTable.id, data.teamId),
+    })
 
-		if (!team) {
-			throw new AppError("NOT_FOUND", "Team not found")
-		}
+    if (!team) {
+      throw new AppError("NOT_FOUND", "Team not found")
+    }
 
-		// Prevent removing members from personal teams
-		if (team.isPersonalTeam) {
-			throw new AppError(
-				"FORBIDDEN",
-				"Cannot remove members from a personal team",
-			)
-		}
+    // Prevent removing members from personal teams
+    if (team.isPersonalTeam) {
+      throw new AppError(
+        "FORBIDDEN",
+        "Cannot remove members from a personal team",
+      )
+    }
 
-		// Verify membership exists
-		const membership = await db.query.teamMembershipTable.findFirst({
-			where: and(
-				eq(teamMembershipTable.teamId, data.teamId),
-				eq(teamMembershipTable.userId, data.userId),
-			),
-		})
+    // Verify membership exists
+    const membership = await db.query.teamMembershipTable.findFirst({
+      where: and(
+        eq(teamMembershipTable.teamId, data.teamId),
+        eq(teamMembershipTable.userId, data.userId),
+      ),
+    })
 
-		if (!membership) {
-			throw new AppError("NOT_FOUND", "Team membership not found")
-		}
+    if (!membership) {
+      throw new AppError("NOT_FOUND", "Team membership not found")
+    }
 
-		// Don't allow removing an owner
-		if (
-			membership.roleId === SYSTEM_ROLES_ENUM.OWNER &&
-			membership.isSystemRole
-		) {
-			throw new AppError("FORBIDDEN", "Cannot remove the team owner")
-		}
+    // Don't allow removing an owner
+    if (
+      membership.roleId === SYSTEM_ROLES_ENUM.OWNER &&
+      membership.isSystemRole
+    ) {
+      throw new AppError("FORBIDDEN", "Cannot remove the team owner")
+    }
 
-		// Delete the membership
-		await db
-			.delete(teamMembershipTable)
-			.where(
-				and(
-					eq(teamMembershipTable.teamId, data.teamId),
-					eq(teamMembershipTable.userId, data.userId),
-				),
-			)
+    // Delete the membership
+    await db
+      .delete(teamMembershipTable)
+      .where(
+        and(
+          eq(teamMembershipTable.teamId, data.teamId),
+          eq(teamMembershipTable.userId, data.userId),
+        ),
+      )
 
-		// Update the user's session to remove this team
-		await updateAllSessionsOfUser(data.userId)
+    // Update the user's session to remove this team
+    await updateAllSessionsOfUser(data.userId)
 
-		return { success: true }
-	})
+    return { success: true }
+  })
 
 // ============================================================================
 // Server Functions - Invitations
@@ -696,285 +696,285 @@ export const removeTeamMemberFn = createServerFn({ method: "POST" })
  * Invite a user to join a team
  */
 export const inviteUserFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => inviteUserInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		// Check if user has permission to invite members
-		await requireTeamPermission(data.teamId, TEAM_PERMISSIONS.INVITE_MEMBERS)
+  .inputValidator((data: unknown) => inviteUserInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    // Check if user has permission to invite members
+    await requireTeamPermission(data.teamId, TEAM_PERMISSIONS.INVITE_MEMBERS)
 
-		const session = await getSessionFromCookie()
-		if (!session) {
-			throw new AppError("NOT_AUTHORIZED", "Not authenticated")
-		}
+    const session = await getSessionFromCookie()
+    if (!session) {
+      throw new AppError("NOT_AUTHORIZED", "Not authenticated")
+    }
 
-		const db = getDb()
+    const db = getDb()
 
-		// Get team name for email
-		const team = await db.query.teamTable.findFirst({
-			where: eq(teamTable.id, data.teamId),
-		})
+    // Get team name for email
+    const team = await db.query.teamTable.findFirst({
+      where: eq(teamTable.id, data.teamId),
+    })
 
-		if (!team) {
-			throw new AppError("NOT_FOUND", "Team not found")
-		}
+    if (!team) {
+      throw new AppError("NOT_FOUND", "Team not found")
+    }
 
-		// Prevent inviting members to personal teams
-		if (team.isPersonalTeam) {
-			throw new AppError(
-				"FORBIDDEN",
-				"Cannot invite members to a personal team",
-			)
-		}
+    // Prevent inviting members to personal teams
+    if (team.isPersonalTeam) {
+      throw new AppError(
+        "FORBIDDEN",
+        "Cannot invite members to a personal team",
+      )
+    }
 
-		// Check if user is already a member
-		const existingUser = await db.query.userTable.findFirst({
-			where: eq(userTable.email, data.email),
-		})
+    // Check if user is already a member
+    const existingUser = await db.query.userTable.findFirst({
+      where: eq(userTable.email, data.email),
+    })
 
-		if (existingUser) {
-			const existingMembership = await db.query.teamMembershipTable.findFirst({
-				where: and(
-					eq(teamMembershipTable.teamId, data.teamId),
-					eq(teamMembershipTable.userId, existingUser.id),
-				),
-			})
+    if (existingUser) {
+      const existingMembership = await db.query.teamMembershipTable.findFirst({
+        where: and(
+          eq(teamMembershipTable.teamId, data.teamId),
+          eq(teamMembershipTable.userId, existingUser.id),
+        ),
+      })
 
-			if (existingMembership) {
-				throw new AppError("CONFLICT", "User is already a member of this team")
-			}
+      if (existingMembership) {
+        throw new AppError("CONFLICT", "User is already a member of this team")
+      }
 
-			// Check if user has reached their team joining limit
-			const teamsCountResult = await db
-				.select({ value: count() })
-				.from(teamMembershipTable)
-				.where(eq(teamMembershipTable.userId, existingUser.id))
+      // Check if user has reached their team joining limit
+      const teamsCountResult = await db
+        .select({ value: count() })
+        .from(teamMembershipTable)
+        .where(eq(teamMembershipTable.userId, existingUser.id))
 
-			const teamsJoined = teamsCountResult[0]?.value || 0
+      const teamsJoined = teamsCountResult[0]?.value || 0
 
-			if (teamsJoined >= MAX_TEAMS_JOINED_PER_USER) {
-				throw new AppError(
-					"FORBIDDEN",
-					`This user has reached the limit of ${MAX_TEAMS_JOINED_PER_USER} teams they can join.`,
-				)
-			}
+      if (teamsJoined >= MAX_TEAMS_JOINED_PER_USER) {
+        throw new AppError(
+          "FORBIDDEN",
+          `This user has reached the limit of ${MAX_TEAMS_JOINED_PER_USER} teams they can join.`,
+        )
+      }
 
-			// User exists but is not a member, add them directly
-			await db.insert(teamMembershipTable).values({
-				teamId: data.teamId,
-				userId: existingUser.id,
-				roleId: data.roleId,
-				isSystemRole: data.isSystemRole,
-				invitedBy: session.userId,
-				invitedAt: new Date(),
-				joinedAt: new Date(),
-				isActive: true,
-			})
+      // User exists but is not a member, add them directly
+      await db.insert(teamMembershipTable).values({
+        teamId: data.teamId,
+        userId: existingUser.id,
+        roleId: data.roleId,
+        isSystemRole: data.isSystemRole,
+        invitedBy: session.userId,
+        invitedAt: new Date(),
+        joinedAt: new Date(),
+        isActive: true,
+      })
 
-			// Update the user's session to include this team
-			await updateAllSessionsOfUser(existingUser.id)
+      // Update the user's session to include this team
+      await updateAllSessionsOfUser(existingUser.id)
 
-			return {
-				success: true,
-				data: {
-					userJoined: true,
-					userId: existingUser.id,
-				},
-			}
-		}
+      return {
+        success: true,
+        data: {
+          userJoined: true,
+          userId: existingUser.id,
+        },
+      }
+    }
 
-		// User doesn't exist, create an invitation
-		const token = createId()
-		const expiresAt = new Date()
-		expiresAt.setDate(expiresAt.getDate() + 7) // Valid for 7 days
+    // User doesn't exist, create an invitation
+    const token = createId()
+    const expiresAt = new Date()
+    expiresAt.setDate(expiresAt.getDate() + 7) // Valid for 7 days
 
-		// Check if there's an existing invitation
-		const existingInvitation = await db.query.teamInvitationTable.findFirst({
-			where: and(
-				eq(teamInvitationTable.teamId, data.teamId),
-				eq(teamInvitationTable.email, data.email),
-			),
-		})
+    // Check if there's an existing invitation
+    const existingInvitation = await db.query.teamInvitationTable.findFirst({
+      where: and(
+        eq(teamInvitationTable.teamId, data.teamId),
+        eq(teamInvitationTable.email, data.email),
+      ),
+    })
 
-		if (existingInvitation) {
-			// Update the existing invitation
-			await db
-				.update(teamInvitationTable)
-				.set({
-					roleId: data.roleId,
-					isSystemRole: data.isSystemRole,
-					token,
-					expiresAt,
-					invitedBy: session.userId,
-					acceptedAt: null,
-					acceptedBy: null,
-					updatedAt: new Date(),
-				})
-				.where(eq(teamInvitationTable.id, existingInvitation.id))
+    if (existingInvitation) {
+      // Update the existing invitation
+      await db
+        .update(teamInvitationTable)
+        .set({
+          roleId: data.roleId,
+          isSystemRole: data.isSystemRole,
+          token,
+          expiresAt,
+          invitedBy: session.userId,
+          acceptedAt: null,
+          acceptedBy: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(teamInvitationTable.id, existingInvitation.id))
 
-			// Get inviter name for email
-			const inviter = await db.query.userTable.findFirst({
-				where: eq(userTable.id, session.userId),
-				columns: { firstName: true, lastName: true },
-			})
-			const inviterName = inviter
-				? `${inviter.firstName || ""} ${inviter.lastName || ""}`.trim() ||
-					"A team member"
-				: "A team member"
+      // Get inviter name for email
+      const inviter = await db.query.userTable.findFirst({
+        where: eq(userTable.id, session.userId),
+        columns: { firstName: true, lastName: true },
+      })
+      const inviterName = inviter
+        ? `${inviter.firstName || ""} ${inviter.lastName || ""}`.trim() ||
+          "A team member"
+        : "A team member"
 
-			// Send invitation email
-			await sendTeamInvitationEmail({
-				email: data.email,
-				invitationToken: token,
-				teamName: team.name,
-				inviterName,
-			})
+      // Send invitation email
+      await sendTeamInvitationEmail({
+        email: data.email,
+        invitationToken: token,
+        teamName: team.name,
+        inviterName,
+      })
 
-			return {
-				success: true,
-				data: {
-					invitationSent: true,
-					invitationId: existingInvitation.id,
-				},
-			}
-		}
+      return {
+        success: true,
+        data: {
+          invitationSent: true,
+          invitationId: existingInvitation.id,
+        },
+      }
+    }
 
-		const invitationId = createId()
-		await db.insert(teamInvitationTable).values({
-			id: invitationId,
-			teamId: data.teamId,
-			email: data.email,
-			roleId: data.roleId,
-			isSystemRole: data.isSystemRole,
-			token,
-			invitedBy: session.userId,
-			expiresAt,
-		})
+    const invitationId = createId()
+    await db.insert(teamInvitationTable).values({
+      id: invitationId,
+      teamId: data.teamId,
+      email: data.email,
+      roleId: data.roleId,
+      isSystemRole: data.isSystemRole,
+      token,
+      invitedBy: session.userId,
+      expiresAt,
+    })
 
-		const invitation = await db.query.teamInvitationTable.findFirst({
-			where: eq(teamInvitationTable.id, invitationId),
-		})
+    const invitation = await db.query.teamInvitationTable.findFirst({
+      where: eq(teamInvitationTable.id, invitationId),
+    })
 
-		if (!invitation) {
-			throw new AppError("ERROR", "Could not create invitation")
-		}
+    if (!invitation) {
+      throw new AppError("ERROR", "Could not create invitation")
+    }
 
-		// Get inviter name for email
-		const inviter = await db.query.userTable.findFirst({
-			where: eq(userTable.id, session.userId),
-			columns: { firstName: true, lastName: true },
-		})
-		const inviterName = inviter
-			? `${inviter.firstName || ""} ${inviter.lastName || ""}`.trim() ||
-				"A team member"
-			: "A team member"
+    // Get inviter name for email
+    const inviter = await db.query.userTable.findFirst({
+      where: eq(userTable.id, session.userId),
+      columns: { firstName: true, lastName: true },
+    })
+    const inviterName = inviter
+      ? `${inviter.firstName || ""} ${inviter.lastName || ""}`.trim() ||
+        "A team member"
+      : "A team member"
 
-		// Send invitation email
-		await sendTeamInvitationEmail({
-			email: data.email,
-			invitationToken: token,
-			teamName: team.name,
-			inviterName,
-		})
+    // Send invitation email
+    await sendTeamInvitationEmail({
+      email: data.email,
+      invitationToken: token,
+      teamName: team.name,
+      inviterName,
+    })
 
-		return {
-			success: true,
-			data: {
-				invitationSent: true,
-				invitationId: invitation.id,
-			},
-		}
-	})
+    return {
+      success: true,
+      data: {
+        invitationSent: true,
+        invitationId: invitation.id,
+      },
+    }
+  })
 
 /**
  * Cancel a team invitation
  */
 export const cancelInvitationFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => cancelInvitationInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		const db = getDb()
+  .inputValidator((data: unknown) => cancelInvitationInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const db = getDb()
 
-		// Find the invitation
-		const invitation = await db.query.teamInvitationTable.findFirst({
-			where: eq(teamInvitationTable.id, data.invitationId),
-		})
+    // Find the invitation
+    const invitation = await db.query.teamInvitationTable.findFirst({
+      where: eq(teamInvitationTable.id, data.invitationId),
+    })
 
-		if (!invitation) {
-			throw new AppError("NOT_FOUND", "Invitation not found")
-		}
+    if (!invitation) {
+      throw new AppError("NOT_FOUND", "Invitation not found")
+    }
 
-		// Check if user has permission to cancel invitations for this team
-		await requireTeamPermission(
-			invitation.teamId,
-			TEAM_PERMISSIONS.INVITE_MEMBERS,
-		)
+    // Check if user has permission to cancel invitations for this team
+    await requireTeamPermission(
+      invitation.teamId,
+      TEAM_PERMISSIONS.INVITE_MEMBERS,
+    )
 
-		// Delete the invitation
-		await db
-			.delete(teamInvitationTable)
-			.where(eq(teamInvitationTable.id, data.invitationId))
+    // Delete the invitation
+    await db
+      .delete(teamInvitationTable)
+      .where(eq(teamInvitationTable.id, data.invitationId))
 
-		return { success: true }
-	})
+    return { success: true }
+  })
 
 /**
  * Get pending invitations for a team
  */
 export const getTeamInvitationsFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) => teamIdSchema.parse(data))
-	.handler(
-		async ({
-			data,
-		}): Promise<{ success: boolean; data: TeamInvitationInfo[] }> => {
-			// Check if user has permission to view invitations
-			await requireTeamPermission(data.teamId, TEAM_PERMISSIONS.INVITE_MEMBERS)
+  .inputValidator((data: unknown) => teamIdSchema.parse(data))
+  .handler(
+    async ({
+      data,
+    }): Promise<{ success: boolean; data: TeamInvitationInfo[] }> => {
+      // Check if user has permission to view invitations
+      await requireTeamPermission(data.teamId, TEAM_PERMISSIONS.INVITE_MEMBERS)
 
-			const db = getDb()
+      const db = getDb()
 
-			// Get invitations that have not been accepted
-			const invitations = await db.query.teamInvitationTable.findMany({
-				where: and(
-					eq(teamInvitationTable.teamId, data.teamId),
-					isNull(teamInvitationTable.acceptedAt),
-				),
-				with: {
-					invitedByUser: {
-						columns: {
-							id: true,
-							firstName: true,
-							lastName: true,
-							email: true,
-							avatar: true,
-						},
-					},
-				},
-			})
+      // Get invitations that have not been accepted
+      const invitations = await db.query.teamInvitationTable.findMany({
+        where: and(
+          eq(teamInvitationTable.teamId, data.teamId),
+          isNull(teamInvitationTable.acceptedAt),
+        ),
+        with: {
+          invitedByUser: {
+            columns: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              avatar: true,
+            },
+          },
+        },
+      })
 
-			const invitationInfos: TeamInvitationInfo[] = invitations.map(
-				(invitation) => {
-					// Handle invitedByUser relation - can be array or single object
-					const invitedByUser = Array.isArray(invitation.invitedByUser)
-						? invitation.invitedByUser[0]
-						: invitation.invitedByUser
+      const invitationInfos: TeamInvitationInfo[] = invitations.map(
+        (invitation) => {
+          // Handle invitedByUser relation - can be array or single object
+          const invitedByUser = Array.isArray(invitation.invitedByUser)
+            ? invitation.invitedByUser[0]
+            : invitation.invitedByUser
 
-					return {
-						id: invitation.id,
-						email: invitation.email,
-						roleId: invitation.roleId,
-						isSystemRole: Boolean(invitation.isSystemRole),
-						createdAt: new Date(invitation.createdAt),
-						expiresAt: invitation.expiresAt
-							? new Date(invitation.expiresAt)
-							: null,
-						invitedBy: {
-							id: invitedByUser?.id,
-							firstName: invitedByUser?.firstName,
-							lastName: invitedByUser?.lastName,
-							email: invitedByUser?.email,
-							avatar: invitedByUser?.avatar,
-						},
-					}
-				},
-			)
+          return {
+            id: invitation.id,
+            email: invitation.email,
+            roleId: invitation.roleId,
+            isSystemRole: Boolean(invitation.isSystemRole),
+            createdAt: new Date(invitation.createdAt),
+            expiresAt: invitation.expiresAt
+              ? new Date(invitation.expiresAt)
+              : null,
+            invitedBy: {
+              id: invitedByUser?.id,
+              firstName: invitedByUser?.firstName,
+              lastName: invitedByUser?.lastName,
+              email: invitedByUser?.email,
+              avatar: invitedByUser?.avatar,
+            },
+          }
+        },
+      )
 
-			return { success: true, data: invitationInfos }
-		},
-	)
+      return { success: true, data: invitationInfos }
+    },
+  )

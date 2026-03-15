@@ -15,7 +15,7 @@ import { affiliatesTable } from "@/db/schemas/affiliates"
 // ===========================
 
 const searchAffiliatesInputSchema = z.object({
-	query: z.string(),
+  query: z.string(),
 })
 
 // ===========================
@@ -27,14 +27,14 @@ const searchAffiliatesInputSchema = z.object({
  * Returns up to 25 affiliates ordered alphabetically
  */
 async function getTopAffiliates(): Promise<Affiliate[]> {
-	const db = getDb()
+  const db = getDb()
 
-	const affiliates = await db.query.affiliatesTable.findMany({
-		limit: 25,
-		orderBy: (table, { asc }) => [asc(table.name)],
-	})
+  const affiliates = await db.query.affiliatesTable.findMany({
+    limit: 25,
+    orderBy: (table, { asc }) => [asc(table.name)],
+  })
 
-	return affiliates
+  return affiliates
 }
 
 // ===========================
@@ -46,25 +46,25 @@ async function getTopAffiliates(): Promise<Affiliate[]> {
  * Returns up to 25 matching affiliates
  */
 export const searchAffiliatesFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) => searchAffiliatesInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		const db = getDb()
+  .inputValidator((data: unknown) => searchAffiliatesInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const db = getDb()
 
-		if (!data.query || data.query.trim().length < 2) {
-			// Return top affiliates if no query
-			return getTopAffiliates()
-		}
+    if (!data.query || data.query.trim().length < 2) {
+      // Return top affiliates if no query
+      return getTopAffiliates()
+    }
 
-		const affiliates = await db.query.affiliatesTable.findMany({
-			where: like(affiliatesTable.name, `%${data.query.trim()}%`),
-			limit: 25,
-			orderBy: (table, { asc }) => [asc(table.name)],
-		})
+    const affiliates = await db.query.affiliatesTable.findMany({
+      where: like(affiliatesTable.name, `%${data.query.trim()}%`),
+      limit: 25,
+      orderBy: (table, { asc }) => [asc(table.name)],
+    })
 
-		return affiliates.map((a) => ({
-			id: a.id,
-			name: a.name,
-			verificationStatus: a.verificationStatus,
-			location: a.location,
-		}))
-	})
+    return affiliates.map((a) => ({
+      id: a.id,
+      name: a.name,
+      verificationStatus: a.verificationStatus,
+      location: a.location,
+    }))
+  })

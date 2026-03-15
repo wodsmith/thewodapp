@@ -15,9 +15,9 @@
 
 import type { WorkoutScheme } from "@/lib/scoring/types"
 import type {
-	PScoreConfig,
-	ScoringConfig,
-	TraditionalConfig,
+  PScoreConfig,
+  ScoringConfig,
+  TraditionalConfig,
 } from "@/types/scoring"
 import { calculateCustomPoints } from "./custom"
 import { calculateOnlinePoints } from "./online"
@@ -25,9 +25,9 @@ import { calculatePScore, type PScoreInput } from "./p-score"
 import { calculateTraditionalPoints } from "./traditional"
 
 export {
-	calculateCustomPoints,
-	generatePointsTable,
-	WINNER_TAKES_MORE_TABLE,
+  calculateCustomPoints,
+  generatePointsTable,
+  WINNER_TAKES_MORE_TABLE,
 } from "./custom"
 export { calculateOnlinePoints } from "./online"
 // Re-export algorithm implementations
@@ -38,63 +38,63 @@ export { calculateTraditionalPoints } from "./traditional"
  * Input for event score calculation
  */
 export interface EventScoreInput {
-	userId: string
-	/** Normalized score value (already encoded) */
-	value: number
-	/** Score status */
-	status: "scored" | "cap" | "dnf" | "dns" | "withdrawn"
-	/**
-	 * Pre-computed sort key for proper ordering.
-	 * Encodes status + value + secondaryValue + tiebreak into a single string.
-	 * If not provided, sorting falls back to value-only comparison.
-	 */
-	sortKey?: string | null
+  userId: string
+  /** Normalized score value (already encoded) */
+  value: number
+  /** Score status */
+  status: "scored" | "cap" | "dnf" | "dns" | "withdrawn"
+  /**
+   * Pre-computed sort key for proper ordering.
+   * Encodes status + value + secondaryValue + tiebreak into a single string.
+   * If not provided, sorting falls back to value-only comparison.
+   */
+  sortKey?: string | null
 }
 
 /**
  * Result of event score calculation
  */
 export interface EventPointsResult {
-	userId: string
-	/** Points awarded for this event */
-	points: number
-	/** Rank in the event (1-indexed) */
-	rank: number
+  userId: string
+  /** Points awarded for this event */
+  points: number
+  /** Rank in the event (1-indexed) */
+  rank: number
 }
 
 /**
  * Default scoring configuration
  */
 export const DEFAULT_SCORING_CONFIG: ScoringConfig = {
-	algorithm: "traditional",
-	traditional: {
-		step: 5,
-		firstPlacePoints: 100,
-	},
-	tiebreaker: {
-		primary: "countback",
-	},
-	statusHandling: {
-		dnf: "last_place",
-		dns: "zero",
-		withdrawn: "exclude",
-	},
+  algorithm: "traditional",
+  traditional: {
+    step: 5,
+    firstPlacePoints: 100,
+  },
+  tiebreaker: {
+    primary: "countback",
+  },
+  statusHandling: {
+    dnf: "last_place",
+    dns: "zero",
+    withdrawn: "exclude",
+  },
 }
 
 /**
  * Default traditional config
  */
 export const DEFAULT_TRADITIONAL_CONFIG: TraditionalConfig = {
-	step: 5,
-	firstPlacePoints: 100,
+  step: 5,
+  firstPlacePoints: 100,
 }
 
 /**
  * Default P-Score config
  */
 export const DEFAULT_PSCORE_CONFIG: PScoreConfig = {
-	allowNegatives: true,
-	medianField: "top_half",
+  allowNegatives: true,
+  medianField: "top_half",
 }
 
 /**
@@ -107,27 +107,27 @@ const ASCENDING_SCHEMES = new Set<WorkoutScheme>(["time", "time-with-cap"])
  * secondary value (reps at cap) and tiebreak ordering.
  */
 function sortScoresByPerformance(
-	scores: EventScoreInput[],
-	scheme: WorkoutScheme,
+  scores: EventScoreInput[],
+  scheme: WorkoutScheme,
 ): EventScoreInput[] {
-	const isAscending = ASCENDING_SCHEMES.has(scheme)
+  const isAscending = ASCENDING_SCHEMES.has(scheme)
 
-	return [...scores].sort((a, b) => {
-		// If both have sortKey, use it for complete ordering
-		if (a.sortKey && b.sortKey) {
-			// sortKey is zero-padded string, lexicographic comparison works
-			return a.sortKey.localeCompare(b.sortKey)
-		}
+  return [...scores].sort((a, b) => {
+    // If both have sortKey, use it for complete ordering
+    if (a.sortKey && b.sortKey) {
+      // sortKey is zero-padded string, lexicographic comparison works
+      return a.sortKey.localeCompare(b.sortKey)
+    }
 
-		// Fallback: status-based sorting for time-with-cap
-		if (scheme === "time-with-cap") {
-			if (a.status === "cap" && b.status !== "cap") return 1
-			if (a.status !== "cap" && b.status === "cap") return -1
-		}
+    // Fallback: status-based sorting for time-with-cap
+    if (scheme === "time-with-cap") {
+      if (a.status === "cap" && b.status !== "cap") return 1
+      if (a.status !== "cap" && b.status === "cap") return -1
+    }
 
-		// Fallback: value-only comparison
-		return isAscending ? a.value - b.value : b.value - a.value
-	})
+    // Fallback: value-only comparison
+    return isAscending ? a.value - b.value : b.value - a.value
+  })
 }
 
 /**
@@ -157,107 +157,107 @@ function sortScoresByPerformance(
  * ```
  */
 export function calculateEventPoints(
-	_eventId: string,
-	scores: EventScoreInput[],
-	scheme: WorkoutScheme,
-	config: ScoringConfig,
+  _eventId: string,
+  scores: EventScoreInput[],
+  scheme: WorkoutScheme,
+  config: ScoringConfig,
 ): Map<string, EventPointsResult> {
-	if (scores.length === 0) {
-		return new Map()
-	}
+  if (scores.length === 0) {
+    return new Map()
+  }
 
-	switch (config.algorithm) {
-		case "traditional":
-			return calculateTraditionalEventPoints(scores, scheme, config)
-		case "p_score":
-			return calculatePScoreEventPoints(scores, scheme, config)
-		case "winner_takes_more":
-			return calculateWinnerTakesMoreEventPoints(scores, scheme, config)
-		case "online":
-			return calculateOnlineEventPoints(scores, scheme, config)
-		case "custom":
-			return calculateCustomEventPoints(scores, scheme, config)
-		default: {
-			// TypeScript exhaustiveness check
-			const _exhaustive: never = config.algorithm
-			throw new Error(`Unknown scoring algorithm: ${_exhaustive}`)
-		}
-	}
+  switch (config.algorithm) {
+    case "traditional":
+      return calculateTraditionalEventPoints(scores, scheme, config)
+    case "p_score":
+      return calculatePScoreEventPoints(scores, scheme, config)
+    case "winner_takes_more":
+      return calculateWinnerTakesMoreEventPoints(scores, scheme, config)
+    case "online":
+      return calculateOnlineEventPoints(scores, scheme, config)
+    case "custom":
+      return calculateCustomEventPoints(scores, scheme, config)
+    default: {
+      // TypeScript exhaustiveness check
+      const _exhaustive: never = config.algorithm
+      throw new Error(`Unknown scoring algorithm: ${_exhaustive}`)
+    }
+  }
 }
 
 /**
  * Calculate points using traditional (placement-based) scoring
  */
 function calculateTraditionalEventPoints(
-	scores: EventScoreInput[],
-	scheme: WorkoutScheme,
-	config: ScoringConfig,
+  scores: EventScoreInput[],
+  scheme: WorkoutScheme,
+  config: ScoringConfig,
 ): Map<string, EventPointsResult> {
-	const traditionalConfig = config.traditional ?? DEFAULT_TRADITIONAL_CONFIG
+  const traditionalConfig = config.traditional ?? DEFAULT_TRADITIONAL_CONFIG
 
-	// Separate active scores from inactive
-	const activeScores = scores.filter(
-		(s) => s.status === "scored" || s.status === "cap",
-	)
-	const inactiveScores = scores.filter(
-		(s) => s.status === "dnf" || s.status === "dns" || s.status === "withdrawn",
-	)
+  // Separate active scores from inactive
+  const activeScores = scores.filter(
+    (s) => s.status === "scored" || s.status === "cap",
+  )
+  const inactiveScores = scores.filter(
+    (s) => s.status === "dnf" || s.status === "dns" || s.status === "withdrawn",
+  )
 
-	// Sort active scores by performance (uses sortKey when available)
-	const sortedActive = sortScoresByPerformance(activeScores, scheme)
+  // Sort active scores by performance (uses sortKey when available)
+  const sortedActive = sortScoresByPerformance(activeScores, scheme)
 
-	// Assign ranks with tie handling
-	const ranked = assignRanks(sortedActive)
-	const results = new Map<string, EventPointsResult>()
+  // Assign ranks with tie handling
+  const ranked = assignRanks(sortedActive)
+  const results = new Map<string, EventPointsResult>()
 
-	// Calculate points for active athletes
-	for (const { score, rank } of ranked) {
-		const points = calculateTraditionalPoints(rank, traditionalConfig)
-		results.set(score.userId, {
-			userId: score.userId,
-			points,
-			rank,
-		})
-	}
+  // Calculate points for active athletes
+  for (const { score, rank } of ranked) {
+    const points = calculateTraditionalPoints(rank, traditionalConfig)
+    results.set(score.userId, {
+      userId: score.userId,
+      points,
+      rank,
+    })
+  }
 
-	// Handle inactive athletes based on config
-	const lastActiveRank = ranked.length > 0 ? ranked[ranked.length - 1].rank : 0
-	for (const score of inactiveScores) {
-		if (
-			score.status !== "dnf" &&
-			score.status !== "dns" &&
-			score.status !== "withdrawn"
-		) {
-			continue
-		}
-		const handling = getStatusHandling(score.status, config)
-		let points: number
-		let rank: number
+  // Handle inactive athletes based on config
+  const lastActiveRank = ranked.length > 0 ? ranked[ranked.length - 1].rank : 0
+  for (const score of inactiveScores) {
+    if (
+      score.status !== "dnf" &&
+      score.status !== "dns" &&
+      score.status !== "withdrawn"
+    ) {
+      continue
+    }
+    const handling = getStatusHandling(score.status, config)
+    let points: number
+    let rank: number
 
-		switch (handling) {
-			case "last_place":
-			case "worst_performance":
-				// Both get ranked after all active athletes
-				rank = lastActiveRank + 1
-				points = calculateTraditionalPoints(rank, traditionalConfig)
-				break
-			case "zero":
-				rank = lastActiveRank + 1
-				points = 0
-				break
-			case "exclude":
-				// Don't add to results
-				continue
-		}
+    switch (handling) {
+      case "last_place":
+      case "worst_performance":
+        // Both get ranked after all active athletes
+        rank = lastActiveRank + 1
+        points = calculateTraditionalPoints(rank, traditionalConfig)
+        break
+      case "zero":
+        rank = lastActiveRank + 1
+        points = 0
+        break
+      case "exclude":
+        // Don't add to results
+        continue
+    }
 
-		results.set(score.userId, {
-			userId: score.userId,
-			points,
-			rank,
-		})
-	}
+    results.set(score.userId, {
+      userId: score.userId,
+      points,
+      rank,
+    })
+  }
 
-	return results
+  return results
 }
 
 /**
@@ -265,79 +265,79 @@ function calculateTraditionalEventPoints(
  * Uses a front-loaded points table that rewards top finishers more heavily
  */
 function calculateWinnerTakesMoreEventPoints(
-	scores: EventScoreInput[],
-	scheme: WorkoutScheme,
-	config: ScoringConfig,
+  scores: EventScoreInput[],
+  scheme: WorkoutScheme,
+  config: ScoringConfig,
 ): Map<string, EventPointsResult> {
-	// Separate active scores from inactive
-	const activeScores = scores.filter(
-		(s) => s.status === "scored" || s.status === "cap",
-	)
-	const inactiveScores = scores.filter(
-		(s) => s.status === "dnf" || s.status === "dns" || s.status === "withdrawn",
-	)
+  // Separate active scores from inactive
+  const activeScores = scores.filter(
+    (s) => s.status === "scored" || s.status === "cap",
+  )
+  const inactiveScores = scores.filter(
+    (s) => s.status === "dnf" || s.status === "dns" || s.status === "withdrawn",
+  )
 
-	// Sort active scores by performance (uses sortKey when available)
-	const sortedActive = sortScoresByPerformance(activeScores, scheme)
+  // Sort active scores by performance (uses sortKey when available)
+  const sortedActive = sortScoresByPerformance(activeScores, scheme)
 
-	// Assign ranks with tie handling
-	const ranked = assignRanks(sortedActive)
-	const results = new Map<string, EventPointsResult>()
+  // Assign ranks with tie handling
+  const ranked = assignRanks(sortedActive)
+  const results = new Map<string, EventPointsResult>()
 
-	// Calculate points for active athletes using winner_takes_more table
-	for (const { score, rank } of ranked) {
-		const points = calculateCustomPoints(rank, {
-			baseTemplate: "winner_takes_more",
-			overrides: {},
-		})
-		results.set(score.userId, {
-			userId: score.userId,
-			points,
-			rank,
-		})
-	}
+  // Calculate points for active athletes using winner_takes_more table
+  for (const { score, rank } of ranked) {
+    const points = calculateCustomPoints(rank, {
+      baseTemplate: "winner_takes_more",
+      overrides: {},
+    })
+    results.set(score.userId, {
+      userId: score.userId,
+      points,
+      rank,
+    })
+  }
 
-	// Handle inactive athletes based on config
-	const lastActiveRank = ranked.length > 0 ? ranked[ranked.length - 1].rank : 0
-	for (const score of inactiveScores) {
-		if (
-			score.status !== "dnf" &&
-			score.status !== "dns" &&
-			score.status !== "withdrawn"
-		) {
-			continue
-		}
-		const handling = getStatusHandling(score.status, config)
-		let points: number
-		let rank: number
+  // Handle inactive athletes based on config
+  const lastActiveRank = ranked.length > 0 ? ranked[ranked.length - 1].rank : 0
+  for (const score of inactiveScores) {
+    if (
+      score.status !== "dnf" &&
+      score.status !== "dns" &&
+      score.status !== "withdrawn"
+    ) {
+      continue
+    }
+    const handling = getStatusHandling(score.status, config)
+    let points: number
+    let rank: number
 
-		switch (handling) {
-			case "last_place":
-			case "worst_performance":
-				// Both get ranked after all active athletes
-				rank = lastActiveRank + 1
-				points = calculateCustomPoints(rank, {
-					baseTemplate: "winner_takes_more",
-					overrides: {},
-				})
-				break
-			case "zero":
-				rank = lastActiveRank + 1
-				points = 0
-				break
-			case "exclude":
-				// Don't add to results
-				continue
-		}
+    switch (handling) {
+      case "last_place":
+      case "worst_performance":
+        // Both get ranked after all active athletes
+        rank = lastActiveRank + 1
+        points = calculateCustomPoints(rank, {
+          baseTemplate: "winner_takes_more",
+          overrides: {},
+        })
+        break
+      case "zero":
+        rank = lastActiveRank + 1
+        points = 0
+        break
+      case "exclude":
+        // Don't add to results
+        continue
+    }
 
-		results.set(score.userId, {
-			userId: score.userId,
-			points,
-			rank,
-		})
-	}
+    results.set(score.userId, {
+      userId: score.userId,
+      points,
+      rank,
+    })
+  }
 
-	return results
+  return results
 }
 
 /**
@@ -347,133 +347,133 @@ function calculateWinnerTakesMoreEventPoints(
  * Map WorkoutScheme to P-Score compatible scheme
  */
 function mapToPScoreScheme(scheme: WorkoutScheme): PScoreInput["scheme"] {
-	switch (scheme) {
-		case "time":
-			return "time"
-		case "time-with-cap":
-			return "time-with-cap"
-		case "reps":
-		case "rounds-reps":
-		case "calories":
-			return "reps"
-		case "load":
-			return "load"
-		case "points":
-		case "pass-fail":
-		case "emom":
-		case "meters":
-		case "feet":
-			return "points"
-	}
+  switch (scheme) {
+    case "time":
+      return "time"
+    case "time-with-cap":
+      return "time-with-cap"
+    case "reps":
+    case "rounds-reps":
+    case "calories":
+      return "reps"
+    case "load":
+      return "load"
+    case "points":
+    case "pass-fail":
+    case "emom":
+    case "meters":
+    case "feet":
+      return "points"
+  }
 }
 
 function calculatePScoreEventPoints(
-	scores: EventScoreInput[],
-	scheme: WorkoutScheme,
-	config: ScoringConfig,
+  scores: EventScoreInput[],
+  scheme: WorkoutScheme,
+  config: ScoringConfig,
 ): Map<string, EventPointsResult> {
-	const pScoreConfig = config.pScore ?? DEFAULT_PSCORE_CONFIG
-	const pScoreScheme = mapToPScoreScheme(scheme)
+  const pScoreConfig = config.pScore ?? DEFAULT_PSCORE_CONFIG
+  const pScoreScheme = mapToPScoreScheme(scheme)
 
-	const input: PScoreInput = {
-		scores: scores.map((s) => ({
-			userId: s.userId,
-			value: s.value,
-			status: s.status,
-		})),
-		scheme: pScoreScheme,
-		config: pScoreConfig,
-	}
+  const input: PScoreInput = {
+    scores: scores.map((s) => ({
+      userId: s.userId,
+      value: s.value,
+      status: s.status,
+    })),
+    scheme: pScoreScheme,
+    config: pScoreConfig,
+  }
 
-	const pScoreResults = calculatePScore(input)
-	const results = new Map<string, EventPointsResult>()
+  const pScoreResults = calculatePScore(input)
+  const results = new Map<string, EventPointsResult>()
 
-	for (const result of pScoreResults) {
-		results.set(result.userId, {
-			userId: result.userId,
-			points: result.pScore,
-			rank: result.rank,
-		})
-	}
+  for (const result of pScoreResults) {
+    results.set(result.userId, {
+      userId: result.userId,
+      points: result.pScore,
+      rank: result.rank,
+    })
+  }
 
-	return results
+  return results
 }
 
 /**
  * Calculate points using custom table scoring
  */
 function calculateCustomEventPoints(
-	scores: EventScoreInput[],
-	scheme: WorkoutScheme,
-	config: ScoringConfig,
+  scores: EventScoreInput[],
+  scheme: WorkoutScheme,
+  config: ScoringConfig,
 ): Map<string, EventPointsResult> {
-	const customConfig = config.customTable ?? {
-		baseTemplate: "traditional" as const,
-		overrides: {},
-	}
-	const traditionalConfig = config.traditional ?? DEFAULT_TRADITIONAL_CONFIG
+  const customConfig = config.customTable ?? {
+    baseTemplate: "traditional" as const,
+    overrides: {},
+  }
+  const traditionalConfig = config.traditional ?? DEFAULT_TRADITIONAL_CONFIG
 
-	// Separate active scores from inactive
-	const activeScores = scores.filter(
-		(s) => s.status === "scored" || s.status === "cap",
-	)
-	const inactiveScores = scores.filter(
-		(s) => s.status === "dnf" || s.status === "dns" || s.status === "withdrawn",
-	)
+  // Separate active scores from inactive
+  const activeScores = scores.filter(
+    (s) => s.status === "scored" || s.status === "cap",
+  )
+  const inactiveScores = scores.filter(
+    (s) => s.status === "dnf" || s.status === "dns" || s.status === "withdrawn",
+  )
 
-	// Sort active scores by performance (uses sortKey when available)
-	const sortedActive = sortScoresByPerformance(activeScores, scheme)
+  // Sort active scores by performance (uses sortKey when available)
+  const sortedActive = sortScoresByPerformance(activeScores, scheme)
 
-	// Assign ranks with tie handling
-	const ranked = assignRanks(sortedActive)
-	const results = new Map<string, EventPointsResult>()
+  // Assign ranks with tie handling
+  const ranked = assignRanks(sortedActive)
+  const results = new Map<string, EventPointsResult>()
 
-	// Calculate points for active athletes
-	for (const { score, rank } of ranked) {
-		const points = calculateCustomPoints(rank, customConfig, traditionalConfig)
-		results.set(score.userId, {
-			userId: score.userId,
-			points,
-			rank,
-		})
-	}
+  // Calculate points for active athletes
+  for (const { score, rank } of ranked) {
+    const points = calculateCustomPoints(rank, customConfig, traditionalConfig)
+    results.set(score.userId, {
+      userId: score.userId,
+      points,
+      rank,
+    })
+  }
 
-	// Handle inactive athletes based on config
-	const lastActiveRank = ranked.length > 0 ? ranked[ranked.length - 1].rank : 0
-	for (const score of inactiveScores) {
-		if (
-			score.status !== "dnf" &&
-			score.status !== "dns" &&
-			score.status !== "withdrawn"
-		) {
-			continue
-		}
-		const handling = getStatusHandling(score.status, config)
-		let points: number
-		let rank: number
+  // Handle inactive athletes based on config
+  const lastActiveRank = ranked.length > 0 ? ranked[ranked.length - 1].rank : 0
+  for (const score of inactiveScores) {
+    if (
+      score.status !== "dnf" &&
+      score.status !== "dns" &&
+      score.status !== "withdrawn"
+    ) {
+      continue
+    }
+    const handling = getStatusHandling(score.status, config)
+    let points: number
+    let rank: number
 
-		switch (handling) {
-			case "last_place":
-			case "worst_performance":
-				rank = lastActiveRank + 1
-				points = calculateCustomPoints(rank, customConfig, traditionalConfig)
-				break
-			case "zero":
-				rank = lastActiveRank + 1
-				points = 0
-				break
-			case "exclude":
-				continue
-		}
+    switch (handling) {
+      case "last_place":
+      case "worst_performance":
+        rank = lastActiveRank + 1
+        points = calculateCustomPoints(rank, customConfig, traditionalConfig)
+        break
+      case "zero":
+        rank = lastActiveRank + 1
+        points = 0
+        break
+      case "exclude":
+        continue
+    }
 
-		results.set(score.userId, {
-			userId: score.userId,
-			points,
-			rank,
-		})
-	}
+    results.set(score.userId, {
+      userId: score.userId,
+      points,
+      rank,
+    })
+  }
 
-	return results
+  return results
 }
 
 /**
@@ -482,76 +482,76 @@ function calculateCustomEventPoints(
  * Lowest total wins, ideal for online competitions with unknown participant count
  */
 function calculateOnlineEventPoints(
-	scores: EventScoreInput[],
-	scheme: WorkoutScheme,
-	config: ScoringConfig,
+  scores: EventScoreInput[],
+  scheme: WorkoutScheme,
+  config: ScoringConfig,
 ): Map<string, EventPointsResult> {
-	// Separate active scores from inactive
-	const activeScores = scores.filter(
-		(s) => s.status === "scored" || s.status === "cap",
-	)
-	const inactiveScores = scores.filter(
-		(s) => s.status === "dnf" || s.status === "dns" || s.status === "withdrawn",
-	)
+  // Separate active scores from inactive
+  const activeScores = scores.filter(
+    (s) => s.status === "scored" || s.status === "cap",
+  )
+  const inactiveScores = scores.filter(
+    (s) => s.status === "dnf" || s.status === "dns" || s.status === "withdrawn",
+  )
 
-	// Sort active scores by performance (uses sortKey when available)
-	const sortedActive = sortScoresByPerformance(activeScores, scheme)
+  // Sort active scores by performance (uses sortKey when available)
+  const sortedActive = sortScoresByPerformance(activeScores, scheme)
 
-	// Assign ranks with tie handling
-	const ranked = assignRanks(sortedActive)
-	const results = new Map<string, EventPointsResult>()
+  // Assign ranks with tie handling
+  const ranked = assignRanks(sortedActive)
+  const results = new Map<string, EventPointsResult>()
 
-	// Calculate points for active athletes (points = rank)
-	for (const { score, rank } of ranked) {
-		const points = calculateOnlinePoints(rank)
-		results.set(score.userId, {
-			userId: score.userId,
-			points,
-			rank,
-		})
-	}
+  // Calculate points for active athletes (points = rank)
+  for (const { score, rank } of ranked) {
+    const points = calculateOnlinePoints(rank)
+    results.set(score.userId, {
+      userId: score.userId,
+      points,
+      rank,
+    })
+  }
 
-	// Handle inactive athletes based on config
-	const lastActiveRank = ranked.length > 0 ? ranked[ranked.length - 1].rank : 0
-	for (const score of inactiveScores) {
-		if (
-			score.status !== "dnf" &&
-			score.status !== "dns" &&
-			score.status !== "withdrawn"
-		) {
-			continue
-		}
-		const handling = getStatusHandling(score.status, config)
-		let points: number
-		let rank: number
+  // Handle inactive athletes based on config
+  const lastActiveRank = ranked.length > 0 ? ranked[ranked.length - 1].rank : 0
+  for (const score of inactiveScores) {
+    if (
+      score.status !== "dnf" &&
+      score.status !== "dns" &&
+      score.status !== "withdrawn"
+    ) {
+      continue
+    }
+    const handling = getStatusHandling(score.status, config)
+    let points: number
+    let rank: number
 
-		switch (handling) {
-			case "last_place":
-			case "worst_performance":
-				// Both get ranked after all active athletes
-				rank = lastActiveRank + 1
-				points = calculateOnlinePoints(rank)
-				break
-			case "zero":
-				// For online scoring, "zero" means worst possible position
-				// Rank and points should stay consistent (points = rank)
-				// Use total participants + 1 as the penalty position
-				rank = scores.length + 1
-				points = calculateOnlinePoints(rank)
-				break
-			case "exclude":
-				// Don't add to results
-				continue
-		}
+    switch (handling) {
+      case "last_place":
+      case "worst_performance":
+        // Both get ranked after all active athletes
+        rank = lastActiveRank + 1
+        points = calculateOnlinePoints(rank)
+        break
+      case "zero":
+        // For online scoring, "zero" means worst possible position
+        // Rank and points should stay consistent (points = rank)
+        // Use total participants + 1 as the penalty position
+        rank = scores.length + 1
+        points = calculateOnlinePoints(rank)
+        break
+      case "exclude":
+        // Don't add to results
+        continue
+    }
 
-		results.set(score.userId, {
-			userId: score.userId,
-			points,
-			rank,
-		})
-	}
+    results.set(score.userId, {
+      userId: score.userId,
+      points,
+      rank,
+    })
+  }
 
-	return results
+  return results
 }
 
 /**
@@ -559,88 +559,88 @@ function calculateOnlineEventPoints(
  * Uses sortKey for tie detection when available, falls back to value.
  */
 function assignRanks(
-	sortedScores: EventScoreInput[],
+  sortedScores: EventScoreInput[],
 ): Array<{ score: EventScoreInput; rank: number }> {
-	const result: Array<{ score: EventScoreInput; rank: number }> = []
-	let currentRank = 1
-	let previousSortKey: string | null = null
-	let previousValue: number | null = null
+  const result: Array<{ score: EventScoreInput; rank: number }> = []
+  let currentRank = 1
+  let previousSortKey: string | null = null
+  let previousValue: number | null = null
 
-	for (let i = 0; i < sortedScores.length; i++) {
-		const score = sortedScores[i]
+  for (let i = 0; i < sortedScores.length; i++) {
+    const score = sortedScores[i]
 
-		// Use sortKey for tie detection when available (more accurate)
-		if (score.sortKey && previousSortKey !== null) {
-			if (score.sortKey !== previousSortKey) {
-				currentRank = i + 1
-			}
-		} else if (previousValue !== null && score.value !== previousValue) {
-			// Fallback to value-only comparison
-			currentRank = i + 1
-		}
+    // Use sortKey for tie detection when available (more accurate)
+    if (score.sortKey && previousSortKey !== null) {
+      if (score.sortKey !== previousSortKey) {
+        currentRank = i + 1
+      }
+    } else if (previousValue !== null && score.value !== previousValue) {
+      // Fallback to value-only comparison
+      currentRank = i + 1
+    }
 
-		result.push({ score, rank: currentRank })
-		previousSortKey = score.sortKey ?? null
-		previousValue = score.value
-	}
+    result.push({ score, rank: currentRank })
+    previousSortKey = score.sortKey ?? null
+    previousValue = score.value
+  }
 
-	return result
+  return result
 }
 
 /**
  * Status handling result for internal use
  */
 type StatusHandlingResult =
-	| "last_place"
-	| "worst_performance"
-	| "zero"
-	| "exclude"
+  | "last_place"
+  | "worst_performance"
+  | "zero"
+  | "exclude"
 
 /**
  * Get handling mode for a given status
  */
 function getStatusHandling(
-	status: "dnf" | "dns" | "withdrawn",
-	config: ScoringConfig,
+  status: "dnf" | "dns" | "withdrawn",
+  config: ScoringConfig,
 ): StatusHandlingResult {
-	const handling =
-		config.statusHandling ?? DEFAULT_SCORING_CONFIG.statusHandling
+  const handling =
+    config.statusHandling ?? DEFAULT_SCORING_CONFIG.statusHandling
 
-	switch (status) {
-		case "dnf":
-			return handling.dnf ?? "last_place"
-		case "dns":
-			return handling.dns ?? "zero"
-		case "withdrawn":
-			return handling.withdrawn ?? "exclude"
-	}
+  switch (status) {
+    case "dnf":
+      return handling.dnf ?? "last_place"
+    case "dns":
+      return handling.dns ?? "zero"
+    case "withdrawn":
+      return handling.withdrawn ?? "exclude"
+  }
 }
 
 /**
  * Get scoring algorithm display name
  */
 export function getScoringAlgorithmName(
-	algorithm: ScoringConfig["algorithm"],
+  algorithm: ScoringConfig["algorithm"],
 ): string {
-	switch (algorithm) {
-		case "traditional":
-			return "Traditional"
-		case "p_score":
-			return "P-Score"
-		case "winner_takes_more":
-			return "Winner Takes More"
-		case "online":
-			return "Online"
-		case "custom":
-			return "Custom"
-	}
+  switch (algorithm) {
+    case "traditional":
+      return "Traditional"
+    case "p_score":
+      return "P-Score"
+    case "winner_takes_more":
+      return "Winner Takes More"
+    case "online":
+      return "Online"
+    case "custom":
+      return "Custom"
+  }
 }
 
 /**
  * Check if scoring algorithm supports negative scores
  */
 export function canHaveNegativeScores(config: ScoringConfig): boolean {
-	return (
-		config.algorithm === "p_score" && (config.pScore?.allowNegatives ?? true)
-	)
+  return (
+    config.algorithm === "p_score" && (config.pScore?.allowNegatives ?? true)
+  )
 }

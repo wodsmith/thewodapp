@@ -23,11 +23,11 @@
  * calculateOnlinePoints(10) // 10 (10th place = 10 points)
  */
 export function calculateOnlinePoints(place: number): number {
-	// Handle invalid places (0 or negative) - return 1 (best possible score)
-	if (place <= 0) {
-		return 1
-	}
+  // Handle invalid places (0 or negative) - return 1 (best possible score)
+  if (place <= 0) {
+    return 1
+  }
 
-	// Points = place (1st gets 1, 2nd gets 2, etc.)
-	return place
+  // Points = place (1st gets 1, 2nd gets 2, etc.)
+  return place
 }

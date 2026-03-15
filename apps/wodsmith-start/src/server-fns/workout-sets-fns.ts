@@ -12,37 +12,37 @@ import { decodeScore, type WorkoutScheme } from "@/lib/scoring"
 
 // Input validation schemas
 const getWorkoutResultSetsInputSchema = z.object({
-	scoreId: z.string().min(1, "Score ID is required"),
+  scoreId: z.string().min(1, "Score ID is required"),
 })
 
 /**
  * Formatted set data for display
  */
 export interface FormattedSetData {
-	/** Round number (1-indexed) */
-	roundNumber: number
-	/** Encoded value from database */
-	value: number
-	/** Formatted display value (e.g., "225 lbs", "1:30", "5+12") */
-	displayValue: string
-	/** Optional notes for this round */
-	notes: string | null
-	/** Status for this round (if any) */
-	status: string | null
+  /** Round number (1-indexed) */
+  roundNumber: number
+  /** Encoded value from database */
+  value: number
+  /** Formatted display value (e.g., "225 lbs", "1:30", "5+12") */
+  displayValue: string
+  /** Optional notes for this round */
+  notes: string | null
+  /** Status for this round (if any) */
+  status: string | null
 }
 
 /**
  * Response type for getWorkoutResultSetsFn
  */
 export interface WorkoutResultSetsResponse {
-	/** Score ID */
-	scoreId: string
-	/** Parent score scheme */
-	scheme: WorkoutScheme
-	/** Formatted sets ordered by round number */
-	sets: FormattedSetData[]
-	/** Total number of rounds */
-	totalRounds: number
+  /** Score ID */
+  scoreId: string
+  /** Parent score scheme */
+  scheme: WorkoutScheme
+  /** Formatted sets ordered by round number */
+  sets: FormattedSetData[]
+  /** Total number of rounds */
+  totalRounds: number
 }
 
 /**
@@ -50,140 +50,140 @@ export interface WorkoutResultSetsResponse {
  * Used for displaying multi-round workout data (e.g., "10x3 Back Squat")
  */
 export const getWorkoutResultSetsFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
-		getWorkoutResultSetsInputSchema.parse(data),
-	)
-	.handler(async ({ data }): Promise<WorkoutResultSetsResponse> => {
-		const db = getDb()
+  .inputValidator((data: unknown) =>
+    getWorkoutResultSetsInputSchema.parse(data),
+  )
+  .handler(async ({ data }): Promise<WorkoutResultSetsResponse> => {
+    const db = getDb()
 
-		// First, get the parent score to know the scheme
-		const [score] = await db
-			.select({
-				id: scoresTable.id,
-				scheme: scoresTable.scheme,
-			})
-			.from(scoresTable)
-			.where(eq(scoresTable.id, data.scoreId))
-			.limit(1)
+    // First, get the parent score to know the scheme
+    const [score] = await db
+      .select({
+        id: scoresTable.id,
+        scheme: scoresTable.scheme,
+      })
+      .from(scoresTable)
+      .where(eq(scoresTable.id, data.scoreId))
+      .limit(1)
 
-		if (!score) {
-			throw new Error("Score not found")
-		}
+    if (!score) {
+      throw new Error("Score not found")
+    }
 
-		const scheme = score.scheme as WorkoutScheme
+    const scheme = score.scheme as WorkoutScheme
 
-		// Get all rounds for this score, ordered by round number
-		const rounds = await db
-			.select({
-				roundNumber: scoreRoundsTable.roundNumber,
-				value: scoreRoundsTable.value,
-				notes: scoreRoundsTable.notes,
-				status: scoreRoundsTable.status,
-			})
-			.from(scoreRoundsTable)
-			.where(eq(scoreRoundsTable.scoreId, data.scoreId))
-			.orderBy(asc(scoreRoundsTable.roundNumber))
+    // Get all rounds for this score, ordered by round number
+    const rounds = await db
+      .select({
+        roundNumber: scoreRoundsTable.roundNumber,
+        value: scoreRoundsTable.value,
+        notes: scoreRoundsTable.notes,
+        status: scoreRoundsTable.status,
+      })
+      .from(scoreRoundsTable)
+      .where(eq(scoreRoundsTable.scoreId, data.scoreId))
+      .orderBy(asc(scoreRoundsTable.roundNumber))
 
-		// Format each round for display
-		const sets: FormattedSetData[] = rounds.map((round) => {
-			// Decode the value based on the parent score's scheme
-			const displayValue = decodeScore(round.value, scheme, {
-				includeUnit: true,
-			})
+    // Format each round for display
+    const sets: FormattedSetData[] = rounds.map((round) => {
+      // Decode the value based on the parent score's scheme
+      const displayValue = decodeScore(round.value, scheme, {
+        includeUnit: true,
+      })
 
-			return {
-				roundNumber: round.roundNumber,
-				value: round.value,
-				displayValue,
-				notes: round.notes,
-				status: round.status,
-			}
-		})
+      return {
+        roundNumber: round.roundNumber,
+        value: round.value,
+        displayValue,
+        notes: round.notes,
+        status: round.status,
+      }
+    })
 
-		return {
-			scoreId: data.scoreId,
-			scheme,
-			sets,
-			totalRounds: sets.length,
-		}
-	})
+    return {
+      scoreId: data.scoreId,
+      scheme,
+      sets,
+      totalRounds: sets.length,
+    }
+  })
 
 /**
  * Get sets for multiple scores at once (batch operation)
  * Useful for displaying sets in list views
  */
 const getMultipleWorkoutResultSetsInputSchema = z.object({
-	scoreIds: z.array(z.string().min(1)).min(1, "At least one score ID required"),
+  scoreIds: z.array(z.string().min(1)).min(1, "At least one score ID required"),
 })
 
 export interface BatchWorkoutResultSetsResponse {
-	results: Map<string, WorkoutResultSetsResponse>
+  results: Map<string, WorkoutResultSetsResponse>
 }
 
 export const getMultipleWorkoutResultSetsFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
-		getMultipleWorkoutResultSetsInputSchema.parse(data),
-	)
-	.handler(
-		async ({ data }): Promise<Record<string, WorkoutResultSetsResponse>> => {
-			const db = getDb()
+  .inputValidator((data: unknown) =>
+    getMultipleWorkoutResultSetsInputSchema.parse(data),
+  )
+  .handler(
+    async ({ data }): Promise<Record<string, WorkoutResultSetsResponse>> => {
+      const db = getDb()
 
-			// Batch fetch all parent scores
-			const parentScores = await db
-				.select({
-					id: scoresTable.id,
-					scheme: scoresTable.scheme,
-				})
-				.from(scoresTable)
-				.where(inArray(scoresTable.id, data.scoreIds))
+      // Batch fetch all parent scores
+      const parentScores = await db
+        .select({
+          id: scoresTable.id,
+          scheme: scoresTable.scheme,
+        })
+        .from(scoresTable)
+        .where(inArray(scoresTable.id, data.scoreIds))
 
-			if (parentScores.length === 0) {
-				return {}
-			}
+      if (parentScores.length === 0) {
+        return {}
+      }
 
-			const schemeByScoreId = new Map<string, string>()
-			for (const score of parentScores) {
-				schemeByScoreId.set(score.id, score.scheme)
-			}
+      const schemeByScoreId = new Map<string, string>()
+      for (const score of parentScores) {
+        schemeByScoreId.set(score.id, score.scheme)
+      }
 
-			// Batch fetch all rounds for all scores
-			const allRounds = await db
-				.select({
-					scoreId: scoreRoundsTable.scoreId,
-					roundNumber: scoreRoundsTable.roundNumber,
-					value: scoreRoundsTable.value,
-					notes: scoreRoundsTable.notes,
-					status: scoreRoundsTable.status,
-				})
-				.from(scoreRoundsTable)
-				.where(inArray(scoreRoundsTable.scoreId, data.scoreIds))
-				.orderBy(asc(scoreRoundsTable.roundNumber))
+      // Batch fetch all rounds for all scores
+      const allRounds = await db
+        .select({
+          scoreId: scoreRoundsTable.scoreId,
+          roundNumber: scoreRoundsTable.roundNumber,
+          value: scoreRoundsTable.value,
+          notes: scoreRoundsTable.notes,
+          status: scoreRoundsTable.status,
+        })
+        .from(scoreRoundsTable)
+        .where(inArray(scoreRoundsTable.scoreId, data.scoreIds))
+        .orderBy(asc(scoreRoundsTable.roundNumber))
 
-			// Group rounds by score ID and build results
-			const results: Record<string, WorkoutResultSetsResponse> = {}
+      // Group rounds by score ID and build results
+      const results: Record<string, WorkoutResultSetsResponse> = {}
 
-			for (const score of parentScores) {
-				const scheme = score.scheme as WorkoutScheme
-				const rounds = allRounds.filter((r) => r.scoreId === score.id)
+      for (const score of parentScores) {
+        const scheme = score.scheme as WorkoutScheme
+        const rounds = allRounds.filter((r) => r.scoreId === score.id)
 
-				const sets: FormattedSetData[] = rounds.map((round) => ({
-					roundNumber: round.roundNumber,
-					value: round.value,
-					displayValue: decodeScore(round.value, scheme, {
-						includeUnit: true,
-					}),
-					notes: round.notes,
-					status: round.status,
-				}))
+        const sets: FormattedSetData[] = rounds.map((round) => ({
+          roundNumber: round.roundNumber,
+          value: round.value,
+          displayValue: decodeScore(round.value, scheme, {
+            includeUnit: true,
+          }),
+          notes: round.notes,
+          status: round.status,
+        }))
 
-				results[score.id] = {
-					scoreId: score.id,
-					scheme,
-					sets,
-					totalRounds: sets.length,
-				}
-			}
+        results[score.id] = {
+          scoreId: score.id,
+          scheme,
+          sets,
+          totalRounds: sets.length,
+        }
+      }
 
-			return results
-		},
-	)
+      return results
+    },
+  )

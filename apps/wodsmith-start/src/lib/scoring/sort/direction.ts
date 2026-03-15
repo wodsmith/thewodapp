@@ -21,20 +21,20 @@ import type { ScoreType, SortDirection, WorkoutScheme } from "../types"
  * getSortDirection("time", "max")    // → "desc" (max override)
  */
 export function getSortDirection(
-	scheme: WorkoutScheme,
-	scoreType?: ScoreType,
+  scheme: WorkoutScheme,
+  scoreType?: ScoreType,
 ): SortDirection {
-	// If scoreType is explicitly provided, use its implied direction
-	if (scoreType) {
-		// "min" means lower is better → sort ascending
-		// "max" means higher is better → sort descending
-		// Other types (sum, average, first, last) use scheme default
-		if (scoreType === "min") return "asc"
-		if (scoreType === "max") return "desc"
-	}
+  // If scoreType is explicitly provided, use its implied direction
+  if (scoreType) {
+    // "min" means lower is better → sort ascending
+    // "max" means higher is better → sort descending
+    // Other types (sum, average, first, last) use scheme default
+    if (scoreType === "min") return "asc"
+    if (scoreType === "max") return "desc"
+  }
 
-	// Use scheme's default direction
-	return SCHEME_SORT_DIRECTIONS[scheme]
+  // Use scheme's default direction
+  return SCHEME_SORT_DIRECTIONS[scheme]
 }
 
 /**
@@ -45,10 +45,10 @@ export function getSortDirection(
  * isLowerBetter("rounds-reps")    // → false
  */
 export function isLowerBetter(
-	scheme: WorkoutScheme,
-	scoreType?: ScoreType,
+  scheme: WorkoutScheme,
+  scoreType?: ScoreType,
 ): boolean {
-	return getSortDirection(scheme, scoreType) === "asc"
+  return getSortDirection(scheme, scoreType) === "asc"
 }
 
 /**
@@ -59,5 +59,5 @@ export function isLowerBetter(
  * getDefaultScoreType("rounds-reps") // → "max"
  */
 export function getDefaultScoreType(scheme: WorkoutScheme): ScoreType {
-	return DEFAULT_SCORE_TYPES[scheme]
+  return DEFAULT_SCORE_TYPES[scheme]
 }

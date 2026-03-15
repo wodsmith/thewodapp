@@ -17,6 +17,6 @@ export type AddressInput = Omit<Address, "id" | "createdAt" | "updatedAt">
  * Display configuration for location badges
  */
 export interface LocationBadgeDisplay {
-	text: string
-	icon: "map-pin" | "globe"
+  text: string
+  icon: "map-pin" | "globe"
 }

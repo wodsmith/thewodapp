@@ -20,35 +20,35 @@ import type { ScoreType, WorkoutScheme } from "../types"
  * aggregateValues([100, 150, 125], "last")    // → 125
  */
 export function aggregateValues(
-	values: number[],
-	scoreType: ScoreType,
+  values: number[],
+  scoreType: ScoreType,
 ): number | null {
-	if (values.length === 0) return null
+  if (values.length === 0) return null
 
-	switch (scoreType) {
-		case "min":
-			return Math.min(...values)
+  switch (scoreType) {
+    case "min":
+      return Math.min(...values)
 
-		case "max":
-			return Math.max(...values)
+    case "max":
+      return Math.max(...values)
 
-		case "sum":
-			return values.reduce((sum, v) => sum + v, 0)
+    case "sum":
+      return values.reduce((sum, v) => sum + v, 0)
 
-		case "average": {
-			const sum = values.reduce((s, v) => s + v, 0)
-			return Math.round(sum / values.length)
-		}
+    case "average": {
+      const sum = values.reduce((s, v) => s + v, 0)
+      return Math.round(sum / values.length)
+    }
 
-		case "first":
-			return values[0] ?? null
+    case "first":
+      return values[0] ?? null
 
-		case "last":
-			return values[values.length - 1] ?? null
+    case "last":
+      return values[values.length - 1] ?? null
 
-		default:
-			return null
-	}
+    default:
+      return null
+  }
 }
 
 /**
@@ -60,7 +60,7 @@ export function aggregateValues(
  * getDefaultScoreType("load")        // → "max"
  */
 export function getDefaultScoreType(scheme: WorkoutScheme): ScoreType {
-	return DEFAULT_SCORE_TYPES[scheme]
+  return DEFAULT_SCORE_TYPES[scheme]
 }
 
 /**
@@ -71,7 +71,7 @@ export function getDefaultScoreType(scheme: WorkoutScheme): ScoreType {
  * isLowerBetter("max")  // → false
  */
 export function isLowerBetter(scoreType: ScoreType): boolean {
-	return scoreType === "min"
+  return scoreType === "min"
 }
 
 /**
@@ -86,16 +86,16 @@ export function isLowerBetter(scoreType: ScoreType): boolean {
  * // → { aggregated: 150, operation: "max", count: 3 }
  */
 export function aggregateWithSummary(
-	values: number[],
-	scoreType: ScoreType,
+  values: number[],
+  scoreType: ScoreType,
 ): {
-	aggregated: number | null
-	operation: ScoreType
-	count: number
+  aggregated: number | null
+  operation: ScoreType
+  count: number
 } {
-	return {
-		aggregated: aggregateValues(values, scoreType),
-		operation: scoreType,
-		count: values.length,
-	}
+  return {
+    aggregated: aggregateValues(values, scoreType),
+    operation: scoreType,
+    count: values.length,
+  }
 }

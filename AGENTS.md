@@ -26,10 +26,10 @@ Run these from `apps/wodsmith-start/`:
 
 ### Database Operations
 
-- `pnpm db:push` - Push schema changes to local D1 (use during development)
+- `pnpm db:push` - Push schema changes to PlanetScale dev branch (use during development)
 - `pnpm db:generate --name=X` - Generate migration (only before merging to main)
 - `pnpm db:studio` - Open Drizzle Studio
-- `pnpm db:migrate:local` - Apply migrations to local D1 database
+- `pnpm db:migrate:local` - Apply migrations locally
 
 ### Testing
 
@@ -47,7 +47,7 @@ Run these from `apps/wodsmith-start/`:
 ### Tech Stack
 
 - **Framework**: TanStack Start (React 19, TypeScript, Vinxi/Vite)
-- **Database**: Cloudflare D1 (SQLite) with Drizzle ORM
+- **Database**: PlanetScale (MySQL) with Drizzle ORM via Hyperdrive
 - **Authentication**: Custom auth with KV sessions
 - **Deployment**: Cloudflare Workers via Alchemy IaC
 - **UI**: Tailwind CSS, Shadcn UI, Radix primitives
@@ -115,22 +115,12 @@ Database is modularly structured in `src/db/schemas/`:
 - Never pass `id` when inserting (auto-generated with CUID2)
 - Always filter by `teamId` for multi-tenant data
 - Use helper functions in `src/server/` for business logic
-- **D1 has a 100 SQL parameter limit** - use `autochunk` from `@/utils/batch-query` for `inArray` queries with dynamic arrays:
-
-  ```typescript
-  import {autochunk} from '@/utils/batch-query'
-
-  // Instead of: db.select().from(table).where(inArray(table.id, ids))
-  const results = await autochunk(
-    {items: ids, otherParametersCount: 1}, // count other WHERE params
-    async (chunk) => db.select().from(table).where(inArray(table.id, chunk)),
-  )
-  ```
+- Use standard Drizzle queries with `inArray()` directly — PlanetScale has no restrictive parameter limits
 
 ### Authentication & Authorization
 
 - Session handling: `getSessionFromCookie()` for server components
-- Client session: `useSessionStore()` from `src/state/session.ts`
+- Client session: `useSession()` from `src/utils/auth-client.ts`
 - Team authorization utilities in `src/utils/team-auth.ts`
 - Protect routes with team context validation
 - When checking roles use available roles from `src/db/schemas/teams.ts`
@@ -158,7 +148,7 @@ Database is modularly structured in `src/db/schemas/`:
 ```typescript
 import {env} from 'cloudflare:workers'
 
-env.DB // D1 database binding
+env.HYPERDRIVE // PlanetScale via Hyperdrive
 env.KV_SESSION // KV namespace binding
 env.APP_URL // Environment variable
 env.STRIPE_SECRET_KEY // Secret

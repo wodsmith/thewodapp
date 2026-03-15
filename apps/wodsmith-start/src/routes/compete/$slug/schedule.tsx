@@ -9,97 +9,97 @@ import { getPublishedCompetitionWorkoutsFn } from "@/server-fns/competition-work
 const parentRoute = getRouteApi("/compete/$slug")
 
 export const Route = createFileRoute("/compete/$slug/schedule")({
-	component: CompetitionSchedulePage,
-	loader: async ({ parentMatchPromise }) => {
-		const parentMatch = await parentMatchPromise
-		const competition = parentMatch.loaderData?.competition
+  component: CompetitionSchedulePage,
+  loader: async ({ parentMatchPromise }) => {
+    const parentMatch = await parentMatchPromise
+    const competition = parentMatch.loaderData?.competition
 
-		if (!competition) {
-			return {
-				heats: [],
-				events: [],
-				submissionWindows: [],
-				competitionStarted: false,
-				isOnline: false,
-				timezone: "America/Denver",
-			}
-		}
+    if (!competition) {
+      return {
+        heats: [],
+        events: [],
+        submissionWindows: [],
+        competitionStarted: false,
+        isOnline: false,
+        timezone: "America/Denver",
+      }
+    }
 
-		const isOnline = competition.competitionType === "online"
+    const isOnline = competition.competitionType === "online"
 
-		// For online competitions, fetch submission windows instead of heats
-		if (isOnline) {
-			const [eventsResult, submissionResult] = await Promise.all([
-				getPublishedCompetitionWorkoutsFn({
-					data: { competitionId: competition.id },
-				}),
-				getPublicCompetitionEventsFn({
-					data: { competitionId: competition.id },
-				}),
-			])
+    // For online competitions, fetch submission windows instead of heats
+    if (isOnline) {
+      const [eventsResult, submissionResult] = await Promise.all([
+        getPublishedCompetitionWorkoutsFn({
+          data: { competitionId: competition.id },
+        }),
+        getPublicCompetitionEventsFn({
+          data: { competitionId: competition.id },
+        }),
+      ])
 
-			return {
-				heats: [],
-				events: eventsResult.workouts,
-				submissionWindows: submissionResult.events,
-				competitionStarted: submissionResult.competitionStarted,
-				isOnline: true,
-				timezone: competition.timezone ?? "America/Denver",
-			}
-		}
+      return {
+        heats: [],
+        events: eventsResult.workouts,
+        submissionWindows: submissionResult.events,
+        competitionStarted: submissionResult.competitionStarted,
+        isOnline: true,
+        timezone: competition.timezone ?? "America/Denver",
+      }
+    }
 
-		// For in-person competitions, fetch heats as usual
-		const [heatsResult, eventsResult] = await Promise.all([
-			getHeatsForCompetitionFn({ data: { competitionId: competition.id } }),
-			getPublishedCompetitionWorkoutsFn({
-				data: { competitionId: competition.id },
-			}),
-		])
+    // For in-person competitions, fetch heats as usual
+    const [heatsResult, eventsResult] = await Promise.all([
+      getHeatsForCompetitionFn({ data: { competitionId: competition.id } }),
+      getPublishedCompetitionWorkoutsFn({
+        data: { competitionId: competition.id },
+      }),
+    ])
 
-		return {
-			heats: heatsResult.heats,
-			events: eventsResult.workouts,
-			submissionWindows: [],
-			competitionStarted: false,
-			isOnline: false,
-			timezone: competition.timezone ?? "America/Denver",
-		}
-	},
+    return {
+      heats: heatsResult.heats,
+      events: eventsResult.workouts,
+      submissionWindows: [],
+      competitionStarted: false,
+      isOnline: false,
+      timezone: competition.timezone ?? "America/Denver",
+    }
+  },
 })
 
 function CompetitionSchedulePage() {
-	const {
-		heats,
-		events,
-		submissionWindows,
-		competitionStarted,
-		isOnline,
-		timezone,
-	} = Route.useLoaderData()
-	const { competition, session } = parentRoute.useLoaderData()
+  const {
+    heats,
+    events,
+    submissionWindows,
+    competitionStarted,
+    isOnline,
+    timezone,
+  } = Route.useLoaderData()
+  const { competition, session } = parentRoute.useLoaderData()
 
-	return (
-		<div className="space-y-4">
-			<div className="sticky top-4 z-10">
-				<CompetitionTabs slug={competition.slug} />
-			</div>
-			<div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
-				{isOnline ? (
-					<PublicSubmissionWindows
-						events={events}
-						submissionWindows={submissionWindows}
-						competitionStarted={competitionStarted}
-						timezone={timezone}
-					/>
-				) : (
-					<SchedulePageContent
-						events={events}
-						heats={heats}
-						currentUserId={session?.userId}
-						timezone={timezone}
-					/>
-				)}
-			</div>
-		</div>
-	)
+  return (
+    <div className="space-y-4">
+      <div className="sticky top-4 z-10">
+        <CompetitionTabs slug={competition.slug} />
+      </div>
+      <div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
+        {isOnline ? (
+          <PublicSubmissionWindows
+            events={events}
+            submissionWindows={submissionWindows}
+            competitionStarted={competitionStarted}
+            timezone={timezone}
+          />
+        ) : (
+          <SchedulePageContent
+            events={events}
+            heats={heats}
+            currentUserId={session?.userId}
+            timezone={timezone}
+          />
+        )}
+      </div>
+    </div>
+  )
 }

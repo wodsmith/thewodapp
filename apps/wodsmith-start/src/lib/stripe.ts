@@ -14,21 +14,21 @@ let stripeInstance: Stripe | null = null
  * This is a server-only function that will throw if called from the client.
  */
 export const getStripe = createServerOnlyFn(() => {
-	if (stripeInstance) {
-		return stripeInstance
-	}
+  if (stripeInstance) {
+    return stripeInstance
+  }
 
-	const stripeSecretKey = env.STRIPE_SECRET_KEY
+  const stripeSecretKey = env.STRIPE_SECRET_KEY
 
-	if (!stripeSecretKey) {
-		throw new Error("Missing STRIPE_SECRET_KEY environment variable")
-	}
+  if (!stripeSecretKey) {
+    throw new Error("Missing STRIPE_SECRET_KEY environment variable")
+  }
 
-	stripeInstance = new Stripe(stripeSecretKey, {
-		apiVersion: "2025-02-24.acacia",
-		typescript: true,
-		httpClient: Stripe.createFetchHttpClient(),
-	})
+  stripeInstance = new Stripe(stripeSecretKey, {
+    apiVersion: "2025-02-24.acacia",
+    typescript: true,
+    httpClient: Stripe.createFetchHttpClient(),
+  })
 
-	return stripeInstance
+  return stripeInstance
 })

@@ -1,88 +1,89 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
-	"root": true,
-	"assist": {
-		"actions": {
-			"source": {
-				"organizeImports": "on"
-			}
-		}
-	},
-	"files": {
-		"ignoreUnknown": false,
-		"includes": [
-			"src/**/*.ts",
-			"src/**/*.tsx",
-			"src/**/*.js",
-			"src/**/*.jsx",
-			"apps/**/*.ts",
-			"apps/**/*.tsx",
-			"apps/**/*.js",
-			"apps/**/*.jsx",
-			"*.json",
-			"*.mjs",
-			"*.ts",
-			"!.vscode/settings.json",
-			"!.claude/settings.local.json",
-			"!.next/**",
-			"!**/cloudflare-env.d.ts",
-			"!**/*.tsbuildinfo"
-		]
-	},
-	"linter": {
-		"enabled": true,
-		"includes": [
-			"src/**/*.ts",
-			"src/**/*.tsx",
-			"src/**/*.js",
-			"src/**/*.jsx",
-			"apps/**/*.ts",
-			"apps/**/*.tsx",
-			"apps/**/*.js",
-			"apps/**/*.jsx",
-			"*.json",
-			"*.mjs",
-			"*.ts"
-		],
-		"rules": {
-			"recommended": true,
-			"nursery": {
-				"useUniqueElementIds": "off"
-			},
-		"suspicious": {
-			"noExplicitAny": "off",
-			"noArrayIndexKey": "warn"
-		}
-		}
-	},
-	"formatter": {
-		"enabled": true,
-		"includes": [
-			"src/**/*.ts",
-			"src/**/*.tsx",
-			"src/**/*.js",
-			"src/**/*.jsx",
-			"apps/**/*.ts",
-			"apps/**/*.tsx",
-			"apps/**/*.js",
-			"apps/**/*.jsx",
-			"*.json",
-			"*.mjs",
-			"*.ts",
-			"!.vscode/settings.json"
-		],
-		"indentStyle": "tab"
-	},
-	"javascript": {
-		"formatter": {
-			"quoteStyle": "double",
-			"semicolons": "asNeeded"
-		}
-	},
-	"vcs": {
-		"enabled": true,
-		"clientKind": "git",
-		"useIgnoreFile": false,
-		"defaultBranch": "main"
-	}
+  "$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
+  "root": true,
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "files": {
+    "ignoreUnknown": false,
+    "includes": [
+      "src/**/*.ts",
+      "src/**/*.tsx",
+      "src/**/*.js",
+      "src/**/*.jsx",
+      "apps/**/*.ts",
+      "apps/**/*.tsx",
+      "apps/**/*.js",
+      "apps/**/*.jsx",
+      "*.json",
+      "*.mjs",
+      "*.ts",
+      "!.vscode/settings.json",
+      "!.claude/settings.local.json",
+      "!.next/**",
+      "!**/cloudflare-env.d.ts",
+      "!**/*.tsbuildinfo"
+    ]
+  },
+  "linter": {
+    "enabled": true,
+    "includes": [
+      "src/**/*.ts",
+      "src/**/*.tsx",
+      "src/**/*.js",
+      "src/**/*.jsx",
+      "apps/**/*.ts",
+      "apps/**/*.tsx",
+      "apps/**/*.js",
+      "apps/**/*.jsx",
+      "*.json",
+      "*.mjs",
+      "*.ts"
+    ],
+    "rules": {
+      "recommended": true,
+      "nursery": {
+        "useUniqueElementIds": "off"
+      },
+      "suspicious": {
+        "noExplicitAny": "off",
+        "noArrayIndexKey": "warn"
+      }
+    }
+  },
+  "formatter": {
+    "enabled": true,
+    "includes": [
+      "src/**/*.ts",
+      "src/**/*.tsx",
+      "src/**/*.js",
+      "src/**/*.jsx",
+      "apps/**/*.ts",
+      "apps/**/*.tsx",
+      "apps/**/*.js",
+      "apps/**/*.jsx",
+      "*.json",
+      "*.mjs",
+      "*.ts",
+      "!.vscode/settings.json"
+    ],
+    "indentStyle": "space",
+    "indentWidth": 2
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "asNeeded"
+    }
+  },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": false,
+    "defaultBranch": "main"
+  }
 }
