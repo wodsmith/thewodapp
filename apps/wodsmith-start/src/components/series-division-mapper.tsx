@@ -47,6 +47,13 @@ export function SeriesDivisionMapper({
 		setMappings(initialMappings)
 		setRevision((r) => r + 1)
 		setIsDirty(false)
+		// Turn off filter if no comps have unmapped divisions anymore
+		const stillHasUnmapped = initialMappings.some((comp) =>
+			comp.mappings.some((m) => m.seriesDivisionId === null),
+		)
+		if (!stillHasUnmapped) {
+			setShowOnlyUnmapped(false)
+		}
 	}, [initialMappings])
 
 	const saveMappings = useServerFn(saveSeriesDivisionMappingsFn)
