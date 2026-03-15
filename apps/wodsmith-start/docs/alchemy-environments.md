@@ -13,7 +13,7 @@ Alchemy uses a **stage-based** architecture where each stage represents a comple
 │                                                             │
 │   dev                 staging               prod            │
 │   ┌─────────┐        ┌─────────┐        ┌─────────┐        │
-│   │ DB-dev  │        │ DB-stag │        │ DB-prod │        │
+│   │ PS-dev  │        │ PS-stag │        │ PS-prod │        │
 │   │ KV-dev  │        │ KV-stag │        │ KV-prod │        │
 │   │ R2-dev  │        │ R2-stag │        │ R2-prod │        │
 │   │ Worker  │        │ Worker  │        │ Worker  │        │
@@ -48,7 +48,7 @@ All Cloudflare resources are automatically prefixed with the stage:
 
 | Resource | dev | staging | prod |
 |----------|-----|---------|------|
-| D1 Database | `wodsmith-db-dev` | `wodsmith-db-staging` | `wodsmith-db-prod` |
+| PlanetScale Branch | `dev` | `staging` | `main` |
 | KV Namespace | `wodsmith-sessions-dev` | `wodsmith-sessions-staging` | `wodsmith-sessions-prod` |
 | R2 Bucket | `wodsmith-uploads-dev` | `wodsmith-uploads-staging` | `wodsmith-uploads-prod` |
 
@@ -74,7 +74,7 @@ npx alchemy deploy --dev
 STAGE=staging npx alchemy deploy
 
 # Verify staging deployment
-npx wrangler d1 execute wodsmith-db-staging --command "SELECT 1" --remote
+# Check PlanetScale dashboard for staging branch status
 ```
 
 ### Production
@@ -270,7 +270,7 @@ Every pull request automatically gets its own isolated preview environment. This
 │        ▼                                                    │
 │   ┌─────────────────────────────────────────┐               │
 │   │ STAGE=pr-42 npx alchemy deploy          │               │
-│   │ • Creates wodsmith-db-pr-42             │               │
+│   │ • Uses PlanetScale dev branch            │               │
 │   │ • Creates wodsmith-sessions-pr-42       │               │
 │   │ • Creates wodsmith-uploads-pr-42        │               │
 │   │ • Deploys Worker to pr-42.preview.*     │               │
@@ -395,7 +395,7 @@ if (stage === "prod" && app.phase === "destroy") {
 ```
 
 **Resources Cleaned Up:**
-- D1 Database (`wodsmith-db-pr-{N}`)
+- PlanetScale password (per-PR credentials)
 - KV Namespace (`wodsmith-sessions-pr-{N}`)
 - R2 Bucket (`wodsmith-uploads-pr-{N}`)
 - Worker deployment
@@ -507,7 +507,7 @@ Database seeding step failed during deployment.
 
 **Solutions:**
 1. Check that `STAGE` environment variable starts with `pr-`
-2. Verify the D1 database was created successfully
+2. Verify the PlanetScale branch exists
 3. Check `scripts/seed-pr.sql` for syntax errors
 4. Run seeding manually: `STAGE=pr-N pnpm db:seed:pr`
 
@@ -549,8 +549,7 @@ This happens when state is out of sync with actual Cloudflare resources.
 # Option 1: Delete from Cloudflare dashboard, then redeploy
 npx alchemy deploy
 
-# Option 2: Use wrangler to delete
-npx wrangler d1 delete wodsmith-db-dev
+# Option 2: Delete from PlanetScale dashboard
 ```
 
 ### "State file not found"
@@ -581,7 +580,7 @@ Database migration SQL has errors.
 **Solution:** Check migration files and fix syntax:
 ```bash
 # Test migration locally first
-npx wrangler d1 execute wodsmith-db --local --file=src/db/migrations/0001_new.sql
+pnpm db:push
 ```
 
 ### "Worker deployment failed"
@@ -594,7 +593,6 @@ Usually a build error or binding mismatch.
 npm run build
 
 # Check that all bindings exist
-npx wrangler d1 list
 npx wrangler kv:namespace list
 npx wrangler r2 bucket list
 ```
@@ -614,5 +612,6 @@ npx wrangler r2 bucket list
 
 - [Alchemy Documentation](https://alchemy.run/docs)
 - [Cloudflare Workers Docs](https://developers.cloudflare.com/workers/)
-- [D1 Database Docs](https://developers.cloudflare.com/d1/)
+- [PlanetScale Docs](https://planetscale.com/docs)
+- [Hyperdrive Docs](https://developers.cloudflare.com/hyperdrive/)
 - [Source: alchemy.run.ts](../alchemy.run.ts) - Inline JSDoc with implementation details

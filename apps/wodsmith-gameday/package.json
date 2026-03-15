@@ -1,0 +1,36 @@
+{
+  "name": "wodsmith-gameday",
+  "private": true,
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "vite --port 3001",
+    "build": "vite build",
+    "preview": "vite preview",
+    "build:mobile": "vite build && npx cap sync",
+    "lint": "biome lint src/",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@capacitor/core": "^7.2.0",
+    "@capacitor/network": "^7.0.0",
+    "@capacitor/preferences": "^7.0.0",
+    "@tanstack/react-router": "^1.132.0",
+    "effect": "^3.14.0",
+    "@effect/platform": "^0.78.0",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "zustand": "^5.0.5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.0.6",
+    "@capacitor/cli": "^7.2.0",
+    "@tanstack/router-plugin": "^1.132.0",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "^5.0.4",
+    "typescript": "^5.7.2",
+    "vite": "^7.3.0",
+    "vite-tsconfig-paths": "^5.1.4"
+  }
+}

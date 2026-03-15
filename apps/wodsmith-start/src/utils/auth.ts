@@ -325,6 +325,17 @@ export async function createAndStoreSession(
   }
 }
 
+/**
+ * Public export for validating a session token + userId pair.
+ * Used by bearer auth middleware to validate Authorization header tokens.
+ */
+export async function validateSessionByToken(
+  token: string,
+  userId: string,
+): Promise<SessionValidationResult | null> {
+  return validateSessionToken(token, userId)
+}
+
 async function validateSessionToken(
   token: string,
   userId: string,
