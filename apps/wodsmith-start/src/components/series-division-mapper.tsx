@@ -125,11 +125,7 @@ export function SeriesDivisionMapper({
 	)
 
 	return (
-		<form
-			ref={formRef}
-			onSubmit={(e) => e.preventDefault()}
-			onChange={() => setIsDirty(true)}
-		>
+		<form ref={formRef} onSubmit={(e) => e.preventDefault()}>
 			<div className="space-y-4">
 				{/* Actions bar */}
 				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -196,6 +192,7 @@ export function SeriesDivisionMapper({
 									key={`${comp.competitionId}-${revision}`}
 									comp={comp}
 									template={template}
+									onChanged={() => setIsDirty(true)}
 								/>
 							))}
 						</tbody>
@@ -208,28 +205,55 @@ export function SeriesDivisionMapper({
 
 /**
  * A single row in the interactive matrix.
- * Each series-division cell is a <select> picking which comp division maps to it.
+ * Each series-division cell is a controlled <select> picking which comp division maps to it.
+ * Comp divisions already used in another column are disabled to prevent duplicates.
  */
 function CompetitionRow({
 	comp,
 	template,
+	onChanged,
 }: {
 	comp: SeriesDivisionMappingData
 	template: SeriesTemplateData
+	onChanged: () => void
 }) {
-	// Build reverse map: seriesDivisionId → competitionDivisionId
-	const seriesDivToCompDivId = new Map<string, string>()
-	for (const m of comp.mappings) {
-		if (m.seriesDivisionId) {
-			seriesDivToCompDivId.set(
-				m.seriesDivisionId,
-				m.competitionDivisionId,
-			)
+	// Build initial state: seriesDivisionId → competitionDivisionId
+	const initialSelections = () => {
+		const map = new Map<string, string>()
+		for (const m of comp.mappings) {
+			if (m.seriesDivisionId) {
+				map.set(m.seriesDivisionId, m.competitionDivisionId)
+			}
 		}
+		return map
 	}
-	const unmappedDivisions = comp.mappings.filter(
-		(m) => m.seriesDivisionId === null,
-	)
+
+	const [selections, setSelections] = useState(initialSelections)
+
+	// Sync when props change (e.g. after auto-map or save)
+	useEffect(() => {
+		setSelections(initialSelections())
+	}, [comp])
+
+	// Set of comp division IDs currently used across all columns
+	const usedCompDivIds = new Set(selections.values())
+
+	const handleChange = (seriesDivId: string, compDivId: string) => {
+		setSelections((prev) => {
+			const next = new Map(prev)
+			if (compDivId === "__none__") {
+				next.delete(seriesDivId)
+			} else {
+				next.set(seriesDivId, compDivId)
+			}
+			return next
+		})
+		onChanged()
+	}
+
+	const unmappedCount = comp.mappings.filter(
+		(m) => !usedCompDivIds.has(m.competitionDivisionId),
+	).length
 
 	return (
 		<tr className="border-b last:border-b-0 hover:bg-muted/30">
@@ -248,14 +272,18 @@ function CompetitionRow({
 				</div>
 			</td>
 			{template.divisions.map((sd) => {
-				const mappedCompDivId = seriesDivToCompDivId.get(sd.id)
+				const selectedCompDivId =
+					selections.get(sd.id) ?? "__none__"
 
 				return (
 					<td key={sd.id} className="px-1 py-1.5 text-center">
 						<select
-							defaultValue={mappedCompDivId ?? "__none__"}
+							value={selectedCompDivId}
+							onChange={(e) =>
+								handleChange(sd.id, e.target.value)
+							}
 							className={`h-7 text-xs rounded-md border px-1.5 py-0.5 w-full max-w-[140px] mx-auto block focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer ${
-								mappedCompDivId
+								selectedCompDivId !== "__none__"
 									? "border-green-300 bg-green-50 text-green-800 dark:bg-green-950/30 dark:text-green-300"
 									: "border-dashed border-muted-foreground/30 text-muted-foreground"
 							}`}
@@ -263,25 +291,35 @@ function CompetitionRow({
 							data-series-div-id={sd.id}
 						>
 							<option value="__none__">—</option>
-							{comp.mappings.map((m) => (
-								<option
-									key={m.competitionDivisionId}
-									value={m.competitionDivisionId}
-								>
-									{m.competitionDivisionLabel}
-								</option>
-							))}
+							{comp.mappings.map((m) => {
+								const isUsedElsewhere =
+									usedCompDivIds.has(
+										m.competitionDivisionId,
+									) &&
+									selectedCompDivId !==
+										m.competitionDivisionId
+								return (
+									<option
+										key={m.competitionDivisionId}
+										value={m.competitionDivisionId}
+										disabled={isUsedElsewhere}
+									>
+										{m.competitionDivisionLabel}
+										{isUsedElsewhere ? " (used)" : ""}
+									</option>
+								)
+							})}
 						</select>
 					</td>
 				)
 			})}
 			<td className="px-2 py-2 text-center">
-				{unmappedDivisions.length > 0 ? (
+				{unmappedCount > 0 ? (
 					<Badge
 						variant="outline"
 						className="text-orange-600 border-orange-300 text-xs"
 					>
-						{unmappedDivisions.length}
+						{unmappedCount}
 					</Badge>
 				) : (
 					<Minus className="h-3 w-3 text-muted-foreground/40 mx-auto" />
