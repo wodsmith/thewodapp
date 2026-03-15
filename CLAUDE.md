@@ -132,7 +132,7 @@ Database is modularly structured in `src/db/schemas/`:
 ### Authentication & Authorization
 
 - Session handling: `getSessionFromCookie()` for server components
-- Client session: `useSessionStore()` from `src/state/session.ts`
+- Client session: `useSession()` from `src/utils/auth-client.ts`
 - Team authorization utilities in `src/utils/team-auth.ts`
 - Protect routes with team context validation
 - When checking roles use available roles from `src/db/schemas/teams.ts`
