@@ -1101,17 +1101,19 @@ export const deleteCompetitionDivisionFn = createServerFn({ method: "POST" })
       )
     }
 
-    // Clean up any series division mappings referencing this division
+    // Clean up mappings + delete level atomically
     // (application-level cascade — PlanetScale has no FK constraints)
-    await db
-      .delete(seriesDivisionMappingsTable)
-      .where(
-        eq(seriesDivisionMappingsTable.competitionDivisionId, data.divisionId),
-      )
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(seriesDivisionMappingsTable)
+        .where(
+          eq(seriesDivisionMappingsTable.competitionDivisionId, data.divisionId),
+        )
 
-    await db
-      .delete(scalingLevelsTable)
-      .where(eq(scalingLevelsTable.id, data.divisionId))
+      await tx
+        .delete(scalingLevelsTable)
+        .where(eq(scalingLevelsTable.id, data.divisionId))
+    })
 
     return { success: true }
   })
