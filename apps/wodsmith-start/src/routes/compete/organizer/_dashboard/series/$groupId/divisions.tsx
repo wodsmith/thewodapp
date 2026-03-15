@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { ArrowLeft, Plus, Trash2 } from "lucide-react"
+import { ArrowDown, ArrowLeft, ArrowUp, Plus, Trash2, Users } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { SeriesDivisionMapper } from "@/components/series-division-mapper"
@@ -119,7 +119,13 @@ function SeriesDivisionsPage() {
 	}
 
 	const handleCreateCustom = async (
-		divisions: Array<{ label: string; teamSize: number }>,
+		divisions: Array<{
+			label: string
+			teamSize: number
+			feeCents: number
+			description: string | null
+			maxSpots: number | null
+		}>,
 	) => {
 		setIsCreatingTemplate(true)
 		try {
@@ -281,14 +287,28 @@ function TemplateCreator({
 	onSourceGroupChange: (id: string) => void
 	onCreateFromExisting: () => void
 	onCreateCustom: (
-		divisions: Array<{ label: string; teamSize: number }>,
+		divisions: Array<{
+			label: string
+			teamSize: number
+			feeCents: number
+			description: string | null
+			maxSpots: number | null
+		}>,
 	) => void
 	isCreating: boolean
 }) {
+	interface CustomDivision {
+		label: string
+		teamSize: number
+		feeCents: number
+		description: string
+		maxSpots: string // string for input, parsed to number on submit
+	}
+
 	const [mode, setMode] = useState<"pick" | "create">("pick")
-	const [customDivisions, setCustomDivisions] = useState<
-		Array<{ label: string; teamSize: number }>
-	>([{ label: "", teamSize: 1 }])
+	const [customDivisions, setCustomDivisions] = useState<CustomDivision[]>(
+		[],
+	)
 	const [newLabel, setNewLabel] = useState("")
 
 	const addDivision = () => {
@@ -298,7 +318,16 @@ function TemplateCreator({
 			toast.error("Division already exists")
 			return
 		}
-		setCustomDivisions((prev) => [...prev, { label, teamSize: 1 }])
+		setCustomDivisions((prev) => [
+			...prev,
+			{
+				label,
+				teamSize: 1,
+				feeCents: 0,
+				description: "",
+				maxSpots: "",
+			},
+		])
 		setNewLabel("")
 	}
 
@@ -306,10 +335,35 @@ function TemplateCreator({
 		setCustomDivisions((prev) => prev.filter((_, i) => i !== index))
 	}
 
-	const updateDivisionLabel = (index: number, label: string) => {
+	const updateDivision = (
+		index: number,
+		updates: Partial<CustomDivision>,
+	) => {
 		setCustomDivisions((prev) =>
-			prev.map((d, i) => (i === index ? { ...d, label } : d)),
+			prev.map((d, i) => (i === index ? { ...d, ...updates } : d)),
 		)
+	}
+
+	const moveUp = (index: number) => {
+		if (index === 0) return
+		setCustomDivisions((prev) => {
+			const next = [...prev]
+			const temp = next[index - 1]
+			next[index - 1] = next[index]
+			next[index] = temp
+			return next
+		})
+	}
+
+	const moveDown = (index: number) => {
+		if (index >= customDivisions.length - 1) return
+		setCustomDivisions((prev) => {
+			const next = [...prev]
+			const temp = next[index + 1]
+			next[index + 1] = next[index]
+			next[index] = temp
+			return next
+		})
 	}
 
 	const handleCreateCustom = () => {
@@ -318,7 +372,17 @@ function TemplateCreator({
 			toast.error("Add at least one division")
 			return
 		}
-		onCreateCustom(valid)
+		onCreateCustom(
+			valid.map((d) => ({
+				label: d.label,
+				teamSize: d.teamSize,
+				feeCents: d.feeCents,
+				description: d.description || null,
+				maxSpots: d.maxSpots
+					? Number.parseInt(d.maxSpots, 10) || null
+					: null,
+			})),
+		)
 	}
 
 	return (
@@ -387,44 +451,205 @@ function TemplateCreator({
 							disabled={!selectedSourceGroup || isCreating}
 						>
 							<Plus className="h-4 w-4 mr-2" />
-							{isCreating
-								? "Creating..."
-								: "Use Template"}
+							{isCreating ? "Creating..." : "Use Template"}
 						</Button>
 					</div>
 				) : (
 					<div className="space-y-4">
-						{/* Existing divisions list */}
+						{/* Division list with full controls */}
 						{customDivisions.length > 0 && (
 							<div className="space-y-2">
 								{customDivisions.map((d, i) => (
 									<div
 										key={i}
-										className="flex items-center gap-2"
+										className="rounded-md border p-3 space-y-2"
 									>
-										<Input
-											value={d.label}
-											onChange={(e) =>
-												updateDivisionLabel(
-													i,
-													e.target.value,
-												)
-											}
-											placeholder="Division name"
-											className="max-w-[300px]"
-										/>
-										<Button
-											type="button"
-											variant="ghost"
-											size="icon"
-											onClick={() => removeDivision(i)}
-											className="h-8 w-8 text-muted-foreground hover:text-destructive"
-										>
-											<Trash2 className="h-4 w-4" />
-										</Button>
+										<div className="flex items-center gap-2">
+											{/* Position badge */}
+											<span className="text-xs text-muted-foreground font-mono w-6 text-center shrink-0">
+												#{i + 1}
+											</span>
+
+											{/* Reorder arrows */}
+											<div className="flex flex-col shrink-0">
+												<button
+													type="button"
+													onClick={() => moveUp(i)}
+													disabled={i === 0}
+													className="text-muted-foreground hover:text-foreground disabled:opacity-25 p-0.5"
+												>
+													<ArrowUp className="h-3 w-3" />
+												</button>
+												<button
+													type="button"
+													onClick={() =>
+														moveDown(i)
+													}
+													disabled={
+														i >=
+														customDivisions.length -
+															1
+													}
+													className="text-muted-foreground hover:text-foreground disabled:opacity-25 p-0.5"
+												>
+													<ArrowDown className="h-3 w-3" />
+												</button>
+											</div>
+
+											{/* Label */}
+											<Input
+												value={d.label}
+												onChange={(e) =>
+													updateDivision(i, {
+														label: e.target.value,
+													})
+												}
+												placeholder="Division name"
+												className="flex-1 max-w-[250px]"
+											/>
+
+											{/* Team size */}
+											<div className="flex items-center gap-1.5 shrink-0">
+												<Users className="h-3.5 w-3.5 text-muted-foreground" />
+												<select
+													value={d.teamSize}
+													onChange={(e) =>
+														updateDivision(i, {
+															teamSize:
+																Number.parseInt(
+																	e.target
+																		.value,
+																	10,
+																),
+														})
+													}
+													className="h-8 text-sm rounded-md border border-input bg-background px-2 py-1 focus:outline-none focus:ring-2 focus:ring-ring"
+												>
+													<option value={1}>
+														Individual
+													</option>
+													<option value={2}>
+														Team of 2
+													</option>
+													<option value={3}>
+														Team of 3
+													</option>
+													<option value={4}>
+														Team of 4
+													</option>
+													<option value={5}>
+														Team of 5
+													</option>
+													<option value={6}>
+														Team of 6
+													</option>
+												</select>
+											</div>
+
+											{/* Delete */}
+											<Button
+												type="button"
+												variant="ghost"
+												size="icon"
+												onClick={() =>
+													removeDivision(i)
+												}
+												className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+											>
+												<Trash2 className="h-4 w-4" />
+											</Button>
+										</div>
+
+										{/* Second row: fee, max spots, description */}
+										<div className="flex items-start gap-3 pl-8">
+											<div className="space-y-1">
+												<label className="text-xs text-muted-foreground">
+													Fee
+												</label>
+												<div className="flex items-center gap-1">
+													<span className="text-xs text-muted-foreground">
+														$
+													</span>
+													<Input
+														type="number"
+														min={0}
+														step={0.01}
+														value={
+															d.feeCents > 0
+																? (
+																		d.feeCents /
+																		100
+																	).toFixed(2)
+																: ""
+														}
+														onChange={(e) => {
+															const dollars =
+																Number.parseFloat(
+																	e.target
+																		.value,
+																)
+															updateDivision(i, {
+																feeCents:
+																	Number.isNaN(
+																		dollars,
+																	)
+																		? 0
+																		: Math.round(
+																				dollars *
+																					100,
+																			),
+															})
+														}}
+														placeholder="0.00"
+														className="w-[80px] h-7 text-xs"
+													/>
+												</div>
+											</div>
+											<div className="space-y-1">
+												<label className="text-xs text-muted-foreground">
+													Max Spots
+												</label>
+												<Input
+													type="number"
+													min={1}
+													value={d.maxSpots}
+													onChange={(e) =>
+														updateDivision(i, {
+															maxSpots:
+																e.target.value,
+														})
+													}
+													placeholder="Unlimited"
+													className="w-[90px] h-7 text-xs"
+												/>
+											</div>
+											<div className="space-y-1 flex-1">
+												<label className="text-xs text-muted-foreground">
+													Description
+												</label>
+												<Input
+													value={d.description}
+													onChange={(e) =>
+														updateDivision(i, {
+															description:
+																e.target.value,
+														})
+													}
+													placeholder="Who is this division for?"
+													className="h-7 text-xs"
+												/>
+											</div>
+										</div>
 									</div>
 								))}
 							</div>
+						)}
+
+						{customDivisions.length === 0 && (
+							<p className="text-sm text-muted-foreground italic">
+								No divisions yet. Add your first division
+								below.
+							</p>
 						)}
 
 						{/* Add division input */}
@@ -432,7 +657,7 @@ function TemplateCreator({
 							<Input
 								value={newLabel}
 								onChange={(e) => setNewLabel(e.target.value)}
-								placeholder="Add a division..."
+								placeholder="e.g. Men's Individual RX"
 								className="max-w-[300px]"
 								onKeyDown={(e) => {
 									if (e.key === "Enter") {
@@ -449,7 +674,7 @@ function TemplateCreator({
 								disabled={!newLabel.trim()}
 							>
 								<Plus className="h-4 w-4 mr-2" />
-								Add
+								Add Division
 							</Button>
 						</div>
 

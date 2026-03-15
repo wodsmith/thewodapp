@@ -9,6 +9,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import { competitionDivisionsTable } from "@/db/schemas/commerce"
 import {
 	competitionGroupsTable,
 	competitionsTable,
@@ -21,7 +22,10 @@ import {
 	scalingGroupsTable,
 	scalingLevelsTable,
 } from "@/db/schemas/scaling"
-import { seriesDivisionMappingsTable } from "@/db/schemas/series"
+import {
+	seriesDivisionMappingsTable,
+	seriesTemplateDivisionsTable,
+} from "@/db/schemas/series"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { getSessionFromCookie } from "@/utils/auth"
 import { requireTeamPermission } from "@/utils/team-auth"
@@ -46,15 +50,20 @@ export interface SeriesDivisionMappingData {
 	}>
 }
 
+export interface SeriesTemplateDivisionData {
+	id: string
+	label: string
+	position: number
+	teamSize: number
+	feeCents: number
+	description: string | null
+	maxSpots: number | null
+}
+
 export interface SeriesTemplateData {
 	scalingGroupId: string
 	scalingGroupTitle: string
-	divisions: Array<{
-		id: string
-		label: string
-		position: number
-		teamSize: number
-	}>
+	divisions: SeriesTemplateDivisionData[]
 }
 
 // ============================================================================
@@ -232,21 +241,37 @@ export const getSeriesDivisionMappingsFn = createServerFn({ method: "GET" })
 					.where(eq(scalingGroupsTable.id, templateGroupId))
 
 				if (scalingGroup) {
-					const levels = await db
-						.select()
-						.from(scalingLevelsTable)
-						.where(eq(scalingLevelsTable.scalingGroupId, templateGroupId))
-						.orderBy(scalingLevelsTable.position)
+					const [levels, templateDivConfigs] = await Promise.all([
+						db
+							.select()
+							.from(scalingLevelsTable)
+							.where(eq(scalingLevelsTable.scalingGroupId, templateGroupId))
+							.orderBy(scalingLevelsTable.position),
+						db
+							.select()
+							.from(seriesTemplateDivisionsTable)
+							.where(eq(seriesTemplateDivisionsTable.groupId, data.groupId)),
+					])
+
+					const configMap = new Map(
+						templateDivConfigs.map((c) => [c.divisionId, c]),
+					)
 
 					template = {
 						scalingGroupId: scalingGroup.id,
 						scalingGroupTitle: scalingGroup.title,
-						divisions: levels.map((l) => ({
-							id: l.id,
-							label: l.label,
-							position: l.position,
-							teamSize: l.teamSize,
-						})),
+						divisions: levels.map((l) => {
+							const config = configMap.get(l.id)
+							return {
+								id: l.id,
+								label: l.label,
+								position: l.position,
+								teamSize: l.teamSize,
+								feeCents: config?.feeCents ?? 0,
+								description: config?.description ?? null,
+								maxSpots: config?.maxSpots ?? null,
+							}
+						}),
 					}
 				}
 			}
@@ -431,7 +456,9 @@ export const getSeriesDivisionMappingsFn = createServerFn({ method: "GET" })
 
 /**
  * Create or update the series template from an existing scaling group.
- * Clones the scaling group as the series template.
+ * Clones the scaling group levels as the series template, and copies any
+ * competition_divisions metadata (description, feeCents, maxSpots) into
+ * series_template_divisions.
  */
 export const setSeriesTemplateFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) =>
@@ -458,7 +485,7 @@ export const setSeriesTemplateFn = createServerFn({ method: "POST" })
 			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 		)
 
-		// Load source scaling group and its levels
+		// Load source scaling group, levels, and any competition_divisions metadata
 		const [sourceGroup] = await db
 			.select()
 			.from(scalingGroupsTable)
@@ -476,15 +503,80 @@ export const setSeriesTemplateFn = createServerFn({ method: "POST" })
 			)
 			.orderBy(scalingLevelsTable.position)
 
+		// Try to find competition_divisions metadata for the source levels
+		const sourceLevelIds = sourceLevels.map((l) => l.id)
+		const sourceDivConfigs =
+			sourceLevelIds.length > 0
+				? await db
+						.select()
+						.from(competitionDivisionsTable)
+						.where(
+							inArray(
+								competitionDivisionsTable.divisionId,
+								sourceLevelIds,
+							),
+						)
+				: []
+		// Use first config found per division (multiple comps may have configs)
+		const sourceConfigMap = new Map<
+			string,
+			{ feeCents: number; description: string | null; maxSpots: number | null }
+		>()
+		for (const c of sourceDivConfigs) {
+			if (!sourceConfigMap.has(c.divisionId)) {
+				sourceConfigMap.set(c.divisionId, {
+					feeCents: c.feeCents,
+					description: c.description,
+					maxSpots: c.maxSpots,
+				})
+			}
+		}
+
 		const seriesSettings = parseSeriesSettings(group.settings)
 		const existingTemplateId = seriesSettings?.scalingGroupId
 
-		// If a template already exists, delete its old levels and reuse the group
+		// Helper to clone levels + metadata into a template group
+		const cloneLevels = async (templateGroupId: string) => {
+			for (const level of sourceLevels) {
+				const newLevelId = createScalingLevelId()
+				await db.insert(scalingLevelsTable).values({
+					id: newLevelId,
+					scalingGroupId: templateGroupId,
+					label: level.label,
+					position: level.position,
+					teamSize: level.teamSize,
+				})
+
+				// Copy metadata if available
+				const config = sourceConfigMap.get(level.id)
+				if (config) {
+					await db.insert(seriesTemplateDivisionsTable).values({
+						groupId: data.groupId,
+						divisionId: newLevelId,
+						feeCents: config.feeCents,
+						description: config.description,
+						maxSpots: config.maxSpots,
+					})
+				}
+			}
+		}
+
 		if (existingTemplateId) {
+			// Clear old data
+			await db
+				.delete(seriesTemplateDivisionsTable)
+				.where(
+					eq(seriesTemplateDivisionsTable.groupId, data.groupId),
+				)
 			await db
 				.delete(scalingLevelsTable)
 				.where(
 					eq(scalingLevelsTable.scalingGroupId, existingTemplateId),
+				)
+			await db
+				.delete(seriesDivisionMappingsTable)
+				.where(
+					eq(seriesDivisionMappingsTable.groupId, data.groupId),
 				)
 
 			await db
@@ -495,24 +587,7 @@ export const setSeriesTemplateFn = createServerFn({ method: "POST" })
 				})
 				.where(eq(scalingGroupsTable.id, existingTemplateId))
 
-			// Clone levels into existing template group
-			for (const level of sourceLevels) {
-				await db.insert(scalingLevelsTable).values({
-					id: createScalingLevelId(),
-					scalingGroupId: existingTemplateId,
-					label: level.label,
-					position: level.position,
-					teamSize: level.teamSize,
-				})
-			}
-
-			// Clear old mappings since template changed
-			await db
-				.delete(seriesDivisionMappingsTable)
-				.where(
-					eq(seriesDivisionMappingsTable.groupId, data.groupId),
-				)
-
+			await cloneLevels(existingTemplateId)
 			return { scalingGroupId: existingTemplateId }
 		}
 
@@ -526,16 +601,7 @@ export const setSeriesTemplateFn = createServerFn({ method: "POST" })
 			isSystem: false,
 		})
 
-		// Clone levels
-		for (const level of sourceLevels) {
-			await db.insert(scalingLevelsTable).values({
-				id: createScalingLevelId(),
-				scalingGroupId: newGroupId,
-				label: level.label,
-				position: level.position,
-				teamSize: level.teamSize,
-			})
-		}
+		await cloneLevels(newGroupId)
 
 		// Save to series settings
 		const newSettings = stringifySeriesSettings({
@@ -551,7 +617,9 @@ export const setSeriesTemplateFn = createServerFn({ method: "POST" })
 	})
 
 /**
- * Create a series template from scratch with custom division labels.
+ * Create a series template from scratch with custom divisions.
+ * Stores structural data (label, teamSize, position) on scaling_levels,
+ * and metadata (description, feeCents, maxSpots) on series_template_divisions.
  */
 export const createSeriesTemplateFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) =>
@@ -563,6 +631,9 @@ export const createSeriesTemplateFn = createServerFn({ method: "POST" })
 						z.object({
 							label: z.string().min(1),
 							teamSize: z.number().int().min(1).default(1),
+							feeCents: z.number().int().min(0).default(0),
+							description: z.string().nullable().optional(),
+							maxSpots: z.number().int().min(1).nullable().optional(),
 						}),
 					)
 					.min(1),
@@ -591,10 +662,14 @@ export const createSeriesTemplateFn = createServerFn({ method: "POST" })
 		let templateGroupId: string
 
 		if (existingTemplateId) {
-			// Reuse existing template group
 			templateGroupId = existingTemplateId
 
-			// Clear old levels and mappings
+			// Clear old levels, template configs, and mappings
+			await db
+				.delete(seriesTemplateDivisionsTable)
+				.where(
+					eq(seriesTemplateDivisionsTable.groupId, data.groupId),
+				)
 			await db
 				.delete(scalingLevelsTable)
 				.where(
@@ -614,7 +689,6 @@ export const createSeriesTemplateFn = createServerFn({ method: "POST" })
 				})
 				.where(eq(scalingGroupsTable.id, existingTemplateId))
 		} else {
-			// Create new template group
 			templateGroupId = createScalingGroupId()
 			await db.insert(scalingGroupsTable).values({
 				id: templateGroupId,
@@ -624,7 +698,6 @@ export const createSeriesTemplateFn = createServerFn({ method: "POST" })
 				isSystem: false,
 			})
 
-			// Save to series settings
 			const newSettings = stringifySeriesSettings({
 				...seriesSettings,
 				scalingGroupId: templateGroupId,
@@ -635,16 +708,29 @@ export const createSeriesTemplateFn = createServerFn({ method: "POST" })
 				.where(eq(competitionGroupsTable.id, data.groupId))
 		}
 
-		// Create divisions
+		// Create scaling levels + template division configs
 		for (let i = 0; i < data.divisions.length; i++) {
 			const div = data.divisions[i]
+			const levelId = createScalingLevelId()
+
 			await db.insert(scalingLevelsTable).values({
-				id: createScalingLevelId(),
+				id: levelId,
 				scalingGroupId: templateGroupId,
 				label: div.label,
 				position: i,
 				teamSize: div.teamSize,
 			})
+
+			// Store metadata on series_template_divisions
+			if (div.feeCents || div.description || div.maxSpots) {
+				await db.insert(seriesTemplateDivisionsTable).values({
+					groupId: data.groupId,
+					divisionId: levelId,
+					feeCents: div.feeCents ?? 0,
+					description: div.description ?? null,
+					maxSpots: div.maxSpots ?? null,
+				})
+			}
 		}
 
 		return { scalingGroupId: templateGroupId }

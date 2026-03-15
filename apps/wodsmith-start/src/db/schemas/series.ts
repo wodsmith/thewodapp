@@ -2,13 +2,59 @@ import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
 import {
 	index,
+	int,
 	mysqlTable,
+	text,
 	uniqueIndex,
 	varchar,
 } from "drizzle-orm/mysql-core"
 import { competitionGroupsTable, competitionsTable } from "./competitions"
-import { commonColumns, createSeriesDivisionMappingId } from "./common"
+import {
+	commonColumns,
+	createSeriesDivisionMappingId,
+	createSeriesTemplateDivisionId,
+} from "./common"
 import { scalingLevelsTable } from "./scaling"
+
+/**
+ * Series Template Divisions
+ *
+ * Stores per-division metadata for the series template (description, maxSpots, feeCents).
+ * The structural data (label, position, teamSize) lives on the scaling_levels table.
+ * This table mirrors competition_divisions but for the series template instead of
+ * a specific competition.
+ *
+ * When the organizer "syncs downstream", these values are copied into each
+ * competition's competition_divisions rows.
+ */
+export const seriesTemplateDivisionsTable = mysqlTable(
+	"series_template_divisions",
+	{
+		...commonColumns,
+		id: varchar({ length: 255 })
+			.primaryKey()
+			.$defaultFn(() => createSeriesTemplateDivisionId())
+			.notNull(),
+		// The series group this template division belongs to
+		groupId: varchar({ length: 255 }).notNull(),
+		// The template scaling level this config applies to
+		divisionId: varchar({ length: 255 }).notNull(),
+		// Fee in cents (e.g., 7500 = $75.00) — synced to competition_divisions.feeCents
+		feeCents: int().default(0).notNull(),
+		// Markdown description — synced to competition_divisions.description
+		description: text(),
+		// Max spots — synced to competition_divisions.maxSpots (null = unlimited)
+		maxSpots: int(),
+	},
+	(table) => [
+		// One config row per division per series
+		uniqueIndex("std_group_division_idx").on(
+			table.groupId,
+			table.divisionId,
+		),
+		index("std_group_idx").on(table.groupId),
+	],
+)
 
 /**
  * Series Division Mappings
@@ -54,6 +100,20 @@ export const seriesDivisionMappingsTable = mysqlTable(
 )
 
 // Relations (Drizzle query builder only — no DB-level FK enforcement on PlanetScale)
+export const seriesTemplateDivisionsRelations = relations(
+	seriesTemplateDivisionsTable,
+	({ one }) => ({
+		group: one(competitionGroupsTable, {
+			fields: [seriesTemplateDivisionsTable.groupId],
+			references: [competitionGroupsTable.id],
+		}),
+		division: one(scalingLevelsTable, {
+			fields: [seriesTemplateDivisionsTable.divisionId],
+			references: [scalingLevelsTable.id],
+		}),
+	}),
+)
+
 export const seriesDivisionMappingsRelations = relations(
 	seriesDivisionMappingsTable,
 	({ one }) => ({
@@ -79,6 +139,9 @@ export const seriesDivisionMappingsRelations = relations(
 )
 
 // Type exports
+export type SeriesTemplateDivision = InferSelectModel<
+	typeof seriesTemplateDivisionsTable
+>
 export type SeriesDivisionMapping = InferSelectModel<
 	typeof seriesDivisionMappingsTable
 >
