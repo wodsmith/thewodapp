@@ -39,11 +39,13 @@ export function SeriesDivisionMapper({
 		useState<SeriesDivisionMappingData[]>(initialMappings)
 	// Increment to force uncontrolled <select> elements to remount with new defaultValues
 	const [revision, setRevision] = useState(0)
+	const [isDirty, setIsDirty] = useState(false)
 
 	// Sync when parent refreshes data (e.g. after save)
 	useEffect(() => {
 		setMappings(initialMappings)
 		setRevision((r) => r + 1)
+		setIsDirty(false)
 	}, [initialMappings])
 
 	const saveMappings = useServerFn(saveSeriesDivisionMappingsFn)
@@ -55,6 +57,7 @@ export function SeriesDivisionMapper({
 			const result = await autoMap({ data: { groupId } })
 			setMappings(result.competitionMappings)
 			setRevision((r) => r + 1)
+			setIsDirty(true)
 			toast.success("Auto-mapped divisions")
 		} catch (e) {
 			toast.error(
@@ -122,13 +125,24 @@ export function SeriesDivisionMapper({
 	)
 
 	return (
-		<form ref={formRef} onSubmit={(e) => e.preventDefault()}>
+		<form
+			ref={formRef}
+			onSubmit={(e) => e.preventDefault()}
+			onChange={() => setIsDirty(true)}
+		>
 			<div className="space-y-4">
 				{/* Actions bar */}
 				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-					<p className="text-sm text-muted-foreground">
-						{mappedCount} of {totalDivisions} divisions mapped
-					</p>
+					<div className="flex items-center gap-3">
+						<p className="text-sm text-muted-foreground">
+							{mappedCount} of {totalDivisions} divisions mapped
+						</p>
+						{isDirty && (
+							<span className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+								Unsaved changes
+							</span>
+						)}
+					</div>
 					<div className="flex items-center gap-2">
 						<Button
 							type="button"
