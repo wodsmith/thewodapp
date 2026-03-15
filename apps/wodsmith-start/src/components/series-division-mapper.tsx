@@ -2,7 +2,7 @@
 
 import { Link } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { Check, ExternalLink, Minus, Sparkles, X } from "lucide-react"
+import { ExternalLink, Minus, Sparkles } from "lucide-react"
 import { useCallback, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -22,15 +22,9 @@ interface Props {
 }
 
 /**
- * Compact matrix view of all competitions × series template divisions.
- *
- * Layout:
- *   Columns = series template divisions
- *   Rows = competitions
- *   Cells = the competition division mapped to that series division (or empty)
- *
- * Each cell has an inline <select> for remapping.
- * Uses uncontrolled native <select> elements for performance with 100+ cells.
+ * Interactive matrix: competitions as rows, series divisions as columns.
+ * Each cell is a <select> that picks which comp division maps to that
+ * series division. Clicking an empty cell lets you assign a mapping.
  */
 export function SeriesDivisionMapper({
 	groupId,
@@ -68,23 +62,27 @@ export function SeriesDivisionMapper({
 		if (!formRef.current) return
 		setIsSaving(true)
 		try {
-			const formData = new FormData(formRef.current)
+			// Read all matrix selects via data attributes
+			const selects = formRef.current.querySelectorAll(
+				"select[data-comp-id][data-series-div-id]",
+			)
 			const allMappings: Array<{
 				competitionId: string
 				competitionDivisionId: string
 				seriesDivisionId: string
 			}> = []
 
-			for (const [name, value] of formData.entries()) {
-				if (!name.startsWith("mapping::")) continue
-				const val = value as string
-				if (val === "__unmapped__") continue
-				const parts = name.split("::")
-				if (parts.length !== 3) continue
+			for (const select of selects) {
+				const el = select as HTMLSelectElement
+				const compId = el.dataset.compId
+				const seriesDivId = el.dataset.seriesDivId
+				const compDivId = el.value
+				if (!compId || !seriesDivId || compDivId === "__none__")
+					continue
 				allMappings.push({
-					competitionId: parts[1],
-					competitionDivisionId: parts[2],
-					seriesDivisionId: val,
+					competitionId: compId,
+					competitionDivisionId: compDivId,
+					seriesDivisionId: seriesDivId,
 				})
 			}
 
@@ -100,7 +98,7 @@ export function SeriesDivisionMapper({
 		} finally {
 			setIsSaving(false)
 		}
-	}, [groupId, saveMappings])
+	}, [groupId, saveMappings, onSaved])
 
 	// Stats
 	const totalDivisions = mappings.reduce(
@@ -144,7 +142,7 @@ export function SeriesDivisionMapper({
 					</div>
 				</div>
 
-				{/* Overview matrix: comps as rows, series divisions as columns */}
+				{/* Interactive matrix */}
 				<div className="border rounded-lg overflow-x-auto">
 					<table className="w-full text-sm">
 						<thead>
@@ -155,7 +153,7 @@ export function SeriesDivisionMapper({
 								{template.divisions.map((sd) => (
 									<th
 										key={sd.id}
-										className="text-center font-medium px-2 py-2 min-w-[140px]"
+										className="text-center font-medium px-2 py-2 min-w-[150px]"
 									>
 										<div className="text-xs leading-tight">
 											{sd.label}
@@ -180,28 +178,14 @@ export function SeriesDivisionMapper({
 						</tbody>
 					</table>
 				</div>
-
-				{/* Detailed mapping controls (hidden selects for form submission) */}
-				<div className="space-y-3">
-					<h4 className="text-sm font-medium text-muted-foreground">
-						Division Mapping Details
-					</h4>
-					{mappings.map((comp) => (
-						<CompetitionMappingRow
-							key={comp.competitionId}
-							comp={comp}
-							template={template}
-						/>
-					))}
-				</div>
 			</div>
 		</form>
 	)
 }
 
 /**
- * A single row in the overview matrix.
- * Shows which series divisions this competition covers.
+ * A single row in the interactive matrix.
+ * Each series-division cell is a <select> picking which comp division maps to it.
  */
 function CompetitionRow({
 	comp,
@@ -210,13 +194,13 @@ function CompetitionRow({
 	comp: SeriesDivisionMappingData
 	template: SeriesTemplateData
 }) {
-	// Build a map: seriesDivisionId → competitionDivisionLabel
-	const seriesDivToCompDiv = new Map<string, string>()
+	// Build reverse map: seriesDivisionId → competitionDivisionId
+	const seriesDivToCompDivId = new Map<string, string>()
 	for (const m of comp.mappings) {
 		if (m.seriesDivisionId) {
-			seriesDivToCompDiv.set(
+			seriesDivToCompDivId.set(
 				m.seriesDivisionId,
-				m.competitionDivisionLabel,
+				m.competitionDivisionId,
 			)
 		}
 	}
@@ -241,21 +225,30 @@ function CompetitionRow({
 				</div>
 			</td>
 			{template.divisions.map((sd) => {
-				const compLabel = seriesDivToCompDiv.get(sd.id)
+				const mappedCompDivId = seriesDivToCompDivId.get(sd.id)
+
 				return (
-					<td key={sd.id} className="px-2 py-2 text-center">
-						{compLabel ? (
-							<Badge
-								variant="outline"
-								className="text-green-700 border-green-300 text-xs font-normal max-w-[130px] truncate"
-								title={compLabel}
-							>
-								<Check className="h-3 w-3 mr-1 shrink-0" />
-								{compLabel}
-							</Badge>
-						) : (
-							<Minus className="h-3 w-3 text-muted-foreground/40 mx-auto" />
-						)}
+					<td key={sd.id} className="px-1 py-1.5 text-center">
+						<select
+							defaultValue={mappedCompDivId ?? "__none__"}
+							className={`h-7 text-xs rounded-md border px-1.5 py-0.5 w-full max-w-[140px] mx-auto block focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer ${
+								mappedCompDivId
+									? "border-green-300 bg-green-50 text-green-800 dark:bg-green-950/30 dark:text-green-300"
+									: "border-dashed border-muted-foreground/30 text-muted-foreground"
+							}`}
+							data-comp-id={comp.competitionId}
+							data-series-div-id={sd.id}
+						>
+							<option value="__none__">—</option>
+							{comp.mappings.map((m) => (
+								<option
+									key={m.competitionDivisionId}
+									value={m.competitionDivisionId}
+								>
+									{m.competitionDivisionLabel}
+								</option>
+							))}
+						</select>
 					</td>
 				)
 			})}
@@ -272,80 +265,5 @@ function CompetitionRow({
 				)}
 			</td>
 		</tr>
-	)
-}
-
-/**
- * Compact inline mapping controls for a single competition.
- * Each division gets a native <select> for the form submission.
- */
-function CompetitionMappingRow({
-	comp,
-	template,
-}: {
-	comp: SeriesDivisionMappingData
-	template: SeriesTemplateData
-}) {
-	if (comp.mappings.length === 0) return null
-
-	return (
-		<div className="rounded-md border p-3">
-			<div className="flex items-center gap-2 mb-2">
-				<span className="text-xs font-semibold">
-					{comp.competitionName}
-				</span>
-				<Link
-					to="/compete/organizer/$competitionId/divisions"
-					params={{ competitionId: comp.competitionId }}
-					className="text-muted-foreground hover:text-foreground"
-				>
-					<ExternalLink className="h-3 w-3" />
-				</Link>
-			</div>
-			<div className="grid gap-1.5">
-				{comp.mappings.map((m) => (
-					<div
-						key={m.competitionDivisionId}
-						className="flex items-center gap-2 text-xs"
-					>
-						<span className="w-[180px] truncate text-muted-foreground font-mono" title={m.competitionDivisionLabel}>
-							{m.competitionDivisionLabel}
-						</span>
-						<span className="text-muted-foreground shrink-0">→</span>
-						<select
-							name={`mapping::${comp.competitionId}::${m.competitionDivisionId}`}
-							defaultValue={
-								m.seriesDivisionId ?? "__unmapped__"
-							}
-							className="h-7 text-xs rounded-md border border-input bg-background px-2 py-0.5 flex-1 max-w-[200px] focus:outline-none focus:ring-2 focus:ring-ring"
-						>
-							<option value="__unmapped__">
-								Unmapped (excluded)
-							</option>
-							{template.divisions.map((sd) => (
-								<option key={sd.id} value={sd.id}>
-									{sd.label}
-								</option>
-							))}
-						</select>
-						{m.confidence === "exact" ? (
-							<Badge
-								variant="outline"
-								className="text-green-600 border-green-300 text-[10px] shrink-0"
-							>
-								auto
-							</Badge>
-						) : m.confidence === "fuzzy" ? (
-							<Badge
-								variant="outline"
-								className="text-blue-600 border-blue-300 text-[10px] shrink-0"
-							>
-								fuzzy
-							</Badge>
-						) : null}
-					</div>
-				))}
-			</div>
-		</div>
 	)
 }
