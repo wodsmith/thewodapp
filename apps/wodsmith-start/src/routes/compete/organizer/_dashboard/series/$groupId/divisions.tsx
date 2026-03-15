@@ -14,6 +14,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import {
 	Select,
 	SelectContent,
@@ -490,22 +491,23 @@ function TemplateEditor({
 									className="w-[90px] h-7 text-xs"
 								/>
 							</div>
-							<div className="space-y-1 flex-1">
-								<label className="text-xs text-muted-foreground">
-									Description
-								</label>
-								<Input
-									value={d.description ?? ""}
-									onChange={(e) =>
-										updateDivision(i, {
-											description:
-												e.target.value || null,
-										})
-									}
-									placeholder="Who is this division for?"
-									className="h-7 text-xs"
-								/>
-							</div>
+						</div>
+						<div className="pl-8">
+							<label className="text-xs text-muted-foreground">
+								Description
+							</label>
+							<Textarea
+								value={d.description ?? ""}
+								onChange={(e) =>
+									updateDivision(i, {
+										description:
+											e.target.value || null,
+									})
+								}
+								placeholder="Who is this division for?"
+								className="mt-1 text-xs min-h-[60px]"
+								rows={2}
+							/>
 						</div>
 					</div>
 				))}
@@ -881,22 +883,23 @@ function TemplateCreator({
 													className="w-[90px] h-7 text-xs"
 												/>
 											</div>
-											<div className="space-y-1 flex-1">
-												<label className="text-xs text-muted-foreground">
-													Description
-												</label>
-												<Input
-													value={d.description}
-													onChange={(e) =>
-														updateDivision(i, {
-															description:
-																e.target.value,
-														})
-													}
-													placeholder="Who is this division for?"
-													className="h-7 text-xs"
-												/>
-											</div>
+										</div>
+										<div className="pl-8">
+											<label className="text-xs text-muted-foreground">
+												Description
+											</label>
+											<Textarea
+												value={d.description}
+												onChange={(e) =>
+													updateDivision(i, {
+														description:
+															e.target.value,
+													})
+												}
+												placeholder="Who is this division for?"
+												className="mt-1 text-xs min-h-[60px]"
+												rows={2}
+											/>
 										</div>
 									</div>
 								))}
