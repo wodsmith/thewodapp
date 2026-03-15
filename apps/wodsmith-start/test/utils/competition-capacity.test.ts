@@ -73,7 +73,7 @@ describe("calculateCompetitionCapacity", () => {
 			})
 
 			expect(result.isFull).toBe(true)
-			expect(result.spotsAvailable).toBe(-3)
+			expect(result.spotsAvailable).toBe(0)
 		})
 	})
 
