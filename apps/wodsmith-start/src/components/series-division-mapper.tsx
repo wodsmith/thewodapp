@@ -129,9 +129,6 @@ export function SeriesDivisionMapper({
 	const hasUnmappedDivisions = (comp: SeriesDivisionMappingData) =>
 		comp.mappings.some((m) => m.seriesDivisionId === null)
 	const compsWithUnmapped = mappings.filter(hasUnmappedDivisions).length
-	const filteredMappings = showOnlyUnmapped
-		? mappings.filter(hasUnmappedDivisions)
-		: mappings
 
 	return (
 		<form ref={formRef} onSubmit={(e) => e.preventDefault()}>
@@ -216,14 +213,20 @@ export function SeriesDivisionMapper({
 							</tr>
 						</thead>
 						<tbody>
-							{filteredMappings.map((comp) => (
-								<CompetitionRow
-									key={`${comp.competitionId}-${revision}`}
-									comp={comp}
-									template={template}
-									onChanged={() => setIsDirty(true)}
-								/>
-							))}
+							{mappings.map((comp) => {
+								const hidden =
+									showOnlyUnmapped &&
+									!hasUnmappedDivisions(comp)
+								return (
+									<CompetitionRow
+										key={`${comp.competitionId}-${revision}`}
+										comp={comp}
+										template={template}
+										onChanged={() => setIsDirty(true)}
+										hidden={hidden}
+									/>
+								)
+							})}
 						</tbody>
 					</table>
 				</div>
@@ -241,10 +244,12 @@ function CompetitionRow({
 	comp,
 	template,
 	onChanged,
+	hidden,
 }: {
 	comp: SeriesDivisionMappingData
 	template: SeriesTemplateData
 	onChanged: () => void
+	hidden?: boolean
 }) {
 	// Build initial state: seriesDivisionId → competitionDivisionId
 	const initialSelections = () => {
@@ -285,7 +290,9 @@ function CompetitionRow({
 	).length
 
 	return (
-		<tr className="border-b last:border-b-0 hover:bg-muted/30">
+		<tr
+			className={`border-b last:border-b-0 hover:bg-muted/30 ${hidden ? "hidden" : ""}`}
+		>
 			<td className="px-3 py-2 sticky left-0 bg-background">
 				<div className="flex items-center gap-1.5">
 					<span className="font-medium text-xs truncate max-w-[160px]">
