@@ -120,3 +120,6 @@ export const createProductCouponRedemptionId = () => `pcred_${ulid()}`
 
 // Review note ID generators
 export const createReviewNoteId = () => `rnote_${ulid()}`
+
+// Series division mapping ID generators
+export const createSeriesDivisionMappingId = () => `sdm_${ulid()}`

@@ -31,7 +31,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { usePostHog } from "@/lib/posthog"
 import {
   addCompetitionDivisionFn,
   deleteCompetitionDivisionFn,
@@ -87,19 +86,6 @@ export function OrganizerDivisionManager({
   defaultMaxSpotsPerDivision,
 }: OrganizerDivisionManagerProps) {
   const router = useRouter()
-  const { posthog } = usePostHog()
-  const [globalLeaderboardEnabled, setGlobalLeaderboardEnabled] = useState(
-    posthog.isFeatureEnabled("competition-global-leaderboard") !== false,
-  )
-
-  useEffect(() => {
-    const unsubscribe = posthog.onFeatureFlags(() => {
-      setGlobalLeaderboardEnabled(
-        posthog.isFeatureEnabled("competition-global-leaderboard") !== false,
-      )
-    })
-    return unsubscribe
-  }, [posthog])
   const [divisions, setDivisions] = useState(initialDivisions)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showChangeGroupDialog, setShowChangeGroupDialog] = useState(false)
@@ -402,7 +388,7 @@ export function OrganizerDivisionManager({
                   <span className="text-xs text-muted-foreground">
                     {scalingGroupTitle}
                   </span>
-                  {scalingGroups.length > 0 && globalLeaderboardEnabled && (
+                  {scalingGroups.length > 0 && (
                     <button
                       type="button"
                       className="text-xs text-muted-foreground underline hover:text-foreground"
