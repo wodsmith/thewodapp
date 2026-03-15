@@ -1060,3 +1060,209 @@ export const getCompetitionSeriesMappingStatusFn = createServerFn({
 			}
 		},
 	)
+
+/**
+ * Update the series template divisions (label, teamSize, fee, description, maxSpots).
+ * Accepts the full list of divisions — replaces scaling levels + template configs.
+ */
+export const updateSeriesTemplateFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				groupId: z.string().min(1),
+				divisions: z
+					.array(
+						z.object({
+							id: z.string().min(1),
+							label: z.string().min(1),
+							teamSize: z.number().int().min(1),
+							feeCents: z.number().int().min(0).default(0),
+							description: z.string().nullable().optional(),
+							maxSpots: z
+								.number()
+								.int()
+								.min(1)
+								.nullable()
+								.optional(),
+						}),
+					)
+					.min(1),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+		const session = await getSessionFromCookie()
+		if (!session?.userId) throw new Error("Not authenticated")
+
+		const [group] = await db
+			.select()
+			.from(competitionGroupsTable)
+			.where(eq(competitionGroupsTable.id, data.groupId))
+		if (!group) throw new Error("Series group not found")
+
+		await requireTeamPermission(
+			group.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		const seriesSettings = parseSeriesSettings(group.settings)
+		const templateGroupId = seriesSettings?.scalingGroupId
+		if (!templateGroupId) throw new Error("No template configured")
+
+		// Update each scaling level and its template config
+		for (let i = 0; i < data.divisions.length; i++) {
+			const div = data.divisions[i]
+
+			// Update scaling level (label, teamSize, position)
+			await db
+				.update(scalingLevelsTable)
+				.set({
+					label: div.label,
+					teamSize: div.teamSize,
+					position: i,
+					updatedAt: new Date(),
+				})
+				.where(eq(scalingLevelsTable.id, div.id))
+
+			// Upsert template division config
+			const [existing] = await db
+				.select({ id: seriesTemplateDivisionsTable.id })
+				.from(seriesTemplateDivisionsTable)
+				.where(
+					and(
+						eq(
+							seriesTemplateDivisionsTable.groupId,
+							data.groupId,
+						),
+						eq(
+							seriesTemplateDivisionsTable.divisionId,
+							div.id,
+						),
+					),
+				)
+
+			if (existing) {
+				await db
+					.update(seriesTemplateDivisionsTable)
+					.set({
+						feeCents: div.feeCents ?? 0,
+						description: div.description ?? null,
+						maxSpots: div.maxSpots ?? null,
+						updatedAt: new Date(),
+					})
+					.where(eq(seriesTemplateDivisionsTable.id, existing.id))
+			} else {
+				await db.insert(seriesTemplateDivisionsTable).values({
+					groupId: data.groupId,
+					divisionId: div.id,
+					feeCents: div.feeCents ?? 0,
+					description: div.description ?? null,
+					maxSpots: div.maxSpots ?? null,
+				})
+			}
+		}
+
+		return { success: true }
+	})
+
+/**
+ * Sync series template division settings downstream to all mapped competitions.
+ * For each mapping, copies the template's feeCents, description, and maxSpots
+ * into the competition's competition_divisions row.
+ */
+export const syncTemplateToCompetitionsFn = createServerFn({
+	method: "POST",
+})
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				groupId: z.string().min(1),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+		const session = await getSessionFromCookie()
+		if (!session?.userId) throw new Error("Not authenticated")
+
+		const [group] = await db
+			.select()
+			.from(competitionGroupsTable)
+			.where(eq(competitionGroupsTable.id, data.groupId))
+		if (!group) throw new Error("Series group not found")
+
+		await requireTeamPermission(
+			group.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		// Load template division configs
+		const templateConfigs = await db
+			.select()
+			.from(seriesTemplateDivisionsTable)
+			.where(eq(seriesTemplateDivisionsTable.groupId, data.groupId))
+
+		if (templateConfigs.length === 0) {
+			return { synced: 0 }
+		}
+
+		const templateConfigMap = new Map(
+			templateConfigs.map((c) => [c.divisionId, c]),
+		)
+
+		// Load all mappings for this series
+		const mappings = await db
+			.select()
+			.from(seriesDivisionMappingsTable)
+			.where(eq(seriesDivisionMappingsTable.groupId, data.groupId))
+
+		let synced = 0
+
+		for (const mapping of mappings) {
+			const templateConfig = templateConfigMap.get(
+				mapping.seriesDivisionId,
+			)
+			if (!templateConfig) continue
+
+			// Check if a competition_divisions row exists
+			const [existing] = await db
+				.select({ id: competitionDivisionsTable.id })
+				.from(competitionDivisionsTable)
+				.where(
+					and(
+						eq(
+							competitionDivisionsTable.competitionId,
+							mapping.competitionId,
+						),
+						eq(
+							competitionDivisionsTable.divisionId,
+							mapping.competitionDivisionId,
+						),
+					),
+				)
+
+			if (existing) {
+				await db
+					.update(competitionDivisionsTable)
+					.set({
+						feeCents: templateConfig.feeCents,
+						description: templateConfig.description,
+						maxSpots: templateConfig.maxSpots,
+						updatedAt: new Date(),
+					})
+					.where(eq(competitionDivisionsTable.id, existing.id))
+			} else {
+				await db.insert(competitionDivisionsTable).values({
+					competitionId: mapping.competitionId,
+					divisionId: mapping.competitionDivisionId,
+					feeCents: templateConfig.feeCents,
+					description: templateConfig.description,
+					maxSpots: templateConfig.maxSpots,
+				})
+			}
+			synced++
+		}
+
+		return { synced }
+	})

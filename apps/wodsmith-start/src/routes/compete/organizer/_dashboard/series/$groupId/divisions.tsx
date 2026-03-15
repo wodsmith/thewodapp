@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { ArrowDown, ArrowLeft, ArrowUp, Plus, Trash2, Users } from "lucide-react"
+import { ArrowDown, ArrowLeft, ArrowUp, Plus, RefreshCw, Save, Trash2, Users } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { SeriesDivisionMapper } from "@/components/series-division-mapper"
@@ -26,7 +26,10 @@ import {
 	createSeriesTemplateFn,
 	getSeriesDivisionMappingsFn,
 	setSeriesTemplateFn,
+	syncTemplateToCompetitionsFn,
+	updateSeriesTemplateFn,
 	type SeriesDivisionMappingData,
+	type SeriesTemplateDivisionData,
 	type SeriesTemplateData,
 } from "@/server-fns/series-division-mapping-fns"
 
@@ -184,44 +187,13 @@ function SeriesDivisionsPage() {
 					/>
 				) : (
 					<>
-						{/* Template info card */}
-						<Card>
-							<CardHeader>
-								<CardTitle>Series Template</CardTitle>
-								<CardDescription>
-									{template.scalingGroupTitle} —{" "}
-									{template.divisions.length} divisions
-								</CardDescription>
-							</CardHeader>
-							<CardContent>
-								<div className="flex flex-wrap gap-2">
-									{template.divisions.map((d) => (
-										<span
-											key={d.id}
-											className="inline-flex items-center rounded-full border px-3 py-1 text-sm"
-										>
-											{d.label}
-											{d.teamSize > 1 && (
-												<span className="ml-1 text-xs text-muted-foreground">
-													(team of {d.teamSize})
-												</span>
-											)}
-										</span>
-									))}
-								</div>
-								<div className="mt-4">
-									<Button
-										variant="outline"
-										size="sm"
-										onClick={() => {
-											setTemplate(null)
-										}}
-									>
-										Change Template
-									</Button>
-								</div>
-							</CardContent>
-						</Card>
+						{/* Editable template card */}
+						<TemplateEditor
+							groupId={groupId}
+							template={template}
+							onTemplateUpdated={refreshData}
+							onChangeTemplate={() => setTemplate(null)}
+						/>
 
 						{/* Step 2: Map divisions */}
 						<Card>
@@ -263,6 +235,292 @@ function SeriesDivisionsPage() {
 				)}
 			</div>
 		</div>
+	)
+}
+
+// ─────────────────────────────────────────────────────────
+// Template Editor — edit existing template + sync downstream
+// ─────────────────────────────────────────────────────────
+
+function TemplateEditor({
+	groupId,
+	template,
+	onTemplateUpdated,
+	onChangeTemplate,
+}: {
+	groupId: string
+	template: SeriesTemplateData
+	onTemplateUpdated: () => Promise<void>
+	onChangeTemplate: () => void
+}) {
+	const [divisions, setDivisions] = useState<SeriesTemplateDivisionData[]>(
+		template.divisions,
+	)
+	const [isSaving, setIsSaving] = useState(false)
+	const [isSyncing, setIsSyncing] = useState(false)
+
+	const updateTemplate = useServerFn(updateSeriesTemplateFn)
+	const syncDownstream = useServerFn(syncTemplateToCompetitionsFn)
+
+	const updateDivision = (
+		index: number,
+		updates: Partial<SeriesTemplateDivisionData>,
+	) => {
+		setDivisions((prev) =>
+			prev.map((d, i) => (i === index ? { ...d, ...updates } : d)),
+		)
+	}
+
+	const moveUp = (index: number) => {
+		if (index === 0) return
+		setDivisions((prev) => {
+			const next = [...prev]
+			const temp = next[index - 1]
+			next[index - 1] = next[index]
+			next[index] = temp
+			return next
+		})
+	}
+
+	const moveDown = (index: number) => {
+		if (index >= divisions.length - 1) return
+		setDivisions((prev) => {
+			const next = [...prev]
+			const temp = next[index + 1]
+			next[index + 1] = next[index]
+			next[index] = temp
+			return next
+		})
+	}
+
+	const handleSave = async () => {
+		setIsSaving(true)
+		try {
+			await updateTemplate({
+				data: {
+					groupId,
+					divisions: divisions.map((d) => ({
+						id: d.id,
+						label: d.label,
+						teamSize: d.teamSize,
+						feeCents: d.feeCents,
+						description: d.description,
+						maxSpots: d.maxSpots,
+					})),
+				},
+			})
+			toast.success("Template saved")
+			await onTemplateUpdated()
+		} catch (e) {
+			toast.error(
+				e instanceof Error ? e.message : "Failed to save template",
+			)
+		} finally {
+			setIsSaving(false)
+		}
+	}
+
+	const handleSync = async () => {
+		setIsSyncing(true)
+		try {
+			const result = await syncDownstream({
+				data: { groupId },
+			})
+			toast.success(
+				`Synced settings to ${result.synced} competition division${result.synced !== 1 ? "s" : ""}`,
+			)
+		} catch (e) {
+			toast.error(
+				e instanceof Error ? e.message : "Failed to sync",
+			)
+		} finally {
+			setIsSyncing(false)
+		}
+	}
+
+	return (
+		<Card>
+			<CardHeader>
+				<div className="flex items-start justify-between">
+					<div>
+						<CardTitle>Series Template</CardTitle>
+						<CardDescription>
+							Edit divisions here, then sync changes to all
+							mapped competitions.
+						</CardDescription>
+					</div>
+					<div className="flex items-center gap-2">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={handleSync}
+							disabled={isSyncing}
+						>
+							<RefreshCw
+								className={`h-4 w-4 mr-2 ${isSyncing ? "animate-spin" : ""}`}
+							/>
+							{isSyncing
+								? "Syncing..."
+								: "Sync to Competitions"}
+						</Button>
+						<Button
+							size="sm"
+							onClick={handleSave}
+							disabled={isSaving}
+						>
+							<Save className="h-4 w-4 mr-2" />
+							{isSaving ? "Saving..." : "Save Template"}
+						</Button>
+					</div>
+				</div>
+			</CardHeader>
+			<CardContent className="space-y-3">
+				{divisions.map((d, i) => (
+					<div
+						key={d.id}
+						className="rounded-md border p-3 space-y-2"
+					>
+						<div className="flex items-center gap-2">
+							<span className="text-xs text-muted-foreground font-mono w-6 text-center shrink-0">
+								#{i + 1}
+							</span>
+							<div className="flex flex-col shrink-0">
+								<button
+									type="button"
+									onClick={() => moveUp(i)}
+									disabled={i === 0}
+									className="text-muted-foreground hover:text-foreground disabled:opacity-25 p-0.5"
+								>
+									<ArrowUp className="h-3 w-3" />
+								</button>
+								<button
+									type="button"
+									onClick={() => moveDown(i)}
+									disabled={i >= divisions.length - 1}
+									className="text-muted-foreground hover:text-foreground disabled:opacity-25 p-0.5"
+								>
+									<ArrowDown className="h-3 w-3" />
+								</button>
+							</div>
+							<Input
+								value={d.label}
+								onChange={(e) =>
+									updateDivision(i, {
+										label: e.target.value,
+									})
+								}
+								placeholder="Division name"
+								className="flex-1 max-w-[250px]"
+							/>
+							<div className="flex items-center gap-1.5 shrink-0">
+								<Users className="h-3.5 w-3.5 text-muted-foreground" />
+								<select
+									value={d.teamSize}
+									onChange={(e) =>
+										updateDivision(i, {
+											teamSize: Number.parseInt(
+												e.target.value,
+												10,
+											),
+										})
+									}
+									className="h-8 text-sm rounded-md border border-input bg-background px-2 py-1 focus:outline-none focus:ring-2 focus:ring-ring"
+								>
+									<option value={1}>Individual</option>
+									<option value={2}>Team of 2</option>
+									<option value={3}>Team of 3</option>
+									<option value={4}>Team of 4</option>
+									<option value={5}>Team of 5</option>
+									<option value={6}>Team of 6</option>
+								</select>
+							</div>
+						</div>
+						<div className="flex items-start gap-3 pl-8">
+							<div className="space-y-1">
+								<label className="text-xs text-muted-foreground">
+									Fee
+								</label>
+								<div className="flex items-center gap-1">
+									<span className="text-xs text-muted-foreground">
+										$
+									</span>
+									<Input
+										type="number"
+										min={0}
+										step={0.01}
+										value={
+											d.feeCents > 0
+												? (d.feeCents / 100).toFixed(2)
+												: ""
+										}
+										onChange={(e) => {
+											const dollars = Number.parseFloat(
+												e.target.value,
+											)
+											updateDivision(i, {
+												feeCents: Number.isNaN(dollars)
+													? 0
+													: Math.round(dollars * 100),
+											})
+										}}
+										placeholder="0.00"
+										className="w-[80px] h-7 text-xs"
+									/>
+								</div>
+							</div>
+							<div className="space-y-1">
+								<label className="text-xs text-muted-foreground">
+									Max Spots
+								</label>
+								<Input
+									type="number"
+									min={1}
+									value={d.maxSpots ?? ""}
+									onChange={(e) =>
+										updateDivision(i, {
+											maxSpots: e.target.value
+												? Number.parseInt(
+														e.target.value,
+														10,
+													) || null
+												: null,
+										})
+									}
+									placeholder="Unlimited"
+									className="w-[90px] h-7 text-xs"
+								/>
+							</div>
+							<div className="space-y-1 flex-1">
+								<label className="text-xs text-muted-foreground">
+									Description
+								</label>
+								<Input
+									value={d.description ?? ""}
+									onChange={(e) =>
+										updateDivision(i, {
+											description:
+												e.target.value || null,
+										})
+									}
+									placeholder="Who is this division for?"
+									className="h-7 text-xs"
+								/>
+							</div>
+						</div>
+					</div>
+				))}
+				<div className="pt-2">
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={onChangeTemplate}
+						className="text-muted-foreground"
+					>
+						Replace with different template
+					</Button>
+				</div>
+			</CardContent>
+		</Card>
 	)
 }
 
