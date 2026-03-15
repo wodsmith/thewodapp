@@ -811,3 +811,166 @@ export const autoMapSeriesDivisionsFn = createServerFn({ method: "GET" })
 			return { competitionMappings }
 		},
 	)
+
+/**
+ * Get the series mapping status for a single competition's divisions.
+ * Used on the per-competition divisions page to show which divisions
+ * are mapped/unmapped to the series template.
+ */
+export const getCompetitionSeriesMappingStatusFn = createServerFn({
+	method: "GET",
+})
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				competitionId: z.string().min(1),
+				groupId: z.string().min(1),
+			})
+			.parse(data),
+	)
+	.handler(
+		async ({
+			data,
+		}): Promise<{
+			seriesName: string
+			groupId: string
+			hasTemplate: boolean
+			divisions: Array<{
+				divisionId: string
+				divisionLabel: string
+				mappedToSeriesLabel: string | null
+			}>
+		}> => {
+			const db = getDb()
+
+			// Load series group
+			const [group] = await db
+				.select({
+					id: competitionGroupsTable.id,
+					name: competitionGroupsTable.name,
+					settings: competitionGroupsTable.settings,
+				})
+				.from(competitionGroupsTable)
+				.where(eq(competitionGroupsTable.id, data.groupId))
+			if (!group) {
+				return {
+					seriesName: "",
+					groupId: data.groupId,
+					hasTemplate: false,
+					divisions: [],
+				}
+			}
+
+			const seriesSettings = parseSeriesSettings(group.settings)
+			const templateGroupId = seriesSettings?.scalingGroupId
+
+			if (!templateGroupId) {
+				return {
+					seriesName: group.name,
+					groupId: group.id,
+					hasTemplate: false,
+					divisions: [],
+				}
+			}
+
+			// Load series template divisions
+			const templateLevels = await db
+				.select({
+					id: scalingLevelsTable.id,
+					label: scalingLevelsTable.label,
+				})
+				.from(scalingLevelsTable)
+				.where(
+					eq(
+						scalingLevelsTable.scalingGroupId,
+						templateGroupId,
+					),
+				)
+			const templateLabelMap = new Map(
+				templateLevels.map((l) => [l.id, l.label]),
+			)
+
+			// Load competition's scaling group
+			const [comp] = await db
+				.select({ settings: competitionsTable.settings })
+				.from(competitionsTable)
+				.where(eq(competitionsTable.id, data.competitionId))
+			if (!comp) {
+				return {
+					seriesName: group.name,
+					groupId: group.id,
+					hasTemplate: true,
+					divisions: [],
+				}
+			}
+
+			const compSettings = parseCompetitionSettings(comp.settings)
+			const compScalingGroupId =
+				compSettings?.divisions?.scalingGroupId
+			if (!compScalingGroupId) {
+				return {
+					seriesName: group.name,
+					groupId: group.id,
+					hasTemplate: true,
+					divisions: [],
+				}
+			}
+
+			// Load competition's divisions
+			const compDivisions = await db
+				.select({
+					id: scalingLevelsTable.id,
+					label: scalingLevelsTable.label,
+				})
+				.from(scalingLevelsTable)
+				.where(
+					eq(
+						scalingLevelsTable.scalingGroupId,
+						compScalingGroupId,
+					),
+				)
+				.orderBy(scalingLevelsTable.position)
+
+			// Load existing mappings for this competition
+			const mappings = await db
+				.select()
+				.from(seriesDivisionMappingsTable)
+				.where(
+					and(
+						eq(
+							seriesDivisionMappingsTable.groupId,
+							data.groupId,
+						),
+						eq(
+							seriesDivisionMappingsTable.competitionId,
+							data.competitionId,
+						),
+					),
+				)
+
+			const mappingLookup = new Map(
+				mappings.map((m) => [
+					m.competitionDivisionId,
+					m.seriesDivisionId,
+				]),
+			)
+
+			const divisions = compDivisions.map((div) => {
+				const seriesDivId = mappingLookup.get(div.id)
+				return {
+					divisionId: div.id,
+					divisionLabel: div.label,
+					mappedToSeriesLabel: seriesDivId
+						? (templateLabelMap.get(seriesDivId) ?? null)
+						: null,
+				}
+			})
+
+			return {
+				seriesName: group.name,
+				groupId: group.id,
+				hasTemplate: true,
+				divisions,
+			}
+		},
+	)
