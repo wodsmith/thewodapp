@@ -6,6 +6,9 @@ import type { Connection } from "mysql2/promise"
  */
 export async function cleanup(client: Connection): Promise<void> {
 	const tables = [
+		// Series tables (before competitions/scaling)
+		"series_division_mappings",
+		"series_template_divisions",
 		// Competition deep children
 		"score_rounds",
 		"scores",

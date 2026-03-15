@@ -19,11 +19,8 @@ import {
   competitionsTable,
   REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
-import {
-  parseSeriesSettings,
-  stringifySeriesSettings,
-} from "@/types/competitions"
 import { scalingGroupsTable, scalingLevelsTable } from "@/db/schemas/scaling"
+import { seriesDivisionMappingsTable } from "@/db/schemas/series"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"
@@ -161,6 +158,8 @@ const initializeCompetitionDivisionsInputSchema = z.object({
   competitionId: z.string().min(1, "Competition ID is required"),
   teamId: z.string().min(1, "Team ID is required"),
   templateGroupId: z.string().optional(),
+  // Optional: only include these division IDs from the template (subset selection)
+  templateDivisionIds: z.array(z.string()).optional(),
 })
 
 const addCompetitionDivisionInputSchema = z.object({
@@ -811,19 +810,42 @@ export const listScalingGroupsFn = createServerFn({ method: "GET" })
       },
     })
 
-    // Transform to expected format
-    const transformedGroups = groups.map((g) => ({
-      id: g.id,
-      title: g.title,
-      description: g.description,
-      teamId: g.teamId,
-      isSystem: g.isSystem,
-      levels: g.scalingLevels.map((l) => ({
-        id: l.id,
-        label: l.label,
-        position: l.position,
-      })),
-    }))
+    // Exclude series template scaling groups so organizers don't accidentally
+    // pick them when setting up individual competition divisions.
+    // Series templates are referenced by competition_groups.settings.scalingGroupId.
+    const seriesGroups = await db
+      .select({ settings: competitionGroupsTable.settings })
+      .from(competitionGroupsTable)
+      .where(eq(competitionGroupsTable.organizingTeamId, data.teamId))
+    const seriesTemplateIds = new Set<string>()
+    for (const sg of seriesGroups) {
+      if (sg.settings) {
+        try {
+          const parsed = JSON.parse(sg.settings)
+          if (parsed?.scalingGroupId) {
+            seriesTemplateIds.add(parsed.scalingGroupId as string)
+          }
+        } catch {
+          // ignore malformed settings
+        }
+      }
+    }
+
+    // Transform to expected format, filtering out series templates
+    const transformedGroups = groups
+      .filter((g) => !seriesTemplateIds.has(g.id))
+      .map((g) => ({
+        id: g.id,
+        title: g.title,
+        description: g.description,
+        teamId: g.teamId,
+        isSystem: g.isSystem,
+        levels: g.scalingLevels.map((l) => ({
+          id: l.id,
+          label: l.label,
+          position: l.position,
+        })),
+      }))
 
     return { groups: transformedGroups }
   })
@@ -905,12 +927,18 @@ export const initializeCompetitionDivisionsFn = createServerFn({
       }
 
       if (data.templateGroupId) {
-        // Clone levels from template
-        for (const level of templateLevels) {
+        // Clone levels from template, optionally filtering to selected subset
+        const levelsToClone = data.templateDivisionIds
+          ? templateLevels.filter((l) =>
+              data.templateDivisionIds!.includes(l.id),
+            )
+          : templateLevels
+        for (let i = 0; i < levelsToClone.length; i++) {
+          const level = levelsToClone[i]
           await createScalingLevel({
             scalingGroupId: newGroup.id,
             label: level.label,
-            position: level.position,
+            position: i,
             teamSize: level.teamSize,
             tx,
           })
@@ -1081,9 +1109,19 @@ export const deleteCompetitionDivisionFn = createServerFn({ method: "POST" })
       )
     }
 
-    await db
-      .delete(scalingLevelsTable)
-      .where(eq(scalingLevelsTable.id, data.divisionId))
+    // Clean up mappings + delete level atomically
+    // (application-level cascade — PlanetScale has no FK constraints)
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(seriesDivisionMappingsTable)
+        .where(
+          eq(seriesDivisionMappingsTable.competitionDivisionId, data.divisionId),
+        )
+
+      await tx
+        .delete(scalingLevelsTable)
+        .where(eq(scalingLevelsTable.id, data.divisionId))
+    })
 
     return { success: true }
   })
@@ -1687,127 +1725,3 @@ async function switchCompetitionScalingGroupCore({
   return { success: true, migratedCount }
 }
 
-/**
- * Set the canonical scaling group for a series.
- * Stores the chosen group ID in competition_groups.settings.scalingGroupId.
- * This group is used as the primary for division health checks (overrides majority vote).
- */
-export const setSeriesCanonicalScalingGroupFn = createServerFn({
-  method: "POST",
-})
-  .inputValidator((data: unknown) =>
-    z
-      .object({
-        groupId: z.string().min(1),
-        teamId: z.string().min(1),
-        scalingGroupId: z.string().min(1),
-      })
-      .parse(data),
-  )
-  .handler(async ({ data }) => {
-    const db = getDb()
-    const session = await getSessionFromCookie()
-    if (!session?.userId) throw new Error("Not authenticated")
-    await requireTeamPermission(
-      data.teamId,
-      TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
-    )
-
-    const [group] = await db
-      .select()
-      .from(competitionGroupsTable)
-      .where(eq(competitionGroupsTable.id, data.groupId))
-    if (!group) throw new Error("Series group not found")
-    if (group.organizingTeamId !== data.teamId)
-      throw new Error("Series does not belong to this team")
-
-    const [scalingGroup] = await db
-      .select()
-      .from(scalingGroupsTable)
-      .where(eq(scalingGroupsTable.id, data.scalingGroupId))
-    if (!scalingGroup) throw new Error("Scaling group not found")
-    if (scalingGroup.teamId !== null && scalingGroup.teamId !== data.teamId)
-      throw new Error("Scaling group does not belong to this team")
-
-    const currentSettings = parseSeriesSettings(group.settings)
-    const newSettings = stringifySeriesSettings({
-      ...currentSettings,
-      scalingGroupId: data.scalingGroupId,
-    })
-
-    await db
-      .update(competitionGroupsTable)
-      .set({ settings: newSettings, updatedAt: new Date() })
-      .where(eq(competitionGroupsTable.id, data.groupId))
-
-    return { success: true }
-  })
-
-/**
- * Align all competitions in a series to use the same scaling group.
- * Switches every comp that doesn't already use targetScalingGroupId.
- * Returns per-comp results (some may fail if label matching fails).
- */
-export const alignAllSeriesCompsFn = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) =>
-    z
-      .object({
-        groupId: z.string().min(1),
-        teamId: z.string().min(1),
-        targetScalingGroupId: z.string().min(1),
-      })
-      .parse(data),
-  )
-  .handler(async ({ data }) => {
-    const db = getDb()
-    const session = await getSessionFromCookie()
-    if (!session?.userId) throw new Error("Not authenticated")
-    await requireTeamPermission(
-      data.teamId,
-      TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
-    )
-
-    const [group] = await db
-      .select()
-      .from(competitionGroupsTable)
-      .where(eq(competitionGroupsTable.id, data.groupId))
-    if (!group) throw new Error("Series group not found")
-    if (group.organizingTeamId !== data.teamId)
-      throw new Error("Series does not belong to this team")
-
-    const comps = await db
-      .select({ id: competitionsTable.id })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.groupId, data.groupId))
-
-    const results: Array<{
-      competitionId: string
-      success: boolean
-      migratedCount?: number
-      error?: string
-    }> = []
-
-    for (const comp of comps) {
-      try {
-        const result = await switchCompetitionScalingGroupCore({
-          db,
-          competitionId: comp.id,
-          teamId: data.teamId,
-          newScalingGroupId: data.targetScalingGroupId,
-        })
-        results.push({
-          competitionId: comp.id,
-          success: true,
-          migratedCount: result.migratedCount,
-        })
-      } catch (e) {
-        results.push({
-          competitionId: comp.id,
-          success: false,
-          error: e instanceof Error ? e.message : "Unknown error",
-        })
-      }
-    }
-
-    return { results }
-  })
