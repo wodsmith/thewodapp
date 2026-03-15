@@ -20,6 +20,7 @@ import {
   REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import { scalingGroupsTable, scalingLevelsTable } from "@/db/schemas/scaling"
+import { seriesDivisionMappingsTable } from "@/db/schemas/series"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"
@@ -1099,6 +1100,14 @@ export const deleteCompetitionDivisionFn = createServerFn({ method: "POST" })
         "Cannot delete: competition must have at least one division",
       )
     }
+
+    // Clean up any series division mappings referencing this division
+    // (application-level cascade — PlanetScale has no FK constraints)
+    await db
+      .delete(seriesDivisionMappingsTable)
+      .where(
+        eq(seriesDivisionMappingsTable.competitionDivisionId, data.divisionId),
+      )
 
     await db
       .delete(scalingLevelsTable)

@@ -17,10 +17,12 @@ import { scalingLevelsTable } from "./scaling"
  * (also scaling levels, from the series template scaling group).
  * This decouples the series leaderboard structure from individual competition setup.
  *
- * Cascade deletes ensure orphaned mappings are automatically cleaned up when:
- * - A competition is deleted from the series
- * - A competition division (scaling level) is deleted/recreated
- * - A series template division is changed
+ * NOTE: PlanetScale (Vitess) does not support foreign key constraints.
+ * Cascade cleanup is handled at the application level:
+ * - deleteCompetitionDivisionFn cleans up mappings referencing the deleted level
+ * - setSeriesTemplateFn clears all mappings when template changes
+ * - saveSeriesDivisionMappingsFn does a full replace on save
+ * Relations below are for Drizzle query builder only (no DB-level enforcement).
  */
 export const seriesDivisionMappingsTable = mysqlTable(
 	"series_division_mappings",
@@ -31,23 +33,13 @@ export const seriesDivisionMappingsTable = mysqlTable(
 			.$defaultFn(() => createSeriesDivisionMappingId())
 			.notNull(),
 		// The series group this mapping belongs to
-		groupId: varchar({ length: 255 })
-			.notNull()
-			.references(() => competitionGroupsTable.id, {
-				onDelete: "cascade",
-			}),
+		groupId: varchar({ length: 255 }).notNull(),
 		// The competition whose division is being mapped
-		competitionId: varchar({ length: 255 })
-			.notNull()
-			.references(() => competitionsTable.id, { onDelete: "cascade" }),
+		competitionId: varchar({ length: 255 }).notNull(),
 		// The competition's division (scaling level)
-		competitionDivisionId: varchar({ length: 255 })
-			.notNull()
-			.references(() => scalingLevelsTable.id, { onDelete: "cascade" }),
+		competitionDivisionId: varchar({ length: 255 }).notNull(),
 		// The series template division (scaling level) this maps to
-		seriesDivisionId: varchar({ length: 255 })
-			.notNull()
-			.references(() => scalingLevelsTable.id, { onDelete: "cascade" }),
+		seriesDivisionId: varchar({ length: 255 }).notNull(),
 	},
 	(table) => [
 		// Each competition division can only be mapped once per series
@@ -61,7 +53,7 @@ export const seriesDivisionMappingsTable = mysqlTable(
 	],
 )
 
-// Relations
+// Relations (Drizzle query builder only — no DB-level FK enforcement on PlanetScale)
 export const seriesDivisionMappingsRelations = relations(
 	seriesDivisionMappingsTable,
 	({ one }) => ({
