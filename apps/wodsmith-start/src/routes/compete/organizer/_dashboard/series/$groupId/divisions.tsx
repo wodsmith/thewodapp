@@ -56,6 +56,9 @@ function SeriesDivisionsPage() {
 	const [template, setTemplate] = useState<SeriesTemplateData | null>(
 		loaderData.template,
 	)
+	// Stash the original template so "Cancel" can restore it
+	const [replacingTemplate, setReplacingTemplate] =
+		useState<SeriesTemplateData | null>(null)
 	const [competitionMappings, setCompetitionMappings] = useState<
 		SeriesDivisionMappingData[]
 	>(loaderData.competitionMappings)
@@ -185,6 +188,14 @@ function SeriesDivisionsPage() {
 						onCreateFromExisting={handleCreateFromExisting}
 						onCreateCustom={handleCreateCustom}
 						isCreating={isCreatingTemplate}
+						onCancel={
+							replacingTemplate
+								? () => {
+										setTemplate(replacingTemplate)
+										setReplacingTemplate(null)
+									}
+								: undefined
+						}
 					/>
 				) : (
 					<>
@@ -193,7 +204,10 @@ function SeriesDivisionsPage() {
 							groupId={groupId}
 							template={template}
 							onTemplateUpdated={refreshData}
-							onChangeTemplate={() => setTemplate(null)}
+							onChangeTemplate={() => {
+								setReplacingTemplate(template)
+								setTemplate(null)
+							}}
 						/>
 
 						{/* Step 2: Map divisions */}
@@ -537,6 +551,7 @@ function TemplateCreator({
 	onCreateFromExisting,
 	onCreateCustom,
 	isCreating,
+	onCancel,
 }: {
 	availableScalingGroups: Array<{
 		id: string
@@ -556,6 +571,7 @@ function TemplateCreator({
 		}>,
 	) => void
 	isCreating: boolean
+	onCancel?: () => void
 }) {
 	interface CustomDivision {
 		label: string
@@ -648,11 +664,24 @@ function TemplateCreator({
 	return (
 		<Card>
 			<CardHeader>
-				<CardTitle>Step 1: Define Series Divisions</CardTitle>
-				<CardDescription>
-					Choose an existing competition's divisions as a starting
-					point, or create your own from scratch.
-				</CardDescription>
+				<div className="flex items-start justify-between">
+					<div>
+						<CardTitle>Step 1: Define Series Divisions</CardTitle>
+						<CardDescription>
+							Choose an existing competition's divisions as a
+							starting point, or create your own from scratch.
+						</CardDescription>
+					</div>
+					{onCancel && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={onCancel}
+						>
+							Cancel
+						</Button>
+					)}
+				</div>
 			</CardHeader>
 			<CardContent className="space-y-6">
 				{/* Tab-like toggle */}
