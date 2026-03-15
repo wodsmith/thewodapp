@@ -3,7 +3,7 @@
 import { Link } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { ExternalLink, Minus, Sparkles } from "lucide-react"
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -37,6 +37,14 @@ export function SeriesDivisionMapper({
 	const [isAutoMapping, setIsAutoMapping] = useState(false)
 	const [mappings, setMappings] =
 		useState<SeriesDivisionMappingData[]>(initialMappings)
+	// Increment to force uncontrolled <select> elements to remount with new defaultValues
+	const [revision, setRevision] = useState(0)
+
+	// Sync when parent refreshes data (e.g. after save)
+	useEffect(() => {
+		setMappings(initialMappings)
+		setRevision((r) => r + 1)
+	}, [initialMappings])
 
 	const saveMappings = useServerFn(saveSeriesDivisionMappingsFn)
 	const autoMap = useServerFn(autoMapSeriesDivisionsFn)
@@ -46,6 +54,7 @@ export function SeriesDivisionMapper({
 		try {
 			const result = await autoMap({ data: { groupId } })
 			setMappings(result.competitionMappings)
+			setRevision((r) => r + 1)
 			toast.success("Auto-mapped divisions")
 		} catch (e) {
 			toast.error(
@@ -170,7 +179,7 @@ export function SeriesDivisionMapper({
 						<tbody>
 							{mappings.map((comp) => (
 								<CompetitionRow
-									key={comp.competitionId}
+									key={`${comp.competitionId}-${revision}`}
 									comp={comp}
 									template={template}
 								/>
