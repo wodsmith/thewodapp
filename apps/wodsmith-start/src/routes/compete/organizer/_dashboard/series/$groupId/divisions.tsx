@@ -242,6 +242,7 @@ function SeriesDivisionsPage() {
 										groupId={groupId}
 										template={template}
 										initialMappings={competitionMappings}
+										onSaved={refreshData}
 									/>
 								)}
 							</CardContent>

@@ -18,6 +18,7 @@ interface Props {
 	groupId: string
 	template: SeriesTemplateData
 	initialMappings: SeriesDivisionMappingData[]
+	onSaved?: () => Promise<void>
 }
 
 /**
@@ -35,6 +36,7 @@ export function SeriesDivisionMapper({
 	groupId,
 	template,
 	initialMappings,
+	onSaved,
 }: Props) {
 	const formRef = useRef<HTMLFormElement>(null)
 	const [isSaving, setIsSaving] = useState(false)
@@ -89,34 +91,8 @@ export function SeriesDivisionMapper({
 			await saveMappings({
 				data: { groupId, mappings: allMappings },
 			})
-
-			// Update state so the overview matrix reflects saved values
-			const savedLookup = new Map(
-				allMappings.map((m) => [
-					`${m.competitionId}::${m.competitionDivisionId}`,
-					m.seriesDivisionId,
-				]),
-			)
-			setMappings((prev) =>
-				prev.map((comp) => ({
-					...comp,
-					mappings: comp.mappings.map((m) => {
-						const key = `${comp.competitionId}::${m.competitionDivisionId}`
-						const seriesDivisionId =
-							savedLookup.get(key) ?? null
-						return {
-							...m,
-							seriesDivisionId,
-							confidence:
-								seriesDivisionId !== null
-									? ("exact" as const)
-									: ("none" as const),
-						}
-					}),
-				})),
-			)
-
 			toast.success(`Saved ${allMappings.length} division mappings`)
+			if (onSaved) await onSaved()
 		} catch (e) {
 			toast.error(
 				e instanceof Error ? e.message : "Failed to save mappings",
