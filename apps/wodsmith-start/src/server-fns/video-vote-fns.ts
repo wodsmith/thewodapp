@@ -9,7 +9,10 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, count, eq, inArray, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
-import { competitionsTable } from "@/db/schemas/competitions"
+import {
+  competitionRegistrationsTable,
+  competitionsTable,
+} from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import {
   createVideoVoteId,
@@ -44,6 +47,11 @@ const castVoteInputSchema = z
 
 const getVoteCountsInputSchema = z.object({
   videoSubmissionIds: z.array(z.string().min(1)).min(1).max(100),
+})
+
+const getSubmissionVoteDetailsInputSchema = z.object({
+  videoSubmissionId: z.string().min(1),
+  competitionId: z.string().min(1),
 })
 
 const getFlaggedSubmissionsInputSchema = z.object({
@@ -202,6 +210,115 @@ export const getVideoVoteCountsFn = createServerFn({ method: "GET" })
     }
 
     return { votes: result }
+  })
+
+/**
+ * Get detailed vote information for a single submission (organizer view).
+ * Returns totals, reason breakdown, and anonymous downvote comments.
+ */
+export const getSubmissionVoteDetailsFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    getSubmissionVoteDetailsInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const db = getDb()
+
+    // Verify organizer permission
+    const [competition] = await db
+      .select({ organizingTeamId: competitionsTable.organizingTeamId })
+      .from(competitionsTable)
+      .where(eq(competitionsTable.id, data.competitionId))
+      .limit(1)
+
+    if (!competition) {
+      throw new Error("NOT_FOUND: Competition not found")
+    }
+
+    await requireTeamPermission(
+      competition.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+    )
+
+    // Verify the submission belongs to this competition
+    const [submission] = await db
+      .select({ id: videoSubmissionsTable.id })
+      .from(videoSubmissionsTable)
+      .innerJoin(
+        competitionRegistrationsTable,
+        eq(videoSubmissionsTable.registrationId, competitionRegistrationsTable.id),
+      )
+      .where(
+        and(
+          eq(videoSubmissionsTable.id, data.videoSubmissionId),
+          eq(competitionRegistrationsTable.eventId, data.competitionId),
+        ),
+      )
+      .limit(1)
+
+    if (!submission) {
+      throw new Error("NOT_FOUND: Submission not found for this competition")
+    }
+
+    // Get vote counts
+    const voteCounts = await db
+      .select({
+        voteType: videoVotesTable.voteType,
+        count: count(),
+      })
+      .from(videoVotesTable)
+      .where(eq(videoVotesTable.videoSubmissionId, data.videoSubmissionId))
+      .groupBy(videoVotesTable.voteType)
+
+    let upvotes = 0
+    let downvotes = 0
+    for (const row of voteCounts) {
+      if (row.voteType === "upvote") upvotes = row.count
+      else if (row.voteType === "downvote") downvotes = row.count
+    }
+
+    // Get reason breakdown for downvotes
+    const reasonBreakdown = await db
+      .select({
+        reason: videoVotesTable.reason,
+        count: count(),
+      })
+      .from(videoVotesTable)
+      .where(
+        and(
+          eq(videoVotesTable.videoSubmissionId, data.videoSubmissionId),
+          eq(videoVotesTable.voteType, "downvote"),
+        ),
+      )
+      .groupBy(videoVotesTable.reason)
+
+    // Get individual downvote details (anonymous — no voter identity)
+    const downvoteDetails = await db
+      .select({
+        reason: videoVotesTable.reason,
+        reasonDetail: videoVotesTable.reasonDetail,
+        votedAt: videoVotesTable.votedAt,
+      })
+      .from(videoVotesTable)
+      .where(
+        and(
+          eq(videoVotesTable.videoSubmissionId, data.videoSubmissionId),
+          eq(videoVotesTable.voteType, "downvote"),
+        ),
+      )
+
+    return {
+      upvotes,
+      downvotes,
+      reasonBreakdown: reasonBreakdown.map((r) => ({
+        reason: r.reason,
+        count: r.count,
+      })),
+      downvoteDetails: downvoteDetails.map((d) => ({
+        reason: d.reason,
+        reasonDetail: d.reasonDetail,
+        votedAt: d.votedAt,
+      })),
+    }
   })
 
 /**

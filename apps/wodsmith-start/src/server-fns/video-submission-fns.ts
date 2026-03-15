@@ -27,6 +27,7 @@ import {
   createVideoSubmissionId,
   videoSubmissionsTable,
 } from "@/db/schemas/video-submissions"
+import { videoVotesTable } from "@/db/schemas/video-votes"
 import type { TiebreakScheme } from "@/db/schemas/workouts"
 import { workouts } from "@/db/schemas/workouts"
 import {
@@ -801,9 +802,41 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
       }
     }
 
-    // Combine submissions with scores
+    // Batch-fetch vote counts for all submissions
+    const submissionIds = submissions.map((s) => s.id)
+    const voteCountsMap: Record<string, { upvotes: number; downvotes: number }> =
+      {}
+
+    if (submissionIds.length > 0) {
+      const voteCounts = await db
+        .select({
+          videoSubmissionId: videoVotesTable.videoSubmissionId,
+          voteType: videoVotesTable.voteType,
+          count: count(),
+        })
+        .from(videoVotesTable)
+        .where(inArray(videoVotesTable.videoSubmissionId, submissionIds))
+        .groupBy(videoVotesTable.videoSubmissionId, videoVotesTable.voteType)
+
+      for (const row of voteCounts) {
+        if (!voteCountsMap[row.videoSubmissionId]) {
+          voteCountsMap[row.videoSubmissionId] = { upvotes: 0, downvotes: 0 }
+        }
+        if (row.voteType === "upvote") {
+          voteCountsMap[row.videoSubmissionId].upvotes = row.count
+        } else if (row.voteType === "downvote") {
+          voteCountsMap[row.videoSubmissionId].downvotes = row.count
+        }
+      }
+    }
+
+    // Combine submissions with scores and vote counts
     const result = submissions.map((submission) => {
       const score = scoresMap[submission.userId]
+      const votes = voteCountsMap[submission.id] ?? {
+        upvotes: 0,
+        downvotes: 0,
+      }
       return {
         id: submission.id,
         videoUrl: submission.videoUrl,
@@ -831,6 +864,7 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
               status: score.status,
             }
           : null,
+        votes,
         // Review status based on whether an organizer has reviewed
         reviewStatus: submission.reviewedAt
           ? ("reviewed" as const)

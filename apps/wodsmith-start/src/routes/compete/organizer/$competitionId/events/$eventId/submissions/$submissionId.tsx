@@ -24,6 +24,8 @@ import {
   MessageSquare,
   ArrowDownUp,
   Pencil,
+  ThumbsDown,
+  ThumbsUp,
   Trash2,
   Trophy,
   Undo2,
@@ -92,6 +94,11 @@ import {
   markSubmissionReviewedFn,
   unmarkSubmissionReviewedFn,
 } from "@/server-fns/video-submission-fns"
+import { getSubmissionVoteDetailsFn } from "@/server-fns/video-vote-fns"
+import {
+  DOWNVOTE_REASON_LABELS,
+  type DownvoteReason,
+} from "@/db/schemas/video-votes"
 import { isSafeUrl } from "@/utils/url"
 
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -151,19 +158,39 @@ export const Route = createFileRoute(
       },
     })
 
-    // Fetch workout movements using trackWorkoutId (eventId param)
-    // This works regardless of whether a score exists
+    // Fetch workout movements and vote details in parallel
     let workoutMovements: Array<{ id: string; name: string; type: string }> = []
-    try {
-      const movementsResult = await getWorkoutMovementsFn({
+    let voteDetails: {
+      upvotes: number
+      downvotes: number
+      reasonBreakdown: Array<{ reason: string | null; count: number }>
+      downvoteDetails: Array<{
+        reason: string | null
+        reasonDetail: string | null
+        votedAt: Date
+      }>
+    } | null = null
+
+    const [movementsSettled, votesSettled] = await Promise.allSettled([
+      getWorkoutMovementsFn({
         data: {
           trackWorkoutId: params.eventId,
           competitionId: params.competitionId,
         },
-      })
-      workoutMovements = movementsResult.movements
-    } catch {
-      // Movements not available
+      }),
+      getSubmissionVoteDetailsFn({
+        data: {
+          videoSubmissionId: params.submissionId,
+          competitionId: params.competitionId,
+        },
+      }),
+    ])
+
+    if (movementsSettled.status === "fulfilled") {
+      workoutMovements = movementsSettled.value.movements
+    }
+    if (votesSettled.status === "fulfilled") {
+      voteDetails = votesSettled.value
     }
 
     return {
@@ -173,6 +200,7 @@ export const Route = createFileRoute(
       verificationLogs,
       reviewNotes: notesResult.notes,
       workoutMovements,
+      voteDetails,
     }
   },
 })
@@ -1876,6 +1904,146 @@ function MovementTallyCard({ notes }: MovementTallyCardProps) {
 }
 
 // ============================================================================
+// Community Votes Card
+// ============================================================================
+
+interface CommunityVotesCardProps {
+  voteDetails: {
+    upvotes: number
+    downvotes: number
+    reasonBreakdown: Array<{ reason: string | null; count: number }>
+    downvoteDetails: Array<{
+      reason: string | null
+      reasonDetail: string | null
+      votedAt: Date
+    }>
+  } | null
+}
+
+function CommunityVotesCard({ voteDetails }: CommunityVotesCardProps) {
+  if (!voteDetails) return null
+
+  const { upvotes, downvotes, reasonBreakdown, downvoteDetails } = voteDetails
+  const totalVotes = upvotes + downvotes
+
+  if (totalVotes === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ThumbsUp className="h-4 w-4" />
+            Community Votes
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            No community votes yet
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const formatVoteDate = (date: Date | string) => {
+    return new Date(date).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ThumbsUp className="h-4 w-4" />
+          Community Votes
+        </CardTitle>
+        <CardDescription>{totalVotes} total votes</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Vote totals */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400">
+            <ThumbsUp className="h-4 w-4" />
+            <span className="font-medium">{upvotes}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-red-600 dark:text-red-400">
+            <ThumbsDown className="h-4 w-4" />
+            <span className="font-medium">{downvotes}</span>
+          </div>
+        </div>
+
+        {/* Reason breakdown */}
+        {reasonBreakdown.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Downvote Reasons
+            </p>
+            <div className="space-y-1.5">
+              {reasonBreakdown.map((r) => (
+                <div
+                  key={r.reason ?? "unknown"}
+                  className="flex items-center justify-between text-sm"
+                >
+                  <span>
+                    {r.reason
+                      ? (DOWNVOTE_REASON_LABELS[
+                          r.reason as DownvoteReason
+                        ] ?? r.reason)
+                      : "Unknown"}
+                  </span>
+                  <Badge variant="secondary" className="text-xs">
+                    {r.count}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Individual downvote comments */}
+        {downvoteDetails.some((d) => d.reasonDetail) && (
+          <div className="space-y-2">
+            <Separator />
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Voter Comments
+            </p>
+            <div className="space-y-2">
+              {downvoteDetails
+                .filter((d) => d.reasonDetail)
+                .map((detail, i) => (
+                  <div
+                    key={i}
+                    className="rounded-md border p-2 text-sm space-y-1"
+                  >
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="text-xs">
+                        {detail.reason
+                          ? (DOWNVOTE_REASON_LABELS[
+                              detail.reason as DownvoteReason
+                            ] ?? detail.reason)
+                          : "Other"}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {formatVoteDate(detail.votedAt)}
+                      </span>
+                    </div>
+                    <p className="text-muted-foreground">
+                      {detail.reasonDetail}
+                    </p>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+// ============================================================================
 // Page Component
 // ============================================================================
 
@@ -1887,6 +2055,7 @@ function SubmissionDetailPage() {
     verificationLogs,
     reviewNotes,
     workoutMovements,
+    voteDetails,
   } = Route.useLoaderData()
   const { competition } = parentRoute.useLoaderData()
   const params = Route.useParams()
@@ -2228,6 +2397,9 @@ function SubmissionDetailPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Community Votes */}
+          <CommunityVotesCard voteDetails={voteDetails} />
 
           {/* Verification Controls */}
           {verificationSubmission && event && (
