@@ -40,6 +40,7 @@ export function SeriesDivisionMapper({
 	// Increment to force uncontrolled <select> elements to remount with new defaultValues
 	const [revision, setRevision] = useState(0)
 	const [isDirty, setIsDirty] = useState(false)
+	const [showOnlyUnmapped, setShowOnlyUnmapped] = useState(false)
 
 	// Sync when parent refreshes data (e.g. after save)
 	useEffect(() => {
@@ -124,6 +125,14 @@ export function SeriesDivisionMapper({
 		0,
 	)
 
+	// Comps that have at least one division without a mapping
+	const hasUnmappedDivisions = (comp: SeriesDivisionMappingData) =>
+		comp.mappings.some((m) => m.seriesDivisionId === null)
+	const compsWithUnmapped = mappings.filter(hasUnmappedDivisions).length
+	const filteredMappings = showOnlyUnmapped
+		? mappings.filter(hasUnmappedDivisions)
+		: mappings
+
 	return (
 		<form ref={formRef} onSubmit={(e) => e.preventDefault()}>
 			<div className="space-y-4">
@@ -161,6 +170,26 @@ export function SeriesDivisionMapper({
 					</div>
 				</div>
 
+				{/* Filter */}
+				{compsWithUnmapped > 0 && (
+					<div className="flex items-center gap-2">
+						<label className="flex items-center gap-2 cursor-pointer text-sm">
+							<input
+								type="checkbox"
+								checked={showOnlyUnmapped}
+								onChange={(e) =>
+									setShowOnlyUnmapped(e.target.checked)
+								}
+								className="rounded border-input"
+							/>
+							<span className="text-muted-foreground">
+								Show only competitions with unmapped divisions
+								({compsWithUnmapped})
+							</span>
+						</label>
+					</div>
+				)}
+
 				{/* Interactive matrix */}
 				<div className="border rounded-lg overflow-x-auto">
 					<table className="w-full text-sm">
@@ -187,7 +216,7 @@ export function SeriesDivisionMapper({
 							</tr>
 						</thead>
 						<tbody>
-							{mappings.map((comp) => (
+							{filteredMappings.map((comp) => (
 								<CompetitionRow
 									key={`${comp.competitionId}-${revision}`}
 									comp={comp}
