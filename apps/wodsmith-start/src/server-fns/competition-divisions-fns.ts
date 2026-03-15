@@ -158,6 +158,8 @@ const initializeCompetitionDivisionsInputSchema = z.object({
   competitionId: z.string().min(1, "Competition ID is required"),
   teamId: z.string().min(1, "Team ID is required"),
   templateGroupId: z.string().optional(),
+  // Optional: only include these division IDs from the template (subset selection)
+  templateDivisionIds: z.array(z.string()).optional(),
 })
 
 const addCompetitionDivisionInputSchema = z.object({
@@ -925,12 +927,18 @@ export const initializeCompetitionDivisionsFn = createServerFn({
       }
 
       if (data.templateGroupId) {
-        // Clone levels from template
-        for (const level of templateLevels) {
+        // Clone levels from template, optionally filtering to selected subset
+        const levelsToClone = data.templateDivisionIds
+          ? templateLevels.filter((l) =>
+              data.templateDivisionIds!.includes(l.id),
+            )
+          : templateLevels
+        for (let i = 0; i < levelsToClone.length; i++) {
+          const level = levelsToClone[i]
           await createScalingLevel({
             scalingGroupId: newGroup.id,
             label: level.label,
-            position: level.position,
+            position: i,
             teamSize: level.teamSize,
             tx,
           })

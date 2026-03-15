@@ -1266,3 +1266,60 @@ export const syncTemplateToCompetitionsFn = createServerFn({
 
 		return { synced }
 	})
+
+/**
+ * Get template divisions for a series group.
+ * Lightweight query for the competition creation form.
+ */
+export const getSeriesTemplateDivisionsFn = createServerFn({
+	method: "GET",
+})
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				groupId: z.string().min(1),
+			})
+			.parse(data),
+	)
+	.handler(
+		async ({
+			data,
+		}): Promise<{
+			scalingGroupId: string | null
+			divisions: Array<{
+				id: string
+				label: string
+				teamSize: number
+			}>
+		}> => {
+			const db = getDb()
+
+			const [group] = await db
+				.select({ settings: competitionGroupsTable.settings })
+				.from(competitionGroupsTable)
+				.where(eq(competitionGroupsTable.id, data.groupId))
+			if (!group) return { scalingGroupId: null, divisions: [] }
+
+			const seriesSettings = parseSeriesSettings(group.settings)
+			const templateGroupId = seriesSettings?.scalingGroupId
+			if (!templateGroupId)
+				return { scalingGroupId: null, divisions: [] }
+
+			const levels = await db
+				.select({
+					id: scalingLevelsTable.id,
+					label: scalingLevelsTable.label,
+					teamSize: scalingLevelsTable.teamSize,
+				})
+				.from(scalingLevelsTable)
+				.where(
+					eq(
+						scalingLevelsTable.scalingGroupId,
+						templateGroupId,
+					),
+				)
+				.orderBy(scalingLevelsTable.position)
+
+			return { scalingGroupId: templateGroupId, divisions: levels }
+		},
+	)

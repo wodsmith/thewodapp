@@ -3,6 +3,7 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useNavigate, useRouter } from "@tanstack/react-router"
 import { useForm } from "react-hook-form"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
 import { trackEvent } from "@/lib/posthog"
@@ -31,6 +32,7 @@ import {
   createCompetitionFn,
   updateCompetitionFn,
 } from "@/server-fns/competition-fns"
+import { initializeCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { COMMON_US_TIMEZONES, DEFAULT_TIMEZONE } from "@/utils/timezone-utils"
 
 const formSchema = z
@@ -115,6 +117,13 @@ interface OrganizerCompetitionFormProps {
   groups?: CompetitionGroup[]
   competition?: Competition
   defaultGroupId?: string
+  seriesTemplateDivisions?: Record<
+    string,
+    {
+      scalingGroupId: string
+      divisions: Array<{ id: string; label: string; teamSize: number }>
+    }
+  >
   onSuccess?: (competitionId: string) => void
   onCancel?: () => void
 }
@@ -125,6 +134,7 @@ export function OrganizerCompetitionForm({
   groups = [],
   competition,
   defaultGroupId,
+  seriesTemplateDivisions = {},
   onSuccess,
   onCancel,
 }: OrganizerCompetitionFormProps) {
@@ -167,6 +177,24 @@ export function OrganizerCompetitionForm({
   })
 
   const isMultiDay = form.watch("isMultiDay")
+  const watchedGroupId = form.watch("groupId")
+
+  // Track selected divisions for series template
+  const templateData = watchedGroupId
+    ? seriesTemplateDivisions[watchedGroupId] ?? null
+    : null
+  const templateDivisions = templateData?.divisions ?? []
+  const [selectedDivisionIds, setSelectedDivisionIds] = useState<Set<string>>(
+    () => new Set(templateDivisions.map((d) => d.id)),
+  )
+
+  // When group changes, select all template divisions by default
+  useEffect(() => {
+    const data = watchedGroupId
+      ? seriesTemplateDivisions[watchedGroupId] ?? null
+      : null
+    setSelectedDivisionIds(new Set((data?.divisions ?? []).map((d) => d.id)))
+  }, [watchedGroupId, seriesTemplateDivisions])
 
   // Auto-generate slug from name
   const handleNameChange = (name: string) => {
@@ -232,6 +260,23 @@ export function OrganizerCompetitionForm({
         })
 
         if (result.competitionId) {
+          // Initialize divisions from series template if selected
+          if (templateData && selectedDivisionIds.size > 0) {
+            try {
+              await initializeCompetitionDivisionsFn({
+                data: {
+                  competitionId: result.competitionId,
+                  teamId: data.teamId,
+                  templateGroupId: templateData.scalingGroupId,
+                  templateDivisionIds: Array.from(selectedDivisionIds),
+                },
+              })
+            } catch (e) {
+              console.error("Failed to initialize divisions:", e)
+              // Don't block competition creation
+            }
+          }
+
           trackEvent("competition_created", {
             competition_id: result.competitionId,
             competition_name: data.name,
@@ -422,6 +467,47 @@ export function OrganizerCompetitionForm({
               </FormItem>
             )}
           />
+        )}
+
+        {/* Series Division Selection */}
+        {!isEditMode && templateDivisions.length > 0 && (
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-medium">Divisions</p>
+              <p className="text-sm text-muted-foreground">
+                Select which series divisions this competition will include.
+              </p>
+            </div>
+            <div className="space-y-2">
+              {templateDivisions.map((div) => (
+                <label
+                  key={div.id}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <Checkbox
+                    checked={selectedDivisionIds.has(div.id)}
+                    onCheckedChange={(checked) => {
+                      setSelectedDivisionIds((prev) => {
+                        const next = new Set(prev)
+                        if (checked) {
+                          next.add(div.id)
+                        } else {
+                          next.delete(div.id)
+                        }
+                        return next
+                      })
+                    }}
+                  />
+                  <span className="text-sm">{div.label}</span>
+                  {div.teamSize > 1 && (
+                    <span className="text-xs text-muted-foreground">
+                      (team of {div.teamSize})
+                    </span>
+                  )}
+                </label>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* Competition Date */}
