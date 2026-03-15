@@ -74,6 +74,7 @@ function DivisionsPage() {
             id: competition.id,
             organizingTeamId: competition.organizingTeamId,
             defaultMaxSpotsPerDivision,
+            maxTotalRegistrations: competition.maxTotalRegistrations,
           }}
         />
       )}

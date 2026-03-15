@@ -287,6 +287,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
         competition,
         scalingGroup: null,
         publicDivisions: [],
+        competitionCapacity: null,
         userId: session.userId,
         registrationOpen,
         registrationOpensAt: regOpensAt,
@@ -304,7 +305,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 
     // 6. Get scaling group and levels for divisions (via server function)
     // Also get public divisions for capacity info
-    const [{ scalingGroup }, { divisions: publicDivisions }] =
+    const [{ scalingGroup }, { divisions: publicDivisions, competitionCapacity }] =
       await Promise.all([
         getScalingGroupWithLevelsFn({
           data: { scalingGroupId: settings.divisions.scalingGroupId },
@@ -324,6 +325,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
         competition,
         scalingGroup: null,
         publicDivisions: [],
+        competitionCapacity: null,
         userId: session.userId,
         registrationOpen,
         registrationOpensAt: regOpensAt,
@@ -343,6 +345,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
       competition,
       scalingGroup,
       publicDivisions,
+      competitionCapacity: competitionCapacity ?? null,
       userId: session.userId,
       registrationOpen,
       registrationOpensAt: regOpensAt,
@@ -367,6 +370,7 @@ function RegisterPage() {
     competition,
     scalingGroup,
     publicDivisions,
+    competitionCapacity,
     userId,
     registrationOpen,
     registrationOpensAt,
@@ -410,6 +414,7 @@ function RegisterPage() {
         competition={competition}
         scalingGroup={scalingGroup}
         publicDivisions={publicDivisions}
+        competitionCapacity={competitionCapacity}
         userId={userId}
         registrationOpen={registrationOpen}
         registrationOpensAt={registrationOpensAt}
