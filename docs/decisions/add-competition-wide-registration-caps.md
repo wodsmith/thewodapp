@@ -86,7 +86,7 @@ The competition-wide cap includes:
 - records in `competition_registrations` for the competition
 - excluding registrations with `status = REMOVED`
 - pending records in `commerce_purchase` for the competition
-- purchases with `status = PENDING`
+- purchases with `status = PENDING` and created within the last 35 minutes (stale pending purchases are excluded)
 
 ### Capacity rules
 If `maxTotalRegistrations` is `null`:

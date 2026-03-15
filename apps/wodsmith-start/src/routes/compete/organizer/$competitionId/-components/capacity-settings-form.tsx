@@ -52,11 +52,11 @@ export function CapacitySettingsForm({ competition }: Props) {
         return
       }
 
-      const parsedTotal = maxTotal.trim() === "" ? null : parseInt(maxTotal, 10)
+      const parsedTotal = maxTotal.trim() === "" ? null : Number(maxTotal)
 
       if (
         parsedTotal !== null &&
-        (Number.isNaN(parsedTotal) || parsedTotal < 1)
+        (!Number.isFinite(parsedTotal) || !Number.isInteger(parsedTotal) || parsedTotal < 1)
       ) {
         toast.error("Please enter a valid number (1 or higher)")
         setIsSubmitting(false)
@@ -83,8 +83,8 @@ export function CapacitySettingsForm({ competition }: Props) {
   const hasChanges = (() => {
     const parsed = maxSpots.trim() === "" ? null : parseInt(maxSpots, 10)
     if (parsed !== null && Number.isNaN(parsed)) return false
-    const parsedTotal = maxTotal.trim() === "" ? null : parseInt(maxTotal, 10)
-    if (parsedTotal !== null && Number.isNaN(parsedTotal)) return false
+    const parsedTotal = maxTotal.trim() === "" ? null : Number(maxTotal)
+    if (parsedTotal !== null && (!Number.isFinite(parsedTotal) || !Number.isInteger(parsedTotal))) return false
     return (
       parsed !== competition.defaultMaxSpotsPerDivision ||
       parsedTotal !== competition.maxTotalRegistrations

@@ -1323,6 +1323,8 @@ export function RegistrationForm({
               </>
             ) : !registrationOpen ? (
               "Registration Closed"
+            ) : competitionFull ? (
+              "Competition Full"
             ) : !hasSelectedDivisions ? (
               "Select a Division"
             ) : waivers.length > 0 && !allRequiredWaiversAgreed ? (

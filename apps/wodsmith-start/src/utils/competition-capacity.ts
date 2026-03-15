@@ -27,7 +27,7 @@ export function calculateCompetitionCapacity(
 	const effectiveMax = input.maxTotalRegistrations ?? null
 	const totalOccupied = registrationCount + pendingCount
 	const spotsAvailable =
-		effectiveMax !== null ? effectiveMax - totalOccupied : null
+		effectiveMax !== null ? Math.max(0, effectiveMax - totalOccupied) : null
 	const isFull = effectiveMax !== null && totalOccupied >= effectiveMax
 
 	return { effectiveMax, totalOccupied, spotsAvailable, isFull }

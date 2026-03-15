@@ -128,7 +128,7 @@ export const competitionsTable = mysqlTable(
     // Capacity: default max spots per division (null = unlimited)
     defaultMaxSpotsPerDivision: int(),
     // Capacity: max total registrations across all divisions (null = unlimited)
-    maxTotalRegistrations: int(),
+    maxTotalRegistrations: int({ unsigned: true }),
     // Primary address for the competition
     primaryAddressId: varchar({ length: 255 }),
   },

@@ -46,6 +46,7 @@ import {
   registerForCompetition,
 } from "@/server/registration"
 import { recordRedemption, cleanupStripeCoupon } from "@/server/coupons"
+import { PENDING_PURCHASE_MAX_AGE_MINUTES } from "@/server-fns/competition-divisions-fns"
 import { calculateDivisionCapacity } from "@/utils/division-capacity"
 import { calculateCompetitionCapacity } from "@/utils/competition-capacity"
 
@@ -234,6 +235,7 @@ async function createRegistration(
         and(
           eq(competitionRegistrationsTable.divisionId, divisionId),
           eq(competitionRegistrationsTable.eventId, competitionId),
+          ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
         ),
       ),
     db
@@ -244,7 +246,7 @@ async function createRegistration(
           eq(commercePurchaseTable.competitionId, competitionId),
           eq(commercePurchaseTable.divisionId, divisionId),
           eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
-          gt(commercePurchaseTable.createdAt, new Date(Date.now() - 35 * 60 * 1000)),
+          gt(commercePurchaseTable.createdAt, new Date(Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000)),
           sql`${commercePurchaseTable.id} != ${purchaseId}`,
         ),
       ),
@@ -336,7 +338,7 @@ async function createRegistration(
           and(
             eq(commercePurchaseTable.competitionId, competitionId),
             eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
-            gt(commercePurchaseTable.createdAt, new Date(Date.now() - 35 * 60 * 1000)),
+            gt(commercePurchaseTable.createdAt, new Date(Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000)),
             sql`${commercePurchaseTable.id} != ${purchaseId}`,
           ),
         ),

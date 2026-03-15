@@ -35,7 +35,7 @@ import { calculateCompetitionCapacity } from "@/utils/competition-capacity"
  * Only count pending purchases created within this window.
  * Older ones are stale (missed webhook) and should not block capacity.
  */
-const PENDING_PURCHASE_MAX_AGE_MINUTES = 35
+export const PENDING_PURCHASE_MAX_AGE_MINUTES = 35
 
 // ============================================================================
 // Types

@@ -329,9 +329,14 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
     const competitionCapacity = await getCompetitionSpotsAvailableFn({
       data: { competitionId: input.competitionId },
     })
-    if (competitionCapacity.isFull) {
+    if (
+      competitionCapacity.available !== null &&
+      competitionCapacity.available < input.items.length
+    ) {
       throw new Error(
-        "This competition is full. Registration is no longer available.",
+        competitionCapacity.available === 0
+          ? "This competition is full. Registration is no longer available."
+          : `Only ${competitionCapacity.available} spot${competitionCapacity.available === 1 ? "" : "s"} remaining in this competition.`,
       )
     }
 
