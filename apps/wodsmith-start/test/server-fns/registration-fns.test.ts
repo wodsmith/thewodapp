@@ -57,9 +57,12 @@ vi.mock('@/lib/stripe', () => ({
 
 // Mock division capacity
 const mockGetDivisionSpotsAvailableFn = vi.fn()
+const mockGetCompetitionSpotsAvailableFn = vi.fn()
 vi.mock('@/server-fns/competition-divisions-fns', () => ({
   getDivisionSpotsAvailableFn: (...args: unknown[]) =>
     mockGetDivisionSpotsAvailableFn(...args),
+  getCompetitionSpotsAvailableFn: (...args: unknown[]) =>
+    mockGetCompetitionSpotsAvailableFn(...args),
 }))
 
 // Mock timezone utils
@@ -665,6 +668,16 @@ describe('registration-fns', () => {
       mockGetDivisionSpotsAvailableFn.mockResolvedValue({
         isFull: false,
         available: 50,
+      })
+
+      // Competition-wide capacity available
+      mockGetCompetitionSpotsAvailableFn.mockResolvedValue({
+        isFull: false,
+        maxTotalRegistrations: null,
+        registered: 0,
+        confirmedCount: 0,
+        pendingCount: 0,
+        available: null,
       })
 
       // Notifications

@@ -106,6 +106,7 @@ export const Route = createFileRoute("/compete/$slug")({
     ])
 
     const divisions = divisionsResult.divisions
+    const competitionCapacity = divisionsResult.competitionCapacity ?? null
     const sponsors = sponsorsResult
     const userRegistrations = userRegsResult.registrations
 
@@ -139,6 +140,7 @@ export const Route = createFileRoute("/compete/$slug")({
       registrationStatus,
       session,
       divisions,
+      competitionCapacity,
       sponsors,
       userDivision,
       userDivisions,

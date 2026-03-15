@@ -149,6 +149,7 @@ describe("LeaderboardPageContent", () => {
 		vi.clearAllMocks()
 		vi.mocked(getPublicCompetitionDivisionsFn).mockResolvedValue({
 			divisions: mockDivisions,
+			competitionCapacity: null,
 		})
 	})
 

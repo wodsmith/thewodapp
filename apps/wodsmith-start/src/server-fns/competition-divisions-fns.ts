@@ -4,7 +4,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, count, eq, ne, sql } from "drizzle-orm"
+import { and, asc, count, eq, gt, ne, sql } from "drizzle-orm"
 import { z } from "zod"
 import { type Database, getDb } from "@/db"
 import {
@@ -24,6 +24,14 @@ import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"
 import { calculateDivisionCapacity } from "@/utils/division-capacity"
+import { calculateCompetitionCapacity } from "@/utils/competition-capacity"
+
+/**
+ * Stripe checkout sessions expire after 30 minutes.
+ * Only count pending purchases created within this window.
+ * Older ones are stale (missed webhook) and should not block capacity.
+ */
+export const PENDING_PURCHASE_MAX_AGE_MINUTES = 35
 
 // ============================================================================
 // Types
@@ -191,7 +199,13 @@ const getScalingGroupWithLevelsInputSchema = z.object({
 const updateCompetitionDefaultCapacityInputSchema = z.object({
   competitionId: z.string().min(1, "Competition ID is required"),
   teamId: z.string().min(1, "Team ID is required"),
-  defaultMaxSpotsPerDivision: z.number().int().min(1).nullable(),
+  defaultMaxSpotsPerDivision: z.number().int().min(1).nullable().optional(),
+  maxTotalRegistrations: z.number().int().min(1).nullable().optional(),
+})
+
+const getCompetitionSpotsAvailableInputSchema = z.object({
+  competitionId: z.string().min(1, "Competition ID is required"),
+  excludePurchaseId: z.string().optional(),
 })
 
 const updateDivisionCapacityInputSchema = z.object({
@@ -612,6 +626,7 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
         )
         .orderBy(scalingLevelsTable.position),
       // Count pending purchases (reservations) per division
+      // Only count recent ones — Stripe sessions expire after 30 min
       db
         .select({
           divisionId: commercePurchaseTable.divisionId,
@@ -622,6 +637,7 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
           and(
             eq(commercePurchaseTable.competitionId, data.competitionId),
             eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
+            gt(commercePurchaseTable.createdAt, new Date(Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000)),
           ),
         )
         .groupBy(commercePurchaseTable.divisionId),
@@ -653,7 +669,19 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
       }
     })
 
-    return { divisions: result }
+    // Competition-wide capacity (only when a cap is set)
+    let competitionCapacity: ReturnType<typeof calculateCompetitionCapacity> | null = null
+    if (competition.maxTotalRegistrations != null) {
+      const totalConfirmed = divisions.reduce((sum, d) => sum + Number(d.registrationCount), 0)
+      const totalPending = pendingByDivision.reduce((sum, p) => sum + Number(p.pendingCount), 0)
+      competitionCapacity = calculateCompetitionCapacity({
+        registrationCount: totalConfirmed,
+        pendingCount: totalPending,
+        maxTotalRegistrations: competition.maxTotalRegistrations,
+      })
+    }
+
+    return { divisions: result, competitionCapacity }
   })
 
 /**
@@ -1231,12 +1259,17 @@ export const updateCompetitionDefaultCapacityFn = createServerFn({
       throw new Error("Competition does not belong to this team")
     }
 
+    const updateData: Record<string, unknown> = { updatedAt: new Date() }
+    if (data.defaultMaxSpotsPerDivision !== undefined) {
+      updateData.defaultMaxSpotsPerDivision = data.defaultMaxSpotsPerDivision
+    }
+    if (data.maxTotalRegistrations !== undefined) {
+      updateData.maxTotalRegistrations = data.maxTotalRegistrations
+    }
+
     await db
       .update(competitionsTable)
-      .set({
-        defaultMaxSpotsPerDivision: data.defaultMaxSpotsPerDivision,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(competitionsTable.id, data.competitionId))
 
     return { success: true }
@@ -1354,7 +1387,7 @@ export const getDivisionSpotsAvailableFn = createServerFn({ method: "GET" })
             ),
           ),
         ),
-      // Count pending purchases (reservations) - excludes specified purchaseId to avoid self-blocking
+      // Count pending purchases (reservations) - excludes specified purchaseId and stale entries
       db
         .select({ count: count() })
         .from(commercePurchaseTable)
@@ -1363,6 +1396,7 @@ export const getDivisionSpotsAvailableFn = createServerFn({ method: "GET" })
             eq(commercePurchaseTable.competitionId, data.competitionId),
             eq(commercePurchaseTable.divisionId, data.divisionId),
             eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
+            gt(commercePurchaseTable.createdAt, new Date(Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000)),
             // Exclude specific purchase if provided (for webhook re-check)
             data.excludePurchaseId
               ? sql`${commercePurchaseTable.id} != ${data.excludePurchaseId}`
@@ -1389,6 +1423,84 @@ export const getDivisionSpotsAvailableFn = createServerFn({ method: "GET" })
       isFull: capacity.isFull,
     }
   })
+
+/**
+ * Get competition-wide spots available (across all divisions)
+ * Used for total competition capacity validation
+ */
+export const getCompetitionSpotsAvailableFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		getCompetitionSpotsAvailableInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, data.competitionId),
+		})
+
+		if (!competition) {
+			throw new Error("Competition not found")
+		}
+
+		// If no total cap, return unlimited
+		if (competition.maxTotalRegistrations == null) {
+			return {
+				maxTotalRegistrations: null,
+				registered: 0,
+				confirmedCount: 0,
+				pendingCount: 0,
+				available: null,
+				isFull: false,
+			}
+		}
+
+		// Count ALL registrations across all divisions (exclude removed)
+		const [registrations, pendingPurchases] = await Promise.all([
+			db
+				.select({ count: count() })
+				.from(competitionRegistrationsTable)
+				.where(
+					and(
+						eq(competitionRegistrationsTable.eventId, data.competitionId),
+						ne(
+							competitionRegistrationsTable.status,
+							REGISTRATION_STATUS.REMOVED,
+						),
+					),
+				),
+			db
+				.select({ count: count() })
+				.from(commercePurchaseTable)
+				.where(
+					and(
+						eq(commercePurchaseTable.competitionId, data.competitionId),
+						eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
+						gt(commercePurchaseTable.createdAt, new Date(Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000)),
+						data.excludePurchaseId
+							? sql`${commercePurchaseTable.id} != ${data.excludePurchaseId}`
+							: undefined,
+					),
+				),
+		])
+
+		const confirmedCount = Number(registrations[0]?.count ?? 0)
+		const pendingCount = Number(pendingPurchases[0]?.count ?? 0)
+		const capacity = calculateCompetitionCapacity({
+			registrationCount: confirmedCount,
+			pendingCount,
+			maxTotalRegistrations: competition.maxTotalRegistrations,
+		})
+
+		return {
+			maxTotalRegistrations: capacity.effectiveMax,
+			registered: capacity.totalOccupied,
+			confirmedCount,
+			pendingCount,
+			available: capacity.spotsAvailable,
+			isFull: capacity.isFull,
+		}
+	})
 
 /**
  * Switch a competition to use a different scaling group directly (no clone).

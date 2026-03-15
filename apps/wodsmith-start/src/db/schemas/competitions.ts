@@ -127,6 +127,8 @@ export const competitionsTable = mysqlTable(
     defaultLaneShiftPattern: varchar({ length: 20 }).default("shift_right"),
     // Capacity: default max spots per division (null = unlimited)
     defaultMaxSpotsPerDivision: int(),
+    // Capacity: max total registrations across all divisions (null = unlimited)
+    maxTotalRegistrations: int({ unsigned: true }),
     // Primary address for the competition
     primaryAddressId: varchar({ length: 255 }),
   },

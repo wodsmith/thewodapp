@@ -19,7 +19,7 @@
 import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers"
 import { WorkflowEntrypoint } from "cloudflare:workers"
 import * as Sentry from "@sentry/cloudflare"
-import { and, count, eq, sql } from "drizzle-orm"
+import { and, count, eq, gt, ne, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
   COMMERCE_PAYMENT_STATUS,
@@ -29,6 +29,7 @@ import {
   competitionRegistrationAnswersTable,
   competitionRegistrationsTable,
   competitionsTable,
+  REGISTRATION_STATUS,
   scalingLevelsTable,
   userTable,
 } from "@/db/schema"
@@ -45,7 +46,9 @@ import {
   registerForCompetition,
 } from "@/server/registration"
 import { recordRedemption, cleanupStripeCoupon } from "@/server/coupons"
+import { PENDING_PURCHASE_MAX_AGE_MINUTES } from "@/server-fns/competition-divisions-fns"
 import { calculateDivisionCapacity } from "@/utils/division-capacity"
+import { calculateCompetitionCapacity } from "@/utils/competition-capacity"
 
 export interface CheckoutCompletedParams {
   stripeEventId: string
@@ -232,6 +235,7 @@ async function createRegistration(
         and(
           eq(competitionRegistrationsTable.divisionId, divisionId),
           eq(competitionRegistrationsTable.eventId, competitionId),
+          ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
         ),
       ),
     db
@@ -242,6 +246,7 @@ async function createRegistration(
           eq(commercePurchaseTable.competitionId, competitionId),
           eq(commercePurchaseTable.divisionId, divisionId),
           eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
+          gt(commercePurchaseTable.createdAt, new Date(Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000)),
           sql`${commercePurchaseTable.id} != ${purchaseId}`,
         ),
       ),
@@ -309,6 +314,95 @@ async function createRegistration(
     }
 
     return null
+  }
+
+  // Competition-wide capacity re-check
+  if (competition.maxTotalRegistrations != null) {
+    const [compRegistrations, compPendingPurchases] = await Promise.all([
+      db
+        .select({ count: count() })
+        .from(competitionRegistrationsTable)
+        .where(
+          and(
+            eq(competitionRegistrationsTable.eventId, competitionId),
+            ne(
+              competitionRegistrationsTable.status,
+              REGISTRATION_STATUS.REMOVED,
+            ),
+          ),
+        ),
+      db
+        .select({ count: count() })
+        .from(commercePurchaseTable)
+        .where(
+          and(
+            eq(commercePurchaseTable.competitionId, competitionId),
+            eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
+            gt(commercePurchaseTable.createdAt, new Date(Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000)),
+            sql`${commercePurchaseTable.id} != ${purchaseId}`,
+          ),
+        ),
+    ])
+
+    const compCapacity = calculateCompetitionCapacity({
+      registrationCount: Number(compRegistrations[0]?.count ?? 0),
+      pendingCount: Number(compPendingPurchases[0]?.count ?? 0),
+      maxTotalRegistrations: competition.maxTotalRegistrations,
+    })
+
+    if (compCapacity.isFull) {
+      logError({
+        message:
+          "[Workflow] Competition filled during payment - refund needed",
+        attributes: {
+          purchaseId,
+          competitionId,
+          userId,
+          maxTotalRegistrations: compCapacity.effectiveMax,
+          registered: compCapacity.totalOccupied,
+        },
+      })
+
+      await db
+        .update(commercePurchaseTable)
+        .set({
+          status: COMMERCE_PURCHASE_STATUS.FAILED,
+          completedAt: new Date(),
+        })
+        .where(eq(commercePurchaseTable.id, purchaseId))
+
+      if (session.payment_intent) {
+        try {
+          const stripe = getStripe()
+          await stripe.refunds.create({
+            payment_intent: session.payment_intent,
+            reason: "requested_by_customer",
+          })
+          logInfo({
+            message:
+              "[Workflow] Refund issued for competition-full scenario",
+            attributes: {
+              purchaseId,
+              paymentIntentId: session.payment_intent,
+            },
+          })
+        } catch (refundError) {
+          logError({
+            message: "[Workflow] Failed to issue automatic refund",
+            error:
+              refundError instanceof Error
+                ? refundError
+                : new Error(String(refundError)),
+            attributes: {
+              purchaseId,
+              paymentIntentId: session.payment_intent,
+            },
+          })
+        }
+      }
+
+      return null
+    }
   }
 
   // Create the registration

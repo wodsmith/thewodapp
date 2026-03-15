@@ -138,6 +138,12 @@ interface RegistrationSidebarProps {
   organizerContactEmail?: string | null
   userRegistrations?: UserRegistrationEntry[]
   session?: { userId: string } | null
+  competitionCapacity?: {
+    spotsAvailable: number | null
+    isFull: boolean
+    totalOccupied: number
+    effectiveMax: number | null
+  } | null
 }
 
 function formatDateShort(date: string | Date | number): string {
@@ -170,6 +176,7 @@ export function RegistrationSidebar({
   organizerContactEmail,
   userRegistrations = [],
   session,
+  competitionCapacity,
 }: RegistrationSidebarProps) {
   const regClosesAt = competition.registrationClosesAt
   const regOpensAt = competition.registrationOpensAt
@@ -234,15 +241,33 @@ export function RegistrationSidebar({
               </div>
             )}
 
+            {/* Competition-wide capacity */}
+            {competitionCapacity?.isFull && (
+              <div className="flex items-center gap-2 text-amber-600">
+                <AlertTriangle className="h-4 w-4" />
+                <span className="text-sm font-semibold">Competition is full</span>
+              </div>
+            )}
+            {competitionCapacity && !competitionCapacity.isFull && competitionCapacity.spotsAvailable !== null && competitionCapacity.spotsAvailable <= 5 && (
+              <div className="flex items-center gap-2 text-amber-600">
+                <Users className="h-4 w-4" />
+                <span className="text-sm font-semibold">
+                  Only {competitionCapacity.spotsAvailable} spot{competitionCapacity.spotsAvailable === 1 ? '' : 's'} left!
+                </span>
+              </div>
+            )}
+
             {/* Register Button */}
-            <Button asChild size="lg" className="w-full">
-              <Link
-                to="/compete/$slug/register"
-                params={{ slug: competition.slug }}
-              >
-                Register Now
-              </Link>
-            </Button>
+            {!competitionCapacity?.isFull && (
+              <Button asChild size="lg" className="w-full">
+                <Link
+                  to="/compete/$slug/register"
+                  params={{ slug: competition.slug }}
+                >
+                  Register Now
+                </Link>
+              </Button>
+            )}
 
             {/* Deadline info (if not already shown in urgency) */}
             {regClosesAt && urgency?.urgencyLevel === "none" && (
@@ -402,8 +427,8 @@ export function RegistrationSidebar({
                     </>
                   )}
 
-                  {/* Register for Another Division - shown when registered AND registration is open */}
-                  {registrationOpen && (
+                  {/* Register for Another Division - shown when registered AND registration is open AND not full */}
+                  {registrationOpen && !competitionCapacity?.isFull && (
                     <Button
                       asChild
                       variant="outline"

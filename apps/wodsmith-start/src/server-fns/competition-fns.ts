@@ -188,6 +188,7 @@ export const getPublicCompetitionsFn = createServerFn({ method: "GET" })
         defaultLaneShiftPattern: competitionsTable.defaultLaneShiftPattern,
         defaultMaxSpotsPerDivision:
           competitionsTable.defaultMaxSpotsPerDivision,
+        maxTotalRegistrations: competitionsTable.maxTotalRegistrations,
         primaryAddressId: competitionsTable.primaryAddressId,
         createdAt: competitionsTable.createdAt,
         updatedAt: competitionsTable.updatedAt,
@@ -260,6 +261,7 @@ export const getPublicCompetitionsFn = createServerFn({ method: "GET" })
         defaultHeatsPerRotation: row.defaultHeatsPerRotation,
         defaultLaneShiftPattern: row.defaultLaneShiftPattern,
         defaultMaxSpotsPerDivision: row.defaultMaxSpotsPerDivision,
+        maxTotalRegistrations: row.maxTotalRegistrations,
         primaryAddressId: row.primaryAddressId,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
@@ -334,6 +336,7 @@ export const getOrganizerCompetitionsFn = createServerFn({ method: "GET" })
         defaultLaneShiftPattern: competitionsTable.defaultLaneShiftPattern,
         defaultMaxSpotsPerDivision:
           competitionsTable.defaultMaxSpotsPerDivision,
+        maxTotalRegistrations: competitionsTable.maxTotalRegistrations,
         primaryAddressId: competitionsTable.primaryAddressId,
         createdAt: competitionsTable.createdAt,
         updatedAt: competitionsTable.updatedAt,
@@ -408,6 +411,7 @@ export const getOrganizerCompetitionsFn = createServerFn({ method: "GET" })
       defaultHeatsPerRotation: row.defaultHeatsPerRotation,
       defaultLaneShiftPattern: row.defaultLaneShiftPattern,
       defaultMaxSpotsPerDivision: row.defaultMaxSpotsPerDivision,
+      maxTotalRegistrations: row.maxTotalRegistrations,
       primaryAddressId: row.primaryAddressId,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -475,6 +479,7 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
         defaultLaneShiftPattern: competitionsTable.defaultLaneShiftPattern,
         defaultMaxSpotsPerDivision:
           competitionsTable.defaultMaxSpotsPerDivision,
+        maxTotalRegistrations: competitionsTable.maxTotalRegistrations,
         primaryAddressId: competitionsTable.primaryAddressId,
         createdAt: competitionsTable.createdAt,
         updatedAt: competitionsTable.updatedAt,
@@ -541,6 +546,7 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
       defaultHeatsPerRotation: row.defaultHeatsPerRotation,
       defaultLaneShiftPattern: row.defaultLaneShiftPattern,
       defaultMaxSpotsPerDivision: row.defaultMaxSpotsPerDivision,
+      maxTotalRegistrations: row.maxTotalRegistrations,
       primaryAddressId: row.primaryAddressId,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,

@@ -96,6 +96,7 @@ function CompetitionOverviewPage() {
     registrationStatus,
     session,
     divisions,
+    competitionCapacity,
     sponsors,
     userDivision,
     userDivisions,
@@ -190,6 +191,7 @@ function CompetitionOverviewPage() {
           organizerContactEmail={organizerContactEmail}
           userRegistrations={userDivisions}
           session={session}
+          competitionCapacity={competitionCapacity}
         />
         <CompetitionLocationCard
           address={competition.address}
