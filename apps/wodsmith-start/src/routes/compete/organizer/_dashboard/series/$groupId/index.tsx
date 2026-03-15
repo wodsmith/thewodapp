@@ -304,22 +304,6 @@ function SeriesDetailPage() {
 									Edit Series
 								</Link>
 							</Button>
-							<Button
-								variant="outline"
-								onClick={() => setIsAddDialogOpen(true)}
-							>
-								<ListPlus className="h-4 w-4 mr-2" />
-								Add Existing
-							</Button>
-							<Button asChild>
-								<Link
-									to="/compete/organizer/new"
-									search={{ groupId: group.id }}
-								>
-									<Plus className="h-4 w-4 mr-2" />
-									Create New
-								</Link>
-							</Button>
 						</div>
 					</div>
 				</div>
@@ -401,9 +385,30 @@ function SeriesDetailPage() {
 
 				{/* Competitions in Series */}
 				<div>
-					<h2 className="text-xl font-bold mb-4">
-						Competitions in Series
-					</h2>
+					<div className="flex items-center justify-between mb-4">
+						<h2 className="text-xl font-bold">
+							Competitions in Series
+						</h2>
+						<div className="flex items-center gap-2">
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => setIsAddDialogOpen(true)}
+							>
+								<ListPlus className="h-4 w-4 mr-2" />
+								Add Existing
+							</Button>
+							<Button size="sm" asChild>
+								<Link
+									to="/compete/organizer/new"
+									search={{ groupId: group.id }}
+								>
+									<Plus className="h-4 w-4 mr-2" />
+									Create Competition
+								</Link>
+							</Button>
+						</div>
+					</div>
 					<OrganizerCompetitionsList
 						competitions={seriesCompetitions}
 						groups={allGroups}
