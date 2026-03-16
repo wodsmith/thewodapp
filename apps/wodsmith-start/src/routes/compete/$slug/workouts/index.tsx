@@ -4,7 +4,8 @@ import {
   useNavigate,
 } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
-import { Dumbbell, Filter } from "lucide-react"
+import { ChevronDown, ChevronRight, Dumbbell, Filter } from "lucide-react"
+import { useState } from "react"
 import { z } from "zod"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import {
@@ -288,38 +289,207 @@ function CompetitionWorkoutsPage() {
           </div>
 
           {/* Workouts List */}
-          <div className="space-y-6">
-            {workouts.map((event) => {
-              const divisionDescriptionsResult =
-                divisionDescriptionsMap?.[event.workoutId]
-              return (
-                <CompetitionWorkoutCard
-                  key={event.id}
-                  eventId={event.id}
-                  slug={slug}
-                  trackOrder={event.trackOrder}
-                  name={event.workout.name}
-                  scheme={event.workout.scheme}
-                  description={event.workout.description}
-                  roundsToScore={event.workout.roundsToScore}
-                  pointsMultiplier={event.pointsMultiplier}
-                  movements={event.workout.movements}
-                  tags={event.workout.tags}
-                  divisionDescriptions={divisionDescriptionsResult ?? []}
-                  sponsorName={event.sponsorName}
-                  sponsorLogoUrl={event.sponsorLogoUrl}
-                  selectedDivisionId={selectedDivisionId}
-                  isRegistered={!!athleteRegisteredDivisionId}
-                  submissionStatus={submissionStatusMap[event.id] ?? null}
-                  timeCap={event.workout.timeCap}
-                  venue={venueMap?.[event.id]}
-                  schedule={scheduleMap?.get(event.id) ?? null}
-                />
-              )
-            })}
-          </div>
+          <WorkoutsList
+            workouts={workouts}
+            slug={slug}
+            divisionDescriptionsMap={divisionDescriptionsMap}
+            selectedDivisionId={selectedDivisionId}
+            athleteRegisteredDivisionId={athleteRegisteredDivisionId}
+            submissionStatusMap={submissionStatusMap}
+            venueMap={venueMap}
+            scheduleMap={scheduleMap}
+          />
         </div>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Workouts list with parent/child grouping.
+ * Parent events render as expandable cards; standalone events render as-is.
+ */
+type EnrichedWorkout = Awaited<
+  ReturnType<typeof getPublishedCompetitionWorkoutsWithDetailsFn>
+>["workouts"][number]
+
+type VenueInfo = {
+  id: string
+  name: string
+  address: {
+    streetLine1?: string
+    city?: string
+    stateProvince?: string
+    postalCode?: string
+    countryCode?: string
+  } | null
+} | null
+
+type ScheduleInfo = {
+  startTime: string
+  endTime: string | null
+  heatCount: number
+  venueName: string | null
+  divisions: string[]
+} | null
+
+function WorkoutsList({
+  workouts,
+  slug,
+  divisionDescriptionsMap,
+  selectedDivisionId,
+  athleteRegisteredDivisionId,
+  submissionStatusMap,
+  venueMap,
+  scheduleMap,
+}: {
+  workouts: EnrichedWorkout[]
+  slug: string
+  divisionDescriptionsMap: Record<string, DivisionDescription[]>
+  selectedDivisionId: string
+  athleteRegisteredDivisionId: string | null
+  submissionStatusMap: Record<string, SubmissionStatus>
+  venueMap: Record<string, VenueInfo>
+  scheduleMap: Map<string, ScheduleInfo> | null
+}) {
+  const [expandedParents, setExpandedParents] = useState<Set<string>>(
+    () => new Set(),
+  )
+
+  // Build hierarchy
+  const childrenByParent = new Map<string, EnrichedWorkout[]>()
+  for (const w of workouts) {
+    if (w.parentEventId) {
+      const siblings = childrenByParent.get(w.parentEventId) ?? []
+      siblings.push(w)
+      childrenByParent.set(w.parentEventId, siblings)
+    }
+  }
+  const topLevel = workouts.filter((w) => !w.parentEventId)
+
+  const toggleExpand = (id: string) => {
+    setExpandedParents((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  return (
+    <div className="space-y-6">
+      {topLevel.map((event) => {
+        const children = childrenByParent.get(event.id) ?? []
+        const isParent = children.length > 0
+        const isExpanded = expandedParents.has(event.id)
+
+        if (!isParent) {
+          // Standalone event — render as-is
+          return (
+            <CompetitionWorkoutCard
+              key={event.id}
+              eventId={event.id}
+              slug={slug}
+              trackOrder={event.trackOrder}
+              name={event.workout.name}
+              scheme={event.workout.scheme}
+              description={event.workout.description}
+              roundsToScore={event.workout.roundsToScore}
+              pointsMultiplier={event.pointsMultiplier}
+              movements={event.workout.movements}
+              tags={event.workout.tags}
+              divisionDescriptions={
+                divisionDescriptionsMap?.[event.workoutId] ?? []
+              }
+              sponsorName={event.sponsorName}
+              sponsorLogoUrl={event.sponsorLogoUrl}
+              selectedDivisionId={selectedDivisionId}
+              isRegistered={!!athleteRegisteredDivisionId}
+              submissionStatus={submissionStatusMap[event.id] ?? null}
+              timeCap={event.workout.timeCap}
+              venue={venueMap?.[event.id]}
+              schedule={scheduleMap?.get(event.id) ?? null}
+            />
+          )
+        }
+
+        // Parent event — expandable card
+        const totalPoints = children.reduce(
+          (sum, c) => sum + (c.pointsMultiplier ?? 100),
+          0,
+        )
+
+        return (
+          <div key={event.id} className="space-y-2">
+            {/* Parent summary card */}
+            <button
+              type="button"
+              onClick={() => toggleExpand(event.id)}
+              className="w-full text-left rounded-xl border border-black/10 bg-black/5 p-4 dark:border-white/10 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                {isExpanded ? (
+                  <ChevronDown className="h-5 w-5 text-muted-foreground shrink-0" />
+                ) : (
+                  <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-sm text-muted-foreground">
+                      {String(Math.floor(event.trackOrder)).padStart(2, "0")}
+                    </span>
+                    <span className="font-semibold text-lg truncate">
+                      {event.workout.name}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {children.length} sub-workout
+                    {children.length !== 1 ? "s" : ""} &middot;{" "}
+                    {totalPoints / 100} total points available
+                  </p>
+                </div>
+                {event.sponsorName && (
+                  <span className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 px-2 py-1 rounded shrink-0">
+                    Presented by {event.sponsorName}
+                  </span>
+                )}
+              </div>
+            </button>
+
+            {/* Expanded child workouts */}
+            {isExpanded && (
+              <div className="ml-4 sm:ml-8 space-y-4 border-l-2 border-muted pl-4">
+                {children.map((child) => (
+                  <CompetitionWorkoutCard
+                    key={child.id}
+                    eventId={child.id}
+                    slug={slug}
+                    trackOrder={child.trackOrder}
+                    name={child.workout.name}
+                    scheme={child.workout.scheme}
+                    description={child.workout.description}
+                    roundsToScore={child.workout.roundsToScore}
+                    pointsMultiplier={child.pointsMultiplier}
+                    movements={child.workout.movements}
+                    tags={child.workout.tags}
+                    divisionDescriptions={
+                      divisionDescriptionsMap?.[child.workoutId] ?? []
+                    }
+                    sponsorName={child.sponsorName}
+                    sponsorLogoUrl={child.sponsorLogoUrl}
+                    selectedDivisionId={selectedDivisionId}
+                    isRegistered={!!athleteRegisteredDivisionId}
+                    submissionStatus={submissionStatusMap[child.id] ?? null}
+                    timeCap={child.workout.timeCap}
+                    venue={venueMap?.[child.id]}
+                    schedule={scheduleMap?.get(child.id) ?? null}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
