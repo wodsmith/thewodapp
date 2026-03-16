@@ -35,6 +35,7 @@ import {
 } from "@/server-fns/competition-heats-fns"
 import {
   getPublicEventDetailsFn,
+  getPublishedCompetitionWorkoutsFn,
   getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
 import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
@@ -137,6 +138,39 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
         ? getPublicEventHeatsFn({ data: { trackWorkoutId: eventId } })
         : Promise.resolve({ heats: [] })
 
+    // Fetch child events if this is a parent
+    const allWorkoutsResult = await getPublishedCompetitionWorkoutsFn({
+      data: { competitionId: competition.id },
+    })
+    const childEvents = allWorkoutsResult.workouts
+      .filter((w) => w.parentEventId === eventId)
+      .sort((a, b) => a.trackOrder - b.trackOrder)
+
+    // Fetch division descriptions for children
+    const childDivisionDescriptions: Record<
+      string,
+      Array<{
+        divisionId: string
+        divisionLabel: string
+        description: string | null
+        position: number
+      }>
+    > = {}
+    if (childEvents.length > 0 && divisions.length > 0) {
+      const divisionIds = divisions.map((d) => d.id)
+      const results = await Promise.all(
+        childEvents.map((child) =>
+          getWorkoutDivisionDescriptionsFn({
+            data: { workoutId: child.workoutId, divisionIds },
+          }),
+        ),
+      )
+      for (let i = 0; i < childEvents.length; i++) {
+        childDivisionDescriptions[childEvents[i].workoutId] =
+          results[i].descriptions
+      }
+    }
+
     return {
       competition,
       event: eventResult.event,
@@ -150,6 +184,8 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       venue: venueResult.venue,
       videoSubmission: videoSubmissionResult,
       deferredEventHeats,
+      childEvents,
+      childDivisionDescriptions,
     }
   },
 })
@@ -207,6 +243,8 @@ function EventDetailsPage() {
     venue,
     videoSubmission,
     deferredEventHeats,
+    childEvents,
+    childDivisionDescriptions,
   } = Route.useLoaderData()
   const { slug } = Route.useParams()
   const search = Route.useSearch()
@@ -322,6 +360,68 @@ function EventDetailsPage() {
                 </div>
               )}
             </div>
+
+            {/* Sub-Workouts (parent events only) */}
+            {childEvents.length > 0 && (
+              <div className="space-y-6">
+                <Separator />
+                <h2 className="text-lg font-semibold">Sub-Workouts</h2>
+                {childEvents.map((child, index) => {
+                  const childDescriptions =
+                    childDivisionDescriptions[child.workoutId] ?? []
+                  const childDivisionDesc = childDescriptions.find(
+                    (d) => d.divisionId === selectedDivisionId,
+                  )
+                  const childScale =
+                    childDivisionDesc?.description?.trim() || null
+                  const childScheme = getSchemeLabel(
+                    child.workout.scheme,
+                    child.workout.timeCap,
+                  )
+
+                  return (
+                    <div
+                      key={child.id}
+                      className="rounded-lg border p-4 space-y-3"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                          {index + 1}
+                        </Badge>
+                        <h3 className="font-semibold">{child.workout.name}</h3>
+                        <Badge variant="secondary" className="text-xs">
+                          {childScheme}
+                        </Badge>
+                        {child.pointsMultiplier &&
+                          child.pointsMultiplier !== 100 && (
+                            <span className="text-xs text-muted-foreground">
+                              {child.pointsMultiplier / 100}x points
+                            </span>
+                          )}
+                      </div>
+                      <div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
+                        {child.workout.description || "Details coming soon."}
+                      </div>
+                      {childScale && (
+                        <div className="border-t pt-3">
+                          <div className="flex items-start gap-2">
+                            <Badge
+                              variant="secondary"
+                              className="shrink-0 text-xs"
+                            >
+                              {childDivisionDesc?.divisionLabel || "Division"}
+                            </Badge>
+                            <p className="font-mono text-sm whitespace-pre-wrap text-muted-foreground">
+                              {childScale}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
 
             {/* Heat Schedule */}
             {event.heatStatus === "published" && (
