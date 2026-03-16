@@ -983,9 +983,14 @@ function FeeInput({
   feeCents: number
   onChange: (cents: number) => void
 }) {
-  const [value, setValue] = useState(() =>
+  const [value, setValue] = useState(
     feeCents > 0 ? (feeCents / 100).toFixed(2) : "",
   )
+
+  // Sync when feeCents changes externally (e.g. reorder/delete)
+  useEffect(() => {
+    setValue(feeCents > 0 ? (feeCents / 100).toFixed(2) : "")
+  }, [feeCents])
 
   return (
     <div className="flex items-center gap-1">

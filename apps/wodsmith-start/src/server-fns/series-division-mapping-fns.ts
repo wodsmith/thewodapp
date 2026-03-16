@@ -1221,6 +1221,22 @@ export const previewSyncToCompetitionsFn = createServerFn({ method: "GET" })
         : []
     const compDivLabelMap = new Map(compDivLabels.map((l) => [l.id, l.label]))
 
+    // Batch-load all competition_divisions rows for mapped divisions
+    const allCompDivConfigs =
+      compIds.length > 0
+        ? await db
+            .select()
+            .from(competitionDivisionsTable)
+            .where(inArray(competitionDivisionsTable.competitionId, compIds))
+        : []
+    // Key: "compId::divId" → row
+    const compDivConfigMap = new Map(
+      allCompDivConfigs.map((c) => [
+        `${c.competitionId}::${c.divisionId}`,
+        c,
+      ]),
+    )
+
     // Group mappings by competition
     const mappingsByComp = new Map<string, typeof mappings>()
     for (const m of mappings) {
@@ -1239,22 +1255,9 @@ export const previewSyncToCompetitionsFn = createServerFn({ method: "GET" })
         const templateConfig = templateConfigMap.get(mapping.seriesDivisionId)
         if (!templateConfig) continue
 
-        // Check if competition_divisions row already exists
-        const [existing] = await db
-          .select()
-          .from(competitionDivisionsTable)
-          .where(
-            and(
-              eq(
-                competitionDivisionsTable.competitionId,
-                mapping.competitionId,
-              ),
-              eq(
-                competitionDivisionsTable.divisionId,
-                mapping.competitionDivisionId,
-              ),
-            ),
-          )
+        const existing = compDivConfigMap.get(
+          `${mapping.competitionId}::${mapping.competitionDivisionId}`,
+        )
 
         const divLabel =
           compDivLabelMap.get(mapping.competitionDivisionId) ??
