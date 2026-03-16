@@ -4,6 +4,10 @@
  * Computes a global leaderboard across all competitions in a series group.
  * Athletes from different throwdowns are ranked together by their raw performance
  * on the same shared workouts (matched by workoutId across comps).
+ *
+ * Uses series_division_mappings to translate each registration's divisionId
+ * to a series-level division, allowing competitions with different scaling groups
+ * to participate in the same leaderboard.
  */
 
 import { and, eq, inArray } from "drizzle-orm"
@@ -19,6 +23,7 @@ import {
 } from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoresTable } from "@/db/schemas/scores"
+import { seriesDivisionMappingsTable } from "@/db/schemas/series"
 import { userTable } from "@/db/schemas/users"
 import { workouts } from "@/db/schemas/workouts"
 import {
@@ -44,7 +49,7 @@ import type { ScoringConfig } from "@/types/scoring"
 export interface SeriesLeaderboardEntry {
   userId: string
   athleteName: string
-  divisionId: string // scalingLevelId
+  divisionId: string // series template scalingLevelId
   divisionLabel: string
   competitionId: string // which throwdown they competed at
   competitionName: string
@@ -63,20 +68,11 @@ export interface SeriesLeaderboardEntry {
   }>
 }
 
-export interface SeriesDivisionHealth {
-  competitionId: string
-  competitionName: string
-  scalingGroupIds: string[] // unique scaling group IDs used by this comp's divisions
-  matchesPrimary: boolean // does this comp use the same scalingGroupId as the majority?
-}
-
 export interface SeriesLeaderboardResult {
   entries: SeriesLeaderboardEntry[]
   scoringConfig: ScoringConfig
   seriesEvents: Array<{ workoutId: string; name: string; scheme: string }>
-  divisionHealth: SeriesDivisionHealth[]
   availableDivisions: Array<{ id: string; label: string }>
-  primaryScalingGroupId: string | null
 }
 
 // ============================================================================
@@ -100,84 +96,6 @@ function mapScoreStatus(status: string | null): EventScoreInput["status"] {
 }
 
 // ============================================================================
-// Division Health Check
-// ============================================================================
-
-async function computeDivisionHealth(
-  compIds: string[],
-  compNames: Map<string, string>,
-  db: ReturnType<typeof getDb>,
-  canonicalScalingGroupId?: string | null,
-): Promise<{
-  health: SeriesDivisionHealth[]
-  primaryScalingGroupId: string | null
-}> {
-  if (compIds.length === 0) return { health: [], primaryScalingGroupId: null }
-
-  // Get all competition settings to extract scalingGroupId per comp
-  // (Stored in competitions.settings JSON: { divisions: { scalingGroupId } })
-  const comps = await db
-    .select({
-      id: competitionsTable.id,
-      settings: competitionsTable.settings,
-    })
-    .from(competitionsTable)
-    .where(inArray(competitionsTable.id, compIds))
-
-  // Parse scalingGroupId from each comp's settings
-  const compScalingGroups = new Map<string, string[]>()
-  for (const comp of comps) {
-    try {
-      const settings = comp.settings ? JSON.parse(comp.settings) : null
-      const sgId = settings?.divisions?.scalingGroupId as string | undefined
-      compScalingGroups.set(comp.id, sgId ? [sgId] : [])
-    } catch {
-      compScalingGroups.set(comp.id, [])
-    }
-  }
-
-  let primaryScalingGroupId: string | null = canonicalScalingGroupId ?? null
-
-  if (!primaryScalingGroupId) {
-    // No canonical set — infer primary via majority vote
-    const countMap = new Map<string, number>()
-    for (const sgIds of compScalingGroups.values()) {
-      for (const sgId of sgIds) {
-        countMap.set(sgId, (countMap.get(sgId) ?? 0) + 1)
-      }
-    }
-
-    let maxCount = 0
-    for (const [sgId, count] of countMap) {
-      // On a tie, pick the lexicographically smaller ID for determinism
-      if (
-        count > maxCount ||
-        (count === maxCount &&
-          primaryScalingGroupId !== null &&
-          sgId < primaryScalingGroupId)
-      ) {
-        maxCount = count
-        primaryScalingGroupId = sgId
-      }
-    }
-  }
-
-  const health = compIds.map((compId) => {
-    const sgIds = compScalingGroups.get(compId) ?? []
-    const matchesPrimary =
-      primaryScalingGroupId !== null && sgIds.includes(primaryScalingGroupId)
-    return {
-      competitionId: compId,
-      competitionName: compNames.get(compId) ?? "Unknown",
-      scalingGroupIds: sgIds,
-      matchesPrimary,
-    }
-  })
-
-  return { health, primaryScalingGroupId }
-}
-
-// ============================================================================
 // Main Function
 // ============================================================================
 
@@ -195,92 +113,91 @@ export async function getSeriesLeaderboard(params: {
 
   const seriesSettings = parseSeriesSettings(group.settings)
   const scoringConfig = seriesSettings?.scoringConfig ?? DEFAULT_SCORING_CONFIG
+  const templateGroupId = seriesSettings?.scalingGroupId
 
-  // 2. Load all competitions in this group
+  const emptyResult: SeriesLeaderboardResult = {
+    entries: [],
+    scoringConfig,
+    seriesEvents: [],
+    availableDivisions: [],
+  }
+
+  // If no template is configured, no leaderboard is possible
+  if (!templateGroupId) {
+    return emptyResult
+  }
+
+  // 2. Load series template divisions
+  const templateLevels = await db
+    .select({
+      id: scalingLevelsTable.id,
+      label: scalingLevelsTable.label,
+      position: scalingLevelsTable.position,
+      teamSize: scalingLevelsTable.teamSize,
+    })
+    .from(scalingLevelsTable)
+    .where(eq(scalingLevelsTable.scalingGroupId, templateGroupId))
+    .orderBy(scalingLevelsTable.position)
+
+  const availableDivisions = templateLevels.map((l) => ({
+    id: l.id,
+    label: l.label,
+  }))
+
+  const templateDivisionMap = new Map(templateLevels.map((l) => [l.id, l]))
+
+  // 3. Load all competitions in this group
   const comps = await db
     .select({ id: competitionsTable.id, name: competitionsTable.name })
     .from(competitionsTable)
     .where(eq(competitionsTable.groupId, params.groupId))
 
   if (comps.length === 0) {
-    return {
-      entries: [],
-      scoringConfig,
-      seriesEvents: [],
-      divisionHealth: [],
-      availableDivisions: [],
-      primaryScalingGroupId: null,
-    }
+    return { ...emptyResult, availableDivisions }
   }
 
   const compIds = comps.map((c) => c.id)
-  const compNames = new Map<string, string>(comps.map((c) => [c.id, c.name]))
 
-  // 3. Compute division health early so we can filter to primary-group comps only
-  // If the series has a canonical scaling group set, prefer it over majority vote
-  const { health: divisionHealth, primaryScalingGroupId } =
-    await computeDivisionHealth(
-      compIds,
-      compNames,
-      db,
-      seriesSettings?.scalingGroupId,
-    )
+  // 4. Load division mappings for this series
+  const mappings = await db
+    .select()
+    .from(seriesDivisionMappingsTable)
+    .where(eq(seriesDivisionMappingsTable.groupId, params.groupId))
 
-  // Load available divisions from the primary scaling group
-  const availableDivisions: Array<{ id: string; label: string }> = []
-  if (primaryScalingGroupId) {
-    const levels = await db
-      .select({
-        id: scalingLevelsTable.id,
-        label: scalingLevelsTable.label,
-        position: scalingLevelsTable.position,
-      })
-      .from(scalingLevelsTable)
-      .where(eq(scalingLevelsTable.scalingGroupId, primaryScalingGroupId))
-    levels
-      .sort((a, b) => a.position - b.position)
-      .forEach((l) => availableDivisions.push({ id: l.id, label: l.label }))
+  if (mappings.length === 0) {
+    return { ...emptyResult, availableDivisions }
   }
 
-  // Only include comps that use the primary scaling group
-  const primaryCompIds = divisionHealth
-    .filter((h) => h.matchesPrimary)
-    .map((h) => h.competitionId)
-
-  if (primaryCompIds.length === 0) {
-    return {
-      entries: [],
-      scoringConfig,
-      seriesEvents: [],
-      divisionHealth,
-      availableDivisions,
-      primaryScalingGroupId,
-    }
+  // Build lookup: competitionDivisionId → seriesDivisionId
+  const divisionMappingLookup = new Map<string, string>()
+  const mappedCompIds = new Set<string>()
+  for (const m of mappings) {
+    divisionMappingLookup.set(m.competitionDivisionId, m.seriesDivisionId)
+    mappedCompIds.add(m.competitionId)
   }
 
-  // 4. Load programming tracks for primary comps only
+  // Only include competitions that have at least one mapping
+  const participatingCompIds = compIds.filter((id) => mappedCompIds.has(id))
+  if (participatingCompIds.length === 0) {
+    return { ...emptyResult, availableDivisions }
+  }
+
+  // 5. Load programming tracks for participating comps
   const tracks = await db
     .select({
       id: programmingTracksTable.id,
       competitionId: programmingTracksTable.competitionId,
     })
     .from(programmingTracksTable)
-    .where(inArray(programmingTracksTable.competitionId, primaryCompIds))
+    .where(inArray(programmingTracksTable.competitionId, participatingCompIds))
 
   if (tracks.length === 0) {
-    return {
-      entries: [],
-      scoringConfig,
-      seriesEvents: [],
-      divisionHealth,
-      availableDivisions,
-      primaryScalingGroupId,
-    }
+    return { ...emptyResult, availableDivisions }
   }
 
   const trackIds = tracks.map((t) => t.id)
 
-  // 5. Load all published track workouts, joining workout data
+  // 6. Load all published track workouts, joining workout data
   const allTrackWorkouts = await db
     .select({
       id: trackWorkoutsTable.id,
@@ -299,8 +216,7 @@ export async function getSeriesLeaderboard(params: {
     )
     .orderBy(trackWorkoutsTable.trackOrder)
 
-  // 6. Build workoutId → trackWorkouts map (series event groups)
-  // A "series event" is identified by its workoutId (shared across all throwdowns)
+  // 7. Build workoutId → trackWorkouts map (series event groups)
   const workoutIdToTrackWorkouts = new Map<string, typeof allTrackWorkouts>()
   for (const tw of allTrackWorkouts) {
     const existing = workoutIdToTrackWorkouts.get(tw.workoutId) ?? []
@@ -322,12 +238,17 @@ export async function getSeriesLeaderboard(params: {
 
   const seriesEvents = uniqueWorkoutIds.map((wId) => {
     const tw = workoutIdToTrackWorkouts.get(wId)![0]
-    return { workoutId: wId, name: tw.workout.name, scheme: tw.workout.scheme }
+    return {
+      workoutId: wId,
+      name: tw.workout.name,
+      scheme: tw.workout.scheme,
+    }
   })
 
   const allTrackWorkoutIds = allTrackWorkouts.map((tw) => tw.id)
 
-  // 7. Load registrations only from primary comps (filters out mismatched-group athletes)
+  // 8. Load registrations from participating comps
+  // Filter by series division if specified (we need to check via mapping)
   const allRegistrations = await db
     .select({
       registration: competitionRegistrationsTable,
@@ -351,37 +272,58 @@ export async function getSeriesLeaderboard(params: {
     )
     .where(
       and(
-        inArray(competitionRegistrationsTable.eventId, primaryCompIds),
+        inArray(competitionRegistrationsTable.eventId, participatingCompIds),
         inArray(competitionRegistrationsTable.status, ["active"]),
-        ...(params.divisionId
-          ? [eq(competitionRegistrationsTable.divisionId, params.divisionId)]
-          : []),
       ),
     )
-    // Deterministic ordering ensures consistent deduplication when an athlete
-    // appears in multiple comps (we keep the first one seen)
     .orderBy(competitionsTable.id)
 
   if (allRegistrations.length === 0) {
-    return {
-      entries: [],
-      scoringConfig,
-      seriesEvents,
-      divisionHealth,
-      availableDivisions,
-      primaryScalingGroupId,
-    }
+    return { ...emptyResult, availableDivisions, seriesEvents }
   }
 
-  // 8. Deduplicate: per (userId, divisionId) keep one entry
-  // If an athlete appears in multiple comps, keep the first one we see
-  const athleteKey = (userId: string, divisionId: string | null) =>
-    `${userId}::${divisionId ?? "open"}`
+  // 9. Filter registrations to only those with mapped divisions,
+  // and translate to series division IDs
+  type EnrichedRegistration = (typeof allRegistrations)[number] & {
+    seriesDivisionId: string
+    seriesDivisionLabel: string
+    seriesDivisionTeamSize: number
+  }
+  const mappedRegistrations: EnrichedRegistration[] = []
+
+  for (const reg of allRegistrations) {
+    const compDivId = reg.registration.divisionId
+    if (!compDivId) continue
+
+    const seriesDivId = divisionMappingLookup.get(compDivId)
+    if (!seriesDivId) continue // Unmapped division — excluded
+
+    // If filtering by series division, check here
+    if (params.divisionId && seriesDivId !== params.divisionId) continue
+
+    const seriesDiv = templateDivisionMap.get(seriesDivId)
+    if (!seriesDiv) continue
+
+    mappedRegistrations.push({
+      ...reg,
+      seriesDivisionId: seriesDivId,
+      seriesDivisionLabel: seriesDiv.label,
+      seriesDivisionTeamSize: seriesDiv.teamSize,
+    })
+  }
+
+  if (mappedRegistrations.length === 0) {
+    return { ...emptyResult, availableDivisions, seriesEvents }
+  }
+
+  // 10. Deduplicate: per (userId, seriesDivisionId) keep one entry
+  const athleteKey = (userId: string, seriesDivisionId: string) =>
+    `${userId}::${seriesDivisionId}`
 
   const seenAthletes = new Set<string>()
-  const dedupedRegistrations: typeof allRegistrations = []
-  for (const reg of allRegistrations) {
-    const key = athleteKey(reg.user.id, reg.registration.divisionId)
+  const dedupedRegistrations: EnrichedRegistration[] = []
+  for (const reg of mappedRegistrations) {
+    const key = athleteKey(reg.user.id, reg.seriesDivisionId)
     if (!seenAthletes.has(key)) {
       seenAthletes.add(key)
       dedupedRegistrations.push(reg)
@@ -392,7 +334,7 @@ export async function getSeriesLeaderboard(params: {
     new Set<string>(dedupedRegistrations.map((r) => r.user.id)),
   )
 
-  // 9. Load all scores for these track workouts and users
+  // 11. Load all scores for these track workouts and users
   const allScores = await db
     .select({
       id: scoresTable.id,
@@ -415,31 +357,30 @@ export async function getSeriesLeaderboard(params: {
       ),
     )
 
-  // 10. Build leaderboard map: athleteKey → SeriesLeaderboardEntry
+  // 12. Build leaderboard map: athleteKey → SeriesLeaderboardEntry
   const leaderboardMap = new Map<string, SeriesLeaderboardEntry>()
 
   for (const reg of dedupedRegistrations) {
     const fullName =
       `${reg.user.firstName || ""} ${reg.user.lastName || ""}`.trim()
-    const divisionId = reg.registration.divisionId ?? "open"
-    const key = athleteKey(reg.user.id, reg.registration.divisionId)
+    const key = athleteKey(reg.user.id, reg.seriesDivisionId)
 
     leaderboardMap.set(key, {
       userId: reg.user.id,
       athleteName: fullName || reg.user.email || "Unknown",
-      divisionId,
-      divisionLabel: reg.division?.label ?? "Open",
+      divisionId: reg.seriesDivisionId,
+      divisionLabel: reg.seriesDivisionLabel,
       competitionId: reg.competitionId,
       competitionName: reg.competitionName,
       totalPoints: 0,
       overallRank: 0,
-      isTeamDivision: (reg.division?.teamSize ?? 1) > 1,
+      isTeamDivision: reg.seriesDivisionTeamSize > 1,
       teamName: reg.registration.teamName,
       eventResults: [],
     })
   }
 
-  // 11. For each series event (shared workoutId), compute global rankings
+  // 13. For each series event (shared workoutId), compute global rankings
   for (const workoutId of uniqueWorkoutIds) {
     const tws = workoutIdToTrackWorkouts.get(workoutId) ?? []
     const twIds = tws.map((tw) => tw.id)
@@ -450,7 +391,7 @@ export async function getSeriesLeaderboard(params: {
     const scoreType =
       sampleTw.workout.scoreType || getDefaultScoreType(sampleTw.workout.scheme)
 
-    // Pool scores from all primary comps for this workout
+    // Pool scores from all participating comps for this workout
     const eventScores = allScores.filter((s) =>
       twIds.includes(s.competitionEventId ?? ""),
     )
@@ -461,10 +402,10 @@ export async function getSeriesLeaderboard(params: {
       userScoreMap.set(score.userId, score)
     }
 
-    // Group by divisionId
+    // Group by series divisionId
     const divisionScores = new Map<string, EventScoreInput[]>()
     for (const reg of dedupedRegistrations) {
-      const divId = reg.registration.divisionId ?? "open"
+      const divId = reg.seriesDivisionId
       const score = userScoreMap.get(reg.user.id)
       const input: EventScoreInput = score
         ? {
@@ -495,9 +436,9 @@ export async function getSeriesLeaderboard(params: {
       )
 
       for (const reg of dedupedRegistrations) {
-        if ((reg.registration.divisionId ?? "open") !== divId) continue
+        if (reg.seriesDivisionId !== divId) continue
 
-        const key = athleteKey(reg.user.id, reg.registration.divisionId)
+        const key = athleteKey(reg.user.id, reg.seriesDivisionId)
         const entry = leaderboardMap.get(key)
         if (!entry) continue
 
@@ -568,7 +509,7 @@ export async function getSeriesLeaderboard(params: {
     }
   }
 
-  // 12. Group by division, apply tiebreakers, assign overallRank
+  // 14. Group by division, apply tiebreakers, assign overallRank
   const divisionGroups = new Map<string, SeriesLeaderboardEntry[]>()
   for (const entry of Array.from(leaderboardMap.values())) {
     const existing = divisionGroups.get(entry.divisionId) ?? []
@@ -609,39 +550,6 @@ export async function getSeriesLeaderboard(params: {
     entries: sortedEntries,
     scoringConfig,
     seriesEvents,
-    divisionHealth,
     availableDivisions,
-    primaryScalingGroupId,
   }
-}
-
-// ============================================================================
-// Lightweight Division Health (for series management page)
-// ============================================================================
-
-export async function getSeriesDivisionHealth(params: {
-  groupId: string
-  canonicalScalingGroupId?: string | null
-}): Promise<{
-  health: SeriesDivisionHealth[]
-  primaryScalingGroupId: string | null
-}> {
-  const db = getDb()
-
-  const comps = await db
-    .select({ id: competitionsTable.id, name: competitionsTable.name })
-    .from(competitionsTable)
-    .where(eq(competitionsTable.groupId, params.groupId))
-
-  if (comps.length === 0) return { health: [], primaryScalingGroupId: null }
-
-  const compIds = comps.map((c) => c.id)
-  const compNames = new Map<string, string>(comps.map((c) => [c.id, c.name]))
-
-  return computeDivisionHealth(
-    compIds,
-    compNames,
-    db,
-    params.canonicalScalingGroupId,
-  )
 }
