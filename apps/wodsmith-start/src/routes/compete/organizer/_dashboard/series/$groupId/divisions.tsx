@@ -344,20 +344,38 @@ function TemplateEditor({
   }
 
   const handleSyncClick = async () => {
+    // Save template first, then preview sync
     setIsLoadingPreview(true)
     try {
+      await updateTemplate({
+        data: {
+          groupId,
+          divisions: divisions.map((d) => ({
+            id: d.id,
+            label: d.label,
+            teamSize: d.teamSize,
+            feeCents: d.feeCents,
+            description: d.description,
+            maxSpots: d.maxSpots,
+          })),
+        },
+      })
+      await onTemplateUpdated()
+
       const preview = await previewSync({
         data: { groupId },
       })
       if (preview.totalDivisions === 0) {
-        toast.info("No changes to sync. All competitions are up to date.")
+        toast.info(
+          "Template saved. No changes to sync — all competitions are up to date.",
+        )
         return
       }
       setSyncPreview(preview)
       setShowSyncDialog(true)
     } catch (e) {
       toast.error(
-        e instanceof Error ? e.message : "Failed to load sync preview",
+        e instanceof Error ? e.message : "Failed to save & sync",
       )
     } finally {
       setIsLoadingPreview(false)
@@ -448,6 +466,14 @@ function TemplateEditor({
               <Button
                 variant="outline"
                 size="sm"
+                onClick={handleSave}
+                disabled={isSaving}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {isSaving ? "Saving..." : "Save Template"}
+              </Button>
+              <Button
+                size="sm"
                 onClick={handleSyncClick}
                 disabled={isSyncing || isLoadingPreview}
               >
@@ -455,14 +481,10 @@ function TemplateEditor({
                   className={`h-4 w-4 mr-2 ${isSyncing || isLoadingPreview ? "animate-spin" : ""}`}
                 />
                 {isLoadingPreview
-                  ? "Loading..."
+                  ? "Saving..."
                   : isSyncing
                     ? "Syncing..."
-                    : "Sync to Competitions"}
-              </Button>
-              <Button size="sm" onClick={handleSave} disabled={isSaving}>
-                <Save className="h-4 w-4 mr-2" />
-                {isSaving ? "Saving..." : "Save Template"}
+                    : "Save & Sync to Competitions"}
               </Button>
             </div>
           </div>
