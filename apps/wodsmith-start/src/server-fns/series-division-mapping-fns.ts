@@ -1120,6 +1120,218 @@ export const updateSeriesTemplateFn = createServerFn({ method: "POST" })
     return { success: true }
   })
 
+// ============================================================================
+// Preview / Sync types
+// ============================================================================
+
+export interface SyncPreviewDivisionChange {
+  divisionLabel: string
+  isNew: boolean
+  changes: string[]
+  currentFeeCents: number
+  newFeeCents: number
+  currentDescription: string | null
+  newDescription: string | null
+  currentMaxSpots: number | null
+  newMaxSpots: number | null
+}
+
+export interface SyncPreviewCompetition {
+  competitionId: string
+  competitionName: string
+  divisions: SyncPreviewDivisionChange[]
+}
+
+export interface SyncPreviewResult {
+  competitions: SyncPreviewCompetition[]
+  totalDivisions: number
+}
+
+/**
+ * Preview what syncTemplateToCompetitions would change WITHOUT making changes.
+ * Returns a diff for each competition/division that would be created or updated.
+ */
+export const previewSyncToCompetitionsFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        groupId: z.string().min(1),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }): Promise<SyncPreviewResult> => {
+    const db = getDb()
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    const [group] = await db
+      .select()
+      .from(competitionGroupsTable)
+      .where(eq(competitionGroupsTable.id, data.groupId))
+    if (!group) throw new Error("Series group not found")
+
+    await requireTeamPermission(
+      group.organizingTeamId,
+      TEAM_PERMISSIONS.ACCESS_DASHBOARD,
+    )
+
+    // Load template division configs
+    const templateConfigs = await db
+      .select()
+      .from(seriesTemplateDivisionsTable)
+      .where(eq(seriesTemplateDivisionsTable.groupId, data.groupId))
+
+    if (templateConfigs.length === 0) {
+      return { competitions: [], totalDivisions: 0 }
+    }
+
+    const templateConfigMap = new Map(
+      templateConfigs.map((c) => [c.divisionId, c]),
+    )
+
+    // Load all mappings for this series
+    const mappings = await db
+      .select()
+      .from(seriesDivisionMappingsTable)
+      .where(eq(seriesDivisionMappingsTable.groupId, data.groupId))
+
+    if (mappings.length === 0) {
+      return { competitions: [], totalDivisions: 0 }
+    }
+
+    // Load competition names
+    const compIds = [...new Set(mappings.map((m) => m.competitionId))]
+    const comps = await db
+      .select({ id: competitionsTable.id, name: competitionsTable.name })
+      .from(competitionsTable)
+      .where(inArray(competitionsTable.id, compIds))
+    const compNameMap = new Map(comps.map((c) => [c.id, c.name]))
+
+    // Load competition division labels (scaling levels)
+    const compDivIds = mappings.map((m) => m.competitionDivisionId)
+    const compDivLabels =
+      compDivIds.length > 0
+        ? await db
+            .select({
+              id: scalingLevelsTable.id,
+              label: scalingLevelsTable.label,
+            })
+            .from(scalingLevelsTable)
+            .where(inArray(scalingLevelsTable.id, compDivIds))
+        : []
+    const compDivLabelMap = new Map(compDivLabels.map((l) => [l.id, l.label]))
+
+    // Group mappings by competition
+    const mappingsByComp = new Map<string, typeof mappings>()
+    for (const m of mappings) {
+      const arr = mappingsByComp.get(m.competitionId) ?? []
+      arr.push(m)
+      mappingsByComp.set(m.competitionId, arr)
+    }
+
+    const competitions: SyncPreviewCompetition[] = []
+    let totalDivisions = 0
+
+    for (const [compId, compMappings] of mappingsByComp) {
+      const divisions: SyncPreviewDivisionChange[] = []
+
+      for (const mapping of compMappings) {
+        const templateConfig = templateConfigMap.get(mapping.seriesDivisionId)
+        if (!templateConfig) continue
+
+        // Check if competition_divisions row already exists
+        const [existing] = await db
+          .select()
+          .from(competitionDivisionsTable)
+          .where(
+            and(
+              eq(
+                competitionDivisionsTable.competitionId,
+                mapping.competitionId,
+              ),
+              eq(
+                competitionDivisionsTable.divisionId,
+                mapping.competitionDivisionId,
+              ),
+            ),
+          )
+
+        const divLabel =
+          compDivLabelMap.get(mapping.competitionDivisionId) ??
+          "Unknown Division"
+        const isNew = !existing
+
+        const currentFee = existing?.feeCents ?? 0
+        const currentDesc = existing?.description ?? null
+        const currentMaxSpots = existing?.maxSpots ?? null
+
+        const newFee = templateConfig.feeCents
+        const newDesc = templateConfig.description
+        const newMaxSpots = templateConfig.maxSpots
+
+        // Build human-readable change descriptions
+        const changes: string[] = []
+
+        if (isNew) {
+          if (newFee > 0) {
+            changes.push(`fee $${(newFee / 100).toFixed(2)}`)
+          }
+          if (newDesc) {
+            changes.push("description set")
+          }
+          if (newMaxSpots) {
+            changes.push(`max spots ${newMaxSpots}`)
+          }
+          if (changes.length === 0) {
+            changes.push("new row (default values)")
+          }
+        } else {
+          if (currentFee !== newFee) {
+            changes.push(
+              `fee $${(currentFee / 100).toFixed(2)} \u2192 $${(newFee / 100).toFixed(2)}`,
+            )
+          }
+          if ((currentDesc ?? "") !== (newDesc ?? "")) {
+            changes.push("description updated")
+          }
+          if (currentMaxSpots !== newMaxSpots) {
+            const fromStr =
+              currentMaxSpots != null ? String(currentMaxSpots) : "unlimited"
+            const toStr =
+              newMaxSpots != null ? String(newMaxSpots) : "unlimited"
+            changes.push(`max spots ${fromStr} \u2192 ${toStr}`)
+          }
+        }
+
+        // Only include divisions that actually have changes
+        if (changes.length > 0) {
+          divisions.push({
+            divisionLabel: divLabel,
+            isNew,
+            changes,
+            currentFeeCents: currentFee,
+            newFeeCents: newFee,
+            currentDescription: currentDesc,
+            newDescription: newDesc,
+            currentMaxSpots: currentMaxSpots,
+            newMaxSpots: newMaxSpots,
+          })
+          totalDivisions++
+        }
+      }
+
+      if (divisions.length > 0) {
+        competitions.push({
+          competitionId: compId,
+          competitionName: compNameMap.get(compId) ?? "Unknown Competition",
+          divisions,
+        })
+      }
+    }
+
+    return { competitions, totalDivisions }
+  })
+
 /**
  * Sync series template division settings downstream to all mapped competitions.
  * For each mapping, copies the template's feeCents, description, and maxSpots

@@ -19,6 +19,16 @@ import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { SeriesDivisionMapper } from "@/components/series-division-mapper"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -40,9 +50,11 @@ import { usePostHog } from "@/lib/posthog"
 import {
   createSeriesTemplateFn,
   getSeriesDivisionMappingsFn,
+  previewSyncToCompetitionsFn,
   type SeriesDivisionMappingData,
   type SeriesTemplateData,
   type SeriesTemplateDivisionData,
+  type SyncPreviewResult,
   setSeriesTemplateFn,
   syncTemplateToCompetitionsFn,
   updateSeriesTemplateFn,
@@ -267,9 +279,13 @@ function TemplateEditor({
   )
   const [isSaving, setIsSaving] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
+  const [syncPreview, setSyncPreview] = useState<SyncPreviewResult | null>(null)
+  const [showSyncDialog, setShowSyncDialog] = useState(false)
 
   const updateTemplate = useServerFn(updateSeriesTemplateFn)
   const syncDownstream = useServerFn(syncTemplateToCompetitionsFn)
+  const previewSync = useServerFn(previewSyncToCompetitionsFn)
 
   const updateDivision = (
     index: number,
@@ -327,7 +343,29 @@ function TemplateEditor({
     }
   }
 
-  const handleSync = async () => {
+  const handleSyncClick = async () => {
+    setIsLoadingPreview(true)
+    try {
+      const preview = await previewSync({
+        data: { groupId },
+      })
+      if (preview.totalDivisions === 0) {
+        toast.info("No changes to sync. All competitions are up to date.")
+        return
+      }
+      setSyncPreview(preview)
+      setShowSyncDialog(true)
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : "Failed to load sync preview",
+      )
+    } finally {
+      setIsLoadingPreview(false)
+    }
+  }
+
+  const handleSyncConfirm = async () => {
+    setShowSyncDialog(false)
     setIsSyncing(true)
     try {
       const result = await syncDownstream({
@@ -340,166 +378,226 @@ function TemplateEditor({
       toast.error(e instanceof Error ? e.message : "Failed to sync")
     } finally {
       setIsSyncing(false)
+      setSyncPreview(null)
     }
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle>Series Template</CardTitle>
-            <CardDescription>
-              Edit divisions here, then sync changes to all mapped competitions.
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSync}
-              disabled={isSyncing}
-            >
-              <RefreshCw
-                className={`h-4 w-4 mr-2 ${isSyncing ? "animate-spin" : ""}`}
-              />
-              {isSyncing ? "Syncing..." : "Sync to Competitions"}
-            </Button>
-            <Button size="sm" onClick={handleSave} disabled={isSaving}>
-              <Save className="h-4 w-4 mr-2" />
-              {isSaving ? "Saving..." : "Save Template"}
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {divisions.map((d, i) => (
-          <div key={d.id} className="rounded-md border p-3 space-y-2">
+    <>
+      <AlertDialog open={showSyncDialog} onOpenChange={setShowSyncDialog}>
+        <AlertDialogContent className="max-h-[80vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sync Template to Competitions</AlertDialogTitle>
+            <AlertDialogDescription>
+              {syncPreview
+                ? `This will update division settings for ${syncPreview.competitions.length} competition${syncPreview.competitions.length !== 1 ? "s" : ""}:`
+                : "Loading preview..."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {syncPreview && (
+            <div className="space-y-4 py-2">
+              {syncPreview.competitions.map((comp) => (
+                <div key={comp.competitionId}>
+                  <span className="text-sm font-semibold">
+                    {comp.competitionName}
+                  </span>
+                  <ul className="mt-1 space-y-1">
+                    {comp.divisions.map((div) => (
+                      <li
+                        key={div.divisionLabel}
+                        className="text-sm text-muted-foreground ml-4"
+                      >
+                        <span className="font-medium text-foreground">
+                          {div.divisionLabel}
+                        </span>
+                        :{" "}
+                        {div.isNew ? (
+                          <span className="text-green-600 dark:text-green-400">
+                            (new){" "}
+                          </span>
+                        ) : null}
+                        {div.changes.join(", ")}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSyncConfirm}>
+              Sync {syncPreview?.totalDivisions ?? 0} Division
+              {syncPreview?.totalDivisions !== 1 ? "s" : ""}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle>Series Template</CardTitle>
+              <CardDescription>
+                Edit divisions here, then sync changes to all mapped
+                competitions.
+              </CardDescription>
+            </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground font-mono w-6 text-center shrink-0">
-                #{i + 1}
-              </span>
-              <div className="flex flex-col shrink-0">
-                <button
-                  type="button"
-                  onClick={() => moveUp(i)}
-                  disabled={i === 0}
-                  className="text-muted-foreground hover:text-foreground disabled:opacity-25 p-0.5"
-                >
-                  <ArrowUp className="h-3 w-3" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => moveDown(i)}
-                  disabled={i >= divisions.length - 1}
-                  className="text-muted-foreground hover:text-foreground disabled:opacity-25 p-0.5"
-                >
-                  <ArrowDown className="h-3 w-3" />
-                </button>
-              </div>
-              <Input
-                value={d.label}
-                onChange={(e) =>
-                  updateDivision(i, {
-                    label: e.target.value,
-                  })
-                }
-                placeholder="Division name"
-                className="flex-1 max-w-[250px]"
-              />
-              <div className="flex items-center gap-1.5 shrink-0">
-                <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                <select
-                  value={d.teamSize}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSyncClick}
+                disabled={isSyncing || isLoadingPreview}
+              >
+                <RefreshCw
+                  className={`h-4 w-4 mr-2 ${isSyncing || isLoadingPreview ? "animate-spin" : ""}`}
+                />
+                {isLoadingPreview
+                  ? "Loading..."
+                  : isSyncing
+                    ? "Syncing..."
+                    : "Sync to Competitions"}
+              </Button>
+              <Button size="sm" onClick={handleSave} disabled={isSaving}>
+                <Save className="h-4 w-4 mr-2" />
+                {isSaving ? "Saving..." : "Save Template"}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {divisions.map((d, i) => (
+            <div key={d.id} className="rounded-md border p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground font-mono w-6 text-center shrink-0">
+                  #{i + 1}
+                </span>
+                <div className="flex flex-col shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => moveUp(i)}
+                    disabled={i === 0}
+                    className="text-muted-foreground hover:text-foreground disabled:opacity-25 p-0.5"
+                  >
+                    <ArrowUp className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveDown(i)}
+                    disabled={i >= divisions.length - 1}
+                    className="text-muted-foreground hover:text-foreground disabled:opacity-25 p-0.5"
+                  >
+                    <ArrowDown className="h-3 w-3" />
+                  </button>
+                </div>
+                <Input
+                  value={d.label}
                   onChange={(e) =>
                     updateDivision(i, {
-                      teamSize: Number.parseInt(e.target.value, 10),
+                      label: e.target.value,
                     })
                   }
-                  className="h-8 text-sm rounded-md border border-input bg-background px-2 py-1 focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value={1}>Individual</option>
-                  <option value={2}>Team of 2</option>
-                  <option value={3}>Team of 3</option>
-                  <option value={4}>Team of 4</option>
-                  <option value={5}>Team of 5</option>
-                  <option value={6}>Team of 6</option>
-                </select>
+                  placeholder="Division name"
+                  className="flex-1 max-w-[250px]"
+                />
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                  <select
+                    value={d.teamSize}
+                    onChange={(e) =>
+                      updateDivision(i, {
+                        teamSize: Number.parseInt(e.target.value, 10),
+                      })
+                    }
+                    className="h-8 text-sm rounded-md border border-input bg-background px-2 py-1 focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value={1}>Individual</option>
+                    <option value={2}>Team of 2</option>
+                    <option value={3}>Team of 3</option>
+                    <option value={4}>Team of 4</option>
+                    <option value={5}>Team of 5</option>
+                    <option value={6}>Team of 6</option>
+                  </select>
+                </div>
               </div>
-            </div>
-            <div className="flex items-start gap-3 pl-8">
-              <div className="space-y-1">
-                <span className="text-xs text-muted-foreground">Fee</span>
-                <div className="flex items-center gap-1">
-                  <span className="text-xs text-muted-foreground">$</span>
+              <div className="flex items-start gap-3 pl-8">
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground">Fee</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground">$</span>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      value={
+                        d.feeCents > 0 ? (d.feeCents / 100).toFixed(2) : ""
+                      }
+                      onChange={(e) => {
+                        const dollars = Number.parseFloat(e.target.value)
+                        updateDivision(i, {
+                          feeCents: Number.isNaN(dollars)
+                            ? 0
+                            : Math.round(dollars * 100),
+                        })
+                      }}
+                      placeholder="0.00"
+                      className="w-[80px] h-7 text-xs"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground">
+                    Max Spots
+                  </span>
                   <Input
                     type="number"
-                    min={0}
-                    step={0.01}
-                    value={d.feeCents > 0 ? (d.feeCents / 100).toFixed(2) : ""}
-                    onChange={(e) => {
-                      const dollars = Number.parseFloat(e.target.value)
+                    min={1}
+                    value={d.maxSpots ?? ""}
+                    onChange={(e) =>
                       updateDivision(i, {
-                        feeCents: Number.isNaN(dollars)
-                          ? 0
-                          : Math.round(dollars * 100),
+                        maxSpots: e.target.value
+                          ? Number.parseInt(e.target.value, 10) || null
+                          : null,
                       })
-                    }}
-                    placeholder="0.00"
-                    className="w-[80px] h-7 text-xs"
+                    }
+                    placeholder="Unlimited"
+                    className="w-[90px] h-7 text-xs"
                   />
                 </div>
               </div>
-              <div className="space-y-1">
+              <div className="pl-8">
                 <span className="text-xs text-muted-foreground">
-                  Max Spots
+                  Description
                 </span>
-                <Input
-                  type="number"
-                  min={1}
-                  value={d.maxSpots ?? ""}
+                <Textarea
+                  value={d.description ?? ""}
                   onChange={(e) =>
                     updateDivision(i, {
-                      maxSpots: e.target.value
-                        ? Number.parseInt(e.target.value, 10) || null
-                        : null,
+                      description: e.target.value || null,
                     })
                   }
-                  placeholder="Unlimited"
-                  className="w-[90px] h-7 text-xs"
+                  placeholder="Who is this division for?"
+                  className="mt-1 text-xs min-h-[60px]"
+                  rows={2}
                 />
               </div>
             </div>
-            <div className="pl-8">
-              <span className="text-xs text-muted-foreground">
-                Description
-              </span>
-              <Textarea
-                value={d.description ?? ""}
-                onChange={(e) =>
-                  updateDivision(i, {
-                    description: e.target.value || null,
-                  })
-                }
-                placeholder="Who is this division for?"
-                className="mt-1 text-xs min-h-[60px]"
-                rows={2}
-              />
-            </div>
+          ))}
+          <div className="pt-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onChangeTemplate}
+              className="text-muted-foreground"
+            >
+              Replace with different template
+            </Button>
           </div>
-        ))}
-        <div className="pt-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onChangeTemplate}
-            className="text-muted-foreground"
-          >
-            Replace with different template
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </>
   )
 }
 
