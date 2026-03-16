@@ -28,7 +28,7 @@ How should we upgrade our financial tracking to handle refunds, disputes, and re
 * Must enable reconciliation between our records and Stripe
 * Must enforce that money never appears or disappears (balance invariants)
 * Should be implementable incrementally — we don't need to rewrite everything at once
-* Must work within D1 constraints (no transactions, 100 SQL parameter limit)
+* Must work within PlanetScale/MySQL constraints (connection limits, row-size limits, no DDL in transactions)
 
 ## Considered Options
 
@@ -67,8 +67,8 @@ Option A is the gold standard for payout systems (used by Stripe, Airbnb, Uber i
 **New schema: `src/db/schemas/financial-events.ts`**
 
 ```typescript
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
-import { createId } from "@/utils/ids"
+import { mysqlTable, varchar, int, text, datetime } from "drizzle-orm/mysql-core"
+import { ulid } from "ulid"
 
 export const FINANCIAL_EVENT_TYPE = {
   PAYMENT_COMPLETED: "PAYMENT_COMPLETED",
@@ -85,24 +85,24 @@ export const FINANCIAL_EVENT_TYPE = {
   MANUAL_ADJUSTMENT: "MANUAL_ADJUSTMENT",
 } as const
 
-export const financialEventTable = sqliteTable("financial_events", {
-  id: text("id").primaryKey().$defaultFn(createId),
-  purchaseId: text("purchase_id").notNull(),        // FK to commerce_purchases
-  teamId: text("team_id").notNull(),                // organizer's team
-  eventType: text("event_type").notNull(),           // from FINANCIAL_EVENT_TYPE
-  amountCents: integer("amount_cents").notNull(),    // positive = money in, negative = money out
-  currency: text("currency").notNull().default("usd"),
+export const financialEventTable = mysqlTable("financial_events", {
+  id: varchar({ length: 255 }).primaryKey().$defaultFn(() => `fevt_${ulid()}`),
+  purchaseId: varchar({ length: 255 }).notNull(),     // FK to commerce_purchases
+  teamId: varchar({ length: 255 }).notNull(),         // organizer's team
+  eventType: varchar({ length: 50 }).notNull(),       // from FINANCIAL_EVENT_TYPE
+  amountCents: int().notNull(),                       // positive = money in, negative = money out
+  currency: varchar({ length: 10 }).notNull().default("usd"),
   // Stripe references
-  stripePaymentIntentId: text("stripe_payment_intent_id"),
-  stripeRefundId: text("stripe_refund_id"),
-  stripeDisputeId: text("stripe_dispute_id"),
+  stripePaymentIntentId: varchar({ length: 255 }),
+  stripeRefundId: varchar({ length: 255 }),
+  stripeDisputeId: varchar({ length: 255 }),
   // Context
-  reason: text("reason"),                            // human-readable reason
-  metadata: text("metadata", { mode: "json" }),      // arbitrary context (fee breakdown, etc.)
-  actorId: text("actor_id"),                         // user who triggered (null for webhooks)
+  reason: text(),                                     // human-readable reason
+  metadata: text(),                                   // JSON — fee breakdown, etc.
+  actorId: varchar({ length: 255 }),                  // user who triggered (null for webhooks)
   // Timestamps
-  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
-  stripeEventTimestamp: integer("stripe_event_timestamp", { mode: "timestamp" }),
+  createdAt: datetime().$defaultFn(() => new Date()),
+  stripeEventTimestamp: datetime(),
 })
 ```
 
@@ -193,7 +193,7 @@ After the event log table exists (Phase 1) and the recording logic is live (Phas
 
 A one-time CLI script (not a server function) that:
 
-1. **Fetches all COMPLETED purchases from D1** with `completedAt >= 2026-01-01`:
+1. **Fetches all COMPLETED purchases from PlanetScale** with `completedAt >= 2026-01-01`:
 
 ```typescript
 const cutoff = new Date("2026-01-01T00:00:00Z")
@@ -322,22 +322,21 @@ for (const charge of pi.charges.data) {
 }
 ```
 
-6. **Batch insert events** using `autochunk` to respect the D1 100-parameter limit:
+6. **Batch insert events** in chunks to keep individual statements manageable (MySQL supports up to 65,535 parameters per statement, but chunking at ~500 rows is good practice for large backfills):
 
 ```typescript
-import { autochunk } from "@/utils/batch-query"
-
-await autochunk(
-  { items: events, otherParametersCount: 0 },
-  async (chunk) => db.insert(financialEventTable).values(chunk),
-)
+const CHUNK_SIZE = 500
+for (let i = 0; i < events.length; i += CHUNK_SIZE) {
+  const chunk = events.slice(i, i + CHUNK_SIZE)
+  await db.insert(financialEventTable).values(chunk)
+}
 ```
 
 **Operational considerations:**
 
 - **Stripe rate limits**: The script should respect Stripe's 100 requests/second limit. Add a 50ms delay between PaymentIntent fetches, or use `p-limit` to cap concurrency at 20.
 - **Idempotency**: The script checks for existing events before inserting, so it's safe to re-run if interrupted.
-- **Dry-run mode**: Add a `--dry-run` flag that logs what would be inserted without writing to D1. Run this first to verify counts.
+- **Dry-run mode**: Add a `--dry-run` flag that logs what would be inserted without writing to the database. Run this first to verify counts.
 - **Progress logging**: Log every 50 purchases processed so operators can monitor progress and estimate completion.
 - **Metadata tagging**: Every backfilled event includes `backfilled: true` in metadata so they're distinguishable from live events in queries.
 - **Run order**: Run this script **after** Phases 1-4 are deployed and **before** enabling any reconciliation queries (Phase 6). The event log must be complete before reconciliation makes sense.
@@ -388,11 +387,12 @@ This lets us answer "does our local state match reality?" for any purchase.
 
 No new packages. Uses existing Drizzle ORM and Stripe SDK.
 
-### D1 Constraints
+### PlanetScale/MySQL Constraints
 
-- No transactions needed — each event is a single INSERT
-- Event log queries use `purchaseId` index, well within parameter limits
-- Append-only pattern is ideal for D1's write characteristics
+- Full transaction support is available but not needed here — each event is a single INSERT
+- Event log queries use the `purchaseId` index; MySQL handles large parameter counts (up to 65,535 per statement), so chunking is a throughput choice, not a hard limit
+- PlanetScale enforces no foreign keys at the DB level; referential integrity is maintained by Drizzle schema relations and application logic
+- Append-only INSERT pattern works well with PlanetScale's distributed MySQL — no UPDATE/DELETE contention
 
 ### Verification
 
