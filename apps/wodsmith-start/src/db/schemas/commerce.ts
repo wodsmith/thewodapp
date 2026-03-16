@@ -132,6 +132,7 @@ export const commercePurchaseTable = mysqlTable(
       table.stripeCheckoutSessionId,
     ),
     index("commerce_purchase_competition_idx").on(table.competitionId),
+    index("commerce_purchase_stripe_pi_idx").on(table.stripePaymentIntentId),
     // Ensure fee breakdown always sums to total (data integrity safeguard).
     // Note: PlanetScale (Vitess) may parse but not enforce CHECK constraints.
     check(

@@ -77,6 +77,7 @@ export const financialEventTable = mysqlTable(
 		index("financial_event_team_idx").on(table.teamId),
 		index("financial_event_type_idx").on(table.eventType),
 		index("financial_event_stripe_pi_idx").on(table.stripePaymentIntentId),
+		index("financial_event_stripe_refund_idx").on(table.stripeRefundId),
 		index("financial_event_stripe_dispute_idx").on(table.stripeDisputeId),
 	],
 )
