@@ -547,27 +547,10 @@ function TemplateEditor({
               <div className="flex items-start gap-3 pl-8">
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground">Fee</span>
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs text-muted-foreground">$</span>
-                    <Input
-                      type="number"
-                      min={0}
-                      step={0.01}
-                      value={
-                        d.feeCents > 0 ? (d.feeCents / 100).toFixed(2) : ""
-                      }
-                      onChange={(e) => {
-                        const dollars = Number.parseFloat(e.target.value)
-                        updateDivision(i, {
-                          feeCents: Number.isNaN(dollars)
-                            ? 0
-                            : Math.round(dollars * 100),
-                        })
-                      }}
-                      placeholder="0.00"
-                      className="w-[80px] h-7 text-xs"
-                    />
-                  </div>
+                  <FeeInput
+                    feeCents={d.feeCents}
+                    onChange={(cents) => updateDivision(i, { feeCents: cents })}
+                  />
                 </div>
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground">
@@ -894,31 +877,12 @@ function TemplateCreator({
                         <span className="text-xs text-muted-foreground">
                           Fee
                         </span>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-muted-foreground">
-                            $
-                          </span>
-                          <Input
-                            type="number"
-                            min={0}
-                            step={0.01}
-                            value={
-                              d.feeCents > 0
-                                ? (d.feeCents / 100).toFixed(2)
-                                : ""
-                            }
-                            onChange={(e) => {
-                              const dollars = Number.parseFloat(e.target.value)
-                              updateDivision(i, {
-                                feeCents: Number.isNaN(dollars)
-                                  ? 0
-                                  : Math.round(dollars * 100),
-                              })
-                            }}
-                            placeholder="0.00"
-                            className="w-[80px] h-7 text-xs"
-                          />
-                        </div>
+                        <FeeInput
+                          feeCents={d.feeCents}
+                          onChange={(cents) =>
+                            updateDivision(i, { feeCents: cents })
+                          }
+                        />
                       </div>
                       <div className="space-y-1">
                         <span className="text-xs text-muted-foreground">
@@ -1005,5 +969,40 @@ function TemplateCreator({
         )}
       </CardContent>
     </Card>
+  )
+}
+
+// ─────────────────────────────────────────────────────────
+// Fee Input — stores as string to avoid cursor-jump issues
+// ─────────────────────────────────────────────────────────
+
+function FeeInput({
+  feeCents,
+  onChange,
+}: {
+  feeCents: number
+  onChange: (cents: number) => void
+}) {
+  const [value, setValue] = useState(() =>
+    feeCents > 0 ? (feeCents / 100).toFixed(2) : "",
+  )
+
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-xs text-muted-foreground">$</span>
+      <Input
+        type="number"
+        min={0}
+        step={0.01}
+        value={value}
+        onChange={(e) => {
+          setValue(e.target.value)
+          const dollars = Number.parseFloat(e.target.value)
+          onChange(Number.isNaN(dollars) ? 0 : Math.round(dollars * 100))
+        }}
+        placeholder="0.00"
+        className="w-[100px] h-7 text-xs"
+      />
+    </div>
   )
 }
