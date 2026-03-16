@@ -92,18 +92,14 @@ export const Route = createFileRoute("/compete/organizer/_dashboard/new")({
       }
     > = {}
     for (const group of groupsResult.groups) {
-      try {
-        const result = await getSeriesTemplateDivisionsFn({
-          data: { groupId: group.id },
-        })
-        if (result.scalingGroupId && result.divisions.length > 0) {
-          seriesTemplateDivisions[group.id] = {
-            scalingGroupId: result.scalingGroupId,
-            divisions: result.divisions,
-          }
+      const result = await getSeriesTemplateDivisionsFn({
+        data: { groupId: group.id },
+      }).catch(() => null)
+      if (result?.scalingGroupId && result.divisions.length > 0) {
+        seriesTemplateDivisions[group.id] = {
+          scalingGroupId: result.scalingGroupId,
+          divisions: result.divisions,
         }
-      } catch {
-        // Template not configured — skip
       }
     }
 

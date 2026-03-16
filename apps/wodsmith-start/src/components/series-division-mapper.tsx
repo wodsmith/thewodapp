@@ -107,11 +107,18 @@ export function SeriesDivisionMapper({
         data: { groupId, mappings: allMappings },
       })
       toast.success(`Saved ${allMappings.length} division mappings`)
-      if (onSaved) await onSaved()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save mappings")
+      return
     } finally {
       setIsSaving(false)
+    }
+    if (onSaved) {
+      try {
+        await onSaved()
+      } catch (e) {
+        console.error("onSaved callback failed:", e)
+      }
     }
   }, [groupId, saveMappings, onSaved])
 

@@ -82,9 +82,9 @@ function normalizeLabel(label: string): string {
   n = n.replace(/\bwomen['']s\b/g, "women")
   n = n.replace(/\bmen['']s\b/g, "men")
   // Normalize masters variants: "Masters 35+", "Master 35+", "M35+" → "m35+"
-  n = n.replace(/\bmasters?\s*(\d+)\+?\b/g, "m$1+")
+  n = n.replace(/\bmasters?\s*(\d+)\+?/g, "m$1+")
   // Already-abbreviated form: "M35+" → "m35+"
-  n = n.replace(/\bm(\d+)\+/g, "m$1+")
+  n = n.replace(/\bm(\d+)\+?/g, "m$1+")
   // Normalize "individual" → "indiv"
   n = n.replace(/\bindividual\b/g, "indiv")
   // Strip common filler words
@@ -499,10 +499,10 @@ export const setSeriesTemplateFn = createServerFn({ method: "POST" })
     const existingTemplateId = seriesSettings?.scalingGroupId
 
     // Helper to clone levels + metadata into a template group
-    const cloneLevels = async (templateGroupId: string) => {
+    const cloneLevels = async (tx: typeof db, templateGroupId: string) => {
       for (const level of sourceLevels) {
         const newLevelId = createScalingLevelId()
-        await db.insert(scalingLevelsTable).values({
+        await tx.insert(scalingLevelsTable).values({
           id: newLevelId,
           scalingGroupId: templateGroupId,
           label: level.label,
@@ -513,7 +513,7 @@ export const setSeriesTemplateFn = createServerFn({ method: "POST" })
         // Copy metadata if available
         const config = sourceConfigMap.get(level.id)
         if (config) {
-          await db.insert(seriesTemplateDivisionsTable).values({
+          await tx.insert(seriesTemplateDivisionsTable).values({
             groupId: data.groupId,
             divisionId: newLevelId,
             feeCents: config.feeCents,
@@ -525,50 +525,54 @@ export const setSeriesTemplateFn = createServerFn({ method: "POST" })
     }
 
     if (existingTemplateId) {
-      // Clear old data
-      await db
-        .delete(seriesTemplateDivisionsTable)
-        .where(eq(seriesTemplateDivisionsTable.groupId, data.groupId))
-      await db
-        .delete(scalingLevelsTable)
-        .where(eq(scalingLevelsTable.scalingGroupId, existingTemplateId))
-      await db
-        .delete(seriesDivisionMappingsTable)
-        .where(eq(seriesDivisionMappingsTable.groupId, data.groupId))
+      await db.transaction(async (tx) => {
+        // Clear old data
+        await tx
+          .delete(seriesTemplateDivisionsTable)
+          .where(eq(seriesTemplateDivisionsTable.groupId, data.groupId))
+        await tx
+          .delete(scalingLevelsTable)
+          .where(eq(scalingLevelsTable.scalingGroupId, existingTemplateId))
+        await tx
+          .delete(seriesDivisionMappingsTable)
+          .where(eq(seriesDivisionMappingsTable.groupId, data.groupId))
 
-      await db
-        .update(scalingGroupsTable)
-        .set({
-          title: `${group.name} Series Divisions`,
-          updatedAt: new Date(),
-        })
-        .where(eq(scalingGroupsTable.id, existingTemplateId))
+        await tx
+          .update(scalingGroupsTable)
+          .set({
+            title: `${group.name} Series Divisions`,
+            updatedAt: new Date(),
+          })
+          .where(eq(scalingGroupsTable.id, existingTemplateId))
 
-      await cloneLevels(existingTemplateId)
+        await cloneLevels(tx, existingTemplateId)
+      })
       return { scalingGroupId: existingTemplateId }
     }
 
     // Create new template scaling group
     const newGroupId = createScalingGroupId()
-    await db.insert(scalingGroupsTable).values({
-      id: newGroupId,
-      title: `${group.name} Series Divisions`,
-      teamId: group.organizingTeamId,
-      isDefault: false,
-      isSystem: false,
-    })
+    await db.transaction(async (tx) => {
+      await tx.insert(scalingGroupsTable).values({
+        id: newGroupId,
+        title: `${group.name} Series Divisions`,
+        teamId: group.organizingTeamId,
+        isDefault: false,
+        isSystem: false,
+      })
 
-    await cloneLevels(newGroupId)
+      await cloneLevels(tx, newGroupId)
 
-    // Save to series settings
-    const newSettings = stringifySeriesSettings({
-      ...seriesSettings,
-      scalingGroupId: newGroupId,
+      // Save to series settings
+      const newSettings = stringifySeriesSettings({
+        ...seriesSettings,
+        scalingGroupId: newGroupId,
+      })
+      await tx
+        .update(competitionGroupsTable)
+        .set({ settings: newSettings, updatedAt: new Date() })
+        .where(eq(competitionGroupsTable.id, data.groupId))
     })
-    await db
-      .update(competitionGroupsTable)
-      .set({ settings: newSettings, updatedAt: new Date() })
-      .where(eq(competitionGroupsTable.id, data.groupId))
 
     return { scalingGroupId: newGroupId }
   })
@@ -618,73 +622,75 @@ export const createSeriesTemplateFn = createServerFn({ method: "POST" })
 
     let templateGroupId: string
 
-    if (existingTemplateId) {
-      templateGroupId = existingTemplateId
+    await db.transaction(async (tx) => {
+      if (existingTemplateId) {
+        templateGroupId = existingTemplateId
 
-      // Clear old levels, template configs, and mappings
-      await db
-        .delete(seriesTemplateDivisionsTable)
-        .where(eq(seriesTemplateDivisionsTable.groupId, data.groupId))
-      await db
-        .delete(scalingLevelsTable)
-        .where(eq(scalingLevelsTable.scalingGroupId, existingTemplateId))
-      await db
-        .delete(seriesDivisionMappingsTable)
-        .where(eq(seriesDivisionMappingsTable.groupId, data.groupId))
+        // Clear old levels, template configs, and mappings
+        await tx
+          .delete(seriesTemplateDivisionsTable)
+          .where(eq(seriesTemplateDivisionsTable.groupId, data.groupId))
+        await tx
+          .delete(scalingLevelsTable)
+          .where(eq(scalingLevelsTable.scalingGroupId, existingTemplateId))
+        await tx
+          .delete(seriesDivisionMappingsTable)
+          .where(eq(seriesDivisionMappingsTable.groupId, data.groupId))
 
-      await db
-        .update(scalingGroupsTable)
-        .set({
+        await tx
+          .update(scalingGroupsTable)
+          .set({
+            title: `${group.name} Series Divisions`,
+            updatedAt: new Date(),
+          })
+          .where(eq(scalingGroupsTable.id, existingTemplateId))
+      } else {
+        templateGroupId = createScalingGroupId()
+        await tx.insert(scalingGroupsTable).values({
+          id: templateGroupId,
           title: `${group.name} Series Divisions`,
-          updatedAt: new Date(),
+          teamId: group.organizingTeamId,
+          isDefault: false,
+          isSystem: false,
         })
-        .where(eq(scalingGroupsTable.id, existingTemplateId))
-    } else {
-      templateGroupId = createScalingGroupId()
-      await db.insert(scalingGroupsTable).values({
-        id: templateGroupId,
-        title: `${group.name} Series Divisions`,
-        teamId: group.organizingTeamId,
-        isDefault: false,
-        isSystem: false,
-      })
 
-      const newSettings = stringifySeriesSettings({
-        ...seriesSettings,
-        scalingGroupId: templateGroupId,
-      })
-      await db
-        .update(competitionGroupsTable)
-        .set({ settings: newSettings, updatedAt: new Date() })
-        .where(eq(competitionGroupsTable.id, data.groupId))
-    }
-
-    // Create scaling levels + template division configs
-    for (let i = 0; i < data.divisions.length; i++) {
-      const div = data.divisions[i]
-      const levelId = createScalingLevelId()
-
-      await db.insert(scalingLevelsTable).values({
-        id: levelId,
-        scalingGroupId: templateGroupId,
-        label: div.label,
-        position: i,
-        teamSize: div.teamSize,
-      })
-
-      // Store metadata on series_template_divisions
-      if (div.feeCents || div.description || div.maxSpots) {
-        await db.insert(seriesTemplateDivisionsTable).values({
-          groupId: data.groupId,
-          divisionId: levelId,
-          feeCents: div.feeCents ?? 0,
-          description: div.description ?? null,
-          maxSpots: div.maxSpots ?? null,
+        const newSettings = stringifySeriesSettings({
+          ...seriesSettings,
+          scalingGroupId: templateGroupId,
         })
+        await tx
+          .update(competitionGroupsTable)
+          .set({ settings: newSettings, updatedAt: new Date() })
+          .where(eq(competitionGroupsTable.id, data.groupId))
       }
-    }
 
-    return { scalingGroupId: templateGroupId }
+      // Create scaling levels + template division configs
+      for (let i = 0; i < data.divisions.length; i++) {
+        const div = data.divisions[i]
+        const levelId = createScalingLevelId()
+
+        await tx.insert(scalingLevelsTable).values({
+          id: levelId,
+          scalingGroupId: templateGroupId,
+          label: div.label,
+          position: i,
+          teamSize: div.teamSize,
+        })
+
+        // Store metadata on series_template_divisions
+        if (div.feeCents || div.description || div.maxSpots) {
+          await tx.insert(seriesTemplateDivisionsTable).values({
+            groupId: data.groupId,
+            divisionId: levelId,
+            feeCents: div.feeCents ?? 0,
+            description: div.description ?? null,
+            maxSpots: div.maxSpots ?? null,
+          })
+        }
+      }
+    })
+
+    return { scalingGroupId: templateGroupId! }
   })
 
 /**
@@ -724,22 +730,23 @@ export const saveSeriesDivisionMappingsFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    // Delete all existing mappings for this series
-    await db
-      .delete(seriesDivisionMappingsTable)
-      .where(eq(seriesDivisionMappingsTable.groupId, data.groupId))
+    // Delete all existing mappings and insert new ones atomically
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(seriesDivisionMappingsTable)
+        .where(eq(seriesDivisionMappingsTable.groupId, data.groupId))
 
-    // Insert new mappings
-    if (data.mappings.length > 0) {
-      await db.insert(seriesDivisionMappingsTable).values(
-        data.mappings.map((m) => ({
-          groupId: data.groupId,
-          competitionId: m.competitionId,
-          competitionDivisionId: m.competitionDivisionId,
-          seriesDivisionId: m.seriesDivisionId,
-        })),
-      )
-    }
+      if (data.mappings.length > 0) {
+        await tx.insert(seriesDivisionMappingsTable).values(
+          data.mappings.map((m) => ({
+            groupId: data.groupId,
+            competitionId: m.competitionId,
+            competitionDivisionId: m.competitionDivisionId,
+            seriesDivisionId: m.seriesDivisionId,
+          })),
+        )
+      }
+    })
 
     return { success: true, mappingCount: data.mappings.length }
   })
@@ -1062,7 +1069,7 @@ export const updateSeriesTemplateFn = createServerFn({ method: "POST" })
     for (let i = 0; i < data.divisions.length; i++) {
       const div = data.divisions[i]
 
-      // Update scaling level (label, teamSize, position)
+      // Update scaling level (label, teamSize, position) — scoped to template group
       await db
         .update(scalingLevelsTable)
         .set({
@@ -1071,7 +1078,12 @@ export const updateSeriesTemplateFn = createServerFn({ method: "POST" })
           position: i,
           updatedAt: new Date(),
         })
-        .where(eq(scalingLevelsTable.id, div.id))
+        .where(
+          and(
+            eq(scalingLevelsTable.id, div.id),
+            eq(scalingLevelsTable.scalingGroupId, templateGroupId),
+          ),
+        )
 
       // Upsert template division config
       const [existing] = await db
@@ -1230,6 +1242,8 @@ export const getSeriesTemplateDivisionsFn = createServerFn({
       }>
     }> => {
       const db = getDb()
+      const session = await getSessionFromCookie()
+      if (!session?.userId) throw new Error("Not authenticated")
 
       const [group] = await db
         .select({ settings: competitionGroupsTable.settings })

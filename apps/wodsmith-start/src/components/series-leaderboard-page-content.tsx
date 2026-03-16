@@ -161,8 +161,8 @@ export function SeriesLeaderboardPageContent({ groupId }: Props) {
           <BarChart3 className="h-4 w-4" />
           <AlertTitle>No results yet</AlertTitle>
           <AlertDescription>
-            Rankings will appear here once athletes start submitting scores
-            across throwdowns.
+            No rankings yet. Make sure division mappings are configured and
+            athletes have submitted scores.
           </AlertDescription>
         </Alert>
       ) : (
