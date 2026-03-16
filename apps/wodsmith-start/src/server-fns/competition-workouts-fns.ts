@@ -142,6 +142,7 @@ const createWorkoutAndAddToCompetitionInputSchema = z.object({
   tagNames: z.array(z.string()).optional(),
   movementIds: z.array(z.string()).optional(),
   sourceWorkoutId: z.string().nullable().optional(),
+  parentEventId: z.string().optional(),
 })
 
 const updateCompetitionWorkoutInputSchema = z.object({
@@ -1262,8 +1263,10 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
       track = createdTrack
     }
 
-    // Get the next track order
-    const nextOrder = await getNextCompetitionEventOrder(data.competitionId)
+    // Get the next track order — decimal under parent if sub-event
+    const nextOrder = data.parentEventId
+      ? await getNextSubEventOrder(data.parentEventId)
+      : await getNextCompetitionEventOrder(data.competitionId)
 
     // Create the workout
     const workoutId = `workout_${createId()}`
@@ -1332,6 +1335,7 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
       workoutId: workout.id,
       trackOrder: nextOrder,
       pointsMultiplier: 100,
+      parentEventId: data.parentEventId ?? null,
     })
 
     return {

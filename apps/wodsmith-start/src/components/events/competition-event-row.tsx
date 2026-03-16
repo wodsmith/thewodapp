@@ -20,6 +20,7 @@ import {
   EyeOff,
   GripVertical,
   Pencil,
+  Plus,
   SlidersHorizontal,
   Trash2,
 } from "lucide-react"
@@ -72,6 +73,10 @@ interface CompetitionEventRowProps {
   sponsors: Sponsor[]
   onRemove: () => void
   onDrop: (sourceIndex: number, targetIndex: number) => void
+  onAddSubEvent?: () => void
+  isParentEvent?: boolean
+  isSubEvent?: boolean
+  childCount?: number
 }
 
 export function CompetitionEventRow({
@@ -85,6 +90,10 @@ export function CompetitionEventRow({
   sponsors,
   onRemove,
   onDrop,
+  onAddSubEvent,
+  isParentEvent,
+  isSubEvent,
+  childCount,
 }: CompetitionEventRowProps) {
   const ref = useRef<HTMLDivElement>(null)
   const dragHandleRef = useRef<HTMLButtonElement>(null)
@@ -331,7 +340,7 @@ export function CompetitionEventRow({
   return (
     <div ref={ref} className="relative">
       {closestEdge && <DropIndicator edge={closestEdge} gap="2px" />}
-      <Card className={`${isDragging ? "opacity-50" : ""} group`}>
+      <Card className={`${isDragging ? "opacity-50" : ""} ${isSubEvent ? "border-dashed" : ""} group`}>
         <Collapsible
           open={isDescriptionsOpen}
           onOpenChange={setIsDescriptionsOpen}
@@ -358,6 +367,11 @@ export function CompetitionEventRow({
                 {/* Event Name */}
                 <span className="flex-1 font-medium truncate min-w-0">
                   {event.workout.name}
+                  {isParentEvent && childCount !== undefined && childCount > 0 && (
+                    <span className="ml-2 text-xs text-muted-foreground font-normal">
+                      ({childCount} sub-event{childCount !== 1 ? "s" : ""})
+                    </span>
+                  )}
                 </span>
 
                 {/* Badges - hidden on mobile, shown on desktop */}
@@ -428,6 +442,17 @@ export function CompetitionEventRow({
 
                 {/* Actions - hidden on mobile */}
                 <div className="hidden sm:flex items-center gap-1 shrink-0">
+                  {onAddSubEvent && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={onAddSubEvent}
+                      className="text-muted-foreground hover:text-foreground text-xs h-8"
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      Sub-Event
+                    </Button>
+                  )}
                   {sortedDivisions.length > 0 && (
                     <CollapsibleTrigger asChild>
                       <Button
