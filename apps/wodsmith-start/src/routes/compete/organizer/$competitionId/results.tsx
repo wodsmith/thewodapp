@@ -11,6 +11,7 @@ import {
   createFileRoute,
   getRouteApi,
   Link,
+  useNavigate,
   useRouter,
 } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
@@ -44,6 +45,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import {
   getEventScoreEntryDataWithHeatsFn,
@@ -64,6 +66,7 @@ const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 const searchParamsSchema = z.object({
   event: z.string().optional(),
   division: z.string().optional(),
+  subEvent: z.string().optional(),
 })
 
 export const Route = createFileRoute(
@@ -75,6 +78,7 @@ export const Route = createFileRoute(
   loaderDeps: ({ search }) => ({
     eventId: search.event,
     divisionId: search.division,
+    subEventId: search.subEvent,
   }),
   loader: async ({ params, deps, parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
@@ -139,29 +143,50 @@ export const Route = createFileRoute(
     })
 
     // Determine which event to show (from URL or first event)
-    const selectedEventId = deps.eventId || events[0]?.id
-    const selectedEvent = events.find((e) => e.id === selectedEventId)
+    // Filter top-level events for the dropdown (exclude sub-events)
+    const topLevelEvents = events.filter((e) => !e.parentEventId)
+    const selectedEventId = deps.eventId || topLevelEvents[0]?.id
+
+    // Check if selected event is a parent (has children)
+    const childEvents = events
+      .filter((e) => e.parentEventId === selectedEventId)
+      .sort((a, b) => a.trackOrder - b.trackOrder)
+    const isParentEvent = childEvents.length > 0
+
+    // For parent events, load score data for selected or first child; for standalone, load directly
+    const effectiveEventId = isParentEvent
+      ? (deps.subEventId && childEvents.find((c) => c.id === deps.subEventId)
+          ? deps.subEventId
+          : childEvents[0]?.id)
+      : selectedEventId
 
     // Fetch score entry data if we have a selected event
     let scoreEntryData = null
-    if (selectedEvent) {
-      scoreEntryData = await getEventScoreEntryDataWithHeatsFn({
-        data: {
-          competitionId: params.competitionId,
-          organizingTeamId: competition.organizingTeamId,
-          trackWorkoutId: selectedEvent.id,
-          divisionId: deps.divisionId,
-        },
-      })
+    if (effectiveEventId) {
+      const effectiveEvent = events.find((e) => e.id === effectiveEventId)
+      if (effectiveEvent) {
+        scoreEntryData = await getEventScoreEntryDataWithHeatsFn({
+          data: {
+            competitionId: params.competitionId,
+            organizingTeamId: competition.organizingTeamId,
+            trackWorkoutId: effectiveEvent.id,
+            divisionId: deps.divisionId,
+          },
+        })
+      }
     }
 
     return {
       isOnline: false as const,
-      events,
+      events: topLevelEvents,
+      allEvents: events,
       divisions,
       selectedEventId,
       selectedDivisionId: deps.divisionId,
       scoreEntryData,
+      childEvents,
+      isParentEvent,
+      activeSubEventId: isParentEvent ? effectiveEventId : undefined,
       // When called without eventId, returns AllEventsResultsStatusResponse
       divisionResultsStatus:
         divisionResultsStatus as AllEventsResultsStatusResponse,
@@ -351,6 +376,13 @@ function InPersonResultsEntry({
       id: string
       workout: { name: string }
       trackOrder: number
+      parentEventId: string | null
+    }>
+    allEvents: Array<{
+      id: string
+      workout: { name: string }
+      trackOrder: number
+      parentEventId: string | null
     }>
     divisions: Array<{ id: string; label: string }>
     selectedEventId: string | undefined
@@ -358,6 +390,13 @@ function InPersonResultsEntry({
     scoreEntryData: Awaited<
       ReturnType<typeof getEventScoreEntryDataWithHeatsFn>
     > | null
+    childEvents: Array<{
+      id: string
+      workout: { name: string }
+      trackOrder: number
+    }>
+    isParentEvent: boolean
+    activeSubEventId: string | undefined
     divisionResultsStatus: AllEventsResultsStatusResponse
   }
 }) {
@@ -368,9 +407,12 @@ function InPersonResultsEntry({
     selectedDivisionId,
     scoreEntryData,
     divisionResultsStatus,
+    childEvents,
+    isParentEvent,
   } = data
   const { competitionId } = Route.useParams()
   const router = useRouter()
+  const navigate = useNavigate({ from: Route.fullPath })
 
   // Get competition from parent route for organizingTeamId
   const { competition } = parentRoute.useLoaderData()
@@ -600,8 +642,36 @@ function InPersonResultsEntry({
         )}
       </div>
 
+      {/* Sub-event tabs for parent events */}
+      {isParentEvent && childEvents.length > 0 && (
+        <Tabs
+          value={data.activeSubEventId ?? childEvents[0]?.id}
+          onValueChange={(subEventId) => {
+            // Navigate to load score data for this sub-event
+            navigate({
+              search: (prev) => ({
+                ...prev,
+                subEvent: subEventId,
+              }),
+              replace: true,
+            })
+          }}
+        >
+          <TabsList className="w-fit flex-wrap h-auto gap-1 mb-2">
+            {childEvents.map((child, index) => (
+              <TabsTrigger key={child.id} value={child.id}>
+                <Badge variant="outline" className="mr-1.5 text-[10px]">
+                  {index + 1}
+                </Badge>
+                {child.workout.name}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      )}
+
       <ResultsEntryForm
-        key={`${selectedEventId}-${selectedDivisionId}`}
+        key={`${selectedEventId}-${selectedDivisionId}-${isParentEvent ? childEvents[0]?.id : ""}`}
         competitionId={competitionId}
         organizingTeamId={competition.organizingTeamId}
         events={events.map((e) => ({
