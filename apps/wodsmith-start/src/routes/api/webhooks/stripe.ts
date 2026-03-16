@@ -255,6 +255,17 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
             return
           }
 
+          // Idempotency: skip if we already recorded this dispute event
+          const db = getDb()
+          const existing = await db.query.financialEventTable.findFirst({
+            where: and(
+              eq(financialEventTable.stripeDisputeId, dispute.id),
+              eq(financialEventTable.eventType, FINANCIAL_EVENT_TYPE.DISPUTE_OPENED),
+            ),
+            columns: { id: true },
+          })
+          if (existing) return
+
           await recordDisputeEvent({
             purchaseId: result.purchase.id,
             teamId: result.teamId,
@@ -290,6 +301,24 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
             await findPurchaseByPaymentIntent(paymentIntentId)
           if (!result) return
 
+          const eventType = dispute.status === "won"
+            ? FINANCIAL_EVENT_TYPE.DISPUTE_WON
+            : dispute.status === "lost"
+              ? FINANCIAL_EVENT_TYPE.DISPUTE_LOST
+              : null
+          if (!eventType) return
+
+          // Idempotency: skip if we already recorded this dispute resolution
+          const db = getDb()
+          const existing = await db.query.financialEventTable.findFirst({
+            where: and(
+              eq(financialEventTable.stripeDisputeId, dispute.id),
+              eq(financialEventTable.eventType, eventType),
+            ),
+            columns: { id: true },
+          })
+          if (existing) return
+
           if (dispute.status === "won") {
             await recordDisputeEvent({
               purchaseId: result.purchase.id,
@@ -299,6 +328,14 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
               stripePaymentIntentId: paymentIntentId,
               stripeDisputeId: dispute.id,
               reason: "Dispute resolved in our favor",
+            })
+            logInfo({
+              message: "[Stripe Webhook] Recorded DISPUTE_WON",
+              attributes: {
+                purchaseId: result.purchase.id,
+                disputeId: dispute.id,
+                status: dispute.status,
+              },
             })
           } else if (dispute.status === "lost") {
             await recordDisputeEvent({
@@ -310,16 +347,15 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
               stripeDisputeId: dispute.id,
               reason: "Dispute resolved in customer's favor",
             })
+            logInfo({
+              message: "[Stripe Webhook] Recorded DISPUTE_LOST",
+              attributes: {
+                purchaseId: result.purchase.id,
+                disputeId: dispute.id,
+                status: dispute.status,
+              },
+            })
           }
-
-          logInfo({
-            message: `[Stripe Webhook] Recorded DISPUTE_${dispute.status === "won" ? "WON" : "LOST"}`,
-            attributes: {
-              purchaseId: result.purchase.id,
-              disputeId: dispute.id,
-              status: dispute.status,
-            },
-          })
         }
 
         /**

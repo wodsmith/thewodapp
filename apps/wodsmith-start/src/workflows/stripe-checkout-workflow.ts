@@ -291,7 +291,7 @@ async function createRegistration(
     if (session.payment_intent) {
       try {
         const stripe = getStripe()
-        await stripe.refunds.create({
+        const refund = await stripe.refunds.create({
           payment_intent: session.payment_intent,
           reason: "requested_by_customer",
         })
@@ -300,6 +300,7 @@ async function createRegistration(
           attributes: {
             purchaseId,
             paymentIntentId: session.payment_intent,
+            refundId: refund.id,
           },
         })
 
@@ -310,6 +311,7 @@ async function createRegistration(
             teamId: competition.organizingTeamId,
             amountCents: existingPurchase.totalCents,
             stripePaymentIntentId: session.payment_intent,
+            stripeRefundId: refund.id,
             reason:
               "Division filled during payment - automatic refund",
           })
@@ -397,7 +399,7 @@ async function createRegistration(
       if (session.payment_intent) {
         try {
           const stripe = getStripe()
-          await stripe.refunds.create({
+          const refund = await stripe.refunds.create({
             payment_intent: session.payment_intent,
             reason: "requested_by_customer",
           })
@@ -407,6 +409,7 @@ async function createRegistration(
             attributes: {
               purchaseId,
               paymentIntentId: session.payment_intent,
+              refundId: refund.id,
             },
           })
 
@@ -417,6 +420,7 @@ async function createRegistration(
               teamId: competition.organizingTeamId,
               amountCents: existingPurchase.totalCents,
               stripePaymentIntentId: session.payment_intent,
+              stripeRefundId: refund.id,
               reason:
                 "Competition filled during payment - automatic refund",
             })

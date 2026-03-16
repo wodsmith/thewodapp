@@ -278,6 +278,8 @@ for (let i = 0; i < purchases.length; i++) {
 								stripeDisputeId: dispute.id,
 								reason: "Backfill: dispute resolved in our favor",
 								metadata: JSON.stringify({ backfilled: true }),
+								createdAt: new Date(dispute.created * 1000),
+								stripeEventTimestamp: new Date(dispute.created * 1000),
 							})
 							stats.eventsDispute++
 						} else if (dispute.status === "lost") {
@@ -292,6 +294,8 @@ for (let i = 0; i < purchases.length; i++) {
 								stripeDisputeId: dispute.id,
 								reason: "Backfill: dispute resolved in customer's favor",
 								metadata: JSON.stringify({ backfilled: true }),
+								createdAt: new Date(dispute.created * 1000),
+								stripeEventTimestamp: new Date(dispute.created * 1000),
 							})
 							stats.eventsDispute++
 						}

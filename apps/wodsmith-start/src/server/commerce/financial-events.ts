@@ -12,6 +12,7 @@ import {
 	financialEventTable,
 	type FinancialEventType,
 } from "@/db/schema"
+import { createFinancialEventId } from "@/db/schemas/financial-events"
 import { logInfo } from "@/lib/logging/posthog-otel-logger"
 
 interface RecordFinancialEventParams {
@@ -35,8 +36,10 @@ interface RecordFinancialEventParams {
 export const recordFinancialEvent = createServerOnlyFn(
 	async (params: RecordFinancialEventParams): Promise<string> => {
 		const db = getDb()
+		const id = createFinancialEventId()
 
-		const [result] = await db.insert(financialEventTable).values({
+		await db.insert(financialEventTable).values({
+			id,
 			purchaseId: params.purchaseId,
 			teamId: params.teamId,
 			eventType: params.eventType,
@@ -61,7 +64,7 @@ export const recordFinancialEvent = createServerOnlyFn(
 			},
 		})
 
-		return result.insertId.toString()
+		return id
 	},
 )
 
