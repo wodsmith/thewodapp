@@ -664,6 +664,21 @@ export function SchedulePageContent({
               {/* Workouts */}
               <div className="divide-y">
                 {dayGroup.workouts.map((workout, workoutIndex) => {
+                  // Show parent group header when entering a new parent's children
+                  const isSubEvent = !!workout.event.parentEventId
+                  const previousWorkoutEvent =
+                    workoutIndex > 0
+                      ? dayGroup.workouts[workoutIndex - 1]?.event
+                      : null
+                  const isFirstSubEvent =
+                    isSubEvent &&
+                    previousWorkoutEvent?.parentEventId !==
+                      workout.event.parentEventId
+                  const parentEvent = isFirstSubEvent
+                    ? events.find(
+                        (e) => e.id === workout.event.parentEventId,
+                      )
+                    : null
                   const isExpanded = expandedWorkouts.has(workout.event.id)
                   // Only show lane assignments if event is published and has assignments
                   const hasLaneAssignments =
@@ -705,6 +720,15 @@ export function SchedulePageContent({
                         eventUpNext && "bg-orange-500/5",
                       )}
                     >
+                      {/* Parent group header for sub-events */}
+                      {isFirstSubEvent && parentEvent && (
+                        <div className="px-4 py-2 bg-muted/50 border-b flex items-center gap-2">
+                          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            {parentEvent.workout.name}
+                          </span>
+                        </div>
+                      )}
+
                       {/* Workout Header */}
                       <button
                         type="button"
