@@ -39,14 +39,22 @@ export function SeriesDivisionMapper({
     useState<SeriesDivisionMappingData[]>(initialMappings)
   // Increment to force uncontrolled <select> elements to remount with new defaultValues
   const [revision, setRevision] = useState(0)
-  const [isDirty, setIsDirty] = useState(false)
+  // Dirty if any mapping has a value selected but isn't saved in DB
+  const hasUnsavedSuggestions = initialMappings.some((comp) =>
+    comp.mappings.some((m) => m.seriesDivisionId !== null && !m.saved),
+  )
+  const [isDirty, setIsDirty] = useState(hasUnsavedSuggestions)
   const [showOnlyUnmapped, setShowOnlyUnmapped] = useState(false)
 
   // Sync when parent refreshes data (e.g. after save)
   useEffect(() => {
     setMappings(initialMappings)
     setRevision((r) => r + 1)
-    setIsDirty(false)
+    // Still dirty if there are unsaved auto-map suggestions
+    const hasUnsaved = initialMappings.some((comp) =>
+      comp.mappings.some((m) => m.seriesDivisionId !== null && !m.saved),
+    )
+    setIsDirty(hasUnsaved)
     // Turn off filter if no comps have unmapped divisions anymore
     const stillHasUnmapped = initialMappings.some((comp) =>
       comp.mappings.some((m) => m.seriesDivisionId === null),
