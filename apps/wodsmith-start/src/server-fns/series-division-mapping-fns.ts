@@ -41,6 +41,8 @@ export interface SeriesDivisionMappingData {
     competitionDivisionLabel: string
     seriesDivisionId: string | null
     confidence: "exact" | "fuzzy" | "none"
+    /** Whether this mapping is persisted in the DB (vs auto-map suggestion) */
+    saved: boolean
   }>
 }
 
@@ -117,6 +119,7 @@ function autoMapDivisions(
   competitionDivisionLabel: string
   seriesDivisionId: string | null
   confidence: "exact" | "fuzzy" | "none"
+  saved: boolean
 }> {
   // Pre-compute normalized + sorted keys for series divisions
   const seriesKeys = seriesDivisions.map((sd) => ({
@@ -138,6 +141,7 @@ function autoMapDivisions(
         competitionDivisionLabel: compDiv.label,
         seriesDivisionId: exactMatch.id,
         confidence: "exact" as const,
+        saved: false,
       }
     }
 
@@ -152,6 +156,7 @@ function autoMapDivisions(
         competitionDivisionLabel: compDiv.label,
         seriesDivisionId: normalizedMatch.id,
         confidence: "fuzzy" as const,
+        saved: false,
       }
     }
 
@@ -164,6 +169,7 @@ function autoMapDivisions(
         competitionDivisionLabel: compDiv.label,
         seriesDivisionId: sortedMatch.id,
         confidence: "fuzzy" as const,
+        saved: false,
       }
     }
 
@@ -173,6 +179,7 @@ function autoMapDivisions(
       competitionDivisionLabel: compDiv.label,
       seriesDivisionId: null,
       confidence: "none" as const,
+      saved: false,
     }
   })
 }
@@ -329,6 +336,7 @@ export const getSeriesDivisionMappingsFn = createServerFn({ method: "GET" })
               competitionDivisionLabel: div.label,
               seriesDivisionId: existing?.seriesDivisionId ?? null,
               confidence: existing ? ("exact" as const) : ("none" as const),
+              saved: !!existing,
             }
           })
           competitionMappings.push({
@@ -354,6 +362,7 @@ export const getSeriesDivisionMappingsFn = createServerFn({ method: "GET" })
               competitionDivisionLabel: div.label,
               seriesDivisionId: null,
               confidence: "none" as const,
+              saved: false,
             })),
           })
         }
@@ -862,6 +871,7 @@ export const autoMapSeriesDivisionsFn = createServerFn({ method: "GET" })
               ...m,
               seriesDivisionId: existingSeriesDivId,
               confidence: "exact" as const,
+              saved: true,
             }
           }
           return m

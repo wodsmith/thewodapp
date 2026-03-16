@@ -259,16 +259,26 @@ function CompetitionRow({
     return map
   }
 
+  // Only includes mappings that are persisted in the DB
+  const initialSaved = () => {
+    const map = new Map<string, string>()
+    for (const m of comp.mappings) {
+      if (m.seriesDivisionId && m.saved) {
+        map.set(m.seriesDivisionId, m.competitionDivisionId)
+      }
+    }
+    return map
+  }
+
   const [selections, setSelections] = useState(initialSelections)
   // Track saved state to distinguish green (saved) vs orange (unsaved)
-  const [savedSelections, setSavedSelections] = useState(initialSelections)
+  const [savedSelections, setSavedSelections] = useState(initialSaved)
 
   // Sync when props change (e.g. after auto-map or save)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: initialSelections derives from comp
+  // biome-ignore lint/correctness/useExhaustiveDependencies: derives from comp
   useEffect(() => {
-    const initial = initialSelections()
-    setSelections(initial)
-    setSavedSelections(initial)
+    setSelections(initialSelections())
+    setSavedSelections(initialSaved())
   }, [comp])
 
   // Set of comp division IDs currently used across all columns
