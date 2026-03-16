@@ -11,7 +11,7 @@
  */
 
 export {
-	notifyRegistrationConfirmed,
-	registerForCompetition,
-	sendRegistrationConfirmationEmail,
+  notifyRegistrationConfirmed,
+  registerForCompetition,
+  sendRegistrationConfirmationEmail,
 } from "@/server/registration"

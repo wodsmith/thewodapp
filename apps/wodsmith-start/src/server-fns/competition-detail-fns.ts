@@ -19,31 +19,31 @@ import { z } from "zod"
 import { getDb } from "@/db"
 import { addressesTable } from "@/db/schemas/addresses"
 import {
-	COMMERCE_PURCHASE_STATUS,
-	commercePurchaseTable,
+  COMMERCE_PURCHASE_STATUS,
+  commercePurchaseTable,
 } from "@/db/schemas/commerce"
 import {
-	competitionRegistrationsTable,
-	competitionsTable,
-	REGISTRATION_STATUS,
+  competitionRegistrationsTable,
+  competitionsTable,
+  REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import {
-	INVITATION_STATUS,
-	type InvitationStatus,
-	SYSTEM_ROLES_ENUM,
-	TEAM_PERMISSIONS,
-	teamInvitationTable,
-	teamMembershipTable,
-	teamRoleTable,
-	teamTable,
+  INVITATION_STATUS,
+  type InvitationStatus,
+  SYSTEM_ROLES_ENUM,
+  TEAM_PERMISSIONS,
+  teamInvitationTable,
+  teamMembershipTable,
+  teamRoleTable,
+  teamTable,
 } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
 import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
 import {
-	DEFAULT_TIMEZONE,
-	hasDateStartedInTimezone,
-	isDeadlinePassedInTimezone,
+  DEFAULT_TIMEZONE,
+  hasDateStartedInTimezone,
+  isDeadlinePassedInTimezone,
 } from "@/utils/timezone-utils"
 
 // ============================================================================
@@ -51,87 +51,87 @@ import {
 // ============================================================================
 
 const getCompetitionRegistrationsInputSchema = z.object({
-	competitionId: z.string().min(1, "Competition ID is required"),
+  competitionId: z.string().min(1, "Competition ID is required"),
 })
 
 const getUserRegistrationInputSchema = z.object({
-	competitionId: z.string().min(1, "Competition ID is required"),
-	userId: z.string().min(1, "User ID is required"),
+  competitionId: z.string().min(1, "Competition ID is required"),
+  userId: z.string().min(1, "User ID is required"),
 })
 
 const getPendingTeamInvitesInputSchema = z.object({
-	competitionId: z.string().min(1, "Competition ID is required"),
-	userId: z.string().min(1, "User ID is required"),
+  competitionId: z.string().min(1, "Competition ID is required"),
+  userId: z.string().min(1, "User ID is required"),
 })
 
 const checkCanManageInputSchema = z.object({
-	organizingTeamId: z.string().min(1, "Organizing team ID is required"),
-	userId: z.string().min(1, "User ID is required"),
+  organizingTeamId: z.string().min(1, "Organizing team ID is required"),
+  userId: z.string().min(1, "User ID is required"),
 })
 
 const checkIsVolunteerInputSchema = z.object({
-	competitionTeamId: z.string().nullable(),
-	userId: z.string().min(1, "User ID is required"),
+  competitionTeamId: z.string().nullable(),
+  userId: z.string().min(1, "User ID is required"),
 })
 
 const getCompetitionByIdInputSchema = z.object({
-	competitionId: z.string().min(1, "Competition ID is required"),
+  competitionId: z.string().min(1, "Competition ID is required"),
 })
 
 const updateCompetitionRotationSettingsInputSchema = z.object({
-	competitionId: z.string().min(1, "Competition ID is required"),
-	defaultHeatsPerRotation: z.number().int().min(1).max(10).optional(),
-	defaultLaneShiftPattern: z.enum(["stay", "shift_right"]).optional(),
+  competitionId: z.string().min(1, "Competition ID is required"),
+  defaultHeatsPerRotation: z.number().int().min(1).max(10).optional(),
+  defaultLaneShiftPattern: z.enum(["stay", "shift_right"]).optional(),
 })
 
 const updateCompetitionScoringConfigInputSchema = z.object({
-	competitionId: z.string().min(1, "Competition ID is required"),
-	scoringConfig: z.object({
-		algorithm: z.enum([
-			"traditional",
-			"p_score",
-			"winner_takes_more",
-			"online",
-			"custom",
-		]),
-		traditional: z
-			.object({
-				step: z.number().positive(),
-				firstPlacePoints: z.number().positive(),
-			})
-			.optional(),
-		pScore: z
-			.object({
-				allowNegatives: z.boolean(),
-				medianField: z.enum(["top_half", "all"]),
-			})
-			.optional(),
-		customTable: z
-			.object({
-				baseTemplate: z.enum(["traditional", "p_score", "winner_takes_more"]),
-				overrides: z.record(z.string(), z.number()),
-			})
-			.optional(),
-		tiebreaker: z.object({
-			primary: z.enum(["countback", "head_to_head", "none"]),
-			secondary: z.enum(["countback", "head_to_head", "none"]).optional(),
-			headToHeadEventId: z.string().optional(),
-		}),
-		statusHandling: z.object({
-			dnf: z.enum(["worst_performance", "zero", "last_place"]),
-			dns: z.enum(["worst_performance", "zero", "exclude"]),
-			withdrawn: z.enum(["zero", "exclude"]),
-		}),
-	}),
+  competitionId: z.string().min(1, "Competition ID is required"),
+  scoringConfig: z.object({
+    algorithm: z.enum([
+      "traditional",
+      "p_score",
+      "winner_takes_more",
+      "online",
+      "custom",
+    ]),
+    traditional: z
+      .object({
+        step: z.number().positive(),
+        firstPlacePoints: z.number().positive(),
+      })
+      .optional(),
+    pScore: z
+      .object({
+        allowNegatives: z.boolean(),
+        medianField: z.enum(["top_half", "all"]),
+      })
+      .optional(),
+    customTable: z
+      .object({
+        baseTemplate: z.enum(["traditional", "p_score", "winner_takes_more"]),
+        overrides: z.record(z.string(), z.number()),
+      })
+      .optional(),
+    tiebreaker: z.object({
+      primary: z.enum(["countback", "head_to_head", "none"]),
+      secondary: z.enum(["countback", "head_to_head", "none"]).optional(),
+      headToHeadEventId: z.string().optional(),
+    }),
+    statusHandling: z.object({
+      dnf: z.enum(["worst_performance", "zero", "last_place"]),
+      dns: z.enum(["worst_performance", "zero", "exclude"]),
+      withdrawn: z.enum(["zero", "exclude"]),
+    }),
+  }),
 })
 
 const deleteCompetitionInputSchema = z.object({
-	competitionId: z.string().min(1, "Competition ID is required"),
-	organizingTeamId: z.string().min(1, "Organizing team ID is required"),
+  competitionId: z.string().min(1, "Competition ID is required"),
+  organizingTeamId: z.string().min(1, "Organizing team ID is required"),
 })
 
 const getPendingTeammateInvitationsInputSchema = z.object({
-	competitionId: z.string().min(1, "Competition ID is required"),
+  competitionId: z.string().min(1, "Competition ID is required"),
 })
 
 // ============================================================================
@@ -143,25 +143,25 @@ const getPendingTeammateInvitationsInputSchema = z.object({
  * Site admins bypass this check
  */
 async function requireTeamPermission(
-	teamId: string,
-	permission: string,
+  teamId: string,
+  permission: string,
 ): Promise<void> {
-	const session = await getSessionFromCookie()
-	if (!session?.userId) {
-		throw new Error("Unauthorized")
-	}
+  const session = await getSessionFromCookie()
+  if (!session?.userId) {
+    throw new Error("Unauthorized")
+  }
 
-	// Site admins have all permissions
-	if (session.user?.role === ROLES_ENUM.ADMIN) return
+  // Site admins have all permissions
+  if (session.user?.role === ROLES_ENUM.ADMIN) return
 
-	const team = session.teams?.find((t) => t.id === teamId)
-	if (!team) {
-		throw new Error("Team not found")
-	}
+  const team = session.teams?.find((t) => t.id === teamId)
+  if (!team) {
+    throw new Error("Team not found")
+  }
 
-	if (!team.permissions.includes(permission)) {
-		throw new Error(`Missing required permission: ${permission}`)
-	}
+  if (!team.permissions.includes(permission)) {
+    throw new Error(`Missing required permission: ${permission}`)
+  }
 }
 
 // ============================================================================
@@ -173,157 +173,158 @@ async function requireTeamPermission(
  * Used for the organizer layout route
  */
 export const getCompetitionByIdFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) => getCompetitionByIdInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		const db = getDb()
+  .inputValidator((data: unknown) => getCompetitionByIdInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const db = getDb()
 
-		const result = await db
-			.select({
-				id: competitionsTable.id,
-				organizingTeamId: competitionsTable.organizingTeamId,
-				competitionTeamId: competitionsTable.competitionTeamId,
-				groupId: competitionsTable.groupId,
-				slug: competitionsTable.slug,
-				name: competitionsTable.name,
-				description: competitionsTable.description,
-				startDate: competitionsTable.startDate,
-				endDate: competitionsTable.endDate,
-				registrationOpensAt: competitionsTable.registrationOpensAt,
-				registrationClosesAt: competitionsTable.registrationClosesAt,
-				timezone: competitionsTable.timezone,
-				settings: competitionsTable.settings,
-				defaultRegistrationFeeCents:
-					competitionsTable.defaultRegistrationFeeCents,
-				platformFeePercentage: competitionsTable.platformFeePercentage,
-				platformFeeFixed: competitionsTable.platformFeeFixed,
-				passStripeFeesToCustomer: competitionsTable.passStripeFeesToCustomer,
-				passPlatformFeesToCustomer:
-					competitionsTable.passPlatformFeesToCustomer,
-				visibility: competitionsTable.visibility,
-				status: competitionsTable.status,
-				competitionType: competitionsTable.competitionType,
-				profileImageUrl: competitionsTable.profileImageUrl,
-				bannerImageUrl: competitionsTable.bannerImageUrl,
-				defaultHeatsPerRotation: competitionsTable.defaultHeatsPerRotation,
-				defaultLaneShiftPattern: competitionsTable.defaultLaneShiftPattern,
-				defaultMaxSpotsPerDivision:
-					competitionsTable.defaultMaxSpotsPerDivision,
-				primaryAddressId: competitionsTable.primaryAddressId,
-				createdAt: competitionsTable.createdAt,
-				updatedAt: competitionsTable.updatedAt,
-				updateCounter: competitionsTable.updateCounter,
-				// Address fields
-				addressName: addressesTable.name,
-				addressStreetLine1: addressesTable.streetLine1,
-				addressStreetLine2: addressesTable.streetLine2,
-				addressCity: addressesTable.city,
-				addressStateProvince: addressesTable.stateProvince,
-				addressPostalCode: addressesTable.postalCode,
-				addressCountryCode: addressesTable.countryCode,
-				addressNotes: addressesTable.notes,
-			})
-			.from(competitionsTable)
-			.leftJoin(
-				addressesTable,
-				eq(competitionsTable.primaryAddressId, addressesTable.id),
-			)
-			.where(eq(competitionsTable.id, data.competitionId))
-			.limit(1)
+    const result = await db
+      .select({
+        id: competitionsTable.id,
+        organizingTeamId: competitionsTable.organizingTeamId,
+        competitionTeamId: competitionsTable.competitionTeamId,
+        groupId: competitionsTable.groupId,
+        slug: competitionsTable.slug,
+        name: competitionsTable.name,
+        description: competitionsTable.description,
+        startDate: competitionsTable.startDate,
+        endDate: competitionsTable.endDate,
+        registrationOpensAt: competitionsTable.registrationOpensAt,
+        registrationClosesAt: competitionsTable.registrationClosesAt,
+        timezone: competitionsTable.timezone,
+        settings: competitionsTable.settings,
+        defaultRegistrationFeeCents:
+          competitionsTable.defaultRegistrationFeeCents,
+        platformFeePercentage: competitionsTable.platformFeePercentage,
+        platformFeeFixed: competitionsTable.platformFeeFixed,
+        passStripeFeesToCustomer: competitionsTable.passStripeFeesToCustomer,
+        passPlatformFeesToCustomer:
+          competitionsTable.passPlatformFeesToCustomer,
+        visibility: competitionsTable.visibility,
+        status: competitionsTable.status,
+        competitionType: competitionsTable.competitionType,
+        profileImageUrl: competitionsTable.profileImageUrl,
+        bannerImageUrl: competitionsTable.bannerImageUrl,
+        defaultHeatsPerRotation: competitionsTable.defaultHeatsPerRotation,
+        defaultLaneShiftPattern: competitionsTable.defaultLaneShiftPattern,
+        defaultMaxSpotsPerDivision:
+          competitionsTable.defaultMaxSpotsPerDivision,
+        maxTotalRegistrations: competitionsTable.maxTotalRegistrations,
+        primaryAddressId: competitionsTable.primaryAddressId,
+        createdAt: competitionsTable.createdAt,
+        updatedAt: competitionsTable.updatedAt,
+        updateCounter: competitionsTable.updateCounter,
+        // Address fields
+        addressName: addressesTable.name,
+        addressStreetLine1: addressesTable.streetLine1,
+        addressStreetLine2: addressesTable.streetLine2,
+        addressCity: addressesTable.city,
+        addressStateProvince: addressesTable.stateProvince,
+        addressPostalCode: addressesTable.postalCode,
+        addressCountryCode: addressesTable.countryCode,
+        addressNotes: addressesTable.notes,
+      })
+      .from(competitionsTable)
+      .leftJoin(
+        addressesTable,
+        eq(competitionsTable.primaryAddressId, addressesTable.id),
+      )
+      .where(eq(competitionsTable.id, data.competitionId))
+      .limit(1)
 
-		if (!result[0]) {
-			return { competition: null }
-		}
+    if (!result[0]) {
+      return { competition: null }
+    }
 
-		// Reshape to include address as nested object
-		const {
-			addressName,
-			addressStreetLine1,
-			addressStreetLine2,
-			addressCity,
-			addressStateProvince,
-			addressPostalCode,
-			addressCountryCode,
-			addressNotes,
-			...competition
-		} = result[0]
+    // Reshape to include address as nested object
+    const {
+      addressName,
+      addressStreetLine1,
+      addressStreetLine2,
+      addressCity,
+      addressStateProvince,
+      addressPostalCode,
+      addressCountryCode,
+      addressNotes,
+      ...competition
+    } = result[0]
 
-		const primaryAddress = competition.primaryAddressId
-			? {
-					name: addressName,
-					streetLine1: addressStreetLine1,
-					streetLine2: addressStreetLine2,
-					city: addressCity,
-					stateProvince: addressStateProvince,
-					postalCode: addressPostalCode,
-					countryCode: addressCountryCode,
-					notes: addressNotes,
-				}
-			: null
+    const primaryAddress = competition.primaryAddressId
+      ? {
+          name: addressName,
+          streetLine1: addressStreetLine1,
+          streetLine2: addressStreetLine2,
+          city: addressCity,
+          stateProvince: addressStateProvince,
+          postalCode: addressPostalCode,
+          countryCode: addressCountryCode,
+          notes: addressNotes,
+        }
+      : null
 
-		return { competition: { ...competition, primaryAddress } }
-	})
+    return { competition: { ...competition, primaryAddress } }
+  })
 
 /**
  * Get registration count for a competition
  * Used for the competition detail header
  */
 export const getCompetitionRegistrationCountFn = createServerFn({
-	method: "GET",
+  method: "GET",
 })
-	.inputValidator((data: unknown) =>
-		getCompetitionRegistrationsInputSchema.parse(data),
-	)
-	.handler(async ({ data }) => {
-		const db = getDb()
+  .inputValidator((data: unknown) =>
+    getCompetitionRegistrationsInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const db = getDb()
 
-		const result = await db
-			.select({ count: count() })
-			.from(competitionRegistrationsTable)
-			.where(
-				and(
-					eq(competitionRegistrationsTable.eventId, data.competitionId),
-					ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
-				),
-			)
+    const result = await db
+      .select({ count: count() })
+      .from(competitionRegistrationsTable)
+      .where(
+        and(
+          eq(competitionRegistrationsTable.eventId, data.competitionId),
+          ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+        ),
+      )
 
-		const registrationCount = result[0]?.count ?? 0
+    const registrationCount = result[0]?.count ?? 0
 
-		return { count: registrationCount }
-	})
+    return { count: registrationCount }
+  })
 
 /**
  * Get all registrations for a competition
  * Returns basic registration data without full relations
  */
 export const getCompetitionRegistrationsFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
-		getCompetitionRegistrationsInputSchema.parse(data),
-	)
-	.handler(async ({ data }) => {
-		const db = getDb()
+  .inputValidator((data: unknown) =>
+    getCompetitionRegistrationsInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const db = getDb()
 
-		const registrations = await db
-			.select({
-				id: competitionRegistrationsTable.id,
-				eventId: competitionRegistrationsTable.eventId,
-				userId: competitionRegistrationsTable.userId,
-				divisionId: competitionRegistrationsTable.divisionId,
-				registeredAt: competitionRegistrationsTable.registeredAt,
-				teamName: competitionRegistrationsTable.teamName,
-				captainUserId: competitionRegistrationsTable.captainUserId,
-				athleteTeamId: competitionRegistrationsTable.athleteTeamId,
-			})
-			.from(competitionRegistrationsTable)
-			.where(
-				and(
-					eq(competitionRegistrationsTable.eventId, data.competitionId),
-					ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
-				),
-			)
-			.orderBy(competitionRegistrationsTable.registeredAt)
+    const registrations = await db
+      .select({
+        id: competitionRegistrationsTable.id,
+        eventId: competitionRegistrationsTable.eventId,
+        userId: competitionRegistrationsTable.userId,
+        divisionId: competitionRegistrationsTable.divisionId,
+        registeredAt: competitionRegistrationsTable.registeredAt,
+        teamName: competitionRegistrationsTable.teamName,
+        captainUserId: competitionRegistrationsTable.captainUserId,
+        athleteTeamId: competitionRegistrationsTable.athleteTeamId,
+      })
+      .from(competitionRegistrationsTable)
+      .where(
+        and(
+          eq(competitionRegistrationsTable.eventId, data.competitionId),
+          ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+        ),
+      )
+      .orderBy(competitionRegistrationsTable.registeredAt)
 
-		return { registrations }
-	})
+    return { registrations }
+  })
 
 /**
  * Check whether all purchases for a Stripe checkout session are settled.
@@ -331,41 +332,41 @@ export const getCompetitionRegistrationsFn = createServerFn({ method: "GET" })
  * Called from the client to determine when to stop polling.
  */
 export const checkCheckoutCompletionFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
-		z.object({ sessionId: z.string() }).parse(data),
-	)
-	.handler(async ({ data }) => {
-		const session = await getSessionFromCookie()
-		if (!session?.userId) {
-			throw new Error("Unauthorized")
-		}
+  .inputValidator((data: unknown) =>
+    z.object({ sessionId: z.string() }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) {
+      throw new Error("Unauthorized")
+    }
 
-		const db = getDb()
+    const db = getDb()
 
-		const purchases = await db
-			.select({
-				id: commercePurchaseTable.id,
-				status: commercePurchaseTable.status,
-				userId: commercePurchaseTable.userId,
-			})
-			.from(commercePurchaseTable)
-			.where(
-				and(
-					eq(commercePurchaseTable.stripeCheckoutSessionId, data.sessionId),
-					eq(commercePurchaseTable.userId, session.userId),
-				),
-			)
+    const purchases = await db
+      .select({
+        id: commercePurchaseTable.id,
+        status: commercePurchaseTable.status,
+        userId: commercePurchaseTable.userId,
+      })
+      .from(commercePurchaseTable)
+      .where(
+        and(
+          eq(commercePurchaseTable.stripeCheckoutSessionId, data.sessionId),
+          eq(commercePurchaseTable.userId, session.userId),
+        ),
+      )
 
-		if (purchases.length === 0) {
-			return { ready: false, total: 0, pending: 0 }
-		}
+    if (purchases.length === 0) {
+      return { ready: false, total: 0, pending: 0 }
+    }
 
-		const pending = purchases.filter(
-			(p) => p.status === COMMERCE_PURCHASE_STATUS.PENDING,
-		).length
+    const pending = purchases.filter(
+      (p) => p.status === COMMERCE_PURCHASE_STATUS.PENDING,
+    ).length
 
-		return { ready: pending === 0, total: purchases.length, pending }
-	})
+    return { ready: pending === 0, total: purchases.length, pending }
+  })
 
 /**
  * Get user's registration for a competition (first found)
@@ -373,13 +374,13 @@ export const checkCheckoutCompletionFn = createServerFn({ method: "GET" })
  * For backward compatibility - returns single registration
  */
 export const getUserCompetitionRegistrationFn = createServerFn({
-	method: "GET",
+  method: "GET",
 })
-	.inputValidator((data: unknown) => getUserRegistrationInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		const result = await getUserCompetitionRegistrationsFn({ data })
-		return { registration: result.registrations[0] ?? null }
-	})
+  .inputValidator((data: unknown) => getUserRegistrationInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const result = await getUserCompetitionRegistrationsFn({ data })
+    return { registration: result.registrations[0] ?? null }
+  })
 
 /**
  * Get ALL of a user's registrations for a competition
@@ -387,211 +388,211 @@ export const getUserCompetitionRegistrationFn = createServerFn({
  * Supports multi-division registration
  */
 export const getUserCompetitionRegistrationsFn = createServerFn({
-	method: "GET",
+  method: "GET",
 })
-	.inputValidator((data: unknown) => getUserRegistrationInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		const db = getDb()
+  .inputValidator((data: unknown) => getUserRegistrationInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const db = getDb()
 
-		const registrationColumns = {
-			id: competitionRegistrationsTable.id,
-			eventId: competitionRegistrationsTable.eventId,
-			userId: competitionRegistrationsTable.userId,
-			divisionId: competitionRegistrationsTable.divisionId,
-			registeredAt: competitionRegistrationsTable.registeredAt,
-			status: competitionRegistrationsTable.status,
-			teamName: competitionRegistrationsTable.teamName,
-			captainUserId: competitionRegistrationsTable.captainUserId,
-			athleteTeamId: competitionRegistrationsTable.athleteTeamId,
-			teamMemberId: competitionRegistrationsTable.teamMemberId,
-		}
+    const registrationColumns = {
+      id: competitionRegistrationsTable.id,
+      eventId: competitionRegistrationsTable.eventId,
+      userId: competitionRegistrationsTable.userId,
+      divisionId: competitionRegistrationsTable.divisionId,
+      registeredAt: competitionRegistrationsTable.registeredAt,
+      status: competitionRegistrationsTable.status,
+      teamName: competitionRegistrationsTable.teamName,
+      captainUserId: competitionRegistrationsTable.captainUserId,
+      athleteTeamId: competitionRegistrationsTable.athleteTeamId,
+      teamMemberId: competitionRegistrationsTable.teamMemberId,
+    }
 
-		// Get all direct registrations (as captain/individual)
-		const directRegistrations = await db
-			.select(registrationColumns)
-			.from(competitionRegistrationsTable)
-			.where(
-				and(
-					eq(competitionRegistrationsTable.eventId, data.competitionId),
-					eq(competitionRegistrationsTable.userId, data.userId),
-					ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
-				),
-			)
+    // Get all direct registrations (as captain/individual)
+    const directRegistrations = await db
+      .select(registrationColumns)
+      .from(competitionRegistrationsTable)
+      .where(
+        and(
+          eq(competitionRegistrationsTable.eventId, data.competitionId),
+          eq(competitionRegistrationsTable.userId, data.userId),
+          ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+        ),
+      )
 
-		// Check if user is a teammate on team registrations
-		const userTeamMemberships = await db
-			.select({ teamId: teamMembershipTable.teamId })
-			.from(teamMembershipTable)
-			.where(
-				and(
-					eq(teamMembershipTable.userId, data.userId),
-					eq(teamMembershipTable.isActive, true),
-				),
-			)
+    // Check if user is a teammate on team registrations
+    const userTeamMemberships = await db
+      .select({ teamId: teamMembershipTable.teamId })
+      .from(teamMembershipTable)
+      .where(
+        and(
+          eq(teamMembershipTable.userId, data.userId),
+          eq(teamMembershipTable.isActive, true),
+        ),
+      )
 
-		let teamRegistrations: typeof directRegistrations = []
-		if (userTeamMemberships.length > 0) {
-			const userTeamIds = userTeamMemberships.map((m) => m.teamId)
+    let teamRegistrations: typeof directRegistrations = []
+    if (userTeamMemberships.length > 0) {
+      const userTeamIds = userTeamMemberships.map((m) => m.teamId)
 
-			teamRegistrations = await db
-				.select(registrationColumns)
-				.from(competitionRegistrationsTable)
-				.where(
-					and(
-						eq(competitionRegistrationsTable.eventId, data.competitionId),
-						ne(
-							competitionRegistrationsTable.status,
-							REGISTRATION_STATUS.REMOVED,
-						),
-						sql`${competitionRegistrationsTable.athleteTeamId} IN (${sql.join(
-							userTeamIds.map((id) => sql`${id}`),
-							sql`, `,
-						)})`,
-					),
-				)
-		}
+      teamRegistrations = await db
+        .select(registrationColumns)
+        .from(competitionRegistrationsTable)
+        .where(
+          and(
+            eq(competitionRegistrationsTable.eventId, data.competitionId),
+            ne(
+              competitionRegistrationsTable.status,
+              REGISTRATION_STATUS.REMOVED,
+            ),
+            sql`${competitionRegistrationsTable.athleteTeamId} IN (${sql.join(
+              userTeamIds.map((id) => sql`${id}`),
+              sql`, `,
+            )})`,
+          ),
+        )
+    }
 
-		// Merge and deduplicate (a captain appears in both direct and team sets)
-		const seenIds = new Set<string>()
-		const allRegistrations: typeof directRegistrations = []
+    // Merge and deduplicate (a captain appears in both direct and team sets)
+    const seenIds = new Set<string>()
+    const allRegistrations: typeof directRegistrations = []
 
-		for (const reg of [...directRegistrations, ...teamRegistrations]) {
-			if (!seenIds.has(reg.id)) {
-				seenIds.add(reg.id)
-				allRegistrations.push(reg)
-			}
-		}
+    for (const reg of [...directRegistrations, ...teamRegistrations]) {
+      if (!seenIds.has(reg.id)) {
+        seenIds.add(reg.id)
+        allRegistrations.push(reg)
+      }
+    }
 
-		return { registrations: allRegistrations }
-	})
+    return { registrations: allRegistrations }
+  })
 
 /**
  * Get pending team invitations for a user related to a competition
  * Used to show invites to join competition teams
  */
 export const getPendingTeamInvitesFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
-		getPendingTeamInvitesInputSchema.parse(data),
-	)
-	.handler(async ({ data }) => {
-		const db = getDb()
+  .inputValidator((data: unknown) =>
+    getPendingTeamInvitesInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const db = getDb()
 
-		// Get the competition to find the competitionTeamId
-		const competition = await db
-			.select({
-				id: competitionsTable.id,
-				competitionTeamId: competitionsTable.competitionTeamId,
-			})
-			.from(competitionsTable)
-			.where(eq(competitionsTable.id, data.competitionId))
-			.limit(1)
+    // Get the competition to find the competitionTeamId
+    const competition = await db
+      .select({
+        id: competitionsTable.id,
+        competitionTeamId: competitionsTable.competitionTeamId,
+      })
+      .from(competitionsTable)
+      .where(eq(competitionsTable.id, data.competitionId))
+      .limit(1)
 
-		if (!competition[0]) {
-			return { invitations: [] }
-		}
+    if (!competition[0]) {
+      return { invitations: [] }
+    }
 
-		// Find pending invitations for this user to teams related to this competition
-		// This includes both athlete team invites and competition team invites
-		const invitations = await db
-			.select({
-				id: teamInvitationTable.id,
-				teamId: teamInvitationTable.teamId,
-				email: teamInvitationTable.email,
-				roleId: teamInvitationTable.roleId,
-				isSystemRole: teamInvitationTable.isSystemRole,
-				token: teamInvitationTable.token,
-				expiresAt: teamInvitationTable.expiresAt,
-				createdAt: teamInvitationTable.createdAt,
-				metadata: teamInvitationTable.metadata,
-			})
-			.from(teamInvitationTable)
-			.where(
-				and(
-					eq(teamInvitationTable.email, data.userId), // Assuming userId is email for now
-					isNull(teamInvitationTable.acceptedAt),
-					eq(teamInvitationTable.status, INVITATION_STATUS.PENDING),
-				),
-			)
+    // Find pending invitations for this user to teams related to this competition
+    // This includes both athlete team invites and competition team invites
+    const invitations = await db
+      .select({
+        id: teamInvitationTable.id,
+        teamId: teamInvitationTable.teamId,
+        email: teamInvitationTable.email,
+        roleId: teamInvitationTable.roleId,
+        isSystemRole: teamInvitationTable.isSystemRole,
+        token: teamInvitationTable.token,
+        expiresAt: teamInvitationTable.expiresAt,
+        createdAt: teamInvitationTable.createdAt,
+        metadata: teamInvitationTable.metadata,
+      })
+      .from(teamInvitationTable)
+      .where(
+        and(
+          eq(teamInvitationTable.email, data.userId), // Assuming userId is email for now
+          isNull(teamInvitationTable.acceptedAt),
+          eq(teamInvitationTable.status, INVITATION_STATUS.PENDING),
+        ),
+      )
 
-		// Filter to competition-related invites
-		// This is a simplified version - in production we'd join with teams and check parent organization
-		return { invitations }
-	})
+    // Filter to competition-related invites
+    // This is a simplified version - in production we'd join with teams and check parent organization
+    return { invitations }
+  })
 
 /**
  * Check if user can manage/organize a competition
  * Checks team membership and permissions, or site admin status
  */
 export const checkCanManageCompetitionFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) => checkCanManageInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		// First check if user is a site admin - they can manage any competition
-		const session = await getSessionFromCookie()
-		if (session?.user?.role === ROLES_ENUM.ADMIN) {
-			return { canManage: true }
-		}
+  .inputValidator((data: unknown) => checkCanManageInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    // First check if user is a site admin - they can manage any competition
+    const session = await getSessionFromCookie()
+    if (session?.user?.role === ROLES_ENUM.ADMIN) {
+      return { canManage: true }
+    }
 
-		const db = getDb()
+    const db = getDb()
 
-		// Check if user is a member of the organizing team
-		const membership = await db
-			.select({
-				id: teamMembershipTable.id,
-				roleId: teamMembershipTable.roleId,
-				isSystemRole: teamMembershipTable.isSystemRole,
-			})
-			.from(teamMembershipTable)
-			.where(
-				and(
-					eq(teamMembershipTable.teamId, data.organizingTeamId),
-					eq(teamMembershipTable.userId, data.userId),
-					eq(teamMembershipTable.isActive, true),
-				),
-			)
-			.limit(1)
+    // Check if user is a member of the organizing team
+    const membership = await db
+      .select({
+        id: teamMembershipTable.id,
+        roleId: teamMembershipTable.roleId,
+        isSystemRole: teamMembershipTable.isSystemRole,
+      })
+      .from(teamMembershipTable)
+      .where(
+        and(
+          eq(teamMembershipTable.teamId, data.organizingTeamId),
+          eq(teamMembershipTable.userId, data.userId),
+          eq(teamMembershipTable.isActive, true),
+        ),
+      )
+      .limit(1)
 
-		if (!membership[0]) {
-			return { canManage: false }
-		}
+    if (!membership[0]) {
+      return { canManage: false }
+    }
 
-		// Check if user has admin or owner role
-		// System roles: ADMIN, OWNER would allow management
-		const isTeamAdmin =
-			membership[0].roleId === SYSTEM_ROLES_ENUM.ADMIN ||
-			membership[0].roleId === SYSTEM_ROLES_ENUM.OWNER
+    // Check if user has admin or owner role
+    // System roles: ADMIN, OWNER would allow management
+    const isTeamAdmin =
+      membership[0].roleId === SYSTEM_ROLES_ENUM.ADMIN ||
+      membership[0].roleId === SYSTEM_ROLES_ENUM.OWNER
 
-		return { canManage: isTeamAdmin }
-	})
+    return { canManage: isTeamAdmin }
+  })
 
 /**
  * Check if user is a volunteer for a competition
  * Checks if user has volunteer role in the competition team
  */
 export const checkIsVolunteerFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) => checkIsVolunteerInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		if (!data.competitionTeamId) {
-			return { isVolunteer: false }
-		}
+  .inputValidator((data: unknown) => checkIsVolunteerInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    if (!data.competitionTeamId) {
+      return { isVolunteer: false }
+    }
 
-		const db = getDb()
+    const db = getDb()
 
-		const membership = await db
-			.select({ id: teamMembershipTable.id })
-			.from(teamMembershipTable)
-			.where(
-				and(
-					eq(teamMembershipTable.teamId, data.competitionTeamId),
-					eq(teamMembershipTable.userId, data.userId),
-					eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
-					eq(teamMembershipTable.isSystemRole, true),
-					eq(teamMembershipTable.isActive, true),
-				),
-			)
-			.limit(1)
+    const membership = await db
+      .select({ id: teamMembershipTable.id })
+      .from(teamMembershipTable)
+      .where(
+        and(
+          eq(teamMembershipTable.teamId, data.competitionTeamId),
+          eq(teamMembershipTable.userId, data.userId),
+          eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+          eq(teamMembershipTable.isSystemRole, true),
+          eq(teamMembershipTable.isActive, true),
+        ),
+      )
+      .limit(1)
 
-		return { isVolunteer: !!membership[0] }
-	})
+    return { isVolunteer: !!membership[0] }
+  })
 
 /**
  * Get registration status for a competition
@@ -599,143 +600,143 @@ export const checkIsVolunteerFn = createServerFn({ method: "GET" })
  * Uses timezone-aware date comparisons
  */
 export const getRegistrationStatusFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
-		z
-			.object({
-				registrationOpensAt: z.string().nullable(),
-				registrationClosesAt: z.string().nullable(),
-				timezone: z.string().optional(),
-			})
-			.parse(data),
-	)
-	.handler(async ({ data }) => {
-		const timezone = data.timezone || DEFAULT_TIMEZONE
-		const regOpensAt = data.registrationOpensAt
-		const regClosesAt = data.registrationClosesAt
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        registrationOpensAt: z.string().nullable(),
+        registrationClosesAt: z.string().nullable(),
+        timezone: z.string().optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const timezone = data.timezone || DEFAULT_TIMEZONE
+    const regOpensAt = data.registrationOpensAt
+    const regClosesAt = data.registrationClosesAt
 
-		// Use timezone-aware comparisons
-		const hasOpened = hasDateStartedInTimezone(regOpensAt, timezone)
-		const hasClosed = isDeadlinePassedInTimezone(regClosesAt, timezone)
+    // Use timezone-aware comparisons
+    const hasOpened = hasDateStartedInTimezone(regOpensAt, timezone)
+    const hasClosed = isDeadlinePassedInTimezone(regClosesAt, timezone)
 
-		const registrationOpen = !!(
-			regOpensAt &&
-			regClosesAt &&
-			hasOpened &&
-			!hasClosed
-		)
-		const registrationClosed = hasClosed
-		const registrationNotYetOpen = !!(regOpensAt && !hasOpened)
+    const registrationOpen = !!(
+      regOpensAt &&
+      regClosesAt &&
+      hasOpened &&
+      !hasClosed
+    )
+    const registrationClosed = hasClosed
+    const registrationNotYetOpen = !!(regOpensAt && !hasOpened)
 
-		return {
-			registrationOpen,
-			registrationClosed,
-			registrationNotYetOpen,
-		}
-	})
+    return {
+      registrationOpen,
+      registrationClosed,
+      registrationNotYetOpen,
+    }
+  })
 
 // ============================================================================
 // Organizer Athletes View
 // ============================================================================
 
 const getOrganizerRegistrationsInputSchema = z.object({
-	competitionId: z.string().min(1, "Competition ID is required"),
-	divisionFilter: z.string().optional(),
+  competitionId: z.string().min(1, "Competition ID is required"),
+  divisionFilter: z.string().optional(),
 })
 
 /**
  * Get registrations for organizer view with full user and division details
  */
 export const getOrganizerRegistrationsFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
-		getOrganizerRegistrationsInputSchema.parse(data),
-	)
-	.handler(async ({ data }) => {
-		const db = getDb()
+  .inputValidator((data: unknown) =>
+    getOrganizerRegistrationsInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const db = getDb()
 
-		// Build where clause - include all registrations (removed shown grayed out)
-		const whereConditions = [
-			eq(competitionRegistrationsTable.eventId, data.competitionId),
-		]
+    // Build where clause - include all registrations (removed shown grayed out)
+    const whereConditions = [
+      eq(competitionRegistrationsTable.eventId, data.competitionId),
+    ]
 
-		// Get registrations with user and division info using query builder
-		const registrations = await db.query.competitionRegistrationsTable.findMany(
-			{
-				where: and(...whereConditions),
-				orderBy: (table, { desc }) => [desc(table.registeredAt)],
-				with: {
-					user: {
-						columns: {
-							id: true,
-							firstName: true,
-							lastName: true,
-							email: true,
-							avatar: true,
-							gender: true,
-							dateOfBirth: true,
-							affiliateName: true,
-						},
-					},
-					division: {
-						columns: {
-							id: true,
-							label: true,
-							teamSize: true,
-						},
-					},
-					athleteTeam: {
-						with: {
-							memberships: {
-								columns: {
-									id: true,
-									userId: true,
-									joinedAt: true,
-								},
-								where: eq(teamMembershipTable.isActive, true),
-								with: {
-									user: {
-										columns: {
-											id: true,
-											firstName: true,
-											lastName: true,
-											email: true,
-											avatar: true,
-											affiliateName: true,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		)
+    // Get registrations with user and division info using query builder
+    const registrations = await db.query.competitionRegistrationsTable.findMany(
+      {
+        where: and(...whereConditions),
+        orderBy: (table, { desc }) => [desc(table.registeredAt)],
+        with: {
+          user: {
+            columns: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              avatar: true,
+              gender: true,
+              dateOfBirth: true,
+              affiliateName: true,
+            },
+          },
+          division: {
+            columns: {
+              id: true,
+              label: true,
+              teamSize: true,
+            },
+          },
+          athleteTeam: {
+            with: {
+              memberships: {
+                columns: {
+                  id: true,
+                  userId: true,
+                  joinedAt: true,
+                },
+                where: eq(teamMembershipTable.isActive, true),
+                with: {
+                  user: {
+                    columns: {
+                      id: true,
+                      firstName: true,
+                      lastName: true,
+                      email: true,
+                      avatar: true,
+                      affiliateName: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    )
 
-		// Filter by division if specified (done in JS since we're using query builder)
-		const filteredRegistrations = data.divisionFilter
-			? registrations.filter((r) => r.divisionId === data.divisionFilter)
-			: registrations
+    // Filter by division if specified (done in JS since we're using query builder)
+    const filteredRegistrations = data.divisionFilter
+      ? registrations.filter((r) => r.divisionId === data.divisionFilter)
+      : registrations
 
-		return { registrations: filteredRegistrations }
-	})
+    return { registrations: filteredRegistrations }
+  })
 
 /**
  * Pending teammate invite with metadata for athletes page
  */
 export interface PendingTeammateInvite {
-	id: string
-	email: string
-	athleteTeamId: string
-	registrationId: string | null
-	status: InvitationStatus
-	guestName?: string
-	pendingAnswers?: Array<{ questionId: string; answer: string }>
-	pendingSignatures?: Array<{
-		waiverId: string
-		signedAt: string
-		signatureName: string
-	}>
-	submittedAt?: string
-	createdAt: Date | null
+  id: string
+  email: string
+  athleteTeamId: string
+  registrationId: string | null
+  status: InvitationStatus
+  guestName?: string
+  pendingAnswers?: Array<{ questionId: string; answer: string }>
+  pendingSignatures?: Array<{
+    waiverId: string
+    signedAt: string
+    signatureName: string
+  }>
+  submittedAt?: string
+  createdAt: Date | null
 }
 
 /**
@@ -744,317 +745,317 @@ export interface PendingTeammateInvite {
  * Requires organizer permission on the competition.
  */
 export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
-		getPendingTeammateInvitationsInputSchema.parse(data),
-	)
-	.handler(
-		async ({ data }): Promise<{ pendingInvites: PendingTeammateInvite[] }> => {
-			const db = getDb()
+  .inputValidator((data: unknown) =>
+    getPendingTeammateInvitationsInputSchema.parse(data),
+  )
+  .handler(
+    async ({ data }): Promise<{ pendingInvites: PendingTeammateInvite[] }> => {
+      const db = getDb()
 
-			// Get competition to find organizing team
-			const competition = await db.query.competitionsTable.findFirst({
-				where: eq(competitionsTable.id, data.competitionId),
-				columns: { organizingTeamId: true },
-			})
+      // Get competition to find organizing team
+      const competition = await db.query.competitionsTable.findFirst({
+        where: eq(competitionsTable.id, data.competitionId),
+        columns: { organizingTeamId: true },
+      })
 
-			if (!competition) {
-				throw new Error("Competition not found")
-			}
+      if (!competition) {
+        throw new Error("Competition not found")
+      }
 
-			// Require permission to manage this competition's team
-			await requireTeamPermission(
-				competition.organizingTeamId,
-				TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-			)
+      // Require permission to manage this competition's team
+      await requireTeamPermission(
+        competition.organizingTeamId,
+        TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+      )
 
-			// Get all registrations for this competition to find their athlete teams
-			const registrations =
-				await db.query.competitionRegistrationsTable.findMany({
-					where: eq(competitionRegistrationsTable.eventId, data.competitionId),
-					columns: {
-						id: true,
-						athleteTeamId: true,
-						pendingTeammates: true,
-					},
-				})
+      // Get all registrations for this competition to find their athlete teams
+      const registrations =
+        await db.query.competitionRegistrationsTable.findMany({
+          where: eq(competitionRegistrationsTable.eventId, data.competitionId),
+          columns: {
+            id: true,
+            athleteTeamId: true,
+            pendingTeammates: true,
+          },
+        })
 
-			if (registrations.length === 0) {
-				return { pendingInvites: [] }
-			}
+      if (registrations.length === 0) {
+        return { pendingInvites: [] }
+      }
 
-			const athleteTeamIds = registrations
-				.map((r) => r.athleteTeamId)
-				.filter((id): id is string => id !== null)
+      const athleteTeamIds = registrations
+        .map((r) => r.athleteTeamId)
+        .filter((id): id is string => id !== null)
 
-			if (athleteTeamIds.length === 0) {
-				return { pendingInvites: [] }
-			}
+      if (athleteTeamIds.length === 0) {
+        return { pendingInvites: [] }
+      }
 
-			// Create maps for registration data
-			const teamToRegistration = new Map<string, string>()
-			// Map of "teamId-email" -> teammate name from captain's registration
-			const teammateNames = new Map<string, string>()
+      // Create maps for registration data
+      const teamToRegistration = new Map<string, string>()
+      // Map of "teamId-email" -> teammate name from captain's registration
+      const teammateNames = new Map<string, string>()
 
-			for (const reg of registrations) {
-				if (reg.athleteTeamId) {
-					teamToRegistration.set(reg.athleteTeamId, reg.id)
+      for (const reg of registrations) {
+        if (reg.athleteTeamId) {
+          teamToRegistration.set(reg.athleteTeamId, reg.id)
 
-					// Parse pendingTeammates to get names entered by captain
-					if (reg.pendingTeammates) {
-						try {
-							const teammates = JSON.parse(reg.pendingTeammates) as Array<{
-								email: string
-								firstName?: string
-								lastName?: string
-							}>
-							for (const tm of teammates) {
-								const name = [tm.firstName, tm.lastName]
-									.filter(Boolean)
-									.join(" ")
-									.trim()
-								if (name && tm.email) {
-									teammateNames.set(
-										`${reg.athleteTeamId}-${tm.email.toLowerCase()}`,
-										name,
-									)
-								}
-							}
-						} catch {
-							// Invalid JSON, ignore
-						}
-					}
-				}
-			}
+          // Parse pendingTeammates to get names entered by captain
+          if (reg.pendingTeammates) {
+            try {
+              const teammates = JSON.parse(reg.pendingTeammates) as Array<{
+                email: string
+                firstName?: string
+                lastName?: string
+              }>
+              for (const tm of teammates) {
+                const name = [tm.firstName, tm.lastName]
+                  .filter(Boolean)
+                  .join(" ")
+                  .trim()
+                if (name && tm.email) {
+                  teammateNames.set(
+                    `${reg.athleteTeamId}-${tm.email.toLowerCase()}`,
+                    name,
+                  )
+                }
+              }
+            } catch {
+              // Invalid JSON, ignore
+            }
+          }
+        }
+      }
 
-			// Get invitations for these athlete teams that haven't been claimed by a user
-			// Include both 'pending' and 'accepted' status (accepted = guest submitted form without account)
-			// Exclude cancelled invitations and those claimed by user with account
-			const allInvitations = await db.query.teamInvitationTable.findMany({
-				where: and(
-					inArray(teamInvitationTable.teamId, athleteTeamIds),
-					eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.MEMBER),
-					isNull(teamInvitationTable.acceptedAt), // Not yet claimed by user with account
-					ne(teamInvitationTable.status, INVITATION_STATUS.CANCELLED),
-				),
-				columns: {
-					id: true,
-					email: true,
-					teamId: true,
-					status: true,
-					metadata: true,
-					createdAt: true,
-				},
-			})
+      // Get invitations for these athlete teams that haven't been claimed by a user
+      // Include both 'pending' and 'accepted' status (accepted = guest submitted form without account)
+      // Exclude cancelled invitations and those claimed by user with account
+      const allInvitations = await db.query.teamInvitationTable.findMany({
+        where: and(
+          inArray(teamInvitationTable.teamId, athleteTeamIds),
+          eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.MEMBER),
+          isNull(teamInvitationTable.acceptedAt), // Not yet claimed by user with account
+          ne(teamInvitationTable.status, INVITATION_STATUS.CANCELLED),
+        ),
+        columns: {
+          id: true,
+          email: true,
+          teamId: true,
+          status: true,
+          metadata: true,
+          createdAt: true,
+        },
+      })
 
-			const pendingInvites: PendingTeammateInvite[] = allInvitations.map(
-				(inv) => {
-					// Parse metadata to check for pending data
-					let pendingAnswers: PendingTeammateInvite["pendingAnswers"]
-					let pendingSignatures: PendingTeammateInvite["pendingSignatures"]
-					let submittedAt: string | undefined
+      const pendingInvites: PendingTeammateInvite[] = allInvitations.map(
+        (inv) => {
+          // Parse metadata to check for pending data
+          let pendingAnswers: PendingTeammateInvite["pendingAnswers"]
+          let pendingSignatures: PendingTeammateInvite["pendingSignatures"]
+          let submittedAt: string | undefined
 
-					if (inv.metadata) {
-						try {
-							const meta = JSON.parse(inv.metadata) as Record<string, unknown>
-							if (Array.isArray(meta.pendingAnswers)) {
-								pendingAnswers =
-									meta.pendingAnswers as PendingTeammateInvite["pendingAnswers"]
-							}
-							if (Array.isArray(meta.pendingSignatures)) {
-								pendingSignatures =
-									meta.pendingSignatures as PendingTeammateInvite["pendingSignatures"]
-							}
-							if (typeof meta.submittedAt === "string") {
-								submittedAt = meta.submittedAt
-							}
-						} catch {
-							// Invalid JSON, ignore
-						}
-					}
+          if (inv.metadata) {
+            try {
+              const meta = JSON.parse(inv.metadata) as Record<string, unknown>
+              if (Array.isArray(meta.pendingAnswers)) {
+                pendingAnswers =
+                  meta.pendingAnswers as PendingTeammateInvite["pendingAnswers"]
+              }
+              if (Array.isArray(meta.pendingSignatures)) {
+                pendingSignatures =
+                  meta.pendingSignatures as PendingTeammateInvite["pendingSignatures"]
+              }
+              if (typeof meta.submittedAt === "string") {
+                submittedAt = meta.submittedAt
+              }
+            } catch {
+              // Invalid JSON, ignore
+            }
+          }
 
-					// Get teammate name from captain's registration (pendingTeammates)
-					const guestName = teammateNames.get(
-						`${inv.teamId}-${inv.email.toLowerCase()}`,
-					)
+          // Get teammate name from captain's registration (pendingTeammates)
+          const guestName = teammateNames.get(
+            `${inv.teamId}-${inv.email.toLowerCase()}`,
+          )
 
-					return {
-						id: inv.id,
-						email: inv.email,
-						athleteTeamId: inv.teamId,
-						registrationId: teamToRegistration.get(inv.teamId) || null,
-						status:
-							(inv.status as InvitationStatus) || INVITATION_STATUS.PENDING,
-						guestName,
-						pendingAnswers,
-						pendingSignatures,
-						submittedAt,
-						createdAt: inv.createdAt,
-					}
-				},
-			)
+          return {
+            id: inv.id,
+            email: inv.email,
+            athleteTeamId: inv.teamId,
+            registrationId: teamToRegistration.get(inv.teamId) || null,
+            status:
+              (inv.status as InvitationStatus) || INVITATION_STATUS.PENDING,
+            guestName,
+            pendingAnswers,
+            pendingSignatures,
+            submittedAt,
+            createdAt: inv.createdAt,
+          }
+        },
+      )
 
-			return { pendingInvites }
-		},
-	)
+      return { pendingInvites }
+    },
+  )
 
 /**
  * Update competition rotation settings
  */
 export const updateCompetitionRotationSettingsFn = createServerFn({
-	method: "POST",
+  method: "POST",
 })
-	.inputValidator((data: unknown) =>
-		updateCompetitionRotationSettingsInputSchema.parse(data),
-	)
-	.handler(async ({ data: input }) => {
-		const session = await requireVerifiedEmail()
-		if (!session) throw new Error("Unauthorized")
+  .inputValidator((data: unknown) =>
+    updateCompetitionRotationSettingsInputSchema.parse(data),
+  )
+  .handler(async ({ data: input }) => {
+    const session = await requireVerifiedEmail()
+    if (!session) throw new Error("Unauthorized")
 
-		const db = getDb()
+    const db = getDb()
 
-		// Verify user has permission to manage this competition
-		const competition = await db.query.competitionsTable.findFirst({
-			where: eq(competitionsTable.id, input.competitionId),
-		})
-		if (!competition) throw new Error("Competition not found")
+    // Verify user has permission to manage this competition
+    const competition = await db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, input.competitionId),
+    })
+    if (!competition) throw new Error("Competition not found")
 
-		// Check permission
-		await requireTeamPermission(
-			competition.organizingTeamId,
-			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
-		)
+    // Check permission
+    await requireTeamPermission(
+      competition.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+    )
 
-		// Update competition
-		await db
-			.update(competitionsTable)
-			.set({
-				defaultHeatsPerRotation: input.defaultHeatsPerRotation,
-				defaultLaneShiftPattern: input.defaultLaneShiftPattern as
-					| LaneShiftPattern
-					| undefined,
-				updatedAt: new Date(),
-			})
-			.where(eq(competitionsTable.id, input.competitionId))
+    // Update competition
+    await db
+      .update(competitionsTable)
+      .set({
+        defaultHeatsPerRotation: input.defaultHeatsPerRotation,
+        defaultLaneShiftPattern: input.defaultLaneShiftPattern as
+          | LaneShiftPattern
+          | undefined,
+        updatedAt: new Date(),
+      })
+      .where(eq(competitionsTable.id, input.competitionId))
 
-		return { success: true }
-	})
+    return { success: true }
+  })
 
 /**
  * Update competition scoring configuration
  */
 export const updateCompetitionScoringConfigFn = createServerFn({
-	method: "POST",
+  method: "POST",
 })
-	.inputValidator((data: unknown) =>
-		updateCompetitionScoringConfigInputSchema.parse(data),
-	)
-	.handler(async ({ data: input }) => {
-		const session = await requireVerifiedEmail()
-		if (!session) throw new Error("Unauthorized")
+  .inputValidator((data: unknown) =>
+    updateCompetitionScoringConfigInputSchema.parse(data),
+  )
+  .handler(async ({ data: input }) => {
+    const session = await requireVerifiedEmail()
+    if (!session) throw new Error("Unauthorized")
 
-		const db = getDb()
+    const db = getDb()
 
-		// Verify user has permission to manage this competition
-		const competition = await db.query.competitionsTable.findFirst({
-			where: eq(competitionsTable.id, input.competitionId),
-		})
-		if (!competition) throw new Error("Competition not found")
+    // Verify user has permission to manage this competition
+    const competition = await db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, input.competitionId),
+    })
+    if (!competition) throw new Error("Competition not found")
 
-		// Check permission
-		await requireTeamPermission(
-			competition.organizingTeamId,
-			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
-		)
+    // Check permission
+    await requireTeamPermission(
+      competition.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+    )
 
-		// Parse existing settings and merge with new scoring config
-		let existingSettings: Record<string, unknown> = {}
-		if (competition.settings) {
-			try {
-				existingSettings = JSON.parse(competition.settings)
-			} catch {
-				// Ignore parse errors
-			}
-		}
+    // Parse existing settings and merge with new scoring config
+    let existingSettings: Record<string, unknown> = {}
+    if (competition.settings) {
+      try {
+        existingSettings = JSON.parse(competition.settings)
+      } catch {
+        // Ignore parse errors
+      }
+    }
 
-		const newSettings = {
-			...existingSettings,
-			scoringConfig: input.scoringConfig,
-		}
+    const newSettings = {
+      ...existingSettings,
+      scoringConfig: input.scoringConfig,
+    }
 
-		// Update competition
-		await db
-			.update(competitionsTable)
-			.set({
-				settings: JSON.stringify(newSettings),
-				updatedAt: new Date(),
-			})
-			.where(eq(competitionsTable.id, input.competitionId))
+    // Update competition
+    await db
+      .update(competitionsTable)
+      .set({
+        settings: JSON.stringify(newSettings),
+        updatedAt: new Date(),
+      })
+      .where(eq(competitionsTable.id, input.competitionId))
 
-		return { success: true }
-	})
+    return { success: true }
+  })
 
 /**
  * Delete a competition
  */
 export const deleteCompetitionFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => deleteCompetitionInputSchema.parse(data))
-	.handler(async ({ data: input }) => {
-		const session = await requireVerifiedEmail()
-		if (!session) throw new Error("Unauthorized")
+  .inputValidator((data: unknown) => deleteCompetitionInputSchema.parse(data))
+  .handler(async ({ data: input }) => {
+    const session = await requireVerifiedEmail()
+    if (!session) throw new Error("Unauthorized")
 
-		const db = getDb()
+    const db = getDb()
 
-		// Check permission
-		await requireTeamPermission(
-			input.organizingTeamId,
-			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
-		)
+    // Check permission
+    await requireTeamPermission(
+      input.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+    )
 
-		// Get the competition to verify it exists and get the competitionTeamId
-		const competition = await db.query.competitionsTable.findFirst({
-			where: eq(competitionsTable.id, input.competitionId),
-		})
-		if (!competition) throw new Error("Competition not found")
+    // Get the competition to verify it exists and get the competitionTeamId
+    const competition = await db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, input.competitionId),
+    })
+    if (!competition) throw new Error("Competition not found")
 
-		// Check for existing registrations
-		const registrations = await db
-			.select({ count: count() })
-			.from(competitionRegistrationsTable)
-			.where(eq(competitionRegistrationsTable.eventId, input.competitionId))
+    // Check for existing registrations
+    const registrations = await db
+      .select({ count: count() })
+      .from(competitionRegistrationsTable)
+      .where(eq(competitionRegistrationsTable.eventId, input.competitionId))
 
-		const registrationCount = registrations[0]?.count ?? 0
-		if (registrationCount > 0) {
-			throw new Error(
-				`Cannot delete competition with ${registrationCount} existing registration(s). Please remove registrations first.`,
-			)
-		}
+    const registrationCount = registrations[0]?.count ?? 0
+    if (registrationCount > 0) {
+      throw new Error(
+        `Cannot delete competition with ${registrationCount} existing registration(s). Please remove registrations first.`,
+      )
+    }
 
-		// Delete the competition and clean up related records in a transaction
-		await db.transaction(async (tx) => {
-			// Delete the competition (will cascade delete registrations due to schema)
-			await tx
-				.delete(competitionsTable)
-				.where(eq(competitionsTable.id, input.competitionId))
+    // Delete the competition and clean up related records in a transaction
+    await db.transaction(async (tx) => {
+      // Delete the competition (will cascade delete registrations due to schema)
+      await tx
+        .delete(competitionsTable)
+        .where(eq(competitionsTable.id, input.competitionId))
 
-			// Clean up competition_event team related records before deleting the team
-			// These tables don't have onDelete cascade, so we must delete manually
-			await tx
-				.delete(teamMembershipTable)
-				.where(eq(teamMembershipTable.teamId, competition.competitionTeamId))
+      // Clean up competition_event team related records before deleting the team
+      // These tables don't have onDelete cascade, so we must delete manually
+      await tx
+        .delete(teamMembershipTable)
+        .where(eq(teamMembershipTable.teamId, competition.competitionTeamId))
 
-			await tx
-				.delete(teamRoleTable)
-				.where(eq(teamRoleTable.teamId, competition.competitionTeamId))
+      await tx
+        .delete(teamRoleTable)
+        .where(eq(teamRoleTable.teamId, competition.competitionTeamId))
 
-			await tx
-				.delete(teamInvitationTable)
-				.where(eq(teamInvitationTable.teamId, competition.competitionTeamId))
+      await tx
+        .delete(teamInvitationTable)
+        .where(eq(teamInvitationTable.teamId, competition.competitionTeamId))
 
-			// Delete the competition_event team
-			await tx
-				.delete(teamTable)
-				.where(eq(teamTable.id, competition.competitionTeamId))
-		})
+      // Delete the competition_event team
+      await tx
+        .delete(teamTable)
+        .where(eq(teamTable.id, competition.competitionTeamId))
+    })
 
-		return { success: true }
-	})
+    return { success: true }
+  })

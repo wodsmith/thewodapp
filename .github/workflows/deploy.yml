@@ -15,7 +15,7 @@ on:
       stage:
         description: 'Deployment stage'
         required: true
-        default: 'prod'
+        default: 'demo'
         type: choice
         options:
           - prod
@@ -28,12 +28,13 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  STAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.stage || (github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'prod') }}
+  # workflow_dispatch uses selected stage; PRs get pr-N; push-to-main deploys demo (via deploy-demo job)
+  STAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.stage || (github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'demo') }}
 
 jobs:
-  # Slack notification - start (production deploys only, must be from main branch)
+  # Slack notification - start (production deploys only, manual workflow_dispatch)
   notify-start:
-    if: github.ref == 'refs/heads/main' && ((github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.stage == 'prod'))
+    if: github.event_name == 'workflow_dispatch' && inputs.stage == 'prod' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 2
     name: Notify Deploy Start
@@ -128,7 +129,7 @@ jobs:
           NODE_ENV: test
 
   deploy:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.action != 'closed' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action != 'closed') }}
     runs-on: ubuntu-latest
     needs: test
     permissions:
@@ -136,6 +137,8 @@ jobs:
       deployments: write
       pull-requests: write
     name: Deploy to Cloudflare Workers
+    # Prod deploys require approval via GitHub environment protection rules
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.stage == 'prod' && 'production' || '' }}
     defaults:
       run:
         working-directory: apps/wodsmith-start
@@ -243,6 +246,32 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
         working-directory: .
+
+      - name: Setup pscale
+        uses: planetscale/setup-pscale-action@v1
+
+      - name: Generate PlanetScale demo branch password
+        env:
+          PLANETSCALE_SERVICE_TOKEN_ID: ${{ secrets.PLANETSCALE_SERVICE_TOKEN_ID }}
+          PLANETSCALE_SERVICE_TOKEN: ${{ secrets.PLANETSCALE_SERVICE_TOKEN }}
+        run: |
+          response=$(pscale password create ${{ secrets.PLANETSCALE_DATABASE_NAME }} demo "" -f json --org ${{ secrets.PLANETSCALE_ORGANIZATION }})
+
+          id=$(echo "$response" | jq -r '.id')
+          host=$(echo "$response" | jq -r '.access_host_url')
+          username=$(echo "$response" | jq -r '.username')
+          password=$(echo "$response" | jq -r '.plain_text')
+          echo "PASSWORD_ID=$id" >> $GITHUB_ENV
+          database_url="mysql://$username:$password@$host/${{ secrets.PLANETSCALE_DATABASE_NAME }}"
+          echo "DATABASE_URL=$database_url" >> $GITHUB_ENV
+          echo "::add-mask::$database_url"
+
+      - name: Push schema to PlanetScale demo branch
+        run: pnpm --filter wodsmith-start exec drizzle-kit push
+        working-directory: .
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
 
       - name: Deploy with Alchemy
         run: pnpm run deploy

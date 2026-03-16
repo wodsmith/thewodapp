@@ -168,42 +168,6 @@ describe("Video URL Validation", () => {
 		})
 		})
 
-		describe("Streamable URLs", () => {
-			it("parses standard Streamable URL", () => {
-				const result = parseVideoUrl("https://streamable.com/abc123")
-				expect(result).not.toBeNull()
-				expect(result?.platform).toBe("streamable")
-				expect(result?.videoId).toBe("abc123")
-				expect(result?.embedUrl).toBe("https://streamable.com/e/abc123")
-			})
-
-			it("parses Streamable URL with www", () => {
-				const result = parseVideoUrl("https://www.streamable.com/xyz789")
-				expect(result).not.toBeNull()
-				expect(result?.platform).toBe("streamable")
-				expect(result?.videoId).toBe("xyz789")
-			})
-
-			it("parses Streamable embed URL", () => {
-				const result = parseVideoUrl("https://streamable.com/e/abc123")
-				expect(result).not.toBeNull()
-				expect(result?.platform).toBe("streamable")
-				expect(result?.videoId).toBe("abc123")
-			})
-
-			it("parses Streamable URL with query params", () => {
-				const result = parseVideoUrl("https://streamable.com/abc123?autoplay=1")
-				expect(result).not.toBeNull()
-				expect(result?.videoId).toBe("abc123")
-			})
-
-			it("parses URL without https prefix", () => {
-				const result = parseVideoUrl("streamable.com/abc123")
-				expect(result).not.toBeNull()
-				expect(result?.videoId).toBe("abc123")
-			})
-		})
-
 		describe("Invalid URLs", () => {
 			it("returns null for non-video URLs", () => {
 				expect(parseVideoUrl("https://google.com")).toBeNull()
@@ -243,10 +207,6 @@ describe("Video URL Validation", () => {
 
 		it("returns true for valid Vimeo URLs", () => {
 			expect(isSupportedVideoUrl("https://vimeo.com/123456789")).toBe(true)
-		})
-
-		it("returns true for valid Streamable URLs", () => {
-			expect(isSupportedVideoUrl("https://streamable.com/abc123")).toBe(true)
 		})
 
 		it("returns false for unsupported URLs", () => {
@@ -406,16 +366,6 @@ describe("Video URL Validation", () => {
 			})
 		})
 
-		it("includes all expected fields for Streamable", () => {
-			const result = parseVideoUrl("https://streamable.com/abc123")
-			expect(result).toMatchObject({
-				platform: "streamable",
-				videoId: "abc123",
-				originalUrl: "https://streamable.com/abc123",
-				embedUrl: "https://streamable.com/e/abc123",
-				thumbnailUrl: "https://cdn-cf-east.streamable.com/image/abc123.jpg",
-			})
-		})
 	})
 
 	describe("Edge cases", () => {

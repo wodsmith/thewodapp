@@ -9,58 +9,58 @@ import { TwoAudiences } from "@/components/landing/two-audiences"
 import { VolunteerScheduling } from "@/components/landing/volunteer-scheduling"
 
 export const Route = createFileRoute("/")({
-	head: () => ({
-		meta: [
-			{
-				title: "WODsmith Compete - Run comps athletes trust",
-			},
-			{
-				name: "description",
-				content:
-					"Run functional fitness competitions without spreadsheet ops. Score verification, transparent tie-breakers, volunteer scheduling, and digital appeals. Built with organizers running multi-location series.",
-			},
-		],
-	}),
-	component: HomePage,
+  head: () => ({
+    meta: [
+      {
+        title: "WODsmith Compete - Run comps athletes trust",
+      },
+      {
+        name: "description",
+        content:
+          "Run functional fitness competitions without spreadsheet ops. Score verification, transparent tie-breakers, volunteer scheduling, and digital appeals. Built with organizers running multi-location series.",
+      },
+    ],
+  }),
+  component: HomePage,
 })
 
 function HomePage() {
-	const { session } = Route.useRouteContext()
+  const { session } = Route.useRouteContext()
 
-	return (
-		<>
-			<main>
-				{/* 1. Hero - Primary promise with villain */}
-				<CompeteHero session={session} />
+  return (
+    <>
+      <main>
+        {/* 1. Hero - Primary promise with villain */}
+        <CompeteHero session={session} />
 
-				{/* 2. Pain strip - Real quotes from organizers/athletes */}
-				<PainStrip />
+        {/* 2. Pain strip - Real quotes from organizers/athletes */}
+        <PainStrip />
 
-				{/* 3. Two audiences - Athlete and Organizer value props */}
-				<TwoAudiences session={session} />
+        {/* 3. Two audiences - Athlete and Organizer value props */}
+        <TwoAudiences session={session} />
 
-				{/* 4. Disaster prevention - How we prevent comp-day failures */}
-				<DisasterPrevention />
+        {/* 4. Disaster prevention - How we prevent comp-day failures */}
+        <DisasterPrevention />
 
-				{/* 5. Volunteer/judge scheduling - Kill the spreadsheets */}
-				<VolunteerScheduling />
+        {/* 5. Volunteer/judge scheduling - Kill the spreadsheets */}
+        <VolunteerScheduling />
 
-				{/* 6. Series teaser - Multi-location capability */}
-				<SeriesTeaser />
+        {/* 6. Series teaser - Multi-location capability */}
+        <SeriesTeaser />
 
-				{/* 7. Reliability - Uptime and resilience */}
-				{/* <ReliabilitySection /> */}
+        {/* 7. Reliability - Uptime and resilience */}
+        {/* <ReliabilitySection /> */}
 
-				{/* 8. Proof - Testimonials and endorsements */}
-				{/* <ProofSection /> */}
+        {/* 8. Proof - Testimonials and endorsements */}
+        {/* <ProofSection /> */}
 
-				{/* 9. FAQ - Common questions */}
-				{/* <FAQSection /> */}
+        {/* 9. FAQ - Common questions */}
+        {/* <FAQSection /> */}
 
-				{/* 10. Final CTA - Repeat primary conversion */}
-				<FinalCTA session={session} />
-			</main>
-			<Footer />
-		</>
-	)
+        {/* 10. Final CTA - Repeat primary conversion */}
+        <FinalCTA session={session} />
+      </main>
+      <Footer />
+    </>
+  )
 }

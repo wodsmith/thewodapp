@@ -1,6 +1,6 @@
 ---
 name: alchemy-cloudflare
-description: Alchemy IaC patterns for deploying TanStack Start apps to Cloudflare Workers with D1 databases. Use when setting up new TanStack Start projects, configuring Alchemy deployments, working with D1/Drizzle migrations, local development with Cloudflare bindings, or deploying to custom domains.
+description: Alchemy IaC patterns for deploying TanStack Start apps to Cloudflare Workers with PlanetScale databases via Hyperdrive. Use when setting up new TanStack Start projects, configuring Alchemy deployments, working with PlanetScale/Drizzle migrations, local development with Cloudflare bindings, or deploying to custom domains.
 ---
 
 # Alchemy Cloudflare IaC
@@ -11,7 +11,7 @@ TypeScript-first Infrastructure as Code for deploying TanStack Start application
 
 - **alchemy.run.ts**: Infrastructure definition file (TypeScript, not YAML)
 - **TanStackStart resource**: Wraps Worker config specifically for TanStack builds
-- **D1Database resource**: Manages D1 with automatic Drizzle migration application
+- **Hyperdrive resource**: Provides pooled PlanetScale connections
 - **Type inference**: `typeof worker.Env` provides types without codegen
 - **Secrets**: `alchemy.secret()` encrypts values with `ALCHEMY_PASSWORD`
 
@@ -27,19 +27,42 @@ pnpm add alchemy @cloudflare/workers-types
 
 ```typescript
 import alchemy from "alchemy"
-import { D1Database, TanStackStart } from "alchemy/cloudflare"
+import { Hyperdrive, TanStackStart } from "alchemy/cloudflare"
+import { Branch as PlanetScaleBranch, Password as PlanetScalePassword } from "alchemy/planetscale"
 
 const app = await alchemy("my-app", {
   stage: process.env.STAGE ?? "dev",
   phase: process.argv.includes("--destroy") ? "destroy" : "up",
 })
 
-const db = await D1Database("my-d1", {
-  migrationsDir: "./drizzle",  // Auto-applies Drizzle migrations
+// PlanetScale branch + password + Hyperdrive connection pooling
+const psBranch = await PlanetScaleBranch("ps-branch", {
+  organization: "my-org",
+  database: "my-db",
+  name: "dev",
+  parentBranch: "main",
+})
+
+const psPassword = await PlanetScalePassword("ps-password", {
+  organization: "my-org",
+  database: "my-db",
+  branch: psBranch,
+  role: "admin",
+})
+
+const hyperdrive = await Hyperdrive("hyperdrive", {
+  origin: {
+    host: psPassword.host,
+    database: "my-db",
+    user: psPassword.username,
+    password: psPassword.password.unencrypted,
+    port: 3306,
+    scheme: "mysql",
+  },
 })
 
 const worker = await TanStackStart("my-worker", {
-  d1Databases: { DB: db },
+  bindings: { HYPERDRIVE: hyperdrive },
   domains: ["my-app.com"],  // Custom domain
 })
 
@@ -98,7 +121,7 @@ pnpm alchemy dev
 ```
 
 **What this provides:**
-- Full D1 database emulation (persisted in `.alchemy/{app}/{stage}/`)
+- Direct PlanetScale connections via Hyperdrive dev mode
 - KV, R2, Durable Objects bindings
 - Same `Env` types as production
 
@@ -107,25 +130,23 @@ pnpm alchemy dev
 ALCHEMY_PASSWORD=your-password
 ```
 
-## D1 + Drizzle Integration
+## PlanetScale + Drizzle Integration
 
 ### Migration Workflow
 
 1. Modify schema in `src/db/schema.ts`
-2. Generate migration: `pnpm drizzle-kit generate`
-3. Deploy: `bun alchemy.run.ts` (auto-applies migrations)
+2. During development: `pnpm db:push` (pushes to PlanetScale dev branch)
+3. Before merging: `pnpm db:generate --name=feature-name`
+4. Deploy: Migrations are applied via `drizzle-kit push` in CI
 
-### Accessing D1
+### Accessing PlanetScale via Hyperdrive
 
 ```typescript
 // In server functions or loaders
-import { getCloudflareContext } from "@opennextjs/cloudflare"
+import { env } from 'cloudflare:workers'
 
-export async function loader() {
-  const { env } = await getCloudflareContext()
-  const db = drizzle(env.DB)
-  // Use db...
-}
+const db = drizzle(env.HYPERDRIVE)
+// Use db...
 ```
 
 ## Common Patterns
@@ -185,11 +206,11 @@ rollupOptions: {
 ### "Route files should not import @/db"
 Server functions must be in `src/server-fns/` files, not inline in route files. Routes can only import and call server functions.
 
-### D1 not persisting locally
-Check `.alchemy/{app}/{stage}/` directory exists. Ensure `ALCHEMY_PASSWORD` is set.
+### PlanetScale connection issues
+Check that `PLANETSCALE_SERVICE_TOKEN_ID` and `PLANETSCALE_SERVICE_TOKEN` are set. Verify the branch exists in PlanetScale dashboard.
 
 ### Migration not applying
-Verify `migrationsDir` points to correct directory (where `.sql` files are).
+Use `pnpm db:push` for dev. For production, migrations are applied via `drizzle-kit push` in CI.
 
 ## References
 

@@ -9,22 +9,22 @@ import { createFileRoute } from "@tanstack/react-router"
 import { TeamSchedulingCalendar } from "@/components/admin/team-scheduling-calendar"
 
 export const Route = createFileRoute("/admin/teams/$teamId/scheduling")({
-	component: TeamSchedulingPage,
+  component: TeamSchedulingPage,
 })
 
 function TeamSchedulingPage() {
-	const { teamId } = Route.useParams()
+  const { teamId } = Route.useParams()
 
-	return (
-		<div className="space-y-6">
-			<div>
-				<h2 className="text-2xl font-bold">Scheduling</h2>
-				<p className="text-muted-foreground">
-					View and manage scheduled workouts for this team.
-				</p>
-			</div>
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold">Scheduling</h2>
+        <p className="text-muted-foreground">
+          View and manage scheduled workouts for this team.
+        </p>
+      </div>
 
-			<TeamSchedulingCalendar teamId={teamId} />
-		</div>
-	)
+      <TeamSchedulingCalendar teamId={teamId} />
+    </div>
+  )
 }

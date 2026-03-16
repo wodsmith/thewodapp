@@ -12,17 +12,17 @@ import { and, eq, inArray, isNotNull } from "drizzle-orm"
 import { z } from "zod"
 import { RegistrationForm } from "@/components/registration/registration-form"
 import {
-	competitionRegistrationAnswersTable,
-	competitionRegistrationsTable,
-	REGISTRATION_STATUS,
-	scalingGroupsTable,
-	teamMembershipTable,
-	userTable,
-	waiverSignaturesTable,
+  competitionRegistrationAnswersTable,
+  competitionRegistrationsTable,
+  REGISTRATION_STATUS,
+  scalingGroupsTable,
+  teamMembershipTable,
+  userTable,
+  waiverSignaturesTable,
 } from "@/db/schema"
 import {
-	getPublicCompetitionDivisionsFn,
-	parseCompetitionSettings,
+  getPublicCompetitionDivisionsFn,
+  parseCompetitionSettings,
 } from "@/server-fns/competition-divisions-fns"
 import { cancelPendingPurchaseFn } from "@/server-fns/registration-fns"
 import { getCompetitionQuestionsFn } from "@/server-fns/registration-questions-fns"
@@ -31,401 +31,406 @@ import { getLocalDateKey } from "@/utils/date-utils"
 
 // Search params validation
 const registerSearchSchema = z.object({
-	canceled: z.enum(["true", "false"]).optional().catch(undefined),
+  canceled: z.enum(["true", "false"]).optional().catch(undefined),
 })
 
 // Server function to get ALL user registrations for a competition
 const getUserCompetitionRegistrationsFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
-		z
-			.object({
-				competitionId: z.string(),
-				userId: z.string(),
-			})
-			.parse(data),
-	)
-	.handler(async ({ data }) => {
-		const { getDb } = await import("@/db")
-		const db = getDb()
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        competitionId: z.string(),
+        userId: z.string(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { getDb } = await import("@/db")
+    const db = getDb()
 
-		// 1. Direct registrations (user is the registrant/captain)
-		const directRegistrations =
-			await db.query.competitionRegistrationsTable.findMany({
-				where: and(
-					eq(competitionRegistrationsTable.eventId, data.competitionId),
-					eq(competitionRegistrationsTable.userId, data.userId),
-				),
-			})
+    // 1. Direct registrations (user is the registrant/captain)
+    const directRegistrations =
+      await db.query.competitionRegistrationsTable.findMany({
+        where: and(
+          eq(competitionRegistrationsTable.eventId, data.competitionId),
+          eq(competitionRegistrationsTable.userId, data.userId),
+        ),
+      })
 
-		// 2. Team registrations where user is a team member (accepted invite)
-		// Find all athlete teams the user belongs to
-		const userMemberships = await db.query.teamMembershipTable.findMany({
-			where: and(
-				eq(teamMembershipTable.userId, data.userId),
-				eq(teamMembershipTable.isActive, true),
-			),
-			columns: { teamId: true },
-		})
-		const userTeamIds = userMemberships.map((m) => m.teamId)
+    // 2. Team registrations where user is a team member (accepted invite)
+    // Find all athlete teams the user belongs to
+    const userMemberships = await db.query.teamMembershipTable.findMany({
+      where: and(
+        eq(teamMembershipTable.userId, data.userId),
+        eq(teamMembershipTable.isActive, true),
+      ),
+      columns: { teamId: true },
+    })
+    const userTeamIds = userMemberships.map((m) => m.teamId)
 
-		let teamRegistrations: typeof directRegistrations = []
-		if (userTeamIds.length > 0) {
-			teamRegistrations = await db.query.competitionRegistrationsTable.findMany(
-				{
-					where: and(
-						eq(competitionRegistrationsTable.eventId, data.competitionId),
-						inArray(competitionRegistrationsTable.athleteTeamId, userTeamIds),
-						isNotNull(competitionRegistrationsTable.athleteTeamId),
-					),
-				},
-			)
-		}
+    let teamRegistrations: typeof directRegistrations = []
+    if (userTeamIds.length > 0) {
+      teamRegistrations = await db.query.competitionRegistrationsTable.findMany(
+        {
+          where: and(
+            eq(competitionRegistrationsTable.eventId, data.competitionId),
+            inArray(competitionRegistrationsTable.athleteTeamId, userTeamIds),
+            isNotNull(competitionRegistrationsTable.athleteTeamId),
+          ),
+        },
+      )
+    }
 
-		// Dedupe by registration ID (captain shows up in both)
-		const allRegistrations = [
-			...directRegistrations,
-			...teamRegistrations.filter(
-				(tr) => !directRegistrations.some((dr) => dr.id === tr.id),
-			),
-		]
+    // Dedupe by registration ID (captain shows up in both)
+    const allRegistrations = [
+      ...directRegistrations,
+      ...teamRegistrations.filter(
+        (tr) => !directRegistrations.some((dr) => dr.id === tr.id),
+      ),
+    ]
 
-		const activeRegistrations = allRegistrations.filter(
-			(r) => r.status !== REGISTRATION_STATUS.REMOVED,
-		)
-		const removedRegistrations = allRegistrations.filter(
-			(r) => r.status === REGISTRATION_STATUS.REMOVED,
-		)
+    const activeRegistrations = allRegistrations.filter(
+      (r) => r.status !== REGISTRATION_STATUS.REMOVED,
+    )
+    const removedRegistrations = allRegistrations.filter(
+      (r) => r.status === REGISTRATION_STATUS.REMOVED,
+    )
 
-		const registeredDivisionIds = activeRegistrations
-			.map((r) => r.divisionId)
-			.filter((id): id is string => id !== null)
+    const registeredDivisionIds = activeRegistrations
+      .map((r) => r.divisionId)
+      .filter((id): id is string => id !== null)
 
-		const removedDivisionIds = removedRegistrations
-			.map((r) => r.divisionId)
-			.filter((id): id is string => id !== null)
+    const removedDivisionIds = removedRegistrations
+      .map((r) => r.divisionId)
+      .filter((id): id is string => id !== null)
 
-		// If user has existing active registrations, fetch their previous answers and waiver signatures
-		let previousAnswers: Array<{ questionId: string; answer: string }> = []
-		let signedWaiverIds: string[] = []
+    // If user has existing active registrations, fetch their previous answers and waiver signatures
+    let previousAnswers: Array<{ questionId: string; answer: string }> = []
+    let signedWaiverIds: string[] = []
 
-		if (activeRegistrations.length > 0) {
-			const registrationIds = activeRegistrations.map((r) => r.id)
+    if (activeRegistrations.length > 0) {
+      const registrationIds = activeRegistrations.map((r) => r.id)
 
-			// Fetch answers from any previous registration (they're the same across divisions)
-			const answers =
-				await db.query.competitionRegistrationAnswersTable.findMany({
-					where: and(
-						eq(competitionRegistrationAnswersTable.userId, data.userId),
-						inArray(
-							competitionRegistrationAnswersTable.registrationId,
-							registrationIds,
-						),
-					),
-					columns: { questionId: true, answer: true },
-				})
+      // Fetch answers from any previous registration (they're the same across divisions)
+      const answers =
+        await db.query.competitionRegistrationAnswersTable.findMany({
+          where: and(
+            eq(competitionRegistrationAnswersTable.userId, data.userId),
+            inArray(
+              competitionRegistrationAnswersTable.registrationId,
+              registrationIds,
+            ),
+          ),
+          columns: { questionId: true, answer: true },
+        })
 
-			// Dedupe by questionId (take first answer found)
-			const seen = new Set<string>()
-			for (const a of answers) {
-				if (!seen.has(a.questionId)) {
-					seen.add(a.questionId)
-					previousAnswers.push({
-						questionId: a.questionId,
-						answer: a.answer,
-					})
-				}
-			}
+      // Dedupe by questionId (take first answer found)
+      const seen = new Set<string>()
+      for (const a of answers) {
+        if (!seen.has(a.questionId)) {
+          seen.add(a.questionId)
+          previousAnswers.push({
+            questionId: a.questionId,
+            answer: a.answer,
+          })
+        }
+      }
 
-			// Fetch waiver signatures for this user on waivers from this competition's registrations
-			const signatures = await db.query.waiverSignaturesTable.findMany({
-				where: eq(waiverSignaturesTable.userId, data.userId),
-				columns: { waiverId: true },
-			})
-			signedWaiverIds = [...new Set(signatures.map((s) => s.waiverId))]
-		}
+      // Fetch waiver signatures for this user on waivers from this competition's registrations
+      const signatures = await db.query.waiverSignaturesTable.findMany({
+        where: eq(waiverSignaturesTable.userId, data.userId),
+        columns: { waiverId: true },
+      })
+      signedWaiverIds = [...new Set(signatures.map((s) => s.waiverId))]
+    }
 
-		return {
-			registrations: activeRegistrations,
-			registeredDivisionIds,
-			removedDivisionIds,
-			previousAnswers,
-			signedWaiverIds,
-		}
-	})
+    return {
+      registrations: activeRegistrations,
+      registeredDivisionIds,
+      removedDivisionIds,
+      previousAnswers,
+      signedWaiverIds,
+    }
+  })
 
 // Server function to get scaling group with levels (avoids client-side db import)
 const getScalingGroupWithLevelsFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
-		z.object({ scalingGroupId: z.string() }).parse(data),
-	)
-	.handler(async ({ data }) => {
-		const { getDb } = await import("@/db")
-		const db = getDb()
-		const scalingGroup = await db.query.scalingGroupsTable.findFirst({
-			where: eq(scalingGroupsTable.id, data.scalingGroupId),
-			with: {
-				scalingLevels: {
-					orderBy: (table, { asc }) => [asc(table.position)],
-				},
-			},
-		})
+  .inputValidator((data: unknown) =>
+    z.object({ scalingGroupId: z.string() }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { getDb } = await import("@/db")
+    const db = getDb()
+    const scalingGroup = await db.query.scalingGroupsTable.findFirst({
+      where: eq(scalingGroupsTable.id, data.scalingGroupId),
+      with: {
+        scalingLevels: {
+          orderBy: (table, { asc }) => [asc(table.position)],
+        },
+      },
+    })
 
-		return { scalingGroup }
-	})
+    return { scalingGroup }
+  })
 
 // Server function to get user's profile info for registration
 const getUserProfileFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
-		z.object({ userId: z.string() }).parse(data),
-	)
-	.handler(async ({ data }) => {
-		const { getDb } = await import("@/db")
-		const db = getDb()
-		const user = await db.query.userTable.findFirst({
-			where: eq(userTable.id, data.userId),
-			columns: {
-				affiliateName: true,
-				firstName: true,
-				lastName: true,
-				email: true,
-			},
-		})
+  .inputValidator((data: unknown) =>
+    z.object({ userId: z.string() }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { getDb } = await import("@/db")
+    const db = getDb()
+    const user = await db.query.userTable.findFirst({
+      where: eq(userTable.id, data.userId),
+      columns: {
+        affiliateName: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+      },
+    })
 
-		return {
-			affiliateName: user?.affiliateName ?? null,
-			firstName: user?.firstName ?? null,
-			lastName: user?.lastName ?? null,
-			email: user?.email ?? null,
-		}
-	})
+    return {
+      affiliateName: user?.affiliateName ?? null,
+      firstName: user?.firstName ?? null,
+      lastName: user?.lastName ?? null,
+      email: user?.email ?? null,
+    }
+  })
 
 export const Route = createFileRoute("/compete/$slug/register")({
-	component: RegisterPage,
-	validateSearch: registerSearchSchema,
-	staleTime: 10_000, // Cache for 10 seconds
-	loaderDeps: ({ search }) => ({ canceled: search.canceled }),
-	loader: async ({ params, context, deps, parentMatchPromise }) => {
-		const { slug } = params
-		const { canceled } = deps
+  component: RegisterPage,
+  validateSearch: registerSearchSchema,
+  staleTime: 10_000, // Cache for 10 seconds
+  loaderDeps: ({ search }) => ({ canceled: search.canceled }),
+  loader: async ({ params, context, deps, parentMatchPromise }) => {
+    const { slug } = params
+    const { canceled } = deps
 
-		// 1. Get competition from parent (parent already validated it's non-null)
-		const parentMatch = await parentMatchPromise
-		const competition = parentMatch.loaderData?.competition
-		if (!competition) {
-			throw notFound()
-		}
+    // 1. Get competition from parent (parent already validated it's non-null)
+    const parentMatch = await parentMatchPromise
+    const competition = parentMatch.loaderData?.competition
+    if (!competition) {
+      throw notFound()
+    }
 
-		// 2. Check authentication
-		const session = context.session ?? null
-		if (!session) {
-			throw redirect({
-				to: "/sign-in",
-				search: { redirect: `/compete/${slug}/register` },
-			})
-		}
+    // 2. Check authentication
+    const session = context.session ?? null
+    if (!session) {
+      throw redirect({
+        to: "/sign-in",
+        search: { redirect: `/compete/${slug}/register` },
+      })
+    }
 
-		// 2.5. If user canceled from Stripe, release their reservation immediately
-		if (canceled === "true") {
-			await cancelPendingPurchaseFn({
-				data: {
-					userId: session.userId,
-					competitionId: competition.id,
-				},
-			})
-		}
+    // 2.5. If user canceled from Stripe, release their reservation immediately
+    if (canceled === "true") {
+      await cancelPendingPurchaseFn({
+        data: {
+          userId: session.userId,
+          competitionId: competition.id,
+        },
+      })
+    }
 
-		// 3. Parallel fetch: existing registrations, affiliate name, waivers, and questions
-		const [
-			{
-				registeredDivisionIds,
-				removedDivisionIds,
-				previousAnswers,
-				signedWaiverIds,
-			},
-			userProfile,
-			{ waivers },
-			{ questions },
-		] = await Promise.all([
-			getUserCompetitionRegistrationsFn({
-				data: {
-					competitionId: competition.id,
-					userId: session.userId,
-				},
-			}),
-			getUserProfileFn({
-				data: { userId: session.userId },
-			}),
-			getCompetitionWaiversFn({
-				data: { competitionId: competition.id },
-			}),
-			getCompetitionQuestionsFn({
-				data: { competitionId: competition.id },
-			}),
-		])
+    // 3. Parallel fetch: existing registrations, affiliate name, waivers, and questions
+    const [
+      {
+        registeredDivisionIds,
+        removedDivisionIds,
+        previousAnswers,
+        signedWaiverIds,
+      },
+      userProfile,
+      { waivers },
+      { questions },
+    ] = await Promise.all([
+      getUserCompetitionRegistrationsFn({
+        data: {
+          competitionId: competition.id,
+          userId: session.userId,
+        },
+      }),
+      getUserProfileFn({
+        data: { userId: session.userId },
+      }),
+      getCompetitionWaiversFn({
+        data: { competitionId: competition.id },
+      }),
+      getCompetitionQuestionsFn({
+        data: { competitionId: competition.id },
+      }),
+    ])
 
-		// No longer redirect if registered - allow registration for additional divisions
+    // No longer redirect if registered - allow registration for additional divisions
 
-		// 4. Check registration window (dates are now YYYY-MM-DD strings)
-		const now = new Date()
-		const todayStr = getLocalDateKey(now)
-		const regOpensAt = competition.registrationOpensAt
-		const regClosesAt = competition.registrationClosesAt
+    // 4. Check registration window (dates are now YYYY-MM-DD strings)
+    const now = new Date()
+    const todayStr = getLocalDateKey(now)
+    const regOpensAt = competition.registrationOpensAt
+    const regClosesAt = competition.registrationClosesAt
 
-		// String comparison works for YYYY-MM-DD format
-		const registrationOpen = !!(
-			regOpensAt &&
-			regClosesAt &&
-			todayStr >= regOpensAt &&
-			todayStr <= regClosesAt
-		)
+    // String comparison works for YYYY-MM-DD format
+    const registrationOpen = !!(
+      regOpensAt &&
+      regClosesAt &&
+      todayStr >= regOpensAt &&
+      todayStr <= regClosesAt
+    )
 
-		// 5. Get competition settings for divisions
-		const settings = parseCompetitionSettings(competition.settings)
-		if (!settings?.divisions?.scalingGroupId) {
-			// No divisions configured - will show error in component
-			return {
-				competition,
-				scalingGroup: null,
-				publicDivisions: [],
-				userId: session.userId,
-				registrationOpen,
-				registrationOpensAt: regOpensAt,
-				registrationClosesAt: regClosesAt,
-				defaultAffiliateName: undefined,
-				divisionsConfigured: false,
-				waivers: [],
-				questions: [],
-				registeredDivisionIds: [],
-				removedDivisionIds: [],
-				previousAnswers: [],
-				signedWaiverIds: [],
-			}
-		}
+    // 5. Get competition settings for divisions
+    const settings = parseCompetitionSettings(competition.settings)
+    if (!settings?.divisions?.scalingGroupId) {
+      // No divisions configured - will show error in component
+      return {
+        competition,
+        scalingGroup: null,
+        publicDivisions: [],
+        competitionCapacity: null,
+        userId: session.userId,
+        registrationOpen,
+        registrationOpensAt: regOpensAt,
+        registrationClosesAt: regClosesAt,
+        defaultAffiliateName: undefined,
+        divisionsConfigured: false,
+        waivers: [],
+        questions: [],
+        registeredDivisionIds: [],
+        removedDivisionIds: [],
+        previousAnswers: [],
+        signedWaiverIds: [],
+      }
+    }
 
-		// 6. Get scaling group and levels for divisions (via server function)
-		// Also get public divisions for capacity info
-		const [{ scalingGroup }, { divisions: publicDivisions }] =
-			await Promise.all([
-				getScalingGroupWithLevelsFn({
-					data: { scalingGroupId: settings.divisions.scalingGroupId },
-				}),
-				getPublicCompetitionDivisionsFn({
-					data: { competitionId: competition.id },
-				}),
-			])
+    // 6. Get scaling group and levels for divisions (via server function)
+    // Also get public divisions for capacity info
+    const [{ scalingGroup }, { divisions: publicDivisions, competitionCapacity }] =
+      await Promise.all([
+        getScalingGroupWithLevelsFn({
+          data: { scalingGroupId: settings.divisions.scalingGroupId },
+        }),
+        getPublicCompetitionDivisionsFn({
+          data: { competitionId: competition.id },
+        }),
+      ])
 
-		if (
-			!scalingGroup ||
-			!scalingGroup.scalingLevels ||
-			scalingGroup.scalingLevels.length === 0
-		) {
-			// Divisions not properly configured - will show error in component
-			return {
-				competition,
-				scalingGroup: null,
-				publicDivisions: [],
-				userId: session.userId,
-				registrationOpen,
-				registrationOpensAt: regOpensAt,
-				registrationClosesAt: regClosesAt,
-				defaultAffiliateName: undefined,
-				divisionsConfigured: false,
-				waivers: [],
-				questions: [],
-				registeredDivisionIds: [],
-				removedDivisionIds: [],
-				previousAnswers: [],
-				signedWaiverIds: [],
-			}
-		}
+    if (
+      !scalingGroup ||
+      !scalingGroup.scalingLevels ||
+      scalingGroup.scalingLevels.length === 0
+    ) {
+      // Divisions not properly configured - will show error in component
+      return {
+        competition,
+        scalingGroup: null,
+        publicDivisions: [],
+        competitionCapacity: null,
+        userId: session.userId,
+        registrationOpen,
+        registrationOpensAt: regOpensAt,
+        registrationClosesAt: regClosesAt,
+        defaultAffiliateName: undefined,
+        divisionsConfigured: false,
+        waivers: [],
+        questions: [],
+        registeredDivisionIds: [],
+        removedDivisionIds: [],
+        previousAnswers: [],
+        signedWaiverIds: [],
+      }
+    }
 
-		return {
-			competition,
-			scalingGroup,
-			publicDivisions,
-			userId: session.userId,
-			registrationOpen,
-			registrationOpensAt: regOpensAt,
-			registrationClosesAt: regClosesAt,
-			defaultAffiliateName: userProfile.affiliateName ?? undefined,
-			divisionsConfigured: true,
-			waivers,
-			questions,
-			userFirstName: userProfile.firstName,
-			userLastName: userProfile.lastName,
-			userEmail: userProfile.email,
-			registeredDivisionIds,
-			removedDivisionIds,
-			previousAnswers,
-			signedWaiverIds,
-		}
-	},
+    return {
+      competition,
+      scalingGroup,
+      publicDivisions,
+      competitionCapacity: competitionCapacity ?? null,
+      userId: session.userId,
+      registrationOpen,
+      registrationOpensAt: regOpensAt,
+      registrationClosesAt: regClosesAt,
+      defaultAffiliateName: userProfile.affiliateName ?? undefined,
+      divisionsConfigured: true,
+      waivers,
+      questions,
+      userFirstName: userProfile.firstName,
+      userLastName: userProfile.lastName,
+      userEmail: userProfile.email,
+      registeredDivisionIds,
+      removedDivisionIds,
+      previousAnswers,
+      signedWaiverIds,
+    }
+  },
 })
 
 function RegisterPage() {
-	const {
-		competition,
-		scalingGroup,
-		publicDivisions,
-		userId,
-		registrationOpen,
-		registrationOpensAt,
-		registrationClosesAt,
-		defaultAffiliateName,
-		divisionsConfigured,
-		waivers,
-		questions,
-		userFirstName,
-		userLastName,
-		userEmail,
-		registeredDivisionIds,
-		removedDivisionIds,
-		previousAnswers,
-		signedWaiverIds,
-	} = Route.useLoaderData()
+  const {
+    competition,
+    scalingGroup,
+    publicDivisions,
+    competitionCapacity,
+    userId,
+    registrationOpen,
+    registrationOpensAt,
+    registrationClosesAt,
+    defaultAffiliateName,
+    divisionsConfigured,
+    waivers,
+    questions,
+    userFirstName,
+    userLastName,
+    userEmail,
+    registeredDivisionIds,
+    removedDivisionIds,
+    previousAnswers,
+    signedWaiverIds,
+  } = Route.useLoaderData()
 
-	const { canceled } = Route.useSearch()
+  const { canceled } = Route.useSearch()
 
-	// Show error if divisions are not configured
-	if (!divisionsConfigured || !scalingGroup) {
-		return (
-			<div className="mx-auto max-w-2xl">
-				<div className="bg-destructive/10 rounded-lg border border-destructive/20 p-6">
-					<h1 className="text-2xl font-bold mb-2">
-						Registration Not Available
-					</h1>
-					<p>
-						{!divisionsConfigured
-							? "This competition does not have divisions configured yet."
-							: "This competition's divisions are not properly configured."}
-					</p>
-				</div>
-			</div>
-		)
-	}
+  // Show error if divisions are not configured
+  if (!divisionsConfigured || !scalingGroup) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <div className="bg-destructive/10 rounded-lg border border-destructive/20 p-6">
+          <h1 className="text-2xl font-bold mb-2">
+            Registration Not Available
+          </h1>
+          <p>
+            {!divisionsConfigured
+              ? "This competition does not have divisions configured yet."
+              : "This competition's divisions are not properly configured."}
+          </p>
+        </div>
+      </div>
+    )
+  }
 
-	return (
-		<div className="mx-auto max-w-2xl">
-			<RegistrationForm
-				competition={competition}
-				scalingGroup={scalingGroup}
-				publicDivisions={publicDivisions}
-				userId={userId}
-				registrationOpen={registrationOpen}
-				registrationOpensAt={registrationOpensAt}
-				registrationClosesAt={registrationClosesAt}
-				paymentCanceled={canceled === "true"}
-				defaultAffiliateName={defaultAffiliateName}
-				waivers={waivers}
-				questions={questions}
-				userFirstName={userFirstName}
-				userLastName={userLastName}
-				userEmail={userEmail}
-				registeredDivisionIds={registeredDivisionIds}
-				removedDivisionIds={removedDivisionIds}
-				previousAnswers={previousAnswers}
-				signedWaiverIds={signedWaiverIds}
-			/>
-		</div>
-	)
+  return (
+    <div className="mx-auto max-w-2xl">
+      <RegistrationForm
+        competition={competition}
+        scalingGroup={scalingGroup}
+        publicDivisions={publicDivisions}
+        competitionCapacity={competitionCapacity}
+        userId={userId}
+        registrationOpen={registrationOpen}
+        registrationOpensAt={registrationOpensAt}
+        registrationClosesAt={registrationClosesAt}
+        paymentCanceled={canceled === "true"}
+        defaultAffiliateName={defaultAffiliateName}
+        waivers={waivers}
+        questions={questions}
+        userFirstName={userFirstName}
+        userLastName={userLastName}
+        userEmail={userEmail}
+        registeredDivisionIds={registeredDivisionIds}
+        removedDivisionIds={removedDivisionIds}
+        previousAnswers={previousAnswers}
+        signedWaiverIds={signedWaiverIds}
+      />
+    </div>
+  )
 }

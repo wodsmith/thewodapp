@@ -16,7 +16,7 @@
 ### Backend (Cloudflare Workers with OpenNext)
 
 - DrizzleORM
-- Cloudflare D1 (SQLite Database)
+- PlanetScale (MySQL Database) via Hyperdrive
 - Cloudflare KV (Session/Cache Storage)
 - Cloudflare R2 (File Storage)
 - OpenNext for SSR/Edge deployment

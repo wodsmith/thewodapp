@@ -5,28 +5,29 @@ import { LeaderboardPageContent } from "@/components/leaderboard-page-content"
 
 const parentRoute = getRouteApi("/compete/$slug")
 
-// Search params schema for division and event selection
+// Search params schema for division, event, and affiliate selection
 const leaderboardSearchSchema = z.object({
-	division: z.string().optional(),
-	event: z.string().optional(),
+  division: z.string().optional(),
+  event: z.string().optional(),
+  affiliate: z.string().optional(),
 })
 
 export const Route = createFileRoute("/compete/$slug/leaderboard")({
-	validateSearch: leaderboardSearchSchema,
-	component: CompetitionLeaderboardPage,
+  validateSearch: leaderboardSearchSchema,
+  component: CompetitionLeaderboardPage,
 })
 
 function CompetitionLeaderboardPage() {
-	const { competition } = parentRoute.useLoaderData()
+  const { competition } = parentRoute.useLoaderData()
 
-	return (
-		<div className="space-y-4">
-			<div className="sticky top-4 z-10">
-				<CompetitionTabs slug={competition.slug} />
-			</div>
-			<div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
-				<LeaderboardPageContent competitionId={competition.id} />
-			</div>
-		</div>
-	)
+  return (
+    <div className="space-y-4">
+      <div className="sticky top-4 z-10">
+        <CompetitionTabs slug={competition.slug} />
+      </div>
+      <div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
+        <LeaderboardPageContent competitionId={competition.id} />
+      </div>
+    </div>
+  )
 }

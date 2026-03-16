@@ -4,19 +4,19 @@
 
 import { aggregateValues } from "../aggregate"
 import {
-	isCountBasedScheme,
-	isDistanceBasedScheme,
-	isLoadBasedScheme,
-	isTimeBasedScheme,
+  isCountBasedScheme,
+  isDistanceBasedScheme,
+  isLoadBasedScheme,
+  isTimeBasedScheme,
 } from "../constants"
 import type {
-	DistanceUnit,
-	EncodeOptions,
-	EncodeRoundsResult,
-	RoundInput,
-	ScoreType,
-	WeightUnit,
-	WorkoutScheme,
+  DistanceUnit,
+  EncodeOptions,
+  EncodeRoundsResult,
+  RoundInput,
+  ScoreType,
+  WeightUnit,
+  WorkoutScheme,
 } from "../types"
 import { encodeDistance, encodeDistanceFromNumber } from "./distance"
 import { encodeLoad, encodeLoadFromNumber } from "./load"
@@ -25,17 +25,17 @@ import { encodeTime, encodeTimeFromSeconds } from "./time"
 
 export { extractRoundsReps } from "../decode/rounds-reps"
 export {
-	encodeDistance,
-	encodeDistanceFromNumber,
-	mmToUnit,
+  encodeDistance,
+  encodeDistanceFromNumber,
+  mmToUnit,
 } from "./distance"
 export { encodeLoad, encodeLoadFromNumber, gramsToUnit } from "./load"
 export { encodeRoundsReps, encodeRoundsRepsFromParts } from "./rounds-reps"
 // Re-export individual encoders
 export {
-	encodeTime,
-	encodeTimeFromMs,
-	encodeTimeFromSeconds,
+  encodeTime,
+  encodeTimeFromMs,
+  encodeTimeFromSeconds,
 } from "./time"
 
 /**
@@ -53,59 +53,59 @@ export {
  * encodeScore("150", "reps")                      // → 150
  */
 export function encodeScore(
-	input: string,
-	scheme: WorkoutScheme,
-	options?: EncodeOptions,
+  input: string,
+  scheme: WorkoutScheme,
+  options?: EncodeOptions,
 ): number | null {
-	const trimmed = input.trim()
-	if (!trimmed) return null
+  const trimmed = input.trim()
+  if (!trimmed) return null
 
-	// Time-based schemes
-	if (isTimeBasedScheme(scheme)) {
-		return encodeTime(trimmed)
-	}
+  // Time-based schemes
+  if (isTimeBasedScheme(scheme)) {
+    return encodeTime(trimmed)
+  }
 
-	// Rounds + Reps
-	if (scheme === "rounds-reps") {
-		return encodeRoundsReps(trimmed)
-	}
+  // Rounds + Reps
+  if (scheme === "rounds-reps") {
+    return encodeRoundsReps(trimmed)
+  }
 
-	// Load (weight)
-	if (isLoadBasedScheme(scheme)) {
-		const unit = (options?.unit as WeightUnit) ?? "lbs"
-		return encodeLoad(trimmed, unit)
-	}
+  // Load (weight)
+  if (isLoadBasedScheme(scheme)) {
+    const unit = (options?.unit as WeightUnit) ?? "lbs"
+    return encodeLoad(trimmed, unit)
+  }
 
-	// Distance
-	if (isDistanceBasedScheme(scheme)) {
-		// Default unit based on scheme
-		const defaultUnit: DistanceUnit = scheme === "feet" ? "ft" : "m"
-		const unit = (options?.unit as DistanceUnit) ?? defaultUnit
-		return encodeDistance(trimmed, unit)
-	}
+  // Distance
+  if (isDistanceBasedScheme(scheme)) {
+    // Default unit based on scheme
+    const defaultUnit: DistanceUnit = scheme === "feet" ? "ft" : "m"
+    const unit = (options?.unit as DistanceUnit) ?? defaultUnit
+    return encodeDistance(trimmed, unit)
+  }
 
-	// Count-based schemes (reps, calories, points)
-	if (isCountBasedScheme(scheme)) {
-		const value = Number.parseInt(trimmed, 10)
-		if (Number.isNaN(value) || value < 0) {
-			return null
-		}
-		return value
-	}
+  // Count-based schemes (reps, calories, points)
+  if (isCountBasedScheme(scheme)) {
+    const value = Number.parseInt(trimmed, 10)
+    if (Number.isNaN(value) || value < 0) {
+      return null
+    }
+    return value
+  }
 
-	// Pass/fail
-	if (scheme === "pass-fail") {
-		const lower = trimmed.toLowerCase()
-		if (lower === "pass" || lower === "p" || lower === "1") {
-			return 1
-		}
-		if (lower === "fail" || lower === "f" || lower === "0") {
-			return 0
-		}
-		return null
-	}
+  // Pass/fail
+  if (scheme === "pass-fail") {
+    const lower = trimmed.toLowerCase()
+    if (lower === "pass" || lower === "p" || lower === "1") {
+      return 1
+    }
+    if (lower === "fail" || lower === "f" || lower === "0") {
+      return 0
+    }
+    return null
+  }
 
-	return null
+  return null
 }
 
 /**
@@ -127,35 +127,35 @@ export function encodeScore(
  * // → { rounds: [102058, 106594, 111130], aggregated: 111130 }
  */
 export function encodeRounds(
-	rounds: RoundInput[],
-	scheme: WorkoutScheme,
-	scoreType: ScoreType,
-	options?: EncodeOptions,
+  rounds: RoundInput[],
+  scheme: WorkoutScheme,
+  scoreType: ScoreType,
+  options?: EncodeOptions,
 ): EncodeRoundsResult {
-	const encodedRounds: number[] = []
+  const encodedRounds: number[] = []
 
-	for (const round of rounds) {
-		// Use round-specific unit if provided, otherwise use options unit
-		const roundOptions: EncodeOptions = {
-			...options,
-			unit: round.unit ?? options?.unit,
-		}
+  for (const round of rounds) {
+    // Use round-specific unit if provided, otherwise use options unit
+    const roundOptions: EncodeOptions = {
+      ...options,
+      unit: round.unit ?? options?.unit,
+    }
 
-		// Use scheme override if provided
-		const effectiveScheme = round.schemeOverride ?? scheme
+    // Use scheme override if provided
+    const effectiveScheme = round.schemeOverride ?? scheme
 
-		const encoded = encodeScore(round.raw, effectiveScheme, roundOptions)
-		if (encoded !== null) {
-			encodedRounds.push(encoded)
-		}
-	}
+    const encoded = encodeScore(round.raw, effectiveScheme, roundOptions)
+    if (encoded !== null) {
+      encodedRounds.push(encoded)
+    }
+  }
 
-	const aggregated = aggregateValues(encodedRounds, scoreType)
+  const aggregated = aggregateValues(encodedRounds, scoreType)
 
-	return {
-		rounds: encodedRounds,
-		aggregated,
-	}
+  return {
+    rounds: encodedRounds,
+    aggregated,
+  }
 }
 
 /**
@@ -167,37 +167,37 @@ export function encodeRounds(
  * @param options - Optional encoding options
  */
 export function encodeNumericScore(
-	value: number,
-	scheme: WorkoutScheme,
-	options?: EncodeOptions,
+  value: number,
+  scheme: WorkoutScheme,
+  options?: EncodeOptions,
 ): number | null {
-	if (Number.isNaN(value) || value < 0) {
-		return null
-	}
+  if (Number.isNaN(value) || value < 0) {
+    return null
+  }
 
-	// Time-based: value is in seconds, convert to ms
-	if (isTimeBasedScheme(scheme)) {
-		return encodeTimeFromSeconds(value)
-	}
+  // Time-based: value is in seconds, convert to ms
+  if (isTimeBasedScheme(scheme)) {
+    return encodeTimeFromSeconds(value)
+  }
 
-	// Rounds+reps: value is already encoded
-	if (scheme === "rounds-reps") {
-		return Math.round(value)
-	}
+  // Rounds+reps: value is already encoded
+  if (scheme === "rounds-reps") {
+    return Math.round(value)
+  }
 
-	// Load: value is in the specified unit
-	if (isLoadBasedScheme(scheme)) {
-		const unit = (options?.unit as WeightUnit) ?? "lbs"
-		return encodeLoadFromNumber(value, unit)
-	}
+  // Load: value is in the specified unit
+  if (isLoadBasedScheme(scheme)) {
+    const unit = (options?.unit as WeightUnit) ?? "lbs"
+    return encodeLoadFromNumber(value, unit)
+  }
 
-	// Distance: value is in the specified unit
-	if (isDistanceBasedScheme(scheme)) {
-		const defaultUnit: DistanceUnit = scheme === "feet" ? "ft" : "m"
-		const unit = (options?.unit as DistanceUnit) ?? defaultUnit
-		return encodeDistanceFromNumber(value, unit)
-	}
+  // Distance: value is in the specified unit
+  if (isDistanceBasedScheme(scheme)) {
+    const defaultUnit: DistanceUnit = scheme === "feet" ? "ft" : "m"
+    const unit = (options?.unit as DistanceUnit) ?? defaultUnit
+    return encodeDistanceFromNumber(value, unit)
+  }
 
-	// Count-based and pass-fail: just round the value
-	return Math.round(value)
+  // Count-based and pass-fail: just round the value
+  return Math.round(value)
 }

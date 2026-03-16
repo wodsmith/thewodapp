@@ -20,18 +20,18 @@ import type { WeightUnit } from "../types"
  * encodeLoad("225.5", "lbs") // → 102285 (grams)
  */
 export function encodeLoad(
-	input: string,
-	unit: WeightUnit = "lbs",
+  input: string,
+  unit: WeightUnit = "lbs",
 ): number | null {
-	const trimmed = input.trim()
-	if (!trimmed) return null
+  const trimmed = input.trim()
+  if (!trimmed) return null
 
-	const value = Number.parseFloat(trimmed)
-	if (Number.isNaN(value) || value < 0) {
-		return null
-	}
+  const value = Number.parseFloat(trimmed)
+  if (Number.isNaN(value) || value < 0) {
+    return null
+  }
 
-	return encodeLoadFromNumber(value, unit)
+  return encodeLoadFromNumber(value, unit)
 }
 
 /**
@@ -45,15 +45,15 @@ export function encodeLoad(
  * encodeLoadFromNumber(100, "kg")    // → 100000
  */
 export function encodeLoadFromNumber(
-	value: number,
-	unit: WeightUnit = "lbs",
+  value: number,
+  unit: WeightUnit = "lbs",
 ): number | null {
-	if (Number.isNaN(value) || value < 0) {
-		return null
-	}
+  if (Number.isNaN(value) || value < 0) {
+    return null
+  }
 
-	const gramsPerUnit = GRAMS_PER_UNIT[unit]
-	return Math.round(value * gramsPerUnit)
+  const gramsPerUnit = GRAMS_PER_UNIT[unit]
+  return Math.round(value * gramsPerUnit)
 }
 
 /**
@@ -65,6 +65,6 @@ export function encodeLoadFromNumber(
  * gramsToUnit(100000, "kg")   // → 100
  */
 export function gramsToUnit(grams: number, unit: WeightUnit): number {
-	const gramsPerUnit = GRAMS_PER_UNIT[unit]
-	return grams / gramsPerUnit
+  const gramsPerUnit = GRAMS_PER_UNIT[unit]
+  return grams / gramsPerUnit
 }

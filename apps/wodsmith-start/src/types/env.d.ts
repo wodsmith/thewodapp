@@ -11,5 +11,5 @@
 import type { Env } from "../../alchemy.run"
 
 declare global {
-	interface CloudflareEnv extends Env {}
+  interface CloudflareEnv extends Env {}
 }

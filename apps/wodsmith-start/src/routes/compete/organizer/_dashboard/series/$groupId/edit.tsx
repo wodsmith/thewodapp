@@ -3,142 +3,142 @@ import { ArrowLeft } from "lucide-react"
 import { OrganizerSeriesForm } from "@/components/organizer-series-form"
 import { Button } from "@/components/ui/button"
 import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card"
 import { getCompetitionGroupByIdFn } from "@/server-fns/competition-fns"
 import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
 
 export const Route = createFileRoute(
-	"/compete/organizer/_dashboard/series/$groupId/edit",
+  "/compete/organizer/_dashboard/series/$groupId/edit",
 )({
-	component: EditSeriesPage,
-	loader: async ({ params, context }) => {
-		const { groupId } = params
-		const { teams: organizingTeams } = await getOrganizerTeamsFn()
-		const isSiteAdmin = context.session?.user?.role === "admin"
+  component: EditSeriesPage,
+  loader: async ({ params, context }) => {
+    const { groupId } = params
+    const { teams: organizingTeams } = await getOrganizerTeamsFn()
+    const isSiteAdmin = context.session?.user?.role === "admin"
 
-		// Fetch group details (needed for both admin and normal flow)
-		const groupResult = await getCompetitionGroupByIdFn({ data: { groupId } })
+    // Fetch group details (needed for both admin and normal flow)
+    const groupResult = await getCompetitionGroupByIdFn({ data: { groupId } })
 
-		if (!groupResult.group) {
-			return {
-				group: null,
-				teamId: null,
-			}
-		}
+    if (!groupResult.group) {
+      return {
+        group: null,
+        teamId: null,
+      }
+    }
 
-		if (organizingTeams.length === 0 && !isSiteAdmin) {
-			return {
-				group: null,
-				teamId: null,
-			}
-		}
+    if (organizingTeams.length === 0 && !isSiteAdmin) {
+      return {
+        group: null,
+        teamId: null,
+      }
+    }
 
-		// Use the group's organizing team if user has access
-		const groupTeamId = groupResult.group.organizingTeamId
-		let teamId: string
-		if (isSiteAdmin || organizingTeams.some((t) => t.id === groupTeamId)) {
-			teamId = groupTeamId
-		} else {
-			const activeTeamId = await getActiveTeamIdFn()
-			teamId =
-				organizingTeams.find((t) => t.id === activeTeamId)?.id ??
-				organizingTeams[0].id
-		}
+    // Use the group's organizing team if user has access
+    const groupTeamId = groupResult.group.organizingTeamId
+    let teamId: string
+    if (isSiteAdmin || organizingTeams.some((t) => t.id === groupTeamId)) {
+      teamId = groupTeamId
+    } else {
+      const activeTeamId = await getActiveTeamIdFn()
+      teamId =
+        organizingTeams.find((t) => t.id === activeTeamId)?.id ??
+        organizingTeams[0].id
+    }
 
-		return {
-			group: groupResult.group,
-			teamId,
-		}
-	},
+    return {
+      group: groupResult.group,
+      teamId,
+    }
+  },
 })
 
 function EditSeriesPage() {
-	const { group, teamId } = Route.useLoaderData()
-	const { groupId } = Route.useParams()
-	const navigate = useNavigate()
+  const { group, teamId } = Route.useLoaderData()
+  const { groupId } = Route.useParams()
+  const navigate = useNavigate()
 
-	if (!teamId) {
-		return (
-			<div className="container mx-auto px-4 py-8">
-				<div className="text-center py-12">
-					<h1 className="text-2xl font-bold mb-4">No Team Found</h1>
-					<p className="text-muted-foreground mb-6">
-						You need to be part of a team to edit series.
-					</p>
-				</div>
-			</div>
-		)
-	}
+  if (!teamId) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-12">
+          <h1 className="text-2xl font-bold mb-4">No Team Found</h1>
+          <p className="text-muted-foreground mb-6">
+            You need to be part of a team to edit series.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
-	if (!group) {
-		return (
-			<div className="container mx-auto px-4 py-8">
-				<div className="text-center py-12">
-					<h1 className="text-2xl font-bold mb-4">Series Not Found</h1>
-					<p className="text-muted-foreground mb-6">
-						The series you're looking for doesn't exist or you don't have
-						permission to edit it.
-					</p>
-					<Button variant="outline" asChild>
-						<a href="/compete/organizer/series">
-							<ArrowLeft className="h-4 w-4 mr-2" />
-							Back to Series
-						</a>
-					</Button>
-				</div>
-			</div>
-		)
-	}
+  if (!group) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-12">
+          <h1 className="text-2xl font-bold mb-4">Series Not Found</h1>
+          <p className="text-muted-foreground mb-6">
+            The series you're looking for doesn't exist or you don't have
+            permission to edit it.
+          </p>
+          <Button variant="outline" asChild>
+            <a href="/compete/organizer/series">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Series
+            </a>
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
-	const handleSuccess = () => {
-		// Navigate back to series detail page after successful update
-		navigate({ to: "/compete/organizer/series/$groupId", params: { groupId } })
-	}
+  const handleSuccess = () => {
+    // Navigate back to series detail page after successful update
+    navigate({ to: "/compete/organizer/series/$groupId", params: { groupId } })
+  }
 
-	const handleCancel = () => {
-		navigate({ to: "/compete/organizer/series/$groupId", params: { groupId } })
-	}
+  const handleCancel = () => {
+    navigate({ to: "/compete/organizer/series/$groupId", params: { groupId } })
+  }
 
-	return (
-		<div className="container mx-auto px-4 py-8">
-			<div className="flex flex-col gap-6 max-w-2xl mx-auto">
-				{/* Header */}
-				<div>
-					<div className="mb-4">
-						<Button variant="ghost" size="sm" onClick={handleCancel}>
-							<ArrowLeft className="h-4 w-4 mr-2" />
-							Back to {group.name}
-						</Button>
-					</div>
-					<h1 className="text-3xl font-bold">Edit Series</h1>
-					<p className="text-muted-foreground mt-1">
-						Update the details for {group.name}
-					</p>
-				</div>
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex flex-col gap-6 max-w-2xl mx-auto">
+        {/* Header */}
+        <div>
+          <div className="mb-4">
+            <Button variant="ghost" size="sm" onClick={handleCancel}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to {group.name}
+            </Button>
+          </div>
+          <h1 className="text-3xl font-bold">Edit Series</h1>
+          <p className="text-muted-foreground mt-1">
+            Update the details for {group.name}
+          </p>
+        </div>
 
-				{/* Form Card */}
-				<Card>
-					<CardHeader>
-						<CardTitle>Series Details</CardTitle>
-						<CardDescription>
-							Update the information for this competition series
-						</CardDescription>
-					</CardHeader>
-					<CardContent>
-						<OrganizerSeriesForm
-							organizingTeamId={teamId}
-							series={group}
-							onSuccess={handleSuccess}
-							onCancel={handleCancel}
-						/>
-					</CardContent>
-				</Card>
-			</div>
-		</div>
-	)
+        {/* Form Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Series Details</CardTitle>
+            <CardDescription>
+              Update the information for this competition series
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <OrganizerSeriesForm
+              organizingTeamId={teamId}
+              series={group}
+              onSuccess={handleSuccess}
+              onCancel={handleCancel}
+            />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
 }
