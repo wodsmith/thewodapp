@@ -2,11 +2,10 @@
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useNavigate, useRouter } from "@tanstack/react-router"
-import { useForm } from "react-hook-form"
 import { useEffect, useState } from "react"
+import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
-import { trackEvent } from "@/lib/posthog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -28,11 +27,12 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
+import { trackEvent } from "@/lib/posthog"
+import { initializeCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import {
   createCompetitionFn,
   updateCompetitionFn,
 } from "@/server-fns/competition-fns"
-import { initializeCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { COMMON_US_TIMEZONES, DEFAULT_TIMEZONE } from "@/utils/timezone-utils"
 
 const formSchema = z
@@ -181,7 +181,7 @@ export function OrganizerCompetitionForm({
 
   // Track selected divisions for series template
   const templateData = watchedGroupId
-    ? seriesTemplateDivisions[watchedGroupId] ?? null
+    ? (seriesTemplateDivisions[watchedGroupId] ?? null)
     : null
   const templateDivisions = templateData?.divisions ?? []
   const [selectedDivisionIds, setSelectedDivisionIds] = useState<Set<string>>(
@@ -191,7 +191,7 @@ export function OrganizerCompetitionForm({
   // When group changes, select all template divisions by default
   useEffect(() => {
     const data = watchedGroupId
-      ? seriesTemplateDivisions[watchedGroupId] ?? null
+      ? (seriesTemplateDivisions[watchedGroupId] ?? null)
       : null
     setSelectedDivisionIds(new Set((data?.divisions ?? []).map((d) => d.id)))
   }, [watchedGroupId, seriesTemplateDivisions])
@@ -480,6 +480,7 @@ export function OrganizerCompetitionForm({
             </div>
             <div className="space-y-2">
               {templateDivisions.map((div) => (
+                // biome-ignore lint/a11y/noLabelWithoutControl: Radix Checkbox renders internal input
                 <label
                   key={div.id}
                   className="flex items-center gap-2 cursor-pointer"

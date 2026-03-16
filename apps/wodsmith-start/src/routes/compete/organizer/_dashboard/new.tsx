@@ -4,192 +4,192 @@ import { z } from "zod"
 import { OrganizerCompetitionForm } from "@/components/organizer-competition-form"
 import { Button } from "@/components/ui/button"
 import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card"
 import {
-	getCompetitionGroupByIdFn,
-	getCompetitionGroupsFn,
+  getCompetitionGroupByIdFn,
+  getCompetitionGroupsFn,
 } from "@/server-fns/competition-fns"
 import { getSeriesTemplateDivisionsFn } from "@/server-fns/series-division-mapping-fns"
 import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
 
 const searchSchema = z.object({
-	groupId: z.string().optional(),
+  groupId: z.string().optional(),
 })
 
 export const Route = createFileRoute("/compete/organizer/_dashboard/new")({
-	component: NewCompetitionPage,
-	validateSearch: searchSchema,
-	loaderDeps: ({ search }) => ({ groupId: search.groupId }),
-	loader: async ({ deps }) => {
-		// Get teams that can organize competitions (non-personal, with HOST_COMPETITIONS)
-		const { teams: organizingTeams } = await getOrganizerTeamsFn()
+  component: NewCompetitionPage,
+  validateSearch: searchSchema,
+  loaderDeps: ({ search }) => ({ groupId: search.groupId }),
+  loader: async ({ deps }) => {
+    // Get teams that can organize competitions (non-personal, with HOST_COMPETITIONS)
+    const { teams: organizingTeams } = await getOrganizerTeamsFn()
 
-		if (organizingTeams.length === 0) {
-			return {
-				teams: [],
-				groups: [],
-				selectedTeamId: null,
-				seriesTemplateDivisions: {} as Record<
-					string,
-					{
-						scalingGroupId: string
-						divisions: Array<{
-							id: string
-							label: string
-							teamSize: number
-						}>
-					}
-				>,
-			}
-		}
+    if (organizingTeams.length === 0) {
+      return {
+        teams: [],
+        groups: [],
+        selectedTeamId: null,
+        seriesTemplateDivisions: {} as Record<
+          string,
+          {
+            scalingGroupId: string
+            divisions: Array<{
+              id: string
+              label: string
+              teamSize: number
+            }>
+          }
+        >,
+      }
+    }
 
-		// Get active team from cookie, or use first organizing team
-		let selectedTeamId = await getActiveTeamIdFn()
+    // Get active team from cookie, or use first organizing team
+    let selectedTeamId = await getActiveTeamIdFn()
 
-		// If a groupId is provided, look up the group's organizing team
-		// so the competition is created under the correct team
-		if (deps.groupId) {
-			const groupResult = await getCompetitionGroupByIdFn({
-				data: { groupId: deps.groupId },
-			})
-			if (groupResult.group) {
-				const groupTeamId = groupResult.group.organizingTeamId
-				// Use the group's team if the user has access to it
-				if (organizingTeams.some((t) => t.id === groupTeamId)) {
-					selectedTeamId = groupTeamId
-				}
-			}
-		}
+    // If a groupId is provided, look up the group's organizing team
+    // so the competition is created under the correct team
+    if (deps.groupId) {
+      const groupResult = await getCompetitionGroupByIdFn({
+        data: { groupId: deps.groupId },
+      })
+      if (groupResult.group) {
+        const groupTeamId = groupResult.group.organizingTeamId
+        // Use the group's team if the user has access to it
+        if (organizingTeams.some((t) => t.id === groupTeamId)) {
+          selectedTeamId = groupTeamId
+        }
+      }
+    }
 
-		// Ensure selected team is an organizing team
-		const isSelectedTeamAnOrganizer = organizingTeams.some(
-			(team) => team.id === selectedTeamId,
-		)
-		if (!isSelectedTeamAnOrganizer) {
-			selectedTeamId = organizingTeams[0].id
-		}
+    // Ensure selected team is an organizing team
+    const isSelectedTeamAnOrganizer = organizingTeams.some(
+      (team) => team.id === selectedTeamId,
+    )
+    if (!isSelectedTeamAnOrganizer) {
+      selectedTeamId = organizingTeams[0].id
+    }
 
-		// Fetch groups for the selected team
-		const groupsResult = await getCompetitionGroupsFn({
-			data: { teamId: selectedTeamId },
-		})
+    // Fetch groups for the selected team
+    const groupsResult = await getCompetitionGroupsFn({
+      data: { teamId: selectedTeamId },
+    })
 
-		// Load template divisions for all groups that have templates
-		const seriesTemplateDivisions: Record<
-			string,
-			{
-				scalingGroupId: string
-				divisions: Array<{
-					id: string
-					label: string
-					teamSize: number
-				}>
-			}
-		> = {}
-		for (const group of groupsResult.groups) {
-			try {
-				const result = await getSeriesTemplateDivisionsFn({
-					data: { groupId: group.id },
-				})
-				if (result.scalingGroupId && result.divisions.length > 0) {
-					seriesTemplateDivisions[group.id] = {
-						scalingGroupId: result.scalingGroupId,
-						divisions: result.divisions,
-					}
-				}
-			} catch {
-				// Template not configured — skip
-			}
-		}
+    // Load template divisions for all groups that have templates
+    const seriesTemplateDivisions: Record<
+      string,
+      {
+        scalingGroupId: string
+        divisions: Array<{
+          id: string
+          label: string
+          teamSize: number
+        }>
+      }
+    > = {}
+    for (const group of groupsResult.groups) {
+      try {
+        const result = await getSeriesTemplateDivisionsFn({
+          data: { groupId: group.id },
+        })
+        if (result.scalingGroupId && result.divisions.length > 0) {
+          seriesTemplateDivisions[group.id] = {
+            scalingGroupId: result.scalingGroupId,
+            divisions: result.divisions,
+          }
+        }
+      } catch {
+        // Template not configured — skip
+      }
+    }
 
-		return {
-			teams: organizingTeams,
-			groups: groupsResult.groups,
-			selectedTeamId,
-			seriesTemplateDivisions,
-		}
-	},
+    return {
+      teams: organizingTeams,
+      groups: groupsResult.groups,
+      selectedTeamId,
+      seriesTemplateDivisions,
+    }
+  },
 })
 
 function NewCompetitionPage() {
-	const { teams, groups, selectedTeamId, seriesTemplateDivisions } =
-		Route.useLoaderData()
-	const { groupId } = Route.useSearch()
-	const navigate = useNavigate()
+  const { teams, groups, selectedTeamId, seriesTemplateDivisions } =
+    Route.useLoaderData()
+  const { groupId } = Route.useSearch()
+  const navigate = useNavigate()
 
-	if (!selectedTeamId) {
-		return (
-			<div className="container mx-auto px-4 py-8">
-				<div className="text-center py-12">
-					<h1 className="text-2xl font-bold mb-4">No Team Found</h1>
-					<p className="text-muted-foreground mb-6">
-						You need to be part of a team to create competitions.
-					</p>
-				</div>
-			</div>
-		)
-	}
+  if (!selectedTeamId) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-12">
+          <h1 className="text-2xl font-bold mb-4">No Team Found</h1>
+          <p className="text-muted-foreground mb-6">
+            You need to be part of a team to create competitions.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
-	const handleSuccess = (_competitionId: string) => {
-		// Navigate to organizer dashboard after successful creation
-		navigate({ to: "/compete/organizer" })
-	}
+  const handleSuccess = (_competitionId: string) => {
+    // Navigate to organizer dashboard after successful creation
+    navigate({ to: "/compete/organizer" })
+  }
 
-	const handleCancel = () => {
-		// Navigate back - if we came from a series page, go back there
-		if (groupId) {
-			navigate({
-				to: "/compete/organizer/series/$groupId",
-				params: { groupId },
-			})
-		} else {
-			navigate({ to: "/compete/organizer" })
-		}
-	}
+  const handleCancel = () => {
+    // Navigate back - if we came from a series page, go back there
+    if (groupId) {
+      navigate({
+        to: "/compete/organizer/series/$groupId",
+        params: { groupId },
+      })
+    } else {
+      navigate({ to: "/compete/organizer" })
+    }
+  }
 
-	return (
-		<div className="container mx-auto px-4 py-8">
-			<div className="flex flex-col gap-6 max-w-2xl mx-auto">
-				{/* Header */}
-				<div>
-					<div className="mb-4">
-						<Button variant="ghost" size="sm" onClick={handleCancel}>
-							<ArrowLeft className="h-4 w-4 mr-2" />
-							Back
-						</Button>
-					</div>
-					<h1 className="text-3xl font-bold">Create Competition</h1>
-					<p className="text-muted-foreground mt-1">
-						Set up a new competition for your team
-					</p>
-				</div>
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex flex-col gap-6 max-w-2xl mx-auto">
+        {/* Header */}
+        <div>
+          <div className="mb-4">
+            <Button variant="ghost" size="sm" onClick={handleCancel}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+          </div>
+          <h1 className="text-3xl font-bold">Create Competition</h1>
+          <p className="text-muted-foreground mt-1">
+            Set up a new competition for your team
+          </p>
+        </div>
 
-				{/* Form Card */}
-				<Card>
-					<CardHeader>
-						<CardTitle>Competition Details</CardTitle>
-						<CardDescription>
-							Enter the basic information for your competition
-						</CardDescription>
-					</CardHeader>
-					<CardContent>
-						<OrganizerCompetitionForm
-							teams={teams}
-							selectedTeamId={selectedTeamId}
-							groups={groups}
-							defaultGroupId={groupId}
-							seriesTemplateDivisions={seriesTemplateDivisions}
-							onSuccess={handleSuccess}
-							onCancel={handleCancel}
-						/>
-					</CardContent>
-				</Card>
-			</div>
-		</div>
-	)
+        {/* Form Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Competition Details</CardTitle>
+            <CardDescription>
+              Enter the basic information for your competition
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <OrganizerCompetitionForm
+              teams={teams}
+              selectedTeamId={selectedTeamId}
+              groups={groups}
+              defaultGroupId={groupId}
+              seriesTemplateDivisions={seriesTemplateDivisions}
+              onSuccess={handleSuccess}
+              onCancel={handleCancel}
+            />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
 }
