@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { Link, createFileRoute } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { useState } from "react"
 import { DocumentTable } from "@/components/document-table"
@@ -81,6 +81,20 @@ function DocumentsPage() {
 						/>
 						<h1 className="text-lg font-semibold">WODsmith Ledger</h1>
 					</div>
+					<nav className="flex items-center gap-1">
+						<Link
+							to="/documents"
+							className="px-3 py-1.5 text-sm font-medium rounded-md bg-accent"
+						>
+							Documents
+						</Link>
+						<Link
+							to="/platform-transactions"
+							className="px-3 py-1.5 text-sm font-medium rounded-md hover:bg-accent text-muted-foreground"
+						>
+							Transactions
+						</Link>
+					</nav>
 					<div className="flex items-center gap-2">
 						<button
 							type="button"

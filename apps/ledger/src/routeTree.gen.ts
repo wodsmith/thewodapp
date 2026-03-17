@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedDocumentsRouteImport } from './routes/_authenticated/documents'
+import { Route as AuthenticatedPlatformTransactionsRouteImport } from './routes/_authenticated/platform-transactions'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
@@ -27,27 +28,35 @@ const AuthenticatedDocumentsRoute = AuthenticatedDocumentsRouteImport.update({
   path: '/documents',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedPlatformTransactionsRoute = AuthenticatedPlatformTransactionsRouteImport.update({
+  id: '/platform-transactions',
+  path: '/platform-transactions',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/documents': typeof AuthenticatedDocumentsRoute
+  '/platform-transactions': typeof AuthenticatedPlatformTransactionsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/documents': typeof AuthenticatedDocumentsRoute
+  '/platform-transactions': typeof AuthenticatedPlatformTransactionsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/_authenticated/documents': typeof AuthenticatedDocumentsRoute
+  '/_authenticated/platform-transactions': typeof AuthenticatedPlatformTransactionsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/documents'
+  fullPaths: '/' | '/documents' | '/platform-transactions'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/documents'
-  id: '__root__' | '/' | '/_authenticated' | '/_authenticated/documents'
+  to: '/' | '/documents' | '/platform-transactions'
+  id: '__root__' | '/' | '/_authenticated' | '/_authenticated/documents' | '/_authenticated/platform-transactions'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -78,15 +87,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDocumentsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/platform-transactions': {
+      id: '/_authenticated/platform-transactions'
+      path: '/platform-transactions'
+      fullPath: '/platform-transactions'
+      preLoaderRoute: typeof AuthenticatedPlatformTransactionsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
 interface AuthenticatedRouteChildren {
   AuthenticatedDocumentsRoute: typeof AuthenticatedDocumentsRoute
+  AuthenticatedPlatformTransactionsRoute: typeof AuthenticatedPlatformTransactionsRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDocumentsRoute: AuthenticatedDocumentsRoute,
+  AuthenticatedPlatformTransactionsRoute: AuthenticatedPlatformTransactionsRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
