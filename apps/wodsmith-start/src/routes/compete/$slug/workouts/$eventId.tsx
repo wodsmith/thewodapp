@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 import { z } from "zod"
 import { VideoSubmissionForm } from "@/components/compete/video-submission-form"
+import { formatTrackOrder } from "@/utils/format-track-order"
 import { EventHeatSchedule } from "@/components/event-heat-schedule"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import { Badge } from "@/components/ui/badge"
@@ -296,7 +297,7 @@ function EventDetailsPage() {
               <div className="space-y-1">
                 <div className="flex items-center gap-3">
                   <Badge variant="outline" className="text-xs font-medium">
-                    Event {event.trackOrder} of {totalEvents}
+                    Event {formatTrackOrder(event.trackOrder)} of {totalEvents}
                   </Badge>
                   {event.sponsorName && (
                     <span className="text-xs text-muted-foreground">

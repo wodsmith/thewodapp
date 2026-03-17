@@ -388,10 +388,6 @@ export async function getCompetitionLeaderboard(params: {
       .filter((tw) => tw.parentEventId)
       .map((tw) => tw.parentEventId as string),
   )
-  const parentEvents = filteredTrackWorkouts.filter((tw) =>
-    childEventIds.has(tw.id),
-  )
-  const childEvents = filteredTrackWorkouts.filter((tw) => tw.parentEventId)
   // Scorable events = standalone + children (parents have no scores of their own)
   const scorableEvents = filteredTrackWorkouts.filter(
     (tw) => !childEventIds.has(tw.id),
@@ -728,42 +724,8 @@ export async function getCompetitionLeaderboard(params: {
     }
   }
 
-  // Aggregate sub-event points into parent event entries.
-  // Each parent gets an eventResults entry whose points = sum of its children's points.
-  for (const parent of parentEvents) {
-    const childIds = childEvents
-      .filter((c) => c.parentEventId === parent.id)
-      .map((c) => c.id)
-
-    for (const [_regId, entry] of leaderboardMap) {
-      const childResults = entry.eventResults.filter((er) =>
-        childIds.includes(er.trackWorkoutId),
-      )
-      const aggregatedPoints = childResults.reduce(
-        (sum, er) => sum + er.points,
-        0,
-      )
-
-      entry.eventResults.push({
-        trackWorkoutId: parent.id,
-        trackOrder: parent.trackOrder,
-        eventName: parent.workout.name,
-        scheme: parent.workout.scheme,
-        rank: 0, // Parent has no individual rank
-        points: aggregatedPoints,
-        rawScore: null,
-        formattedScore: `${childResults.filter((r) => r.rawScore !== null).length}/${childIds.length} scored`,
-        formattedTiebreak: null,
-        penaltyType: null,
-        penaltyPercentage: null,
-        isDirectlyModified: false,
-        videoUrl: null,
-        videoSubmissionId: null,
-        parentEventId: null,
-        isParentEvent: true,
-      })
-    }
-  }
+  // Parent events are not scored directly — sub-events appear as top-level columns
+  // on the leaderboard, so we skip adding parent aggregate entries to eventResults.
 
   // Convert to array and apply tiebreakers for overall ranking
   const leaderboard = Array.from(leaderboardMap.values())
@@ -813,13 +775,16 @@ export async function getCompetitionLeaderboard(params: {
     return a.overallRank - b.overallRank
   })
 
-  // Build events list for the response
-  const events = filteredTrackWorkouts.map((tw) => ({
-    trackWorkoutId: tw.id,
-    name: tw.workout.name,
-    parentEventId: tw.parentEventId,
-    isParentEvent: childEventIds.has(tw.id),
-  }))
+  // Build events list for the response — exclude parent events since sub-events
+  // appear as top-level columns on the leaderboard
+  const events = filteredTrackWorkouts
+    .filter((tw) => !childEventIds.has(tw.id))
+    .map((tw) => ({
+      trackWorkoutId: tw.id,
+      name: tw.workout.name,
+      parentEventId: tw.parentEventId,
+      isParentEvent: false,
+    }))
 
   return {
     entries: sortedEntries,

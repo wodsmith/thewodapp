@@ -23,6 +23,7 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { z } from "zod"
+import { formatTrackOrder } from "@/utils/format-track-order"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -273,7 +274,7 @@ function SubmissionsPage() {
         <div>
           <h1 className="text-2xl font-bold">Video Submissions</h1>
           <p className="text-muted-foreground">
-            Event #{event.trackOrder} - {event.workout.name}
+            Event #{formatTrackOrder(event.trackOrder)} - {event.workout.name}
           </p>
         </div>
         <Button asChild variant="outline" size="sm">
