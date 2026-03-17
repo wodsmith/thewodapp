@@ -14,6 +14,14 @@ import {
   saveSeriesDivisionMappingsFn,
 } from "@/server-fns/series-division-mapping-fns"
 
+function mapsEqual(a: Map<string, string>, b: Map<string, string>): boolean {
+  if (a.size !== b.size) return false
+  for (const [k, v] of a) {
+    if (b.get(k) !== v) return false
+  }
+  return true
+}
+
 interface Props {
   groupId: string
   template: SeriesTemplateData
@@ -39,22 +47,31 @@ export function SeriesDivisionMapper({
     useState<SeriesDivisionMappingData[]>(initialMappings)
   // Increment to force uncontrolled <select> elements to remount with new defaultValues
   const [revision, setRevision] = useState(0)
-  // Dirty if any mapping has a value selected but isn't saved in DB
-  const hasUnsavedSuggestions = initialMappings.some((comp) =>
-    comp.mappings.some((m) => m.seriesDivisionId !== null && !m.saved),
-  )
-  const [isDirty, setIsDirty] = useState(hasUnsavedSuggestions)
+  // Track per-competition dirty state so reverting a change clears the banner
+  const [dirtyComps, setDirtyComps] = useState<Set<string>>(() => {
+    const dirty = new Set<string>()
+    for (const comp of initialMappings) {
+      if (comp.mappings.some((m) => m.seriesDivisionId !== null && !m.saved)) {
+        dirty.add(comp.competitionId)
+      }
+    }
+    return dirty
+  })
+  const isDirty = dirtyComps.size > 0
   const [showOnlyUnmapped, setShowOnlyUnmapped] = useState(false)
 
   // Sync when parent refreshes data (e.g. after save)
   useEffect(() => {
     setMappings(initialMappings)
     setRevision((r) => r + 1)
-    // Still dirty if there are unsaved auto-map suggestions
-    const hasUnsaved = initialMappings.some((comp) =>
-      comp.mappings.some((m) => m.seriesDivisionId !== null && !m.saved),
-    )
-    setIsDirty(hasUnsaved)
+    // Recompute per-comp dirty state from fresh data
+    const dirty = new Set<string>()
+    for (const comp of initialMappings) {
+      if (comp.mappings.some((m) => m.seriesDivisionId !== null && !m.saved)) {
+        dirty.add(comp.competitionId)
+      }
+    }
+    setDirtyComps(dirty)
     // Turn off filter if no comps have unmapped divisions anymore
     const stillHasUnmapped = initialMappings.some((comp) =>
       comp.mappings.some((m) => m.seriesDivisionId === null),
@@ -73,7 +90,7 @@ export function SeriesDivisionMapper({
       const result = await autoMap({ data: { groupId } })
       setMappings(result.competitionMappings)
       setRevision((r) => r + 1)
-      setIsDirty(true)
+      setDirtyComps(new Set(result.competitionMappings.map((c) => c.competitionId)))
       toast.success("Auto-mapped divisions")
     } catch (e) {
       toast.error(
@@ -227,7 +244,17 @@ export function SeriesDivisionMapper({
                     key={`${comp.competitionId}-${revision}`}
                     comp={comp}
                     template={template}
-                    onChanged={() => setIsDirty(true)}
+                    onDirtyChange={(dirty) => {
+                      setDirtyComps((prev) => {
+                        const next = new Set(prev)
+                        if (dirty) {
+                          next.add(comp.competitionId)
+                        } else {
+                          next.delete(comp.competitionId)
+                        }
+                        return next
+                      })
+                    }}
                     hidden={hidden}
                   />
                 )
@@ -248,12 +275,12 @@ export function SeriesDivisionMapper({
 function CompetitionRow({
   comp,
   template,
-  onChanged,
+  onDirtyChange,
   hidden,
 }: {
   comp: SeriesDivisionMappingData
   template: SeriesTemplateData
-  onChanged: () => void
+  onDirtyChange: (dirty: boolean) => void
   hidden?: boolean
 }) {
   // Build initial state: seriesDivisionId → competitionDivisionId
@@ -300,9 +327,11 @@ function CompetitionRow({
       } else {
         next.set(seriesDivId, compDivId)
       }
+      // Compare against saved state to determine if this row is dirty
+      const isDirty = !mapsEqual(next, savedSelections)
+      onDirtyChange(isDirty)
       return next
     })
-    onChanged()
   }
 
   const unmappedCount = comp.mappings.filter(

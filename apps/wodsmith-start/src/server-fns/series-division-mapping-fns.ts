@@ -1209,12 +1209,18 @@ export const previewSyncToCompetitionsFn = createServerFn({ method: "GET" })
       return { competitions: [], totalDivisions: 0 }
     }
 
-    // Load competition names
+    // Load competition names (scoped to team for multi-tenant safety)
+    const teamId = group.organizingTeamId
     const compIds = [...new Set(mappings.map((m) => m.competitionId))]
     const comps = await db
       .select({ id: competitionsTable.id, name: competitionsTable.name })
       .from(competitionsTable)
-      .where(inArray(competitionsTable.id, compIds))
+      .where(
+        and(
+          inArray(competitionsTable.id, compIds),
+          eq(competitionsTable.organizingTeamId, teamId),
+        ),
+      )
     const compNameMap = new Map(comps.map((c) => [c.id, c.name]))
 
     // Load competition division labels (scaling levels)
@@ -1237,7 +1243,12 @@ export const previewSyncToCompetitionsFn = createServerFn({ method: "GET" })
         ? await db
             .select()
             .from(competitionDivisionsTable)
-            .where(inArray(competitionDivisionsTable.competitionId, compIds))
+            .where(
+              and(
+                inArray(competitionDivisionsTable.competitionId, compIds),
+                inArray(competitionDivisionsTable.divisionId, compDivIds),
+              ),
+            )
         : []
     // Key: "compId::divId" → row
     const compDivConfigMap = new Map(
