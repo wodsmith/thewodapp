@@ -336,11 +336,13 @@ function CompetitionRow({
               value={selectedCompDivId}
               onChange={(e) => handleChange(sd.id, e.target.value)}
               className={`h-7 text-xs rounded-md border px-1.5 py-0.5 w-full max-w-[140px] mx-auto block focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer ${
-                selectedCompDivId === "__none__"
+                selectedCompDivId === "__none__" && !savedSelections.has(sd.id)
                   ? "border-dashed border-muted-foreground/30 text-muted-foreground"
-                  : savedSelections.get(sd.id) === selectedCompDivId
-                    ? "border-green-300 bg-green-50 text-green-800 dark:bg-green-950/30 dark:text-green-300"
-                    : "border-orange-300 bg-orange-50 text-orange-800 dark:bg-orange-950/30 dark:text-orange-300"
+                  : selectedCompDivId === "__none__" && savedSelections.has(sd.id)
+                    ? "border-orange-300 bg-orange-50 text-orange-800 dark:bg-orange-950/30 dark:text-orange-300"
+                    : savedSelections.get(sd.id) === selectedCompDivId
+                      ? "border-green-300 bg-green-50 text-green-800 dark:bg-green-950/30 dark:text-green-300"
+                      : "border-orange-300 bg-orange-50 text-orange-800 dark:bg-orange-950/30 dark:text-orange-300"
               }`}
               data-comp-id={comp.competitionId}
               data-series-div-id={sd.id}

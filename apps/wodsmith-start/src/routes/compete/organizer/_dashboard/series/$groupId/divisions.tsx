@@ -15,7 +15,7 @@ import {
   Trash2,
   Users,
 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { SeriesDivisionMapper } from "@/components/series-division-mapper"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -986,10 +986,17 @@ function FeeInput({
   const [value, setValue] = useState(
     feeCents > 0 ? (feeCents / 100).toFixed(2) : "",
   )
+  // Track the last cents value we set from the input to avoid
+  // useEffect re-formatting during typing
+  const lastSelfCents = useRef(feeCents)
 
-  // Sync when feeCents changes externally (e.g. reorder/delete)
+  // Sync only when feeCents changes externally (e.g. reorder/delete),
+  // not when it changes from our own onChange
   useEffect(() => {
-    setValue(feeCents > 0 ? (feeCents / 100).toFixed(2) : "")
+    if (feeCents !== lastSelfCents.current) {
+      setValue(feeCents > 0 ? (feeCents / 100).toFixed(2) : "")
+      lastSelfCents.current = feeCents
+    }
   }, [feeCents])
 
   return (
@@ -1003,7 +1010,9 @@ function FeeInput({
         onChange={(e) => {
           setValue(e.target.value)
           const dollars = Number.parseFloat(e.target.value)
-          onChange(Number.isNaN(dollars) ? 0 : Math.round(dollars * 100))
+          const cents = Number.isNaN(dollars) ? 0 : Math.round(dollars * 100)
+          lastSelfCents.current = cents
+          onChange(cents)
         }}
         placeholder="0.00"
         className="w-[100px] h-7 text-xs"
