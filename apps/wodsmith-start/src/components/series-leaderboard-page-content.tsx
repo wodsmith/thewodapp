@@ -1,8 +1,8 @@
 "use client"
 
-import { Link, useNavigate, useSearch } from "@tanstack/react-router"
+import { useNavigate, useSearch } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { AlertTriangle, BarChart3 } from "lucide-react"
+import { BarChart3 } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { SeriesLeaderboardTable } from "@/components/series-leaderboard-table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -16,7 +16,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   getSeriesLeaderboardFn,
-  type SeriesDivisionHealth,
   type SeriesLeaderboardEntry,
 } from "@/server-fns/series-leaderboard-fns"
 import type { ScoringAlgorithm } from "@/types/scoring"
@@ -33,9 +32,6 @@ export function SeriesLeaderboardPageContent({ groupId }: Props) {
   const [seriesEvents, setSeriesEvents] = useState<
     Array<{ workoutId: string; name: string; scheme: string }>
   >([])
-  const [divisionHealth, setDivisionHealth] = useState<SeriesDivisionHealth[]>(
-    [],
-  )
   const [availableDivisions, setAvailableDivisions] = useState<
     Array<{ id: string; label: string }>
   >([])
@@ -63,7 +59,6 @@ export function SeriesLeaderboardPageContent({ groupId }: Props) {
         if (cancelled) return
         setEntries(result.entries)
         setSeriesEvents(result.seriesEvents)
-        setDivisionHealth(result.divisionHealth)
         setAvailableDivisions(result.availableDivisions)
         setScoringAlgorithm(result.scoringConfig.algorithm)
       })
@@ -102,9 +97,6 @@ export function SeriesLeaderboardPageContent({ groupId }: Props) {
     if (!selectedDivision) return entries
     return entries.filter((e) => e.divisionId === selectedDivision)
   }, [entries, selectedDivision])
-
-  // Division health mismatches
-  const mismatches = divisionHealth.filter((h) => !h.matchesPrimary)
 
   if (isLoading && entries.length === 0) {
     return (
@@ -164,52 +156,13 @@ export function SeriesLeaderboardPageContent({ groupId }: Props) {
         )}
       </div>
 
-      {/* Division health warnings */}
-      {mismatches.length > 0 && (
-        <Alert
-          variant="default"
-          className="border-orange-200 bg-orange-50 dark:bg-orange-950/20"
-        >
-          <BarChart3 className="h-4 w-4 text-orange-600" />
-          <AlertTitle className="text-orange-800 dark:text-orange-400">
-            Division Mismatch Warning
-          </AlertTitle>
-          <AlertDescription className="text-orange-700 dark:text-orange-300">
-            {mismatches.length} competition
-            {mismatches.length !== 1 ? "s" : ""} use a different scaling group
-            than the rest of the series. Athletes from these competitions may
-            not appear in some division leaderboards:
-            <ul className="mt-2 space-y-1">
-              {mismatches.map((m) => (
-                <li
-                  key={m.competitionId}
-                  className="flex items-center justify-between"
-                >
-                  <span className="flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" />
-                    {m.competitionName}
-                  </span>
-                  <Link
-                    to="/compete/organizer/$competitionId/divisions"
-                    params={{ competitionId: m.competitionId }}
-                    className="text-orange-600 dark:text-orange-400 underline text-xs font-medium hover:text-orange-800"
-                  >
-                    Fix divisions →
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </AlertDescription>
-        </Alert>
-      )}
-
       {filteredEntries.length === 0 && !isLoading ? (
         <Alert variant="default" className="border-dashed">
           <BarChart3 className="h-4 w-4" />
           <AlertTitle>No results yet</AlertTitle>
           <AlertDescription>
-            Rankings will appear here once athletes start submitting scores
-            across throwdowns.
+            No rankings yet. Make sure division mappings are configured and
+            athletes have submitted scores.
           </AlertDescription>
         </Alert>
       ) : (

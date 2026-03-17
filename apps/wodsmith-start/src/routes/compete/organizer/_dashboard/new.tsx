@@ -14,6 +14,7 @@ import {
   getCompetitionGroupByIdFn,
   getCompetitionGroupsFn,
 } from "@/server-fns/competition-fns"
+import { getSeriesTemplateDivisionsFn } from "@/server-fns/series-division-mapping-fns"
 import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
 
 const searchSchema = z.object({
@@ -33,6 +34,17 @@ export const Route = createFileRoute("/compete/organizer/_dashboard/new")({
         teams: [],
         groups: [],
         selectedTeamId: null,
+        seriesTemplateDivisions: {} as Record<
+          string,
+          {
+            scalingGroupId: string
+            divisions: Array<{
+              id: string
+              label: string
+              teamSize: number
+            }>
+          }
+        >,
       }
     }
 
@@ -67,16 +79,42 @@ export const Route = createFileRoute("/compete/organizer/_dashboard/new")({
       data: { teamId: selectedTeamId },
     })
 
+    // Load template divisions for all groups that have templates
+    const seriesTemplateDivisions: Record<
+      string,
+      {
+        scalingGroupId: string
+        divisions: Array<{
+          id: string
+          label: string
+          teamSize: number
+        }>
+      }
+    > = {}
+    for (const group of groupsResult.groups) {
+      const result = await getSeriesTemplateDivisionsFn({
+        data: { groupId: group.id },
+      }).catch(() => null)
+      if (result?.scalingGroupId && result.divisions.length > 0) {
+        seriesTemplateDivisions[group.id] = {
+          scalingGroupId: result.scalingGroupId,
+          divisions: result.divisions,
+        }
+      }
+    }
+
     return {
       teams: organizingTeams,
       groups: groupsResult.groups,
       selectedTeamId,
+      seriesTemplateDivisions,
     }
   },
 })
 
 function NewCompetitionPage() {
-  const { teams, groups, selectedTeamId } = Route.useLoaderData()
+  const { teams, groups, selectedTeamId, seriesTemplateDivisions } =
+    Route.useLoaderData()
   const { groupId } = Route.useSearch()
   const navigate = useNavigate()
 
@@ -141,6 +179,7 @@ function NewCompetitionPage() {
               selectedTeamId={selectedTeamId}
               groups={groups}
               defaultGroupId={groupId}
+              seriesTemplateDivisions={seriesTemplateDivisions}
               onSuccess={handleSuccess}
               onCancel={handleCancel}
             />
