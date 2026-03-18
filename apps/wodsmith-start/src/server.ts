@@ -19,7 +19,7 @@ import type {
 } from "@cloudflare/workers-types"
 import * as Sentry from "@sentry/cloudflare"
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry"
-import { env } from "cloudflare:workers"
+import { env, waitUntil } from "cloudflare:workers"
 import { sendBatchToPostHog } from "evlog/posthog"
 import { createWorkersLogger, initWorkersLogger } from "evlog/workers"
 import { withEvlog } from "./lib/evlog"
@@ -32,6 +32,40 @@ import {
 } from "./lib/logging"
 import { getSentryOptions } from "./lib/sentry/server"
 
+// Sensitive field names to redact as a safety net in the drain.
+// This catches any PII that accidentally leaks through log.set().
+const SENSITIVE_KEYS = [
+  "password",
+  "token",
+  "secret",
+  "apikey",
+  "authorization",
+  "cookie",
+  "creditcard",
+  "ssn",
+  "captcha",
+]
+
+function deepSanitize(
+  obj: Record<string, unknown>,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(obj)) {
+    if (SENSITIVE_KEYS.some((k) => key.toLowerCase().includes(k))) {
+      result[key] = "[REDACTED]"
+    } else if (
+      value !== null &&
+      typeof value === "object" &&
+      !Array.isArray(value)
+    ) {
+      result[key] = deepSanitize(value as Record<string, unknown>)
+    } else {
+      result[key] = value
+    }
+  }
+  return result
+}
+
 // Initialize evlog once at module scope.
 // The PostHog drain reads POSTHOG_KEY from cloudflare:workers env at emit time
 // (process.env is not available in CF Workers, so we can't use createPostHogDrain's
@@ -39,11 +73,23 @@ import { getSentryOptions } from "./lib/sentry/server"
 initWorkersLogger({
   env: { service: "wodsmith-start" },
   silent: true,
-  drain: async (ctx) => {
+  drain: (ctx) => {
     const apiKey = (env as unknown as Record<string, string | undefined>)
       .POSTHOG_KEY
     if (!apiKey) return
-    await sendBatchToPostHog([ctx.event], { apiKey })
+    // Sanitize before sending to prevent PII leakage
+    ctx.event = deepSanitize(ctx.event) as typeof ctx.event
+    const drainPromise = sendBatchToPostHog([ctx.event], { apiKey }).catch(
+      (err) => {
+        console.error("[evlog/drain] Failed to send to PostHog:", err)
+      },
+    )
+    // Ensure the drain fetch completes even after the response is sent
+    try {
+      waitUntil(drainPromise)
+    } catch {
+      // waitUntil may not be available in some contexts (e.g., local dev)
+    }
   },
 })
 
