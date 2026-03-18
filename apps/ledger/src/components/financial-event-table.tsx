@@ -322,7 +322,7 @@ export function FinancialEventTable({
 	}
 
 	return (
-		<div className="rounded-md border">
+		<div className="rounded-md border overflow-x-auto">
 			<table className="w-full text-sm">
 				<thead>
 					{table.getHeaderGroups().map((headerGroup) => (

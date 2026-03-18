@@ -49,7 +49,7 @@ Chosen option: **"Option A: Direct PlanetScale connection via Hyperdrive"**, bec
 
 * Write operations or manual adjustments from ledger (future ADR if needed)
 * Organizer-facing financial views (those belong in wodsmith-start)
-* Data replication/sync into ledger's D1 database
+* Data replication/sync into a separate ledger database
 * Automated reconciliation reports (ADR-0003 Phase 6 covers this)
 * Modifying the financial event recording logic (that's ADR-0003's scope)
 

@@ -9,10 +9,43 @@ import {
 } from "../db/ps-schema"
 import { requireAuth } from "./auth"
 
+/** Mountain Time offset: UTC-7 (MDT) */
+const MT_OFFSET = -7
+
+/** Parse a YYYY-MM-DD string as start-of-day in Mountain Time */
+function parseMTDate(dateStr: string): Date {
+	const [y, m, d] = dateStr.split("-").map(Number)
+	return new Date(Date.UTC(y, m - 1, d, -MT_OFFSET))
+}
+
+/** Parse a YYYY-MM-DD string as end-of-day (23:59:59.999) in Mountain Time */
+function parseMTEndOfDay(dateStr: string): Date {
+	const [y, m, d] = dateStr.split("-").map(Number)
+	return new Date(Date.UTC(y, m - 1, d, 23 - MT_OFFSET, 59, 59, 999))
+}
+
+/** Get "now" in Mountain Time as a Date */
+function nowMT(): Date {
+	return new Date()
+}
+
+/** Get start of today in Mountain Time */
+function startOfTodayMT(): Date {
+	const now = new Date()
+	const mtMs = now.getTime() + MT_OFFSET * 60 * 60 * 1000
+	const mtDate = new Date(mtMs)
+	return new Date(Date.UTC(
+		mtDate.getUTCFullYear(),
+		mtDate.getUTCMonth(),
+		mtDate.getUTCDate(),
+		-MT_OFFSET,
+	))
+}
+
 function defaultDateRange(startDate?: string, endDate?: string) {
-	const end = endDate ? new Date(endDate) : new Date()
+	const end = endDate ? parseMTEndOfDay(endDate) : nowMT()
 	const start = startDate
-		? new Date(startDate)
+		? parseMTDate(startDate)
 		: new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000)
 	return { start, end }
 }
@@ -25,8 +58,8 @@ export const getFinancialEvents = createServerFn({ method: "GET" })
 				teamId: z.string().optional(),
 				startDate: z.string().optional(),
 				endDate: z.string().optional(),
-				page: z.number().default(1),
-				pageSize: z.number().default(50),
+				page: z.number().int().min(1).default(1),
+				pageSize: z.number().int().min(1).max(200).default(50),
 			})
 			.parse(data),
 	)
@@ -100,8 +133,8 @@ export const getPurchaseEvents = createServerFn({ method: "GET" })
 				teamId: z.string().optional(),
 				startDate: z.string().optional(),
 				endDate: z.string().optional(),
-				page: z.number().default(1),
-				pageSize: z.number().default(50),
+				page: z.number().int().min(1).default(1),
+				pageSize: z.number().int().min(1).max(200).default(50),
 			})
 			.parse(data),
 	)
@@ -252,8 +285,8 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
 		if (data.groupBy === "month") {
 			const rows = await db
 				.select({
-					year: sql<number>`YEAR(${financialEventTable.createdAt})`,
-					month: sql<number>`MONTH(${financialEventTable.createdAt})`,
+					year: sql<number>`YEAR(CONVERT_TZ(${financialEventTable.createdAt}, '+00:00', '-07:00'))`,
+					month: sql<number>`MONTH(CONVERT_TZ(${financialEventTable.createdAt}, '+00:00', '-07:00'))`,
 					totalAmountCents: sql<number>`SUM(${financialEventTable.amountCents})`,
 					platformFeeCents: sumPlatformFee,
 					count: sql<number>`COUNT(*)`,
@@ -261,12 +294,12 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
 				.from(financialEventTable)
 				.where(where)
 				.groupBy(
-					sql`YEAR(${financialEventTable.createdAt})`,
-					sql`MONTH(${financialEventTable.createdAt})`,
+					sql`YEAR(CONVERT_TZ(${financialEventTable.createdAt}, '+00:00', '-07:00'))`,
+					sql`MONTH(CONVERT_TZ(${financialEventTable.createdAt}, '+00:00', '-07:00'))`,
 				)
 				.orderBy(
-					desc(sql`YEAR(${financialEventTable.createdAt})`),
-					desc(sql`MONTH(${financialEventTable.createdAt})`),
+					desc(sql`YEAR(CONVERT_TZ(${financialEventTable.createdAt}, '+00:00', '-07:00'))`),
+					desc(sql`MONTH(CONVERT_TZ(${financialEventTable.createdAt}, '+00:00', '-07:00'))`),
 				)
 
 			return {
@@ -336,12 +369,14 @@ export const getPlatformRevenueSummary = createServerFn({ method: "GET" })
 		await requireAuth()
 		const db = getPsDb()
 
-		const now = new Date()
-		const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-		const dayOfWeek = now.getDay()
-		const startOfWeek = new Date(startOfToday)
-		startOfWeek.setDate(startOfToday.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
-		const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+		const todayMT = startOfTodayMT()
+		// Get MT "now" to derive day-of-week in MT
+		const nowUtc = new Date()
+		const mtMs = nowUtc.getTime() + MT_OFFSET * 60 * 60 * 1000
+		const mtNow = new Date(mtMs)
+		const dayOfWeek = mtNow.getUTCDay()
+		const startOfWeek = new Date(todayMT.getTime() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1) * 24 * 60 * 60 * 1000)
+		const startOfMonth = new Date(Date.UTC(mtNow.getUTCFullYear(), mtNow.getUTCMonth(), 1, -MT_OFFSET))
 
 		const paymentCompleted = eq(
 			financialEventTable.eventType,
@@ -368,7 +403,7 @@ export const getPlatformRevenueSummary = createServerFn({ method: "GET" })
 			db
 				.select({ total: sumPlatformFee })
 				.from(financialEventTable)
-				.where(and(paymentCompleted, gte(financialEventTable.createdAt, startOfToday))),
+				.where(and(paymentCompleted, gte(financialEventTable.createdAt, todayMT))),
 		])
 
 		return {

@@ -37,7 +37,7 @@ const hyperdrive = await Hyperdrive(`ledger-hyperdrive-${stage}`, {
 		scheme: "mysql",
 	},
 	caching: {
-		disabled: false,
+		disabled: true,
 	},
 	adopt: true,
 	dev: {
@@ -66,7 +66,7 @@ const website = await TanStackStart("app", {
 		// biome-ignore lint/style/noNonNullAssertion: Set at deploy time
 		APP_URL: process.env.APP_URL!,
 		// biome-ignore lint/style/noNonNullAssertion: Required for PlanetScale fallback in local dev
-		DATABASE_URL: process.env.DATABASE_URL!,
+		DATABASE_URL: alchemy.secret(process.env.DATABASE_URL!),
 		NODE_ENV: stage === "prod" ? "production" : "development",
 		// biome-ignore lint/style/noNonNullAssertion: Required
 		LEDGER_AUTH_PASSWORD: alchemy.secret(process.env.LEDGER_AUTH_PASSWORD!),
