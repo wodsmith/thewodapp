@@ -23,6 +23,7 @@ import { scalingGroupsTable, scalingLevelsTable } from "@/db/schemas/scaling"
 import { seriesDivisionMappingsTable } from "@/db/schemas/series"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
+import { getEvlog } from "@/lib/evlog"
 import { getSessionFromCookie } from "@/utils/auth"
 import { calculateCompetitionCapacity } from "@/utils/competition-capacity"
 import { calculateDivisionCapacity } from "@/utils/division-capacity"
@@ -886,6 +887,8 @@ export const initializeCompetitionDivisionsFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
+    getEvlog()?.set({ action: "initialize_competition_divisions", competitionId: data.competitionId, teamId: data.teamId, templateGroupId: data.templateGroupId ?? null })
+
     // Verify competition exists and belongs to team
     const [competition] = await db
       .select()
@@ -1008,6 +1011,8 @@ export const addCompetitionDivisionFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
+    getEvlog()?.set({ action: "create_division", competitionId: data.competitionId, teamId: data.teamId, label: data.label })
+
     const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
       competitionId: data.competitionId,
       teamId: data.teamId,
@@ -1042,6 +1047,8 @@ export const updateCompetitionDivisionFn = createServerFn({ method: "POST" })
       data.teamId,
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
+
+    getEvlog()?.set({ action: "update_division", competitionId: data.competitionId, teamId: data.teamId, divisionId: data.divisionId, label: data.label })
 
     const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
       competitionId: data.competitionId,
@@ -1086,6 +1093,8 @@ export const deleteCompetitionDivisionFn = createServerFn({ method: "POST" })
       data.teamId,
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
+
+    getEvlog()?.set({ action: "delete_division", competitionId: data.competitionId, teamId: data.teamId, divisionId: data.divisionId })
 
     const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
       competitionId: data.competitionId,
@@ -1163,6 +1172,8 @@ export const reorderCompetitionDivisionsFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
+    getEvlog()?.set({ action: "reorder_divisions", competitionId: data.competitionId, teamId: data.teamId, count: data.orderedDivisionIds.length })
+
     const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
       competitionId: data.competitionId,
       teamId: data.teamId,
@@ -1209,6 +1220,8 @@ export const updateDivisionDescriptionFn = createServerFn({ method: "POST" })
       data.teamId,
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
+
+    getEvlog()?.set({ action: "update_division_description", competitionId: data.competitionId, teamId: data.teamId, divisionId: data.divisionId })
 
     const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
       competitionId: data.competitionId,
@@ -1280,6 +1293,8 @@ export const updateCompetitionDefaultCapacityFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
+    getEvlog()?.set({ action: "update_competition_default_capacity", competitionId: data.competitionId, teamId: data.teamId, defaultMaxSpotsPerDivision: data.defaultMaxSpotsPerDivision, maxTotalRegistrations: data.maxTotalRegistrations })
+
     // Verify competition exists and belongs to team
     const [competition] = await db
       .select()
@@ -1330,6 +1345,8 @@ export const updateDivisionCapacityFn = createServerFn({ method: "POST" })
       data.teamId,
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
+
+    getEvlog()?.set({ action: "update_division_capacity", competitionId: data.competitionId, teamId: data.teamId, divisionId: data.divisionId, maxSpots: data.maxSpots })
 
     const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
       competitionId: data.competitionId,
@@ -1573,6 +1590,9 @@ export const switchCompetitionScalingGroupFn = createServerFn({
       data.teamId,
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
+
+    getEvlog()?.set({ action: "switch_competition_scaling_group", competitionId: data.competitionId, teamId: data.teamId, newScalingGroupId: data.newScalingGroupId })
+
     return switchCompetitionScalingGroupCore({
       db,
       competitionId: data.competitionId,

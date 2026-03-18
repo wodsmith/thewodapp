@@ -28,6 +28,7 @@ import {
   logInfo,
   updateRequestContext,
 } from "@/lib/logging"
+import { getEvlog } from "@/lib/evlog"
 import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
 import { handleCompetitionRegistrationTransfer } from "@/server/commerce/transfer-handlers"
 
@@ -290,6 +291,8 @@ export const acceptPurchaseTransferFn = createServerFn({ method: "POST" })
 
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("transferId", data.transferId)
+
+    getEvlog()?.set({ action: "accept_purchase_transfer", transferId: data.transferId })
 
     const db = getDb()
 

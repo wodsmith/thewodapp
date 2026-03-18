@@ -53,6 +53,7 @@ import {
 } from "@/lib/commerce-stubs"
 import { CLAIM_TOKEN_EXPIRATION_SECONDS } from "@/constants"
 import { getAppUrl } from "@/lib/env"
+import { getEvlog } from "@/lib/evlog"
 import {
   addRequestContextAttribute,
   logEntityCreated,
@@ -243,6 +244,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
     updateRequestContext({ userId })
     addRequestContextAttribute("competitionId", input.competitionId)
     addRequestContextAttribute("divisionCount", input.items.length.toString())
+    getEvlog()?.set({ action: "register_for_competition", competitionId: input.competitionId, userId })
 
     logInfo({
       message: "[Registration] Payment initiation started",
@@ -930,6 +932,7 @@ export const updateRegistrationAffiliateFn = createServerFn({ method: "POST" })
     if (input.userId !== session.user.id) {
       throw new Error("You can only update your own affiliate")
     }
+    getEvlog()?.set({ action: "update_registration", registrationId: input.registrationId, userId: input.userId })
 
     const db = getDb()
 
@@ -1407,6 +1410,7 @@ export const cancelPendingPurchaseFn = createServerFn({ method: "POST" })
     // Update request context
     updateRequestContext({ userId: session.user.id })
     addRequestContextAttribute("competitionId", data.competitionId)
+    getEvlog()?.set({ action: "cancel_registration", competitionId: data.competitionId, userId: data.userId })
 
     // Ensure user can only cancel their own pending purchases
     if (data.userId !== session.user.id) {
@@ -1470,6 +1474,7 @@ export const removeRegistrationFn = createServerFn({ method: "POST" })
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("competitionId", input.competitionId)
     addRequestContextAttribute("registrationId", input.registrationId)
+    getEvlog()?.set({ action: "remove_registration", registrationId: input.registrationId, competitionId: input.competitionId })
 
     // 1. Get competition to verify ownership and get organizing team
     const competition = await db.query.competitionsTable.findFirst({
@@ -1839,6 +1844,7 @@ export const createManualRegistrationFn = createServerFn({ method: "POST" })
 
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("competitionId", input.competitionId)
+    getEvlog()?.set({ action: "manual_register", competitionId: input.competitionId })
 
     // 1. Get competition to verify ownership and get organizing team
     const competition = await db.query.competitionsTable.findFirst({

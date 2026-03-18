@@ -19,6 +19,10 @@ import type {
 } from "@cloudflare/workers-types"
 import * as Sentry from "@sentry/cloudflare"
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry"
+import { env } from "cloudflare:workers"
+import { sendBatchToPostHog } from "evlog/posthog"
+import { createWorkersLogger, initWorkersLogger } from "evlog/workers"
+import { withEvlog } from "./lib/evlog"
 import {
   extractRequestInfo,
   logError,
@@ -27,6 +31,21 @@ import {
   withRequestContext,
 } from "./lib/logging"
 import { getSentryOptions } from "./lib/sentry/server"
+
+// Initialize evlog once at module scope.
+// The PostHog drain reads POSTHOG_KEY from cloudflare:workers env at emit time
+// (process.env is not available in CF Workers, so we can't use createPostHogDrain's
+// built-in env resolution).
+initWorkersLogger({
+  env: { service: "wodsmith-start" },
+  silent: true,
+  drain: async (ctx) => {
+    const apiKey = (env as unknown as Record<string, string | undefined>)
+      .POSTHOG_KEY
+    if (!apiKey) return
+    await sendBatchToPostHog([ctx.event], { apiKey })
+  },
+})
 
 // Workers runtime requires Workflow classes to be exported from the entry point
 export { StripeCheckoutWorkflow } from "./workflows/stripe-checkout-workflow"
@@ -72,56 +91,69 @@ async function fetchWithLogging(
     return startEntry.fetch(request)
   }
 
+  // Create evlog request logger for wide event accumulation
+  const log = createWorkersLogger(request)
+
   return withRequestContext(
     {
       method: requestInfo.method,
       path: requestInfo.path,
     },
-    async () => {
-      try {
-        const response = await startEntry.fetch(request)
-        const durationMs = Date.now() - startTime
+    () =>
+      withEvlog(log, async () => {
+        try {
+          const response = await startEntry.fetch(request)
+          const durationMs = Date.now() - startTime
 
-        // Only log errors or slow requests
-        if (response.status >= 400) {
-          logWarning({
-            message: `[HTTP] ${requestInfo.method} ${requestInfo.path} -> ${response.status}`,
+          // Only log errors or slow requests
+          if (response.status >= 400) {
+            logWarning({
+              message: `[HTTP] ${requestInfo.method} ${requestInfo.path} -> ${response.status}`,
+              attributes: {
+                httpMethod: requestInfo.method,
+                httpPath: requestInfo.path,
+                status: response.status,
+                durationMs,
+              },
+            })
+          } else if (durationMs >= SLOW_REQUEST_THRESHOLD_MS) {
+            logWarning({
+              message: `[HTTP] Slow request: ${requestInfo.method} ${requestInfo.path}`,
+              attributes: {
+                httpMethod: requestInfo.method,
+                httpPath: requestInfo.path,
+                status: response.status,
+                durationMs,
+              },
+            })
+          }
+
+          // Emit the wide event with accumulated context
+          log.emit({ status: response.status })
+
+          return response
+        } catch (error) {
+          const durationMs = Date.now() - startTime
+
+          logError({
+            message: `[HTTP] ${requestInfo.method} ${requestInfo.path} -> Error`,
+            error,
             attributes: {
               httpMethod: requestInfo.method,
               httpPath: requestInfo.path,
-              status: response.status,
               durationMs,
             },
           })
-        } else if (durationMs >= SLOW_REQUEST_THRESHOLD_MS) {
-          logWarning({
-            message: `[HTTP] Slow request: ${requestInfo.method} ${requestInfo.path}`,
-            attributes: {
-              httpMethod: requestInfo.method,
-              httpPath: requestInfo.path,
-              status: response.status,
-              durationMs,
-            },
-          })
+
+          // Emit the wide event with error context
+          log.error(
+            error instanceof Error ? error : new Error(String(error)),
+          )
+          log.emit({ status: 500 })
+
+          throw error
         }
-
-        return response
-      } catch (error) {
-        const durationMs = Date.now() - startTime
-
-        logError({
-          message: `[HTTP] ${requestInfo.method} ${requestInfo.path} -> Error`,
-          error,
-          attributes: {
-            httpMethod: requestInfo.method,
-            httpPath: requestInfo.path,
-            durationMs,
-          },
-        })
-
-        throw error
-      }
-    },
+      }),
   )
 }
 

@@ -23,6 +23,7 @@ import {
   logWarning,
   updateRequestContext,
 } from "@/lib/logging"
+import { getEvlog } from "@/lib/evlog"
 import {
   type CompetitionHeat,
   competitionEventsTable,
@@ -842,6 +843,8 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
     }> => {
       const db = getDb()
 
+      getEvlog()?.set({ action: "save_score", competitionId: data.competitionId, registrationId: data.registrationId, workoutId: data.workoutId })
+
       // Update request context for tracing
       addRequestContextAttribute("competitionId", data.competitionId)
       addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
@@ -1145,6 +1148,8 @@ export const saveCompetitionScoresFn = createServerFn({ method: "POST" })
       const errors: Array<{ userId: string; error: string }> = []
       let savedCount = 0
 
+      getEvlog()?.set({ action: "save_scores_batch", competitionId: data.competitionId, scoreCount: data.scores.length })
+
       // Update request context
       addRequestContextAttribute("competitionId", data.competitionId)
       addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
@@ -1257,6 +1262,8 @@ export const deleteCompetitionScoreFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<{ success: boolean }> => {
     const db = getDb()
+
+    getEvlog()?.set({ action: "delete_score", competitionId: data.competitionId, trackWorkoutId: data.trackWorkoutId, userId: data.userId })
 
     // Update request context
     addRequestContextAttribute("competitionId", data.competitionId)

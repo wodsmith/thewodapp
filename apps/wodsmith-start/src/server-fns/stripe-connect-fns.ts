@@ -26,6 +26,7 @@ import { getStripe } from "@/lib/stripe"
 import { requireVerifiedEmail } from "@/utils/auth"
 import isProd from "@/utils/is-prod"
 import { requireTeamPermission } from "@/utils/team-auth"
+import { getEvlog } from "@/lib/evlog"
 import { requireTeamMembership } from "./requireTeamMembership"
 
 // ============================================================================
@@ -478,6 +479,8 @@ export const initiateExpressOnboardingFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS,
     )
 
+    getEvlog()?.set({ action: "start_stripe_express_onboarding", teamId: input.teamId })
+
     const db = getDb()
     const team = await db.query.teamTable.findFirst({
       where: eq(teamTable.id, input.teamId),
@@ -536,6 +539,8 @@ export const initiateStandardOAuthFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS,
     )
 
+    getEvlog()?.set({ action: "start_stripe_oauth", teamId: input.teamId })
+
     const db = getDb()
     const team = await db.query.teamTable.findFirst({
       where: eq(teamTable.id, input.teamId),
@@ -592,6 +597,8 @@ export const refreshOnboardingLinkFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS,
     )
 
+    getEvlog()?.set({ action: "refresh_stripe_onboarding_link", teamId: input.teamId })
+
     const db = getDb()
     const team = await db.query.teamTable.findFirst({
       where: eq(teamTable.id, input.teamId),
@@ -626,6 +633,8 @@ export const syncStripeAccountStatusFn = createServerFn({ method: "POST" })
   .handler(async ({ data: input }) => {
     await requireTeamMembership(input.teamId)
 
+    getEvlog()?.set({ action: "sync_stripe_account_status", teamId: input.teamId })
+
     await syncStripeAccountStatusInternal(input.teamId)
 
     return { success: true }
@@ -644,6 +653,8 @@ export const disconnectStripeAccountFn = createServerFn({ method: "POST" })
       input.teamId,
       TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS,
     )
+
+    getEvlog()?.set({ action: "disconnect_stripe", teamId: input.teamId })
 
     await disconnectAccountInternal(input.teamId)
 

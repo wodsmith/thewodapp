@@ -35,6 +35,7 @@ import {
   logWarning,
   updateRequestContext,
 } from "@/lib/logging"
+import { getEvlog } from "@/lib/evlog"
 import { requireVerifiedEmail } from "@/utils/auth"
 
 // ============================================================================
@@ -67,6 +68,8 @@ export const initiatePurchaseTransferFn = createServerFn({ method: "POST" })
 
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("purchaseId", input.purchaseId)
+
+    getEvlog()?.set({ action: "initiate_purchase_transfer", purchaseId: input.purchaseId, targetEmail: input.targetEmail })
 
     // 1. Load the purchase — must exist and be COMPLETED
     const purchase = await db.query.commercePurchaseTable.findFirst({
@@ -302,6 +305,8 @@ export const cancelPurchaseTransferFn = createServerFn({ method: "POST" })
 
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("transferId", input.transferId)
+
+    getEvlog()?.set({ action: "cancel_purchase_transfer", transferId: input.transferId })
 
     // 1. Load the transfer — must be INITIATED
     const transfer = await db.query.purchaseTransfersTable.findFirst({
