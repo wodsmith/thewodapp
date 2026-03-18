@@ -90,7 +90,13 @@ export function SeriesDivisionMapper({
       const result = await autoMap({ data: { groupId } })
       setMappings(result.competitionMappings)
       setRevision((r) => r + 1)
-      setDirtyComps(new Set(result.competitionMappings.map((c) => c.competitionId)))
+      setDirtyComps(
+        new Set(
+          result.competitionMappings
+            .filter((c) => c.mappings.some((m) => m.seriesDivisionId !== null && !m.saved))
+            .map((c) => c.competitionId),
+        ),
+      )
       toast.success("Auto-mapped divisions")
     } catch (e) {
       toast.error(
