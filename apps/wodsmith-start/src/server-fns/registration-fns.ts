@@ -11,11 +11,12 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray, isNull, ne, or } from "drizzle-orm"
+import { and, eq, inArray, isNull, ne, or, sql } from "drizzle-orm"
 import type Stripe from "stripe"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+  affiliatesTable,
   COMMERCE_PAYMENT_STATUS,
   COMMERCE_PRODUCT_TYPE,
   COMMERCE_PURCHASE_STATUS,
@@ -999,6 +1000,14 @@ export const updateRegistrationAffiliateFn = createServerFn({ method: "POST" })
         updatedAt: new Date(),
       })
       .where(eq(competitionRegistrationsTable.id, input.registrationId))
+
+    // Upsert affiliate into affiliates table (unverified) so others can find it
+    if (input.affiliateName && input.affiliateName !== "Independent") {
+      await db
+        .insert(affiliatesTable)
+        .values({ name: input.affiliateName })
+        .onDuplicateKeyUpdate({ set: { name: sql`name` } })
+    }
 
     return { success: true }
   })

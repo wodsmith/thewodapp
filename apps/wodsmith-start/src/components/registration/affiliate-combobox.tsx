@@ -74,22 +74,15 @@ export function AffiliateCombobox({
   const [isLoading, setIsLoading] = useState(false)
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Load initial affiliates when dropdown opens
+  // Reset state when dropdown closes
   useEffect(() => {
-    if (open && affiliates.length === 0) {
-      setIsLoading(true)
-      searchAffiliatesFn({ data: { query: "" } })
-        .then((result) => {
-          setAffiliates(result as Affiliate[])
-          setIsLoading(false)
-        })
-        .catch(() => {
-          setIsLoading(false)
-        })
+    if (!open) {
+      setSearchQuery("")
+      setAffiliates([])
     }
-  }, [open, affiliates.length])
+  }, [open])
 
-  // Debounced search
+  // Debounced search — only fires when user types
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query)
 
@@ -97,8 +90,14 @@ export function AffiliateCombobox({
       clearTimeout(debounceRef.current)
     }
 
+    if (!query.trim()) {
+      setAffiliates([])
+      setIsLoading(false)
+      return
+    }
+
+    setIsLoading(true)
     debounceRef.current = setTimeout(() => {
-      setIsLoading(true)
       searchAffiliatesFn({ data: { query } })
         .then((result) => {
           setAffiliates(result as Affiliate[])
@@ -165,92 +164,103 @@ export function AffiliateCombobox({
           />
         </div>
         <div className="max-h-[300px] overflow-y-auto">
-          {isLoading ? (
-            <div className="py-6 text-center text-sm text-muted-foreground">
-              Loading...
-            </div>
-          ) : (
-            <div className="p-1">
-              {/* Independent option - always visible at the top */}
-              {(!searchQuery ||
-                INDEPENDENT_OPTION.toLowerCase().includes(
-                  searchQuery.toLowerCase(),
-                )) && (
-                <button
-                  type="button"
-                  onClick={() => handleSelect(INDEPENDENT_OPTION)}
+          <div className="p-1">
+            {/* Independent option - always visible at the top */}
+            {(!searchQuery ||
+              INDEPENDENT_OPTION.toLowerCase().includes(
+                searchQuery.toLowerCase(),
+              )) && (
+              <button
+                type="button"
+                onClick={() => handleSelect(INDEPENDENT_OPTION)}
+                className={cn(
+                  "relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground border-b mb-1",
+                  value === INDEPENDENT_OPTION && "bg-accent",
+                )}
+              >
+                <Check
                   className={cn(
-                    "relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground border-b mb-1",
-                    value === INDEPENDENT_OPTION && "bg-accent",
+                    "mr-2 h-4 w-4",
+                    value === INDEPENDENT_OPTION
+                      ? "opacity-100"
+                      : "opacity-0",
                   )}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === INDEPENDENT_OPTION
-                        ? "opacity-100"
-                        : "opacity-0",
-                    )}
-                  />
-                  <span className="flex-1 text-left">{INDEPENDENT_OPTION}</span>
-                  <Badge variant="outline" className="text-xs">
-                    No gym affiliation
-                  </Badge>
-                </button>
-              )}
+                />
+                <span className="flex-1 text-left">{INDEPENDENT_OPTION}</span>
+                <Badge variant="outline" className="text-xs">
+                  No gym affiliation
+                </Badge>
+              </button>
+            )}
 
-              {/* Option to add custom affiliate */}
-              {showAddNew && (
-                <button
-                  type="button"
-                  onClick={handleUseCustom}
-                  className="relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground border-b mb-1"
-                >
-                  <span className="flex-1 text-left">
-                    Add "<span className="font-medium">{searchQuery}</span>"
-                  </span>
-                  <Badge variant="secondary" className="text-xs">
-                    New
-                  </Badge>
-                </button>
-              )}
+            {/* Option to add custom affiliate */}
+            {showAddNew && (
+              <button
+                type="button"
+                onClick={handleUseCustom}
+                className="relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground border-b mb-1"
+              >
+                <span className="flex-1 text-left">
+                  Add "<span className="font-medium">{searchQuery}</span>"
+                </span>
+                <Badge variant="secondary" className="text-xs">
+                  New
+                </Badge>
+              </button>
+            )}
 
-              {/* Existing affiliates */}
-              {affiliates.map((affiliate) => (
-                <button
-                  key={affiliate.id}
-                  type="button"
-                  onClick={() => handleSelect(affiliate.name)}
+            {/* Existing affiliates */}
+            {affiliates.map((affiliate) => (
+              <button
+                key={affiliate.id}
+                type="button"
+                onClick={() => handleSelect(affiliate.name)}
+                className={cn(
+                  "relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+                  value === affiliate.name && "bg-accent",
+                )}
+              >
+                <Check
                   className={cn(
-                    "relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
-                    value === affiliate.name && "bg-accent",
+                    "mr-2 h-4 w-4",
+                    value === affiliate.name ? "opacity-100" : "opacity-0",
                   )}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === affiliate.name ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                  <span className="flex-1 text-left truncate">
-                    {affiliate.name}
-                    {affiliate.location && (
-                      <span className="text-muted-foreground ml-1">
-                        ({affiliate.location})
-                      </span>
-                    )}
-                  </span>
-                  <VerificationBadge status={affiliate.verificationStatus} />
-                </button>
-              ))}
+                />
+                <span className="flex-1 text-left truncate">
+                  {affiliate.name}
+                  {affiliate.location && (
+                    <span className="text-muted-foreground ml-1">
+                      ({affiliate.location})
+                    </span>
+                  )}
+                </span>
+                <VerificationBadge status={affiliate.verificationStatus} />
+              </button>
+            ))}
 
-              {affiliates.length === 0 && searchQuery && !showAddNew && (
-                <div className="py-6 text-center text-sm text-muted-foreground">
+            {/* Empty state */}
+            {!searchQuery && affiliates.length === 0 && (
+              <div className="py-4 text-center text-sm text-muted-foreground">
+                Type your gym name to search
+              </div>
+            )}
+
+            {/* Loading indicator — inline, doesn't replace results */}
+            {isLoading && (
+              <div className="py-2 text-center text-sm text-muted-foreground">
+                Searching...
+              </div>
+            )}
+
+            {affiliates.length === 0 &&
+              searchQuery &&
+              !isLoading &&
+              !showAddNew && (
+                <div className="py-4 text-center text-sm text-muted-foreground">
                   No matching affiliates found.
                 </div>
               )}
-            </div>
-          )}
+          </div>
         </div>
       </PopoverContent>
     </Popover>

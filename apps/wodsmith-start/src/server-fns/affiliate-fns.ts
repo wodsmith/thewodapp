@@ -50,13 +50,15 @@ export const searchAffiliatesFn = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const db = getDb()
 
-    if (!data.query || data.query.trim().length < 2) {
+    const query = data.query?.trim()
+
+    if (!query) {
       // Return top affiliates if no query
       return getTopAffiliates()
     }
 
     const affiliates = await db.query.affiliatesTable.findMany({
-      where: like(affiliatesTable.name, `%${data.query.trim()}%`),
+      where: like(affiliatesTable.name, `%${query}%`),
       limit: 25,
       orderBy: (table, { asc }) => [asc(table.name)],
     })
