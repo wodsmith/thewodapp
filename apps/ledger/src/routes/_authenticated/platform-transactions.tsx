@@ -1,25 +1,39 @@
 import { Link, createFileRoute } from "@tanstack/react-router"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { FinancialEventTable } from "@/components/financial-event-table"
-import { getFinancialEvents } from "@/server-fns/financial-events"
+import { FinancialSummary } from "@/components/financial-summary"
+import {
+	getFinancialEvents,
+	getFinancialSummary,
+	getPlatformRevenueSummary,
+} from "@/server-fns/financial-events"
 import { FINANCIAL_EVENT_TYPE } from "@/db/ps-schema"
-import { cn } from "@/utils/cn"
-
-type Tab = "event-log" | "by-purchase" | "summary"
 
 const EVENT_TYPES = Object.values(FINANCIAL_EVENT_TYPE)
 
 export const Route = createFileRoute("/_authenticated/platform-transactions")({
 	loader: async () => {
-		const result = await getFinancialEvents({ data: { page: 1, pageSize: 50 } })
-		return { result }
+		const [result, revenue, summaryMonth, summaryTeam, summaryEventType] =
+			await Promise.all([
+				getFinancialEvents({ data: { page: 1, pageSize: 50 } }),
+				getPlatformRevenueSummary(),
+				getFinancialSummary({ data: { groupBy: "month" } }),
+				getFinancialSummary({ data: { groupBy: "team" } }),
+				getFinancialSummary({ data: { groupBy: "eventType" } }),
+			])
+		return { result, revenue, summaryMonth, summaryTeam, summaryEventType }
 	},
 	component: PlatformTransactionsPage,
 })
 
 function PlatformTransactionsPage() {
-	const { result: initialResult } = Route.useLoaderData()
-	const [activeTab, setActiveTab] = useState<Tab>("event-log")
+	const {
+		result: initialResult,
+		revenue,
+		summaryMonth,
+		summaryTeam,
+		summaryEventType,
+	} = Route.useLoaderData()
 	const [events, setEvents] = useState(initialResult.events)
 	const [total, setTotal] = useState(initialResult.total)
 	const [page, setPage] = useState(initialResult.page)
@@ -80,12 +94,6 @@ function PlatformTransactionsPage() {
 		fetchEvents({ newPage })
 	}
 
-	const tabs: { id: Tab; label: string }[] = [
-		{ id: "event-log", label: "Event Log" },
-		{ id: "by-purchase", label: "By Purchase" },
-		{ id: "summary", label: "Summary" },
-	]
-
 	return (
 		<div className="min-h-screen bg-background">
 			<header className="border-b">
@@ -118,129 +126,132 @@ function PlatformTransactionsPage() {
 				</div>
 			</header>
 
-			<main className="mx-auto max-w-7xl p-4 space-y-4">
-				{/* Tabs */}
-				<div className="flex gap-1 border-b">
-					{tabs.map((tab) => (
-						<button
-							key={tab.id}
-							type="button"
-							onClick={() => setActiveTab(tab.id)}
-							className={cn(
-								"px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-								activeTab === tab.id
-									? "border-primary text-primary"
-									: "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30",
-							)}
+			<main className="mx-auto max-w-7xl p-4 space-y-6">
+				{/* Revenue Summary Cards */}
+				<div className="grid grid-cols-4 gap-4">
+					{([
+						{ label: "Lifetime", cents: revenue.lifetime },
+						{ label: "This Month", cents: revenue.month },
+						{ label: "This Week", cents: revenue.week },
+						{ label: "Today", cents: revenue.today },
+					] as const).map((card) => (
+						<div
+							key={card.label}
+							className="rounded-lg border bg-card p-4"
 						>
-							{tab.label}
-						</button>
+							<p className="text-xs font-medium text-muted-foreground">
+								{card.label}
+							</p>
+							<p className="mt-1 text-2xl font-semibold font-mono text-emerald-600 dark:text-emerald-400">
+								{new Intl.NumberFormat("en-US", {
+									style: "currency",
+									currency: "usd",
+								}).format(card.cents / 100)}
+							</p>
+						</div>
 					))}
 				</div>
 
-				{activeTab === "event-log" && (
-					<div className="space-y-4">
-						{/* Filters */}
-						<div className="flex flex-wrap items-end gap-3">
-							<div className="flex flex-col gap-1">
-								<label
-									htmlFor="event-type-filter"
-									className="text-xs font-medium text-muted-foreground"
-								>
-									Event Type
-								</label>
-								<select
-									id="event-type-filter"
-									value={eventType}
-									onChange={(e) => handleEventTypeChange(e.target.value)}
-									className="h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-								>
-									<option value="">All types</option>
-									{EVENT_TYPES.map((t) => (
-										<option key={t} value={t}>
-											{t.replace(/_/g, " ")}
-										</option>
-									))}
-								</select>
-							</div>
-							<div className="flex flex-col gap-1">
-								<label
-									htmlFor="start-date-filter"
-									className="text-xs font-medium text-muted-foreground"
-								>
-									From
-								</label>
-								<input
-									id="start-date-filter"
-									type="date"
-									value={startDate}
-									onChange={(e) => handleStartDateChange(e.target.value)}
-									className="h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-								/>
-							</div>
-							<div className="flex flex-col gap-1">
-								<label
-									htmlFor="end-date-filter"
-									className="text-xs font-medium text-muted-foreground"
-								>
-									To
-								</label>
-								<input
-									id="end-date-filter"
-									type="date"
-									value={endDate}
-									onChange={(e) => handleEndDateChange(e.target.value)}
-									className="h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-								/>
-							</div>
+				{/* Summary */}
+				<FinancialSummary
+					monthData={summaryMonth as any}
+					teamData={summaryTeam as any}
+					eventTypeData={summaryEventType as any}
+					isLoading={false}
+				/>
+
+				{/* Event Log */}
+				<div className="space-y-4">
+					<h2 className="text-sm font-semibold text-foreground">Event Log</h2>
+
+					{/* Filters */}
+					<div className="flex flex-wrap items-end gap-3">
+						<div className="flex flex-col gap-1">
+							<label
+								htmlFor="event-type-filter"
+								className="text-xs font-medium text-muted-foreground"
+							>
+								Event Type
+							</label>
+							<select
+								id="event-type-filter"
+								value={eventType}
+								onChange={(e) => handleEventTypeChange(e.target.value)}
+								className="h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+							>
+								<option value="">All types</option>
+								{EVENT_TYPES.map((t) => (
+									<option key={t} value={t}>
+										{t.replace(/_/g, " ")}
+									</option>
+								))}
+							</select>
 						</div>
-
-						{/* Table */}
-						<FinancialEventTable events={events} loading={loading} />
-
-						{/* Pagination */}
-						<div className="flex items-center justify-between">
-							<span className="text-xs text-muted-foreground">
-								{total} event{total !== 1 ? "s" : ""} total
-							</span>
-							{totalPages > 1 && (
-								<div className="flex items-center gap-2">
-									<button
-										type="button"
-										onClick={() => handlePageChange(page - 1)}
-										disabled={page <= 1}
-										className="inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium hover:bg-accent disabled:opacity-50 disabled:pointer-events-none"
-									>
-										Previous
-									</button>
-									<span className="text-sm text-muted-foreground">
-										Page {page} of {totalPages}
-									</span>
-									<button
-										type="button"
-										onClick={() => handlePageChange(page + 1)}
-										disabled={page >= totalPages}
-										className="inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium hover:bg-accent disabled:opacity-50 disabled:pointer-events-none"
-									>
-										Next
-									</button>
-								</div>
-							)}
+						<div className="flex flex-col gap-1">
+							<label
+								htmlFor="start-date-filter"
+								className="text-xs font-medium text-muted-foreground"
+							>
+								From
+							</label>
+							<input
+								id="start-date-filter"
+								type="date"
+								value={startDate}
+								onChange={(e) => handleStartDateChange(e.target.value)}
+								className="h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+							/>
+						</div>
+						<div className="flex flex-col gap-1">
+							<label
+								htmlFor="end-date-filter"
+								className="text-xs font-medium text-muted-foreground"
+							>
+								To
+							</label>
+							<input
+								id="end-date-filter"
+								type="date"
+								value={endDate}
+								onChange={(e) => handleEndDateChange(e.target.value)}
+								className="h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+							/>
 						</div>
 					</div>
-				)}
 
-				{activeTab === "by-purchase" && (
-					<div className="flex items-center justify-center py-16 text-muted-foreground">
-						<p>By Purchase view coming soon.</p>
-					</div>
-				)}
+					{/* Table */}
+					<FinancialEventTable events={events} loading={loading} />
 
-				{activeTab === "summary" && (
-					<div className="flex items-center justify-center py-16 text-muted-foreground">
-						<p>Summary view coming soon.</p>
+					{/* Pagination */}
+					<div className="flex items-center justify-between">
+						<span className="text-xs text-muted-foreground">
+							{total} event{total !== 1 ? "s" : ""} total
+						</span>
+						{totalPages > 1 && (
+							<div className="flex items-center gap-2">
+								<button
+									type="button"
+									onClick={() => handlePageChange(page - 1)}
+									disabled={page <= 1}
+									className="inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium hover:bg-accent disabled:opacity-50 disabled:pointer-events-none"
+								>
+									Previous
+								</button>
+								<span className="text-sm text-muted-foreground">
+									Page {page} of {totalPages}
+								</span>
+								<button
+									type="button"
+									onClick={() => handlePageChange(page + 1)}
+									disabled={page >= totalPages}
+									className="inline-flex h-8 items-center rounded-md border px-3 text-sm font-medium hover:bg-accent disabled:opacity-50 disabled:pointer-events-none"
+								>
+									Next
+								</button>
+							</div>
+						)}
 					</div>
-				)}
+				</div>
 			</main>
 		</div>
 	)

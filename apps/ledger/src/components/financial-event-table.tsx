@@ -51,6 +51,17 @@ function truncate(str: string, len: number): string {
 	return `${str.slice(0, len)}...`
 }
 
+function parseMetaField(raw: string | null, field: string): number | null {
+	if (!raw) return null
+	try {
+		const meta = JSON.parse(raw)
+		const val = meta[field]
+		return typeof val === "number" ? val : null
+	} catch {
+		return null
+	}
+}
+
 const eventTypeColors: Record<string, string> = {
 	PAYMENT_COMPLETED:
 		"bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
@@ -185,6 +196,45 @@ export function FinancialEventTable({
 							)}
 						>
 							{isPositive ? "+" : ""}
+							{formatCurrency(cents, row.original.currency)}
+						</span>
+					)
+				},
+			},
+			{
+				id: "platformFee",
+				header: "Platform",
+				cell: ({ row }) => {
+					const cents = parseMetaField(row.original.metadata, "platformFeeCents")
+					if (cents == null) return <span className="text-muted-foreground">-</span>
+					return (
+						<span className="font-mono text-sm font-medium text-emerald-600 dark:text-emerald-400">
+							{formatCurrency(cents, row.original.currency)}
+						</span>
+					)
+				},
+			},
+			{
+				id: "stripeFee",
+				header: "Stripe",
+				cell: ({ row }) => {
+					const cents = parseMetaField(row.original.metadata, "stripeFeeCents")
+					if (cents == null) return <span className="text-muted-foreground">-</span>
+					return (
+						<span className="font-mono text-sm font-medium text-red-600 dark:text-red-400">
+							{formatCurrency(cents, row.original.currency)}
+						</span>
+					)
+				},
+			},
+			{
+				id: "organizerNet",
+				header: "Payout",
+				cell: ({ row }) => {
+					const cents = parseMetaField(row.original.metadata, "organizerNetCents")
+					if (cents == null) return <span className="text-muted-foreground">-</span>
+					return (
+						<span className="font-mono text-sm font-medium">
 							{formatCurrency(cents, row.original.currency)}
 						</span>
 					)

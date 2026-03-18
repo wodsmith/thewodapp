@@ -2,29 +2,21 @@ import type { FinancialEventType } from "@/db/ps-schema"
 import { cn } from "@/utils/cn"
 import { EventTypeBadge } from "./event-type-badge"
 
-interface MonthGroup {
+interface BaseGroup {
 	label: string
 	totalAmountCents: number
+	platformFeeCents: number
 	count: number
 }
 
-interface TeamGroup {
-	label: string
+interface TeamGroup extends BaseGroup {
 	teamId: string
-	totalAmountCents: number
-	count: number
-}
-
-interface EventTypeGroup {
-	label: string
-	totalAmountCents: number
-	count: number
 }
 
 interface FinancialSummaryProps {
 	monthData: {
 		groupBy: "month"
-		groups: MonthGroup[]
+		groups: BaseGroup[]
 	} | null
 	teamData: {
 		groupBy: "team"
@@ -32,7 +24,7 @@ interface FinancialSummaryProps {
 	} | null
 	eventTypeData: {
 		groupBy: "eventType"
-		groups: EventTypeGroup[]
+		groups: BaseGroup[]
 	} | null
 	isLoading: boolean
 }
@@ -89,6 +81,7 @@ function MonthSection({
 	if (!data || data.groups.length === 0) return <EmptyState />
 
 	const totalCents = data.groups.reduce((s, g) => s + g.totalAmountCents, 0)
+	const totalPlatform = data.groups.reduce((s, g) => s + g.platformFeeCents, 0)
 	const totalCount = data.groups.reduce((s, g) => s + g.count, 0)
 
 	return (
@@ -99,10 +92,13 @@ function MonthSection({
 						Month
 					</th>
 					<th className="h-8 px-3 text-right font-medium text-muted-foreground">
-						Net Amount
+						Gross
 					</th>
 					<th className="h-8 px-3 text-right font-medium text-muted-foreground">
-						Transactions
+						Platform
+					</th>
+					<th className="h-8 px-3 text-right font-medium text-muted-foreground">
+						Txns
 					</th>
 				</tr>
 			</thead>
@@ -116,6 +112,9 @@ function MonthSection({
 						<td className={cn("px-3 py-2 text-right font-mono", amountColor(g.totalAmountCents))}>
 							{formatCents(g.totalAmountCents)}
 						</td>
+						<td className="px-3 py-2 text-right font-mono text-emerald-600 dark:text-emerald-400">
+							{formatCents(g.platformFeeCents)}
+						</td>
 						<td className="px-3 py-2 text-right">{g.count}</td>
 					</tr>
 				))}
@@ -123,6 +122,9 @@ function MonthSection({
 					<td className="px-3 py-2">Total</td>
 					<td className={cn("px-3 py-2 text-right font-mono", amountColor(totalCents))}>
 						{formatCents(totalCents)}
+					</td>
+					<td className="px-3 py-2 text-right font-mono text-emerald-600 dark:text-emerald-400">
+						{formatCents(totalPlatform)}
 					</td>
 					<td className="px-3 py-2 text-right">{totalCount}</td>
 				</tr>
@@ -137,6 +139,7 @@ function TeamSection({
 	if (!data || data.groups.length === 0) return <EmptyState />
 
 	const totalCents = data.groups.reduce((s, g) => s + g.totalAmountCents, 0)
+	const totalPlatform = data.groups.reduce((s, g) => s + g.platformFeeCents, 0)
 	const totalCount = data.groups.reduce((s, g) => s + g.count, 0)
 
 	return (
@@ -147,10 +150,13 @@ function TeamSection({
 						Team
 					</th>
 					<th className="h-8 px-3 text-right font-medium text-muted-foreground">
-						Net Amount
+						Gross
 					</th>
 					<th className="h-8 px-3 text-right font-medium text-muted-foreground">
-						Transactions
+						Platform
+					</th>
+					<th className="h-8 px-3 text-right font-medium text-muted-foreground">
+						Txns
 					</th>
 				</tr>
 			</thead>
@@ -164,6 +170,9 @@ function TeamSection({
 						<td className={cn("px-3 py-2 text-right font-mono", amountColor(g.totalAmountCents))}>
 							{formatCents(g.totalAmountCents)}
 						</td>
+						<td className="px-3 py-2 text-right font-mono text-emerald-600 dark:text-emerald-400">
+							{formatCents(g.platformFeeCents)}
+						</td>
 						<td className="px-3 py-2 text-right">{g.count}</td>
 					</tr>
 				))}
@@ -171,6 +180,9 @@ function TeamSection({
 					<td className="px-3 py-2">Total</td>
 					<td className={cn("px-3 py-2 text-right font-mono", amountColor(totalCents))}>
 						{formatCents(totalCents)}
+					</td>
+					<td className="px-3 py-2 text-right font-mono text-emerald-600 dark:text-emerald-400">
+						{formatCents(totalPlatform)}
 					</td>
 					<td className="px-3 py-2 text-right">{totalCount}</td>
 				</tr>
@@ -192,7 +204,10 @@ function EventTypeSection({
 						Event Type
 					</th>
 					<th className="h-8 px-3 text-right font-medium text-muted-foreground">
-						Total Amount
+						Gross
+					</th>
+					<th className="h-8 px-3 text-right font-medium text-muted-foreground">
+						Platform
 					</th>
 					<th className="h-8 px-3 text-right font-medium text-muted-foreground">
 						Count
@@ -210,6 +225,9 @@ function EventTypeSection({
 						</td>
 						<td className={cn("px-3 py-2 text-right font-mono", amountColor(g.totalAmountCents))}>
 							{formatCents(g.totalAmountCents)}
+						</td>
+						<td className="px-3 py-2 text-right font-mono text-emerald-600 dark:text-emerald-400">
+							{formatCents(g.platformFeeCents)}
 						</td>
 						<td className="px-3 py-2 text-right">{g.count}</td>
 					</tr>

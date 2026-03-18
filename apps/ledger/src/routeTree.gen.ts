@@ -11,8 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedDocumentsRouteImport } from './routes/_authenticated/documents'
 import { Route as AuthenticatedPlatformTransactionsRouteImport } from './routes/_authenticated/platform-transactions'
+import { Route as AuthenticatedDocumentsRouteImport } from './routes/_authenticated/documents'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
@@ -23,14 +23,15 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedPlatformTransactionsRoute =
+  AuthenticatedPlatformTransactionsRouteImport.update({
+    id: '/platform-transactions',
+    path: '/platform-transactions',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedDocumentsRoute = AuthenticatedDocumentsRouteImport.update({
   id: '/documents',
   path: '/documents',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedPlatformTransactionsRoute = AuthenticatedPlatformTransactionsRouteImport.update({
-  id: '/platform-transactions',
-  path: '/platform-transactions',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 
@@ -56,7 +57,12 @@ export interface FileRouteTypes {
   fullPaths: '/' | '/documents' | '/platform-transactions'
   fileRoutesByTo: FileRoutesByTo
   to: '/' | '/documents' | '/platform-transactions'
-  id: '__root__' | '/' | '/_authenticated' | '/_authenticated/documents' | '/_authenticated/platform-transactions'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/_authenticated/documents'
+    | '/_authenticated/platform-transactions'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -69,7 +75,7 @@ declare module '@tanstack/react-router' {
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
-      fullPath: '/'
+      fullPath: ''
       preLoaderRoute: typeof AuthenticatedRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -80,18 +86,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/documents': {
-      id: '/_authenticated/documents'
-      path: '/documents'
-      fullPath: '/documents'
-      preLoaderRoute: typeof AuthenticatedDocumentsRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_authenticated/platform-transactions': {
       id: '/_authenticated/platform-transactions'
       path: '/platform-transactions'
       fullPath: '/platform-transactions'
       preLoaderRoute: typeof AuthenticatedPlatformTransactionsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/documents': {
+      id: '/_authenticated/documents'
+      path: '/documents'
+      fullPath: '/documents'
+      preLoaderRoute: typeof AuthenticatedDocumentsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
   }
@@ -104,7 +110,8 @@ interface AuthenticatedRouteChildren {
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDocumentsRoute: AuthenticatedDocumentsRoute,
-  AuthenticatedPlatformTransactionsRoute: AuthenticatedPlatformTransactionsRoute,
+  AuthenticatedPlatformTransactionsRoute:
+    AuthenticatedPlatformTransactionsRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
@@ -118,3 +125,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

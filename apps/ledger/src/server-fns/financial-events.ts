@@ -247,12 +247,15 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
 			lte(financialEventTable.createdAt, end),
 		)
 
+		const sumPlatformFee = sql<number>`COALESCE(SUM(CAST(JSON_EXTRACT(${financialEventTable.metadata}, '$.platformFeeCents') AS UNSIGNED)), 0)`
+
 		if (data.groupBy === "month") {
 			const rows = await db
 				.select({
 					year: sql<number>`YEAR(${financialEventTable.createdAt})`,
 					month: sql<number>`MONTH(${financialEventTable.createdAt})`,
 					totalAmountCents: sql<number>`SUM(${financialEventTable.amountCents})`,
+					platformFeeCents: sumPlatformFee,
 					count: sql<number>`COUNT(*)`,
 				})
 				.from(financialEventTable)
@@ -271,6 +274,7 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
 				groups: rows.map((r) => ({
 					label: `${Number(r.year)}-${String(Number(r.month)).padStart(2, "0")}`,
 					totalAmountCents: Number(r.totalAmountCents),
+					platformFeeCents: Number(r.platformFeeCents),
 					count: Number(r.count),
 				})),
 			}
@@ -282,6 +286,7 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
 					teamId: financialEventTable.teamId,
 					teamName: teamTable.name,
 					totalAmountCents: sql<number>`SUM(${financialEventTable.amountCents})`,
+					platformFeeCents: sumPlatformFee,
 					count: sql<number>`COUNT(*)`,
 				})
 				.from(financialEventTable)
@@ -296,6 +301,7 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
 					label: r.teamName ?? r.teamId,
 					teamId: r.teamId,
 					totalAmountCents: Number(r.totalAmountCents),
+					platformFeeCents: Number(r.platformFeeCents),
 					count: Number(r.count),
 				})),
 			}
@@ -306,6 +312,7 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
 			.select({
 				eventType: financialEventTable.eventType,
 				totalAmountCents: sql<number>`SUM(${financialEventTable.amountCents})`,
+				platformFeeCents: sumPlatformFee,
 				count: sql<number>`COUNT(*)`,
 			})
 			.from(financialEventTable)
@@ -318,7 +325,56 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
 			groups: rows.map((r) => ({
 				label: r.eventType,
 				totalAmountCents: Number(r.totalAmountCents),
+				platformFeeCents: Number(r.platformFeeCents),
 				count: Number(r.count),
 			})),
+		}
+	})
+
+export const getPlatformRevenueSummary = createServerFn({ method: "GET" })
+	.handler(async () => {
+		await requireAuth()
+		const db = getPsDb()
+
+		const now = new Date()
+		const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+		const dayOfWeek = now.getDay()
+		const startOfWeek = new Date(startOfToday)
+		startOfWeek.setDate(startOfToday.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
+		const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+		const paymentCompleted = eq(
+			financialEventTable.eventType,
+			"PAYMENT_COMPLETED" as const,
+		)
+
+		const sumPlatformFee = sql<number>`COALESCE(SUM(
+			CAST(JSON_EXTRACT(${financialEventTable.metadata}, '$.platformFeeCents') AS UNSIGNED)
+		), 0)`
+
+		const [lifetime, month, week, today] = await Promise.all([
+			db
+				.select({ total: sumPlatformFee })
+				.from(financialEventTable)
+				.where(paymentCompleted),
+			db
+				.select({ total: sumPlatformFee })
+				.from(financialEventTable)
+				.where(and(paymentCompleted, gte(financialEventTable.createdAt, startOfMonth))),
+			db
+				.select({ total: sumPlatformFee })
+				.from(financialEventTable)
+				.where(and(paymentCompleted, gte(financialEventTable.createdAt, startOfWeek))),
+			db
+				.select({ total: sumPlatformFee })
+				.from(financialEventTable)
+				.where(and(paymentCompleted, gte(financialEventTable.createdAt, startOfToday))),
+		])
+
+		return {
+			lifetime: Number(lifetime[0]?.total ?? 0),
+			month: Number(month[0]?.total ?? 0),
+			week: Number(week[0]?.total ?? 0),
+			today: Number(today[0]?.total ?? 0),
 		}
 	})

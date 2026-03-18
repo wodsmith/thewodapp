@@ -1,6 +1,5 @@
 import alchemy from "alchemy"
 import { D1Database, Hyperdrive, R2Bucket, TanStackStart } from "alchemy/cloudflare"
-import { Password as PlanetScalePassword } from "alchemy/planetscale"
 import { CloudflareStateStore } from "alchemy/state"
 
 const stage = process.env.STAGE ?? "dev"
@@ -19,25 +18,21 @@ const db = await D1Database("db", {
 })
 
 /**
- * PlanetScale database credentials.
- * Reuses the same wodsmith-db database — ledger reads from the same schema.
+ * PlanetScale connection for reading financial events.
+ *
+ * Uses DATABASE_URL directly — ledger reuses the same credentials
+ * as wodsmith-start rather than creating a separate PlanetScale password.
+ * Set DATABASE_URL in .env (local dev) or as a GitHub secret (CI/prod).
  */
-const psDbName = "wodsmith-db"
-const psOrg = process.env.PLANETSCALE_ORGANIZATION ?? "wodsmith"
-
-const psPassword = await PlanetScalePassword(`ledger-ps-password-${stage}`, {
-	organization: psOrg,
-	database: psDbName,
-	branch: stage === "prod" ? "main" : "dev",
-	role: "reader",
-})
+// biome-ignore lint/style/noNonNullAssertion: Required for PlanetScale connection
+const databaseUrl = new URL(process.env.DATABASE_URL!)
 
 const hyperdrive = await Hyperdrive(`ledger-hyperdrive-${stage}`, {
 	origin: {
-		host: psPassword.host,
-		database: psDbName,
-		user: psPassword.username,
-		password: psPassword.password.unencrypted,
+		host: databaseUrl.hostname,
+		database: databaseUrl.pathname.slice(1),
+		user: decodeURIComponent(databaseUrl.username),
+		password: decodeURIComponent(databaseUrl.password),
 		port: 3306,
 		scheme: "mysql",
 	},
@@ -46,7 +41,7 @@ const hyperdrive = await Hyperdrive(`ledger-hyperdrive-${stage}`, {
 	},
 	adopt: true,
 	dev: {
-		origin: `mysql://${psPassword.username}:${psPassword.password.unencrypted}@${psPassword.host}:3306/${psDbName}?sslaccept=strict`,
+		origin: process.env.DATABASE_URL!,
 	},
 })
 
@@ -70,7 +65,8 @@ const website = await TanStackStart("app", {
 		HYPERDRIVE: hyperdrive,
 		// biome-ignore lint/style/noNonNullAssertion: Set at deploy time
 		APP_URL: process.env.APP_URL!,
-		DATABASE_URL: `mysql://${psPassword.username}:${psPassword.password.unencrypted}@${psPassword.host}:3306/${psDbName}?sslaccept=strict`,
+		// biome-ignore lint/style/noNonNullAssertion: Required for PlanetScale fallback in local dev
+		DATABASE_URL: process.env.DATABASE_URL!,
 		NODE_ENV: stage === "prod" ? "production" : "development",
 		// biome-ignore lint/style/noNonNullAssertion: Required
 		LEDGER_AUTH_PASSWORD: alchemy.secret(process.env.LEDGER_AUTH_PASSWORD!),
