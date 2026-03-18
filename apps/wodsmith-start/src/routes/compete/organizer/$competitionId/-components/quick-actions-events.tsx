@@ -42,6 +42,9 @@ export function QuickActionsEvents({
   const [pendingEvents, setPendingEvents] = useState<Set<string>>(new Set())
   const [isPublishingAll, setIsPublishingAll] = useState(false)
 
+  // Filter out sub-events — only show top-level events
+  const topLevelEvents = events.filter((e) => !e.parentEventId)
+
   const handleToggleEventStatus = async (
     trackWorkoutId: string,
     newStatus: "draft" | "published",
@@ -68,7 +71,7 @@ export function QuickActionsEvents({
   }
 
   const handlePublishAll = async () => {
-    const draftEvents = events.filter((e) => e.eventStatus !== "published")
+    const draftEvents = topLevelEvents.filter((e) => e.eventStatus !== "published")
     if (draftEvents.length === 0) return
 
     setIsPublishingAll(true)
@@ -93,14 +96,14 @@ export function QuickActionsEvents({
     }
   }
 
-  if (events.length === 0) {
+  if (topLevelEvents.length === 0) {
     return null
   }
 
-  const publishedCount = events.filter(
+  const publishedCount = topLevelEvents.filter(
     (e) => e.eventStatus === "published",
   ).length
-  const draftCount = events.length - publishedCount
+  const draftCount = topLevelEvents.length - publishedCount
   const hasUnpublishedEvents = draftCount > 0
 
   return (
@@ -138,7 +141,7 @@ export function QuickActionsEvents({
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {events.map((event) => {
+          {topLevelEvents.map((event) => {
             const isPublished = event.eventStatus === "published"
             const isPending = pendingEvents.has(event.id)
             return (

@@ -95,6 +95,8 @@ export interface CompetitionLeaderboardEntry {
     videoSubmissionId: string | null
     /** Parent event ID if this is a sub-event, null for standalone/parent */
     parentEventId: string | null
+    /** Parent event name if this is a sub-event, null for standalone */
+    parentEventName: string | null
     /** True if this is a parent event with aggregated sub-event points */
     isParentEvent: boolean
   }>
@@ -120,6 +122,7 @@ export interface CompetitionLeaderboardResult {
     trackWorkoutId: string
     name: string
     parentEventId: string | null
+    parentEventName: string | null
     isParentEvent: boolean
   }>
 }
@@ -371,8 +374,11 @@ export async function getCompetitionLeaderboard(params: {
     })
 
     if (relevantIds) {
-      filteredTrackWorkouts = trackWorkouts.filter((tw) =>
-        relevantIds.has(tw.id),
+      // Also include child events whose parent is relevant (children inherit parent's heat relevance)
+      filteredTrackWorkouts = trackWorkouts.filter(
+        (tw) =>
+          relevantIds.has(tw.id) ||
+          (tw.parentEventId && relevantIds.has(tw.parentEventId)),
       )
 
       if (filteredTrackWorkouts.length === 0) {
@@ -388,6 +394,14 @@ export async function getCompetitionLeaderboard(params: {
       .filter((tw) => tw.parentEventId)
       .map((tw) => tw.parentEventId as string),
   )
+  // Build a map of parent event names for sub-event grouping on the leaderboard
+  const parentNameMap = new Map<string, string>()
+  for (const tw of filteredTrackWorkouts) {
+    if (childEventIds.has(tw.id)) {
+      parentNameMap.set(tw.id, tw.workout.name)
+    }
+  }
+
   // Scorable events = standalone + children (parents have no scores of their own)
   const scorableEvents = filteredTrackWorkouts.filter(
     (tw) => !childEventIds.has(tw.id),
@@ -417,12 +431,24 @@ export async function getCompetitionLeaderboard(params: {
     )
 
   if (registrations.length === 0) {
-    const events = filteredTrackWorkouts.map((tw) => ({
-      trackWorkoutId: tw.id,
-      name: tw.workout.name,
-      parentEventId: tw.parentEventId,
-      isParentEvent: childEventIds.has(tw.id),
-    }))
+    // Build parent name map for sub-event grouping
+    const earlyParentNameMap = new Map<string, string>()
+    for (const tw of filteredTrackWorkouts) {
+      if (childEventIds.has(tw.id)) {
+        earlyParentNameMap.set(tw.id, tw.workout.name)
+      }
+    }
+    const events = filteredTrackWorkouts
+      .filter((tw) => !childEventIds.has(tw.id))
+      .map((tw) => ({
+        trackWorkoutId: tw.id,
+        name: tw.workout.name,
+        parentEventId: tw.parentEventId,
+        parentEventName: tw.parentEventId
+          ? (earlyParentNameMap.get(tw.parentEventId) ?? null)
+          : null,
+        isParentEvent: false,
+      }))
     return { entries: [], scoringConfig, events }
   }
 
@@ -685,6 +711,9 @@ export async function getCompetitionLeaderboard(params: {
               )?.submissionId ?? null)
             : null,
           parentEventId: trackWorkout.parentEventId,
+          parentEventName: trackWorkout.parentEventId
+            ? (parentNameMap.get(trackWorkout.parentEventId) ?? null)
+            : null,
           isParentEvent: false,
         })
 
@@ -718,6 +747,9 @@ export async function getCompetitionLeaderboard(params: {
             ? (videoMap.get(`${regId}:${trackWorkout.id}`)?.submissionId ?? null)
             : null,
           parentEventId: trackWorkout.parentEventId,
+          parentEventName: trackWorkout.parentEventId
+            ? (parentNameMap.get(trackWorkout.parentEventId) ?? null)
+            : null,
           isParentEvent: false,
         })
       }
@@ -783,6 +815,9 @@ export async function getCompetitionLeaderboard(params: {
       trackWorkoutId: tw.id,
       name: tw.workout.name,
       parentEventId: tw.parentEventId,
+      parentEventName: tw.parentEventId
+        ? (parentNameMap.get(tw.parentEventId) ?? null)
+        : null,
       isParentEvent: false,
     }))
 
