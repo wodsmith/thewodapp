@@ -72,7 +72,8 @@ function deepSanitize(
 // built-in env resolution).
 initWorkersLogger({
   env: { service: "wodsmith-start" },
-  silent: true,
+  // Show wide events in console during local dev, suppress in prod (drain handles it)
+  silent: !import.meta.env.DEV,
   drain: (ctx) => {
     const apiKey = (env as unknown as Record<string, string | undefined>)
       .POSTHOG_KEY
