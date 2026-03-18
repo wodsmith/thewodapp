@@ -175,7 +175,7 @@ export const createJudgingSheetFn = createServerFn({ method: "POST" })
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("competitionId", data.competitionId)
     addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
-    getEvlog()?.set({ action: "create_judging_sheet", competitionId: data.competitionId, trackWorkoutId: data.trackWorkoutId })
+    getEvlog()?.set({ action: "create_judging_sheet", judgingSheet: { competitionId: data.competitionId, trackWorkoutId: data.trackWorkoutId } })
 
     // Get the competition to verify ownership
     const competition = await db.query.competitionsTable.findFirst({
@@ -288,7 +288,7 @@ export const updateJudgingSheetFn = createServerFn({ method: "POST" })
     // Update request context
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("judgingSheetId", data.judgingSheetId)
-    getEvlog()?.set({ action: "update_judging_sheet", judgingSheetId: data.judgingSheetId })
+    getEvlog()?.set({ action: "update_judging_sheet", judgingSheet: { id: data.judgingSheetId } })
 
     // Get the judging sheet with competition info
     const sheet = await db.query.eventJudgingSheetsTable.findFirst({
@@ -361,7 +361,7 @@ export const deleteJudgingSheetFn = createServerFn({ method: "POST" })
     // Update request context
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("judgingSheetId", data.judgingSheetId)
-    getEvlog()?.set({ action: "delete_judging_sheet", judgingSheetId: data.judgingSheetId })
+    getEvlog()?.set({ action: "delete_judging_sheet", judgingSheet: { id: data.judgingSheetId } })
 
     // Get the judging sheet with competition info
     const sheet = await db.query.eventJudgingSheetsTable.findFirst({
@@ -424,7 +424,7 @@ export const reorderJudgingSheetsFn = createServerFn({ method: "POST" })
     // Update request context
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
-    getEvlog()?.set({ action: "reorder_judging_sheets", trackWorkoutId: data.trackWorkoutId })
+    getEvlog()?.set({ action: "reorder_judging_sheets", judgingSheet: { trackWorkoutId: data.trackWorkoutId } })
 
     // Get the track workout to find the competition using a join
     const trackWorkoutResult = await db

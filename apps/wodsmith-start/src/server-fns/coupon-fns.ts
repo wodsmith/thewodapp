@@ -67,7 +67,7 @@ export const createCouponFn = createServerFn({ method: "POST" })
     )
     if (!canManage) throw new Error("Unauthorized")
 
-    getEvlog()?.set({ action: "create_coupon", competitionId: input.competitionId, teamId: input.teamId })
+    getEvlog()?.set({ action: "create_coupon", coupon: { competitionId: input.competitionId }, teamId: input.teamId })
 
     const hasEntitlement = await hasFeature(
       input.teamId,
@@ -237,7 +237,7 @@ export const deactivateCouponFn = createServerFn({ method: "POST" })
     )
     if (!canManage) throw new Error("Unauthorized")
 
-    getEvlog()?.set({ action: "deactivate_coupon", couponId: input.couponId, teamId: input.teamId })
+    getEvlog()?.set({ action: "deactivate_coupon", coupon: { id: input.couponId }, teamId: input.teamId })
 
     const db = getDb()
 

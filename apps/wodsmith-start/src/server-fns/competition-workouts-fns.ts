@@ -1020,7 +1020,7 @@ export const addWorkoutToCompetitionFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "add_competition_workout", competitionId: data.competitionId, workoutId: data.workoutId, teamId: data.teamId })
+    getEvlog()?.set({ action: "add_competition_workout", workout: { competitionId: data.competitionId, workoutId: data.workoutId }, teamId: data.teamId })
 
     // Get the competition's programming track
     const track = await getCompetitionTrack(data.competitionId)
@@ -1077,7 +1077,7 @@ export const removeWorkoutFromCompetitionFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "delete_competition_workout", trackWorkoutId: data.trackWorkoutId, teamId: data.teamId })
+    getEvlog()?.set({ action: "delete_competition_workout", workout: { trackWorkoutId: data.trackWorkoutId }, teamId: data.teamId })
 
     // Delete the track workout
     await db
@@ -1111,7 +1111,7 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "create_competition_workout", competitionId: data.competitionId, workoutName: data.name, teamId: data.teamId })
+    getEvlog()?.set({ action: "create_competition_workout", workout: { competitionId: data.competitionId }, teamId: data.teamId })
 
     // Get or create the competition track
     let track = await getCompetitionTrack(data.competitionId)
@@ -1249,7 +1249,7 @@ export const updateCompetitionWorkoutFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_competition_workout", trackWorkoutId: data.trackWorkoutId, teamId: data.teamId })
+    getEvlog()?.set({ action: "update_competition_workout", workout: { trackWorkoutId: data.trackWorkoutId }, teamId: data.teamId })
 
     const updateData: Record<string, unknown> = {
       updatedAt: new Date(),
@@ -1303,7 +1303,7 @@ export const saveCompetitionEventFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "save_competition_event", trackWorkoutId: data.trackWorkoutId, workoutId: data.workoutId, teamId: data.teamId })
+    getEvlog()?.set({ action: "save_competition_event", workout: { trackWorkoutId: data.trackWorkoutId, workoutId: data.workoutId }, teamId: data.teamId })
 
     // 1. Update workout table
     const workoutUpdateData: Record<string, unknown> = {
@@ -1464,7 +1464,7 @@ export const reorderCompetitionEventsFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "reorder_competition_events", competitionId: data.competitionId, teamId: data.teamId, count: data.updates.length })
+    getEvlog()?.set({ action: "reorder_competition_events", workout: { competitionId: data.competitionId }, teamId: data.teamId })
 
     // Get the competition's programming track
     const track = await getCompetitionTrack(data.competitionId)
@@ -1539,7 +1539,7 @@ export const updateWorkoutDivisionDescriptionsFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_division_descriptions", workoutId: data.workoutId, teamId: data.teamId, count: data.descriptions.length })
+    getEvlog()?.set({ action: "update_division_descriptions", workout: { workoutId: data.workoutId }, teamId: data.teamId })
 
     // Verify the workout belongs to this team
     const workout = await db

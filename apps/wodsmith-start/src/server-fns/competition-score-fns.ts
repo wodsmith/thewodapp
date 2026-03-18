@@ -456,6 +456,7 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }): Promise<EventScoreEntryData> => {
     const db = getDb()
+    getEvlog()?.set({ action: "load_score_entry", competition: { id: data.competitionId }, trackWorkoutId: data.trackWorkoutId })
 
     // Get the track workout (event) with workout details
     const [result] = await db
@@ -843,7 +844,7 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
     }> => {
       const db = getDb()
 
-      getEvlog()?.set({ action: "save_score", competitionId: data.competitionId, registrationId: data.registrationId, workoutId: data.workoutId })
+      getEvlog()?.set({ action: "save_score", score: { competitionId: data.competitionId, registrationId: data.registrationId, workoutId: data.workoutId } })
 
       // Update request context for tracing
       addRequestContextAttribute("competitionId", data.competitionId)
@@ -1148,7 +1149,7 @@ export const saveCompetitionScoresFn = createServerFn({ method: "POST" })
       const errors: Array<{ userId: string; error: string }> = []
       let savedCount = 0
 
-      getEvlog()?.set({ action: "save_scores_batch", competitionId: data.competitionId, scoreCount: data.scores.length })
+      getEvlog()?.set({ action: "save_scores_batch", batch: { competitionId: data.competitionId, count: data.scores.length } })
 
       // Update request context
       addRequestContextAttribute("competitionId", data.competitionId)
@@ -1240,7 +1241,7 @@ export const saveCompetitionScoresFn = createServerFn({ method: "POST" })
       }
 
       // Restore batch-level action after per-item saves overwrote it
-      getEvlog()?.set({ action: "save_scores_batch", competitionId: data.competitionId, scoreCount: data.scores.length, savedCount, errorCount: errors.length })
+      getEvlog()?.set({ action: "save_scores_batch", batch: { competitionId: data.competitionId, count: data.scores.length, saved: savedCount, errors: errors.length } })
 
       logInfo({
         message: "[Score] Batch save competition scores completed",
@@ -1266,7 +1267,7 @@ export const deleteCompetitionScoreFn = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ success: boolean }> => {
     const db = getDb()
 
-    getEvlog()?.set({ action: "delete_score", competitionId: data.competitionId, trackWorkoutId: data.trackWorkoutId, userId: data.userId })
+    getEvlog()?.set({ action: "delete_score", score: { competitionId: data.competitionId, trackWorkoutId: data.trackWorkoutId } })
 
     // Update request context
     addRequestContextAttribute("competitionId", data.competitionId)

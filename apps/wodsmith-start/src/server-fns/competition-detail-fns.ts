@@ -177,6 +177,7 @@ export const getCompetitionByIdFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => getCompetitionByIdInputSchema.parse(data))
   .handler(async ({ data }) => {
     const db = getDb()
+    getEvlog()?.set({ action: "view_competition", competition: { id: data.competitionId } })
 
     const result = await db
       .select({
@@ -653,6 +654,7 @@ export const getOrganizerRegistrationsFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const db = getDb()
+    getEvlog()?.set({ action: "list_organizer_registrations", competition: { id: data.competitionId } })
 
     // Build where clause - include all registrations (removed shown grayed out)
     const whereConditions = [
@@ -926,7 +928,7 @@ export const updateCompetitionRotationSettingsFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_rotation_settings", competitionId: input.competitionId })
+    getEvlog()?.set({ action: "update_rotation_settings", competition: { id: input.competitionId } })
 
     // Update competition
     await db
@@ -970,7 +972,7 @@ export const updateCompetitionScoringConfigFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_scoring_config", competitionId: input.competitionId, algorithm: input.scoringConfig.algorithm })
+    getEvlog()?.set({ action: "update_scoring_config", competition: { id: input.competitionId }, scoring: { algorithm: input.scoringConfig.algorithm } })
 
     // Parse existing settings and merge with new scoring config
     let existingSettings: Record<string, unknown> = {}
@@ -1016,7 +1018,7 @@ export const deleteCompetitionFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "delete_competition", competitionId: input.competitionId, organizingTeamId: input.organizingTeamId })
+    getEvlog()?.set({ action: "delete_competition", competition: { id: input.competitionId, organizingTeamId: input.organizingTeamId } })
 
     // Get the competition to verify it exists and get the competitionTeamId
     const competition = await db.query.competitionsTable.findFirst({

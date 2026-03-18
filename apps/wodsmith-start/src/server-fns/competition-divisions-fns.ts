@@ -712,6 +712,7 @@ export const getCompetitionDivisionsWithCountsFn = createServerFn({
   )
   .handler(async ({ data }) => {
     const db = getDb()
+    getEvlog()?.set({ action: "list_divisions", competition: { id: data.competitionId } })
 
     // Verify authentication
     const session = await getSessionFromCookie()
@@ -887,7 +888,7 @@ export const initializeCompetitionDivisionsFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "initialize_competition_divisions", competitionId: data.competitionId, teamId: data.teamId, templateGroupId: data.templateGroupId ?? null })
+    getEvlog()?.set({ action: "initialize_competition_divisions", competition: { id: data.competitionId }, teamId: data.teamId })
 
     // Verify competition exists and belongs to team
     const [competition] = await db
@@ -1011,7 +1012,7 @@ export const addCompetitionDivisionFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "create_division", competitionId: data.competitionId, teamId: data.teamId, label: data.label })
+    getEvlog()?.set({ action: "create_division", competition: { id: data.competitionId }, teamId: data.teamId })
 
     const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
       competitionId: data.competitionId,
@@ -1048,7 +1049,7 @@ export const updateCompetitionDivisionFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_division", competitionId: data.competitionId, teamId: data.teamId, divisionId: data.divisionId, label: data.label })
+    getEvlog()?.set({ action: "update_division", division: { id: data.divisionId, competitionId: data.competitionId }, teamId: data.teamId })
 
     const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
       competitionId: data.competitionId,
@@ -1094,7 +1095,7 @@ export const deleteCompetitionDivisionFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "delete_division", competitionId: data.competitionId, teamId: data.teamId, divisionId: data.divisionId })
+    getEvlog()?.set({ action: "delete_division", division: { id: data.divisionId, competitionId: data.competitionId }, teamId: data.teamId })
 
     const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
       competitionId: data.competitionId,
@@ -1172,7 +1173,7 @@ export const reorderCompetitionDivisionsFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "reorder_divisions", competitionId: data.competitionId, teamId: data.teamId, count: data.orderedDivisionIds.length })
+    getEvlog()?.set({ action: "reorder_divisions", competition: { id: data.competitionId }, teamId: data.teamId })
 
     const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
       competitionId: data.competitionId,
@@ -1221,7 +1222,7 @@ export const updateDivisionDescriptionFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_division_description", competitionId: data.competitionId, teamId: data.teamId, divisionId: data.divisionId })
+    getEvlog()?.set({ action: "update_division_description", division: { id: data.divisionId, competitionId: data.competitionId }, teamId: data.teamId })
 
     const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
       competitionId: data.competitionId,
@@ -1293,7 +1294,7 @@ export const updateCompetitionDefaultCapacityFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_competition_default_capacity", competitionId: data.competitionId, teamId: data.teamId, defaultMaxSpotsPerDivision: data.defaultMaxSpotsPerDivision, maxTotalRegistrations: data.maxTotalRegistrations })
+    getEvlog()?.set({ action: "update_competition_default_capacity", competition: { id: data.competitionId }, capacity: { defaultMaxSpotsPerDivision: data.defaultMaxSpotsPerDivision, maxTotalRegistrations: data.maxTotalRegistrations }, teamId: data.teamId })
 
     // Verify competition exists and belongs to team
     const [competition] = await db
@@ -1346,7 +1347,7 @@ export const updateDivisionCapacityFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_division_capacity", competitionId: data.competitionId, teamId: data.teamId, divisionId: data.divisionId, maxSpots: data.maxSpots })
+    getEvlog()?.set({ action: "update_division_capacity", division: { id: data.divisionId, competitionId: data.competitionId, maxSpots: data.maxSpots }, teamId: data.teamId })
 
     const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
       competitionId: data.competitionId,
@@ -1591,7 +1592,7 @@ export const switchCompetitionScalingGroupFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "switch_competition_scaling_group", competitionId: data.competitionId, teamId: data.teamId, newScalingGroupId: data.newScalingGroupId })
+    getEvlog()?.set({ action: "switch_competition_scaling_group", competition: { id: data.competitionId }, teamId: data.teamId })
 
     return switchCompetitionScalingGroupCore({
       db,

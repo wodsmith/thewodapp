@@ -304,6 +304,7 @@ export const getOrganizerCompetitionsFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const db = getDb()
+    getEvlog()?.set({ action: "list_organizer_competitions", teamId: data.teamId })
 
     const competitions = await db
       .select({
@@ -661,7 +662,7 @@ export const updateCompetitionFn = createServerFn({ method: "POST" })
     // Update request context
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("competitionId", data.competitionId)
-    getEvlog()?.set({ action: "update_competition", competitionId: data.competitionId, userId: session.userId, updatedFields: Object.keys(data).filter(k => k !== "competitionId") })
+    getEvlog()?.set({ action: "update_competition", competition: { id: data.competitionId, updatedFields: Object.keys(data).filter(k => k !== "competitionId") } })
 
     const db = getDb()
 
@@ -809,6 +810,7 @@ export const getCompetitionGroupsFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const db = getDb()
+    getEvlog()?.set({ action: "list_competition_groups", teamId: data.teamId })
 
     const groups = await db
       .select({
@@ -922,7 +924,7 @@ export const updateCompetitionGroupFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     addRequestContextAttribute("groupId", data.groupId)
-    getEvlog()?.set({ action: "update_competition_group", groupId: data.groupId })
+    getEvlog()?.set({ action: "update_competition_group", group: { id: data.groupId } })
 
     try {
       const { groupId, ...updates } = data
@@ -956,7 +958,7 @@ export const deleteCompetitionGroupFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     addRequestContextAttribute("groupId", data.groupId)
-    getEvlog()?.set({ action: "delete_competition_group", groupId: data.groupId })
+    getEvlog()?.set({ action: "delete_competition_group", group: { id: data.groupId } })
 
     try {
       const result = await deleteCompetitionGroup(data.groupId)

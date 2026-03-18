@@ -177,7 +177,7 @@ export const upsertCompetitionEventsFn = createServerFn({ method: "POST" })
       data.teamId,
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
-    getEvlog()?.set({ action: "upsert_competition_events", competitionId: data.competitionId, teamId: data.teamId })
+    getEvlog()?.set({ action: "upsert_competition_events", event: { competitionId: data.competitionId }, teamId: data.teamId })
 
     // Verify competition exists and belongs to team
     const competition = await db
@@ -241,7 +241,7 @@ export const deleteCompetitionEventFn = createServerFn({ method: "POST" })
       data.teamId,
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
-    getEvlog()?.set({ action: "delete_competition_event", eventId: data.eventId, teamId: data.teamId })
+    getEvlog()?.set({ action: "delete_competition_event", event: { id: data.eventId }, teamId: data.teamId })
 
     // Verify event exists and belongs to team's competition
     const event = await db
