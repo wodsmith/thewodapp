@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "f49b0029bb7f",
+  "strategy": "manual-commit",
+  "branch": "zac/fix-affiliate-picker",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/src/components/registration/affiliate-combobox.tsx",
+    "apps/wodsmith-start/src/server-fns/registration-fns.ts",
+    "apps/wodsmith-start/src/server/registration.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f4/9b0029bb7f/0/metadata.json",
+      "transcript": "/f4/9b0029bb7f/0/full.jsonl",
+      "context": "/f4/9b0029bb7f/0/context.md",
+      "content_hash": "/f4/9b0029bb7f/0/content_hash.txt",
+      "prompt": "/f4/9b0029bb7f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 17,
+    "cache_creation_tokens": 20713,
+    "cache_read_tokens": 1030766,
+    "output_tokens": 4607,
+    "api_call_count": 14
+  }
+}

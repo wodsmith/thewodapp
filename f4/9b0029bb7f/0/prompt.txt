@@ -1,0 +1,420 @@
+I have two tasks I want you to accomplish. The first is a data one. we have this @apps/wodsmith-start/src/components/registration/affiliate-combobox.tsx @apps/wodsmith-start/src/server-fns/affiliate-fns.ts#L48-70  that searches for affiliates but right now it only displays 'verified' affiliates. we want to open search up to any affiliates others have answered that aren't just verified so that if someone entered their gym, others can select that option after searching so we don't have a crazy number of slightly different strings that point to the same affiliate
+
+---
+
+the search doesn't seem to really do anything when you're typing and it doesn't hit.. feels broken
+
+---
+
+why do verified results ALWAYS show up I hate it
+
+---
+
+why are non verified affiliates not showing up?
+
+---
+
+I thought when I selected an affiliate it would seed, do I need to actually complete the registration first?
+
+---
+
+nah lets wait
+
+---
+
+## Context
+
+- Current branch: zac/fix-affiliate-picker
+- Git status:  M apps/wodsmith-start/src/db/index.ts
+- Uncommitted changes: diff --git a/apps/wodsmith-start/src/db/index.ts b/apps/wodsmith-start/src/db/index.ts
+index fef59703..d9df3b4c 100644
+--- a/apps/wodsmith-start/src/db/index.ts
++++ b/apps/wodsmith-start/src/db/index.ts
+@@ -35,24 +35,24 @@ export type Database = MySql2Database<typeof schema>
+  * connection pooling externally at the Cloudflare level.
+  */
+ export const getDb = createServerOnlyFn((): Database => {
+-  const hyperdrive = (env as { HYPERDRIVE?: Hyperdrive }).HYPERDRIVE
+-  const connectionString =
+-    hyperdrive?.connectionString ??
+-    (env as { DATABASE_URL?: string }).DATABASE_URL
++  // const hyperdrive = (env as { HYPERDRIVE?: Hyperdrive }).HYPERDRIVE
++  // const connectionString =
++  //   hyperdrive?.connectionString ??
++  //   (env as { DATABASE_URL?: string }).DATABASE_URL
+ 
+-  if (!connectionString) {
+-    throw new Error(
+-      "No database connection available. Set HYPERDRIVE binding (production) or DATABASE_URL in .dev.vars (local dev).",
+-    )
+-  }
++  // if (!connectionString) {
++  //   throw new Error(
++  //     "No database connection available. Set HYPERDRIVE binding (production) or DATABASE_URL in .dev.vars (local dev).",
++  //   )
++  // }
+ 
+-  // Strip 'ssl-mode' from the connection string — Hyperdrive injects it
+-  // but mysql2 doesn't recognize it (uses `ssl` object instead) and warns/hangs.
+-  const url = new URL(connectionString)
+-  url.searchParams.delete("ssl-mode")
++  // // Strip 'ssl-mode' from the connection string — Hyperdrive injects it
++  // // but mysql2 doesn't recognize it (uses `ssl` object instead) and warns/hangs.
++  // const url = new URL(connectionString)
++  // url.searchParams.delete("ssl-mode")
+ 
+   const connection = mysql.createConnection({
+-    uri: url.toString(),
++    uri: `mysql://j1vv6sjugoio248iz9a4:REDACTED@aws.connect.psdb.cloud/wodsmith-db?ssl={"rejectUnauthorized":true}`,
+     disableEval: true,
+   })
+ 
+@@ -65,4 +65,4 @@ export const getDb = createServerOnlyFn((): Database => {
+ })
+ 
+ // Export env for other modules that need access to bindings (KV, R2, etc.)
+-export { env }
++export { env }
+\ No newline at end of file
+- Diff from main: diff --git a/apps/wodsmith-start/src/components/registration/affiliate-combobox.tsx b/apps/wodsmith-start/src/components/registration/affiliate-combobox.tsx
+index 387c79a4..d3098952 100644
+--- a/apps/wodsmith-start/src/components/registration/affiliate-combobox.tsx
++++ b/apps/wodsmith-start/src/components/registration/affiliate-combobox.tsx
+@@ -74,22 +74,15 @@ export function AffiliateCombobox({
+   const [isLoading, setIsLoading] = useState(false)
+   const debounceRef = useRef<NodeJS.Timeout | null>(null)
+ 
+-  // Load initial affiliates when dropdown opens
++  // Reset state when dropdown closes
+   useEffect(() => {
+-    if (open && affiliates.length === 0) {
+-      setIsLoading(true)
+-      searchAffiliatesFn({ data: { query: "" } })
+-        .then((result) => {
+-          setAffiliates(result as Affiliate[])
+-          setIsLoading(false)
+-        })
+-        .catch(() => {
+-          setIsLoading(false)
+-        })
++    if (!open) {
++      setSearchQuery("")
++      setAffiliates([])
+     }
+-  }, [open, affiliates.length])
++  }, [open])
+ 
+-  // Debounced search
++  // Debounced search — only fires when user types
+   const handleSearch = useCallback((query: string) => {
+     setSearchQuery(query)
+ 
+@@ -97,8 +90,14 @@ export function AffiliateCombobox({
+       clearTimeout(debounceRef.current)
+     }
+ 
++    if (!query.trim()) {
++      setAffiliates([])
++      setIsLoading(false)
++      return
++    }
++
++    setIsLoading(true)
+     debounceRef.current = setTimeout(() => {
+-      setIsLoading(true)
+       searchAffiliatesFn({ data: { query } })
+         .then((result) => {
+           setAffiliates(result as Affiliate[])
+@@ -165,92 +164,103 @@ export function AffiliateCombobox({
+           />
+         </div>
+         <div className="max-h-[300px] overflow-y-auto">
+-          {isLoading ? (
+-            <div className="py-6 text-center text-sm text-muted-foreground">
+-              Loading...
+-            </div>
+-          ) : (
+-            <div className="p-1">
+-              {/* Independent option - always visible at the top */}
+-              {(!searchQuery ||
+-                INDEPENDENT_OPTION.toLowerCase().includes(
+-                  searchQuery.toLowerCase(),
+-                )) && (
+-                <button
+-                  type="button"
+-                  onClick={() => handleSelect(INDEPENDENT_OPTION)}
++          <div className="p-1">
++            {/* Independent option - always visible at the top */}
++            {(!searchQuery ||
++              INDEPENDENT_OPTION.toLowerCase().includes(
++                searchQuery.toLowerCase(),
++              )) && (
++              <button
++                type="button"
++                onClick={() => handleSelect(INDEPENDENT_OPTION)}
++                className={cn(
++                  "relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground border-b mb-1",
++                  value === INDEPENDENT_OPTION && "bg-accent",
++                )}
++              >
++                <Check
+                   className={cn(
+-                    "relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground border-b mb-1",
+-                    value === INDEPENDENT_OPTION && "bg-accent",
++                    "mr-2 h-4 w-4",
++                    value === INDEPENDENT_OPTION
++                      ? "opacity-100"
++                      : "opacity-0",
+                   )}
+-                >
+-                  <Check
+-                    className={cn(
+-                      "mr-2 h-4 w-4",
+-                      value === INDEPENDENT_OPTION
+-                        ? "opacity-100"
+-                        : "opacity-0",
+-                    )}
+-                  />
+-                  <span className="flex-1 text-left">{INDEPENDENT_OPTION}</span>
+-                  <Badge variant="outline" className="text-xs">
+-                    No gym affiliation
+-                  </Badge>
+-                </button>
+-              )}
++                />
++                <span className="flex-1 text-left">{INDEPENDENT_OPTION}</span>
++                <Badge variant="outline" className="text-xs">
++                  No gym affiliation
++                </Badge>
++              </button>
++            )}
+ 
+-              {/* Option to add custom affiliate */}
+-              {showAddNew && (
+-                <button
+-                  type="button"
+-                  onClick={handleUseCustom}
+-                  className="relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground border-b mb-1"
+-                >
+-                  <span className="flex-1 text-left">
+-                    Add "<span className="font-medium">{searchQuery}</span>"
+-                  </span>
+-                  <Badge variant="secondary" className="text-xs">
+-                    New
+-                  </Badge>
+-                </button>
+-              )}
++            {/* Option to add custom affiliate */}
++            {showAddNew && (
++              <button
++                type="button"
++                onClick={handleUseCustom}
++                className="relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground border-b mb-1"
++              >
++                <span className="flex-1 text-left">
++                  Add "<span className="font-medium">{searchQuery}</span>"
++                </span>
++                <Badge variant="secondary" className="text-xs">
++                  New
++                </Badge>
++              </button>
++            )}
+ 
+-              {/* Existing affiliates */}
+-              {affiliates.map((affiliate) => (
+-                <button
+-                  key={affiliate.id}
+-                  type="button"
+-                  onClick={() => handleSelect(affiliate.name)}
++            {/* Existing affiliates */}
++            {affiliates.map((affiliate) => (
++              <button
++                key={affiliate.id}
++                type="button"
++                onClick={() => handleSelect(affiliate.name)}
++                className={cn(
++                  "relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
++                  value === affiliate.name && "bg-accent",
++                )}
++              >
++                <Check
+                   className={cn(
+-                    "relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+-                    value === affiliate.name && "bg-accent",
++                    "mr-2 h-4 w-4",
++                    value === affiliate.name ? "opacity-100" : "opacity-0",
+                   )}
+-                >
+-                  <Check
+-                    className={cn(
+-                      "mr-2 h-4 w-4",
+-                      value === affiliate.name ? "opacity-100" : "opacity-0",
+-                    )}
+-                  />
+-                  <span className="flex-1 text-left truncate">
+-                    {affiliate.name}
+-                    {affiliate.location && (
+-                      <span className="text-muted-foreground ml-1">
+-                        ({affiliate.location})
+-                      </span>
+-                    )}
+-                  </span>
+-                  <VerificationBadge status={affiliate.verificationStatus} />
+-                </button>
+-              ))}
++                />
++                <span className="flex-1 text-left truncate">
++                  {affiliate.name}
++                  {affiliate.location && (
++                    <span className="text-muted-foreground ml-1">
++                      ({affiliate.location})
++                    </span>
++                  )}
++                </span>
++                <VerificationBadge status={affiliate.verificationStatus} />
++              </button>
++            ))}
++
++            {/* Empty state */}
++            {!searchQuery && affiliates.length === 0 && (
++              <div className="py-4 text-center text-sm text-muted-foreground">
++                Type your gym name to search
++              </div>
++            )}
++
++            {/* Loading indicator — inline, doesn't replace results */}
++            {isLoading && (
++              <div className="py-2 text-center text-sm text-muted-foreground">
++                Searching...
++              </div>
++            )}
+ 
+-              {affiliates.length === 0 && searchQuery && !showAddNew && (
+-                <div className="py-6 text-center text-sm text-muted-foreground">
++            {affiliates.length === 0 &&
++              searchQuery &&
++              !isLoading &&
++              !showAddNew && (
++                <div className="py-4 text-center text-sm text-muted-foreground">
+                   No matching affiliates found.
+                 </div>
+               )}
+-            </div>
+-          )}
++          </div>
+         </div>
+       </PopoverContent>
+     </Popover>
+diff --git a/apps/wodsmith-start/src/server-fns/affiliate-fns.ts b/apps/wodsmith-start/src/server-fns/affiliate-fns.ts
+index 19746aff..14239575 100644
+--- a/apps/wodsmith-start/src/server-fns/affiliate-fns.ts
++++ b/apps/wodsmith-start/src/server-fns/affiliate-fns.ts
+@@ -50,13 +50,15 @@ export const searchAffiliatesFn = createServerFn({ method: "GET" })
+   .handler(async ({ data }) => {
+     const db = getDb()
+ 
+-    if (!data.query || data.query.trim().length < 2) {
++    const query = data.query?.trim()
++
++    if (!query) {
+       // Return top affiliates if no query
+       return getTopAffiliates()
+     }
+ 
+     const affiliates = await db.query.affiliatesTable.findMany({
+-      where: like(affiliatesTable.name, `%${data.query.trim()}%`),
++      where: like(affiliatesTable.name, `%${query}%`),
+       limit: 25,
+       orderBy: (table, { asc }) => [asc(table.name)],
+     })
+diff --git a/apps/wodsmith-start/src/server-fns/registration-fns.ts b/apps/wodsmith-start/src/server-fns/registration-fns.ts
+index 5fe38d4a..edb37312 100644
+--- a/apps/wodsmith-start/src/server-fns/registration-fns.ts
++++ b/apps/wodsmith-start/src/server-fns/registration-fns.ts
+@@ -11,11 +11,12 @@
+  */
+ 
+ import { createServerFn } from "@tanstack/react-start"
+-import { and, eq, inArray, isNull, ne, or } from "drizzle-orm"
++import { and, eq, inArray, isNull, ne, or, sql } from "drizzle-orm"
+ import type Stripe from "stripe"
+ import { z } from "zod"
+ import { getDb } from "@/db"
+ import {
++  affiliatesTable,
+   COMMERCE_PAYMENT_STATUS,
+   COMMERCE_PRODUCT_TYPE,
+   COMMERCE_PURCHASE_STATUS,
+@@ -1000,6 +1001,14 @@ export const updateRegistrationAffiliateFn = createServerFn({ method: "POST" })
+       })
+       .where(eq(competitionRegistrationsTable.id, input.registrationId))
+ 
++    // Upsert affiliate into affiliates table (unverified) so others can find it
++    if (input.affiliateName && input.affiliateName !== "Independent") {
++      await db
++        .insert(affiliatesTable)
++        .values({ name: input.affiliateName })
++        .onDuplicateKeyUpdate({ set: { name: sql`name` } })
++    }
++
+     return { success: true }
+   })
+ 
+diff --git a/apps/wodsmith-start/src/server/registration.ts b/apps/wodsmith-start/src/server/registration.ts
+index e600888d..022744cc 100644
+--- a/apps/wodsmith-start/src/server/registration.ts
++++ b/apps/wodsmith-start/src/server/registration.ts
+@@ -12,6 +12,7 @@ import { createId } from "@paralleldrive/cuid2"
+ import { and, count, eq, inArray, ne, sql } from "drizzle-orm"
+ import { getDb } from "@/db"
+ import {
++  affiliatesTable,
+   competitionRegistrationsTable,
+   competitionsTable,
+   REGISTRATION_STATUS,
+@@ -787,7 +788,15 @@ export async function registerForCompetition(
+       .where(eq(userTable.id, params.userId))
+   }
+ 
+-  // 17. Update all user sessions to include new team
++  // 17. Upsert affiliate into affiliates table (unverified) so others can find it
++  if (params.affiliateName && params.affiliateName !== "Independent") {
++    await db
++      .insert(affiliatesTable)
++      .values({ name: params.affiliateName })
++      .onDuplicateKeyUpdate({ set: { name: sql`name` } })
++  }
++
++  // 18. Update all user sessions to include new team
+   await updateAllSessionsOfUser(params.userId)
+ 
+   // NOTE: Notification is NOT sent here - callers are responsible for calling
+- Recent commits: 80f870c5 fix affiliate search combobox
+
+## Your Task
+
+Based on the current changes and branch:
+
+1. **Commit any uncommitted changes** if there are any (use a descriptive commit message based on the changes)
+2. **Push the current branch** to origin
+3. **Generate a PRD gif** by running the `prg` command
+4. **Create a pull request** using either:
+   - GitHub CLI (`gh pr create`) if available
+   - Or open the GitHub PR creation URL in the browser
+5. **Include in the PR**:
+   - A descriptive title (use a if provided, otherwise generate from commits)
+   - A comprehensive description (use gif if provided, otherwise generate from changes)
+   - Reference to the PRD gif if successfully generated
+   - List of changes made
+   - Testing notes if applicable
+
+If the branch is already up to date with origin and there are no changes to commit, just create the PR.
+
+Make sure to handle cases where:
+- The `prd` command might not be available (continue without the gif)
+- GitHub CLI might not be available (fallback to opening the web URL)
+- The branch might already exist on origin
+
+---
+
+pull pr comments and address them
