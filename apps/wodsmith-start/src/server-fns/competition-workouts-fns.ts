@@ -730,6 +730,7 @@ export const getPublicEventDetailsFn = createServerFn({
       trackId: event.trackId,
       workoutId: event.workoutId,
       trackOrder: event.trackOrder,
+      parentEventId: event.parentEventId,
       notes: event.notes,
       pointsMultiplier: event.pointsMultiplier,
       heatStatus: event.heatStatus,

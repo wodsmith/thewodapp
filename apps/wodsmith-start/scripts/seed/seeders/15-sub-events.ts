@@ -385,20 +385,221 @@ export async function seed(client: Connection): Promise<void> {
 		{ id: "wsd_dl_scaled", workout_id: "wod_winter_max_deadlift", scaling_level_id: "slvl_winter_scaled", description: "Conventional or sumo deadlift. Straps and belt allowed.", created_at: ts, updated_at: ts, update_counter: 0 },
 	])
 
-	console.log("Sub-event seed data complete!")
+	// =========================================================================
+	// Publish ALL events (standalone + parent + children) and heats
+	// =========================================================================
+	const allTrackWorkoutIds = [
+		"tw_winter_event1_fran",
+		"tw_winter_event2_grace",
+		"tw_winter_event3_cindy",
+		"tw_winter_event4_linda",
+		"tw_winter_event5_rowing",
+		"tw_winter_row_2k",
+		"tw_winter_row_500",
+		"tw_winter_max_dubs",
+		"tw_winter_event6_snatch",
+		"tw_winter_snatch_ladder",
+		"tw_winter_three_lift_total",
+		"tw_winter_event7_sprints",
+		"tw_winter_sprint_couplet",
+		"tw_winter_max_deadlift",
+	]
+	for (const twId of allTrackWorkoutIds) {
+		await client.execute(
+			"UPDATE track_workouts SET event_status = 'published', heat_status = 'published' WHERE id = ?",
+			[twId],
+		)
+	}
+	console.log("  Published all 14 track workouts (event + heat status)")
+
+	// =========================================================================
+	// Sponsors — one per parent/standalone event
+	// =========================================================================
+	await batchInsert(client, "sponsors", [
+		{ id: "spon_winter_rogue", competition_id: "comp_winter_throwdown_2025", name: "Rogue Fitness", website: "https://www.roguefitness.com", display_order: 0, created_at: ts, updated_at: ts, update_counter: 0 },
+		{ id: "spon_winter_nobull", competition_id: "comp_winter_throwdown_2025", name: "NOBULL", website: "https://www.nobullproject.com", display_order: 1, created_at: ts, updated_at: ts, update_counter: 0 },
+		{ id: "spon_winter_lululemon", competition_id: "comp_winter_throwdown_2025", name: "lululemon", website: "https://www.lululemon.com", display_order: 2, created_at: ts, updated_at: ts, update_counter: 0 },
+		{ id: "spon_winter_concept2", competition_id: "comp_winter_throwdown_2025", name: "Concept2", website: "https://www.concept2.com", display_order: 3, created_at: ts, updated_at: ts, update_counter: 0 },
+		{ id: "spon_winter_eleiko", competition_id: "comp_winter_throwdown_2025", name: "Eleiko", website: "https://www.eleiko.com", display_order: 4, created_at: ts, updated_at: ts, update_counter: 0 },
+		{ id: "spon_winter_rxbar", competition_id: "comp_winter_throwdown_2025", name: "RXBAR", website: "https://www.rxbar.com", display_order: 5, created_at: ts, updated_at: ts, update_counter: 0 },
+		{ id: "spon_winter_bear_komplex", competition_id: "comp_winter_throwdown_2025", name: "Bear KompleX", website: "https://www.bearkomplex.com", display_order: 6, created_at: ts, updated_at: ts, update_counter: 0 },
+	])
+
+	// Assign sponsors to events
+	const sponsorAssignments: Record<string, string> = {
+		tw_winter_event1_fran: "spon_winter_rogue",
+		tw_winter_event2_grace: "spon_winter_nobull",
+		tw_winter_event3_cindy: "spon_winter_lululemon",
+		tw_winter_event4_linda: "spon_winter_rxbar",
+		tw_winter_event5_rowing: "spon_winter_concept2",
+		tw_winter_event6_snatch: "spon_winter_eleiko",
+		tw_winter_event7_sprints: "spon_winter_bear_komplex",
+	}
+	for (const [twId, sponsorId] of Object.entries(sponsorAssignments)) {
+		await client.execute(
+			"UPDATE track_workouts SET sponsor_id = ? WHERE id = ?",
+			[sponsorId, twId],
+		)
+	}
+	console.log("  Assigned 7 sponsors to events")
+
+	// =========================================================================
+	// Heats + Assignments — schedule across a competition day
+	// =========================================================================
+	const COMP_ID = "comp_winter_throwdown_2025"
+	const DIV_RX = "slvl_winter_rx"
+	const DIV_SCALED = "slvl_winter_scaled"
+	const DIV_MASTERS = "slvl_winter_masters_40"
+
+	// RX registrations (10 athletes → 2 heats of 5)
+	const rxRegs = [
+		"creg_tyler_winter", "creg_nathan_winter", "creg_derek_winter",
+		"creg_jordan_winter", "creg_mike_winter", "creg_ryan_winter",
+		"creg_marcus_winter", "creg_alex_winter", "creg_brandon_winter",
+		"creg_sarah_winter",
+	]
+	// Scaled registrations (10 athletes → 2 heats of 5)
+	const scaledRegs = [
+		"creg_lauren_winter", "creg_stephanie_winter", "creg_emma_winter",
+		"creg_john_winter", "creg_kaitlyn_winter", "creg_ashley_winter",
+		"creg_amanda_winter", "creg_megan_winter", "creg_nicole_winter",
+		"creg_brittany_winter",
+	]
+	// Masters (1 athlete → 1 heat)
+	const mastersRegs = ["creg_chris_winter"]
+
+	// Scorable events (skip parent containers — heats only on scorable events)
+	const scorableEvents = [
+		"tw_winter_event1_fran",
+		"tw_winter_event2_grace",
+		"tw_winter_event3_cindy",
+		"tw_winter_event4_linda",
+		"tw_winter_row_2k",
+		"tw_winter_row_500",
+		"tw_winter_max_dubs",
+		"tw_winter_snatch_ladder",
+		"tw_winter_three_lift_total",
+		"tw_winter_sprint_couplet",
+		"tw_winter_max_deadlift",
+	]
+
+	// Build heats: 3 per scorable event (RX heat 1, RX heat 2, Scaled/Masters combined)
+	// Schedule: start at 9:00 AM, 15 min per heat, 5 min buffer between events
+	const heats: Array<Record<string, unknown>> = []
+	const assignments: Array<Record<string, unknown>> = []
+	const baseDate = new Date()
+	baseDate.setDate(baseDate.getDate() - 7) // Competition was last week
+	baseDate.setHours(9, 0, 0, 0)
+
+	let heatCounter = 0
+	for (let eventIdx = 0; eventIdx < scorableEvents.length; eventIdx++) {
+		const twId = scorableEvents[eventIdx]
+		// Each event gets 15 min per heat + 5 min buffer between events
+		const eventStartMin = eventIdx * 55 // ~55 min per event (3 heats × 15 min + 10 min transition)
+
+		// Heat 1: RX (athletes 1-5)
+		const heat1Time = new Date(baseDate.getTime() + eventStartMin * 60000)
+		const heat1Id = `heat_winter_${twId.replace("tw_winter_", "")}_rx1`
+		heats.push({
+			id: heat1Id,
+			competition_id: COMP_ID,
+			track_workout_id: twId,
+			heat_number: 1,
+			scheduled_time: heat1Time.toISOString().slice(0, 19).replace("T", " "),
+			duration_minutes: 15,
+			division_id: DIV_RX,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		})
+		for (let lane = 0; lane < 5; lane++) {
+			assignments.push({
+				id: `ha_${heat1Id}_${lane + 1}`,
+				heat_id: heat1Id,
+				registration_id: rxRegs[lane],
+				lane_number: lane + 1,
+				created_at: ts,
+				updated_at: ts,
+				update_counter: 0,
+			})
+		}
+
+		// Heat 2: RX (athletes 6-10)
+		const heat2Time = new Date(heat1Time.getTime() + 15 * 60000)
+		const heat2Id = `heat_winter_${twId.replace("tw_winter_", "")}_rx2`
+		heats.push({
+			id: heat2Id,
+			competition_id: COMP_ID,
+			track_workout_id: twId,
+			heat_number: 2,
+			scheduled_time: heat2Time.toISOString().slice(0, 19).replace("T", " "),
+			duration_minutes: 15,
+			division_id: DIV_RX,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		})
+		for (let lane = 0; lane < 5; lane++) {
+			assignments.push({
+				id: `ha_${heat2Id}_${lane + 1}`,
+				heat_id: heat2Id,
+				registration_id: rxRegs[5 + lane],
+				lane_number: lane + 1,
+				created_at: ts,
+				updated_at: ts,
+				update_counter: 0,
+			})
+		}
+
+		// Heat 3: Scaled + Masters combined (null division — mixed heat)
+		const heat3Time = new Date(heat2Time.getTime() + 15 * 60000)
+		const heat3Id = `heat_winter_${twId.replace("tw_winter_", "")}_sc`
+		heats.push({
+			id: heat3Id,
+			competition_id: COMP_ID,
+			track_workout_id: twId,
+			heat_number: 3,
+			scheduled_time: heat3Time.toISOString().slice(0, 19).replace("T", " "),
+			duration_minutes: 15,
+			division_id: null, // Mixed heat: scaled + masters
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		})
+		// Scaled athletes
+		for (let lane = 0; lane < scaledRegs.length; lane++) {
+			assignments.push({
+				id: `ha_${heat3Id}_s${lane + 1}`,
+				heat_id: heat3Id,
+				registration_id: scaledRegs[lane],
+				lane_number: lane + 1,
+				created_at: ts,
+				updated_at: ts,
+				update_counter: 0,
+			})
+		}
+		// Masters athlete
+		assignments.push({
+			id: `ha_${heat3Id}_m1`,
+			heat_id: heat3Id,
+			registration_id: mastersRegs[0],
+			lane_number: scaledRegs.length + 1,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		})
+
+		heatCounter += 3
+	}
+
+	await batchInsert(client, "competition_heats", heats)
+	await batchInsert(client, "competition_heat_assignments", assignments)
+	console.log(`  Created ${heatCounter} heats with ${assignments.length} lane assignments`)
+
 	console.log("")
-	console.log("Test scenarios added to Winter Throwdown 2025:")
-	console.log("  Event 5: Rowing Triathlon     — 3 sub-events (2K Row, 500m Row, Max Double Unders) with mixed schemes")
-	console.log("  Event 6: Snatch Ladder + Lifting — 2 sub-events (timed ladder + 3-lift total with rounds_to_score=3, score_type=sum)")
-	console.log("  Event 7: Sprint Series        — 2 sub-events with different point multipliers (1x, 2x)")
-	console.log("")
-	console.log("Edge cases to verify:")
-	console.log("  - Mixed schemes under one parent (time + reps)")
-	console.log("  - Multi-round sub-event with sum aggregation (Three-Lift Total)")
-	console.log("  - Unequal point multipliers (2x on deadlift)")
-	console.log("  - Standalone events 1-4 should be completely unaffected")
-	console.log("  - Leaderboard aggregation: parent points = sum of children")
-	console.log("  - Remove parent → children cascade deleted")
-	console.log("  - Reorder parent → children follow")
-	console.log("  - Score entry tabs show per sub-event")
+	console.log("Winter Throwdown 2025 fully set up:")
+	console.log("  All 14 events published (event + heat status)")
+	console.log("  7 sponsors assigned to top-level events")
+	console.log("  33 heats across 11 scorable events (2 RX + 1 Scaled/Masters per event)")
+	console.log("  21 athletes assigned to lanes in every heat")
 }

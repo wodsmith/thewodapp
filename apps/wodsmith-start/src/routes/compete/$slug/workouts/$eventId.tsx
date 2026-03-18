@@ -147,6 +147,13 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       .filter((w) => w.parentEventId === eventId)
       .sort((a, b) => a.trackOrder - b.trackOrder)
 
+    // If this is a sub-event, find the parent event for context
+    const parentEvent = eventResult.event.parentEventId
+      ? allWorkoutsResult.workouts.find(
+          (w) => w.id === eventResult.event.parentEventId,
+        ) ?? null
+      : null
+
     // Fetch division descriptions for children
     const childDivisionDescriptions: Record<
       string,
@@ -187,6 +194,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       deferredEventHeats,
       childEvents,
       childDivisionDescriptions,
+      parentEvent,
     }
   },
 })
@@ -246,6 +254,7 @@ function EventDetailsPage() {
     deferredEventHeats,
     childEvents,
     childDivisionDescriptions,
+    parentEvent,
   } = Route.useLoaderData()
   const { slug } = Route.useParams()
   const search = Route.useSearch()
@@ -309,6 +318,18 @@ function EventDetailsPage() {
                 <h1 className="text-2xl font-bold tracking-tight">
                   {workout.name}
                 </h1>
+                {parentEvent && (
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">
+                      Part of <span className="font-medium">{parentEvent.workout.name}</span>
+                    </p>
+                    {parentEvent.workout.description && (
+                      <p className="text-sm text-muted-foreground">
+                        {parentEvent.workout.description}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {divisions && divisions.length > 0 && (
@@ -366,8 +387,7 @@ function EventDetailsPage() {
             {childEvents.length > 0 && (
               <div className="space-y-6">
                 <Separator />
-                <h2 className="text-lg font-semibold">Sub-Workouts</h2>
-                {childEvents.map((child, index) => {
+                {childEvents.map((child) => {
                   const childDescriptions =
                     childDivisionDescriptions[child.workoutId] ?? []
                   const childDivisionDesc = childDescriptions.find(
@@ -381,15 +401,11 @@ function EventDetailsPage() {
                   )
 
                   return (
-                    <div
-                      key={child.id}
-                      className="rounded-lg border p-4 space-y-3"
-                    >
+                    <div key={child.id} className="space-y-2">
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
-                          {index + 1}
-                        </Badge>
-                        <h3 className="font-semibold">{child.workout.name}</h3>
+                        <h3 className="text-base font-semibold">
+                          {child.workout.name}
+                        </h3>
                         <Badge variant="secondary" className="text-xs">
                           {childScheme}
                         </Badge>
@@ -404,18 +420,16 @@ function EventDetailsPage() {
                         {child.workout.description || "Details coming soon."}
                       </div>
                       {childScale && (
-                        <div className="border-t pt-3">
-                          <div className="flex items-start gap-2">
-                            <Badge
-                              variant="secondary"
-                              className="shrink-0 text-xs"
-                            >
-                              {childDivisionDesc?.divisionLabel || "Division"}
-                            </Badge>
-                            <p className="font-mono text-sm whitespace-pre-wrap text-muted-foreground">
-                              {childScale}
-                            </p>
-                          </div>
+                        <div className="flex items-start gap-2 mt-1">
+                          <Badge
+                            variant="secondary"
+                            className="shrink-0 text-xs"
+                          >
+                            {childDivisionDesc?.divisionLabel || "Division"}
+                          </Badge>
+                          <p className="font-mono text-sm whitespace-pre-wrap text-muted-foreground">
+                            {childScale}
+                          </p>
                         </div>
                       )}
                     </div>

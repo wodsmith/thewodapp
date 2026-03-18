@@ -332,19 +332,6 @@ type ScheduleInfo = {
   divisions: string[]
 } | null
 
-/**
- * Format trackOrder for display:
- * - Whole numbers (standalone events): "05"
- * - Decimals (sub-events): "5.01"
- */
-function formatTrackOrder(trackOrder: number): string {
-  const n = Number(trackOrder)
-  if (n % 1 === 0) return String(n).padStart(2, "0")
-  const whole = Math.floor(n)
-  const decimal = Math.round((n - whole) * 100)
-  return `${whole}.${String(decimal).padStart(2, "0")}`
-}
-
 function WorkoutsList({
   workouts,
   slug,
@@ -364,77 +351,12 @@ function WorkoutsList({
   venueMap: Record<string, VenueInfo>
   scheduleMap: Map<string, ScheduleInfo> | null
 }) {
-  // Build a lookup of parent events by ID
-  const parentById = new Map<string, EnrichedWorkout>()
-  for (const w of workouts) {
-    if (!w.parentEventId) {
-      // Check if any other workout references this as parent
-      const hasChildren = workouts.some((c) => c.parentEventId === w.id)
-      if (hasChildren) {
-        parentById.set(w.id, w)
-      }
-    }
-  }
-
-  // Build flat list: skip parent events (they become headers), keep everything else
-  const flatItems: Array<
-    | { type: "standalone"; event: EnrichedWorkout }
-    | { type: "parent-header"; parent: EnrichedWorkout }
-    | { type: "sub-event"; event: EnrichedWorkout; parent: EnrichedWorkout }
-  > = []
-
-  // Track which parent headers we've already inserted
-  const insertedParentHeaders = new Set<string>()
-
-  // Walk workouts in order (already sorted by trackOrder from server)
-  for (const w of workouts) {
-    if (parentById.has(w.id)) {
-      // This is a parent event — skip it, we'll insert a header when we see its first child
-      continue
-    }
-    if (w.parentEventId) {
-      const parent = parentById.get(w.parentEventId)
-      if (parent && !insertedParentHeaders.has(w.parentEventId)) {
-        flatItems.push({ type: "parent-header", parent })
-        insertedParentHeaders.add(w.parentEventId)
-      }
-      if (parent) {
-        flatItems.push({ type: "sub-event", event: w, parent })
-      }
-    } else {
-      flatItems.push({ type: "standalone", event: w })
-    }
-  }
+  // Show only top-level events (standalone + parents). Sub-events are shown on the parent's detail page.
+  const topLevelWorkouts = workouts.filter((w) => !w.parentEventId)
 
   return (
     <div className="space-y-6">
-      {flatItems.map((item) => {
-        if (item.type === "parent-header") {
-          const { parent } = item
-          return (
-            <div
-              key={`header-${parent.id}`}
-              className="flex items-center gap-3 pt-2"
-            >
-              <span className="font-mono text-sm font-semibold text-muted-foreground">
-                {formatTrackOrder(parent.trackOrder)}
-              </span>
-              <h3 className="font-semibold text-lg">
-                {parent.workout.name}
-              </h3>
-              {parent.sponsorName && (
-                <span className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 px-2 py-1 rounded shrink-0">
-                  Presented by {parent.sponsorName}
-                </span>
-              )}
-              <div className="flex-1 border-t border-border" />
-            </div>
-          )
-        }
-
-        const event =
-          item.type === "standalone" ? item.event : item.event
-
+      {topLevelWorkouts.map((event) => {
         return (
           <CompetitionWorkoutCard
             key={event.id}
