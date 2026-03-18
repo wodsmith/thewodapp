@@ -12,6 +12,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { and, count, eq, inArray, ne, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
+  affiliatesTable,
   competitionRegistrationsTable,
   competitionsTable,
   REGISTRATION_STATUS,
@@ -787,7 +788,16 @@ export async function registerForCompetition(
       .where(eq(userTable.id, params.userId))
   }
 
-  // 17. Update all user sessions to include new team
+  // 17. Upsert affiliate into affiliates table (unverified) so others can find it
+  const trimmedAffiliate = params.affiliateName?.trim()
+  if (trimmedAffiliate && trimmedAffiliate.toLowerCase() !== "independent") {
+    await db
+      .insert(affiliatesTable)
+      .values({ name: trimmedAffiliate })
+      .onDuplicateKeyUpdate({ set: { name: sql`name` } })
+  }
+
+  // 18. Update all user sessions to include new team
   await updateAllSessionsOfUser(params.userId)
 
   // NOTE: Notification is NOT sent here - callers are responsible for calling
