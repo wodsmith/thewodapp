@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "119c24799ccf",
+  "session_id": "4d0e1418-f979-4991-a3e9-4f3ac029c4e2",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-18T04:29:31.613397Z",
+  "branch": "zac/fix-affiliate-picker",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "apps/wodsmith-start/src/components/registration/affiliate-combobox.tsx",
+    "apps/wodsmith-start/src/server-fns/affiliate-fns.ts",
+    "apps/wodsmith-start/src/server-fns/registration-fns.ts",
+    "apps/wodsmith-start/src/server/registration.ts"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "ae6385de-686c-42ff-83b2-f95b9d3b5bad",
+  "token_usage": {
+    "input_tokens": 67,
+    "cache_creation_tokens": 105561,
+    "cache_read_tokens": 1896866,
+    "output_tokens": 16481,
+    "api_call_count": 47
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-18T04:29:31.474193Z",
+    "agent_lines": 109,
+    "human_added": 0,
+    "human_modified": 15,
+    "human_removed": 0,
+    "total_committed": 124,
+    "agent_percentage": 87.90322580645162
+  }
+}
