@@ -1239,6 +1239,9 @@ export const saveCompetitionScoresFn = createServerFn({ method: "POST" })
         }
       }
 
+      // Restore batch-level action after per-item saves overwrote it
+      getEvlog()?.set({ action: "save_scores_batch", competitionId: data.competitionId, scoreCount: data.scores.length, savedCount, errorCount: errors.length })
+
       logInfo({
         message: "[Score] Batch save competition scores completed",
         attributes: {

@@ -69,7 +69,7 @@ export const initiatePurchaseTransferFn = createServerFn({ method: "POST" })
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("purchaseId", input.purchaseId)
 
-    getEvlog()?.set({ action: "initiate_purchase_transfer", purchaseId: input.purchaseId, targetEmail: input.targetEmail })
+    getEvlog()?.set({ action: "initiate_purchase_transfer", purchaseId: input.purchaseId, targetEmailDomain: input.targetEmail.split("@")[1]?.toLowerCase() })
 
     // 1. Load the purchase — must exist and be COMPLETED
     const purchase = await db.query.commercePurchaseTable.findFirst({
