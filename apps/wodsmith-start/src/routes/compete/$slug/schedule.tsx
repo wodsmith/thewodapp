@@ -40,7 +40,7 @@ export const Route = createFileRoute("/compete/$slug/schedule")({
 
       return {
         heats: [],
-        events: eventsResult.workouts.filter((e) => !e.parentEventId),
+        events: eventsResult.workouts,
         submissionWindows: submissionResult.events,
         competitionStarted: submissionResult.competitionStarted,
         isOnline: true,
@@ -58,8 +58,7 @@ export const Route = createFileRoute("/compete/$slug/schedule")({
 
     return {
       heats: heatsResult.heats,
-      // Only top-level events — sub-events are not scheduled independently
-      events: eventsResult.workouts.filter((e) => !e.parentEventId),
+      events: eventsResult.workouts,
       submissionWindows: [],
       competitionStarted: false,
       isOnline: false,

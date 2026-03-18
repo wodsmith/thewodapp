@@ -395,8 +395,9 @@ export async function getCompetitionLeaderboard(params: {
       .map((tw) => tw.parentEventId as string),
   )
   // Build a map of parent event names for sub-event grouping on the leaderboard
+  // Use unfiltered trackWorkouts so division filtering doesn't drop parent names
   const parentNameMap = new Map<string, string>()
-  for (const tw of filteredTrackWorkouts) {
+  for (const tw of trackWorkouts) {
     if (childEventIds.has(tw.id)) {
       parentNameMap.set(tw.id, tw.workout.name)
     }

@@ -284,10 +284,17 @@ export function ResultsEntryForm({
     router.navigate({ to: url.pathname + url.search })
   }
 
-  // Stats
+  // Stats — in sub-event mode, count actual athlete/sub-event pairs (not all combinations)
   const scoredCount = savedIds.size
   const totalCount = isSubEventMode
-    ? athletes.length * subEventScoreData!.length
+    ? athletes.reduce((count, athlete) => {
+        for (const sub of subEventScoreData!) {
+          if (sub.athletes.some((a) => a.registrationId === athlete.registrationId)) {
+            count++
+          }
+        }
+        return count
+      }, 0)
     : athletes.length
 
   // Get score format examples based on workout scheme
@@ -574,7 +581,7 @@ export function ResultsEntryForm({
                     </Badge>
                   </div>
                   {/* Sub-event score rows */}
-                  {subEventScoreData!.map((sub) => {
+                  {subEventScoreData!.map((sub, subIndex) => {
                     const subAthlete = sub.athletes.find(
                       (a) =>
                         a.registrationId === athlete.registrationId,
@@ -587,6 +594,13 @@ export function ResultsEntryForm({
                     return (
                       <ScoreInputRow
                         key={stateKey}
+                        ref={(handle) => {
+                          if (handle) {
+                            rowRefs.current.set(stateKey, handle)
+                          } else {
+                            rowRefs.current.delete(stateKey)
+                          }
+                        }}
                         athlete={subAthlete}
                         subEventLabel={sub.event.workout.name}
                         workoutScheme={sub.event.workout.scheme}
@@ -609,7 +623,25 @@ export function ResultsEntryForm({
                             sub.event,
                           )
                         }
-                        onTabNext={() => handleTabNext(index)}
+                        onTabNext={() => {
+                          // Navigate to next sub-event row for same athlete, or first sub-event of next athlete
+                          const nextSubIndex = subIndex + 1
+                          if (nextSubIndex < subEventScoreData!.length) {
+                            // Next sub-event for same athlete
+                            const nextSub = subEventScoreData![nextSubIndex]
+                            const nextKey = getStateKey(athlete.registrationId, nextSub.event.id)
+                            rowRefs.current.get(nextKey)?.focusPrimary()
+                          } else {
+                            // First sub-event of next athlete
+                            const nextAthleteIndex = index + 1
+                            if (nextAthleteIndex < athletes.length) {
+                              const nextAthlete = athletes[nextAthleteIndex]
+                              const firstSub = subEventScoreData![0]
+                              const nextKey = getStateKey(nextAthlete.registrationId, firstSub.event.id)
+                              rowRefs.current.get(nextKey)?.focusPrimary()
+                            }
+                          }
+                        }}
                       />
                     )
                   })}
