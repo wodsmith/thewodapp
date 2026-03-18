@@ -31,5 +31,11 @@
 			"binding": "R2_BUCKET",
 			"bucket_name": "ledger-documents"
 		}
+	],
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			"id": "placeholder-set-after-deploy"
+		}
 	]
 }
