@@ -73,10 +73,12 @@ export function AffiliateCombobox({
   const [affiliates, setAffiliates] = useState<Affiliate[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
+  const searchCounterRef = useRef(0)
 
   // Reset state when dropdown closes
   useEffect(() => {
     if (!open) {
+      searchCounterRef.current++
       setSearchQuery("")
       setAffiliates([])
     }
@@ -85,6 +87,8 @@ export function AffiliateCombobox({
   // Debounced search — only fires when user types
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query)
+    searchCounterRef.current++
+    const thisRequest = searchCounterRef.current
 
     if (debounceRef.current) {
       clearTimeout(debounceRef.current)
@@ -100,10 +104,12 @@ export function AffiliateCombobox({
     debounceRef.current = setTimeout(() => {
       searchAffiliatesFn({ data: { query } })
         .then((result) => {
+          if (searchCounterRef.current !== thisRequest) return
           setAffiliates(result as Affiliate[])
           setIsLoading(false)
         })
         .catch(() => {
+          if (searchCounterRef.current !== thisRequest) return
           setIsLoading(false)
         })
     }, 300)

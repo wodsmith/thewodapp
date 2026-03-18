@@ -991,23 +991,25 @@ export const updateRegistrationAffiliateFn = createServerFn({ method: "POST" })
       delete metadata.affiliates
     }
 
-    // Save updated metadata
-    await db
-      .update(competitionRegistrationsTable)
-      .set({
-        metadata:
-          Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : null,
-        updatedAt: new Date(),
-      })
-      .where(eq(competitionRegistrationsTable.id, input.registrationId))
+    // Save updated metadata + upsert affiliate in a single transaction
+    const trimmedAffiliate = input.affiliateName?.trim()
+    await db.transaction(async (tx) => {
+      await tx
+        .update(competitionRegistrationsTable)
+        .set({
+          metadata:
+            Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : null,
+          updatedAt: new Date(),
+        })
+        .where(eq(competitionRegistrationsTable.id, input.registrationId))
 
-    // Upsert affiliate into affiliates table (unverified) so others can find it
-    if (input.affiliateName && input.affiliateName !== "Independent") {
-      await db
-        .insert(affiliatesTable)
-        .values({ name: input.affiliateName })
-        .onDuplicateKeyUpdate({ set: { name: sql`name` } })
-    }
+      if (trimmedAffiliate && trimmedAffiliate.toLowerCase() !== "independent") {
+        await tx
+          .insert(affiliatesTable)
+          .values({ name: trimmedAffiliate })
+          .onDuplicateKeyUpdate({ set: { name: sql`name` } })
+      }
+    })
 
     return { success: true }
   })

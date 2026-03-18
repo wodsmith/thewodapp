@@ -789,10 +789,11 @@ export async function registerForCompetition(
   }
 
   // 17. Upsert affiliate into affiliates table (unverified) so others can find it
-  if (params.affiliateName && params.affiliateName !== "Independent") {
+  const trimmedAffiliate = params.affiliateName?.trim()
+  if (trimmedAffiliate && trimmedAffiliate.toLowerCase() !== "independent") {
     await db
       .insert(affiliatesTable)
-      .values({ name: params.affiliateName })
+      .values({ name: trimmedAffiliate })
       .onDuplicateKeyUpdate({ set: { name: sql`name` } })
   }
 
