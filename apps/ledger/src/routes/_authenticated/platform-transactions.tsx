@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { FinancialEventTable } from "@/components/financial-event-table"
 import { FinancialSummary } from "@/components/financial-summary"
 import {
