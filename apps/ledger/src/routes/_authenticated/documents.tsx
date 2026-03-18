@@ -71,7 +71,7 @@ function DocumentsPage() {
 	return (
 		<div className="min-h-screen bg-background">
 			<header className="border-b">
-				<div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
+				<div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-2 px-3 sm:px-4">
 					<div className="flex items-center gap-2">
 						<img
 							src="/wodsmith-logo-no-text.png"
@@ -79,35 +79,35 @@ function DocumentsPage() {
 							width={28}
 							height={28}
 						/>
-						<h1 className="text-lg font-semibold">WODsmith Ledger</h1>
+						<h1 className="hidden text-lg font-semibold sm:block">WODsmith Ledger</h1>
 					</div>
 					<nav className="flex items-center gap-1">
 						<Link
 							to="/documents"
-							className="px-3 py-1.5 text-sm font-medium rounded-md bg-accent"
+							className="px-2 py-1.5 text-sm font-medium rounded-md bg-accent sm:px-3"
 						>
 							Documents
 						</Link>
 						<Link
 							to="/platform-transactions"
-							className="px-3 py-1.5 text-sm font-medium rounded-md hover:bg-accent text-muted-foreground"
+							className="px-2 py-1.5 text-sm font-medium rounded-md hover:bg-accent text-muted-foreground sm:px-3"
 						>
 							Transactions
 						</Link>
 					</nav>
-					<div className="flex items-center gap-2">
+					<div className="flex items-center gap-1 sm:gap-2">
 						<button
 							type="button"
 							onClick={() => setUploadOpen(true)}
-							className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+							className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 sm:gap-2 sm:px-3"
 						>
 							<Plus className="h-4 w-4" />
-							Upload
+							<span className="hidden sm:inline">Upload</span>
 						</button>
 						<button
 							type="button"
 							onClick={handleLogout}
-							className="inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-accent"
+							className="inline-flex h-9 items-center gap-2 rounded-md border px-2 text-sm font-medium hover:bg-accent sm:px-3"
 						>
 							<LogOut className="h-4 w-4" />
 						</button>
@@ -115,7 +115,7 @@ function DocumentsPage() {
 				</div>
 			</header>
 
-			<main className="mx-auto max-w-7xl p-4">
+			<main className="mx-auto max-w-7xl p-3 sm:p-4">
 				<DocumentTable
 					documents={documents}
 					onDelete={handleDelete}
