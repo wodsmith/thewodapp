@@ -128,7 +128,7 @@ function PlatformTransactionsPage() {
 
 			<main className="mx-auto max-w-7xl p-4 space-y-6">
 				{/* Revenue Summary Cards */}
-				<div className="grid grid-cols-4 gap-4">
+				<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 					{([
 						{ label: "Lifetime", cents: revenue.lifetime },
 						{ label: "This Month", cents: revenue.month },
