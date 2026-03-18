@@ -11,11 +11,12 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray, isNull, ne, or } from "drizzle-orm"
+import { and, eq, inArray, isNull, ne, or, sql } from "drizzle-orm"
 import type Stripe from "stripe"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+  affiliatesTable,
   COMMERCE_PAYMENT_STATUS,
   COMMERCE_PRODUCT_TYPE,
   COMMERCE_PURCHASE_STATUS,
@@ -990,15 +991,25 @@ export const updateRegistrationAffiliateFn = createServerFn({ method: "POST" })
       delete metadata.affiliates
     }
 
-    // Save updated metadata
-    await db
-      .update(competitionRegistrationsTable)
-      .set({
-        metadata:
-          Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : null,
-        updatedAt: new Date(),
-      })
-      .where(eq(competitionRegistrationsTable.id, input.registrationId))
+    // Save updated metadata + upsert affiliate in a single transaction
+    const trimmedAffiliate = input.affiliateName?.trim()
+    await db.transaction(async (tx) => {
+      await tx
+        .update(competitionRegistrationsTable)
+        .set({
+          metadata:
+            Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : null,
+          updatedAt: new Date(),
+        })
+        .where(eq(competitionRegistrationsTable.id, input.registrationId))
+
+      if (trimmedAffiliate && trimmedAffiliate.toLowerCase() !== "independent") {
+        await tx
+          .insert(affiliatesTable)
+          .values({ name: trimmedAffiliate })
+          .onDuplicateKeyUpdate({ set: { name: sql`name` } })
+      }
+    })
 
     return { success: true }
   })
