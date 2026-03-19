@@ -43,8 +43,9 @@ Chosen option: **Option A — `cohost` system role on the competition_event team
 * Good, because cohost permissions are configurable per-invite (revenue, pricing, settings)
 * Good, because the invite flow is separate from volunteers, preventing accidental privilege escalation
 * Bad, because the auth gate in `$competitionId.tsx` must now check two teams (organizing team + competition team), adding complexity
+* Bad, because ~179 server function permission checks across 22 files must be migrated from `requireTeamPermission` to a new `requireCompetitionManagePermission` helper that accepts both team paths
 * Bad, because the parent route `/compete/organizer` entitlement check needs a bypass path for cohosts
-* Bad, because the dashboard must merge two data sources (own competitions + cohosted competitions)
+* Bad, because the dashboard must merge two data sources (own competitions + cohosted competitions) and handle cohost-only users who have no organizing teams
 * Neutral, because the sidebar gains conditional logic based on cohost permissions, but this is straightforward
 
 ## Implementation Plan
@@ -175,6 +176,89 @@ if (context.isCohost && !context.cohostPermissions?.canViewRevenue) {
 
 **`src/routes/compete/organizer/$competitionId/coupons.tsx`** — Blocked unless `cohostPermissions.canManagePricing`.
 
+### Phase 3b: Server Function Authorization
+
+**Critical**: Route-level guards alone are not enough. Most organizer server functions enforce permissions via `requireTeamPermission(organizingTeamId, MANAGE_COMPETITIONS)` (see `src/utils/team-auth.ts`). Since cohosts are on the `competition_event` team — not the `organizing` team — they would pass route auth but fail every server function call (179 occurrences across 26 files).
+
+**Solution**: Add a new auth helper in `src/utils/team-auth.ts`:
+
+```typescript
+/**
+ * Require competition management permission.
+ * Passes if user is:
+ * 1. Site admin (existing bypass)
+ * 2. Admin/owner on the organizing team (existing behavior)
+ * 3. Cohost on the competition_event team (NEW)
+ *
+ * For cohost, optionally check a specific cohost permission
+ * (e.g., canManagePricing) for actions gated by configurable permissions.
+ */
+export async function requireCompetitionManagePermission(
+  organizingTeamId: string,
+  competitionTeamId: string,
+  cohostPermission?: keyof CohostMembershipMetadata,
+): Promise<void> {
+  const session = await getSessionFromCookie()
+  if (!session) throw new Error("NOT_AUTHORIZED: Not authenticated")
+
+  // Site admin bypass
+  if (session.user.role === ROLES_ENUM.ADMIN) return
+
+  // Check organizing team permission (existing path)
+  const hasOrgPermission = await hasTeamPermission(
+    organizingTeamId,
+    TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+  )
+  if (hasOrgPermission) return
+
+  // Check cohost on competition team (new path)
+  const cohostTeam = session.teams?.find(
+    (t) => t.id === competitionTeamId && t.role.id === "cohost",
+  )
+  if (!cohostTeam) {
+    throw new Error("FORBIDDEN: Not authorized to manage this competition")
+  }
+
+  // If a specific cohost permission is required, check metadata
+  if (cohostPermission) {
+    const metadata = getCohostPermissions(session, competitionTeamId)
+    if (!metadata?.[cohostPermission]) {
+      throw new Error("FORBIDDEN: This action is not enabled for your cohost role")
+    }
+  }
+}
+```
+
+**Migration strategy for existing server functions**: This is the largest part of the implementation. Server functions that currently call `requireTeamPermission(data.organizingTeamId, MANAGE_COMPETITIONS)` need to be updated to call `requireCompetitionManagePermission(data.organizingTeamId, data.competitionTeamId)` instead. This requires:
+
+1. Each server function's input schema must include `competitionTeamId` (many already have access to the competition record which contains it)
+2. For actions gated by configurable cohost permissions (pricing, settings, revenue), pass the relevant `cohostPermission` key
+3. Update incrementally — start with the most common server functions (competition detail, divisions, events, registrations, volunteers, results) and expand
+
+**Files requiring server function auth updates** (26 files, ~179 call sites):
+- `src/server-fns/competition-detail-fns.ts`
+- `src/server-fns/competition-divisions-fns.ts`
+- `src/server-fns/competition-event-fns.ts`
+- `src/server-fns/competition-workouts-fns.ts`
+- `src/server-fns/volunteer-fns.ts`
+- `src/server-fns/volunteer-shift-fns.ts`
+- `src/server-fns/judge-scheduling-fns.ts`
+- `src/server-fns/judge-assignment-fns.ts`
+- `src/server-fns/judge-rotation-fns.ts`
+- `src/server-fns/registration-questions-fns.ts`
+- `src/server-fns/waiver-fns.ts`
+- `src/server-fns/sponsor-fns.ts`
+- `src/server-fns/commerce-fns.ts` (gated: `canManagePricing`)
+- `src/server-fns/scaling-fns.ts`
+- `src/server-fns/submission-verification-fns.ts`
+- `src/server-fns/video-submission-fns.ts`
+- `src/server-fns/review-note-fns.ts`
+- `src/server-fns/judging-sheet-fns.ts`
+- `src/server-fns/event-resources-fns.ts`
+- `src/server-fns/series-division-mapping-fns.ts`
+- `src/server-fns/stripe-connect-fns.ts` (gated: `canManagePricing`)
+- `src/server-fns/video-vote-fns.ts`
+
 ### Phase 4: Sidebar Changes
 
 **`src/components/competition-sidebar.tsx`** — Accept new props and filter nav items:
@@ -207,7 +291,7 @@ New server function `getCohostCompetitionsFn({ data: { userId } })`:
 - Join to `competitionsTable` via `competitionTeamId`
 - Return competitions with a `cohosted: true` flag
 
-Dashboard merges both lists. Cohosted competitions display a "Cohost" badge.
+Dashboard merges both lists and explicitly handles cohost-only users: when there are no organizing teams (or no active organizing team), the dashboard still renders the cohosted competitions list without organizer-only controls (team switcher, "Create Competition" button, "Manage Series" button, "Payout Settings" link). A cohost-only user should never see the empty/onboard state.
 
 ### Phase 6: Invite Flow
 
@@ -268,6 +352,8 @@ The `session.teams?.find(t => t.id === competition.competitionTeamId && t.role.i
 | New: `src/db/schemas/cohost.ts` | `CohostMembershipMetadata` interface |
 | `src/routes/compete/organizer.tsx` | Bypass entitlement for cohosts |
 | `src/routes/compete/organizer/$competitionId.tsx` | Move auth + cohost context to `beforeLoad` |
+| `src/utils/team-auth.ts` | Add `requireCompetitionManagePermission` helper |
+| 22 server-fn files (see Phase 3b) | Replace `requireTeamPermission` with `requireCompetitionManagePermission` |
 | `src/routes/compete/organizer/$competitionId/edit.tsx` | Block cohosts |
 | `src/routes/compete/organizer/$competitionId/danger-zone.tsx` | Block cohosts |
 | `src/routes/compete/organizer/$competitionId/revenue.tsx` | Conditional cohost access |
@@ -330,6 +416,11 @@ The `session.teams?.find(t => t.id === competition.competitionTeamId && t.role.i
 - [ ] Accepting the invite creates a `teamMembershipTable` row with `roleId: "cohost"` and correct metadata
 - [ ] After acceptance, invitee is redirected to the competition overview page
 - [ ] `isCohost` and `cohostPermissions` are exposed via parent `beforeLoad` context (not loader data)
+- [ ] `requireCompetitionManagePermission` helper exists in `src/utils/team-auth.ts`
+- [ ] Server functions use `requireCompetitionManagePermission` instead of `requireTeamPermission` for competition actions
+- [ ] Cohost can perform actions (e.g., add division, create event) on routes they can access — server functions don't reject them
+- [ ] Cohost-only user (no organizing teams) sees their cohosted competitions on the dashboard without empty/onboard state
+- [ ] Dashboard hides organizer-only controls (team switcher, create competition, manage series, payout settings) for cohost-only users
 - [ ] Organizer admin/owner experience is unchanged (no regressions)
 - [ ] `pnpm type-check` passes
 - [ ] `pnpm lint` passes
