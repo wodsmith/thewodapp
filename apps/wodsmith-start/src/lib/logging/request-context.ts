@@ -22,6 +22,7 @@
 
 import { AsyncLocalStorage } from "node:async_hooks"
 import { init } from "@paralleldrive/cuid2"
+import { getEvlog as getEvlogRef } from "@/lib/evlog"
 
 // Short 12-character request IDs for readability
 const createRequestId = init({ length: 12 })
@@ -93,6 +94,17 @@ export function updateRequestContext(
   const store = requestContextStorage.getStore()
   if (store) {
     Object.assign(store, updates)
+  }
+  // Mirror userId/teamId to evlog wide event so every event
+  // automatically includes who performed the action
+  if (updates.userId || updates.teamId) {
+    const log = getEvlogRef()
+    if (log) {
+      const user: Record<string, unknown> = {}
+      if (updates.userId) user.id = updates.userId
+      if (updates.teamId) user.teamId = updates.teamId
+      log.set({ user })
+    }
   }
 }
 
