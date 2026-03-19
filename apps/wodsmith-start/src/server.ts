@@ -74,7 +74,19 @@ initWorkersLogger({
   env: { service: "wodsmith-start" },
   // Show wide events in console during local dev, suppress in prod (drain handles it)
   silent: !import.meta.env.DEV,
+  sampling: {
+    // Head sampling: keep all errors, drop 90% of info/debug noise
+    rates: { info: 10, warn: 100, error: 100, debug: 0 },
+    // Tail sampling: always keep events that have business context or are slow/errored
+    keep: [
+      { status: 400 },
+      { duration: 1000 },
+    ],
+  },
   drain: (ctx) => {
+    // Only drain events that have accumulated business context (action field)
+    // This skips bare framework events (loaders with no log.set() calls)
+    if (!ctx.event.action) return
     const apiKey = (env as unknown as Record<string, string | undefined>)
       .POSTHOG_KEY
     if (!apiKey) return
