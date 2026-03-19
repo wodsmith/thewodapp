@@ -63,7 +63,8 @@ export const Route = createFileRoute(
 
     return {
       venues: venuesResult.venues,
-      events: eventsResult.workouts,
+      // Only top-level events (standalone + parents) — sub-events are not scheduled independently
+      events: eventsResult.workouts.filter((e) => !e.parentEventId),
       heats: heatsResult.heats,
       divisions: divisionsResult.divisions,
       registrations: registrationsResult.registrations,
