@@ -26,6 +26,7 @@ import { useCallback, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
 import { ResultsEntryForm } from "@/components/organizer/results/results-entry-form"
+import { formatTrackOrder } from "@/utils/format-track-order"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -139,29 +140,58 @@ export const Route = createFileRoute(
     })
 
     // Determine which event to show (from URL or first event)
-    const selectedEventId = deps.eventId || events[0]?.id
-    const selectedEvent = events.find((e) => e.id === selectedEventId)
+    // Filter top-level events for the dropdown (exclude sub-events)
+    const topLevelEvents = events.filter((e) => !e.parentEventId)
+    const selectedEventId = deps.eventId || topLevelEvents[0]?.id
 
-    // Fetch score entry data if we have a selected event
-    let scoreEntryData = null
-    if (selectedEvent) {
-      scoreEntryData = await getEventScoreEntryDataWithHeatsFn({
-        data: {
-          competitionId: params.competitionId,
-          organizingTeamId: competition.organizingTeamId,
-          trackWorkoutId: selectedEvent.id,
-          divisionId: deps.divisionId,
-        },
-      })
+    // Check if selected event is a parent (has children)
+    const childEvents = events
+      .filter((e) => e.parentEventId === selectedEventId)
+      .sort((a, b) => a.trackOrder - b.trackOrder)
+    const isParentEvent = childEvents.length > 0
+
+    // For parent events, load score data for ALL child events in parallel
+    let childScoreDataList: Array<Awaited<ReturnType<typeof getEventScoreEntryDataWithHeatsFn>>> = []
+    let scoreEntryData: Awaited<ReturnType<typeof getEventScoreEntryDataWithHeatsFn>> | null = null
+
+    if (isParentEvent && childEvents.length > 0) {
+      childScoreDataList = await Promise.all(
+        childEvents.map((child) =>
+          getEventScoreEntryDataWithHeatsFn({
+            data: {
+              competitionId: params.competitionId,
+              organizingTeamId: competition.organizingTeamId,
+              trackWorkoutId: child.id,
+              divisionId: deps.divisionId,
+            },
+          })
+        )
+      )
+    } else if (selectedEventId && !isParentEvent) {
+      // Standalone event - load single score entry data
+      const effectiveEvent = events.find((e) => e.id === selectedEventId)
+      if (effectiveEvent) {
+        scoreEntryData = await getEventScoreEntryDataWithHeatsFn({
+          data: {
+            competitionId: params.competitionId,
+            organizingTeamId: competition.organizingTeamId,
+            trackWorkoutId: effectiveEvent.id,
+            divisionId: deps.divisionId,
+          },
+        })
+      }
     }
 
     return {
       isOnline: false as const,
-      events,
+      events: topLevelEvents,
       divisions,
       selectedEventId,
       selectedDivisionId: deps.divisionId,
       scoreEntryData,
+      childEvents,
+      isParentEvent,
+      childScoreDataList,
       // When called without eventId, returns AllEventsResultsStatusResponse
       divisionResultsStatus:
         divisionResultsStatus as AllEventsResultsStatusResponse,
@@ -295,7 +325,7 @@ function OnlineSubmissionsOverview({
                 .map((stat) => (
                   <TableRow key={stat.eventId}>
                     <TableCell className="font-medium">
-                      #{stat.trackOrder}
+                      #{formatTrackOrder(stat.trackOrder)}
                     </TableCell>
                     <TableCell>{stat.eventName}</TableCell>
                     <TableCell className="text-center">
@@ -351,6 +381,7 @@ function InPersonResultsEntry({
       id: string
       workout: { name: string }
       trackOrder: number
+      parentEventId: string | null
     }>
     divisions: Array<{ id: string; label: string }>
     selectedEventId: string | undefined
@@ -358,6 +389,8 @@ function InPersonResultsEntry({
     scoreEntryData: Awaited<
       ReturnType<typeof getEventScoreEntryDataWithHeatsFn>
     > | null
+    isParentEvent: boolean
+    childScoreDataList: Array<Awaited<ReturnType<typeof getEventScoreEntryDataWithHeatsFn>>>
     divisionResultsStatus: AllEventsResultsStatusResponse
   }
 }) {
@@ -368,6 +401,8 @@ function InPersonResultsEntry({
     selectedDivisionId,
     scoreEntryData,
     divisionResultsStatus,
+    isParentEvent,
+    childScoreDataList,
   } = data
   const { competitionId } = Route.useParams()
   const router = useRouter()
@@ -488,8 +523,8 @@ function InPersonResultsEntry({
     )
   }
 
-  // No score entry data (shouldn't happen if events exist, but handle gracefully)
-  if (!scoreEntryData) {
+  // No score entry data for non-parent events (shouldn't happen if events exist, but handle gracefully)
+  if (!isParentEvent && !scoreEntryData) {
     return (
       <div className="flex flex-col gap-4">
         <div>
@@ -504,6 +539,11 @@ function InPersonResultsEntry({
       </div>
     )
   }
+
+  // Athlete count for display
+  const athleteCount = isParentEvent
+    ? (childScoreDataList[0]?.athletes.length ?? 0)
+    : (scoreEntryData?.athletes.length ?? 0)
 
   return (
     <div className="flex flex-col gap-4">
@@ -571,8 +611,8 @@ function InPersonResultsEntry({
             )}
           </div>
           <p className="text-muted-foreground text-sm">
-            {scoreEntryData.athletes.length} athlete
-            {scoreEntryData.athletes.length !== 1 ? "s" : ""}
+            {athleteCount} athlete
+            {athleteCount !== 1 ? "s" : ""}
             {selectedDivisionId ? " in selected division" : ""}
           </p>
         </div>
@@ -600,27 +640,64 @@ function InPersonResultsEntry({
         )}
       </div>
 
-      <ResultsEntryForm
-        key={`${selectedEventId}-${selectedDivisionId}`}
-        competitionId={competitionId}
-        organizingTeamId={competition.organizingTeamId}
-        events={events.map((e) => ({
-          id: e.id,
-          name: e.workout.name,
-          trackOrder: e.trackOrder,
-        }))}
-        selectedEventId={selectedEventId}
-        event={scoreEntryData.event}
-        athletes={scoreEntryData.athletes}
-        heats={scoreEntryData.heats}
-        unassignedRegistrationIds={scoreEntryData.unassignedRegistrationIds}
-        divisions={divisions.map((d) => ({
-          id: d.id,
-          label: d.label,
-        }))}
-        selectedDivisionId={selectedDivisionId}
-        saveScore={handleSaveScore}
-      />
+      {isParentEvent && childScoreDataList.length > 0 ? (
+        <ResultsEntryForm
+          key={`${selectedEventId}-${selectedDivisionId}`}
+          competitionId={competitionId}
+          organizingTeamId={competition.organizingTeamId}
+          events={events.map((e) => ({
+            id: e.id,
+            name: e.workout.name,
+            trackOrder: e.trackOrder,
+          }))}
+          selectedEventId={selectedEventId}
+          event={{
+            ...childScoreDataList[0].event,
+            workout: {
+              ...childScoreDataList[0].event.workout,
+              name: events.find((e) => e.id === selectedEventId)?.workout.name
+                ?? childScoreDataList[0].event.workout.name,
+            },
+          }}
+          athletes={childScoreDataList[0].athletes}
+          heats={childScoreDataList[0].heats}
+          unassignedRegistrationIds={childScoreDataList[0].unassignedRegistrationIds}
+          divisions={divisions.map((d) => ({
+            id: d.id,
+            label: d.label,
+          }))}
+          selectedDivisionId={selectedDivisionId}
+          saveScore={handleSaveScore}
+          subEventScoreData={childScoreDataList.map((child) => ({
+            event: child.event,
+            athletes: child.athletes,
+          }))}
+        />
+      ) : (
+        scoreEntryData && (
+          <ResultsEntryForm
+            key={`${selectedEventId}-${selectedDivisionId}`}
+            competitionId={competitionId}
+            organizingTeamId={competition.organizingTeamId}
+            events={events.map((e) => ({
+              id: e.id,
+              name: e.workout.name,
+              trackOrder: e.trackOrder,
+            }))}
+            selectedEventId={selectedEventId}
+            event={scoreEntryData.event}
+            athletes={scoreEntryData.athletes}
+            heats={scoreEntryData.heats}
+            unassignedRegistrationIds={scoreEntryData.unassignedRegistrationIds}
+            divisions={divisions.map((d) => ({
+              id: d.id,
+              label: d.label,
+            }))}
+            selectedDivisionId={selectedDivisionId}
+            saveScore={handleSaveScore}
+          />
+        )
+      )}
     </div>
   )
 }

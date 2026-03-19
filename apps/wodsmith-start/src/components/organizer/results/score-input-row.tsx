@@ -33,6 +33,8 @@ interface ScoreInputRowProps {
   autoFocus?: boolean
   /** Lane number to display (optional) */
   laneNumber?: number
+  /** Sub-event label to show instead of athlete name (for grouped sub-event rows) */
+  subEventLabel?: string
 }
 
 export interface ScoreInputRowHandle {
@@ -58,6 +60,7 @@ export const ScoreInputRow = forwardRef<
     onTabNext,
     autoFocus,
     laneNumber,
+    subEventLabel,
   },
   ref,
 ) {
@@ -152,7 +155,7 @@ export const ScoreInputRow = forwardRef<
     >
       {/* Lane / Index */}
       <div className="text-center">
-        {laneNumber !== undefined ? (
+        {subEventLabel ? null : laneNumber !== undefined ? (
           <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">
             {laneNumber}
           </span>
@@ -161,9 +164,13 @@ export const ScoreInputRow = forwardRef<
         )}
       </div>
 
-      {/* Athlete / Team Name */}
+      {/* Athlete / Team Name (or sub-event label when grouped) */}
       <div className="min-w-0">
-        {athlete.teamName ? (
+        {subEventLabel ? (
+          <div className="text-sm text-muted-foreground pl-2">
+            {subEventLabel}
+          </div>
+        ) : athlete.teamName ? (
           <>
             <div className="truncate font-medium">{athlete.teamName}</div>
             {athlete.teamMembers.length > 0 && (
@@ -185,8 +192,8 @@ export const ScoreInputRow = forwardRef<
             {athlete.lastName}, {athlete.firstName}
           </div>
         )}
-        {/* Only show division badge when not in heat view (no lane number) */}
-        {laneNumber === undefined && (
+        {/* Only show division badge when not in heat view (no lane number) and not sub-event */}
+        {!subEventLabel && laneNumber === undefined && (
           <Badge variant="outline" className="mt-1 text-xs">
             {athlete.divisionLabel}
           </Badge>

@@ -400,45 +400,47 @@ export function CompetitionEventRow({
                   )}
                 </div>
 
-                {/* Event Status Toggle - hidden on mobile */}
-                <div className="hidden sm:block">
-                  <Select
-                    value={localEventStatus}
-                    onValueChange={(value) =>
-                      handleEventStatusChange(value as EventStatus)
-                    }
-                    disabled={isUpdatingStatus}
-                  >
-                    <SelectTrigger className="w-[110px] h-8 text-xs shrink-0">
-                      <SelectValue>
-                        <span className="flex items-center gap-1.5">
-                          {localEventStatus === EVENT_STATUS.PUBLISHED ? (
-                            <Eye className="h-3.5 w-3.5 text-green-600" />
-                          ) : (
+                {/* Event Status Toggle - hidden on mobile, hidden for sub-events (cascaded from parent) */}
+                {!isSubEvent && (
+                  <div className="hidden sm:block">
+                    <Select
+                      value={localEventStatus}
+                      onValueChange={(value) =>
+                        handleEventStatusChange(value as EventStatus)
+                      }
+                      disabled={isUpdatingStatus}
+                    >
+                      <SelectTrigger className="w-[110px] h-8 text-xs shrink-0">
+                        <SelectValue>
+                          <span className="flex items-center gap-1.5">
+                            {localEventStatus === EVENT_STATUS.PUBLISHED ? (
+                              <Eye className="h-3.5 w-3.5 text-green-600" />
+                            ) : (
+                              <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+                            )}
+                            {localEventStatus === EVENT_STATUS.PUBLISHED
+                              ? "Published"
+                              : "Draft"}
+                          </span>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={EVENT_STATUS.DRAFT}>
+                          <span className="flex items-center gap-2">
                             <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
-                          )}
-                          {localEventStatus === EVENT_STATUS.PUBLISHED
-                            ? "Published"
-                            : "Draft"}
-                        </span>
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={EVENT_STATUS.DRAFT}>
-                        <span className="flex items-center gap-2">
-                          <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
-                          Draft
-                        </span>
-                      </SelectItem>
-                      <SelectItem value={EVENT_STATUS.PUBLISHED}>
-                        <span className="flex items-center gap-2">
-                          <Eye className="h-3.5 w-3.5 text-green-600" />
-                          Published
-                        </span>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                            Draft
+                          </span>
+                        </SelectItem>
+                        <SelectItem value={EVENT_STATUS.PUBLISHED}>
+                          <span className="flex items-center gap-2">
+                            <Eye className="h-3.5 w-3.5 text-green-600" />
+                            Published
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 {/* Actions - hidden on mobile */}
                 <div className="hidden sm:flex items-center gap-1 shrink-0">
@@ -515,42 +517,44 @@ export function CompetitionEventRow({
                         "Sponsor"}
                     </span>
                   )}
-                  <Select
-                    value={localEventStatus}
-                    onValueChange={(value) =>
-                      handleEventStatusChange(value as EventStatus)
-                    }
-                    disabled={isUpdatingStatus}
-                  >
-                    <SelectTrigger className="w-[110px] h-8 text-xs">
-                      <SelectValue>
-                        <span className="flex items-center gap-1.5">
-                          {localEventStatus === EVENT_STATUS.PUBLISHED ? (
-                            <Eye className="h-3.5 w-3.5 text-green-600" />
-                          ) : (
+                  {!isSubEvent && (
+                    <Select
+                      value={localEventStatus}
+                      onValueChange={(value) =>
+                        handleEventStatusChange(value as EventStatus)
+                      }
+                      disabled={isUpdatingStatus}
+                    >
+                      <SelectTrigger className="w-[110px] h-8 text-xs">
+                        <SelectValue>
+                          <span className="flex items-center gap-1.5">
+                            {localEventStatus === EVENT_STATUS.PUBLISHED ? (
+                              <Eye className="h-3.5 w-3.5 text-green-600" />
+                            ) : (
+                              <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+                            )}
+                            {localEventStatus === EVENT_STATUS.PUBLISHED
+                              ? "Published"
+                              : "Draft"}
+                          </span>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={EVENT_STATUS.DRAFT}>
+                          <span className="flex items-center gap-2">
                             <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
-                          )}
-                          {localEventStatus === EVENT_STATUS.PUBLISHED
-                            ? "Published"
-                            : "Draft"}
-                        </span>
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={EVENT_STATUS.DRAFT}>
-                        <span className="flex items-center gap-2">
-                          <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
-                          Draft
-                        </span>
-                      </SelectItem>
-                      <SelectItem value={EVENT_STATUS.PUBLISHED}>
-                        <span className="flex items-center gap-2">
-                          <Eye className="h-3.5 w-3.5 text-green-600" />
-                          Published
-                        </span>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                            Draft
+                          </span>
+                        </SelectItem>
+                        <SelectItem value={EVENT_STATUS.PUBLISHED}>
+                          <span className="flex items-center gap-2">
+                            <Eye className="h-3.5 w-3.5 text-green-600" />
+                            Published
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0 ml-auto">
                   {sortedDivisions.length > 0 && (

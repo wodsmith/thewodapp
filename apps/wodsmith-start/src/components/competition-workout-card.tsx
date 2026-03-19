@@ -203,7 +203,13 @@ export function CompetitionWorkoutCard({
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               <div className="flex items-baseline gap-3 sm:items-start sm:gap-4">
                 <span className="text-4xl sm:text-6xl font-black text-primary/70 leading-none select-none">
-                  {trackOrder.toString().padStart(2, "0")}
+                  {(() => {
+                    const n = Number(trackOrder)
+                    if (n % 1 === 0) return String(n).padStart(2, "0")
+                    const whole = Math.floor(n)
+                    const decimal = Math.round((n - whole) * 100)
+                    return `${whole}.${String(decimal).padStart(2, "0")}`
+                  })()}
                 </span>
                 <div className="sm:pt-1">
                   <div className="flex items-center gap-2">
