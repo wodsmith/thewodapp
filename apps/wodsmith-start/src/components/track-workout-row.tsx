@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { TrackWorkoutWithDetails } from "@/server-fns/programming-fns"
 import { removeWorkoutFromTrackFn } from "@/server-fns/programming-fns"
+import { formatTrackOrder } from "@/utils/format-track-order"
 
 interface TrackWorkoutRowProps {
   trackWorkout: TrackWorkoutWithDetails
@@ -43,7 +44,7 @@ export function TrackWorkoutRow({
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3 flex-1">
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-mono font-bold text-sm">
-              {trackWorkout.trackOrder}
+              {formatTrackOrder(trackWorkout.trackOrder)}
             </div>
             <div className="flex-1">
               <CardTitle className="text-base font-mono tracking-tight mb-1">

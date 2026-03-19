@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 import { z } from "zod"
 import { VideoSubmissionForm } from "@/components/compete/video-submission-form"
+import { formatTrackOrder } from "@/utils/format-track-order"
 import { EventHeatSchedule } from "@/components/event-heat-schedule"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import { Badge } from "@/components/ui/badge"
@@ -35,6 +36,7 @@ import {
 } from "@/server-fns/competition-heats-fns"
 import {
   getPublicEventDetailsFn,
+  getPublishedCompetitionWorkoutsFn,
   getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
 import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
@@ -137,6 +139,46 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
         ? getPublicEventHeatsFn({ data: { trackWorkoutId: eventId } })
         : Promise.resolve({ heats: [] })
 
+    // Fetch child events if this is a parent
+    const allWorkoutsResult = await getPublishedCompetitionWorkoutsFn({
+      data: { competitionId: competition.id },
+    })
+    const childEvents = allWorkoutsResult.workouts
+      .filter((w) => w.parentEventId === eventId)
+      .sort((a, b) => a.trackOrder - b.trackOrder)
+
+    // If this is a sub-event, find the parent event for context
+    const parentEvent = eventResult.event.parentEventId
+      ? allWorkoutsResult.workouts.find(
+          (w) => w.id === eventResult.event.parentEventId,
+        ) ?? null
+      : null
+
+    // Fetch division descriptions for children
+    const childDivisionDescriptions: Record<
+      string,
+      Array<{
+        divisionId: string
+        divisionLabel: string
+        description: string | null
+        position: number
+      }>
+    > = {}
+    if (childEvents.length > 0 && divisions.length > 0) {
+      const divisionIds = divisions.map((d) => d.id)
+      const results = await Promise.all(
+        childEvents.map((child) =>
+          getWorkoutDivisionDescriptionsFn({
+            data: { workoutId: child.workoutId, divisionIds },
+          }),
+        ),
+      )
+      for (let i = 0; i < childEvents.length; i++) {
+        childDivisionDescriptions[childEvents[i].workoutId] =
+          results[i].descriptions
+      }
+    }
+
     return {
       competition,
       event: eventResult.event,
@@ -150,6 +192,9 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       venue: venueResult.venue,
       videoSubmission: videoSubmissionResult,
       deferredEventHeats,
+      childEvents,
+      childDivisionDescriptions,
+      parentEvent,
     }
   },
 })
@@ -207,6 +252,9 @@ function EventDetailsPage() {
     venue,
     videoSubmission,
     deferredEventHeats,
+    childEvents,
+    childDivisionDescriptions,
+    parentEvent,
   } = Route.useLoaderData()
   const { slug } = Route.useParams()
   const search = Route.useSearch()
@@ -258,7 +306,7 @@ function EventDetailsPage() {
               <div className="space-y-1">
                 <div className="flex items-center gap-3">
                   <Badge variant="outline" className="text-xs font-medium">
-                    Event {event.trackOrder} of {totalEvents}
+                    Event {formatTrackOrder(event.trackOrder)} of {totalEvents}
                   </Badge>
                   {event.sponsorName && (
                     <span className="text-xs text-muted-foreground">
@@ -270,6 +318,18 @@ function EventDetailsPage() {
                 <h1 className="text-2xl font-bold tracking-tight">
                   {workout.name}
                 </h1>
+                {parentEvent && (
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">
+                      Part of <span className="font-medium">{parentEvent.workout.name}</span>
+                    </p>
+                    {parentEvent.workout.description && (
+                      <p className="text-sm text-muted-foreground">
+                        {parentEvent.workout.description}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {divisions && divisions.length > 0 && (
@@ -322,6 +382,61 @@ function EventDetailsPage() {
                 </div>
               )}
             </div>
+
+            {/* Sub-Workouts (parent events only) */}
+            {childEvents.length > 0 && (
+              <div className="space-y-6">
+                <Separator />
+                {childEvents.map((child) => {
+                  const childDescriptions =
+                    childDivisionDescriptions[child.workoutId] ?? []
+                  const childDivisionDesc = childDescriptions.find(
+                    (d) => d.divisionId === selectedDivisionId,
+                  )
+                  const childScale =
+                    childDivisionDesc?.description?.trim() || null
+                  const childScheme = getSchemeLabel(
+                    child.workout.scheme,
+                    child.workout.timeCap,
+                  )
+
+                  return (
+                    <div key={child.id} className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-semibold">
+                          {child.workout.name}
+                        </h3>
+                        <Badge variant="secondary" className="text-xs">
+                          {childScheme}
+                        </Badge>
+                        {child.pointsMultiplier &&
+                          child.pointsMultiplier !== 100 && (
+                            <span className="text-xs text-muted-foreground">
+                              {child.pointsMultiplier / 100}x points
+                            </span>
+                          )}
+                      </div>
+                      <div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
+                        {child.workout.description || "Details coming soon."}
+                      </div>
+                      {childScale && (
+                        <div className="flex items-start gap-2 mt-1">
+                          <Badge
+                            variant="secondary"
+                            className="shrink-0 text-xs"
+                          >
+                            {childDivisionDesc?.divisionLabel || "Division"}
+                          </Badge>
+                          <p className="font-mono text-sm whitespace-pre-wrap text-muted-foreground">
+                            {childScale}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
 
             {/* Heat Schedule */}
             {event.heatStatus === "published" && (

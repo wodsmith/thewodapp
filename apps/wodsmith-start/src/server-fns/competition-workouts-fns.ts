@@ -142,6 +142,7 @@ const createWorkoutAndAddToCompetitionInputSchema = z.object({
   tagNames: z.array(z.string()).optional(),
   movementIds: z.array(z.string()).optional(),
   sourceWorkoutId: z.string().nullable().optional(),
+  parentEventId: z.string().optional(),
 })
 
 const updateCompetitionWorkoutInputSchema = z.object({
@@ -729,6 +730,7 @@ export const getPublicEventDetailsFn = createServerFn({
       trackId: event.trackId,
       workoutId: event.workoutId,
       trackOrder: event.trackOrder,
+      parentEventId: event.parentEventId,
       notes: event.notes,
       pointsMultiplier: event.pointsMultiplier,
       heatStatus: event.heatStatus,
@@ -1262,8 +1264,10 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
       track = createdTrack
     }
 
-    // Get the next track order
-    const nextOrder = await getNextCompetitionEventOrder(data.competitionId)
+    // Get the next track order — decimal under parent if sub-event
+    const nextOrder = data.parentEventId
+      ? await getNextSubEventOrder(data.parentEventId)
+      : await getNextCompetitionEventOrder(data.competitionId)
 
     // Create the workout
     const workoutId = `workout_${createId()}`
@@ -1332,6 +1336,7 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
       workoutId: workout.id,
       trackOrder: nextOrder,
       pointsMultiplier: 100,
+      parentEventId: data.parentEventId ?? null,
     })
 
     return {
@@ -1386,6 +1391,22 @@ export const updateCompetitionWorkoutFn = createServerFn({ method: "POST" })
       .update(trackWorkoutsTable)
       .set(updateData)
       .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+
+    // Cascade eventStatus and heatStatus to child sub-events
+    const cascadeData: Record<string, unknown> = {}
+    if (data.eventStatus !== undefined) {
+      cascadeData.eventStatus = data.eventStatus
+    }
+    if (data.heatStatus !== undefined) {
+      cascadeData.heatStatus = data.heatStatus
+    }
+    if (Object.keys(cascadeData).length > 0) {
+      cascadeData.updatedAt = new Date()
+      await db
+        .update(trackWorkoutsTable)
+        .set(cascadeData)
+        .where(eq(trackWorkoutsTable.parentEventId, data.trackWorkoutId))
+    }
 
     return { success: true }
   })
