@@ -262,7 +262,7 @@ dependencies = [
 ]
 ```
 
-**`agent/integrations/cloudflare.py`** — implements `SandboxBackendProtocol` by calling back to the Durable Object's HTTP API to execute commands in the container:
+**`agent/integrations/cloudflare.py`** — implements `SandboxBackendProtocol` by running shell commands locally via `subprocess.run`. Because the Python agent process runs *inside* the Cloudflare Container, local subprocesses are the correct execution model — no HTTP round-trip to the DO is needed:
 
 ```python
 from deepagents.backends.sandbox import BaseSandbox
