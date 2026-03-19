@@ -64,7 +64,7 @@ export const SYSTEM_ROLES_ENUM = {
 } as const
 ```
 
-**`src/db/schemas/volunteers.ts`** (or new `src/db/schemas/cohost.ts`) — Define cohost metadata:
+**New file: `src/db/schemas/cohost.ts`** — Define cohost metadata (separate from volunteers to maintain clear role boundaries):
 ```typescript
 export interface CohostMembershipMetadata {
   /** Can view revenue stats and financial dashboard */
@@ -82,35 +82,57 @@ No new tables needed — cohost is a `teamMembershipTable` row with `roleId: "co
 
 ### Phase 2: Auth Gate Changes
 
-**`src/routes/compete/organizer/$competitionId.tsx`** — Expand `canManage` check (line 45–51):
+**`src/routes/compete/organizer/$competitionId.tsx`** — Expand auth and expose cohost context via `beforeLoad` (not loader).
+
+**Important**: In TanStack Router, child `beforeLoad` functions run *before* parent loaders. Route-level guards in child `beforeLoad` cannot access parent loader data. Therefore, `isCohost` and `cohostPermissions` must be computed in the parent's `beforeLoad` and returned as context.
+
 ```typescript
-// Existing: organizing team admin/owner
-const isOrganizerAdmin =
-  session.user?.role === "admin" ||
-  !!session.teams?.find(
+// In beforeLoad (runs before loaders, context flows to child beforeLoad):
+beforeLoad: async ({ params, context }) => {
+  const session = context.session
+  if (!session?.user?.id) {
+    throw redirect({ to: "/sign-in", search: { redirect: `...` } })
+  }
+
+  // Fetch competition (lightweight query needed for auth decision)
+  const { competition } = await getCompetitionByIdFn({
+    data: { competitionId: params.competitionId },
+  })
+  if (!competition) throw notFound()
+
+  const isOrganizerAdmin =
+    session.user?.role === "admin" ||
+    !!session.teams?.find(
+      (t) =>
+        t.id === competition.organizingTeamId &&
+        (t.role.id === "admin" || t.role.id === "owner"),
+    )
+
+  const isCohost = !!session.teams?.find(
     (t) =>
-      t.id === competition.organizingTeamId &&
-      (t.role.id === "admin" || t.role.id === "owner"),
+      t.id === competition.competitionTeamId &&
+      t.role.id === "cohost",
   )
 
-// NEW: cohost on competition_event team
-const isCohost = !!session.teams?.find(
-  (t) =>
-    t.id === competition.competitionTeamId &&
-    t.role.id === "cohost",
-)
+  if (!isOrganizerAdmin && !isCohost) {
+    throw redirect({ to: "/compete" })
+  }
 
-const canManage = isOrganizerAdmin || isCohost
+  const cohostPermissions = isCohost
+    ? getCohostPermissions(session, competition.competitionTeamId)
+    : null
 
-// Pass role context to child routes via loader data
-return {
-  competition,
-  isCohost,
-  cohostPermissions: isCohost ? getCohostPermissions(session, competition.competitionTeamId) : null,
-}
+  // Return via context so child beforeLoad guards can read it
+  return { competition, isCohost, cohostPermissions }
+},
+
+// Loader can use context.competition for additional data fetching
+loader: async ({ context }) => {
+  return { competition: context.competition }
+},
 ```
 
-The `getCohostPermissions` helper reads the membership metadata from the session (or fetches it) and returns the `CohostMembershipMetadata` fields.
+The `getCohostPermissions` helper reads the membership metadata from the session and returns the `CohostMembershipMetadata` fields. Child routes access `context.isCohost` and `context.cohostPermissions` in their `beforeLoad`.
 
 **`src/routes/compete/organizer.tsx`** — Parent entitlement check must allow cohosts through:
 ```typescript
@@ -128,7 +150,7 @@ This requires a new server function `hasCohostMembershipsFn` that checks if the 
 
 ### Phase 3: Route-Level Guards
 
-These routes need explicit cohost blocks (check `isCohost` from parent loader data and redirect):
+These routes need explicit cohost blocks in their `beforeLoad` (reading `context.isCohost` and `context.cohostPermissions` provided by the parent `beforeLoad`):
 
 **`src/routes/compete/organizer/$competitionId/edit.tsx`** — Always blocked for cohosts:
 ```typescript
@@ -200,28 +222,52 @@ Separate dialog from volunteer invites. Fields:
   - [ ] Can manage pricing & coupons — default OFF
 
 **New server function in `src/server-fns/cohost-fns.ts`**:
-- `inviteCohostFn` — Creates a team invitation on the competition_event team with `roleId: "cohost"` and `CohostMembershipMetadata` in metadata. Sends cohost-specific invitation email. Requires `MANAGE_COMPETITIONS` permission on organizing team.
+- `inviteCohostFn` — Creates a team invitation on the competition_event team with `roleId: "cohost"` and `CohostMembershipMetadata` in metadata. Sends cohost-specific invitation email with a unique token link. Requires `MANAGE_COMPETITIONS` permission on organizing team.
+- `getCohostInviteFn` — Retrieve a cohost invitation by token. Used by the accept-invite page to show competition details and permission summary before the invitee accepts.
+- `acceptCohostInviteFn` — Accept a cohost invitation token. Validates token is not expired, creates `teamMembershipTable` row with `roleId: "cohost"` and metadata from the invitation, marks invitation `acceptedAt`. Requires authenticated user (redirect to sign-in/sign-up if not). Follows the same pattern as `acceptVolunteerInviteFn`.
 - `getCohostsFn` — List cohosts for a competition.
 - `updateCohostPermissionsFn` — Update a cohost's permission toggles.
 - `removeCohostFn` — Remove a cohost from a competition.
 - `hasCohostMembershipsFn` — Check if a user is cohost on any competition (for parent route bypass).
 
+**Invite acceptance route**: Add a route (e.g., `/compete/cohost-invite/$token`) or reuse the existing invite acceptance infrastructure. The flow:
+1. Invitee clicks email link with token
+2. Route calls `getCohostInviteFn` to validate token and display competition name + granted permissions
+3. If not authenticated, redirect to sign-in/sign-up with return URL
+4. On accept, calls `acceptCohostInviteFn` which creates the membership and redirects to the competition overview
+
 **UI placement**: Add an "Invite Cohost" button on the competition overview page or a dedicated section on the volunteers page (separate from volunteer roster). The button should be visually distinct and only visible to organizer admins/owners (not to other cohosts).
 
-### Phase 7: Session Data
+### Phase 7: Session Data — Verified, No Changes Needed
 
-The session object (`session.teams[]`) must include cohost memberships so the client-side auth checks work. Verify that the session builder already includes competition_event team memberships. If not, extend it to include teams where the user has `roleId: "cohost"`.
+**Verified**: `getUserTeamsWithPermissions()` in `src/utils/auth.ts` (line 106) fetches ALL `teamMembershipTable` records for a user with **no filtering** on team type or role. Competition_event team memberships (including `volunteer` roles) already appear in `session.teams[]`.
 
-Each team entry in the session should already have `{ id, role: { id, name } }` — confirm `cohost` role entries flow through.
+This means a `cohost` membership on a competition_event team will automatically flow into the session as:
+```typescript
+{
+  id: competitionEventTeamId,
+  name: "...",
+  slug: "...",
+  type: "competition_event",
+  role: { id: "cohost", name: "cohost", isSystemRole: true },
+  permissions: [...],
+}
+```
+
+The `session.teams?.find(t => t.id === competition.competitionTeamId && t.role.id === "cohost")` check in the auth gate will work without any session builder changes.
+
+**Key files verified**:
+- `src/utils/auth.ts` — `getUserTeamsWithPermissions()` (no team type filter)
+- `src/utils/kv-session.ts` — `KVSession` interface includes `type` field on teams
 
 ### Affected Paths Summary
 
 | File | Change |
 |------|--------|
 | `src/db/schemas/teams.ts` | Add `COHOST` to `SYSTEM_ROLES_ENUM` |
-| `src/db/schemas/volunteers.ts` or new `cohost.ts` | `CohostMembershipMetadata` interface |
+| New: `src/db/schemas/cohost.ts` | `CohostMembershipMetadata` interface |
 | `src/routes/compete/organizer.tsx` | Bypass entitlement for cohosts |
-| `src/routes/compete/organizer/$competitionId.tsx` | Expand auth, pass `isCohost` + permissions |
+| `src/routes/compete/organizer/$competitionId.tsx` | Move auth + cohost context to `beforeLoad` |
 | `src/routes/compete/organizer/$competitionId/edit.tsx` | Block cohosts |
 | `src/routes/compete/organizer/$competitionId/danger-zone.tsx` | Block cohosts |
 | `src/routes/compete/organizer/$competitionId/revenue.tsx` | Conditional cohost access |
@@ -230,9 +276,10 @@ Each team entry in the session should already have `{ id, role: { id, name } }` 
 | `src/routes/compete/organizer/$competitionId/coupons.tsx` | Conditional cohost access |
 | `src/components/competition-sidebar.tsx` | Filter nav items by cohost permissions |
 | `src/routes/compete/organizer/_dashboard/index.tsx` | Show cohosted competitions |
-| New: `src/server-fns/cohost-fns.ts` | Cohost CRUD + permission server functions |
+| New: `src/server-fns/cohost-fns.ts` | Cohost CRUD, invite, accept server functions |
 | New: invite-cohost-dialog component | Separate invite UI with permission toggles |
-| `src/server/volunteers.ts` or new `src/server/cohost.ts` | Cohost helper functions |
+| New: cohost invite acceptance route | Token validation + accept flow (e.g., `/compete/cohost-invite/$token`) |
+| New: `src/server/cohost.ts` | Cohost helper functions (`getCohostPermissions`, etc.) |
 
 ### Patterns to Follow
 
@@ -277,6 +324,12 @@ Each team entry in the session should already have `{ id, role: { id, name } }` 
 - [ ] Only organizer admin/owner can see the "Invite Cohost" button — cohosts cannot invite other cohosts
 - [ ] Dashboard shows cohosted competitions with a visual "Cohost" badge
 - [ ] Parent route `/compete/organizer` allows cohost users through without `HOST_COMPETITIONS` entitlement
+- [ ] Cohost invite email contains a valid token link to the acceptance route
+- [ ] Acceptance route validates token (not expired, not already accepted) and shows competition name + granted permissions
+- [ ] Unauthenticated invitee is redirected to sign-in/sign-up with return URL back to acceptance
+- [ ] Accepting the invite creates a `teamMembershipTable` row with `roleId: "cohost"` and correct metadata
+- [ ] After acceptance, invitee is redirected to the competition overview page
+- [ ] `isCohost` and `cohostPermissions` are exposed via parent `beforeLoad` context (not loader data)
 - [ ] Organizer admin/owner experience is unchanged (no regressions)
 - [ ] `pnpm type-check` passes
 - [ ] `pnpm lint` passes
