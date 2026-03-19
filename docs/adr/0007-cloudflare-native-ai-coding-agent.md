@@ -145,8 +145,10 @@ const agentQueue = await Queue("agent-tasks", {
 })
 
 // Queue consumer: routes messages from the queue to the AgentSession DO
+// scriptName must match the Worker name Alchemy assigns to the TanStack Start app
 await QueueConsumer("agent-tasks-consumer", {
   queue: agentQueue,
+  scriptName: "wodsmith-app",  // matches the Worker name from TanStackStart("app", ...)
   settings: {
     batchSize: 1,         // one task at a time per consumer invocation
     maxRetries: 3,
