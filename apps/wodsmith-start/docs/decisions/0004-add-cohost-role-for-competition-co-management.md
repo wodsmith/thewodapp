@@ -141,13 +141,15 @@ The parent route already has a pattern for bypassing auth on certain paths (onbo
 ```typescript
 // In beforeLoad, after the onboard bypass check:
 // Skip entitlement check for competition detail routes —
-// $competitionId.tsx handles its own auth (organizer admin/owner OR cohost)
-const competitionRouteMatch = location.pathname.match(
-  /^\/compete\/organizer\/[^/]+/
-)
-const isCompetitionRoute =
-  competitionRouteMatch &&
-  !location.pathname.startsWith("/compete/organizer/onboard")
+// $competitionId.tsx handles its own auth (organizer admin/owner OR cohost).
+//
+// Competition IDs always start with "comp_" (e.g., comp_01HXYZ...).
+// Dashboard routes use known static segments (new, series, settings).
+// Match on the "comp_" prefix to avoid bypassing entitlements for dashboard routes.
+const pathSegments = location.pathname.split("/").filter(Boolean)
+// pathSegments: ["compete", "organizer", "$competitionId", ...]
+const competitionIdSegment = pathSegments[2]
+const isCompetitionRoute = competitionIdSegment?.startsWith("comp_")
 
 if (isCompetitionRoute) {
   // Still require authentication, but don't check HOST_COMPETITIONS
