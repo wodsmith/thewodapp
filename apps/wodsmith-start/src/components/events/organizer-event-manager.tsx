@@ -1,8 +1,8 @@
 "use client"
 
 import { useRouter } from "@tanstack/react-router"
-import { Plus } from "lucide-react"
-import { useEffect, useState } from "react"
+import { ChevronDown, ChevronRight, Plus } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 import { trackEvent } from "@/lib/posthog"
 import { Button } from "@/components/ui/button"
@@ -61,6 +61,10 @@ export function OrganizerEventManager({
   const [instanceId] = useState(() => Symbol("competition-events"))
   const [isCreating, setIsCreating] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
+  const [subEventParentId, setSubEventParentId] = useState<string | null>(null)
+  const [collapsedParents, setCollapsedParents] = useState<Set<string>>(
+    () => new Set(),
+  )
 
   // Sync props to state when server data changes, but deduplicate
   useEffect(() => {
@@ -80,6 +84,30 @@ export function OrganizerEventManager({
 
   // Sort events by trackOrder
   const sortedEvents = [...events].sort((a, b) => a.trackOrder - b.trackOrder)
+
+  // Build hierarchical event list: top-level = standalone + parents, children grouped under parents
+  const childrenByParent = new Map<string, CompetitionWorkout[]>()
+  for (const event of sortedEvents) {
+    if (event.parentEventId) {
+      const siblings = childrenByParent.get(event.parentEventId) ?? []
+      siblings.push(event)
+      childrenByParent.set(event.parentEventId, siblings)
+    }
+  }
+  // Top-level items: standalone events (no parent, no children) + parent events (has children)
+  const topLevelEvents = sortedEvents.filter((e) => !e.parentEventId)
+
+  const toggleParentCollapse = useCallback((parentId: string) => {
+    setCollapsedParents((prev) => {
+      const next = new Set(prev)
+      if (next.has(parentId)) {
+        next.delete(parentId)
+      } else {
+        next.add(parentId)
+      }
+      return next
+    })
+  }, [])
 
   // Get existing workout IDs for filtering in AddEventDialog
   const existingWorkoutIds = new Set(events.map((e) => e.workoutId))
@@ -106,6 +134,7 @@ export function OrganizerEventManager({
           roundsToScore: data.roundsToScore ?? null,
           tiebreakScheme: data.tiebreakScheme ?? null,
           movementIds: data.movementIds,
+          parentEventId: subEventParentId ?? undefined,
         },
       })
 
@@ -114,9 +143,15 @@ export function OrganizerEventManager({
           competition_id: competitionId,
           event_id: result.trackWorkoutId,
           event_name: data.name,
+          is_sub_event: !!subEventParentId,
         })
-        toast.success(`Created "${data.name}"`)
+        toast.success(
+          subEventParentId
+            ? `Created sub-event "${data.name}"`
+            : `Created "${data.name}"`,
+        )
         setShowCreateDialog(false)
+        setSubEventParentId(null)
         router.invalidate()
       }
     } catch (error) {
@@ -171,9 +206,16 @@ export function OrganizerEventManager({
   }
 
   const handleRemove = async (trackWorkoutId: string) => {
-    // Optimistically remove from state
+    // Optimistically remove from state (including children if this is a parent)
     const eventToRemove = events.find((e) => e.id === trackWorkoutId)
-    setEvents((prev) => prev.filter((e) => e.id !== trackWorkoutId))
+    const childrenToRemove = events.filter(
+      (e) => e.parentEventId === trackWorkoutId,
+    )
+    setEvents((prev) =>
+      prev.filter(
+        (e) => e.id !== trackWorkoutId && e.parentEventId !== trackWorkoutId,
+      ),
+    )
 
     try {
       await removeWorkoutFromCompetitionFn({
@@ -187,34 +229,50 @@ export function OrganizerEventManager({
       toast.error(
         error instanceof Error ? error.message : "Failed to remove event",
       )
-      // Revert - add it back
+      // Revert - add it back (including children)
       if (eventToRemove) {
-        setEvents((prev) => [...prev, eventToRemove])
+        setEvents((prev) => [...prev, eventToRemove, ...childrenToRemove])
       }
     }
   }
 
+  const handleAddSubEvent = async (parentEventId: string) => {
+    setShowCreateDialog(true)
+    // Store parent context for the create dialog
+    setSubEventParentId(parentEventId)
+  }
+
   const handleDrop = async (sourceIndex: number, targetIndex: number) => {
-    const newEvents = [...sortedEvents]
+    // Only reorder top-level events (standalone + parents)
+    const newEvents = [...topLevelEvents]
     const [movedItem] = newEvents.splice(sourceIndex, 1)
     if (movedItem) {
       newEvents.splice(targetIndex, 0, movedItem)
 
-      // Update trackOrder values
-      const updatedEvents = newEvents.map((event, index) => ({
-        ...event,
-        trackOrder: index + 1,
-      }))
+      // Update trackOrder for top-level events and reassign children
+      const allUpdatedEvents: CompetitionWorkout[] = []
+      for (let i = 0; i < newEvents.length; i++) {
+        const topEvent = { ...newEvents[i], trackOrder: i + 1 }
+        allUpdatedEvents.push(topEvent)
+        // Reassign children's trackOrder under new parent position
+        const children = childrenByParent.get(topEvent.id) ?? []
+        for (let j = 0; j < children.length; j++) {
+          allUpdatedEvents.push({
+            ...children[j],
+            trackOrder: Number((i + 1 + 0.01 * (j + 1)).toFixed(2)),
+          })
+        }
+      }
 
       // Capture previous state before optimistic update
       const previousEvents = events
 
-      setEvents(updatedEvents)
+      setEvents(allUpdatedEvents)
 
-      // Persist to server
-      const updates = updatedEvents.map((e) => ({
+      // Persist to server — only send top-level reorders, server handles children
+      const updates = newEvents.map((e, i) => ({
         trackWorkoutId: e.id,
-        trackOrder: e.trackOrder,
+        trackOrder: i + 1,
       }))
 
       try {
@@ -267,29 +325,92 @@ export function OrganizerEventManager({
         </div>
       ) : (
         <div className="space-y-2">
-          {sortedEvents.map((event, index) => (
-            <CompetitionEventRow
-              key={event.id}
-              event={event}
-              index={index}
-              instanceId={instanceId}
-              competitionId={competitionId}
-              organizingTeamId={organizingTeamId}
-              divisions={divisions}
-              divisionDescriptions={
-                divisionDescriptionsByWorkout[event.workoutId] ?? []
-              }
-              sponsors={sponsors}
-              onRemove={() => handleRemove(event.id)}
-              onDrop={handleDrop}
-            />
-          ))}
+          {topLevelEvents.map((event, index) => {
+            const children = childrenByParent.get(event.id) ?? []
+            const isParent = children.length > 0
+            const isCollapsed = collapsedParents.has(event.id)
+
+            return (
+              <div key={event.id}>
+                <div className="flex items-center gap-1">
+                  {isParent && (
+                    <button
+                      type="button"
+                      onClick={() => toggleParentCollapse(event.id)}
+                      className="p-1 -ml-1 text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label={isCollapsed ? "Expand sub-events" : "Collapse sub-events"}
+                    >
+                      {isCollapsed ? (
+                        <ChevronRight className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </button>
+                  )}
+                  <div className={`flex-1 ${!isParent ? "ml-6" : ""}`}>
+                    <CompetitionEventRow
+                      event={event}
+                      index={index}
+                      instanceId={instanceId}
+                      competitionId={competitionId}
+                      organizingTeamId={organizingTeamId}
+                      divisions={divisions}
+                      divisionDescriptions={
+                        divisionDescriptionsByWorkout[event.workoutId] ?? []
+                      }
+                      sponsors={sponsors}
+                      onRemove={() => handleRemove(event.id)}
+                      onDrop={handleDrop}
+                      onAddSubEvent={() => handleAddSubEvent(event.id)}
+                      isParentEvent={isParent}
+                      childCount={children.length}
+                    />
+                  </div>
+                </div>
+                {/* Sub-events */}
+                {isParent && !isCollapsed && (
+                  <div className="ml-10 mt-1 space-y-1 border-l-2 border-muted pl-3">
+                    {children.map((child, childIndex) => (
+                      <CompetitionEventRow
+                        key={child.id}
+                        event={child}
+                        index={childIndex}
+                        instanceId={instanceId}
+                        competitionId={competitionId}
+                        organizingTeamId={organizingTeamId}
+                        divisions={divisions}
+                        divisionDescriptions={
+                          divisionDescriptionsByWorkout[child.workoutId] ?? []
+                        }
+                        sponsors={sponsors}
+                        onRemove={() => handleRemove(child.id)}
+                        onDrop={handleDrop}
+                        isSubEvent
+                      />
+                    ))}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground text-xs"
+                      onClick={() => handleAddSubEvent(event.id)}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add Sub-Event
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 
       <CreateEventDialog
         open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
+        onOpenChange={(open) => {
+          setShowCreateDialog(open)
+          if (!open) setSubEventParentId(null)
+        }}
         onCreateEvent={handleCreateEvent}
         isCreating={isCreating}
         movements={movements}

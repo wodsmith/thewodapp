@@ -95,6 +95,8 @@ export interface CompetitionLeaderboardEntry {
     videoSubmissionId: string | null
     /** Parent event ID if this is a sub-event, null for standalone/parent */
     parentEventId: string | null
+    /** Parent event name if this is a sub-event, null for standalone */
+    parentEventName: string | null
     /** True if this is a parent event with aggregated sub-event points */
     isParentEvent: boolean
   }>
@@ -120,6 +122,7 @@ export interface CompetitionLeaderboardResult {
     trackWorkoutId: string
     name: string
     parentEventId: string | null
+    parentEventName: string | null
     isParentEvent: boolean
   }>
 }
@@ -371,8 +374,11 @@ export async function getCompetitionLeaderboard(params: {
     })
 
     if (relevantIds) {
-      filteredTrackWorkouts = trackWorkouts.filter((tw) =>
-        relevantIds.has(tw.id),
+      // Also include child events whose parent is relevant (children inherit parent's heat relevance)
+      filteredTrackWorkouts = trackWorkouts.filter(
+        (tw) =>
+          relevantIds.has(tw.id) ||
+          (tw.parentEventId && relevantIds.has(tw.parentEventId)),
       )
 
       if (filteredTrackWorkouts.length === 0) {
@@ -388,10 +394,15 @@ export async function getCompetitionLeaderboard(params: {
       .filter((tw) => tw.parentEventId)
       .map((tw) => tw.parentEventId as string),
   )
-  const parentEvents = filteredTrackWorkouts.filter((tw) =>
-    childEventIds.has(tw.id),
-  )
-  const childEvents = filteredTrackWorkouts.filter((tw) => tw.parentEventId)
+  // Build a map of parent event names for sub-event grouping on the leaderboard
+  // Use unfiltered trackWorkouts so division filtering doesn't drop parent names
+  const parentNameMap = new Map<string, string>()
+  for (const tw of trackWorkouts) {
+    if (childEventIds.has(tw.id)) {
+      parentNameMap.set(tw.id, tw.workout.name)
+    }
+  }
+
   // Scorable events = standalone + children (parents have no scores of their own)
   const scorableEvents = filteredTrackWorkouts.filter(
     (tw) => !childEventIds.has(tw.id),
@@ -421,12 +432,24 @@ export async function getCompetitionLeaderboard(params: {
     )
 
   if (registrations.length === 0) {
-    const events = filteredTrackWorkouts.map((tw) => ({
-      trackWorkoutId: tw.id,
-      name: tw.workout.name,
-      parentEventId: tw.parentEventId,
-      isParentEvent: childEventIds.has(tw.id),
-    }))
+    // Build parent name map for sub-event grouping
+    const earlyParentNameMap = new Map<string, string>()
+    for (const tw of filteredTrackWorkouts) {
+      if (childEventIds.has(tw.id)) {
+        earlyParentNameMap.set(tw.id, tw.workout.name)
+      }
+    }
+    const events = filteredTrackWorkouts
+      .filter((tw) => !childEventIds.has(tw.id))
+      .map((tw) => ({
+        trackWorkoutId: tw.id,
+        name: tw.workout.name,
+        parentEventId: tw.parentEventId,
+        parentEventName: tw.parentEventId
+          ? (earlyParentNameMap.get(tw.parentEventId) ?? null)
+          : null,
+        isParentEvent: false,
+      }))
     return { entries: [], scoringConfig, events }
   }
 
@@ -689,6 +712,9 @@ export async function getCompetitionLeaderboard(params: {
               )?.submissionId ?? null)
             : null,
           parentEventId: trackWorkout.parentEventId,
+          parentEventName: trackWorkout.parentEventId
+            ? (parentNameMap.get(trackWorkout.parentEventId) ?? null)
+            : null,
           isParentEvent: false,
         })
 
@@ -722,48 +748,17 @@ export async function getCompetitionLeaderboard(params: {
             ? (videoMap.get(`${regId}:${trackWorkout.id}`)?.submissionId ?? null)
             : null,
           parentEventId: trackWorkout.parentEventId,
+          parentEventName: trackWorkout.parentEventId
+            ? (parentNameMap.get(trackWorkout.parentEventId) ?? null)
+            : null,
           isParentEvent: false,
         })
       }
     }
   }
 
-  // Aggregate sub-event points into parent event entries.
-  // Each parent gets an eventResults entry whose points = sum of its children's points.
-  for (const parent of parentEvents) {
-    const childIds = childEvents
-      .filter((c) => c.parentEventId === parent.id)
-      .map((c) => c.id)
-
-    for (const [_regId, entry] of leaderboardMap) {
-      const childResults = entry.eventResults.filter((er) =>
-        childIds.includes(er.trackWorkoutId),
-      )
-      const aggregatedPoints = childResults.reduce(
-        (sum, er) => sum + er.points,
-        0,
-      )
-
-      entry.eventResults.push({
-        trackWorkoutId: parent.id,
-        trackOrder: parent.trackOrder,
-        eventName: parent.workout.name,
-        scheme: parent.workout.scheme,
-        rank: 0, // Parent has no individual rank
-        points: aggregatedPoints,
-        rawScore: null,
-        formattedScore: `${childResults.filter((r) => r.rawScore !== null).length}/${childIds.length} scored`,
-        formattedTiebreak: null,
-        penaltyType: null,
-        penaltyPercentage: null,
-        isDirectlyModified: false,
-        videoUrl: null,
-        videoSubmissionId: null,
-        parentEventId: null,
-        isParentEvent: true,
-      })
-    }
-  }
+  // Parent events are not scored directly — sub-events appear as top-level columns
+  // on the leaderboard, so we skip adding parent aggregate entries to eventResults.
 
   // Convert to array and apply tiebreakers for overall ranking
   const leaderboard = Array.from(leaderboardMap.values())
@@ -813,13 +808,19 @@ export async function getCompetitionLeaderboard(params: {
     return a.overallRank - b.overallRank
   })
 
-  // Build events list for the response
-  const events = filteredTrackWorkouts.map((tw) => ({
-    trackWorkoutId: tw.id,
-    name: tw.workout.name,
-    parentEventId: tw.parentEventId,
-    isParentEvent: childEventIds.has(tw.id),
-  }))
+  // Build events list for the response — exclude parent events since sub-events
+  // appear as top-level columns on the leaderboard
+  const events = filteredTrackWorkouts
+    .filter((tw) => !childEventIds.has(tw.id))
+    .map((tw) => ({
+      trackWorkoutId: tw.id,
+      name: tw.workout.name,
+      parentEventId: tw.parentEventId,
+      parentEventName: tw.parentEventId
+        ? (parentNameMap.get(tw.parentEventId) ?? null)
+        : null,
+      isParentEvent: false,
+    }))
 
   return {
     entries: sortedEntries,

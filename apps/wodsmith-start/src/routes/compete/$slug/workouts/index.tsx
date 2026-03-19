@@ -288,38 +288,102 @@ function CompetitionWorkoutsPage() {
           </div>
 
           {/* Workouts List */}
-          <div className="space-y-6">
-            {workouts.map((event) => {
-              const divisionDescriptionsResult =
-                divisionDescriptionsMap?.[event.workoutId]
-              return (
-                <CompetitionWorkoutCard
-                  key={event.id}
-                  eventId={event.id}
-                  slug={slug}
-                  trackOrder={event.trackOrder}
-                  name={event.workout.name}
-                  scheme={event.workout.scheme}
-                  description={event.workout.description}
-                  roundsToScore={event.workout.roundsToScore}
-                  pointsMultiplier={event.pointsMultiplier}
-                  movements={event.workout.movements}
-                  tags={event.workout.tags}
-                  divisionDescriptions={divisionDescriptionsResult ?? []}
-                  sponsorName={event.sponsorName}
-                  sponsorLogoUrl={event.sponsorLogoUrl}
-                  selectedDivisionId={selectedDivisionId}
-                  isRegistered={!!athleteRegisteredDivisionId}
-                  submissionStatus={submissionStatusMap[event.id] ?? null}
-                  timeCap={event.workout.timeCap}
-                  venue={venueMap?.[event.id]}
-                  schedule={scheduleMap?.get(event.id) ?? null}
-                />
-              )
-            })}
-          </div>
+          <WorkoutsList
+            workouts={workouts}
+            slug={slug}
+            divisionDescriptionsMap={divisionDescriptionsMap}
+            selectedDivisionId={selectedDivisionId}
+            athleteRegisteredDivisionId={athleteRegisteredDivisionId}
+            submissionStatusMap={submissionStatusMap}
+            venueMap={venueMap}
+            scheduleMap={scheduleMap}
+          />
         </div>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Workouts list with parent/child grouping.
+ * Parent events render as expandable cards; standalone events render as-is.
+ */
+type EnrichedWorkout = Awaited<
+  ReturnType<typeof getPublishedCompetitionWorkoutsWithDetailsFn>
+>["workouts"][number]
+
+type VenueInfo = {
+  id: string
+  name: string
+  address: {
+    streetLine1?: string
+    city?: string
+    stateProvince?: string
+    postalCode?: string
+    countryCode?: string
+  } | null
+} | null
+
+type ScheduleInfo = {
+  startTime: string
+  endTime: string | null
+  heatCount: number
+  venueName: string | null
+  divisions: string[]
+} | null
+
+function WorkoutsList({
+  workouts,
+  slug,
+  divisionDescriptionsMap,
+  selectedDivisionId,
+  athleteRegisteredDivisionId,
+  submissionStatusMap,
+  venueMap,
+  scheduleMap,
+}: {
+  workouts: EnrichedWorkout[]
+  slug: string
+  divisionDescriptionsMap: Record<string, DivisionDescription[]>
+  selectedDivisionId: string
+  athleteRegisteredDivisionId: string | null
+  submissionStatusMap: Record<string, SubmissionStatus>
+  venueMap: Record<string, VenueInfo>
+  scheduleMap: Map<string, ScheduleInfo> | null
+}) {
+  // Show only top-level events (standalone + parents). Sub-events are shown on the parent's detail page.
+  const topLevelWorkouts = workouts.filter((w) => !w.parentEventId)
+
+  return (
+    <div className="space-y-6">
+      {topLevelWorkouts.map((event) => {
+        return (
+          <CompetitionWorkoutCard
+            key={event.id}
+            eventId={event.id}
+            slug={slug}
+            trackOrder={event.trackOrder}
+            name={event.workout.name}
+            scheme={event.workout.scheme}
+            description={event.workout.description}
+            roundsToScore={event.workout.roundsToScore}
+            pointsMultiplier={event.pointsMultiplier}
+            movements={event.workout.movements}
+            tags={event.workout.tags}
+            divisionDescriptions={
+              divisionDescriptionsMap?.[event.workoutId] ?? []
+            }
+            sponsorName={event.sponsorName}
+            sponsorLogoUrl={event.sponsorLogoUrl}
+            selectedDivisionId={selectedDivisionId}
+            isRegistered={!!athleteRegisteredDivisionId}
+            submissionStatus={submissionStatusMap[event.id] ?? null}
+            timeCap={event.workout.timeCap}
+            venue={venueMap?.[event.id]}
+            schedule={scheduleMap?.get(event.id) ?? null}
+          />
+        )
+      })}
     </div>
   )
 }

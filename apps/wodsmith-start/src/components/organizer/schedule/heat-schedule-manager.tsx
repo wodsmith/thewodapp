@@ -17,6 +17,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { formatTrackOrder } from "@/utils/format-track-order"
 import {
   Dialog,
   DialogContent,
@@ -1245,7 +1246,7 @@ export function HeatScheduleManager({
             <SelectContent>
               {localEvents.map((event) => (
                 <SelectItem key={event.id} value={event.id}>
-                  <span className="tabular-nums">{event.trackOrder}</span>.{" "}
+                  <span className="tabular-nums">{formatTrackOrder(event.trackOrder)}</span>.{" "}
                   {event.workout.name}
                 </SelectItem>
               ))}
