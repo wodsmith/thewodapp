@@ -21,7 +21,7 @@ The existing volunteer system (`SYSTEM_ROLES_ENUM.VOLUNTEER`) is for operational
 * Revenue, pricing/coupons, and settings visibility should be configurable per-cohost (organizer chooses at invite time)
 * The invite flow must be clearly separated from volunteer invites to prevent accidental privilege escalation
 * Must work within existing team/membership/session architecture
-* Parent route `/compete/organizer` requires `HOST_COMPETITIONS` entitlement — cohosts don't have this on their own team
+* Cohosts should NOT access the `/compete/organizer` dashboard — they enter competition management from the public competition page via a direct link to `/compete/organizer/$competitionId`
 
 ## Considered Options
 
@@ -44,8 +44,7 @@ Chosen option: **Option A — `cohost` system role on the competition_event team
 * Good, because the invite flow is separate from volunteers, preventing accidental privilege escalation
 * Bad, because the auth gate in `$competitionId.tsx` must now check two teams (organizing team + competition team), adding complexity
 * Bad, because ~179 server function permission checks across 22 files must be migrated from `requireTeamPermission` to a new `requireCompetitionManagePermission` helper that accepts both team paths
-* Bad, because the parent route `/compete/organizer` entitlement check needs a bypass path for cohosts
-* Bad, because the dashboard must merge two data sources (own competitions + cohosted competitions) and handle cohost-only users who have no organizing teams
+* Good, because the `/compete/organizer` dashboard and entitlement check remain unchanged — cohosts enter from the public competition page, not the organizer dashboard
 * Neutral, because the sidebar gains conditional logic based on cohost permissions, but this is straightforward
 
 ## Implementation Plan
@@ -135,19 +134,46 @@ loader: async ({ context }) => {
 
 The `getCohostPermissions` helper reads the membership metadata from the session and returns the `CohostMembershipMetadata` fields. Child routes access `context.isCohost` and `context.cohostPermissions` in their `beforeLoad`.
 
-**`src/routes/compete/organizer.tsx`** — Parent entitlement check must allow cohosts through:
-```typescript
-// Existing check: has HOST_COMPETITIONS entitlement
-// NEW: OR user has any cohost membership on any competition team
-const hasHostCompetitions = /* existing check */
-const hasCohostMembership = await hasCohostMembershipsFn({ data: { userId: session.user.id } })
+**`src/routes/compete/organizer.tsx`** — Skip entitlement check for `$competitionId` routes (defer to child auth).
 
-if (!hasHostCompetitions && !hasCohostMembership) {
-  throw redirect({ to: "/compete/organizer/onboard" })
+The parent route already has a pattern for bypassing auth on certain paths (onboard route, line 94–96). Apply the same pattern: when the URL targets a specific competition, skip the `HOST_COMPETITIONS` entitlement check. The `$competitionId.tsx` `beforeLoad` handles its own cohost auth.
+
+```typescript
+// In beforeLoad, after the onboard bypass check:
+// Skip entitlement check for competition detail routes —
+// $competitionId.tsx handles its own auth (organizer admin/owner OR cohost)
+const competitionRouteMatch = location.pathname.match(
+  /^\/compete\/organizer\/[^/]+/
+)
+const isCompetitionRoute =
+  competitionRouteMatch &&
+  !location.pathname.startsWith("/compete/organizer/onboard")
+
+if (isCompetitionRoute) {
+  // Still require authentication, but don't check HOST_COMPETITIONS
+  const session = await validateSession()
+  if (!session) {
+    throw redirect({ to: "/sign-in", search: { redirect: location.pathname } })
+  }
+  return {
+    session,
+    entitlements: {
+      hasHostCompetitions: false,
+      isPendingApproval: false,
+      isApproved: false,
+      activeOrganizingTeamId: null,
+    },
+  }
 }
+
+// Existing entitlement check continues for dashboard routes...
 ```
 
-This requires a new server function `hasCohostMembershipsFn` that checks if the user has any active `cohost` memberships.
+The organizer dashboard (`/compete/organizer/`, `/compete/organizer/new`, `/compete/organizer/series/`, etc.) remains completely unchanged — only organizers with `HOST_COMPETITIONS` can access it.
+
+**Cohost entry point**: Cohosts access their competition from the public competition page (`/compete/$slug`). Add a "Manage Competition" link/button on the public page that is visible to users who are cohosts (or admins/owners) of that competition. The link goes directly to `/compete/organizer/$competitionId`.
+
+**Optional future enhancement**: If a user is both an organizer (has `HOST_COMPETITIONS`) and a cohost on other competitions, a "Cohosted" section could be added to the organizer dashboard. This is not required for v1.
 
 ### Phase 3: Route-Level Guards
 
@@ -282,16 +308,25 @@ In `getNavigation`, add a `hidden` flag to items:
 - **Pricing**: hidden unless `cohostPermissions.canManagePricing`
 - **Coupons**: hidden unless `cohostPermissions.canManagePricing`
 
-### Phase 5: Dashboard Changes
+### Phase 5: Cohost Entry Point
 
-**`src/routes/compete/organizer/_dashboard/index.tsx`** — Add cohosted competitions to listing:
+**`src/routes/compete/$slug.tsx`** (public competition page) — Add a "Manage Competition" link visible to cohosts.
 
-New server function `getCohostCompetitionsFn({ data: { userId } })`:
-- Query `teamMembershipTable` where `roleId = "cohost"` and `isSystemRole = true`
-- Join to `competitionsTable` via `competitionTeamId`
-- Return competitions with a `cohosted: true` flag
+In the route loader or component, check if the current user is a cohost (or admin/owner) of this competition using `session.teams`:
+```typescript
+const canManage =
+  session?.user?.role === "admin" ||
+  session?.teams?.some(
+    (t) =>
+      (t.id === competition.organizingTeamId &&
+        (t.role.id === "admin" || t.role.id === "owner")) ||
+      (t.id === competition.competitionTeamId && t.role.id === "cohost"),
+  )
+```
 
-Dashboard merges both lists and explicitly handles cohost-only users: when there are no organizing teams (or no active organizing team), the dashboard still renders the cohosted competitions list without organizer-only controls (team switcher, "Create Competition" button, "Manage Series" button, "Payout Settings" link). A cohost-only user should never see the empty/onboard state.
+If `canManage`, render a "Manage Competition" button/link pointing to `/compete/organizer/${competition.id}`. This is the cohost's entry point — they never see the organizer dashboard.
+
+**No changes to the organizer dashboard** (`/compete/organizer/_dashboard/`). It remains organizer-only.
 
 ### Phase 6: Invite Flow
 
@@ -312,7 +347,6 @@ Separate dialog from volunteer invites. Fields:
 - `getCohostsFn` — List cohosts for a competition.
 - `updateCohostPermissionsFn` — Update a cohost's permission toggles.
 - `removeCohostFn` — Remove a cohost from a competition.
-- `hasCohostMembershipsFn` — Check if a user is cohost on any competition (for parent route bypass).
 
 **Invite acceptance route**: Add a route (e.g., `/compete/cohost-invite/$token`) or reuse the existing invite acceptance infrastructure. The flow:
 1. Invitee clicks email link with token
@@ -350,7 +384,8 @@ The `session.teams?.find(t => t.id === competition.competitionTeamId && t.role.i
 |------|--------|
 | `src/db/schemas/teams.ts` | Add `COHOST` to `SYSTEM_ROLES_ENUM` |
 | New: `src/db/schemas/cohost.ts` | `CohostMembershipMetadata` interface |
-| `src/routes/compete/organizer.tsx` | Bypass entitlement for cohosts |
+| `src/routes/compete/organizer.tsx` | Skip entitlement check for `$competitionId` routes (same pattern as onboard bypass) |
+| `src/routes/compete/$slug.tsx` | Add "Manage Competition" link for cohosts |
 | `src/routes/compete/organizer/$competitionId.tsx` | Move auth + cohost context to `beforeLoad` |
 | `src/utils/team-auth.ts` | Add `requireCompetitionManagePermission` helper |
 | 22 server-fn files (see Phase 3b) | Replace `requireTeamPermission` with `requireCompetitionManagePermission` |
@@ -361,7 +396,6 @@ The `session.teams?.find(t => t.id === competition.competitionTeamId && t.role.i
 | `src/routes/compete/organizer/$competitionId/pricing.tsx` | Conditional cohost access |
 | `src/routes/compete/organizer/$competitionId/coupons.tsx` | Conditional cohost access |
 | `src/components/competition-sidebar.tsx` | Filter nav items by cohost permissions |
-| `src/routes/compete/organizer/_dashboard/index.tsx` | Show cohosted competitions |
 | New: `src/server-fns/cohost-fns.ts` | Cohost CRUD, invite, accept server functions |
 | New: invite-cohost-dialog component | Separate invite UI with permission toggles |
 | New: cohost invite acceptance route | Token validation + accept flow (e.g., `/compete/cohost-invite/$token`) |
@@ -408,8 +442,10 @@ The `session.teams?.find(t => t.id === competition.competitionTeamId && t.role.i
 - [ ] Invite Cohost dialog is separate from Invite Volunteer dialog
 - [ ] Invite Cohost dialog has permission toggles with correct defaults (revenue OFF, settings ON, pricing OFF)
 - [ ] Only organizer admin/owner can see the "Invite Cohost" button — cohosts cannot invite other cohosts
-- [ ] Dashboard shows cohosted competitions with a visual "Cohost" badge
-- [ ] Parent route `/compete/organizer` allows cohost users through without `HOST_COMPETITIONS` entitlement
+- [ ] Public competition page (`/compete/$slug`) shows "Manage Competition" link for cohosts
+- [ ] Cohost can navigate from public competition page to `/compete/organizer/$competitionId` and land on the overview
+- [ ] Parent route `/compete/organizer` skips entitlement check for `$competitionId` routes (defers to child auth)
+- [ ] Organizer dashboard (`/compete/organizer/`) is unchanged — no cohost access without `HOST_COMPETITIONS`
 - [ ] Cohost invite email contains a valid token link to the acceptance route
 - [ ] Acceptance route validates token (not expired, not already accepted) and shows competition name + granted permissions
 - [ ] Unauthenticated invitee is redirected to sign-in/sign-up with return URL back to acceptance
@@ -419,8 +455,6 @@ The `session.teams?.find(t => t.id === competition.competitionTeamId && t.role.i
 - [ ] `requireCompetitionManagePermission` helper exists in `src/utils/team-auth.ts`
 - [ ] Server functions use `requireCompetitionManagePermission` instead of `requireTeamPermission` for competition actions
 - [ ] Cohost can perform actions (e.g., add division, create event) on routes they can access — server functions don't reject them
-- [ ] Cohost-only user (no organizing teams) sees their cohosted competitions on the dashboard without empty/onboard state
-- [ ] Dashboard hides organizer-only controls (team switcher, create competition, manage series, payout settings) for cohost-only users
 - [ ] Organizer admin/owner experience is unchanged (no regressions)
 - [ ] `pnpm type-check` passes
 - [ ] `pnpm lint` passes
@@ -436,8 +470,7 @@ New `cohost` system role on the per-competition team, alongside existing `volunt
 * Good, because it reuses the existing team membership + metadata pattern (familiar to codebase)
 * Good, because clean role hierarchy: organizing team (admin/owner) > competition team (cohost) > competition team (volunteer)
 * Bad, because auth gate must now check two teams, adding a second `session.teams?.find()` branch
-* Bad, because parent route entitlement check needs a bypass path for cohost users
-* Bad, because dashboard must merge own competitions + cohosted competitions from different data sources
+* Neutral, because parent route needs a path-based bypass for `$competitionId` routes (same pattern as existing onboard bypass)
 
 ### Option B: Cohost role on organizing team
 
@@ -445,7 +478,6 @@ New `cohost` system role on the gym/organizing team. Simplifies auth since exist
 
 * Good, because auth gate requires minimal changes (just add `"cohost"` to the role check)
 * Good, because parent route entitlement check needs no changes (organizing team already has HOST_COMPETITIONS)
-* Good, because dashboard already shows competitions for the organizing team
 * Bad, because cohost gains implicit access to ALL competitions for that gym, not just one
 * Bad, because removing cohost access from one competition is impossible without removing them from the team entirely
 * Bad, because mixing gym-level and competition-level roles on the same team creates a confusing permission model
@@ -480,3 +512,4 @@ New `cohost` system role on the gym/organizing team. Simplifies auth since exist
 - Cohosts need to manage series (cross-competition scope — may need different approach)
 - An organizer wants to grant partial edit access (e.g., description but not dates)
 - Multiple cohost permission presets are needed (e.g., "full cohost" vs "day-of coordinator")
+- Organizers who are also cohosts want to see cohosted competitions in the organizer dashboard (add "Cohosted" section)
