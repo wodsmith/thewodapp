@@ -712,7 +712,6 @@ export const getCompetitionDivisionsWithCountsFn = createServerFn({
   )
   .handler(async ({ data }) => {
     const db = getDb()
-    getEvlog()?.set({ action: "list_divisions", competition: { id: data.competitionId } })
 
     // Verify authentication
     const session = await getSessionFromCookie()

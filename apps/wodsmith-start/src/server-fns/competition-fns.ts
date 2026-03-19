@@ -304,7 +304,6 @@ export const getOrganizerCompetitionsFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const db = getDb()
-    getEvlog()?.set({ action: "list_organizer_competitions", teamId: data.teamId })
 
     const competitions = await db
       .select({
@@ -810,7 +809,6 @@ export const getCompetitionGroupsFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const db = getDb()
-    getEvlog()?.set({ action: "list_competition_groups", teamId: data.teamId })
 
     const groups = await db
       .select({

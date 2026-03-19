@@ -256,7 +256,6 @@ export const getHeatsForCompetitionFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const db = getDb()
-    getEvlog()?.set({ action: "list_heats", competition: { id: data.competitionId } })
 
     const heats = await db
       .select()

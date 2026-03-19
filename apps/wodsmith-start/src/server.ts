@@ -146,6 +146,27 @@ async function fetchWithLogging(
   // Create evlog request logger for wide event accumulation
   const log = createWorkersLogger(request)
 
+  // Decode TanStack Start server function paths into readable names
+  // /_serverFn/<base64> → "competition-detail-fns.getCompetitionByIdFn"
+  if (requestInfo.path.startsWith("/_serverFn/")) {
+    try {
+      const encoded = requestInfo.path.slice("/_serverFn/".length)
+      const decoded = JSON.parse(atob(encoded)) as {
+        file?: string
+        export?: string
+      }
+      const file = decoded.file
+        ?.replace(/^\/@id\/src\/server-fns\//, "")
+        ?.replace(/\.ts\?.*$/, "")
+      const fn = decoded.export?.replace(/_createServerFn_handler$/, "")
+      if (file && fn) {
+        log.set({ serverFn: `${file}.${fn}` })
+      }
+    } catch {
+      // Non-server-fn encoded path, ignore
+    }
+  }
+
   return withRequestContext(
     {
       method: requestInfo.method,

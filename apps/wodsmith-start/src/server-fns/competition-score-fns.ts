@@ -456,7 +456,6 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }): Promise<EventScoreEntryData> => {
     const db = getDb()
-    getEvlog()?.set({ action: "load_score_entry", competition: { id: data.competitionId }, trackWorkoutId: data.trackWorkoutId })
 
     // Get the track workout (event) with workout details
     const [result] = await db
