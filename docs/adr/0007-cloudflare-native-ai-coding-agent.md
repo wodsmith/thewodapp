@@ -16,7 +16,7 @@ WODsmith is already deployed entirely on Cloudflare Workers (ADR-0001). Cloudfla
 
 1. No third-party sandbox vendor (Modal, Daytona, Runloop) — one infrastructure provider
 2. Webhook receipt is edge-global (low latency Linear/Slack/GitHub acknowledgement)
-3. Secrets and auth live in Cloudflare KV, consistent with the rest of the app
+3. All sensitive credentials use Alchemy secret bindings (`alchemy.secret()`), declared in `alchemy.run.ts` and injected as encrypted Worker secrets — Cloudflare KV is reserved for non-secret, non-sensitive state only
 4. Durable Objects provide per-thread stateful session management with zero extra infrastructure
 
 How should we architect an open-swe-style internal coding agent that runs natively on Cloudflare?
@@ -28,7 +28,7 @@ How should we architect an open-swe-style internal coding agent that runs native
 * **Isolation** — every agent task must run in a fully isolated environment with no access to production systems
 * **Statefulness** — agent sessions are long-running (minutes to hours); state must survive across model calls and follow-up messages
 * **Pluggable orchestration** — the open-swe architecture separates webhook I/O, session management, and execution cleanly; we should preserve that separation
-* **Existing auth/secrets** — GitHub tokens, Linear API keys, Slack signing secrets already live in Cloudflare KV and Worker secrets; the agent must reuse them
+* **Existing auth/secrets** — all sensitive credentials (GitHub tokens, Linear API keys, Slack signing secrets, Anthropic API key) must use Alchemy secret bindings (`alchemy.secret()`) declared in `alchemy.run.ts` and injected as encrypted Worker secrets; Cloudflare KV is for non-secret, non-sensitive state only
 * **Consistency with AGENTS.md** — the agent should read repo-level `AGENTS.md` context, matching the open-swe pattern, to know WODsmith conventions automatically
 
 ## Considered Options
