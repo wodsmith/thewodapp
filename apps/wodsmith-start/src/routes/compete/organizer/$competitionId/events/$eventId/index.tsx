@@ -25,6 +25,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { formatTrackOrder } from "@/utils/format-track-order"
 
 // Get parent route APIs to access loader data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -72,7 +73,7 @@ function EventEditPage() {
         <div>
           <h1 className="text-3xl font-bold">Edit Event</h1>
           <p className="text-muted-foreground mt-1">
-            Event #{event.trackOrder} - {event.workout.name}
+            Event #{formatTrackOrder(event.trackOrder)} - {event.workout.name}
           </p>
         </div>
         <Button type="submit" form={EVENT_DETAILS_FORM_ID}>
@@ -216,6 +217,7 @@ function ParentEventEditPage() {
             divisionDescriptions={divisionDescriptions}
             movements={movements}
             sponsors={sponsors}
+            isParentEvent
           />
         </CardContent>
       </Card>

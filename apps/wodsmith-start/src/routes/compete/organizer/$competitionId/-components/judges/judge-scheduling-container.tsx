@@ -20,6 +20,7 @@ import type {
 } from "@/db/schema"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
 import { calculateCoverage } from "@/lib/judge-rotation-utils"
+import { formatTrackOrder } from "@/utils/format-track-order"
 import type { HeatWithAssignments } from "@/server-fns/competition-heats-fns"
 import type { CompetitionWorkout } from "@/server-fns/competition-workouts-fns"
 import {
@@ -492,7 +493,7 @@ export function JudgeSchedulingContainer({
           <SelectContent>
             {events.map((event) => (
               <SelectItem key={event.id} value={event.id}>
-                {String(event.trackOrder).padStart(2, "0")} -{" "}
+                {formatTrackOrder(event.trackOrder)} -{" "}
                 {event.workout.name}
               </SelectItem>
             ))}

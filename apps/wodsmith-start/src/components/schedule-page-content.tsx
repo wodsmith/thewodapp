@@ -15,6 +15,7 @@ import {
 import type { HeatWithAssignments } from "@/server-fns/competition-heats-fns"
 import type { CompetitionWorkout } from "@/server-fns/competition-workouts-fns"
 import { cn } from "@/utils/cn"
+import { formatTrackOrder } from "@/utils/format-track-order"
 
 interface SchedulePageContentProps {
   events: CompetitionWorkout[]
@@ -501,7 +502,7 @@ export function SchedulePageContent({
                         <p className="font-medium">
                           Event{" "}
                           <span className="tabular-nums">
-                            {event?.trackOrder}
+                            {event ? formatTrackOrder(event.trackOrder) : ""}
                           </span>
                           : {event?.workout.name}
                         </p>
@@ -738,10 +739,7 @@ export function SchedulePageContent({
                         <div className="flex items-center gap-4 flex-1">
                           <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-orange-600 to-orange-500 rounded-lg flex items-center justify-center">
                             <span className="text-white text-sm font-bold tabular-nums">
-                              {String(workout.event.trackOrder).padStart(
-                                2,
-                                "0",
-                              )}
+                              {formatTrackOrder(workout.event.trackOrder)}
                             </span>
                           </div>
                           <div className="flex-1 min-w-0">

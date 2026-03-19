@@ -730,6 +730,7 @@ export const getPublicEventDetailsFn = createServerFn({
       trackId: event.trackId,
       workoutId: event.workoutId,
       trackOrder: event.trackOrder,
+      parentEventId: event.parentEventId,
       notes: event.notes,
       pointsMultiplier: event.pointsMultiplier,
       heatStatus: event.heatStatus,
@@ -1390,6 +1391,22 @@ export const updateCompetitionWorkoutFn = createServerFn({ method: "POST" })
       .update(trackWorkoutsTable)
       .set(updateData)
       .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+
+    // Cascade eventStatus and heatStatus to child sub-events
+    const cascadeData: Record<string, unknown> = {}
+    if (data.eventStatus !== undefined) {
+      cascadeData.eventStatus = data.eventStatus
+    }
+    if (data.heatStatus !== undefined) {
+      cascadeData.heatStatus = data.heatStatus
+    }
+    if (Object.keys(cascadeData).length > 0) {
+      cascadeData.updatedAt = new Date()
+      await db
+        .update(trackWorkoutsTable)
+        .set(cascadeData)
+        .where(eq(trackWorkoutsTable.parentEventId, data.trackWorkoutId))
+    }
 
     return { success: true }
   })
