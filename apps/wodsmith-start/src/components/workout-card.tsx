@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { DivisionDescription } from "@/server-fns/competition-workouts-fns"
+import { formatTrackOrder } from "@/utils/format-track-order"
 
 // Source workout info for remix tracking
 type SourceWorkoutInfo = {
@@ -106,7 +107,7 @@ export function WorkoutCard({
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 text-primary font-bold">
-              {trackOrder}
+              {formatTrackOrder(trackOrder)}
             </div>
             <div>
               <CardTitle className="text-xl">{name}</CardTitle>
