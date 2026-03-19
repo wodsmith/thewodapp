@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedPlatformTransactionsRouteImport } from './routes/_authenticated/platform-transactions'
 import { Route as AuthenticatedDocumentsRouteImport } from './routes/_authenticated/documents'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
@@ -22,6 +23,12 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedPlatformTransactionsRoute =
+  AuthenticatedPlatformTransactionsRouteImport.update({
+    id: '/platform-transactions',
+    path: '/platform-transactions',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedDocumentsRoute = AuthenticatedDocumentsRouteImport.update({
   id: '/documents',
   path: '/documents',
@@ -31,23 +38,31 @@ const AuthenticatedDocumentsRoute = AuthenticatedDocumentsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/documents': typeof AuthenticatedDocumentsRoute
+  '/platform-transactions': typeof AuthenticatedPlatformTransactionsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/documents': typeof AuthenticatedDocumentsRoute
+  '/platform-transactions': typeof AuthenticatedPlatformTransactionsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/_authenticated/documents': typeof AuthenticatedDocumentsRoute
+  '/_authenticated/platform-transactions': typeof AuthenticatedPlatformTransactionsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/documents'
+  fullPaths: '/' | '/documents' | '/platform-transactions'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/documents'
-  id: '__root__' | '/' | '/_authenticated' | '/_authenticated/documents'
+  to: '/' | '/documents' | '/platform-transactions'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/_authenticated/documents'
+    | '/_authenticated/platform-transactions'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -60,7 +75,7 @@ declare module '@tanstack/react-router' {
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
-      fullPath: '/'
+      fullPath: ''
       preLoaderRoute: typeof AuthenticatedRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -70,6 +85,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/platform-transactions': {
+      id: '/_authenticated/platform-transactions'
+      path: '/platform-transactions'
+      fullPath: '/platform-transactions'
+      preLoaderRoute: typeof AuthenticatedPlatformTransactionsRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/documents': {
       id: '/_authenticated/documents'
@@ -83,10 +105,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteChildren {
   AuthenticatedDocumentsRoute: typeof AuthenticatedDocumentsRoute
+  AuthenticatedPlatformTransactionsRoute: typeof AuthenticatedPlatformTransactionsRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDocumentsRoute: AuthenticatedDocumentsRoute,
+  AuthenticatedPlatformTransactionsRoute:
+    AuthenticatedPlatformTransactionsRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
@@ -100,3 +125,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
