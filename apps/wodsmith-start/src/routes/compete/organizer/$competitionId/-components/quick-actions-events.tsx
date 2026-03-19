@@ -24,6 +24,7 @@ import {
   type CompetitionWorkout,
   updateCompetitionWorkoutFn,
 } from "@/server-fns/competition-workouts-fns"
+import { formatTrackOrder } from "@/utils/format-track-order"
 
 interface QuickActionsEventsProps {
   events: CompetitionWorkout[]
@@ -40,6 +41,9 @@ export function QuickActionsEvents({
   const updateCompetitionWorkout = useServerFn(updateCompetitionWorkoutFn)
   const [pendingEvents, setPendingEvents] = useState<Set<string>>(new Set())
   const [isPublishingAll, setIsPublishingAll] = useState(false)
+
+  // Filter out sub-events — only show top-level events
+  const topLevelEvents = events.filter((e) => !e.parentEventId)
 
   const handleToggleEventStatus = async (
     trackWorkoutId: string,
@@ -67,7 +71,7 @@ export function QuickActionsEvents({
   }
 
   const handlePublishAll = async () => {
-    const draftEvents = events.filter((e) => e.eventStatus !== "published")
+    const draftEvents = topLevelEvents.filter((e) => e.eventStatus !== "published")
     if (draftEvents.length === 0) return
 
     setIsPublishingAll(true)
@@ -92,14 +96,14 @@ export function QuickActionsEvents({
     }
   }
 
-  if (events.length === 0) {
+  if (topLevelEvents.length === 0) {
     return null
   }
 
-  const publishedCount = events.filter(
+  const publishedCount = topLevelEvents.filter(
     (e) => e.eventStatus === "published",
   ).length
-  const draftCount = events.length - publishedCount
+  const draftCount = topLevelEvents.length - publishedCount
   const hasUnpublishedEvents = draftCount > 0
 
   return (
@@ -137,7 +141,7 @@ export function QuickActionsEvents({
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {events.map((event) => {
+          {topLevelEvents.map((event) => {
             const isPublished = event.eventStatus === "published"
             const isPending = pendingEvents.has(event.id)
             return (
@@ -147,7 +151,7 @@ export function QuickActionsEvents({
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-xs text-muted-foreground w-5 text-right tabular-nums">
-                    {event.trackOrder}
+                    {formatTrackOrder(event.trackOrder)}
                   </span>
                   <span className="text-sm truncate">{event.workout.name}</span>
                 </div>
