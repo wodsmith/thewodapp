@@ -434,7 +434,7 @@ export async function getCompetitionLeaderboard(params: {
   if (registrations.length === 0) {
     // Build parent name map for sub-event grouping
     const earlyParentNameMap = new Map<string, string>()
-    for (const tw of filteredTrackWorkouts) {
+    for (const tw of trackWorkouts) {
       if (childEventIds.has(tw.id)) {
         earlyParentNameMap.set(tw.id, tw.workout.name)
       }

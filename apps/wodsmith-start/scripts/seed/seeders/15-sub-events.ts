@@ -466,19 +466,16 @@ export async function seed(client: Connection): Promise<void> {
 	// Masters (1 athlete → 1 heat)
 	const mastersRegs = ["creg_chris_winter"]
 
-	// Scorable events (skip parent containers — heats only on scorable events)
+	// Schedulable events: standalone + parent events get heats
+	// (parent events contain all sub-workouts — athletes do them all in one heat)
 	const scorableEvents = [
 		"tw_winter_event1_fran",
 		"tw_winter_event2_grace",
 		"tw_winter_event3_cindy",
 		"tw_winter_event4_linda",
-		"tw_winter_row_2k",
-		"tw_winter_row_500",
-		"tw_winter_max_dubs",
-		"tw_winter_snatch_ladder",
-		"tw_winter_three_lift_total",
-		"tw_winter_sprint_couplet",
-		"tw_winter_max_deadlift",
+		"tw_winter_event5_rowing",
+		"tw_winter_event6_snatch",
+		"tw_winter_event7_sprints",
 	]
 
 	// Build heats: 3 per scorable event (RX heat 1, RX heat 2, Scaled/Masters combined)
@@ -598,6 +595,6 @@ export async function seed(client: Connection): Promise<void> {
 	console.log("Winter Throwdown 2025 fully set up:")
 	console.log("  All 14 events published (event + heat status)")
 	console.log("  7 sponsors assigned to top-level events")
-	console.log("  33 heats across 11 scorable events (2 RX + 1 Scaled/Masters per event)")
-	console.log("  21 athletes assigned to lanes in every heat")
+	console.log("  21 heats across 7 schedulable events (2 RX + 1 Scaled/Masters per event)")
+	console.log("  Athletes assigned to lanes in every heat")
 }

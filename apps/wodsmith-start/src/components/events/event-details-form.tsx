@@ -154,6 +154,7 @@ interface EventDetailsFormProps {
   movements: Movement[]
   sponsors: Sponsor[]
   isParentEvent?: boolean
+  formId?: string
 }
 
 export function EventDetailsForm({
@@ -165,6 +166,7 @@ export function EventDetailsForm({
   movements,
   sponsors,
   isParentEvent = false,
+  formId = EVENT_DETAILS_FORM_ID,
 }: EventDetailsFormProps) {
   const router = useRouter()
   const navigate = useNavigate()
@@ -254,15 +256,8 @@ export function EventDetailsForm({
 
       toast.success("Event updated")
 
-      // Invalidate router cache and wait for it to complete before navigating
-      // This ensures the events list will fetch fresh data
+      // Invalidate router cache so data is fresh
       await router.invalidate()
-
-      // Navigate back to events list
-      navigate({
-        to: "/compete/organizer/$competitionId/events",
-        params: { competitionId },
-      })
     } catch (error) {
       console.error("Failed to save event:", error)
       toast.error(
@@ -276,7 +271,7 @@ export function EventDetailsForm({
   return (
     <Form {...form}>
       <form
-        id={EVENT_DETAILS_FORM_ID}
+        id={formId}
         onSubmit={form.handleSubmit(onSubmit)}
         className="space-y-6"
       >

@@ -142,7 +142,12 @@ export const Route = createFileRoute(
     // Determine which event to show (from URL or first event)
     // Filter top-level events for the dropdown (exclude sub-events)
     const topLevelEvents = events.filter((e) => !e.parentEventId)
-    const selectedEventId = deps.eventId || topLevelEvents[0]?.id
+    // Normalize: if URL points to a child event, resolve to its parent
+    const requestedEvent = deps.eventId
+      ? events.find((e) => e.id === deps.eventId)
+      : undefined
+    const selectedEventId =
+      requestedEvent?.parentEventId ?? requestedEvent?.id ?? topLevelEvents[0]?.id
 
     // Check if selected event is a parent (has children)
     const childEvents = events

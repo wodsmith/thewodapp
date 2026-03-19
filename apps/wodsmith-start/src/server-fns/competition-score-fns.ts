@@ -362,11 +362,23 @@ async function getHeatsForWorkoutInternal(
 ): Promise<HeatWithAssignmentsInternal[]> {
   const db = getDb()
 
+  // If this is a child event, resolve to parent for heat lookup
+  // (heats are scheduled on parent events, not individual sub-events)
+  let heatWorkoutId = trackWorkoutId
+  const trackWorkout = await db
+    .select({ parentEventId: trackWorkoutsTable.parentEventId })
+    .from(trackWorkoutsTable)
+    .where(eq(trackWorkoutsTable.id, trackWorkoutId))
+    .limit(1)
+  if (trackWorkout[0]?.parentEventId) {
+    heatWorkoutId = trackWorkout[0].parentEventId
+  }
+
   // Get heats
   const heats = await db
     .select()
     .from(competitionHeatsTable)
-    .where(eq(competitionHeatsTable.trackWorkoutId, trackWorkoutId))
+    .where(eq(competitionHeatsTable.trackWorkoutId, heatWorkoutId))
 
   if (heats.length === 0) {
     return []

@@ -125,7 +125,7 @@ const addWorkoutToCompetitionInputSchema = z.object({
   trackOrder: z.number().min(1).optional(),
   pointsMultiplier: z.number().int().min(1).default(100),
   notes: z.string().max(1000).optional(),
-  parentEventId: z.string().optional(),
+  parentEventId: z.string().min(1).optional(),
 })
 
 const createWorkoutAndAddToCompetitionInputSchema = z.object({
@@ -142,13 +142,13 @@ const createWorkoutAndAddToCompetitionInputSchema = z.object({
   tagNames: z.array(z.string()).optional(),
   movementIds: z.array(z.string()).optional(),
   sourceWorkoutId: z.string().nullable().optional(),
-  parentEventId: z.string().optional(),
+  parentEventId: z.string().min(1).optional(),
 })
 
 const updateCompetitionWorkoutInputSchema = z.object({
   trackWorkoutId: z.string().min(1, "Track workout ID is required"),
   teamId: z.string().min(1, "Team ID is required"),
-  trackOrder: z.number().int().min(1).optional(),
+  trackOrder: z.number().min(0).optional(),
   pointsMultiplier: z.number().int().min(1).optional(),
   notes: z.string().max(1000).nullable().optional(),
   heatStatus: z.enum(["draft", "published"]).optional(),
@@ -1143,63 +1143,65 @@ export const removeWorkoutFromCompetitionFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    // Check if this is a parent event — cascade delete children
-    const children = await db
-      .select({ id: trackWorkoutsTable.id })
-      .from(trackWorkoutsTable)
-      .where(eq(trackWorkoutsTable.parentEventId, data.trackWorkoutId))
+    await db.transaction(async (tx) => {
+      // Check if this is a parent event — cascade delete children
+      const children = await tx
+        .select({ id: trackWorkoutsTable.id })
+        .from(trackWorkoutsTable)
+        .where(eq(trackWorkoutsTable.parentEventId, data.trackWorkoutId))
 
-    if (children.length > 0) {
-      const childIds = children.map((c) => c.id)
-      await db
-        .delete(trackWorkoutsTable)
-        .where(inArray(trackWorkoutsTable.id, childIds))
-    }
+      if (children.length > 0) {
+        const childIds = children.map((c) => c.id)
+        await tx
+          .delete(trackWorkoutsTable)
+          .where(inArray(trackWorkoutsTable.id, childIds))
+      }
 
-    // Check if this is a sub-event — reorder remaining siblings after deletion
-    const event = await db
-      .select({
-        parentEventId: trackWorkoutsTable.parentEventId,
-      })
-      .from(trackWorkoutsTable)
-      .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
-      .limit(1)
-
-    const parentId = event[0]?.parentEventId
-
-    // Delete the track workout
-    await db
-      .delete(trackWorkoutsTable)
-      .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
-
-    // Reorder remaining siblings if this was a sub-event
-    if (parentId) {
-      const remainingSiblings = await db
+      // Check if this is a sub-event — reorder remaining siblings after deletion
+      const event = await tx
         .select({
-          id: trackWorkoutsTable.id,
-          trackOrder: trackWorkoutsTable.trackOrder,
+          parentEventId: trackWorkoutsTable.parentEventId,
         })
         .from(trackWorkoutsTable)
-        .where(eq(trackWorkoutsTable.parentEventId, parentId))
-        .orderBy(asc(trackWorkoutsTable.trackOrder))
-
-      const parentRow = await db
-        .select({ trackOrder: trackWorkoutsTable.trackOrder })
-        .from(trackWorkoutsTable)
-        .where(eq(trackWorkoutsTable.id, parentId))
+        .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
         .limit(1)
 
-      if (parentRow.length > 0) {
-        const parentOrder = Math.floor(Number(parentRow[0].trackOrder))
-        for (let i = 0; i < remainingSiblings.length; i++) {
-          const newOrder = Number((parentOrder + 0.01 * (i + 1)).toFixed(2))
-          await db
-            .update(trackWorkoutsTable)
-            .set({ trackOrder: newOrder, updatedAt: new Date() })
-            .where(eq(trackWorkoutsTable.id, remainingSiblings[i].id))
+      const parentId = event[0]?.parentEventId
+
+      // Delete the track workout
+      await tx
+        .delete(trackWorkoutsTable)
+        .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+
+      // Reorder remaining siblings if this was a sub-event
+      if (parentId) {
+        const remainingSiblings = await tx
+          .select({
+            id: trackWorkoutsTable.id,
+            trackOrder: trackWorkoutsTable.trackOrder,
+          })
+          .from(trackWorkoutsTable)
+          .where(eq(trackWorkoutsTable.parentEventId, parentId))
+          .orderBy(asc(trackWorkoutsTable.trackOrder))
+
+        const parentRow = await tx
+          .select({ trackOrder: trackWorkoutsTable.trackOrder })
+          .from(trackWorkoutsTable)
+          .where(eq(trackWorkoutsTable.id, parentId))
+          .limit(1)
+
+        if (parentRow.length > 0) {
+          const parentOrder = Math.floor(Number(parentRow[0].trackOrder))
+          for (let i = 0; i < remainingSiblings.length; i++) {
+            const newOrder = Number((parentOrder + 0.01 * (i + 1)).toFixed(2))
+            await tx
+              .update(trackWorkoutsTable)
+              .set({ trackOrder: newOrder, updatedAt: new Date() })
+              .where(eq(trackWorkoutsTable.id, remainingSiblings[i].id))
+          }
         }
       }
-    }
+    })
 
     return { success: true }
   })
@@ -1262,6 +1264,27 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
       }
 
       track = createdTrack
+    }
+
+    // Validate parentEventId if provided
+    if (data.parentEventId) {
+      const parentEvent = await db
+        .select({ id: trackWorkoutsTable.id, parentEventId: trackWorkoutsTable.parentEventId })
+        .from(trackWorkoutsTable)
+        .where(
+          and(
+            eq(trackWorkoutsTable.id, data.parentEventId),
+            eq(trackWorkoutsTable.trackId, track.id),
+          ),
+        )
+        .limit(1)
+
+      if (parentEvent.length === 0) {
+        throw new Error("Parent event not found in this competition")
+      }
+      if (parentEvent[0].parentEventId) {
+        throw new Error("Cannot nest sub-events more than one level deep")
+      }
     }
 
     // Get the next track order — decimal under parent if sub-event

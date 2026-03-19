@@ -173,6 +173,12 @@ function ParentEventEditPage() {
 
   const [activeTab, setActiveTab] = useState(childEvents[0]?.id ?? "")
 
+  // Generate unique form IDs per child event
+  const getChildFormId = (childId: string) => `event-details-form-${childId}`
+  const parentFormId = `event-details-form-${event.id}`
+  // The active form is the child tab's form (or parent if no active tab)
+  const activeFormId = activeTab ? getChildFormId(activeTab) : parentFormId
+
   return (
     <>
       {/* Header */}
@@ -193,7 +199,7 @@ function ParentEventEditPage() {
               Back to Events
             </Link>
           </Button>
-          <Button type="submit" form={EVENT_DETAILS_FORM_ID}>
+          <Button type="submit" form={activeFormId}>
             Save Changes
           </Button>
         </div>
@@ -218,6 +224,7 @@ function ParentEventEditPage() {
             movements={movements}
             sponsors={sponsors}
             isParentEvent
+            formId={parentFormId}
           />
         </CardContent>
       </Card>
@@ -265,6 +272,7 @@ function ParentEventEditPage() {
                   }
                   movements={movements}
                   sponsors={sponsors}
+                  formId={getChildFormId(child.id)}
                 />
               </TabsContent>
             ))}

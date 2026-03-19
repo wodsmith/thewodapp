@@ -557,6 +557,17 @@ export function CompetitionEventRow({
                   )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0 ml-auto">
+                  {onAddSubEvent && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={onAddSubEvent}
+                      className="text-muted-foreground hover:text-foreground text-xs h-8"
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      Sub-Event
+                    </Button>
+                  )}
                   {sortedDivisions.length > 0 && (
                     <CollapsibleTrigger asChild>
                       <Button
