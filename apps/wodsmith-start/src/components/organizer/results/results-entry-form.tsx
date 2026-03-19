@@ -245,6 +245,7 @@ export function ResultsEntryForm({
       organizingTeamId,
       event,
       saveScore,
+      getStateKey,
     ],
   )
 
