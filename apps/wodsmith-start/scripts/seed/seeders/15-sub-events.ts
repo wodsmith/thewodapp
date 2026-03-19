@@ -448,8 +448,6 @@ export async function seed(client: Connection): Promise<void> {
 	// =========================================================================
 	const COMP_ID = "comp_winter_throwdown_2025"
 	const DIV_RX = "slvl_winter_rx"
-	const DIV_SCALED = "slvl_winter_scaled"
-	const DIV_MASTERS = "slvl_winter_masters_40"
 
 	// RX registrations (10 athletes → 2 heats of 5)
 	const rxRegs = [
