@@ -127,25 +127,67 @@ Add three API route files in the existing TanStack Start app:
 - Use `env` from `cloudflare:workers` for secrets — never `process.env`
 - Generate a deterministic thread ID (SHA-256 of `"linear-issue:{id}"`, `"slack:{channel}:{ts}"`, etc.)
 
-**New `wrangler.jsonc` bindings needed**:
-```jsonc
-{
-  "queues": {
-    "producers": [{ "binding": "AGENT_QUEUE", "queue": "agent-tasks" }],
-    "consumers": [{ "queue": "agent-tasks", "max_batch_size": 1, "max_retries": 3 }]
+**Infrastructure is managed via Alchemy** in `apps/wodsmith-start/alchemy.run.ts`, following the same pattern as all other resources in the app. Alchemy v0.82.2 (already installed) exports `Queue`, `QueueConsumer`, `DurableObjectNamespace`, and `Container` from `alchemy/cloudflare` — no `wrangler.jsonc` edits required.
+
+```typescript
+// apps/wodsmith-start/alchemy.run.ts additions
+import {
+  Container,
+  DurableObjectNamespace,
+  Queue,
+  QueueConsumer,
+  // ...existing imports
+} from "alchemy/cloudflare"
+
+// Agent task queue — async dispatch from webhook handlers to session DOs
+const agentQueue = await Queue("agent-tasks", {
+  settings: { messageRetentionPeriod: 3600 }, // 1 hour max task age
+})
+
+// Queue consumer: routes messages from the queue to the AgentSession DO
+await QueueConsumer("agent-tasks-consumer", {
+  queue: agentQueue,
+  settings: {
+    batchSize: 1,         // one task at a time per consumer invocation
+    maxRetries: 3,
+    retryDelay: 30,
   },
-  "durable_objects": {
-    "bindings": [{ "name": "AGENT_SESSION", "class_name": "AgentSession" }]
+})
+
+// Cloudflare Container: one isolated Linux instance per agent thread
+// Image is built from apps/open-swe-agent/Dockerfile and pushed to
+// Cloudflare's container registry on each `pnpm alchemy:dev` / deploy
+const agentContainer = await Container("agent-sandbox", {
+  className: "AgentSession",   // must match the DO class name
+  dockerfile: "../../apps/open-swe-agent/Dockerfile",
+  maxInstances: 10,
+  instanceType: "dev",         // upgrade to "standard" for production
+})
+
+// Durable Object namespace: one stateful session per agent thread
+const agentSession = DurableObjectNamespace("agent-session", {
+  className: "AgentSession",
+  sqlite: true,                // enable SQLite for thread state storage
+})
+
+// Add to TanStackStart bindings:
+const website = await TanStackStart("app", {
+  bindings: {
+    // ...existing bindings
+    AGENT_QUEUE: agentQueue,
+    AGENT_SESSION: agentSession,
+    // Secrets — read from .dev.vars locally, Cloudflare dashboard in prod
+    LINEAR_WEBHOOK_SECRET: alchemy.secret(process.env.LINEAR_WEBHOOK_SECRET!),
+    SLACK_SIGNING_SECRET: alchemy.secret(process.env.SLACK_SIGNING_SECRET!),
+    SLACK_BOT_TOKEN: alchemy.secret(process.env.SLACK_BOT_TOKEN!),
+    GITHUB_APP_PRIVATE_KEY: alchemy.secret(process.env.GITHUB_APP_PRIVATE_KEY!),
+    GITHUB_WEBHOOK_SECRET: alchemy.secret(process.env.GITHUB_WEBHOOK_SECRET!),
+    ANTHROPIC_API_KEY: alchemy.secret(process.env.ANTHROPIC_API_KEY!),
   },
-  "containers": [
-    {
-      "class_name": "AgentSession",
-      "image": "./apps/open-swe-agent/Dockerfile",
-      "max_instances": 10
-    }
-  ]
-}
+})
 ```
+
+After running `pnpm alchemy:dev`, run `pnpm cf-typegen` to regenerate `worker-configuration.d.ts` so TypeScript picks up the new `AGENT_QUEUE`, `AGENT_SESSION`, and secret bindings.
 
 **New secrets** (add to `.dev.vars` and Cloudflare dashboard):
 - `LINEAR_WEBHOOK_SECRET`
@@ -287,12 +329,12 @@ Change container env var: `ANTHROPIC_BASE_URL=https://gateway.ai.cloudflare.com/
 
 | File / Path | Change |
 |---|---|
+| `apps/wodsmith-start/alchemy.run.ts` | add `Queue`, `QueueConsumer`, `DurableObjectNamespace`, `Container`, and secret bindings |
+| `apps/wodsmith-start/.dev.vars` | add 6 new webhook secrets + `ANTHROPIC_API_KEY` |
 | `apps/wodsmith-start/src/routes/api/webhooks/linear.ts` | NEW |
 | `apps/wodsmith-start/src/routes/api/webhooks/slack.ts` | NEW |
 | `apps/wodsmith-start/src/routes/api/webhooks/github.ts` | NEW |
 | `apps/wodsmith-start/src/durable-objects/agent-session.ts` | NEW |
-| `apps/wodsmith-start/wrangler.jsonc` | add queue, DO, container bindings |
-| `apps/wodsmith-start/.dev.vars` | add webhook secrets + `ANTHROPIC_API_KEY` |
 | `apps/open-swe-agent/` | NEW app — forked open-swe with Cloudflare integration |
 | `apps/open-swe-agent/agent/integrations/cloudflare.py` | NEW |
 | `apps/open-swe-agent/agent/utils/sandbox.py` | register `cloudflare` factory |
@@ -310,7 +352,8 @@ Change container env var: `ANTHROPIC_BASE_URL=https://gateway.ai.cloudflare.com/
 - [ ] Agent opens a draft PR on GitHub when task is complete
 - [ ] Agent replies in-thread on Slack (or as a Linear comment) with the PR link
 - [ ] Follow-up messages sent to an active thread are injected before the next model call, not queued as a new task
-- [ ] `pnpm cf-typegen` regenerates `worker-configuration.d.ts` with DO, Queue, and Container bindings correctly typed
+- [ ] `pnpm alchemy:dev` in `apps/wodsmith-start` deploys Queue, QueueConsumer, DurableObjectNamespace, and Container resources without errors
+- [ ] `pnpm cf-typegen` regenerates `worker-configuration.d.ts` with `AGENT_QUEUE`, `AGENT_SESSION`, and all new secret bindings correctly typed
 - [ ] `pnpm type-check` passes in `apps/wodsmith-start`
 
 ## Pros and Cons of the Options
@@ -341,6 +384,7 @@ Change container env var: `ANTHROPIC_BASE_URL=https://gateway.ai.cloudflare.com/
 
 ## More Information
 
+- **Alchemy resources used**: `Queue`, `QueueConsumer`, `DurableObjectNamespace`, `Container` — all exported from `alchemy/cloudflare` in v0.82.2 (already installed). See `apps/wodsmith-start/alchemy.run.ts` for the established pattern all new resources must follow.
 - **open-swe repository**: https://github.com/langchain-ai/open-swe — the reference implementation this ADR adapts
 - **Cloudflare Containers docs**: https://developers.cloudflare.com/containers/ — beta product; check for API changes before implementation
 - **Cloudflare AI Gateway**: https://developers.cloudflare.com/ai-gateway/ — optional Phase 5 addition
