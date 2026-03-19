@@ -458,6 +458,7 @@ export function OrganizerEventManager({
                           handleSubEventDrop(event.id, sourceIndex, targetIndex)
                         }
                         isSubEvent
+                        parentEventId={event.id}
                       />
                     ))}
                     <Button
