@@ -58,7 +58,10 @@ export function OrganizerEventManager({
   const [events, setEvents] = useState(initialEvents)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showAddDialog, setShowAddDialog] = useState(false)
-  const [instanceId] = useState(() => Symbol("competition-events"))
+  const [topLevelInstanceId] = useState(() => Symbol("competition-events"))
+  const [subEventInstanceIds] = useState(
+    () => new Map<string, symbol>(),
+  )
   const [isCreating, setIsCreating] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
   const [subEventParentId, setSubEventParentId] = useState<string | null>(null)
@@ -96,6 +99,18 @@ export function OrganizerEventManager({
   }
   // Top-level items: standalone events (no parent, no children) + parent events (has children)
   const topLevelEvents = sortedEvents.filter((e) => !e.parentEventId)
+
+  const getSubEventInstanceId = useCallback(
+    (parentId: string) => {
+      let id = subEventInstanceIds.get(parentId)
+      if (!id) {
+        id = Symbol(`sub-events-${parentId}`)
+        subEventInstanceIds.set(parentId, id)
+      }
+      return id
+    },
+    [subEventInstanceIds],
+  )
 
   const toggleParentCollapse = useCallback((parentId: string) => {
     setCollapsedParents((prev) => {
@@ -293,6 +308,61 @@ export function OrganizerEventManager({
     }
   }
 
+  const handleSubEventDrop = async (
+    parentId: string,
+    sourceIndex: number,
+    targetIndex: number,
+  ) => {
+    const children = childrenByParent.get(parentId) ?? []
+    if (children.length === 0) return
+
+    const newChildren = [...children]
+    const [movedItem] = newChildren.splice(sourceIndex, 1)
+    if (!movedItem) return
+    newChildren.splice(targetIndex, 0, movedItem)
+
+    // Find parent's trackOrder to calculate decimal offsets
+    const parentEvent = topLevelEvents.find((e) => e.id === parentId)
+    if (!parentEvent) return
+    const parentOrder = Math.floor(parentEvent.trackOrder)
+
+    // Build updated children with new decimal trackOrders
+    const updatedChildren = newChildren.map((child, i) => ({
+      ...child,
+      trackOrder: Number((parentOrder + 0.01 * (i + 1)).toFixed(2)),
+    }))
+
+    // Optimistic update
+    const previousEvents = events
+    setEvents((prev) => {
+      const withoutOldChildren = prev.filter(
+        (e) => e.parentEventId !== parentId,
+      )
+      return [...withoutOldChildren, ...updatedChildren]
+    })
+
+    // Persist
+    const updates = updatedChildren.map((child) => ({
+      trackWorkoutId: child.id,
+      trackOrder: child.trackOrder,
+    }))
+
+    try {
+      await reorderCompetitionEventsFn({
+        data: {
+          competitionId,
+          teamId: organizingTeamId,
+          updates,
+        },
+      })
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to reorder sub-events",
+      )
+      setEvents(previousEvents)
+    }
+  }
+
   return (
     <>
       <div className="flex justify-end">
@@ -351,7 +421,7 @@ export function OrganizerEventManager({
                     <CompetitionEventRow
                       event={event}
                       index={index}
-                      instanceId={instanceId}
+                      instanceId={topLevelInstanceId}
                       competitionId={competitionId}
                       organizingTeamId={organizingTeamId}
                       divisions={divisions}
@@ -375,7 +445,7 @@ export function OrganizerEventManager({
                         key={child.id}
                         event={child}
                         index={childIndex}
-                        instanceId={instanceId}
+                        instanceId={getSubEventInstanceId(event.id)}
                         competitionId={competitionId}
                         organizingTeamId={organizingTeamId}
                         divisions={divisions}
@@ -384,7 +454,9 @@ export function OrganizerEventManager({
                         }
                         sponsors={sponsors}
                         onRemove={() => handleRemove(child.id)}
-                        onDrop={handleDrop}
+                        onDrop={(sourceIndex, targetIndex) =>
+                          handleSubEventDrop(event.id, sourceIndex, targetIndex)
+                        }
                         isSubEvent
                       />
                     ))}
