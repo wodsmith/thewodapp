@@ -53,11 +53,13 @@ function deepSanitize(
   for (const [key, value] of Object.entries(obj)) {
     if (SENSITIVE_KEYS.some((k) => key.toLowerCase().includes(k))) {
       result[key] = "[REDACTED]"
-    } else if (
-      value !== null &&
-      typeof value === "object" &&
-      !Array.isArray(value)
-    ) {
+    } else if (Array.isArray(value)) {
+      result[key] = value.map((item) =>
+        item !== null && typeof item === "object"
+          ? deepSanitize(item as Record<string, unknown>)
+          : item,
+      )
+    } else if (value !== null && typeof value === "object") {
       result[key] = deepSanitize(value as Record<string, unknown>)
     } else {
       result[key] = value
