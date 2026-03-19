@@ -24,6 +24,7 @@ import {
 import type { HeatWithAssignments } from "@/server-fns/competition-heats-fns"
 import type { CompetitionWorkout } from "@/server-fns/competition-workouts-fns"
 import { updateCompetitionWorkoutFn } from "@/server-fns/competition-workouts-fns"
+import { formatTrackOrder } from "@/utils/format-track-order"
 
 interface QuickActionsHeatsProps {
   events: CompetitionWorkout[]
@@ -118,7 +119,7 @@ export function QuickActionsHeats({
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-xs text-muted-foreground w-5 text-right tabular-nums">
-                    {event.trackOrder}
+                    {formatTrackOrder(event.trackOrder)}
                   </span>
                   <span className="text-sm truncate">{event.workout.name}</span>
                   {hasHeats ? (

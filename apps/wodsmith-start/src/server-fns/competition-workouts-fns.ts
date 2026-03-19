@@ -61,6 +61,7 @@ export interface CompetitionWorkout {
   trackId: string
   workoutId: string
   trackOrder: number
+  parentEventId: string | null
   notes: string | null
   pointsMultiplier: number | null
   heatStatus: TrackWorkout["heatStatus"]
@@ -121,9 +122,10 @@ const addWorkoutToCompetitionInputSchema = z.object({
   competitionId: z.string().min(1, "Competition ID is required"),
   teamId: z.string().min(1, "Team ID is required"),
   workoutId: z.string().min(1, "Workout ID is required"),
-  trackOrder: z.number().int().min(1).optional(),
+  trackOrder: z.number().min(1).optional(),
   pointsMultiplier: z.number().int().min(1).default(100),
   notes: z.string().max(1000).optional(),
+  parentEventId: z.string().min(1).optional(),
 })
 
 const createWorkoutAndAddToCompetitionInputSchema = z.object({
@@ -140,12 +142,13 @@ const createWorkoutAndAddToCompetitionInputSchema = z.object({
   tagNames: z.array(z.string()).optional(),
   movementIds: z.array(z.string()).optional(),
   sourceWorkoutId: z.string().nullable().optional(),
+  parentEventId: z.string().min(1).optional(),
 })
 
 const updateCompetitionWorkoutInputSchema = z.object({
   trackWorkoutId: z.string().min(1, "Track workout ID is required"),
   teamId: z.string().min(1, "Team ID is required"),
-  trackOrder: z.number().int().min(1).optional(),
+  trackOrder: z.number().min(0).optional(),
   pointsMultiplier: z.number().int().min(1).optional(),
   notes: z.string().max(1000).nullable().optional(),
   heatStatus: z.enum(["draft", "published"]).optional(),
@@ -164,7 +167,7 @@ const reorderCompetitionEventsInputSchema = z.object({
     .array(
       z.object({
         trackWorkoutId: z.string().min(1),
-        trackOrder: z.number().int().min(1),
+        trackOrder: z.number().min(0),
       }),
     )
     .min(1, "At least one update required"),
@@ -270,8 +273,44 @@ async function getNextCompetitionEventOrder(
     return 1
   }
 
-  const maxOrder = Math.max(...trackWorkouts.map((tw) => tw.trackOrder))
-  return maxOrder + 1
+  const maxOrder = Math.max(
+    ...trackWorkouts.map((tw) => Number(tw.trackOrder)),
+  )
+  return Math.floor(maxOrder) + 1
+}
+
+/**
+ * Get the next decimal track order for a sub-event under a parent.
+ * Parent at N.00 → children at N.01, N.02, etc.
+ */
+async function getNextSubEventOrder(parentEventId: string): Promise<number> {
+  const db = getDb()
+
+  const parent = await db
+    .select({ trackOrder: trackWorkoutsTable.trackOrder })
+    .from(trackWorkoutsTable)
+    .where(eq(trackWorkoutsTable.id, parentEventId))
+    .limit(1)
+
+  if (parent.length === 0) {
+    throw new Error("Parent event not found")
+  }
+
+  const parentOrder = Math.floor(Number(parent[0].trackOrder))
+
+  const siblings = await db
+    .select({ trackOrder: trackWorkoutsTable.trackOrder })
+    .from(trackWorkoutsTable)
+    .where(eq(trackWorkoutsTable.parentEventId, parentEventId))
+
+  if (siblings.length === 0) {
+    return parentOrder + 0.01
+  }
+
+  const maxChildOrder = Math.max(
+    ...siblings.map((s) => Number(s.trackOrder)),
+  )
+  return Number((maxChildOrder + 0.01).toFixed(2))
 }
 
 /**
@@ -342,6 +381,7 @@ export const getPublishedCompetitionWorkoutsFn = createServerFn({
         trackId: trackWorkoutsTable.trackId,
         workoutId: trackWorkoutsTable.workoutId,
         trackOrder: trackWorkoutsTable.trackOrder,
+        parentEventId: trackWorkoutsTable.parentEventId,
         notes: trackWorkoutsTable.notes,
         pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
         heatStatus: trackWorkoutsTable.heatStatus,
@@ -404,6 +444,7 @@ export const getPublishedCompetitionWorkoutsWithDetailsFn = createServerFn({
         trackId: trackWorkoutsTable.trackId,
         workoutId: trackWorkoutsTable.workoutId,
         trackOrder: trackWorkoutsTable.trackOrder,
+        parentEventId: trackWorkoutsTable.parentEventId,
         notes: trackWorkoutsTable.notes,
         pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
         heatStatus: trackWorkoutsTable.heatStatus,
@@ -504,6 +545,7 @@ export const getPublishedCompetitionWorkoutsWithDetailsFn = createServerFn({
       trackId: tw.trackId,
       workoutId: tw.workoutId,
       trackOrder: tw.trackOrder,
+      parentEventId: tw.parentEventId,
       notes: tw.notes,
       pointsMultiplier: tw.pointsMultiplier,
       heatStatus: tw.heatStatus,
@@ -552,6 +594,7 @@ export const getPublicEventDetailsFn = createServerFn({
         trackId: trackWorkoutsTable.trackId,
         workoutId: trackWorkoutsTable.workoutId,
         trackOrder: trackWorkoutsTable.trackOrder,
+        parentEventId: trackWorkoutsTable.parentEventId,
         notes: trackWorkoutsTable.notes,
         pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
         heatStatus: trackWorkoutsTable.heatStatus,
@@ -687,6 +730,7 @@ export const getPublicEventDetailsFn = createServerFn({
       trackId: event.trackId,
       workoutId: event.workoutId,
       trackOrder: event.trackOrder,
+      parentEventId: event.parentEventId,
       notes: event.notes,
       pointsMultiplier: event.pointsMultiplier,
       heatStatus: event.heatStatus,
@@ -878,6 +922,7 @@ export const getCompetitionWorkoutsFn = createServerFn({ method: "GET" })
         trackId: trackWorkoutsTable.trackId,
         workoutId: trackWorkoutsTable.workoutId,
         trackOrder: trackWorkoutsTable.trackOrder,
+        parentEventId: trackWorkoutsTable.parentEventId,
         notes: trackWorkoutsTable.notes,
         pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
         heatStatus: trackWorkoutsTable.heatStatus,
@@ -929,6 +974,7 @@ export const getCompetitionEventFn = createServerFn({ method: "GET" })
         trackId: trackWorkoutsTable.trackId,
         workoutId: trackWorkoutsTable.workoutId,
         trackOrder: trackWorkoutsTable.trackOrder,
+        parentEventId: trackWorkoutsTable.parentEventId,
         notes: trackWorkoutsTable.notes,
         pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
         heatStatus: trackWorkoutsTable.heatStatus,
@@ -1033,10 +1079,32 @@ export const addWorkoutToCompetitionFn = createServerFn({ method: "POST" })
       throw new Error("Workout not found")
     }
 
-    // Get next order if not provided
-    const trackOrder =
-      data.trackOrder ??
-      (await getNextCompetitionEventOrder(data.competitionId))
+    // Validate parentEventId if provided
+    if (data.parentEventId) {
+      const parentEvent = await db
+        .select({ id: trackWorkoutsTable.id, parentEventId: trackWorkoutsTable.parentEventId })
+        .from(trackWorkoutsTable)
+        .where(
+          and(
+            eq(trackWorkoutsTable.id, data.parentEventId),
+            eq(trackWorkoutsTable.trackId, track.id),
+          ),
+        )
+        .limit(1)
+
+      if (parentEvent.length === 0) {
+        throw new Error("Parent event not found in this competition")
+      }
+      if (parentEvent[0].parentEventId) {
+        throw new Error("Cannot nest sub-events more than one level deep")
+      }
+    }
+
+    // Get track order: auto-assign decimal under parent, or next integer for standalone
+    const trackOrder = data.parentEventId
+      ? await getNextSubEventOrder(data.parentEventId)
+      : (data.trackOrder ??
+          (await getNextCompetitionEventOrder(data.competitionId)))
 
     // Add workout to track
     const trackWorkoutId = createTrackWorkoutId()
@@ -1047,6 +1115,7 @@ export const addWorkoutToCompetitionFn = createServerFn({ method: "POST" })
       trackOrder,
       pointsMultiplier: data.pointsMultiplier ?? 100,
       notes: data.notes,
+      parentEventId: data.parentEventId ?? null,
     })
 
     return { trackWorkoutId }
@@ -1074,10 +1143,65 @@ export const removeWorkoutFromCompetitionFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    // Delete the track workout
-    await db
-      .delete(trackWorkoutsTable)
-      .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+    await db.transaction(async (tx) => {
+      // Check if this is a parent event — cascade delete children
+      const children = await tx
+        .select({ id: trackWorkoutsTable.id })
+        .from(trackWorkoutsTable)
+        .where(eq(trackWorkoutsTable.parentEventId, data.trackWorkoutId))
+
+      if (children.length > 0) {
+        const childIds = children.map((c) => c.id)
+        await tx
+          .delete(trackWorkoutsTable)
+          .where(inArray(trackWorkoutsTable.id, childIds))
+      }
+
+      // Check if this is a sub-event — reorder remaining siblings after deletion
+      const event = await tx
+        .select({
+          parentEventId: trackWorkoutsTable.parentEventId,
+        })
+        .from(trackWorkoutsTable)
+        .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+        .limit(1)
+
+      const parentId = event[0]?.parentEventId
+
+      // Delete the track workout
+      await tx
+        .delete(trackWorkoutsTable)
+        .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+
+      // Reorder remaining siblings if this was a sub-event
+      if (parentId) {
+        const remainingSiblings = await tx
+          .select({
+            id: trackWorkoutsTable.id,
+            trackOrder: trackWorkoutsTable.trackOrder,
+          })
+          .from(trackWorkoutsTable)
+          .where(eq(trackWorkoutsTable.parentEventId, parentId))
+          .orderBy(asc(trackWorkoutsTable.trackOrder))
+
+        const parentRow = await tx
+          .select({ trackOrder: trackWorkoutsTable.trackOrder })
+          .from(trackWorkoutsTable)
+          .where(eq(trackWorkoutsTable.id, parentId))
+          .limit(1)
+
+        if (parentRow.length > 0) {
+          const parentOrder = Math.floor(Number(parentRow[0].trackOrder))
+          for (let i = 0; i < remainingSiblings.length; i++) {
+            const newOrder = Number((parentOrder + 0.01 * (i + 1)).toFixed(2))
+            await tx
+              .update(trackWorkoutsTable)
+              .set({ trackOrder: newOrder, updatedAt: new Date() })
+              .where(eq(trackWorkoutsTable.id, remainingSiblings[i].id))
+          }
+        }
+      }
+    })
 
     return { success: true }
   })
@@ -1142,8 +1266,31 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
       track = createdTrack
     }
 
-    // Get the next track order
-    const nextOrder = await getNextCompetitionEventOrder(data.competitionId)
+    // Validate parentEventId if provided
+    if (data.parentEventId) {
+      const parentEvent = await db
+        .select({ id: trackWorkoutsTable.id, parentEventId: trackWorkoutsTable.parentEventId })
+        .from(trackWorkoutsTable)
+        .where(
+          and(
+            eq(trackWorkoutsTable.id, data.parentEventId),
+            eq(trackWorkoutsTable.trackId, track.id),
+          ),
+        )
+        .limit(1)
+
+      if (parentEvent.length === 0) {
+        throw new Error("Parent event not found in this competition")
+      }
+      if (parentEvent[0].parentEventId) {
+        throw new Error("Cannot nest sub-events more than one level deep")
+      }
+    }
+
+    // Get the next track order — decimal under parent if sub-event
+    const nextOrder = data.parentEventId
+      ? await getNextSubEventOrder(data.parentEventId)
+      : await getNextCompetitionEventOrder(data.competitionId)
 
     // Create the workout
     const workoutId = `workout_${createId()}`
@@ -1212,6 +1359,7 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
       workoutId: workout.id,
       trackOrder: nextOrder,
       pointsMultiplier: 100,
+      parentEventId: data.parentEventId ?? null,
     })
 
     return {
@@ -1266,6 +1414,22 @@ export const updateCompetitionWorkoutFn = createServerFn({ method: "POST" })
       .update(trackWorkoutsTable)
       .set(updateData)
       .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+
+    // Cascade eventStatus and heatStatus to child sub-events
+    const cascadeData: Record<string, unknown> = {}
+    if (data.eventStatus !== undefined) {
+      cascadeData.eventStatus = data.eventStatus
+    }
+    if (data.heatStatus !== undefined) {
+      cascadeData.heatStatus = data.heatStatus
+    }
+    if (Object.keys(cascadeData).length > 0) {
+      cascadeData.updatedAt = new Date()
+      await db
+        .update(trackWorkoutsTable)
+        .set(cascadeData)
+        .where(eq(trackWorkoutsTable.parentEventId, data.trackWorkoutId))
+    }
 
     return { success: true }
   })
@@ -1461,7 +1625,11 @@ export const reorderCompetitionEventsFn = createServerFn({ method: "POST" })
 
     // Validate all track workouts belong to this track
     const existingWorkouts = await db
-      .select({ id: trackWorkoutsTable.id })
+      .select({
+        id: trackWorkoutsTable.id,
+        parentEventId: trackWorkoutsTable.parentEventId,
+        trackOrder: trackWorkoutsTable.trackOrder,
+      })
       .from(trackWorkoutsTable)
       .where(eq(trackWorkoutsTable.trackId, track.id))
 
@@ -1475,7 +1643,10 @@ export const reorderCompetitionEventsFn = createServerFn({ method: "POST" })
       }
     }
 
-    // Perform updates
+    // Build a set of explicitly updated IDs
+    const updatedIds = new Set(data.updates.map((u) => u.trackWorkoutId))
+
+    // Perform explicit updates
     let updateCount = 0
     for (const update of data.updates) {
       await db
@@ -1483,6 +1654,32 @@ export const reorderCompetitionEventsFn = createServerFn({ method: "POST" })
         .set({ trackOrder: update.trackOrder, updatedAt: new Date() })
         .where(eq(trackWorkoutsTable.id, update.trackWorkoutId))
       updateCount++
+    }
+
+    // Auto-move children when a parent is reordered
+    for (const update of data.updates) {
+      // Find children of this event that weren't explicitly reordered
+      const children = existingWorkouts.filter(
+        (w) =>
+          w.parentEventId === update.trackWorkoutId && !updatedIds.has(w.id),
+      )
+
+      if (children.length === 0) continue
+
+      // Sort children by current order and reassign under new parent position
+      const sortedChildren = children.sort(
+        (a, b) => Number(a.trackOrder) - Number(b.trackOrder),
+      )
+      const newParentOrder = Math.floor(update.trackOrder)
+
+      for (let i = 0; i < sortedChildren.length; i++) {
+        const newOrder = Number((newParentOrder + 0.01 * (i + 1)).toFixed(2))
+        await db
+          .update(trackWorkoutsTable)
+          .set({ trackOrder: newOrder, updatedAt: new Date() })
+          .where(eq(trackWorkoutsTable.id, sortedChildren[i].id))
+        updateCount++
+      }
     }
 
     return { updateCount }

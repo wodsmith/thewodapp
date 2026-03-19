@@ -26,6 +26,8 @@ import type {
   EventScoreEntryData,
   HeatScoreGroup as HeatScoreGroupType,
 } from "@/types/competition-scores"
+import { cn } from "@/lib/utils"
+import { formatTrackOrder } from "@/utils/format-track-order"
 import { HeatScoreGroup } from "./heat-score-group"
 import {
   type ScoreEntryData,
@@ -70,6 +72,11 @@ export type SaveScoreFn = (params: {
   }
 }) => Promise<{ resultId: string; isNew: boolean }>
 
+interface SubEventData {
+  event: EventScoreEntryData["event"]
+  athletes: EventScoreEntryAthlete[]
+}
+
 interface ResultsEntryFormProps {
   competitionId: string
   organizingTeamId: string
@@ -83,6 +90,8 @@ interface ResultsEntryFormProps {
   selectedDivisionId?: string
   /** Server function to save scores */
   saveScore: SaveScoreFn
+  /** Sub-event score data for parent events. Renders grouped rows per athlete. */
+  subEventScoreData?: SubEventData[]
 }
 
 export function ResultsEntryForm({
@@ -97,13 +106,29 @@ export function ResultsEntryForm({
   divisions,
   selectedDivisionId,
   saveScore,
+  subEventScoreData,
 }: ResultsEntryFormProps) {
   const router = useRouter()
+  const isSubEventMode = !!subEventScoreData && subEventScoreData.length > 0
+  const getStateKey = useCallback(
+    (registrationId: string, eventId?: string) =>
+      eventId ? `${registrationId}-${eventId}` : registrationId,
+    [],
+  )
+
   const [scores, setScores] = useState<Record<string, ScoreEntryData>>({})
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
   const [savedIds, setSavedIds] = useState<Set<string>>(
     new Set(
-      athletes.filter((a) => a.existingResult).map((a) => a.registrationId),
+      isSubEventMode
+        ? subEventScoreData.flatMap((sub) =>
+            sub.athletes
+              .filter((a) => a.existingResult)
+              .map((a) => getStateKey(a.registrationId, sub.event.id)),
+          )
+        : athletes
+            .filter((a) => a.existingResult)
+            .map((a) => a.registrationId),
     ),
   )
   const [focusedIndex, setFocusedIndex] = useState(0)
@@ -148,14 +173,23 @@ export function ResultsEntryForm({
 
   // Handle score change with auto-save
   const handleScoreChange = useCallback(
-    async (athlete: EventScoreEntryAthlete, data: ScoreEntryData) => {
+    async (
+      athlete: EventScoreEntryAthlete,
+      data: ScoreEntryData,
+      eventOverride?: EventScoreEntryData["event"],
+    ) => {
+      const targetEvent = eventOverride || event
+      const stateKey = eventOverride
+        ? getStateKey(athlete.registrationId, eventOverride.id)
+        : athlete.registrationId
+
       setScores((prev) => ({
         ...prev,
-        [athlete.registrationId]: data,
+        [stateKey]: data,
       }))
 
       // Auto-save
-      setSavingIds((prev) => new Set(prev).add(athlete.registrationId))
+      setSavingIds((prev) => new Set(prev).add(stateKey))
 
       // Send the original score string directly - the server will encode it properly
       // This preserves milliseconds for time-based workouts (e.g., "2:01.567")
@@ -168,8 +202,8 @@ export function ResultsEntryForm({
             const result = await saveScore({
               competitionId,
               organizingTeamId,
-              trackWorkoutId: event.id,
-              workoutId: event.workout.id,
+              trackWorkoutId: targetEvent.id,
+              workoutId: targetEvent.workout.id,
               registrationId: athlete.registrationId,
               userId: athlete.userId,
               divisionId: athlete.divisionId,
@@ -179,17 +213,17 @@ export function ResultsEntryForm({
               secondaryScore: data.secondaryScore,
               roundScores: data.roundScores,
               workout: {
-                scheme: event.workout.scheme,
-                scoreType: event.workout.scoreType,
-                repsPerRound: event.workout.repsPerRound,
-                roundsToScore: event.workout.roundsToScore,
-                timeCap: event.workout.timeCap,
-                tiebreakScheme: event.workout.tiebreakScheme,
+                scheme: targetEvent.workout.scheme,
+                scoreType: targetEvent.workout.scoreType,
+                repsPerRound: targetEvent.workout.repsPerRound,
+                roundsToScore: targetEvent.workout.roundsToScore,
+                timeCap: targetEvent.workout.timeCap,
+                tiebreakScheme: targetEvent.workout.tiebreakScheme,
               },
             })
 
             if (result) {
-              setSavedIds((prev) => new Set(prev).add(athlete.registrationId))
+              setSavedIds((prev) => new Set(prev).add(stateKey))
               const displayName =
                 athlete.teamName || `${athlete.firstName} ${athlete.lastName}`
               toast.success(`Score saved for ${displayName}`)
@@ -199,7 +233,7 @@ export function ResultsEntryForm({
           } finally {
             setSavingIds((prev) => {
               const next = new Set(prev)
-              next.delete(athlete.registrationId)
+              next.delete(stateKey)
               return next
             })
           }
@@ -209,15 +243,9 @@ export function ResultsEntryForm({
     [
       competitionId,
       organizingTeamId,
-      event.id,
-      event.workout.id,
-      event.workout.scheme,
-      event.workout.scoreType,
-      event.workout.repsPerRound,
-      event.workout.roundsToScore,
-      event.workout.timeCap,
-      event.workout.tiebreakScheme,
+      event,
       saveScore,
+      getStateKey,
     ],
   )
 
@@ -257,9 +285,18 @@ export function ResultsEntryForm({
     router.navigate({ to: url.pathname + url.search })
   }
 
-  // Stats
+  // Stats — in sub-event mode, count actual athlete/sub-event pairs (not all combinations)
   const scoredCount = savedIds.size
-  const totalCount = athletes.length
+  const totalCount = isSubEventMode
+    ? athletes.reduce((count, athlete) => {
+        for (const sub of subEventScoreData!) {
+          if (sub.athletes.some((a) => a.registrationId === athlete.registrationId)) {
+            count++
+          }
+        }
+        return count
+      }, 0)
+    : athletes.length
 
   // Get score format examples based on workout scheme
   const scoreExamples = useMemo(() => {
@@ -352,12 +389,18 @@ export function ResultsEntryForm({
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <CardTitle>{event.workout.name}</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                {event.workout.scheme.replace("-", " ").toUpperCase()}
-                {isTimeCapped && timeCap && ` • Cap: ${formatTimeCap(timeCap)}`}
-                {event.workout.tiebreakScheme &&
-                  ` • Tie-break: ${event.workout.tiebreakScheme}`}
-              </p>
+              {isSubEventMode ? (
+                <p className="text-sm text-muted-foreground mt-1">
+                  {subEventScoreData!.length} sub-events
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground mt-1">
+                  {event.workout.scheme.replace("-", " ").toUpperCase()}
+                  {isTimeCapped && timeCap && ` • Cap: ${formatTimeCap(timeCap)}`}
+                  {event.workout.tiebreakScheme &&
+                    ` • Tie-break: ${event.workout.tiebreakScheme}`}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-4">
               <Badge variant="outline">
@@ -377,7 +420,7 @@ export function ResultsEntryForm({
                 <SelectContent>
                   {events.map((e) => (
                     <SelectItem key={e.id} value={e.id}>
-                      Event {e.trackOrder}: {e.name}
+                      Event {formatTrackOrder(e.trackOrder)}: {e.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -407,8 +450,8 @@ export function ResultsEntryForm({
         </CardContent>
       </Card>
 
-      {/* Help Callout */}
-      <Collapsible>
+      {/* Help Callout (hidden for sub-event mode since schemes vary) */}
+      {!isSubEventMode && (<Collapsible>
         <Alert className="bg-muted/50">
           <HelpCircle className="h-4 w-4" />
           <AlertDescription className="flex items-start justify-between">
@@ -471,26 +514,29 @@ export function ResultsEntryForm({
           </CollapsibleContent>
         </Alert>
       </Collapsible>
+      )}
 
       {/* Score Entry Table */}
       <Card>
         <CardContent className="p-0">
-          {/* Table Header */}
-          <div
-            className={`hidden sm:grid gap-3 border-b bg-muted/30 p-3 text-sm font-medium text-muted-foreground ${hasTiebreak ? "grid-cols-[60px_1fr_2fr_1fr_100px]" : "grid-cols-[60px_1fr_2fr_100px]"}`}
-          >
-            <div className="text-center">{hasHeats ? "LANE" : "#"}</div>
-            <div>TEAM / ATHLETE</div>
-            <div>
-              {(event.workout.roundsToScore ?? 1) > 1
-                ? `SCORES (${event.workout.roundsToScore} ROUNDS)`
-                : event.workout.scheme === "pass-fail"
-                  ? "ROUNDS PASSED"
-                  : "SCORE"}
+          {/* Table Header (hidden for sub-event mode since each row has its own scheme) */}
+          {!isSubEventMode && (
+            <div
+              className={`hidden sm:grid gap-3 border-b bg-muted/30 p-3 text-sm font-medium text-muted-foreground ${hasTiebreak ? "grid-cols-[60px_1fr_2fr_1fr_100px]" : "grid-cols-[60px_1fr_2fr_100px]"}`}
+            >
+              <div className="text-center">{hasHeats ? "LANE" : "#"}</div>
+              <div>TEAM / ATHLETE</div>
+              <div>
+                {(event.workout.roundsToScore ?? 1) > 1
+                  ? `SCORES (${event.workout.roundsToScore} ROUNDS)`
+                  : event.workout.scheme === "pass-fail"
+                    ? "ROUNDS PASSED"
+                    : "SCORE"}
+              </div>
+              {hasTiebreak && <div>TIE-BREAK</div>}
+              <div className="text-center">STATUS</div>
             </div>
-            {hasTiebreak && <div>TIE-BREAK</div>}
-            <div className="text-center">STATUS</div>
-          </div>
+          )}
 
           {/* Score Entry Rows */}
           <div>
@@ -499,6 +545,109 @@ export function ResultsEntryForm({
                 No athletes found
                 {selectedDivisionId && " for this division"}
               </div>
+            ) : isSubEventMode ? (
+              /* Sub-event grouped layout: athlete header + one row per sub-event */
+              athletes.map((athlete, index) => (
+                <div
+                  key={athlete.registrationId}
+                  className={cn(
+                    "border-b last:border-b-0",
+                    index % 2 === 1 && "bg-muted/10",
+                  )}
+                >
+                  {/* Athlete group header */}
+                  <div className="flex items-center gap-3 px-3 pt-3 pb-1">
+                    <div className="w-[60px] text-center text-sm font-mono text-muted-foreground">
+                      {index + 1}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium truncate">
+                        {athlete.teamName ||
+                          `${athlete.lastName}, ${athlete.firstName}`}
+                      </div>
+                      {athlete.teamName &&
+                        athlete.teamMembers.length > 0 && (
+                          <div className="text-xs text-muted-foreground truncate">
+                            {athlete.teamMembers.map((m, i) => (
+                              <span key={m.userId}>
+                                {i > 0 && ", "}
+                                {m.firstName} {m.lastName}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                    </div>
+                    <Badge variant="outline" className="text-xs shrink-0">
+                      {athlete.divisionLabel}
+                    </Badge>
+                  </div>
+                  {/* Sub-event score rows */}
+                  {subEventScoreData!.map((sub, subIndex) => {
+                    const subAthlete = sub.athletes.find(
+                      (a) =>
+                        a.registrationId === athlete.registrationId,
+                    )
+                    if (!subAthlete) return null
+                    const stateKey = getStateKey(
+                      athlete.registrationId,
+                      sub.event.id,
+                    )
+                    return (
+                      <ScoreInputRow
+                        key={stateKey}
+                        ref={(handle) => {
+                          if (handle) {
+                            rowRefs.current.set(stateKey, handle)
+                          } else {
+                            rowRefs.current.delete(stateKey)
+                          }
+                        }}
+                        athlete={subAthlete}
+                        subEventLabel={sub.event.workout.name}
+                        workoutScheme={sub.event.workout.scheme}
+                        tiebreakScheme={sub.event.workout.tiebreakScheme}
+                        timeCap={sub.event.workout.timeCap ?? undefined}
+                        roundsToScore={
+                          sub.event.workout.roundsToScore ?? 1
+                        }
+                        scoreType={sub.event.workout.scoreType}
+                        showTiebreak={
+                          !!sub.event.workout.tiebreakScheme
+                        }
+                        value={scores[stateKey]}
+                        isSaving={savingIds.has(stateKey)}
+                        isSaved={savedIds.has(stateKey)}
+                        onChange={(data) =>
+                          handleScoreChange(
+                            subAthlete,
+                            data,
+                            sub.event,
+                          )
+                        }
+                        onTabNext={() => {
+                          // Navigate to next sub-event row for same athlete, or first sub-event of next athlete
+                          const nextSubIndex = subIndex + 1
+                          if (nextSubIndex < subEventScoreData!.length) {
+                            // Next sub-event for same athlete
+                            const nextSub = subEventScoreData![nextSubIndex]
+                            const nextKey = getStateKey(athlete.registrationId, nextSub.event.id)
+                            rowRefs.current.get(nextKey)?.focusPrimary()
+                          } else {
+                            // First sub-event of next athlete
+                            const nextAthleteIndex = index + 1
+                            if (nextAthleteIndex < athletes.length) {
+                              const nextAthlete = athletes[nextAthleteIndex]
+                              const firstSub = subEventScoreData![0]
+                              const nextKey = getStateKey(nextAthlete.registrationId, firstSub.event.id)
+                              rowRefs.current.get(nextKey)?.focusPrimary()
+                            }
+                          }
+                        }}
+                      />
+                    )
+                  })}
+                </div>
+              ))
             ) : hasHeats ? (
               /* Heat-based layout */
               <>
