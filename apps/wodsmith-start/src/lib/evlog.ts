@@ -44,3 +44,19 @@ export function getEvlog(): RequestLogger | undefined {
 export function withEvlog<T>(logger: RequestLogger, fn: () => T): T {
 	return evlogStorage.run(logger, fn)
 }
+
+/**
+ * Set the authenticated user on the evlog wide event.
+ * Call this after resolving the session so every wide event
+ * includes who performed the action.
+ *
+ * Uses `loggedInUserId` to distinguish from entity-level userIds
+ * (e.g., the athlete whose score is being entered).
+ */
+export function setEvlogUser(userId: string, teamId?: string): void {
+	const log = evlogStorage.getStore()
+	if (!log) return
+	const fields: Record<string, unknown> = { loggedInUserId: userId }
+	if (teamId) fields.activeTeamId = teamId
+	log.set(fields)
+}
