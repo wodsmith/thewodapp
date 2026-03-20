@@ -137,4 +137,32 @@ Trade-offs:
 - Delivery is eventually consistent — organizer won't see "all sent" immediately
 - Requires a queue consumer Worker (can be the same Worker with a `queue()` handler)
 
-**Recommendation**: Start with **Option 1** for MVP. The synchronous approach with per-recipient status tracking and a "retry failed" button is sufficient for early usage where broadcast audiences are small (sub-500). Add the Cloudflare Queue in a follow-up when broadcasts scale or when we add scheduled broadcasts (which need async processing regardless).
+**Recommendation**: Start with **Option 2 (Cloudflare Queue)**. The queue approach avoids Worker timeout risks from day one, provides automatic retry without building manual retry UI, and lays the groundwork for scheduled broadcasts. The infrastructure cost is modest — a single Queue binding and a `queue()` handler on the existing Worker. The eventually-consistent delivery status is acceptable since organizers don't need instant confirmation that all emails landed.
+
+#### Queue Message Shape
+
+Each queue message represents a batch of up to 100 recipients for a single broadcast:
+
+```typescript
+interface BroadcastEmailMessage {
+  broadcastId: string
+  competitionId: string
+  batch: Array<{
+    recipientId: string       // competitionBroadcastRecipientsTable.id
+    email: string
+    athleteName: string
+  }>
+  subject: string
+  bodyHtml: string            // pre-rendered HTML (render once at enqueue time)
+  replyTo?: string
+}
+```
+
+The HTML body is rendered once when the broadcast is sent and included in each queue message, so the consumer only needs to call the Resend API — no template rendering or database reads required.
+
+#### Flow
+
+1. Organizer clicks "Send" → server function evaluates audience filter, inserts recipient rows with `emailDeliveryStatus: 'queued'`, renders the email template once, and enqueues batches of up to 100 recipients
+2. Queue consumer receives batch → calls Resend batch API → updates each recipient row to `'sent'` or `'failed'`
+3. On consumer failure, Cloudflare retries automatically (up to 3 times with backoff)
+4. After max retries exhausted, message goes to dead letter queue for investigation
