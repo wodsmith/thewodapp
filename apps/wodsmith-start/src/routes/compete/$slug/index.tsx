@@ -137,7 +137,7 @@ function CompetitionOverviewPage() {
                 <div className="space-y-6">
                   <h2 className="text-xl font-semibold mb-4">Workouts</h2>
                   <div className="space-y-6">
-                    {workouts.map((event) => {
+                    {workouts.filter((w) => !w.parentEventId).map((event) => {
                       const divisionDescriptionsResult =
                         divisionDescriptionsMap[event.workoutId]
                       return (

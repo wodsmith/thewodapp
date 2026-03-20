@@ -4,6 +4,7 @@ import { Clock } from "lucide-react"
 import { useMemo } from "react"
 import type { HeatWithAssignments } from "@/server-fns/competition-heats-fns"
 import type { CompetitionWorkout } from "@/server-fns/competition-workouts-fns"
+import { formatTrackOrder } from "@/utils/format-track-order"
 
 interface EventOverviewProps {
   events: CompetitionWorkout[]
@@ -159,7 +160,7 @@ export function EventOverview({ events, heats }: EventOverviewProps) {
                   className="flex flex-wrap items-center gap-2 sm:gap-3 text-sm tabular-nums"
                 >
                   <span className="text-muted-foreground w-6 text-right">
-                    {String(summary.event.trackOrder).padStart(2, "0")}
+                    {formatTrackOrder(summary.event.trackOrder)}
                   </span>
                   <span className="flex-1 truncate font-sans">
                     {summary.event.workout.name}

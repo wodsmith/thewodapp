@@ -153,6 +153,8 @@ interface EventDetailsFormProps {
   divisionDescriptions: DivisionDescriptionData[]
   movements: Movement[]
   sponsors: Sponsor[]
+  isParentEvent?: boolean
+  formId?: string
 }
 
 export function EventDetailsForm({
@@ -163,6 +165,8 @@ export function EventDetailsForm({
   divisionDescriptions,
   movements,
   sponsors,
+  isParentEvent = false,
+  formId = EVENT_DETAILS_FORM_ID,
 }: EventDetailsFormProps) {
   const router = useRouter()
   const navigate = useNavigate()
@@ -252,15 +256,8 @@ export function EventDetailsForm({
 
       toast.success("Event updated")
 
-      // Invalidate router cache and wait for it to complete before navigating
-      // This ensures the events list will fetch fresh data
+      // Invalidate router cache so data is fresh
       await router.invalidate()
-
-      // Navigate back to events list
-      navigate({
-        to: "/compete/organizer/$competitionId/events",
-        params: { competitionId },
-      })
     } catch (error) {
       console.error("Failed to save event:", error)
       toast.error(
@@ -274,7 +271,7 @@ export function EventDetailsForm({
   return (
     <Form {...form}>
       <form
-        id={EVENT_DETAILS_FORM_ID}
+        id={formId}
         onSubmit={form.handleSubmit(onSubmit)}
         className="space-y-6"
       >
@@ -304,173 +301,177 @@ export function EventDetailsForm({
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="scheme"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Scheme</FormLabel>
-                      <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select scheme" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {WORKOUT_SCHEMES.map((s) => (
-                            <SelectItem key={s.value} value={s.value}>
-                              {s.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {!isParentEvent && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="scheme"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Scheme</FormLabel>
+                          <Select
+                            value={field.value}
+                            onValueChange={field.onChange}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select scheme" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {WORKOUT_SCHEMES.map((s) => (
+                                <SelectItem key={s.value} value={s.value}>
+                                  {s.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                {scheme && (
-                  <FormField
-                    control={form.control}
-                    name="scoreType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Score Type</FormLabel>
-                        <Select
-                          value={field.value ?? "none"}
-                          onValueChange={(v) =>
-                            field.onChange(v === "none" ? null : v)
-                          }
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select score type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
-                            {SCORE_TYPES.map((s) => (
-                              <SelectItem key={s.value} value={s.value}>
-                                {s.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
+                    {scheme && (
+                      <FormField
+                        control={form.control}
+                        name="scoreType"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Score Type</FormLabel>
+                            <Select
+                              value={field.value ?? "none"}
+                              onValueChange={(v) =>
+                                field.onChange(v === "none" ? null : v)
+                              }
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select score type" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="none">None</SelectItem>
+                                {SCORE_TYPES.map((s) => (
+                                  <SelectItem key={s.value} value={s.value}>
+                                    {s.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     )}
-                  />
-                )}
 
-                {scheme === "rounds-reps" && (
-                  <FormField
-                    control={form.control}
-                    name="roundsToScore"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          Rounds to Score{" "}
-                          <span className="text-muted-foreground">
-                            (optional)
-                          </span>
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder="e.g., 4"
-                            value={field.value ?? ""}
-                            onChange={(e) =>
-                              field.onChange(
-                                e.target.value
-                                  ? Number.parseInt(e.target.value)
-                                  : null,
-                              )
-                            }
-                            min="1"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                    {scheme === "rounds-reps" && (
+                      <FormField
+                        control={form.control}
+                        name="roundsToScore"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>
+                              Rounds to Score{" "}
+                              <span className="text-muted-foreground">
+                                (optional)
+                              </span>
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                placeholder="e.g., 4"
+                                value={field.value ?? ""}
+                                onChange={(e) =>
+                                  field.onChange(
+                                    e.target.value
+                                      ? Number.parseInt(e.target.value)
+                                      : null,
+                                  )
+                                }
+                                min="1"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     )}
-                  />
-                )}
 
-                {scheme === "time-with-cap" && (
-                  <FormField
-                    control={form.control}
-                    name="timeCap"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Time Cap (minutes)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder="e.g., 12"
-                            value={field.value ? field.value / 60 : ""}
-                            onChange={(e) =>
-                              field.onChange(
-                                e.target.value
-                                  ? Math.round(
-                                      Number.parseFloat(e.target.value) * 60,
-                                    )
-                                  : null,
-                              )
-                            }
-                            min="1"
-                            step="0.5"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Enter time cap in minutes (e.g., 12 for 12:00)
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
+                    {scheme === "time-with-cap" && (
+                      <FormField
+                        control={form.control}
+                        name="timeCap"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Time Cap (minutes)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                placeholder="e.g., 12"
+                                value={field.value ? field.value / 60 : ""}
+                                onChange={(e) =>
+                                  field.onChange(
+                                    e.target.value
+                                      ? Math.round(
+                                          Number.parseFloat(e.target.value) * 60,
+                                        )
+                                      : null,
+                                  )
+                                }
+                                min="1"
+                                step="0.5"
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Enter time cap in minutes (e.g., 12 for 12:00)
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     )}
-                  />
-                )}
 
-                {scheme !== "pass-fail" && (
-                  <FormField
-                    control={form.control}
-                    name="tiebreakScheme"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          Tiebreak{" "}
-                          <span className="text-muted-foreground">
-                            (optional)
-                          </span>
-                        </FormLabel>
-                        <Select
-                          value={field.value ?? "none"}
-                          onValueChange={(v) =>
-                            field.onChange(v === "none" ? null : v)
-                          }
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="None" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
-                            {TIEBREAK_SCHEMES.map((s) => (
-                              <SelectItem key={s.value} value={s.value}>
-                                {s.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Used to break ties when athletes have the same score
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
+                    {scheme !== "pass-fail" && (
+                      <FormField
+                        control={form.control}
+                        name="tiebreakScheme"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>
+                              Tiebreak{" "}
+                              <span className="text-muted-foreground">
+                                (optional)
+                              </span>
+                            </FormLabel>
+                            <Select
+                              value={field.value ?? "none"}
+                              onValueChange={(v) =>
+                                field.onChange(v === "none" ? null : v)
+                              }
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="None" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="none">None</SelectItem>
+                                {TIEBREAK_SCHEMES.map((s) => (
+                                  <SelectItem key={s.value} value={s.value}>
+                                    {s.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              Used to break ties when athletes have the same score
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     )}
-                  />
+                  </>
                 )}
 
                 <FormField
@@ -498,41 +499,43 @@ export function EventDetailsForm({
             </Card>
 
             {/* Movements */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Movements</CardTitle>
-                <CardDescription>
-                  Track which movements are used in this event
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  {selectedMovements.length > 0 && (
-                    <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-muted/50">
-                      {movements
-                        .filter((m) => selectedMovements.includes(m.id))
-                        .map((movement) => (
-                          <Badge
-                            key={movement.id}
-                            variant="default"
-                            className="cursor-pointer"
-                            onClick={() => handleMovementToggle(movement.id)}
-                          >
-                            {movement.name} ✓
-                          </Badge>
-                        ))}
-                    </div>
-                  )}
-                  <MovementsList
-                    movements={movements}
-                    selectedMovements={selectedMovements}
-                    onMovementToggle={handleMovementToggle}
-                    showLabel={false}
-                    containerHeight="max-h-[250px]"
-                  />
-                </div>
-              </CardContent>
-            </Card>
+            {!isParentEvent && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Movements</CardTitle>
+                  <CardDescription>
+                    Track which movements are used in this event
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    {selectedMovements.length > 0 && (
+                      <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-muted/50">
+                        {movements
+                          .filter((m) => selectedMovements.includes(m.id))
+                          .map((movement) => (
+                            <Badge
+                              key={movement.id}
+                              variant="default"
+                              className="cursor-pointer"
+                              onClick={() => handleMovementToggle(movement.id)}
+                            >
+                              {movement.name} ✓
+                            </Badge>
+                          ))}
+                      </div>
+                    )}
+                    <MovementsList
+                      movements={movements}
+                      selectedMovements={selectedMovements}
+                      onMovementToggle={handleMovementToggle}
+                      showLabel={false}
+                      containerHeight="max-h-[250px]"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Right Column */}
@@ -546,33 +549,35 @@ export function EventDetailsForm({
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="pointsMultiplier"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Points Multiplier</FormLabel>
-                      <div className="flex items-center gap-2">
-                        <FormControl>
-                          <Input
-                            type="number"
-                            min={1}
-                            max={1000}
-                            className="w-24"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(Number(e.target.value))
-                            }
-                          />
-                        </FormControl>
-                        <span className="text-sm text-muted-foreground">
-                          % (100 = normal, 200 = 2x points)
-                        </span>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {!isParentEvent && (
+                  <FormField
+                    control={form.control}
+                    name="pointsMultiplier"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Points Multiplier</FormLabel>
+                        <div className="flex items-center gap-2">
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={1000}
+                              className="w-24"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(Number(e.target.value))
+                              }
+                            />
+                          </FormControl>
+                          <span className="text-sm text-muted-foreground">
+                            % (100 = normal, 200 = 2x points)
+                          </span>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 <FormField
                   control={form.control}
@@ -633,7 +638,7 @@ export function EventDetailsForm({
             </Card>
 
             {/* Division-Specific Descriptions */}
-            <Card>
+            {!isParentEvent && <Card>
               <CardHeader>
                 <CardTitle>Division Variations</CardTitle>
                 <CardDescription>
@@ -705,7 +710,7 @@ export function EventDetailsForm({
                   </div>
                 )}
               </CardContent>
-            </Card>
+            </Card>}
           </div>
         </div>
 

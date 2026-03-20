@@ -10,6 +10,7 @@ import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-di
 import { getCompetitionEventsFn } from "@/server-fns/competition-event-fns"
 import {
   getCompetitionEventFn,
+  getCompetitionWorkoutsFn,
   getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
 import { getEventResourcesFn } from "@/server-fns/event-resources-fns"
@@ -104,6 +105,40 @@ export const Route = createFileRoute(
       (ce) => ce.trackWorkoutId === params.eventId,
     )
 
+    // Fetch child events if this is a parent event
+    const allWorkoutsResult = await getCompetitionWorkoutsFn({
+      data: {
+        competitionId: params.competitionId,
+        teamId: competition.organizingTeamId,
+      },
+    })
+    const childEvents = allWorkoutsResult.workouts
+      .filter((w) => w.parentEventId === params.eventId)
+      .sort((a, b) => a.trackOrder - b.trackOrder)
+
+    // Fetch division descriptions for each child event
+    const childDivisionDescriptions: Record<
+      string,
+      Array<{
+        divisionId: string
+        divisionLabel: string
+        description: string | null
+      }>
+    > = {}
+    if (childEvents.length > 0 && divisionIds.length > 0) {
+      const childDescResults = await Promise.all(
+        childEvents.map((child) =>
+          getWorkoutDivisionDescriptionsFn({
+            data: { workoutId: child.workoutId, divisionIds },
+          }),
+        ),
+      )
+      for (let i = 0; i < childEvents.length; i++) {
+        childDivisionDescriptions[childEvents[i].workoutId] =
+          childDescResults[i].descriptions
+      }
+    }
+
     return {
       event: eventResult.event,
       divisions: divisionsResult.divisions,
@@ -116,6 +151,8 @@ export const Route = createFileRoute(
       submissionOpensAt: competitionEvent?.submissionOpensAt ?? null,
       submissionClosesAt: competitionEvent?.submissionClosesAt ?? null,
       timezone: competition.timezone || "America/Denver",
+      childEvents,
+      childDivisionDescriptions,
     }
   },
 })

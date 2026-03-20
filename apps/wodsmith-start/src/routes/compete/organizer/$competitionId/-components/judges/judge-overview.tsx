@@ -6,6 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import type { HeatWithAssignments } from "@/server-fns/competition-heats-fns"
 import type { CompetitionWorkout } from "@/server-fns/competition-workouts-fns"
 import type { JudgeHeatAssignment } from "@/server-fns/judge-scheduling-fns"
+import { formatTrackOrder } from "@/utils/format-track-order"
 
 interface JudgeOverviewProps {
   events: CompetitionWorkout[]
@@ -241,7 +242,7 @@ export function JudgeOverview({
                     className="flex items-center gap-3 text-sm tabular-nums"
                   >
                     <span className="w-6 text-right text-muted-foreground">
-                      {String(summary.event.trackOrder).padStart(2, "0")}
+                      {formatTrackOrder(summary.event.trackOrder)}
                     </span>
                     <span className="flex-1 truncate font-sans">
                       {summary.event.workout.name}

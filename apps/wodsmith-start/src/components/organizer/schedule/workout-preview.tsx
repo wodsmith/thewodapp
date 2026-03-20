@@ -5,6 +5,7 @@ import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import type { CompetitionWorkout } from "@/server-fns/competition-workouts-fns"
+import { formatTrackOrder } from "@/utils/format-track-order"
 
 interface WorkoutPreviewProps {
   event: CompetitionWorkout
@@ -45,7 +46,7 @@ export function WorkoutPreview({ event, className }: WorkoutPreviewProps) {
       >
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-semibold text-sm shrink-0">
-            {trackOrder}
+            {formatTrackOrder(trackOrder)}
           </div>
           <div className="min-w-0">
             <div className="font-medium truncate">{workout.name}</div>

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import type { CompetitionWorkout } from "@/server-fns/competition-workouts-fns"
 import { cn } from "@/utils/cn"
+import { formatTrackOrder } from "@/utils/format-track-order"
 
 interface SubmissionWindowEvent {
   id: string
@@ -358,7 +359,7 @@ function SubmissionWindowRow({
                   : "text-foreground",
             )}
           >
-            {String(event.trackOrder).padStart(2, "0")}
+            {formatTrackOrder(event.trackOrder)}
           </span>
         </div>
         <div className="flex-1 min-w-0">
