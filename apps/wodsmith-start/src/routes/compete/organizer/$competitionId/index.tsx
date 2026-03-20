@@ -6,6 +6,7 @@
  *
  * This file uses top-level imports for server-only modules.
  */
+// @lat: [[organizer-dashboard#Overview Page]]
 
 import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
 import { FileText, TrendingUp, Users } from "lucide-react"

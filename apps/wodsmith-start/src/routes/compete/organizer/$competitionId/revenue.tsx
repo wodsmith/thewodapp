@@ -5,6 +5,7 @@ import {
 } from "@/server-fns/commerce-fns"
 import { RevenueStatsDisplay } from "./-components/revenue-stats-display"
 
+// @lat: [[organizer-dashboard#Revenue]]
 export const Route = createFileRoute(
   "/compete/organizer/$competitionId/revenue",
 )({

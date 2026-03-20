@@ -87,6 +87,7 @@ async function sendConfirmationEmail(
 // Cloudflare Workflow class (production — durable execution with retries)
 // =========================================================================
 
+// @lat: [[registration#Manual Registration Workflow]]
 class ManualRegistrationWorkflowBase extends WorkflowEntrypoint<
   Env,
   ManualRegistrationNotifyParams

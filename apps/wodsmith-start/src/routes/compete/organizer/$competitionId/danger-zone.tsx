@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { getCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
 import { DeleteCompetitionForm } from "./-components/delete-competition-form"
 
+// @lat: [[organizer-dashboard#Danger Zone]]
 export const Route = createFileRoute(
   "/compete/organizer/$competitionId/danger-zone",
 )({

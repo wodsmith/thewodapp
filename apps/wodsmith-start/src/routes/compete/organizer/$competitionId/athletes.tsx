@@ -4,6 +4,7 @@
  *
  * This file uses top-level imports for server-only modules.
  */
+// @lat: [[organizer-dashboard#Registrations (Athletes)]]
 
 import {
   createFileRoute,

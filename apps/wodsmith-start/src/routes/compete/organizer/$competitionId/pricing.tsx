@@ -5,6 +5,7 @@
  * Allows organizers to configure registration fees for their competition.
  * Requires Stripe connection to be verified before showing the pricing form.
  */
+// @lat: [[organizer-dashboard#Pricing]]
 
 import { createFileRoute } from "@tanstack/react-router"
 import { getCompetitionDivisionFeesFn } from "@/server-fns/commerce-fns"

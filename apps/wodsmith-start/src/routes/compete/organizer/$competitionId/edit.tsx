@@ -5,6 +5,7 @@
  * Fetches competition groups and renders the edit form.
  * Uses parent route loader data for competition data.
  */
+// @lat: [[organizer-dashboard#Competition Editing]]
 
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { getCompetitionGroupsFn } from "@/server-fns/competition-fns"

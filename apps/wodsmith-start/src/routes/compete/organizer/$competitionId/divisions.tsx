@@ -5,6 +5,7 @@
  * Fetches divisions with counts and scaling groups in parallel.
  * Uses parent route loader data for competition data.
  */
+// @lat: [[organizer-dashboard#Division Management]]
 
 import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
 import { ArrowRight, Check, Info, X } from "lucide-react"

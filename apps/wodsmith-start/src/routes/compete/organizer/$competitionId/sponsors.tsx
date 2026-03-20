@@ -5,6 +5,7 @@
  * Fetches sponsors and groups, passes to SponsorManager component.
  * Uses parent route loader data for competition data.
  */
+// @lat: [[organizer-dashboard#Sponsors]]
 
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { SponsorManager } from "@/components/sponsors/sponsor-manager"

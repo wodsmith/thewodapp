@@ -228,6 +228,7 @@ async function storeRegistrationAnswers(
  * Supports registering for multiple divisions in a single checkout.
  * Each division becomes a separate line item and purchase record.
  */
+// @lat: [[registration#Athlete Self-Registration]]
 export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     initiateRegistrationPaymentInputSchema.parse(data),
@@ -1460,6 +1461,7 @@ const removeRegistrationInputSchema = z.object({
  * team memberships, heat assignments, and pending invitations.
  * Requires MANAGE_COMPETITIONS permission on the organizing team.
  */
+// @lat: [[registration#Registration Removal]]
 export const removeRegistrationFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => removeRegistrationInputSchema.parse(data))
   .handler(async ({ data: input }) => {
@@ -1635,6 +1637,7 @@ const transferRegistrationDivisionInputSchema = z.object({
  * - Updates commerce purchase divisionId for bookkeeping
  * - Does NOT block on capacity (organizer decision)
  */
+// @lat: [[registration#Division Transfer]]
 export const transferRegistrationDivisionFn = createServerFn({
   method: "POST",
 })
@@ -1828,6 +1831,7 @@ const createManualRegistrationInputSchema = z.object({
  * with isOrganizerOverride to bypass registration window checks, sets
  * the appropriate payment status, stores answers, and sends confirmation.
  */
+// @lat: [[registration#Organizer Manual Registration]]
 export const createManualRegistrationFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     createManualRegistrationInputSchema.parse(data),

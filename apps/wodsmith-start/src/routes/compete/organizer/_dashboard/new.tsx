@@ -21,6 +21,7 @@ const searchSchema = z.object({
   groupId: z.string().optional(),
 })
 
+// @lat: [[organizer-dashboard#Competition Creation]]
 export const Route = createFileRoute("/compete/organizer/_dashboard/new")({
   component: NewCompetitionPage,
   validateSearch: searchSchema,
