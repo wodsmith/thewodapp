@@ -21,6 +21,7 @@ import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
 import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
 import { workouts } from "@/db/schemas/workouts"
+import { getEvlog } from "@/lib/evlog"
 import { logInfo } from "@/lib/logging"
 import {
   computeSortKey,
@@ -192,6 +193,8 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
         competition.organizingTeamId,
         TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
       )
+
+      getEvlog()?.set({ action: data.action === "verify" ? "verify_submission" : data.action === "adjust" ? "adjust_submission" : "reject_submission", verification: { competitionId: data.competitionId, scoreId: data.scoreId, trackWorkoutId: data.trackWorkoutId } })
 
       // Verify the event belongs to this competition
       const [competitionEvent] = await db
@@ -1204,6 +1207,8 @@ export const deleteVerificationLogFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
 
+    getEvlog()?.set({ action: "delete_verification_log", verification: { competitionId: data.competitionId, logId: data.logId } })
+
     // Verify the log entry belongs to this competition
     const [log] = await db
       .select({ id: scoreVerificationLogsTable.id })
@@ -1265,6 +1270,8 @@ export const updateVerificationLogFn = createServerFn({ method: "POST" })
       competition.organizingTeamId,
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
+
+    getEvlog()?.set({ action: "update_verification_log", verification: { competitionId: data.competitionId, logId: data.logId } })
 
     // Verify the log entry belongs to this competition and get scoreId + context
     const [log] = await db

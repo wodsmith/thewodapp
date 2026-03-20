@@ -73,14 +73,12 @@ function getEnvVar(key: string): string | undefined {
 function initConfig() {
   if (posthogToken !== undefined) return
 
-  // Access PostHog key from Cloudflare Workers env bindings
-  // Falls back to VITE_ env for local dev with Vite
-  posthogToken = getEnvVar("POSTHOG_KEY") ?? import.meta.env.VITE_POSTHOG_KEY
-  endpoint =
-    getEnvVar("POSTHOG_LOGS_ENDPOINT") ??
-    import.meta.env.VITE_POSTHOG_LOGS_ENDPOINT ??
-    DEFAULT_ENDPOINT
-  isPostHogEnabled = !!posthogToken
+  // PostHog OTLP transport is disabled — evlog wide events now handle
+  // PostHog delivery via the drain in server.ts. This logger still
+  // provides console output (dev) and Sentry error forwarding.
+  posthogToken = undefined
+  endpoint = DEFAULT_ENDPOINT
+  isPostHogEnabled = false
 }
 
 /**

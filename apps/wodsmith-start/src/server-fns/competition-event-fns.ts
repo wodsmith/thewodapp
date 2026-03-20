@@ -13,6 +13,7 @@ import {
 } from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
+import { getEvlog } from "@/lib/evlog"
 import { getSessionFromCookie } from "@/utils/auth"
 
 // ============================================================================
@@ -176,6 +177,7 @@ export const upsertCompetitionEventsFn = createServerFn({ method: "POST" })
       data.teamId,
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
+    getEvlog()?.set({ action: "upsert_competition_events", event: { competitionId: data.competitionId }, teamId: data.teamId })
 
     // Verify competition exists and belongs to team
     const competition = await db
@@ -239,6 +241,7 @@ export const deleteCompetitionEventFn = createServerFn({ method: "POST" })
       data.teamId,
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
+    getEvlog()?.set({ action: "delete_competition_event", event: { id: data.eventId }, teamId: data.teamId })
 
     // Verify event exists and belongs to team's competition
     const event = await db

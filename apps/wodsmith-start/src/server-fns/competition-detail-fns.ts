@@ -45,6 +45,7 @@ import {
   hasDateStartedInTimezone,
   isDeadlinePassedInTimezone,
 } from "@/utils/timezone-utils"
+import { getEvlog } from "@/lib/evlog"
 
 // ============================================================================
 // Input Schemas
@@ -925,6 +926,8 @@ export const updateCompetitionRotationSettingsFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
+    getEvlog()?.set({ action: "update_rotation_settings", competition: { id: input.competitionId } })
+
     // Update competition
     await db
       .update(competitionsTable)
@@ -966,6 +969,8 @@ export const updateCompetitionScoringConfigFn = createServerFn({
       competition.organizingTeamId,
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
+
+    getEvlog()?.set({ action: "update_scoring_config", competition: { id: input.competitionId }, scoring: { algorithm: input.scoringConfig.algorithm } })
 
     // Parse existing settings and merge with new scoring config
     let existingSettings: Record<string, unknown> = {}
@@ -1010,6 +1015,8 @@ export const deleteCompetitionFn = createServerFn({ method: "POST" })
       input.organizingTeamId,
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
+
+    getEvlog()?.set({ action: "delete_competition", competition: { id: input.competitionId, organizingTeamId: input.organizingTeamId } })
 
     // Get the competition to verify it exists and get the competitionTeamId
     const competition = await db.query.competitionsTable.findFirst({

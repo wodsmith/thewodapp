@@ -19,6 +19,10 @@ import type {
 } from "@cloudflare/workers-types"
 import * as Sentry from "@sentry/cloudflare"
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry"
+import { env, waitUntil } from "cloudflare:workers"
+import { sendBatchToPostHog } from "evlog/posthog"
+import { createWorkersLogger, initWorkersLogger } from "evlog/workers"
+import { withEvlog } from "./lib/evlog"
 import {
   extractRequestInfo,
   logError,
@@ -27,6 +31,73 @@ import {
   withRequestContext,
 } from "./lib/logging"
 import { getSentryOptions } from "./lib/sentry/server"
+
+// Sensitive field names to redact as a safety net in the drain.
+// This catches any PII that accidentally leaks through log.set().
+const SENSITIVE_KEYS = [
+  "password",
+  "token",
+  "secret",
+  "apikey",
+  "authorization",
+  "cookie",
+  "creditcard",
+  "ssn",
+  "captcha",
+]
+
+function deepSanitize(
+  obj: Record<string, unknown>,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(obj)) {
+    if (SENSITIVE_KEYS.some((k) => key.toLowerCase().includes(k))) {
+      result[key] = "[REDACTED]"
+    } else if (Array.isArray(value)) {
+      result[key] = value.map((item) =>
+        item !== null && typeof item === "object"
+          ? deepSanitize(item as Record<string, unknown>)
+          : item,
+      )
+    } else if (value !== null && typeof value === "object") {
+      result[key] = deepSanitize(value as Record<string, unknown>)
+    } else {
+      result[key] = value
+    }
+  }
+  return result
+}
+
+// Initialize evlog once at module scope.
+// The PostHog drain reads POSTHOG_KEY from cloudflare:workers env at emit time
+// (process.env is not available in CF Workers, so we can't use createPostHogDrain's
+// built-in env resolution).
+initWorkersLogger({
+  env: { service: "wodsmith-start" },
+  // Show wide events in console during local dev, suppress in prod (drain handles it)
+  silent: !import.meta.env.DEV,
+  drain: (ctx) => {
+    // Only drain events that have accumulated business context (action field)
+    // This skips bare framework events (loaders with no log.set() calls)
+    if (!ctx.event.action) return
+    const apiKey = (env as unknown as Record<string, string | undefined>)
+      .POSTHOG_KEY
+    if (!apiKey) return
+    // Sanitize before sending to prevent PII leakage
+    ctx.event = deepSanitize(ctx.event) as typeof ctx.event
+    const drainPromise = sendBatchToPostHog([ctx.event], { apiKey }).catch(
+      (err) => {
+        console.error("[evlog/drain] Failed to send to PostHog:", err)
+      },
+    )
+    // Ensure the drain fetch completes even after the response is sent
+    try {
+      waitUntil(drainPromise)
+    } catch {
+      // waitUntil may not be available in some contexts (e.g., local dev)
+    }
+  },
+})
 
 // Workers runtime requires Workflow classes to be exported from the entry point
 export { StripeCheckoutWorkflow } from "./workflows/stripe-checkout-workflow"
@@ -72,56 +143,90 @@ async function fetchWithLogging(
     return startEntry.fetch(request)
   }
 
+  // Create evlog request logger for wide event accumulation
+  const log = createWorkersLogger(request)
+
+  // Decode TanStack Start server function paths into readable names
+  // /_serverFn/<base64> → "competition-detail-fns.getCompetitionByIdFn"
+  if (requestInfo.path.startsWith("/_serverFn/")) {
+    try {
+      const encoded = requestInfo.path.slice("/_serverFn/".length)
+      const decoded = JSON.parse(atob(encoded)) as {
+        file?: string
+        export?: string
+      }
+      const file = decoded.file
+        ?.replace(/^\/@id\/src\/server-fns\//, "")
+        ?.replace(/\.ts\?.*$/, "")
+      const fn = decoded.export?.replace(/_createServerFn_handler$/, "")
+      if (file && fn) {
+        log.set({ serverFn: `${file}.${fn}` })
+      }
+    } catch {
+      // Non-server-fn encoded path, ignore
+    }
+  }
+
   return withRequestContext(
     {
       method: requestInfo.method,
       path: requestInfo.path,
     },
-    async () => {
-      try {
-        const response = await startEntry.fetch(request)
-        const durationMs = Date.now() - startTime
+    () =>
+      withEvlog(log, async () => {
+        try {
+          const response = await startEntry.fetch(request)
+          const durationMs = Date.now() - startTime
 
-        // Only log errors or slow requests
-        if (response.status >= 400) {
-          logWarning({
-            message: `[HTTP] ${requestInfo.method} ${requestInfo.path} -> ${response.status}`,
+          // Only log errors or slow requests
+          if (response.status >= 400) {
+            logWarning({
+              message: `[HTTP] ${requestInfo.method} ${requestInfo.path} -> ${response.status}`,
+              attributes: {
+                httpMethod: requestInfo.method,
+                httpPath: requestInfo.path,
+                status: response.status,
+                durationMs,
+              },
+            })
+          } else if (durationMs >= SLOW_REQUEST_THRESHOLD_MS) {
+            logWarning({
+              message: `[HTTP] Slow request: ${requestInfo.method} ${requestInfo.path}`,
+              attributes: {
+                httpMethod: requestInfo.method,
+                httpPath: requestInfo.path,
+                status: response.status,
+                durationMs,
+              },
+            })
+          }
+
+          // Emit the wide event with accumulated context
+          log.emit({ status: response.status })
+
+          return response
+        } catch (error) {
+          const durationMs = Date.now() - startTime
+
+          logError({
+            message: `[HTTP] ${requestInfo.method} ${requestInfo.path} -> Error`,
+            error,
             attributes: {
               httpMethod: requestInfo.method,
               httpPath: requestInfo.path,
-              status: response.status,
               durationMs,
             },
           })
-        } else if (durationMs >= SLOW_REQUEST_THRESHOLD_MS) {
-          logWarning({
-            message: `[HTTP] Slow request: ${requestInfo.method} ${requestInfo.path}`,
-            attributes: {
-              httpMethod: requestInfo.method,
-              httpPath: requestInfo.path,
-              status: response.status,
-              durationMs,
-            },
-          })
+
+          // Emit the wide event with error context
+          log.error(
+            error instanceof Error ? error : new Error(String(error)),
+          )
+          log.emit({ status: 500 })
+
+          throw error
         }
-
-        return response
-      } catch (error) {
-        const durationMs = Date.now() - startTime
-
-        logError({
-          message: `[HTTP] ${requestInfo.method} ${requestInfo.path} -> Error`,
-          error,
-          attributes: {
-            httpMethod: requestInfo.method,
-            httpPath: requestInfo.path,
-            durationMs,
-          },
-        })
-
-        throw error
-      }
-    },
+      }),
   )
 }
 
