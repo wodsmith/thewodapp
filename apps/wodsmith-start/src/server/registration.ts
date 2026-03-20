@@ -152,6 +152,7 @@ function parsePendingTeammateCount(
  * Bypasses permission checks since captain is inviting during registration
  * Ported from apps/wodsmith/src/server/team-members.ts
  */
+// @lat: [[registration#Team Registration]]
 async function inviteUserToTeamInternal({
   teamId,
   email,
@@ -385,6 +386,7 @@ async function getCompetition(competitionId: string) {
  * @param params.affiliateName - Optional affiliate/gym name for captain
  * @param params.teammates - Required for team divisions, array of teammate info
  */
+// @lat: [[registration#Core Registration Logic]]
 export async function registerForCompetition(
   params: RegisterForCompetitionParams,
 ): Promise<RegisterForCompetitionResult> {

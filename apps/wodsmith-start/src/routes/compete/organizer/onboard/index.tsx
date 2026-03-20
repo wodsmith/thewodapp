@@ -6,6 +6,7 @@
  *
  * Port from apps/wodsmith/src/app/(compete)/compete/(organizer-public)/organizer/onboard/page.tsx
  */
+// @lat: [[organizer-dashboard#Organizer Onboarding]]
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { zodResolver } from "@hookform/resolvers/zod"

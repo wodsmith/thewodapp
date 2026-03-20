@@ -20,6 +20,7 @@ export interface DivisionCapacityResult {
   isFull: boolean
 }
 
+// @lat: [[registration#Capacity Management]]
 export function calculateDivisionCapacity(
   input: DivisionCapacityInput,
 ): DivisionCapacityResult {

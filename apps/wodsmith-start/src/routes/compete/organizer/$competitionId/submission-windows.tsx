@@ -4,6 +4,7 @@
  * Organizer page for managing submission windows for online competitions.
  * Only available for online competition types.
  */
+// @lat: [[organizer-dashboard#Submission Windows]]
 
 import { createFileRoute, getRouteApi, redirect } from "@tanstack/react-router"
 import { SubmissionWindowsManager } from "@/components/compete/submission-windows-manager"

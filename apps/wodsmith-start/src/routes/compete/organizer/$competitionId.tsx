@@ -4,6 +4,7 @@
  * Layout route for organizer competition detail pages with sidebar navigation.
  * Fetches competition data, verifies user permissions, and provides context to child routes.
  */
+// @lat: [[organizer-dashboard#Layout and Access Control]]
 
 import {
   createFileRoute,

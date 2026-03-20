@@ -5,6 +5,7 @@
  * Fetches events, divisions, movements, and sponsors in parallel.
  * Uses parent route loader data for competition data.
  */
+// @lat: [[organizer-dashboard#Event Management]]
 
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { OrganizerEventManager } from "@/components/events/organizer-event-manager"

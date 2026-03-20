@@ -6,6 +6,7 @@
  *
  * Port from apps/wodsmith/src/app/(compete)/compete/organizer/[competitionId]/(with-sidebar)/results/page.tsx
  */
+// @lat: [[organizer-dashboard#Results Entry]]
 
 import {
   createFileRoute,

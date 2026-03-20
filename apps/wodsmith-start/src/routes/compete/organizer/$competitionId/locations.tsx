@@ -4,6 +4,7 @@
  * Organizer page for managing competition venues/locations.
  * Allows CRUD operations on venues that are used for heat scheduling.
  */
+// @lat: [[organizer-dashboard#Locations (Venues)]]
 
 import { createFileRoute, getRouteApi, useRouter } from "@tanstack/react-router"
 import { VenueManager } from "@/components/organizer/schedule/venue-manager"

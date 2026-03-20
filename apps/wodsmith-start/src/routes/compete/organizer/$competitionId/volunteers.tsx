@@ -56,6 +56,7 @@ interface EventDefaults {
   minHeatBuffer: number | null
 }
 
+// @lat: [[organizer-dashboard#Volunteers]]
 export const Route = createFileRoute(
   "/compete/organizer/$competitionId/volunteers",
 )({

@@ -665,6 +665,7 @@ async function sendSlackNotification(
 // Cloudflare Workflow class (production — durable execution with retries)
 // =========================================================================
 
+// @lat: [[registration#Stripe Checkout Workflow]]
 class StripeCheckoutWorkflowBase extends WorkflowEntrypoint<
   Env,
   CheckoutCompletedParams

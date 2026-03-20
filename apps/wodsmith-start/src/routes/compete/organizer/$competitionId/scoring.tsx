@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
 import { ScoringSettingsForm } from "./-components/scoring-settings-form"
 
+// @lat: [[organizer-dashboard#Scoring Configuration]]
 export const Route = createFileRoute(
   "/compete/organizer/$competitionId/scoring",
 )({
