@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { ArrowLeft, Layers, ListPlus, Pencil, Plus, Trophy } from "lucide-react"
+import { ArrowLeft, Calendar, Layers, ListPlus, Pencil, Plus, Trophy } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { AddCompetitionsToSeriesDialog } from "@/components/add-competitions-to-series-dialog"
@@ -278,6 +278,15 @@ function SeriesDetailPage() {
                     >
                       <Layers className="h-4 w-4 mr-2" />
                       Configure Divisions
+                    </Link>
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <Link
+                      to="/compete/organizer/series/$groupId/events"
+                      params={{ groupId: group.id }}
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Events
                     </Link>
                   </Button>
                   <Button variant="outline" asChild>

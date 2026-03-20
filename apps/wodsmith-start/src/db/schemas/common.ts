@@ -126,3 +126,6 @@ export const createSeriesDivisionMappingId = () => `sdm_${ulid()}`
 
 // Series template division ID generators
 export const createSeriesTemplateDivisionId = () => `std_${ulid()}`
+
+// Series event mapping ID generators
+export const createSeriesEventMappingId = () => `sem_${ulid()}`

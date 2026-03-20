@@ -11,6 +11,7 @@ import {
 import {
   commonColumns,
   createSeriesDivisionMappingId,
+  createSeriesEventMappingId,
   createSeriesTemplateDivisionId,
 } from "./common"
 import { competitionGroupsTable, competitionsTable } from "./competitions"
@@ -96,6 +97,48 @@ export const seriesDivisionMappingsTable = mysqlTable(
   ],
 )
 
+/**
+ * Series Event Mappings
+ *
+ * Maps each competition's events (track_workouts) to series-level template events.
+ * This follows the same pattern as series_division_mappings but for events.
+ *
+ * NOTE: PlanetScale (Vitess) does not support foreign key constraints.
+ * Cascade cleanup is handled at the application level:
+ * - Deleting a template event cleans up mappings referencing it
+ * - Deleting a competition event cleans up its mapping
+ * - saveSeriesEventMappingsFn does a full replace on save
+ * Relations below are for Drizzle query builder only (no DB-level enforcement).
+ */
+export const seriesEventMappingsTable = mysqlTable(
+  "series_event_mappings",
+  {
+    ...commonColumns,
+    id: varchar({ length: 255 })
+      .primaryKey()
+      .$defaultFn(() => createSeriesEventMappingId())
+      .notNull(),
+    // The series group this mapping belongs to
+    groupId: varchar({ length: 255 }).notNull(),
+    // The competition whose event is being mapped
+    competitionId: varchar({ length: 255 }).notNull(),
+    // The competition's event (track_workout)
+    competitionEventId: varchar({ length: 255 }).notNull(),
+    // The series template event (track_workout) this maps to
+    templateEventId: varchar({ length: 255 }).notNull(),
+  },
+  (table) => [
+    // Each competition event can only be mapped to one template event per series
+    uniqueIndex("sem_group_comp_event_idx").on(
+      table.groupId,
+      table.competitionId,
+      table.competitionEventId,
+    ),
+    index("sem_group_template_idx").on(table.groupId, table.templateEventId),
+    index("sem_competition_idx").on(table.competitionId),
+  ],
+)
+
 // Relations (Drizzle query builder only — no DB-level FK enforcement on PlanetScale)
 export const seriesTemplateDivisionsRelations = relations(
   seriesTemplateDivisionsTable,
@@ -135,10 +178,27 @@ export const seriesDivisionMappingsRelations = relations(
   }),
 )
 
+export const seriesEventMappingsRelations = relations(
+  seriesEventMappingsTable,
+  ({ one }) => ({
+    group: one(competitionGroupsTable, {
+      fields: [seriesEventMappingsTable.groupId],
+      references: [competitionGroupsTable.id],
+    }),
+    competition: one(competitionsTable, {
+      fields: [seriesEventMappingsTable.competitionId],
+      references: [competitionsTable.id],
+    }),
+  }),
+)
+
 // Type exports
 export type SeriesTemplateDivision = InferSelectModel<
   typeof seriesTemplateDivisionsTable
 >
 export type SeriesDivisionMapping = InferSelectModel<
   typeof seriesDivisionMappingsTable
+>
+export type SeriesEventMapping = InferSelectModel<
+  typeof seriesEventMappingsTable
 >

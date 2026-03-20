@@ -26,6 +26,7 @@ import {
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -33,6 +34,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import {
   Select,
   SelectContent,
@@ -78,6 +85,10 @@ interface CompetitionEventRowProps {
   isSubEvent?: boolean
   childCount?: number
   parentEventId?: string
+  /** Series name (shown in tooltip) */
+  seriesName?: string | null
+  /** Template event name if this event is mapped to a series template */
+  seriesTemplateName?: string
 }
 
 export function CompetitionEventRow({
@@ -96,6 +107,8 @@ export function CompetitionEventRow({
   isSubEvent,
   childCount,
   parentEventId,
+  seriesName,
+  seriesTemplateName,
 }: CompetitionEventRowProps) {
   const ref = useRef<HTMLDivElement>(null)
   const dragHandleRef = useRef<HTMLButtonElement>(null)
@@ -378,6 +391,23 @@ export function CompetitionEventRow({
 
                 {/* Badges - hidden on mobile, shown on desktop */}
                 <div className="hidden sm:flex items-center gap-1.5">
+                  {seriesTemplateName && (
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge
+                            variant="outline"
+                            className="text-xs text-muted-foreground border-muted cursor-default"
+                          >
+                            Series
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>From series{seriesName ? `: ${seriesName}` : ""}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                   {event.workout.scheme && (
                     <span className="text-xs bg-muted px-2 py-1 rounded shrink-0">
                       {event.workout.scheme}
@@ -499,6 +529,14 @@ export function CompetitionEventRow({
               {/* Second row - badges, status, actions - visible only on mobile */}
               <div className="flex items-center gap-1.5 sm:hidden">
                 <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                  {seriesTemplateName && (
+                    <Badge
+                      variant="outline"
+                      className="text-xs text-muted-foreground border-muted"
+                    >
+                      Series
+                    </Badge>
+                  )}
                   {event.workout.scheme && (
                     <span className="text-xs bg-muted px-2 py-1 rounded">
                       {event.workout.scheme}
