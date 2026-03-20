@@ -77,6 +77,7 @@ interface CompetitionEventRowProps {
   isParentEvent?: boolean
   isSubEvent?: boolean
   childCount?: number
+  parentEventId?: string
 }
 
 export function CompetitionEventRow({
@@ -94,6 +95,7 @@ export function CompetitionEventRow({
   isParentEvent,
   isSubEvent,
   childCount,
+  parentEventId,
 }: CompetitionEventRowProps) {
   const ref = useRef<HTMLDivElement>(null)
   const dragHandleRef = useRef<HTMLButtonElement>(null)
@@ -476,8 +478,9 @@ export function CompetitionEventRow({
                       to="/compete/organizer/$competitionId/events/$eventId"
                       params={{
                         competitionId: competitionId,
-                        eventId: event.id,
+                        eventId: isSubEvent && parentEventId ? parentEventId : event.id,
                       }}
+                      search={isSubEvent && parentEventId ? { tab: event.id } : {}}
                     >
                       <Pencil className="h-4 w-4" />
                     </Link>
@@ -589,8 +592,9 @@ export function CompetitionEventRow({
                       to="/compete/organizer/$competitionId/events/$eventId"
                       params={{
                         competitionId: competitionId,
-                        eventId: event.id,
+                        eventId: isSubEvent && parentEventId ? parentEventId : event.id,
                       }}
+                      search={isSubEvent && parentEventId ? { tab: event.id } : {}}
                     >
                       <Pencil className="h-4 w-4" />
                     </Link>

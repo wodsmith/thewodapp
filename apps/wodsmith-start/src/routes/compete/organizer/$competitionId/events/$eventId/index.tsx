@@ -8,6 +8,7 @@
 import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
 import { Plus, Video } from "lucide-react"
 import { useState } from "react"
+import { z } from "zod"
 import {
   EVENT_DETAILS_FORM_ID,
   EventDetailsForm,
@@ -36,6 +37,9 @@ const eventRoute = getRouteApi(
 export const Route = createFileRoute(
   "/compete/organizer/$competitionId/events/$eventId/",
 )({
+  validateSearch: z.object({
+    tab: z.string().optional(),
+  }),
   component: EventEditPage,
 })
 
@@ -166,12 +170,20 @@ function ParentEventEditPage() {
     movements,
     sponsors,
     divisionDescriptions,
+    resources,
+    judgingSheets: initialSheets,
     childEvents,
     childDivisionDescriptions,
   } = eventRoute.useLoaderData()
   const { competition } = parentRoute.useLoaderData()
+  const { tab } = Route.useSearch()
 
-  const [activeTab, setActiveTab] = useState(childEvents[0]?.id ?? "")
+  // Local state for judging sheets to enable real-time updates
+  const [judgingSheets, setJudgingSheets] = useState(initialSheets)
+
+  // Use search param tab if it matches a child event, otherwise default to first child
+  const defaultTab = (tab && childEvents.some((c) => c.id === tab) ? tab : childEvents[0]?.id) ?? ""
+  const [activeTab, setActiveTab] = useState(defaultTab)
 
   // Generate unique form IDs per child event
   const getChildFormId = (childId: string) => `event-details-form-${childId}`
@@ -279,6 +291,21 @@ function ParentEventEditPage() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Event Resources */}
+      <EventResourcesCard
+        eventId={event.id}
+        teamId={competition.organizingTeamId}
+        initialResources={resources}
+      />
+
+      {/* Judging Sheets */}
+      <EventJudgingSheets
+        competitionId={competition.id}
+        trackWorkoutId={event.id}
+        sheets={judgingSheets}
+        onSheetsChange={setJudgingSheets}
+      />
     </>
   )
 }
