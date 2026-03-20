@@ -97,3 +97,44 @@ competitionBroadcastRecipientsTable
 ```
 
 The `audienceFilter` column stores a JSON object describing the filter criteria. At send time, the filter is evaluated against current registrations to determine recipients, and a row is inserted into the recipients table for each matched athlete for delivery tracking.
+
+### Email Delivery via Resend
+
+WODsmith already uses [Resend](https://resend.com) for all transactional emails (verification, password reset, team invites, registration confirmations, etc.) via a unified `sendEmail()` function in `src/utils/email.tsx`. Broadcasts will use the same infrastructure:
+
+- **Sender**: `team@mail.wodsmith.com` (already verified in Resend with SPF/DKIM)
+- **Templates**: New React Email template for broadcast content, rendered via `@react-email/render`
+- **Tags**: Broadcasts tagged with `{ name: "type", value: "competition-broadcast" }` for filtering in Resend dashboard
+- **Reply-to**: Configurable per broadcast (defaults to `support@mail.wodsmith.com`)
+- **Resend API**: Direct `fetch()` to `https://api.resend.com/emails` with Bearer token auth (same pattern as existing emails)
+- **Rate limits**: Resend allows 100 emails/second on paid plans. A broadcast to 500 athletes completes in ~5 seconds with sequential sends, or faster with Resend's batch endpoint (`/emails/batch`, up to 100 recipients per call)
+
+#### Resend Batch API
+
+For broadcasts, prefer Resend's [batch send endpoint](https://resend.com/docs/api-reference/emails/send-batch-emails) (`POST /emails/batch`) which accepts up to 100 emails per request. This reduces the number of API calls from N to ceil(N/100) and simplifies error handling — the batch response returns per-email success/failure status.
+
+### Reliable Delivery: Cloudflare Queue
+
+The current `sendEmail()` function is fire-and-forget: if the Resend API call fails, the error is caught, logged, and swallowed. This is acceptable for transactional emails triggered by user actions (the user can retry the action), but broadcasts are different — if an organizer sends a broadcast to 300 athletes and 20 emails fail due to a transient Resend outage, there's no easy way to retry just those 20.
+
+**Option 1: Synchronous with manual retry (MVP)**
+
+Send all emails in the request handler. Track per-recipient delivery status in `competitionBroadcastRecipientsTable`. If some fail, the organizer can see which failed and trigger a "retry failed" action. Simple to build but ties up the Worker for the duration of the send, and large broadcasts risk hitting the Worker CPU time limit.
+
+**Option 2: Cloudflare Queue for async delivery**
+
+Enqueue one message per recipient (or per batch of up to 100) into a Cloudflare Queue. A queue consumer Worker processes messages, calls Resend, and updates delivery status in the database. Failed messages are automatically retried by the queue with backoff. Benefits:
+
+- **Automatic retry** — Cloudflare Queues retry failed messages up to 3 times with exponential backoff
+- **No Worker timeout risk** — the HTTP request returns immediately after enqueueing; delivery happens asynchronously
+- **Back-pressure** — the queue naturally rate-limits sends, preventing Resend API rate limit hits
+- **Visibility** — delivery status updates flow into the recipients table as messages are processed
+- **Dead letter queue** — persistently failed messages can be routed to a DLQ for manual investigation
+
+Trade-offs:
+
+- Adds infrastructure complexity (new Queue binding in `alchemy.run.ts`, consumer handler)
+- Delivery is eventually consistent — organizer won't see "all sent" immediately
+- Requires a queue consumer Worker (can be the same Worker with a `queue()` handler)
+
+**Recommendation**: Start with **Option 1** for MVP. The synchronous approach with per-recipient status tracking and a "retry failed" button is sufficient for early usage where broadcast audiences are small (sub-500). Add the Cloudflare Queue in a follow-up when broadcasts scale or when we add scheduled broadcasts (which need async processing regardless).
