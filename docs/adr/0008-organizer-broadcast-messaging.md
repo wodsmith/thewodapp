@@ -85,7 +85,7 @@ A **broadcast** is a message published by an organizer, scoped to a competition 
 
 ### Data Model (Conceptual)
 
-```
+```sql
 competitionBroadcastsTable
   id, competitionId, teamId, title, body, audienceFilter (JSON),
   recipientCount, status (draft|sent|scheduled), scheduledAt, sentAt,
@@ -164,5 +164,5 @@ The HTML body is rendered once when the broadcast is sent and included in each q
 
 1. Organizer clicks "Send" → server function evaluates audience filter, inserts recipient rows with `emailDeliveryStatus: 'queued'`, renders the email template once, and enqueues batches of up to 100 recipients
 2. Queue consumer receives batch → calls Resend batch API → updates each recipient row to `'sent'` or `'failed'`
-3. On consumer failure, Cloudflare retries automatically (up to 3 times with backoff)
+3. On consumer failure, Cloudflare retries automatically (up to 3 times with backoff) — consumer must be idempotent: only send recipients still in `'queued'` state to prevent duplicate emails on partial failure retries
 4. After max retries exhausted, message goes to dead letter queue for investigation
