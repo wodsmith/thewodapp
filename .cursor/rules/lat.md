@@ -1,14 +1,14 @@
 # Before starting work
 
-- Run `lat search` to find sections relevant to your task. Read them to understand the design intent before writing code.
-- Run `lat expand` on user prompts to expand any `[[refs]]` — this resolves section names to file locations and provides context.
+- Use the `lat_search` tool to find sections relevant to your task. Read them to understand the design intent before writing code.
+- Use the `lat_expand` tool on user prompts to expand any `[[refs]]` — this resolves section names to file locations and provides context.
 
 # Post-task checklist (REQUIRED — do not skip)
 
 After EVERY task, before responding to the user:
 
 - [ ] Update `lat.md/` if you added or changed any functionality, architecture, tests, or behavior
-- [ ] Run `lat check` — all wiki links and code refs must pass
+- [ ] Use the `lat_check` tool — all wiki links and code refs must pass
 - [ ] Do not skip these steps. Do not consider your task done until both are complete.
 
 ---
@@ -17,19 +17,17 @@ After EVERY task, before responding to the user:
 
 This project uses [lat.md](https://www.npmjs.com/package/lat.md) to maintain a structured knowledge graph of its architecture, design decisions, and test specs in the `lat.md/` directory. It is a set of cross-linked markdown files that describe **what** this project does and **why** — the domain concepts, key design decisions, business logic, and test specifications. Use it to ground your work in the actual architecture rather than guessing.
 
-# Commands
+# Tools
 
-```bash
-lat locate "Section Name"      # find a section by name (exact, fuzzy)
-lat refs "file#Section"        # find what references a section
-lat search "natural language"  # semantic search across all sections
-lat expand "user prompt text"  # expand [[refs]] to resolved locations
-lat check                      # validate all links and code refs
-```
+You have access to the following MCP tools from the `lat` server:
 
-Run `lat --help` when in doubt about available commands or options.
+- **lat_locate** — find a section by name (exact, fuzzy)
+- **lat_search** — semantic search across all sections
+- **lat_expand** — expand `[[refs]]` in text to resolved locations
+- **lat_check** — validate all wiki links and code refs
+- **lat_refs** — find what references a section
 
-If `lat search` fails because no API key is configured, explain to the user that semantic search requires a key provided via `LAT_LLM_KEY` (direct value), `LAT_LLM_KEY_FILE` (path to key file), or `LAT_LLM_KEY_HELPER` (command that prints the key). Supported key prefixes: `sk-...` (OpenAI) or `vck_...` (Vercel). If the user doesn't want to set it up, use `lat locate` for direct lookups instead.
+If `lat_search` fails because `LAT_LLM_KEY` is not set, explain to the user that semantic search requires an API key (`export LAT_LLM_KEY=sk-...` for OpenAI or `export LAT_LLM_KEY=vck_...` for Vercel). If the user doesn't want to set it up, use `lat_locate` for direct lookups instead.
 
 # Syntax primer
 
@@ -62,7 +60,7 @@ Tokens past their expiry timestamp are rejected with 401, even if otherwise vali
 Login request without a password field returns 400 with a descriptive error.
 ```
 
-Every section MUST have a description — at least one sentence explaining what the test verifies and why. Empty sections with just a heading are not acceptable. (This is a specific case of the general leading paragraph rule below.)
+Every section MUST have a description — at least one sentence explaining what the test verifies and why. Empty sections with just a heading are not acceptable.
 
 Each test in code should reference its spec with exactly one comment placed next to the relevant test — not at the top of the file:
 
@@ -77,29 +75,3 @@ def test_handles_missing_password():
 ```
 
 Do not duplicate refs. One `@lat:` comment per spec section, placed at the test that covers it. `lat check` will flag any spec section not covered by a code reference, and any code reference pointing to a nonexistent section.
-
-# Section structure
-
-Every section in `lat.md/` **must** have a leading paragraph — at least one sentence immediately after the heading, before any child headings or other block content. The first paragraph must be ≤250 characters (excluding `[[wiki link]]` content). This paragraph serves as the section's overview and is used in search results, command output, and RAG context — keeping it concise guarantees the section's essence is always captured.
-
-```markdown
-# Good Section
-
-Brief overview of what this section documents and why it matters.
-
-More detail can go in subsequent paragraphs, code blocks, or lists.
-
-## Child heading
-
-Details about this child topic.
-```
-
-```markdown
-# Bad Section
-
-## Child heading
-
-Details about this child topic.
-```
-
-The second example is invalid because `Bad Section` has no leading paragraph. `lat check` validates this rule and reports errors for missing or overly long leading paragraphs.

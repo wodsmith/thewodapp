@@ -6,10 +6,35 @@
       "sourceType": "github",
       "computedHash": "3c1e3549339c98c44c8c75f676f56ebc0adcd4494ec27b7f1851f7c5a7c2deaf"
     },
+    "analyze-logs": {
+      "source": "hugorcd/evlog",
+      "sourceType": "github",
+      "computedHash": "28bd8254997b767ebba1f7f2cf4567ddb6c51b1fcdca9baf9b9cd7ee3ca51d7c"
+    },
+    "create-evlog-adapter": {
+      "source": "hugorcd/evlog",
+      "sourceType": "github",
+      "computedHash": "06a0680134a0ef0490ebdb5d3523479fabef3d9c8a7128792ae461695c9a3807"
+    },
+    "create-evlog-enricher": {
+      "source": "hugorcd/evlog",
+      "sourceType": "github",
+      "computedHash": "a37e7984f6b5c66473743c601c606f5c9965251ce9e18baf05450441c943b0c7"
+    },
+    "create-evlog-framework-integration": {
+      "source": "hugorcd/evlog",
+      "sourceType": "github",
+      "computedHash": "633329f0feb0369be4e1102e51975fe9e12f51ceb75e4d186c2426044f4710fe"
+    },
     "dogfood": {
       "source": "vercel-labs/agent-browser",
       "sourceType": "github",
       "computedHash": "055e73cddeec68e7eb75eab0c3f8490415384f72e98ac05405821427ed0e74b1"
+    },
+    "review-logging-patterns": {
+      "source": "hugorcd/evlog",
+      "sourceType": "github",
+      "computedHash": "851c4f603ee36725fbddd6ba3f86c7b953da33dc437de256bf64484105de054b"
     }
   }
 }
