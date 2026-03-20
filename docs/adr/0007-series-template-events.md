@@ -110,11 +110,10 @@ This follows the same structure as `series_division_mappings`.
 Events are complex, so we need to be explicit about what sync copies from template → competition:
 
 **Always synced (template is authoritative):**
-- Workout definition: `name`, `description`, `scheme`, `scoreType`, `scoreSortOrder`, `timeCap`, `reps`
-- Track workout settings: `pointsMultiplier`, `notes`
-- Event order: `trackOrder` (relative ordering preserved)
+- Workout definition (`workouts` table): `name`, `description`, `scheme`, `scoreType`, `scoreSortOrder`, `timeCap`, `reps`
+- Event settings (`track_workouts` table): `pointsMultiplier`, `notes`, `trackOrder` (relative ordering preserved)
+- Parent-child structure: `parentEventId` relationships — sub-events are synced as a group with their parent
 - Per-division descriptions: `workoutScalingDescriptionsTable` rows (matched via division mappings)
-- Parent-child structure: sub-events are synced as a group with their parent
 
 **Optionally synced (organizer chooses per-sync):**
 - Resources: `event_resources` rows (copies content, not references)
@@ -171,8 +170,8 @@ This two-step selection (which competitions → preview changes → confirm) giv
 Events have per-division workout descriptions (e.g., "Rx: 135lb clean" vs "Scaled: 95lb clean"). When syncing, these descriptions must be matched to the correct competition division. This uses the existing `series_division_mappings`:
 
 ```
-Template event division description (template divisionId)
-  → series_division_mappings (templateDivisionId → competitionDivisionId)
+Template event division description (series divisionId)
+  → series_division_mappings (seriesDivisionId → competitionDivisionId)
     → Competition event division description (competition divisionId)
 ```
 
