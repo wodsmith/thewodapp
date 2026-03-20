@@ -164,5 +164,5 @@ The HTML body is rendered once when the broadcast is sent and included in each q
 
 1. Organizer clicks "Send" → server function evaluates audience filter, inserts recipient rows with `emailDeliveryStatus: 'queued'`, renders the email template once, and enqueues batches of up to 100 recipients
 2. Queue consumer receives batch → calls Resend batch API → updates each recipient row to `'sent'` or `'failed'`
-3. On consumer failure, Cloudflare retries automatically (up to 3 times with backoff) — consumer must be idempotent: only send recipients still in `'queued'` state to prevent duplicate emails on partial failure retries
+3. On consumer failure, Cloudflare retries automatically (up to 3 times with backoff) — consumer must be idempotent: each Resend API call includes an `Idempotency-Key` header using the recipient row ID (e.g., `broadcast-{recipientId}`), so Resend deduplicates on their end even if the consumer crashes between sending and updating status. Additionally, the consumer skips recipients already in `'sent'` state as a defense-in-depth check
 4. After max retries exhausted, message goes to dead letter queue for investigation
