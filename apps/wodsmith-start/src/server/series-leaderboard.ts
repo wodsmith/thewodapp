@@ -10,7 +10,7 @@
  * to participate in the same leaderboard.
  */
 
-import { and, eq, inArray } from "drizzle-orm"
+import { and, eq, inArray, isNotNull } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
   competitionGroupsTable,
@@ -189,7 +189,12 @@ export async function getSeriesLeaderboard(params: {
       competitionId: programmingTracksTable.competitionId,
     })
     .from(programmingTracksTable)
-    .where(inArray(programmingTracksTable.competitionId, participatingCompIds))
+    .where(
+      and(
+        inArray(programmingTracksTable.competitionId, participatingCompIds),
+        isNotNull(programmingTracksTable.competitionId),
+      ),
+    )
 
   if (tracks.length === 0) {
     return { ...emptyResult, availableDivisions }

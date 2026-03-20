@@ -211,7 +211,6 @@ export const createSeriesTemplateTrackFn = createServerFn({ method: "POST" })
     z
       .object({
         groupId: z.string().min(1),
-        teamId: z.string().min(1),
       })
       .parse(data),
   )
@@ -247,7 +246,7 @@ export const createSeriesTemplateTrackFn = createServerFn({ method: "POST" })
         id: trackId,
         name: "Series Template",
         type: "series-template",
-        ownerTeamId: data.teamId,
+        ownerTeamId: group.organizingTeamId,
         competitionId: null,
         isPublic: 0,
       })
