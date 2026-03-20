@@ -20,6 +20,7 @@ import {
   EyeOff,
   GripVertical,
   Pencil,
+  Plus,
   SlidersHorizontal,
   Trash2,
 } from "lucide-react"
@@ -72,6 +73,11 @@ interface CompetitionEventRowProps {
   sponsors: Sponsor[]
   onRemove: () => void
   onDrop: (sourceIndex: number, targetIndex: number) => void
+  onAddSubEvent?: () => void
+  isParentEvent?: boolean
+  isSubEvent?: boolean
+  childCount?: number
+  parentEventId?: string
 }
 
 export function CompetitionEventRow({
@@ -85,6 +91,11 @@ export function CompetitionEventRow({
   sponsors,
   onRemove,
   onDrop,
+  onAddSubEvent,
+  isParentEvent,
+  isSubEvent,
+  childCount,
+  parentEventId,
 }: CompetitionEventRowProps) {
   const ref = useRef<HTMLDivElement>(null)
   const dragHandleRef = useRef<HTMLButtonElement>(null)
@@ -331,7 +342,7 @@ export function CompetitionEventRow({
   return (
     <div ref={ref} className="relative">
       {closestEdge && <DropIndicator edge={closestEdge} gap="2px" />}
-      <Card className={`${isDragging ? "opacity-50" : ""} group`}>
+      <Card className={`${isDragging ? "opacity-50" : ""} ${isSubEvent ? "border-dashed" : ""} group`}>
         <Collapsible
           open={isDescriptionsOpen}
           onOpenChange={setIsDescriptionsOpen}
@@ -358,6 +369,11 @@ export function CompetitionEventRow({
                 {/* Event Name */}
                 <span className="flex-1 font-medium truncate min-w-0">
                   {event.workout.name}
+                  {isParentEvent && childCount !== undefined && childCount > 0 && (
+                    <span className="ml-2 text-xs text-muted-foreground font-normal">
+                      ({childCount} sub-event{childCount !== 1 ? "s" : ""})
+                    </span>
+                  )}
                 </span>
 
                 {/* Badges - hidden on mobile, shown on desktop */}
@@ -386,48 +402,61 @@ export function CompetitionEventRow({
                   )}
                 </div>
 
-                {/* Event Status Toggle - hidden on mobile */}
-                <div className="hidden sm:block">
-                  <Select
-                    value={localEventStatus}
-                    onValueChange={(value) =>
-                      handleEventStatusChange(value as EventStatus)
-                    }
-                    disabled={isUpdatingStatus}
-                  >
-                    <SelectTrigger className="w-[110px] h-8 text-xs shrink-0">
-                      <SelectValue>
-                        <span className="flex items-center gap-1.5">
-                          {localEventStatus === EVENT_STATUS.PUBLISHED ? (
-                            <Eye className="h-3.5 w-3.5 text-green-600" />
-                          ) : (
+                {/* Event Status Toggle - hidden on mobile, hidden for sub-events (cascaded from parent) */}
+                {!isSubEvent && (
+                  <div className="hidden sm:block">
+                    <Select
+                      value={localEventStatus}
+                      onValueChange={(value) =>
+                        handleEventStatusChange(value as EventStatus)
+                      }
+                      disabled={isUpdatingStatus}
+                    >
+                      <SelectTrigger className="w-[110px] h-8 text-xs shrink-0">
+                        <SelectValue>
+                          <span className="flex items-center gap-1.5">
+                            {localEventStatus === EVENT_STATUS.PUBLISHED ? (
+                              <Eye className="h-3.5 w-3.5 text-green-600" />
+                            ) : (
+                              <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+                            )}
+                            {localEventStatus === EVENT_STATUS.PUBLISHED
+                              ? "Published"
+                              : "Draft"}
+                          </span>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={EVENT_STATUS.DRAFT}>
+                          <span className="flex items-center gap-2">
                             <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
-                          )}
-                          {localEventStatus === EVENT_STATUS.PUBLISHED
-                            ? "Published"
-                            : "Draft"}
-                        </span>
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={EVENT_STATUS.DRAFT}>
-                        <span className="flex items-center gap-2">
-                          <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
-                          Draft
-                        </span>
-                      </SelectItem>
-                      <SelectItem value={EVENT_STATUS.PUBLISHED}>
-                        <span className="flex items-center gap-2">
-                          <Eye className="h-3.5 w-3.5 text-green-600" />
-                          Published
-                        </span>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                            Draft
+                          </span>
+                        </SelectItem>
+                        <SelectItem value={EVENT_STATUS.PUBLISHED}>
+                          <span className="flex items-center gap-2">
+                            <Eye className="h-3.5 w-3.5 text-green-600" />
+                            Published
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 {/* Actions - hidden on mobile */}
                 <div className="hidden sm:flex items-center gap-1 shrink-0">
+                  {onAddSubEvent && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={onAddSubEvent}
+                      className="text-muted-foreground hover:text-foreground text-xs h-8"
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      Sub-Event
+                    </Button>
+                  )}
                   {sortedDivisions.length > 0 && (
                     <CollapsibleTrigger asChild>
                       <Button
@@ -449,8 +478,9 @@ export function CompetitionEventRow({
                       to="/compete/organizer/$competitionId/events/$eventId"
                       params={{
                         competitionId: competitionId,
-                        eventId: event.id,
+                        eventId: isSubEvent && parentEventId ? parentEventId : event.id,
                       }}
+                      search={isSubEvent && parentEventId ? { tab: event.id } : {}}
                     >
                       <Pencil className="h-4 w-4" />
                     </Link>
@@ -490,44 +520,57 @@ export function CompetitionEventRow({
                         "Sponsor"}
                     </span>
                   )}
-                  <Select
-                    value={localEventStatus}
-                    onValueChange={(value) =>
-                      handleEventStatusChange(value as EventStatus)
-                    }
-                    disabled={isUpdatingStatus}
-                  >
-                    <SelectTrigger className="w-[110px] h-8 text-xs">
-                      <SelectValue>
-                        <span className="flex items-center gap-1.5">
-                          {localEventStatus === EVENT_STATUS.PUBLISHED ? (
-                            <Eye className="h-3.5 w-3.5 text-green-600" />
-                          ) : (
+                  {!isSubEvent && (
+                    <Select
+                      value={localEventStatus}
+                      onValueChange={(value) =>
+                        handleEventStatusChange(value as EventStatus)
+                      }
+                      disabled={isUpdatingStatus}
+                    >
+                      <SelectTrigger className="w-[110px] h-8 text-xs">
+                        <SelectValue>
+                          <span className="flex items-center gap-1.5">
+                            {localEventStatus === EVENT_STATUS.PUBLISHED ? (
+                              <Eye className="h-3.5 w-3.5 text-green-600" />
+                            ) : (
+                              <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+                            )}
+                            {localEventStatus === EVENT_STATUS.PUBLISHED
+                              ? "Published"
+                              : "Draft"}
+                          </span>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={EVENT_STATUS.DRAFT}>
+                          <span className="flex items-center gap-2">
                             <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
-                          )}
-                          {localEventStatus === EVENT_STATUS.PUBLISHED
-                            ? "Published"
-                            : "Draft"}
-                        </span>
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={EVENT_STATUS.DRAFT}>
-                        <span className="flex items-center gap-2">
-                          <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
-                          Draft
-                        </span>
-                      </SelectItem>
-                      <SelectItem value={EVENT_STATUS.PUBLISHED}>
-                        <span className="flex items-center gap-2">
-                          <Eye className="h-3.5 w-3.5 text-green-600" />
-                          Published
-                        </span>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                            Draft
+                          </span>
+                        </SelectItem>
+                        <SelectItem value={EVENT_STATUS.PUBLISHED}>
+                          <span className="flex items-center gap-2">
+                            <Eye className="h-3.5 w-3.5 text-green-600" />
+                            Published
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0 ml-auto">
+                  {onAddSubEvent && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={onAddSubEvent}
+                      className="text-muted-foreground hover:text-foreground text-xs h-8"
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      Sub-Event
+                    </Button>
+                  )}
                   {sortedDivisions.length > 0 && (
                     <CollapsibleTrigger asChild>
                       <Button
@@ -549,8 +592,9 @@ export function CompetitionEventRow({
                       to="/compete/organizer/$competitionId/events/$eventId"
                       params={{
                         competitionId: competitionId,
-                        eventId: event.id,
+                        eventId: isSubEvent && parentEventId ? parentEventId : event.id,
                       }}
+                      search={isSubEvent && parentEventId ? { tab: event.id } : {}}
                     >
                       <Pencil className="h-4 w-4" />
                     </Link>

@@ -293,6 +293,8 @@ export function LeaderboardPageContent({
         name: r.eventName,
         trackOrder: r.trackOrder,
         scheme: r.scheme,
+        parentEventId: r.parentEventId,
+        parentEventName: r.parentEventName,
       }))
       .sort((a, b) => a.trackOrder - b.trackOrder)
   }, [leaderboard])

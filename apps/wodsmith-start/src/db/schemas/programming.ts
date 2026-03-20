@@ -2,6 +2,7 @@ import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
 import {
   datetime,
+  decimal,
   index,
   int,
   mysqlTable,
@@ -93,8 +94,10 @@ export const trackWorkoutsTable = mysqlTable(
       .notNull(),
     trackId: varchar({ length: 255 }).notNull(),
     workoutId: varchar({ length: 255 }).notNull(),
-    // Unified ordering field (1, 2, 3...) - renamed from dayNumber for competition support
-    trackOrder: int().notNull(),
+    // Self-referencing parent for sub-event grouping (null = standalone or parent event)
+    parentEventId: varchar({ length: 255 }),
+    // Unified ordering field — decimal allows sub-event insertion (e.g., 3.01, 3.02 under parent at 3)
+    trackOrder: decimal({ precision: 6, scale: 2 }).notNull().$type<number>(),
     notes: text(),
     // Points multiplier for competitions (100 = 1x, 200 = 2x for finals, etc.)
     pointsMultiplier: int().default(100),
@@ -121,6 +124,7 @@ export const trackWorkoutsTable = mysqlTable(
   (table) => [
     index("track_workout_track_idx").on(table.trackId),
     index("track_workout_order_idx").on(table.trackOrder),
+    index("track_workout_parent_idx").on(table.parentEventId),
     index("track_workout_workoutid_idx").on(table.workoutId),
     index("track_workout_unique_idx").on(
       table.trackId,
@@ -201,6 +205,13 @@ export const trackWorkoutsRelations = relations(
       fields: [trackWorkoutsTable.sponsorId],
       references: [sponsorsTable.id],
     }),
+    // Sub-event parent-child self-reference
+    parent: one(trackWorkoutsTable, {
+      fields: [trackWorkoutsTable.parentEventId],
+      references: [trackWorkoutsTable.id],
+      relationName: "parentChild",
+    }),
+    children: many(trackWorkoutsTable, { relationName: "parentChild" }),
     scheduledInstances: many(scheduledWorkoutInstancesTable),
     // Judge rotations and assignment versions (from volunteers system)
     judgeRotations: many(competitionJudgeRotationsTable),

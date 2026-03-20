@@ -12,7 +12,7 @@ export default defineConfig({
 	dbCredentials: {
 		host: url.hostname,
 		user: decodeURIComponent(url.username),
-		password: decodeURIComponent(url.password),
+		password: url.password ? decodeURIComponent(url.password) : undefined,
 		database: url.pathname.slice(1),
 		ssl: isLocalhost ? undefined : { rejectUnauthorized: true },
 	},

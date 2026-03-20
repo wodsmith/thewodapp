@@ -80,6 +80,7 @@ export function DocumentTable({
 			{
 				accessorKey: "fileName",
 				header: "File",
+				meta: { hideOnMobile: true },
 				cell: ({ row }) => (
 					<span className="max-w-48 truncate text-sm text-muted-foreground">
 						{row.getValue("fileName")}
@@ -100,6 +101,7 @@ export function DocumentTable({
 						<ArrowUpDown className="h-3.5 w-3.5" />
 					</button>
 				),
+				meta: { hideOnMobile: true },
 				cell: ({ row }) => {
 					const category = row.getValue("category") as string | null
 					return (
@@ -132,6 +134,7 @@ export function DocumentTable({
 			{
 				accessorKey: "subscriptionTerm",
 				header: "Term",
+				meta: { hideOnMobile: true },
 				cell: ({ row }) => {
 					const term = row.getValue("subscriptionTerm") as string | null
 					return (
@@ -153,6 +156,7 @@ export function DocumentTable({
 						<ArrowUpDown className="h-3.5 w-3.5" />
 					</button>
 				),
+				meta: { hideOnMobile: true },
 				cell: ({ row }) =>
 					formatDate(row.getValue("invoiceDate")),
 			},
@@ -222,28 +226,34 @@ export function DocumentTable({
 					placeholder="Search documents..."
 					value={globalFilter}
 					onChange={(e) => setGlobalFilter(e.target.value)}
-					className="flex h-10 w-full max-w-sm rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+					className="flex h-10 w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:max-w-sm"
 				/>
 			</div>
 
-			<div className="rounded-md border">
+			<div className="overflow-x-auto rounded-md border">
 				<table className="w-full text-sm">
 					<thead>
 						{table.getHeaderGroups().map((headerGroup) => (
 							<tr key={headerGroup.id} className="border-b bg-muted/50">
-								{headerGroup.headers.map((header) => (
-									<th
-										key={header.id}
-										className="h-10 px-4 text-left font-medium text-muted-foreground"
-									>
-										{header.isPlaceholder
-											? null
-											: flexRender(
-													header.column.columnDef.header,
-													header.getContext(),
-												)}
-									</th>
-								))}
+								{headerGroup.headers.map((header) => {
+									const meta = header.column.columnDef.meta as { hideOnMobile?: boolean } | undefined
+									return (
+										<th
+											key={header.id}
+											className={cn(
+												"h-10 px-3 text-left font-medium text-muted-foreground whitespace-nowrap sm:px-4",
+												meta?.hideOnMobile && "hidden md:table-cell",
+											)}
+										>
+											{header.isPlaceholder
+												? null
+												: flexRender(
+														header.column.columnDef.header,
+														header.getContext(),
+													)}
+										</th>
+									)
+								})}
 							</tr>
 						))}
 					</thead>
@@ -263,14 +273,23 @@ export function DocumentTable({
 									key={row.id}
 									className="border-b transition-colors hover:bg-muted/50"
 								>
-									{row.getVisibleCells().map((cell) => (
-										<td key={cell.id} className="px-4 py-3">
-											{flexRender(
-												cell.column.columnDef.cell,
-												cell.getContext(),
-											)}
-										</td>
-									))}
+									{row.getVisibleCells().map((cell) => {
+										const meta = cell.column.columnDef.meta as { hideOnMobile?: boolean } | undefined
+										return (
+											<td
+												key={cell.id}
+												className={cn(
+													"px-3 py-3 sm:px-4",
+													meta?.hideOnMobile && "hidden md:table-cell",
+												)}
+											>
+												{flexRender(
+													cell.column.columnDef.cell,
+													cell.getContext(),
+												)}
+											</td>
+										)
+									})}
 								</tr>
 							))
 						)}

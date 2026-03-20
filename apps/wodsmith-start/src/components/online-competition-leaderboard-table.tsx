@@ -73,6 +73,8 @@ interface OnlineCompetitionLeaderboardTableProps {
     name: string
     trackOrder: number
     scheme: string
+    parentEventId?: string | null
+    parentEventName?: string | null
   }>
   selectedEventId: string | null
   scoringAlgorithm: ScoringAlgorithm
@@ -330,6 +332,8 @@ function MobileOnlineLeaderboardRow({
     name: string
     trackOrder: number
     scheme: string
+    parentEventId?: string | null
+    parentEventName?: string | null
   }>
   scoringAlgorithm: ScoringAlgorithm
   voteCounts: VoteCounts
@@ -429,12 +433,24 @@ function MobileOnlineLeaderboardRow({
         <div className="bg-muted/30 px-3 py-2 border-b space-y-3">
           {/* Event scores */}
           <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-            {sortedEvents.map((event) => {
+            {sortedEvents.map((event, index) => {
               const result = entry.eventResults.find(
                 (r) => r.trackWorkoutId === event.id,
               )
+              const prevEvent = index > 0 ? sortedEvents[index - 1] : null
+              const showParentHeader =
+                event.parentEventName &&
+                event.parentEventId !== prevEvent?.parentEventId
               return (
-                <div key={event.id} className="flex flex-col gap-0.5">
+                <Fragment key={event.id}>
+                  {showParentHeader && (
+                    <div className="col-span-2">
+                      <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground">
+                        {event.parentEventName}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground/70">
                     {event.name}
                   </span>
@@ -472,6 +488,7 @@ function MobileOnlineLeaderboardRow({
                     <span className="text-muted-foreground italic">—</span>
                   )}
                 </div>
+                </Fragment>
               )
             })}
           </div>
@@ -834,6 +851,50 @@ export function OnlineCompetitionLeaderboardTable({
     return validSorting
   }, [sorting, columns, selectedEventId])
 
+  // Compute parent event group spans for the header row
+  const parentGroupSpans = useMemo(() => {
+    if (selectedEventId) return []
+
+    const sortedEvents = [...events].sort(
+      (a, b) => a.trackOrder - b.trackOrder,
+    )
+    const hasAnyParent = sortedEvents.some((e) => e.parentEventId)
+    if (!hasAnyParent) return []
+
+    // Count leading non-event columns (rank, athlete, optionally affiliate)
+    const leadingCols = hasAffiliates ? 3 : 2
+
+    const groups: Array<{
+      label: string | null
+      colSpan: number
+    }> = []
+
+    groups.push({ label: null, colSpan: leadingCols })
+
+    let currentParentId: string | null | undefined = undefined
+    let currentSpan = 0
+    let currentName: string | null = null
+
+    for (const event of sortedEvents) {
+      const pid = event.parentEventId ?? null
+      if (pid === currentParentId) {
+        currentSpan++
+      } else {
+        if (currentSpan > 0) {
+          groups.push({ label: currentName, colSpan: currentSpan })
+        }
+        currentParentId = pid
+        currentName = event.parentEventName ?? null
+        currentSpan = 1
+      }
+    }
+    if (currentSpan > 0) {
+      groups.push({ label: currentName, colSpan: currentSpan })
+    }
+
+    return groups
+  }, [events, selectedEventId, hasAffiliates])
+
   const table = useReactTable({
     data: tableData,
     columns,
@@ -965,6 +1026,24 @@ export function OnlineCompetitionLeaderboardTable({
       <div className="hidden md:block">
         <Table>
           <TableHeader>
+            {parentGroupSpans.length > 0 && (
+              <TableRow className="table-row border-b-0">
+                {parentGroupSpans.map((group, i) => (
+                  <TableHead
+                    key={`group-${i}`}
+                    colSpan={group.colSpan}
+                    className={cn(
+                      "text-center py-1 h-auto",
+                      group.label
+                        ? "text-[11px] uppercase tracking-wide font-semibold text-muted-foreground bg-muted/40 border-x border-t rounded-t-sm"
+                        : "border-b-0",
+                    )}
+                  >
+                    {group.label}
+                  </TableHead>
+                ))}
+              </TableRow>
+            )}
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="table-row">
                 {headerGroup.headers.map((header) => (

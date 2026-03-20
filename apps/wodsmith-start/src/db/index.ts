@@ -54,6 +54,9 @@ export const getDb = createServerOnlyFn((): Database => {
   const connection = mysql.createConnection({
     uri: url.toString(),
     disableEval: true,
+    // Ensure DECIMAL columns are returned as numbers, not strings
+    supportBigNumbers: true,
+    bigNumberStrings: false,
   })
 
   return drizzle({

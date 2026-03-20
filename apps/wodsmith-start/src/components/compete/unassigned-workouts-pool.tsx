@@ -8,6 +8,7 @@ import { GripVertical } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
+import { formatTrackOrder } from "@/utils/format-track-order"
 
 interface WorkoutWithType {
   id: string
@@ -103,7 +104,7 @@ function WorkoutPoolCard({
                 {workout.workoutType}
               </Badge>
               <span className="text-xs text-muted-foreground">
-                Event #{workout.trackOrder}
+                Event #{formatTrackOrder(workout.trackOrder)}
               </span>
             </div>
           </div>

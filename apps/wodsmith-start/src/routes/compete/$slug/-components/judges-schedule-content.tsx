@@ -5,6 +5,7 @@ import { useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { JudgesScheduleEvent } from "@/server-fns/judge-scheduling-fns"
 import { cn } from "@/utils/cn"
+import { formatTrackOrder } from "@/utils/format-track-order"
 
 interface JudgesScheduleContentProps {
   competitionName: string
@@ -223,7 +224,7 @@ export function JudgesScheduleContent({
                     <CardTitle className="flex items-center gap-3">
                       <span className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-orange-600 to-orange-500 rounded-lg flex items-center justify-center">
                         <span className="text-white text-sm font-bold tabular-nums">
-                          {String(event.trackOrder).padStart(2, "0")}
+                          {formatTrackOrder(event.trackOrder)}
                         </span>
                       </span>
                       <span>{event.eventName}</span>
@@ -400,7 +401,7 @@ export function JudgesScheduleContent({
                   {/* Event header for print - plain text */}
                   <div className="mb-2 pb-1 border-b border-gray-400">
                     <h2 className="text-base font-bold">
-                      Event {event.trackOrder}: {event.eventName}
+                      Event {formatTrackOrder(event.trackOrder)}: {event.eventName}
                     </h2>
                     <p className="text-xs text-gray-600">{dayGroup.label}</p>
                   </div>

@@ -14,6 +14,14 @@ import {
   saveSeriesDivisionMappingsFn,
 } from "@/server-fns/series-division-mapping-fns"
 
+function mapsEqual(a: Map<string, string>, b: Map<string, string>): boolean {
+  if (a.size !== b.size) return false
+  for (const [k, v] of a) {
+    if (b.get(k) !== v) return false
+  }
+  return true
+}
+
 interface Props {
   groupId: string
   template: SeriesTemplateData
@@ -39,14 +47,31 @@ export function SeriesDivisionMapper({
     useState<SeriesDivisionMappingData[]>(initialMappings)
   // Increment to force uncontrolled <select> elements to remount with new defaultValues
   const [revision, setRevision] = useState(0)
-  const [isDirty, setIsDirty] = useState(false)
+  // Track per-competition dirty state so reverting a change clears the banner
+  const [dirtyComps, setDirtyComps] = useState<Set<string>>(() => {
+    const dirty = new Set<string>()
+    for (const comp of initialMappings) {
+      if (comp.mappings.some((m) => m.seriesDivisionId !== null && !m.saved)) {
+        dirty.add(comp.competitionId)
+      }
+    }
+    return dirty
+  })
+  const isDirty = dirtyComps.size > 0
   const [showOnlyUnmapped, setShowOnlyUnmapped] = useState(false)
 
   // Sync when parent refreshes data (e.g. after save)
   useEffect(() => {
     setMappings(initialMappings)
     setRevision((r) => r + 1)
-    setIsDirty(false)
+    // Recompute per-comp dirty state from fresh data
+    const dirty = new Set<string>()
+    for (const comp of initialMappings) {
+      if (comp.mappings.some((m) => m.seriesDivisionId !== null && !m.saved)) {
+        dirty.add(comp.competitionId)
+      }
+    }
+    setDirtyComps(dirty)
     // Turn off filter if no comps have unmapped divisions anymore
     const stillHasUnmapped = initialMappings.some((comp) =>
       comp.mappings.some((m) => m.seriesDivisionId === null),
@@ -65,7 +90,13 @@ export function SeriesDivisionMapper({
       const result = await autoMap({ data: { groupId } })
       setMappings(result.competitionMappings)
       setRevision((r) => r + 1)
-      setIsDirty(true)
+      setDirtyComps(
+        new Set(
+          result.competitionMappings
+            .filter((c) => c.mappings.some((m) => m.seriesDivisionId !== null && !m.saved))
+            .map((c) => c.competitionId),
+        ),
+      )
       toast.success("Auto-mapped divisions")
     } catch (e) {
       toast.error(
@@ -219,7 +250,17 @@ export function SeriesDivisionMapper({
                     key={`${comp.competitionId}-${revision}`}
                     comp={comp}
                     template={template}
-                    onChanged={() => setIsDirty(true)}
+                    onDirtyChange={(dirty) => {
+                      setDirtyComps((prev) => {
+                        const next = new Set(prev)
+                        if (dirty) {
+                          next.add(comp.competitionId)
+                        } else {
+                          next.delete(comp.competitionId)
+                        }
+                        return next
+                      })
+                    }}
                     hidden={hidden}
                   />
                 )
@@ -240,12 +281,12 @@ export function SeriesDivisionMapper({
 function CompetitionRow({
   comp,
   template,
-  onChanged,
+  onDirtyChange,
   hidden,
 }: {
   comp: SeriesDivisionMappingData
   template: SeriesTemplateData
-  onChanged: () => void
+  onDirtyChange: (dirty: boolean) => void
   hidden?: boolean
 }) {
   // Build initial state: seriesDivisionId → competitionDivisionId
@@ -259,12 +300,26 @@ function CompetitionRow({
     return map
   }
 
+  // Only includes mappings that are persisted in the DB
+  const initialSaved = () => {
+    const map = new Map<string, string>()
+    for (const m of comp.mappings) {
+      if (m.seriesDivisionId && m.saved) {
+        map.set(m.seriesDivisionId, m.competitionDivisionId)
+      }
+    }
+    return map
+  }
+
   const [selections, setSelections] = useState(initialSelections)
+  // Track saved state to distinguish green (saved) vs orange (unsaved)
+  const [savedSelections, setSavedSelections] = useState(initialSaved)
 
   // Sync when props change (e.g. after auto-map or save)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: initialSelections derives from comp
+  // biome-ignore lint/correctness/useExhaustiveDependencies: derives from comp
   useEffect(() => {
     setSelections(initialSelections())
+    setSavedSelections(initialSaved())
   }, [comp])
 
   // Set of comp division IDs currently used across all columns
@@ -278,9 +333,11 @@ function CompetitionRow({
       } else {
         next.set(seriesDivId, compDivId)
       }
+      // Compare against saved state to determine if this row is dirty
+      const isDirty = !mapsEqual(next, savedSelections)
+      onDirtyChange(isDirty)
       return next
     })
-    onChanged()
   }
 
   const unmappedCount = comp.mappings.filter(
@@ -314,9 +371,13 @@ function CompetitionRow({
               value={selectedCompDivId}
               onChange={(e) => handleChange(sd.id, e.target.value)}
               className={`h-7 text-xs rounded-md border px-1.5 py-0.5 w-full max-w-[140px] mx-auto block focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer ${
-                selectedCompDivId !== "__none__"
-                  ? "border-green-300 bg-green-50 text-green-800 dark:bg-green-950/30 dark:text-green-300"
-                  : "border-dashed border-muted-foreground/30 text-muted-foreground"
+                selectedCompDivId === "__none__" && !savedSelections.has(sd.id)
+                  ? "border-dashed border-muted-foreground/30 text-muted-foreground"
+                  : selectedCompDivId === "__none__" && savedSelections.has(sd.id)
+                    ? "border-orange-300 bg-orange-50 text-orange-800 dark:bg-orange-950/30 dark:text-orange-300"
+                    : savedSelections.get(sd.id) === selectedCompDivId
+                      ? "border-green-300 bg-green-50 text-green-800 dark:bg-green-950/30 dark:text-green-300"
+                      : "border-orange-300 bg-orange-50 text-orange-800 dark:bg-orange-950/30 dark:text-orange-300"
               }`}
               data-comp-id={comp.competitionId}
               data-series-div-id={sd.id}
