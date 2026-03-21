@@ -142,6 +142,12 @@ Aggregates multiple configuration forms on a single page: capacity defaults, sco
 
 Uses `CapacitySettingsForm`, `ScoringSettingsForm`, and `RotationSettingsForm` components.
 
+## Broadcasts
+
+One-way broadcast messaging from organizers to registered athletes.
+
+The broadcasts tab at [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/broadcasts.tsx]] lets organizers compose messages with audience filtering (all athletes or by division), preview recipient count, and send. Email delivery via Resend with per-recipient status tracking in [[apps/wodsmith-start/src/db/schemas/broadcasts.ts#competitionBroadcastRecipientsTable]]. Server functions in [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#sendBroadcastFn]] handle sending with auth checks. Athletes see broadcasts at [[apps/wodsmith-start/src/routes/compete/$slug/broadcasts.tsx]].
+
 ## Danger Zone
 
 Destructive actions including competition deletion.

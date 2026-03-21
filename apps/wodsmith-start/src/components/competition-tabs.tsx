@@ -1,7 +1,7 @@
 "use client"
 
 import { Link, useLocation, useNavigate } from "@tanstack/react-router"
-import { Calendar, Dumbbell, List, Trophy } from "lucide-react"
+import { Calendar, Dumbbell, List, Megaphone, Trophy } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -20,6 +20,7 @@ const tabs = [
   { label: "Workouts", href: "/workouts", icon: Dumbbell },
   { label: "Schedule", href: "/schedule", icon: Calendar },
   { label: "Leaderboard", href: "/leaderboard", icon: Trophy },
+  { label: "Broadcasts", href: "/broadcasts", icon: Megaphone },
 ]
 
 export function CompetitionTabs({ slug }: CompetitionTabsProps) {
