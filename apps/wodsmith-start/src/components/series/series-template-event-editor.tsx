@@ -14,12 +14,12 @@ import {
   extractClosestEdge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge"
 import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box"
+import { Link } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import {
   ChevronDown,
   ChevronRight,
   GripVertical,
-  Loader2,
   Pencil,
   Plus,
   SlidersHorizontal,
@@ -44,18 +44,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import { SCORE_TYPES, WORKOUT_SCHEMES } from "@/constants"
 import type { Movement } from "@/db/schemas/workouts"
 import type { ScoreType, WorkoutScheme } from "@/lib/scoring/types"
 import {
@@ -63,7 +53,6 @@ import {
   deleteSeriesTemplateEventFn,
   reorderSeriesTemplateEventsFn,
   type SeriesTemplateEvent,
-  updateSeriesTemplateEventFn,
 } from "@/server-fns/series-event-template-fns"
 
 // ============================================================================
@@ -111,9 +100,6 @@ export function SeriesTemplateEventEditor({
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [subEventParentId, setSubEventParentId] = useState<string | null>(null)
-  const [editingEvent, setEditingEvent] = useState<SeriesTemplateEvent | null>(
-    null,
-  )
   const [deletingEvent, setDeletingEvent] =
     useState<SeriesTemplateEvent | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -372,13 +358,13 @@ export function SeriesTemplateEventEditor({
                     <SeriesEventRow
                       event={event}
                       index={index}
+                      groupId={groupId}
                       instanceId={topLevelInstanceId}
                       divisions={divisions}
                       divisionDescriptions={
                         divisionDescriptionsByWorkout[event.workoutId] ?? []
                       }
                       onRemove={() => handleRemove(event.id)}
-                      onEdit={() => setEditingEvent(event)}
                       onDrop={handleDrop}
                       onAddSubEvent={() => handleAddSubEvent(event.id)}
                       isParentEvent={isParent}
@@ -394,13 +380,13 @@ export function SeriesTemplateEventEditor({
                         key={child.id}
                         event={child}
                         index={childIndex}
+                        groupId={groupId}
                         instanceId={getSubEventInstanceId(event.id)}
                         divisions={divisions}
                         divisionDescriptions={
                           divisionDescriptionsByWorkout[child.workoutId] ?? []
                         }
                         onRemove={() => handleRemove(child.id)}
-                        onEdit={() => setEditingEvent(child)}
                         onDrop={(sourceIndex, targetIndex) =>
                           handleSubEventDrop(event.id, sourceIndex, targetIndex)
                         }
@@ -448,22 +434,6 @@ export function SeriesTemplateEventEditor({
         isCreating={isCreating}
         movements={movements}
       />
-
-      {/* Edit Event Dialog */}
-      {editingEvent && (
-        <EditEventDialog
-          event={editingEvent}
-          groupId={groupId}
-          open={!!editingEvent}
-          onOpenChange={(open) => {
-            if (!open) setEditingEvent(null)
-          }}
-          onSaved={async () => {
-            setEditingEvent(null)
-            await onEventsChanged()
-          }}
-        />
-      )}
 
       {/* Delete Confirmation */}
       <AlertDialog
@@ -530,11 +500,11 @@ export function SeriesTemplateEventEditor({
 function SeriesEventRow({
   event,
   index,
+  groupId,
   instanceId,
   divisions,
   divisionDescriptions,
   onRemove,
-  onEdit,
   onDrop,
   onAddSubEvent,
   isParentEvent,
@@ -543,11 +513,11 @@ function SeriesEventRow({
 }: {
   event: SeriesTemplateEvent
   index: number
+  groupId: string
   instanceId: symbol
   divisions: Division[]
   divisionDescriptions: DivisionDescription[]
   onRemove: () => void
-  onEdit: () => void
   onDrop: (sourceIndex: number, targetIndex: number) => void
   onAddSubEvent?: () => void
   isParentEvent?: boolean
@@ -783,10 +753,15 @@ function SeriesEventRow({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={onEdit}
+                    asChild
                     className="text-muted-foreground hover:text-foreground"
                   >
-                    <Pencil className="h-4 w-4" />
+                    <Link
+                      to="/compete/organizer/series/$groupId/events/$eventId"
+                      params={{ groupId, eventId: event.id }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Link>
                   </Button>
                   <Button
                     variant="ghost"
@@ -840,10 +815,15 @@ function SeriesEventRow({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={onEdit}
+                    asChild
                     className="text-muted-foreground hover:text-foreground"
                   >
-                    <Pencil className="h-4 w-4" />
+                    <Link
+                      to="/compete/organizer/series/$groupId/events/$eventId"
+                      params={{ groupId, eventId: event.id }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Link>
                   </Button>
                   <Button
                     variant="ghost"
@@ -903,154 +883,3 @@ function SeriesEventRow({
   )
 }
 
-// ============================================================================
-// Edit Event Dialog
-// ============================================================================
-
-function EditEventDialog({
-  event,
-  groupId,
-  open,
-  onOpenChange,
-  onSaved,
-}: {
-  event: SeriesTemplateEvent
-  groupId: string
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSaved: () => Promise<void>
-}) {
-  const [name, setName] = useState(event.workout.name)
-  const [description, setDescription] = useState(
-    event.workout.description ?? "",
-  )
-  const [scheme, setScheme] = useState(event.workout.scheme ?? "time")
-  const [scoreType, setScoreType] = useState(event.workout.scoreType ?? "")
-  const [pointsMultiplier, setPointsMultiplier] = useState(
-    event.pointsMultiplier ?? 100,
-  )
-  const [isSaving, setIsSaving] = useState(false)
-
-  const updateEventFn = useServerFn(updateSeriesTemplateEventFn)
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!name.trim()) return
-    setIsSaving(true)
-    try {
-      await updateEventFn({
-        data: {
-          trackWorkoutId: event.id,
-          groupId,
-          workout: {
-            name: name.trim(),
-            description: description.trim() || undefined,
-            scheme: scheme as WorkoutScheme,
-            scoreType: (scoreType || null) as ScoreType | null,
-          },
-          pointsMultiplier,
-        },
-      })
-      toast.success(`Event "${name}" updated`)
-      await onSaved()
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to update event")
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <form onSubmit={handleSubmit}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Edit Event</AlertDialogTitle>
-          </AlertDialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-name">Name</Label>
-              <Input
-                id="edit-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-description">Description</Label>
-              <Textarea
-                id="edit-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Scheme</Label>
-              <Select value={scheme} onValueChange={setScheme}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {WORKOUT_SCHEMES.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Score Type</Label>
-              <Select
-                value={scoreType || "__none__"}
-                onValueChange={(v) =>
-                  setScoreType(v === "__none__" ? "" : v)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {SCORE_TYPES.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-points">Points Multiplier</Label>
-              <Input
-                id="edit-points"
-                type="number"
-                value={pointsMultiplier}
-                onChange={(e) =>
-                  setPointsMultiplier(
-                    Number.parseInt(e.target.value) || 100,
-                  )
-                }
-                min={1}
-              />
-            </div>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
-            <Button type="submit" disabled={isSaving || !name.trim()}>
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                "Save Changes"
-              )}
-            </Button>
-          </AlertDialogFooter>
-        </form>
-      </AlertDialogContent>
-    </AlertDialog>
-  )
-}

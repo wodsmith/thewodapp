@@ -203,6 +203,65 @@ export const getSeriesTemplateEventsFn = createServerFn({ method: "GET" })
   )
 
 /**
+ * Get a single series template event by its trackWorkoutId.
+ */
+export const getSeriesTemplateEventByIdFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        trackWorkoutId: z.string().min(1),
+        groupId: z.string().min(1),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }): Promise<{ event: SeriesTemplateEvent | null }> => {
+    const db = getDb()
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    // Load group to verify auth
+    const [group] = await db
+      .select()
+      .from(competitionGroupsTable)
+      .where(eq(competitionGroupsTable.id, data.groupId))
+    if (!group) throw new Error("Series group not found")
+
+    await requireTeamPermission(
+      group.organizingTeamId,
+      TEAM_PERMISSIONS.ACCESS_DASHBOARD,
+    )
+
+    // Load track workout with workout details
+    const [trackWorkout] = await db
+      .select({
+        id: trackWorkoutsTable.id,
+        trackId: trackWorkoutsTable.trackId,
+        workoutId: trackWorkoutsTable.workoutId,
+        trackOrder: trackWorkoutsTable.trackOrder,
+        parentEventId: trackWorkoutsTable.parentEventId,
+        notes: trackWorkoutsTable.notes,
+        pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+        createdAt: trackWorkoutsTable.createdAt,
+        updatedAt: trackWorkoutsTable.updatedAt,
+        workout: {
+          id: workouts.id,
+          name: workouts.name,
+          description: workouts.description,
+          scheme: workouts.scheme,
+          scoreType: workouts.scoreType,
+          timeCap: workouts.timeCap,
+        },
+      })
+      .from(trackWorkoutsTable)
+      .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+      .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+
+    if (!trackWorkout) return { event: null }
+
+    return { event: toSeriesTemplateEvent(trackWorkout) }
+  })
+
+/**
  * Create the series template programming track.
  * Stores the trackId in the competition_groups.settings JSON.
  */
