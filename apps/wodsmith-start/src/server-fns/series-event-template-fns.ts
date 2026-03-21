@@ -39,6 +39,7 @@ import {
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import {
   SCORE_TYPE_VALUES,
+  TIEBREAK_SCHEME_VALUES,
   WORKOUT_SCHEME_VALUES,
   workouts,
 } from "@/db/schemas/workouts"
@@ -695,6 +696,7 @@ export const updateSeriesTemplateEventFn = createServerFn({ method: "POST" })
             scoreType: z.enum(SCORE_TYPE_VALUES).nullable().optional(),
             scoreSortOrder: z.string().optional(),
             timeCap: z.number().int().min(1).nullable().optional(),
+            tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).nullable().optional(),
             reps: z.number().int().min(1).nullable().optional(),
           })
           .optional(),
@@ -746,6 +748,8 @@ export const updateSeriesTemplateEventFn = createServerFn({ method: "POST" })
         workoutUpdate.scoreType = data.workout.scoreType
       if (data.workout.timeCap !== undefined)
         workoutUpdate.timeCap = data.workout.timeCap
+      if (data.workout.tiebreakScheme !== undefined)
+        workoutUpdate.tiebreakScheme = data.workout.tiebreakScheme
       if (data.workout.reps !== undefined)
         workoutUpdate.repsPerRound = data.workout.reps
 
@@ -1777,6 +1781,12 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
     // Filter to specific template events if requested
     if (data.templateEventIds && data.templateEventIds.length > 0) {
       const allowedIds = new Set(data.templateEventIds)
+      // Auto-include parents of any selected child events
+      for (const child of childTemplates) {
+        if (allowedIds.has(child.id) && child.parentEventId) {
+          allowedIds.add(child.parentEventId)
+        }
+      }
       parentTemplates = parentTemplates.filter((tw) => allowedIds.has(tw.id))
       // Include child events whose parent is in the allowed set
       childTemplates = childTemplates.filter(

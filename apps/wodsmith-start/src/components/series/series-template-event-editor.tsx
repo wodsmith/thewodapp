@@ -368,7 +368,7 @@ export function SeriesTemplateEventEditor({
                         divisionDescriptionsByWorkout[event.workoutId] ?? []
                       }
                       organizingTeamId={organizingTeamId}
-                      onRemove={() => handleRemove(event.id)}
+                      onRemove={() => setDeletingEvent(event)}
                       onDrop={handleDrop}
                       onAddSubEvent={() => handleAddSubEvent(event.id)}
                       isParentEvent={isParent}
@@ -391,7 +391,7 @@ export function SeriesTemplateEventEditor({
                           divisionDescriptionsByWorkout[child.workoutId] ?? []
                         }
                         organizingTeamId={organizingTeamId}
-                        onRemove={() => handleRemove(child.id)}
+                        onRemove={() => setDeletingEvent(child)}
                         onDrop={(sourceIndex, targetIndex) =>
                           handleSubEventDrop(event.id, sourceIndex, targetIndex)
                         }
@@ -463,29 +463,9 @@ export function SeriesTemplateEventEditor({
               onClick={async () => {
                 if (!deletingEvent) return
                 setIsDeleting(true)
-                try {
-                  await deleteEvent({
-                    data: { trackWorkoutId: deletingEvent.id, groupId },
-                  })
-                  setEvents((prev) =>
-                    prev.filter(
-                      (e) =>
-                        e.id !== deletingEvent.id &&
-                        e.parentEventId !== deletingEvent.id,
-                    ),
-                  )
-                  toast.success(`Event "${deletingEvent.name}" deleted`)
-                  setDeletingEvent(null)
-                  await onEventsChanged()
-                } catch (e) {
-                  toast.error(
-                    e instanceof Error
-                      ? e.message
-                      : "Failed to delete event",
-                  )
-                } finally {
-                  setIsDeleting(false)
-                }
+                await handleRemove(deletingEvent.id)
+                setDeletingEvent(null)
+                setIsDeleting(false)
               }}
               disabled={isDeleting}
               variant="destructive"
