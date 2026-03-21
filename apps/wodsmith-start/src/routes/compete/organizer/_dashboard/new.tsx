@@ -15,6 +15,7 @@ import {
   getCompetitionGroupsFn,
 } from "@/server-fns/competition-fns"
 import { getSeriesTemplateDivisionsFn } from "@/server-fns/series-division-mapping-fns"
+import { getSeriesTemplateEventsFn } from "@/server-fns/series-event-template-fns"
 import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
 
 const searchSchema = z.object({
@@ -44,6 +45,15 @@ export const Route = createFileRoute("/compete/organizer/_dashboard/new")({
               teamSize: number
             }>
           }
+        >,
+        seriesTemplateEvents: {} as Record<
+          string,
+          Array<{
+            id: string
+            name: string
+            order: number
+            scoreType: string | null
+          }>
         >,
       }
     }
@@ -103,18 +113,48 @@ export const Route = createFileRoute("/compete/organizer/_dashboard/new")({
       }
     }
 
+    // Load template events for all groups that have templates
+    const seriesTemplateEvents: Record<
+      string,
+      Array<{
+        id: string
+        name: string
+        order: number
+        scoreType: string | null
+      }>
+    > = {}
+    for (const group of groupsResult.groups) {
+      const result = await getSeriesTemplateEventsFn({
+        data: { groupId: group.id },
+      }).catch(() => null)
+      if (result?.events && result.events.length > 0) {
+        seriesTemplateEvents[group.id] = result.events.map((e) => ({
+          id: e.id,
+          name: e.name,
+          order: e.order,
+          scoreType: e.scoreType,
+        }))
+      }
+    }
+
     return {
       teams: organizingTeams,
       groups: groupsResult.groups,
       selectedTeamId,
       seriesTemplateDivisions,
+      seriesTemplateEvents,
     }
   },
 })
 
 function NewCompetitionPage() {
-  const { teams, groups, selectedTeamId, seriesTemplateDivisions } =
-    Route.useLoaderData()
+  const {
+    teams,
+    groups,
+    selectedTeamId,
+    seriesTemplateDivisions,
+    seriesTemplateEvents,
+  } = Route.useLoaderData()
   const { groupId } = Route.useSearch()
   const navigate = useNavigate()
 
@@ -180,6 +220,7 @@ function NewCompetitionPage() {
               groups={groups}
               defaultGroupId={groupId}
               seriesTemplateDivisions={seriesTemplateDivisions}
+              seriesTemplateEvents={seriesTemplateEvents}
               onSuccess={handleSuccess}
               onCancel={handleCancel}
             />

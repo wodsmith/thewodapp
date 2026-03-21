@@ -1645,6 +1645,7 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
       .object({
         groupId: z.string().min(1),
         competitionIds: z.array(z.string().min(1)).optional(),
+        templateEventIds: z.array(z.string().min(1)).optional(),
       })
       .parse(data),
   )
@@ -1766,12 +1767,24 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
       )
 
     // Sort template events: parents first (parentEventId is null), then children
-    const parentTemplates = templateTrackWorkouts.filter(
+    let parentTemplates = templateTrackWorkouts.filter(
       (tw) => !tw.parentEventId,
     )
-    const childTemplates = templateTrackWorkouts.filter(
+    let childTemplates = templateTrackWorkouts.filter(
       (tw) => !!tw.parentEventId,
     )
+
+    // Filter to specific template events if requested
+    if (data.templateEventIds && data.templateEventIds.length > 0) {
+      const allowedIds = new Set(data.templateEventIds)
+      parentTemplates = parentTemplates.filter((tw) => allowedIds.has(tw.id))
+      // Include child events whose parent is in the allowed set
+      childTemplates = childTemplates.filter(
+        (tw) =>
+          allowedIds.has(tw.id) ||
+          (tw.parentEventId && allowedIds.has(tw.parentEventId)),
+      )
+    }
 
     let synced = 0
 
