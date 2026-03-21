@@ -450,7 +450,7 @@ function EditEventDialog({
     event.workout.description ?? "",
   )
   const [scheme, setScheme] = useState(event.workout.scheme ?? "time")
-  const [scoreType, setScoreType] = useState(event.workout.scoreType ?? "min")
+  const [scoreType, setScoreType] = useState(event.workout.scoreType ?? "")
   const [pointsMultiplier, setPointsMultiplier] = useState(
     event.pointsMultiplier ?? 100,
   )
@@ -471,7 +471,7 @@ function EditEventDialog({
             name: name.trim(),
             description: description.trim() || undefined,
             scheme: scheme as any,
-            scoreType: scoreType as any,
+            scoreType: (scoreType || null) as any,
           },
           pointsMultiplier,
         },
@@ -527,11 +527,12 @@ function EditEventDialog({
             </div>
             <div className="space-y-2">
               <Label>Score Type</Label>
-              <Select value={scoreType} onValueChange={setScoreType}>
+              <Select value={scoreType || "__none__"} onValueChange={(v) => setScoreType(v === "__none__" ? "" : v)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__none__">None</SelectItem>
                   {SCORE_TYPES.map((s) => (
                     <SelectItem key={s.value} value={s.value}>
                       {s.label}

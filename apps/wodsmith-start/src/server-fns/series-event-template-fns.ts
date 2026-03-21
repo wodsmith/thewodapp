@@ -367,6 +367,17 @@ export const copyEventsFromCompetitionFn = createServerFn({ method: "POST" })
       throw new Error("No template track — create one first")
     }
 
+    // Validate source competition belongs to this series group
+    const [sourceComp] = await db
+      .select({ id: competitionsTable.id, groupId: competitionsTable.groupId })
+      .from(competitionsTable)
+      .where(eq(competitionsTable.id, data.sourceCompetitionId))
+
+    if (!sourceComp) throw new Error("Source competition not found")
+    if (sourceComp.groupId !== data.groupId) {
+      throw new Error("Source competition does not belong to this series")
+    }
+
     // Load source competition's track
     const [sourceTrack] = await db
       .select({ id: programmingTracksTable.id })

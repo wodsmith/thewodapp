@@ -6,7 +6,6 @@ import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -281,7 +280,7 @@ export function SeriesEventSyncDialog({
               <Button variant="outline" onClick={() => setSyncStep("select")}>
                 Back
               </Button>
-              <AlertDialogAction onClick={handleSyncConfirm} disabled={isSyncing}>
+              <Button onClick={handleSyncConfirm} disabled={isSyncing}>
                 {isSyncing ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -290,7 +289,7 @@ export function SeriesEventSyncDialog({
                 ) : (
                   `Sync ${syncPreview?.totalEvents ?? 0} Event${syncPreview?.totalEvents !== 1 ? "s" : ""}`
                 )}
-              </AlertDialogAction>
+              </Button>
             </AlertDialogFooter>
           </>
         )}
