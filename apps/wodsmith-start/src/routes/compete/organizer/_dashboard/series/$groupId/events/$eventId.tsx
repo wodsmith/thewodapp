@@ -67,9 +67,14 @@ const templateEventSchema = z.object({
 
 type TemplateEventSchema = z.infer<typeof templateEventSchema>
 
+const searchSchema = z.object({
+  tab: z.string().optional(),
+})
+
 export const Route = createFileRoute(
   "/compete/organizer/_dashboard/series/$groupId/events/$eventId",
 )({
+  validateSearch: searchSchema,
   component: SeriesTemplateEventEditPage,
   loader: async ({ params }) => {
     const [eventResult, groupResult, divisionsResult] = await Promise.all([
@@ -598,8 +603,10 @@ function SeriesParentEventEditPage() {
     childDivisionDescriptions,
   } = Route.useLoaderData()
   const router = useRouter()
+  const { tab } = Route.useSearch()
 
-  const [activeTab, setActiveTab] = useState(childEvents[0]?.id ?? "")
+  const defaultTab = (tab && childEvents.some((c) => c.id === tab) ? tab : childEvents[0]?.id) ?? ""
+  const [activeTab, setActiveTab] = useState(defaultTab)
   const [isSavingParent, setIsSavingParent] = useState(false)
 
   const parentSchema = z.object({

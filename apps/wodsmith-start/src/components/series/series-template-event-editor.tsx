@@ -396,6 +396,7 @@ export function SeriesTemplateEventEditor({
                           handleSubEventDrop(event.id, sourceIndex, targetIndex)
                         }
                         isSubEvent
+                        parentEventId={event.id}
                       />
                     ))}
                     <Button
@@ -515,6 +516,7 @@ function SeriesEventRow({
   onAddSubEvent,
   isParentEvent,
   isSubEvent,
+  parentEventId,
   childCount,
 }: {
   event: SeriesTemplateEvent
@@ -529,6 +531,7 @@ function SeriesEventRow({
   onAddSubEvent?: () => void
   isParentEvent?: boolean
   isSubEvent?: boolean
+  parentEventId?: string
   childCount?: number
 }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -808,7 +811,11 @@ function SeriesEventRow({
                   >
                     <Link
                       to="/compete/organizer/series/$groupId/events/$eventId"
-                      params={{ groupId, eventId: event.id }}
+                      params={{
+                        groupId,
+                        eventId: isSubEvent && parentEventId ? parentEventId : event.id,
+                      }}
+                      search={isSubEvent && parentEventId ? { tab: event.id } : {}}
                     >
                       <Pencil className="h-4 w-4" />
                     </Link>
@@ -870,7 +877,11 @@ function SeriesEventRow({
                   >
                     <Link
                       to="/compete/organizer/series/$groupId/events/$eventId"
-                      params={{ groupId, eventId: event.id }}
+                      params={{
+                        groupId,
+                        eventId: isSubEvent && parentEventId ? parentEventId : event.id,
+                      }}
+                      search={isSubEvent && parentEventId ? { tab: event.id } : {}}
                     >
                       <Pencil className="h-4 w-4" />
                     </Link>
