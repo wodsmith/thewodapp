@@ -91,6 +91,7 @@ import {
   D1Database,
   Hyperdrive,
   KVNamespace,
+  Queue,
   R2Bucket,
   TanStackStart,
   Workflow,
@@ -505,6 +506,20 @@ const manualRegistrationWorkflow = Workflow(
 )
 
 /**
+ * Cloudflare Queue for async broadcast email delivery.
+ *
+ * When an organizer sends a broadcast, recipient batches are enqueued here.
+ * The queue consumer calls the Resend batch API with idempotency keys and
+ * updates per-recipient delivery status in the database.
+ *
+ * @see src/server/broadcast-queue-consumer.ts for the consumer implementation
+ * @see docs/adr/0008-organizer-broadcast-messaging.md for design rationale
+ */
+const broadcastEmailQueue = await Queue(`broadcast-email-queue-${stage}`, {
+  adopt: true,
+})
+
+/**
  * TanStack Start application deployment configuration.
  *
  * This deploys the TanStack Start SSR application to Cloudflare Workers with:
@@ -571,6 +586,8 @@ const website = await TanStackStart("app", {
     STRIPE_CHECKOUT_WORKFLOW: stripeCheckoutWorkflow,
     /** Workflow for manual registration notification with waiver info */
     MANUAL_REGISTRATION_WORKFLOW: manualRegistrationWorkflow,
+    /** Queue for async broadcast email delivery */
+    BROADCAST_EMAIL_QUEUE: broadcastEmailQueue,
 
     // App configuration
     // biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time

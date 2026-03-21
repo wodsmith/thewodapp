@@ -6,7 +6,9 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
+import { render } from "@react-email/render"
 import { and, count, desc, eq, inArray, ne } from "drizzle-orm"
+import { env } from "cloudflare:workers"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -25,7 +27,7 @@ import { userTable } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"
 import { requireTeamPermission } from "./requireTeamMembership"
 import { BroadcastNotificationEmail } from "@/react-email/broadcast-notification"
-import { sendEmail } from "@/utils/email"
+import type { BroadcastEmailMessage } from "@/server/broadcast-queue-consumer"
 
 // ============================================================================
 // Input Schemas
@@ -226,8 +228,12 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 			})
 			.$returningId()
 
-		// Insert recipient rows
+		// Generate recipient IDs upfront so we can reference them in queue messages
+		const { createBroadcastRecipientId } = await import(
+			"@/db/schemas/common"
+		)
 		const recipientValues = registrations.map((reg) => ({
+			id: createBroadcastRecipientId(),
 			broadcastId: broadcast.id,
 			registrationId: reg.id,
 			userId: reg.userId,
@@ -239,66 +245,39 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 			.insert(competitionBroadcastRecipientsTable)
 			.values(recipientValues)
 
-		// Send emails (fire-and-forget per recipient for now)
-		// TODO: Replace with Cloudflare Queue when queue infrastructure is set up
-		const emailPromises = registrations.map(async (reg) => {
-			try {
-				await sendEmail({
-					to: reg.email,
-					subject: `${data.title} — ${competition.name}`,
-					template: BroadcastNotificationEmail({
-						competitionName: competition.name,
-						competitionSlug: competition.slug,
-						broadcastTitle: data.title,
-						broadcastBody: data.body,
-						organizerTeamName: team?.name ?? "Organizer",
-					}),
-					tags: [{ name: "type", value: "competition-broadcast" }],
-				})
+		// Pre-render the email template once for all recipients
+		const bodyHtml = await render(
+			BroadcastNotificationEmail({
+				competitionName: competition.name,
+				competitionSlug: competition.slug,
+				broadcastTitle: data.title,
+				broadcastBody: data.body,
+				organizerTeamName: team?.name ?? "Organizer",
+			}),
+		)
 
-				// Update delivery status to sent
-				await db
-					.update(competitionBroadcastRecipientsTable)
-					.set({
-						emailDeliveryStatus: BROADCAST_EMAIL_DELIVERY_STATUS.SENT,
-					})
-					.where(
-						and(
-							eq(
-								competitionBroadcastRecipientsTable.broadcastId,
-								broadcast.id,
-							),
-							eq(
-								competitionBroadcastRecipientsTable.userId,
-								reg.userId,
-							),
-						),
-					)
-			} catch {
-				// Update delivery status to failed
-				await db
-					.update(competitionBroadcastRecipientsTable)
-					.set({
-						emailDeliveryStatus:
-							BROADCAST_EMAIL_DELIVERY_STATUS.FAILED,
-					})
-					.where(
-						and(
-							eq(
-								competitionBroadcastRecipientsTable.broadcastId,
-								broadcast.id,
-							),
-							eq(
-								competitionBroadcastRecipientsTable.userId,
-								reg.userId,
-							),
-						),
-					)
+		// Enqueue batches of up to 100 recipients into Cloudflare Queue
+		const BATCH_SIZE = 100
+		const queue = (env as Record<string, unknown>)
+			.BROADCAST_EMAIL_QUEUE as Queue<BroadcastEmailMessage>
+
+		for (let i = 0; i < recipientValues.length; i += BATCH_SIZE) {
+			const batchSlice = recipientValues.slice(i, i + BATCH_SIZE)
+			const message: BroadcastEmailMessage = {
+				broadcastId: broadcast.id,
+				competitionId: data.competitionId,
+				batch: batchSlice.map((rv, idx) => ({
+					recipientId: rv.id,
+					email: registrations[i + idx].email,
+					athleteName:
+						registrations[i + idx].username ?? "Athlete",
+				})),
+				subject: `${data.title} — ${competition.name}`,
+				bodyHtml,
+				replyTo: "support@mail.wodsmith.com",
 			}
-		})
-
-		// Don't block the response on email delivery
-		Promise.allSettled(emailPromises)
+			await queue.send(message)
+		}
 
 		return {
 			broadcastId: broadcast.id,
