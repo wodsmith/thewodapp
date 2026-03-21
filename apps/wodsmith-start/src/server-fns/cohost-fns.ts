@@ -467,6 +467,18 @@ export const updateCohostPermissionsFn = createServerFn({ method: "POST" })
       throw new Error("NOT_FOUND: Cohost membership not found")
     }
 
+    // Verify this membership's team belongs to a competition owned by the organizing team
+    const competition = await db.query.competitionsTable.findFirst({
+      where: and(
+        eq(competitionsTable.competitionTeamId, membership.teamId),
+        eq(competitionsTable.organizingTeamId, data.organizingTeamId),
+      ),
+      columns: { id: true },
+    })
+    if (!competition) {
+      throw new Error("FORBIDDEN: Membership does not belong to a competition you manage")
+    }
+
     let currentMetadata: CohostMembershipMetadata
     try {
       currentMetadata = membership.metadata
@@ -524,6 +536,18 @@ export const removeCohostFn = createServerFn({ method: "POST" })
 
     if (!membership) {
       throw new Error("NOT_FOUND: Cohost membership not found")
+    }
+
+    // Verify this membership's team belongs to a competition owned by the organizing team
+    const competition = await db.query.competitionsTable.findFirst({
+      where: and(
+        eq(competitionsTable.competitionTeamId, membership.teamId),
+        eq(competitionsTable.organizingTeamId, data.organizingTeamId),
+      ),
+      columns: { id: true },
+    })
+    if (!competition) {
+      throw new Error("FORBIDDEN: Membership does not belong to a competition you manage")
     }
 
     await db

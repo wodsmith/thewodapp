@@ -84,7 +84,7 @@ function CohostInvitePage() {
             {invite.competitionId && (
               <Button asChild>
                 <Link
-                  to="/compete/organizer/$competitionId"
+                  to="/compete/cohost/$competitionId"
                   params={{ competitionId: invite.competitionId }}
                 >
                   Go to Competition
@@ -165,7 +165,7 @@ function CohostInvitePage() {
 
       if (result.competitionId) {
         router.navigate({
-          to: "/compete/organizer/$competitionId",
+          to: "/compete/cohost/$competitionId",
           params: { competitionId: result.competitionId },
         })
       } else {

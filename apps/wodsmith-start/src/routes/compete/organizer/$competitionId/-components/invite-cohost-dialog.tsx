@@ -72,7 +72,7 @@ export function InviteCohostDialog({
 
   const onSubmit = async (data: FormValues) => {
     setIsSubmitting(true)
-    toast.loading("Sending invitation...")
+    const toastId = toast.loading("Sending invitation...")
 
     try {
       await inviteCohostFn({
@@ -90,13 +90,13 @@ export function InviteCohostDialog({
         },
       })
 
-      toast.dismiss()
+      toast.dismiss(toastId)
       toast.success("Cohost invitation sent")
       form.reset()
       onOpenChange(false)
       router.invalidate()
     } catch (error) {
-      toast.dismiss()
+      toast.dismiss(toastId)
       toast.error(
         error instanceof Error ? error.message : "Failed to invite cohost",
       )
