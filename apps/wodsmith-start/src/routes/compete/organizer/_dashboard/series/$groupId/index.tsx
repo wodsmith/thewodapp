@@ -17,7 +17,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { usePostHog } from "@/lib/posthog"
 import type { SeriesRevenueStats } from "@/server-fns/commerce-fns"
 import {
   exportSeriesRevenueCsvFn,
@@ -160,10 +159,6 @@ function SeriesDetailPage() {
     return map
   }, [seriesRevenueStats])
 
-  const { posthog } = usePostHog()
-  const globalLeaderboardEnabled =
-    posthog.isFeatureEnabled("competition-global-leaderboard") !== false
-
   const updateCompetition = useServerFn(updateCompetitionFn)
   const exportCsv = useServerFn(exportSeriesRevenueCsvFn)
 
@@ -269,46 +264,42 @@ function SeriesDetailPage() {
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {globalLeaderboardEnabled && (
-                <>
-                  <Button variant="outline" asChild>
-                    <Link
-                      to="/compete/organizer/series/$groupId/divisions"
-                      params={{ groupId: group.id }}
-                    >
-                      <Layers className="h-4 w-4 mr-2" />
-                      Configure Divisions
-                    </Link>
-                  </Button>
-                  <Button variant="outline" asChild>
-                    <Link
-                      to="/compete/organizer/series/$groupId/events"
-                      params={{ groupId: group.id }}
-                    >
-                      <Calendar className="h-4 w-4 mr-2" />
-                      Event Template
-                    </Link>
-                  </Button>
-                  <Button variant="outline" asChild>
-                    <Link
-                      to="/compete/organizer/series/$groupId/event-mappings"
-                      params={{ groupId: group.id }}
-                    >
-                      <ListPlus className="h-4 w-4 mr-2" />
-                      Event Mappings
-                    </Link>
-                  </Button>
-                  <Button variant="outline" asChild>
-                    <Link
-                      to="/compete/organizer/series/$groupId/leaderboard"
-                      params={{ groupId: group.id }}
-                    >
-                      <Trophy className="h-4 w-4 mr-2" />
-                      Global Leaderboard
-                    </Link>
-                  </Button>
-                </>
-              )}
+              <Button variant="outline" asChild>
+                <Link
+                  to="/compete/organizer/series/$groupId/divisions"
+                  params={{ groupId: group.id }}
+                >
+                  <Layers className="h-4 w-4 mr-2" />
+                  Configure Divisions
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link
+                  to="/compete/organizer/series/$groupId/events"
+                  params={{ groupId: group.id }}
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Event Template
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link
+                  to="/compete/organizer/series/$groupId/event-mappings"
+                  params={{ groupId: group.id }}
+                >
+                  <ListPlus className="h-4 w-4 mr-2" />
+                  Event Mappings
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link
+                  to="/compete/organizer/series/$groupId/leaderboard"
+                  params={{ groupId: group.id }}
+                >
+                  <Trophy className="h-4 w-4 mr-2" />
+                  Global Leaderboard
+                </Link>
+              </Button>
               <Button variant="outline" asChild>
                 <Link
                   to="/compete/organizer/series/$groupId/edit"

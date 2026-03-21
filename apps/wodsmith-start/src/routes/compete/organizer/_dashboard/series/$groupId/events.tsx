@@ -1,16 +1,14 @@
 import {
   createFileRoute,
   Link,
-  useNavigate,
   useRouter,
 } from "@tanstack/react-router"
 import { ArrowLeft, RefreshCw } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { EventTemplateCreator } from "@/components/series/event-template-creator"
 import { SeriesEventSyncDialog } from "@/components/series/series-event-sync-dialog"
 import { SeriesTemplateEventEditor } from "@/components/series/series-template-event-editor"
 import { Button } from "@/components/ui/button"
-import { usePostHog } from "@/lib/posthog"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
 import {
   getSeriesCompetitionsForTemplateFn,
@@ -44,35 +42,10 @@ function SeriesEventsPage() {
   const { groupId } = Route.useParams()
   const loaderData = Route.useLoaderData()
   const router = useRouter()
-  const navigate = useNavigate()
-  const { posthog } = usePostHog()
 
   const [templateTrack, setTemplateTrack] = useState(loaderData.templateTrack)
   const [events, setEvents] = useState(loaderData.events)
   const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false)
-
-  const [flagEnabled, setFlagEnabled] = useState(() =>
-    posthog.isFeatureEnabled("competition-global-leaderboard"),
-  )
-
-  useEffect(() => {
-    const unsubscribe = posthog.onFeatureFlags(() => {
-      setFlagEnabled(posthog.isFeatureEnabled("competition-global-leaderboard"))
-    })
-    return unsubscribe
-  }, [posthog])
-
-  useEffect(() => {
-    if (flagEnabled === false) {
-      navigate({
-        to: "/compete/organizer/series/$groupId",
-        replace: true,
-        params: { groupId },
-      })
-    }
-  }, [flagEnabled, groupId, navigate])
-
-  if (flagEnabled === false) return null
 
   const refreshData = async () => {
     await router.invalidate()
