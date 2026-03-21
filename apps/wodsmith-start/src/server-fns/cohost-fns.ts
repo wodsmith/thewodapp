@@ -22,10 +22,7 @@ import { inviteUserToTeam } from "@/server/team-members"
 import { getSessionFromCookie } from "@/utils/auth"
 import { sendCohostInviteEmail } from "@/utils/email"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
-import {
-  requireCompetitionManagePermission,
-  requireTeamPermission,
-} from "@/utils/team-auth"
+import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
 // Input Schemas
@@ -137,9 +134,9 @@ export const getCohostsFn = createServerFn({ method: "GET" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCompetitionManagePermission(
+    await requireTeamPermission(
       data.organizingTeamId,
-      data.competitionTeamId,
+      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
 
     const db = getDb()

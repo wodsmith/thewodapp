@@ -11,12 +11,14 @@ import { formatUTCDateRange } from "@/utils/date-utils"
 interface CompetitionHeroProps {
   competition: CompetitionWithOrganizingTeam
   canManage?: boolean
+  isCohost?: boolean
   isVolunteer?: boolean
 }
 
 export function CompetitionHero({
   competition,
   canManage = false,
+  isCohost = false,
   isVolunteer = false,
 }: CompetitionHeroProps) {
   // Show judges schedule link for organizers and volunteers
@@ -127,6 +129,41 @@ export function CompetitionHero({
                       </Button>
                     </a>
                   )}
+                  {isCohost && !canManage && (
+                    <Link
+                      to="/compete/cohost/$competitionId"
+                      params={{ competitionId: competition.id }}
+                    >
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="bg-amber-600 text-white hover:bg-amber-500"
+                      >
+                        <Settings className="mr-1 h-4 w-4" />
+                        Manage as Co-Host
+                      </Button>
+                    </Link>
+                  )}
+                  {isCohost && canManage && (
+                    <Link
+                      to="/compete/cohost/$competitionId"
+                      params={{ competitionId: competition.id }}
+                    >
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className={cn(
+                          "border",
+                          hasBanner
+                            ? "border-white/10 bg-white/10 text-slate-100 hover:bg-white/20"
+                            : "border-black/10 bg-black/5 text-foreground hover:bg-black/10 dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:hover:bg-white/20",
+                        )}
+                      >
+                        <Settings className="mr-1 h-4 w-4" />
+                        Co-Host View
+                      </Button>
+                    </Link>
+                  )}
                   {showJudgesScheduleLink && (
                     <Link
                       to="/compete/$slug/judges-schedule"
@@ -163,6 +200,41 @@ export function CompetitionHero({
                       Manage
                     </Button>
                   </a>
+                )}
+                {isCohost && !canManage && (
+                  <Link
+                    to="/compete/cohost/$competitionId"
+                    params={{ competitionId: competition.id }}
+                  >
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="bg-amber-600 text-white hover:bg-amber-500"
+                    >
+                      <Settings className="mr-1 h-4 w-4" />
+                      Co-Host
+                    </Button>
+                  </Link>
+                )}
+                {isCohost && canManage && (
+                  <Link
+                    to="/compete/cohost/$competitionId"
+                    params={{ competitionId: competition.id }}
+                  >
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className={cn(
+                        "border",
+                        hasBanner
+                          ? "border-white/10 bg-white/10 text-slate-100 hover:bg-white/20"
+                          : "border-black/10 bg-black/5 text-foreground hover:bg-black/10 dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:hover:bg-white/20",
+                      )}
+                    >
+                      <Settings className="mr-1 h-4 w-4" />
+                      Co-Host
+                    </Button>
+                  </Link>
                 )}
                 {showJudgesScheduleLink && (
                   <Link

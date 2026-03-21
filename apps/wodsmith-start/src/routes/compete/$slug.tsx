@@ -69,6 +69,16 @@ export const Route = createFileRoute("/compete/$slug")({
         )
       : false
 
+    // Compute isCohost from session (no DB query needed)
+    const isCohost =
+      session && competition.competitionTeamId
+        ? !!session.teams?.some(
+            (t) =>
+              t.id === competition.competitionTeamId &&
+              t.role.id === "cohost",
+          )
+        : false
+
     // Compute isVolunteer from session (no DB query needed)
     const isVolunteer =
       session && competition.competitionTeamId
@@ -136,6 +146,7 @@ export const Route = createFileRoute("/compete/$slug")({
       userRegistration,
       userRegistrations,
       canManage,
+      isCohost,
       isVolunteer,
       registrationStatus,
       session,
@@ -184,7 +195,7 @@ export const Route = createFileRoute("/compete/$slug")({
 })
 
 function CompetitionDetailLayout() {
-  const { competition, canManage, isVolunteer } = Route.useLoaderData()
+  const { competition, canManage, isCohost, isVolunteer } = Route.useLoaderData()
   const { coupon: couponCode } = Route.useSearch()
   const navigate = useNavigate()
 
@@ -256,6 +267,7 @@ function CompetitionDetailLayout() {
         <CompetitionHero
           competition={competition}
           canManage={canManage}
+          isCohost={isCohost}
           isVolunteer={isVolunteer}
         />
       </div>

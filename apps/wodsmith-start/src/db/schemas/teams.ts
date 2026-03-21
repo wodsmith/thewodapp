@@ -47,6 +47,7 @@ export const SYSTEM_ROLES_ENUM = {
   MEMBER: "member",
   GUEST: "guest",
   VOLUNTEER: "volunteer", // Competition volunteer
+  COHOST: "cohost", // Competition co-host
 } as const
 
 // Invitation status for tracking guest acceptance

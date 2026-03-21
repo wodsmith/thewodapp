@@ -1,0 +1,75 @@
+/**
+ * Cohost Competition Revenue Route
+ *
+ * Revenue statistics display for cohosts.
+ * Gated by canViewRevenue permission.
+ * Reuses organizer RevenueStatsDisplay component.
+ */
+
+import { createFileRoute, getRouteApi, redirect } from "@tanstack/react-router"
+import {
+  getCompetitionRevenueStatsFn,
+  getOrganizerStripeStatusFn,
+} from "@/server-fns/commerce-fns"
+import { RevenueStatsDisplay } from "@/routes/compete/organizer/$competitionId/-components/revenue-stats-display"
+
+const parentRoute = getRouteApi("/compete/cohost/$competitionId")
+
+export const Route = createFileRoute(
+  "/compete/cohost/$competitionId/revenue",
+)({
+  staleTime: 10_000,
+  loader: async ({ params, parentMatchPromise }) => {
+    const parentMatch = await parentMatchPromise
+    const { competition, permissions } = parentMatch.loaderData!
+
+    // Permission gate: canViewRevenue
+    if (!permissions?.canViewRevenue) {
+      throw redirect({
+        to: "/compete/cohost/$competitionId",
+        params: { competitionId: params.competitionId },
+      })
+    }
+
+    // Parallel fetch: revenue stats and stripe status
+    const [revenueResult, stripeResult] = await Promise.all([
+      getCompetitionRevenueStatsFn({ data: { competitionId: competition.id } }),
+      getOrganizerStripeStatusFn({
+        data: { organizingTeamId: competition.organizingTeamId },
+      }),
+    ])
+
+    return {
+      competition,
+      stats: revenueResult.stats,
+      stripeStatus: stripeResult.stripeStatus,
+    }
+  },
+  component: RevenuePage,
+  head: ({ loaderData }) => {
+    const competition = loaderData?.competition
+    if (!competition) {
+      return { meta: [{ title: "Competition Not Found" }] }
+    }
+    return {
+      meta: [
+        { title: `Revenue - ${competition.name}` },
+        {
+          name: "description",
+          content: `Revenue statistics for ${competition.name}`,
+        },
+      ],
+    }
+  },
+})
+
+function RevenuePage() {
+  const { stats, stripeStatus } = Route.useLoaderData()
+
+  return (
+    <RevenueStatsDisplay
+      stats={stats}
+      stripeStatus={stripeStatus ?? undefined}
+    />
+  )
+}
