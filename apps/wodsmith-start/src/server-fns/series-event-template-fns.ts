@@ -1924,6 +1924,7 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
             // Update track_workout fields
             const twUpdate: Record<string, unknown> = {
               updatedAt: new Date(),
+              trackOrder: Number(templateTw.trackOrder),
             }
             if (templateTw.pointsMultiplier !== null) {
               twUpdate.pointsMultiplier = templateTw.pointsMultiplier
@@ -2466,6 +2467,7 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
             .select({
               id: trackWorkoutsTable.id,
               trackId: trackWorkoutsTable.trackId,
+              trackOrder: trackWorkoutsTable.trackOrder,
               workoutId: trackWorkoutsTable.workoutId,
               notes: trackWorkoutsTable.notes,
               pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
@@ -2580,6 +2582,13 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
             (compTw.notes ?? null) !== (templateTw.notes ?? null)
           ) {
             changes.push("notes updated")
+          }
+          if (
+            Number(compTw.trackOrder) !== Number(templateTw.trackOrder)
+          ) {
+            changes.push(
+              `order: #${Math.floor(Number(compTw.trackOrder))} → #${Math.floor(Number(templateTw.trackOrder))}`,
+            )
           }
 
           if (changes.length > 0) {

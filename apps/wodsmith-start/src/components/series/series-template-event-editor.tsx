@@ -233,28 +233,29 @@ export function SeriesTemplateEventEditor({
   }
 
   const handleDrop = async (sourceIndex: number, targetIndex: number) => {
-    const newEvents = [...topLevelEvents]
-    const [movedItem] = newEvents.splice(sourceIndex, 1)
+    const newTopLevel = [...topLevelEvents]
+    const [movedItem] = newTopLevel.splice(sourceIndex, 1)
     if (!movedItem) return
-    newEvents.splice(targetIndex, 0, movedItem)
+    newTopLevel.splice(targetIndex, 0, movedItem)
 
-    // Build ordered IDs including children
+    // Build ordered IDs and assign new trackOrders
     const orderedIds: string[] = []
-    for (const parent of newEvents) {
+    const updatedEvents: SeriesTemplateEvent[] = []
+    let currentOrder = 1
+    for (const parent of newTopLevel) {
       orderedIds.push(parent.id)
+      updatedEvents.push({ ...parent, trackOrder: currentOrder, order: currentOrder })
       const children = childrenByParent.get(parent.id) ?? []
-      for (const child of children) {
-        orderedIds.push(child.id)
+      for (let j = 0; j < children.length; j++) {
+        const childOrder = Number((currentOrder + 0.01 * (j + 1)).toFixed(2))
+        orderedIds.push(children[j].id)
+        updatedEvents.push({ ...children[j], trackOrder: childOrder, order: childOrder })
       }
+      currentOrder++
     }
 
     const previousEvents = events
-    setEvents((prev) => {
-      const sorted = [...prev].sort(
-        (a, b) => orderedIds.indexOf(a.id) - orderedIds.indexOf(b.id),
-      )
-      return sorted
-    })
+    setEvents(updatedEvents)
 
     try {
       await reorderEvents({
@@ -279,26 +280,32 @@ export function SeriesTemplateEventEditor({
     if (!movedItem) return
     newChildren.splice(targetIndex, 0, movedItem)
 
-    // Build full ordered IDs
+    // Find parent's order for decimal offsets
+    const parentEvent = topLevelEvents.find((e) => e.id === parentId)
+    if (!parentEvent) return
+    const parentOrder = Math.floor(parentEvent.trackOrder)
+
+    // Build full ordered IDs and assign new trackOrders
     const orderedIds: string[] = []
+    const updatedEvents: SeriesTemplateEvent[] = []
     for (const parent of topLevelEvents) {
       orderedIds.push(parent.id)
+      updatedEvents.push(parent)
       const siblings =
         parent.id === parentId
           ? newChildren
           : (childrenByParent.get(parent.id) ?? [])
-      for (const child of siblings) {
-        orderedIds.push(child.id)
+      for (let j = 0; j < siblings.length; j++) {
+        const childOrder = parent.id === parentId
+          ? Number((parentOrder + 0.01 * (j + 1)).toFixed(2))
+          : siblings[j].trackOrder
+        orderedIds.push(siblings[j].id)
+        updatedEvents.push({ ...siblings[j], trackOrder: childOrder, order: childOrder })
       }
     }
 
     const previousEvents = events
-    setEvents((prev) => {
-      const sorted = [...prev].sort(
-        (a, b) => orderedIds.indexOf(a.id) - orderedIds.indexOf(b.id),
-      )
-      return sorted
-    })
+    setEvents(updatedEvents)
 
     try {
       await reorderEvents({
