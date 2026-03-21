@@ -286,7 +286,16 @@ function SeriesDetailPage() {
                       params={{ groupId: group.id }}
                     >
                       <Calendar className="h-4 w-4 mr-2" />
-                      Events
+                      Event Template
+                    </Link>
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <Link
+                      to="/compete/organizer/series/$groupId/event-mappings"
+                      params={{ groupId: group.id }}
+                    >
+                      <ListPlus className="h-4 w-4 mr-2" />
+                      Event Mappings
                     </Link>
                   </Button>
                   <Button variant="outline" asChild>

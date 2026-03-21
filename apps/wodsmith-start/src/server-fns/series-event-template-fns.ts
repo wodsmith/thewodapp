@@ -266,6 +266,190 @@ export const createSeriesTemplateTrackFn = createServerFn({ method: "POST" })
   })
 
 /**
+ * Get competitions in a series group with their event counts.
+ * Lightweight query for populating "copy from competition" UI.
+ */
+export const getSeriesCompetitionsForTemplateFn = createServerFn({
+  method: "GET",
+})
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        groupId: z.string().min(1),
+      })
+      .parse(data),
+  )
+  .handler(
+    async ({
+      data,
+    }): Promise<{
+      competitions: Array<{ id: string; name: string; eventCount: number }>
+    }> => {
+      const db = getDb()
+      const session = await getSessionFromCookie()
+      if (!session?.userId) throw new Error("Not authenticated")
+
+      // Load group to verify auth
+      const [group] = await db
+        .select()
+        .from(competitionGroupsTable)
+        .where(eq(competitionGroupsTable.id, data.groupId))
+      if (!group) throw new Error("Series group not found")
+
+      await requireTeamPermission(
+        group.organizingTeamId,
+        TEAM_PERMISSIONS.ACCESS_DASHBOARD,
+      )
+
+      const comps = await db
+        .select({
+          id: competitionsTable.id,
+          name: competitionsTable.name,
+        })
+        .from(competitionsTable)
+        .where(eq(competitionsTable.groupId, data.groupId))
+
+      // For each competition, count events
+      const result: Array<{ id: string; name: string; eventCount: number }> = []
+      for (const comp of comps) {
+        const [track] = await db
+          .select({ id: programmingTracksTable.id })
+          .from(programmingTracksTable)
+          .where(eq(programmingTracksTable.competitionId, comp.id))
+
+        let eventCount = 0
+        if (track) {
+          const events = await db
+            .select({ id: trackWorkoutsTable.id })
+            .from(trackWorkoutsTable)
+            .where(eq(trackWorkoutsTable.trackId, track.id))
+          eventCount = events.length
+        }
+        result.push({ id: comp.id, name: comp.name, eventCount })
+      }
+      return { competitions: result }
+    },
+  )
+
+/**
+ * Copy events from a competition into the series template track.
+ * Creates new workout + track_workout rows on the template track
+ * for each event in the source competition.
+ */
+export const copyEventsFromCompetitionFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        groupId: z.string().min(1),
+        sourceCompetitionId: z.string().min(1),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }): Promise<{ copiedCount: number }> => {
+    const db = getDb()
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    const [group] = await db
+      .select()
+      .from(competitionGroupsTable)
+      .where(eq(competitionGroupsTable.id, data.groupId))
+    if (!group) throw new Error("Series group not found")
+
+    await requireTeamPermission(
+      group.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+    )
+
+    const seriesSettings = parseSeriesSettings(group.settings)
+    const templateTrackId = seriesSettings?.templateTrackId
+    if (!templateTrackId) {
+      throw new Error("No template track — create one first")
+    }
+
+    // Load source competition's track
+    const [sourceTrack] = await db
+      .select({ id: programmingTracksTable.id })
+      .from(programmingTracksTable)
+      .where(eq(programmingTracksTable.competitionId, data.sourceCompetitionId))
+
+    if (!sourceTrack) throw new Error("Source competition has no programming track")
+
+    // Load source events with workouts
+    const sourceEvents = await db
+      .select({
+        id: trackWorkoutsTable.id,
+        trackOrder: trackWorkoutsTable.trackOrder,
+        parentEventId: trackWorkoutsTable.parentEventId,
+        pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+        notes: trackWorkoutsTable.notes,
+        workoutId: trackWorkoutsTable.workoutId,
+        workoutName: workouts.name,
+        workoutDescription: workouts.description,
+        workoutScheme: workouts.scheme,
+        workoutScoreType: workouts.scoreType,
+        workoutTimeCap: workouts.timeCap,
+        workoutRepsPerRound: workouts.repsPerRound,
+      })
+      .from(trackWorkoutsTable)
+      .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+      .where(eq(trackWorkoutsTable.trackId, sourceTrack.id))
+      .orderBy(asc(trackWorkoutsTable.trackOrder))
+
+    if (sourceEvents.length === 0) return { copiedCount: 0 }
+
+    // Map old parent IDs to new parent IDs for sub-event linking
+    const parentIdMap = new Map<string, string>()
+    let copiedCount = 0
+
+    // Copy parents first, then children
+    const parents = sourceEvents.filter((e) => !e.parentEventId)
+    const children = sourceEvents.filter((e) => e.parentEventId)
+
+    await db.transaction(async (tx) => {
+      for (const event of [...parents, ...children]) {
+        const newWorkoutId = `workout_${createId()}`
+        const newTrackWorkoutId = createTrackWorkoutId()
+
+        await tx.insert(workouts).values({
+          id: newWorkoutId,
+          name: event.workoutName,
+          description: event.workoutDescription,
+          scheme: event.workoutScheme,
+          scoreType: event.workoutScoreType,
+          timeCap: event.workoutTimeCap,
+          repsPerRound: event.workoutRepsPerRound,
+          teamId: group.organizingTeamId,
+          scope: "private",
+        })
+
+        const newParentId = event.parentEventId
+          ? parentIdMap.get(event.parentEventId) ?? null
+          : null
+
+        await tx.insert(trackWorkoutsTable).values({
+          id: newTrackWorkoutId,
+          trackId: templateTrackId,
+          workoutId: newWorkoutId,
+          parentEventId: newParentId,
+          trackOrder: event.trackOrder,
+          pointsMultiplier: event.pointsMultiplier,
+          notes: event.notes,
+        })
+
+        // Track parent mapping for children
+        if (!event.parentEventId) {
+          parentIdMap.set(event.id, newTrackWorkoutId)
+        }
+
+        copiedCount++
+      }
+    })
+
+    return { copiedCount }
+  })
+
+/**
  * Add a new event to the series template track.
  * Creates a workout row and a track_workout row on the template track.
  */
@@ -729,73 +913,75 @@ export const reorderSeriesTemplateEventsFn = createServerFn({ method: "POST" })
 
     // Assign orders: top-level events get integer positions,
     // children are moved with their parent and get decimal sub-positions
-    let currentOrder = 1
-    const updatedIds = new Set<string>()
+    await db.transaction(async (tx) => {
+      let currentOrder = 1
+      const updatedIds = new Set<string>()
 
-    for (const eventId of data.orderedEventIds) {
-      const parentId = parentLookup.get(eventId)
+      for (const eventId of data.orderedEventIds) {
+        const parentId = parentLookup.get(eventId)
 
-      if (parentId) {
-        // This is a child event — skip it here; it will be handled under its parent
-        continue
-      }
+        if (parentId) {
+          // This is a child event — skip it here; it will be handled under its parent
+          continue
+        }
 
-      // Top-level event: assign integer order
-      await db
-        .update(trackWorkoutsTable)
-        .set({ trackOrder: currentOrder, updatedAt: new Date() })
-        .where(eq(trackWorkoutsTable.id, eventId))
-      updatedIds.add(eventId)
-
-      // Find and reorder children of this parent (in orderedEventIds order)
-      const childIds = data.orderedEventIds.filter(
-        (id) => parentLookup.get(id) === eventId,
-      )
-      for (let i = 0; i < childIds.length; i++) {
-        const childOrder = Number((currentOrder + 0.01 * (i + 1)).toFixed(2))
-        await db
+        // Top-level event: assign integer order
+        await tx
           .update(trackWorkoutsTable)
-          .set({ trackOrder: childOrder, updatedAt: new Date() })
-          .where(eq(trackWorkoutsTable.id, childIds[i]))
-        updatedIds.add(childIds[i])
-      }
+          .set({ trackOrder: currentOrder, updatedAt: new Date() })
+          .where(eq(trackWorkoutsTable.id, eventId))
+        updatedIds.add(eventId)
 
-      currentOrder++
-    }
-
-    // Handle any children not explicitly in orderedEventIds (auto-move with parent)
-    for (const event of existingEvents) {
-      if (event.parentEventId && !updatedIds.has(event.id)) {
-        // Find parent's new order
-        const parentEvents = await db
-          .select({ trackOrder: trackWorkoutsTable.trackOrder })
-          .from(trackWorkoutsTable)
-          .where(eq(trackWorkoutsTable.id, event.parentEventId))
-          .limit(1)
-
-        if (parentEvents.length > 0) {
-          const parentOrder = Math.floor(Number(parentEvents[0].trackOrder))
-          // Get existing siblings that were already placed
-          const siblings = await db
-            .select({
-              id: trackWorkoutsTable.id,
-              trackOrder: trackWorkoutsTable.trackOrder,
-            })
-            .from(trackWorkoutsTable)
-            .where(eq(trackWorkoutsTable.parentEventId, event.parentEventId))
-            .orderBy(asc(trackWorkoutsTable.trackOrder))
-
-          const siblingIndex = siblings.findIndex((s) => s.id === event.id)
-          const childOrder = Number(
-            (parentOrder + 0.01 * (siblingIndex + 1)).toFixed(2),
-          )
-          await db
+        // Find and reorder children of this parent (in orderedEventIds order)
+        const childIds = data.orderedEventIds.filter(
+          (id) => parentLookup.get(id) === eventId,
+        )
+        for (let i = 0; i < childIds.length; i++) {
+          const childOrder = Number((currentOrder + 0.01 * (i + 1)).toFixed(2))
+          await tx
             .update(trackWorkoutsTable)
             .set({ trackOrder: childOrder, updatedAt: new Date() })
-            .where(eq(trackWorkoutsTable.id, event.id))
+            .where(eq(trackWorkoutsTable.id, childIds[i]))
+          updatedIds.add(childIds[i])
+        }
+
+        currentOrder++
+      }
+
+      // Handle any children not explicitly in orderedEventIds (auto-move with parent)
+      for (const event of existingEvents) {
+        if (event.parentEventId && !updatedIds.has(event.id)) {
+          // Find parent's new order
+          const parentEvents = await tx
+            .select({ trackOrder: trackWorkoutsTable.trackOrder })
+            .from(trackWorkoutsTable)
+            .where(eq(trackWorkoutsTable.id, event.parentEventId))
+            .limit(1)
+
+          if (parentEvents.length > 0) {
+            const parentOrder = Math.floor(Number(parentEvents[0].trackOrder))
+            // Get existing siblings that were already placed
+            const siblings = await tx
+              .select({
+                id: trackWorkoutsTable.id,
+                trackOrder: trackWorkoutsTable.trackOrder,
+              })
+              .from(trackWorkoutsTable)
+              .where(eq(trackWorkoutsTable.parentEventId, event.parentEventId))
+              .orderBy(asc(trackWorkoutsTable.trackOrder))
+
+            const siblingIndex = siblings.findIndex((s) => s.id === event.id)
+            const childOrder = Number(
+              (parentOrder + 0.01 * (siblingIndex + 1)).toFixed(2),
+            )
+            await tx
+              .update(trackWorkoutsTable)
+              .set({ trackOrder: childOrder, updatedAt: new Date() })
+              .where(eq(trackWorkoutsTable.id, event.id))
+          }
         }
       }
-    }
+    })
 
     return { success: true }
   })
