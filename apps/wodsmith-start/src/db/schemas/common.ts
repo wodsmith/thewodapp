@@ -126,3 +126,7 @@ export const createSeriesDivisionMappingId = () => `sdm_${ulid()}`
 
 // Series template division ID generators
 export const createSeriesTemplateDivisionId = () => `std_${ulid()}`
+
+// Broadcast ID generators
+export const createBroadcastId = () => `bcast_${ulid()}`
+export const createBroadcastRecipientId = () => `brcpt_${ulid()}`
