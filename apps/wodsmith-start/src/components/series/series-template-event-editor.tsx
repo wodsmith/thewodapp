@@ -48,6 +48,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import type { Movement } from "@/db/schemas/workouts"
 import type { ScoreType, WorkoutScheme } from "@/lib/scoring/types"
+import { updateWorkoutDivisionDescriptionsFn } from "@/server-fns/competition-workouts-fns"
 import {
   addEventToSeriesTemplateFn,
   deleteSeriesTemplateEventFn,
@@ -78,6 +79,7 @@ interface SeriesTemplateEventEditorProps {
   movements: Movement[]
   divisions?: Division[]
   divisionDescriptionsByWorkout?: Record<string, DivisionDescription[]>
+  organizingTeamId?: string
   onEventsChanged: () => Promise<void>
   onReplaceTemplate?: () => void
 }
@@ -93,6 +95,7 @@ export function SeriesTemplateEventEditor({
   movements,
   divisions = [],
   divisionDescriptionsByWorkout = {},
+  organizingTeamId,
   onEventsChanged,
   onReplaceTemplate,
 }: SeriesTemplateEventEditorProps) {
@@ -364,6 +367,7 @@ export function SeriesTemplateEventEditor({
                       divisionDescriptions={
                         divisionDescriptionsByWorkout[event.workoutId] ?? []
                       }
+                      organizingTeamId={organizingTeamId}
                       onRemove={() => handleRemove(event.id)}
                       onDrop={handleDrop}
                       onAddSubEvent={() => handleAddSubEvent(event.id)}
@@ -386,6 +390,7 @@ export function SeriesTemplateEventEditor({
                         divisionDescriptions={
                           divisionDescriptionsByWorkout[child.workoutId] ?? []
                         }
+                        organizingTeamId={organizingTeamId}
                         onRemove={() => handleRemove(child.id)}
                         onDrop={(sourceIndex, targetIndex) =>
                           handleSubEventDrop(event.id, sourceIndex, targetIndex)
@@ -504,6 +509,7 @@ function SeriesEventRow({
   instanceId,
   divisions,
   divisionDescriptions,
+  organizingTeamId,
   onRemove,
   onDrop,
   onAddSubEvent,
@@ -517,6 +523,7 @@ function SeriesEventRow({
   instanceId: symbol
   divisions: Division[]
   divisionDescriptions: DivisionDescription[]
+  organizingTeamId?: string
   onRemove: () => void
   onDrop: (sourceIndex: number, targetIndex: number) => void
   onAddSubEvent?: () => void
@@ -548,6 +555,49 @@ function SeriesEventRow({
     return initial
   })
   const [isDescriptionsOpen, setIsDescriptionsOpen] = useState(false)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [isSavingDescription, setIsSavingDescription] = useState(false)
+
+  const handleSaveDescription = async () => {
+    if (!organizingTeamId) return
+
+    const descriptionsToSave = divisions.map((div) => ({
+      divisionId: div.id,
+      description: localDescriptions[div.id]?.trim() || null,
+    }))
+
+    setIsSavingDescription(true)
+    try {
+      await updateWorkoutDivisionDescriptionsFn({
+        data: {
+          workoutId: event.workoutId,
+          teamId: organizingTeamId,
+          descriptions: descriptionsToSave,
+        },
+      })
+      toast.success("Division description saved")
+      setHasUnsavedChanges(false)
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save description",
+      )
+    } finally {
+      setIsSavingDescription(false)
+    }
+  }
+
+  const handleDivisionChange = (divisionId: string) => {
+    if (hasUnsavedChanges) {
+      handleSaveDescription()
+    }
+    setSelectedDivisionId(divisionId)
+  }
+
+  const handleDescriptionBlur = () => {
+    if (hasUnsavedChanges) {
+      handleSaveDescription()
+    }
+  }
 
   // Sync name ref
   useEffect(() => {
@@ -840,22 +890,31 @@ function SeriesEventRow({
             {/* Division Scaling Descriptions */}
             {sortedDivisions.length > 0 && (
               <CollapsibleContent className="pt-4 mt-4 border-t space-y-3 max-w-[75ch]">
-                <Tabs
-                  value={selectedDivisionId}
-                  onValueChange={setSelectedDivisionId}
-                >
-                  <TabsList className="w-fit justify-start flex-wrap h-auto gap-1">
-                    {sortedDivisions.map((division) => (
-                      <TabsTrigger
-                        key={division.id}
-                        value={division.id}
-                        className="text-xs"
-                      >
-                        {division.label}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
-                </Tabs>
+                <div className="flex items-center gap-2">
+                  <Tabs
+                    value={selectedDivisionId}
+                    onValueChange={handleDivisionChange}
+                    className="flex-1"
+                  >
+                    <TabsList className="w-fit justify-start flex-wrap h-auto gap-1">
+                      {sortedDivisions.map((division) => (
+                        <TabsTrigger
+                          key={division.id}
+                          value={division.id}
+                          className="text-xs"
+                        >
+                          {division.label}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </Tabs>
+                  {hasUnsavedChanges && (
+                    <span className="text-xs text-muted-foreground italic shrink-0">Unsaved</span>
+                  )}
+                  {isSavingDescription && (
+                    <span className="text-xs text-muted-foreground italic shrink-0">Saving...</span>
+                  )}
+                </div>
                 <Textarea
                   value={
                     selectedDivisionId
@@ -868,7 +927,9 @@ function SeriesEventRow({
                       ...prev,
                       [selectedDivisionId]: e.target.value,
                     }))
+                    setHasUnsavedChanges(true)
                   }}
+                  onBlur={handleDescriptionBlur}
                   placeholder={`Enter scaling description for ${sortedDivisions.find((d) => d.id === selectedDivisionId)?.label || "this division"}...`}
                   rows={10}
                   className="text-sm"

@@ -38,6 +38,12 @@ import {
   WORKOUT_SCHEME_VALUES,
 } from "@/db/schemas/workouts"
 import type { ScoreType, WorkoutScheme } from "@/db/schemas/workouts"
+import { getCompetitionGroupByIdFn } from "@/server-fns/competition-fns"
+import {
+  getWorkoutDivisionDescriptionsFn,
+  updateWorkoutDivisionDescriptionsFn,
+} from "@/server-fns/competition-workouts-fns"
+import { getSeriesTemplateDivisionsFn } from "@/server-fns/series-division-mapping-fns"
 import {
   getSeriesTemplateEventByIdFn,
   updateSeriesTemplateEventFn,
@@ -53,6 +59,7 @@ const templateEventSchema = z.object({
   tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).nullable(),
   pointsMultiplier: z.number().min(1).max(1000),
   notes: z.string(),
+  divisionDescs: z.record(z.string(), z.string()),
 })
 
 type TemplateEventSchema = z.infer<typeof templateEventSchema>
@@ -62,26 +69,54 @@ export const Route = createFileRoute(
 )({
   component: SeriesTemplateEventEditPage,
   loader: async ({ params }) => {
-    const eventResult = await getSeriesTemplateEventByIdFn({
-      data: {
-        trackWorkoutId: params.eventId,
-        groupId: params.groupId,
-      },
-    })
+    const [eventResult, groupResult, divisionsResult] = await Promise.all([
+      getSeriesTemplateEventByIdFn({
+        data: {
+          trackWorkoutId: params.eventId,
+          groupId: params.groupId,
+        },
+      }),
+      getCompetitionGroupByIdFn({
+        data: { groupId: params.groupId },
+      }),
+      getSeriesTemplateDivisionsFn({
+        data: { groupId: params.groupId },
+      }).catch(() => ({ scalingGroupId: null, divisions: [] as Array<{ id: string; label: string; teamSize: number }> })),
+    ])
 
     if (!eventResult.event) {
       throw new Error("Event not found")
     }
 
+    const organizingTeamId = groupResult.group?.organizingTeamId ?? ""
+
+    // Load division descriptions
+    let divisionDescriptions: Array<{
+      divisionId: string
+      divisionLabel: string
+      description: string | null
+      position: number
+    }> = []
+    const divisionIds = divisionsResult.divisions.map((d) => d.id)
+    if (divisionIds.length > 0) {
+      const descResult = await getWorkoutDivisionDescriptionsFn({
+        data: { workoutId: eventResult.event.workoutId, divisionIds },
+      })
+      divisionDescriptions = descResult.descriptions
+    }
+
     return {
       event: eventResult.event,
+      organizingTeamId,
+      divisions: divisionsResult.divisions,
+      divisionDescriptions,
     }
   },
 })
 
 function SeriesTemplateEventEditPage() {
   const { groupId } = Route.useParams()
-  const { event } = Route.useLoaderData()
+  const { event, organizingTeamId, divisions, divisionDescriptions } = Route.useLoaderData()
   const router = useRouter()
   const [isSaving, setIsSaving] = useState(false)
 
@@ -97,6 +132,9 @@ function SeriesTemplateEventEditPage() {
       tiebreakScheme: null,
       pointsMultiplier: event.pointsMultiplier || 100,
       notes: event.notes || "",
+      divisionDescs: Object.fromEntries(
+        divisionDescriptions.map((dd) => [dd.divisionId, dd.description || ""]),
+      ),
     },
   })
 
@@ -121,6 +159,21 @@ function SeriesTemplateEventEditPage() {
           notes: data.notes || null,
         },
       })
+      // Save division descriptions
+      if (divisions.length > 0 && organizingTeamId) {
+        const descriptionsToSave = divisions.map((div) => ({
+          divisionId: div.id,
+          description: data.divisionDescs[div.id]?.trim() || null,
+        }))
+        await updateWorkoutDivisionDescriptionsFn({
+          data: {
+            workoutId: event.workoutId,
+            teamId: organizingTeamId,
+            descriptions: descriptionsToSave,
+          },
+        })
+      }
+
       toast.success("Event updated")
       await router.invalidate()
     } catch (error) {
@@ -421,6 +474,46 @@ function SeriesTemplateEventEditPage() {
                     />
                   </CardContent>
                 </Card>
+
+                {divisions.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Division Variations</CardTitle>
+                      <CardDescription>
+                        Customize the workout description for each division.
+                        These will be synced to all competitions.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {divisions.map((division) => (
+                        <FormField
+                          key={division.id}
+                          control={form.control}
+                          name={`divisionDescs.${division.id}`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <div className="flex items-center justify-between">
+                                <FormLabel>{division.label}</FormLabel>
+                                <span className="text-xs text-muted-foreground">
+                                  {field.value?.trim() ? "Custom" : "Using default"}
+                                </span>
+                              </div>
+                              <FormControl>
+                                <Textarea
+                                  placeholder={`Custom description for ${division.label}... (leave empty to use default)`}
+                                  rows={4}
+                                  {...field}
+                                  value={field.value || ""}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </div>
 
