@@ -105,7 +105,7 @@ export function SeriesEventMapper({
             .map((c) => c.competition.id),
         ),
       )
-      toast.success("Auto-mapped events")
+      toast.success("Auto-matched events")
     } catch (e) {
       toast.error(
         e instanceof Error ? e.message : "Failed to auto-map events",
@@ -145,7 +145,7 @@ export function SeriesEventMapper({
       await saveMappings({
         data: { groupId, mappings: allMappings },
       })
-      toast.success(`Saved ${allMappings.length} event mappings`)
+      toast.success(`Saved ${allMappings.length} event matches`)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save mappings")
       return
@@ -185,7 +185,7 @@ export function SeriesEventMapper({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <p className="text-sm text-muted-foreground">
-              {mappedCount} of {totalSlots} events mapped
+              {mappedCount} of {totalSlots} events matched
             </p>
             {isDirty && (
               <span className="text-xs text-orange-600 dark:text-orange-400 font-medium">
@@ -202,7 +202,7 @@ export function SeriesEventMapper({
               disabled={isAutoMapping}
             >
               <Sparkles className="h-4 w-4 mr-2" />
-              {isAutoMapping ? "Mapping..." : "Auto-Map All"}
+              {isAutoMapping ? "Matching..." : "Auto-Match All"}
             </Button>
             <Button
               type="button"
@@ -210,7 +210,7 @@ export function SeriesEventMapper({
               onClick={handleSave}
               disabled={isSaving}
             >
-              {isSaving ? "Saving..." : "Save Mappings"}
+              {isSaving ? "Saving..." : "Save Matches"}
             </Button>
           </div>
         </div>
@@ -226,7 +226,7 @@ export function SeriesEventMapper({
                 className="rounded border-input"
               />
               <span className="text-muted-foreground">
-                Show only competitions with unmapped events (
+                Show only competitions with unmatched events (
                 {compsWithUnmapped})
               </span>
             </label>
@@ -257,7 +257,7 @@ export function SeriesEventMapper({
                   </th>
                 ))}
                 <th className="text-center font-medium px-2 py-2 min-w-[80px]">
-                  <div className="text-xs text-muted-foreground">Unmapped</div>
+                  <div className="text-xs text-muted-foreground">Unmatched</div>
                 </th>
               </tr>
             </thead>

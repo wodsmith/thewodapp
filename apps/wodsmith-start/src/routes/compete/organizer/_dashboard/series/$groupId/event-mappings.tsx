@@ -71,10 +71,10 @@ function SeriesEventMappingsPage() {
               </Link>
             </Button>
           </div>
-          <h1 className="text-3xl font-bold">Event Mappings</h1>
+          <h1 className="text-3xl font-bold">Match Events</h1>
           <p className="text-muted-foreground mt-1">
-            Map each competition's events to the series template. Unmapped
-            events are excluded from the leaderboard.
+            Tell us which event in each competition matches the series
+            template. Unmatched events won't count toward the leaderboard.
           </p>
         </div>
 
@@ -83,7 +83,7 @@ function SeriesEventMappingsPage() {
           <Alert>
             <AlertTitle>No event template</AlertTitle>
             <AlertDescription>
-              Create an event template first before configuring mappings.{" "}
+              Create an event template first before matching events.{" "}
               <Link
                 to="/compete/organizer/series/$groupId/events"
                 params={{ groupId }}
@@ -97,7 +97,7 @@ function SeriesEventMappingsPage() {
           <Alert>
             <AlertTitle>No events in template</AlertTitle>
             <AlertDescription>
-              Add events to the template before configuring mappings.{" "}
+              Add events to the template before matching events.{" "}
               <Link
                 to="/compete/organizer/series/$groupId/events"
                 params={{ groupId }}
@@ -110,10 +110,11 @@ function SeriesEventMappingsPage() {
         ) : (
           <Card>
             <CardHeader>
-              <CardTitle>Competition Event Mappings</CardTitle>
+              <CardTitle>Match Competition Events</CardTitle>
               <CardDescription>
-                Map each competition's events to the series template.
-                Unmapped events are excluded from the leaderboard.
+                Choose which event in each competition corresponds to each
+                series template event. Unmatched events won't count toward
+                the leaderboard.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -121,8 +122,8 @@ function SeriesEventMappingsPage() {
                 <Alert variant="default" className="border-dashed">
                   <AlertTitle>No competitions in series</AlertTitle>
                   <AlertDescription>
-                    Add competitions to this series first, then configure
-                    event mappings.
+                    Add competitions to this series first, then match
+                    their events.
                   </AlertDescription>
                 </Alert>
               ) : (

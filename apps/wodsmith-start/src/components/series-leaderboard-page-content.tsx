@@ -137,14 +137,15 @@ export function SeriesLeaderboardPageContent({ groupId }: Props) {
           <Alert variant="default" className="border-orange-500/50 bg-orange-50 dark:bg-orange-950/20">
             <BarChart3 className="h-4 w-4 text-orange-600" />
             <AlertTitle className="text-orange-700 dark:text-orange-400">
-              Unmapped competitions
+              Competitions not included
             </AlertTitle>
             <AlertDescription>
               {unmappedCompetitions.length === 1
                 ? `"${unmappedCompetitions[0].name}" is`
                 : `${unmappedCompetitions.length} competitions are`}{" "}
-              not included in the leaderboard because they lack division
-              mappings. Configure mappings in the series Event Mappings page.
+              not included in the leaderboard because their divisions haven't
+              been matched to the series yet. Set this up on the series
+              Configure Divisions page.
             </AlertDescription>
           </Alert>
         )}
@@ -182,8 +183,8 @@ export function SeriesLeaderboardPageContent({ groupId }: Props) {
           <BarChart3 className="h-4 w-4" />
           <AlertTitle>No results yet</AlertTitle>
           <AlertDescription>
-            No rankings yet. Make sure division mappings are configured and
-            athletes have submitted scores.
+            No rankings yet. Make sure divisions are matched and athletes
+            have submitted scores.
           </AlertDescription>
         </Alert>
       ) : (

@@ -453,7 +453,7 @@ export function SeriesTemplateEventEditor({
             <AlertDialogTitle>Delete Event</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete &quot;{deletingEvent?.name}
-              &quot;? This will also remove any competition event mappings for
+              &quot;? This will also remove any competition event matches for
               this template event.
             </AlertDialogDescription>
           </AlertDialogHeader>

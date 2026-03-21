@@ -227,10 +227,10 @@ function SeriesDivisionsPage() {
             {/* Step 2: Map divisions */}
             <Card>
               <CardHeader>
-                <CardTitle>Competition Division Mappings</CardTitle>
+                <CardTitle>Match Competition Divisions</CardTitle>
                 <CardDescription>
                   Map each competition's divisions to the series template.
-                  Unmapped divisions are excluded from the leaderboard.
+                  Unmatched divisions won't count toward the leaderboard.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -239,7 +239,7 @@ function SeriesDivisionsPage() {
                     <AlertTitle>No competitions in series</AlertTitle>
                     <AlertDescription>
                       Add competitions to this series first, then configure
-                      division mappings.
+                      their divisions.
                     </AlertDescription>
                   </Alert>
                 ) : (

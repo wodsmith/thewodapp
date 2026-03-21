@@ -288,7 +288,7 @@ function SeriesDetailPage() {
                   params={{ groupId: group.id }}
                 >
                   <ListPlus className="h-4 w-4 mr-2" />
-                  Event Mappings
+                  Match Events
                 </Link>
               </Button>
               <Button variant="outline" asChild>
