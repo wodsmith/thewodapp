@@ -1,5 +1,5 @@
-import { useEffect } from "react"
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { useEffect, useState } from "react"
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { z } from "zod"
 import type { JudgeAssignmentVersion } from "@/db/schema"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
@@ -35,6 +35,15 @@ import {
   getVolunteerAssignmentsFn,
 } from "@/server-fns/volunteer-fns"
 import { getCompetitionShiftsFn } from "@/server-fns/volunteer-shift-fns"
+import { getCohostsFn, removeCohostFn, updateCohostPermissionsFn } from "@/server-fns/cohost-fns"
+import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
+import { UserPlus, Trash2 } from "lucide-react"
+import { toast } from "sonner"
+import { InviteCohostDialog } from "./-components/invite-cohost-dialog"
 import { InvitedVolunteersList } from "./-components/invited-volunteers-list"
 import { JudgeSchedulingContainer } from "./-components/judges"
 import { ShiftList } from "./-components/shifts/shift-list"
@@ -43,7 +52,7 @@ import { VolunteersList } from "./-components/volunteers-list"
 // Search params schema for tab navigation and event selection
 const searchParamsSchema = z.object({
   tab: z
-    .enum(["roster", "shifts", "schedule", "registration-rules"])
+    .enum(["roster", "shifts", "schedule", "registration-rules", "cohosts"])
     .optional()
     .default("roster"),
   event: z.string().optional(),
@@ -122,6 +131,14 @@ export const Route = createFileRoute(
     const { answersByInvitation, emailToInvitationId } = volunteerAnswersResult
 
     const events = eventsResult.workouts
+
+    // Fetch cohosts in parallel (non-blocking — doesn't affect other tabs)
+    const cohostsResult = await getCohostsFn({
+      data: {
+        competitionTeamId,
+        organizingTeamId: competition.organizingTeamId,
+      },
+    })
 
     // For each volunteer, check if they have score access
     const volunteersWithAccess = await Promise.all(
@@ -230,6 +247,8 @@ export const Route = createFileRoute(
       volunteerQuestions,
       answersByInvitation,
       emailToInvitationId,
+      cohosts: cohostsResult.memberships,
+      pendingCohostInvitations: cohostsResult.pendingInvitations,
     }
   },
   component: VolunteersPage,
@@ -255,6 +274,8 @@ function VolunteersPage() {
     volunteerQuestions,
     answersByInvitation,
     emailToInvitationId,
+    cohosts,
+    pendingCohostInvitations,
   } = Route.useLoaderData()
 
   const { tab, event: eventFromUrl } = Route.useSearch()
@@ -265,7 +286,7 @@ function VolunteersPage() {
       to: ".",
       search: (prev) => ({
         ...prev,
-        tab: value as "roster" | "shifts" | "schedule" | "registration-rules",
+        tab: value as "roster" | "shifts" | "schedule" | "registration-rules" | "cohosts",
       }),
       replace: true,
     })
@@ -328,6 +349,7 @@ function VolunteersPage() {
             <SelectItem value="registration-rules">
               Registration Rules
             </SelectItem>
+            <SelectItem value="cohosts">Co-Hosts</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -340,6 +362,7 @@ function VolunteersPage() {
           <TabsTrigger value="schedule">Judge Schedule</TabsTrigger>
         )}
         <TabsTrigger value="registration-rules">Registration Rules</TabsTrigger>
+        <TabsTrigger value="cohosts">Co-Hosts</TabsTrigger>
       </TabsList>
 
       {/* Roster Tab - Volunteer Management */}
@@ -432,6 +455,226 @@ function VolunteersPage() {
           questionTarget="volunteer"
         />
       </TabsContent>
+
+      {/* Co-Hosts Tab */}
+      <TabsContent value="cohosts">
+        <CohostsTab
+          competitionId={competition.id}
+          competitionTeamId={competitionTeamId}
+          organizingTeamId={competition.organizingTeamId}
+          cohosts={cohosts}
+          pendingInvitations={pendingCohostInvitations}
+        />
+      </TabsContent>
     </Tabs>
+  )
+}
+
+// =============================================================================
+// Co-Hosts Tab Component
+// =============================================================================
+
+interface CohostsTabProps {
+  competitionId: string
+  competitionTeamId: string
+  organizingTeamId: string
+  cohosts: Array<{
+    id: string
+    userId: string | null
+    user: {
+      id: string
+      firstName: string | null
+      lastName: string | null
+      email: string
+      avatar: string | null
+    } | null
+    permissions: CohostMembershipMetadata
+    joinedAt: Date | null
+  }>
+  pendingInvitations: Array<{
+    id: string
+    email: string
+    permissions: CohostMembershipMetadata
+    createdAt: Date | string | null
+  }>
+}
+
+function CohostsTab({
+  competitionId,
+  competitionTeamId,
+  organizingTeamId,
+  cohosts,
+  pendingInvitations,
+}: CohostsTabProps) {
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const router = useRouter()
+
+  const handleRemoveCohost = async (membershipId: string, name: string) => {
+    if (!confirm(`Remove ${name} as a co-host?`)) return
+    try {
+      await removeCohostFn({
+        data: { membershipId, organizingTeamId },
+      })
+      toast.success(`${name} removed as co-host`)
+      router.invalidate()
+    } catch {
+      toast.error("Failed to remove co-host")
+    }
+  }
+
+  const handleTogglePermission = async (
+    membershipId: string,
+    key: keyof CohostMembershipMetadata,
+    currentValue: boolean,
+  ) => {
+    try {
+      await updateCohostPermissionsFn({
+        data: {
+          membershipId,
+          organizingTeamId,
+          permissions: { [key]: !currentValue },
+        },
+      })
+      router.invalidate()
+    } catch {
+      toast.error("Failed to update permission")
+    }
+  }
+
+  const permissionLabel = (key: keyof CohostMembershipMetadata) => {
+    switch (key) {
+      case "canViewRevenue":
+        return "Revenue"
+      case "canEditSettings":
+        return "Settings"
+      case "canManagePricing":
+        return "Pricing"
+      default:
+        return key
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold">Co-Hosts</h2>
+          <p className="text-sm text-muted-foreground">
+            Invite partners to help manage this competition
+          </p>
+        </div>
+        <Button onClick={() => setInviteOpen(true)} size="sm">
+          <UserPlus className="mr-1.5 h-4 w-4" />
+          Invite Co-Host
+        </Button>
+      </div>
+
+      {/* Pending invitations */}
+      {pendingInvitations.length > 0 && (
+        <section>
+          <h3 className="mb-3 text-sm font-medium text-muted-foreground">
+            Pending Invitations
+          </h3>
+          <div className="flex flex-col gap-2">
+            {pendingInvitations.map((inv) => (
+              <Card key={inv.id}>
+                <CardContent className="flex items-center justify-between py-3">
+                  <div>
+                    <p className="font-medium">{inv.email}</p>
+                    <div className="mt-1 flex gap-1.5">
+                      {(["canEditSettings", "canViewRevenue", "canManagePricing"] as const).map(
+                        (key) =>
+                          inv.permissions[key] && (
+                            <Badge key={key} variant="secondary" className="text-xs">
+                              {permissionLabel(key)}
+                            </Badge>
+                          ),
+                      )}
+                    </div>
+                  </div>
+                  <Badge variant="outline">Pending</Badge>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Active cohosts */}
+      {cohosts.length > 0 ? (
+        <section>
+          <h3 className="mb-3 text-sm font-medium text-muted-foreground">
+            Active Co-Hosts
+          </h3>
+          <div className="flex flex-col gap-2">
+            {cohosts.map((cohost) => {
+              const name = cohost.user
+                ? `${cohost.user.firstName ?? ""} ${cohost.user.lastName ?? ""}`.trim() ||
+                  cohost.user.email
+                : "Unknown"
+              return (
+                <Card key={cohost.id}>
+                  <CardContent className="flex items-center justify-between py-3">
+                    <div className="flex-1">
+                      <p className="font-medium">{name}</p>
+                      {cohost.user && (
+                        <p className="text-sm text-muted-foreground">
+                          {cohost.user.email}
+                        </p>
+                      )}
+                      <div className="mt-2 flex flex-wrap gap-3">
+                        {(["canEditSettings", "canViewRevenue", "canManagePricing"] as const).map(
+                          (key) => (
+                            <label
+                              key={key}
+                              className="flex cursor-pointer items-center gap-1.5 text-sm"
+                            >
+                              <Checkbox
+                                checked={cohost.permissions[key] ?? false}
+                                onCheckedChange={() =>
+                                  handleTogglePermission(
+                                    cohost.id,
+                                    key,
+                                    cohost.permissions[key] ?? false,
+                                  )
+                                }
+                              />
+                              {permissionLabel(key)}
+                            </label>
+                          ),
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleRemoveCohost(cohost.id, name)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </section>
+      ) : pendingInvitations.length === 0 ? (
+        <div className="py-12 text-center text-muted-foreground">
+          <p>No co-hosts yet</p>
+          <p className="text-sm">
+            Invite a partner to help manage this competition
+          </p>
+        </div>
+      ) : null}
+
+      <InviteCohostDialog
+        competitionId={competitionId}
+        competitionTeamId={competitionTeamId}
+        organizingTeamId={organizingTeamId}
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
+      />
+    </div>
   )
 }

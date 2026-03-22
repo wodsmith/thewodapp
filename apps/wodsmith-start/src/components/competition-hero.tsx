@@ -130,10 +130,7 @@ export function CompetitionHero({
                     </a>
                   )}
                   {isCohost && !canManage && (
-                    <Link
-                      to="/compete/cohost/$competitionId"
-                      params={{ competitionId: competition.id }}
-                    >
+                    <a href={`/compete/cohost/${competition.id}`}>
                       <Button
                         variant="secondary"
                         size="sm"
@@ -142,13 +139,10 @@ export function CompetitionHero({
                         <Settings className="mr-1 h-4 w-4" />
                         Manage as Co-Host
                       </Button>
-                    </Link>
+                    </a>
                   )}
                   {isCohost && canManage && (
-                    <Link
-                      to="/compete/cohost/$competitionId"
-                      params={{ competitionId: competition.id }}
-                    >
+                    <a href={`/compete/cohost/${competition.id}`}>
                       <Button
                         variant="secondary"
                         size="sm"
@@ -162,7 +156,7 @@ export function CompetitionHero({
                         <Settings className="mr-1 h-4 w-4" />
                         Co-Host View
                       </Button>
-                    </Link>
+                    </a>
                   )}
                   {showJudgesScheduleLink && (
                     <Link
