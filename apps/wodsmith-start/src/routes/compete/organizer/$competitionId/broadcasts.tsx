@@ -4,6 +4,7 @@
  * Organizer page for sending one-way broadcast messages to athletes.
  * Supports audience filtering by division and delivery tracking.
  */
+// @lat: [[organizer-dashboard#Broadcasts]]
 
 import { createFileRoute, getRouteApi, useRouter } from "@tanstack/react-router"
 import { useState } from "react"

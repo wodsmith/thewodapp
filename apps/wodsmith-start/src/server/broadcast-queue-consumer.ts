@@ -1,3 +1,4 @@
+// @lat: [[organizer-dashboard#Broadcasts]]
 /**
  * Cloudflare Queue consumer for broadcast email delivery.
  *

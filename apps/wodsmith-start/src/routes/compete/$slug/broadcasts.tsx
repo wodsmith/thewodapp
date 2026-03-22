@@ -3,6 +3,7 @@
  *
  * Shows broadcasts the athlete has received for a competition.
  */
+// @lat: [[organizer-dashboard#Broadcasts]]
 
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { Megaphone } from "lucide-react"

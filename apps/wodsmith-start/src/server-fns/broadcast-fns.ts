@@ -4,6 +4,7 @@
  * Server functions for organizer broadcast messaging.
  * Handles creating, sending, and listing broadcasts.
  */
+// @lat: [[organizer-dashboard#Broadcasts]]
 
 import { createServerFn } from "@tanstack/react-start"
 import { render } from "@react-email/render"
