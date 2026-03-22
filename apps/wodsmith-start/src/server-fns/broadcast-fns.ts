@@ -215,40 +215,47 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 			columns: { name: true },
 		})
 
-		// Insert broadcast record
-		const [broadcast] = await db
-			.insert(competitionBroadcastsTable)
-			.values({
-				competitionId: data.competitionId,
-				teamId: competition.organizingTeamId,
-				title: data.title,
-				body: data.body,
-				audienceFilter: data.audienceFilter
-					? JSON.stringify(data.audienceFilter)
-					: null,
-				recipientCount: registrations.length,
-				status: BROADCAST_STATUS.SENT,
-				sentAt: new Date(),
-				createdById: session.userId,
-			})
-			.$returningId()
-
 		// Generate recipient IDs upfront so we can reference them in queue messages
 		const { createBroadcastRecipientId } = await import(
 			"@/db/schemas/common"
 		)
-		const recipientValues = registrations.map((reg) => ({
-			id: createBroadcastRecipientId(),
-			broadcastId: broadcast.id,
-			registrationId: reg.id,
-			userId: reg.userId,
-			emailDeliveryStatus:
-				BROADCAST_EMAIL_DELIVERY_STATUS.QUEUED as "queued",
-		}))
 
-		await db
-			.insert(competitionBroadcastRecipientsTable)
-			.values(recipientValues)
+		// Insert broadcast + recipients atomically in a transaction
+		const { broadcast, recipientValues } = await db.transaction(
+			async (tx) => {
+				const [broadcast] = await tx
+					.insert(competitionBroadcastsTable)
+					.values({
+						competitionId: data.competitionId,
+						teamId: competition.organizingTeamId,
+						title: data.title,
+						body: data.body,
+						audienceFilter: data.audienceFilter
+							? JSON.stringify(data.audienceFilter)
+							: null,
+						recipientCount: registrations.length,
+						status: BROADCAST_STATUS.SENT,
+						sentAt: new Date(),
+						createdById: session.userId,
+					})
+					.$returningId()
+
+				const recipientValues = registrations.map((reg) => ({
+					id: createBroadcastRecipientId(),
+					broadcastId: broadcast.id,
+					registrationId: reg.id,
+					userId: reg.userId,
+					emailDeliveryStatus:
+						BROADCAST_EMAIL_DELIVERY_STATUS.QUEUED as "queued",
+				}))
+
+				await tx
+					.insert(competitionBroadcastRecipientsTable)
+					.values(recipientValues)
+
+				return { broadcast, recipientValues }
+			},
+		)
 
 		// Pre-render the email template once for all recipients
 		const bodyHtml = await render(
