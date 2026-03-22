@@ -43,6 +43,10 @@ interface OrganizerEventManagerProps {
   divisions: Division[]
   divisionDescriptionsByWorkout: Record<string, DivisionDescription[]>
   sponsors: Sponsor[]
+  /** Series name if the competition is part of a series with event templates */
+  seriesName?: string | null
+  /** Map of competition event ID -> template event name (for series badges) */
+  seriesEventMap?: Map<string, string>
 }
 
 export function OrganizerEventManager({
@@ -53,6 +57,8 @@ export function OrganizerEventManager({
   divisions,
   divisionDescriptionsByWorkout,
   sponsors,
+  seriesName,
+  seriesEventMap,
 }: OrganizerEventManagerProps) {
   const router = useRouter()
   const [events, setEvents] = useState(initialEvents)
@@ -434,6 +440,8 @@ export function OrganizerEventManager({
                       onAddSubEvent={() => handleAddSubEvent(event.id)}
                       isParentEvent={isParent}
                       childCount={children.length}
+                      seriesName={seriesName}
+                      seriesTemplateName={seriesEventMap?.get(event.id)}
                     />
                   </div>
                 </div>
@@ -459,6 +467,8 @@ export function OrganizerEventManager({
                         }
                         isSubEvent
                         parentEventId={event.id}
+                        seriesName={seriesName}
+                        seriesTemplateName={seriesEventMap?.get(child.id)}
                       />
                     ))}
                     <Button

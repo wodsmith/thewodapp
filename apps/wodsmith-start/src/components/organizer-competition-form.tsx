@@ -33,6 +33,7 @@ import {
   createCompetitionFn,
   updateCompetitionFn,
 } from "@/server-fns/competition-fns"
+import { syncTemplateEventsToCompetitionsFn } from "@/server-fns/series-event-template-fns"
 import { COMMON_US_TIMEZONES, DEFAULT_TIMEZONE } from "@/utils/timezone-utils"
 
 const formSchema = z
@@ -124,6 +125,10 @@ interface OrganizerCompetitionFormProps {
       divisions: Array<{ id: string; label: string; teamSize: number }>
     }
   >
+  seriesTemplateEvents?: Record<
+    string,
+    Array<{ id: string; name: string; order: number; scoreType: string | null }>
+  >
   onSuccess?: (competitionId: string) => void
   onCancel?: () => void
 }
@@ -135,6 +140,7 @@ export function OrganizerCompetitionForm({
   competition,
   defaultGroupId,
   seriesTemplateDivisions = {},
+  seriesTemplateEvents = {},
   onSuccess,
   onCancel,
 }: OrganizerCompetitionFormProps) {
@@ -195,6 +201,22 @@ export function OrganizerCompetitionForm({
       : null
     setSelectedDivisionIds(new Set((data?.divisions ?? []).map((d) => d.id)))
   }, [watchedGroupId, seriesTemplateDivisions])
+
+  // Track selected events for series template
+  const templateEvents = watchedGroupId
+    ? (seriesTemplateEvents[watchedGroupId] ?? [])
+    : []
+  const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(
+    () => new Set(templateEvents.map((e) => e.id)),
+  )
+
+  // When group changes, select all template events by default
+  useEffect(() => {
+    const events = watchedGroupId
+      ? (seriesTemplateEvents[watchedGroupId] ?? [])
+      : []
+    setSelectedEventIds(new Set(events.map((e) => e.id)))
+  }, [watchedGroupId, seriesTemplateEvents])
 
   // Auto-generate slug from name
   const handleNameChange = (name: string) => {
@@ -273,6 +295,22 @@ export function OrganizerCompetitionForm({
               })
             } catch (e) {
               console.error("Failed to initialize divisions:", e)
+              // Don't block competition creation
+            }
+          }
+
+          // Sync selected template events to the new competition
+          if (selectedEventIds.size > 0 && data.groupId) {
+            try {
+              await syncTemplateEventsToCompetitionsFn({
+                data: {
+                  groupId: data.groupId,
+                  competitionIds: [result.competitionId],
+                  templateEventIds: Array.from(selectedEventIds),
+                },
+              })
+            } catch (e) {
+              console.error("Failed to sync template events:", e)
               // Don't block competition creation
             }
           }
@@ -503,6 +541,50 @@ export function OrganizerCompetitionForm({
                   {div.teamSize > 1 && (
                     <span className="text-xs text-muted-foreground">
                       (team of {div.teamSize})
+                    </span>
+                  )}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Series Event Selection */}
+        {!isEditMode && templateEvents.length > 0 && (
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-medium">Events</p>
+              <p className="text-sm text-muted-foreground">
+                Select which series template events to sync to this competition.
+              </p>
+            </div>
+            <div className="space-y-2">
+              {templateEvents.map((evt) => (
+                // biome-ignore lint/a11y/noLabelWithoutControl: Radix Checkbox renders internal input
+                <label
+                  key={evt.id}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <Checkbox
+                    checked={selectedEventIds.has(evt.id)}
+                    onCheckedChange={(checked) => {
+                      setSelectedEventIds((prev) => {
+                        const next = new Set(prev)
+                        if (checked) {
+                          next.add(evt.id)
+                        } else {
+                          next.delete(evt.id)
+                        }
+                        return next
+                      })
+                    }}
+                  />
+                  <span className="text-sm">
+                    #{evt.order} {evt.name}
+                  </span>
+                  {evt.scoreType && (
+                    <span className="text-xs text-muted-foreground">
+                      ({evt.scoreType})
                     </span>
                   )}
                 </label>
