@@ -107,9 +107,7 @@ export function SeriesTemplateEventEditor({
     useState<SeriesTemplateEvent | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [topLevelInstanceId] = useState(() => Symbol("series-template-events"))
-  const [subEventInstanceIds] = useState(
-    () => new Map<string, symbol>(),
-  )
+  const [subEventInstanceIds] = useState(() => new Map<string, symbol>())
   const [collapsedParents, setCollapsedParents] = useState<Set<string>>(
     () => new Set(),
   )
@@ -124,9 +122,7 @@ export function SeriesTemplateEventEditor({
   }, [initialEvents])
 
   // Sort events by trackOrder
-  const sortedEvents = [...events].sort(
-    (a, b) => a.trackOrder - b.trackOrder,
-  )
+  const sortedEvents = [...events].sort((a, b) => a.trackOrder - b.trackOrder)
 
   // Build hierarchical event list
   const childrenByParent = new Map<string, SeriesTemplateEvent[]>()
@@ -244,12 +240,20 @@ export function SeriesTemplateEventEditor({
     let currentOrder = 1
     for (const parent of newTopLevel) {
       orderedIds.push(parent.id)
-      updatedEvents.push({ ...parent, trackOrder: currentOrder, order: currentOrder })
+      updatedEvents.push({
+        ...parent,
+        trackOrder: currentOrder,
+        order: currentOrder,
+      })
       const children = childrenByParent.get(parent.id) ?? []
       for (let j = 0; j < children.length; j++) {
         const childOrder = Number((currentOrder + 0.01 * (j + 1)).toFixed(2))
         orderedIds.push(children[j].id)
-        updatedEvents.push({ ...children[j], trackOrder: childOrder, order: childOrder })
+        updatedEvents.push({
+          ...children[j],
+          trackOrder: childOrder,
+          order: childOrder,
+        })
       }
       currentOrder++
     }
@@ -261,7 +265,7 @@ export function SeriesTemplateEventEditor({
       await reorderEvents({
         data: { trackId, groupId, orderedEventIds: orderedIds },
       })
-    } catch (e) {
+    } catch {
       toast.error("Failed to reorder events")
       setEvents(previousEvents)
     }
@@ -296,11 +300,16 @@ export function SeriesTemplateEventEditor({
           ? newChildren
           : (childrenByParent.get(parent.id) ?? [])
       for (let j = 0; j < siblings.length; j++) {
-        const childOrder = parent.id === parentId
-          ? Number((parentOrder + 0.01 * (j + 1)).toFixed(2))
-          : siblings[j].trackOrder
+        const childOrder =
+          parent.id === parentId
+            ? Number((parentOrder + 0.01 * (j + 1)).toFixed(2))
+            : siblings[j].trackOrder
         orderedIds.push(siblings[j].id)
-        updatedEvents.push({ ...siblings[j], trackOrder: childOrder, order: childOrder })
+        updatedEvents.push({
+          ...siblings[j],
+          trackOrder: childOrder,
+          order: childOrder,
+        })
       }
     }
 
@@ -311,7 +320,7 @@ export function SeriesTemplateEventEditor({
       await reorderEvents({
         data: { trackId, groupId, orderedEventIds: orderedIds },
       })
-    } catch (e) {
+    } catch {
       toast.error("Failed to reorder sub-events")
       setEvents(previousEvents)
     }
@@ -529,9 +538,7 @@ function SeriesEventRow({
   const nameRef = useRef(event.workout.name)
 
   // Division editing state
-  const sortedDivisions = [...divisions].sort(
-    (a, b) => a.position - b.position,
-  )
+  const sortedDivisions = [...divisions].sort((a, b) => a.position - b.position)
   const [selectedDivisionId, setSelectedDivisionId] = useState<
     string | undefined
   >(sortedDivisions[0]?.id)
@@ -649,8 +656,7 @@ function SeriesEventRow({
         element,
         canDrop: ({ source }) => {
           return (
-            source.data.instanceId === instanceId &&
-            source.data.index !== index
+            source.data.instanceId === instanceId && source.data.index !== index
           )
         },
         getData({ input }) {
@@ -758,12 +764,11 @@ function SeriesEventRow({
                       {event.workout.scheme}
                     </span>
                   )}
-                  {event.pointsMultiplier &&
-                    event.pointsMultiplier !== 100 && (
-                      <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded shrink-0">
-                        {event.pointsMultiplier / 100}x
-                      </span>
-                    )}
+                  {event.pointsMultiplier && event.pointsMultiplier !== 100 && (
+                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded shrink-0">
+                      {event.pointsMultiplier / 100}x
+                    </span>
+                  )}
                 </div>
 
                 {/* Actions - hidden on mobile */}
@@ -800,9 +805,14 @@ function SeriesEventRow({
                       to="/compete/organizer/series/$groupId/events/$eventId"
                       params={{
                         groupId,
-                        eventId: isSubEvent && parentEventId ? parentEventId : event.id,
+                        eventId:
+                          isSubEvent && parentEventId
+                            ? parentEventId
+                            : event.id,
                       }}
-                      search={isSubEvent && parentEventId ? { tab: event.id } : {}}
+                      search={
+                        isSubEvent && parentEventId ? { tab: event.id } : {}
+                      }
                     >
                       <Pencil className="h-4 w-4" />
                     </Link>
@@ -826,12 +836,11 @@ function SeriesEventRow({
                       {event.workout.scheme}
                     </span>
                   )}
-                  {event.pointsMultiplier &&
-                    event.pointsMultiplier !== 100 && (
-                      <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
-                        {event.pointsMultiplier / 100}x
-                      </span>
-                    )}
+                  {event.pointsMultiplier && event.pointsMultiplier !== 100 && (
+                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                      {event.pointsMultiplier / 100}x
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0 ml-auto">
                   {onAddSubEvent && (
@@ -866,9 +875,14 @@ function SeriesEventRow({
                       to="/compete/organizer/series/$groupId/events/$eventId"
                       params={{
                         groupId,
-                        eventId: isSubEvent && parentEventId ? parentEventId : event.id,
+                        eventId:
+                          isSubEvent && parentEventId
+                            ? parentEventId
+                            : event.id,
                       }}
-                      search={isSubEvent && parentEventId ? { tab: event.id } : {}}
+                      search={
+                        isSubEvent && parentEventId ? { tab: event.id } : {}
+                      }
                     >
                       <Pencil className="h-4 w-4" />
                     </Link>
@@ -907,10 +921,14 @@ function SeriesEventRow({
                     </TabsList>
                   </Tabs>
                   {hasUnsavedChanges && (
-                    <span className="text-xs text-muted-foreground italic shrink-0">Unsaved</span>
+                    <span className="text-xs text-muted-foreground italic shrink-0">
+                      Unsaved
+                    </span>
                   )}
                   {isSavingDescription && (
-                    <span className="text-xs text-muted-foreground italic shrink-0">Saving...</span>
+                    <span className="text-xs text-muted-foreground italic shrink-0">
+                      Saving...
+                    </span>
                   )}
                 </div>
                 <Textarea
@@ -941,4 +959,3 @@ function SeriesEventRow({
     </div>
   )
 }
-

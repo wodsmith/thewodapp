@@ -44,8 +44,11 @@ export function SeriesEventSyncDialog({
       status: "in-sync" | "behind" | "custom" | "unmapped"
     }>
   >([])
-  const [selectedCompetitionIds, setSelectedCompetitionIds] = useState<Set<string>>(new Set())
-  const [syncPreview, setSyncPreview] = useState<SyncEventsPreviewResult | null>(null)
+  const [selectedCompetitionIds, setSelectedCompetitionIds] = useState<
+    Set<string>
+  >(new Set())
+  const [syncPreview, setSyncPreview] =
+    useState<SyncEventsPreviewResult | null>(null)
   const [isLoadingStatus, setIsLoadingStatus] = useState(false)
   const [isLoadingPreview, setIsLoadingPreview] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
@@ -76,7 +79,9 @@ export function SeriesEventSyncDialog({
         )
       })
       .catch((e) => {
-        toast.error(e instanceof Error ? e.message : "Failed to load sync status")
+        toast.error(
+          e instanceof Error ? e.message : "Failed to load sync status",
+        )
         onOpenChange(false)
       })
       .finally(() => setIsLoadingStatus(false))
@@ -154,7 +159,10 @@ export function SeriesEventSyncDialog({
         )
       case "behind":
         return (
-          <Badge variant="outline" className="text-orange-600 border-orange-600">
+          <Badge
+            variant="outline"
+            className="text-orange-600 border-orange-600"
+          >
             Behind
           </Badge>
         )
@@ -196,18 +204,25 @@ export function SeriesEventSyncDialog({
               </p>
             ) : (
               <div className="space-y-3 py-2">
-                <Button variant="outline" size="sm" onClick={handleSelectAllBehind}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectAllBehind}
+                >
                   Select All Behind
                 </Button>
                 <div className="space-y-2">
                   {syncStatuses.map((comp) => (
+                    // biome-ignore lint/a11y/noLabelWithoutControl: Radix Checkbox renders internal input
                     <label
                       key={comp.competitionId}
                       className="flex items-center gap-3 rounded-md border p-3 cursor-pointer hover:bg-muted/50"
                     >
                       <Checkbox
                         checked={selectedCompetitionIds.has(comp.competitionId)}
-                        onCheckedChange={() => toggleCompetition(comp.competitionId)}
+                        onCheckedChange={() =>
+                          toggleCompetition(comp.competitionId)
+                        }
                       />
                       <span className="flex-1 text-sm font-medium">
                         {comp.competitionName}
