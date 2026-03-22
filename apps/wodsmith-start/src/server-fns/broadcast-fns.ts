@@ -284,25 +284,32 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 				await queue.send(message)
 			}
 		} catch (err) {
-			// Mark broadcast as failed so organizer can see the error
-			console.error("[Broadcast] Failed to enqueue emails:", err)
+			// Some batches may already be enqueued, so mark as SENT (not FAILED)
+			// to ensure athletes can see the broadcast. The queue consumer handles
+			// per-recipient idempotency, so partial delivery is safe.
+			console.error("[Broadcast] Partial enqueue failure:", err)
 			await db
 				.update(competitionBroadcastsTable)
-				.set({ status: BROADCAST_STATUS.FAILED })
+				.set({ status: BROADCAST_STATUS.SENT, sentAt: new Date() })
 				.where(eq(competitionBroadcastsTable.id, broadcast.id))
 			throw new Error(
-				"Broadcast saved but email delivery failed to start. Please try resending.",
+				"Some broadcast emails may not have been queued. Check delivery status for details.",
 			)
 		}
 
 		// Mark broadcast as sent after successful enqueueing
-		await db
-			.update(competitionBroadcastsTable)
-			.set({
-				status: BROADCAST_STATUS.SENT,
-				sentAt: new Date(),
-			})
-			.where(eq(competitionBroadcastsTable.id, broadcast.id))
+		try {
+			await db
+				.update(competitionBroadcastsTable)
+				.set({
+					status: BROADCAST_STATUS.SENT,
+					sentAt: new Date(),
+				})
+				.where(eq(competitionBroadcastsTable.id, broadcast.id))
+		} catch (updateErr) {
+			// Emails are already queued; log but don't fail the request
+			console.error("[Broadcast] Failed to update status to SENT:", updateErr)
+		}
 
 		return {
 			broadcastId: broadcast.id,
