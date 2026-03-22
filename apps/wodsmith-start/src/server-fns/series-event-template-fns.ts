@@ -2707,6 +2707,7 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
     const templateTrackWorkouts = await db
       .select({
         id: trackWorkoutsTable.id,
+        trackOrder: trackWorkoutsTable.trackOrder,
         notes: trackWorkoutsTable.notes,
         pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
         workout: {
@@ -2753,6 +2754,7 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
             .select({
               id: trackWorkoutsTable.id,
               trackId: trackWorkoutsTable.trackId,
+              trackOrder: trackWorkoutsTable.trackOrder,
               notes: trackWorkoutsTable.notes,
               pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
               workout: {
@@ -2863,7 +2865,8 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
           (templateTw.pointsMultiplier !== null &&
             compTw.pointsMultiplier !== templateTw.pointsMultiplier) ||
           (templateTw.notes !== undefined &&
-            (compTw.notes ?? null) !== (templateTw.notes ?? null))
+            (compTw.notes ?? null) !== (templateTw.notes ?? null)) ||
+          Number(compTw.trackOrder) !== Number(templateTw.trackOrder)
         ) {
           hasDifferences = true
           break
