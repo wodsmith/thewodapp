@@ -227,7 +227,8 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 					? JSON.stringify(data.audienceFilter)
 					: null,
 				recipientCount: registrations.length,
-				status: BROADCAST_STATUS.DRAFT,
+				status: BROADCAST_STATUS.SENT,
+				sentAt: new Date(),
 				createdById: session.userId,
 			})
 			.$returningId()
@@ -265,50 +266,25 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 		const queue = (env as Record<string, unknown>)
 			.BROADCAST_EMAIL_QUEUE as Queue<BroadcastEmailMessage>
 
-		try {
-			for (let i = 0; i < recipientValues.length; i += BATCH_SIZE) {
-				const batchSlice = recipientValues.slice(i, i + BATCH_SIZE)
-				const message: BroadcastEmailMessage = {
-					broadcastId: broadcast.id,
-					competitionId: data.competitionId,
-					batch: batchSlice.map((rv, idx) => ({
-						recipientId: rv.id,
-						email: registrations[i + idx].email,
-						athleteName:
-							registrations[i + idx].username ?? "Athlete",
-					})),
-					subject: `${data.title} — ${competition.name}`,
-					bodyHtml,
-					replyTo: "support@mail.wodsmith.com",
-				}
-				await queue.send(message)
+		// Broadcast is already marked SENT. Enqueue errors propagate naturally —
+		// the queue consumer uses per-recipient idempotency keys, so retries
+		// from the organizer are safe.
+		for (let i = 0; i < recipientValues.length; i += BATCH_SIZE) {
+			const batchSlice = recipientValues.slice(i, i + BATCH_SIZE)
+			const message: BroadcastEmailMessage = {
+				broadcastId: broadcast.id,
+				competitionId: data.competitionId,
+				batch: batchSlice.map((rv, idx) => ({
+					recipientId: rv.id,
+					email: registrations[i + idx].email,
+					athleteName:
+						registrations[i + idx].username ?? "Athlete",
+				})),
+				subject: `${data.title} — ${competition.name}`,
+				bodyHtml,
+				replyTo: "support@mail.wodsmith.com",
 			}
-		} catch (err) {
-			// Some batches may already be enqueued, so mark as SENT (not FAILED)
-			// to ensure athletes can see the broadcast. The queue consumer handles
-			// per-recipient idempotency, so partial delivery is safe.
-			console.error("[Broadcast] Partial enqueue failure:", err)
-			await db
-				.update(competitionBroadcastsTable)
-				.set({ status: BROADCAST_STATUS.SENT, sentAt: new Date() })
-				.where(eq(competitionBroadcastsTable.id, broadcast.id))
-			throw new Error(
-				"Some broadcast emails may not have been queued. Check delivery status for details.",
-			)
-		}
-
-		// Mark broadcast as sent after successful enqueueing
-		try {
-			await db
-				.update(competitionBroadcastsTable)
-				.set({
-					status: BROADCAST_STATUS.SENT,
-					sentAt: new Date(),
-				})
-				.where(eq(competitionBroadcastsTable.id, broadcast.id))
-		} catch (updateErr) {
-			// Emails are already queued; log but don't fail the request
-			console.error("[Broadcast] Failed to update status to SENT:", updateErr)
+			await queue.send(message)
 		}
 
 		return {
