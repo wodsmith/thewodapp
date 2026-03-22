@@ -12,7 +12,10 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, asc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
-import { competitionsTable } from "@/db/schemas/competitions"
+import {
+  competitionGroupsTable,
+  competitionsTable,
+} from "@/db/schemas/competitions"
 import { eventJudgingSheetsTable } from "@/db/schemas/judging-sheets"
 import { createEventJudgingSheetId } from "@/db/schemas/common"
 import {
@@ -84,7 +87,8 @@ const getEventJudgingSheetsInputSchema = z.object({
 })
 
 const createJudgingSheetInputSchema = z.object({
-  competitionId: z.string().min(1, "Competition ID is required"),
+  competitionId: z.string().min(1).optional(),
+  groupId: z.string().min(1).optional(),
   trackWorkoutId: z.string().min(1, "Track workout ID is required"),
   title: z.string().min(1, "Title is required").max(255),
   url: z.string().min(1, "URL is required"),
@@ -172,43 +176,98 @@ export const createJudgingSheetFn = createServerFn({ method: "POST" })
 
     // Update request context
     updateRequestContext({ userId: session.userId })
-    addRequestContextAttribute("competitionId", data.competitionId)
+    addRequestContextAttribute(
+      "competitionId",
+      data.competitionId ?? data.groupId ?? "",
+    )
     addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
 
-    // Get the competition to verify ownership
-    const competition = await db.query.competitionsTable.findFirst({
-      where: eq(competitionsTable.id, data.competitionId),
-    })
-
-    if (!competition) {
-      throw new Error("Competition not found")
+    if (!data.competitionId && !data.groupId) {
+      throw new Error("Either competitionId or groupId is required")
     }
 
-    // Check permission on the organizing team
-    await requireTeamPermission(
-      competition.organizingTeamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-    )
+    let entityId: string
 
-    // Verify the track workout belongs to this competition using a join
-    const trackWorkoutResult = await db
-      .select({
-        trackWorkoutId: trackWorkoutsTable.id,
-        competitionId: programmingTracksTable.competitionId,
-      })
-      .from(trackWorkoutsTable)
-      .innerJoin(
-        programmingTracksTable,
-        eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+    if (data.groupId) {
+      // Series template flow: validate via group
+      const [group] = await db
+        .select()
+        .from(competitionGroupsTable)
+        .where(eq(competitionGroupsTable.id, data.groupId))
+        .limit(1)
+
+      if (!group) {
+        throw new Error("Series group not found")
+      }
+
+      await requireTeamPermission(
+        group.organizingTeamId,
+        TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
       )
-      .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
-      .limit(1)
 
-    if (
-      trackWorkoutResult.length === 0 ||
-      trackWorkoutResult[0].competitionId !== data.competitionId
-    ) {
-      throw new Error("Event not found or does not belong to this competition")
+      // Verify the track workout belongs to this group's template track
+      const trackWorkoutResult = await db
+        .select({
+          trackWorkoutId: trackWorkoutsTable.id,
+          ownerTeamId: programmingTracksTable.ownerTeamId,
+        })
+        .from(trackWorkoutsTable)
+        .innerJoin(
+          programmingTracksTable,
+          eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+        )
+        .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+        .limit(1)
+
+      if (
+        trackWorkoutResult.length === 0 ||
+        trackWorkoutResult[0].ownerTeamId !== group.organizingTeamId
+      ) {
+        throw new Error(
+          "Event not found or does not belong to this series group",
+        )
+      }
+
+      entityId = data.groupId
+    } else {
+      // Competition flow: existing logic
+      const competition = await db.query.competitionsTable.findFirst({
+        where: eq(competitionsTable.id, data.competitionId!),
+      })
+
+      if (!competition) {
+        throw new Error("Competition not found")
+      }
+
+      await requireTeamPermission(
+        competition.organizingTeamId,
+        TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+      )
+
+      // Verify the track workout belongs to this competition using a join
+      const trackWorkoutResult = await db
+        .select({
+          trackWorkoutId: trackWorkoutsTable.id,
+          competitionId: programmingTracksTable.competitionId,
+        })
+        .from(trackWorkoutsTable)
+        .innerJoin(
+          programmingTracksTable,
+          eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+        )
+        .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+        .limit(1)
+
+      if (
+        trackWorkoutResult.length === 0 ||
+        trackWorkoutResult[0].competitionId !== data.competitionId
+      ) {
+        throw new Error(
+          "Event not found or does not belong to this competition",
+        )
+      }
+
+      entityId = data.competitionId!
     }
 
     // Get the next sort order
@@ -226,7 +285,7 @@ export const createJudgingSheetFn = createServerFn({ method: "POST" })
     const id = createEventJudgingSheetId()
     await db.insert(eventJudgingSheetsTable).values({
       id,
-      competitionId: data.competitionId,
+      competitionId: entityId,
       trackWorkoutId: data.trackWorkoutId,
       title: data.title,
       url: data.url,
@@ -250,8 +309,8 @@ export const createJudgingSheetFn = createServerFn({ method: "POST" })
     logEntityCreated({
       entity: "judgingSheet",
       id: sheet.id,
-      parentEntity: "competition",
-      parentId: data.competitionId,
+      parentEntity: data.groupId ? "seriesGroup" : "competition",
+      parentId: entityId,
       attributes: {
         trackWorkoutId: data.trackWorkoutId,
         title: data.title,
@@ -287,21 +346,39 @@ export const updateJudgingSheetFn = createServerFn({ method: "POST" })
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("judgingSheetId", data.judgingSheetId)
 
-    // Get the judging sheet with competition info
-    const sheet = await db.query.eventJudgingSheetsTable.findFirst({
-      where: eq(eventJudgingSheetsTable.id, data.judgingSheetId),
-      with: {
-        competition: true,
-      },
-    })
+    // Get the judging sheet and resolve the owning team via the track
+    const sheetResult = await db
+      .select({
+        id: eventJudgingSheetsTable.id,
+        competitionId: eventJudgingSheetsTable.competitionId,
+        trackWorkoutId: eventJudgingSheetsTable.trackWorkoutId,
+        ownerTeamId: programmingTracksTable.ownerTeamId,
+      })
+      .from(eventJudgingSheetsTable)
+      .innerJoin(
+        trackWorkoutsTable,
+        eq(eventJudgingSheetsTable.trackWorkoutId, trackWorkoutsTable.id),
+      )
+      .innerJoin(
+        programmingTracksTable,
+        eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+      )
+      .where(eq(eventJudgingSheetsTable.id, data.judgingSheetId))
+      .limit(1)
 
-    if (!sheet) {
+    if (sheetResult.length === 0) {
       throw new Error("Judging sheet not found")
     }
 
-    // Check permission on the organizing team
+    const sheet = sheetResult[0]
+
+    if (!sheet.ownerTeamId) {
+      throw new Error("Event has no owning team")
+    }
+
+    // Check permission on the owning team
     await requireTeamPermission(
-      sheet.competition.organizingTeamId,
+      sheet.ownerTeamId,
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
 
@@ -359,21 +436,41 @@ export const deleteJudgingSheetFn = createServerFn({ method: "POST" })
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("judgingSheetId", data.judgingSheetId)
 
-    // Get the judging sheet with competition info
-    const sheet = await db.query.eventJudgingSheetsTable.findFirst({
-      where: eq(eventJudgingSheetsTable.id, data.judgingSheetId),
-      with: {
-        competition: true,
-      },
-    })
+    // Get the judging sheet and resolve the owning team via the track
+    const sheetResult = await db
+      .select({
+        id: eventJudgingSheetsTable.id,
+        competitionId: eventJudgingSheetsTable.competitionId,
+        trackWorkoutId: eventJudgingSheetsTable.trackWorkoutId,
+        title: eventJudgingSheetsTable.title,
+        r2Key: eventJudgingSheetsTable.r2Key,
+        ownerTeamId: programmingTracksTable.ownerTeamId,
+      })
+      .from(eventJudgingSheetsTable)
+      .innerJoin(
+        trackWorkoutsTable,
+        eq(eventJudgingSheetsTable.trackWorkoutId, trackWorkoutsTable.id),
+      )
+      .innerJoin(
+        programmingTracksTable,
+        eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+      )
+      .where(eq(eventJudgingSheetsTable.id, data.judgingSheetId))
+      .limit(1)
 
-    if (!sheet) {
+    if (sheetResult.length === 0) {
       throw new Error("Judging sheet not found")
     }
 
-    // Check permission on the organizing team
+    const sheet = sheetResult[0]
+
+    if (!sheet.ownerTeamId) {
+      throw new Error("Event has no owning team")
+    }
+
+    // Check permission on the owning team
     await requireTeamPermission(
-      sheet.competition.organizingTeamId,
+      sheet.ownerTeamId,
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
 
@@ -421,21 +518,17 @@ export const reorderJudgingSheetsFn = createServerFn({ method: "POST" })
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
 
-    // Get the track workout to find the competition using a join
+    // Get the track workout to find the owning team via the programming track
     const trackWorkoutResult = await db
       .select({
         trackWorkoutId: trackWorkoutsTable.id,
         competitionId: programmingTracksTable.competitionId,
-        organizingTeamId: competitionsTable.organizingTeamId,
+        ownerTeamId: programmingTracksTable.ownerTeamId,
       })
       .from(trackWorkoutsTable)
       .innerJoin(
         programmingTracksTable,
         eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
-      )
-      .innerJoin(
-        competitionsTable,
-        eq(programmingTracksTable.competitionId, competitionsTable.id),
       )
       .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
       .limit(1)
@@ -446,9 +539,13 @@ export const reorderJudgingSheetsFn = createServerFn({ method: "POST" })
 
     const competition = trackWorkoutResult[0]
 
-    // Check permission on the organizing team
+    if (!competition.ownerTeamId) {
+      throw new Error("Event has no owning team")
+    }
+
+    // Check permission on the owning team
     await requireTeamPermission(
-      competition.organizingTeamId,
+      competition.ownerTeamId,
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
 

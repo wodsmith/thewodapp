@@ -5,7 +5,9 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
+import { EventResourcesCard } from "@/components/events/event-resources-card"
 import { MovementsList } from "@/components/movements-list"
+import { EventJudgingSheets } from "@/components/organizer/event-judging-sheets"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -42,6 +44,8 @@ import {
 } from "@/db/schemas/workouts"
 import type { ScoreType, WorkoutScheme } from "@/db/schemas/workouts"
 import { getCompetitionGroupByIdFn } from "@/server-fns/competition-fns"
+import { getEventResourcesFn } from "@/server-fns/event-resources-fns"
+import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
 import {
   getWorkoutDivisionDescriptionsFn,
@@ -102,6 +106,16 @@ export const Route = createFileRoute(
     }
 
     const organizingTeamId = groupResult.group?.organizingTeamId ?? ""
+
+    // Load resources and judging sheets
+    const [resourcesResult, judgingSheetsResult] = await Promise.all([
+      getEventResourcesFn({
+        data: { eventId: params.eventId, teamId: organizingTeamId },
+      }).catch(() => ({ resources: [] as Awaited<ReturnType<typeof getEventResourcesFn>>["resources"] })),
+      getEventJudgingSheetsFn({
+        data: { trackWorkoutId: params.eventId },
+      }).catch(() => ({ sheets: [] as Awaited<ReturnType<typeof getEventJudgingSheetsFn>>["sheets"] })),
+    ])
 
     // Load division descriptions
     let divisionDescriptions: Array<{
@@ -175,14 +189,25 @@ export const Route = createFileRoute(
       childEvents,
       childDivisionDescriptions,
       childMovementIds,
+      resources: resourcesResult.resources,
+      judgingSheets: judgingSheetsResult.sheets,
     }
   },
 })
 
 function SeriesTemplateEventEditPage() {
   const { groupId } = Route.useParams()
-  const { event, movementIds, movements, organizingTeamId, divisions, divisionDescriptions, childEvents } =
-    Route.useLoaderData()
+  const {
+    event,
+    movementIds,
+    movements,
+    organizingTeamId,
+    divisions,
+    divisionDescriptions,
+    childEvents,
+    resources,
+    judgingSheets: initialJudgingSheets,
+  } = Route.useLoaderData()
   const router = useRouter()
 
   const isParentEvent = childEvents.length > 0
@@ -191,6 +216,7 @@ function SeriesTemplateEventEditPage() {
     return <SeriesParentEventEditPage />
   }
   const [isSaving, setIsSaving] = useState(false)
+  const [judgingSheets, setJudgingSheets] = useState(initialJudgingSheets)
 
   const form = useForm<TemplateEventSchema>({
     resolver: standardSchemaResolver(templateEventSchema),
@@ -635,6 +661,21 @@ function SeriesTemplateEventEditPage() {
                     </CardContent>
                   </Card>
                 )}
+
+                {/* Event Resources */}
+                <EventResourcesCard
+                  eventId={event.id}
+                  teamId={organizingTeamId}
+                  initialResources={resources}
+                />
+
+                {/* Judging Sheets */}
+                <EventJudgingSheets
+                  groupId={groupId}
+                  trackWorkoutId={event.id}
+                  sheets={judgingSheets}
+                  onSheetsChange={setJudgingSheets}
+                />
               </div>
             </div>
 
@@ -676,6 +717,8 @@ function SeriesParentEventEditPage() {
     childEvents,
     childDivisionDescriptions,
     childMovementIds,
+    resources,
+    judgingSheets: initialJudgingSheets,
   } = Route.useLoaderData()
   const router = useRouter()
   const { tab } = Route.useSearch()
@@ -683,6 +726,7 @@ function SeriesParentEventEditPage() {
   const defaultTab = (tab && childEvents.some((c) => c.id === tab) ? tab : childEvents[0]?.id) ?? ""
   const [activeTab, setActiveTab] = useState(defaultTab)
   const [isSavingParent, setIsSavingParent] = useState(false)
+  const [judgingSheets, setJudgingSheets] = useState(initialJudgingSheets)
 
   const parentSchema = z.object({
     name: z.string().min(1, "Name is required"),
@@ -861,6 +905,21 @@ function SeriesParentEventEditPage() {
             </Tabs>
           </CardContent>
         </Card>
+
+        {/* Event Resources */}
+        <EventResourcesCard
+          eventId={event.id}
+          teamId={organizingTeamId}
+          initialResources={resources}
+        />
+
+        {/* Judging Sheets */}
+        <EventJudgingSheets
+          groupId={groupId}
+          trackWorkoutId={event.id}
+          sheets={judgingSheets}
+          onSheetsChange={setJudgingSheets}
+        />
       </div>
     </div>
   )
