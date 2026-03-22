@@ -196,6 +196,19 @@ export const Route = createFileRoute(
 })
 
 function SeriesTemplateEventEditPage() {
+  const {
+    childEvents,
+  } = Route.useLoaderData()
+
+  const isParentEvent = childEvents.length > 0
+
+  if (isParentEvent) {
+    return <SeriesParentEventEditPage />
+  }
+  return <SeriesSingleEventEditPage />
+}
+
+function SeriesSingleEventEditPage() {
   const { groupId } = Route.useParams()
   const {
     event,
@@ -204,17 +217,11 @@ function SeriesTemplateEventEditPage() {
     organizingTeamId,
     divisions,
     divisionDescriptions,
-    childEvents,
     resources,
     judgingSheets: initialJudgingSheets,
   } = Route.useLoaderData()
   const router = useRouter()
 
-  const isParentEvent = childEvents.length > 0
-
-  if (isParentEvent) {
-    return <SeriesParentEventEditPage />
-  }
   const [isSaving, setIsSaving] = useState(false)
   const [judgingSheets, setJudgingSheets] = useState(initialJudgingSheets)
 
