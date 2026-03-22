@@ -2011,6 +2011,21 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
               compTw.workoutId,
             )
 
+            // Sync resources and judging sheets
+            await syncEventResourcesForMapping(
+              db,
+              templateTw.id,
+              compTw.id,
+              comp.id,
+            )
+            await syncJudgingSheetsForMapping(
+              db,
+              templateTw.id,
+              compTw.id,
+              comp.id,
+              session.userId,
+            )
+
             // Track parent mapping for children
             templateParentToCompParent.set(templateTw.id, compTw.id)
             synced++
@@ -2055,6 +2070,21 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
 
           // Sync movements
           await syncMovementsForWorkout(templateTw.workout.id, newWorkoutId)
+
+          // Sync resources and judging sheets
+          await syncEventResourcesForMapping(
+            db,
+            templateTw.id,
+            newTrackWorkoutId,
+            comp.id,
+          )
+          await syncJudgingSheetsForMapping(
+            db,
+            templateTw.id,
+            newTrackWorkoutId,
+            comp.id,
+            session.userId,
+          )
 
           // Track parent mapping for children
           templateParentToCompParent.set(templateTw.id, newTrackWorkoutId)
@@ -2584,6 +2614,47 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
       previewMvmtByWorkout.set(wid, mids.sort().join(","))
     }
 
+    // Batch-load resources and judging sheets for preview comparison
+    const previewTwIds = [
+      ...templateTrackWorkouts.map((tw) => tw.id),
+      ...allCompTrackWorkouts.map((tw) => tw.id),
+    ]
+    const previewResources =
+      previewTwIds.length > 0
+        ? await db
+            .select({
+              eventId: eventResourcesTable.eventId,
+              title: eventResourcesTable.title,
+            })
+            .from(eventResourcesTable)
+            .where(inArray(eventResourcesTable.eventId, previewTwIds))
+        : []
+    const previewResourcesByEvent = new Map<string, Set<string>>()
+    for (const r of previewResources) {
+      const s = previewResourcesByEvent.get(r.eventId) ?? new Set()
+      s.add(r.title.toLowerCase().trim())
+      previewResourcesByEvent.set(r.eventId, s)
+    }
+
+    const previewSheets =
+      previewTwIds.length > 0
+        ? await db
+            .select({
+              trackWorkoutId: eventJudgingSheetsTable.trackWorkoutId,
+              title: eventJudgingSheetsTable.title,
+            })
+            .from(eventJudgingSheetsTable)
+            .where(
+              inArray(eventJudgingSheetsTable.trackWorkoutId, previewTwIds),
+            )
+        : []
+    const previewSheetsByEvent = new Map<string, Set<string>>()
+    for (const s of previewSheets) {
+      const set = previewSheetsByEvent.get(s.trackWorkoutId) ?? new Set()
+      set.add(s.title.toLowerCase().trim())
+      previewSheetsByEvent.set(s.trackWorkoutId, set)
+    }
+
     // Group mappings by competition
     const mappingsByComp = new Map<string, typeof existingMappings>()
     for (const m of existingMappings) {
@@ -2689,6 +2760,26 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
           const cmpMvmts = previewMvmtByWorkout.get(compTw.workoutId) ?? ""
           if (tmplMvmts !== cmpMvmts) {
             changes.push("movements updated")
+          }
+
+          // Check resources
+          const tmplRes = previewResourcesByEvent.get(templateTw.id)
+          if (tmplRes && tmplRes.size > 0) {
+            const cmpRes = previewResourcesByEvent.get(compTw.id) ?? new Set()
+            const missing = [...tmplRes].filter((t) => !cmpRes.has(t))
+            if (missing.length > 0) {
+              changes.push(`${missing.length} resource${missing.length !== 1 ? "s" : ""} to add`)
+            }
+          }
+
+          // Check judging sheets
+          const tmplSheets = previewSheetsByEvent.get(templateTw.id)
+          if (tmplSheets && tmplSheets.size > 0) {
+            const cmpSheets = previewSheetsByEvent.get(compTw.id) ?? new Set()
+            const missing = [...tmplSheets].filter((t) => !cmpSheets.has(t))
+            if (missing.length > 0) {
+              changes.push(`${missing.length} judging sheet${missing.length !== 1 ? "s" : ""} to add`)
+            }
           }
 
           if (changes.length > 0) {
@@ -2922,6 +3013,50 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
       movementsByWorkout.set(wid, mids.sort().join(","))
     }
 
+    // Batch-load resources and judging sheets counts for comparison
+    const allTrackWorkoutIds = [
+      ...templateTrackWorkouts.map((tw) => tw.id),
+      ...allCompTrackWorkouts.map((tw) => tw.id),
+    ]
+    const allResourcesData =
+      allTrackWorkoutIds.length > 0
+        ? await db
+            .select({
+              eventId: eventResourcesTable.eventId,
+              title: eventResourcesTable.title,
+            })
+            .from(eventResourcesTable)
+            .where(inArray(eventResourcesTable.eventId, allTrackWorkoutIds))
+        : []
+    const resourceTitlesByEvent = new Map<string, Set<string>>()
+    for (const r of allResourcesData) {
+      const s = resourceTitlesByEvent.get(r.eventId) ?? new Set()
+      s.add(r.title.toLowerCase().trim())
+      resourceTitlesByEvent.set(r.eventId, s)
+    }
+
+    const allSheetsData =
+      allTrackWorkoutIds.length > 0
+        ? await db
+            .select({
+              trackWorkoutId: eventJudgingSheetsTable.trackWorkoutId,
+              title: eventJudgingSheetsTable.title,
+            })
+            .from(eventJudgingSheetsTable)
+            .where(
+              inArray(
+                eventJudgingSheetsTable.trackWorkoutId,
+                allTrackWorkoutIds,
+              ),
+            )
+        : []
+    const sheetTitlesByEvent = new Map<string, Set<string>>()
+    for (const s of allSheetsData) {
+      const set = sheetTitlesByEvent.get(s.trackWorkoutId) ?? new Set()
+      set.add(s.title.toLowerCase().trim())
+      sheetTitlesByEvent.set(s.trackWorkoutId, set)
+    }
+
     const results: CompetitionEventSyncStatus[] = []
 
     for (const comp of comps) {
@@ -3006,6 +3141,32 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
         if (templateMvmts !== compMvmts) {
           hasDifferences = true
           break
+        }
+
+        // Compare resources (check if template has resources missing from competition)
+        const templateResources = resourceTitlesByEvent.get(templateTw.id)
+        if (templateResources && templateResources.size > 0) {
+          const compResources = resourceTitlesByEvent.get(compTw.id) ?? new Set()
+          for (const title of templateResources) {
+            if (!compResources.has(title)) {
+              hasDifferences = true
+              break
+            }
+          }
+          if (hasDifferences) break
+        }
+
+        // Compare judging sheets (check if template has sheets missing from competition)
+        const templateSheets = sheetTitlesByEvent.get(templateTw.id)
+        if (templateSheets && templateSheets.size > 0) {
+          const compSheets = sheetTitlesByEvent.get(compTw.id) ?? new Set()
+          for (const title of templateSheets) {
+            if (!compSheets.has(title)) {
+              hasDifferences = true
+              break
+            }
+          }
+          if (hasDifferences) break
         }
       }
 
