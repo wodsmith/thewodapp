@@ -42,9 +42,5 @@ function OrganizerSeriesLeaderboardPage() {
 
   if (flagEnabled === false) return null
 
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <SeriesLeaderboardPageContent groupId={groupId} />
-    </div>
-  )
+  return <SeriesLeaderboardPageContent groupId={groupId} />
 }

@@ -1,13 +1,11 @@
 import {
   createFileRoute,
-  Link,
   useNavigate,
   useRouter,
 } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import {
   ArrowDown,
-  ArrowLeft,
   ArrowUp,
   Plus,
   RefreshCw,
@@ -169,30 +167,7 @@ function SeriesDivisionsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col gap-6">
-        {/* Header */}
-        <div>
-          <div className="mb-4">
-            <Button variant="ghost" size="sm" asChild>
-              <Link
-                to="/compete/organizer/series/$groupId"
-                params={{ groupId }}
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Series
-              </Link>
-            </Button>
-          </div>
-          <h1 className="text-3xl font-bold">
-            Configure Leaderboard Divisions
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Define the series division template and map each competition's
-            divisions to it.
-          </p>
-        </div>
-
+    <div className="flex flex-col gap-6">
         {/* Step 1: Define or pick template */}
         {!template ? (
           <TemplateCreator
@@ -254,7 +229,6 @@ function SeriesDivisionsPage() {
             </Card>
           </>
         )}
-      </div>
     </div>
   )
 }
@@ -374,9 +348,7 @@ function TemplateEditor({
       setSyncPreview(preview)
       setShowSyncDialog(true)
     } catch (e) {
-      toast.error(
-        e instanceof Error ? e.message : "Failed to save & sync",
-      )
+      toast.error(e instanceof Error ? e.message : "Failed to save & sync")
     } finally {
       setIsLoadingPreview(false)
     }

@@ -1,18 +1,12 @@
-import {
-  createFileRoute,
-  Link,
-  useRouter,
-} from "@tanstack/react-router"
-import { ArrowLeft, RefreshCw } from "lucide-react"
+import { createFileRoute, useRouter } from "@tanstack/react-router"
+import { RefreshCw } from "lucide-react"
 import { useState } from "react"
 import { EventTemplateCreator } from "@/components/series/event-template-creator"
 import { SeriesEventSyncDialog } from "@/components/series/series-event-sync-dialog"
 import { SeriesTemplateEventEditor } from "@/components/series/series-template-event-editor"
 import { Button } from "@/components/ui/button"
 import { getCompetitionGroupByIdFn } from "@/server-fns/competition-fns"
-import {
-  getBatchWorkoutDivisionDescriptionsFn,
-} from "@/server-fns/competition-workouts-fns"
+import { getBatchWorkoutDivisionDescriptionsFn } from "@/server-fns/competition-workouts-fns"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
 import { getSeriesTemplateDivisionsFn } from "@/server-fns/series-division-mapping-fns"
 import {
@@ -25,30 +19,46 @@ export const Route = createFileRoute(
 )({
   component: SeriesEventsPage,
   loader: async ({ params }) => {
-    const [templateResult, competitionsResult, movementsResult, groupResult, divisionsResult] =
-      await Promise.all([
-        getSeriesTemplateEventsFn({
-          data: { groupId: params.groupId },
-        }),
-        getSeriesCompetitionsForTemplateFn({
-          data: { groupId: params.groupId },
-        }),
-        getAllMovementsFn(),
-        getCompetitionGroupByIdFn({
-          data: { groupId: params.groupId },
-        }),
-        getSeriesTemplateDivisionsFn({
-          data: { groupId: params.groupId },
-        }).catch(() => ({ scalingGroupId: null, divisions: [] as Array<{ id: string; label: string; teamSize: number }> })),
-      ])
+    const [
+      templateResult,
+      competitionsResult,
+      movementsResult,
+      groupResult,
+      divisionsResult,
+    ] = await Promise.all([
+      getSeriesTemplateEventsFn({
+        data: { groupId: params.groupId },
+      }),
+      getSeriesCompetitionsForTemplateFn({
+        data: { groupId: params.groupId },
+      }),
+      getAllMovementsFn(),
+      getCompetitionGroupByIdFn({
+        data: { groupId: params.groupId },
+      }),
+      getSeriesTemplateDivisionsFn({
+        data: { groupId: params.groupId },
+      }).catch(() => ({
+        scalingGroupId: null,
+        divisions: [] as Array<{ id: string; label: string; teamSize: number }>,
+      })),
+    ])
 
     // Load division descriptions for each template event's workout
     let divisionDescriptionsByWorkout: Record<
       string,
-      Array<{ divisionId: string; divisionLabel: string; description: string | null; position: number }>
+      Array<{
+        divisionId: string
+        divisionLabel: string
+        description: string | null
+        position: number
+      }>
     > = {}
 
-    if (templateResult.events.length > 0 && divisionsResult.divisions.length > 0) {
+    if (
+      templateResult.events.length > 0 &&
+      divisionsResult.divisions.length > 0
+    ) {
       const divisionIds = divisionsResult.divisions.map((d) => d.id)
       const workoutIds = templateResult.events.map((e) => e.workoutId)
       const batchResult = await getBatchWorkoutDivisionDescriptionsFn({
@@ -90,28 +100,7 @@ function SeriesEventsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col gap-6">
-        {/* Header */}
-        <div>
-          <div className="mb-4">
-            <Button variant="ghost" size="sm" asChild>
-              <Link
-                to="/compete/organizer/series/$groupId"
-                params={{ groupId }}
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Series
-              </Link>
-            </Button>
-          </div>
-          <h1 className="text-3xl font-bold">Event Template</h1>
-          <p className="text-muted-foreground mt-1">
-            Define the series event template. Events defined here will be used
-            as the standard across all competitions in the series.
-          </p>
-        </div>
-
+    <div className="flex flex-col gap-6">
         {/* Content */}
         {!templateTrack ? (
           <EventTemplateCreator
@@ -127,7 +116,9 @@ function SeriesEventsPage() {
               events={events}
               movements={loaderData.movements}
               divisions={loaderData.divisions}
-              divisionDescriptionsByWorkout={loaderData.divisionDescriptionsByWorkout}
+              divisionDescriptionsByWorkout={
+                loaderData.divisionDescriptionsByWorkout
+              }
               organizingTeamId={loaderData.organizingTeamId}
               onEventsChanged={refreshData}
             />
@@ -150,7 +141,6 @@ function SeriesEventsPage() {
             />
           </>
         )}
-      </div>
     </div>
   )
 }
