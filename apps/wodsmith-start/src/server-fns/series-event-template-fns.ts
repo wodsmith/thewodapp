@@ -1917,6 +1917,37 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
         }
       }
 
+      // Helper to sync movements from template workout to competition workout
+      const syncMovementsForWorkout = async (
+        templateWorkoutId: string,
+        compWorkoutId: string,
+      ) => {
+        // Load template movements
+        const templateMvmts = await db
+          .select({ movementId: workoutMovements.movementId })
+          .from(workoutMovements)
+          .where(eq(workoutMovements.workoutId, templateWorkoutId))
+
+        // Delete existing competition workout movements
+        await db
+          .delete(workoutMovements)
+          .where(eq(workoutMovements.workoutId, compWorkoutId))
+
+        // Insert template movements
+        const mvmtIds = templateMvmts
+          .map((m) => m.movementId)
+          .filter((id): id is string => id !== null)
+        if (mvmtIds.length > 0) {
+          await db.insert(workoutMovements).values(
+            mvmtIds.map((movementId) => ({
+              id: `workout_movement_${createId()}`,
+              workoutId: compWorkoutId,
+              movementId,
+            })),
+          )
+        }
+      }
+
       // Helper to sync a single template event
       const syncEvent = async (
         templateTw: (typeof templateTrackWorkouts)[number],
@@ -1974,6 +2005,12 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
               compTw.workoutId,
             )
 
+            // Sync movements
+            await syncMovementsForWorkout(
+              templateTw.workout.id,
+              compTw.workoutId,
+            )
+
             // Track parent mapping for children
             templateParentToCompParent.set(templateTw.id, compTw.id)
             synced++
@@ -2015,6 +2052,9 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
 
           // Sync per-division descriptions
           await syncDivisionDescriptions(templateTw.workout.id, newWorkoutId)
+
+          // Sync movements
+          await syncMovementsForWorkout(templateTw.workout.id, newWorkoutId)
 
           // Track parent mapping for children
           templateParentToCompParent.set(templateTw.id, newTrackWorkoutId)

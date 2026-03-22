@@ -149,6 +149,22 @@ export const Route = createFileRoute(
       }
     }
 
+    // Load child movement IDs
+    const childMovementIds: Record<string, string[]> = {}
+    if (childEvents.length > 0) {
+      const childEventResults = await Promise.all(
+        childEvents.map((child) =>
+          getSeriesTemplateEventByIdFn({
+            data: { trackWorkoutId: child.id, groupId: params.groupId },
+          }),
+        ),
+      )
+      for (let i = 0; i < childEvents.length; i++) {
+        childMovementIds[childEvents[i].id] =
+          childEventResults[i].movementIds
+      }
+    }
+
     return {
       event: eventResult.event,
       movementIds: eventResult.movementIds,
@@ -158,6 +174,7 @@ export const Route = createFileRoute(
       divisionDescriptions,
       childEvents,
       childDivisionDescriptions,
+      childMovementIds,
     }
   },
 })
@@ -653,10 +670,12 @@ function SeriesParentEventEditPage() {
   const { groupId } = Route.useParams()
   const {
     event,
+    movements,
     organizingTeamId,
     divisions,
     childEvents,
     childDivisionDescriptions,
+    childMovementIds,
   } = Route.useLoaderData()
   const router = useRouter()
   const { tab } = Route.useSearch()
@@ -834,6 +853,8 @@ function SeriesParentEventEditPage() {
                     divisionDescriptions={
                       childDivisionDescriptions[child.workoutId] ?? []
                     }
+                    movements={movements}
+                    movementIds={childMovementIds[child.id] ?? []}
                   />
                 </TabsContent>
               ))}
@@ -854,6 +875,8 @@ function SubEventForm({
   organizingTeamId,
   divisions,
   divisionDescriptions,
+  movements,
+  movementIds,
 }: {
   event: SeriesTemplateEvent
   groupId: string
@@ -864,6 +887,8 @@ function SubEventForm({
     divisionLabel: string
     description: string | null
   }>
+  movements: Array<{ id: string; name: string; type: "gymnastic" | "monostructural" | "weightlifting" }>
+  movementIds: string[]
 }) {
   const router = useRouter()
   const [isSaving, setIsSaving] = useState(false)
@@ -878,6 +903,7 @@ function SubEventForm({
       scoreType: (event.workout.scoreType as ScoreType) ?? null,
       timeCap: event.workout.timeCap ?? null,
       tiebreakScheme: null,
+      selectedMovements: movementIds,
       pointsMultiplier: event.pointsMultiplier || 100,
       notes: event.notes || "",
       divisionDescs: Object.fromEntries(
@@ -887,6 +913,15 @@ function SubEventForm({
   })
 
   const scheme = form.watch("scheme")
+  const selectedMovements = form.watch("selectedMovements")
+
+  const handleMovementToggle = (movementId: string) => {
+    if (selectedMovements.includes(movementId)) {
+      form.setValue("selectedMovements", selectedMovements.filter((id) => id !== movementId))
+    } else {
+      form.setValue("selectedMovements", [...selectedMovements, movementId])
+    }
+  }
 
   const onSubmit = async (data: TemplateEventSchema) => {
     setIsSaving(true)
@@ -903,6 +938,7 @@ function SubEventForm({
             timeCap: data.timeCap,
             tiebreakScheme: data.tiebreakScheme,
           },
+          movementIds: data.selectedMovements,
           pointsMultiplier: data.pointsMultiplier,
           notes: data.notes || null,
         },
@@ -1095,6 +1131,34 @@ function SubEventForm({
                 </FormItem>
               )}
             />
+
+            {/* Movements */}
+            <div className="space-y-2">
+              <FormLabel>Movements</FormLabel>
+              {selectedMovements.length > 0 && (
+                <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-muted/50">
+                  {movements
+                    .filter((m) => selectedMovements.includes(m.id))
+                    .map((movement) => (
+                      <Badge
+                        key={movement.id}
+                        variant="default"
+                        className="cursor-pointer"
+                        onClick={() => handleMovementToggle(movement.id)}
+                      >
+                        {movement.name} ✓
+                      </Badge>
+                    ))}
+                </div>
+              )}
+              <MovementsList
+                movements={movements}
+                selectedMovements={selectedMovements}
+                onMovementToggle={handleMovementToggle}
+                showLabel={false}
+                containerHeight="max-h-[200px]"
+              />
+            </div>
           </div>
           <div className="space-y-4">
             <FormField
