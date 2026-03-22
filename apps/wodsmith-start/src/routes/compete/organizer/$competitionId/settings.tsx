@@ -3,6 +3,7 @@ import { CapacitySettingsForm } from "./-components/capacity-settings-form"
 import { RotationSettingsForm } from "./-components/rotation-settings-form"
 import { ScoringSettingsForm } from "./-components/scoring-settings-form"
 
+// @lat: [[organizer-dashboard#Settings]]
 export const Route = createFileRoute(
   "/compete/organizer/$competitionId/settings",
 )({

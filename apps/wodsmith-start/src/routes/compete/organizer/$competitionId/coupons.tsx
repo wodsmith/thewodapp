@@ -4,6 +4,7 @@
  * Allows organizers to create and manage discount coupons for their competition.
  * Requires PRODUCT_COUPONS entitlement.
  */
+// @lat: [[organizer-dashboard#Coupons]]
 
 import { createFileRoute } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"

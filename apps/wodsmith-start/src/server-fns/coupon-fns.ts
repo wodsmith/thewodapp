@@ -12,6 +12,7 @@ import { FEATURES } from "@/config/features"
 import { logInfo, logWarning } from "@/lib/logging"
 import { hasFeature } from "@/server/entitlements"
 import { validateCoupon } from "@/server/coupons"
+import { getEvlog } from "@/lib/evlog"
 import { requireVerifiedEmail } from "@/utils/auth"
 
 // ============================================================================
@@ -65,6 +66,8 @@ export const createCouponFn = createServerFn({ method: "POST" })
         (t.role.id === "admin" || t.role.id === "owner"),
     )
     if (!canManage) throw new Error("Unauthorized")
+
+    getEvlog()?.set({ action: "create_coupon", coupon: { competitionId: input.competitionId }, teamId: input.teamId })
 
     const hasEntitlement = await hasFeature(
       input.teamId,
@@ -233,6 +236,8 @@ export const deactivateCouponFn = createServerFn({ method: "POST" })
         (t.role.id === "admin" || t.role.id === "owner"),
     )
     if (!canManage) throw new Error("Unauthorized")
+
+    getEvlog()?.set({ action: "deactivate_coupon", coupon: { id: input.couponId }, teamId: input.teamId })
 
     const db = getDb()
 

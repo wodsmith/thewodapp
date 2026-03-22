@@ -23,6 +23,7 @@ import {
   logWarning,
   updateRequestContext,
 } from "@/lib/logging"
+import { getEvlog } from "@/lib/evlog"
 import {
   type CompetitionHeat,
   competitionEventsTable,
@@ -854,6 +855,8 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
     }> => {
       const db = getDb()
 
+      getEvlog()?.set({ action: "save_score", score: { competitionId: data.competitionId, registrationId: data.registrationId, workoutId: data.workoutId } })
+
       // Update request context for tracing
       addRequestContextAttribute("competitionId", data.competitionId)
       addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
@@ -1157,6 +1160,8 @@ export const saveCompetitionScoresFn = createServerFn({ method: "POST" })
       const errors: Array<{ userId: string; error: string }> = []
       let savedCount = 0
 
+      getEvlog()?.set({ action: "save_scores_batch", batch: { competitionId: data.competitionId, count: data.scores.length } })
+
       // Update request context
       addRequestContextAttribute("competitionId", data.competitionId)
       addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
@@ -1246,6 +1251,9 @@ export const saveCompetitionScoresFn = createServerFn({ method: "POST" })
         }
       }
 
+      // Restore batch-level action after per-item saves overwrote it
+      getEvlog()?.set({ action: "save_scores_batch", batch: { competitionId: data.competitionId, count: data.scores.length, saved: savedCount, errors: errors.length } })
+
       logInfo({
         message: "[Score] Batch save competition scores completed",
         attributes: {
@@ -1269,6 +1277,8 @@ export const deleteCompetitionScoreFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<{ success: boolean }> => {
     const db = getDb()
+
+    getEvlog()?.set({ action: "delete_score", score: { competitionId: data.competitionId, trackWorkoutId: data.trackWorkoutId } })
 
     // Update request context
     addRequestContextAttribute("competitionId", data.competitionId)

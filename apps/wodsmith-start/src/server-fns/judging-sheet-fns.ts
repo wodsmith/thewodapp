@@ -24,6 +24,7 @@ import {
 } from "@/db/schemas/programming"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
+import { getEvlog } from "@/lib/evlog"
 import {
   addRequestContextAttribute,
   logEntityCreated,
@@ -181,6 +182,7 @@ export const createJudgingSheetFn = createServerFn({ method: "POST" })
       data.competitionId ?? data.groupId ?? "",
     )
     addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
+    getEvlog()?.set({ action: "create_judging_sheet", judgingSheet: { competitionId: data.competitionId, trackWorkoutId: data.trackWorkoutId } })
 
     if (!data.competitionId && !data.groupId) {
       throw new Error("Either competitionId or groupId is required")
@@ -345,6 +347,7 @@ export const updateJudgingSheetFn = createServerFn({ method: "POST" })
     // Update request context
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("judgingSheetId", data.judgingSheetId)
+    getEvlog()?.set({ action: "update_judging_sheet", judgingSheet: { id: data.judgingSheetId } })
 
     // Get the judging sheet and resolve the owning team via the track
     const sheetResult = await db
@@ -435,6 +438,7 @@ export const deleteJudgingSheetFn = createServerFn({ method: "POST" })
     // Update request context
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("judgingSheetId", data.judgingSheetId)
+    getEvlog()?.set({ action: "delete_judging_sheet", judgingSheet: { id: data.judgingSheetId } })
 
     // Get the judging sheet and resolve the owning team via the track
     const sheetResult = await db
@@ -517,6 +521,7 @@ export const reorderJudgingSheetsFn = createServerFn({ method: "POST" })
     // Update request context
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
+    getEvlog()?.set({ action: "reorder_judging_sheets", judgingSheet: { trackWorkoutId: data.trackWorkoutId } })
 
     // Get the track workout to find the owning team via the programming track
     const trackWorkoutResult = await db

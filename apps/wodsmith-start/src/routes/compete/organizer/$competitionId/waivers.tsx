@@ -6,6 +6,7 @@
  * Uses the existing waiver-fns.ts server functions.
  * Uses parent route loader data for competition data (avoids duplicate fetch).
  */
+// @lat: [[organizer-dashboard#Waivers]]
 
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"

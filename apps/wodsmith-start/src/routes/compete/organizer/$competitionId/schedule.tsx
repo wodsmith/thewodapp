@@ -7,6 +7,7 @@
  *
  * Port from apps/wodsmith/src/app/(compete)/compete/organizer/[competitionId]/(with-sidebar)/schedule/page.tsx
  */
+// @lat: [[organizer-dashboard#Heat Scheduling]]
 
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { SchedulePageClient } from "@/components/organizer/schedule/schedule-page-client"

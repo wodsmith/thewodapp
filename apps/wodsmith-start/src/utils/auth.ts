@@ -16,6 +16,7 @@ import {
   teamMembershipTable,
   userTable,
 } from "@/db/schema"
+import { setEvlogUser } from "@/lib/evlog"
 import { AppError } from "@/utils/errors"
 
 /** Membership with team relation included */
@@ -535,7 +536,11 @@ export async function getSessionFromCookie(): Promise<SessionValidationResult | 
     return null
   }
 
-  return validateSessionToken(decoded.token, decoded.userId)
+  const session = await validateSessionToken(decoded.token, decoded.userId)
+  if (session?.userId) {
+    setEvlogUser(session.userId)
+  }
+  return session
 }
 
 export async function requireVerifiedEmail() {

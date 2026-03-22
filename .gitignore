@@ -73,3 +73,5 @@ dist
 .logs/
 __pycache__/
 state.json
+.mcp.json
+.cursor/mcp.json

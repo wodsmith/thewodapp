@@ -53,6 +53,7 @@ import {
 } from "@/lib/commerce-stubs"
 import { CLAIM_TOKEN_EXPIRATION_SECONDS } from "@/constants"
 import { getAppUrl } from "@/lib/env"
+import { getEvlog } from "@/lib/evlog"
 import {
   addRequestContextAttribute,
   logEntityCreated,
@@ -228,6 +229,7 @@ async function storeRegistrationAnswers(
  * Supports registering for multiple divisions in a single checkout.
  * Each division becomes a separate line item and purchase record.
  */
+// @lat: [[registration#Athlete Self-Registration]]
 export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     initiateRegistrationPaymentInputSchema.parse(data),
@@ -243,6 +245,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
     updateRequestContext({ userId })
     addRequestContextAttribute("competitionId", input.competitionId)
     addRequestContextAttribute("divisionCount", input.items.length.toString())
+    getEvlog()?.set({ action: "register_for_competition", registration: { competitionId: input.competitionId } })
 
     logInfo({
       message: "[Registration] Payment initiation started",
@@ -930,6 +933,7 @@ export const updateRegistrationAffiliateFn = createServerFn({ method: "POST" })
     if (input.userId !== session.user.id) {
       throw new Error("You can only update your own affiliate")
     }
+    getEvlog()?.set({ action: "update_registration", registration: { id: input.registrationId } })
 
     const db = getDb()
 
@@ -1407,6 +1411,7 @@ export const cancelPendingPurchaseFn = createServerFn({ method: "POST" })
     // Update request context
     updateRequestContext({ userId: session.user.id })
     addRequestContextAttribute("competitionId", data.competitionId)
+    getEvlog()?.set({ action: "cancel_registration", registration: { competitionId: data.competitionId } })
 
     // Ensure user can only cancel their own pending purchases
     if (data.userId !== session.user.id) {
@@ -1460,6 +1465,7 @@ const removeRegistrationInputSchema = z.object({
  * team memberships, heat assignments, and pending invitations.
  * Requires MANAGE_COMPETITIONS permission on the organizing team.
  */
+// @lat: [[registration#Registration Removal]]
 export const removeRegistrationFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => removeRegistrationInputSchema.parse(data))
   .handler(async ({ data: input }) => {
@@ -1470,6 +1476,7 @@ export const removeRegistrationFn = createServerFn({ method: "POST" })
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("competitionId", input.competitionId)
     addRequestContextAttribute("registrationId", input.registrationId)
+    getEvlog()?.set({ action: "remove_registration", registration: { id: input.registrationId, competitionId: input.competitionId } })
 
     // 1. Get competition to verify ownership and get organizing team
     const competition = await db.query.competitionsTable.findFirst({
@@ -1635,6 +1642,7 @@ const transferRegistrationDivisionInputSchema = z.object({
  * - Updates commerce purchase divisionId for bookkeeping
  * - Does NOT block on capacity (organizer decision)
  */
+// @lat: [[registration#Division Transfer]]
 export const transferRegistrationDivisionFn = createServerFn({
   method: "POST",
 })
@@ -1828,6 +1836,7 @@ const createManualRegistrationInputSchema = z.object({
  * with isOrganizerOverride to bypass registration window checks, sets
  * the appropriate payment status, stores answers, and sends confirmation.
  */
+// @lat: [[registration#Organizer Manual Registration]]
 export const createManualRegistrationFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     createManualRegistrationInputSchema.parse(data),
@@ -1839,6 +1848,7 @@ export const createManualRegistrationFn = createServerFn({ method: "POST" })
 
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("competitionId", input.competitionId)
+    getEvlog()?.set({ action: "manual_register", registration: { competitionId: input.competitionId } })
 
     // 1. Get competition to verify ownership and get organizing team
     const competition = await db.query.competitionsTable.findFirst({

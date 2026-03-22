@@ -29,6 +29,7 @@ import {
   logEntityDeleted,
   logInfo,
 } from "@/lib/logging"
+import { getEvlog } from "@/lib/evlog"
 import { addressesTable } from "@/db/schemas/addresses"
 import {
   type CompetitionHeat,
@@ -456,6 +457,7 @@ export const getCompetitionVenuesFn = createServerFn({ method: "GET" })
 export const createVenueFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => createVenueInputSchema.parse(data))
   .handler(async ({ data }) => {
+    getEvlog()?.set({ action: "create_venue", venue: { competitionId: data.competitionId } })
     const db = getDb()
 
     // Get next sort order if not provided
@@ -498,6 +500,7 @@ export const createVenueFn = createServerFn({ method: "POST" })
 export const updateVenueFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => updateVenueInputSchema.parse(data))
   .handler(async ({ data }) => {
+    getEvlog()?.set({ action: "update_venue", venue: { id: data.venueId } })
     const db = getDb()
 
     const updateData: Record<string, unknown> = {
@@ -527,6 +530,7 @@ export const updateVenueFn = createServerFn({ method: "POST" })
 export const deleteVenueFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => deleteVenueInputSchema.parse(data))
   .handler(async ({ data }) => {
+    getEvlog()?.set({ action: "delete_venue", venue: { id: data.venueId } })
     const db = getDb()
 
     await db
@@ -649,6 +653,7 @@ export const getCompetitionRegistrationsFn = createServerFn({ method: "GET" })
 export const createHeatFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => createHeatInputSchema.parse(data))
   .handler(async ({ data }) => {
+    getEvlog()?.set({ action: "create_heat", heat: { competitionId: data.competitionId, trackWorkoutId: data.trackWorkoutId } })
     const db = getDb()
 
     // Update request context
@@ -702,6 +707,7 @@ export const createHeatFn = createServerFn({ method: "POST" })
 export const updateHeatFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => updateHeatInputSchema.parse(data))
   .handler(async ({ data }) => {
+    getEvlog()?.set({ action: "update_heat", heat: { id: data.heatId } })
     const db = getDb()
 
     const now = new Date()
@@ -736,6 +742,7 @@ export const updateHeatFn = createServerFn({ method: "POST" })
 export const deleteHeatFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => deleteHeatInputSchema.parse(data))
   .handler(async ({ data }) => {
+    getEvlog()?.set({ action: "delete_heat", heat: { id: data.heatId } })
     const db = getDb()
 
     addRequestContextAttribute("heatId", data.heatId)
@@ -759,6 +766,7 @@ export const deleteHeatFn = createServerFn({ method: "POST" })
 export const reorderHeatsFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => reorderHeatsInputSchema.parse(data))
   .handler(async ({ data }) => {
+    getEvlog()?.set({ action: "reorder_heats", heat: { trackWorkoutId: data.trackWorkoutId } })
     const db = getDb()
 
     // Validate that all heat IDs belong to this workout
@@ -914,6 +922,7 @@ export interface UnassignedRegistration {
 export const assignToHeatFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => assignToHeatInputSchema.parse(data))
   .handler(async ({ data }) => {
+    getEvlog()?.set({ action: "assign_to_heat", assignment: { heatId: data.heatId, registrationId: data.registrationId } })
     const db = getDb()
 
     addRequestContextAttribute("heatId", data.heatId)
@@ -957,6 +966,7 @@ export const assignToHeatFn = createServerFn({ method: "POST" })
 export const bulkAssignToHeatFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => bulkAssignToHeatInputSchema.parse(data))
   .handler(async ({ data }) => {
+    getEvlog()?.set({ action: "bulk_assign_to_heat", assignment: { heatId: data.heatId, count: data.registrationIds.length } })
     const db = getDb()
 
     addRequestContextAttribute("heatId", data.heatId)
@@ -1002,6 +1012,7 @@ export const bulkAssignToHeatFn = createServerFn({ method: "POST" })
 export const removeFromHeatFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => removeFromHeatInputSchema.parse(data))
   .handler(async ({ data }) => {
+    getEvlog()?.set({ action: "remove_from_heat", assignment: { id: data.assignmentId } })
     const db = getDb()
 
     await db
@@ -1017,6 +1028,7 @@ export const removeFromHeatFn = createServerFn({ method: "POST" })
 export const updateAssignmentFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => updateAssignmentInputSchema.parse(data))
   .handler(async ({ data }) => {
+    getEvlog()?.set({ action: "update_assignment", assignment: { id: data.assignmentId } })
     const db = getDb()
 
     await db
@@ -1035,6 +1047,7 @@ export const updateAssignmentFn = createServerFn({ method: "POST" })
 export const moveAssignmentFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => moveAssignmentInputSchema.parse(data))
   .handler(async ({ data }) => {
+    getEvlog()?.set({ action: "move_assignment", assignment: { id: data.assignmentId } })
     const db = getDb()
 
     // Get current assignment to find registrationId and current heatId
@@ -1213,6 +1226,7 @@ async function getNextHeatNumberInternal(
 export const bulkCreateHeatsFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => bulkCreateHeatsInputSchema.parse(data))
   .handler(async ({ data }) => {
+    getEvlog()?.set({ action: "bulk_create_heats", heat: { competitionId: data.competitionId, trackWorkoutId: data.trackWorkoutId } })
     const db = getDb()
 
     // Update request context
@@ -1271,6 +1285,7 @@ export const bulkCreateHeatsFn = createServerFn({ method: "POST" })
 export const bulkUpdateHeatsFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => bulkUpdateHeatsInputSchema.parse(data))
   .handler(async ({ data }) => {
+    getEvlog()?.set({ action: "bulk_update_heats", heat: { count: data.heats.length } })
     const db = getDb()
 
     if (data.heats.length === 0) {
@@ -1577,6 +1592,7 @@ async function getHeatsForWorkoutInternal(
 export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => copyHeatsFromEventInputSchema.parse(data))
   .handler(async ({ data }) => {
+    getEvlog()?.set({ action: "copy_heats", heat: { sourceTrackWorkoutId: data.sourceTrackWorkoutId, targetTrackWorkoutId: data.targetTrackWorkoutId } })
     const db = getDb()
 
     // Update request context
@@ -1919,6 +1935,7 @@ export const getHeatPublishStatusFn = createServerFn({ method: "GET" })
 export const publishHeatScheduleFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => publishHeatScheduleInputSchema.parse(data))
   .handler(async ({ data }) => {
+    getEvlog()?.set({ action: "publish_heat_schedule", heat: { id: data.heatId, publish: data.publish } })
     // Verify authentication
     const session = await getSessionFromCookie()
     if (!session?.userId) {
@@ -1962,6 +1979,7 @@ export const publishAllHeatsForEventFn = createServerFn({ method: "POST" })
     publishAllHeatsForEventInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
+    getEvlog()?.set({ action: "publish_all_heats", heat: { trackWorkoutId: data.trackWorkoutId, publish: data.publish } })
     // Verify authentication
     const session = await getSessionFromCookie()
     if (!session?.userId) {
