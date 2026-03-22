@@ -35,7 +35,7 @@ import {
   getVolunteerAssignmentsFn,
 } from "@/server-fns/volunteer-fns"
 import { getCompetitionShiftsFn } from "@/server-fns/volunteer-shift-fns"
-import { getCohostsFn, removeCohostFn, updateCohostPermissionsFn } from "@/server-fns/cohost-fns"
+import { getCohostsFn } from "@/server-fns/cohost-fns"
 import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -512,6 +512,7 @@ function CohostsTab({
   const handleRemoveCohost = async (membershipId: string, name: string) => {
     if (!confirm(`Remove ${name} as a co-host?`)) return
     try {
+      const { removeCohostFn } = await import("@/server-fns/cohost-fns")
       await removeCohostFn({
         data: { membershipId, organizingTeamId },
       })
@@ -528,6 +529,7 @@ function CohostsTab({
     currentValue: boolean,
   ) => {
     try {
+      const { updateCohostPermissionsFn } = await import("@/server-fns/cohost-fns")
       await updateCohostPermissionsFn({
         data: {
           membershipId,
