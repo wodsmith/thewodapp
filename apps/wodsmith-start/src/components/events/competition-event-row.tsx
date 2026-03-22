@@ -355,7 +355,9 @@ export function CompetitionEventRow({
   return (
     <div ref={ref} className="relative">
       {closestEdge && <DropIndicator edge={closestEdge} gap="2px" />}
-      <Card className={`${isDragging ? "opacity-50" : ""} ${isSubEvent ? "border-dashed" : ""} group`}>
+      <Card
+        className={`${isDragging ? "opacity-50" : ""} ${isSubEvent ? "border-dashed" : ""} group`}
+      >
         <Collapsible
           open={isDescriptionsOpen}
           onOpenChange={setIsDescriptionsOpen}
@@ -382,11 +384,13 @@ export function CompetitionEventRow({
                 {/* Event Name */}
                 <span className="flex-1 font-medium truncate min-w-0">
                   {event.workout.name}
-                  {isParentEvent && childCount !== undefined && childCount > 0 && (
-                    <span className="ml-2 text-xs text-muted-foreground font-normal">
-                      ({childCount} sub-event{childCount !== 1 ? "s" : ""})
-                    </span>
-                  )}
+                  {isParentEvent &&
+                    childCount !== undefined &&
+                    childCount > 0 && (
+                      <span className="ml-2 text-xs text-muted-foreground font-normal">
+                        ({childCount} sub-event{childCount !== 1 ? "s" : ""})
+                      </span>
+                    )}
                 </span>
 
                 {/* Badges - hidden on mobile, shown on desktop */}
@@ -403,7 +407,9 @@ export function CompetitionEventRow({
                           </Badge>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>From series{seriesName ? `: ${seriesName}` : ""}</p>
+                          <p>
+                            From series{seriesName ? `: ${seriesName}` : ""}
+                          </p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -508,9 +514,14 @@ export function CompetitionEventRow({
                       to="/compete/organizer/$competitionId/events/$eventId"
                       params={{
                         competitionId: competitionId,
-                        eventId: isSubEvent && parentEventId ? parentEventId : event.id,
+                        eventId:
+                          isSubEvent && parentEventId
+                            ? parentEventId
+                            : event.id,
                       }}
-                      search={isSubEvent && parentEventId ? { tab: event.id } : {}}
+                      search={
+                        isSubEvent && parentEventId ? { tab: event.id } : {}
+                      }
                     >
                       <Pencil className="h-4 w-4" />
                     </Link>
@@ -630,9 +641,14 @@ export function CompetitionEventRow({
                       to="/compete/organizer/$competitionId/events/$eventId"
                       params={{
                         competitionId: competitionId,
-                        eventId: isSubEvent && parentEventId ? parentEventId : event.id,
+                        eventId:
+                          isSubEvent && parentEventId
+                            ? parentEventId
+                            : event.id,
                       }}
-                      search={isSubEvent && parentEventId ? { tab: event.id } : {}}
+                      search={
+                        isSubEvent && parentEventId ? { tab: event.id } : {}
+                      }
                     >
                       <Pencil className="h-4 w-4" />
                     </Link>
