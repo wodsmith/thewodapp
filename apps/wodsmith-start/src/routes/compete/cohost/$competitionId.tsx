@@ -12,8 +12,8 @@ import {
   redirect,
 } from "@tanstack/react-router"
 import { CohostSidebar } from "@/components/cohost-sidebar"
+import { cohostGetPermissionsFn } from "@/server-fns/cohost/cohost-competition-fns"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
-import { getCohostPermissions } from "@/server/cohost"
 import { validateSession } from "@/server-fns/middleware/auth"
 
 export const Route = createFileRoute("/compete/cohost/$competitionId")({
@@ -68,11 +68,11 @@ export const Route = createFileRoute("/compete/cohost/$competitionId")({
       })
     }
 
-    // Get cohost permissions from DB (session doesn't include metadata)
-    const permissions = await getCohostPermissions(
-      session,
-      competition.competitionTeamId!,
-    )
+    // Get cohost permissions from DB via server function
+    // (can't import server/cohost.ts directly — it imports getDb which breaks client boundary)
+    const permissions = await cohostGetPermissionsFn({
+      data: { competitionTeamId: competition.competitionTeamId! },
+    })
 
     return {
       competition,

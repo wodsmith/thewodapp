@@ -15,7 +15,31 @@ import {
   REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import { teamMembershipTable } from "@/db/schemas/teams"
+import { getCohostPermissions } from "@/server/cohost"
+import { getSessionFromCookie } from "@/utils/auth"
 import { requireCohostPermission } from "@/utils/cohost-auth"
+
+// ============================================================================
+// Get Cohost Permissions (server function wrapper)
+// ============================================================================
+
+/**
+ * Server function to fetch cohost permissions from DB.
+ * Used by the layout route to avoid importing server-only code on the client.
+ */
+export const cohostGetPermissionsFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        competitionTeamId: z.string().min(1),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session) return null
+    return getCohostPermissions(session, data.competitionTeamId)
+  })
 
 // ============================================================================
 // Input Schemas
