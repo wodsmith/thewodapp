@@ -2557,6 +2557,33 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
     // Index: trackWorkoutId -> track workout + workout data
     const compTwMap = new Map(allCompTrackWorkouts.map((tw) => [tw.id, tw]))
 
+    // Batch-load movements for comparison
+    const previewWorkoutIds = [
+      ...templateTrackWorkouts.map((tw) => tw.workoutId),
+      ...allCompTrackWorkouts.map((tw) => tw.workoutId),
+    ]
+    const previewMovements =
+      previewWorkoutIds.length > 0
+        ? await db
+            .select({
+              workoutId: workoutMovements.workoutId,
+              movementId: workoutMovements.movementId,
+            })
+            .from(workoutMovements)
+            .where(inArray(workoutMovements.workoutId, previewWorkoutIds))
+        : []
+    const previewMvmtByWorkout = new Map<string, string>()
+    const pvGrouped = new Map<string, string[]>()
+    for (const m of previewMovements) {
+      if (!m.workoutId || !m.movementId) continue
+      const arr = pvGrouped.get(m.workoutId) ?? []
+      arr.push(m.movementId)
+      pvGrouped.set(m.workoutId, arr)
+    }
+    for (const [wid, mids] of pvGrouped) {
+      previewMvmtByWorkout.set(wid, mids.sort().join(","))
+    }
+
     // Group mappings by competition
     const mappingsByComp = new Map<string, typeof existingMappings>()
     for (const m of existingMappings) {
@@ -2657,6 +2684,11 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
             changes.push(
               `order: #${Math.floor(Number(compTw.trackOrder))} → #${Math.floor(Number(templateTw.trackOrder))}`,
             )
+          }
+          const tmplMvmts = previewMvmtByWorkout.get(templateTw.workoutId) ?? ""
+          const cmpMvmts = previewMvmtByWorkout.get(compTw.workoutId) ?? ""
+          if (tmplMvmts !== cmpMvmts) {
+            changes.push("movements updated")
           }
 
           if (changes.length > 0) {
@@ -2862,6 +2894,34 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
       mappingsByComp.set(m.competitionId, arr)
     }
 
+    // Batch-load movements for all template and competition workouts
+    const allWorkoutIds = [
+      ...templateTrackWorkouts.map((tw) => tw.workout.id),
+      ...allCompTrackWorkouts.map((tw) => tw.workout.id),
+    ]
+    const allMovementsData =
+      allWorkoutIds.length > 0
+        ? await db
+            .select({
+              workoutId: workoutMovements.workoutId,
+              movementId: workoutMovements.movementId,
+            })
+            .from(workoutMovements)
+            .where(inArray(workoutMovements.workoutId, allWorkoutIds))
+        : []
+    // Build lookup: workoutId -> sorted movement IDs string (for comparison)
+    const movementsByWorkout = new Map<string, string>()
+    const grouped = new Map<string, string[]>()
+    for (const m of allMovementsData) {
+      if (!m.workoutId || !m.movementId) continue
+      const arr = grouped.get(m.workoutId) ?? []
+      arr.push(m.movementId)
+      grouped.set(m.workoutId, arr)
+    }
+    for (const [wid, mids] of grouped) {
+      movementsByWorkout.set(wid, mids.sort().join(","))
+    }
+
     const results: CompetitionEventSyncStatus[] = []
 
     for (const comp of comps) {
@@ -2936,6 +2996,14 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
             (compTw.notes ?? null) !== (templateTw.notes ?? null)) ||
           Number(compTw.trackOrder) !== Number(templateTw.trackOrder)
         ) {
+          hasDifferences = true
+          break
+        }
+
+        // Compare movements
+        const templateMvmts = movementsByWorkout.get(templateTw.workout.id) ?? ""
+        const compMvmts = movementsByWorkout.get(compTw.workout.id) ?? ""
+        if (templateMvmts !== compMvmts) {
           hasDifferences = true
           break
         }
