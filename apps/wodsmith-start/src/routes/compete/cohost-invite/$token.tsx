@@ -225,6 +225,11 @@ function PermissionsSummary({
     canEditScoring: boolean
     canEditRotation: boolean
     canManagePricing: boolean
+    canManageVolunteers?: boolean
+    canManageEvents?: boolean
+    canManageHeats?: boolean
+    canManageResults?: boolean
+    canManageRegistrations?: boolean
   }
 }) {
   const granted = [
@@ -233,6 +238,11 @@ function PermissionsSummary({
     permissions.canEditRotation && "Edit rotation",
     permissions.canViewRevenue && "View revenue",
     permissions.canManagePricing && "Manage pricing and coupons",
+    permissions.canManageVolunteers && "Manage volunteers",
+    permissions.canManageEvents && "Manage events",
+    permissions.canManageHeats && "Manage heats/schedule",
+    permissions.canManageResults && "Manage results/scores",
+    permissions.canManageRegistrations && "Manage registrations",
   ].filter(Boolean)
 
   return (

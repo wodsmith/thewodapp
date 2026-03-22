@@ -55,6 +55,11 @@ export async function getCohostPermissions(
     canEditScoring: metadata.canEditScoring ?? DEFAULT_COHOST_PERMISSIONS.canEditScoring,
     canEditRotation: metadata.canEditRotation ?? DEFAULT_COHOST_PERMISSIONS.canEditRotation,
     canManagePricing: metadata.canManagePricing ?? DEFAULT_COHOST_PERMISSIONS.canManagePricing,
+    canManageVolunteers: metadata.canManageVolunteers ?? DEFAULT_COHOST_PERMISSIONS.canManageVolunteers,
+    canManageEvents: metadata.canManageEvents ?? DEFAULT_COHOST_PERMISSIONS.canManageEvents,
+    canManageHeats: metadata.canManageHeats ?? DEFAULT_COHOST_PERMISSIONS.canManageHeats,
+    canManageResults: metadata.canManageResults ?? DEFAULT_COHOST_PERMISSIONS.canManageResults,
+    canManageRegistrations: metadata.canManageRegistrations ?? DEFAULT_COHOST_PERMISSIONS.canManageRegistrations,
     inviteNotes: metadata.inviteNotes,
   }
 }

@@ -33,6 +33,11 @@ export async function requireCohostPermission(
       canEditScoring: true,
       canEditRotation: true,
       canManagePricing: true,
+      canManageVolunteers: true,
+      canManageEvents: true,
+      canManageHeats: true,
+      canManageResults: true,
+      canManageRegistrations: true,
     }
   }
 

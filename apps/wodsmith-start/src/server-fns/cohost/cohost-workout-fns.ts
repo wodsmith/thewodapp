@@ -529,7 +529,7 @@ export const cohostUpdateWorkoutFn = createServerFn({ method: "POST" })
     cohostUpdateWorkoutInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "canManageEvents")
     const db = getDb()
 
     const updateData: Record<string, unknown> = { updatedAt: new Date() }
@@ -569,7 +569,7 @@ export const cohostUpdateWorkoutFn = createServerFn({ method: "POST" })
 export const cohostSaveEventFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => cohostSaveEventInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "canManageEvents")
     const db = getDb()
 
     // 1. Update workout table
@@ -691,7 +691,7 @@ export const cohostReorderEventsFn = createServerFn({ method: "POST" })
     cohostReorderEventsInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "canManageEvents")
     const db = getDb()
 
     const track = await getCompetitionTrack(data.competitionId)
@@ -762,7 +762,7 @@ export const cohostCreateWorkoutFn = createServerFn({ method: "POST" })
     cohostCreateWorkoutInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "canManageEvents")
     const db = getDb()
 
     // Get or create the competition track
@@ -898,7 +898,7 @@ export const cohostRemoveWorkoutFn = createServerFn({ method: "POST" })
     cohostRemoveWorkoutInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "canManageEvents")
     const db = getDb()
 
     await db.transaction(async (tx) => {

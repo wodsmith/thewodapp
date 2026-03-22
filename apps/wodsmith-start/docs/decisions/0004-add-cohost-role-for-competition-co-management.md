@@ -60,12 +60,17 @@ Chosen option: **Option C — Dedicated cohost route tree**, because it requires
 
 The COHOST system role and metadata interface already exist on the branch:
 
-**`src/db/schemas/cohost.ts`** — `CohostMembershipMetadata` interface with five permission flags:
+**`src/db/schemas/cohost.ts`** — `CohostMembershipMetadata` interface with ten permission flags:
 - `canViewRevenue: boolean` — can view revenue stats and financial dashboard
 - `canEditCapacity: boolean` — can modify capacity defaults and per-division max spots
 - `canEditScoring: boolean` — can modify scoring algorithm, point distribution, tiebreak rules
 - `canEditRotation: boolean` — can modify judge rotation defaults (heats per rotation, lane shift pattern, min heat buffer)
 - `canManagePricing: boolean` — can manage pricing and coupons
+- `canManageVolunteers: boolean` — can manage volunteers (invite, assign roles, schedule judges) (default: true)
+- `canManageEvents: boolean` — can publish/unpublish events and manage event status (default: true)
+- `canManageHeats: boolean` — can manage heats (create, assign athletes, publish schedule) (default: true)
+- `canManageResults: boolean` — can enter scores and publish/unpublish results (default: true)
+- `canManageRegistrations: boolean` — can manage registrations (manual reg, transfers, removals) (default: true)
 
 **`src/db/schema.ts`** — `SYSTEM_ROLES_ENUM.COHOST` already defined.
 
@@ -220,14 +225,19 @@ Routes that simply don't exist in the cohost tree are marked N/A.
 |---|---|---|---|
 | Overview (index) | Full access | Full access | Full access |
 | Divisions | Full access | Full access | Full access |
-| Events | Full access | Full access | Full access |
+| Events (view) | Full access | Full access | Full access |
+| Events (write) | Full access | `canManageEvents` | `canManageEvents` |
 | Scoring | Full access | Full access | Full access |
-| Registrations (athletes) | Full access | Full access | Full access |
+| Registrations (view) | Full access | Full access | Full access |
+| Registrations (write) | Full access | `canManageRegistrations` | `canManageRegistrations` |
 | Waivers | Full access | Full access | Full access |
-| Schedule | Full access | Full access | Full access |
+| Schedule (view) | Full access | Full access | Full access |
+| Schedule (write) | Full access | `canManageHeats` | `canManageHeats` |
 | Locations | Full access | Full access | Full access |
-| Volunteers | Full access | Full access | Full access |
-| Results | Full access | Full access | Full access |
+| Volunteers (view) | Full access | Full access | Full access |
+| Volunteers (write) | Full access | `canManageVolunteers` | `canManageVolunteers` |
+| Results (view) | Full access | Full access | Full access |
+| Results (write) | Full access | `canManageResults` | `canManageResults` |
 | Submission Windows | Full access | Full access | Full access |
 | Sponsors | Full access | Full access | Full access |
 | Settings | Full access | Blocked | `canEditCapacity` / `canEditScoring` / `canEditRotation` |
@@ -358,7 +368,7 @@ Cohosts get their own route tree at `/compete/cohost/$competitionId/` with dedic
 ## More Information
 
 - Cohost membership is on the **competition_event team** (the team associated with the competition itself), not on the organizing team. This scopes access to a single competition.
-- The `CohostMembershipMetadata` is stored as JSON in `teamMembershipTable.metadata`. The five permission flags (`canViewRevenue`, `canEditCapacity`, `canEditScoring`, `canEditRotation`, `canManagePricing`) are organizer-configurable at invite time and can be updated later.
+- The `CohostMembershipMetadata` is stored as JSON in `teamMembershipTable.metadata`. The ten permission flags (`canViewRevenue`, `canEditCapacity`, `canEditScoring`, `canEditRotation`, `canManagePricing`, `canManageVolunteers`, `canManageEvents`, `canManageHeats`, `canManageResults`, `canManageRegistrations`) are organizer-configurable at invite time and can be updated later.
 - Cohosts do not need the `HOST_COMPETITIONS` entitlement. Their access is derived entirely from team membership with `roleId: "cohost"`.
 - The invite flow sends an email with a tokenized link to `/compete/cohost-invite/$token`. The recipient must have a WODsmith account to accept. Upon acceptance, the `teamMembershipTable` row is created and sessions are refreshed.
 - Future work: cohost activity audit log, cohost-specific notification preferences, "promote cohost to organizer" flow, bulk-invite cohosts, cohost templates (preset permission profiles).

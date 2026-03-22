@@ -91,7 +91,11 @@ const getNavigation = (
             ]
           : []),
         { label: "Scoring", href: `${basePath}/scoring`, icon: Calculator },
-        { label: "Registrations", href: `${basePath}/athletes`, icon: Users },
+        ...(permissions?.canManageRegistrations
+          ? [
+              { label: "Registrations", href: `${basePath}/athletes`, icon: Users },
+            ]
+          : []),
         {
           label: "Waivers",
           href: `${basePath}/waivers`,
@@ -102,7 +106,7 @@ const getNavigation = (
     {
       label: "Run Competition",
       items: [
-        ...(competitionType !== "online"
+        ...(competitionType !== "online" && permissions?.canManageHeats
           ? [
               {
                 label: "Schedule",
@@ -112,16 +116,24 @@ const getNavigation = (
             ]
           : []),
         { label: "Locations", href: `${basePath}/locations`, icon: MapPin },
-        {
-          label: "Volunteers",
-          href: `${basePath}/volunteers`,
-          icon: UserCheck,
-        },
-        {
-          label: competitionType === "online" ? "Submissions" : "Results",
-          href: `${basePath}/results`,
-          icon: Medal,
-        },
+        ...(permissions?.canManageVolunteers
+          ? [
+              {
+                label: "Volunteers",
+                href: `${basePath}/volunteers`,
+                icon: UserCheck,
+              },
+            ]
+          : []),
+        ...(permissions?.canManageResults
+          ? [
+              {
+                label: competitionType === "online" ? "Submissions" : "Results",
+                href: `${basePath}/results`,
+                icon: Medal,
+              },
+            ]
+          : []),
       ],
     },
     {

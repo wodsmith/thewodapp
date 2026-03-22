@@ -437,7 +437,7 @@ export const cohostGetCompetitionRegistrationsFn = createServerFn({
 export const cohostCreateHeatFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => createHeatInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "canManageHeats")
     getEvlog()?.set({
       action: "cohost_create_heat",
       heat: {
@@ -492,7 +492,7 @@ export const cohostCreateHeatFn = createServerFn({ method: "POST" })
 export const cohostUpdateHeatFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => updateHeatInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "canManageHeats")
     getEvlog()?.set({ action: "cohost_update_heat", heat: { id: data.heatId } })
 
     const db = getDb()
@@ -524,7 +524,7 @@ export const cohostUpdateHeatFn = createServerFn({ method: "POST" })
 export const cohostDeleteHeatFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => deleteHeatInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "canManageHeats")
     getEvlog()?.set({ action: "cohost_delete_heat", heat: { id: data.heatId } })
 
     const db = getDb()
@@ -544,7 +544,7 @@ export const cohostDeleteHeatFn = createServerFn({ method: "POST" })
 export const cohostReorderHeatsFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => reorderHeatsInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "canManageHeats")
     getEvlog()?.set({
       action: "cohost_reorder_heats",
       heat: { trackWorkoutId: data.trackWorkoutId },
@@ -643,7 +643,7 @@ export const cohostGetNextHeatNumberFn = createServerFn({ method: "GET" })
 export const cohostBulkCreateHeatsFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => bulkCreateHeatsInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "canManageHeats")
     getEvlog()?.set({
       action: "cohost_bulk_create_heats",
       heat: {
@@ -709,7 +709,7 @@ export const cohostBulkCreateHeatsFn = createServerFn({ method: "POST" })
 export const cohostBulkUpdateHeatsFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => bulkUpdateHeatsInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "canManageHeats")
     getEvlog()?.set({
       action: "cohost_bulk_update_heats",
       heat: { count: data.heats.length },
@@ -755,7 +755,7 @@ export const cohostBulkUpdateHeatsFn = createServerFn({ method: "POST" })
 export const cohostAssignToHeatFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => assignToHeatInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "canManageHeats")
     getEvlog()?.set({
       action: "cohost_assign_to_heat",
       assignment: { heatId: data.heatId, registrationId: data.registrationId },
@@ -790,7 +790,7 @@ export const cohostAssignToHeatFn = createServerFn({ method: "POST" })
 export const cohostBulkAssignToHeatFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => bulkAssignToHeatInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "canManageHeats")
     getEvlog()?.set({
       action: "cohost_bulk_assign_to_heat",
       assignment: { heatId: data.heatId, count: data.registrationIds.length },
@@ -828,7 +828,7 @@ export const cohostBulkAssignToHeatFn = createServerFn({ method: "POST" })
 export const cohostRemoveFromHeatFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => removeFromHeatInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "canManageHeats")
 
     const db = getDb()
 
@@ -845,7 +845,7 @@ export const cohostRemoveFromHeatFn = createServerFn({ method: "POST" })
 export const cohostUpdateAssignmentFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => updateAssignmentInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "canManageHeats")
 
     const db = getDb()
 
@@ -863,7 +863,7 @@ export const cohostUpdateAssignmentFn = createServerFn({ method: "POST" })
 export const cohostMoveAssignmentFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => moveAssignmentInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "canManageHeats")
 
     const db = getDb()
 

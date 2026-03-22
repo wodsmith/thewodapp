@@ -15,6 +15,16 @@ export interface CohostMembershipMetadata {
   canEditRotation: boolean
   /** Can manage pricing and coupons */
   canManagePricing: boolean
+  /** Can manage volunteers (invite, assign roles, schedule judges) */
+  canManageVolunteers: boolean
+  /** Can publish/unpublish events and manage event status */
+  canManageEvents: boolean
+  /** Can manage heats (create, assign athletes, publish schedule) */
+  canManageHeats: boolean
+  /** Can enter scores and publish/unpublish results */
+  canManageResults: boolean
+  /** Can manage registrations (manual reg, transfers, removals) */
+  canManageRegistrations: boolean
   /** Optional notes from organizer */
   inviteNotes?: string
 }
@@ -29,4 +39,9 @@ export const DEFAULT_COHOST_PERMISSIONS: Omit<
   canEditScoring: true,
   canEditRotation: true,
   canManagePricing: false,
+  canManageVolunteers: true,
+  canManageEvents: true,
+  canManageHeats: true,
+  canManageResults: true,
+  canManageRegistrations: true,
 }

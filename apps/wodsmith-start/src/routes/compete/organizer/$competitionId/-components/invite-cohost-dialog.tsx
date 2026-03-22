@@ -39,6 +39,11 @@ const formSchema = z.object({
   canEditScoring: z.boolean(),
   canEditRotation: z.boolean(),
   canManagePricing: z.boolean(),
+  canManageVolunteers: z.boolean(),
+  canManageEvents: z.boolean(),
+  canManageHeats: z.boolean(),
+  canManageResults: z.boolean(),
+  canManageRegistrations: z.boolean(),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -71,6 +76,11 @@ export function InviteCohostDialog({
       canEditScoring: DEFAULT_COHOST_PERMISSIONS.canEditScoring,
       canEditRotation: DEFAULT_COHOST_PERMISSIONS.canEditRotation,
       canManagePricing: DEFAULT_COHOST_PERMISSIONS.canManagePricing,
+      canManageVolunteers: DEFAULT_COHOST_PERMISSIONS.canManageVolunteers,
+      canManageEvents: DEFAULT_COHOST_PERMISSIONS.canManageEvents,
+      canManageHeats: DEFAULT_COHOST_PERMISSIONS.canManageHeats,
+      canManageResults: DEFAULT_COHOST_PERMISSIONS.canManageResults,
+      canManageRegistrations: DEFAULT_COHOST_PERMISSIONS.canManageRegistrations,
     },
   })
 
@@ -92,6 +102,11 @@ export function InviteCohostDialog({
             canEditScoring: data.canEditScoring,
             canEditRotation: data.canEditRotation,
             canManagePricing: data.canManagePricing,
+            canManageVolunteers: data.canManageVolunteers,
+            canManageEvents: data.canManageEvents,
+            canManageHeats: data.canManageHeats,
+            canManageResults: data.canManageResults,
+            canManageRegistrations: data.canManageRegistrations,
           },
         },
       })
@@ -262,6 +277,103 @@ export function InviteCohostDialog({
                   </FormItem>
                 )}
               />
+
+              {/* Operations group */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Operations
+                </p>
+
+                <FormField
+                  control={form.control}
+                  name="canManageVolunteers"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Can manage volunteers
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="canManageEvents"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Can manage events
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="canManageHeats"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Can manage heats/schedule
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="canManageResults"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Can manage results/scores
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="canManageRegistrations"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Can manage registrations
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">

@@ -95,6 +95,11 @@ function CohostCompetitionLayout() {
           canEditScoring: false,
           canEditRotation: false,
           canManagePricing: false,
+          canManageVolunteers: false,
+          canManageEvents: false,
+          canManageHeats: false,
+          canManageResults: false,
+          canManageRegistrations: false,
         }
       }
     >

@@ -236,7 +236,7 @@ export const cohostCreateManualRegistrationFn = createServerFn({
     createManualRegistrationInputSchema.parse(data),
   )
   .handler(async ({ data: input }) => {
-    await requireCohostPermission(input.competitionTeamId)
+    await requireCohostPermission(input.competitionTeamId, "canManageRegistrations")
 
     const session = await requireVerifiedEmail()
     const db = getDb()
@@ -383,7 +383,7 @@ export const cohostRemoveRegistrationFn = createServerFn({ method: "POST" })
     removeRegistrationInputSchema.parse(data),
   )
   .handler(async ({ data: input }) => {
-    await requireCohostPermission(input.competitionTeamId)
+    await requireCohostPermission(input.competitionTeamId, "canManageRegistrations")
 
     const session = await requireVerifiedEmail()
     const db = getDb()
@@ -528,7 +528,7 @@ export const cohostTransferRegistrationDivisionFn = createServerFn({
     transferRegistrationDivisionInputSchema.parse(data),
   )
   .handler(async ({ data: input }) => {
-    await requireCohostPermission(input.competitionTeamId)
+    await requireCohostPermission(input.competitionTeamId, "canManageRegistrations")
 
     const session = await requireVerifiedEmail()
     const db = getDb()

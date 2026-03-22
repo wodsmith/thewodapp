@@ -370,7 +370,7 @@ export const cohostPublishDivisionResultsFn = createServerFn({
     async ({
       data,
     }): Promise<{ success: boolean; publishedAt: Date | null }> => {
-      await requireCohostPermission(data.competitionTeamId)
+      await requireCohostPermission(data.competitionTeamId, "canManageResults")
       const db = getDb()
 
       const [competition] = await db
@@ -421,7 +421,7 @@ export const cohostPublishAllDivisionResultsFn = createServerFn({
   )
   .handler(
     async ({ data }): Promise<{ success: boolean; updatedCount: number }> => {
-      await requireCohostPermission(data.competitionTeamId)
+      await requireCohostPermission(data.competitionTeamId, "canManageResults")
       const db = getDb()
 
       const [competition] = await db

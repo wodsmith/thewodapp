@@ -44,6 +44,11 @@ const cohostPermissionsSchema = z.object({
   canEditScoring: z.boolean(),
   canEditRotation: z.boolean(),
   canManagePricing: z.boolean(),
+  canManageVolunteers: z.boolean(),
+  canManageEvents: z.boolean(),
+  canManageHeats: z.boolean(),
+  canManageResults: z.boolean(),
+  canManageRegistrations: z.boolean(),
 })
 
 // ============================================================================
@@ -104,6 +109,11 @@ export const getCohostInviteFn = createServerFn({ method: "GET" })
         canEditScoring: meta.canEditScoring ?? DEFAULT_COHOST_PERMISSIONS.canEditScoring,
         canEditRotation: meta.canEditRotation ?? DEFAULT_COHOST_PERMISSIONS.canEditRotation,
         canManagePricing: meta.canManagePricing ?? DEFAULT_COHOST_PERMISSIONS.canManagePricing,
+        canManageVolunteers: meta.canManageVolunteers ?? DEFAULT_COHOST_PERMISSIONS.canManageVolunteers,
+        canManageEvents: meta.canManageEvents ?? DEFAULT_COHOST_PERMISSIONS.canManageEvents,
+        canManageHeats: meta.canManageHeats ?? DEFAULT_COHOST_PERMISSIONS.canManageHeats,
+        canManageResults: meta.canManageResults ?? DEFAULT_COHOST_PERMISSIONS.canManageResults,
+        canManageRegistrations: meta.canManageRegistrations ?? DEFAULT_COHOST_PERMISSIONS.canManageRegistrations,
         inviteNotes: meta.inviteNotes,
       }
     } catch {
@@ -186,6 +196,11 @@ export const getCohostsFn = createServerFn({ method: "GET" })
               canEditScoring: meta.canEditScoring ?? DEFAULT_COHOST_PERMISSIONS.canEditScoring,
               canEditRotation: meta.canEditRotation ?? DEFAULT_COHOST_PERMISSIONS.canEditRotation,
               canManagePricing: meta.canManagePricing ?? DEFAULT_COHOST_PERMISSIONS.canManagePricing,
+              canManageVolunteers: meta.canManageVolunteers ?? DEFAULT_COHOST_PERMISSIONS.canManageVolunteers,
+              canManageEvents: meta.canManageEvents ?? DEFAULT_COHOST_PERMISSIONS.canManageEvents,
+              canManageHeats: meta.canManageHeats ?? DEFAULT_COHOST_PERMISSIONS.canManageHeats,
+              canManageResults: meta.canManageResults ?? DEFAULT_COHOST_PERMISSIONS.canManageResults,
+              canManageRegistrations: meta.canManageRegistrations ?? DEFAULT_COHOST_PERMISSIONS.canManageRegistrations,
               inviteNotes: meta.inviteNotes,
             }
           }
@@ -211,6 +226,11 @@ export const getCohostsFn = createServerFn({ method: "GET" })
               canEditScoring: meta.canEditScoring ?? DEFAULT_COHOST_PERMISSIONS.canEditScoring,
               canEditRotation: meta.canEditRotation ?? DEFAULT_COHOST_PERMISSIONS.canEditRotation,
               canManagePricing: meta.canManagePricing ?? DEFAULT_COHOST_PERMISSIONS.canManagePricing,
+              canManageVolunteers: meta.canManageVolunteers ?? DEFAULT_COHOST_PERMISSIONS.canManageVolunteers,
+              canManageEvents: meta.canManageEvents ?? DEFAULT_COHOST_PERMISSIONS.canManageEvents,
+              canManageHeats: meta.canManageHeats ?? DEFAULT_COHOST_PERMISSIONS.canManageHeats,
+              canManageResults: meta.canManageResults ?? DEFAULT_COHOST_PERMISSIONS.canManageResults,
+              canManageRegistrations: meta.canManageRegistrations ?? DEFAULT_COHOST_PERMISSIONS.canManageRegistrations,
               inviteNotes: meta.inviteNotes,
             }
           }
@@ -262,6 +282,11 @@ export const inviteCohostFn = createServerFn({ method: "POST" })
       canEditScoring: data.permissions.canEditScoring,
       canEditRotation: data.permissions.canEditRotation,
       canManagePricing: data.permissions.canManagePricing,
+      canManageVolunteers: data.permissions.canManageVolunteers,
+      canManageEvents: data.permissions.canManageEvents,
+      canManageHeats: data.permissions.canManageHeats,
+      canManageResults: data.permissions.canManageResults,
+      canManageRegistrations: data.permissions.canManageRegistrations,
       inviteEmail: data.email,
       competitionId: data.competitionId,
     } as CohostMembershipMetadata & { inviteName?: string; inviteEmail: string; competitionId: string }
@@ -388,6 +413,11 @@ export const acceptCohostInviteFn = createServerFn({ method: "POST" })
           canEditScoring: meta.canEditScoring ?? DEFAULT_COHOST_PERMISSIONS.canEditScoring,
           canEditRotation: meta.canEditRotation ?? DEFAULT_COHOST_PERMISSIONS.canEditRotation,
           canManagePricing: meta.canManagePricing ?? DEFAULT_COHOST_PERMISSIONS.canManagePricing,
+          canManageVolunteers: meta.canManageVolunteers ?? DEFAULT_COHOST_PERMISSIONS.canManageVolunteers,
+          canManageEvents: meta.canManageEvents ?? DEFAULT_COHOST_PERMISSIONS.canManageEvents,
+          canManageHeats: meta.canManageHeats ?? DEFAULT_COHOST_PERMISSIONS.canManageHeats,
+          canManageResults: meta.canManageResults ?? DEFAULT_COHOST_PERMISSIONS.canManageResults,
+          canManageRegistrations: meta.canManageRegistrations ?? DEFAULT_COHOST_PERMISSIONS.canManageRegistrations,
           inviteNotes: meta.inviteNotes,
         }
         competitionId = meta.competitionId ?? null

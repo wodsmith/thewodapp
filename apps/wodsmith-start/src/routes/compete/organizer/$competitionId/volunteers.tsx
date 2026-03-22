@@ -555,6 +555,16 @@ function CohostsTab({
         return "Rotation"
       case "canManagePricing":
         return "Pricing"
+      case "canManageVolunteers":
+        return "Volunteers"
+      case "canManageEvents":
+        return "Events"
+      case "canManageHeats":
+        return "Heats"
+      case "canManageResults":
+        return "Results"
+      case "canManageRegistrations":
+        return "Registrations"
       default:
         return key
     }
@@ -588,7 +598,7 @@ function CohostsTab({
                   <div>
                     <p className="font-medium">{inv.email}</p>
                     <div className="mt-1 flex gap-1.5">
-                      {(["canEditCapacity", "canEditScoring", "canEditRotation", "canViewRevenue", "canManagePricing"] as const).map(
+                      {(["canEditCapacity", "canEditScoring", "canEditRotation", "canViewRevenue", "canManagePricing", "canManageVolunteers", "canManageEvents", "canManageHeats", "canManageResults", "canManageRegistrations"] as const).map(
                         (key) =>
                           inv.permissions[key] && (
                             <Badge key={key} variant="secondary" className="text-xs">
@@ -629,7 +639,7 @@ function CohostsTab({
                         </p>
                       )}
                       <div className="mt-2 flex flex-wrap gap-3">
-                        {(["canEditCapacity", "canEditScoring", "canEditRotation", "canViewRevenue", "canManagePricing"] as const).map(
+                        {(["canEditCapacity", "canEditScoring", "canEditRotation", "canViewRevenue", "canManagePricing", "canManageVolunteers", "canManageEvents", "canManageHeats", "canManageResults", "canManageRegistrations"] as const).map(
                           (key) => (
                             <label
                               key={key}
