@@ -41,6 +41,7 @@ import {
   SCORE_TYPE_VALUES,
   TIEBREAK_SCHEME_VALUES,
   WORKOUT_SCHEME_VALUES,
+  workoutMovements,
   workouts,
 } from "@/db/schemas/workouts"
 import {
@@ -215,7 +216,7 @@ export const getSeriesTemplateEventByIdFn = createServerFn({ method: "GET" })
       })
       .parse(data),
   )
-  .handler(async ({ data }): Promise<{ event: SeriesTemplateEvent | null }> => {
+  .handler(async ({ data }): Promise<{ event: SeriesTemplateEvent | null; movementIds: string[] }> => {
     const db = getDb()
     const session = await getSessionFromCookie()
     if (!session?.userId) throw new Error("Not authenticated")
@@ -257,9 +258,18 @@ export const getSeriesTemplateEventByIdFn = createServerFn({ method: "GET" })
       .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
       .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
 
-    if (!trackWorkout) return { event: null }
+    if (!trackWorkout) return { event: null, movementIds: [] }
 
-    return { event: toSeriesTemplateEvent(trackWorkout) }
+    // Load workout movements
+    const wm = await db
+      .select({ movementId: workoutMovements.movementId })
+      .from(workoutMovements)
+      .where(eq(workoutMovements.workoutId, trackWorkout.workoutId))
+
+    return {
+      event: toSeriesTemplateEvent(trackWorkout),
+      movementIds: wm.map((m) => m.movementId).filter((id): id is string => id !== null),
+    }
   })
 
 /**
@@ -700,6 +710,7 @@ export const updateSeriesTemplateEventFn = createServerFn({ method: "POST" })
             reps: z.number().int().min(1).nullable().optional(),
           })
           .optional(),
+        movementIds: z.array(z.string()).optional(),
         pointsMultiplier: z.number().int().min(1).optional(),
         notes: z.string().max(1000).nullable().optional(),
       })
@@ -757,6 +768,23 @@ export const updateSeriesTemplateEventFn = createServerFn({ method: "POST" })
         .update(workouts)
         .set(workoutUpdate)
         .where(eq(workouts.id, trackWorkout.workoutId))
+    }
+
+    // Update movements if provided
+    if (data.movementIds !== undefined) {
+      await db
+        .delete(workoutMovements)
+        .where(eq(workoutMovements.workoutId, trackWorkout.workoutId))
+
+      if (data.movementIds.length > 0) {
+        await db.insert(workoutMovements).values(
+          data.movementIds.map((movementId) => ({
+            id: `workout_movement_${createId()}`,
+            workoutId: trackWorkout.workoutId,
+            movementId,
+          })),
+        )
+      }
     }
 
     // Update track_workout fields if provided

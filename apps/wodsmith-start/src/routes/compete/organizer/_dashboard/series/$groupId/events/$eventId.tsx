@@ -5,6 +5,8 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
+import { MovementsList } from "@/components/movements-list"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -40,6 +42,7 @@ import {
 } from "@/db/schemas/workouts"
 import type { ScoreType, WorkoutScheme } from "@/db/schemas/workouts"
 import { getCompetitionGroupByIdFn } from "@/server-fns/competition-fns"
+import { getAllMovementsFn } from "@/server-fns/movement-fns"
 import {
   getWorkoutDivisionDescriptionsFn,
   updateWorkoutDivisionDescriptionsFn,
@@ -60,6 +63,7 @@ const templateEventSchema = z.object({
   scoreType: z.enum(SCORE_TYPE_VALUES).nullable(),
   timeCap: z.number().min(1).nullable(),
   tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).nullable(),
+  selectedMovements: z.array(z.string()),
   pointsMultiplier: z.number().min(1).max(1000),
   notes: z.string(),
   divisionDescs: z.record(z.string(), z.string()),
@@ -77,7 +81,7 @@ export const Route = createFileRoute(
   validateSearch: searchSchema,
   component: SeriesTemplateEventEditPage,
   loader: async ({ params }) => {
-    const [eventResult, groupResult, divisionsResult] = await Promise.all([
+    const [eventResult, groupResult, divisionsResult, movementsResult] = await Promise.all([
       getSeriesTemplateEventByIdFn({
         data: {
           trackWorkoutId: params.eventId,
@@ -90,6 +94,7 @@ export const Route = createFileRoute(
       getSeriesTemplateDivisionsFn({
         data: { groupId: params.groupId },
       }).catch(() => ({ scalingGroupId: null, divisions: [] as Array<{ id: string; label: string; teamSize: number }> })),
+      getAllMovementsFn(),
     ])
 
     if (!eventResult.event) {
@@ -146,6 +151,8 @@ export const Route = createFileRoute(
 
     return {
       event: eventResult.event,
+      movementIds: eventResult.movementIds,
+      movements: movementsResult.movements,
       organizingTeamId,
       divisions: divisionsResult.divisions,
       divisionDescriptions,
@@ -157,7 +164,7 @@ export const Route = createFileRoute(
 
 function SeriesTemplateEventEditPage() {
   const { groupId } = Route.useParams()
-  const { event, organizingTeamId, divisions, divisionDescriptions, childEvents } =
+  const { event, movementIds, movements, organizingTeamId, divisions, divisionDescriptions, childEvents } =
     Route.useLoaderData()
   const router = useRouter()
 
@@ -178,6 +185,7 @@ function SeriesTemplateEventEditPage() {
       scoreType: (event.workout.scoreType as ScoreType) ?? null,
       timeCap: event.workout.timeCap ?? null,
       tiebreakScheme: null,
+      selectedMovements: movementIds,
       pointsMultiplier: event.pointsMultiplier || 100,
       notes: event.notes || "",
       divisionDescs: Object.fromEntries(
@@ -186,8 +194,17 @@ function SeriesTemplateEventEditPage() {
     },
   })
 
-  const { watch } = form
+  const { watch, setValue } = form
   const scheme = watch("scheme")
+  const selectedMovements = watch("selectedMovements")
+
+  const handleMovementToggle = (movementId: string) => {
+    if (selectedMovements.includes(movementId)) {
+      setValue("selectedMovements", selectedMovements.filter((id) => id !== movementId))
+    } else {
+      setValue("selectedMovements", [...selectedMovements, movementId])
+    }
+  }
 
   const onSubmit = async (data: TemplateEventSchema) => {
     setIsSaving(true)
@@ -204,6 +221,7 @@ function SeriesTemplateEventEditPage() {
             timeCap: data.timeCap,
             tiebreakScheme: data.tiebreakScheme,
           },
+          movementIds: data.selectedMovements,
           pointsMultiplier: data.pointsMultiplier,
           notes: data.notes || null,
         },
@@ -459,6 +477,43 @@ function SeriesTemplateEventEditPage() {
                         </FormItem>
                       )}
                     />
+                  </CardContent>
+                </Card>
+
+                {/* Movements */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Movements</CardTitle>
+                    <CardDescription>
+                      Track which movements are used in this event
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      {selectedMovements.length > 0 && (
+                        <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-muted/50">
+                          {movements
+                            .filter((m) => selectedMovements.includes(m.id))
+                            .map((movement) => (
+                              <Badge
+                                key={movement.id}
+                                variant="default"
+                                className="cursor-pointer"
+                                onClick={() => handleMovementToggle(movement.id)}
+                              >
+                                {movement.name} ✓
+                              </Badge>
+                            ))}
+                        </div>
+                      )}
+                      <MovementsList
+                        movements={movements}
+                        selectedMovements={selectedMovements}
+                        onMovementToggle={handleMovementToggle}
+                        showLabel={false}
+                        containerHeight="max-h-[250px]"
+                      />
+                    </div>
                   </CardContent>
                 </Card>
               </div>
