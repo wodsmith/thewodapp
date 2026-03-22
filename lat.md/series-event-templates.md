@@ -59,7 +59,9 @@ The `templateEventIds` optional parameter filters which template events to sync.
 
 ### Sync Preview
 
-`previewSyncEventsToCompetitionsFn` generates a detailed diff showing what would change per competition per event. Changes include field-level diffs (e.g., "name: Old Name to New Name"), order changes, "movements updated", "N resources to add", "N judging sheets to add".
+`previewSyncEventsToCompetitionsFn` generates a detailed diff showing what would change per competition per event.
+
+Changes include field-level diffs (e.g., "name: Old Name to New Name"), order changes, "movements updated", "N resources to add", "N judging sheets to add".
 
 ## Event Matching
 
@@ -76,7 +78,9 @@ Each template event can only be claimed once (no duplicate mappings).
 
 ### Persistence
 
-Mappings are stored in `series_event_mappings` (groupId, competitionId, competitionEventId, templateEventId). `saveSeriesEventMappingsFn` does a full replace — deletes all existing mappings for the group, then inserts the new set atomically in a transaction.
+Mappings are stored in `series_event_mappings` with four keys: groupId, competitionId, competitionEventId, templateEventId.
+
+`saveSeriesEventMappingsFn` does a full replace — deletes all existing mappings for the group, then inserts the new set atomically in a transaction.
 
 ## Competition Creation Integration
 
@@ -108,6 +112,8 @@ All defined in `src/server-fns/series-event-template-fns.ts`:
 - `syncResourcesAndSheetsToCompetitionsFn` — Standalone resource/sheet sync
 
 ## Routes
+
+All series event template routes are nested under the organizer dashboard.
 
 - `/series/{groupId}/events` — Layout route with `<Outlet />`
 - `/series/{groupId}/events/` — Event list with template creator or editor + sync button
