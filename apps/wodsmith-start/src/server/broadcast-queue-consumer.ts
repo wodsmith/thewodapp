@@ -154,7 +154,15 @@ export async function handleBroadcastEmailQueue(
 						recipientId: recipient.recipientId,
 						success: response.ok,
 					})
-				} catch {
+				} catch (err) {
+					logError({
+						message: "[BroadcastQueue] Email send failed",
+						error: err,
+						attributes: {
+							recipientId: recipient.recipientId,
+							broadcastId,
+						},
+					})
 					results.push({
 						recipientId: recipient.recipientId,
 						success: false,

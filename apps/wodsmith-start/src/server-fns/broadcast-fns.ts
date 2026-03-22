@@ -46,6 +46,12 @@ const sendBroadcastInputSchema = z.object({
 			type: z.enum(["all", "division"]),
 			divisionId: z.string().optional(),
 		})
+		.refine(
+			(filter) =>
+				filter.type !== "division" ||
+				(filter.divisionId && filter.divisionId.length > 0),
+			{ message: "Division ID is required when filtering by division" },
+		)
 		.optional(),
 })
 
@@ -62,7 +68,7 @@ const listAthleteBroadcastsInputSchema = z.object({
 // ============================================================================
 
 export const listBroadcastsFn = createServerFn({ method: "GET" })
-	.validator((data: unknown) => listBroadcastsInputSchema.parse(data))
+	.inputValidator((data: unknown) => listBroadcastsInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		const session = await getSessionFromCookie()
 		if (!session?.userId) throw new Error("Authentication required")
@@ -141,7 +147,7 @@ export const listBroadcastsFn = createServerFn({ method: "GET" })
 // ============================================================================
 
 export const sendBroadcastFn = createServerFn({ method: "POST" })
-	.validator((data: unknown) => sendBroadcastInputSchema.parse(data))
+	.inputValidator((data: unknown) => sendBroadcastInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		const session = await getSessionFromCookie()
 		if (!session?.userId) throw new Error("Authentication required")
@@ -221,8 +227,7 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 					? JSON.stringify(data.audienceFilter)
 					: null,
 				recipientCount: registrations.length,
-				status: BROADCAST_STATUS.SENT,
-				sentAt: new Date(),
+				status: BROADCAST_STATUS.DRAFT,
 				createdById: session.userId,
 			})
 			.$returningId()
@@ -279,12 +284,25 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 				await queue.send(message)
 			}
 		} catch (err) {
-			// If enqueue fails, mark broadcast as failed so organizer can retry
+			// Mark broadcast as failed so organizer can see the error
 			console.error("[Broadcast] Failed to enqueue emails:", err)
+			await db
+				.update(competitionBroadcastsTable)
+				.set({ status: BROADCAST_STATUS.FAILED })
+				.where(eq(competitionBroadcastsTable.id, broadcast.id))
 			throw new Error(
 				"Broadcast saved but email delivery failed to start. Please try resending.",
 			)
 		}
+
+		// Mark broadcast as sent after successful enqueueing
+		await db
+			.update(competitionBroadcastsTable)
+			.set({
+				status: BROADCAST_STATUS.SENT,
+				sentAt: new Date(),
+			})
+			.where(eq(competitionBroadcastsTable.id, broadcast.id))
 
 		return {
 			broadcastId: broadcast.id,
@@ -297,7 +315,7 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 // ============================================================================
 
 export const getBroadcastFn = createServerFn({ method: "GET" })
-	.validator((data: unknown) => getBroadcastInputSchema.parse(data))
+	.inputValidator((data: unknown) => getBroadcastInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		const session = await getSessionFromCookie()
 		if (!session?.userId) throw new Error("Authentication required")
@@ -344,7 +362,7 @@ export const getBroadcastFn = createServerFn({ method: "GET" })
 // ============================================================================
 
 export const listAthleteBroadcastsFn = createServerFn({ method: "GET" })
-	.validator((data: unknown) =>
+	.inputValidator((data: unknown) =>
 		listAthleteBroadcastsInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
@@ -395,11 +413,17 @@ const previewAudienceInputSchema = z.object({
 			type: z.enum(["all", "division"]),
 			divisionId: z.string().optional(),
 		})
+		.refine(
+			(filter) =>
+				filter.type !== "division" ||
+				(filter.divisionId && filter.divisionId.length > 0),
+			{ message: "Division ID is required when filtering by division" },
+		)
 		.optional(),
 })
 
 export const previewAudienceFn = createServerFn({ method: "GET" })
-	.validator((data: unknown) => previewAudienceInputSchema.parse(data))
+	.inputValidator((data: unknown) => previewAudienceInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		const session = await getSessionFromCookie()
 		if (!session?.userId) throw new Error("Authentication required")

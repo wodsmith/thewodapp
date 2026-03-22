@@ -26,6 +26,7 @@ export const BROADCAST_STATUS = {
 	DRAFT: "draft",
 	SENT: "sent",
 	SCHEDULED: "scheduled",
+	FAILED: "failed",
 } as const
 
 export type BroadcastStatus =
