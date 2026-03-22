@@ -51,7 +51,9 @@ export async function getCohostPermissions(
 
   return {
     canViewRevenue: metadata.canViewRevenue ?? DEFAULT_COHOST_PERMISSIONS.canViewRevenue,
-    canEditSettings: metadata.canEditSettings ?? DEFAULT_COHOST_PERMISSIONS.canEditSettings,
+    canEditCapacity: metadata.canEditCapacity ?? DEFAULT_COHOST_PERMISSIONS.canEditCapacity,
+    canEditScoring: metadata.canEditScoring ?? DEFAULT_COHOST_PERMISSIONS.canEditScoring,
+    canEditRotation: metadata.canEditRotation ?? DEFAULT_COHOST_PERMISSIONS.canEditRotation,
     canManagePricing: metadata.canManagePricing ?? DEFAULT_COHOST_PERMISSIONS.canManagePricing,
     inviteNotes: metadata.inviteNotes,
   }

@@ -1,7 +1,10 @@
 /**
  * Cohost Settings Server Functions
  * Mirrors capacity settings from competition-divisions-fns.ts with cohost auth.
- * Requires "canEditSettings" permission for write operations.
+ * Write operations are gated by specific permissions:
+ *   - Capacity: "canEditCapacity"
+ *   - Scoring: "canEditScoring"
+ *   - Rotation: "canEditRotation"
  *
  * Note: Rotation and scoring config updates are in cohost-competition-fns.ts.
  */
@@ -81,7 +84,7 @@ export const cohostGetCapacitySettingsFn = createServerFn({ method: "GET" })
   })
 
 /**
- * Update capacity settings (cohost — requires canEditSettings)
+ * Update capacity settings (cohost — requires canEditCapacity)
  */
 export const cohostUpdateCapacitySettingsFn = createServerFn({
   method: "POST",
@@ -90,7 +93,7 @@ export const cohostUpdateCapacitySettingsFn = createServerFn({
     cohostUpdateCapacitySettingsInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canEditSettings")
+    await requireCohostPermission(data.competitionTeamId, "canEditCapacity")
     const db = getDb()
 
     const [competition] = await db
@@ -119,7 +122,7 @@ export const cohostUpdateCapacitySettingsFn = createServerFn({
   })
 
 /**
- * Update division-specific capacity (cohost — requires canEditSettings)
+ * Update division-specific capacity (cohost — requires canEditCapacity)
  */
 export const cohostUpdateDivisionCapacityFn = createServerFn({
   method: "POST",
@@ -128,7 +131,7 @@ export const cohostUpdateDivisionCapacityFn = createServerFn({
     cohostUpdateDivisionCapacityInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canEditSettings")
+    await requireCohostPermission(data.competitionTeamId, "canEditCapacity")
     const db = getDb()
 
     // Verify division exists

@@ -29,7 +29,9 @@ export async function requireCohostPermission(
   if (session.user.role === ROLES_ENUM.ADMIN) {
     return {
       canViewRevenue: true,
-      canEditSettings: true,
+      canEditCapacity: true,
+      canEditScoring: true,
+      canEditRotation: true,
       canManagePricing: true,
     }
   }

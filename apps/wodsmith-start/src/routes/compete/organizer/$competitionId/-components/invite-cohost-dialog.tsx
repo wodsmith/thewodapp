@@ -35,7 +35,9 @@ const formSchema = z.object({
     .email("Please enter a valid email address")
     .min(1, "Email is required"),
   canViewRevenue: z.boolean(),
-  canEditSettings: z.boolean(),
+  canEditCapacity: z.boolean(),
+  canEditScoring: z.boolean(),
+  canEditRotation: z.boolean(),
   canManagePricing: z.boolean(),
 })
 
@@ -65,7 +67,9 @@ export function InviteCohostDialog({
       name: "",
       email: "",
       canViewRevenue: DEFAULT_COHOST_PERMISSIONS.canViewRevenue,
-      canEditSettings: DEFAULT_COHOST_PERMISSIONS.canEditSettings,
+      canEditCapacity: DEFAULT_COHOST_PERMISSIONS.canEditCapacity,
+      canEditScoring: DEFAULT_COHOST_PERMISSIONS.canEditScoring,
+      canEditRotation: DEFAULT_COHOST_PERMISSIONS.canEditRotation,
       canManagePricing: DEFAULT_COHOST_PERMISSIONS.canManagePricing,
     },
   })
@@ -84,7 +88,9 @@ export function InviteCohostDialog({
           competitionId,
           permissions: {
             canViewRevenue: data.canViewRevenue,
-            canEditSettings: data.canEditSettings,
+            canEditCapacity: data.canEditCapacity,
+            canEditScoring: data.canEditScoring,
+            canEditRotation: data.canEditRotation,
             canManagePricing: data.canManagePricing,
           },
         },
@@ -160,23 +166,66 @@ export function InviteCohostDialog({
                 </p>
               </div>
 
-              <FormField
-                control={form.control}
-                name="canEditSettings"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormLabel className="font-normal">
-                      Can edit settings
-                    </FormLabel>
-                  </FormItem>
-                )}
-              />
+              {/* Competition Setup group */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Competition Setup
+                </p>
+
+                <FormField
+                  control={form.control}
+                  name="canEditCapacity"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Can edit capacity
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="canEditScoring"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Can edit scoring
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="canEditRotation"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Can edit rotation
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <FormField
                 control={form.control}

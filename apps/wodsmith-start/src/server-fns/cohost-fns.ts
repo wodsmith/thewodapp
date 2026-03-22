@@ -40,7 +40,9 @@ const membershipIdSchema = z
 
 const cohostPermissionsSchema = z.object({
   canViewRevenue: z.boolean(),
-  canEditSettings: z.boolean(),
+  canEditCapacity: z.boolean(),
+  canEditScoring: z.boolean(),
+  canEditRotation: z.boolean(),
   canManagePricing: z.boolean(),
 })
 
@@ -98,7 +100,9 @@ export const getCohostInviteFn = createServerFn({ method: "GET" })
         : {}
       permissions = {
         canViewRevenue: meta.canViewRevenue ?? DEFAULT_COHOST_PERMISSIONS.canViewRevenue,
-        canEditSettings: meta.canEditSettings ?? DEFAULT_COHOST_PERMISSIONS.canEditSettings,
+        canEditCapacity: meta.canEditCapacity ?? DEFAULT_COHOST_PERMISSIONS.canEditCapacity,
+        canEditScoring: meta.canEditScoring ?? DEFAULT_COHOST_PERMISSIONS.canEditScoring,
+        canEditRotation: meta.canEditRotation ?? DEFAULT_COHOST_PERMISSIONS.canEditRotation,
         canManagePricing: meta.canManagePricing ?? DEFAULT_COHOST_PERMISSIONS.canManagePricing,
         inviteNotes: meta.inviteNotes,
       }
@@ -178,7 +182,9 @@ export const getCohostsFn = createServerFn({ method: "GET" })
             const meta = JSON.parse(m.metadata) as Partial<CohostMembershipMetadata>
             permissions = {
               canViewRevenue: meta.canViewRevenue ?? DEFAULT_COHOST_PERMISSIONS.canViewRevenue,
-              canEditSettings: meta.canEditSettings ?? DEFAULT_COHOST_PERMISSIONS.canEditSettings,
+              canEditCapacity: meta.canEditCapacity ?? DEFAULT_COHOST_PERMISSIONS.canEditCapacity,
+              canEditScoring: meta.canEditScoring ?? DEFAULT_COHOST_PERMISSIONS.canEditScoring,
+              canEditRotation: meta.canEditRotation ?? DEFAULT_COHOST_PERMISSIONS.canEditRotation,
               canManagePricing: meta.canManagePricing ?? DEFAULT_COHOST_PERMISSIONS.canManagePricing,
               inviteNotes: meta.inviteNotes,
             }
@@ -201,7 +207,9 @@ export const getCohostsFn = createServerFn({ method: "GET" })
             const meta = JSON.parse(inv.metadata) as Partial<CohostMembershipMetadata>
             permissions = {
               canViewRevenue: meta.canViewRevenue ?? DEFAULT_COHOST_PERMISSIONS.canViewRevenue,
-              canEditSettings: meta.canEditSettings ?? DEFAULT_COHOST_PERMISSIONS.canEditSettings,
+              canEditCapacity: meta.canEditCapacity ?? DEFAULT_COHOST_PERMISSIONS.canEditCapacity,
+              canEditScoring: meta.canEditScoring ?? DEFAULT_COHOST_PERMISSIONS.canEditScoring,
+              canEditRotation: meta.canEditRotation ?? DEFAULT_COHOST_PERMISSIONS.canEditRotation,
               canManagePricing: meta.canManagePricing ?? DEFAULT_COHOST_PERMISSIONS.canManagePricing,
               inviteNotes: meta.inviteNotes,
             }
@@ -250,7 +258,9 @@ export const inviteCohostFn = createServerFn({ method: "POST" })
 
     const metadata: CohostMembershipMetadata & { inviteName?: string; inviteEmail: string } = {
       canViewRevenue: data.permissions.canViewRevenue,
-      canEditSettings: data.permissions.canEditSettings,
+      canEditCapacity: data.permissions.canEditCapacity,
+      canEditScoring: data.permissions.canEditScoring,
+      canEditRotation: data.permissions.canEditRotation,
       canManagePricing: data.permissions.canManagePricing,
       inviteEmail: data.email,
       competitionId: data.competitionId,
@@ -374,7 +384,9 @@ export const acceptCohostInviteFn = createServerFn({ method: "POST" })
         const meta = JSON.parse(invitation.metadata) as Partial<CohostMembershipMetadata> & { competitionId?: string }
         permissions = {
           canViewRevenue: meta.canViewRevenue ?? DEFAULT_COHOST_PERMISSIONS.canViewRevenue,
-          canEditSettings: meta.canEditSettings ?? DEFAULT_COHOST_PERMISSIONS.canEditSettings,
+          canEditCapacity: meta.canEditCapacity ?? DEFAULT_COHOST_PERMISSIONS.canEditCapacity,
+          canEditScoring: meta.canEditScoring ?? DEFAULT_COHOST_PERMISSIONS.canEditScoring,
+          canEditRotation: meta.canEditRotation ?? DEFAULT_COHOST_PERMISSIONS.canEditRotation,
           canManagePricing: meta.canManagePricing ?? DEFAULT_COHOST_PERMISSIONS.canManagePricing,
           inviteNotes: meta.inviteNotes,
         }

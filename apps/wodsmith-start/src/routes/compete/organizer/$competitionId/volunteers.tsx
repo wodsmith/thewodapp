@@ -547,8 +547,12 @@ function CohostsTab({
     switch (key) {
       case "canViewRevenue":
         return "Revenue"
-      case "canEditSettings":
-        return "Settings"
+      case "canEditCapacity":
+        return "Capacity"
+      case "canEditScoring":
+        return "Scoring"
+      case "canEditRotation":
+        return "Rotation"
       case "canManagePricing":
         return "Pricing"
       default:
@@ -584,7 +588,7 @@ function CohostsTab({
                   <div>
                     <p className="font-medium">{inv.email}</p>
                     <div className="mt-1 flex gap-1.5">
-                      {(["canEditSettings", "canViewRevenue", "canManagePricing"] as const).map(
+                      {(["canEditCapacity", "canEditScoring", "canEditRotation", "canViewRevenue", "canManagePricing"] as const).map(
                         (key) =>
                           inv.permissions[key] && (
                             <Badge key={key} variant="secondary" className="text-xs">
@@ -625,7 +629,7 @@ function CohostsTab({
                         </p>
                       )}
                       <div className="mt-2 flex flex-wrap gap-3">
-                        {(["canEditSettings", "canViewRevenue", "canManagePricing"] as const).map(
+                        {(["canEditCapacity", "canEditScoring", "canEditRotation", "canViewRevenue", "canManagePricing"] as const).map(
                           (key) => (
                             <label
                               key={key}

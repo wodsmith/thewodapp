@@ -60,9 +60,11 @@ Chosen option: **Option C — Dedicated cohost route tree**, because it requires
 
 The COHOST system role and metadata interface already exist on the branch:
 
-**`src/db/schemas/cohost.ts`** — `CohostMembershipMetadata` interface with three permission flags:
+**`src/db/schemas/cohost.ts`** — `CohostMembershipMetadata` interface with five permission flags:
 - `canViewRevenue: boolean` — can view revenue stats and financial dashboard
-- `canEditSettings: boolean` — can modify settings (capacity, scoring, rotation)
+- `canEditCapacity: boolean` — can modify capacity defaults and per-division max spots
+- `canEditScoring: boolean` — can modify scoring algorithm, point distribution, tiebreak rules
+- `canEditRotation: boolean` — can modify judge rotation defaults (heats per rotation, lane shift pattern, min heat buffer)
 - `canManagePricing: boolean` — can manage pricing and coupons
 
 **`src/db/schema.ts`** — `SYSTEM_ROLES_ENUM.COHOST` already defined.
@@ -120,7 +122,7 @@ Create a `src/server-fns/cohost/` subdirectory with dedicated server function fi
 | `cohost/cohost-results-fns.ts` | `competition-score-fns.ts` | `requireCohostPermission(teamId)` |
 | `cohost/cohost-submission-fns.ts` | `video-submission-fns.ts` | `requireCohostPermission(teamId)` |
 | `cohost/cohost-sponsor-fns.ts` | `sponsor-fns.ts` | `requireCohostPermission(teamId)` |
-| `cohost/cohost-settings-fns.ts` | (settings queries) | `requireCohostPermission(teamId, "canEditSettings")` |
+| `cohost/cohost-settings-fns.ts` | (settings queries) | `requireCohostPermission(teamId, "canEditCapacity"/"canEditScoring"/"canEditRotation")` |
 | `cohost/cohost-pricing-fns.ts` | `commerce-fns.ts` | `requireCohostPermission(teamId, "canManagePricing")` |
 | `cohost/cohost-revenue-fns.ts` | (revenue queries) | `requireCohostPermission(teamId, "canViewRevenue")` |
 | `cohost/cohost-coupon-fns.ts` | `coupon-fns.ts` | `requireCohostPermission(teamId, "canManagePricing")` |
@@ -141,7 +143,7 @@ Create `src/components/cohost-sidebar.tsx`:
 - Base path is `/compete/cohost/${competitionId}` instead of `/compete/organizer/${competitionId}`
 - Navigation items match the cohost route pages (no "Edit Competition", no "Danger Zone")
 - Conditionally shows/hides nav items based on cohost permissions:
-  - `settings` link: only if `canEditSettings`
+  - `settings` link: only if any of `canEditCapacity`, `canEditScoring`, or `canEditRotation`
   - `pricing` and `coupons` links: only if `canManagePricing`
   - `revenue` link: only if `canViewRevenue`
 - Accepts `permissions: CohostMembershipMetadata` as a prop (provided by the layout route loader)
@@ -169,7 +171,7 @@ cohost/$competitionId/
 ├── results.tsx                    (results entry)
 ├── submission-windows.tsx         (online only)
 ├── sponsors.tsx                   (sponsors)
-├── settings.tsx                   (conditional on canEditSettings)
+├── settings.tsx                   (conditional on canEditCapacity/canEditScoring/canEditRotation)
 ├── pricing.tsx                    (conditional on canManagePricing)
 ├── revenue.tsx                    (conditional on canViewRevenue)
 ├── coupons.tsx                    (conditional on canManagePricing)
@@ -228,7 +230,7 @@ Routes that simply don't exist in the cohost tree are marked N/A.
 | Results | Full access | Full access | Full access |
 | Submission Windows | Full access | Full access | Full access |
 | Sponsors | Full access | Full access | Full access |
-| Settings | Full access | Blocked | `canEditSettings` |
+| Settings | Full access | Blocked | `canEditCapacity` / `canEditScoring` / `canEditRotation` |
 | Pricing | Full access | Blocked | `canManagePricing` |
 | Revenue | Full access | Blocked | `canViewRevenue` |
 | Coupons | Full access | Blocked | `canManagePricing` |
@@ -243,7 +245,7 @@ Routes that simply don't exist in the cohost tree are marked N/A.
 - [ ] After accepting, the cohost is redirected to `/compete/cohost/$competitionId` (not organizer route)
 - [ ] Cohost layout route loads successfully and shows the cohost sidebar
 - [ ] Cohost can navigate to all default-access pages (overview, divisions, events, athletes, etc.)
-- [ ] Cohost WITHOUT `canEditSettings` cannot access the settings page
+- [ ] Cohost WITHOUT any of `canEditCapacity`/`canEditScoring`/`canEditRotation` cannot access the settings page
 - [ ] Cohost WITHOUT `canManagePricing` cannot access pricing or coupons pages
 - [ ] Cohost WITHOUT `canViewRevenue` cannot access the revenue page
 - [ ] Cohost WITH all permissions can access settings, pricing, revenue, and coupons
@@ -356,7 +358,7 @@ Cohosts get their own route tree at `/compete/cohost/$competitionId/` with dedic
 ## More Information
 
 - Cohost membership is on the **competition_event team** (the team associated with the competition itself), not on the organizing team. This scopes access to a single competition.
-- The `CohostMembershipMetadata` is stored as JSON in `teamMembershipTable.metadata`. The three permission flags (`canViewRevenue`, `canEditSettings`, `canManagePricing`) are organizer-configurable at invite time and can be updated later.
+- The `CohostMembershipMetadata` is stored as JSON in `teamMembershipTable.metadata`. The five permission flags (`canViewRevenue`, `canEditCapacity`, `canEditScoring`, `canEditRotation`, `canManagePricing`) are organizer-configurable at invite time and can be updated later.
 - Cohosts do not need the `HOST_COMPETITIONS` entitlement. Their access is derived entirely from team membership with `roleId: "cohost"`.
 - The invite flow sends an email with a tokenized link to `/compete/cohost-invite/$token`. The recipient must have a WODsmith account to accept. Upon acceptance, the `teamMembershipTable` row is created and sessions are refreshed.
 - Future work: cohost activity audit log, cohost-specific notification preferences, "promote cohost to organizer" flow, bulk-invite cohosts, cohost templates (preset permission profiles).

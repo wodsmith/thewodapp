@@ -158,9 +158,9 @@ const getNavigation = (
       ],
     },
     {
-      label: "Settings",
+      label: "Competition Setup",
       items: [
-        ...(permissions?.canEditSettings
+        ...(permissions?.canEditCapacity || permissions?.canEditScoring || permissions?.canEditRotation
           ? [
               {
                 label: "Settings",

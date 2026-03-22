@@ -2,7 +2,7 @@
  * Cohost Competition Settings Route
  *
  * Settings page for capacity, scoring, and rotation configuration.
- * Gated by canEditSettings permission.
+ * Accessible if the cohost has any of: canEditCapacity, canEditScoring, canEditRotation.
  * Reuses organizer -components/ forms.
  */
 
@@ -21,8 +21,8 @@ export const Route = createFileRoute(
     const parentMatch = await parentMatchPromise
     const { competition, permissions } = parentMatch.loaderData!
 
-    // Permission gate: canEditSettings
-    if (!permissions?.canEditSettings) {
+    // Permission gate: any of the three setup permissions
+    if (!permissions?.canEditCapacity && !permissions?.canEditScoring && !permissions?.canEditRotation) {
       throw redirect({
         to: "/compete/cohost/$competitionId",
         params: { competitionId: params.competitionId },

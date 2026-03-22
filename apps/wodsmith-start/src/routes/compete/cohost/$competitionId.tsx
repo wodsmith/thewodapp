@@ -91,7 +91,9 @@ function CohostCompetitionLayout() {
       permissions={
         permissions ?? {
           canViewRevenue: false,
-          canEditSettings: false,
+          canEditCapacity: false,
+          canEditScoring: false,
+          canEditRotation: false,
           canManagePricing: false,
         }
       }

@@ -221,12 +221,16 @@ function PermissionsSummary({
 }: {
   permissions: {
     canViewRevenue: boolean
-    canEditSettings: boolean
+    canEditCapacity: boolean
+    canEditScoring: boolean
+    canEditRotation: boolean
     canManagePricing: boolean
   }
 }) {
   const granted = [
-    permissions.canEditSettings && "Edit settings",
+    permissions.canEditCapacity && "Edit capacity",
+    permissions.canEditScoring && "Edit scoring",
+    permissions.canEditRotation && "Edit rotation",
     permissions.canViewRevenue && "View revenue",
     permissions.canManagePricing && "Manage pricing and coupons",
   ].filter(Boolean)

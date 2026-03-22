@@ -308,7 +308,7 @@ export const cohostGetRegistrationsFn = createServerFn({ method: "GET" })
   })
 
 /**
- * Update competition rotation settings (cohost — requires canEditSettings)
+ * Update competition rotation settings (cohost — requires canEditRotation)
  */
 export const cohostUpdateRotationSettingsFn = createServerFn({
   method: "POST",
@@ -317,7 +317,7 @@ export const cohostUpdateRotationSettingsFn = createServerFn({
     cohostRotationSettingsInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canEditSettings")
+    await requireCohostPermission(data.competitionTeamId, "canEditRotation")
     const db = getDb()
 
     await db
@@ -336,14 +336,14 @@ export const cohostUpdateRotationSettingsFn = createServerFn({
   })
 
 /**
- * Update competition scoring configuration (cohost — requires canEditSettings)
+ * Update competition scoring configuration (cohost — requires canEditScoring)
  */
 export const cohostUpdateScoringConfigFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     cohostScoringConfigInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canEditSettings")
+    await requireCohostPermission(data.competitionTeamId, "canEditScoring")
     const db = getDb()
 
     const competition = await db.query.competitionsTable.findFirst({
