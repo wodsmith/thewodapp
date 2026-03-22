@@ -199,7 +199,7 @@ export function InviteCohostDialog({
                         />
                       </FormControl>
                       <FormLabel className="font-normal">
-                        Can edit capacity
+                        Division &amp; athlete capacity limits
                       </FormLabel>
                     </FormItem>
                   )}
@@ -217,7 +217,7 @@ export function InviteCohostDialog({
                         />
                       </FormControl>
                       <FormLabel className="font-normal">
-                        Can edit scoring
+                        Scoring algorithm &amp; tiebreak rules
                       </FormLabel>
                     </FormItem>
                   )}
@@ -235,7 +235,7 @@ export function InviteCohostDialog({
                         />
                       </FormControl>
                       <FormLabel className="font-normal">
-                        Can edit rotation
+                        Judge rotation defaults
                       </FormLabel>
                     </FormItem>
                   )}
@@ -254,7 +254,7 @@ export function InviteCohostDialog({
                       />
                     </FormControl>
                     <FormLabel className="font-normal">
-                      Can view revenue
+                      View revenue &amp; financial dashboard
                     </FormLabel>
                   </FormItem>
                 )}
@@ -272,7 +272,7 @@ export function InviteCohostDialog({
                       />
                     </FormControl>
                     <FormLabel className="font-normal">
-                      Can manage pricing and coupons
+                      Set registration pricing &amp; coupons
                     </FormLabel>
                   </FormItem>
                 )}
@@ -296,7 +296,7 @@ export function InviteCohostDialog({
                         />
                       </FormControl>
                       <FormLabel className="font-normal">
-                        Can manage volunteers
+                        Invite &amp; schedule volunteers and judges
                       </FormLabel>
                     </FormItem>
                   )}
@@ -314,7 +314,7 @@ export function InviteCohostDialog({
                         />
                       </FormControl>
                       <FormLabel className="font-normal">
-                        Can manage events
+                        Create, edit &amp; publish events/workouts
                       </FormLabel>
                     </FormItem>
                   )}
@@ -332,7 +332,7 @@ export function InviteCohostDialog({
                         />
                       </FormControl>
                       <FormLabel className="font-normal">
-                        Can manage heats/schedule
+                        Create heats &amp; assign athletes to lanes
                       </FormLabel>
                     </FormItem>
                   )}
@@ -350,7 +350,7 @@ export function InviteCohostDialog({
                         />
                       </FormControl>
                       <FormLabel className="font-normal">
-                        Can manage results/scores
+                        Enter scores &amp; publish leaderboard results
                       </FormLabel>
                     </FormItem>
                   )}
@@ -368,7 +368,7 @@ export function InviteCohostDialog({
                         />
                       </FormControl>
                       <FormLabel className="font-normal">
-                        Can manage registrations
+                        Register athletes, transfers &amp; removals
                       </FormLabel>
                     </FormItem>
                   )}

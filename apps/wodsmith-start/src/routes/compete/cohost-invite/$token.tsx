@@ -233,16 +233,16 @@ function PermissionsSummary({
   }
 }) {
   const granted = [
-    permissions.canEditCapacity && "Edit capacity",
-    permissions.canEditScoring && "Edit scoring",
-    permissions.canEditRotation && "Edit rotation",
-    permissions.canViewRevenue && "View revenue",
-    permissions.canManagePricing && "Manage pricing and coupons",
-    permissions.canManageVolunteers && "Manage volunteers",
-    permissions.canManageEvents && "Manage events",
-    permissions.canManageHeats && "Manage heats/schedule",
-    permissions.canManageResults && "Manage results/scores",
-    permissions.canManageRegistrations && "Manage registrations",
+    permissions.canEditCapacity && "Division & athlete capacity limits",
+    permissions.canEditScoring && "Scoring algorithm & tiebreak rules",
+    permissions.canEditRotation && "Judge rotation defaults",
+    permissions.canManageVolunteers && "Invite & schedule volunteers and judges",
+    permissions.canManageEvents && "Create, edit & publish events/workouts",
+    permissions.canManageHeats && "Create heats & assign athletes to lanes",
+    permissions.canManageResults && "Enter scores & publish leaderboard results",
+    permissions.canManageRegistrations && "Register athletes, transfers & removals",
+    permissions.canViewRevenue && "View revenue & financial dashboard",
+    permissions.canManagePricing && "Set registration pricing & coupons",
   ].filter(Boolean)
 
   return (

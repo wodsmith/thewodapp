@@ -545,26 +545,26 @@ function CohostsTab({
 
   const permissionLabel = (key: keyof CohostMembershipMetadata) => {
     switch (key) {
-      case "canViewRevenue":
-        return "Revenue"
       case "canEditCapacity":
-        return "Capacity"
+        return "Division & athlete capacity"
       case "canEditScoring":
-        return "Scoring"
+        return "Scoring algorithm & tiebreaks"
       case "canEditRotation":
-        return "Rotation"
-      case "canManagePricing":
-        return "Pricing"
+        return "Judge rotation defaults"
       case "canManageVolunteers":
-        return "Volunteers"
+        return "Invite & schedule volunteers"
       case "canManageEvents":
-        return "Events"
+        return "Create & publish events"
       case "canManageHeats":
-        return "Heats"
+        return "Create heats & assign athletes"
       case "canManageResults":
-        return "Results"
+        return "Enter scores & publish results"
       case "canManageRegistrations":
-        return "Registrations"
+        return "Register athletes & transfers"
+      case "canViewRevenue":
+        return "View revenue & financials"
+      case "canManagePricing":
+        return "Set pricing & coupons"
       default:
         return key
     }
