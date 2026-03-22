@@ -1,6 +1,14 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { datetime, index, int, mysqlTable, text, varchar } from "drizzle-orm/mysql-core"
+import {
+	datetime,
+	index,
+	int,
+	mysqlTable,
+	text,
+	uniqueIndex,
+	varchar,
+} from "drizzle-orm/mysql-core"
 import {
 	commonColumns,
 	createBroadcastId,
@@ -117,6 +125,10 @@ export const competitionBroadcastRecipientsTable = mysqlTable(
 			.notNull(),
 	},
 	(table) => [
+		uniqueIndex("broadcast_recipients_broadcast_reg_idx").on(
+			table.broadcastId,
+			table.registrationId,
+		),
 		index("broadcast_recipients_broadcast_idx").on(table.broadcastId),
 		index("broadcast_recipients_user_idx").on(table.userId),
 		index("broadcast_recipients_status_idx").on(table.emailDeliveryStatus),

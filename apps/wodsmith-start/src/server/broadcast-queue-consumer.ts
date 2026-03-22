@@ -3,7 +3,7 @@
  *
  * Processes batched broadcast email messages enqueued by sendBroadcastFn.
  * Each message contains up to 100 recipients with pre-rendered HTML.
- * Uses Resend's batch API with idempotency keys per recipient to prevent
+ * Sends individual emails via Resend with idempotency keys per recipient to prevent
  * duplicate emails on retry.
  *
  * @see docs/adr/0008-organizer-broadcast-messaging.md
@@ -134,6 +134,21 @@ export async function handleBroadcastEmailQueue(
 							}),
 						},
 					)
+
+					if (!response.ok) {
+						const errorBody = await response
+							.text()
+							.catch(() => "unknown")
+						logError({
+							message:
+								"[BroadcastQueue] Resend API error",
+							attributes: {
+								recipientId: recipient.recipientId,
+								status: response.status,
+								error: errorBody,
+							},
+						})
+					}
 
 					results.push({
 						recipientId: recipient.recipientId,

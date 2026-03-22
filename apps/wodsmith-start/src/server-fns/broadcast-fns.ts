@@ -43,9 +43,8 @@ const sendBroadcastInputSchema = z.object({
 	body: z.string().min(1, "Body is required"),
 	audienceFilter: z
 		.object({
-			type: z.enum(["all", "division", "status"]),
+			type: z.enum(["all", "division"]),
 			divisionId: z.string().optional(),
-			registrationStatus: z.enum(["unpaid", "waiver_unsigned"]).optional(),
 		})
 		.optional(),
 })
@@ -261,22 +260,30 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 		const queue = (env as Record<string, unknown>)
 			.BROADCAST_EMAIL_QUEUE as Queue<BroadcastEmailMessage>
 
-		for (let i = 0; i < recipientValues.length; i += BATCH_SIZE) {
-			const batchSlice = recipientValues.slice(i, i + BATCH_SIZE)
-			const message: BroadcastEmailMessage = {
-				broadcastId: broadcast.id,
-				competitionId: data.competitionId,
-				batch: batchSlice.map((rv, idx) => ({
-					recipientId: rv.id,
-					email: registrations[i + idx].email,
-					athleteName:
-						registrations[i + idx].username ?? "Athlete",
-				})),
-				subject: `${data.title} — ${competition.name}`,
-				bodyHtml,
-				replyTo: "support@mail.wodsmith.com",
+		try {
+			for (let i = 0; i < recipientValues.length; i += BATCH_SIZE) {
+				const batchSlice = recipientValues.slice(i, i + BATCH_SIZE)
+				const message: BroadcastEmailMessage = {
+					broadcastId: broadcast.id,
+					competitionId: data.competitionId,
+					batch: batchSlice.map((rv, idx) => ({
+						recipientId: rv.id,
+						email: registrations[i + idx].email,
+						athleteName:
+							registrations[i + idx].username ?? "Athlete",
+					})),
+					subject: `${data.title} — ${competition.name}`,
+					bodyHtml,
+					replyTo: "support@mail.wodsmith.com",
+				}
+				await queue.send(message)
 			}
-			await queue.send(message)
+		} catch (err) {
+			// If enqueue fails, mark broadcast as failed so organizer can retry
+			console.error("[Broadcast] Failed to enqueue emails:", err)
+			throw new Error(
+				"Broadcast saved but email delivery failed to start. Please try resending.",
+			)
 		}
 
 		return {
@@ -385,9 +392,8 @@ const previewAudienceInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
 	audienceFilter: z
 		.object({
-			type: z.enum(["all", "division", "status"]),
+			type: z.enum(["all", "division"]),
 			divisionId: z.string().optional(),
-			registrationStatus: z.enum(["unpaid", "waiver_unsigned"]).optional(),
 		})
 		.optional(),
 })

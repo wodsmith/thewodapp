@@ -226,6 +226,11 @@ function ComposeCard({
 			return
 		}
 
+		if (filterType === "division" && !divisionId) {
+			toast.error("Please select a division")
+			return
+		}
+
 		setIsSending(true)
 		try {
 			const result = await sendBroadcastFn({
