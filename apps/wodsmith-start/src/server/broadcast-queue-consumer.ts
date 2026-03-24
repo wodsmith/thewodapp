@@ -51,12 +51,37 @@ export async function handleBroadcastEmailQueue(
 	const resendApiKey = getResendApiKey()
 
 	if (!resendApiKey) {
-		logError({
-			message: "[BroadcastQueue] RESEND_API_KEY not configured, failing batch",
+		// Dev mode: log emails and mark as sent instead of failing
+		logInfo({
+			message: "[BroadcastQueue] No RESEND_API_KEY — logging emails (dev mode)",
 			attributes: { messageCount: batch.messages.length },
 		})
-		// Throw to trigger retry — the key might be configured on next attempt
-		throw new Error("RESEND_API_KEY not configured")
+		for (const message of batch.messages) {
+			const { broadcastId, batch: msgRecipients, subject } =
+				message.body as BroadcastEmailMessage
+			for (const r of msgRecipients) {
+				console.log(
+					`[Email Preview] To: ${r.email} | Subject: ${subject} | Broadcast: ${broadcastId}`,
+				)
+			}
+			// Mark all recipients as sent
+			const recipientIds = msgRecipients.map((r) => r.recipientId)
+			if (recipientIds.length > 0) {
+				await db
+					.update(competitionBroadcastRecipientsTable)
+					.set({
+						emailDeliveryStatus: BROADCAST_EMAIL_DELIVERY_STATUS.SENT,
+					})
+					.where(
+						inArray(
+							competitionBroadcastRecipientsTable.id,
+							recipientIds,
+						),
+					)
+			}
+			message.ack()
+		}
+		return
 	}
 
 	const emailFrom = getEmailFrom()

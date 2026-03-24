@@ -88,7 +88,6 @@
 
 import alchemy from "alchemy"
 import {
-  D1Database,
   Hyperdrive,
   KVNamespace,
   Queue,
@@ -203,10 +202,6 @@ const app = await alchemy("wodsmith", {
   stateStore: process.env.CI
     ? (scope) => new CloudflareStateStore(scope)
     : undefined,
-})
-
-await D1Database("db", {
-  adopt: true,
 })
 
 /**

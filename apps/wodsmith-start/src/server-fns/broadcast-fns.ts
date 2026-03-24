@@ -505,37 +505,72 @@ export const listAthleteBroadcastsFn = createServerFn({ method: "GET" })
 	)
 	.handler(async ({ data }) => {
 		const session = await getSessionFromCookie()
-		if (!session?.userId) throw new Error("Authentication required")
-
 		const db = getDb()
 
-		// Get broadcasts where this user is a recipient
-		const recipientBroadcasts = await db
-			.select({
-				broadcastId: competitionBroadcastRecipientsTable.broadcastId,
+		// Public broadcasts are visible to everyone (no auth required)
+		const publicBroadcasts =
+			await db.query.competitionBroadcastsTable.findMany({
+				where: and(
+					eq(
+						competitionBroadcastsTable.competitionId,
+						data.competitionId,
+					),
+					eq(competitionBroadcastsTable.status, BROADCAST_STATUS.SENT),
+					eq(competitionBroadcastsTable.audienceFilter, JSON.stringify({ type: "public" })),
+				),
+				orderBy: [desc(competitionBroadcastsTable.sentAt)],
 			})
-			.from(competitionBroadcastRecipientsTable)
-			.where(
-				eq(competitionBroadcastRecipientsTable.userId, session.userId),
-			)
 
-		if (recipientBroadcasts.length === 0) {
-			return { broadcasts: [] }
+		// Targeted broadcasts require auth — only show if user is a recipient
+		let targetedBroadcasts: typeof publicBroadcasts = []
+		if (session?.userId) {
+			const recipientBroadcasts = await db
+				.select({
+					broadcastId:
+						competitionBroadcastRecipientsTable.broadcastId,
+				})
+				.from(competitionBroadcastRecipientsTable)
+				.where(
+					eq(
+						competitionBroadcastRecipientsTable.userId,
+						session.userId,
+					),
+				)
+
+			if (recipientBroadcasts.length > 0) {
+				const broadcastIds = recipientBroadcasts.map(
+					(r) => r.broadcastId,
+				)
+				targetedBroadcasts =
+					await db.query.competitionBroadcastsTable.findMany({
+						where: and(
+							eq(
+								competitionBroadcastsTable.competitionId,
+								data.competitionId,
+							),
+							inArray(competitionBroadcastsTable.id, broadcastIds),
+							eq(
+								competitionBroadcastsTable.status,
+								BROADCAST_STATUS.SENT,
+							),
+						),
+						orderBy: [desc(competitionBroadcastsTable.sentAt)],
+					})
+			}
 		}
 
-		const broadcastIds = recipientBroadcasts.map((r) => r.broadcastId)
-
-		const broadcasts = await db.query.competitionBroadcastsTable.findMany({
-			where: and(
-				eq(
-					competitionBroadcastsTable.competitionId,
-					data.competitionId,
-				),
-				inArray(competitionBroadcastsTable.id, broadcastIds),
-				eq(competitionBroadcastsTable.status, BROADCAST_STATUS.SENT),
-			),
-			orderBy: [desc(competitionBroadcastsTable.sentAt)],
-		})
+		// Merge and deduplicate, sorted by sentAt descending
+		const seenIds = new Set<string>()
+		const broadcasts = [...publicBroadcasts, ...targetedBroadcasts]
+			.filter((b) => {
+				if (seenIds.has(b.id)) return false
+				seenIds.add(b.id)
+				return true
+			})
+			.sort(
+				(a, b) =>
+					(b.sentAt?.getTime() ?? 0) - (a.sentAt?.getTime() ?? 0),
+			)
 
 		return { broadcasts }
 	})
