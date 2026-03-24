@@ -7,7 +7,7 @@
 // @lat: [[organizer-dashboard#Broadcasts]]
 
 import { createFileRoute, getRouteApi, useRouter } from "@tanstack/react-router"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Megaphone, Plus, Send, Users } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -230,22 +230,37 @@ function ComposeCard({
 				? { type: "volunteer_role" as const, volunteerRole }
 				: { type: filterType as "all" | "public" | "volunteers" }
 
-	const handlePreview = async () => {
-		setIsPreviewing(true)
-		try {
-			const result = await previewAudienceFn({
-				data: {
-					competitionId,
-					audienceFilter,
-				},
-			})
-			setAudienceCount(result.count)
-		} catch (err) {
-			toast.error("Failed to preview audience")
-		} finally {
-			setIsPreviewing(false)
+	// Auto-fetch recipient count when filter is complete
+	const filterReady =
+		filterType !== "division" || divisionId
+			? filterType !== "volunteer_role" || volunteerRole
+				? true
+				: false
+			: false
+
+	useEffect(() => {
+		if (!filterReady) {
+			setAudienceCount(null)
+			return
 		}
-	}
+		let cancelled = false
+		setIsPreviewing(true)
+		previewAudienceFn({
+			data: { competitionId, audienceFilter },
+		})
+			.then((result) => {
+				if (!cancelled) setAudienceCount(result.count)
+			})
+			.catch(() => {
+				if (!cancelled) setAudienceCount(null)
+			})
+			.finally(() => {
+				if (!cancelled) setIsPreviewing(false)
+			})
+		return () => {
+			cancelled = true
+		}
+	}, [filterType, divisionId, volunteerRole, competitionId])
 
 	const handleSend = async () => {
 		if (!title.trim() || !body.trim()) {
@@ -383,22 +398,14 @@ function ComposeCard({
 							</Select>
 						)}
 
-						<Button
-							variant="outline"
-							onClick={handlePreview}
-							disabled={
-								isPreviewing ||
-								(filterType === "division" && !divisionId) ||
-								(filterType === "volunteer_role" && !volunteerRole)
-							}
-						>
-							<Users className="mr-2 h-4 w-4" />
+						<span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+							<Users className="h-4 w-4" />
 							{isPreviewing
 								? "Counting..."
 								: audienceCount !== null
 									? `${audienceCount} recipient${audienceCount === 1 ? "" : "s"}`
-									: "Preview Count"}
-						</Button>
+									: ""}
+						</span>
 					</div>
 				</div>
 
