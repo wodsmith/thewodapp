@@ -197,7 +197,7 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 				id: competitionRegistrationsTable.id,
 				userId: competitionRegistrationsTable.userId,
 				email: userTable.email,
-				username: userTable.username,
+				firstName: userTable.firstName,
 			})
 			.from(competitionRegistrationsTable)
 			.innerJoin(
@@ -271,28 +271,64 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 
 		// Enqueue batches of up to 100 recipients into Cloudflare Queue
 		const BATCH_SIZE = 100
-		const queue = (env as Record<string, unknown>)
-			.BROADCAST_EMAIL_QUEUE as Queue<BroadcastEmailMessage>
+		const queue = (env as unknown as Record<string, unknown>)
+			.BROADCAST_EMAIL_QUEUE as Queue<BroadcastEmailMessage> | undefined
 
-		// Broadcast is already marked SENT. Enqueue errors propagate naturally —
-		// the queue consumer uses per-recipient idempotency keys, so retries
-		// from the organizer are safe.
-		for (let i = 0; i < recipientValues.length; i += BATCH_SIZE) {
-			const batchSlice = recipientValues.slice(i, i + BATCH_SIZE)
-			const message: BroadcastEmailMessage = {
-				broadcastId: broadcast.id,
-				competitionId: data.competitionId,
-				batch: batchSlice.map((rv, idx) => ({
-					recipientId: rv.id,
-					email: registrations[i + idx].email,
-					athleteName:
-						registrations[i + idx].username ?? "Athlete",
-				})),
-				subject: `${data.title} — ${competition.name}`,
-				bodyHtml,
-				replyTo: "support@mail.wodsmith.com",
+		if (queue) {
+			// Production path: enqueue into Cloudflare Queue for async delivery
+			for (let i = 0; i < recipientValues.length; i += BATCH_SIZE) {
+				const batchSlice = recipientValues.slice(i, i + BATCH_SIZE)
+				const message: BroadcastEmailMessage = {
+					broadcastId: broadcast.id,
+					competitionId: data.competitionId,
+					batch: batchSlice.map((rv, idx) => ({
+						recipientId: rv.id,
+						email: registrations[i + idx].email ?? "",
+						athleteName:
+							registrations[i + idx].firstName ?? "Athlete",
+					})),
+					subject: `${data.title} — ${competition.name}`,
+					bodyHtml,
+					replyTo: "support@mail.wodsmith.com",
+				}
+				await queue.send(message)
 			}
-			await queue.send(message)
+		} else {
+			// Dev fallback: send emails directly when Queue binding is unavailable
+			const { sendEmail } = await import("@/utils/email")
+			for (const rv of recipientValues) {
+				const reg = registrations.find((r) => r.userId === rv.userId)
+				if (!reg || !reg.email) continue
+				try {
+					await sendEmail({
+						to: reg.email,
+						subject: `${data.title} — ${competition.name}`,
+						template: BroadcastNotificationEmail({
+							competitionName: competition.name,
+							competitionSlug: competition.slug,
+							broadcastTitle: data.title,
+							broadcastBody: data.body,
+							organizerTeamName: team?.name ?? "Organizer",
+						}),
+						tags: [{ name: "type", value: "competition-broadcast" }],
+					})
+					await db
+						.update(competitionBroadcastRecipientsTable)
+						.set({
+							emailDeliveryStatus:
+								BROADCAST_EMAIL_DELIVERY_STATUS.SENT,
+						})
+						.where(eq(competitionBroadcastRecipientsTable.id, rv.id))
+				} catch {
+					await db
+						.update(competitionBroadcastRecipientsTable)
+						.set({
+							emailDeliveryStatus:
+								BROADCAST_EMAIL_DELIVERY_STATUS.FAILED,
+						})
+						.where(eq(competitionBroadcastRecipientsTable.id, rv.id))
+				}
+			}
 		}
 
 		return {
@@ -330,7 +366,7 @@ export const getBroadcastFn = createServerFn({ method: "GET" })
 				userId: competitionBroadcastRecipientsTable.userId,
 				emailDeliveryStatus:
 					competitionBroadcastRecipientsTable.emailDeliveryStatus,
-				username: userTable.username,
+				firstName: userTable.firstName,
 				email: userTable.email,
 			})
 			.from(competitionBroadcastRecipientsTable)

@@ -22,7 +22,7 @@ const parentRoute = getRouteApi("/compete/$slug")
 export const Route = createFileRoute("/compete/$slug/broadcasts")({
 	staleTime: 10_000,
 	component: AthleteBroadcastsPage,
-	loader: async ({ params, parentMatchPromise }) => {
+	loader: async ({ parentMatchPromise }) => {
 		const parentMatch = await parentMatchPromise
 		const { competition } = parentMatch.loaderData!
 

@@ -11,7 +11,7 @@
  */
 
 import type { MessageBatch } from "@cloudflare/workers-types"
-import { and, eq, inArray } from "drizzle-orm"
+import { inArray } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	BROADCAST_EMAIL_DELIVERY_STATUS,
@@ -45,7 +45,7 @@ export interface BroadcastEmailMessage {
  * 3. Update delivery status atomically per recipient
  */
 export async function handleBroadcastEmailQueue(
-	batch: MessageBatch<BroadcastEmailMessage>,
+	batch: MessageBatch,
 ): Promise<void> {
 	const db = getDb()
 	const resendApiKey = getResendApiKey()
@@ -64,7 +64,7 @@ export async function handleBroadcastEmailQueue(
 
 	for (const message of batch.messages) {
 		const { broadcastId, batch: recipients, subject, bodyHtml, replyTo } =
-			message.body
+			message.body as BroadcastEmailMessage
 
 		try {
 			// Step 1: Filter out already-sent recipients (idempotency defense-in-depth)
