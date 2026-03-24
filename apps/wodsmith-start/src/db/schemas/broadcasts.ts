@@ -115,9 +115,9 @@ export const competitionBroadcastRecipientsTable = mysqlTable(
 			.notNull(),
 		// The broadcast this recipient belongs to
 		broadcastId: varchar({ length: 255 }).notNull(),
-		// The athlete's registration
-		registrationId: varchar({ length: 255 }).notNull(),
-		// The athlete user
+		// The athlete's registration (null for volunteer recipients)
+		registrationId: varchar({ length: 255 }),
+		// The recipient user
 		userId: varchar({ length: 255 }).notNull(),
 		// Email delivery status (updated by queue consumer)
 		emailDeliveryStatus: varchar({ length: 20 })
@@ -126,9 +126,9 @@ export const competitionBroadcastRecipientsTable = mysqlTable(
 			.notNull(),
 	},
 	(table) => [
-		uniqueIndex("broadcast_recipients_broadcast_reg_idx").on(
+		uniqueIndex("broadcast_recipients_broadcast_user_idx").on(
 			table.broadcastId,
-			table.registrationId,
+			table.userId,
 		),
 		index("broadcast_recipients_broadcast_idx").on(table.broadcastId),
 		index("broadcast_recipients_user_idx").on(table.userId),

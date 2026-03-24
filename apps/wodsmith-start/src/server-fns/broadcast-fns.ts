@@ -23,7 +23,12 @@ import {
 	competitionsTable,
 	REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
-import { TEAM_PERMISSIONS, teamTable } from "@/db/schemas/teams"
+import {
+	SYSTEM_ROLES_ENUM,
+	TEAM_PERMISSIONS,
+	teamMembershipTable,
+	teamTable,
+} from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"
 import { requireTeamPermission } from "./requireTeamMembership"
@@ -38,22 +43,36 @@ const listBroadcastsInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
 })
 
+const audienceFilterSchema = z
+	.object({
+		type: z.enum([
+			"all",
+			"division",
+			"public",
+			"volunteers",
+			"volunteer_role",
+		]),
+		divisionId: z.string().optional(),
+		volunteerRole: z.string().optional(),
+	})
+	.refine(
+		(filter) =>
+			filter.type !== "division" ||
+			(filter.divisionId && filter.divisionId.length > 0),
+		{ message: "Division ID is required when filtering by division" },
+	)
+	.refine(
+		(filter) =>
+			filter.type !== "volunteer_role" ||
+			(filter.volunteerRole && filter.volunteerRole.length > 0),
+		{ message: "Volunteer role is required when filtering by role" },
+	)
+
 const sendBroadcastInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
 	title: z.string().min(1, "Title is required").max(255),
 	body: z.string().min(1, "Body is required"),
-	audienceFilter: z
-		.object({
-			type: z.enum(["all", "division"]),
-			divisionId: z.string().optional(),
-		})
-		.refine(
-			(filter) =>
-				filter.type !== "division" ||
-				(filter.divisionId && filter.divisionId.length > 0),
-			{ message: "Division ID is required when filtering by division" },
-		)
-		.optional(),
+	audienceFilter: audienceFilterSchema.optional(),
 })
 
 const getBroadcastInputSchema = z.object({
@@ -161,6 +180,7 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 			columns: {
 				id: true,
 				organizingTeamId: true,
+				competitionTeamId: true,
 				name: true,
 				slug: true,
 			},
@@ -172,42 +192,133 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
 
-		// Build registration query conditions
-		// Note: competitionRegistrationsTable uses eventId to reference competition
-		const conditions = [
-			eq(competitionRegistrationsTable.eventId, data.competitionId),
-			ne(
-				competitionRegistrationsTable.status,
-				REGISTRATION_STATUS.REMOVED,
-			),
-		]
+		const filterType = data.audienceFilter?.type ?? "all"
 
-		if (data.audienceFilter?.type === "division" && data.audienceFilter.divisionId) {
-			conditions.push(
-				eq(
-					competitionRegistrationsTable.divisionId,
-					data.audienceFilter.divisionId,
+		// Build recipients list based on audience filter type
+		type Recipient = {
+			registrationId: string | null
+			userId: string
+			email: string | null
+			firstName: string | null
+		}
+		let recipients: Recipient[] = []
+
+		const includeAthletes =
+			filterType === "all" ||
+			filterType === "division" ||
+			filterType === "public"
+		const includeVolunteers =
+			filterType === "public" ||
+			filterType === "volunteers" ||
+			filterType === "volunteer_role"
+
+		if (includeAthletes) {
+			// Note: competitionRegistrationsTable uses eventId to reference competition
+			const conditions = [
+				eq(competitionRegistrationsTable.eventId, data.competitionId),
+				ne(
+					competitionRegistrationsTable.status,
+					REGISTRATION_STATUS.REMOVED,
 				),
+			]
+
+			if (
+				filterType === "division" &&
+				data.audienceFilter?.divisionId
+			) {
+				conditions.push(
+					eq(
+						competitionRegistrationsTable.divisionId,
+						data.audienceFilter.divisionId,
+					),
+				)
+			}
+
+			const athleteRows = await db
+				.select({
+					id: competitionRegistrationsTable.id,
+					userId: competitionRegistrationsTable.userId,
+					email: userTable.email,
+					firstName: userTable.firstName,
+				})
+				.from(competitionRegistrationsTable)
+				.innerJoin(
+					userTable,
+					eq(competitionRegistrationsTable.userId, userTable.id),
+				)
+				.where(and(...conditions))
+
+			recipients.push(
+				...athleteRows.map((r) => ({
+					registrationId: r.id as string | null,
+					userId: r.userId,
+					email: r.email,
+					firstName: r.firstName,
+				})),
 			)
 		}
 
-		// Get matching registrations with user emails
-		const registrations = await db
-			.select({
-				id: competitionRegistrationsTable.id,
-				userId: competitionRegistrationsTable.userId,
-				email: userTable.email,
-				firstName: userTable.firstName,
-			})
-			.from(competitionRegistrationsTable)
-			.innerJoin(
-				userTable,
-				eq(competitionRegistrationsTable.userId, userTable.id),
-			)
-			.where(and(...conditions))
+		if (includeVolunteers) {
+			// Volunteers are team members on the competition team with VOLUNTEER role
+			const volunteerConditions = [
+				eq(
+					teamMembershipTable.teamId,
+					competition.competitionTeamId,
+				),
+				eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+				eq(teamMembershipTable.isSystemRole, true),
+			]
 
-		if (registrations.length === 0) {
-			throw new Error("No athletes match the selected filter")
+			const volunteerRows = await db
+				.select({
+					userId: teamMembershipTable.userId,
+					email: userTable.email,
+					firstName: userTable.firstName,
+					metadata: teamMembershipTable.metadata,
+				})
+				.from(teamMembershipTable)
+				.innerJoin(
+					userTable,
+					eq(teamMembershipTable.userId, userTable.id),
+				)
+				.where(and(...volunteerConditions))
+
+			// Filter by volunteer role if specified
+			let filteredVolunteers = volunteerRows
+			if (
+				filterType === "volunteer_role" &&
+				data.audienceFilter?.volunteerRole
+			) {
+				const targetRole = data.audienceFilter.volunteerRole
+				filteredVolunteers = volunteerRows.filter((v) => {
+					try {
+						const meta = JSON.parse(v.metadata || "{}") as {
+							volunteerRoleTypes?: string[]
+						}
+						return meta.volunteerRoleTypes?.includes(targetRole)
+					} catch {
+						return false
+					}
+				})
+			}
+
+			// Deduplicate: don't add volunteers who are already in as athletes
+			const existingUserIds = new Set(recipients.map((r) => r.userId))
+			for (const v of filteredVolunteers) {
+				if (!existingUserIds.has(v.userId)) {
+					recipients.push({
+						registrationId: null,
+						userId: v.userId,
+						email: v.email,
+						firstName: v.firstName,
+					})
+					existingUserIds.add(v.userId)
+				}
+			}
+		}
+
+		if (recipients.length === 0) {
+			throw new Error("No recipients match the selected filter")
 		}
 
 		// Get organizer team name for email
@@ -234,18 +345,18 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 						audienceFilter: data.audienceFilter
 							? JSON.stringify(data.audienceFilter)
 							: null,
-						recipientCount: registrations.length,
+						recipientCount: recipients.length,
 						status: BROADCAST_STATUS.SENT,
 						sentAt: new Date(),
 						createdById: session.userId,
 					})
 					.$returningId()
 
-				const recipientValues = registrations.map((reg) => ({
+				const recipientValues = recipients.map((r) => ({
 					id: createBroadcastRecipientId(),
 					broadcastId: broadcast.id,
-					registrationId: reg.id,
-					userId: reg.userId,
+					registrationId: r.registrationId,
+					userId: r.userId,
 					emailDeliveryStatus:
 						BROADCAST_EMAIL_DELIVERY_STATUS.QUEUED as "queued",
 				}))
@@ -283,9 +394,9 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 					competitionId: data.competitionId,
 					batch: batchSlice.map((rv, idx) => ({
 						recipientId: rv.id,
-						email: registrations[i + idx].email ?? "",
+						email: recipients[i + idx].email ?? "",
 						athleteName:
-							registrations[i + idx].firstName ?? "Athlete",
+							recipients[i + idx].firstName ?? "Athlete",
 					})),
 					subject: `${data.title} — ${competition.name}`,
 					bodyHtml,
@@ -297,11 +408,11 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 			// Dev fallback: send emails directly when Queue binding is unavailable
 			const { sendEmail } = await import("@/utils/email")
 			for (const rv of recipientValues) {
-				const reg = registrations.find((r) => r.userId === rv.userId)
-				if (!reg || !reg.email) continue
+				const recipient = recipients.find((r) => r.userId === rv.userId)
+				if (!recipient || !recipient.email) continue
 				try {
 					await sendEmail({
-						to: reg.email,
+						to: recipient.email,
 						subject: `${data.title} — ${competition.name}`,
 						template: BroadcastNotificationEmail({
 							competitionName: competition.name,
@@ -333,7 +444,7 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 
 		return {
 			broadcastId: broadcast.id,
-			recipientCount: registrations.length,
+			recipientCount: recipients.length,
 		}
 	})
 
@@ -435,18 +546,7 @@ export const listAthleteBroadcastsFn = createServerFn({ method: "GET" })
 
 const previewAudienceInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
-	audienceFilter: z
-		.object({
-			type: z.enum(["all", "division"]),
-			divisionId: z.string().optional(),
-		})
-		.refine(
-			(filter) =>
-				filter.type !== "division" ||
-				(filter.divisionId && filter.divisionId.length > 0),
-			{ message: "Division ID is required when filtering by division" },
-		)
-		.optional(),
+	audienceFilter: audienceFilterSchema.optional(),
 })
 
 export const previewAudienceFn = createServerFn({ method: "GET" })
@@ -459,7 +559,11 @@ export const previewAudienceFn = createServerFn({ method: "GET" })
 
 		const competition = await db.query.competitionsTable.findFirst({
 			where: eq(competitionsTable.id, data.competitionId),
-			columns: { id: true, organizingTeamId: true },
+			columns: {
+				id: true,
+				organizingTeamId: true,
+				competitionTeamId: true,
+			},
 		})
 		if (!competition) throw new Error("Competition not found")
 
@@ -468,27 +572,89 @@ export const previewAudienceFn = createServerFn({ method: "GET" })
 			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
 
-		const conditions = [
-			eq(competitionRegistrationsTable.eventId, data.competitionId),
-			ne(
-				competitionRegistrationsTable.status,
-				REGISTRATION_STATUS.REMOVED,
-			),
-		]
+		const filterType = data.audienceFilter?.type ?? "all"
+		let athleteCount = 0
+		let volunteerCount = 0
 
-		if (data.audienceFilter?.type === "division" && data.audienceFilter.divisionId) {
-			conditions.push(
-				eq(
-					competitionRegistrationsTable.divisionId,
-					data.audienceFilter.divisionId,
+		const includeAthletes =
+			filterType === "all" ||
+			filterType === "division" ||
+			filterType === "public"
+		const includeVolunteers =
+			filterType === "public" ||
+			filterType === "volunteers" ||
+			filterType === "volunteer_role"
+
+		if (includeAthletes) {
+			const conditions = [
+				eq(competitionRegistrationsTable.eventId, data.competitionId),
+				ne(
+					competitionRegistrationsTable.status,
+					REGISTRATION_STATUS.REMOVED,
 				),
-			)
+			]
+			if (
+				filterType === "division" &&
+				data.audienceFilter?.divisionId
+			) {
+				conditions.push(
+					eq(
+						competitionRegistrationsTable.divisionId,
+						data.audienceFilter.divisionId,
+					),
+				)
+			}
+			const [result] = await db
+				.select({ count: count() })
+				.from(competitionRegistrationsTable)
+				.where(and(...conditions))
+			athleteCount = result?.count ?? 0
 		}
 
-		const [result] = await db
-			.select({ count: count() })
-			.from(competitionRegistrationsTable)
-			.where(and(...conditions))
+		if (includeVolunteers) {
+			// For volunteer_role, we need to query all then filter by metadata
+			// For volunteers/public, just count all volunteer memberships
+			const volunteerRows = await db
+				.select({
+					userId: teamMembershipTable.userId,
+					metadata: teamMembershipTable.metadata,
+				})
+				.from(teamMembershipTable)
+				.where(
+					and(
+						eq(
+							teamMembershipTable.teamId,
+							competition.competitionTeamId,
+						),
+						eq(
+							teamMembershipTable.roleId,
+							SYSTEM_ROLES_ENUM.VOLUNTEER,
+						),
+						eq(teamMembershipTable.isSystemRole, true),
+					),
+				)
 
-		return { count: result?.count ?? 0 }
+			if (
+				filterType === "volunteer_role" &&
+				data.audienceFilter?.volunteerRole
+			) {
+				const targetRole = data.audienceFilter.volunteerRole
+				volunteerCount = volunteerRows.filter((v) => {
+					try {
+						const meta = JSON.parse(v.metadata || "{}") as {
+							volunteerRoleTypes?: string[]
+						}
+						return meta.volunteerRoleTypes?.includes(targetRole)
+					} catch {
+						return false
+					}
+				}).length
+			} else {
+				volunteerCount = volunteerRows.length
+			}
+		}
+
+		// For public, there may be overlap (volunteer who is also an athlete)
+		// Return the sum as an approximation — exact dedup happens at send time
+		return { count: athleteCount + volunteerCount }
 	})

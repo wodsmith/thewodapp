@@ -180,6 +180,29 @@ interface Division {
 	name: string
 }
 
+type AudienceFilterType =
+	| "all"
+	| "division"
+	| "public"
+	| "volunteers"
+	| "volunteer_role"
+
+const VOLUNTEER_ROLES = [
+	{ value: "judge", label: "Judge" },
+	{ value: "head_judge", label: "Head Judge" },
+	{ value: "scorekeeper", label: "Scorekeeper" },
+	{ value: "check_in", label: "Check-In" },
+	{ value: "medical", label: "Medical" },
+	{ value: "emcee", label: "Emcee" },
+	{ value: "floor_manager", label: "Floor Manager" },
+	{ value: "equipment", label: "Equipment" },
+	{ value: "equipment_team", label: "Equipment Team" },
+	{ value: "media", label: "Media" },
+	{ value: "athlete_control", label: "Athlete Control" },
+	{ value: "staff", label: "Staff" },
+	{ value: "general", label: "General" },
+]
+
 function ComposeCard({
 	competitionId,
 	divisions,
@@ -193,8 +216,9 @@ function ComposeCard({
 }) {
 	const [title, setTitle] = useState("")
 	const [body, setBody] = useState("")
-	const [filterType, setFilterType] = useState<"all" | "division">("all")
+	const [filterType, setFilterType] = useState<AudienceFilterType>("all")
 	const [divisionId, setDivisionId] = useState<string>("")
+	const [volunteerRole, setVolunteerRole] = useState<string>("")
 	const [audienceCount, setAudienceCount] = useState<number | null>(null)
 	const [isSending, setIsSending] = useState(false)
 	const [isPreviewing, setIsPreviewing] = useState(false)
@@ -202,7 +226,9 @@ function ComposeCard({
 	const audienceFilter =
 		filterType === "division" && divisionId
 			? { type: "division" as const, divisionId }
-			: { type: "all" as const }
+			: filterType === "volunteer_role" && volunteerRole
+				? { type: "volunteer_role" as const, volunteerRole }
+				: { type: filterType as "all" | "public" | "volunteers" }
 
 	const handlePreview = async () => {
 		setIsPreviewing(true)
@@ -232,6 +258,11 @@ function ComposeCard({
 			return
 		}
 
+		if (filterType === "volunteer_role" && !volunteerRole) {
+			toast.error("Please select a volunteer role")
+			return
+		}
+
 		setIsSending(true)
 		try {
 			const result = await sendBroadcastFn({
@@ -243,7 +274,7 @@ function ComposeCard({
 				},
 			})
 			toast.success(
-				`Broadcast sent to ${result.recipientCount} athlete${result.recipientCount === 1 ? "" : "s"}`,
+				`Broadcast sent to ${result.recipientCount} recipient${result.recipientCount === 1 ? "" : "s"}`,
 			)
 			onSent()
 		} catch (err) {
@@ -260,8 +291,8 @@ function ComposeCard({
 			<CardHeader>
 				<CardTitle>New Broadcast</CardTitle>
 				<CardDescription>
-					Compose a message to send to your athletes via email and in-app
-					notification
+					Compose a message to send to athletes, volunteers, or everyone via
+					email and in-app notification
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-4">
@@ -292,16 +323,21 @@ function ComposeCard({
 						<Select
 							value={filterType}
 							onValueChange={(v) => {
-								setFilterType(v as "all" | "division")
+								setFilterType(v as AudienceFilterType)
+								setDivisionId("")
+								setVolunteerRole("")
 								setAudienceCount(null)
 							}}
 						>
-							<SelectTrigger className="w-[180px]">
+							<SelectTrigger className="w-[200px]">
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>
+								<SelectItem value="public">Everyone (Public)</SelectItem>
 								<SelectItem value="all">All Athletes</SelectItem>
-								<SelectItem value="division">By Division</SelectItem>
+								<SelectItem value="division">Athletes by Division</SelectItem>
+								<SelectItem value="volunteers">All Volunteers</SelectItem>
+								<SelectItem value="volunteer_role">Volunteers by Role</SelectItem>
 							</SelectContent>
 						</Select>
 
@@ -326,19 +362,41 @@ function ComposeCard({
 							</Select>
 						)}
 
+						{filterType === "volunteer_role" && (
+							<Select
+								value={volunteerRole}
+								onValueChange={(v) => {
+									setVolunteerRole(v)
+									setAudienceCount(null)
+								}}
+							>
+								<SelectTrigger className="w-[200px]">
+									<SelectValue placeholder="Select role" />
+								</SelectTrigger>
+								<SelectContent>
+									{VOLUNTEER_ROLES.map((role) => (
+										<SelectItem key={role.value} value={role.value}>
+											{role.label}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						)}
+
 						<Button
 							variant="outline"
 							onClick={handlePreview}
 							disabled={
 								isPreviewing ||
-								(filterType === "division" && !divisionId)
+								(filterType === "division" && !divisionId) ||
+								(filterType === "volunteer_role" && !volunteerRole)
 							}
 						>
 							<Users className="mr-2 h-4 w-4" />
 							{isPreviewing
 								? "Counting..."
 								: audienceCount !== null
-									? `${audienceCount} athlete${audienceCount === 1 ? "" : "s"}`
+									? `${audienceCount} recipient${audienceCount === 1 ? "" : "s"}`
 									: "Preview Count"}
 						</Button>
 					</div>
