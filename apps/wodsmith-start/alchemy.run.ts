@@ -88,6 +88,7 @@
 
 import alchemy from "alchemy"
 import {
+  D1Database,
   Hyperdrive,
   KVNamespace,
   Queue,
@@ -310,6 +311,17 @@ const hyperdrive = await Hyperdrive(`hyperdrive-${stage}`, {
  *
  * @see {@link https://developers.cloudflare.com/kv/ KV Documentation}
  */
+/**
+ * TEMPORARY: Clean up orphaned D1 database state.
+ * The D1 database was manually deleted but Alchemy state still tracks it.
+ * `delete: false` tells Alchemy to remove the state entry without calling the API.
+ * Remove this block after one successful deploy.
+ */
+await D1Database("db", {
+  name: "db",
+  delete: false,
+})
+
 const kvSession = await KVNamespace("wodsmith-sessions", {
   /**
    * Adopt existing KV namespace if it already exists.
