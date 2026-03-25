@@ -28,16 +28,19 @@ export async function requireCohostPermission(
   // Site admin bypass
   if (session.user.role === ROLES_ENUM.ADMIN) {
     return {
-      canViewRevenue: true,
-      canEditCapacity: true,
-      canEditScoring: true,
-      canEditRotation: true,
-      canManagePricing: true,
-      canManageVolunteers: true,
-      canManageEvents: true,
-      canManageHeats: true,
-      canManageResults: true,
-      canManageRegistrations: true,
+      divisions: true,
+      events: true,
+      scoring: true,
+      registrations: true,
+      waivers: true,
+      schedule: true,
+      locations: true,
+      volunteers: true,
+      results: true,
+      pricing: true,
+      revenue: true,
+      coupons: true,
+      sponsors: true,
     }
   }
 

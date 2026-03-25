@@ -628,16 +628,19 @@ function CohostsSection({
 }
 
 const PERMISSION_LABELS: Record<string, string> = {
-  canEditCapacity: "Capacity",
-  canEditScoring: "Scoring",
-  canEditRotation: "Rotation",
-  canManageVolunteers: "Volunteers",
-  canManageEvents: "Events",
-  canManageHeats: "Heats",
-  canManageResults: "Results",
-  canManageRegistrations: "Registrations",
-  canViewRevenue: "Revenue",
-  canManagePricing: "Pricing",
+  divisions: "Divisions",
+  events: "Events",
+  scoring: "Scoring",
+  registrations: "Registrations",
+  waivers: "Waivers",
+  schedule: "Schedule",
+  locations: "Locations",
+  volunteers: "Volunteers",
+  results: "Results",
+  pricing: "Pricing",
+  revenue: "Revenue",
+  coupons: "Coupons",
+  sponsors: "Sponsors",
 }
 
 function PermissionsList({ permissions }: { permissions: CohostMembershipMetadata }) {

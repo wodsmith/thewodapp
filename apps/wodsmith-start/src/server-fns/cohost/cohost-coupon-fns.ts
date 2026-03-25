@@ -1,7 +1,7 @@
 /**
  * Cohost Coupon Server Functions
  * Mirrors coupon-fns.ts with cohost auth.
- * Requires "canManagePricing" permission.
+ * Requires "coupons" permission.
  */
 
 import { createServerFn } from "@tanstack/react-start"
@@ -43,14 +43,14 @@ const cohostDeactivateCouponInputSchema = z.object({
 // ============================================================================
 
 /**
- * List all coupons for a competition (cohost — requires canManagePricing)
+ * List all coupons for a competition (cohost — requires coupons)
  */
 export const cohostListCouponsFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) =>
     cohostListCouponsInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManagePricing")
+    await requireCohostPermission(data.competitionTeamId, "coupons")
     const db = getDb()
 
     // Look up the competition to get the organizing team ID for coupon queries
@@ -77,14 +77,14 @@ export const cohostListCouponsFn = createServerFn({ method: "GET" })
   })
 
 /**
- * Create a coupon for a competition (cohost — requires canManagePricing)
+ * Create a coupon for a competition (cohost — requires coupons)
  */
 export const cohostCreateCouponFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     cohostCreateCouponInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManagePricing")
+    await requireCohostPermission(data.competitionTeamId, "coupons")
 
     const session = await getSessionFromCookie()
     if (!session?.userId) {
@@ -154,14 +154,14 @@ export const cohostCreateCouponFn = createServerFn({ method: "POST" })
   })
 
 /**
- * Deactivate a coupon (cohost — requires canManagePricing)
+ * Deactivate a coupon (cohost — requires coupons)
  */
 export const cohostDeactivateCouponFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     cohostDeactivateCouponInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManagePricing")
+    await requireCohostPermission(data.competitionTeamId, "coupons")
     const db = getDb()
 
     // Verify coupon exists — look up via competition to get team

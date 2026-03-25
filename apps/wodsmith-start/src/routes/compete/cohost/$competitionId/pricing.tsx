@@ -2,7 +2,7 @@
  * Cohost Competition Pricing Route
  *
  * Allows cohosts to configure registration fees for their competition.
- * Gated by canManagePricing permission.
+ * Gated by pricing permission.
  * Requires Stripe connection to be verified before showing the pricing form.
  */
 
@@ -28,8 +28,8 @@ export const Route = createFileRoute(
     const parentMatch = await parentMatchPromise
     const { competition, permissions } = parentMatch.loaderData!
 
-    // Permission gate: canManagePricing
-    if (!permissions?.canManagePricing) {
+    // Permission gate: pricing
+    if (!permissions?.pricing) {
       throw redirect({
         to: "/compete/cohost/$competitionId",
         params: { competitionId: params.competitionId },

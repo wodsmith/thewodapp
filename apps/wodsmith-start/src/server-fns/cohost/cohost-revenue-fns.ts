@@ -1,7 +1,7 @@
 /**
  * Cohost Revenue Server Functions
  * Mirrors revenue stats from commerce-fns.ts with cohost auth.
- * Requires "canViewRevenue" permission.
+ * Requires "revenue" permission.
  */
 
 import { createServerFn } from "@tanstack/react-start"
@@ -26,14 +26,14 @@ const cohostGetRevenueStatsInputSchema = z.object({
 // ============================================================================
 
 /**
- * Get revenue stats for a competition (cohost — requires canViewRevenue)
+ * Get revenue stats for a competition (cohost — requires revenue)
  */
 export const cohostGetRevenueStatsFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) =>
     cohostGetRevenueStatsInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canViewRevenue")
+    await requireCohostPermission(data.competitionTeamId, "revenue")
 
     const stats = await getCompetitionRevenueStats(data.competitionId)
     return { stats }

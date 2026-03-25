@@ -89,7 +89,7 @@ export const cohostGetCompetitionWaiversFn = createServerFn({ method: "GET" })
     getCompetitionWaiversInputSchema.parse(data),
   )
   .handler(async ({ data }): Promise<{ waivers: Waiver[] }> => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "waivers")
 
     const db = getDb()
 
@@ -121,7 +121,7 @@ export const cohostGetCompetitionWaiverSignaturesFn = createServerFn({
         signedAt: Date
       }>
     }> => {
-      await requireCohostPermission(data.competitionTeamId)
+      await requireCohostPermission(data.competitionTeamId, "waivers")
 
       const db = getDb()
 
@@ -155,7 +155,7 @@ export const cohostGetCompetitionWaiverSignaturesFn = createServerFn({
 export const cohostCreateWaiverFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => createWaiverInputSchema.parse(data))
   .handler(async ({ data }): Promise<{ success: true; waiver: Waiver }> => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "waivers")
 
     const db = getDb()
 
@@ -195,7 +195,7 @@ export const cohostCreateWaiverFn = createServerFn({ method: "POST" })
 export const cohostUpdateWaiverFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => updateWaiverInputSchema.parse(data))
   .handler(async ({ data }): Promise<{ success: true; waiver: Waiver }> => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "waivers")
 
     const db = getDb()
 
@@ -249,7 +249,7 @@ export const cohostUpdateWaiverFn = createServerFn({ method: "POST" })
 export const cohostDeleteWaiverFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => deleteWaiverInputSchema.parse(data))
   .handler(async ({ data }): Promise<{ success: true }> => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "waivers")
 
     const db = getDb()
 
@@ -271,7 +271,7 @@ export const cohostDeleteWaiverFn = createServerFn({ method: "POST" })
 export const cohostReorderWaiversFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => reorderWaiversInputSchema.parse(data))
   .handler(async ({ data }): Promise<{ success: true }> => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "waivers")
 
     const db = getDb()
 

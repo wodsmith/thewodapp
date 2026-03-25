@@ -2,7 +2,7 @@
  * Cohost Competition Revenue Route
  *
  * Revenue statistics display for cohosts.
- * Gated by canViewRevenue permission.
+ * Gated by revenue permission.
  * Reuses organizer RevenueStatsDisplay component.
  */
 
@@ -23,8 +23,8 @@ export const Route = createFileRoute(
     const parentMatch = await parentMatchPromise
     const { competition, permissions } = parentMatch.loaderData!
 
-    // Permission gate: canViewRevenue
-    if (!permissions?.canViewRevenue) {
+    // Permission gate: revenue
+    if (!permissions?.revenue) {
       throw redirect({
         to: "/compete/cohost/$competitionId",
         params: { competitionId: params.competitionId },

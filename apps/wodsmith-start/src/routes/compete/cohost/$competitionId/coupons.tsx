@@ -2,7 +2,7 @@
  * Cohost Competition Coupons Route
  *
  * Allows cohosts to create and manage discount coupons for their competition.
- * Gated by canManagePricing permission.
+ * Gated by coupons permission.
  * Uses cohost coupon server fns for auth.
  */
 
@@ -41,8 +41,8 @@ export const Route = createFileRoute(
     const parentMatch = await parentMatchPromise
     const { competition, permissions } = parentMatch.loaderData!
 
-    // Permission gate: canManagePricing
-    if (!permissions?.canManagePricing) {
+    // Permission gate: coupons
+    if (!permissions?.coupons) {
       throw redirect({
         to: "/compete/cohost/$competitionId",
         params: { competitionId: params.competitionId },

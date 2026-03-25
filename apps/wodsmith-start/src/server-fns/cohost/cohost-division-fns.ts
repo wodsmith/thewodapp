@@ -73,7 +73,7 @@ function parseCompetitionSettings(settings: string | null): {
 export const cohostGetDivisionsWithCountsFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => cohostDivisionsInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "divisions")
     const db = getDb()
 
     const [competition] = await db
@@ -155,7 +155,7 @@ export const cohostGetScalingGroupWithLevelsFn = createServerFn({
 })
   .inputValidator((data: unknown) => cohostScalingGroupInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "divisions")
     const db = getDb()
 
     const scalingGroup = await db.query.scalingGroupsTable.findFirst({

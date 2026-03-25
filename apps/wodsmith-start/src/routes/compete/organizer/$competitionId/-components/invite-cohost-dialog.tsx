@@ -34,16 +34,19 @@ const formSchema = z.object({
     .string()
     .email("Please enter a valid email address")
     .min(1, "Email is required"),
-  canViewRevenue: z.boolean(),
-  canEditCapacity: z.boolean(),
-  canEditScoring: z.boolean(),
-  canEditRotation: z.boolean(),
-  canManagePricing: z.boolean(),
-  canManageVolunteers: z.boolean(),
-  canManageEvents: z.boolean(),
-  canManageHeats: z.boolean(),
-  canManageResults: z.boolean(),
-  canManageRegistrations: z.boolean(),
+  divisions: z.boolean(),
+  events: z.boolean(),
+  scoring: z.boolean(),
+  registrations: z.boolean(),
+  waivers: z.boolean(),
+  schedule: z.boolean(),
+  locations: z.boolean(),
+  volunteers: z.boolean(),
+  results: z.boolean(),
+  pricing: z.boolean(),
+  revenue: z.boolean(),
+  coupons: z.boolean(),
+  sponsors: z.boolean(),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -55,6 +58,37 @@ interface InviteCohostDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
+
+const PERMISSION_GROUPS = [
+  {
+    label: "Competition Setup",
+    items: [
+      { key: "divisions" as const, label: "Divisions" },
+      { key: "registrations" as const, label: "Registrations" },
+      { key: "events" as const, label: "Events" },
+      { key: "scoring" as const, label: "Scoring" },
+      { key: "waivers" as const, label: "Waivers" },
+    ],
+  },
+  {
+    label: "Run Competition",
+    items: [
+      { key: "schedule" as const, label: "Schedule" },
+      { key: "locations" as const, label: "Locations" },
+      { key: "volunteers" as const, label: "Volunteers" },
+      { key: "results" as const, label: "Results" },
+    ],
+  },
+  {
+    label: "Business",
+    items: [
+      { key: "pricing" as const, label: "Pricing" },
+      { key: "revenue" as const, label: "Revenue" },
+      { key: "coupons" as const, label: "Coupons" },
+      { key: "sponsors" as const, label: "Sponsors" },
+    ],
+  },
+]
 
 export function InviteCohostDialog({
   competitionId,
@@ -71,16 +105,7 @@ export function InviteCohostDialog({
     defaultValues: {
       name: "",
       email: "",
-      canViewRevenue: DEFAULT_COHOST_PERMISSIONS.canViewRevenue,
-      canEditCapacity: DEFAULT_COHOST_PERMISSIONS.canEditCapacity,
-      canEditScoring: DEFAULT_COHOST_PERMISSIONS.canEditScoring,
-      canEditRotation: DEFAULT_COHOST_PERMISSIONS.canEditRotation,
-      canManagePricing: DEFAULT_COHOST_PERMISSIONS.canManagePricing,
-      canManageVolunteers: DEFAULT_COHOST_PERMISSIONS.canManageVolunteers,
-      canManageEvents: DEFAULT_COHOST_PERMISSIONS.canManageEvents,
-      canManageHeats: DEFAULT_COHOST_PERMISSIONS.canManageHeats,
-      canManageResults: DEFAULT_COHOST_PERMISSIONS.canManageResults,
-      canManageRegistrations: DEFAULT_COHOST_PERMISSIONS.canManageRegistrations,
+      ...DEFAULT_COHOST_PERMISSIONS,
     },
   })
 
@@ -97,16 +122,19 @@ export function InviteCohostDialog({
           organizingTeamId,
           competitionId,
           permissions: {
-            canViewRevenue: data.canViewRevenue,
-            canEditCapacity: data.canEditCapacity,
-            canEditScoring: data.canEditScoring,
-            canEditRotation: data.canEditRotation,
-            canManagePricing: data.canManagePricing,
-            canManageVolunteers: data.canManageVolunteers,
-            canManageEvents: data.canManageEvents,
-            canManageHeats: data.canManageHeats,
-            canManageResults: data.canManageResults,
-            canManageRegistrations: data.canManageRegistrations,
+            divisions: data.divisions,
+            events: data.events,
+            scoring: data.scoring,
+            registrations: data.registrations,
+            waivers: data.waivers,
+            schedule: data.schedule,
+            locations: data.locations,
+            volunteers: data.volunteers,
+            results: data.results,
+            pricing: data.pricing,
+            revenue: data.revenue,
+            coupons: data.coupons,
+            sponsors: data.sponsors,
           },
         },
       })
@@ -181,199 +209,34 @@ export function InviteCohostDialog({
                 </p>
               </div>
 
-              {/* Competition Setup group */}
-              <div className="space-y-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Competition Setup
-                </p>
+              {PERMISSION_GROUPS.map((group) => (
+                <div key={group.label} className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {group.label}
+                  </p>
 
-                <FormField
-                  control={form.control}
-                  name="canEditCapacity"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel className="font-normal">
-                        Division &amp; athlete capacity limits
-                      </FormLabel>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="canEditScoring"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel className="font-normal">
-                        Scoring algorithm &amp; tiebreak rules
-                      </FormLabel>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="canEditRotation"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel className="font-normal">
-                        Judge rotation defaults
-                      </FormLabel>
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="canViewRevenue"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormLabel className="font-normal">
-                      View revenue &amp; financial dashboard
-                    </FormLabel>
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="canManagePricing"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormLabel className="font-normal">
-                      Set registration pricing &amp; coupons
-                    </FormLabel>
-                  </FormItem>
-                )}
-              />
-
-              {/* Operations group */}
-              <div className="space-y-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Operations
-                </p>
-
-                <FormField
-                  control={form.control}
-                  name="canManageVolunteers"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel className="font-normal">
-                        Invite &amp; schedule volunteers and judges
-                      </FormLabel>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="canManageEvents"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel className="font-normal">
-                        Create, edit &amp; publish events/workouts
-                      </FormLabel>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="canManageHeats"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel className="font-normal">
-                        Create heats &amp; assign athletes to lanes
-                      </FormLabel>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="canManageResults"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel className="font-normal">
-                        Enter scores &amp; publish leaderboard results
-                      </FormLabel>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="canManageRegistrations"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel className="font-normal">
-                        Register athletes, transfers &amp; removals
-                      </FormLabel>
-                    </FormItem>
-                  )}
-                />
-              </div>
+                  {group.items.map((item) => (
+                    <FormField
+                      key={item.key}
+                      control={form.control}
+                      name={item.key}
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            {item.label}
+                          </FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+                </div>
+              ))}
             </div>
 
             <div className="flex justify-end gap-2 pt-2">

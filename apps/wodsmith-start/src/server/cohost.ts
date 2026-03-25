@@ -50,16 +50,19 @@ export async function getCohostPermissions(
   }
 
   return {
-    canViewRevenue: metadata.canViewRevenue ?? DEFAULT_COHOST_PERMISSIONS.canViewRevenue,
-    canEditCapacity: metadata.canEditCapacity ?? DEFAULT_COHOST_PERMISSIONS.canEditCapacity,
-    canEditScoring: metadata.canEditScoring ?? DEFAULT_COHOST_PERMISSIONS.canEditScoring,
-    canEditRotation: metadata.canEditRotation ?? DEFAULT_COHOST_PERMISSIONS.canEditRotation,
-    canManagePricing: metadata.canManagePricing ?? DEFAULT_COHOST_PERMISSIONS.canManagePricing,
-    canManageVolunteers: metadata.canManageVolunteers ?? DEFAULT_COHOST_PERMISSIONS.canManageVolunteers,
-    canManageEvents: metadata.canManageEvents ?? DEFAULT_COHOST_PERMISSIONS.canManageEvents,
-    canManageHeats: metadata.canManageHeats ?? DEFAULT_COHOST_PERMISSIONS.canManageHeats,
-    canManageResults: metadata.canManageResults ?? DEFAULT_COHOST_PERMISSIONS.canManageResults,
-    canManageRegistrations: metadata.canManageRegistrations ?? DEFAULT_COHOST_PERMISSIONS.canManageRegistrations,
+    divisions: metadata.divisions ?? DEFAULT_COHOST_PERMISSIONS.divisions,
+    events: metadata.events ?? DEFAULT_COHOST_PERMISSIONS.events,
+    scoring: metadata.scoring ?? DEFAULT_COHOST_PERMISSIONS.scoring,
+    registrations: metadata.registrations ?? DEFAULT_COHOST_PERMISSIONS.registrations,
+    waivers: metadata.waivers ?? DEFAULT_COHOST_PERMISSIONS.waivers,
+    schedule: metadata.schedule ?? DEFAULT_COHOST_PERMISSIONS.schedule,
+    locations: metadata.locations ?? DEFAULT_COHOST_PERMISSIONS.locations,
+    volunteers: metadata.volunteers ?? DEFAULT_COHOST_PERMISSIONS.volunteers,
+    results: metadata.results ?? DEFAULT_COHOST_PERMISSIONS.results,
+    pricing: metadata.pricing ?? DEFAULT_COHOST_PERMISSIONS.pricing,
+    revenue: metadata.revenue ?? DEFAULT_COHOST_PERMISSIONS.revenue,
+    coupons: metadata.coupons ?? DEFAULT_COHOST_PERMISSIONS.coupons,
+    sponsors: metadata.sponsors ?? DEFAULT_COHOST_PERMISSIONS.sponsors,
     inviteNotes: metadata.inviteNotes,
   }
 }

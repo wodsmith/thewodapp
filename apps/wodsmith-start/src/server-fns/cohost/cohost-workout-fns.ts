@@ -273,7 +273,7 @@ async function findOrCreateTag(tagName: string) {
 export const cohostGetWorkoutsFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => cohostGetWorkoutsInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "events")
     const db = getDb()
 
     const track = await getCompetitionTrack(data.competitionId)
@@ -321,7 +321,7 @@ export const cohostGetWorkoutsFn = createServerFn({ method: "GET" })
 export const cohostGetEventFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => cohostGetEventInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "events")
     const db = getDb()
 
     const trackWorkout = await db
@@ -405,7 +405,7 @@ export const cohostGetWorkoutDivisionDescriptionsFn = createServerFn({
     cohostGetDivisionDescriptionsInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "events")
 
     if (data.divisionIds.length === 0) {
       return { descriptions: [] }
@@ -462,7 +462,7 @@ export const cohostGetBatchDivisionDescriptionsFn = createServerFn({
     cohostGetBatchDivisionDescriptionsInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "events")
 
     if (data.divisionIds.length === 0 || data.workoutIds.length === 0) {
       return {
@@ -529,7 +529,7 @@ export const cohostUpdateWorkoutFn = createServerFn({ method: "POST" })
     cohostUpdateWorkoutInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManageEvents")
+    await requireCohostPermission(data.competitionTeamId, "events")
     const db = getDb()
 
     const updateData: Record<string, unknown> = { updatedAt: new Date() }
@@ -569,7 +569,7 @@ export const cohostUpdateWorkoutFn = createServerFn({ method: "POST" })
 export const cohostSaveEventFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => cohostSaveEventInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManageEvents")
+    await requireCohostPermission(data.competitionTeamId, "events")
     const db = getDb()
 
     // 1. Update workout table
@@ -691,7 +691,7 @@ export const cohostReorderEventsFn = createServerFn({ method: "POST" })
     cohostReorderEventsInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManageEvents")
+    await requireCohostPermission(data.competitionTeamId, "events")
     const db = getDb()
 
     const track = await getCompetitionTrack(data.competitionId)
@@ -762,7 +762,7 @@ export const cohostCreateWorkoutFn = createServerFn({ method: "POST" })
     cohostCreateWorkoutInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManageEvents")
+    await requireCohostPermission(data.competitionTeamId, "events")
     const db = getDb()
 
     // Get or create the competition track
@@ -898,7 +898,7 @@ export const cohostRemoveWorkoutFn = createServerFn({ method: "POST" })
     cohostRemoveWorkoutInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManageEvents")
+    await requireCohostPermission(data.competitionTeamId, "events")
     const db = getDb()
 
     await db.transaction(async (tx) => {

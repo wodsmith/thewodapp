@@ -79,34 +79,44 @@ const getNavigation = (
     {
       label: "Competition Setup",
       items: [
-        { label: "Divisions", href: `${basePath}/divisions`, icon: Layers },
-        { label: "Events", href: `${basePath}/events`, icon: Trophy },
-        ...(competitionType === "online"
+        ...(permissions?.divisions
+          ? [{ label: "Divisions", href: `${basePath}/divisions`, icon: Layers }]
+          : []),
+        ...(permissions?.events
+          ? [
+              { label: "Events", href: `${basePath}/events`, icon: Trophy },
+              ...(competitionType === "online"
+                ? [
+                    {
+                      label: "Submission Windows",
+                      href: `${basePath}/submission-windows`,
+                      icon: Clock,
+                    },
+                  ]
+                : []),
+            ]
+          : []),
+        ...(permissions?.scoring
+          ? [{ label: "Scoring", href: `${basePath}/scoring`, icon: Calculator }]
+          : []),
+        ...(permissions?.registrations
+          ? [{ label: "Registrations", href: `${basePath}/athletes`, icon: Users }]
+          : []),
+        ...(permissions?.waivers
           ? [
               {
-                label: "Submission Windows",
-                href: `${basePath}/submission-windows`,
-                icon: Clock,
+                label: "Waivers",
+                href: `${basePath}/waivers`,
+                icon: ClipboardSignature,
               },
             ]
           : []),
-        { label: "Scoring", href: `${basePath}/scoring`, icon: Calculator },
-        ...(permissions?.canManageRegistrations
-          ? [
-              { label: "Registrations", href: `${basePath}/athletes`, icon: Users },
-            ]
-          : []),
-        {
-          label: "Waivers",
-          href: `${basePath}/waivers`,
-          icon: ClipboardSignature,
-        },
       ],
     },
     {
       label: "Run Competition",
       items: [
-        ...(competitionType !== "online" && permissions?.canManageHeats
+        ...(competitionType !== "online" && permissions?.schedule
           ? [
               {
                 label: "Schedule",
@@ -115,8 +125,10 @@ const getNavigation = (
               },
             ]
           : []),
-        { label: "Locations", href: `${basePath}/locations`, icon: MapPin },
-        ...(permissions?.canManageVolunteers
+        ...(permissions?.locations
+          ? [{ label: "Locations", href: `${basePath}/locations`, icon: MapPin }]
+          : []),
+        ...(permissions?.volunteers
           ? [
               {
                 label: "Volunteers",
@@ -125,7 +137,7 @@ const getNavigation = (
               },
             ]
           : []),
-        ...(permissions?.canManageResults
+        ...(permissions?.results
           ? [
               {
                 label: competitionType === "online" ? "Submissions" : "Results",
@@ -139,7 +151,7 @@ const getNavigation = (
     {
       label: "Business",
       items: [
-        ...(permissions?.canManagePricing
+        ...(permissions?.pricing
           ? [
               {
                 label: "Pricing",
@@ -148,7 +160,7 @@ const getNavigation = (
               },
             ]
           : []),
-        ...(permissions?.canViewRevenue
+        ...(permissions?.revenue
           ? [
               {
                 label: "Revenue",
@@ -157,7 +169,7 @@ const getNavigation = (
               },
             ]
           : []),
-        ...(permissions?.canManagePricing
+        ...(permissions?.coupons
           ? [
               {
                 label: "Coupons",
@@ -166,13 +178,15 @@ const getNavigation = (
               },
             ]
           : []),
-        { label: "Sponsors", href: `${basePath}/sponsors`, icon: Sparkles },
+        ...(permissions?.sponsors
+          ? [{ label: "Sponsors", href: `${basePath}/sponsors`, icon: Sparkles }]
+          : []),
       ],
     },
     {
-      label: "Competition Setup",
+      label: "Settings",
       items: [
-        ...(permissions?.canEditCapacity || permissions?.canEditScoring || permissions?.canEditRotation
+        ...(permissions?.divisions || permissions?.scoring || permissions?.volunteers
           ? [
               {
                 label: "Settings",

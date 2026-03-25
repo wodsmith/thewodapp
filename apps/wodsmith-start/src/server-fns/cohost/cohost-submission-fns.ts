@@ -80,7 +80,7 @@ export const cohostGetOrganizerSubmissionsFn = createServerFn({
     cohostGetOrganizerSubmissionsInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "results")
     const db = getDb()
 
     // Get all video submissions for this event with athlete and registration info
@@ -257,7 +257,7 @@ export const cohostGetSubmissionDetailFn = createServerFn({ method: "GET" })
     cohostGetSubmissionDetailInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "results")
     const db = getDb()
 
     // Verify the event belongs to this competition
@@ -501,7 +501,7 @@ export const cohostVerifySubmissionScoreFn = createServerFn({
     async ({
       data,
     }): Promise<{ success: boolean; verificationStatus: string }> => {
-      await requireCohostPermission(data.competitionTeamId)
+      await requireCohostPermission(data.competitionTeamId, "results")
 
       const session = await getSessionFromCookie()
       if (!session?.userId) {
@@ -852,7 +852,7 @@ export const cohostGetEventSubmissionsFn = createServerFn({ method: "GET" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "results")
     const db = getDb()
 
     // Verify the event belongs to this competition

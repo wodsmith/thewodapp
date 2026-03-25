@@ -67,7 +67,7 @@ export const cohostGetCompetitionVenuesFn = createServerFn({ method: "GET" })
     getCompetitionVenuesInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "locations")
 
     const db = getDb()
 
@@ -98,7 +98,7 @@ export const cohostGetCompetitionVenuesFn = createServerFn({ method: "GET" })
 export const cohostCreateVenueFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => createVenueInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "locations")
     getEvlog()?.set({
       action: "cohost_create_venue",
       venue: { competitionId: data.competitionId },
@@ -144,7 +144,7 @@ export const cohostCreateVenueFn = createServerFn({ method: "POST" })
 export const cohostUpdateVenueFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => updateVenueInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "locations")
     getEvlog()?.set({
       action: "cohost_update_venue",
       venue: { id: data.venueId },
@@ -177,7 +177,7 @@ export const cohostUpdateVenueFn = createServerFn({ method: "POST" })
 export const cohostDeleteVenueFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => deleteVenueInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "locations")
     getEvlog()?.set({
       action: "cohost_delete_venue",
       venue: { id: data.venueId },
@@ -198,7 +198,7 @@ export const cohostDeleteVenueFn = createServerFn({ method: "POST" })
 export const cohostGetVenueHeatCountFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => getVenueHeatCountInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "locations")
 
     const db = getDb()
 

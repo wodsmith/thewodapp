@@ -90,16 +90,19 @@ function CohostCompetitionLayout() {
       competitionType={competition.competitionType}
       permissions={
         permissions ?? {
-          canViewRevenue: false,
-          canEditCapacity: false,
-          canEditScoring: false,
-          canEditRotation: false,
-          canManagePricing: false,
-          canManageVolunteers: false,
-          canManageEvents: false,
-          canManageHeats: false,
-          canManageResults: false,
-          canManageRegistrations: false,
+          divisions: false,
+          events: false,
+          scoring: false,
+          registrations: false,
+          waivers: false,
+          schedule: false,
+          locations: false,
+          volunteers: false,
+          results: false,
+          pricing: false,
+          revenue: false,
+          coupons: false,
+          sponsors: false,
         }
       }
     >

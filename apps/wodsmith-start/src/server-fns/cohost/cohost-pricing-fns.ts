@@ -1,7 +1,7 @@
 /**
  * Cohost Pricing Server Functions
  * Mirrors pricing parts of commerce-fns.ts with cohost auth.
- * Requires "canManagePricing" permission for write operations.
+ * Requires "pricing" permission for write operations.
  */
 
 import { createServerFn } from "@tanstack/react-start"
@@ -53,7 +53,7 @@ export const cohostGetPricingSettingsFn = createServerFn({ method: "GET" })
     cohostGetPricingSettingsInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManagePricing")
+    await requireCohostPermission(data.competitionTeamId, "pricing")
     const db = getDb()
 
     const competition = await db.query.competitionsTable.findFirst({
@@ -96,14 +96,14 @@ export const cohostGetPricingSettingsFn = createServerFn({ method: "GET" })
   })
 
 /**
- * Update default fee and fee configuration (cohost — requires canManagePricing)
+ * Update default fee and fee configuration (cohost — requires pricing)
  */
 export const cohostUpdateDefaultFeeFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     cohostUpdateDefaultFeeInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManagePricing")
+    await requireCohostPermission(data.competitionTeamId, "pricing")
     const db = getDb()
 
     const competition = await db.query.competitionsTable.findFirst({
@@ -127,14 +127,14 @@ export const cohostUpdateDefaultFeeFn = createServerFn({ method: "POST" })
   })
 
 /**
- * Update or remove a division-specific fee override (cohost — requires canManagePricing)
+ * Update or remove a division-specific fee override (cohost — requires pricing)
  */
 export const cohostUpdateDivisionFeeFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     cohostUpdateDivisionFeeInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManagePricing")
+    await requireCohostPermission(data.competitionTeamId, "pricing")
     const db = getDb()
 
     const competition = await db.query.competitionsTable.findFirst({

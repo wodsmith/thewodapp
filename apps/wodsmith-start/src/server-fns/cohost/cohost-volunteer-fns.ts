@@ -117,7 +117,7 @@ export const cohostGetCompetitionVolunteersFn = createServerFn({
 })
   .inputValidator((data: unknown) => cohostBaseSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "volunteers")
 
     const db = getDb()
     return db.query.teamMembershipTable.findMany({
@@ -140,7 +140,7 @@ export const cohostGetPendingVolunteerInvitationsFn = createServerFn({
 })
   .inputValidator((data: unknown) => cohostBaseSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "volunteers")
 
     const db = getDb()
     return db.query.teamInvitationTable.findMany({
@@ -161,7 +161,7 @@ export const cohostGetDirectVolunteerInvitesFn = createServerFn({
 })
   .inputValidator((data: unknown) => cohostBaseSchema.parse(data))
   .handler(async ({ data }): Promise<DirectVolunteerInvite[]> => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "volunteers")
 
     const db = getDb()
 
@@ -229,7 +229,7 @@ export const cohostGetVolunteerAssignmentsFn = createServerFn({
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "volunteers")
 
     const db = getDb()
 
@@ -386,7 +386,7 @@ export const cohostInviteVolunteerFn = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManageVolunteers")
+    await requireCohostPermission(data.competitionTeamId, "volunteers")
 
     const metadata: {
       volunteerRoleTypes: typeof data.roleTypes
@@ -494,7 +494,7 @@ export const cohostAddVolunteerRoleTypeFn = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManageVolunteers")
+    await requireCohostPermission(data.competitionTeamId, "volunteers")
 
     const db = getDb()
     const isInvitation = data.membershipId.startsWith("tinv_")
@@ -589,7 +589,7 @@ export const cohostRemoveVolunteerRoleTypeFn = createServerFn({
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManageVolunteers")
+    await requireCohostPermission(data.competitionTeamId, "volunteers")
 
     const db = getDb()
     const isInvitation = data.membershipId.startsWith("tinv_")
@@ -682,7 +682,7 @@ export const cohostUpdateVolunteerMetadataFn = createServerFn({
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManageVolunteers")
+    await requireCohostPermission(data.competitionTeamId, "volunteers")
 
     const session = await getSessionFromCookie()
     if (!session) {
@@ -760,7 +760,7 @@ export const cohostGrantScoreAccessFn = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManageVolunteers")
+    await requireCohostPermission(data.competitionTeamId, "volunteers")
 
     const db = getDb()
 
@@ -829,7 +829,7 @@ export const cohostRevokeScoreAccessFn = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManageVolunteers")
+    await requireCohostPermission(data.competitionTeamId, "volunteers")
 
     const db = getDb()
 
@@ -874,7 +874,7 @@ export const cohostGetCompetitionShiftsFn = createServerFn({ method: "GET" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "volunteers")
 
     const db = getDb()
 
@@ -921,7 +921,7 @@ export const cohostCreateShiftFn = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManageVolunteers")
+    await requireCohostPermission(data.competitionTeamId, "volunteers")
 
     if (data.endTime <= data.startTime) {
       throw new Error("VALIDATION_ERROR: End time must be after start time")
@@ -976,7 +976,7 @@ export const cohostUpdateShiftFn = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManageVolunteers")
+    await requireCohostPermission(data.competitionTeamId, "volunteers")
 
     const db = getDb()
 
@@ -1039,7 +1039,7 @@ export const cohostDeleteShiftFn = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManageVolunteers")
+    await requireCohostPermission(data.competitionTeamId, "volunteers")
 
     const db = getDb()
 
@@ -1077,7 +1077,7 @@ export const cohostAssignVolunteerToShiftFn = createServerFn({
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManageVolunteers")
+    await requireCohostPermission(data.competitionTeamId, "volunteers")
 
     const db = getDb()
 
@@ -1153,7 +1153,7 @@ export const cohostUnassignVolunteerFromShiftFn = createServerFn({
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManageVolunteers")
+    await requireCohostPermission(data.competitionTeamId, "volunteers")
 
     const db = getDb()
 
@@ -1199,7 +1199,7 @@ export const cohostBulkAssignVolunteerRoleFn = createServerFn({
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManageVolunteers")
+    await requireCohostPermission(data.competitionTeamId, "volunteers")
 
     const db = getDb()
 

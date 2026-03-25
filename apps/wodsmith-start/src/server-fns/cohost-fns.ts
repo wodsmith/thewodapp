@@ -39,16 +39,19 @@ const membershipIdSchema = z
   .startsWith("tmem_", "Invalid membership ID")
 
 const cohostPermissionsSchema = z.object({
-  canViewRevenue: z.boolean(),
-  canEditCapacity: z.boolean(),
-  canEditScoring: z.boolean(),
-  canEditRotation: z.boolean(),
-  canManagePricing: z.boolean(),
-  canManageVolunteers: z.boolean(),
-  canManageEvents: z.boolean(),
-  canManageHeats: z.boolean(),
-  canManageResults: z.boolean(),
-  canManageRegistrations: z.boolean(),
+  divisions: z.boolean(),
+  events: z.boolean(),
+  scoring: z.boolean(),
+  registrations: z.boolean(),
+  waivers: z.boolean(),
+  schedule: z.boolean(),
+  locations: z.boolean(),
+  volunteers: z.boolean(),
+  results: z.boolean(),
+  pricing: z.boolean(),
+  revenue: z.boolean(),
+  coupons: z.boolean(),
+  sponsors: z.boolean(),
 })
 
 // ============================================================================
@@ -104,16 +107,19 @@ export const getCohostInviteFn = createServerFn({ method: "GET" })
         ? (JSON.parse(invitation.metadata) as Partial<CohostMembershipMetadata>)
         : {}
       permissions = {
-        canViewRevenue: meta.canViewRevenue ?? DEFAULT_COHOST_PERMISSIONS.canViewRevenue,
-        canEditCapacity: meta.canEditCapacity ?? DEFAULT_COHOST_PERMISSIONS.canEditCapacity,
-        canEditScoring: meta.canEditScoring ?? DEFAULT_COHOST_PERMISSIONS.canEditScoring,
-        canEditRotation: meta.canEditRotation ?? DEFAULT_COHOST_PERMISSIONS.canEditRotation,
-        canManagePricing: meta.canManagePricing ?? DEFAULT_COHOST_PERMISSIONS.canManagePricing,
-        canManageVolunteers: meta.canManageVolunteers ?? DEFAULT_COHOST_PERMISSIONS.canManageVolunteers,
-        canManageEvents: meta.canManageEvents ?? DEFAULT_COHOST_PERMISSIONS.canManageEvents,
-        canManageHeats: meta.canManageHeats ?? DEFAULT_COHOST_PERMISSIONS.canManageHeats,
-        canManageResults: meta.canManageResults ?? DEFAULT_COHOST_PERMISSIONS.canManageResults,
-        canManageRegistrations: meta.canManageRegistrations ?? DEFAULT_COHOST_PERMISSIONS.canManageRegistrations,
+        divisions: meta.divisions ?? DEFAULT_COHOST_PERMISSIONS.divisions,
+        events: meta.events ?? DEFAULT_COHOST_PERMISSIONS.events,
+        scoring: meta.scoring ?? DEFAULT_COHOST_PERMISSIONS.scoring,
+        registrations: meta.registrations ?? DEFAULT_COHOST_PERMISSIONS.registrations,
+        waivers: meta.waivers ?? DEFAULT_COHOST_PERMISSIONS.waivers,
+        schedule: meta.schedule ?? DEFAULT_COHOST_PERMISSIONS.schedule,
+        locations: meta.locations ?? DEFAULT_COHOST_PERMISSIONS.locations,
+        volunteers: meta.volunteers ?? DEFAULT_COHOST_PERMISSIONS.volunteers,
+        results: meta.results ?? DEFAULT_COHOST_PERMISSIONS.results,
+        pricing: meta.pricing ?? DEFAULT_COHOST_PERMISSIONS.pricing,
+        revenue: meta.revenue ?? DEFAULT_COHOST_PERMISSIONS.revenue,
+        coupons: meta.coupons ?? DEFAULT_COHOST_PERMISSIONS.coupons,
+        sponsors: meta.sponsors ?? DEFAULT_COHOST_PERMISSIONS.sponsors,
         inviteNotes: meta.inviteNotes,
       }
     } catch {
@@ -191,16 +197,19 @@ export const getCohostsFn = createServerFn({ method: "GET" })
           if (m.metadata) {
             const meta = JSON.parse(m.metadata) as Partial<CohostMembershipMetadata>
             permissions = {
-              canViewRevenue: meta.canViewRevenue ?? DEFAULT_COHOST_PERMISSIONS.canViewRevenue,
-              canEditCapacity: meta.canEditCapacity ?? DEFAULT_COHOST_PERMISSIONS.canEditCapacity,
-              canEditScoring: meta.canEditScoring ?? DEFAULT_COHOST_PERMISSIONS.canEditScoring,
-              canEditRotation: meta.canEditRotation ?? DEFAULT_COHOST_PERMISSIONS.canEditRotation,
-              canManagePricing: meta.canManagePricing ?? DEFAULT_COHOST_PERMISSIONS.canManagePricing,
-              canManageVolunteers: meta.canManageVolunteers ?? DEFAULT_COHOST_PERMISSIONS.canManageVolunteers,
-              canManageEvents: meta.canManageEvents ?? DEFAULT_COHOST_PERMISSIONS.canManageEvents,
-              canManageHeats: meta.canManageHeats ?? DEFAULT_COHOST_PERMISSIONS.canManageHeats,
-              canManageResults: meta.canManageResults ?? DEFAULT_COHOST_PERMISSIONS.canManageResults,
-              canManageRegistrations: meta.canManageRegistrations ?? DEFAULT_COHOST_PERMISSIONS.canManageRegistrations,
+              divisions: meta.divisions ?? DEFAULT_COHOST_PERMISSIONS.divisions,
+              events: meta.events ?? DEFAULT_COHOST_PERMISSIONS.events,
+              scoring: meta.scoring ?? DEFAULT_COHOST_PERMISSIONS.scoring,
+              registrations: meta.registrations ?? DEFAULT_COHOST_PERMISSIONS.registrations,
+              waivers: meta.waivers ?? DEFAULT_COHOST_PERMISSIONS.waivers,
+              schedule: meta.schedule ?? DEFAULT_COHOST_PERMISSIONS.schedule,
+              locations: meta.locations ?? DEFAULT_COHOST_PERMISSIONS.locations,
+              volunteers: meta.volunteers ?? DEFAULT_COHOST_PERMISSIONS.volunteers,
+              results: meta.results ?? DEFAULT_COHOST_PERMISSIONS.results,
+              pricing: meta.pricing ?? DEFAULT_COHOST_PERMISSIONS.pricing,
+              revenue: meta.revenue ?? DEFAULT_COHOST_PERMISSIONS.revenue,
+              coupons: meta.coupons ?? DEFAULT_COHOST_PERMISSIONS.coupons,
+              sponsors: meta.sponsors ?? DEFAULT_COHOST_PERMISSIONS.sponsors,
               inviteNotes: meta.inviteNotes,
             }
           }
@@ -221,16 +230,19 @@ export const getCohostsFn = createServerFn({ method: "GET" })
           if (inv.metadata) {
             const meta = JSON.parse(inv.metadata) as Partial<CohostMembershipMetadata>
             permissions = {
-              canViewRevenue: meta.canViewRevenue ?? DEFAULT_COHOST_PERMISSIONS.canViewRevenue,
-              canEditCapacity: meta.canEditCapacity ?? DEFAULT_COHOST_PERMISSIONS.canEditCapacity,
-              canEditScoring: meta.canEditScoring ?? DEFAULT_COHOST_PERMISSIONS.canEditScoring,
-              canEditRotation: meta.canEditRotation ?? DEFAULT_COHOST_PERMISSIONS.canEditRotation,
-              canManagePricing: meta.canManagePricing ?? DEFAULT_COHOST_PERMISSIONS.canManagePricing,
-              canManageVolunteers: meta.canManageVolunteers ?? DEFAULT_COHOST_PERMISSIONS.canManageVolunteers,
-              canManageEvents: meta.canManageEvents ?? DEFAULT_COHOST_PERMISSIONS.canManageEvents,
-              canManageHeats: meta.canManageHeats ?? DEFAULT_COHOST_PERMISSIONS.canManageHeats,
-              canManageResults: meta.canManageResults ?? DEFAULT_COHOST_PERMISSIONS.canManageResults,
-              canManageRegistrations: meta.canManageRegistrations ?? DEFAULT_COHOST_PERMISSIONS.canManageRegistrations,
+              divisions: meta.divisions ?? DEFAULT_COHOST_PERMISSIONS.divisions,
+              events: meta.events ?? DEFAULT_COHOST_PERMISSIONS.events,
+              scoring: meta.scoring ?? DEFAULT_COHOST_PERMISSIONS.scoring,
+              registrations: meta.registrations ?? DEFAULT_COHOST_PERMISSIONS.registrations,
+              waivers: meta.waivers ?? DEFAULT_COHOST_PERMISSIONS.waivers,
+              schedule: meta.schedule ?? DEFAULT_COHOST_PERMISSIONS.schedule,
+              locations: meta.locations ?? DEFAULT_COHOST_PERMISSIONS.locations,
+              volunteers: meta.volunteers ?? DEFAULT_COHOST_PERMISSIONS.volunteers,
+              results: meta.results ?? DEFAULT_COHOST_PERMISSIONS.results,
+              pricing: meta.pricing ?? DEFAULT_COHOST_PERMISSIONS.pricing,
+              revenue: meta.revenue ?? DEFAULT_COHOST_PERMISSIONS.revenue,
+              coupons: meta.coupons ?? DEFAULT_COHOST_PERMISSIONS.coupons,
+              sponsors: meta.sponsors ?? DEFAULT_COHOST_PERMISSIONS.sponsors,
               inviteNotes: meta.inviteNotes,
             }
           }
@@ -277,16 +289,19 @@ export const inviteCohostFn = createServerFn({ method: "POST" })
     )
 
     const metadata: CohostMembershipMetadata & { inviteName?: string; inviteEmail: string } = {
-      canViewRevenue: data.permissions.canViewRevenue,
-      canEditCapacity: data.permissions.canEditCapacity,
-      canEditScoring: data.permissions.canEditScoring,
-      canEditRotation: data.permissions.canEditRotation,
-      canManagePricing: data.permissions.canManagePricing,
-      canManageVolunteers: data.permissions.canManageVolunteers,
-      canManageEvents: data.permissions.canManageEvents,
-      canManageHeats: data.permissions.canManageHeats,
-      canManageResults: data.permissions.canManageResults,
-      canManageRegistrations: data.permissions.canManageRegistrations,
+      divisions: data.permissions.divisions,
+      events: data.permissions.events,
+      scoring: data.permissions.scoring,
+      registrations: data.permissions.registrations,
+      waivers: data.permissions.waivers,
+      schedule: data.permissions.schedule,
+      locations: data.permissions.locations,
+      volunteers: data.permissions.volunteers,
+      results: data.permissions.results,
+      pricing: data.permissions.pricing,
+      revenue: data.permissions.revenue,
+      coupons: data.permissions.coupons,
+      sponsors: data.permissions.sponsors,
       inviteEmail: data.email,
       competitionId: data.competitionId,
     } as CohostMembershipMetadata & { inviteName?: string; inviteEmail: string; competitionId: string }
@@ -408,16 +423,19 @@ export const acceptCohostInviteFn = createServerFn({ method: "POST" })
       if (invitation.metadata) {
         const meta = JSON.parse(invitation.metadata) as Partial<CohostMembershipMetadata> & { competitionId?: string }
         permissions = {
-          canViewRevenue: meta.canViewRevenue ?? DEFAULT_COHOST_PERMISSIONS.canViewRevenue,
-          canEditCapacity: meta.canEditCapacity ?? DEFAULT_COHOST_PERMISSIONS.canEditCapacity,
-          canEditScoring: meta.canEditScoring ?? DEFAULT_COHOST_PERMISSIONS.canEditScoring,
-          canEditRotation: meta.canEditRotation ?? DEFAULT_COHOST_PERMISSIONS.canEditRotation,
-          canManagePricing: meta.canManagePricing ?? DEFAULT_COHOST_PERMISSIONS.canManagePricing,
-          canManageVolunteers: meta.canManageVolunteers ?? DEFAULT_COHOST_PERMISSIONS.canManageVolunteers,
-          canManageEvents: meta.canManageEvents ?? DEFAULT_COHOST_PERMISSIONS.canManageEvents,
-          canManageHeats: meta.canManageHeats ?? DEFAULT_COHOST_PERMISSIONS.canManageHeats,
-          canManageResults: meta.canManageResults ?? DEFAULT_COHOST_PERMISSIONS.canManageResults,
-          canManageRegistrations: meta.canManageRegistrations ?? DEFAULT_COHOST_PERMISSIONS.canManageRegistrations,
+          divisions: meta.divisions ?? DEFAULT_COHOST_PERMISSIONS.divisions,
+          events: meta.events ?? DEFAULT_COHOST_PERMISSIONS.events,
+          scoring: meta.scoring ?? DEFAULT_COHOST_PERMISSIONS.scoring,
+          registrations: meta.registrations ?? DEFAULT_COHOST_PERMISSIONS.registrations,
+          waivers: meta.waivers ?? DEFAULT_COHOST_PERMISSIONS.waivers,
+          schedule: meta.schedule ?? DEFAULT_COHOST_PERMISSIONS.schedule,
+          locations: meta.locations ?? DEFAULT_COHOST_PERMISSIONS.locations,
+          volunteers: meta.volunteers ?? DEFAULT_COHOST_PERMISSIONS.volunteers,
+          results: meta.results ?? DEFAULT_COHOST_PERMISSIONS.results,
+          pricing: meta.pricing ?? DEFAULT_COHOST_PERMISSIONS.pricing,
+          revenue: meta.revenue ?? DEFAULT_COHOST_PERMISSIONS.revenue,
+          coupons: meta.coupons ?? DEFAULT_COHOST_PERMISSIONS.coupons,
+          sponsors: meta.sponsors ?? DEFAULT_COHOST_PERMISSIONS.sponsors,
           inviteNotes: meta.inviteNotes,
         }
         competitionId = meta.competitionId ?? null

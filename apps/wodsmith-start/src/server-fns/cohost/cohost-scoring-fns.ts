@@ -154,7 +154,7 @@ export const cohostGetEventScoreEntryDataFn = createServerFn({ method: "GET" })
     cohostGetEventScoreEntryDataInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "scoring")
     const db = getDb()
 
     // Get the track workout with workout details
@@ -361,7 +361,7 @@ export const cohostGetEventScoreEntryDataFn = createServerFn({ method: "GET" })
 export const cohostSaveCompetitionScoreFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => cohostSaveScoreInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManageResults")
+    await requireCohostPermission(data.competitionTeamId, "results")
 
     const session = await getSessionFromCookie()
     if (!session?.userId) {
@@ -591,7 +591,7 @@ export const cohostDeleteCompetitionScoreFn = createServerFn({
 })
   .inputValidator((data: unknown) => cohostDeleteScoreInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "canManageResults")
+    await requireCohostPermission(data.competitionTeamId, "results")
     const db = getDb()
 
     const [score] = await db

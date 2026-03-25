@@ -220,29 +220,35 @@ function PermissionsSummary({
   permissions,
 }: {
   permissions: {
-    canViewRevenue: boolean
-    canEditCapacity: boolean
-    canEditScoring: boolean
-    canEditRotation: boolean
-    canManagePricing: boolean
-    canManageVolunteers?: boolean
-    canManageEvents?: boolean
-    canManageHeats?: boolean
-    canManageResults?: boolean
-    canManageRegistrations?: boolean
+    divisions?: boolean
+    events?: boolean
+    scoring?: boolean
+    registrations?: boolean
+    waivers?: boolean
+    schedule?: boolean
+    locations?: boolean
+    volunteers?: boolean
+    results?: boolean
+    pricing?: boolean
+    revenue?: boolean
+    coupons?: boolean
+    sponsors?: boolean
   }
 }) {
   const granted = [
-    permissions.canEditCapacity && "Division & athlete capacity limits",
-    permissions.canEditScoring && "Scoring algorithm & tiebreak rules",
-    permissions.canEditRotation && "Judge rotation defaults",
-    permissions.canManageVolunteers && "Invite & schedule volunteers and judges",
-    permissions.canManageEvents && "Create, edit & publish events/workouts",
-    permissions.canManageHeats && "Create heats & assign athletes to lanes",
-    permissions.canManageResults && "Enter scores & publish leaderboard results",
-    permissions.canManageRegistrations && "Register athletes, transfers & removals",
-    permissions.canViewRevenue && "View revenue & financial dashboard",
-    permissions.canManagePricing && "Set registration pricing & coupons",
+    permissions.divisions && "Divisions",
+    permissions.events && "Events",
+    permissions.scoring && "Scoring",
+    permissions.registrations && "Registrations",
+    permissions.waivers && "Waivers",
+    permissions.schedule && "Schedule",
+    permissions.locations && "Locations",
+    permissions.volunteers && "Volunteers",
+    permissions.results && "Results",
+    permissions.pricing && "Pricing",
+    permissions.revenue && "Revenue",
+    permissions.coupons && "Coupons",
+    permissions.sponsors && "Sponsors",
   ].filter(Boolean)
 
   return (

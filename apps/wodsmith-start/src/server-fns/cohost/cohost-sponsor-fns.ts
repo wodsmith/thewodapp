@@ -100,7 +100,7 @@ const cohostReorderSponsorsInputSchema = cohostBaseInputSchema.extend({
 export const cohostGetCompetitionSponsorsFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => cohostBaseInputSchema.parse(data))
   .handler(async ({ data }): Promise<CompetitionSponsorsResult> => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "sponsors")
     const db = getDb()
 
     const groups = await db
@@ -133,7 +133,7 @@ export const cohostGetCompetitionSponsorsFn = createServerFn({ method: "GET" })
 export const cohostGetSponsorGroupsFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => cohostBaseInputSchema.parse(data))
   .handler(async ({ data }): Promise<{ groups: SponsorGroup[] }> => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "sponsors")
     const db = getDb()
 
     const groups = await db
@@ -157,7 +157,7 @@ export const cohostCreateSponsorGroupFn = createServerFn({ method: "POST" })
     cohostCreateSponsorGroupInputSchema.parse(data),
   )
   .handler(async ({ data }): Promise<{ group: SponsorGroup }> => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "sponsors")
     const db = getDb()
 
     let order = data.displayOrder
@@ -198,7 +198,7 @@ export const cohostUpdateSponsorGroupFn = createServerFn({ method: "POST" })
     cohostUpdateSponsorGroupInputSchema.parse(data),
   )
   .handler(async ({ data }): Promise<{ group: SponsorGroup | null }> => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "sponsors")
     const db = getDb()
 
     const [existing] = await db
@@ -240,7 +240,7 @@ export const cohostDeleteSponsorGroupFn = createServerFn({ method: "POST" })
     cohostDeleteSponsorGroupInputSchema.parse(data),
   )
   .handler(async ({ data }): Promise<{ success: boolean }> => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "sponsors")
     const db = getDb()
 
     const [existing] = await db
@@ -272,7 +272,7 @@ export const cohostReorderSponsorGroupsFn = createServerFn({ method: "POST" })
     cohostReorderSponsorGroupsInputSchema.parse(data),
   )
   .handler(async ({ data }): Promise<{ success: boolean }> => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "sponsors")
     const db = getDb()
 
     await db.transaction(async (tx) => {
@@ -307,7 +307,7 @@ export const cohostCreateSponsorFn = createServerFn({ method: "POST" })
     cohostCreateSponsorInputSchema.parse(data),
   )
   .handler(async ({ data }): Promise<{ sponsor: Sponsor }> => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "sponsors")
     const db = getDb()
 
     let order = data.displayOrder
@@ -352,7 +352,7 @@ export const cohostUpdateSponsorFn = createServerFn({ method: "POST" })
     cohostUpdateSponsorInputSchema.parse(data),
   )
   .handler(async ({ data }): Promise<{ sponsor: Sponsor | null }> => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "sponsors")
     const db = getDb()
 
     const [existing] = await db
@@ -392,7 +392,7 @@ export const cohostDeleteSponsorFn = createServerFn({ method: "POST" })
     cohostDeleteSponsorInputSchema.parse(data),
   )
   .handler(async ({ data }): Promise<{ success: boolean }> => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "sponsors")
     const db = getDb()
 
     const [existing] = await db
@@ -423,7 +423,7 @@ export const cohostReorderSponsorsFn = createServerFn({ method: "POST" })
     cohostReorderSponsorsInputSchema.parse(data),
   )
   .handler(async ({ data }): Promise<{ success: boolean }> => {
-    await requireCohostPermission(data.competitionTeamId)
+    await requireCohostPermission(data.competitionTeamId, "sponsors")
     const db = getDb()
 
     await db.transaction(async (tx) => {
