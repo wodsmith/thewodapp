@@ -20,7 +20,6 @@ import {
   Medal,
   Menu,
   ReceiptText,
-  Settings,
   Sparkles,
   Tag,
   Trophy,
@@ -180,20 +179,6 @@ const getNavigation = (
           : []),
         ...(permissions?.sponsors
           ? [{ label: "Sponsors", href: `${basePath}/sponsors`, icon: Sparkles }]
-          : []),
-      ],
-    },
-    {
-      label: "Settings",
-      items: [
-        ...(permissions?.divisions || permissions?.scoring || permissions?.volunteers
-          ? [
-              {
-                label: "Settings",
-                href: `${basePath}/settings`,
-                icon: Settings,
-              },
-            ]
           : []),
       ],
     },
