@@ -467,14 +467,14 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 				}
 			}
 		} else {
-			// No email — mark all recipients as sent (in-app only)
+			// No email — mark all recipients as skipped (in-app only)
 			const allIds = recipientValues.map((rv) => rv.id)
 			if (allIds.length > 0) {
 				await db
 					.update(competitionBroadcastRecipientsTable)
 					.set({
 						emailDeliveryStatus:
-							BROADCAST_EMAIL_DELIVERY_STATUS.SENT,
+							BROADCAST_EMAIL_DELIVERY_STATUS.SKIPPED,
 					})
 					.where(
 						inArray(

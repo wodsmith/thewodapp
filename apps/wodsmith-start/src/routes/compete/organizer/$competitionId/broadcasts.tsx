@@ -242,6 +242,7 @@ function ComposeCard({
 	useEffect(() => {
 		if (!filterReady) {
 			setAudienceCount(null)
+			setIsPreviewing(false)
 			return
 		}
 		let cancelled = false

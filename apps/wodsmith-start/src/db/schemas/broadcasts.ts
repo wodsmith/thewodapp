@@ -40,6 +40,7 @@ export const BROADCAST_EMAIL_DELIVERY_STATUS = {
 	QUEUED: "queued",
 	SENT: "sent",
 	FAILED: "failed",
+	SKIPPED: "skipped",
 } as const
 
 export type BroadcastEmailDeliveryStatus =

@@ -64,13 +64,13 @@ export async function handleBroadcastEmailQueue(
 					`[Email Preview] To: ${r.email} | Subject: ${subject} | Broadcast: ${broadcastId}`,
 				)
 			}
-			// Mark all recipients as sent
+			// Mark recipients as skipped — no API key means no email was sent
 			const recipientIds = msgRecipients.map((r) => r.recipientId)
 			if (recipientIds.length > 0) {
 				await db
 					.update(competitionBroadcastRecipientsTable)
 					.set({
-						emailDeliveryStatus: BROADCAST_EMAIL_DELIVERY_STATUS.SENT,
+						emailDeliveryStatus: BROADCAST_EMAIL_DELIVERY_STATUS.SKIPPED,
 					})
 					.where(
 						inArray(
