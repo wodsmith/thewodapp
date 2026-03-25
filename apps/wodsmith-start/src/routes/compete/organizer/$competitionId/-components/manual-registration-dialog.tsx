@@ -352,8 +352,8 @@ export function ManualRegistrationDialog({
                 <AlertTriangle className="h-4 w-4 text-yellow-600 shrink-0 mt-0.5" />
                 <p className="text-sm text-yellow-700 dark:text-yellow-500">
                   This division is at capacity (
-                  {selectedDivision!.registrationCount}/
-                  {selectedDivision!.maxSpots}). You can still add a
+                  {selectedDivision?.registrationCount}/
+                  {selectedDivision?.maxSpots}). You can still add a
                   registration as an organizer.
                 </p>
               </div>

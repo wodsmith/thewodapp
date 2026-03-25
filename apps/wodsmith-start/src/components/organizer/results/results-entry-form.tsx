@@ -391,7 +391,7 @@ export function ResultsEntryForm({
               <CardTitle>{event.workout.name}</CardTitle>
               {isSubEventMode ? (
                 <p className="text-sm text-muted-foreground mt-1">
-                  {subEventScoreData!.length} sub-events
+                  {subEventScoreData?.length} sub-events
                 </p>
               ) : (
                 <p className="text-sm text-muted-foreground mt-1">
@@ -582,7 +582,7 @@ export function ResultsEntryForm({
                     </Badge>
                   </div>
                   {/* Sub-event score rows */}
-                  {subEventScoreData!.map((sub, subIndex) => {
+                  {subEventScoreData?.map((sub, subIndex) => {
                     const subAthlete = sub.athletes.find(
                       (a) =>
                         a.registrationId === athlete.registrationId,
@@ -627,9 +627,9 @@ export function ResultsEntryForm({
                         onTabNext={() => {
                           // Navigate to next sub-event row for same athlete, or first sub-event of next athlete
                           const nextSubIndex = subIndex + 1
-                          if (nextSubIndex < subEventScoreData!.length) {
+                          if (nextSubIndex < subEventScoreData?.length) {
                             // Next sub-event for same athlete
-                            const nextSub = subEventScoreData![nextSubIndex]
+                            const nextSub = subEventScoreData?.[nextSubIndex]
                             const nextKey = getStateKey(athlete.registrationId, nextSub.event.id)
                             rowRefs.current.get(nextKey)?.focusPrimary()
                           } else {
@@ -637,7 +637,7 @@ export function ResultsEntryForm({
                             const nextAthleteIndex = index + 1
                             if (nextAthleteIndex < athletes.length) {
                               const nextAthlete = athletes[nextAthleteIndex]
-                              const firstSub = subEventScoreData![0]
+                              const firstSub = subEventScoreData?.[0]
                               const nextKey = getStateKey(nextAthlete.registrationId, firstSub.event.id)
                               rowRefs.current.get(nextKey)?.focusPrimary()
                             }

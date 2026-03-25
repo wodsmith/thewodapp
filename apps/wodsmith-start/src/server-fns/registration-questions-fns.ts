@@ -1087,7 +1087,7 @@ export const getVolunteerAnswersFn = createServerFn({ method: "GET" })
         if (!acc[answer.invitationId]) {
           acc[answer.invitationId] = []
         }
-        acc[answer.invitationId]!.push({
+        acc[answer.invitationId]?.push({
           id: answer.id,
           questionId: answer.questionId,
           answer: answer.answer,

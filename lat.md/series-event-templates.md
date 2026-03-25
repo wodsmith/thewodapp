@@ -59,9 +59,9 @@ The `templateEventIds` optional parameter filters which template events to sync.
 
 ### Sync Preview
 
-`previewSyncEventsToCompetitionsFn` generates a detailed diff showing what would change per competition per event.
+`previewSyncEventsToCompetitionsFn` generates a detailed diff showing what would change per competition per event before applying.
 
-Changes include field-level diffs (e.g., "name: Old Name to New Name"), order changes, "movements updated", "N resources to add", "N judging sheets to add".
+Changes include field-level diffs (e.g., "name: Old Name → New Name"), order changes, "movements updated", "N resources to add", "N judging sheets to add".
 
 ## Event Matching
 

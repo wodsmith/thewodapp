@@ -67,7 +67,7 @@ import {
 } from "@/lib/registration-stubs"
 import { getStripe } from "@/lib/stripe"
 import { validateCoupon, recordRedemption } from "@/server/coupons"
-import { type ProductCoupon } from "@/db/schema"
+import type { ProductCoupon } from "@/db/schema"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { createToken, getClaimTokenKey } from "@/utils/auth-utils"
 import {
