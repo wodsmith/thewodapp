@@ -128,7 +128,7 @@ export function CompetitionCard({
         "transition-[border-color,box-shadow] duration-200",
         "hover:border-primary/30 hover:shadow-md hover:shadow-primary/5",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        "motion-reduce:transition-none",
+        "motion-reduce:transition-none motion-reduce:!animate-none",
       )}
       style={{
         animation: `card-enter 0.35s ease-out ${index * 50}ms backwards`,
