@@ -561,6 +561,16 @@ const website = await TanStackStart("app", {
   crons: ["*/15 * * * *"],
 
   /**
+   * Queue consumer registration.
+   *
+   * Registers this Worker as the consumer for the broadcast email queue
+   * so Cloudflare delivers queued messages to the queue() handler in server.ts.
+   *
+   * @see src/server/broadcast-queue-consumer.ts for the consumer implementation
+   */
+  eventSources: [broadcastEmailQueue],
+
+  /**
    * Cloudflare resource bindings available to the application.
    *
    * These bindings inject Cloudflare services into the Worker's environment.
