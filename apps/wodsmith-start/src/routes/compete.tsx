@@ -51,8 +51,10 @@ function CompeteLayout() {
     location.pathname === "/compete/organizer" ||
     location.pathname.startsWith("/compete/organizer/")
 
-  // Organizer routes have their own layouts (dashboard or competition sidebar)
-  if (isOrganizerRoute) {
+  const isCohostRoute = location.pathname.startsWith("/compete/cohost/")
+
+  // Organizer and cohost routes have their own sidebar layouts
+  if (isOrganizerRoute || isCohostRoute) {
     return <Outlet />
   }
 
