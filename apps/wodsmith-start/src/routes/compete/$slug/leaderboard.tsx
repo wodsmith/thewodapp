@@ -14,6 +14,26 @@ const leaderboardSearchSchema = z.object({
 
 export const Route = createFileRoute("/compete/$slug/leaderboard")({
   validateSearch: leaderboardSearchSchema,
+  head: ({ params }) => {
+    const { slug } = params
+    return {
+      meta: [
+        {
+          title: `Leaderboard | WODsmith`,
+        },
+        {
+          name: "description",
+          content: `View live leaderboard and results for this competition on WODsmith.`,
+        },
+      ],
+      links: [
+        {
+          rel: "canonical",
+          href: `https://wodsmith.com/compete/${slug}/leaderboard`,
+        },
+      ],
+    }
+  },
   component: CompetitionLeaderboardPage,
 })
 

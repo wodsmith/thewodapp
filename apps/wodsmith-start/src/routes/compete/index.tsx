@@ -15,6 +15,41 @@ type CompeteSearch = {
 }
 
 export const Route = createFileRoute("/compete/")({
+  head: () => ({
+    meta: [
+      {
+        title: "Find Fitness Competitions | WODsmith",
+      },
+      {
+        name: "description",
+        content:
+          "Browse and register for functional fitness competitions. Find upcoming CrossFit throwdowns, see leaderboards, and sign up on WODsmith.",
+      },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://wodsmith.com/compete" },
+      {
+        property: "og:title",
+        content: "Find Fitness Competitions | WODsmith",
+      },
+      {
+        property: "og:description",
+        content:
+          "Browse and register for functional fitness competitions. Find upcoming CrossFit throwdowns, see leaderboards, and sign up.",
+      },
+      { property: "og:site_name", content: "WODsmith" },
+      { name: "twitter:card", content: "summary" },
+      {
+        name: "twitter:title",
+        content: "Find Fitness Competitions | WODsmith",
+      },
+      {
+        name: "twitter:description",
+        content:
+          "Browse and register for functional fitness competitions on WODsmith.",
+      },
+    ],
+    links: [{ rel: "canonical", href: "https://wodsmith.com/compete" }],
+  }),
   component: CompetePage,
   staleTime: 30_000, // Cache for 30 seconds - competition list doesn't change frequently
   validateSearch: (search: Record<string, unknown>): CompeteSearch => ({
