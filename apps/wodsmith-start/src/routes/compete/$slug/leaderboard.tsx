@@ -16,15 +16,24 @@ export const Route = createFileRoute("/compete/$slug/leaderboard")({
   validateSearch: leaderboardSearchSchema,
   head: ({ params }) => {
     const { slug } = params
+    const displayName = slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
     return {
       meta: [
         {
-          title: `Leaderboard | WODsmith`,
+          title: `${displayName} Leaderboard | WODsmith`,
         },
         {
           name: "description",
-          content: `View live leaderboard and results for this competition on WODsmith.`,
+          content: `View live leaderboard and results for ${displayName} on WODsmith.`,
         },
+        { property: "og:title", content: `${displayName} Leaderboard | WODsmith` },
+        { property: "og:description", content: `View live leaderboard and results for ${displayName} on WODsmith.` },
+        { property: "og:url", content: `https://wodsmith.com/compete/${slug}/leaderboard` },
+        { property: "og:type", content: "website" },
+        { property: "og:site_name", content: "WODsmith" },
+        { name: "twitter:card", content: "summary" },
+        { name: "twitter:title", content: `${displayName} Leaderboard | WODsmith` },
+        { name: "twitter:description", content: `View live leaderboard and results for ${displayName} on WODsmith.` },
       ],
       links: [
         {

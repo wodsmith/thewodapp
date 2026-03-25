@@ -69,7 +69,7 @@ API routes for webhooks (Stripe, auth callbacks), cron jobs, file uploads, and i
 
 ## SEO and Structured Data
 
-Public pages use per-route `head` configs for metadata, Open Graph, Twitter cards, and canonical URLs. Structured data uses JSON-LD via the [[apps/wodsmith-start/src/components/json-ld.tsx#JsonLd]] component.
+Public pages use per-route `head` configs for metadata, Open Graph, Twitter cards, and canonical URLs. Structured data uses JSON-LD via the [[apps/wodsmith-start/src/components/json-ld.tsx#JsonLd]] component, which escapes `<`, `>`, `&`, and Unicode line separators to prevent script-breakout XSS.
 
 ### Page Metadata
 
@@ -86,6 +86,8 @@ Landing page includes `Organization` and `WebSite` JSON-LD. Competition detail p
 ### Sitemap
 
 `/api/sitemap` returns a dynamic XML sitemap listing static pages and all public published competitions with their leaderboard sub-pages. Referenced from `robots.txt`. Cached for 1 hour.
+
+Slug values are XML-escaped. `<lastmod>` is only emitted when `updatedAt` exists. Returns a 500 XML response on failure.
 
 ### robots.txt
 
