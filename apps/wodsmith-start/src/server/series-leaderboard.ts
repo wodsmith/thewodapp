@@ -253,11 +253,11 @@ export async function getSeriesLeaderboard(params: {
   )
 
   const seriesEvents = uniqueWorkoutIds.map((wId) => {
-    const tw = workoutIdToTrackWorkouts.get(wId)![0]
+    const tw = workoutIdToTrackWorkouts.get(wId)?.[0]
     return {
       workoutId: wId,
-      name: tw.workout.name,
-      scheme: tw.workout.scheme,
+      name: tw?.workout.name ?? "",
+      scheme: tw?.workout.scheme ?? "",
     }
   })
 

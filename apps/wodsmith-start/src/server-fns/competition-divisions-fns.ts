@@ -946,7 +946,7 @@ export const initializeCompetitionDivisionsFn = createServerFn({
         // Clone levels from template, optionally filtering to selected subset
         const levelsToClone = data.templateDivisionIds
           ? templateLevels.filter((l) =>
-              data.templateDivisionIds!.includes(l.id),
+              data.templateDivisionIds?.includes(l.id),
             )
           : templateLevels
         for (let i = 0; i < levelsToClone.length; i++) {

@@ -105,7 +105,7 @@ const getUserCompetitionRegistrationsFn = createServerFn({ method: "GET" })
       .filter((id): id is string => id !== null)
 
     // If user has existing active registrations, fetch their previous answers and waiver signatures
-    let previousAnswers: Array<{ questionId: string; answer: string }> = []
+    const previousAnswers: Array<{ questionId: string; answer: string }> = []
     let signedWaiverIds: string[] = []
 
     if (activeRegistrations.length > 0) {

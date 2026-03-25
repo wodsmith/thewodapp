@@ -90,13 +90,16 @@ export const Route = createFileRoute("/transfer/$transferId")({
       meta: [
         {
           title: competitionName
-            ? `Registration Transfer - ${competitionName}`
+            ? `Registration Transfer - ${competitionName} | WODsmith`
             : "Registration Transfer | WODsmith",
         },
         {
           name: "description",
-          content: "Accept a competition registration transfer",
+          content: competitionName
+            ? `Accept a competition registration transfer for ${competitionName} on WODsmith.`
+            : "Accept a competition registration transfer on WODsmith.",
         },
+        { name: "robots", content: "noindex" },
       ],
     }
   },

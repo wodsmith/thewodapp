@@ -67,7 +67,7 @@ import {
 } from "@/lib/registration-stubs"
 import { getStripe } from "@/lib/stripe"
 import { validateCoupon, recordRedemption } from "@/server/coupons"
-import { type ProductCoupon } from "@/db/schema"
+import type { ProductCoupon } from "@/db/schema"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { createToken, getClaimTokenKey } from "@/utils/auth-utils"
 import {
@@ -229,7 +229,7 @@ async function storeRegistrationAnswers(
  * Supports registering for multiple divisions in a single checkout.
  * Each division becomes a separate line item and purchase record.
  */
-// @lat: [[registration#Athlete Self-Registration]]
+// @lat: [[registration#Registration Flow#Athlete Self-Registration]]
 export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     initiateRegistrationPaymentInputSchema.parse(data),
@@ -527,7 +527,6 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
     const purchaseIds: string[] = []
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = []
     let totalChargeCents = 0
-    let totalPlatformFeeCents = 0
     let totalOrganizerNetCents = 0
 
     // Process free items immediately, create purchases for paid items
@@ -609,7 +608,6 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       })
 
       totalChargeCents += feeBreakdown.totalChargeCents
-      totalPlatformFeeCents += feeBreakdown.platformFeeCents
       totalOrganizerNetCents += feeBreakdown.organizerNetCents
 
       // Get division label for Stripe line item
@@ -1836,7 +1834,7 @@ const createManualRegistrationInputSchema = z.object({
  * with isOrganizerOverride to bypass registration window checks, sets
  * the appropriate payment status, stores answers, and sends confirmation.
  */
-// @lat: [[registration#Organizer Manual Registration]]
+// @lat: [[registration#Registration Flow#Organizer Manual Registration]]
 export const createManualRegistrationFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     createManualRegistrationInputSchema.parse(data),

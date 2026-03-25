@@ -1765,7 +1765,7 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
       if (!templateDescMap.has(d.workoutId)) {
         templateDescMap.set(d.workoutId, new Map())
       }
-      templateDescMap.get(d.workoutId)!.set(d.scalingLevelId, d.description)
+      templateDescMap.get(d.workoutId)?.set(d.scalingLevelId, d.description)
     }
 
     // Determine which competitions to sync
@@ -2271,7 +2271,7 @@ export const syncResourcesAndSheetsToCompetitionsFn = createServerFn({
     const mappings =
       data.competitionIds && data.competitionIds.length > 0
         ? allMappings.filter((m) =>
-            data.competitionIds!.includes(m.competitionId),
+            data.competitionIds?.includes(m.competitionId),
           )
         : allMappings
 
