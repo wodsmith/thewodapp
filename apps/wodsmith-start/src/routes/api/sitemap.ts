@@ -56,12 +56,12 @@ ${staticPages
 ${competitions
   .map(
     (comp) => `  <url>
-    <loc>${baseUrl}/compete/${escapeXml(comp.slug)}</loc>${comp.updatedAt ? `\n    <lastmod>${new Date(comp.updatedAt).toISOString().split("T")[0]}</lastmod>` : ""}
+    <loc>${escapeXml(`${baseUrl}/compete/${encodeURIComponent(comp.slug)}`)}</loc>${comp.updatedAt ? `\n    <lastmod>${new Date(comp.updatedAt).toISOString().split("T")[0]}</lastmod>` : ""}
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>${baseUrl}/compete/${escapeXml(comp.slug)}/leaderboard</loc>
+    <loc>${escapeXml(`${baseUrl}/compete/${encodeURIComponent(comp.slug)}/leaderboard`)}</loc>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>`,
