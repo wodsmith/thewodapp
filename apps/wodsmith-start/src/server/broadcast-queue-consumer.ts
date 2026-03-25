@@ -91,6 +91,14 @@ export async function handleBroadcastEmailQueue(
 		const { broadcastId, batch: recipients, subject, bodyHtml, replyTo } =
 			message.body as BroadcastEmailMessage
 
+		logInfo({
+			message: "[BroadcastQueue] Processing queued message",
+			attributes: {
+				broadcastId,
+				recipientCount: recipients.length,
+			},
+		})
+
 		try {
 			// Step 1: Filter out already-sent recipients (idempotency defense-in-depth)
 			const recipientIds = recipients.map((r) => r.recipientId)
