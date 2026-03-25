@@ -18,6 +18,7 @@ interface CompetitionCardProps {
   competition: CompetitionWithOrganizingTeam
   status: CompetitionStatus
   index: number
+  animate?: boolean
 }
 
 const STATUS_CONFIG: Record<
@@ -107,6 +108,7 @@ export function CompetitionCard({
   competition,
   status,
   index,
+  animate = true,
 }: CompetitionCardProps) {
   const locationBadge = formatLocationBadge(
     competition.address,
@@ -130,9 +132,11 @@ export function CompetitionCard({
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         "motion-reduce:transition-none motion-reduce:!animate-none",
       )}
-      style={{
-        animation: `card-enter 0.35s ease-out ${index * 50}ms backwards`,
-      }}
+      style={
+        animate
+          ? { animation: `card-enter 0.35s ease-out ${index * 50}ms backwards` }
+          : undefined
+      }
     >
       {/* Profile image / fallback */}
       <div className="shrink-0">
