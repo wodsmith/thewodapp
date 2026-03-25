@@ -872,7 +872,7 @@ export const getBatchWorkoutDivisionDescriptionsFn = createServerFn({
       if (!descMap.has(d.workoutId)) {
         descMap.set(d.workoutId, new Map())
       }
-      descMap.get(d.workoutId)!.set(d.scalingLevelId, d.description)
+      descMap.get(d.workoutId)?.set(d.scalingLevelId, d.description)
     }
 
     // Build result keyed by workoutId
@@ -1590,7 +1590,7 @@ export const saveCompetitionEventFn = createServerFn({ method: "POST" })
               description,
               updatedAt: new Date(),
             })
-            .where(eq(workoutScalingDescriptionsTable.id, existing[0]!.id))
+            .where(eq(workoutScalingDescriptionsTable.id, existing[0]?.id))
         } else {
           // Insert new
           await db.insert(workoutScalingDescriptionsTable).values({

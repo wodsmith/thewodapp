@@ -126,7 +126,7 @@ function CouponsPage() {
 
   async function handleCreate() {
     const amountCents = Math.round(parseFloat(amountDollars) * 100)
-    if (isNaN(amountCents) || amountCents <= 0) {
+    if (Number.isNaN(amountCents) || amountCents <= 0) {
       toast.error("Enter a valid amount")
       return
     }

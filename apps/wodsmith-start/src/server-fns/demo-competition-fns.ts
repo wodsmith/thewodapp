@@ -609,8 +609,8 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
             // Generate team name from member last names
             const teamName =
               members.length === 2
-                ? generateTeamName(members[0]!.lastName, members[1]!.lastName)
-                : `Team ${members[0]!.lastName}`
+                ? generateTeamName(members[0]?.lastName, members[1]?.lastName)
+                : `Team ${members[0]?.lastName}`
 
             await db.insert(teamTable).values({
               id: athleteTeamId,
@@ -695,7 +695,7 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
             const captain = team.members[0]!
             const teamName =
               team.members.length === 2
-                ? generateTeamName(captain.lastName, team.members[1]!.lastName)
+                ? generateTeamName(captain.lastName, team.members[1]?.lastName)
                 : `Team ${captain.lastName}`
 
             // Create registration for each team member
@@ -955,7 +955,7 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
       const scoreRoundInserts: Array<typeof scoreRoundsTable.$inferInsert> = []
 
       // Get the first division ID (heat 1) for creating a tie
-      const heat1DivisionId = divisionIds[DEMO_DIVISIONS[0]!.label]!
+      const heat1DivisionId = divisionIds[DEMO_DIVISIONS[0]?.label]!
       let heat1ScoreCount = 0
       let tiedScoreValue: number | null = null // Store the tied score value
 

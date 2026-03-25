@@ -15,6 +15,7 @@
 
 import type {
   ExecutionContext,
+  MessageBatch,
   ScheduledController,
 } from "@cloudflare/workers-types"
 import * as Sentry from "@sentry/cloudflare"
@@ -310,5 +311,18 @@ export default Sentry.withSentry((env: Env) => getSentryOptions(env), {
         )
       },
     )
+  },
+  // Cloudflare Queue consumer for broadcast email delivery.
+  // Messages are enqueued by sendBroadcastFn and processed here asynchronously.
+  async queue(
+    batch: MessageBatch,
+    _env: Env,
+    _ctx: ExecutionContext,
+  ) {
+    // Dynamic import to keep cold start fast
+    const { handleBroadcastEmailQueue } = await import(
+      "./server/broadcast-queue-consumer"
+    )
+    await handleBroadcastEmailQueue(batch)
   },
 } satisfies ExportedHandler<Env>)
