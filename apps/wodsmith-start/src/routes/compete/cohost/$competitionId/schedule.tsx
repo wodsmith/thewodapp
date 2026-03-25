@@ -39,25 +39,25 @@ export const Route = createFileRoute(
     ] = await Promise.all([
       cohostGetCompetitionVenuesFn({
         data: { competitionTeamId, competitionId: params.competitionId },
-      }),
+      }).catch(() => ({ venues: [] })),
       cohostGetWorkoutsFn({
         data: {
           competitionId: params.competitionId,
           competitionTeamId,
         },
-      }),
+      }).catch(() => ({ workouts: [] })),
       cohostGetHeatsForCompetitionFn({
         data: { competitionTeamId, competitionId: params.competitionId },
-      }),
+      }).catch(() => ({ heats: [] })),
       cohostGetDivisionsWithCountsFn({
         data: {
           competitionId: params.competitionId,
           competitionTeamId,
         },
-      }),
+      }).catch(() => ({ divisions: [] })),
       cohostGetCompetitionRegistrationsFn({
         data: { competitionTeamId, competitionId: params.competitionId },
-      }),
+      }).catch(() => ({ registrations: [] })),
     ])
 
     return {

@@ -162,28 +162,28 @@ export const Route = createFileRoute(
     ] = await Promise.all([
       cohostGetOrganizerRegistrationsFn({
         data: { competitionId, competitionTeamId, divisionFilter },
-      }),
+      }).catch(() => ({ registrations: [] })),
       cohostGetDivisionsWithCountsFn({
         data: { competitionId, competitionTeamId },
-      }),
+      }).catch(() => ({ divisions: [] })),
       cohostGetRegistrationQuestionsFn({
         data: { competitionId, competitionTeamId },
-      }),
+      }).catch(() => ({ questions: [] })),
       cohostGetCompetitionRegistrationAnswersFn({
         data: { competitionId, competitionTeamId },
-      }),
+      }).catch(() => ({ answersByRegistration: {} as Record<string, Array<{ id: string; questionId: string; userId: string; answer: string }>> })),
       cohostGetCompetitionWaiversFn({
         data: { competitionId, competitionTeamId },
-      }),
+      }).catch(() => ({ waivers: [] })),
       cohostGetCompetitionWaiverSignaturesFn({
         data: { competitionId, competitionTeamId },
-      }),
+      }).catch(() => ({ signatures: [] })),
       getPendingTeammateInvitationsFn({
         data: { competitionId },
-      }),
+      }).catch(() => ({ pendingInvites: [] as PendingTeammateInvite[] })),
       getPendingTransfersForCompetitionFn({
         data: { competitionId },
-      }),
+      }).catch(() => [] as Awaited<ReturnType<typeof getPendingTransfersForCompetitionFn>>),
     ])
 
     return {

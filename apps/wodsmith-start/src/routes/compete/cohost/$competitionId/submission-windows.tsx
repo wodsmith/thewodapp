@@ -40,13 +40,13 @@ export const Route = createFileRoute(
           competitionId: params.competitionId,
           competitionTeamId,
         },
-      }),
+      }).catch(() => ({ workouts: [] })),
       cohostGetCompetitionEventsFn({
         data: {
           competitionTeamId,
           competitionId: params.competitionId,
         },
-      }),
+      }).catch(() => ({ events: [] })),
     ])
 
     return {

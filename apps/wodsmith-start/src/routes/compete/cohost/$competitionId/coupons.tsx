@@ -58,7 +58,7 @@ export const Route = createFileRoute(
           competitionId: competition.id,
           competitionTeamId,
         },
-      }),
+      }).catch(() => []),
     ])
 
     return { competition, coupons, appUrl, competitionTeamId }

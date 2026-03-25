@@ -110,7 +110,7 @@ export const Route = createFileRoute(
           competitionId: params.competitionId,
           competitionTeamId,
         },
-      }),
+      }).catch(() => ({ divisions: [] })),
       cohostGetOrganizerSubmissionsFn({
         data: {
           trackWorkoutId: params.eventId,
@@ -119,7 +119,7 @@ export const Route = createFileRoute(
           divisionFilter: deps?.division,
           statusFilter: deps?.status,
         },
-      }),
+      }).catch(() => ({ submissions: [], totals: { total: 0, reviewed: 0, pending: 0 } })),
     ])
 
     if (!eventResult.event) {

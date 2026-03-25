@@ -97,37 +97,37 @@ export const Route = createFileRoute(
     ] = await Promise.all([
       cohostGetPendingVolunteerInvitationsFn({
         data: { competitionTeamId },
-      }),
+      }).catch(() => []),
       cohostGetCompetitionVolunteersFn({
         data: { competitionTeamId },
-      }),
+      }).catch(() => []),
       cohostGetWorkoutsFn({
         data: {
           competitionId: competition.id,
           competitionTeamId,
         },
-      }),
+      }).catch(() => ({ workouts: [] })),
       cohostGetDirectVolunteerInvitesFn({
         data: { competitionTeamId },
-      }),
+      }).catch(() => []),
       getJudgeVolunteersFn({
         data: { competitionTeamId },
-      }),
+      }).catch(() => []),
       cohostGetCompetitionShiftsFn({
         data: { competitionTeamId, competitionId: competition.id },
-      }),
+      }).catch(() => []),
       cohostGetVolunteerAssignmentsFn({
         data: { competitionTeamId, competitionId: competition.id },
-      }),
+      }).catch(() => ({} as Awaited<ReturnType<typeof cohostGetVolunteerAssignmentsFn>>)),
       getVolunteerQuestionsFn({
         data: { competitionId: competition.id },
-      }),
+      }).catch(() => ({ questions: [] })),
       getVolunteerAnswersFn({
         data: {
           competitionTeamId,
           organizingTeamId: competition.organizingTeamId,
         },
-      }),
+      }).catch(() => ({ answersByInvitation: {} as Record<string, Array<{ id: string; questionId: string; answer: string }>>, emailToInvitationId: {} as Record<string, string> })),
     ])
     const volunteerQuestions = volunteerQuestionsResult.questions
     const { answersByInvitation, emailToInvitationId } = volunteerAnswersResult
@@ -143,7 +143,7 @@ export const Route = createFileRoute(
                 userId: volunteer.user.id,
                 competitionTeamId,
               },
-            })
+            }).catch(() => false)
           : false
 
         return {
@@ -159,7 +159,7 @@ export const Route = createFileRoute(
         competitionTeamId,
         competitionId: competition.id,
       },
-    })
+    }).catch(() => ({ heats: [] }))
     const heats = heatsResult.heats
 
     // Get judge assignments, rotations, and version data for all events
@@ -171,22 +171,22 @@ export const Route = createFileRoute(
     ] = await Promise.all([
       Promise.all(
         events.map((event) =>
-          getJudgeHeatAssignmentsFn({ data: { trackWorkoutId: event.id } }),
+          getJudgeHeatAssignmentsFn({ data: { trackWorkoutId: event.id } }).catch(() => []),
         ),
       ),
       Promise.all(
         events.map((event) =>
-          getRotationsForEventFn({ data: { trackWorkoutId: event.id } }),
+          getRotationsForEventFn({ data: { trackWorkoutId: event.id } }).catch(() => ({ rotations: [], eventDefaults: null })),
         ),
       ),
       Promise.all(
         events.map((event) =>
-          getVersionHistoryFn({ data: { trackWorkoutId: event.id } }),
+          getVersionHistoryFn({ data: { trackWorkoutId: event.id } }).catch(() => []),
         ),
       ),
       Promise.all(
         events.map((event) =>
-          getActiveVersionFn({ data: { trackWorkoutId: event.id } }),
+          getActiveVersionFn({ data: { trackWorkoutId: event.id } }).catch(() => null),
         ),
       ),
     ])

@@ -25,7 +25,7 @@ export const Route = createFileRoute(
         competitionId: params.competitionId,
         competitionTeamId,
       },
-    })
+    }).catch(() => ({ workouts: [] }))
 
     const events = workoutsResult.workouts.map((w) => ({
       id: w.id,

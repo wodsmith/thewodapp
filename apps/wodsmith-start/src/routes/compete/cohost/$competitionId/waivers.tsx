@@ -23,12 +23,12 @@ export const Route = createFileRoute(
     const competitionTeamId = competition.competitionTeamId!
 
     // Fetch waivers for this competition
-    const { waivers } = await cohostGetCompetitionWaiversFn({
+    const waiversResult = await cohostGetCompetitionWaiversFn({
       data: { competitionId: params.competitionId, competitionTeamId },
-    })
+    }).catch(() => ({ waivers: [] }))
 
     return {
-      waivers,
+      waivers: waiversResult.waivers,
     }
   },
   component: CohostWaiversPage,

@@ -109,13 +109,13 @@ export const Route = createFileRoute(
 )({
   component: SubmissionDetailPage,
   loader: async ({ params }) => {
-    // Fetch review data (required)
+    // Fetch review data (required) — organizer fn, may fail for cohosts
     const reviewResult = await getOrganizerSubmissionDetailFn({
       data: {
         submissionId: params.submissionId,
         competitionId: params.competitionId,
       },
-    })
+    }).catch(() => ({ submission: null }))
 
     if (!reviewResult.submission) {
       throw new Error("Submission not found")
@@ -157,7 +157,7 @@ export const Route = createFileRoute(
         videoSubmissionId: params.submissionId,
         competitionId: params.competitionId,
       },
-    })
+    }).catch(() => ({ notes: [] }))
 
     // Fetch workout movements and vote details in parallel
     let workoutMovements: Array<{ id: string; name: string; type: string }> = []

@@ -52,23 +52,23 @@ export const Route = createFileRoute(
           competitionId: params.competitionId,
           competitionTeamId,
         },
-      }),
-      getAllMovementsFn(),
+      }).catch(() => ({ divisions: [] })),
+      getAllMovementsFn().catch(() => ({ movements: [] })),
       cohostGetCompetitionSponsorsFn({
         data: {
           competitionId: params.competitionId,
           competitionTeamId,
         },
-      }),
+      }).catch(() => ({ groups: [], ungroupedSponsors: [] })),
       getEventResourcesFn({
         data: {
           eventId: params.eventId,
           teamId: competition.organizingTeamId,
         },
-      }),
+      }).catch(() => ({ resources: [] })),
       getEventJudgingSheetsFn({
         data: { trackWorkoutId: params.eventId },
-      }),
+      }).catch(() => ({ sheets: [] })),
       // Fetch competition events (submission windows) for online competitions
       isOnline
         ? cohostGetCompetitionEventsFn({
@@ -76,7 +76,7 @@ export const Route = createFileRoute(
               competitionId: params.competitionId,
               competitionTeamId,
             },
-          })
+          }).catch(() => ({ events: [] }))
         : Promise.resolve({ events: [] }),
     ])
 
@@ -105,7 +105,7 @@ export const Route = createFileRoute(
           divisionIds,
           competitionTeamId,
         },
-      })
+      }).catch(() => ({ descriptions: [] }))
       divisionDescriptions = descriptionsResult.descriptions
     }
 
@@ -120,7 +120,7 @@ export const Route = createFileRoute(
         competitionId: params.competitionId,
         competitionTeamId,
       },
-    })
+    }).catch(() => ({ workouts: [] }))
     const childEvents = allWorkoutsResult.workouts
       .filter((w) => w.parentEventId === params.eventId)
       .sort((a, b) => a.trackOrder - b.trackOrder)
@@ -143,7 +143,7 @@ export const Route = createFileRoute(
               divisionIds,
               competitionTeamId,
             },
-          }),
+          }).catch(() => ({ descriptions: [] })),
         ),
       )
       for (let i = 0; i < childEvents.length; i++) {

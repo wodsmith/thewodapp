@@ -36,20 +36,20 @@ export const Route = createFileRoute(
             competitionId: params.competitionId,
             competitionTeamId,
           },
-        }),
+        }).catch(() => ({ workouts: [] })),
         cohostGetDivisionsWithCountsFn({
           data: {
             competitionId: params.competitionId,
             competitionTeamId,
           },
-        }),
-        getAllMovementsFn(),
+        }).catch(() => ({ divisions: [] })),
+        getAllMovementsFn().catch(() => ({ movements: [] })),
         cohostGetCompetitionSponsorsFn({
           data: {
             competitionId: params.competitionId,
             competitionTeamId,
           },
-        }),
+        }).catch(() => ({ groups: [], ungroupedSponsors: [] })),
       ])
 
     // Flatten sponsors from groups and ungrouped
@@ -73,7 +73,7 @@ export const Route = createFileRoute(
       const workoutIds = eventsResult.workouts.map((e) => e.workoutId)
       const result = await cohostGetBatchDivisionDescriptionsFn({
         data: { workoutIds, divisionIds, competitionTeamId },
-      })
+      }).catch(() => ({ descriptionsByWorkout: {} }))
       divisionDescriptionsByWorkout = result.descriptionsByWorkout
     }
 

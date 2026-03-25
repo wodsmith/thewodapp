@@ -22,17 +22,16 @@ export const Route = createFileRoute(
 
     const competitionTeamId = competition.competitionTeamId!
 
-    const { groups, ungroupedSponsors } =
-      await cohostGetCompetitionSponsorsFn({
-        data: {
-          competitionId: params.competitionId,
-          competitionTeamId,
-        },
-      })
+    const sponsorsResult = await cohostGetCompetitionSponsorsFn({
+      data: {
+        competitionId: params.competitionId,
+        competitionTeamId,
+      },
+    }).catch(() => ({ groups: [], ungroupedSponsors: [] }))
 
     return {
-      groups,
-      ungroupedSponsors,
+      groups: sponsorsResult.groups,
+      ungroupedSponsors: sponsorsResult.ungroupedSponsors,
     }
   },
 })

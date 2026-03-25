@@ -165,3 +165,25 @@ Fetches organizer-eligible teams, competition groups, and series template divisi
 Series (competition groups) aggregate scores across multiple competitions.
 
 Series routes at `_dashboard/series/` support creating, editing, and viewing series. Each series has a leaderboard aggregating results, and a division management page for configuring the shared division template that member competitions inherit.
+
+# Cohost Dashboard
+
+The cohost dashboard at `/compete/cohost/{competitionId}` mirrors the organizer dashboard but uses cohost-specific server functions with permission-scoped access.
+
+## Cohost Access Model
+
+Cohosts are team members with a `cohost` role on the competition team, granted granular permissions per feature area.
+
+The layout route verifies the user is a cohost (or site admin) on the competition team, then fetches permissions via `cohostGetPermissionsFn`. Permission keys include: `divisions`, `events`, `scoring`, `viewRegistrations`, `editRegistrations`, `waivers`, `schedule`, `locations`, `volunteers`, `results`, `pricing`, `revenue`, `coupons`, `sponsors`. The sidebar hides links for features the cohost lacks permission for.
+
+## Cohost Server Functions
+
+Cohost routes use server functions from `@/server-fns/cohost/` that call `requireCohostPermission(competitionTeamId, permissionKey)`.
+
+Each cohost server fn checks the user is a cohost on that competition team AND has the specific permission key enabled. This is distinct from organizer server fns which check `requireTeamPermission(organizingTeamId, MANAGE_COMPETITIONS)` -- a permission cohosts never have.
+
+## Graceful Degradation Pattern
+
+All server function calls in cohost route loaders are wrapped with `.catch(() => sensibleDefault)` to degrade gracefully when permissions are missing.
+
+Two failure categories exist: (1) organizer server fns (from `@/server-fns/` directly) that cohosts can never access because they require organizing team membership, and (2) cohost server fns that require a specific permission key the cohost may not have. Both are caught so pages render with empty data instead of crashing. The catch defaults match the return type of each function (e.g., `{ workouts: [] }`, `{ divisions: [] }`, `[]` for array returns).

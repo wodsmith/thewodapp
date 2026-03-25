@@ -30,7 +30,7 @@ export const Route = createFileRoute(
         competitionId: params.competitionId,
         competitionTeamId,
       },
-    })
+    }).catch(() => ({ divisions: [], scalingGroupId: null as string | null, scalingGroupTitle: null as string | null, defaultMaxSpotsPerDivision: null as number | null }))
 
     return {
       divisions: divisionsResult.divisions,

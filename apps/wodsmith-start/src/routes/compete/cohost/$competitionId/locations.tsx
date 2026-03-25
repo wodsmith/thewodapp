@@ -21,14 +21,14 @@ export const Route = createFileRoute(
     const parentMatch = await parentMatchPromise
     const { competition } = parentMatch.loaderData!
 
-    const { venues } = await cohostGetCompetitionVenuesFn({
+    const venuesResult = await cohostGetCompetitionVenuesFn({
       data: {
         competitionTeamId: competition.competitionTeamId!,
         competitionId: params.competitionId,
       },
-    })
+    }).catch(() => ({ venues: [] }))
 
-    return { venues }
+    return { venues: venuesResult.venues }
   },
 })
 

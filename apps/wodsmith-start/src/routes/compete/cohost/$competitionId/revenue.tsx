@@ -33,10 +33,11 @@ export const Route = createFileRoute(
 
     // Parallel fetch: revenue stats and stripe status
     const [revenueResult, stripeResult] = await Promise.all([
-      getCompetitionRevenueStatsFn({ data: { competitionId: competition.id } }),
+      getCompetitionRevenueStatsFn({ data: { competitionId: competition.id } })
+        .catch(() => ({ stats: { totalGrossCents: 0, totalPlatformFeeCents: 0, totalStripeFeeCents: 0, totalOrganizerNetCents: 0, purchaseCount: 0, byDivision: [] } })),
       getOrganizerStripeStatusFn({
         data: { organizingTeamId: competition.organizingTeamId },
-      }),
+      }).catch(() => ({ stripeStatus: null })),
     ])
 
     return {

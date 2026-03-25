@@ -91,13 +91,13 @@ export const Route = createFileRoute(
           competitionId: params.competitionId,
           competitionTeamId,
         },
-      }),
+      }).catch(() => ({ workouts: [] })),
       cohostGetDivisionsWithCountsFn({
         data: {
           competitionId: params.competitionId,
           competitionTeamId,
         },
-      }),
+      }).catch(() => ({ divisions: [] })),
     ])
 
     const events = eventsResult.workouts
@@ -107,13 +107,14 @@ export const Route = createFileRoute(
     if (isOnline) {
       const eventSubmissionStats = await Promise.all(
         events.map(async (event) => {
-          const { submissions } = await cohostGetEventSubmissionsFn({
+          const submissionsResult = await cohostGetEventSubmissionsFn({
             data: {
               competitionTeamId,
               competitionId: params.competitionId,
               trackWorkoutId: event.id,
             },
-          })
+          }).catch(() => ({ submissions: [] }))
+          const { submissions } = submissionsResult
           const withVideo = submissions.filter((s: any) => s.hasVideo).length
           return {
             eventId: event.id,
@@ -139,7 +140,7 @@ export const Route = createFileRoute(
         competitionTeamId,
         competitionId: params.competitionId,
       },
-    })
+    }).catch(() => ({ divisions: [] } as AllEventsResultsStatusResponse))
 
     // Determine which event to show (from URL or first event)
     // Filter top-level events for the dropdown (exclude sub-events)
@@ -163,7 +164,7 @@ export const Route = createFileRoute(
         competitionTeamId,
         competitionId: params.competitionId,
       },
-    })
+    }).catch(() => ({ heats: [] }))
     const allHeats = heatsResult.heats
 
     // For parent events, load score data for ALL child events in parallel
@@ -223,7 +224,7 @@ export const Route = createFileRoute(
               trackWorkoutId: child.id,
               divisionId: deps.divisionId,
             },
-          }),
+          }).catch(() => ({ athletes: [], event: null as any, divisions: [] })),
         ),
       )
       childScoreDataList = childScoreResults.map((scoreData, i) => {
@@ -244,7 +245,7 @@ export const Route = createFileRoute(
             trackWorkoutId: effectiveEvent.id,
             divisionId: deps.divisionId,
           },
-        })
+        }).catch(() => ({ athletes: [], event: null as any, divisions: [] }))
         const { heats, unassignedRegistrationIds } = buildHeatsForEvent(
           effectiveEvent.id,
           scoreData.athletes,
