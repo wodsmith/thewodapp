@@ -36,8 +36,11 @@ import {
 } from "@/server-fns/volunteer-fns"
 import { getCompetitionShiftsFn } from "@/server-fns/volunteer-shift-fns"
 import { getCohostsFn } from "@/server-fns/cohost-fns"
+import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { ChevronDown } from "lucide-react"
 import { Copy, UserPlus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { InviteCohostDialog } from "./-components/invite-cohost-dialog"
@@ -552,43 +555,59 @@ function CohostsSection({
                 cohost.user.email
               : "Unknown"
             return (
-              <div key={cohost.id} className="flex items-center justify-between px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium">{name}</p>
-                  {cohost.user && name !== cohost.user.email && (
-                    <p className="text-xs text-muted-foreground">{cohost.user.email}</p>
-                  )}
+              <Collapsible key={cohost.id}>
+                <div className="flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <CollapsibleTrigger className="flex items-center gap-1.5 hover:text-foreground text-sm font-medium">
+                      <ChevronDown className="h-3.5 w-3.5 transition-transform [[data-state=open]>&]:rotate-180" />
+                      {name}
+                    </CollapsibleTrigger>
+                    {cohost.user && name !== cohost.user.email && (
+                      <span className="text-xs text-muted-foreground">{cohost.user.email}</span>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => handleRemoveCohost(cohost.id, name)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => handleRemoveCohost(cohost.id, name)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
+                <CollapsibleContent>
+                  <PermissionsList permissions={cohost.permissions} />
+                </CollapsibleContent>
+              </Collapsible>
             )
           })}
 
           {/* Pending invitations */}
           {pendingInvitations.map((inv) => (
-            <div key={inv.id} className="flex items-center justify-between px-4 py-3">
-              <div className="flex items-center gap-2">
-                <p className="text-sm text-muted-foreground">{inv.email}</p>
-                <Badge variant="outline" className="text-xs">Pending</Badge>
+            <Collapsible key={inv.id}>
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <CollapsibleTrigger className="flex items-center gap-1.5 hover:text-foreground text-sm text-muted-foreground">
+                    <ChevronDown className="h-3.5 w-3.5 transition-transform [[data-state=open]>&]:rotate-180" />
+                    {inv.email}
+                  </CollapsibleTrigger>
+                  <Badge variant="outline" className="text-xs">Pending</Badge>
+                </div>
+                {inv.token && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyInviteLink(inv.token!)}
+                  >
+                    <Copy className="mr-1.5 h-3.5 w-3.5" />
+                    Copy Link
+                  </Button>
+                )}
               </div>
-              {inv.token && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => copyInviteLink(inv.token!)}
-                >
-                  <Copy className="mr-1.5 h-3.5 w-3.5" />
-                  Copy Link
-                </Button>
-              )}
-            </div>
+              <CollapsibleContent>
+                <PermissionsList permissions={inv.permissions} />
+              </CollapsibleContent>
+            </Collapsible>
           ))}
         </div>
       ) : (
@@ -605,5 +624,44 @@ function CohostsSection({
         onOpenChange={setInviteOpen}
       />
     </section>
+  )
+}
+
+const PERMISSION_LABELS: Record<string, string> = {
+  canEditCapacity: "Capacity",
+  canEditScoring: "Scoring",
+  canEditRotation: "Rotation",
+  canManageVolunteers: "Volunteers",
+  canManageEvents: "Events",
+  canManageHeats: "Heats",
+  canManageResults: "Results",
+  canManageRegistrations: "Registrations",
+  canViewRevenue: "Revenue",
+  canManagePricing: "Pricing",
+}
+
+function PermissionsList({ permissions }: { permissions: CohostMembershipMetadata }) {
+  const enabled = Object.entries(PERMISSION_LABELS).filter(
+    ([key]) => permissions[key as keyof CohostMembershipMetadata],
+  )
+  const disabled = Object.entries(PERMISSION_LABELS).filter(
+    ([key]) => !permissions[key as keyof CohostMembershipMetadata],
+  )
+
+  return (
+    <div className="px-4 pb-3 pt-0">
+      <div className="flex flex-wrap gap-1.5">
+        {enabled.map(([key, label]) => (
+          <span key={key} className="rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
+            {label}
+          </span>
+        ))}
+        {disabled.map(([key, label]) => (
+          <span key={key} className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground line-through">
+            {label}
+          </span>
+        ))}
+      </div>
+    </div>
   )
 }
