@@ -1,4 +1,10 @@
-import { useDeferredValue, useMemo, useState, useTransition } from "react"
+import {
+	useEffect,
+	useDeferredValue,
+	useMemo,
+	useState,
+	useTransition,
+} from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { FilterIcon, SearchIcon, X } from "lucide-react"
 import { CompetitionCard } from "@/components/competition-card"
@@ -148,6 +154,11 @@ function CompetePage() {
   const [showAdvanced, setShowAdvanced] = useState(
     Boolean(search.location || search.organizer || search.type),
   )
+
+  // Prevent card-enter animation from firing twice on SSR + hydration.
+  // Only enable animation after the client has hydrated.
+  const [hasMounted, setHasMounted] = useState(false)
+  useEffect(() => setHasMounted(true), [])
 
   const updateSearch = (updates: Partial<CompeteSearch>) => {
     startTransition(() => {
@@ -513,6 +524,7 @@ function CompetePage() {
               competition={comp}
               status={comp._status}
               index={i}
+              animate={hasMounted}
             />
           ))}
         </div>
