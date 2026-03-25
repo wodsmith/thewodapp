@@ -324,8 +324,8 @@ export function JudgesScheduleContent({
                                       {hasJudge ? (
                                         <p className="text-xs font-medium truncate">
                                           {getJudgeName(
-                                            data.judge?.firstName,
-                                            data.judge?.lastName,
+                                            data.judge?.firstName ?? null,
+                                            data.judge?.lastName ?? null,
                                           )}
                                         </p>
                                       ) : (
@@ -504,8 +504,8 @@ export function JudgesScheduleContent({
                                         <div>
                                           <div className="font-medium whitespace-nowrap">
                                             {getFullJudgeName(
-                                              data.judge?.firstName,
-                                              data.judge?.lastName,
+                                              data.judge?.firstName ?? null,
+                                              data.judge?.lastName ?? null,
                                             )}
                                           </div>
                                           {hasDivision && (
