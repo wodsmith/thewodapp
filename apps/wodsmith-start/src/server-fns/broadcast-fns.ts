@@ -30,6 +30,13 @@ import {
 	teamTable,
 } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
+import {
+	logInfo,
+	logError,
+	logEntityCreated,
+	updateRequestContext,
+	addRequestContextAttribute,
+} from "@/lib/logging"
 import { getSessionFromCookie } from "@/utils/auth"
 import { requireTeamPermission } from "./requireTeamMembership"
 import { BroadcastNotificationEmail } from "@/react-email/broadcast-notification"
@@ -172,6 +179,9 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const session = await getSessionFromCookie()
 		if (!session?.userId) throw new Error("Authentication required")
+
+		updateRequestContext({ userId: session.userId })
+		addRequestContextAttribute("competitionId", data.competitionId)
 
 		const db = getDb()
 
@@ -370,6 +380,19 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 			},
 		)
 
+		logEntityCreated({
+			entity: "broadcast",
+			id: broadcast.id,
+			parentEntity: "competition",
+			parentId: data.competitionId,
+			attributes: {
+				title: data.title,
+				audienceFilter: filterType,
+				recipientCount: recipients.length,
+				sendEmail: data.sendEmail,
+			},
+		})
+
 		if (data.sendEmail) {
 			// Pre-render the email template once for all recipients
 			const bodyHtml = await render(
@@ -390,6 +413,9 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 				| undefined
 
 			if (queue) {
+				const batchCount = Math.ceil(
+					recipientValues.length / BATCH_SIZE,
+				)
 				for (let i = 0; i < recipientValues.length; i += BATCH_SIZE) {
 					const batchSlice = recipientValues.slice(
 						i,
@@ -410,11 +436,31 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 					}
 					await queue.send(message)
 				}
+
+				logInfo({
+					message: "[Broadcast] Emails queued for delivery",
+					attributes: {
+						broadcastId: broadcast.id,
+						recipientCount: recipientValues.length,
+						batchCount,
+					},
+				})
 			} else {
 				// Dev fallback: send emails directly when Queue binding is unavailable
+				logInfo({
+					message:
+						"[Broadcast] No queue binding, sending emails directly (dev fallback)",
+					attributes: {
+						broadcastId: broadcast.id,
+						recipientCount: recipientValues.length,
+					},
+				})
+
 				const { sendEmail: sendEmailFn } = await import(
 					"@/utils/email"
 				)
+				let sentCount = 0
+				let failedCount = 0
 				for (const rv of recipientValues) {
 					const recipient = recipients.find(
 						(r) => r.userId === rv.userId,
@@ -450,7 +496,8 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 									rv.id,
 								),
 							)
-					} catch {
+						sentCount++
+					} catch (err) {
 						await db
 							.update(competitionBroadcastRecipientsTable)
 							.set({
@@ -463,8 +510,28 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 									rv.id,
 								),
 							)
+						failedCount++
+						logError({
+							message:
+								"[Broadcast] Dev fallback email send failed",
+							error: err,
+							attributes: {
+								broadcastId: broadcast.id,
+								recipientId: rv.id,
+							},
+						})
 					}
 				}
+
+				logInfo({
+					message:
+						"[Broadcast] Dev fallback delivery complete",
+					attributes: {
+						broadcastId: broadcast.id,
+						sent: sentCount,
+						failed: failedCount,
+					},
+				})
 			}
 		} else {
 			// No email — mark all recipients as skipped (in-app only)
@@ -483,6 +550,14 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 						),
 					)
 			}
+
+			logInfo({
+				message: "[Broadcast] Created as in-app only (no email)",
+				attributes: {
+					broadcastId: broadcast.id,
+					recipientCount: recipients.length,
+				},
+			})
 		}
 
 		return {
