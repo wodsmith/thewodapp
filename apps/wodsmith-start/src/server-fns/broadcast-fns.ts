@@ -73,6 +73,7 @@ const sendBroadcastInputSchema = z.object({
 	title: z.string().min(1, "Title is required").max(255),
 	body: z.string().min(1, "Body is required"),
 	audienceFilter: audienceFilterSchema.optional(),
+	sendEmail: z.boolean().default(true),
 })
 
 const getBroadcastInputSchema = z.object({
@@ -369,76 +370,118 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 			},
 		)
 
-		// Pre-render the email template once for all recipients
-		const bodyHtml = await render(
-			BroadcastNotificationEmail({
-				competitionName: competition.name,
-				competitionSlug: competition.slug,
-				broadcastTitle: data.title,
-				broadcastBody: data.body,
-				organizerTeamName: team?.name ?? "Organizer",
-			}),
-		)
+		if (data.sendEmail) {
+			// Pre-render the email template once for all recipients
+			const bodyHtml = await render(
+				BroadcastNotificationEmail({
+					competitionName: competition.name,
+					competitionSlug: competition.slug,
+					broadcastTitle: data.title,
+					broadcastBody: data.body,
+					organizerTeamName: team?.name ?? "Organizer",
+				}),
+			)
 
-		// Enqueue batches of up to 100 recipients into Cloudflare Queue
-		const BATCH_SIZE = 100
-		const queue = (env as unknown as Record<string, unknown>)
-			.BROADCAST_EMAIL_QUEUE as Queue<BroadcastEmailMessage> | undefined
+			// Enqueue batches of up to 100 recipients into Cloudflare Queue
+			const BATCH_SIZE = 100
+			const queue = (env as unknown as Record<string, unknown>)
+				.BROADCAST_EMAIL_QUEUE as
+				| Queue<BroadcastEmailMessage>
+				| undefined
 
-		if (queue) {
-			// Production path: enqueue into Cloudflare Queue for async delivery
-			for (let i = 0; i < recipientValues.length; i += BATCH_SIZE) {
-				const batchSlice = recipientValues.slice(i, i + BATCH_SIZE)
-				const message: BroadcastEmailMessage = {
-					broadcastId: broadcast.id,
-					competitionId: data.competitionId,
-					batch: batchSlice.map((rv, idx) => ({
-						recipientId: rv.id,
-						email: recipients[i + idx].email ?? "",
-						athleteName:
-							recipients[i + idx].firstName ?? "Athlete",
-					})),
-					subject: `${data.title} — ${competition.name}`,
-					bodyHtml,
-					replyTo: "support@mail.wodsmith.com",
+			if (queue) {
+				for (let i = 0; i < recipientValues.length; i += BATCH_SIZE) {
+					const batchSlice = recipientValues.slice(
+						i,
+						i + BATCH_SIZE,
+					)
+					const message: BroadcastEmailMessage = {
+						broadcastId: broadcast.id,
+						competitionId: data.competitionId,
+						batch: batchSlice.map((rv, idx) => ({
+							recipientId: rv.id,
+							email: recipients[i + idx].email ?? "",
+							athleteName:
+								recipients[i + idx].firstName ?? "Athlete",
+						})),
+						subject: `${data.title} — ${competition.name}`,
+						bodyHtml,
+						replyTo: "support@mail.wodsmith.com",
+					}
+					await queue.send(message)
 				}
-				await queue.send(message)
+			} else {
+				// Dev fallback: send emails directly when Queue binding is unavailable
+				const { sendEmail: sendEmailFn } = await import(
+					"@/utils/email"
+				)
+				for (const rv of recipientValues) {
+					const recipient = recipients.find(
+						(r) => r.userId === rv.userId,
+					)
+					if (!recipient || !recipient.email) continue
+					try {
+						await sendEmailFn({
+							to: recipient.email,
+							subject: `${data.title} — ${competition.name}`,
+							template: BroadcastNotificationEmail({
+								competitionName: competition.name,
+								competitionSlug: competition.slug,
+								broadcastTitle: data.title,
+								broadcastBody: data.body,
+								organizerTeamName: team?.name ?? "Organizer",
+							}),
+							tags: [
+								{
+									name: "type",
+									value: "competition-broadcast",
+								},
+							],
+						})
+						await db
+							.update(competitionBroadcastRecipientsTable)
+							.set({
+								emailDeliveryStatus:
+									BROADCAST_EMAIL_DELIVERY_STATUS.SENT,
+							})
+							.where(
+								eq(
+									competitionBroadcastRecipientsTable.id,
+									rv.id,
+								),
+							)
+					} catch {
+						await db
+							.update(competitionBroadcastRecipientsTable)
+							.set({
+								emailDeliveryStatus:
+									BROADCAST_EMAIL_DELIVERY_STATUS.FAILED,
+							})
+							.where(
+								eq(
+									competitionBroadcastRecipientsTable.id,
+									rv.id,
+								),
+							)
+					}
+				}
 			}
 		} else {
-			// Dev fallback: send emails directly when Queue binding is unavailable
-			const { sendEmail } = await import("@/utils/email")
-			for (const rv of recipientValues) {
-				const recipient = recipients.find((r) => r.userId === rv.userId)
-				if (!recipient || !recipient.email) continue
-				try {
-					await sendEmail({
-						to: recipient.email,
-						subject: `${data.title} — ${competition.name}`,
-						template: BroadcastNotificationEmail({
-							competitionName: competition.name,
-							competitionSlug: competition.slug,
-							broadcastTitle: data.title,
-							broadcastBody: data.body,
-							organizerTeamName: team?.name ?? "Organizer",
-						}),
-						tags: [{ name: "type", value: "competition-broadcast" }],
+			// No email — mark all recipients as sent (in-app only)
+			const allIds = recipientValues.map((rv) => rv.id)
+			if (allIds.length > 0) {
+				await db
+					.update(competitionBroadcastRecipientsTable)
+					.set({
+						emailDeliveryStatus:
+							BROADCAST_EMAIL_DELIVERY_STATUS.SENT,
 					})
-					await db
-						.update(competitionBroadcastRecipientsTable)
-						.set({
-							emailDeliveryStatus:
-								BROADCAST_EMAIL_DELIVERY_STATUS.SENT,
-						})
-						.where(eq(competitionBroadcastRecipientsTable.id, rv.id))
-				} catch {
-					await db
-						.update(competitionBroadcastRecipientsTable)
-						.set({
-							emailDeliveryStatus:
-								BROADCAST_EMAIL_DELIVERY_STATUS.FAILED,
-						})
-						.where(eq(competitionBroadcastRecipientsTable.id, rv.id))
-				}
+					.where(
+						inArray(
+							competitionBroadcastRecipientsTable.id,
+							allIds,
+						),
+					)
 			}
 		}
 

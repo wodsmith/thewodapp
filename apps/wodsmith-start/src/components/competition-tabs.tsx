@@ -20,7 +20,7 @@ const tabs = [
   { label: "Workouts", href: "/workouts", icon: Dumbbell },
   { label: "Schedule", href: "/schedule", icon: Calendar },
   { label: "Leaderboard", href: "/leaderboard", icon: Trophy },
-  { label: "Broadcasts", href: "/broadcasts", icon: Megaphone },
+  { label: "Announcements", href: "/broadcasts", icon: Megaphone },
 ]
 
 export function CompetitionTabs({ slug }: CompetitionTabsProps) {

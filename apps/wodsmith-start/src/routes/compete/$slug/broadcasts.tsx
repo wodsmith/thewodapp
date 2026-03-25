@@ -46,10 +46,10 @@ function AthleteBroadcastsPage() {
 
 			<div>
 				<h2 className="text-xl font-bold tracking-tight mb-1">
-					Broadcasts
+					Announcements
 				</h2>
 				<p className="text-muted-foreground text-sm">
-					Announcements from the organizer
+					Updates from the organizer
 				</p>
 			</div>
 
@@ -58,11 +58,11 @@ function AthleteBroadcastsPage() {
 					<CardContent className="flex flex-col items-center justify-center py-12">
 						<Megaphone className="h-12 w-12 text-muted-foreground mb-4" />
 						<h3 className="text-lg font-semibold mb-1">
-							No broadcasts yet
+							No announcements yet
 						</h3>
 						<p className="text-muted-foreground text-sm">
-							The organizer hasn&apos;t sent any broadcasts for this
-							competition
+							The organizer hasn&apos;t posted any announcements for
+							this competition
 						</p>
 					</CardContent>
 				</Card>

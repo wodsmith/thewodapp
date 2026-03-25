@@ -219,6 +219,7 @@ function ComposeCard({
 	const [filterType, setFilterType] = useState<AudienceFilterType>("all")
 	const [divisionId, setDivisionId] = useState<string>("")
 	const [volunteerRole, setVolunteerRole] = useState<string>("")
+	const [shouldSendEmail, setShouldSendEmail] = useState(true)
 	const [audienceCount, setAudienceCount] = useState<number | null>(null)
 	const [isSending, setIsSending] = useState(false)
 	const [isPreviewing, setIsPreviewing] = useState(false)
@@ -286,6 +287,7 @@ function ComposeCard({
 					title: title.trim(),
 					body: body.trim(),
 					audienceFilter,
+					sendEmail: shouldSendEmail,
 				},
 			})
 			toast.success(
@@ -408,6 +410,16 @@ function ComposeCard({
 						</span>
 					</div>
 				</div>
+
+				<label className="flex items-center gap-2 text-sm">
+					<input
+						type="checkbox"
+						checked={shouldSendEmail}
+						onChange={(e) => setShouldSendEmail(e.target.checked)}
+						className="rounded border-border"
+					/>
+					Send email notification to recipients
+				</label>
 
 				<div className="flex justify-end gap-3 pt-4 border-t">
 					<Button variant="outline" onClick={onCancel} disabled={isSending}>
