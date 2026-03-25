@@ -202,7 +202,7 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 			email: string | null
 			firstName: string | null
 		}
-		let recipients: Recipient[] = []
+		const recipients: Recipient[] = []
 
 		const includeAthletes =
 			filterType === "all" ||

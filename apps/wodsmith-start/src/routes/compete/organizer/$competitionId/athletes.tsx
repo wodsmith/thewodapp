@@ -1721,8 +1721,7 @@ function AthletesPage() {
                                             Invited
                                           </span>
                                         ) : row.status === "accepted" ? (
-                                          <>
-                                            {row.pendingInvite?.guestName ? (
+                                          row.pendingInvite?.guestName ? (
                                               <span>
                                                 {row.pendingInvite.guestName}
                                               </span>
@@ -1730,8 +1729,7 @@ function AthletesPage() {
                                               <span className="italic text-muted-foreground">
                                                 Invited
                                               </span>
-                                            )}
-                                          </>
+                                            )
                                         ) : (
                                           <>
                                             {row.athlete.firstName ?? ""}{" "}

@@ -17,7 +17,7 @@ export const Route = createFileRoute("/compete/$slug/volunteer")({
     })
 
     const currentUser =
-      session && session.user.email
+      session?.user.email
         ? {
             name: `${session.user.firstName || ""} ${session.user.lastName || ""}`.trim(),
             email: session.user.email,

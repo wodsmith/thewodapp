@@ -1388,8 +1388,8 @@ export const adjustRotationsForOccupiedLanesFn = createServerFn({
           } else {
             // End current run, start new one
             newRotations.push({
-              startingHeat: currentRun[0]!.heatNumber,
-              startingLane: currentRun[0]!.laneNumber,
+              startingHeat: currentRun[0]?.heatNumber,
+              startingLane: currentRun[0]?.laneNumber,
               heatsCount: currentRun.length,
             })
             currentRun = [assignment]
@@ -1400,8 +1400,8 @@ export const adjustRotationsForOccupiedLanesFn = createServerFn({
       // Don't forget the last run
       if (currentRun.length > 0) {
         newRotations.push({
-          startingHeat: currentRun[0]!.heatNumber,
-          startingLane: currentRun[0]!.laneNumber,
+          startingHeat: currentRun[0]?.heatNumber,
+          startingLane: currentRun[0]?.laneNumber,
           heatsCount: currentRun.length,
         })
       }
