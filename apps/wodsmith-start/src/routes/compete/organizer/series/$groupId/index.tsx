@@ -45,8 +45,7 @@ export const Route = createFileRoute(
     if (!groupResult.group) {
       return {
         group: null,
-        seriesCompetitions: [],
-        allCompetitions: [],
+        competitions: [],
         allGroups: [],
         deferredRevenueStats: Promise.resolve(null),
         teamId: null,
@@ -56,8 +55,7 @@ export const Route = createFileRoute(
     if (organizingTeams.length === 0 && !isSiteAdmin) {
       return {
         group: null,
-        seriesCompetitions: [],
-        allCompetitions: [],
+        competitions: [],
         allGroups: [],
         deferredRevenueStats: Promise.resolve(null),
         teamId: null,
@@ -78,10 +76,10 @@ export const Route = createFileRoute(
 
     const competitionsResult = await getOrganizerCompetitionsFn({ data: { teamId } })
 
-    // Filter competitions that belong to this series
-    const seriesCompetitions = competitionsResult.competitions.filter(
+    const competitions = competitionsResult.competitions
+    const seriesCompetitionCount = competitions.filter(
       (c) => c.groupId === groupId,
-    )
+    ).length
 
     // Defer revenue stats — not needed for initial render
     const deferredRevenueStats = getSeriesRevenueStatsFn({
@@ -90,12 +88,11 @@ export const Route = createFileRoute(
 
     return {
       group: groupResult.group,
-      seriesCompetitions,
-      allCompetitions: competitionsResult.competitions,
+      competitions,
       allGroups: [
         {
           ...groupResult.group,
-          competitionCount: seriesCompetitions.length,
+          competitionCount: seriesCompetitionCount,
         },
       ],
       deferredRevenueStats,
@@ -107,8 +104,7 @@ export const Route = createFileRoute(
 function SeriesDetailPage() {
   const {
     group,
-    seriesCompetitions,
-    allCompetitions,
+    competitions,
     allGroups,
     deferredRevenueStats,
     teamId,
@@ -247,8 +243,8 @@ function SeriesDetailPage() {
                   Competitions
                 </div>
                 <div className="text-sm mt-1">
-                  {seriesCompetitions.length} competition
-                  {seriesCompetitions.length !== 1 ? "s" : ""}
+                  {competitions.filter((c) => c.groupId === group.id).length} competition
+                  {competitions.filter((c) => c.groupId === group.id).length !== 1 ? "s" : ""}
                 </div>
               </div>
             </div>
@@ -280,7 +276,7 @@ function SeriesDetailPage() {
             </div>
           </div>
           <OrganizerCompetitionsList
-            competitions={seriesCompetitions}
+            competitions={competitions}
             groups={allGroups}
             teamId={teamId}
             currentGroupId={group.id}
@@ -295,8 +291,8 @@ function SeriesDetailPage() {
         onOpenChange={setIsAddDialogOpen}
         groupId={group.id}
         groupName={group.name}
-        allCompetitions={allCompetitions}
-        currentSeriesCompetitions={seriesCompetitions}
+        allCompetitions={competitions}
+        currentSeriesCompetitions={competitions.filter((c) => c.groupId === group.id)}
       />
     </div>
   )
