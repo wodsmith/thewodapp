@@ -5,13 +5,15 @@ export const Route = createFileRoute("/privacy")({
   head: () => ({
     meta: [
       {
-        title: "Privacy Policy - WODsmith",
+        title: "Privacy Policy | WODsmith",
       },
       {
         name: "description",
-        content: "WODsmith Privacy Policy",
+        content:
+          "Learn how WODsmith collects, uses, and protects your personal data. Our privacy policy covers workout data, competition registrations, and account information.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://wodsmith.com/privacy" }],
   }),
   component: PrivacyPage,
 })

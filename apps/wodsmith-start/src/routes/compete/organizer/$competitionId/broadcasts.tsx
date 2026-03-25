@@ -7,7 +7,7 @@
 // @lat: [[organizer-dashboard#Broadcasts]]
 
 import { createFileRoute, getRouteApi, useRouter } from "@tanstack/react-router"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Megaphone, Plus, Send, Users } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -224,20 +224,20 @@ function ComposeCard({
 	const [isSending, setIsSending] = useState(false)
 	const [isPreviewing, setIsPreviewing] = useState(false)
 
-	const audienceFilter =
-		filterType === "division" && divisionId
-			? { type: "division" as const, divisionId }
-			: filterType === "volunteer_role" && volunteerRole
-				? { type: "volunteer_role" as const, volunteerRole }
-				: { type: filterType as "all" | "public" | "volunteers" }
+	const audienceFilter = useMemo(
+		() =>
+			filterType === "division" && divisionId
+				? { type: "division" as const, divisionId }
+				: filterType === "volunteer_role" && volunteerRole
+					? { type: "volunteer_role" as const, volunteerRole }
+					: { type: filterType as "all" | "public" | "volunteers" },
+		[filterType, divisionId, volunteerRole],
+	)
 
 	// Auto-fetch recipient count when filter is complete
 	const filterReady =
-		filterType !== "division" || divisionId
-			? filterType !== "volunteer_role" || volunteerRole
-				? true
-				: false
-			: false
+		(filterType !== "division" || !!divisionId) &&
+		(filterType !== "volunteer_role" || !!volunteerRole)
 
 	useEffect(() => {
 		if (!filterReady) {
@@ -262,7 +262,7 @@ function ComposeCard({
 		return () => {
 			cancelled = true
 		}
-	}, [filterType, divisionId, volunteerRole, competitionId])
+	}, [filterReady, audienceFilter, competitionId])
 
 	const handleSend = async () => {
 		if (!title.trim() || !body.trim()) {

@@ -23,6 +23,7 @@ import { Route as TransferTransferIdRouteImport } from './routes/transfer/$trans
 import { Route as CompeteOrganizerRouteImport } from './routes/compete/organizer'
 import { Route as CompeteSlugRouteImport } from './routes/compete/$slug'
 import { Route as ApiUploadRouteImport } from './routes/api/upload'
+import { Route as ApiSitemapRouteImport } from './routes/api/sitemap'
 import { Route as ApiGetSessionRouteImport } from './routes/api/get-session'
 import { Route as ProtectedSettingsRouteImport } from './routes/_protected/settings'
 import { Route as ProtectedDashboardRouteImport } from './routes/_protected/dashboard'
@@ -234,6 +235,11 @@ const CompeteSlugRoute = CompeteSlugRouteImport.update({
 const ApiUploadRoute = ApiUploadRouteImport.update({
   id: '/api/upload',
   path: '/api/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSitemapRoute = ApiSitemapRouteImport.update({
+  id: '/api/sitemap',
+  path: '/api/sitemap',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiGetSessionRoute = ApiGetSessionRouteImport.update({
@@ -1070,6 +1076,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof ProtectedDashboardRoute
   '/settings': typeof ProtectedSettingsRouteWithChildren
   '/api/get-session': typeof ApiGetSessionRoute
+  '/api/sitemap': typeof ApiSitemapRoute
   '/api/upload': typeof ApiUploadRoute
   '/compete/$slug': typeof CompeteSlugRouteWithChildren
   '/compete/organizer': typeof CompeteOrganizerDashboardRouteWithChildren
@@ -1224,6 +1231,7 @@ export interface FileRoutesByTo {
   '/verify-email': typeof AuthVerifyEmailRoute
   '/dashboard': typeof ProtectedDashboardRoute
   '/api/get-session': typeof ApiGetSessionRoute
+  '/api/sitemap': typeof ApiSitemapRoute
   '/api/upload': typeof ApiUploadRoute
   '/compete/organizer': typeof CompeteOrganizerDashboardIndexRoute
   '/transfer/$transferId': typeof TransferTransferIdRoute
@@ -1375,6 +1383,7 @@ export interface FileRoutesById {
   '/_protected/dashboard': typeof ProtectedDashboardRoute
   '/_protected/settings': typeof ProtectedSettingsRouteWithChildren
   '/api/get-session': typeof ApiGetSessionRoute
+  '/api/sitemap': typeof ApiSitemapRoute
   '/api/upload': typeof ApiUploadRoute
   '/compete/$slug': typeof CompeteSlugRouteWithChildren
   '/compete/organizer': typeof CompeteOrganizerRouteWithChildren
@@ -1535,6 +1544,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/settings'
     | '/api/get-session'
+    | '/api/sitemap'
     | '/api/upload'
     | '/compete/$slug'
     | '/compete/organizer'
@@ -1689,6 +1699,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/dashboard'
     | '/api/get-session'
+    | '/api/sitemap'
     | '/api/upload'
     | '/compete/organizer'
     | '/transfer/$transferId'
@@ -1839,6 +1850,7 @@ export interface FileRouteTypes {
     | '/_protected/dashboard'
     | '/_protected/settings'
     | '/api/get-session'
+    | '/api/sitemap'
     | '/api/upload'
     | '/compete/$slug'
     | '/compete/organizer'
@@ -1992,6 +2004,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
   ApiGetSessionRoute: typeof ApiGetSessionRoute
+  ApiSitemapRoute: typeof ApiSitemapRoute
   ApiUploadRoute: typeof ApiUploadRoute
   TransferTransferIdRoute: typeof TransferTransferIdRoute
   ApiAuthTokenRoute: typeof ApiAuthTokenRouteWithChildren
@@ -2117,6 +2130,13 @@ declare module '@tanstack/react-router' {
       path: '/api/upload'
       fullPath: '/api/upload'
       preLoaderRoute: typeof ApiUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/sitemap': {
+      id: '/api/sitemap'
+      path: '/api/sitemap'
+      fullPath: '/api/sitemap'
+      preLoaderRoute: typeof ApiSitemapRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/get-session': {
@@ -3618,6 +3638,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
   ApiGetSessionRoute: ApiGetSessionRoute,
+  ApiSitemapRoute: ApiSitemapRoute,
   ApiUploadRoute: ApiUploadRoute,
   TransferTransferIdRoute: TransferTransferIdRoute,
   ApiAuthTokenRoute: ApiAuthTokenRouteWithChildren,
