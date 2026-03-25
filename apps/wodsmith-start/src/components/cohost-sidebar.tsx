@@ -237,7 +237,7 @@ function CohostSidebarHeader() {
               Compete
             </span>
           </h1>
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-500">
             Co-Hosting
           </span>
         </div>
@@ -346,7 +346,7 @@ export function CohostSidebar({
                 Compete
               </span>
             </span>
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-500">
               Co-Host
             </span>
           </Link>
