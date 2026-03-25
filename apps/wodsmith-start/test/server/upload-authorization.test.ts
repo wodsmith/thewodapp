@@ -68,7 +68,7 @@ describe("checkUploadAuthorization", () => {
 
 			expect(result.authorized).toBe(false)
 			expect(result.error).toBe(
-				"Competition ID is required for judging sheet uploads",
+				"Competition or series group ID is required for judging sheet uploads",
 			)
 		})
 
@@ -82,7 +82,7 @@ describe("checkUploadAuthorization", () => {
 			)
 
 			expect(result.authorized).toBe(false)
-			expect(result.error).toBe("Competition not found")
+			expect(result.error).toBe("Competition or series group not found")
 		})
 
 		it("rejects judging-sheet upload when user lacks permission", async () => {
@@ -97,7 +97,7 @@ describe("checkUploadAuthorization", () => {
 
 			expect(result.authorized).toBe(false)
 			expect(result.error).toBe(
-				"Not authorized to upload judging sheets for this competition",
+				"Not authorized to upload judging sheets",
 			)
 		})
 

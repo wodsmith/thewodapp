@@ -112,9 +112,24 @@ export const Route = createFileRoute(
         teamId: competition.organizingTeamId,
       },
     })
-    const childEvents = allWorkoutsResult.workouts
+    const childWorkouts = allWorkoutsResult.workouts
       .filter((w) => w.parentEventId === params.eventId)
       .sort((a, b) => a.trackOrder - b.trackOrder)
+
+    // Fetch full details (including movements) for each child event
+    const childEventResults = await Promise.all(
+      childWorkouts.map((child) =>
+        getCompetitionEventFn({
+          data: {
+            trackWorkoutId: child.id,
+            teamId: competition.organizingTeamId,
+          },
+        }),
+      ),
+    )
+    const childEvents = childEventResults
+      .map((r) => r.event)
+      .filter((e): e is NonNullable<typeof e> => e !== null)
 
     // Fetch division descriptions for each child event
     const childDivisionDescriptions: Record<

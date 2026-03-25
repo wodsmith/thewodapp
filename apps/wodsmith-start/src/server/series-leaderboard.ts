@@ -10,7 +10,7 @@
  * to participate in the same leaderboard.
  */
 
-import { and, eq, inArray } from "drizzle-orm"
+import { and, eq, inArray, isNotNull } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
   competitionGroupsTable,
@@ -73,6 +73,7 @@ export interface SeriesLeaderboardResult {
   scoringConfig: ScoringConfig
   seriesEvents: Array<{ workoutId: string; name: string; scheme: string }>
   availableDivisions: Array<{ id: string; label: string }>
+  unmappedCompetitions: Array<{ id: string; name: string }>
 }
 
 // ============================================================================
@@ -120,6 +121,7 @@ export async function getSeriesLeaderboard(params: {
     scoringConfig,
     seriesEvents: [],
     availableDivisions: [],
+    unmappedCompetitions: [],
   }
 
   // If no template is configured, no leaderboard is possible
@@ -165,7 +167,11 @@ export async function getSeriesLeaderboard(params: {
     .where(eq(seriesDivisionMappingsTable.groupId, params.groupId))
 
   if (mappings.length === 0) {
-    return { ...emptyResult, availableDivisions }
+    return {
+      ...emptyResult,
+      availableDivisions,
+      unmappedCompetitions: comps.map((c) => ({ id: c.id, name: c.name })),
+    }
   }
 
   // Build lookup: competitionDivisionId → seriesDivisionId
@@ -176,10 +182,15 @@ export async function getSeriesLeaderboard(params: {
     mappedCompIds.add(m.competitionId)
   }
 
+  // Compute unmapped competitions
+  const unmappedCompetitions = comps
+    .filter((c) => !mappedCompIds.has(c.id))
+    .map((c) => ({ id: c.id, name: c.name }))
+
   // Only include competitions that have at least one mapping
   const participatingCompIds = compIds.filter((id) => mappedCompIds.has(id))
   if (participatingCompIds.length === 0) {
-    return { ...emptyResult, availableDivisions }
+    return { ...emptyResult, availableDivisions, unmappedCompetitions }
   }
 
   // 5. Load programming tracks for participating comps
@@ -189,10 +200,15 @@ export async function getSeriesLeaderboard(params: {
       competitionId: programmingTracksTable.competitionId,
     })
     .from(programmingTracksTable)
-    .where(inArray(programmingTracksTable.competitionId, participatingCompIds))
+    .where(
+      and(
+        inArray(programmingTracksTable.competitionId, participatingCompIds),
+        isNotNull(programmingTracksTable.competitionId),
+      ),
+    )
 
   if (tracks.length === 0) {
-    return { ...emptyResult, availableDivisions }
+    return { ...emptyResult, availableDivisions, unmappedCompetitions }
   }
 
   const trackIds = tracks.map((t) => t.id)
@@ -279,7 +295,7 @@ export async function getSeriesLeaderboard(params: {
     .orderBy(competitionsTable.id)
 
   if (allRegistrations.length === 0) {
-    return { ...emptyResult, availableDivisions, seriesEvents }
+    return { ...emptyResult, availableDivisions, seriesEvents, unmappedCompetitions }
   }
 
   // 9. Filter registrations to only those with mapped divisions,
@@ -313,7 +329,7 @@ export async function getSeriesLeaderboard(params: {
   }
 
   if (mappedRegistrations.length === 0) {
-    return { ...emptyResult, availableDivisions, seriesEvents }
+    return { ...emptyResult, availableDivisions, seriesEvents, unmappedCompetitions }
   }
 
   // 10. Deduplicate: per (userId, seriesDivisionId) keep one entry
@@ -551,5 +567,6 @@ export async function getSeriesLeaderboard(params: {
     scoringConfig,
     seriesEvents,
     availableDivisions,
+    unmappedCompetitions,
   }
 }

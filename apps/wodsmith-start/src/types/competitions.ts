@@ -130,6 +130,12 @@ export interface SeriesSettings {
    * instead of inferring the primary via majority vote.
    */
   scalingGroupId?: string
+  /**
+   * The programming track that holds this series' event templates.
+   * Template events are regular track_workouts on this track.
+   * When set, the series Events tab shows the template editor.
+   */
+  templateTrackId?: string
 }
 
 /**

@@ -32,7 +32,8 @@ interface JudgingSheet {
 }
 
 interface EventJudgingSheetsProps {
-  competitionId: string
+  competitionId?: string
+  groupId?: string
   trackWorkoutId: string
   sheets: JudgingSheet[]
   onSheetsChange: (sheets: JudgingSheet[]) => void
@@ -40,6 +41,7 @@ interface EventJudgingSheetsProps {
 
 export function EventJudgingSheets({
   competitionId,
+  groupId,
   trackWorkoutId,
   sheets,
   onSheetsChange,
@@ -94,6 +96,7 @@ export function EventJudgingSheets({
       const result = await createSheet({
         data: {
           competitionId,
+          groupId,
           trackWorkoutId,
           title: newSheetTitle.trim(),
           url: pendingUpload.url,
@@ -120,6 +123,7 @@ export function EventJudgingSheets({
     }
   }, [
     competitionId,
+    groupId,
     trackWorkoutId,
     pendingUpload,
     newSheetTitle,
@@ -311,7 +315,7 @@ export function EventJudgingSheets({
         {!pendingUpload && (
           <FileUpload
             purpose="judging-sheet"
-            entityId={competitionId}
+            entityId={competitionId ?? groupId ?? ""}
             onUpload={handleFileUpload}
             maxSizeMb={20}
           />

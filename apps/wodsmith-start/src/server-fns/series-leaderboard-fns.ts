@@ -18,6 +18,7 @@ export interface SeriesLeaderboardResponse {
   scoringConfig: ScoringConfig
   seriesEvents: Array<{ workoutId: string; name: string; scheme: string }>
   availableDivisions: Array<{ id: string; label: string }>
+  unmappedCompetitions: Array<{ id: string; name: string }>
 }
 
 export const getSeriesLeaderboardFn = createServerFn({ method: "GET" })

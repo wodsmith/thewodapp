@@ -250,7 +250,8 @@ describe("Judging Sheet Server Functions", () => {
 		})
 
 		it("fails if sheet not found", async () => {
-			mockDb.query.eventJudgingSheetsTable.findFirst.mockResolvedValueOnce(undefined)
+			// select().from().innerJoin().where().limit() returns empty array
+			mockDb.setMockReturnValue([])
 
 			await expect(
 				updateJudgingSheetFn({
@@ -273,8 +274,13 @@ describe("Judging Sheet Server Functions", () => {
 			})
 			const updatedSheet = { ...existingSheet, title: "Updated Title" }
 
-			// Mock the initial sheet lookup
-			mockDb.query.eventJudgingSheetsTable.findFirst.mockResolvedValueOnce(existingSheet)
+			// Mock the select().from().innerJoin().where().limit() chain for track-based auth
+			mockDb.setMockReturnValue([{
+				id: "ejsheet_test1",
+				competitionId,
+				trackWorkoutId,
+				ownerTeamId: teamId,
+			}])
 
 			// Mock the findFirst() after update (PlanetScale: no .returning())
 			mockDb.query.eventJudgingSheetsTable.findFirst.mockResolvedValueOnce(updatedSheet)
@@ -304,7 +310,8 @@ describe("Judging Sheet Server Functions", () => {
 		})
 
 		it("fails if sheet not found", async () => {
-			mockDb.query.eventJudgingSheetsTable.findFirst.mockResolvedValueOnce(undefined)
+			// select().from().innerJoin().where().limit() returns empty array
+			mockDb.setMockReturnValue([])
 
 			await expect(
 				deleteJudgingSheetFn({
@@ -316,15 +323,13 @@ describe("Judging Sheet Server Functions", () => {
 		})
 
 		it("deletes sheet and returns success", async () => {
-			const existingSheet = createMockJudgingSheet({
+			// Mock the select().from().innerJoin().where().limit() chain for track-based auth
+			mockDb.setMockReturnValue([{
 				id: "ejsheet_test1",
-				competition: {
-					id: competitionId,
-					organizingTeamId: teamId,
-				},
-			})
-
-			mockDb.query.eventJudgingSheetsTable.findFirst.mockResolvedValueOnce(existingSheet)
+				competitionId,
+				trackWorkoutId,
+				ownerTeamId: teamId,
+			}])
 
 			const result = await deleteJudgingSheetFn({
 				data: {

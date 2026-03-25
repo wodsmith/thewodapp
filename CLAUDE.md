@@ -17,7 +17,154 @@ After EVERY task, before responding to the user:
 
 This project uses [lat.md](https://www.npmjs.com/package/lat.md) to maintain a structured knowledge graph of its architecture, design decisions, and test specs in the `lat.md/` directory. It is a set of cross-linked markdown files that describe **what** this project does and **why** — the domain concepts, key design decisions, business logic, and test specifications. Use it to ground your work in the actual architecture rather than guessing.
 
-# Commands
+## Development Commands (wodsmith-start)
+
+Run these from `apps/wodsmith-start/`:
+
+### Build and Development
+
+- `pnpm dev` - Start development server
+- `pnpm build` - Build TanStack Start application
+- `pnpm preview` - Preview production build with Cloudflare
+
+### Code Quality
+
+- `pnpm lint` - Run Biome linter
+- `pnpm format` - Format code with Biome
+- `pnpm check` - Run Biome check (lint + format)
+- `pnpm type-check` - Run TypeScript type checking
+
+### Database Operations
+
+- `pnpm db:push` - Push schema changes to PlanetScale dev branch (use during development)
+- `pnpm db:generate --name=X` - Generate migration (only before merging to main)
+- `pnpm db:studio` - Open Drizzle Studio
+- `pnpm db:migrate:local` - Apply migrations locally
+
+### Testing
+
+- `pnpm test` - Run all tests with Vitest (single run mode)
+- Test files are located in `test/` directory
+
+### Cloudflare
+
+- `pnpm cf-typegen` - Generate Cloudflare types (run after wrangler.jsonc changes)
+- `npx alchemy deploy` - Deploy using Alchemy IaC
+- `pnpm alchemy:dev` - Deploy local dev environment with Alchemy (required after changing env vars in `.dev.vars`)
+
+## Architecture Overview (wodsmith-start)
+
+### Tech Stack
+
+- **Framework**: TanStack Start (React 19, TypeScript, Vinxi/Vite)
+- **Database**: PlanetScale (MySQL) with Drizzle ORM via Hyperdrive
+- **Authentication**: Custom auth with KV sessions
+- **Deployment**: Cloudflare Workers via Alchemy IaC
+- **UI**: Tailwind CSS, Shadcn UI, Radix primitives
+- **State**: Zustand (client), TanStack Router loaders (server)
+- **API**: TanStack Start server functions (`createServerFn`)
+
+### Project Structure (wodsmith-start)
+
+```
+apps/wodsmith-start/src/
+├── routes/                 # TanStack Router file-based routes
+│   ├── api/               # API routes (server handlers)
+│   └── compete/           # Competition features
+├── components/            # React components
+├── db/                    # Database schema and migrations
+│   ├── schema.ts          # Main schema exports
+│   └── migrations/        # Auto-generated migrations
+├── server/                # Server-only business logic
+├── server-fns/            # Server functions (createServerFn)
+├── lib/                   # Shared utilities
+│   ├── env.ts             # Server-only env access (getAppUrl, etc.)
+│   └── stripe.ts          # Server-only Stripe client
+├── utils/                 # Shared utilities
+├── state/                 # Client state (Zustand)
+└── schemas/               # Zod validation schemas
+```
+
+### Multi-Tenancy
+
+- Team-based data isolation with `teamId` filtering
+- Role-based permissions (admin, member roles)
+- Team switching via team-switcher component
+- All database operations must include team context
+
+### Database Schema
+
+Database is modularly structured in `src/db/schemas/`:
+
+- `users.ts` - User accounts and authentication
+- `teams.ts` - Team/organization management
+- `workouts.ts` - Workout management system
+- `programming.ts` - Programming tracks and scheduling
+- `billing.ts` - Credit billing system
+- `scaling.ts` - Workout scaling options
+- `scheduling.ts` - Schedule templates and scheduling
+- Main schema exports from `src/db/schema.ts`
+
+## Development Guidelines
+
+### Code Style
+
+- Use TypeScript everywhere, prefer interfaces over types
+- Functional components, avoid classes
+- Server Components by default, `use client` only when necessary
+- Add `import "server-only"` to server-only files (except page.tsx)
+- Use semantic commit messages: `feat:`, `fix:`, `chore:`
+- Use `pnpm` as package manager
+
+### Database
+
+- **Local development**: Use `pnpm db:push` to apply schema changes directly (no migration files)
+- **Before merging**: Generate migrations with `pnpm db:generate --name=feature-name`
+- **Never write SQL migrations manually** - always use drizzle-kit
+- Use `db.transaction()` when multiple writes need to be atomic (PlanetScale supports transactions)
+- Never pass `id` when inserting (auto-generated with CUID2)
+- Always filter by `teamId` for multi-tenant data
+- Use helper functions in `src/server/` for business logic
+- Use standard Drizzle queries with `inArray()` directly — PlanetScale has no restrictive parameter limits
+
+### Authentication & Authorization
+
+- Session handling: `getSessionFromCookie()` for server components
+- Client session: `useSession()` from `src/utils/auth-client.ts`
+- Team authorization utilities in `src/utils/team-auth.ts`
+- Protect routes with team context validation
+- When checking roles use available roles from `src/db/schemas/teams.ts`
+
+### State Management
+
+- Server state: React Server Components
+- Client state: Zustand stores in `src/state/`
+- URL state: NUQS for search parameters
+- Forms: React Hook Form with Zod validation
+
+### API Patterns
+
+- Server functions with TanStack Start: `createServerFn` (see below)
+- Named object parameters for functions with >1 parameter
+- Consistent error handling with proper HTTP status codes
+- Rate limiting on auth endpoints
+
+### TanStack Start Server Functions (wodsmith-start)
+
+#### Environment Variables
+
+**ALWAYS** use `env` from `cloudflare:workers` - never use `process.env`:
+
+```typescript
+import {env} from 'cloudflare:workers'
+
+env.HYPERDRIVE // PlanetScale via Hyperdrive
+env.KV_SESSION // KV namespace binding
+env.APP_URL // Environment variable
+env.STRIPE_SECRET_KEY // Secret
+```
+
+**TypeScript not recognizing env vars?** If you've added new bindings in `alchemy.run.ts` and deployed with `pnpm alchemy:dev`, but TypeScript doesn't see them, run:
 
 ```bash
 lat locate "Section Name"      # find a section by name (exact, fuzzy)
