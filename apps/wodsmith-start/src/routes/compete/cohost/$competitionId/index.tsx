@@ -59,7 +59,7 @@ export const Route = createFileRoute("/compete/cohost/$competitionId/")({
     ] = await Promise.all([
       cohostGetRegistrationsFn({
         data: { competitionId: params.competitionId, competitionTeamId },
-      }),
+      }).catch(() => ({ registrations: [] })),
       cohostGetRevenueStatsFn({
         data: { competitionId: params.competitionId, competitionTeamId },
       }).catch(() => ({ stats: { totalGrossCents: 0, totalOrganizerNetCents: 0, purchaseCount: 0 } })),
@@ -68,24 +68,24 @@ export const Route = createFileRoute("/compete/cohost/$competitionId/")({
           competitionId: params.competitionId,
           competitionTeamId,
         },
-      }),
+      }).catch(() => ({ workouts: [] })),
       // Only fetch heats for in-person competitions
       isOnline
         ? Promise.resolve({ heats: [] })
         : cohostGetHeatsForCompetitionFn({
             data: { competitionId: params.competitionId, competitionTeamId },
-          }),
+          }).catch(() => ({ heats: [] })),
       cohostGetDivisionResultsStatusFn({
         data: {
           competitionId: params.competitionId,
           competitionTeamId,
         },
-      }),
+      }).catch(() => ({ divisions: [] } as AllEventsResultsStatusResponse)),
       // Fetch competition events (submission windows) for online competitions
       isOnline
         ? cohostGetCompetitionEventsFn({
             data: { competitionId: params.competitionId, competitionTeamId },
-          })
+          }).catch(() => ({ events: [] }))
         : Promise.resolve({ events: [] }),
     ])
 
