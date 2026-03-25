@@ -58,4 +58,4 @@ Emails use per-recipient idempotency keys to prevent duplicate delivery on retri
 
 ## Permissions
 
-Only competition organizers (team members with organizer permissions) can create and send broadcasts. Athletes and volunteers can only view broadcasts targeted to them.
+Only competition organizers (team members with organizer permissions) can create and send broadcasts. Public broadcasts are viewable by anyone, while non-public broadcasts are only visible to authenticated recipients targeted by the broadcast.
