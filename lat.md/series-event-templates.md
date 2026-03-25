@@ -78,9 +78,9 @@ Each template event can only be claimed once (no duplicate mappings).
 
 ### Persistence
 
-Mappings are stored in `series_event_mappings` with a full-replace save strategy.
+Mappings are stored in `series_event_mappings` with four keys: groupId, competitionId, competitionEventId, templateEventId.
 
-`saveSeriesEventMappingsFn` deletes all existing mappings for the group, then inserts the new set atomically in a transaction.
+`saveSeriesEventMappingsFn` does a full replace — deletes all existing mappings for the group, then inserts the new set atomically in a transaction.
 
 ## Competition Creation Integration
 
@@ -113,7 +113,7 @@ All defined in `src/server-fns/series-event-template-fns.ts`:
 
 ## Routes
 
-TanStack Router file-based routes for series event template management.
+All series event template routes are nested under the organizer dashboard.
 
 - `/series/{groupId}/events` — Layout route with `<Outlet />`
 - `/series/{groupId}/events/` — Event list with template creator or editor + sync button
