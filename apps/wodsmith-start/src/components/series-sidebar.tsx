@@ -7,7 +7,6 @@ import {
   ClipboardList,
   Home,
   Layers,
-  Menu,
   Moon,
   PanelLeft,
   Pencil,
@@ -287,9 +286,7 @@ export function SeriesSidebar({
       </Sidebar>
       <SidebarInset>
         <header className="fixed top-0 left-0 right-0 z-40 flex h-14 items-center gap-2 border-b bg-background px-3 md:hidden">
-          <SidebarTrigger className="-ml-1">
-            <Menu className="h-5 w-5" />
-          </SidebarTrigger>
+          <SidebarTrigger className="-ml-1" />
           <Link to="/compete" className="flex items-center gap-2">
             <img
               src="/wodsmith-logo-no-text.png"

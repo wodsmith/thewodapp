@@ -31,6 +31,22 @@ export const Route = createFileRoute(
       throw notFound()
     }
 
+    // Verify user can manage this series
+    const canManage =
+      session.user?.role === "admin" ||
+      !!session.teams?.find(
+        (t) =>
+          t.id === groupResult.group!.organizingTeamId &&
+          (t.role.id === "admin" || t.role.id === "owner"),
+      )
+
+    if (!canManage) {
+      throw redirect({
+        to: "/compete",
+        search: {},
+      })
+    }
+
     return {
       group: groupResult.group,
     }
