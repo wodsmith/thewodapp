@@ -9,7 +9,7 @@ const searchSchema = z.object({
 })
 
 export const Route = createFileRoute(
-  "/compete/organizer/_dashboard/series/$groupId/leaderboard",
+  "/compete/organizer/series/$groupId/leaderboard",
 )({
   validateSearch: searchSchema,
   component: OrganizerSeriesLeaderboardPage,

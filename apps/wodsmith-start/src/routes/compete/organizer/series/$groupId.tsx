@@ -10,7 +10,7 @@ import { SeriesSidebar } from "@/components/series-sidebar"
 import { getCompetitionGroupByIdFn } from "@/server-fns/competition-fns"
 
 export const Route = createFileRoute(
-  "/compete/organizer/_dashboard/series/$groupId",
+  "/compete/organizer/series/$groupId",
 )({
   component: SeriesLayout,
   loader: async ({ params, context }) => {
@@ -40,8 +40,8 @@ export const Route = createFileRoute(
 const routeLabels: Record<string, string> = {
   edit: "Edit Series",
   divisions: "Divisions",
-  events: "Event Templates",
-  "event-mappings": "Event Mappings",
+  events: "Event Template",
+  "registration-questions": "Registration Questions",
   leaderboard: "Global Leaderboard",
 }
 
@@ -56,7 +56,7 @@ function SeriesLayout() {
 
   return (
     <SeriesSidebar groupId={groupId}>
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">
+      <div className="flex min-w-0 flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">
         {/* Series Header */}
         <div>
           <div className="text-sm text-muted-foreground mb-1">

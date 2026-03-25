@@ -11,7 +11,7 @@ import { getCompetitionGroupByIdFn } from "@/server-fns/competition-fns"
 import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
 
 export const Route = createFileRoute(
-  "/compete/organizer/_dashboard/series/$groupId/edit",
+  "/compete/organizer/series/$groupId/edit",
 )({
   component: EditSeriesPage,
   loader: async ({ params, context }) => {

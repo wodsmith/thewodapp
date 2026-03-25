@@ -96,6 +96,7 @@ import { Route as DemoStartSsrSpaModeRouteImport } from './routes/demo/start.ssr
 import { Route as DemoStartSsrFullSsrRouteImport } from './routes/demo/start.ssr.full-ssr'
 import { Route as DemoStartSsrDataOnlyRouteImport } from './routes/demo/start.ssr.data-only'
 import { Route as CompeteSeriesGroupIdLeaderboardRouteImport } from './routes/compete/series/$groupId/leaderboard'
+import { Route as CompeteOrganizerSeriesGroupIdRouteImport } from './routes/compete/organizer/series/$groupId'
 import { Route as CompeteOrganizerOnboardPendingRouteImport } from './routes/compete/organizer/onboard/pending'
 import { Route as CompeteOrganizerDashboardNewRouteImport } from './routes/compete/organizer/_dashboard/new'
 import { Route as CompeteOrganizerCompetitionIdWaiversRouteImport } from './routes/compete/organizer/$competitionId/waivers'
@@ -133,6 +134,7 @@ import { Route as AdminTeamsScheduleGenerateRouteImport } from './routes/admin/t
 import { Route as AdminTeamsScheduleCoachesRouteImport } from './routes/admin/teams/schedule/coaches'
 import { Route as AdminTeamsScheduleClassesRouteImport } from './routes/admin/teams/schedule/classes'
 import { Route as AdminTeamsTeamIdSchedulingRouteImport } from './routes/admin/teams/$teamId/scheduling'
+import { Route as CompeteOrganizerSeriesGroupIdIndexRouteImport } from './routes/compete/organizer/series/$groupId/index'
 import { Route as CompeteOrganizerDashboardSeriesIndexRouteImport } from './routes/compete/organizer/_dashboard/series/index'
 import { Route as CompeteOrganizerCompetitionIdEventsIndexRouteImport } from './routes/compete/organizer/$competitionId/events/index'
 import { Route as CompeteSlugTeamsRegistrationIdIndexRouteImport } from './routes/compete/$slug/teams/$registrationId/index'
@@ -146,26 +148,25 @@ import { Route as ProtectedSettingsProgrammingTrackIdIndexRouteImport } from './
 import { Route as ProtectedLogIdEditIndexRouteImport } from './routes/_protected/log/$id/edit/index'
 import { Route as ProtectedAdminTeamsScalingIndexRouteImport } from './routes/_protected/admin/teams/scaling/index'
 import { Route as ProtectedAdminTeamsProgrammingIndexRouteImport } from './routes/_protected/admin/teams/programming/index'
+import { Route as CompeteOrganizerSeriesGroupIdRegistrationQuestionsRouteImport } from './routes/compete/organizer/series/$groupId/registration-questions'
+import { Route as CompeteOrganizerSeriesGroupIdLeaderboardRouteImport } from './routes/compete/organizer/series/$groupId/leaderboard'
+import { Route as CompeteOrganizerSeriesGroupIdEventsRouteImport } from './routes/compete/organizer/series/$groupId/events'
+import { Route as CompeteOrganizerSeriesGroupIdEventMappingsRouteImport } from './routes/compete/organizer/series/$groupId/event-mappings'
+import { Route as CompeteOrganizerSeriesGroupIdEditRouteImport } from './routes/compete/organizer/series/$groupId/edit'
+import { Route as CompeteOrganizerSeriesGroupIdDivisionsRouteImport } from './routes/compete/organizer/series/$groupId/divisions'
 import { Route as CompeteOrganizerDashboardSeriesNewRouteImport } from './routes/compete/organizer/_dashboard/series/new'
-import { Route as CompeteOrganizerDashboardSeriesGroupIdRouteImport } from './routes/compete/organizer/_dashboard/series/$groupId'
 import { Route as CompeteOrganizerCompetitionIdEventsEventIdRouteImport } from './routes/compete/organizer/$competitionId/events/$eventId'
 import { Route as ApiInternalOgDataCompetitionSlugRouteImport } from './routes/api/internal/og-data/competition/$slug'
 import { Route as ApiCompeteCompetitionsIdWorkoutsRouteImport } from './routes/api/compete/competitions/$id/workouts'
 import { Route as ApiCompeteCompetitionsIdLeaderboardRouteImport } from './routes/api/compete/competitions/$id/leaderboard'
 import { Route as ApiCompeteCompetitionsIdHeatsRouteImport } from './routes/api/compete/competitions/$id/heats'
-import { Route as CompeteOrganizerDashboardSeriesGroupIdIndexRouteImport } from './routes/compete/organizer/_dashboard/series/$groupId/index'
+import { Route as CompeteOrganizerSeriesGroupIdEventsIndexRouteImport } from './routes/compete/organizer/series/$groupId/events/index'
 import { Route as CompeteOrganizerCompetitionIdEventsEventIdIndexRouteImport } from './routes/compete/organizer/$competitionId/events/$eventId/index'
 import { Route as ProtectedAdminTeamsProgrammingTrackIdIndexRouteImport } from './routes/_protected/admin/teams/programming/$trackId/index'
-import { Route as CompeteOrganizerDashboardSeriesGroupIdLeaderboardRouteImport } from './routes/compete/organizer/_dashboard/series/$groupId/leaderboard'
-import { Route as CompeteOrganizerDashboardSeriesGroupIdEventsRouteImport } from './routes/compete/organizer/_dashboard/series/$groupId/events'
-import { Route as CompeteOrganizerDashboardSeriesGroupIdEventMappingsRouteImport } from './routes/compete/organizer/_dashboard/series/$groupId/event-mappings'
-import { Route as CompeteOrganizerDashboardSeriesGroupIdEditRouteImport } from './routes/compete/organizer/_dashboard/series/$groupId/edit'
-import { Route as CompeteOrganizerDashboardSeriesGroupIdDivisionsRouteImport } from './routes/compete/organizer/_dashboard/series/$groupId/divisions'
+import { Route as CompeteOrganizerSeriesGroupIdEventsEventIdRouteImport } from './routes/compete/organizer/series/$groupId/events/$eventId'
 import { Route as CompeteOrganizerCompetitionIdEventsEventIdSubmissionsRouteImport } from './routes/compete/organizer/$competitionId/events/$eventId/submissions'
 import { Route as CompeteOrganizerDashboardSettingsPayoutsTeamSlugIndexRouteImport } from './routes/compete/organizer/_dashboard/settings/payouts/$teamSlug/index'
-import { Route as CompeteOrganizerDashboardSeriesGroupIdEventsIndexRouteImport } from './routes/compete/organizer/_dashboard/series/$groupId/events/index'
 import { Route as CompeteOrganizerCompetitionIdEventsEventIdSubmissionsIndexRouteImport } from './routes/compete/organizer/$competitionId/events/$eventId/submissions/index'
-import { Route as CompeteOrganizerDashboardSeriesGroupIdEventsEventIdRouteImport } from './routes/compete/organizer/_dashboard/series/$groupId/events/$eventId'
 import { Route as CompeteOrganizerCompetitionIdEventsEventIdSubmissionsSubmissionIdRouteImport } from './routes/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId'
 import { Route as ApiCompeteCompetitionsIdEventsEventIdLeaderboardRouteImport } from './routes/api/compete/competitions/$id/events/$eventId/leaderboard'
 
@@ -628,6 +629,12 @@ const CompeteSeriesGroupIdLeaderboardRoute =
     path: '/leaderboard',
     getParentRoute: () => CompeteSeriesGroupIdRoute,
   } as any)
+const CompeteOrganizerSeriesGroupIdRoute =
+  CompeteOrganizerSeriesGroupIdRouteImport.update({
+    id: '/series/$groupId',
+    path: '/series/$groupId',
+    getParentRoute: () => CompeteOrganizerRoute,
+  } as any)
 const CompeteOrganizerOnboardPendingRoute =
   CompeteOrganizerOnboardPendingRouteImport.update({
     id: '/onboard/pending',
@@ -846,6 +853,12 @@ const AdminTeamsTeamIdSchedulingRoute =
     path: '/scheduling',
     getParentRoute: () => AdminTeamsTeamIdRoute,
   } as any)
+const CompeteOrganizerSeriesGroupIdIndexRoute =
+  CompeteOrganizerSeriesGroupIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => CompeteOrganizerSeriesGroupIdRoute,
+  } as any)
 const CompeteOrganizerDashboardSeriesIndexRoute =
   CompeteOrganizerDashboardSeriesIndexRouteImport.update({
     id: '/series/',
@@ -923,16 +936,46 @@ const ProtectedAdminTeamsProgrammingIndexRoute =
     path: '/admin/teams/programming/',
     getParentRoute: () => ProtectedRoute,
   } as any)
+const CompeteOrganizerSeriesGroupIdRegistrationQuestionsRoute =
+  CompeteOrganizerSeriesGroupIdRegistrationQuestionsRouteImport.update({
+    id: '/registration-questions',
+    path: '/registration-questions',
+    getParentRoute: () => CompeteOrganizerSeriesGroupIdRoute,
+  } as any)
+const CompeteOrganizerSeriesGroupIdLeaderboardRoute =
+  CompeteOrganizerSeriesGroupIdLeaderboardRouteImport.update({
+    id: '/leaderboard',
+    path: '/leaderboard',
+    getParentRoute: () => CompeteOrganizerSeriesGroupIdRoute,
+  } as any)
+const CompeteOrganizerSeriesGroupIdEventsRoute =
+  CompeteOrganizerSeriesGroupIdEventsRouteImport.update({
+    id: '/events',
+    path: '/events',
+    getParentRoute: () => CompeteOrganizerSeriesGroupIdRoute,
+  } as any)
+const CompeteOrganizerSeriesGroupIdEventMappingsRoute =
+  CompeteOrganizerSeriesGroupIdEventMappingsRouteImport.update({
+    id: '/event-mappings',
+    path: '/event-mappings',
+    getParentRoute: () => CompeteOrganizerSeriesGroupIdRoute,
+  } as any)
+const CompeteOrganizerSeriesGroupIdEditRoute =
+  CompeteOrganizerSeriesGroupIdEditRouteImport.update({
+    id: '/edit',
+    path: '/edit',
+    getParentRoute: () => CompeteOrganizerSeriesGroupIdRoute,
+  } as any)
+const CompeteOrganizerSeriesGroupIdDivisionsRoute =
+  CompeteOrganizerSeriesGroupIdDivisionsRouteImport.update({
+    id: '/divisions',
+    path: '/divisions',
+    getParentRoute: () => CompeteOrganizerSeriesGroupIdRoute,
+  } as any)
 const CompeteOrganizerDashboardSeriesNewRoute =
   CompeteOrganizerDashboardSeriesNewRouteImport.update({
     id: '/series/new',
     path: '/series/new',
-    getParentRoute: () => CompeteOrganizerDashboardRoute,
-  } as any)
-const CompeteOrganizerDashboardSeriesGroupIdRoute =
-  CompeteOrganizerDashboardSeriesGroupIdRouteImport.update({
-    id: '/series/$groupId',
-    path: '/series/$groupId',
     getParentRoute: () => CompeteOrganizerDashboardRoute,
   } as any)
 const CompeteOrganizerCompetitionIdEventsEventIdRoute =
@@ -965,11 +1008,11 @@ const ApiCompeteCompetitionsIdHeatsRoute =
     path: '/api/compete/competitions/$id/heats',
     getParentRoute: () => rootRouteImport,
   } as any)
-const CompeteOrganizerDashboardSeriesGroupIdIndexRoute =
-  CompeteOrganizerDashboardSeriesGroupIdIndexRouteImport.update({
+const CompeteOrganizerSeriesGroupIdEventsIndexRoute =
+  CompeteOrganizerSeriesGroupIdEventsIndexRouteImport.update({
     id: '/',
     path: '/',
-    getParentRoute: () => CompeteOrganizerDashboardSeriesGroupIdRoute,
+    getParentRoute: () => CompeteOrganizerSeriesGroupIdEventsRoute,
   } as any)
 const CompeteOrganizerCompetitionIdEventsEventIdIndexRoute =
   CompeteOrganizerCompetitionIdEventsEventIdIndexRouteImport.update({
@@ -983,35 +1026,11 @@ const ProtectedAdminTeamsProgrammingTrackIdIndexRoute =
     path: '/admin/teams/programming/$trackId/',
     getParentRoute: () => ProtectedRoute,
   } as any)
-const CompeteOrganizerDashboardSeriesGroupIdLeaderboardRoute =
-  CompeteOrganizerDashboardSeriesGroupIdLeaderboardRouteImport.update({
-    id: '/leaderboard',
-    path: '/leaderboard',
-    getParentRoute: () => CompeteOrganizerDashboardSeriesGroupIdRoute,
-  } as any)
-const CompeteOrganizerDashboardSeriesGroupIdEventsRoute =
-  CompeteOrganizerDashboardSeriesGroupIdEventsRouteImport.update({
-    id: '/events',
-    path: '/events',
-    getParentRoute: () => CompeteOrganizerDashboardSeriesGroupIdRoute,
-  } as any)
-const CompeteOrganizerDashboardSeriesGroupIdEventMappingsRoute =
-  CompeteOrganizerDashboardSeriesGroupIdEventMappingsRouteImport.update({
-    id: '/event-mappings',
-    path: '/event-mappings',
-    getParentRoute: () => CompeteOrganizerDashboardSeriesGroupIdRoute,
-  } as any)
-const CompeteOrganizerDashboardSeriesGroupIdEditRoute =
-  CompeteOrganizerDashboardSeriesGroupIdEditRouteImport.update({
-    id: '/edit',
-    path: '/edit',
-    getParentRoute: () => CompeteOrganizerDashboardSeriesGroupIdRoute,
-  } as any)
-const CompeteOrganizerDashboardSeriesGroupIdDivisionsRoute =
-  CompeteOrganizerDashboardSeriesGroupIdDivisionsRouteImport.update({
-    id: '/divisions',
-    path: '/divisions',
-    getParentRoute: () => CompeteOrganizerDashboardSeriesGroupIdRoute,
+const CompeteOrganizerSeriesGroupIdEventsEventIdRoute =
+  CompeteOrganizerSeriesGroupIdEventsEventIdRouteImport.update({
+    id: '/$eventId',
+    path: '/$eventId',
+    getParentRoute: () => CompeteOrganizerSeriesGroupIdEventsRoute,
   } as any)
 const CompeteOrganizerCompetitionIdEventsEventIdSubmissionsRoute =
   CompeteOrganizerCompetitionIdEventsEventIdSubmissionsRouteImport.update({
@@ -1025,24 +1044,12 @@ const CompeteOrganizerDashboardSettingsPayoutsTeamSlugIndexRoute =
     path: '/settings/payouts/$teamSlug/',
     getParentRoute: () => CompeteOrganizerDashboardRoute,
   } as any)
-const CompeteOrganizerDashboardSeriesGroupIdEventsIndexRoute =
-  CompeteOrganizerDashboardSeriesGroupIdEventsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => CompeteOrganizerDashboardSeriesGroupIdEventsRoute,
-  } as any)
 const CompeteOrganizerCompetitionIdEventsEventIdSubmissionsIndexRoute =
   CompeteOrganizerCompetitionIdEventsEventIdSubmissionsIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () =>
       CompeteOrganizerCompetitionIdEventsEventIdSubmissionsRoute,
-  } as any)
-const CompeteOrganizerDashboardSeriesGroupIdEventsEventIdRoute =
-  CompeteOrganizerDashboardSeriesGroupIdEventsEventIdRouteImport.update({
-    id: '/$eventId',
-    path: '/$eventId',
-    getParentRoute: () => CompeteOrganizerDashboardSeriesGroupIdEventsRoute,
   } as any)
 const CompeteOrganizerCompetitionIdEventsEventIdSubmissionsSubmissionIdRoute =
   CompeteOrganizerCompetitionIdEventsEventIdSubmissionsSubmissionIdRouteImport.update(
@@ -1155,6 +1162,7 @@ export interface FileRoutesByFullPath {
   '/compete/organizer/$competitionId/waivers': typeof CompeteOrganizerCompetitionIdWaiversRoute
   '/compete/organizer/new': typeof CompeteOrganizerDashboardNewRoute
   '/compete/organizer/onboard/pending': typeof CompeteOrganizerOnboardPendingRoute
+  '/compete/organizer/series/$groupId': typeof CompeteOrganizerSeriesGroupIdRouteWithChildren
   '/compete/series/$groupId/leaderboard': typeof CompeteSeriesGroupIdLeaderboardRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
@@ -1187,8 +1195,13 @@ export interface FileRoutesByFullPath {
   '/api/compete/competitions/$id/workouts': typeof ApiCompeteCompetitionsIdWorkoutsRoute
   '/api/internal/og-data/competition/$slug': typeof ApiInternalOgDataCompetitionSlugRoute
   '/compete/organizer/$competitionId/events/$eventId': typeof CompeteOrganizerCompetitionIdEventsEventIdRouteWithChildren
-  '/compete/organizer/series/$groupId': typeof CompeteOrganizerDashboardSeriesGroupIdRouteWithChildren
   '/compete/organizer/series/new': typeof CompeteOrganizerDashboardSeriesNewRoute
+  '/compete/organizer/series/$groupId/divisions': typeof CompeteOrganizerSeriesGroupIdDivisionsRoute
+  '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
+  '/compete/organizer/series/$groupId/event-mappings': typeof CompeteOrganizerSeriesGroupIdEventMappingsRoute
+  '/compete/organizer/series/$groupId/events': typeof CompeteOrganizerSeriesGroupIdEventsRouteWithChildren
+  '/compete/organizer/series/$groupId/leaderboard': typeof CompeteOrganizerSeriesGroupIdLeaderboardRoute
+  '/compete/organizer/series/$groupId/registration-questions': typeof CompeteOrganizerSeriesGroupIdRegistrationQuestionsRoute
   '/admin/teams/programming': typeof ProtectedAdminTeamsProgrammingIndexRoute
   '/admin/teams/scaling': typeof ProtectedAdminTeamsScalingIndexRoute
   '/log/$id/edit': typeof ProtectedLogIdEditIndexRoute
@@ -1202,20 +1215,15 @@ export interface FileRoutesByFullPath {
   '/compete/$slug/teams/$registrationId': typeof CompeteSlugTeamsRegistrationIdIndexRoute
   '/compete/organizer/$competitionId/events': typeof CompeteOrganizerCompetitionIdEventsIndexRoute
   '/compete/organizer/series': typeof CompeteOrganizerDashboardSeriesIndexRoute
+  '/compete/organizer/series/$groupId/': typeof CompeteOrganizerSeriesGroupIdIndexRoute
   '/compete/organizer/$competitionId/events/$eventId/submissions': typeof CompeteOrganizerCompetitionIdEventsEventIdSubmissionsRouteWithChildren
-  '/compete/organizer/series/$groupId/divisions': typeof CompeteOrganizerDashboardSeriesGroupIdDivisionsRoute
-  '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerDashboardSeriesGroupIdEditRoute
-  '/compete/organizer/series/$groupId/event-mappings': typeof CompeteOrganizerDashboardSeriesGroupIdEventMappingsRoute
-  '/compete/organizer/series/$groupId/events': typeof CompeteOrganizerDashboardSeriesGroupIdEventsRouteWithChildren
-  '/compete/organizer/series/$groupId/leaderboard': typeof CompeteOrganizerDashboardSeriesGroupIdLeaderboardRoute
+  '/compete/organizer/series/$groupId/events/$eventId': typeof CompeteOrganizerSeriesGroupIdEventsEventIdRoute
   '/admin/teams/programming/$trackId': typeof ProtectedAdminTeamsProgrammingTrackIdIndexRoute
   '/compete/organizer/$competitionId/events/$eventId/': typeof CompeteOrganizerCompetitionIdEventsEventIdIndexRoute
-  '/compete/organizer/series/$groupId/': typeof CompeteOrganizerDashboardSeriesGroupIdIndexRoute
+  '/compete/organizer/series/$groupId/events/': typeof CompeteOrganizerSeriesGroupIdEventsIndexRoute
   '/api/compete/competitions/$id/events/$eventId/leaderboard': typeof ApiCompeteCompetitionsIdEventsEventIdLeaderboardRoute
   '/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId': typeof CompeteOrganizerCompetitionIdEventsEventIdSubmissionsSubmissionIdRoute
-  '/compete/organizer/series/$groupId/events/$eventId': typeof CompeteOrganizerDashboardSeriesGroupIdEventsEventIdRoute
   '/compete/organizer/$competitionId/events/$eventId/submissions/': typeof CompeteOrganizerCompetitionIdEventsEventIdSubmissionsIndexRoute
-  '/compete/organizer/series/$groupId/events/': typeof CompeteOrganizerDashboardSeriesGroupIdEventsIndexRoute
   '/compete/organizer/settings/payouts/$teamSlug': typeof CompeteOrganizerDashboardSettingsPayoutsTeamSlugIndexRoute
 }
 export interface FileRoutesByTo {
@@ -1337,6 +1345,11 @@ export interface FileRoutesByTo {
   '/api/compete/competitions/$id/workouts': typeof ApiCompeteCompetitionsIdWorkoutsRoute
   '/api/internal/og-data/competition/$slug': typeof ApiInternalOgDataCompetitionSlugRoute
   '/compete/organizer/series/new': typeof CompeteOrganizerDashboardSeriesNewRoute
+  '/compete/organizer/series/$groupId/divisions': typeof CompeteOrganizerSeriesGroupIdDivisionsRoute
+  '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
+  '/compete/organizer/series/$groupId/event-mappings': typeof CompeteOrganizerSeriesGroupIdEventMappingsRoute
+  '/compete/organizer/series/$groupId/leaderboard': typeof CompeteOrganizerSeriesGroupIdLeaderboardRoute
+  '/compete/organizer/series/$groupId/registration-questions': typeof CompeteOrganizerSeriesGroupIdRegistrationQuestionsRoute
   '/admin/teams/programming': typeof ProtectedAdminTeamsProgrammingIndexRoute
   '/admin/teams/scaling': typeof ProtectedAdminTeamsScalingIndexRoute
   '/log/$id/edit': typeof ProtectedLogIdEditIndexRoute
@@ -1350,18 +1363,14 @@ export interface FileRoutesByTo {
   '/compete/$slug/teams/$registrationId': typeof CompeteSlugTeamsRegistrationIdIndexRoute
   '/compete/organizer/$competitionId/events': typeof CompeteOrganizerCompetitionIdEventsIndexRoute
   '/compete/organizer/series': typeof CompeteOrganizerDashboardSeriesIndexRoute
-  '/compete/organizer/series/$groupId/divisions': typeof CompeteOrganizerDashboardSeriesGroupIdDivisionsRoute
-  '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerDashboardSeriesGroupIdEditRoute
-  '/compete/organizer/series/$groupId/event-mappings': typeof CompeteOrganizerDashboardSeriesGroupIdEventMappingsRoute
-  '/compete/organizer/series/$groupId/leaderboard': typeof CompeteOrganizerDashboardSeriesGroupIdLeaderboardRoute
+  '/compete/organizer/series/$groupId': typeof CompeteOrganizerSeriesGroupIdIndexRoute
+  '/compete/organizer/series/$groupId/events/$eventId': typeof CompeteOrganizerSeriesGroupIdEventsEventIdRoute
   '/admin/teams/programming/$trackId': typeof ProtectedAdminTeamsProgrammingTrackIdIndexRoute
   '/compete/organizer/$competitionId/events/$eventId': typeof CompeteOrganizerCompetitionIdEventsEventIdIndexRoute
-  '/compete/organizer/series/$groupId': typeof CompeteOrganizerDashboardSeriesGroupIdIndexRoute
+  '/compete/organizer/series/$groupId/events': typeof CompeteOrganizerSeriesGroupIdEventsIndexRoute
   '/api/compete/competitions/$id/events/$eventId/leaderboard': typeof ApiCompeteCompetitionsIdEventsEventIdLeaderboardRoute
   '/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId': typeof CompeteOrganizerCompetitionIdEventsEventIdSubmissionsSubmissionIdRoute
-  '/compete/organizer/series/$groupId/events/$eventId': typeof CompeteOrganizerDashboardSeriesGroupIdEventsEventIdRoute
   '/compete/organizer/$competitionId/events/$eventId/submissions': typeof CompeteOrganizerCompetitionIdEventsEventIdSubmissionsIndexRoute
-  '/compete/organizer/series/$groupId/events': typeof CompeteOrganizerDashboardSeriesGroupIdEventsIndexRoute
   '/compete/organizer/settings/payouts/$teamSlug': typeof CompeteOrganizerDashboardSettingsPayoutsTeamSlugIndexRoute
 }
 export interface FileRoutesById {
@@ -1463,6 +1472,7 @@ export interface FileRoutesById {
   '/compete/organizer/$competitionId/waivers': typeof CompeteOrganizerCompetitionIdWaiversRoute
   '/compete/organizer/_dashboard/new': typeof CompeteOrganizerDashboardNewRoute
   '/compete/organizer/onboard/pending': typeof CompeteOrganizerOnboardPendingRoute
+  '/compete/organizer/series/$groupId': typeof CompeteOrganizerSeriesGroupIdRouteWithChildren
   '/compete/series/$groupId/leaderboard': typeof CompeteSeriesGroupIdLeaderboardRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
@@ -1495,8 +1505,13 @@ export interface FileRoutesById {
   '/api/compete/competitions/$id/workouts': typeof ApiCompeteCompetitionsIdWorkoutsRoute
   '/api/internal/og-data/competition/$slug': typeof ApiInternalOgDataCompetitionSlugRoute
   '/compete/organizer/$competitionId/events/$eventId': typeof CompeteOrganizerCompetitionIdEventsEventIdRouteWithChildren
-  '/compete/organizer/_dashboard/series/$groupId': typeof CompeteOrganizerDashboardSeriesGroupIdRouteWithChildren
   '/compete/organizer/_dashboard/series/new': typeof CompeteOrganizerDashboardSeriesNewRoute
+  '/compete/organizer/series/$groupId/divisions': typeof CompeteOrganizerSeriesGroupIdDivisionsRoute
+  '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
+  '/compete/organizer/series/$groupId/event-mappings': typeof CompeteOrganizerSeriesGroupIdEventMappingsRoute
+  '/compete/organizer/series/$groupId/events': typeof CompeteOrganizerSeriesGroupIdEventsRouteWithChildren
+  '/compete/organizer/series/$groupId/leaderboard': typeof CompeteOrganizerSeriesGroupIdLeaderboardRoute
+  '/compete/organizer/series/$groupId/registration-questions': typeof CompeteOrganizerSeriesGroupIdRegistrationQuestionsRoute
   '/_protected/admin/teams/programming/': typeof ProtectedAdminTeamsProgrammingIndexRoute
   '/_protected/admin/teams/scaling/': typeof ProtectedAdminTeamsScalingIndexRoute
   '/_protected/log/$id/edit/': typeof ProtectedLogIdEditIndexRoute
@@ -1510,20 +1525,15 @@ export interface FileRoutesById {
   '/compete/$slug/teams/$registrationId/': typeof CompeteSlugTeamsRegistrationIdIndexRoute
   '/compete/organizer/$competitionId/events/': typeof CompeteOrganizerCompetitionIdEventsIndexRoute
   '/compete/organizer/_dashboard/series/': typeof CompeteOrganizerDashboardSeriesIndexRoute
+  '/compete/organizer/series/$groupId/': typeof CompeteOrganizerSeriesGroupIdIndexRoute
   '/compete/organizer/$competitionId/events/$eventId/submissions': typeof CompeteOrganizerCompetitionIdEventsEventIdSubmissionsRouteWithChildren
-  '/compete/organizer/_dashboard/series/$groupId/divisions': typeof CompeteOrganizerDashboardSeriesGroupIdDivisionsRoute
-  '/compete/organizer/_dashboard/series/$groupId/edit': typeof CompeteOrganizerDashboardSeriesGroupIdEditRoute
-  '/compete/organizer/_dashboard/series/$groupId/event-mappings': typeof CompeteOrganizerDashboardSeriesGroupIdEventMappingsRoute
-  '/compete/organizer/_dashboard/series/$groupId/events': typeof CompeteOrganizerDashboardSeriesGroupIdEventsRouteWithChildren
-  '/compete/organizer/_dashboard/series/$groupId/leaderboard': typeof CompeteOrganizerDashboardSeriesGroupIdLeaderboardRoute
+  '/compete/organizer/series/$groupId/events/$eventId': typeof CompeteOrganizerSeriesGroupIdEventsEventIdRoute
   '/_protected/admin/teams/programming/$trackId/': typeof ProtectedAdminTeamsProgrammingTrackIdIndexRoute
   '/compete/organizer/$competitionId/events/$eventId/': typeof CompeteOrganizerCompetitionIdEventsEventIdIndexRoute
-  '/compete/organizer/_dashboard/series/$groupId/': typeof CompeteOrganizerDashboardSeriesGroupIdIndexRoute
+  '/compete/organizer/series/$groupId/events/': typeof CompeteOrganizerSeriesGroupIdEventsIndexRoute
   '/api/compete/competitions/$id/events/$eventId/leaderboard': typeof ApiCompeteCompetitionsIdEventsEventIdLeaderboardRoute
   '/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId': typeof CompeteOrganizerCompetitionIdEventsEventIdSubmissionsSubmissionIdRoute
-  '/compete/organizer/_dashboard/series/$groupId/events/$eventId': typeof CompeteOrganizerDashboardSeriesGroupIdEventsEventIdRoute
   '/compete/organizer/$competitionId/events/$eventId/submissions/': typeof CompeteOrganizerCompetitionIdEventsEventIdSubmissionsIndexRoute
-  '/compete/organizer/_dashboard/series/$groupId/events/': typeof CompeteOrganizerDashboardSeriesGroupIdEventsIndexRoute
   '/compete/organizer/_dashboard/settings/payouts/$teamSlug/': typeof CompeteOrganizerDashboardSettingsPayoutsTeamSlugIndexRoute
 }
 export interface FileRouteTypes {
@@ -1623,6 +1633,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/waivers'
     | '/compete/organizer/new'
     | '/compete/organizer/onboard/pending'
+    | '/compete/organizer/series/$groupId'
     | '/compete/series/$groupId/leaderboard'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
@@ -1655,8 +1666,13 @@ export interface FileRouteTypes {
     | '/api/compete/competitions/$id/workouts'
     | '/api/internal/og-data/competition/$slug'
     | '/compete/organizer/$competitionId/events/$eventId'
-    | '/compete/organizer/series/$groupId'
     | '/compete/organizer/series/new'
+    | '/compete/organizer/series/$groupId/divisions'
+    | '/compete/organizer/series/$groupId/edit'
+    | '/compete/organizer/series/$groupId/event-mappings'
+    | '/compete/organizer/series/$groupId/events'
+    | '/compete/organizer/series/$groupId/leaderboard'
+    | '/compete/organizer/series/$groupId/registration-questions'
     | '/admin/teams/programming'
     | '/admin/teams/scaling'
     | '/log/$id/edit'
@@ -1670,20 +1686,15 @@ export interface FileRouteTypes {
     | '/compete/$slug/teams/$registrationId'
     | '/compete/organizer/$competitionId/events'
     | '/compete/organizer/series'
+    | '/compete/organizer/series/$groupId/'
     | '/compete/organizer/$competitionId/events/$eventId/submissions'
-    | '/compete/organizer/series/$groupId/divisions'
-    | '/compete/organizer/series/$groupId/edit'
-    | '/compete/organizer/series/$groupId/event-mappings'
-    | '/compete/organizer/series/$groupId/events'
-    | '/compete/organizer/series/$groupId/leaderboard'
+    | '/compete/organizer/series/$groupId/events/$eventId'
     | '/admin/teams/programming/$trackId'
     | '/compete/organizer/$competitionId/events/$eventId/'
-    | '/compete/organizer/series/$groupId/'
+    | '/compete/organizer/series/$groupId/events/'
     | '/api/compete/competitions/$id/events/$eventId/leaderboard'
     | '/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId'
-    | '/compete/organizer/series/$groupId/events/$eventId'
     | '/compete/organizer/$competitionId/events/$eventId/submissions/'
-    | '/compete/organizer/series/$groupId/events/'
     | '/compete/organizer/settings/payouts/$teamSlug'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -1805,6 +1816,11 @@ export interface FileRouteTypes {
     | '/api/compete/competitions/$id/workouts'
     | '/api/internal/og-data/competition/$slug'
     | '/compete/organizer/series/new'
+    | '/compete/organizer/series/$groupId/divisions'
+    | '/compete/organizer/series/$groupId/edit'
+    | '/compete/organizer/series/$groupId/event-mappings'
+    | '/compete/organizer/series/$groupId/leaderboard'
+    | '/compete/organizer/series/$groupId/registration-questions'
     | '/admin/teams/programming'
     | '/admin/teams/scaling'
     | '/log/$id/edit'
@@ -1818,18 +1834,14 @@ export interface FileRouteTypes {
     | '/compete/$slug/teams/$registrationId'
     | '/compete/organizer/$competitionId/events'
     | '/compete/organizer/series'
-    | '/compete/organizer/series/$groupId/divisions'
-    | '/compete/organizer/series/$groupId/edit'
-    | '/compete/organizer/series/$groupId/event-mappings'
-    | '/compete/organizer/series/$groupId/leaderboard'
+    | '/compete/organizer/series/$groupId'
+    | '/compete/organizer/series/$groupId/events/$eventId'
     | '/admin/teams/programming/$trackId'
     | '/compete/organizer/$competitionId/events/$eventId'
-    | '/compete/organizer/series/$groupId'
+    | '/compete/organizer/series/$groupId/events'
     | '/api/compete/competitions/$id/events/$eventId/leaderboard'
     | '/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId'
-    | '/compete/organizer/series/$groupId/events/$eventId'
     | '/compete/organizer/$competitionId/events/$eventId/submissions'
-    | '/compete/organizer/series/$groupId/events'
     | '/compete/organizer/settings/payouts/$teamSlug'
   id:
     | '__root__'
@@ -1930,6 +1942,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/waivers'
     | '/compete/organizer/_dashboard/new'
     | '/compete/organizer/onboard/pending'
+    | '/compete/organizer/series/$groupId'
     | '/compete/series/$groupId/leaderboard'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
@@ -1962,8 +1975,13 @@ export interface FileRouteTypes {
     | '/api/compete/competitions/$id/workouts'
     | '/api/internal/og-data/competition/$slug'
     | '/compete/organizer/$competitionId/events/$eventId'
-    | '/compete/organizer/_dashboard/series/$groupId'
     | '/compete/organizer/_dashboard/series/new'
+    | '/compete/organizer/series/$groupId/divisions'
+    | '/compete/organizer/series/$groupId/edit'
+    | '/compete/organizer/series/$groupId/event-mappings'
+    | '/compete/organizer/series/$groupId/events'
+    | '/compete/organizer/series/$groupId/leaderboard'
+    | '/compete/organizer/series/$groupId/registration-questions'
     | '/_protected/admin/teams/programming/'
     | '/_protected/admin/teams/scaling/'
     | '/_protected/log/$id/edit/'
@@ -1977,20 +1995,15 @@ export interface FileRouteTypes {
     | '/compete/$slug/teams/$registrationId/'
     | '/compete/organizer/$competitionId/events/'
     | '/compete/organizer/_dashboard/series/'
+    | '/compete/organizer/series/$groupId/'
     | '/compete/organizer/$competitionId/events/$eventId/submissions'
-    | '/compete/organizer/_dashboard/series/$groupId/divisions'
-    | '/compete/organizer/_dashboard/series/$groupId/edit'
-    | '/compete/organizer/_dashboard/series/$groupId/event-mappings'
-    | '/compete/organizer/_dashboard/series/$groupId/events'
-    | '/compete/organizer/_dashboard/series/$groupId/leaderboard'
+    | '/compete/organizer/series/$groupId/events/$eventId'
     | '/_protected/admin/teams/programming/$trackId/'
     | '/compete/organizer/$competitionId/events/$eventId/'
-    | '/compete/organizer/_dashboard/series/$groupId/'
+    | '/compete/organizer/series/$groupId/events/'
     | '/api/compete/competitions/$id/events/$eventId/leaderboard'
     | '/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId'
-    | '/compete/organizer/_dashboard/series/$groupId/events/$eventId'
     | '/compete/organizer/$competitionId/events/$eventId/submissions/'
-    | '/compete/organizer/_dashboard/series/$groupId/events/'
     | '/compete/organizer/_dashboard/settings/payouts/$teamSlug/'
   fileRoutesById: FileRoutesById
 }
@@ -2643,6 +2656,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompeteSeriesGroupIdLeaderboardRouteImport
       parentRoute: typeof CompeteSeriesGroupIdRoute
     }
+    '/compete/organizer/series/$groupId': {
+      id: '/compete/organizer/series/$groupId'
+      path: '/series/$groupId'
+      fullPath: '/compete/organizer/series/$groupId'
+      preLoaderRoute: typeof CompeteOrganizerSeriesGroupIdRouteImport
+      parentRoute: typeof CompeteOrganizerRoute
+    }
     '/compete/organizer/onboard/pending': {
       id: '/compete/organizer/onboard/pending'
       path: '/onboard/pending'
@@ -2902,6 +2922,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTeamsTeamIdSchedulingRouteImport
       parentRoute: typeof AdminTeamsTeamIdRoute
     }
+    '/compete/organizer/series/$groupId/': {
+      id: '/compete/organizer/series/$groupId/'
+      path: '/'
+      fullPath: '/compete/organizer/series/$groupId/'
+      preLoaderRoute: typeof CompeteOrganizerSeriesGroupIdIndexRouteImport
+      parentRoute: typeof CompeteOrganizerSeriesGroupIdRoute
+    }
     '/compete/organizer/_dashboard/series/': {
       id: '/compete/organizer/_dashboard/series/'
       path: '/series'
@@ -2993,18 +3020,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedAdminTeamsProgrammingIndexRouteImport
       parentRoute: typeof ProtectedRoute
     }
+    '/compete/organizer/series/$groupId/registration-questions': {
+      id: '/compete/organizer/series/$groupId/registration-questions'
+      path: '/registration-questions'
+      fullPath: '/compete/organizer/series/$groupId/registration-questions'
+      preLoaderRoute: typeof CompeteOrganizerSeriesGroupIdRegistrationQuestionsRouteImport
+      parentRoute: typeof CompeteOrganizerSeriesGroupIdRoute
+    }
+    '/compete/organizer/series/$groupId/leaderboard': {
+      id: '/compete/organizer/series/$groupId/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/compete/organizer/series/$groupId/leaderboard'
+      preLoaderRoute: typeof CompeteOrganizerSeriesGroupIdLeaderboardRouteImport
+      parentRoute: typeof CompeteOrganizerSeriesGroupIdRoute
+    }
+    '/compete/organizer/series/$groupId/events': {
+      id: '/compete/organizer/series/$groupId/events'
+      path: '/events'
+      fullPath: '/compete/organizer/series/$groupId/events'
+      preLoaderRoute: typeof CompeteOrganizerSeriesGroupIdEventsRouteImport
+      parentRoute: typeof CompeteOrganizerSeriesGroupIdRoute
+    }
+    '/compete/organizer/series/$groupId/event-mappings': {
+      id: '/compete/organizer/series/$groupId/event-mappings'
+      path: '/event-mappings'
+      fullPath: '/compete/organizer/series/$groupId/event-mappings'
+      preLoaderRoute: typeof CompeteOrganizerSeriesGroupIdEventMappingsRouteImport
+      parentRoute: typeof CompeteOrganizerSeriesGroupIdRoute
+    }
+    '/compete/organizer/series/$groupId/edit': {
+      id: '/compete/organizer/series/$groupId/edit'
+      path: '/edit'
+      fullPath: '/compete/organizer/series/$groupId/edit'
+      preLoaderRoute: typeof CompeteOrganizerSeriesGroupIdEditRouteImport
+      parentRoute: typeof CompeteOrganizerSeriesGroupIdRoute
+    }
+    '/compete/organizer/series/$groupId/divisions': {
+      id: '/compete/organizer/series/$groupId/divisions'
+      path: '/divisions'
+      fullPath: '/compete/organizer/series/$groupId/divisions'
+      preLoaderRoute: typeof CompeteOrganizerSeriesGroupIdDivisionsRouteImport
+      parentRoute: typeof CompeteOrganizerSeriesGroupIdRoute
+    }
     '/compete/organizer/_dashboard/series/new': {
       id: '/compete/organizer/_dashboard/series/new'
       path: '/series/new'
       fullPath: '/compete/organizer/series/new'
       preLoaderRoute: typeof CompeteOrganizerDashboardSeriesNewRouteImport
-      parentRoute: typeof CompeteOrganizerDashboardRoute
-    }
-    '/compete/organizer/_dashboard/series/$groupId': {
-      id: '/compete/organizer/_dashboard/series/$groupId'
-      path: '/series/$groupId'
-      fullPath: '/compete/organizer/series/$groupId'
-      preLoaderRoute: typeof CompeteOrganizerDashboardSeriesGroupIdRouteImport
       parentRoute: typeof CompeteOrganizerDashboardRoute
     }
     '/compete/organizer/$competitionId/events/$eventId': {
@@ -3042,12 +3104,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCompeteCompetitionsIdHeatsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/compete/organizer/_dashboard/series/$groupId/': {
-      id: '/compete/organizer/_dashboard/series/$groupId/'
+    '/compete/organizer/series/$groupId/events/': {
+      id: '/compete/organizer/series/$groupId/events/'
       path: '/'
-      fullPath: '/compete/organizer/series/$groupId/'
-      preLoaderRoute: typeof CompeteOrganizerDashboardSeriesGroupIdIndexRouteImport
-      parentRoute: typeof CompeteOrganizerDashboardSeriesGroupIdRoute
+      fullPath: '/compete/organizer/series/$groupId/events/'
+      preLoaderRoute: typeof CompeteOrganizerSeriesGroupIdEventsIndexRouteImport
+      parentRoute: typeof CompeteOrganizerSeriesGroupIdEventsRoute
     }
     '/compete/organizer/$competitionId/events/$eventId/': {
       id: '/compete/organizer/$competitionId/events/$eventId/'
@@ -3063,40 +3125,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedAdminTeamsProgrammingTrackIdIndexRouteImport
       parentRoute: typeof ProtectedRoute
     }
-    '/compete/organizer/_dashboard/series/$groupId/leaderboard': {
-      id: '/compete/organizer/_dashboard/series/$groupId/leaderboard'
-      path: '/leaderboard'
-      fullPath: '/compete/organizer/series/$groupId/leaderboard'
-      preLoaderRoute: typeof CompeteOrganizerDashboardSeriesGroupIdLeaderboardRouteImport
-      parentRoute: typeof CompeteOrganizerDashboardSeriesGroupIdRoute
-    }
-    '/compete/organizer/_dashboard/series/$groupId/events': {
-      id: '/compete/organizer/_dashboard/series/$groupId/events'
-      path: '/events'
-      fullPath: '/compete/organizer/series/$groupId/events'
-      preLoaderRoute: typeof CompeteOrganizerDashboardSeriesGroupIdEventsRouteImport
-      parentRoute: typeof CompeteOrganizerDashboardSeriesGroupIdRoute
-    }
-    '/compete/organizer/_dashboard/series/$groupId/event-mappings': {
-      id: '/compete/organizer/_dashboard/series/$groupId/event-mappings'
-      path: '/event-mappings'
-      fullPath: '/compete/organizer/series/$groupId/event-mappings'
-      preLoaderRoute: typeof CompeteOrganizerDashboardSeriesGroupIdEventMappingsRouteImport
-      parentRoute: typeof CompeteOrganizerDashboardSeriesGroupIdRoute
-    }
-    '/compete/organizer/_dashboard/series/$groupId/edit': {
-      id: '/compete/organizer/_dashboard/series/$groupId/edit'
-      path: '/edit'
-      fullPath: '/compete/organizer/series/$groupId/edit'
-      preLoaderRoute: typeof CompeteOrganizerDashboardSeriesGroupIdEditRouteImport
-      parentRoute: typeof CompeteOrganizerDashboardSeriesGroupIdRoute
-    }
-    '/compete/organizer/_dashboard/series/$groupId/divisions': {
-      id: '/compete/organizer/_dashboard/series/$groupId/divisions'
-      path: '/divisions'
-      fullPath: '/compete/organizer/series/$groupId/divisions'
-      preLoaderRoute: typeof CompeteOrganizerDashboardSeriesGroupIdDivisionsRouteImport
-      parentRoute: typeof CompeteOrganizerDashboardSeriesGroupIdRoute
+    '/compete/organizer/series/$groupId/events/$eventId': {
+      id: '/compete/organizer/series/$groupId/events/$eventId'
+      path: '/$eventId'
+      fullPath: '/compete/organizer/series/$groupId/events/$eventId'
+      preLoaderRoute: typeof CompeteOrganizerSeriesGroupIdEventsEventIdRouteImport
+      parentRoute: typeof CompeteOrganizerSeriesGroupIdEventsRoute
     }
     '/compete/organizer/$competitionId/events/$eventId/submissions': {
       id: '/compete/organizer/$competitionId/events/$eventId/submissions'
@@ -3112,26 +3146,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompeteOrganizerDashboardSettingsPayoutsTeamSlugIndexRouteImport
       parentRoute: typeof CompeteOrganizerDashboardRoute
     }
-    '/compete/organizer/_dashboard/series/$groupId/events/': {
-      id: '/compete/organizer/_dashboard/series/$groupId/events/'
-      path: '/'
-      fullPath: '/compete/organizer/series/$groupId/events/'
-      preLoaderRoute: typeof CompeteOrganizerDashboardSeriesGroupIdEventsIndexRouteImport
-      parentRoute: typeof CompeteOrganizerDashboardSeriesGroupIdEventsRoute
-    }
     '/compete/organizer/$competitionId/events/$eventId/submissions/': {
       id: '/compete/organizer/$competitionId/events/$eventId/submissions/'
       path: '/'
       fullPath: '/compete/organizer/$competitionId/events/$eventId/submissions/'
       preLoaderRoute: typeof CompeteOrganizerCompetitionIdEventsEventIdSubmissionsIndexRouteImport
       parentRoute: typeof CompeteOrganizerCompetitionIdEventsEventIdSubmissionsRoute
-    }
-    '/compete/organizer/_dashboard/series/$groupId/events/$eventId': {
-      id: '/compete/organizer/_dashboard/series/$groupId/events/$eventId'
-      path: '/$eventId'
-      fullPath: '/compete/organizer/series/$groupId/events/$eventId'
-      preLoaderRoute: typeof CompeteOrganizerDashboardSeriesGroupIdEventsEventIdRouteImport
-      parentRoute: typeof CompeteOrganizerDashboardSeriesGroupIdEventsRoute
     }
     '/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId': {
       id: '/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId'
@@ -3482,58 +3502,9 @@ const CompeteOrganizerCompetitionIdRouteWithChildren =
     CompeteOrganizerCompetitionIdRouteChildren,
   )
 
-interface CompeteOrganizerDashboardSeriesGroupIdEventsRouteChildren {
-  CompeteOrganizerDashboardSeriesGroupIdEventsEventIdRoute: typeof CompeteOrganizerDashboardSeriesGroupIdEventsEventIdRoute
-  CompeteOrganizerDashboardSeriesGroupIdEventsIndexRoute: typeof CompeteOrganizerDashboardSeriesGroupIdEventsIndexRoute
-}
-
-const CompeteOrganizerDashboardSeriesGroupIdEventsRouteChildren: CompeteOrganizerDashboardSeriesGroupIdEventsRouteChildren =
-  {
-    CompeteOrganizerDashboardSeriesGroupIdEventsEventIdRoute:
-      CompeteOrganizerDashboardSeriesGroupIdEventsEventIdRoute,
-    CompeteOrganizerDashboardSeriesGroupIdEventsIndexRoute:
-      CompeteOrganizerDashboardSeriesGroupIdEventsIndexRoute,
-  }
-
-const CompeteOrganizerDashboardSeriesGroupIdEventsRouteWithChildren =
-  CompeteOrganizerDashboardSeriesGroupIdEventsRoute._addFileChildren(
-    CompeteOrganizerDashboardSeriesGroupIdEventsRouteChildren,
-  )
-
-interface CompeteOrganizerDashboardSeriesGroupIdRouteChildren {
-  CompeteOrganizerDashboardSeriesGroupIdDivisionsRoute: typeof CompeteOrganizerDashboardSeriesGroupIdDivisionsRoute
-  CompeteOrganizerDashboardSeriesGroupIdEditRoute: typeof CompeteOrganizerDashboardSeriesGroupIdEditRoute
-  CompeteOrganizerDashboardSeriesGroupIdEventMappingsRoute: typeof CompeteOrganizerDashboardSeriesGroupIdEventMappingsRoute
-  CompeteOrganizerDashboardSeriesGroupIdEventsRoute: typeof CompeteOrganizerDashboardSeriesGroupIdEventsRouteWithChildren
-  CompeteOrganizerDashboardSeriesGroupIdLeaderboardRoute: typeof CompeteOrganizerDashboardSeriesGroupIdLeaderboardRoute
-  CompeteOrganizerDashboardSeriesGroupIdIndexRoute: typeof CompeteOrganizerDashboardSeriesGroupIdIndexRoute
-}
-
-const CompeteOrganizerDashboardSeriesGroupIdRouteChildren: CompeteOrganizerDashboardSeriesGroupIdRouteChildren =
-  {
-    CompeteOrganizerDashboardSeriesGroupIdDivisionsRoute:
-      CompeteOrganizerDashboardSeriesGroupIdDivisionsRoute,
-    CompeteOrganizerDashboardSeriesGroupIdEditRoute:
-      CompeteOrganizerDashboardSeriesGroupIdEditRoute,
-    CompeteOrganizerDashboardSeriesGroupIdEventMappingsRoute:
-      CompeteOrganizerDashboardSeriesGroupIdEventMappingsRoute,
-    CompeteOrganizerDashboardSeriesGroupIdEventsRoute:
-      CompeteOrganizerDashboardSeriesGroupIdEventsRouteWithChildren,
-    CompeteOrganizerDashboardSeriesGroupIdLeaderboardRoute:
-      CompeteOrganizerDashboardSeriesGroupIdLeaderboardRoute,
-    CompeteOrganizerDashboardSeriesGroupIdIndexRoute:
-      CompeteOrganizerDashboardSeriesGroupIdIndexRoute,
-  }
-
-const CompeteOrganizerDashboardSeriesGroupIdRouteWithChildren =
-  CompeteOrganizerDashboardSeriesGroupIdRoute._addFileChildren(
-    CompeteOrganizerDashboardSeriesGroupIdRouteChildren,
-  )
-
 interface CompeteOrganizerDashboardRouteChildren {
   CompeteOrganizerDashboardNewRoute: typeof CompeteOrganizerDashboardNewRoute
   CompeteOrganizerDashboardIndexRoute: typeof CompeteOrganizerDashboardIndexRoute
-  CompeteOrganizerDashboardSeriesGroupIdRoute: typeof CompeteOrganizerDashboardSeriesGroupIdRouteWithChildren
   CompeteOrganizerDashboardSeriesNewRoute: typeof CompeteOrganizerDashboardSeriesNewRoute
   CompeteOrganizerDashboardSeriesIndexRoute: typeof CompeteOrganizerDashboardSeriesIndexRoute
   CompeteOrganizerDashboardSettingsPayoutsTeamSlugIndexRoute: typeof CompeteOrganizerDashboardSettingsPayoutsTeamSlugIndexRoute
@@ -3543,8 +3514,6 @@ const CompeteOrganizerDashboardRouteChildren: CompeteOrganizerDashboardRouteChil
   {
     CompeteOrganizerDashboardNewRoute: CompeteOrganizerDashboardNewRoute,
     CompeteOrganizerDashboardIndexRoute: CompeteOrganizerDashboardIndexRoute,
-    CompeteOrganizerDashboardSeriesGroupIdRoute:
-      CompeteOrganizerDashboardSeriesGroupIdRouteWithChildren,
     CompeteOrganizerDashboardSeriesNewRoute:
       CompeteOrganizerDashboardSeriesNewRoute,
     CompeteOrganizerDashboardSeriesIndexRoute:
@@ -3558,10 +3527,62 @@ const CompeteOrganizerDashboardRouteWithChildren =
     CompeteOrganizerDashboardRouteChildren,
   )
 
+interface CompeteOrganizerSeriesGroupIdEventsRouteChildren {
+  CompeteOrganizerSeriesGroupIdEventsEventIdRoute: typeof CompeteOrganizerSeriesGroupIdEventsEventIdRoute
+  CompeteOrganizerSeriesGroupIdEventsIndexRoute: typeof CompeteOrganizerSeriesGroupIdEventsIndexRoute
+}
+
+const CompeteOrganizerSeriesGroupIdEventsRouteChildren: CompeteOrganizerSeriesGroupIdEventsRouteChildren =
+  {
+    CompeteOrganizerSeriesGroupIdEventsEventIdRoute:
+      CompeteOrganizerSeriesGroupIdEventsEventIdRoute,
+    CompeteOrganizerSeriesGroupIdEventsIndexRoute:
+      CompeteOrganizerSeriesGroupIdEventsIndexRoute,
+  }
+
+const CompeteOrganizerSeriesGroupIdEventsRouteWithChildren =
+  CompeteOrganizerSeriesGroupIdEventsRoute._addFileChildren(
+    CompeteOrganizerSeriesGroupIdEventsRouteChildren,
+  )
+
+interface CompeteOrganizerSeriesGroupIdRouteChildren {
+  CompeteOrganizerSeriesGroupIdDivisionsRoute: typeof CompeteOrganizerSeriesGroupIdDivisionsRoute
+  CompeteOrganizerSeriesGroupIdEditRoute: typeof CompeteOrganizerSeriesGroupIdEditRoute
+  CompeteOrganizerSeriesGroupIdEventMappingsRoute: typeof CompeteOrganizerSeriesGroupIdEventMappingsRoute
+  CompeteOrganizerSeriesGroupIdEventsRoute: typeof CompeteOrganizerSeriesGroupIdEventsRouteWithChildren
+  CompeteOrganizerSeriesGroupIdLeaderboardRoute: typeof CompeteOrganizerSeriesGroupIdLeaderboardRoute
+  CompeteOrganizerSeriesGroupIdRegistrationQuestionsRoute: typeof CompeteOrganizerSeriesGroupIdRegistrationQuestionsRoute
+  CompeteOrganizerSeriesGroupIdIndexRoute: typeof CompeteOrganizerSeriesGroupIdIndexRoute
+}
+
+const CompeteOrganizerSeriesGroupIdRouteChildren: CompeteOrganizerSeriesGroupIdRouteChildren =
+  {
+    CompeteOrganizerSeriesGroupIdDivisionsRoute:
+      CompeteOrganizerSeriesGroupIdDivisionsRoute,
+    CompeteOrganizerSeriesGroupIdEditRoute:
+      CompeteOrganizerSeriesGroupIdEditRoute,
+    CompeteOrganizerSeriesGroupIdEventMappingsRoute:
+      CompeteOrganizerSeriesGroupIdEventMappingsRoute,
+    CompeteOrganizerSeriesGroupIdEventsRoute:
+      CompeteOrganizerSeriesGroupIdEventsRouteWithChildren,
+    CompeteOrganizerSeriesGroupIdLeaderboardRoute:
+      CompeteOrganizerSeriesGroupIdLeaderboardRoute,
+    CompeteOrganizerSeriesGroupIdRegistrationQuestionsRoute:
+      CompeteOrganizerSeriesGroupIdRegistrationQuestionsRoute,
+    CompeteOrganizerSeriesGroupIdIndexRoute:
+      CompeteOrganizerSeriesGroupIdIndexRoute,
+  }
+
+const CompeteOrganizerSeriesGroupIdRouteWithChildren =
+  CompeteOrganizerSeriesGroupIdRoute._addFileChildren(
+    CompeteOrganizerSeriesGroupIdRouteChildren,
+  )
+
 interface CompeteOrganizerRouteChildren {
   CompeteOrganizerCompetitionIdRoute: typeof CompeteOrganizerCompetitionIdRouteWithChildren
   CompeteOrganizerDashboardRoute: typeof CompeteOrganizerDashboardRouteWithChildren
   CompeteOrganizerOnboardPendingRoute: typeof CompeteOrganizerOnboardPendingRoute
+  CompeteOrganizerSeriesGroupIdRoute: typeof CompeteOrganizerSeriesGroupIdRouteWithChildren
   CompeteOrganizerOnboardIndexRoute: typeof CompeteOrganizerOnboardIndexRoute
 }
 
@@ -3570,6 +3591,8 @@ const CompeteOrganizerRouteChildren: CompeteOrganizerRouteChildren = {
     CompeteOrganizerCompetitionIdRouteWithChildren,
   CompeteOrganizerDashboardRoute: CompeteOrganizerDashboardRouteWithChildren,
   CompeteOrganizerOnboardPendingRoute: CompeteOrganizerOnboardPendingRoute,
+  CompeteOrganizerSeriesGroupIdRoute:
+    CompeteOrganizerSeriesGroupIdRouteWithChildren,
   CompeteOrganizerOnboardIndexRoute: CompeteOrganizerOnboardIndexRoute,
 }
 

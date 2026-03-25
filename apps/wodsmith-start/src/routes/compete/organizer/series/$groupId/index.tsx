@@ -4,7 +4,6 @@ import { ListPlus, Plus } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { AddCompetitionsToSeriesDialog } from "@/components/add-competitions-to-series-dialog"
-import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
 import type { CompetitionRevenueData } from "@/components/organizer-competitions-list"
 import { OrganizerCompetitionsList } from "@/components/organizer-competitions-list"
 import { SeriesRevenueSummary } from "@/components/series-competition-revenue-list"
@@ -27,11 +26,10 @@ import {
   getOrganizerCompetitionsFn,
   updateCompetitionFn,
 } from "@/server-fns/competition-fns"
-import { getSeriesQuestionsFn } from "@/server-fns/registration-questions-fns"
 import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
 
 export const Route = createFileRoute(
-  "/compete/organizer/_dashboard/series/$groupId/",
+  "/compete/organizer/series/$groupId/",
 )({
   component: SeriesDetailPage,
   loader: async ({ params, context }) => {
@@ -50,7 +48,6 @@ export const Route = createFileRoute(
         seriesCompetitions: [],
         allCompetitions: [],
         allGroups: [],
-        seriesQuestions: [],
         deferredRevenueStats: Promise.resolve(null),
         teamId: null,
       }
@@ -62,7 +59,6 @@ export const Route = createFileRoute(
         seriesCompetitions: [],
         allCompetitions: [],
         allGroups: [],
-        seriesQuestions: [],
         deferredRevenueStats: Promise.resolve(null),
         teamId: null,
       }
@@ -80,11 +76,7 @@ export const Route = createFileRoute(
         organizingTeams[0].id
     }
 
-    // Fetch competitions and series questions in parallel
-    const [competitionsResult, questionsResult] = await Promise.all([
-      getOrganizerCompetitionsFn({ data: { teamId } }),
-      getSeriesQuestionsFn({ data: { groupId } }),
-    ])
+    const competitionsResult = await getOrganizerCompetitionsFn({ data: { teamId } })
 
     // Filter competitions that belong to this series
     const seriesCompetitions = competitionsResult.competitions.filter(
@@ -106,7 +98,6 @@ export const Route = createFileRoute(
           competitionCount: seriesCompetitions.length,
         },
       ],
-      seriesQuestions: questionsResult.questions,
       deferredRevenueStats,
       teamId,
     }
@@ -119,7 +110,6 @@ function SeriesDetailPage() {
     seriesCompetitions,
     allCompetitions,
     allGroups,
-    seriesQuestions,
     deferredRevenueStats,
     teamId,
   } = Route.useLoaderData()
@@ -161,10 +151,6 @@ function SeriesDetailPage() {
 
   const updateCompetition = useServerFn(updateCompetitionFn)
   const exportCsv = useServerFn(exportSeriesRevenueCsvFn)
-
-  const handleQuestionsChange = () => {
-    router.invalidate()
-  }
 
   const handleRemoveFromSeries = async (competitionId: string) => {
     try {
@@ -268,15 +254,6 @@ function SeriesDetailPage() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Series Registration Questions */}
-        <RegistrationQuestionsEditor
-          entityType="series"
-          entityId={group.id}
-          teamId={teamId}
-          questions={seriesQuestions}
-          onQuestionsChange={handleQuestionsChange}
-        />
 
         {/* Competitions in Series */}
         <div>

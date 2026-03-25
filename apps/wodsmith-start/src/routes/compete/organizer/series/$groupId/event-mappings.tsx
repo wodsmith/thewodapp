@@ -15,7 +15,7 @@ import {
 } from "@/server-fns/series-event-template-fns"
 
 export const Route = createFileRoute(
-  "/compete/organizer/_dashboard/series/$groupId/event-mappings",
+  "/compete/organizer/series/$groupId/event-mappings",
 )({
   component: SeriesEventMappingsPage,
   loader: async ({ params }) => {

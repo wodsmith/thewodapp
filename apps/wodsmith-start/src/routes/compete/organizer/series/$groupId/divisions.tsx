@@ -59,7 +59,7 @@ import {
 } from "@/server-fns/series-division-mapping-fns"
 
 export const Route = createFileRoute(
-  "/compete/organizer/_dashboard/series/$groupId/divisions",
+  "/compete/organizer/series/$groupId/divisions",
 )({
   component: SeriesDivisionsPage,
   loader: async ({ params }) => {
@@ -771,7 +771,7 @@ function TemplateCreator({
               <div className="space-y-2">
                 {customDivisions.map((d, i) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: items are reorderable, label is editable
-                  <div key={i} className="rounded-md border p-3 space-y-2">
+                  (<div key={i} className="rounded-md border p-3 space-y-2">
                     <div className="flex items-center gap-2">
                       {/* Position badge */}
                       <span className="text-xs text-muted-foreground font-mono w-6 text-center shrink-0">
@@ -842,7 +842,6 @@ function TemplateCreator({
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-
                     {/* Second row: fee, max spots, description */}
                     <div className="flex items-start gap-3 pl-8">
                       <div className="space-y-1">
@@ -890,7 +889,7 @@ function TemplateCreator({
                         rows={2}
                       />
                     </div>
-                  </div>
+                  </div>)
                 ))}
               </div>
             )}

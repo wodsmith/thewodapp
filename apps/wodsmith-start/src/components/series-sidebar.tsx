@@ -1,12 +1,17 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Link, useRouterState } from "@tanstack/react-router"
 import {
   Calendar,
+  ClipboardList,
   Home,
   Layers,
   Menu,
+  Moon,
+  PanelLeft,
   Pencil,
+  Sun,
   Trophy,
 } from "lucide-react"
 import {
@@ -57,19 +62,15 @@ const getNavigation = (
       items: [
         { label: "Edit Series", href: `${basePath}/edit`, icon: Pencil },
         { label: "Divisions", href: `${basePath}/divisions`, icon: Layers },
+        { label: "Registration Questions", href: `${basePath}/registration-questions`, icon: ClipboardList },
       ],
     },
     {
       label: "Events",
       items: [
         {
-          label: "Event Templates",
+          label: "Event Template",
           href: `${basePath}/events`,
-          icon: Calendar,
-        },
-        {
-          label: "Event Mappings",
-          href: `${basePath}/event-mappings`,
           icon: Calendar,
         },
       ],
@@ -144,15 +145,87 @@ function SeriesSidebarHeader() {
   )
 }
 
+function ThemeToggleButton() {
+	const [theme, setTheme] = useState<"light" | "dark">("light")
+	const [mounted, setMounted] = useState(false)
+
+	useEffect(() => {
+		const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null
+		const prefersDark = window.matchMedia(
+			"(prefers-color-scheme: dark)",
+		).matches
+		const initialTheme = savedTheme || (prefersDark ? "dark" : "light")
+		setTheme(initialTheme)
+		setMounted(true)
+	}, [])
+
+	const toggleTheme = () => {
+		const newTheme = theme === "dark" ? "light" : "dark"
+		setTheme(newTheme)
+		localStorage.setItem("theme", newTheme)
+		const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString()
+		const secure = window.location.protocol === "https:" ? "; Secure" : ""
+		// biome-ignore lint/suspicious/noDocumentCookie: document.cookie required for SSR-accessible theme preference
+		document.cookie = `theme=${newTheme}; path=/; expires=${expires}; SameSite=Lax${secure}`
+		const root = document.documentElement
+		if (newTheme === "dark") {
+			root.classList.add("dark")
+		} else {
+			root.classList.remove("dark")
+		}
+	}
+
+	if (!mounted) {
+		return (
+			<SidebarMenuItem>
+				<SidebarMenuButton tooltip="Toggle Theme" disabled>
+					<Sun className="h-4 w-4" />
+					<span>Toggle Theme</span>
+				</SidebarMenuButton>
+			</SidebarMenuItem>
+		)
+	}
+
+	return (
+		<SidebarMenuItem>
+			<SidebarMenuButton
+				tooltip="Toggle Theme"
+				onClick={toggleTheme}
+			>
+				{theme === "dark" ? (
+					<Moon className="h-4 w-4" />
+				) : (
+					<Sun className="h-4 w-4" />
+				)}
+				<span>Toggle Theme</span>
+			</SidebarMenuButton>
+		</SidebarMenuItem>
+	)
+}
+
+function SidebarCollapseButton() {
+	const { toggleSidebar, state } = useSidebar()
+	const isCollapsed = state === "collapsed"
+
+	return (
+		<SidebarMenuItem>
+			<SidebarMenuButton
+				tooltip={isCollapsed ? "Open Sidebar" : "Collapse Sidebar"}
+				onClick={toggleSidebar}
+			>
+				<PanelLeft className="h-4 w-4" />
+				<span>{isCollapsed ? "Open Sidebar" : "Collapse Sidebar"}</span>
+			</SidebarMenuButton>
+		</SidebarMenuItem>
+	)
+}
+
 function SeriesSidebarFooter() {
   return (
     <SidebarFooter className="border-t">
       <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton asChild tooltip="Toggle Sidebar">
-            <SidebarTrigger className="w-full justify-start" />
-          </SidebarMenuButton>
-        </SidebarMenuItem>
+        <ThemeToggleButton />
+        <SidebarCollapseButton />
       </SidebarMenu>
     </SidebarFooter>
   )

@@ -65,7 +65,9 @@ Changes include field-level diffs (e.g., "name: Old Name → New Name"), order c
 
 ## Event Matching
 
-Event matching connects each competition's events to the series template for leaderboard scoring. The UI at `/series/{groupId}/event-mappings` uses `SeriesEventMapper` — an interactive matrix with competitions as rows and template events as columns.
+Event matching connects each competition's events to the series template for leaderboard scoring.
+
+The UI lives on the "Event Match" tab of the consolidated events page at `/series/{groupId}/events`, using `SeriesEventMapper` — an interactive matrix with competitions as rows and template events as columns.
 
 ### Auto-Matching
 
@@ -113,9 +115,8 @@ All defined in `src/server-fns/series-event-template-fns.ts`:
 
 ## Routes
 
-All series event template routes are nested under the organizer dashboard.
+Series event template routes are nested under the organizer series layout at `/compete/organizer/series/{groupId}`, which uses its own sidebar navigation (outside the dashboard layout).
 
 - `/series/{groupId}/events` — Layout route with `<Outlet />`
-- `/series/{groupId}/events/` — Event list with template creator or editor + sync button
+- `/series/{groupId}/events/` — Single page with event template editor + sync button, followed by the event matching card below
 - `/series/{groupId}/events/{eventId}` — Full event edit page (standalone or parent with tabbed sub-events)
-- `/series/{groupId}/event-mappings` — Event matching page

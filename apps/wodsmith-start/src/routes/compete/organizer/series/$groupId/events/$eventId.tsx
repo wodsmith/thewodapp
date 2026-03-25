@@ -80,7 +80,7 @@ const searchSchema = z.object({
 })
 
 export const Route = createFileRoute(
-  "/compete/organizer/_dashboard/series/$groupId/events/$eventId",
+  "/compete/organizer/series/$groupId/events/$eventId",
 )({
   validateSearch: searchSchema,
   component: SeriesTemplateEventEditPage,
