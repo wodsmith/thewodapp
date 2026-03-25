@@ -2,7 +2,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
 import { getCompetitionGroupByIdFn } from "@/server-fns/competition-fns"
 import { getSeriesQuestionsFn } from "@/server-fns/registration-questions-fns"
-import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
+import { getOrganizerTeamsFn } from "@/server-fns/team-fns"
 
 export const Route = createFileRoute(
 	"/compete/organizer/series/$groupId/registration-questions",
@@ -10,31 +10,29 @@ export const Route = createFileRoute(
 	component: SeriesRegistrationQuestionsPage,
 	loader: async ({ params, context }) => {
 		const { groupId } = params
-		const [groupResult, { teams: organizingTeams }, questionsResult] =
-			await Promise.all([
-				getCompetitionGroupByIdFn({ data: { groupId } }),
-				getOrganizerTeamsFn(),
-				getSeriesQuestionsFn({ data: { groupId } }),
-			])
+		const [groupResult, { teams: organizingTeams }] = await Promise.all([
+			getCompetitionGroupByIdFn({ data: { groupId } }),
+			getOrganizerTeamsFn(),
+		])
 
 		const isSiteAdmin = context.session?.user?.role === "admin"
 		const groupTeamId = groupResult.group?.organizingTeamId
-		let teamId: string | null = null
 
-		if (groupTeamId) {
-			if (
-				isSiteAdmin ||
-				organizingTeams.some((t) => t.id === groupTeamId)
-			) {
-				teamId = groupTeamId
-			} else {
-				const activeTeamId = await getActiveTeamIdFn()
-				teamId =
-					organizingTeams.find((t) => t.id === activeTeamId)?.id ??
-					organizingTeams[0]?.id ??
-					null
+		if (
+			!groupTeamId ||
+			(!isSiteAdmin && !organizingTeams.some((t) => t.id === groupTeamId))
+		) {
+			return {
+				groupId,
+				teamId: null,
+				questions: [],
 			}
 		}
+
+		const teamId = groupTeamId
+
+		// Fetch questions only after authorization is confirmed
+		const questionsResult = await getSeriesQuestionsFn({ data: { groupId } })
 
 		return {
 			groupId,

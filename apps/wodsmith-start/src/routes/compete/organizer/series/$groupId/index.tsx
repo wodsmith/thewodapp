@@ -283,7 +283,6 @@ function SeriesDetailPage() {
             competitions={seriesCompetitions}
             groups={allGroups}
             teamId={teamId}
-            currentGroupId={group.id}
             onRemoveFromSeries={handleRemoveFromSeries}
             revenueByCompetition={revenueByCompetition}
           />

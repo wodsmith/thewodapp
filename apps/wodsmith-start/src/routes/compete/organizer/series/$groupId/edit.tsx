@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { getCompetitionGroupByIdFn } from "@/server-fns/competition-fns"
-import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
+import { getOrganizerTeamsFn } from "@/server-fns/team-fns"
 
 export const Route = createFileRoute(
   "/compete/organizer/series/$groupId/edit",
@@ -36,17 +36,19 @@ export const Route = createFileRoute(
       }
     }
 
-    // Use the group's organizing team if user has access
+    // Verify user can manage this series
     const groupTeamId = groupResult.group.organizingTeamId
-    let teamId: string
-    if (isSiteAdmin || organizingTeams.some((t) => t.id === groupTeamId)) {
-      teamId = groupTeamId
-    } else {
-      const activeTeamId = await getActiveTeamIdFn()
-      teamId =
-        organizingTeams.find((t) => t.id === activeTeamId)?.id ??
-        organizingTeams[0].id
+    if (
+      !isSiteAdmin &&
+      !organizingTeams.some((t) => t.id === groupTeamId)
+    ) {
+      return {
+        group: null,
+        teamId: null,
+      }
     }
+
+    const teamId = groupTeamId
 
     return {
       group: groupResult.group,

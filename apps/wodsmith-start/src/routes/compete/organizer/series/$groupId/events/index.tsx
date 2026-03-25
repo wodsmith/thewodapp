@@ -49,10 +49,20 @@ export const Route = createFileRoute(
 			}),
 			getSeriesTemplateDivisionsFn({
 				data: { groupId: params.groupId },
-			}).catch(() => ({
-				scalingGroupId: null,
-				divisions: [] as Array<{ id: string; label: string; teamSize: number }>,
-			})),
+			}).catch((error: unknown) => {
+				// Only swallow "not found" errors — rethrow auth/server failures
+				if (
+					error instanceof Error &&
+					(error.message.includes("not found") ||
+						error.message.includes("No scaling group"))
+				) {
+					return {
+						scalingGroupId: null,
+						divisions: [] as Array<{ id: string; label: string; teamSize: number }>,
+					}
+				}
+				throw error
+			}),
 			getSeriesEventMappingsFn({
 				data: { groupId: params.groupId },
 			}),
