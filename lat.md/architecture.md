@@ -66,3 +66,29 @@ Platform-level admin routes for WODsmith operators. Manages teams, competitions,
 ### api
 
 API routes for webhooks (Stripe, auth callbacks), cron jobs, file uploads, and internal endpoints.
+
+## SEO and Structured Data
+
+Public pages use per-route `head` configs for metadata, Open Graph, Twitter cards, and canonical URLs. Structured data uses JSON-LD via the [[apps/wodsmith-start/src/components/json-ld.tsx#JsonLd]] component, which escapes `<`, `>`, `&`, and Unicode line separators to prevent script-breakout XSS.
+
+### Page Metadata
+
+Every public route defines a `head` function with title, description, OG/Twitter tags, and canonical link.
+
+Title format is `{Page Title} | WODsmith`. The root layout (`__root.tsx`) provides fallback title, charset, and viewport.
+
+### Structured Data Schemas
+
+Landing page includes `Organization` and `WebSite` JSON-LD. Competition detail pages include `SportsEvent` and `BreadcrumbList`.
+
+`SportsEvent` has dynamic offers/availability based on registration status. All JSON-LD is rendered server-side via the `JsonLd` component.
+
+### Sitemap
+
+`/api/sitemap` returns a dynamic XML sitemap listing static pages and all public published competitions with their leaderboard sub-pages. Referenced from `robots.txt`. Cached for 1 hour.
+
+Slug values are XML-escaped. `<lastmod>` is only emitted when `updatedAt` exists. Returns a 500 XML response on failure.
+
+### robots.txt
+
+Disallows `/api/`, `/_auth/`, `/admin/`, `/dashboard/` from crawlers. References the sitemap URL.
