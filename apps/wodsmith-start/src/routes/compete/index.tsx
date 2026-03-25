@@ -350,7 +350,8 @@ function CompetePage() {
               aria-hidden="true"
             />
             <Input
-              type="text"
+              type="search"
+              aria-label="Search competitions"
               name="competition-search"
               placeholder="Search…"
               value={localSearch}

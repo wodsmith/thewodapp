@@ -1,5 +1,6 @@
 "use client"
 
+import { Link } from "@tanstack/react-router"
 import { CalendarIcon, GlobeIcon, MapPinIcon } from "lucide-react"
 import type { CompetitionWithOrganizingTeam } from "@/server-fns/competition-fns"
 import { formatLocationBadge } from "@/utils/address"
@@ -119,8 +120,9 @@ export function CompetitionCard({
   const initials = getInitials(competition.name)
 
   return (
-    <a
-      href={`/compete/${competition.slug}`}
+    <Link
+      to="/compete/$slug"
+      params={{ slug: competition.slug }}
       className={cn(
         "group relative flex gap-4 rounded-lg border bg-card p-4 sm:p-5",
         "transition-[border-color,box-shadow] duration-200",
@@ -203,6 +205,6 @@ export function CompetitionCard({
           </span>
         </div>
       </div>
-    </a>
+    </Link>
   )
 }
