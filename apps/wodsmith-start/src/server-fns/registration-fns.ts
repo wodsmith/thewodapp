@@ -527,7 +527,6 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
     const purchaseIds: string[] = []
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = []
     let totalChargeCents = 0
-    let totalPlatformFeeCents = 0
     let totalOrganizerNetCents = 0
 
     // Process free items immediately, create purchases for paid items
@@ -609,7 +608,6 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       })
 
       totalChargeCents += feeBreakdown.totalChargeCents
-      totalPlatformFeeCents += feeBreakdown.platformFeeCents
       totalOrganizerNetCents += feeBreakdown.organizerNetCents
 
       // Get division label for Stripe line item

@@ -296,7 +296,7 @@ function CompetePage() {
       {/* ── Toolbar ────────────────────────────────────────── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4">
         {/* Status tabs */}
-        <nav
+        <div
           className="flex items-center gap-0.5 -ml-2"
           role="tablist"
           aria-label="Filter competitions"
@@ -340,7 +340,7 @@ function CompetePage() {
               </button>
             )
           })}
-        </nav>
+        </div>
 
         {/* Search + filter toggle */}
         <div className="flex items-center gap-2">
