@@ -14,8 +14,10 @@ export interface CohostMembershipMetadata {
   events: boolean
   /** Scoring sidebar item */
   scoring: boolean
-  /** Registrations sidebar item */
-  registrations: boolean
+  /** View registrations list */
+  viewRegistrations: boolean
+  /** Add/remove/transfer registrations + registration rules */
+  editRegistrations: boolean
   /** Waivers sidebar item */
   waivers: boolean
 
@@ -52,7 +54,8 @@ export const DEFAULT_COHOST_PERMISSIONS: Omit<
   divisions: false,
   events: false,
   scoring: false,
-  registrations: true,
+  viewRegistrations: true,
+  editRegistrations: false,
   waivers: false,
 
   // Run Competition (defaults ON)

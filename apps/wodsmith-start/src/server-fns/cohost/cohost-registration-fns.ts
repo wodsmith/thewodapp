@@ -159,7 +159,7 @@ export const cohostGetOrganizerRegistrationsFn = createServerFn({
     getOrganizerRegistrationsInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "registrations")
+    await requireCohostPermission(data.competitionTeamId, "viewRegistrations")
 
     const db = getDb()
 
@@ -236,7 +236,7 @@ export const cohostCreateManualRegistrationFn = createServerFn({
     createManualRegistrationInputSchema.parse(data),
   )
   .handler(async ({ data: input }) => {
-    await requireCohostPermission(input.competitionTeamId, "registrations")
+    await requireCohostPermission(input.competitionTeamId, "editRegistrations")
 
     const session = await requireVerifiedEmail()
     const db = getDb()
@@ -383,7 +383,7 @@ export const cohostRemoveRegistrationFn = createServerFn({ method: "POST" })
     removeRegistrationInputSchema.parse(data),
   )
   .handler(async ({ data: input }) => {
-    await requireCohostPermission(input.competitionTeamId, "registrations")
+    await requireCohostPermission(input.competitionTeamId, "editRegistrations")
 
     const session = await requireVerifiedEmail()
     const db = getDb()
@@ -528,7 +528,7 @@ export const cohostTransferRegistrationDivisionFn = createServerFn({
     transferRegistrationDivisionInputSchema.parse(data),
   )
   .handler(async ({ data: input }) => {
-    await requireCohostPermission(input.competitionTeamId, "registrations")
+    await requireCohostPermission(input.competitionTeamId, "editRegistrations")
 
     const session = await requireVerifiedEmail()
     const db = getDb()
@@ -659,7 +659,7 @@ export const cohostGetRegistrationQuestionsFn = createServerFn({
     getRegistrationQuestionsInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "registrations")
+    await requireCohostPermission(data.competitionTeamId, "viewRegistrations")
 
     const db = getDb()
 
@@ -751,7 +751,7 @@ export const cohostGetCompetitionRegistrationAnswersFn = createServerFn({
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "registrations")
+    await requireCohostPermission(data.competitionTeamId, "viewRegistrations")
 
     const db = getDb()
 

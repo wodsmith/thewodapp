@@ -223,7 +223,8 @@ function PermissionsSummary({
     divisions?: boolean
     events?: boolean
     scoring?: boolean
-    registrations?: boolean
+    viewRegistrations?: boolean
+    editRegistrations?: boolean
     waivers?: boolean
     schedule?: boolean
     locations?: boolean
@@ -239,7 +240,8 @@ function PermissionsSummary({
     permissions.divisions && "Divisions",
     permissions.events && "Events",
     permissions.scoring && "Scoring",
-    permissions.registrations && "Registrations",
+    permissions.viewRegistrations && "View registrations",
+    permissions.editRegistrations && "Edit registrations",
     permissions.waivers && "Waivers",
     permissions.schedule && "Schedule",
     permissions.locations && "Locations",

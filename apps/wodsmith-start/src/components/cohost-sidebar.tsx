@@ -99,7 +99,7 @@ const getNavigation = (
         ...(permissions?.scoring
           ? [{ label: "Scoring", href: `${basePath}/scoring`, icon: Calculator }]
           : []),
-        ...(permissions?.registrations
+        ...(permissions?.viewRegistrations || permissions?.editRegistrations
           ? [{ label: "Registrations", href: `${basePath}/athletes`, icon: Users }]
           : []),
         ...(permissions?.waivers
