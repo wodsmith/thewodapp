@@ -36,12 +36,9 @@ import {
 } from "@/server-fns/volunteer-fns"
 import { getCompetitionShiftsFn } from "@/server-fns/volunteer-shift-fns"
 import { getCohostsFn } from "@/server-fns/cohost-fns"
-import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
-import { UserPlus, Trash2 } from "lucide-react"
+import { Copy, UserPlus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { InviteCohostDialog } from "./-components/invite-cohost-dialog"
 import { InvitedVolunteersList } from "./-components/invited-volunteers-list"
@@ -52,7 +49,7 @@ import { VolunteersList } from "./-components/volunteers-list"
 // Search params schema for tab navigation and event selection
 const searchParamsSchema = z.object({
   tab: z
-    .enum(["roster", "shifts", "schedule", "registration-rules", "cohosts"])
+    .enum(["roster", "shifts", "schedule", "registration-rules"])
     .optional()
     .default("roster"),
   event: z.string().optional(),
@@ -286,7 +283,7 @@ function VolunteersPage() {
       to: ".",
       search: (prev) => ({
         ...prev,
-        tab: value as "roster" | "shifts" | "schedule" | "registration-rules" | "cohosts",
+        tab: value as "roster" | "shifts" | "schedule" | "registration-rules",
       }),
       replace: true,
     })
@@ -349,7 +346,6 @@ function VolunteersPage() {
             <SelectItem value="registration-rules">
               Registration Rules
             </SelectItem>
-            <SelectItem value="cohosts">Co-Hosts</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -362,11 +358,19 @@ function VolunteersPage() {
           <TabsTrigger value="schedule">Judge Schedule</TabsTrigger>
         )}
         <TabsTrigger value="registration-rules">Registration Rules</TabsTrigger>
-        <TabsTrigger value="cohosts">Co-Hosts</TabsTrigger>
       </TabsList>
 
       {/* Roster Tab - Volunteer Management */}
       <TabsContent value="roster" className="flex flex-col gap-8">
+        {/* Co-Hosts Section */}
+        <CohostsSection
+          competitionId={competition.id}
+          competitionTeamId={competitionTeamId}
+          organizingTeamId={competition.organizingTeamId}
+          cohosts={cohosts}
+          pendingInvitations={pendingCohostInvitations}
+        />
+
         {/* Invited Volunteers Section - Only show if there are pending direct invites */}
         {pendingDirectInvites.length > 0 && (
           <section>
@@ -456,25 +460,15 @@ function VolunteersPage() {
         />
       </TabsContent>
 
-      {/* Co-Hosts Tab */}
-      <TabsContent value="cohosts">
-        <CohostsTab
-          competitionId={competition.id}
-          competitionTeamId={competitionTeamId}
-          organizingTeamId={competition.organizingTeamId}
-          cohosts={cohosts}
-          pendingInvitations={pendingCohostInvitations}
-        />
-      </TabsContent>
     </Tabs>
   )
 }
 
 // =============================================================================
-// Co-Hosts Tab Component
+// Co-Hosts Section (inline in Roster tab)
 // =============================================================================
 
-interface CohostsTabProps {
+interface CohostsSectionProps {
   competitionId: string
   competitionTeamId: string
   organizingTeamId: string
@@ -493,21 +487,28 @@ interface CohostsTabProps {
   }>
   pendingInvitations: Array<{
     id: string
+    token: string | null
     email: string
     permissions: CohostMembershipMetadata
     createdAt: Date | string | null
   }>
 }
 
-function CohostsTab({
+function CohostsSection({
   competitionId,
   competitionTeamId,
   organizingTeamId,
   cohosts,
   pendingInvitations,
-}: CohostsTabProps) {
+}: CohostsSectionProps) {
   const [inviteOpen, setInviteOpen] = useState(false)
   const router = useRouter()
+
+  const copyInviteLink = async (token: string) => {
+    const url = `${window.location.origin}/compete/cohost-invite/${token}`
+    await navigator.clipboard.writeText(url)
+    toast.success("Invite link copied")
+  }
 
   const handleRemoveCohost = async (membershipId: string, name: string) => {
     if (!confirm(`Remove ${name} as a co-host?`)) return
@@ -523,166 +524,78 @@ function CohostsTab({
     }
   }
 
-  const handleTogglePermission = async (
-    membershipId: string,
-    key: keyof CohostMembershipMetadata,
-    currentValue: boolean,
-  ) => {
-    try {
-      const { updateCohostPermissionsFn } = await import("@/server-fns/cohost-fns")
-      await updateCohostPermissionsFn({
-        data: {
-          membershipId,
-          organizingTeamId,
-          permissions: { [key]: !currentValue },
-        },
-      })
-      router.invalidate()
-    } catch {
-      toast.error("Failed to update permission")
-    }
-  }
-
-  const permissionLabel = (key: keyof CohostMembershipMetadata) => {
-    switch (key) {
-      case "canEditCapacity":
-        return "Division & athlete capacity"
-      case "canEditScoring":
-        return "Scoring algorithm & tiebreaks"
-      case "canEditRotation":
-        return "Judge rotation defaults"
-      case "canManageVolunteers":
-        return "Invite & schedule volunteers"
-      case "canManageEvents":
-        return "Create & publish events"
-      case "canManageHeats":
-        return "Create heats & assign athletes"
-      case "canManageResults":
-        return "Enter scores & publish results"
-      case "canManageRegistrations":
-        return "Register athletes & transfers"
-      case "canViewRevenue":
-        return "View revenue & financials"
-      case "canManagePricing":
-        return "Set pricing & coupons"
-      default:
-        return key
-    }
-  }
+  const hasCohosts = cohosts.length > 0 || pendingInvitations.length > 0
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+    <section>
+      <div className="mb-4 flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold">Co-Hosts</h2>
-          <p className="text-sm text-muted-foreground">
-            Invite partners to help manage this competition
-          </p>
+          {hasCohosts && (
+            <p className="text-sm text-muted-foreground">
+              {cohosts.length} active{pendingInvitations.length > 0 ? `, ${pendingInvitations.length} pending` : ""}
+            </p>
+          )}
         </div>
-        <Button onClick={() => setInviteOpen(true)} size="sm">
+        <Button onClick={() => setInviteOpen(true)} size="sm" variant="outline">
           <UserPlus className="mr-1.5 h-4 w-4" />
           Invite Co-Host
         </Button>
       </div>
 
-      {/* Pending invitations */}
-      {pendingInvitations.length > 0 && (
-        <section>
-          <h3 className="mb-3 text-sm font-medium text-muted-foreground">
-            Pending Invitations
-          </h3>
-          <div className="flex flex-col gap-2">
-            {pendingInvitations.map((inv) => (
-              <Card key={inv.id}>
-                <CardContent className="flex items-center justify-between py-3">
-                  <div>
-                    <p className="font-medium">{inv.email}</p>
-                    <div className="mt-1 flex gap-1.5">
-                      {(["canEditCapacity", "canEditScoring", "canEditRotation", "canViewRevenue", "canManagePricing", "canManageVolunteers", "canManageEvents", "canManageHeats", "canManageResults", "canManageRegistrations"] as const).map(
-                        (key) =>
-                          inv.permissions[key] && (
-                            <Badge key={key} variant="secondary" className="text-xs">
-                              {permissionLabel(key)}
-                            </Badge>
-                          ),
-                      )}
-                    </div>
-                  </div>
-                  <Badge variant="outline">Pending</Badge>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-      )}
+      {hasCohosts ? (
+        <div className="divide-y rounded-md border">
+          {/* Active cohosts */}
+          {cohosts.map((cohost) => {
+            const name = cohost.user
+              ? `${cohost.user.firstName ?? ""} ${cohost.user.lastName ?? ""}`.trim() ||
+                cohost.user.email
+              : "Unknown"
+            return (
+              <div key={cohost.id} className="flex items-center justify-between px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium">{name}</p>
+                  {cohost.user && name !== cohost.user.email && (
+                    <p className="text-xs text-muted-foreground">{cohost.user.email}</p>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => handleRemoveCohost(cohost.id, name)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )
+          })}
 
-      {/* Active cohosts */}
-      {cohosts.length > 0 ? (
-        <section>
-          <h3 className="mb-3 text-sm font-medium text-muted-foreground">
-            Active Co-Hosts
-          </h3>
-          <div className="flex flex-col gap-2">
-            {cohosts.map((cohost) => {
-              const name = cohost.user
-                ? `${cohost.user.firstName ?? ""} ${cohost.user.lastName ?? ""}`.trim() ||
-                  cohost.user.email
-                : "Unknown"
-              return (
-                <Card key={cohost.id}>
-                  <CardContent className="flex items-center justify-between py-3">
-                    <div className="flex-1">
-                      <p className="font-medium">{name}</p>
-                      {cohost.user && (
-                        <p className="text-sm text-muted-foreground">
-                          {cohost.user.email}
-                        </p>
-                      )}
-                      <div className="mt-2 flex flex-wrap gap-3">
-                        {(["canEditCapacity", "canEditScoring", "canEditRotation", "canViewRevenue", "canManagePricing", "canManageVolunteers", "canManageEvents", "canManageHeats", "canManageResults", "canManageRegistrations"] as const).map(
-                          (key) => (
-                            <label
-                              key={key}
-                              className="flex cursor-pointer items-center gap-1.5 text-sm"
-                            >
-                              <Checkbox
-                                checked={cohost.permissions[key] ?? false}
-                                onCheckedChange={() =>
-                                  handleTogglePermission(
-                                    cohost.id,
-                                    key,
-                                    cohost.permissions[key] ?? false,
-                                  )
-                                }
-                              />
-                              {permissionLabel(key)}
-                            </label>
-                          ),
-                        )}
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => handleRemoveCohost(cohost.id, name)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-        </section>
-      ) : pendingInvitations.length === 0 ? (
-        <div className="py-12 text-center text-muted-foreground">
-          <p>No co-hosts yet</p>
-          <p className="text-sm">
-            Invite a partner to help manage this competition
-          </p>
+          {/* Pending invitations */}
+          {pendingInvitations.map((inv) => (
+            <div key={inv.id} className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-muted-foreground">{inv.email}</p>
+                <Badge variant="outline" className="text-xs">Pending</Badge>
+              </div>
+              {inv.token && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyInviteLink(inv.token!)}
+                >
+                  <Copy className="mr-1.5 h-3.5 w-3.5" />
+                  Copy Link
+                </Button>
+              )}
+            </div>
+          ))}
         </div>
-      ) : null}
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          No co-hosts yet. Invite a partner to help manage this competition.
+        </p>
+      )}
 
       <InviteCohostDialog
         competitionId={competitionId}
@@ -691,6 +604,6 @@ function CohostsTab({
         open={inviteOpen}
         onOpenChange={setInviteOpen}
       />
-    </div>
+    </section>
   )
 }
