@@ -253,7 +253,7 @@ export function SeriesLeaderboardTable({
         <Select
           value={currentSortId}
           onValueChange={(id) =>
-            setSorting([{ id, desc: id === "overallRank" ? false : true }])
+            setSorting([{ id, desc: id !== "overallRank" }])
           }
         >
           <SelectTrigger className="h-7 flex-1 text-sm font-medium">
