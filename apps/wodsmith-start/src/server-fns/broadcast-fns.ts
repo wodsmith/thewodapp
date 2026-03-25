@@ -32,7 +32,6 @@ import {
 import { userTable } from "@/db/schemas/users"
 import {
 	logInfo,
-	logWarning,
 	logError,
 	logEntityCreated,
 	updateRequestContext,
