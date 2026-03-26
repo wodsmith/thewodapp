@@ -19,13 +19,17 @@ import {
 	competitionBroadcastsTable,
 } from "@/db/schemas/broadcasts"
 import {
+	competitionRegistrationAnswersTable,
+	competitionRegistrationQuestionsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
 	REGISTRATION_STATUS,
+	volunteerRegistrationAnswersTable,
 } from "@/db/schemas/competitions"
 import {
 	SYSTEM_ROLES_ENUM,
 	TEAM_PERMISSIONS,
+	teamInvitationTable,
 	teamMembershipTable,
 	teamTable,
 } from "@/db/schemas/teams"
@@ -50,6 +54,13 @@ const listBroadcastsInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
 })
 
+const questionFilterSchema = z.object({
+	questionId: z.string(),
+	values: z.array(z.string()).min(1),
+})
+
+export type QuestionFilter = z.infer<typeof questionFilterSchema>
+
 const audienceFilterSchema = z
 	.object({
 		type: z.enum([
@@ -61,6 +72,7 @@ const audienceFilterSchema = z
 		]),
 		divisionId: z.string().optional(),
 		volunteerRole: z.string().optional(),
+		questionFilters: z.array(questionFilterSchema).optional(),
 	})
 	.refine(
 		(filter) =>
@@ -90,6 +102,275 @@ const getBroadcastInputSchema = z.object({
 const listAthleteBroadcastsInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
 })
+
+// ============================================================================
+// Question Filtering Helpers
+// ============================================================================
+
+type Recipient = {
+	registrationId: string | null
+	userId: string
+	email: string | null
+	firstName: string | null
+}
+
+/**
+ * Apply question filters to a list of athlete recipients.
+ * Fetches answers for matching registrations and filters in-memory.
+ * AND across question filters, OR within each filter's values.
+ */
+async function applyAthleteQuestionFilters(
+	recipients: Recipient[],
+	questionFilters: QuestionFilter[],
+): Promise<Recipient[]> {
+	if (questionFilters.length === 0 || recipients.length === 0) return recipients
+
+	const db = getDb()
+	const registrationIds = recipients
+		.map((r) => r.registrationId)
+		.filter((id): id is string => id !== null)
+
+	if (registrationIds.length === 0) return recipients
+
+	const questionIds = questionFilters.map((f) => f.questionId)
+
+	// Batch-load all relevant answers
+	const answers = await db
+		.select({
+			registrationId: competitionRegistrationAnswersTable.registrationId,
+			questionId: competitionRegistrationAnswersTable.questionId,
+			answer: competitionRegistrationAnswersTable.answer,
+		})
+		.from(competitionRegistrationAnswersTable)
+		.where(
+			and(
+				inArray(competitionRegistrationAnswersTable.registrationId, registrationIds),
+				inArray(competitionRegistrationAnswersTable.questionId, questionIds),
+			),
+		)
+
+	// Build lookup: registrationId -> questionId -> answer
+	const answerMap = new Map<string, Map<string, string>>()
+	for (const a of answers) {
+		let qMap = answerMap.get(a.registrationId)
+		if (!qMap) {
+			qMap = new Map()
+			answerMap.set(a.registrationId, qMap)
+		}
+		qMap.set(a.questionId, a.answer)
+	}
+
+	return recipients.filter((r) => {
+		if (!r.registrationId) return false
+		const qMap = answerMap.get(r.registrationId)
+		if (!qMap) return false
+		return questionFilters.every((f) => {
+			const answer = qMap.get(f.questionId)
+			return answer !== undefined && f.values.includes(answer)
+		})
+	})
+}
+
+/**
+ * Apply question filters to a list of volunteer recipients.
+ * Maps userId -> invitationId via teamInvitationTable, then checks answers.
+ */
+async function applyVolunteerQuestionFilters(
+	recipients: Recipient[],
+	questionFilters: QuestionFilter[],
+	competitionTeamId: string,
+): Promise<Recipient[]> {
+	if (questionFilters.length === 0 || recipients.length === 0) return recipients
+
+	const db = getDb()
+
+	// Get all volunteer invitations for this competition team
+	const invitations = await db
+		.select({
+			id: teamInvitationTable.id,
+			email: teamInvitationTable.email,
+			acceptedBy: teamInvitationTable.acceptedBy,
+		})
+		.from(teamInvitationTable)
+		.where(
+			and(
+				eq(teamInvitationTable.teamId, competitionTeamId),
+				eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+				eq(teamInvitationTable.isSystemRole, true),
+			),
+		)
+
+	// Build userId -> invitationId map
+	// For accepted volunteers, acceptedBy has the userId
+	const userIdToInvitationId = new Map<string, string>()
+	for (const inv of invitations) {
+		if (inv.acceptedBy) {
+			userIdToInvitationId.set(inv.acceptedBy, inv.id)
+		}
+	}
+
+	const invitationIds = [...new Set(userIdToInvitationId.values())]
+	if (invitationIds.length === 0) return []
+
+	const questionIds = questionFilters.map((f) => f.questionId)
+
+	const answers = await db
+		.select({
+			invitationId: volunteerRegistrationAnswersTable.invitationId,
+			questionId: volunteerRegistrationAnswersTable.questionId,
+			answer: volunteerRegistrationAnswersTable.answer,
+		})
+		.from(volunteerRegistrationAnswersTable)
+		.where(
+			and(
+				inArray(volunteerRegistrationAnswersTable.invitationId, invitationIds),
+				inArray(volunteerRegistrationAnswersTable.questionId, questionIds),
+			),
+		)
+
+	// Build lookup: invitationId -> questionId -> answer
+	const answerMap = new Map<string, Map<string, string>>()
+	for (const a of answers) {
+		let qMap = answerMap.get(a.invitationId)
+		if (!qMap) {
+			qMap = new Map()
+			answerMap.set(a.invitationId, qMap)
+		}
+		qMap.set(a.questionId, a.answer)
+	}
+
+	return recipients.filter((r) => {
+		const invitationId = userIdToInvitationId.get(r.userId)
+		if (!invitationId) return false
+		const qMap = answerMap.get(invitationId)
+		if (!qMap) return false
+		return questionFilters.every((f) => {
+			const answer = qMap.get(f.questionId)
+			return answer !== undefined && f.values.includes(answer)
+		})
+	})
+}
+
+/**
+ * Partition question filters into athlete and volunteer filters
+ * based on the question's questionTarget field.
+ */
+async function partitionQuestionFilters(
+	questionFilters: QuestionFilter[],
+): Promise<{ athleteFilters: QuestionFilter[]; volunteerFilters: QuestionFilter[] }> {
+	if (questionFilters.length === 0) {
+		return { athleteFilters: [], volunteerFilters: [] }
+	}
+
+	const db = getDb()
+	const questionIds = questionFilters.map((f) => f.questionId)
+
+	const questions = await db
+		.select({
+			id: competitionRegistrationQuestionsTable.id,
+			questionTarget: competitionRegistrationQuestionsTable.questionTarget,
+		})
+		.from(competitionRegistrationQuestionsTable)
+		.where(inArray(competitionRegistrationQuestionsTable.id, questionIds))
+
+	const targetMap = new Map(questions.map((q) => [q.id, q.questionTarget]))
+
+	const athleteFilters = questionFilters.filter(
+		(f) => targetMap.get(f.questionId) === "athlete",
+	)
+	const volunteerFilters = questionFilters.filter(
+		(f) => targetMap.get(f.questionId) === "volunteer",
+	)
+
+	return { athleteFilters, volunteerFilters }
+}
+
+// ============================================================================
+// Organizer: Get Distinct Answer Values (for UI autocomplete)
+// ============================================================================
+
+const getDistinctAnswersInputSchema = z.object({
+	competitionId: z.string().min(1, "Competition ID is required"),
+	questionId: z.string().min(1, "Question ID is required"),
+	questionTarget: z.enum(["athlete", "volunteer"]),
+})
+
+export const getDistinctAnswersFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) => getDistinctAnswersInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const session = await getSessionFromCookie()
+		if (!session?.userId) throw new Error("Authentication required")
+
+		const db = getDb()
+
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, data.competitionId),
+			columns: {
+				id: true,
+				organizingTeamId: true,
+				competitionTeamId: true,
+			},
+		})
+		if (!competition) throw new Error("Competition not found")
+
+		await requireTeamPermission(
+			competition.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+		)
+
+		if (data.questionTarget === "athlete") {
+			// Get distinct answers from athlete registrations for this competition
+			const rows = await db
+				.selectDistinct({
+					answer: competitionRegistrationAnswersTable.answer,
+				})
+				.from(competitionRegistrationAnswersTable)
+				.innerJoin(
+					competitionRegistrationsTable,
+					eq(
+						competitionRegistrationAnswersTable.registrationId,
+						competitionRegistrationsTable.id,
+					),
+				)
+				.where(
+					and(
+						eq(competitionRegistrationAnswersTable.questionId, data.questionId),
+						eq(competitionRegistrationsTable.eventId, data.competitionId),
+					),
+				)
+
+			return { values: rows.map((r) => r.answer) }
+		}
+
+		// Volunteer: get distinct answers from volunteer invitations
+		const invitations = await db
+			.select({ id: teamInvitationTable.id })
+			.from(teamInvitationTable)
+			.where(
+				and(
+					eq(teamInvitationTable.teamId, competition.competitionTeamId),
+					eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+					eq(teamInvitationTable.isSystemRole, true),
+				),
+			)
+
+		const invitationIds = invitations.map((i) => i.id)
+		if (invitationIds.length === 0) return { values: [] }
+
+		const rows = await db
+			.selectDistinct({
+				answer: volunteerRegistrationAnswersTable.answer,
+			})
+			.from(volunteerRegistrationAnswersTable)
+			.where(
+				and(
+					eq(volunteerRegistrationAnswersTable.questionId, data.questionId),
+					inArray(volunteerRegistrationAnswersTable.invitationId, invitationIds),
+				),
+			)
+
+		return { values: rows.map((r) => r.answer) }
+	})
 
 // ============================================================================
 // Organizer: List Broadcasts
@@ -206,13 +487,7 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 		const filterType = data.audienceFilter?.type ?? "all"
 
 		// Build recipients list based on audience filter type
-		type Recipient = {
-			registrationId: string | null
-			userId: string
-			email: string | null
-			firstName: string | null
-		}
-		const recipients: Recipient[] = []
+		let recipients: Recipient[] = []
 
 		const includeAthletes =
 			filterType === "all" ||
@@ -326,6 +601,36 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 					existingUserIds.add(v.userId)
 				}
 			}
+		}
+
+		// Apply question filters if present
+		const questionFilters = data.audienceFilter?.questionFilters
+		if (questionFilters && questionFilters.length > 0) {
+			const { athleteFilters, volunteerFilters } =
+				await partitionQuestionFilters(questionFilters)
+
+			// Split recipients into athletes (have registrationId) and volunteers (no registrationId)
+			const athleteRecipients = recipients.filter((r) => r.registrationId !== null)
+			const volunteerRecipients = recipients.filter((r) => r.registrationId === null)
+
+			const filteredAthletes =
+				athleteFilters.length > 0
+					? await applyAthleteQuestionFilters(
+							athleteRecipients,
+							athleteFilters,
+						)
+					: athleteRecipients
+
+			const filteredVolunteers =
+				volunteerFilters.length > 0
+					? await applyVolunteerQuestionFilters(
+							volunteerRecipients,
+							volunteerFilters,
+							competition.competitionTeamId,
+						)
+					: volunteerRecipients
+
+			recipients = [...filteredAthletes, ...filteredVolunteers]
 		}
 
 		if (recipients.length === 0) {
@@ -726,8 +1031,9 @@ export const previewAudienceFn = createServerFn({ method: "GET" })
 		)
 
 		const filterType = data.audienceFilter?.type ?? "all"
-		let athleteCount = 0
-		let volunteerCount = 0
+		const hasQuestionFilters =
+			data.audienceFilter?.questionFilters &&
+			data.audienceFilter.questionFilters.length > 0
 
 		const includeAthletes =
 			filterType === "all" ||
@@ -737,6 +1043,131 @@ export const previewAudienceFn = createServerFn({ method: "GET" })
 			filterType === "public" ||
 			filterType === "volunteers" ||
 			filterType === "volunteer_role"
+
+		// When question filters are active, we need full recipient rows to filter by answers
+		if (hasQuestionFilters) {
+			let recipients: Recipient[] = []
+
+			if (includeAthletes) {
+				const conditions = [
+					eq(competitionRegistrationsTable.eventId, data.competitionId),
+					ne(
+						competitionRegistrationsTable.status,
+						REGISTRATION_STATUS.REMOVED,
+					),
+				]
+				if (filterType === "division" && data.audienceFilter?.divisionId) {
+					conditions.push(
+						eq(
+							competitionRegistrationsTable.divisionId,
+							data.audienceFilter.divisionId,
+						),
+					)
+				}
+				const athleteRows = await db
+					.select({
+						id: competitionRegistrationsTable.id,
+						userId: competitionRegistrationsTable.userId,
+						email: userTable.email,
+						firstName: userTable.firstName,
+					})
+					.from(competitionRegistrationsTable)
+					.innerJoin(
+						userTable,
+						eq(competitionRegistrationsTable.userId, userTable.id),
+					)
+					.where(and(...conditions))
+
+				recipients.push(
+					...athleteRows.map((r) => ({
+						registrationId: r.id as string | null,
+						userId: r.userId,
+						email: r.email,
+						firstName: r.firstName,
+					})),
+				)
+			}
+
+			if (includeVolunteers) {
+				const volunteerRows = await db
+					.select({
+						userId: teamMembershipTable.userId,
+						email: userTable.email,
+						firstName: userTable.firstName,
+						metadata: teamMembershipTable.metadata,
+					})
+					.from(teamMembershipTable)
+					.innerJoin(
+						userTable,
+						eq(teamMembershipTable.userId, userTable.id),
+					)
+					.where(
+						and(
+							eq(teamMembershipTable.teamId, competition.competitionTeamId),
+							eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+							eq(teamMembershipTable.isSystemRole, true),
+						),
+					)
+
+				let filteredVolunteers = volunteerRows
+				if (filterType === "volunteer_role" && data.audienceFilter?.volunteerRole) {
+					const targetRole = data.audienceFilter.volunteerRole
+					filteredVolunteers = volunteerRows.filter((v) => {
+						try {
+							const meta = JSON.parse(v.metadata || "{}") as {
+								volunteerRoleTypes?: string[]
+							}
+							return meta.volunteerRoleTypes?.includes(targetRole)
+						} catch {
+							return false
+						}
+					})
+				}
+
+				const existingUserIds = new Set(recipients.map((r) => r.userId))
+				for (const v of filteredVolunteers) {
+					if (!existingUserIds.has(v.userId)) {
+						recipients.push({
+							registrationId: null,
+							userId: v.userId,
+							email: v.email,
+							firstName: v.firstName,
+						})
+						existingUserIds.add(v.userId)
+					}
+				}
+			}
+
+			// Apply question filters
+			const { athleteFilters, volunteerFilters } =
+				await partitionQuestionFilters(data.audienceFilter!.questionFilters!)
+
+			const athleteRecipients = recipients.filter((r) => r.registrationId !== null)
+			const volunteerRecipients = recipients.filter((r) => r.registrationId === null)
+
+			const filteredAthletes =
+				athleteFilters.length > 0
+					? await applyAthleteQuestionFilters(
+							athleteRecipients,
+							athleteFilters,
+						)
+					: athleteRecipients
+
+			const filteredVolunteers =
+				volunteerFilters.length > 0
+					? await applyVolunteerQuestionFilters(
+							volunteerRecipients,
+							volunteerFilters,
+							competition.competitionTeamId,
+						)
+					: volunteerRecipients
+
+			return { count: filteredAthletes.length + filteredVolunteers.length }
+		}
+
+		// Fast path: no question filters, use count queries
+		let athleteCount = 0
+		let volunteerCount = 0
 
 		if (includeAthletes) {
 			const conditions = [
@@ -765,8 +1196,6 @@ export const previewAudienceFn = createServerFn({ method: "GET" })
 		}
 
 		if (includeVolunteers) {
-			// For volunteer_role, we need to query all then filter by metadata
-			// For volunteers/public, just count all volunteer memberships
 			const volunteerRows = await db
 				.select({
 					userId: teamMembershipTable.userId,

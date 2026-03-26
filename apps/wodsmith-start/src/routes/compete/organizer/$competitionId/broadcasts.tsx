@@ -2,13 +2,13 @@
  * Competition Broadcasts Route
  *
  * Organizer page for sending one-way broadcast messages to athletes.
- * Supports audience filtering by division and delivery tracking.
+ * Supports audience filtering by division, volunteer role, and registration question answers.
  */
 // @lat: [[organizer-dashboard#Broadcasts]]
 
 import { createFileRoute, getRouteApi, useRouter } from "@tanstack/react-router"
-import { useEffect, useMemo, useState } from "react"
-import { Megaphone, Plus, Send, Users } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Filter, Megaphone, Plus, Send, Users, X } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -30,11 +31,18 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import {
+	getDistinctAnswersFn,
 	listBroadcastsFn,
 	previewAudienceFn,
 	sendBroadcastFn,
 } from "@/server-fns/broadcast-fns"
+import type { QuestionFilter } from "@/server-fns/broadcast-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
+import {
+	getCompetitionQuestionsFn,
+	getVolunteerQuestionsFn,
+} from "@/server-fns/registration-questions-fns"
+import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
 
 // Get parent route API to access its loader data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -48,13 +56,24 @@ export const Route = createFileRoute(
 		const parentMatch = await parentMatchPromise
 		const { competition } = parentMatch.loaderData!
 
-		const [{ broadcasts }, divisionsResult] = await Promise.all([
+		const [
+			{ broadcasts },
+			divisionsResult,
+			{ questions: athleteQuestions },
+			{ questions: volunteerQuestions },
+		] = await Promise.all([
 			listBroadcastsFn({ data: { competitionId: params.competitionId } }),
 			getCompetitionDivisionsWithCountsFn({
 				data: {
 					competitionId: params.competitionId,
 					teamId: competition.organizingTeamId,
 				},
+			}),
+			getCompetitionQuestionsFn({
+				data: { competitionId: params.competitionId },
+			}),
+			getVolunteerQuestionsFn({
+				data: { competitionId: params.competitionId },
 			}),
 		])
 
@@ -65,12 +84,13 @@ export const Route = createFileRoute(
 			}),
 		)
 
-		return { broadcasts, divisions }
+		return { broadcasts, divisions, athleteQuestions, volunteerQuestions }
 	},
 })
 
 function BroadcastsPage() {
-	const { broadcasts, divisions } = Route.useLoaderData()
+	const { broadcasts, divisions, athleteQuestions, volunteerQuestions } =
+		Route.useLoaderData()
 	const { competition } = parentRoute.useLoaderData()
 	const router = useRouter()
 	const [isComposing, setIsComposing] = useState(false)
@@ -96,6 +116,8 @@ function BroadcastsPage() {
 				<ComposeCard
 					competitionId={competition.id}
 					divisions={divisions}
+					athleteQuestions={athleteQuestions}
+					volunteerQuestions={volunteerQuestions}
 					onSent={() => {
 						setIsComposing(false)
 						router.invalidate()
@@ -206,11 +228,15 @@ const VOLUNTEER_ROLES = [
 function ComposeCard({
 	competitionId,
 	divisions,
+	athleteQuestions,
+	volunteerQuestions,
 	onSent,
 	onCancel,
 }: {
 	competitionId: string
 	divisions: Division[]
+	athleteQuestions: RegistrationQuestion[]
+	volunteerQuestions: RegistrationQuestion[]
 	onSent: () => void
 	onCancel: () => void
 }) {
@@ -219,25 +245,48 @@ function ComposeCard({
 	const [filterType, setFilterType] = useState<AudienceFilterType>("all")
 	const [divisionId, setDivisionId] = useState<string>("")
 	const [volunteerRole, setVolunteerRole] = useState<string>("")
+	const [questionFilters, setQuestionFilters] = useState<QuestionFilter[]>([])
 	const [shouldSendEmail, setShouldSendEmail] = useState(true)
 	const [audienceCount, setAudienceCount] = useState<number | null>(null)
 	const [isSending, setIsSending] = useState(false)
 	const [isPreviewing, setIsPreviewing] = useState(false)
+	const [showQuestionFilters, setShowQuestionFilters] = useState(false)
 
-	const audienceFilter = useMemo(
-		() =>
+	// Determine which questions to show based on audience type
+	const relevantQuestions = useMemo(() => {
+		const isAthleteAudience =
+			filterType === "all" || filterType === "division"
+		const isVolunteerAudience =
+			filterType === "volunteers" || filterType === "volunteer_role"
+		const isPublic = filterType === "public"
+
+		if (isAthleteAudience) return athleteQuestions
+		if (isVolunteerAudience) return volunteerQuestions
+		if (isPublic) return [...athleteQuestions, ...volunteerQuestions]
+		return []
+	}, [filterType, athleteQuestions, volunteerQuestions])
+
+	const audienceFilter = useMemo(() => {
+		const base =
 			filterType === "division" && divisionId
 				? { type: "division" as const, divisionId }
 				: filterType === "volunteer_role" && volunteerRole
 					? { type: "volunteer_role" as const, volunteerRole }
-					: { type: filterType as "all" | "public" | "volunteers" },
-		[filterType, divisionId, volunteerRole],
-	)
+					: { type: filterType as "all" | "public" | "volunteers" }
+
+		if (questionFilters.length > 0) {
+			return { ...base, questionFilters }
+		}
+		return base
+	}, [filterType, divisionId, volunteerRole, questionFilters])
 
 	// Auto-fetch recipient count when filter is complete
 	const filterReady =
 		(filterType !== "division" || !!divisionId) &&
 		(filterType !== "volunteer_role" || !!volunteerRole)
+
+	// Debounce the preview call
+	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
 	useEffect(() => {
 		if (!filterReady) {
@@ -247,22 +296,47 @@ function ComposeCard({
 		}
 		let cancelled = false
 		setIsPreviewing(true)
-		previewAudienceFn({
-			data: { competitionId, audienceFilter },
-		})
-			.then((result) => {
-				if (!cancelled) setAudienceCount(result.count)
+
+		if (debounceRef.current) clearTimeout(debounceRef.current)
+		debounceRef.current = setTimeout(() => {
+			previewAudienceFn({
+				data: { competitionId, audienceFilter },
 			})
-			.catch(() => {
-				if (!cancelled) setAudienceCount(null)
-			})
-			.finally(() => {
-				if (!cancelled) setIsPreviewing(false)
-			})
+				.then((result) => {
+					if (!cancelled) setAudienceCount(result.count)
+				})
+				.catch(() => {
+					if (!cancelled) setAudienceCount(null)
+				})
+				.finally(() => {
+					if (!cancelled) setIsPreviewing(false)
+				})
+		}, 300)
+
 		return () => {
 			cancelled = true
+			if (debounceRef.current) clearTimeout(debounceRef.current)
 		}
 	}, [filterReady, audienceFilter, competitionId])
+
+	const updateQuestionFilter = useCallback(
+		(questionId: string, values: string[]) => {
+			setQuestionFilters((prev) => {
+				if (values.length === 0) {
+					return prev.filter((f) => f.questionId !== questionId)
+				}
+				const existing = prev.find((f) => f.questionId === questionId)
+				if (existing) {
+					return prev.map((f) =>
+						f.questionId === questionId ? { ...f, values } : f,
+					)
+				}
+				return [...prev, { questionId, values }]
+			})
+			setAudienceCount(null)
+		},
+		[],
+	)
 
 	const handleSend = async () => {
 		if (!title.trim() || !body.trim()) {
@@ -344,6 +418,8 @@ function ComposeCard({
 								setFilterType(v as AudienceFilterType)
 								setDivisionId("")
 								setVolunteerRole("")
+								setQuestionFilters([])
+								setShowQuestionFilters(false)
 								setAudienceCount(null)
 							}}
 						>
@@ -412,6 +488,91 @@ function ComposeCard({
 					</div>
 				</div>
 
+				{/* Question Filters */}
+				{filterReady && relevantQuestions.length > 0 && (
+					<div className="space-y-3">
+						{!showQuestionFilters ? (
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => setShowQuestionFilters(true)}
+							>
+								<Filter className="mr-2 h-4 w-4" />
+								Filter by registration questions
+							</Button>
+						) : (
+							<div className="space-y-3 rounded-md border p-4">
+								<div className="flex items-center justify-between">
+									<Label className="text-sm font-medium">
+										Filter by registration questions
+									</Label>
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() => {
+											setShowQuestionFilters(false)
+											setQuestionFilters([])
+											setAudienceCount(null)
+										}}
+									>
+										<X className="h-4 w-4" />
+									</Button>
+								</div>
+								<p className="text-xs text-muted-foreground">
+									Narrow recipients by their answers. Multiple questions are
+									combined with AND logic.
+								</p>
+								<div className="space-y-4">
+									{relevantQuestions.map((question) => (
+										<QuestionFilterRow
+											key={question.id}
+											question={question}
+											competitionId={competitionId}
+											selectedValues={
+												questionFilters.find(
+													(f) => f.questionId === question.id,
+												)?.values ?? []
+											}
+											onChange={(values) =>
+												updateQuestionFilter(question.id, values)
+											}
+										/>
+									))}
+								</div>
+							</div>
+						)}
+
+						{/* Active question filter chips */}
+						{questionFilters.length > 0 && (
+							<div className="flex flex-wrap gap-2">
+								{questionFilters.map((f) => {
+									const question = relevantQuestions.find(
+										(q) => q.id === f.questionId,
+									)
+									return (
+										<Badge
+											key={f.questionId}
+											variant="secondary"
+											className="gap-1 pr-1"
+										>
+											{question?.label}: {f.values.join(", ")}
+											<button
+												type="button"
+												onClick={() =>
+													updateQuestionFilter(f.questionId, [])
+												}
+												className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20"
+											>
+												<X className="h-3 w-3" />
+											</button>
+										</Badge>
+									)
+								})}
+							</div>
+						)}
+					</div>
+				)}
+
 				<label className="flex items-center gap-2 text-sm">
 					<input
 						type="checkbox"
@@ -436,5 +597,191 @@ function ComposeCard({
 				</div>
 			</CardContent>
 		</Card>
+	)
+}
+
+// ============================================================================
+// Question Filter Row
+// ============================================================================
+
+function QuestionFilterRow({
+	question,
+	competitionId,
+	selectedValues,
+	onChange,
+}: {
+	question: RegistrationQuestion
+	competitionId: string
+	selectedValues: string[]
+	onChange: (values: string[]) => void
+}) {
+	if (question.type === "select" && question.options) {
+		return (
+			<div className="space-y-2">
+				<Label className="text-sm">{question.label}</Label>
+				<div className="flex flex-wrap gap-3">
+					{question.options.map((option) => {
+						const checked = selectedValues.includes(option)
+						return (
+							<label
+								key={option}
+								className="flex items-center gap-2 text-sm"
+							>
+								<Checkbox
+									checked={checked}
+									onCheckedChange={(c) => {
+										if (c) {
+											onChange([...selectedValues, option])
+										} else {
+											onChange(
+												selectedValues.filter((v) => v !== option),
+											)
+										}
+									}}
+								/>
+								{option}
+							</label>
+						)
+					})}
+				</div>
+			</div>
+		)
+	}
+
+	// Text/Number questions — tag input with autocomplete
+	return (
+		<TextQuestionFilter
+			question={question}
+			competitionId={competitionId}
+			selectedValues={selectedValues}
+			onChange={onChange}
+		/>
+	)
+}
+
+// ============================================================================
+// Text/Number Question Filter with Autocomplete
+// ============================================================================
+
+function TextQuestionFilter({
+	question,
+	competitionId,
+	selectedValues,
+	onChange,
+}: {
+	question: RegistrationQuestion
+	competitionId: string
+	selectedValues: string[]
+	onChange: (values: string[]) => void
+}) {
+	const [inputValue, setInputValue] = useState("")
+	const [suggestions, setSuggestions] = useState<string[]>([])
+	const [showSuggestions, setShowSuggestions] = useState(false)
+	const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
+	const inputRef = useRef<HTMLInputElement>(null)
+
+	const loadSuggestions = useCallback(async () => {
+		setIsLoadingSuggestions(true)
+		try {
+			const result = await getDistinctAnswersFn({
+				data: {
+					competitionId,
+					questionId: question.id,
+					questionTarget: question.questionTarget,
+				},
+			})
+			setSuggestions(
+				result.values.filter((v) => !selectedValues.includes(v)),
+			)
+		} catch {
+			setSuggestions([])
+		} finally {
+			setIsLoadingSuggestions(false)
+		}
+	}, [competitionId, question.id, question.questionTarget, selectedValues])
+
+	const addValue = (value: string) => {
+		const trimmed = value.trim()
+		if (trimmed && !selectedValues.includes(trimmed)) {
+			onChange([...selectedValues, trimmed])
+		}
+		setInputValue("")
+		setShowSuggestions(false)
+	}
+
+	const filteredSuggestions = suggestions.filter(
+		(s) =>
+			!selectedValues.includes(s) &&
+			s.toLowerCase().includes(inputValue.toLowerCase()),
+	)
+
+	return (
+		<div className="space-y-2">
+			<Label className="text-sm">{question.label}</Label>
+			<div className="flex flex-wrap gap-1.5 mb-2">
+				{selectedValues.map((val) => (
+					<Badge key={val} variant="secondary" className="gap-1 pr-1">
+						{val}
+						<button
+							type="button"
+							onClick={() =>
+								onChange(selectedValues.filter((v) => v !== val))
+							}
+							className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20"
+						>
+							<X className="h-3 w-3" />
+						</button>
+					</Badge>
+				))}
+			</div>
+			<div className="relative">
+				<Input
+					ref={inputRef}
+					value={inputValue}
+					onChange={(e) => setInputValue(e.target.value)}
+					onFocus={() => {
+						setShowSuggestions(true)
+						loadSuggestions()
+					}}
+					onBlur={() => {
+						// Delay to allow click on suggestion
+						setTimeout(() => setShowSuggestions(false), 200)
+					}}
+					onKeyDown={(e) => {
+						if (e.key === "Enter") {
+							e.preventDefault()
+							if (inputValue.trim()) {
+								addValue(inputValue)
+							}
+						}
+					}}
+					placeholder={`Type a value to match...`}
+					className="h-8 text-sm"
+				/>
+				{showSuggestions && filteredSuggestions.length > 0 && (
+					<div className="absolute z-10 mt-1 w-full rounded-md border bg-popover shadow-md">
+						<div className="max-h-32 overflow-y-auto p-1">
+							{isLoadingSuggestions ? (
+								<p className="px-2 py-1 text-xs text-muted-foreground">
+									Loading...
+								</p>
+							) : (
+								filteredSuggestions.map((suggestion) => (
+									<button
+										key={suggestion}
+										type="button"
+										className="w-full rounded px-2 py-1 text-left text-sm hover:bg-accent"
+										onMouseDown={(e) => e.preventDefault()}
+										onClick={() => addValue(suggestion)}
+									>
+										{suggestion}
+									</button>
+								))
+							)}
+						</div>
+					</div>
+				)}
+			</div>
+		</div>
 	)
 }
