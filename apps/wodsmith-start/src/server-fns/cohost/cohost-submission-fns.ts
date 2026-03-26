@@ -5,7 +5,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, count, eq, inArray } from "drizzle-orm"
+import { and, count, desc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -970,4 +970,515 @@ export const cohostGetEventSubmissionsFn = createServerFn({ method: "GET" })
     })
 
     return { submissions }
+  })
+
+// ============================================================================
+// Verification Log Functions (cohost)
+// ============================================================================
+
+const cohostGetVerificationLogsInputSchema = z.object({
+  competitionTeamId: z.string().min(1, "Competition team ID is required"),
+  scoreId: z.string().min(1),
+  competitionId: z.string().min(1),
+})
+
+const cohostDeleteVerificationLogInputSchema = z.object({
+  competitionTeamId: z.string().min(1, "Competition team ID is required"),
+  logId: z.string().min(1),
+  competitionId: z.string().min(1),
+})
+
+const cohostUpdateVerificationLogInputSchema = z.object({
+  competitionTeamId: z.string().min(1, "Competition team ID is required"),
+  logId: z.string().min(1),
+  competitionId: z.string().min(1),
+  action: z.string().optional(),
+  penaltyType: z.enum(["minor", "major"]).nullable().optional(),
+  penaltyPercentage: z.number().min(0).max(100).nullable().optional(),
+  noRepCount: z.number().int().min(0).nullable().optional(),
+})
+
+/**
+ * Get verification audit logs for a score (cohost).
+ */
+export const cohostGetVerificationLogsFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    cohostGetVerificationLogsInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    await requireCohostPermission(data.competitionTeamId, "scoring")
+    const db = getDb()
+
+    const logs = await db
+      .select({
+        id: scoreVerificationLogsTable.id,
+        action: scoreVerificationLogsTable.action,
+        performedByUserId: scoreVerificationLogsTable.performedByUserId,
+        performedAt: scoreVerificationLogsTable.performedAt,
+        originalScoreValue: scoreVerificationLogsTable.originalScoreValue,
+        originalStatus: scoreVerificationLogsTable.originalStatus,
+        newScoreValue: scoreVerificationLogsTable.newScoreValue,
+        newStatus: scoreVerificationLogsTable.newStatus,
+        trackWorkoutId: scoreVerificationLogsTable.trackWorkoutId,
+        penaltyType: scoreVerificationLogsTable.penaltyType,
+        penaltyPercentage: scoreVerificationLogsTable.penaltyPercentage,
+        noRepCount: scoreVerificationLogsTable.noRepCount,
+      })
+      .from(scoreVerificationLogsTable)
+      .where(
+        and(
+          eq(scoreVerificationLogsTable.scoreId, data.scoreId),
+          eq(scoreVerificationLogsTable.competitionId, data.competitionId),
+        ),
+      )
+      .orderBy(desc(scoreVerificationLogsTable.performedAt))
+
+    if (logs.length === 0) {
+      return { logs: [] }
+    }
+
+    // Get performer names
+    const performerIds = [...new Set(logs.map((l) => l.performedByUserId))]
+    const performers = await autochunk({ items: performerIds }, async (chunk) =>
+      db
+        .select({
+          id: userTable.id,
+          firstName: userTable.firstName,
+          lastName: userTable.lastName,
+        })
+        .from(userTable)
+        .where(inArray(userTable.id, chunk)),
+    )
+    const performerMap = new Map(performers.map((p) => [p.id, p]))
+
+    // Get workout scheme for score decoding
+    let scheme: string | null = null
+    if (logs[0]?.trackWorkoutId) {
+      const [tw] = await db
+        .select({ scheme: workouts.scheme })
+        .from(trackWorkoutsTable)
+        .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+        .where(eq(trackWorkoutsTable.id, logs[0].trackWorkoutId))
+        .limit(1)
+      scheme = tw?.scheme ?? null
+    }
+
+    return {
+      logs: logs.map((log) => {
+        const performer = performerMap.get(log.performedByUserId)
+        const name = performer
+          ? `${performer.firstName || ""} ${performer.lastName || ""}`.trim() ||
+            "Unknown"
+          : "Unknown"
+
+        return {
+          id: log.id,
+          action: log.action,
+          performedByName: name,
+          performedAt: log.performedAt,
+          originalScoreValue: log.originalScoreValue,
+          originalStatus: log.originalStatus,
+          newScoreValue: log.newScoreValue,
+          newStatus: log.newStatus,
+          scheme,
+          penaltyType: log.penaltyType,
+          penaltyPercentage: log.penaltyPercentage,
+          noRepCount: log.noRepCount,
+        }
+      }),
+    }
+  })
+
+/**
+ * Delete a verification audit log entry (cohost).
+ */
+export const cohostDeleteVerificationLogFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    cohostDeleteVerificationLogInputSchema.parse(data),
+  )
+  .handler(async ({ data }): Promise<{ success: boolean }> => {
+    await requireCohostPermission(data.competitionTeamId, "scoring")
+
+    const session = await getSessionFromCookie()
+    if (!session?.userId) {
+      throw new Error("Not authenticated")
+    }
+
+    const db = getDb()
+
+    // Verify the log entry belongs to this competition
+    const [log] = await db
+      .select({ id: scoreVerificationLogsTable.id })
+      .from(scoreVerificationLogsTable)
+      .where(
+        and(
+          eq(scoreVerificationLogsTable.id, data.logId),
+          eq(scoreVerificationLogsTable.competitionId, data.competitionId),
+        ),
+      )
+      .limit(1)
+
+    if (!log) {
+      throw new Error("Log entry not found")
+    }
+
+    await db
+      .delete(scoreVerificationLogsTable)
+      .where(eq(scoreVerificationLogsTable.id, data.logId))
+
+    logInfo({
+      message: "[Score] Cohost deleted verification log entry",
+      attributes: {
+        logId: data.logId,
+        competitionId: data.competitionId,
+        deletedByUserId: session.userId,
+      },
+    })
+
+    return { success: true }
+  })
+
+/**
+ * Update a verification audit log entry (cohost).
+ */
+export const cohostUpdateVerificationLogFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    cohostUpdateVerificationLogInputSchema.parse(data),
+  )
+  .handler(async ({ data }): Promise<{ success: boolean }> => {
+    await requireCohostPermission(data.competitionTeamId, "scoring")
+
+    const session = await getSessionFromCookie()
+    if (!session?.userId) {
+      throw new Error("Not authenticated")
+    }
+
+    const db = getDb()
+
+    // Verify the log entry belongs to this competition and get context
+    const [log] = await db
+      .select({
+        id: scoreVerificationLogsTable.id,
+        scoreId: scoreVerificationLogsTable.scoreId,
+        trackWorkoutId: scoreVerificationLogsTable.trackWorkoutId,
+        athleteUserId: scoreVerificationLogsTable.athleteUserId,
+        penaltyType: scoreVerificationLogsTable.penaltyType,
+      })
+      .from(scoreVerificationLogsTable)
+      .where(
+        and(
+          eq(scoreVerificationLogsTable.id, data.logId),
+          eq(scoreVerificationLogsTable.competitionId, data.competitionId),
+        ),
+      )
+      .limit(1)
+
+    if (!log) {
+      throw new Error("Log entry not found")
+    }
+
+    const logUpdates: Record<string, unknown> = {}
+    if (data.action !== undefined) logUpdates.action = data.action
+    if (data.penaltyType !== undefined)
+      logUpdates.penaltyType = data.penaltyType
+    if (data.penaltyPercentage !== undefined)
+      logUpdates.penaltyPercentage = data.penaltyPercentage
+    if (data.noRepCount !== undefined) logUpdates.noRepCount = data.noRepCount
+
+    if (Object.keys(logUpdates).length === 0) {
+      return { success: true }
+    }
+
+    // Check if penalty fields changed — need to sync to scoresTable
+    const hasPenaltyChange =
+      data.penaltyType !== undefined ||
+      data.penaltyPercentage !== undefined ||
+      data.noRepCount !== undefined
+
+    // Detect penaltyType flip (null <-> non-null) for review status update
+    const oldPenaltyType = log.penaltyType
+    const newPenaltyType =
+      data.penaltyType !== undefined ? data.penaltyType : oldPenaltyType
+    const penaltyTypeFlipped =
+      data.penaltyType !== undefined &&
+      Boolean(oldPenaltyType) !== Boolean(newPenaltyType)
+
+    const now = new Date()
+
+    await db.transaction(async (tx) => {
+      // Update the log entry
+      await tx
+        .update(scoreVerificationLogsTable)
+        .set(logUpdates)
+        .where(eq(scoreVerificationLogsTable.id, data.logId))
+
+      // Sync penalty fields to the denormalized scoresTable columns
+      if (hasPenaltyChange) {
+        const scoreUpdates: Record<string, unknown> = { updatedAt: now }
+        if (data.penaltyType !== undefined)
+          scoreUpdates.penaltyType = data.penaltyType
+        if (data.penaltyPercentage !== undefined)
+          scoreUpdates.penaltyPercentage = data.penaltyPercentage
+        if (data.noRepCount !== undefined)
+          scoreUpdates.noRepCount = data.noRepCount
+
+        await tx
+          .update(scoresTable)
+          .set(scoreUpdates)
+          .where(eq(scoresTable.id, log.scoreId))
+      }
+
+      // Update video submission reviewStatus when penaltyType flips
+      if (penaltyTypeFlipped && log.trackWorkoutId) {
+        const [registration] = await tx
+          .select({ id: competitionRegistrationsTable.id })
+          .from(competitionRegistrationsTable)
+          .where(
+            and(
+              eq(competitionRegistrationsTable.eventId, data.competitionId),
+              eq(competitionRegistrationsTable.userId, log.athleteUserId),
+            ),
+          )
+          .limit(1)
+
+        if (registration) {
+          const videoReviewStatus = newPenaltyType ? "penalized" : "adjusted"
+          await tx
+            .update(videoSubmissionsTable)
+            .set({
+              reviewStatus: videoReviewStatus,
+              statusUpdatedAt: now,
+            })
+            .where(
+              and(
+                eq(videoSubmissionsTable.registrationId, registration.id),
+                eq(videoSubmissionsTable.trackWorkoutId, log.trackWorkoutId),
+              ),
+            )
+        }
+      }
+    })
+
+    logInfo({
+      message: "[Score] Cohost updated verification log entry",
+      attributes: {
+        logId: data.logId,
+        competitionId: data.competitionId,
+        updatedByUserId: session.userId,
+        updates: logUpdates,
+      },
+    })
+
+    return { success: true }
+  })
+
+// ============================================================================
+// Mark / Unmark Reviewed (cohost)
+// ============================================================================
+
+/**
+ * Mark a video submission as reviewed (cohost).
+ */
+export const cohostMarkSubmissionReviewedFn = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        competitionTeamId: z.string().min(1),
+        submissionId: z.string().min(1),
+        competitionId: z.string().min(1),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    await requireCohostPermission(data.competitionTeamId, "scoring")
+
+    const session = await getSessionFromCookie()
+    if (!session?.userId) {
+      throw new Error("Not authenticated")
+    }
+
+    const db = getDb()
+
+    await db
+      .update(videoSubmissionsTable)
+      .set({
+        reviewedAt: new Date(),
+        reviewedBy: session.userId,
+        reviewStatus: "under_review",
+        statusUpdatedAt: new Date(),
+      })
+      .where(eq(videoSubmissionsTable.id, data.submissionId))
+
+    return { success: true }
+  })
+
+/**
+ * Unmark a video submission review — set back to pending (cohost).
+ */
+export const cohostUnmarkSubmissionReviewedFn = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        competitionTeamId: z.string().min(1),
+        submissionId: z.string().min(1),
+        competitionId: z.string().min(1),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    await requireCohostPermission(data.competitionTeamId, "scoring")
+
+    const session = await getSessionFromCookie()
+    if (!session?.userId) {
+      throw new Error("Not authenticated")
+    }
+
+    const db = getDb()
+
+    await db
+      .update(videoSubmissionsTable)
+      .set({
+        reviewedAt: null,
+        reviewedBy: null,
+        reviewStatus: "pending",
+        statusUpdatedAt: new Date(),
+      })
+      .where(eq(videoSubmissionsTable.id, data.submissionId))
+
+    return { success: true }
+  })
+
+// ============================================================================
+// Organizer Submission Detail (cohost)
+// ============================================================================
+
+/**
+ * Get a single video submission with athlete, score, and review info (cohost).
+ * Mirrors getOrganizerSubmissionDetailFn.
+ */
+export const cohostGetOrganizerSubmissionDetailFn = createServerFn({
+  method: "GET",
+})
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        competitionTeamId: z.string().min(1),
+        submissionId: z.string().min(1),
+        competitionId: z.string().min(1),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    await requireCohostPermission(data.competitionTeamId, "scoring")
+    const db = getDb()
+
+    const [submission] = await db
+      .select({
+        id: videoSubmissionsTable.id,
+        videoUrl: videoSubmissionsTable.videoUrl,
+        notes: videoSubmissionsTable.notes,
+        submittedAt: videoSubmissionsTable.submittedAt,
+        reviewedAt: videoSubmissionsTable.reviewedAt,
+        reviewedBy: videoSubmissionsTable.reviewedBy,
+        trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+        registrationId: videoSubmissionsTable.registrationId,
+        userId: videoSubmissionsTable.userId,
+        athleteFirstName: userTable.firstName,
+        athleteLastName: userTable.lastName,
+        athleteEmail: userTable.email,
+        athleteAvatar: userTable.avatar,
+        divisionId: competitionRegistrationsTable.divisionId,
+        divisionLabel: scalingLevelsTable.label,
+        teamName: competitionRegistrationsTable.teamName,
+      })
+      .from(videoSubmissionsTable)
+      .innerJoin(
+        competitionRegistrationsTable,
+        eq(
+          videoSubmissionsTable.registrationId,
+          competitionRegistrationsTable.id,
+        ),
+      )
+      .innerJoin(userTable, eq(videoSubmissionsTable.userId, userTable.id))
+      .leftJoin(
+        scalingLevelsTable,
+        eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
+      )
+      .where(eq(videoSubmissionsTable.id, data.submissionId))
+      .limit(1)
+
+    if (!submission) {
+      return { submission: null }
+    }
+
+    // Get score for this user + event
+    const [score] = await db
+      .select({
+        id: scoresTable.id,
+        scoreValue: scoresTable.scoreValue,
+        status: scoresTable.status,
+        scheme: scoresTable.scheme,
+      })
+      .from(scoresTable)
+      .where(
+        and(
+          eq(scoresTable.competitionEventId, submission.trackWorkoutId),
+          eq(scoresTable.userId, submission.userId),
+        ),
+      )
+      .limit(1)
+
+    let displayScore: string | null = null
+    if (
+      score?.scoreValue !== null &&
+      score?.scoreValue !== undefined &&
+      score?.scheme
+    ) {
+      displayScore = decodeScore(
+        score.scoreValue,
+        score.scheme as WorkoutScheme,
+        { compact: false },
+      )
+    }
+
+    return {
+      submission: {
+        id: submission.id,
+        videoUrl: submission.videoUrl,
+        notes: submission.notes,
+        submittedAt: submission.submittedAt,
+        reviewedAt: submission.reviewedAt,
+        reviewedBy: submission.reviewedBy,
+        trackWorkoutId: submission.trackWorkoutId,
+        athlete: {
+          id: submission.userId,
+          firstName: submission.athleteFirstName,
+          lastName: submission.athleteLastName,
+          email: submission.athleteEmail,
+          avatar: submission.athleteAvatar,
+        },
+        division: submission.divisionId
+          ? {
+              id: submission.divisionId,
+              label: submission.divisionLabel,
+            }
+          : null,
+        teamName: submission.teamName,
+        scoreId: score?.id ?? null,
+        score: score
+          ? {
+              value: score.scoreValue,
+              displayScore,
+              status: score.status,
+            }
+          : null,
+        reviewStatus: submission.reviewedAt
+          ? ("reviewed" as const)
+          : ("pending" as const),
+      },
+    }
   })

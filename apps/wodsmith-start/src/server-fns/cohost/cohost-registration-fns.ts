@@ -21,7 +21,6 @@ import {
   createUserId,
   INVITATION_STATUS,
   REGISTRATION_STATUS,
-  scalingGroupsTable,
   scalingLevelsTable,
   scoresTable,
   teamInvitationTable,
@@ -29,7 +28,6 @@ import {
   teamTable,
   userTable,
 } from "@/db/schema"
-import { createCompetitionRegistrationQuestionId } from "@/db/schemas/common"
 import { getRegistrationFee } from "@/lib/commerce-stubs"
 import { getEvlog } from "@/lib/evlog"
 import {
@@ -48,10 +46,6 @@ import { requireVerifiedEmail } from "@/utils/auth"
 // ============================================================================
 // Input Schemas
 // ============================================================================
-
-const cohostCompetitionTeamIdSchema = z.object({
-  competitionTeamId: z.string().startsWith("team_", "Invalid team ID"),
-})
 
 const getOrganizerRegistrationsInputSchema = z.object({
   competitionTeamId: z.string().startsWith("team_", "Invalid team ID"),

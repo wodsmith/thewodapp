@@ -17,7 +17,6 @@ import {
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
-  addRequestContextAttribute,
   logEntityCreated,
   logEntityDeleted,
   logInfo,
@@ -36,8 +35,13 @@ import {
   createCompetitionHeatAssignmentId,
   createCompetitionHeatId,
 } from "@/db/schemas/common"
+import {
+  programmingTracksTable,
+  trackWorkoutsTable,
+} from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { userTable } from "@/db/schemas/users"
+import { workouts } from "@/db/schemas/workouts"
 import { getAffiliate } from "@/utils/registration-metadata"
 import { requireCohostPermission } from "@/utils/cohost-auth"
 
@@ -1002,4 +1006,433 @@ export const cohostGetUnassignedRegistrationsFn = createServerFn({
     }))
 
     return { registrations: result }
+  })
+
+// ============================================================================
+// Heat Publishing Input Schemas
+// ============================================================================
+
+const publishHeatScheduleInputSchema = cohostBaseSchema.extend({
+  heatId: z.string().min(1, "Heat ID is required"),
+  publish: z.boolean(),
+})
+
+const publishAllHeatsForEventInputSchema = cohostBaseSchema.extend({
+  trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+  publish: z.boolean(),
+})
+
+// ============================================================================
+// Heat Publishing Server Functions
+// ============================================================================
+
+/**
+ * Publish or unpublish an individual heat schedule (cohost)
+ * Sets or clears the schedulePublishedAt timestamp
+ */
+export const cohostPublishHeatScheduleFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => publishHeatScheduleInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    await requireCohostPermission(data.competitionTeamId, "schedule")
+    getEvlog()?.set({
+      action: "cohost_publish_heat_schedule",
+      heat: { id: data.heatId, publish: data.publish },
+    })
+
+    const db = getDb()
+    const now = new Date()
+
+    await db
+      .update(competitionHeatsTable)
+      .set({
+        schedulePublishedAt: data.publish ? now : null,
+        updatedAt: now,
+      })
+      .where(eq(competitionHeatsTable.id, data.heatId))
+
+    return {
+      success: true,
+      schedulePublishedAt: data.publish ? now : null,
+    }
+  })
+
+/**
+ * Bulk publish or unpublish all heats for an event (cohost)
+ * Sets or clears schedulePublishedAt for all heats belonging to the workout
+ */
+export const cohostPublishAllHeatsForEventFn = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data: unknown) =>
+    publishAllHeatsForEventInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    await requireCohostPermission(data.competitionTeamId, "schedule")
+    getEvlog()?.set({
+      action: "cohost_publish_all_heats",
+      heat: { trackWorkoutId: data.trackWorkoutId, publish: data.publish },
+    })
+
+    const db = getDb()
+    const now = new Date()
+
+    // Count heats first for the response
+    const heats = await db
+      .select({ id: competitionHeatsTable.id })
+      .from(competitionHeatsTable)
+      .where(eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId))
+
+    if (heats.length === 0) {
+      return { success: true, updatedCount: 0 }
+    }
+
+    // Update all heats for this track workout in a single query
+    await db
+      .update(competitionHeatsTable)
+      .set({
+        schedulePublishedAt: data.publish ? now : null,
+        updatedAt: now,
+      })
+      .where(eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId))
+
+    return {
+      success: true,
+      updatedCount: heats.length,
+      schedulePublishedAt: data.publish ? now : null,
+    }
+  })
+
+// ============================================================================
+// Events With Heats + Copy Heats Input Schemas
+// ============================================================================
+
+const getEventsWithHeatsInputSchema = cohostBaseSchema.extend({
+  competitionId: z.string().min(1, "Competition ID is required"),
+  excludeTrackWorkoutId: z.string().optional(),
+})
+
+const copyHeatsFromEventInputSchema = cohostBaseSchema.extend({
+  sourceTrackWorkoutId: z
+    .string()
+    .min(1, "Source track workout ID is required"),
+  targetTrackWorkoutId: z
+    .string()
+    .min(1, "Target track workout ID is required"),
+  startTime: z.coerce.date(),
+  durationMinutes: z.number().int().min(1).max(180).default(10),
+  transitionMinutes: z.number().int().min(0).max(120).default(3),
+  copyAssignments: z.boolean().default(true),
+})
+
+// ============================================================================
+// Events With Heats + Copy Heats Server Functions
+// ============================================================================
+
+/**
+ * Get events that have heats scheduled (cohost)
+ * Used to populate "copy from" dropdown in heat schedule manager
+ */
+export const cohostGetEventsWithHeatsFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => getEventsWithHeatsInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    await requireCohostPermission(data.competitionTeamId, "schedule")
+
+    const db = getDb()
+
+    // Get all heats for the competition
+    const heats = await db
+      .select({
+        trackWorkoutId: competitionHeatsTable.trackWorkoutId,
+        scheduledTime: competitionHeatsTable.scheduledTime,
+      })
+      .from(competitionHeatsTable)
+      .where(eq(competitionHeatsTable.competitionId, data.competitionId))
+      .orderBy(asc(competitionHeatsTable.scheduledTime))
+
+    if (heats.length === 0) {
+      return { events: [] }
+    }
+
+    // Group heats by trackWorkoutId
+    const heatsByWorkout = new Map<
+      string,
+      Array<{ scheduledTime: Date | null }>
+    >()
+    for (const heat of heats) {
+      const existing = heatsByWorkout.get(heat.trackWorkoutId) ?? []
+      existing.push({ scheduledTime: heat.scheduledTime })
+      heatsByWorkout.set(heat.trackWorkoutId, existing)
+    }
+
+    // Get unique trackWorkoutIds, excluding the target if specified
+    const trackWorkoutIds = [...heatsByWorkout.keys()].filter(
+      (id) => id !== data.excludeTrackWorkoutId,
+    )
+
+    if (trackWorkoutIds.length === 0) {
+      return { events: [] }
+    }
+
+    // Fetch track workouts with their associated workouts
+    const trackWorkoutList = await db
+      .select({
+        id: trackWorkoutsTable.id,
+        workoutId: trackWorkoutsTable.workoutId,
+      })
+      .from(trackWorkoutsTable)
+      .where(inArray(trackWorkoutsTable.id, trackWorkoutIds))
+
+    // Fetch workout names
+    const workoutIds = trackWorkoutList.map((tw) => tw.workoutId)
+    const workoutListData =
+      workoutIds.length > 0
+        ? await db
+            .select({
+              id: workouts.id,
+              name: workouts.name,
+            })
+            .from(workouts)
+            .where(inArray(workouts.id, workoutIds))
+        : []
+    const workoutMap = new Map(workoutListData.map((w) => [w.id, w]))
+
+    // Build result
+    const events = trackWorkoutList.map((tw) => {
+      const workoutHeats = heatsByWorkout.get(tw.id) ?? []
+      const workout = workoutMap.get(tw.workoutId)
+
+      const times = workoutHeats
+        .map((h) => h.scheduledTime)
+        .filter((t): t is Date => t !== null)
+      const firstHeatTime: Date | null =
+        times.length > 0 ? (times[0] ?? null) : null
+      const lastHeatTime: Date | null =
+        times.length > 0 ? (times[times.length - 1] ?? null) : null
+
+      return {
+        trackWorkoutId: tw.id,
+        workoutName: workout?.name ?? "Unknown Workout",
+        heatCount: workoutHeats.length,
+        firstHeatTime,
+        lastHeatTime,
+      }
+    })
+
+    return { events }
+  })
+
+/**
+ * Copy heats from one event to another (cohost)
+ * Copies heat structure and optionally athlete assignments
+ * Times are calculated as: startTime + (heatIndex * (duration + transition))
+ */
+export const cohostCopyHeatsFromEventFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => copyHeatsFromEventInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    await requireCohostPermission(data.competitionTeamId, "schedule")
+    getEvlog()?.set({
+      action: "cohost_copy_heats",
+      heat: {
+        sourceTrackWorkoutId: data.sourceTrackWorkoutId,
+        targetTrackWorkoutId: data.targetTrackWorkoutId,
+      },
+    })
+
+    const db = getDb()
+
+    // Fetch source heats
+    const sourceHeatsRaw = await db
+      .select()
+      .from(competitionHeatsTable)
+      .where(
+        eq(competitionHeatsTable.trackWorkoutId, data.sourceTrackWorkoutId),
+      )
+      .orderBy(asc(competitionHeatsTable.heatNumber))
+
+    if (sourceHeatsRaw.length === 0) {
+      return { heats: [] }
+    }
+
+    // Build source heats with assignments via shared helper
+    const sourceHeats = await buildHeatsWithAssignments(sourceHeatsRaw)
+    sourceHeats.sort((a, b) => a.heatNumber - b.heatNumber)
+
+    // Get the target workout's competition ID
+    const targetWorkout = await db.query.trackWorkoutsTable.findFirst({
+      where: eq(trackWorkoutsTable.id, data.targetTrackWorkoutId),
+      columns: { trackId: true },
+    })
+
+    if (!targetWorkout) {
+      throw new Error("Target track workout not found")
+    }
+
+    const track = await db.query.programmingTracksTable.findFirst({
+      where: eq(programmingTracksTable.id, targetWorkout.trackId),
+      columns: { competitionId: true },
+    })
+
+    if (!track || !track.competitionId) {
+      throw new Error("Competition not found for target track")
+    }
+
+    const competitionId = track.competitionId
+    const durationMinutes = data.durationMinutes
+    const timeSlotMinutes = durationMinutes + data.transitionMinutes
+
+    // Create new heats with calculated times
+    const now = new Date()
+    const heatsToCreate: Array<{
+      id: string
+      competitionId: string
+      trackWorkoutId: string
+      heatNumber: number
+      venueId: string | null
+      scheduledTime: Date
+      durationMinutes: number | null
+      divisionId: string | null
+      notes: string | null
+      schedulePublishedAt: Date
+    }> = []
+
+    for (let i = 0; i < sourceHeats.length; i++) {
+      const sourceHeat = sourceHeats[i]
+      if (!sourceHeat) continue
+
+      const offsetMinutes = i * timeSlotMinutes
+      const newTime = new Date(
+        data.startTime.getTime() + offsetMinutes * 60 * 1000,
+      )
+
+      heatsToCreate.push({
+        id: createCompetitionHeatId(),
+        competitionId,
+        trackWorkoutId: data.targetTrackWorkoutId,
+        heatNumber: sourceHeat.heatNumber,
+        venueId: sourceHeat.venueId,
+        scheduledTime: newTime,
+        durationMinutes: durationMinutes,
+        divisionId: sourceHeat.divisionId,
+        notes: sourceHeat.notes,
+        schedulePublishedAt: now,
+      })
+    }
+
+    await db.insert(competitionHeatsTable).values(heatsToCreate)
+
+    // Fetch created heats
+    const createdHeatIds = heatsToCreate.map((h) => h.id)
+    const createdHeats = await db
+      .select()
+      .from(competitionHeatsTable)
+      .where(inArray(competitionHeatsTable.id, createdHeatIds))
+
+    // If copying assignments, create heat ID mapping and copy assignments
+    if (data.copyAssignments) {
+      const heatIdMap = new Map<number, string>()
+      for (const heat of createdHeats) {
+        heatIdMap.set(heat.heatNumber, heat.id)
+      }
+
+      const assignmentsToCreate: Array<{
+        id: string
+        heatId: string
+        registrationId: string
+        laneNumber: number
+      }> = []
+
+      for (const sourceHeat of sourceHeats) {
+        const newHeatId = heatIdMap.get(sourceHeat.heatNumber)
+        if (!newHeatId) continue
+
+        for (const assignment of sourceHeat.assignments) {
+          assignmentsToCreate.push({
+            id: createCompetitionHeatAssignmentId(),
+            heatId: newHeatId,
+            registrationId: assignment.registration.id,
+            laneNumber: assignment.laneNumber,
+          })
+        }
+      }
+
+      if (assignmentsToCreate.length > 0) {
+        await db
+          .insert(competitionHeatAssignmentsTable)
+          .values(assignmentsToCreate)
+      }
+    }
+
+    logInfo({
+      message: "[Cohost Heat] Copied heats from event",
+      attributes: {
+        sourceTrackWorkoutId: data.sourceTrackWorkoutId,
+        targetTrackWorkoutId: data.targetTrackWorkoutId,
+        heatCount: createdHeats.length,
+        copyAssignments: data.copyAssignments,
+      },
+    })
+
+    // Return created heats with assignments
+    const result = await buildHeatsWithAssignments(createdHeats)
+    return { heats: result }
+  })
+
+// ============================================================================
+// Update Competition Workout (heatStatus/eventStatus) for cohost
+// ============================================================================
+
+const updateCompetitionWorkoutInputSchema = cohostBaseSchema.extend({
+  trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+  trackOrder: z.number().int().min(0).optional(),
+  pointsMultiplier: z.number().min(0).optional(),
+  notes: z.string().nullable().optional(),
+  heatStatus: z.enum(["draft", "published"]).optional(),
+  eventStatus: z.enum(["draft", "published"]).optional(),
+})
+
+/**
+ * Update competition workout fields (cohost)
+ * Primarily used for heatStatus toggle in the schedule manager
+ */
+export const cohostUpdateCompetitionWorkoutFn = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data: unknown) =>
+    updateCompetitionWorkoutInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    await requireCohostPermission(data.competitionTeamId, "schedule")
+    getEvlog()?.set({
+      action: "cohost_update_competition_workout",
+      workout: { trackWorkoutId: data.trackWorkoutId },
+    })
+
+    const db = getDb()
+
+    const updateData: Record<string, unknown> = {
+      updatedAt: new Date(),
+    }
+
+    if (data.trackOrder !== undefined) {
+      updateData.trackOrder = data.trackOrder
+    }
+    if (data.pointsMultiplier !== undefined) {
+      updateData.pointsMultiplier = data.pointsMultiplier
+    }
+    if (data.notes !== undefined) {
+      updateData.notes = data.notes
+    }
+    if (data.heatStatus !== undefined) {
+      updateData.heatStatus = data.heatStatus
+    }
+    if (data.eventStatus !== undefined) {
+      updateData.eventStatus = data.eventStatus
+    }
+
+    await db
+      .update(trackWorkoutsTable)
+      .set(updateData)
+      .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+
+    return { success: true }
   })

@@ -27,6 +27,8 @@ import type {
   EventDivisionResultsStatusResponse,
 } from "@/server-fns/division-results-fns"
 
+export type { AllEventsResultsStatusResponse } from "@/server-fns/division-results-fns"
+
 // ============================================================================
 // Input Schemas
 // ============================================================================

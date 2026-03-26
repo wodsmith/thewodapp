@@ -4,10 +4,11 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, isNull } from "drizzle-orm"
+import { and, eq, inArray, isNull } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+  competitionGroupsTable,
   competitionsTable,
   SYSTEM_ROLES_ENUM,
   teamInvitationTable,
@@ -83,11 +84,13 @@ export const getCohostInviteFn = createServerFn({ method: "GET" })
     let competitionName: string | null = null
     let competitionId: string | null = null
     let competitionSlug: string | null = null
+    let seriesGroupId: string | null = null
 
     try {
       const meta = invitation.metadata
-        ? (JSON.parse(invitation.metadata) as { competitionId?: string })
+        ? (JSON.parse(invitation.metadata) as { competitionId?: string; seriesGroupId?: string })
         : {}
+      seriesGroupId = meta.seriesGroupId ?? null
       if (meta.competitionId) {
         competitionId = meta.competitionId
         const competition = await db.query.competitionsTable.findFirst({
@@ -128,6 +131,56 @@ export const getCohostInviteFn = createServerFn({ method: "GET" })
       permissions = { ...DEFAULT_COHOST_PERMISSIONS }
     }
 
+    // For series invitations, find all sibling competitions this invite covers
+    let seriesCompetitions: Array<{ competitionId: string; competitionName: string }> = []
+    let seriesName: string | null = null
+
+    if (seriesGroupId) {
+      // Get series name
+      const group = await db.query.competitionGroupsTable.findFirst({
+        where: eq(competitionGroupsTable.id, seriesGroupId),
+        columns: { name: true },
+      })
+      seriesName = group?.name ?? null
+
+      // Find all pending invitations for this email with same seriesGroupId
+      const allPendingInvitations = await db.query.teamInvitationTable.findMany({
+        where: and(
+          eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.COHOST),
+          eq(teamInvitationTable.isSystemRole, true),
+          isNull(teamInvitationTable.acceptedAt),
+        ),
+        columns: { id: true, email: true, metadata: true },
+      })
+
+      const emailLower = invitation.email.toLowerCase()
+      const siblingCompetitionIds: string[] = []
+      for (const inv of allPendingInvitations) {
+        if (inv.email.toLowerCase() !== emailLower) continue
+        try {
+          const meta = inv.metadata
+            ? (JSON.parse(inv.metadata) as { seriesGroupId?: string; competitionId?: string })
+            : {}
+          if (meta.seriesGroupId === seriesGroupId && meta.competitionId) {
+            siblingCompetitionIds.push(meta.competitionId)
+          }
+        } catch {
+          // skip
+        }
+      }
+
+      if (siblingCompetitionIds.length > 0) {
+        const competitions = await db.query.competitionsTable.findMany({
+          where: inArray(competitionsTable.id, siblingCompetitionIds),
+          columns: { id: true, name: true },
+        })
+        seriesCompetitions = competitions.map((c) => ({
+          competitionId: c.id,
+          competitionName: c.name,
+        }))
+      }
+    }
+
     return {
       id: invitation.id,
       token: invitation.token,
@@ -139,7 +192,47 @@ export const getCohostInviteFn = createServerFn({ method: "GET" })
       competitionName,
       competitionSlug,
       permissions,
+      seriesGroupId,
+      seriesName,
+      seriesCompetitions,
     }
+  })
+
+/**
+ * Check if the current user already has cohost membership for a competition team.
+ * Returns existing permissions if found, null otherwise.
+ */
+export const checkExistingCohostMembershipFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z.object({ teamId: z.string().min(1, "Team ID is required") }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session) return null
+
+    const db = getDb()
+    const membership = await db.query.teamMembershipTable.findFirst({
+      where: and(
+        eq(teamMembershipTable.teamId, data.teamId),
+        eq(teamMembershipTable.userId, session.userId),
+        eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.COHOST),
+        eq(teamMembershipTable.isSystemRole, true),
+      ),
+    })
+
+    if (!membership) return null
+
+    let permissions: CohostMembershipMetadata = { ...DEFAULT_COHOST_PERMISSIONS }
+    try {
+      if (membership.metadata) {
+        const meta = JSON.parse(membership.metadata) as Partial<CohostMembershipMetadata>
+        permissions = { ...DEFAULT_COHOST_PERMISSIONS, ...meta }
+      }
+    } catch {
+      // Invalid metadata
+    }
+
+    return { permissions }
   })
 
 /**
@@ -424,9 +517,10 @@ export const acceptCohostInviteFn = createServerFn({ method: "POST" })
     // Parse permissions from invitation metadata
     let permissions: CohostMembershipMetadata = { ...DEFAULT_COHOST_PERMISSIONS }
     let competitionId: string | null = null
+    let seriesGroupId: string | null = null
     try {
       if (invitation.metadata) {
-        const meta = JSON.parse(invitation.metadata) as Partial<CohostMembershipMetadata> & { competitionId?: string }
+        const meta = JSON.parse(invitation.metadata) as Partial<CohostMembershipMetadata> & { competitionId?: string; seriesGroupId?: string }
         permissions = {
           divisions: meta.divisions ?? DEFAULT_COHOST_PERMISSIONS.divisions,
           events: meta.events ?? DEFAULT_COHOST_PERMISSIONS.events,
@@ -445,6 +539,7 @@ export const acceptCohostInviteFn = createServerFn({ method: "POST" })
           inviteNotes: meta.inviteNotes,
         }
         competitionId = meta.competitionId ?? null
+        seriesGroupId = meta.seriesGroupId ?? null
       }
     } catch {
       // Invalid metadata — use defaults
@@ -460,41 +555,139 @@ export const acceptCohostInviteFn = createServerFn({ method: "POST" })
       ),
     })
 
+    const now = new Date()
+
     if (existingMembership) {
       // Mark invitation as accepted even if membership exists
       await db
         .update(teamInvitationTable)
-        .set({ acceptedAt: new Date(), acceptedBy: session.userId, updatedAt: new Date() })
+        .set({ acceptedAt: now, acceptedBy: session.userId, updatedAt: now })
         .where(eq(teamInvitationTable.id, invitation.id))
-      return { success: true, competitionId }
+    } else {
+      // Create cohost membership
+      await db.insert(teamMembershipTable).values({
+        id: createTeamMembershipId(),
+        teamId: invitation.teamId,
+        userId: session.userId,
+        roleId: SYSTEM_ROLES_ENUM.COHOST,
+        isSystemRole: true,
+        invitedBy: invitation.invitedBy,
+        invitedAt: invitation.createdAt ? new Date(invitation.createdAt) : now,
+        joinedAt: now,
+        isActive: true,
+        metadata: JSON.stringify(permissions),
+      })
+
+      // Mark invitation as accepted
+      await db
+        .update(teamInvitationTable)
+        .set({ acceptedAt: now, acceptedBy: session.userId, updatedAt: now })
+        .where(eq(teamInvitationTable.id, invitation.id))
     }
 
-    const now = new Date()
+    // Auto-accept sibling series invitations
+    if (seriesGroupId) {
+      // Find all competitions in this series to get their team IDs
+      const seriesCompetitions = await db.query.competitionsTable.findMany({
+        where: eq(competitionsTable.groupId, seriesGroupId),
+        columns: { id: true, competitionTeamId: true },
+      })
 
-    // Create cohost membership
-    await db.insert(teamMembershipTable).values({
-      id: createTeamMembershipId(),
-      teamId: invitation.teamId,
-      userId: session.userId,
-      roleId: SYSTEM_ROLES_ENUM.COHOST,
-      isSystemRole: true,
-      invitedBy: invitation.invitedBy,
-      invitedAt: invitation.createdAt ? new Date(invitation.createdAt) : now,
-      joinedAt: now,
-      isActive: true,
-      metadata: JSON.stringify(permissions),
-    })
+      const siblingTeamIds = seriesCompetitions
+        .map((c) => c.competitionTeamId)
+        .filter((teamId) => teamId !== invitation.teamId)
 
-    // Mark invitation as accepted
-    await db
-      .update(teamInvitationTable)
-      .set({ acceptedAt: now, acceptedBy: session.userId, updatedAt: now })
-      .where(eq(teamInvitationTable.id, invitation.id))
+      if (siblingTeamIds.length > 0) {
+        // Find all pending cohost invitations on sibling teams for this email
+        const siblingInvitations = await db.query.teamInvitationTable.findMany({
+          where: and(
+            inArray(teamInvitationTable.teamId, siblingTeamIds),
+            eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.COHOST),
+            eq(teamInvitationTable.isSystemRole, true),
+            isNull(teamInvitationTable.acceptedAt),
+          ),
+        })
 
-    // Update user sessions so new membership is reflected immediately
+        // Filter to matching email (case-insensitive) and matching seriesGroupId in metadata
+        const invitationEmail = invitation.email.toLowerCase()
+        const matchingSiblings = siblingInvitations.filter((inv) => {
+          if (inv.email.toLowerCase() !== invitationEmail) return false
+          try {
+            const meta = inv.metadata
+              ? (JSON.parse(inv.metadata) as { seriesGroupId?: string })
+              : {}
+            return meta.seriesGroupId === seriesGroupId
+          } catch {
+            return false
+          }
+        })
+
+        for (const siblingInv of matchingSiblings) {
+          // Parse sibling permissions
+          let siblingPermissions: CohostMembershipMetadata = { ...DEFAULT_COHOST_PERMISSIONS }
+          try {
+            if (siblingInv.metadata) {
+              const meta = JSON.parse(siblingInv.metadata) as Partial<CohostMembershipMetadata>
+              siblingPermissions = {
+                divisions: meta.divisions ?? DEFAULT_COHOST_PERMISSIONS.divisions,
+                events: meta.events ?? DEFAULT_COHOST_PERMISSIONS.events,
+                scoring: meta.scoring ?? DEFAULT_COHOST_PERMISSIONS.scoring,
+                viewRegistrations: meta.viewRegistrations ?? DEFAULT_COHOST_PERMISSIONS.viewRegistrations,
+                editRegistrations: meta.editRegistrations ?? DEFAULT_COHOST_PERMISSIONS.editRegistrations,
+                waivers: meta.waivers ?? DEFAULT_COHOST_PERMISSIONS.waivers,
+                schedule: meta.schedule ?? DEFAULT_COHOST_PERMISSIONS.schedule,
+                locations: meta.locations ?? DEFAULT_COHOST_PERMISSIONS.locations,
+                volunteers: meta.volunteers ?? DEFAULT_COHOST_PERMISSIONS.volunteers,
+                results: meta.results ?? DEFAULT_COHOST_PERMISSIONS.results,
+                pricing: meta.pricing ?? DEFAULT_COHOST_PERMISSIONS.pricing,
+                revenue: meta.revenue ?? DEFAULT_COHOST_PERMISSIONS.revenue,
+                coupons: meta.coupons ?? DEFAULT_COHOST_PERMISSIONS.coupons,
+                sponsors: meta.sponsors ?? DEFAULT_COHOST_PERMISSIONS.sponsors,
+                inviteNotes: meta.inviteNotes,
+              }
+            }
+          } catch {
+            // Invalid metadata — use defaults
+          }
+
+          // Check if user already has membership on this sibling team
+          const existingSiblingMembership = await db.query.teamMembershipTable.findFirst({
+            where: and(
+              eq(teamMembershipTable.teamId, siblingInv.teamId),
+              eq(teamMembershipTable.userId, session.userId),
+              eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.COHOST),
+              eq(teamMembershipTable.isSystemRole, true),
+            ),
+          })
+
+          if (!existingSiblingMembership) {
+            await db.insert(teamMembershipTable).values({
+              id: createTeamMembershipId(),
+              teamId: siblingInv.teamId,
+              userId: session.userId,
+              roleId: SYSTEM_ROLES_ENUM.COHOST,
+              isSystemRole: true,
+              invitedBy: siblingInv.invitedBy,
+              invitedAt: siblingInv.createdAt ? new Date(siblingInv.createdAt) : now,
+              joinedAt: now,
+              isActive: true,
+              metadata: JSON.stringify(siblingPermissions),
+            })
+          }
+
+          // Mark sibling invitation as accepted
+          await db
+            .update(teamInvitationTable)
+            .set({ acceptedAt: now, acceptedBy: session.userId, updatedAt: now })
+            .where(eq(teamInvitationTable.id, siblingInv.id))
+        }
+      }
+    }
+
+    // Update user sessions so new memberships are reflected immediately
     await updateAllSessionsOfUser(session.userId)
 
-    return { success: true, competitionId }
+    return { success: true, competitionId, seriesGroupId }
   })
 
 /**

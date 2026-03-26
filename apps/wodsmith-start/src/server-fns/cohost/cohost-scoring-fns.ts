@@ -13,12 +13,13 @@ import { and, eq, inArray, ne } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
-  competitionEventsTable,
   competitionRegistrationsTable,
-  competitionsTable,
   REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
-import { trackWorkoutsTable } from "@/db/schemas/programming"
+import {
+  programmingTracksTable,
+  trackWorkoutsTable,
+} from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
 import { userTable } from "@/db/schemas/users"
@@ -33,14 +34,13 @@ import {
 import {
   computeSortKey,
   decodeScore,
-  encodeRounds,
   encodeScore,
   getDefaultScoreType,
   type WorkoutScheme as ScoringWorkoutScheme,
   STATUS_ORDER,
   sortKeyToString,
 } from "@/lib/scoring"
-import { logEntityUpdated, logInfo } from "@/lib/logging"
+import { logInfo } from "@/lib/logging"
 import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk } from "@/utils/batch-query"
 import { requireCohostPermission } from "@/utils/cohost-auth"
@@ -48,11 +48,6 @@ import { requireCohostPermission } from "@/utils/cohost-auth"
 // ============================================================================
 // Types
 // ============================================================================
-
-interface RoundScoreData {
-  score: string
-  parts?: [string, string]
-}
 
 // ============================================================================
 // Input Schemas
@@ -263,9 +258,9 @@ export const cohostGetEventScoreEntryDataFn = createServerFn({ method: "GET" })
     for (const round of allRounds) {
       const existing = roundsByScoreId.get(round.scoreId) ?? []
       existing.push({
-        setNumber: round.setNumber,
-        score: round.score,
-        reps: round.reps,
+        setNumber: round.roundNumber,
+        score: round.value,
+        reps: null,
       })
       roundsByScoreId.set(round.scoreId, existing)
     }
@@ -490,7 +485,6 @@ export const cohostSaveCompetitionScoreFn = createServerFn({ method: "POST" })
           tiebreakScheme,
           timeCapMs: timeCap ? timeCap * 1000 : null,
           scalingLevelId: data.divisionId,
-          recordedBy: session.userId,
           updatedAt: now,
         })
         .where(eq(scoresTable.id, existingScore.id))
@@ -503,11 +497,9 @@ export const cohostSaveCompetitionScoreFn = createServerFn({ method: "POST" })
 
         const roundValues = data.roundScores.map((round, i) => ({
           scoreId: existingScore.id,
-          setNumber: i + 1,
-          score: encodeScore(round.score, scheme),
-          reps: round.parts
-            ? Number.parseInt(round.parts[1], 10) || null
-            : null,
+          roundNumber: i + 1,
+          value: encodeScore(round.score, scheme) ?? 0,
+          status: null as string | null,
         }))
 
         if (roundValues.length > 0) {
@@ -528,10 +520,29 @@ export const cohostSaveCompetitionScoreFn = createServerFn({ method: "POST" })
       return { success: true, scoreId: existingScore.id }
     }
 
+    // Get teamId from competition context
+    const [teamResult] = await db
+      .select({
+        ownerTeamId: programmingTracksTable.ownerTeamId,
+      })
+      .from(trackWorkoutsTable)
+      .innerJoin(
+        programmingTracksTable,
+        eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+      )
+      .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+      .limit(1)
+
+    if (!teamResult?.ownerTeamId) {
+      throw new Error("Could not determine team ownership for competition")
+    }
+
     // Insert new score
     const scoreValues = {
       competitionEventId: data.trackWorkoutId,
       userId: data.userId,
+      teamId: teamResult.ownerTeamId,
+      workoutId: data.workoutId,
       scoreValue: encodedValue,
       status,
       statusOrder,
@@ -543,7 +554,6 @@ export const cohostSaveCompetitionScoreFn = createServerFn({ method: "POST" })
       tiebreakScheme,
       timeCapMs: timeCap ? timeCap * 1000 : null,
       scalingLevelId: data.divisionId,
-      recordedBy: session.userId,
       recordedAt: now,
     }
 
@@ -558,11 +568,9 @@ export const cohostSaveCompetitionScoreFn = createServerFn({ method: "POST" })
     if (scoreId && data.roundScores && data.roundScores.length > 0) {
       const roundValues = data.roundScores.map((round, i) => ({
         scoreId,
-        setNumber: i + 1,
-        score: encodeScore(round.score, scheme),
-        reps: round.parts
-          ? Number.parseInt(round.parts[1], 10) || null
-          : null,
+        roundNumber: i + 1,
+        value: encodeScore(round.score, scheme) ?? 0,
+        status: null as string | null,
       }))
 
       if (roundValues.length > 0) {

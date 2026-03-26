@@ -5,13 +5,12 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
   competitionDivisionsTable,
   competitionsTable,
-  scalingLevelsTable,
 } from "@/db/schema"
 import { requireCohostPermission } from "@/utils/cohost-auth"
 
