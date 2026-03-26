@@ -495,9 +495,9 @@ async function main(): Promise<void> {
 
 		for (const [id, userId, divisionId] of registrations) {
 			await connection.execute(
-				`INSERT IGNORE INTO \`competition_registrations\` (id, event_id, user_id, division_id, status, registration_type, created_at, updated_at, update_counter)
-				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-				[id, "e2e_competition", userId, divisionId, "confirmed", "individual", ts, ts, 0],
+				`INSERT IGNORE INTO \`competition_registrations\` (id, event_id, user_id, team_member_id, division_id, status, registered_at, created_at, updated_at, update_counter)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				[id, "e2e_competition", userId, `tmem_${id}`, divisionId, "confirmed", ts, ts, ts, 0],
 			)
 			// Also add athlete to competition team
 			await connection.execute(

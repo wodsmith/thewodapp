@@ -622,12 +622,14 @@ function QuestionFilterRow({
 				<div className="flex flex-wrap gap-3">
 					{question.options.map((option) => {
 						const checked = selectedValues.includes(option)
+						const id = `qf-${question.id}-${option}`
 						return (
-							<label
+							<div
 								key={option}
 								className="flex items-center gap-2 text-sm"
 							>
 								<Checkbox
+									id={id}
 									checked={checked}
 									onCheckedChange={(c) => {
 										if (c) {
@@ -639,8 +641,10 @@ function QuestionFilterRow({
 										}
 									}}
 								/>
-								{option}
-							</label>
+								<Label htmlFor={id} className="text-sm font-normal cursor-pointer">
+									{option}
+								</Label>
+							</div>
 						)
 					})}
 				</div>
