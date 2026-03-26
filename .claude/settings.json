@@ -44,7 +44,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "lat hook claude UserPromptSubmit"
+            "command": "/Users/zacjones/.bun/bin/lat hook claude UserPromptSubmit"
           }
         ]
       }
@@ -63,7 +63,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "lat hook claude Stop"
+            "command": "/Users/zacjones/.bun/bin/lat hook claude Stop"
           }
         ]
       }

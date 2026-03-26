@@ -31,7 +31,7 @@ function collapsibleResult(
 }
 
 /** Absolute path to the lat binary, injected by `lat init`. */
-const LAT = "lat";
+const LAT = "/Users/zacjones/.bun/bin/lat";
 
 function run(args: string[], cwd?: string): string {
   const { execSync } = require("child_process") as typeof import("child_process");

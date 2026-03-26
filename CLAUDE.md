@@ -103,3 +103,28 @@ Details about this child topic.
 ```
 
 The second example is invalid because `Bad Section` has no leading paragraph. `lat check` validates this rule and reports errors for missing or overly long leading paragraphs.
+
+<!-- intent-skills:start -->
+# Skill mappings - when working in these areas, load the linked skill file into context.
+skills:
+  - task: "TanStack Router core concepts, route trees, createRouter, createRoute, file naming conventions"
+    load: "node_modules/@tanstack/router-core/skills/router-core/SKILL.md"
+  - task: "Route protection, auth guards, beforeLoad redirects, RBAC, authenticated layouts"
+    load: "node_modules/@tanstack/router-core/skills/router-core/auth-and-guards/SKILL.md"
+  - task: "Code splitting, lazy routes, .lazy.tsx, autoCodeSplitting, getRouteApi"
+    load: "node_modules/@tanstack/router-core/skills/router-core/code-splitting/SKILL.md"
+  - task: "Route data loading, loaders, loaderDeps, staleTime, pendingComponent, Await, deferred data"
+    load: "node_modules/@tanstack/router-core/skills/router-core/data-loading/SKILL.md"
+  - task: "Link component, useNavigate, preloading, navigation blocking, scroll restoration"
+    load: "node_modules/@tanstack/router-core/skills/router-core/navigation/SKILL.md"
+  - task: "notFound handling, errorComponent, CatchBoundary, route masking"
+    load: "node_modules/@tanstack/router-core/skills/router-core/not-found-and-errors/SKILL.md"
+  - task: "Dynamic path params, splat routes, optional params, useParams"
+    load: "node_modules/@tanstack/router-core/skills/router-core/path-params/SKILL.md"
+  - task: "Search params validation, Zod adapters, search middlewares, retainSearchParams"
+    load: "node_modules/@tanstack/router-core/skills/router-core/search-params/SKILL.md"
+  - task: "SSR, streaming, renderRouterToStream, HeadContent, Scripts, head route option, meta tags"
+    load: "node_modules/@tanstack/router-core/skills/router-core/ssr/SKILL.md"
+  - task: "Router type safety, Register declaration, from narrowing, strict mode, LinkProps"
+    load: "node_modules/@tanstack/router-core/skills/router-core/type-safety/SKILL.md"
+<!-- intent-skills:end -->
