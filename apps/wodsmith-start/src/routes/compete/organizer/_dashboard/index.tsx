@@ -140,7 +140,6 @@ function OrganizerDashboard() {
           competitions={competitions}
           groups={groups}
           teamId={activeTeamId}
-          currentGroupId={undefined}
         />
       </div>
     </div>

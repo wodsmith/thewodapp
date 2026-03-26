@@ -170,4 +170,4 @@ Fetches organizer-eligible teams, competition groups, and series template divisi
 
 Series (competition groups) aggregate scores across multiple competitions.
 
-Series routes at `_dashboard/series/` support creating, editing, and viewing series. Each series has a leaderboard aggregating results, and a division management page for configuring the shared division template that member competitions inherit.
+The series listing and creation pages live under `_dashboard/series/` (with the standard dashboard nav/container). Individual series detail pages at `/compete/organizer/series/{groupId}` use a dedicated sidebar layout (outside the dashboard wrapper), matching the competition organizer sidebar pattern — including team authorization in the layout loader. The sidebar provides navigation to overview, edit, divisions, registration questions, event template, and leaderboard pages.
