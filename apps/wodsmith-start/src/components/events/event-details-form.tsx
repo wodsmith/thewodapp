@@ -145,6 +145,11 @@ interface CompetitionWorkout {
   }
 }
 
+interface EventDetailsFormOverrides {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  saveFn?: (args: { data: any }) => ReturnType<typeof saveCompetitionEventFn>
+}
+
 interface EventDetailsFormProps {
   event: CompetitionWorkout
   competitionId: string
@@ -155,6 +160,10 @@ interface EventDetailsFormProps {
   sponsors: Sponsor[]
   isParentEvent?: boolean
   formId?: string
+  /** Override mutation fns (e.g. cohost equivalents) */
+  overrides?: EventDetailsFormOverrides
+  /** Base route prefix for navigation links (defaults to "/compete/organizer") */
+  routePrefix?: string
 }
 
 export function EventDetailsForm({
@@ -167,9 +176,12 @@ export function EventDetailsForm({
   sponsors,
   isParentEvent = false,
   formId = EVENT_DETAILS_FORM_ID,
+  overrides,
+  routePrefix = "/compete/organizer",
 }: EventDetailsFormProps) {
   const router = useRouter()
   const navigate = useNavigate()
+  const saveFn = overrides?.saveFn ?? saveCompetitionEventFn
 
   // Build initial division descriptions
   const initialDivisionDescs: Record<string, string> = {}
@@ -233,7 +245,7 @@ export function EventDetailsForm({
       }))
 
       // Call server function
-      await saveCompetitionEventFn({
+      await saveFn({
         data: {
           trackWorkoutId: event.id,
           workoutId: event.workoutId,
@@ -700,7 +712,7 @@ export function EventDetailsForm({
                       variant="outline"
                       onClick={() =>
                         navigate({
-                          to: "/compete/organizer/$competitionId/divisions",
+                          to: `${routePrefix}/$competitionId/divisions`,
                           params: { competitionId },
                         })
                       }
@@ -721,7 +733,7 @@ export function EventDetailsForm({
             variant="outline"
             onClick={() =>
               navigate({
-                to: "/compete/organizer/$competitionId/events",
+                to: `${routePrefix}/$competitionId/events`,
                 params: { competitionId },
               })
             }

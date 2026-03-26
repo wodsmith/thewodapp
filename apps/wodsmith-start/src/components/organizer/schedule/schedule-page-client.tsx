@@ -40,6 +40,9 @@ interface SchedulePageClientProps {
   initialHeats: HeatWithAssignments[]
   divisions: Division[]
   registrations: Registration[]
+  heatScheduleOverrides?: Parameters<typeof HeatScheduleManager>[0]["overrides"]
+  /** Base route prefix for navigation links (defaults to "/compete/organizer") */
+  routePrefix?: string
 }
 
 export function SchedulePageClient({
@@ -51,6 +54,8 @@ export function SchedulePageClient({
   initialHeats,
   divisions,
   registrations,
+  heatScheduleOverrides,
+  routePrefix,
 }: SchedulePageClientProps) {
   const [heats, setHeats] = useState(initialHeats)
 
@@ -59,7 +64,7 @@ export function SchedulePageClient({
       {/* Venues Summary */}
       <section>
         <h2 className="text-lg font-semibold mb-4">Venues</h2>
-        <VenuesSummary competitionId={competitionId} venues={initialVenues} />
+        <VenuesSummary competitionId={competitionId} venues={initialVenues} routePrefix={routePrefix} />
       </section>
 
       {/* Heat Schedule Manager */}
@@ -75,6 +80,7 @@ export function SchedulePageClient({
           divisions={divisions}
           registrations={registrations}
           onHeatsChange={setHeats}
+          overrides={heatScheduleOverrides}
         />
       </section>
     </div>

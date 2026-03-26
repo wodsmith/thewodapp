@@ -17,6 +17,8 @@ interface EventSubmissionWindowCardProps {
   submissionOpensAt: string | null
   submissionClosesAt: string | null
   timezone: string
+  /** Base route prefix for navigation links (defaults to "/compete/organizer") */
+  routePrefix?: string
 }
 
 /**
@@ -63,6 +65,7 @@ export function EventSubmissionWindowCard({
   submissionOpensAt,
   submissionClosesAt,
   timezone,
+  routePrefix = "/compete/organizer",
 }: EventSubmissionWindowCardProps) {
   const status = getWindowStatus(submissionOpensAt, submissionClosesAt)
 
@@ -109,7 +112,7 @@ export function EventSubmissionWindowCard({
             </p>
             <Button asChild variant="outline" size="sm">
               <Link
-                to="/compete/organizer/$competitionId/submission-windows"
+                to={`${routePrefix}/$competitionId/submission-windows` as string}
                 params={{ competitionId }}
               >
                 <Calendar className="h-4 w-4 mr-2" />
@@ -140,7 +143,7 @@ export function EventSubmissionWindowCard({
 
             <Button asChild variant="outline" size="sm" className="w-full">
               <Link
-                to="/compete/organizer/$competitionId/submission-windows"
+                to={`${routePrefix}/$competitionId/submission-windows` as string}
                 params={{ competitionId }}
               >
                 <ExternalLink className="h-4 w-4 mr-2" />

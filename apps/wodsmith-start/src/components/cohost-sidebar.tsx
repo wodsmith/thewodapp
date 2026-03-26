@@ -47,6 +47,7 @@ import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
 
 interface CohostSidebarProps {
   competitionId: string
+  competitionName: string
   competitionType?: "in-person" | "online"
   permissions: CohostMembershipMetadata
   children: React.ReactNode
@@ -201,9 +202,9 @@ function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
   )
 }
 
-function CohostSidebarHeader() {
+function CohostSidebarHeader({ competitionName }: { competitionName: string }) {
   return (
-    <SidebarHeader className="h-14 flex-row items-center border-b px-3 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:justify-center">
+    <SidebarHeader className="border-b px-3 py-3 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3 group-data-[collapsible=icon]:justify-center">
       <Link
         to="/compete"
         className="flex items-center gap-2 min-w-0 group-data-[collapsible=icon]:hidden"
@@ -239,6 +240,9 @@ function CohostSidebarHeader() {
           className="size-6"
         />
       </Link>
+      <p className="mt-1 truncate text-sm font-medium text-muted-foreground group-data-[collapsible=icon]:hidden">
+        {competitionName}
+      </p>
     </SidebarHeader>
   )
 }
@@ -259,6 +263,7 @@ function CohostSidebarFooter() {
 
 export function CohostSidebar({
   competitionId,
+  competitionName,
   competitionType,
   permissions,
   children,
@@ -278,7 +283,7 @@ export function CohostSidebar({
   return (
     <SidebarProvider>
       <Sidebar variant="sidebar" collapsible="icon">
-        <CohostSidebarHeader />
+        <CohostSidebarHeader competitionName={competitionName} />
         <SidebarRail />
         <SidebarContent>
           {/* Overview - standalone at top */}
@@ -318,23 +323,17 @@ export function CohostSidebar({
           <SidebarTrigger className="-ml-1">
             <Menu className="h-5 w-5" />
           </SidebarTrigger>
-          <Link to="/compete" className="flex items-center gap-2">
-            <img
-              src="/wodsmith-logo-no-text.png"
-              alt="wodsmith compete"
-              width={24}
-              height={24}
-            />
-            <span className="text-sm font-semibold">
-              <span className="font-black uppercase">wod</span>smith{" "}
-              <span className="font-medium text-amber-600 dark:text-amber-500">
-                Compete
-              </span>
-            </span>
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-500">
-              Co-Host
-            </span>
-          </Link>
+          <div className="flex items-center gap-2 min-w-0">
+            <Link to="/compete" className="flex items-center gap-2 shrink-0">
+              <img
+                src="/wodsmith-logo-no-text.png"
+                alt="wodsmith compete"
+                width={24}
+                height={24}
+              />
+            </Link>
+            <span className="truncate text-sm font-medium">{competitionName}</span>
+          </div>
         </header>
         <div className="h-14 md:hidden" />
         {children}

@@ -26,11 +26,54 @@ interface SponsorGroupWithSponsors extends SponsorGroup {
   sponsors: Sponsor[]
 }
 
+export interface SponsorManagerOverrides {
+  createSponsor?: (opts: {
+    data: {
+      competitionId?: string
+      groupId?: string
+      name: string
+      logoUrl?: string
+      website?: string
+    }
+  }) => Promise<any>
+  updateSponsor?: (opts: {
+    data: {
+      sponsorId: string
+      groupId?: string | null
+      name?: string
+      logoUrl?: string | null
+      website?: string | null
+    }
+  }) => Promise<{ sponsor: Sponsor | null }>
+  deleteSponsor?: (opts: {
+    data: { sponsorId: string }
+  }) => Promise<{ success: boolean; error?: string }>
+  reorderSponsors?: (opts: {
+    data: {
+      competitionId: string
+      sponsorOrders: { sponsorId: string; groupId: string | null; displayOrder: number }[]
+    }
+  }) => Promise<any>
+  createSponsorGroup?: (opts: {
+    data: { competitionId: string; name: string }
+  }) => Promise<any>
+  updateSponsorGroup?: (opts: {
+    data: { groupId: string; competitionId: string; name: string }
+  }) => Promise<{ group: SponsorGroup | null }>
+  deleteSponsorGroup?: (opts: {
+    data: { groupId: string; competitionId: string }
+  }) => Promise<{ success: boolean; error?: string }>
+  reorderSponsorGroups?: (opts: {
+    data: { competitionId: string; groupIds: string[] }
+  }) => Promise<any>
+}
+
 interface SponsorManagerProps {
   competitionId: string
   organizingTeamId: string
   groups: SponsorGroupWithSponsors[]
   ungroupedSponsors: Sponsor[]
+  overrides?: SponsorManagerOverrides
 }
 
 export function SponsorManager({
@@ -38,7 +81,17 @@ export function SponsorManager({
   organizingTeamId: _organizingTeamId,
   groups: initialGroups,
   ungroupedSponsors: initialUngrouped,
+  overrides,
 }: SponsorManagerProps) {
+  // Resolve server fns: use overrides if provided, otherwise default organizer fns
+  const createSponsorCall = overrides?.createSponsor ?? createSponsorFn
+  const updateSponsorCall = overrides?.updateSponsor ?? updateSponsorFn
+  const deleteSponsorCall = overrides?.deleteSponsor ?? deleteSponsorFn
+  const reorderSponsorsCall = overrides?.reorderSponsors ?? reorderSponsorsFn
+  const createSponsorGroupCall = overrides?.createSponsorGroup ?? createSponsorGroupFn
+  const updateSponsorGroupCall = overrides?.updateSponsorGroup ?? updateSponsorGroupFn
+  const deleteSponsorGroupCall = overrides?.deleteSponsorGroup ?? deleteSponsorGroupFn
+  const reorderSponsorGroupsCall = overrides?.reorderSponsorGroups ?? reorderSponsorGroupsFn
   const router = useRouter()
   const [groups, setGroups] = useState(initialGroups)
   const [ungroupedSponsors, setUngroupedSponsors] = useState(initialUngrouped)
@@ -68,7 +121,7 @@ export function SponsorManager({
   const handleCreateGroup = async (name: string) => {
     setIsCreatingGroup(true)
     try {
-      await createSponsorGroupFn({
+      await createSponsorGroupCall({
         data: {
           competitionId,
           name,
@@ -91,7 +144,7 @@ export function SponsorManager({
 
   const handleUpdateGroup = async (groupId: string, name: string) => {
     try {
-      const result = await updateSponsorGroupFn({
+      const result = await updateSponsorGroupCall({
         data: {
           groupId,
           competitionId,
@@ -109,6 +162,7 @@ export function SponsorManager({
       )
       toast.success("Sponsor group updated")
       setEditingGroup(null)
+      router.invalidate()
     } catch (error) {
       const message =
         error instanceof Error
@@ -126,7 +180,7 @@ export function SponsorManager({
     const sponsorsToMove = group.sponsors
 
     try {
-      const result = await deleteSponsorGroupFn({
+      const result = await deleteSponsorGroupCall({
         data: {
           groupId,
           competitionId,
@@ -144,6 +198,7 @@ export function SponsorManager({
         ...sponsorsToMove.map((s) => ({ ...s, groupId: null })),
       ])
       toast.success("Sponsor group deleted")
+      router.invalidate()
     } catch (error) {
       const message =
         error instanceof Error
@@ -162,7 +217,7 @@ export function SponsorManager({
   }) => {
     setIsCreatingSponsor(true)
     try {
-      await createSponsorFn({
+      await createSponsorCall({
         data: {
           competitionId,
           groupId: data.groupId ?? undefined,
@@ -195,7 +250,7 @@ export function SponsorManager({
     },
   ) => {
     try {
-      const result = await updateSponsorFn({
+      const result = await updateSponsorCall({
         data: {
           sponsorId,
           ...data,
@@ -232,6 +287,7 @@ export function SponsorManager({
 
       toast.success("Sponsor updated")
       setEditingSponsor(null)
+      router.invalidate()
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to update sponsor"
@@ -241,7 +297,7 @@ export function SponsorManager({
 
   const handleDeleteSponsor = async (sponsorId: string) => {
     try {
-      const result = await deleteSponsorFn({
+      const result = await deleteSponsorCall({
         data: {
           sponsorId,
         },
@@ -260,6 +316,7 @@ export function SponsorManager({
       )
       setUngroupedSponsors((prev) => prev.filter((s) => s.id !== sponsorId))
       toast.success("Sponsor deleted")
+      router.invalidate()
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to delete sponsor"
@@ -286,7 +343,7 @@ export function SponsorManager({
       const orderedIds = newGroups.map((g) => g.id)
 
       try {
-        await reorderSponsorGroupsFn({
+        await reorderSponsorGroupsCall({
           data: {
             competitionId,
             groupIds: orderedIds,
@@ -336,7 +393,7 @@ export function SponsorManager({
       }))
 
       try {
-        await reorderSponsorsFn({
+        await reorderSponsorsCall({
           data: {
             competitionId,
             sponsorOrders,

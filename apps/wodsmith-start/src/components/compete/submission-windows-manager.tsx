@@ -26,12 +26,27 @@ interface CompetitionEvent {
   submissionClosesAt: string | null
 }
 
+export interface SubmissionWindowsManagerOverrides {
+  upsertCompetitionEvents?: (opts: {
+    data: {
+      competitionId: string
+      teamId: string
+      events: {
+        trackWorkoutId: string
+        submissionOpensAt: string | null
+        submissionClosesAt: string | null
+      }[]
+    }
+  }) => Promise<{ success: true; upsertedCount: number }>
+}
+
 interface SubmissionWindowsManagerProps {
   competitionId: string
   teamId: string
   workouts: WorkoutWithType[]
   initialEvents: CompetitionEvent[]
   timezone: string // IANA timezone (e.g., "America/Denver")
+  overrides?: SubmissionWindowsManagerOverrides
 }
 
 export function SubmissionWindowsManager({
@@ -40,6 +55,7 @@ export function SubmissionWindowsManager({
   workouts,
   initialEvents,
   timezone,
+  overrides,
 }: SubmissionWindowsManagerProps) {
   const [instanceId] = useState(() => Symbol("submission-windows"))
   const [isSaving, setIsSaving] = useState(false)
@@ -59,7 +75,8 @@ export function SubmissionWindowsManager({
     reset,
   } = useSubmissionWindowsStore()
 
-  const upsertEvents = useServerFn(upsertCompetitionEventsFn)
+  const defaultUpsertEvents = useServerFn(upsertCompetitionEventsFn)
+  const upsertEvents = overrides?.upsertCompetitionEvents ?? defaultUpsertEvents
 
   // Initialize state from server data
   useEffect(() => {

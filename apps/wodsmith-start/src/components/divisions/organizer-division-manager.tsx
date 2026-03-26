@@ -66,6 +66,48 @@ interface ScalingGroupWithLevels {
   }>
 }
 
+export interface DivisionManagerOverrides {
+  addDivision?: (params: {
+    teamId: string
+    competitionId: string
+    label: string
+    teamSize: number
+  }) => Promise<{ divisionId: string } | undefined>
+  updateDivision?: (params: {
+    teamId: string
+    competitionId: string
+    divisionId: string
+    label: string
+  }) => Promise<{ success: boolean }>
+  deleteDivision?: (params: {
+    teamId: string
+    competitionId: string
+    divisionId: string
+  }) => Promise<{ success: boolean }>
+  reorderDivisions?: (params: {
+    teamId: string
+    competitionId: string
+    orderedDivisionIds: string[]
+  }) => Promise<{ success: boolean }>
+  updateDescription?: (params: {
+    teamId: string
+    competitionId: string
+    divisionId: string
+    description: string | null
+  }) => Promise<{ success: boolean }>
+  updateCapacity?: (params: {
+    teamId: string
+    competitionId: string
+    divisionId: string
+    maxSpots: number | null
+  }) => Promise<{ success: boolean }>
+  initializeDivisions?: (params: {
+    teamId: string
+    competitionId: string
+    templateGroupId?: string
+  }) => Promise<{ scalingGroupId: string }>
+}
+
 interface OrganizerDivisionManagerProps {
   teamId: string
   competitionId: string
@@ -74,6 +116,7 @@ interface OrganizerDivisionManagerProps {
   scalingGroupTitle: string | null
   scalingGroups: ScalingGroupWithLevels[]
   defaultMaxSpotsPerDivision: number | null
+  overrides?: DivisionManagerOverrides
 }
 
 export function OrganizerDivisionManager({
@@ -84,6 +127,7 @@ export function OrganizerDivisionManager({
   scalingGroupTitle,
   scalingGroups,
   defaultMaxSpotsPerDivision,
+  overrides,
 }: OrganizerDivisionManagerProps) {
   const router = useRouter()
   const [divisions, setDivisions] = useState(initialDivisions)
@@ -141,6 +185,7 @@ export function OrganizerDivisionManager({
         competitionId={competitionId}
         scalingGroups={scalingGroups}
         onSuccess={() => router.invalidate()}
+        initializeDivisionsOverride={overrides?.initializeDivisions}
       />
     )
   }
@@ -155,14 +200,11 @@ export function OrganizerDivisionManager({
     )
 
     try {
-      await updateCompetitionDivisionFn({
-        data: {
-          teamId,
-          competitionId,
-          divisionId,
-          label: newLabel,
-        },
-      })
+      if (overrides?.updateDivision) {
+        await overrides.updateDivision({ teamId, competitionId, divisionId, label: newLabel })
+      } else {
+        await updateCompetitionDivisionFn({ data: { teamId, competitionId, divisionId, label: newLabel } })
+      }
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to update division",
@@ -193,14 +235,11 @@ export function OrganizerDivisionManager({
     )
 
     try {
-      await updateDivisionDescriptionFn({
-        data: {
-          teamId,
-          competitionId,
-          divisionId,
-          description: newDescription,
-        },
-      })
+      if (overrides?.updateDescription) {
+        await overrides.updateDescription({ teamId, competitionId, divisionId, description: newDescription })
+      } else {
+        await updateDivisionDescriptionFn({ data: { teamId, competitionId, divisionId, description: newDescription } })
+      }
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to update description",
@@ -231,14 +270,11 @@ export function OrganizerDivisionManager({
     )
 
     try {
-      await updateDivisionCapacityFn({
-        data: {
-          teamId,
-          competitionId,
-          divisionId,
-          maxSpots: newMaxSpots,
-        },
-      })
+      if (overrides?.updateCapacity) {
+        await overrides.updateCapacity({ teamId, competitionId, divisionId, maxSpots: newMaxSpots })
+      } else {
+        await updateDivisionCapacityFn({ data: { teamId, competitionId, divisionId, maxSpots: newMaxSpots } })
+      }
       toast.success("Division capacity updated")
     } catch (error) {
       toast.error(
@@ -257,13 +293,11 @@ export function OrganizerDivisionManager({
 
   const handleRemove = async (divisionId: string) => {
     try {
-      await deleteCompetitionDivisionFn({
-        data: {
-          teamId,
-          competitionId,
-          divisionId,
-        },
-      })
+      if (overrides?.deleteDivision) {
+        await overrides.deleteDivision({ teamId, competitionId, divisionId })
+      } else {
+        await deleteCompetitionDivisionFn({ data: { teamId, competitionId, divisionId } })
+      }
       toast.success("Division deleted")
       setDivisions((prev) => prev.filter((d) => d.id !== divisionId))
     } catch (error) {
@@ -289,13 +323,11 @@ export function OrganizerDivisionManager({
 
       // Persist to server
       try {
-        await reorderCompetitionDivisionsFn({
-          data: {
-            teamId,
-            competitionId,
-            orderedDivisionIds: updatedDivisions.map((d) => d.id),
-          },
-        })
+        if (overrides?.reorderDivisions) {
+          await overrides.reorderDivisions({ teamId, competitionId, orderedDivisionIds: updatedDivisions.map((d) => d.id) })
+        } else {
+          await reorderCompetitionDivisionsFn({ data: { teamId, competitionId, orderedDivisionIds: updatedDivisions.map((d) => d.id) } })
+        }
       } catch (error) {
         toast.error(
           error instanceof Error
@@ -313,26 +345,18 @@ export function OrganizerDivisionManager({
 
     setIsAdding(true)
     try {
-      const result = await addCompetitionDivisionFn({
-        data: {
-          teamId,
-          competitionId,
-          label: newDivisionLabel.trim(),
-          teamSize: newDivisionTeamSize,
-        },
-      })
+      const result = overrides?.addDivision
+        ? await overrides.addDivision({ teamId, competitionId, label: newDivisionLabel.trim(), teamSize: newDivisionTeamSize })
+        : await addCompetitionDivisionFn({ data: { teamId, competitionId, label: newDivisionLabel.trim(), teamSize: newDivisionTeamSize } })
 
       // If description was provided, update it
       const descriptionToSave = newDivisionDescription.trim() || null
       if (descriptionToSave && result?.divisionId) {
-        await updateDivisionDescriptionFn({
-          data: {
-            teamId,
-            competitionId,
-            divisionId: result.divisionId,
-            description: descriptionToSave,
-          },
-        })
+        if (overrides?.updateDescription) {
+          await overrides.updateDescription({ teamId, competitionId, divisionId: result.divisionId, description: descriptionToSave })
+        } else {
+          await updateDivisionDescriptionFn({ data: { teamId, competitionId, divisionId: result.divisionId, description: descriptionToSave } })
+        }
       }
 
       // If max spots was provided, update it
@@ -344,14 +368,11 @@ export function OrganizerDivisionManager({
         !Number.isNaN(maxSpotsToSave) &&
         result?.divisionId
       ) {
-        await updateDivisionCapacityFn({
-          data: {
-            teamId,
-            competitionId,
-            divisionId: result.divisionId,
-            maxSpots: maxSpotsToSave,
-          },
-        })
+        if (overrides?.updateCapacity) {
+          await overrides.updateCapacity({ teamId, competitionId, divisionId: result.divisionId, maxSpots: maxSpotsToSave })
+        } else {
+          await updateDivisionCapacityFn({ data: { teamId, competitionId, divisionId: result.divisionId, maxSpots: maxSpotsToSave } })
+        }
       }
 
       toast.success("Division added")

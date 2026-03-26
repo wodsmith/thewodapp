@@ -39,6 +39,11 @@ interface OrganizerTemplateSelectorProps {
   competitionId: string
   scalingGroups: ScalingGroupWithLevels[]
   onSuccess: () => void
+  initializeDivisionsOverride?: (params: {
+    teamId: string
+    competitionId: string
+    templateGroupId?: string
+  }) => Promise<{ scalingGroupId: string }>
 }
 
 export function OrganizerTemplateSelector({
@@ -46,6 +51,7 @@ export function OrganizerTemplateSelector({
   competitionId,
   scalingGroups,
   onSuccess,
+  initializeDivisionsOverride,
 }: OrganizerTemplateSelectorProps) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
   const [isPending, setIsPending] = useState(false)
@@ -57,13 +63,11 @@ export function OrganizerTemplateSelector({
   const handleApplyTemplate = async () => {
     setIsPending(true)
     try {
-      await initializeCompetitionDivisionsFn({
-        data: {
-          teamId,
-          competitionId,
-          templateGroupId: selectedTemplateId || undefined,
-        },
-      })
+      if (initializeDivisionsOverride) {
+        await initializeDivisionsOverride({ teamId, competitionId, templateGroupId: selectedTemplateId || undefined })
+      } else {
+        await initializeCompetitionDivisionsFn({ data: { teamId, competitionId, templateGroupId: selectedTemplateId || undefined } })
+      }
       toast.success(
         selectedTemplateId
           ? "Divisions created from template"
@@ -84,12 +88,11 @@ export function OrganizerTemplateSelector({
   const handleStartFresh = async () => {
     setIsPending(true)
     try {
-      await initializeCompetitionDivisionsFn({
-        data: {
-          teamId,
-          competitionId,
-        },
-      })
+      if (initializeDivisionsOverride) {
+        await initializeDivisionsOverride({ teamId, competitionId })
+      } else {
+        await initializeCompetitionDivisionsFn({ data: { teamId, competitionId } })
+      }
       toast.success("Default divisions created")
       onSuccess()
     } catch (error) {

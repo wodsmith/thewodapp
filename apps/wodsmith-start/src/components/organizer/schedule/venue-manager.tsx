@@ -37,6 +37,14 @@ import {
 } from "@/server-fns/competition-heats-fns"
 import { formatCityLine } from "@/utils/address"
 
+interface VenueManagerOverrides {
+  createVenueFn?: (args: { data: any }) => Promise<{ venue: any }>
+  updateVenueFn?: (args: { data: any }) => Promise<any>
+  deleteVenueFn?: (args: { data: any }) => Promise<any>
+  getVenueHeatCountFn?: (args: { data: any }) => Promise<{ count: number }>
+  createAddressFn?: (args: { data: any }) => Promise<{ id: string }>
+}
+
 interface VenueWithAddress extends CompetitionVenue {
   address?: {
     id: string
@@ -64,6 +72,7 @@ interface VenueManagerProps {
     city: string | null
     stateProvince: string | null
   } | null
+  overrides?: VenueManagerOverrides
 }
 
 const venueFormSchema = z.object({
@@ -112,6 +121,7 @@ export function VenueManager({
   onVenueDelete,
   primaryAddressId,
   primaryAddress,
+  overrides,
 }: VenueManagerProps) {
   const [internalVenues, setInternalVenues] = useState(venues)
   const displayVenues = onVenueUpdate ? venues : internalVenues
@@ -150,7 +160,8 @@ export function VenueManager({
         data.address?.city?.trim() ||
         data.address?.streetLine1?.trim()
       ) {
-        const newAddress = await createAddressFn({
+        const createAddrFn = overrides?.createAddressFn ?? createAddressFn
+        const newAddress = await createAddrFn({
           data: {
             name: data.address.name?.trim() || undefined,
             streetLine1: data.address.streetLine1?.trim() || undefined,
@@ -166,7 +177,8 @@ export function VenueManager({
         addressId = newAddress.id
       }
 
-      const result = await createVenueFn({
+      const createVenFn = overrides?.createVenueFn ?? createVenueFn
+      const result = await createVenFn({
         data: {
           competitionId,
           name: data.name.trim(),
@@ -212,7 +224,8 @@ export function VenueManager({
         data.address?.city?.trim() ||
         data.address?.streetLine1?.trim()
       ) {
-        const newAddress = await createAddressFn({
+        const createAddrFn = overrides?.createAddressFn ?? createAddressFn
+        const newAddress = await createAddrFn({
           data: {
             name: data.address.name?.trim() || undefined,
             streetLine1: data.address.streetLine1?.trim() || undefined,
@@ -228,7 +241,8 @@ export function VenueManager({
         addressId = newAddress.id
       }
 
-      await updateVenueFn({
+      const updateVenFn = overrides?.updateVenueFn ?? updateVenueFn
+      await updateVenFn({
         data: {
           venueId: editingVenue.id,
           name: data.name.trim(),
@@ -275,7 +289,8 @@ export function VenueManager({
   async function handleDelete(venue: CompetitionVenue) {
     setIsDeleting(true)
     try {
-      const { count } = await getVenueHeatCountFn({
+      const getCountFn = overrides?.getVenueHeatCountFn ?? getVenueHeatCountFn
+      const { count } = await getCountFn({
         data: { venueId: venue.id },
       })
 
@@ -289,7 +304,8 @@ export function VenueManager({
         return
       }
 
-      await deleteVenueFn({
+      const deleteVenFn = overrides?.deleteVenueFn ?? deleteVenueFn
+      await deleteVenFn({
         data: { venueId: venue.id },
       })
 

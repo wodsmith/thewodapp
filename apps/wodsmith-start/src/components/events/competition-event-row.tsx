@@ -78,6 +78,8 @@ interface CompetitionEventRowProps {
   isSubEvent?: boolean
   childCount?: number
   parentEventId?: string
+  /** Base route for event detail links (defaults to organizer route) */
+  eventDetailRoute?: string
 }
 
 export function CompetitionEventRow({
@@ -96,6 +98,7 @@ export function CompetitionEventRow({
   isSubEvent,
   childCount,
   parentEventId,
+  eventDetailRoute = "/compete/organizer/$competitionId/events/$eventId",
 }: CompetitionEventRowProps) {
   const ref = useRef<HTMLDivElement>(null)
   const dragHandleRef = useRef<HTMLButtonElement>(null)
@@ -475,7 +478,7 @@ export function CompetitionEventRow({
                     className="text-muted-foreground hover:text-foreground"
                   >
                     <Link
-                      to="/compete/organizer/$competitionId/events/$eventId"
+                      to={eventDetailRoute}
                       params={{
                         competitionId: competitionId,
                         eventId: isSubEvent && parentEventId ? parentEventId : event.id,
@@ -589,7 +592,7 @@ export function CompetitionEventRow({
                     className="text-muted-foreground hover:text-foreground"
                   >
                     <Link
-                      to="/compete/organizer/$competitionId/events/$eventId"
+                      to={eventDetailRoute}
                       params={{
                         competitionId: competitionId,
                         eventId: isSubEvent && parentEventId ? parentEventId : event.id,

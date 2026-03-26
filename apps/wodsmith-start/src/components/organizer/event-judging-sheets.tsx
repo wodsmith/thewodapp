@@ -20,6 +20,12 @@ import {
   updateJudgingSheetFn,
 } from "@/server-fns/judging-sheet-fns"
 
+interface EventJudgingSheetsOverrides {
+  createFn?: (args: { data: any }) => Promise<{ sheet: any }>
+  updateFn?: (args: { data: any }) => Promise<{ sheet?: any }>
+  deleteFn?: (args: { data: any }) => Promise<{ success: boolean }>
+}
+
 interface JudgingSheet {
   id: string
   title: string
@@ -32,17 +38,21 @@ interface JudgingSheet {
 }
 
 interface EventJudgingSheetsProps {
-  competitionId: string
+  competitionId?: string
+  groupId?: string
   trackWorkoutId: string
   sheets: JudgingSheet[]
   onSheetsChange: (sheets: JudgingSheet[]) => void
+  overrides?: EventJudgingSheetsOverrides
 }
 
 export function EventJudgingSheets({
   competitionId,
+  groupId,
   trackWorkoutId,
   sheets,
   onSheetsChange,
+  overrides,
 }: EventJudgingSheetsProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [newSheetTitle, setNewSheetTitle] = useState("")
@@ -56,9 +66,12 @@ export function EventJudgingSheets({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState("")
 
-  const createSheet = useServerFn(createJudgingSheetFn)
-  const updateSheet = useServerFn(updateJudgingSheetFn)
-  const deleteSheet = useServerFn(deleteJudgingSheetFn)
+  const _createSheet = useServerFn(createJudgingSheetFn)
+  const _updateSheet = useServerFn(updateJudgingSheetFn)
+  const _deleteSheet = useServerFn(deleteJudgingSheetFn)
+  const createSheet = overrides?.createFn ?? _createSheet
+  const updateSheet = overrides?.updateFn ?? _updateSheet
+  const deleteSheet = overrides?.deleteFn ?? _deleteSheet
 
   const handleFileUpload = useCallback(
     (file: {
@@ -94,6 +107,7 @@ export function EventJudgingSheets({
       const result = await createSheet({
         data: {
           competitionId,
+          groupId,
           trackWorkoutId,
           title: newSheetTitle.trim(),
           url: pendingUpload.url,
@@ -120,6 +134,7 @@ export function EventJudgingSheets({
     }
   }, [
     competitionId,
+    groupId,
     trackWorkoutId,
     pendingUpload,
     newSheetTitle,
@@ -311,7 +326,7 @@ export function EventJudgingSheets({
         {!pendingUpload && (
           <FileUpload
             purpose="judging-sheet"
-            entityId={competitionId}
+            entityId={competitionId ?? groupId ?? ""}
             onUpload={handleFileUpload}
             maxSizeMb={20}
           />
