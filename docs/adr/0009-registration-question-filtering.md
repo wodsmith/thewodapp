@@ -6,145 +6,166 @@ consulted: []
 informed: []
 ---
 
-# ADR-0009: Registration Question Filtering for Athletes and Volunteers
+# ADR-0009: Broadcast Audience Filtering by Registration Questions
 
 ## Context and Problem Statement
 
-Organizers need to filter their athlete roster and volunteer roster by the answers to custom registration questions. Registration questions exist at two levels — **series** (inherited by all competitions in the group) and **competition** (specific to one competition) — and are completely separate between athletes (`questionTarget: "athlete"`) and volunteers (`questionTarget: "volunteer"`).
+The broadcast system (ADR-0008) lets organizers send one-way messages to targeted groups. The current audience filter supports five types: `all` (all athletes), `division` (athletes in a specific division), `public` (everyone), `volunteers` (all volunteers), and `volunteer_role` (volunteers with a specific role).
 
-The athletes page (`/compete/organizer/$competitionId/athletes`) already has a working question filter implementation: each question renders as a multi-select dropdown in the table header, filter state is persisted in URL search params (`questionFilters: { [questionId]: string[] }`), and active filters show as removable chips. This filtering correctly handles both series-level and competition-level questions since they're merged at load time via `getCompetitionQuestionsFn`.
+Organizers set up **custom registration questions** when configuring their competitions — things like t-shirt size, dietary restrictions, experience level, emergency contact info, etc. These questions exist at two levels:
 
-The volunteers page (`/compete/organizer/$competitionId/volunteers`) has **no** question filtering at all — questions are displayed as table columns and answers are shown, but organizers cannot filter by them.
+- **Series-level** questions (set on the series group, inherited by all competitions in the series)
+- **Competition-level** questions (set on a specific competition)
 
-How should we bring question filtering to the volunteers page and ensure the filtering pattern is consistent and maintainable across both surfaces?
+Athlete registration questions and volunteer registration questions are **completely separate** — stored in the same table (`competitionRegistrationQuestionsTable`) but distinguished by the `questionTarget` field (`"athlete"` vs `"volunteer"`). Answers are stored in separate tables: `competitionRegistrationAnswersTable` for athletes (keyed by `registrationId` + `userId`) and `volunteerRegistrationAnswersTable` for volunteers (keyed by `invitationId`).
+
+ADR-0008 identified "registration question responses" as a planned audience filter type but didn't detail the implementation. Organizers need this to send targeted messages like:
+
+- "All athletes who selected 'Large' for t-shirt size — your shirts are ready for pickup at tent 3"
+- "Volunteers who indicated they have EMT certification — please report to medical staging at 7am"
+- "Athletes who answered 'Yes' to the travel reimbursement question — submit your receipts by Friday"
+
+How should we extend the broadcast audience filter to support filtering by registration question answers?
 
 ## Decision Drivers
 
-* Volunteers page must gain the same filtering capability athletes already have
-* Series-level and competition-level questions must both be filterable (both levels already merged at data load time)
-* Athlete and volunteer questions are separate (`questionTarget` field) — filtering must respect this boundary
-* Filter state should be URL-persisted (shareable, back-button friendly) as it already is on athletes
-* Implementation should reuse existing patterns rather than inventing new ones
-* Must work with both authenticated volunteers (matched by userId) and unauthenticated/pending volunteers (matched by invitationId)
+* Must support filtering by both athlete and volunteer registration questions
+* Must handle both series-level and competition-level questions (already merged at query time)
+* Must support all question types: text, select, number
+* Must show accurate recipient count preview before sending
+* Must integrate cleanly with the existing `audienceFilterSchema` and `sendBroadcastFn`
+* Should allow combining question filters (e.g., t-shirt size = "L" AND experience = "Advanced")
+* Should reuse the question/answer data already loaded by existing server functions
 
-## Current State
+## Current Audience Filter Shape
 
-### What already works (athletes page)
+```typescript
+const audienceFilterSchema = z.object({
+  type: z.enum(["all", "division", "public", "volunteers", "volunteer_role"]),
+  divisionId: z.string().optional(),
+  volunteerRole: z.string().optional(),
+})
+```
 
-1. **Data loading**: `getCompetitionQuestionsFn` merges series + competition athlete questions. `getCompetitionRegistrationAnswersFn` returns all answers grouped by `registrationId`.
-2. **URL search params**: `questionFilters` is a `z.record(z.string(), z.array(z.string()))` validated by Zod, stored in URL search params via TanStack Router.
-3. **Filter options**: Built dynamically from all unique answer values per question (`questionFilterOptions` reducer).
-4. **Filter UI**: Each question column header has a popover with checkboxes for each unique answer value. Active filters show as chips with remove buttons.
-5. **Row filtering**: Registrations are filtered client-side by checking if the athlete's answer for each filtered question is in the selected values.
-
-### What's missing (volunteers page)
-
-- No `questionFilters` in route search params
-- No `toggleQuestionFilter` / `removeQuestionFilter` navigation helpers
-- No filter option building from answer data
-- No filter popover UI on question column headers
-- No active filter chips display
-- No client-side row filtering by question answers
-
-### Answer storage differences
-
-| | Athletes | Volunteers |
-|---|---|---|
-| Answer table | `competitionRegistrationAnswersTable` | `volunteerRegistrationAnswersTable` |
-| Keyed by | `registrationId` + `userId` | `invitationId` |
-| Loaded via | `getCompetitionRegistrationAnswersFn` | `getVolunteerAnswersFn` |
-| Grouped as | `answersByRegistration[registrationId]` | `answersByInvitation[invitationId]` |
+The `type` field determines the base audience. Additional fields (`divisionId`, `volunteerRole`) narrow within that type. The filter is evaluated server-side in `sendBroadcastFn` and `previewAudienceFn` to build the recipient list.
 
 ## Considered Options
 
-### Option A: Copy the athletes page filtering inline to volunteers
+### Option A: New top-level audience types per question
 
-Duplicate the filtering logic (search params, toggle functions, filter options builder, UI components) from the athletes page into the volunteers page, adapting for the `invitationId` keying.
+Add new `type` values like `"athlete_question"` and `"volunteer_question"` alongside a `questionId` and `answerValues` field. Each broadcast targets a single question.
 
-### Option B: Extract shared filtering primitives, apply to both pages
+### Option B: Question filters as an additive layer on existing audience types
 
-Extract the reusable parts of question filtering into shared utilities/components:
-- A `useQuestionFilters` hook (or equivalent) for URL state management (`toggleQuestionFilter`, `removeQuestionFilter`, `clearAllQuestionFilters`)
-- A `QuestionFilterPopover` component for the column header filter UI
-- A `QuestionFilterChips` component for showing active filters
-- A `buildQuestionFilterOptions` helper for deriving unique answer values
-- A `filterByQuestionAnswers` helper for client-side row filtering
+Keep the existing `type` field as the base audience selector and add an optional `questionFilters` array that further narrows the audience. This allows combining base targeting (all athletes, a division, all volunteers, a role) with question-based filtering.
 
-Then refactor the athletes page to use these shared pieces and apply them to the volunteers page.
+### Option C: Full query builder
 
-### Option C: Server-side question filtering
-
-Move filtering to the server — add `questionFilters` as a parameter to the answer-fetching server functions, filter in SQL, and return only matching rows. The UI still manages filter state in URL params but triggers a server round-trip on filter change.
+Build a general-purpose filter DSL with AND/OR/NOT operators, supporting divisions, questions, waiver status, payment status, etc. Store as a JSON expression tree.
 
 ## Decision Outcome
 
-Chosen option: **Option B: Extract shared filtering primitives**, because the athletes page already has a working, well-tested implementation and duplicating it (Option A) would create divergence risk. Server-side filtering (Option C) adds unnecessary complexity — the dataset size (hundreds to low thousands of registrants per competition) is well within client-side filtering limits, and client-side filtering provides instant feedback.
+Chosen option: **Option B: Question filters as an additive layer**, because it extends the existing filter model naturally without breaking changes. The base `type` already determines whether the audience is athletes or volunteers — question filters simply narrow within that audience. This keeps the UI straightforward (pick your audience, then optionally refine by questions) and the server logic simple (fetch base audience, then filter by answers).
 
-Option C remains a valid future optimization if competitions grow to tens of thousands of registrants, but that's not the current reality.
+Option A was rejected because it only allows filtering by one question at a time and creates an awkward separation between "all athletes" and "athletes who answered X." Option C was rejected because the complexity of a full query builder is not justified — organizers need simple, composable filters, not a SQL-like DSL.
 
 ### Consequences
 
-* Good, because organizers can filter volunteers by registration question answers
-* Good, because shared primitives reduce code duplication and ensure consistent UX
-* Good, because both series and competition questions are filterable with no extra work (already merged at load time)
-* Good, because URL-persisted filters are shareable and browser-navigation friendly
-* Neutral, because extracting shared components from the athletes page is a small refactor
-* Bad, because client-side filtering won't scale to very large competitions (acceptable for now)
+* Good, because organizers can target broadcasts by any combination of registration question answers
+* Good, because the existing audience types continue to work unchanged
+* Good, because series-level and competition-level questions are both supported (already merged at query time)
+* Good, because the filter shape is backward-compatible — existing broadcasts without `questionFilters` work as before
+* Good, because the same approach works for both athlete and volunteer question filtering
+* Neutral, because `select` questions have clean filter options while `text` and `number` questions require the organizer to type exact match values
+* Bad, because text/number question filtering is limited to exact match — no contains/range queries in MVP
 
-## Implementation Sketch
+## Design
 
-### 1. Extract shared filtering utilities
-
-Create `src/components/competition-settings/question-filters.tsx` (or similar) with:
-
-```typescript
-// Build filter options from answer data
-function buildQuestionFilterOptions(
-  answers: Map<string, { questionId: string; answer: string }[]>,
-  questions: RegistrationQuestion[]
-): Record<string, string[]>
-
-// Check if a row's answers match active filters
-function matchesQuestionFilters(
-  answers: { questionId: string; answer: string }[],
-  filters: Record<string, string[]>
-): boolean
-```
-
-### 2. Extract shared filter UI components
+### Extended Audience Filter Schema
 
 ```typescript
-// Popover with checkboxes for a single question's answer values
-function QuestionFilterPopover({
-  question,
-  options,
-  selectedValues,
-  onToggle,
-}: QuestionFilterPopoverProps)
+const questionFilterSchema = z.object({
+  questionId: z.string(),
+  // Values to match — recipient must have answered with one of these
+  values: z.array(z.string()).min(1),
+})
 
-// Active filter chips with remove buttons
-function QuestionFilterChips({
-  filters,
-  questions,
-  onRemove,
-  onClearAll,
-}: QuestionFilterChipsProps)
+const audienceFilterSchema = z.object({
+  type: z.enum(["all", "division", "public", "volunteers", "volunteer_role"]),
+  divisionId: z.string().optional(),
+  volunteerRole: z.string().optional(),
+  // Optional: further narrow the audience by registration question answers
+  // Multiple question filters are AND'd — recipient must match ALL
+  questionFilters: z.array(questionFilterSchema).optional(),
+})
 ```
 
-### 3. Apply to volunteers page
+When `questionFilters` is present:
+- Each entry says "the recipient's answer to `questionId` must be one of `values`" (OR within a question)
+- Multiple entries are AND'd — the recipient must match every question filter
+- For athlete audience types (`all`, `division`, `public`), only athlete questions (and athlete answer table) are checked
+- For volunteer audience types (`volunteers`, `volunteer_role`), only volunteer questions (and volunteer answer table) are checked
 
-- Add `questionFilters` to volunteers route search params schema
-- Wire up `toggleQuestionFilter` / `removeQuestionFilter` with TanStack Router navigation
-- Build filter options from `answersByInvitation` data
-- Render `QuestionFilterPopover` in volunteer question column headers
-- Render `QuestionFilterChips` in the toolbar area
-- Filter volunteer rows client-side using `matchesQuestionFilters`
+### Server-Side Evaluation
 
-### 4. Refactor athletes page
+In `sendBroadcastFn` and `previewAudienceFn`, after building the base recipient list:
 
-- Replace inline filtering logic with the shared utilities
-- Verify no behavior change (existing URL params format stays the same)
+1. If `questionFilters` is empty or absent, return the base list (no change from today)
+2. If present, for each recipient:
+   - Look up their answers (by `registrationId` for athletes, by `invitationId` for volunteers)
+   - For each question filter, check if their answer to that `questionId` is in `values`
+   - Include the recipient only if ALL question filters match
 
-### Key consideration: volunteer answer lookup
+For efficiency, batch-load all answers for the competition/question IDs in the filter, then filter in-memory. The data is already available via `getCompetitionRegistrationAnswersFn` (athletes) and `getVolunteerAnswersFn` (volunteers).
 
-The volunteers page keys answers by `invitationId`, not `registrationId`. The shared `matchesQuestionFilters` function should be agnostic to this — it just takes an array of `{ questionId, answer }` pairs and checks against filters. The caller (athletes or volunteers page) is responsible for looking up the right answer array for each row.
+### Compose UI
+
+The broadcast compose form currently has a "Send to" select with options: All Athletes, By Division, All Volunteers, By Volunteer Role, Public.
+
+Add a **"Filter by questions"** section that appears after selecting the base audience:
+
+1. When the base audience is athlete-targeting (`all`, `division`, `public`), show athlete registration questions
+2. When the base audience is volunteer-targeting (`volunteers`, `volunteer_role`), show volunteer registration questions
+3. Each question renders as an expandable filter row:
+   - **Select questions**: multi-select checkboxes showing all defined options
+   - **Text/Number questions**: tag input where the organizer types values to match (autocompleted from existing answers)
+4. Active question filters show as chips below the audience selector
+5. Recipient count preview updates live as filters are added/removed
+
+### Question Source
+
+Questions are loaded via the existing `getCompetitionQuestionsFn` (which already merges series + competition questions) for athletes, and `getVolunteerQuestionsFn` for volunteers. Both functions accept a `questionTarget` parameter and return questions tagged with `source: "series" | "competition"`.
+
+The UI should display the question `label` and optionally indicate whether it's a series or competition question (helps organizers in a series context understand question scope).
+
+### Stored Filter Example
+
+A broadcast targeting all athletes who selected "Large" t-shirt AND have "Advanced" experience:
+
+```json
+{
+  "type": "all",
+  "questionFilters": [
+    { "questionId": "q_tshirt123", "values": ["Large"] },
+    { "questionId": "q_experience456", "values": ["Advanced", "Elite"] }
+  ]
+}
+```
+
+A broadcast targeting volunteers with EMT certification:
+
+```json
+{
+  "type": "volunteers",
+  "questionFilters": [
+    { "questionId": "q_emt789", "values": ["Yes"] }
+  ]
+}
+```
+
+### Future Extensions (not in MVP)
+
+- **Range filters for number questions** — e.g., "athletes who entered a number > 5"
+- **Contains/partial match for text questions** — e.g., "answers containing 'gluten'"
+- **NOT filters** — e.g., "athletes who did NOT select 'Large'"
+- **Unanswered filter** — target recipients who left a question blank
