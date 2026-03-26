@@ -7,7 +7,8 @@
  */
 
 import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
-import { FileText, TrendingUp, Users } from "lucide-react"
+import { useServerFn } from "@tanstack/react-start"
+import { FileText, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -18,12 +19,17 @@ import {
 } from "@/components/ui/card"
 import { cohostGetRevenueStatsFn } from "@/server-fns/cohost/cohost-revenue-fns"
 import { cohostGetRegistrationsFn } from "@/server-fns/cohost/cohost-competition-fns"
-import { cohostGetWorkoutsFn } from "@/server-fns/cohost/cohost-workout-fns"
+import {
+  cohostGetWorkoutsFn,
+  cohostUpdateWorkoutFn,
+} from "@/server-fns/cohost/cohost-workout-fns"
 import { cohostGetHeatsForCompetitionFn } from "@/server-fns/cohost/cohost-schedule-fns"
 import { cohostGetCompetitionEventsFn } from "@/server-fns/cohost/cohost-event-fns"
 import {
   type AllEventsResultsStatusResponse,
   cohostGetDivisionResultsStatusFn,
+  cohostPublishDivisionResultsFn,
+  cohostPublishAllDivisionResultsFn,
 } from "@/server-fns/cohost/cohost-results-fns"
 import {
   formatUTCDateFull,
@@ -80,7 +86,7 @@ export const Route = createFileRoute("/compete/cohost/$competitionId/")({
           competitionId: params.competitionId,
           competitionTeamId,
         },
-      }).catch(() => ({ divisions: [] } as AllEventsResultsStatusResponse)),
+      }).catch(() => ({ divisions: [], events: [], totalPublishedCount: 0, totalCombinations: 0 } as AllEventsResultsStatusResponse)),
       // Fetch competition events (submission windows) for online competitions
       isOnline
         ? cohostGetCompetitionEventsFn({
@@ -122,6 +128,58 @@ function CohostOverviewPage() {
   } = Route.useLoaderData()
   // Get competition from parent layout loader data
   const { competition } = parentRoute.useLoaderData()
+
+  // Cohost server fn wrappers — these use competitionTeamId instead of organizingTeamId
+  const cohostUpdateWorkout = useServerFn(cohostUpdateWorkoutFn)
+  const cohostPublishDivisionResults = useServerFn(cohostPublishDivisionResultsFn)
+  const cohostPublishAllDivisionResults = useServerFn(cohostPublishAllDivisionResultsFn)
+
+  const handleCohostUpdateWorkout = async (params: {
+    trackWorkoutId: string
+    eventStatus?: "draft" | "published"
+    heatStatus?: "draft" | "published"
+  }) => {
+    return cohostUpdateWorkout({
+      data: {
+        trackWorkoutId: params.trackWorkoutId,
+        competitionTeamId,
+        eventStatus: params.eventStatus,
+        heatStatus: params.heatStatus,
+      },
+    })
+  }
+
+  const handleCohostPublishDivisionResults = async (params: {
+    competitionId: string
+    eventId: string
+    divisionId: string
+    publish: boolean
+  }) => {
+    return cohostPublishDivisionResults({
+      data: {
+        competitionId: params.competitionId,
+        competitionTeamId,
+        eventId: params.eventId,
+        divisionId: params.divisionId,
+        publish: params.publish,
+      },
+    })
+  }
+
+  const handleCohostPublishAllDivisionResults = async (params: {
+    competitionId: string
+    eventId: string
+    publish: boolean
+  }) => {
+    return cohostPublishAllDivisionResults({
+      data: {
+        competitionId: params.competitionId,
+        competitionTeamId,
+        eventId: params.eventId,
+        publish: params.publish,
+      },
+    })
+  }
 
   // Format datetime for display (local time for timestamps, or YYYY-MM-DD strings)
   const formatDateTime = (date: string | Date) => {
@@ -185,6 +243,8 @@ function CohostOverviewPage() {
               competitionId={competition.id}
               organizingTeamId={competitionTeamId}
               divisionResults={divisionResults}
+              onPublishDivisionResults={handleCohostPublishDivisionResults}
+              onPublishAllDivisionResults={handleCohostPublishAllDivisionResults}
             />
           )}
 
@@ -195,6 +255,7 @@ function CohostOverviewPage() {
               events={events}
               competitionEvents={competitionEvents}
               timezone={timezone}
+              routePrefix="/compete/cohost"
             />
           ) : (
             <QuickActionsHeats
@@ -202,6 +263,7 @@ function CohostOverviewPage() {
               heats={heats}
               organizingTeamId={competitionTeamId}
               competitionSlug={competition.slug}
+              onUpdateWorkout={handleCohostUpdateWorkout}
             />
           )}
 
@@ -210,6 +272,8 @@ function CohostOverviewPage() {
             events={events}
             organizingTeamId={competitionTeamId}
             competitionId={competition.id}
+            onUpdateWorkout={handleCohostUpdateWorkout}
+            resultsLinkTo="/compete/cohost/$competitionId/results"
           />
         </div>
       )}

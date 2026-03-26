@@ -140,7 +140,7 @@ export const Route = createFileRoute(
         competitionTeamId,
         competitionId: params.competitionId,
       },
-    }).catch(() => ({ divisions: [] } as AllEventsResultsStatusResponse))
+    }).catch(() => ({ divisions: [], events: [], totalPublishedCount: 0, totalCombinations: 0 } as AllEventsResultsStatusResponse))
 
     // Determine which event to show (from URL or first event)
     // Filter top-level events for the dropdown (exclude sub-events)
@@ -580,7 +580,7 @@ function InPersonResultsEntry({
         },
       })
       await router.invalidate()
-      return result.data
+      return { resultId: result.scoreId, isNew: true }
     },
     [router, competitionTeamId],
   )

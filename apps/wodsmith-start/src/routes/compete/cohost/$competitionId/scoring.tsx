@@ -6,6 +6,8 @@
  */
 
 import { createFileRoute } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
+import { cohostUpdateScoringConfigFn } from "@/server-fns/cohost/cohost-competition-fns"
 import { cohostGetWorkoutsFn } from "@/server-fns/cohost/cohost-workout-fns"
 import { ScoringSettingsForm } from "../../organizer/$competitionId/-components/scoring-settings-form"
 
@@ -32,7 +34,7 @@ export const Route = createFileRoute(
       name: w.workout.name,
     }))
 
-    return { competition, events }
+    return { competition, events, competitionTeamId }
   },
   component: CohostScoringPage,
   head: ({ loaderData }) => {
@@ -55,7 +57,8 @@ export const Route = createFileRoute(
 })
 
 function CohostScoringPage() {
-  const { competition, events } = Route.useLoaderData()
+  const { competition, events, competitionTeamId } = Route.useLoaderData()
+  const updateScoringConfig = useServerFn(cohostUpdateScoringConfigFn)
 
   return (
     <div className="max-w-7xl space-y-8">
@@ -75,6 +78,11 @@ function CohostScoringPage() {
           settings: competition.settings,
         }}
         events={events}
+        onSaveScoringConfig={async (data) => {
+          await updateScoringConfig({
+            data: { ...data, competitionTeamId },
+          })
+        }}
       />
     </div>
   )

@@ -32,6 +32,8 @@ interface RevenueStatsDisplayProps {
     isConnected: boolean
     teamSlug: string
   }
+  /** When true, hides the "Set up payouts" link (e.g. for cohosts who can't configure Stripe) */
+  hidePayoutSetupLink?: boolean
 }
 
 function formatCents(cents: number): string {
@@ -41,6 +43,7 @@ function formatCents(cents: number): string {
 export function RevenueStatsDisplay({
   stats,
   stripeStatus,
+  hidePayoutSetupLink,
 }: RevenueStatsDisplayProps) {
   const location = useLocation()
   const hasRevenue = stats.purchaseCount > 0
@@ -61,10 +64,16 @@ export function RevenueStatsDisplay({
           <AlertCircle className="h-4 w-4 text-yellow-600" />
           <AlertTitle>Payouts Not Set Up</AlertTitle>
           <AlertDescription>
-            Connect your Stripe account to receive payouts for registrations.{" "}
-            <Link to={payoutsUrl as "/"} className="font-medium underline">
-              Set up payouts &rarr;
-            </Link>
+            {hidePayoutSetupLink ? (
+              "The organizer has not yet connected a Stripe account for payouts."
+            ) : (
+              <>
+                Connect your Stripe account to receive payouts for registrations.{" "}
+                <Link to={payoutsUrl as "/"} className="font-medium underline">
+                  Set up payouts &rarr;
+                </Link>
+              </>
+            )}
           </AlertDescription>
         </Alert>
       )}

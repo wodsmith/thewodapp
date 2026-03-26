@@ -20,6 +20,28 @@ import { Label } from "@/components/ui/label"
 import type { Waiver } from "@/db/schemas/waivers"
 import { createWaiverFn, updateWaiverFn } from "@/server-fns/waiver-fns"
 
+export interface WaiverFormDialogOverrides {
+  createWaiver?: (opts: {
+    data: {
+      competitionId: string
+      teamId: string
+      title: string
+      content: string
+      required: boolean
+    }
+  }) => Promise<{ success: true; waiver: Waiver }>
+  updateWaiver?: (opts: {
+    data: {
+      waiverId: string
+      competitionId: string
+      teamId: string
+      title?: string
+      content?: string
+      required?: boolean
+    }
+  }) => Promise<{ success: true; waiver: Waiver }>
+}
+
 interface WaiverFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -27,6 +49,7 @@ interface WaiverFormDialogProps {
   teamId: string
   waiver?: Waiver
   onSuccess: (waiver: Waiver) => void
+  overrides?: WaiverFormDialogOverrides
 }
 
 export function WaiverFormDialog({
@@ -36,6 +59,7 @@ export function WaiverFormDialog({
   teamId,
   waiver,
   onSuccess,
+  overrides,
 }: WaiverFormDialogProps) {
   const [title, setTitle] = useState(waiver?.title ?? "")
   const [content, setContent] = useState<SerializedEditorState | undefined>(
@@ -44,9 +68,11 @@ export function WaiverFormDialog({
   const [required, setRequired] = useState(waiver?.required ?? true)
   const [isPending, setIsPending] = useState(false)
 
-  // Use TanStack Start's useServerFn hook for server function calls
-  const createWaiver = useServerFn(createWaiverFn)
-  const updateWaiver = useServerFn(updateWaiverFn)
+  // Use overrides if provided, otherwise default organizer server fns via useServerFn
+  const defaultCreateWaiver = useServerFn(createWaiverFn)
+  const defaultUpdateWaiver = useServerFn(updateWaiverFn)
+  const createWaiver = overrides?.createWaiver ?? defaultCreateWaiver
+  const updateWaiver = overrides?.updateWaiver ?? defaultUpdateWaiver
 
   const isEditing = !!waiver
 

@@ -7,11 +7,20 @@
  */
 
 import { useEffect } from "react"
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { z } from "zod"
 import type { JudgeAssignmentVersion } from "@/db/schema"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
-import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
+import {
+  RegistrationQuestionsEditor,
+  type RegistrationQuestionsOverrides,
+} from "@/components/competition-settings/registration-questions-editor"
+import {
+  cohostCreateQuestionFn,
+  cohostDeleteQuestionFn,
+  cohostReorderQuestionsFn,
+  cohostUpdateQuestionFn,
+} from "@/server-fns/cohost/cohost-registration-questions-fns"
 import {
   Select,
   SelectContent,
@@ -42,13 +51,41 @@ import {
   cohostGetPendingVolunteerInvitationsFn,
   cohostGetVolunteerAssignmentsFn,
   cohostGetCompetitionShiftsFn,
+  cohostBulkAssignVolunteerRoleFn,
+  cohostInviteVolunteerFn,
+  cohostAddVolunteerRoleTypeFn,
+  cohostRemoveVolunteerRoleTypeFn,
+  cohostUpdateVolunteerMetadataFn,
+  cohostGrantScoreAccessFn,
+  cohostRevokeScoreAccessFn,
+  cohostDeleteShiftFn,
+  cohostCreateShiftFn,
+  cohostUpdateShiftFn,
+  cohostAssignVolunteerToShiftFn,
+  cohostUnassignVolunteerFromShiftFn,
 } from "@/server-fns/cohost/cohost-volunteer-fns"
 import { cohostGetWorkoutsFn } from "@/server-fns/cohost/cohost-workout-fns"
+import {
+  cohostBatchCreateRotationsFn,
+  cohostBatchDeleteRotationsFn,
+  cohostBatchUpdateVolunteerRotationsFn,
+  cohostCreateJudgeRotationFn,
+  cohostDeleteJudgeRotationFn,
+  cohostDeleteVolunteerRotationsFn,
+  cohostPublishRotationsFn,
+  cohostRollbackToVersionFn,
+  cohostUpdateEventDefaultsFn,
+  cohostUpdateJudgeRotationFn,
+  cohostAdjustRotationsForOccupiedLanesFn,
+} from "@/server-fns/cohost/cohost-judge-rotation-fns"
 import {
   cohostGetHeatsForCompetitionFn,
 } from "@/server-fns/cohost/cohost-schedule-fns"
 import { InvitedVolunteersList } from "../../organizer/$competitionId/-components/invited-volunteers-list"
-import { JudgeSchedulingContainer } from "../../organizer/$competitionId/-components/judges"
+import {
+  JudgeSchedulingContainer,
+  type JudgeSchedulingOverrides,
+} from "../../organizer/$competitionId/-components/judges"
 import { ShiftList } from "../../organizer/$competitionId/-components/shifts/shift-list"
 import { VolunteersList } from "../../organizer/$competitionId/-components/volunteers-list"
 
@@ -270,6 +307,7 @@ function VolunteersPage() {
 
   const { tab, event: eventFromUrl } = Route.useSearch()
   const navigate = useNavigate()
+  const router = useRouter()
 
   const handleTabChange = (value: string) => {
     navigate({
@@ -315,7 +353,101 @@ function VolunteersPage() {
   }, [isInPerson, tab, navigate])
 
   const handleQuestionsChange = () => {
-    // Loader will refetch on next navigation; for now this is a no-op
+    router.invalidate()
+  }
+
+  // Wrap cohost question fns so they match the callback shape the editor expects
+  const questionOverrides: RegistrationQuestionsOverrides = {
+    createQuestion: ({ data }) =>
+      cohostCreateQuestionFn({
+        data: {
+          competitionTeamId,
+          competitionId: data.competitionId,
+          type: data.type,
+          label: data.label,
+          helpText: data.helpText,
+          options: data.options,
+          required: data.required,
+          forTeammates: data.forTeammates,
+          questionTarget: data.questionTarget,
+        },
+      }),
+    updateQuestion: ({ data }) =>
+      cohostUpdateQuestionFn({
+        data: {
+          competitionTeamId,
+          questionId: data.questionId,
+          type: data.type,
+          label: data.label,
+          helpText: data.helpText,
+          options: data.options,
+          required: data.required,
+          forTeammates: data.forTeammates,
+        },
+      }),
+    deleteQuestion: ({ data }) =>
+      cohostDeleteQuestionFn({
+        data: {
+          competitionTeamId,
+          questionId: data.questionId,
+        },
+      }),
+    reorderQuestions: ({ data }) =>
+      cohostReorderQuestionsFn({
+        data: {
+          competitionTeamId,
+          competitionId: data.competitionId,
+          orderedQuestionIds: data.orderedQuestionIds,
+        },
+      }),
+  }
+
+  // Wrap cohost judge rotation fns for JudgeSchedulingContainer
+  const judgeSchedulingOverrides: JudgeSchedulingOverrides = {
+    rollbackToVersion: (args) =>
+      cohostRollbackToVersionFn({
+        data: { ...args.data, competitionTeamId },
+      }),
+    createJudgeRotation: (args) =>
+      cohostCreateJudgeRotationFn({
+        data: { ...args.data, competitionTeamId },
+      }),
+    updateJudgeRotation: (args) =>
+      cohostUpdateJudgeRotationFn({
+        data: { ...args.data, competitionTeamId },
+      }),
+    deleteJudgeRotation: (args) =>
+      cohostDeleteJudgeRotationFn({
+        data: { ...args.data, competitionTeamId },
+      }),
+    updateEventDefaults: (args) =>
+      cohostUpdateEventDefaultsFn({
+        data: { ...args.data, competitionTeamId },
+      }),
+    batchCreateRotations: (args) =>
+      cohostBatchCreateRotationsFn({
+        data: { ...args.data, competitionTeamId },
+      }),
+    deleteVolunteerRotations: (args) =>
+      cohostDeleteVolunteerRotationsFn({
+        data: { ...args.data, competitionTeamId },
+      }),
+    batchDeleteRotations: (args) =>
+      cohostBatchDeleteRotationsFn({
+        data: { ...args.data, competitionTeamId },
+      }),
+    batchUpdateVolunteerRotations: (args) =>
+      cohostBatchUpdateVolunteerRotationsFn({
+        data: { ...args.data, competitionTeamId },
+      }),
+    publishRotations: (args) =>
+      cohostPublishRotationsFn({
+        data: { ...args.data, competitionTeamId },
+      }),
+    adjustRotationsForOccupiedLanes: (args) =>
+      cohostAdjustRotationsForOccupiedLanesFn({
+        data: { ...args.data, competitionTeamId },
+      }),
   }
 
   return (
@@ -392,6 +524,48 @@ function VolunteersPage() {
             volunteerQuestions={volunteerQuestions}
             answersByInvitation={answersByInvitation}
             emailToInvitationId={emailToInvitationId}
+            onBulkAssignRole={async ({ membershipIds, competitionId: compId, roleType }) => {
+              const result = await cohostBulkAssignVolunteerRoleFn({
+                data: { membershipIds, competitionTeamId, competitionId: compId, roleType },
+              })
+              return { succeeded: result.succeeded, failed: result.failed }
+            }}
+            onInviteVolunteer={async ({ name, email, competitionTeamId: ctId, competitionId: compId, roleTypes }) => {
+              await cohostInviteVolunteerFn({
+                data: { name, email, competitionTeamId: ctId, competitionId: compId, roleTypes },
+              })
+              return { success: true }
+            }}
+            onAddRoleType={async ({ membershipId, competitionId: compId, roleType }) => {
+              await cohostAddVolunteerRoleTypeFn({
+                data: { membershipId, competitionTeamId, competitionId: compId, roleType },
+              })
+              return { success: true }
+            }}
+            onRemoveRoleType={async ({ membershipId, competitionId: compId, roleType }) => {
+              await cohostRemoveVolunteerRoleTypeFn({
+                data: { membershipId, competitionTeamId, competitionId: compId, roleType },
+              })
+              return { success: true }
+            }}
+            onUpdateMetadata={async ({ membershipId, competitionId: compId, metadata }) => {
+              await cohostUpdateVolunteerMetadataFn({
+                data: { membershipId, competitionTeamId, competitionId: compId, metadata },
+              })
+              return { success: true }
+            }}
+            onGrantScoreAccess={async ({ volunteerId, competitionTeamId: ctId, competitionId: compId, grantedBy }) => {
+              await cohostGrantScoreAccessFn({
+                data: { volunteerId, competitionTeamId: ctId, competitionId: compId, grantedBy },
+              })
+              return { success: true }
+            }}
+            onRevokeScoreAccess={async ({ userId, competitionTeamId: ctId, competitionId: compId }) => {
+              await cohostRevokeScoreAccessFn({
+                data: { userId, competitionTeamId: ctId, competitionId: compId },
+              })
+              return { success: true }
+            }}
           />
         </section>
       </TabsContent>
@@ -402,6 +576,37 @@ function VolunteersPage() {
           competitionId={competition.id}
           competitionTeamId={competitionTeamId}
           shifts={shifts}
+          onDeleteShift={async ({ shiftId }) => {
+            await cohostDeleteShiftFn({
+              data: { competitionTeamId, shiftId },
+            })
+            return { success: true }
+          }}
+          onCreateShift={async (params) => {
+            return cohostCreateShiftFn({
+              data: { competitionTeamId, ...params },
+            })
+          }}
+          onUpdateShift={async (params) => {
+            return cohostUpdateShiftFn({
+              data: { competitionTeamId, ...params },
+            })
+          }}
+          onGetVolunteers={async ({ competitionTeamId: ctId }) => {
+            return cohostGetCompetitionVolunteersFn({
+              data: { competitionTeamId: ctId },
+            })
+          }}
+          onAssignVolunteer={async ({ shiftId, membershipId }) => {
+            return cohostAssignVolunteerToShiftFn({
+              data: { competitionTeamId, shiftId, membershipId },
+            })
+          }}
+          onUnassignVolunteer={async ({ shiftId, membershipId }) => {
+            return cohostUnassignVolunteerFromShiftFn({
+              data: { competitionTeamId, shiftId, membershipId },
+            })
+          }}
         />
       </TabsContent>
 
@@ -428,6 +633,7 @@ function VolunteersPage() {
             }
             selectedEventId={selectedEventId}
             onEventChange={handleEventChange}
+            overrides={judgeSchedulingOverrides}
           />
         </TabsContent>
       )}
@@ -437,10 +643,11 @@ function VolunteersPage() {
         <RegistrationQuestionsEditor
           entityType="competition"
           entityId={competition.id}
-          teamId={competition.organizingTeamId}
+          teamId={competitionTeamId}
           questions={volunteerQuestions}
           onQuestionsChange={handleQuestionsChange}
           questionTarget="volunteer"
+          overrides={questionOverrides}
         />
       </TabsContent>
     </Tabs>

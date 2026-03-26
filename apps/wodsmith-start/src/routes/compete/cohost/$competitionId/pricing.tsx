@@ -6,8 +6,13 @@
  * Requires Stripe connection to be verified before showing the pricing form.
  */
 
-import { createFileRoute, getRouteApi, redirect } from "@tanstack/react-router"
+import { createFileRoute, redirect } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
 import { getCompetitionDivisionFeesFn } from "@/server-fns/commerce-fns"
+import {
+  cohostUpdateDefaultFeeFn,
+  cohostUpdateDivisionFeeFn,
+} from "@/server-fns/cohost/cohost-pricing-fns"
 import {
   getScalingGroupWithLevelsFn,
   parseCompetitionSettings,
@@ -17,8 +22,6 @@ import { getTeamFeeSettingsFn, getTeamSlugFn } from "@/server-fns/team-fns"
 
 import { PricingSettingsForm } from "@/routes/compete/organizer/$competitionId/-components/pricing-settings-form"
 import { StripeConnectionRequired } from "@/routes/compete/organizer/$competitionId/-components/stripe-connection-required"
-
-const parentRoute = getRouteApi("/compete/cohost/$competitionId")
 
 export const Route = createFileRoute(
   "/compete/cohost/$competitionId/pricing",
@@ -48,6 +51,8 @@ export const Route = createFileRoute(
       data: { teamId: competition.organizingTeamId },
     }).catch(() => null)
 
+    const competitionTeamId = competition.competitionTeamId!
+
     // If Stripe not connected, return early with minimal data
     if (!isStripeConnected) {
       return {
@@ -55,6 +60,7 @@ export const Route = createFileRoute(
           id: competition.id,
           name: competition.name,
         },
+        competitionTeamId,
         isStripeConnected: false,
         teamSlug,
         divisions: [],
@@ -102,6 +108,7 @@ export const Route = createFileRoute(
         passPlatformFeesToCustomer:
           competition.passPlatformFeesToCustomer ?? true,
       },
+      competitionTeamId,
       isStripeConnected: true,
       teamSlug,
       divisions,
@@ -115,18 +122,22 @@ export const Route = createFileRoute(
 function PricingPage() {
   const {
     competition,
+    competitionTeamId,
     isStripeConnected,
     teamSlug,
     divisions,
     currentFees,
     teamFeeSettings,
   } = Route.useLoaderData()
+  const updateDefaultFee = useServerFn(cohostUpdateDefaultFeeFn)
+  const updateDivisionFee = useServerFn(cohostUpdateDivisionFeeFn)
 
   if (!isStripeConnected) {
     return (
       <StripeConnectionRequired
         teamSlug={teamSlug ?? ""}
         competitionName={competition.name}
+        isCohost
       />
     )
   }
@@ -155,6 +166,17 @@ function PricingPage() {
         divisions={divisions}
         currentFees={currentFees ?? { defaultFeeCents: 0, divisionFees: [] }}
         teamFeeSettings={teamFeeSettings}
+        routePrefix="/compete/cohost"
+        onUpdateFeeConfig={async (data) => {
+          await updateDefaultFee({
+            data: { ...data, competitionTeamId },
+          })
+        }}
+        onUpdateDivisionFee={async (data) => {
+          await updateDivisionFee({
+            data: { ...data, competitionTeamId },
+          })
+        }}
       />
     </div>
   )

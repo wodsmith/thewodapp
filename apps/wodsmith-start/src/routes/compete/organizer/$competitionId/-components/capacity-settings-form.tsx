@@ -24,9 +24,16 @@ interface Props {
     defaultMaxSpotsPerDivision: number | null
     maxTotalRegistrations: number | null
   }
+  /** Optional callback to override the default organizer capacity save */
+  onSaveCapacity?: (data: {
+    competitionId: string
+    teamId: string
+    defaultMaxSpotsPerDivision: number | null
+    maxTotalRegistrations: number | null
+  }) => Promise<unknown>
 }
 
-export function CapacitySettingsForm({ competition }: Props) {
+export function CapacitySettingsForm({ competition, onSaveCapacity }: Props) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [maxSpots, setMaxSpots] = useState<string>(
@@ -63,14 +70,17 @@ export function CapacitySettingsForm({ competition }: Props) {
         return
       }
 
-      await updateCapacity({
-        data: {
-          competitionId: competition.id,
-          teamId: competition.organizingTeamId,
-          defaultMaxSpotsPerDivision: parsedValue,
-          maxTotalRegistrations: parsedTotal,
-        },
-      })
+      const capacityData = {
+        competitionId: competition.id,
+        teamId: competition.organizingTeamId,
+        defaultMaxSpotsPerDivision: parsedValue,
+        maxTotalRegistrations: parsedTotal,
+      }
+      if (onSaveCapacity) {
+        await onSaveCapacity(capacityData)
+      } else {
+        await updateCapacity({ data: capacityData })
+      }
       toast.success("Capacity settings updated")
       router.invalidate()
     } catch (err) {

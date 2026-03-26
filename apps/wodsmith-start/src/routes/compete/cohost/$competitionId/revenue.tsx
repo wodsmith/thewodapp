@@ -6,14 +6,12 @@
  * Reuses organizer RevenueStatsDisplay component.
  */
 
-import { createFileRoute, getRouteApi, redirect } from "@tanstack/react-router"
+import { createFileRoute, redirect } from "@tanstack/react-router"
 import {
   getCompetitionRevenueStatsFn,
   getOrganizerStripeStatusFn,
 } from "@/server-fns/commerce-fns"
 import { RevenueStatsDisplay } from "@/routes/compete/organizer/$competitionId/-components/revenue-stats-display"
-
-const parentRoute = getRouteApi("/compete/cohost/$competitionId")
 
 export const Route = createFileRoute(
   "/compete/cohost/$competitionId/revenue",
@@ -71,6 +69,7 @@ function RevenuePage() {
     <RevenueStatsDisplay
       stats={stats}
       stripeStatus={stripeStatus ?? undefined}
+      hidePayoutSetupLink
     />
   )
 }

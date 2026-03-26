@@ -23,6 +23,16 @@ import {
 import type { CompetitionDivisionWithCounts } from "@/server-fns/competition-divisions-fns"
 import { transferRegistrationDivisionFn } from "@/server-fns/registration-fns"
 
+export interface TransferDivisionData {
+  registrationId: string
+  competitionId: string
+  targetDivisionId: string
+}
+
+export interface TransferDivisionResult {
+  removedHeatAssignments: number
+}
+
 interface TransferDivisionDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -36,6 +46,8 @@ interface TransferDivisionDialogProps {
   divisions: CompetitionDivisionWithCounts[]
   competitionId: string
   registeredDivisionIds: string[]
+  /** Optional callback to override the default organizer server fn. Used by cohost routes. */
+  onTransferDivision?: (data: TransferDivisionData) => Promise<TransferDivisionResult>
 }
 
 export function TransferDivisionDialog({
@@ -45,9 +57,10 @@ export function TransferDivisionDialog({
   divisions,
   competitionId,
   registeredDivisionIds,
+  onTransferDivision,
 }: TransferDivisionDialogProps) {
   const router = useRouter()
-  const transferRegistration = useServerFn(transferRegistrationDivisionFn)
+  const transferRegistrationDefault = useServerFn(transferRegistrationDivisionFn)
   const [selectedDivisionId, setSelectedDivisionId] = useState<string>("")
   const [isTransferring, setIsTransferring] = useState(false)
 
@@ -67,13 +80,14 @@ export function TransferDivisionDialog({
     if (!selectedDivisionId) return
     setIsTransferring(true)
     try {
-      const result = await transferRegistration({
-        data: {
-          registrationId: registration.id,
-          competitionId,
-          targetDivisionId: selectedDivisionId,
-        },
-      })
+      const transferData: TransferDivisionData = {
+        registrationId: registration.id,
+        competitionId,
+        targetDivisionId: selectedDivisionId,
+      }
+      const result = onTransferDivision
+        ? await onTransferDivision(transferData)
+        : await transferRegistrationDefault({ data: transferData })
       const message =
         result.removedHeatAssignments > 0
           ? `Transferred successfully. ${result.removedHeatAssignments} heat assignment${result.removedHeatAssignments === 1 ? "" : "s"} removed.`

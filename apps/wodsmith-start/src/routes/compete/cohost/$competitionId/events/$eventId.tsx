@@ -14,7 +14,7 @@ import {
   cohostGetWorkoutsFn,
   cohostGetWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/cohost/cohost-workout-fns"
-import { getEventResourcesFn } from "@/server-fns/event-resources-fns"
+import { cohostGetEventResourcesFn } from "@/server-fns/cohost/cohost-event-resources-fns"
 import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
 import { cohostGetCompetitionSponsorsFn } from "@/server-fns/cohost/cohost-sponsor-fns"
@@ -60,10 +60,10 @@ export const Route = createFileRoute(
           competitionTeamId,
         },
       }).catch(() => ({ groups: [], ungroupedSponsors: [] })),
-      getEventResourcesFn({
+      cohostGetEventResourcesFn({
         data: {
           eventId: params.eventId,
-          teamId: competition.organizingTeamId,
+          competitionTeamId,
         },
       }).catch(() => ({ resources: [] })),
       getEventJudgingSheetsFn({

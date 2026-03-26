@@ -31,6 +31,8 @@ interface QuickActionsSubmissionWindowsProps {
   events: CompetitionWorkout[]
   competitionEvents: CompetitionEvent[]
   timezone: string
+  /** Base route prefix for navigation links (defaults to "/compete/organizer") */
+  routePrefix?: string
 }
 
 /**
@@ -75,6 +77,7 @@ export function QuickActionsSubmissionWindows({
   events,
   competitionEvents,
   timezone,
+  routePrefix = "/compete/organizer",
 }: QuickActionsSubmissionWindowsProps) {
   // Map trackWorkoutId to competition event for quick lookup
   const eventMap = new Map(
@@ -172,7 +175,7 @@ export function QuickActionsSubmissionWindows({
 
         <Button asChild variant="outline" size="sm" className="w-full">
           <Link
-            to="/compete/organizer/$competitionId/submission-windows"
+            to={`${routePrefix}/$competitionId/submission-windows` as string}
             params={{ competitionId }}
           >
             <Calendar className="h-4 w-4 mr-2" />

@@ -5,7 +5,7 @@ import {
   Link,
   useRouter,
 } from "@tanstack/react-router"
-import { AlertCircle, CheckCircle2, LogIn, Users } from "lucide-react"
+import { AlertCircle, AlertTriangle, CheckCircle2, LogIn, Users } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -16,7 +16,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { acceptCohostInviteFn, getCohostInviteFn } from "@/server-fns/cohost-fns"
+import {
+  acceptCohostInviteFn,
+  checkExistingCohostMembershipFn,
+  getCohostInviteFn,
+} from "@/server-fns/cohost-fns"
 import { getSessionInfoFn } from "@/server-fns/invite-fns"
 
 export const Route = createFileRoute("/compete/cohost-invite/$token")({
@@ -25,17 +29,33 @@ export const Route = createFileRoute("/compete/cohost-invite/$token")({
       getCohostInviteFn({ data: { token: params.token } }),
       getSessionInfoFn(),
     ])
-    return { invite, session, token: params.token }
+
+    // Check if the logged-in user already has cohost access
+    let existingCohost: Awaited<
+      ReturnType<typeof checkExistingCohostMembershipFn>
+    > = null
+    if (session && invite?.teamId) {
+      existingCohost = await checkExistingCohostMembershipFn({
+        data: { teamId: invite.teamId },
+      })
+    }
+
+    return { invite, session, token: params.token, existingCohost }
   },
   head: ({ loaderData }) => {
     const { invite } = loaderData || {}
-    const competitionName = invite?.competitionName ?? "a competition"
+    const title =
+      invite?.seriesName
+        ? `Co-Host Invitation - ${invite.seriesName}`
+        : `Co-Host Invitation - ${invite?.competitionName ?? "a competition"}`
     return {
       meta: [
-        { title: `Co-Host Invitation - ${competitionName}` },
+        { title },
         {
           name: "description",
-          content: `You've been invited to co-host ${competitionName}`,
+          content: invite?.seriesName
+            ? `You've been invited to co-host competitions in ${invite.seriesName}`
+            : `You've been invited to co-host ${invite?.competitionName ?? "a competition"}`,
         },
       ],
     }
@@ -44,7 +64,7 @@ export const Route = createFileRoute("/compete/cohost-invite/$token")({
 })
 
 function CohostInvitePage() {
-  const { invite, session, token } = Route.useLoaderData()
+  const { invite, session, token, existingCohost } = Route.useLoaderData()
   const router = useRouter()
   const [isAccepting, setIsAccepting] = useState(false)
 
@@ -119,6 +139,12 @@ function CohostInvitePage() {
   }
 
   const redirectPath = `/compete/cohost-invite/${token}`
+  const isSeries = invite.seriesCompetitions.length > 1
+  const competitionCount = invite.seriesCompetitions.length
+
+  const headerDescription = isSeries
+    ? `You've been invited to co-host ${competitionCount} competitions in ${invite.seriesName ?? "a series"}`
+    : `You've been invited to co-host ${invite.competitionName ?? "a competition"}`
 
   // Not logged in — redirect to sign-in
   if (!session) {
@@ -130,12 +156,14 @@ function CohostInvitePage() {
               <Users className="h-8 w-8 text-primary" />
             </div>
             <CardTitle className="text-2xl">Co-Host Invitation</CardTitle>
-            <CardDescription>
-              You&apos;ve been invited to co-host{" "}
-              {invite.competitionName ?? "a competition"}
-            </CardDescription>
+            <CardDescription>{headerDescription}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {isSeries && (
+              <CompetitionsList
+                competitions={invite.seriesCompetitions}
+              />
+            )}
             <PermissionsSummary permissions={invite.permissions} />
             <div className="space-y-2">
               <p className="text-center text-sm text-muted-foreground">
@@ -161,7 +189,11 @@ function CohostInvitePage() {
     try {
       const result = await acceptCohostInviteFn({ data: { token } })
       toast.dismiss()
-      toast.success("You are now a co-host for this competition")
+      toast.success(
+        isSeries
+          ? `You are now a co-host for ${competitionCount} competitions`
+          : "You are now a co-host for this competition",
+      )
 
       if (result.competitionId) {
         router.navigate({
@@ -182,6 +214,11 @@ function CohostInvitePage() {
     }
   }
 
+  const emailMismatch =
+    session?.email &&
+    invite.email &&
+    session.email.toLowerCase() !== invite.email.toLowerCase()
+
   return (
     <div className="container mx-auto max-w-lg py-16">
       <Card>
@@ -190,12 +227,54 @@ function CohostInvitePage() {
             <Users className="h-8 w-8 text-primary" />
           </div>
           <CardTitle className="text-2xl">Co-Host Invitation</CardTitle>
-          <CardDescription>
-            You&apos;ve been invited to co-host{" "}
-            {invite.competitionName ?? "a competition"}
-          </CardDescription>
+          <CardDescription>{headerDescription}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Show which account is accepting */}
+          <div className="rounded-lg border bg-muted/30 p-4 text-center">
+            <p className="text-sm text-muted-foreground">Accepting as</p>
+            <p className="font-medium">{session?.email}</p>
+          </div>
+
+          {/* Warn if logged-in email doesn't match invite email */}
+          {emailMismatch && (
+            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-500" />
+              <div className="text-sm">
+                <p className="font-medium text-amber-800 dark:text-amber-400">
+                  Account mismatch
+                </p>
+                <p className="mt-1 text-amber-700 dark:text-amber-500">
+                  This invite was sent to <strong>{invite.email}</strong> but
+                  you&apos;re logged in as <strong>{session?.email}</strong>.
+                  Accepting will grant co-host access to your current account.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Warn if already a cohost */}
+          {existingCohost && (
+            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-500" />
+              <div className="text-sm">
+                <p className="font-medium text-amber-800 dark:text-amber-400">
+                  Already a co-host
+                </p>
+                <p className="mt-1 text-amber-700 dark:text-amber-500">
+                  You already have co-host access to this competition. Accepting
+                  this invite will <strong>not</strong> update your existing
+                  permissions.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {isSeries && (
+            <CompetitionsList
+              competitions={invite.seriesCompetitions}
+            />
+          )}
           <PermissionsSummary permissions={invite.permissions} />
 
           <Button
@@ -204,7 +283,11 @@ function CohostInvitePage() {
             onClick={handleAccept}
             disabled={isAccepting}
           >
-            {isAccepting ? "Accepting..." : "Accept Invitation"}
+            {isAccepting
+              ? "Accepting..."
+              : isSeries
+                ? `Accept for ${competitionCount} Competitions`
+                : "Accept Invitation"}
           </Button>
 
           <Button asChild variant="outline" className="w-full">
@@ -212,6 +295,29 @@ function CohostInvitePage() {
           </Button>
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+function CompetitionsList({
+  competitions,
+}: {
+  competitions: Array<{ competitionId: string; competitionName: string }>
+}) {
+  return (
+    <div className="rounded-lg bg-muted/50 p-4 space-y-2">
+      <p className="text-sm font-medium">Competitions</p>
+      <ul className="space-y-1">
+        {competitions.map((comp) => (
+          <li
+            key={comp.competitionId}
+            className="flex items-center gap-2 text-sm"
+          >
+            <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+            <span>{comp.competitionName}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

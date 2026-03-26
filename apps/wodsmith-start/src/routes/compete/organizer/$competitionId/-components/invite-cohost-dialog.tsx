@@ -2,10 +2,12 @@
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useRouter } from "@tanstack/react-router"
+import { Check, ChevronsUpDown } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -25,8 +27,16 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { DEFAULT_COHOST_PERMISSIONS } from "@/db/schemas/cohost"
+import { cn } from "@/lib/utils"
 import { inviteCohostFn } from "@/server-fns/cohost-fns"
+import { inviteSeriesCohostFn } from "@/server-fns/series-cohost-fns"
 
 const formSchema = z.object({
   name: z.string().optional(),
@@ -52,13 +62,21 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
-interface InviteCohostDialogProps {
-  competitionId: string
-  competitionTeamId: string
-  organizingTeamId: string
+export interface SeriesCompetitionOption {
+  id: string
+  name: string
+}
+
+type InviteCohostDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-}
+  organizingTeamId: string
+  /** Permission keys to hide (e.g. when team lacks entitlement) */
+  hiddenPermissions?: string[]
+} & (
+  | { mode?: "competition"; competitionId: string; competitionTeamId: string; groupId?: never; competitions?: never }
+  | { mode: "series"; groupId: string; competitions: SeriesCompetitionOption[]; competitionId?: never; competitionTeamId?: never }
+)
 
 const PERMISSION_GROUPS = [
   {
@@ -92,15 +110,25 @@ const PERMISSION_GROUPS = [
   },
 ]
 
-export function InviteCohostDialog({
-  competitionId,
-  competitionTeamId,
-  organizingTeamId,
-  open,
-  onOpenChange,
-}: InviteCohostDialogProps) {
+export function InviteCohostDialog(props: InviteCohostDialogProps) {
+  const { open, onOpenChange, organizingTeamId, hiddenPermissions = [] } = props
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // Series mode: track which competitions are selected (default all)
+  const [selectedCompetitionIds, setSelectedCompetitionIds] = useState<Set<string>>(
+    () => new Set(props.mode === "series" ? props.competitions.map((c) => c.id) : []),
+  )
+  const [compPopoverOpen, setCompPopoverOpen] = useState(false)
+  const [compSearch, setCompSearch] = useState("")
+
+  // Reset selection when dialog opens with new competitions
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen && props.mode === "series") {
+      setSelectedCompetitionIds(new Set(props.competitions.map((c) => c.id)))
+      setCompSearch("")
+    }
+    onOpenChange(isOpen)
+  }
 
   const form = useForm<FormValues>({
     resolver: standardSchemaResolver(formSchema),
@@ -116,36 +144,63 @@ export function InviteCohostDialog({
     const toastId = toast.loading("Sending invitation...")
 
     try {
-      await inviteCohostFn({
-        data: {
-          name: data.name || undefined,
-          email: data.email,
-          competitionTeamId,
-          organizingTeamId,
-          competitionId,
-          permissions: {
-            divisions: data.divisions,
-            events: data.events,
-            scoring: data.scoring,
-            viewRegistrations: data.viewRegistrations,
-            editRegistrations: data.editRegistrations,
-            waivers: data.waivers,
-            schedule: data.schedule,
-            locations: data.locations,
-            volunteers: data.volunteers,
-            results: data.results,
-            pricing: data.pricing,
-            revenue: data.revenue,
-            coupons: data.coupons,
-            sponsors: data.sponsors,
-          },
-        },
-      })
+      const permissions = {
+        divisions: data.divisions,
+        events: data.events,
+        scoring: data.scoring,
+        viewRegistrations: data.viewRegistrations,
+        editRegistrations: data.editRegistrations,
+        waivers: data.waivers,
+        schedule: data.schedule,
+        locations: data.locations,
+        volunteers: data.volunteers,
+        results: data.results,
+        pricing: data.pricing,
+        revenue: data.revenue,
+        coupons: data.coupons,
+        sponsors: data.sponsors,
+      }
 
-      toast.dismiss(toastId)
-      toast.success("Cohost invitation sent")
+      if (props.mode === "series") {
+        if (selectedCompetitionIds.size === 0) {
+          toast.dismiss(toastId)
+          toast.error("Select at least one competition")
+          setIsSubmitting(false)
+          return
+        }
+        const competitionIds = Array.from(selectedCompetitionIds)
+        const result = await inviteSeriesCohostFn({
+          data: {
+            name: data.name || undefined,
+            email: data.email,
+            organizingTeamId,
+            groupId: props.groupId,
+            competitionIds: competitionIds.length < props.competitions.length ? competitionIds : undefined,
+            permissions,
+          },
+        })
+        toast.dismiss(toastId)
+        toast.success(
+          result.invitedCount > 0
+            ? `Cohost invitation sent to ${result.invitedCount} competition${result.invitedCount !== 1 ? "s" : ""}`
+            : "Cohost already invited to selected competitions",
+        )
+      } else {
+        await inviteCohostFn({
+          data: {
+            name: data.name || undefined,
+            email: data.email,
+            competitionTeamId: props.competitionTeamId,
+            organizingTeamId,
+            competitionId: props.competitionId,
+            permissions,
+          },
+        })
+        toast.dismiss(toastId)
+        toast.success("Cohost invitation sent")
+      }
       form.reset()
-      onOpenChange(false)
+      handleOpenChange(false)
       router.invalidate()
     } catch (error) {
       toast.dismiss(toastId)
@@ -157,8 +212,33 @@ export function InviteCohostDialog({
     }
   }
 
+  const toggleCompetition = (id: string) => {
+    setSelectedCompetitionIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleAllCompetitions = () => {
+    if (props.mode !== "series") return
+    if (selectedCompetitionIds.size === props.competitions.length) {
+      setSelectedCompetitionIds(new Set())
+    } else {
+      setSelectedCompetitionIds(new Set(props.competitions.map((c) => c.id)))
+    }
+  }
+
+  const filteredCompetitions =
+    props.mode === "series"
+      ? props.competitions.filter((c) =>
+          c.name.toLowerCase().includes(compSearch.toLowerCase()),
+        )
+      : []
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Invite Co-Host</DialogTitle>
@@ -204,6 +284,103 @@ export function InviteCohostDialog({
               )}
             />
 
+            {props.mode === "series" && props.competitions.length > 0 && (
+              <div className="space-y-2">
+                <div>
+                  <p className="text-sm font-medium leading-none">Competitions</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Select which competitions to invite to
+                  </p>
+                </div>
+                <Popover open={compPopoverOpen} onOpenChange={setCompPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    {/* biome-ignore lint/a11y/useSemanticElements: Custom combobox */}
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={compPopoverOpen}
+                      className="w-full justify-between font-normal"
+                    >
+                      <span className="truncate">
+                        {selectedCompetitionIds.size === props.competitions.length
+                          ? "All competitions"
+                          : selectedCompetitionIds.size === 0
+                            ? "None selected"
+                            : `${selectedCompetitionIds.size} of ${props.competitions.length} selected`}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-[var(--radix-popover-trigger-width)] p-0"
+                    align="start"
+                  >
+                    <div className="p-2">
+                      <Input
+                        placeholder="Search competitions..."
+                        value={compSearch}
+                        onChange={(e) => setCompSearch(e.target.value)}
+                        className="h-8"
+                      />
+                    </div>
+                    <div className="border-b px-2 pb-2">
+                      <button
+                        type="button"
+                        onClick={toggleAllCompetitions}
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        {selectedCompetitionIds.size === props.competitions.length
+                          ? "Deselect all"
+                          : "Select all"}
+                      </button>
+                    </div>
+                    <ScrollArea className="h-[200px]">
+                      <div className="p-1">
+                        {filteredCompetitions.map((comp) => (
+                          <button
+                            key={comp.id}
+                            type="button"
+                            onClick={() => toggleCompetition(comp.id)}
+                            className={cn(
+                              "flex w-full items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+                              selectedCompetitionIds.has(comp.id) && "bg-accent",
+                            )}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4 shrink-0",
+                                selectedCompetitionIds.has(comp.id)
+                                  ? "opacity-100"
+                                  : "opacity-0",
+                              )}
+                            />
+                            <span className="truncate">{comp.name}</span>
+                          </button>
+                        ))}
+                        {filteredCompetitions.length === 0 && (
+                          <p className="p-2 text-sm text-muted-foreground text-center">
+                            No competitions found.
+                          </p>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </PopoverContent>
+                </Popover>
+                {selectedCompetitionIds.size > 0 &&
+                  selectedCompetitionIds.size < props.competitions.length && (
+                    <div className="flex flex-wrap gap-1">
+                      {props.competitions
+                        .filter((c) => selectedCompetitionIds.has(c.id))
+                        .map((c) => (
+                          <Badge key={c.id} variant="secondary" className="text-xs">
+                            {c.name}
+                          </Badge>
+                        ))}
+                    </div>
+                  )}
+              </div>
+            )}
+
             <div className="space-y-3">
               <div>
                 <p className="text-sm font-medium leading-none">Permissions</p>
@@ -212,34 +389,40 @@ export function InviteCohostDialog({
                 </p>
               </div>
 
-              {PERMISSION_GROUPS.map((group) => (
-                <div key={group.label} className="space-y-2">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    {group.label}
-                  </p>
+              {PERMISSION_GROUPS.map((group) => {
+                const visibleItems = group.items.filter(
+                  (item) => !hiddenPermissions.includes(item.key),
+                )
+                if (visibleItems.length === 0) return null
+                return (
+                  <div key={group.label} className="space-y-2">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {group.label}
+                    </p>
 
-                  {group.items.map((item) => (
-                    <FormField
-                      key={item.key}
-                      control={form.control}
-                      name={item.key}
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            {item.label}
-                          </FormLabel>
-                        </FormItem>
-                      )}
-                    />
-                  ))}
-                </div>
-              ))}
+                    {visibleItems.map((item) => (
+                      <FormField
+                        key={item.key}
+                        control={form.control}
+                        name={item.key}
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              {item.label}
+                            </FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                  </div>
+                )
+              })}
             </div>
 
             <div className="flex justify-end gap-2 pt-2">

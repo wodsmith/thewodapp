@@ -1,0 +1,26 @@
+@@ -1,13 +1,23 @@
+ /**
+  * Competition Cohost Divisions Route
+  *
+- * Cohost page for viewing competition divisions with counts.
++ * Cohost page for managing competition divisions with counts.
+  * Mirrors the organizer divisions page but uses cohost server functions.
+  */
+ 
+ import { createFileRoute, getRouteApi } from "@tanstack/react-router"
++import type { DivisionManagerOverrides } from "@/components/divisions/organizer-division-manager"
+ import { OrganizerDivisionManager } from "@/components/divisions/organizer-division-manager"
+-import { cohostGetDivisionsWithCountsFn } from "@/server-fns/cohost/cohost-division-fns"
++import {
++  cohostAddCompetitionDivisionFn,
++  cohostDeleteCompetitionDivisionFn,
++  cohostGetDivisionsWithCountsFn,
++  cohostInitializeCompetitionDivisionsFn,
++  cohostReorderCompetitionDivisionsFn,
++  cohostUpdateCompetitionDivisionFn,
++  cohostUpdateDivisionCapacityFn,
++  cohostUpdateDivisionDescriptionFn,
++} from "@/server-fns/cohost/cohost-division-fns"
+ import { CapacitySettingsForm } from "../../organizer/$competitionId/-components/capacity-settings-form"
+ 
+ // Get parent route API to access its loader data

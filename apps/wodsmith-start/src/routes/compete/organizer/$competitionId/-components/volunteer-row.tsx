@@ -93,6 +93,16 @@ interface VolunteerRowProps {
       position: string | null
     }>
   }
+  /** Optional callback to add a role type. Defaults to organizer server fn. */
+  onAddRoleType?: (params: { membershipId: string; competitionId: string; roleType: string }) => Promise<{ success: boolean }>
+  /** Optional callback to remove a role type. Defaults to organizer server fn. */
+  onRemoveRoleType?: (params: { membershipId: string; competitionId: string; roleType: string }) => Promise<{ success: boolean }>
+  /** Optional callback to update volunteer metadata. Defaults to organizer server fn. */
+  onUpdateMetadata?: (params: { membershipId: string; competitionId: string; metadata: Record<string, unknown> }) => Promise<{ success: boolean }>
+  /** Optional callback to grant score access. Defaults to organizer server fn. */
+  onGrantScoreAccess?: (params: { volunteerId: string; competitionTeamId: string; competitionId: string; grantedBy: string }) => Promise<{ success: boolean }>
+  /** Optional callback to revoke score access. Defaults to organizer server fn. */
+  onRevokeScoreAccess?: (params: { userId: string; competitionTeamId: string; competitionId: string }) => Promise<{ success: boolean }>
 }
 
 function getAvailabilityLabel(availability?: string): string | null {
@@ -185,6 +195,11 @@ export function VolunteerRow({
   answers,
   questions,
   variant = "row",
+  onAddRoleType,
+  onRemoveRoleType,
+  onUpdateMetadata,
+  onGrantScoreAccess,
+  onRevokeScoreAccess,
 }: VolunteerRowProps) {
   const [showResponses, setShowResponses] = useState(false)
   const router = useRouter()
@@ -214,27 +229,45 @@ export function VolunteerRow({
 
     try {
       if (checked) {
-        await grantScoreAccessFn({
-          data: {
+        if (onGrantScoreAccess) {
+          await onGrantScoreAccess({
             volunteerId: volunteer.user.id,
             competitionTeamId,
-            organizingTeamId,
             competitionId,
             grantedBy: volunteer.user.id,
-          },
-        })
+          })
+        } else {
+          await grantScoreAccessFn({
+            data: {
+              volunteerId: volunteer.user.id,
+              competitionTeamId,
+              organizingTeamId,
+              competitionId,
+              grantedBy: volunteer.user.id,
+            },
+          })
+        }
         toast.success("Score access granted")
       } else {
-        await revokeScoreAccessFn({
-          data: {
+        if (onRevokeScoreAccess) {
+          await onRevokeScoreAccess({
             userId: volunteer.user.id,
             competitionTeamId,
-            organizingTeamId,
             competitionId,
-          },
-        })
+          })
+        } else {
+          await revokeScoreAccessFn({
+            data: {
+              userId: volunteer.user.id,
+              competitionTeamId,
+              organizingTeamId,
+              competitionId,
+            },
+          })
+        }
         toast.success("Score access revoked")
       }
+      router.invalidate()
     } catch (error) {
       setScoreAccess(!checked)
       toast.error(
@@ -262,28 +295,44 @@ export function VolunteerRow({
 
     try {
       if (checked) {
-        await addVolunteerRoleTypeFn({
-          data: {
+        if (onAddRoleType) {
+          await onAddRoleType({
             membershipId: volunteer.id,
-            organizingTeamId,
             competitionId,
             roleType,
-          },
-        })
+          })
+        } else {
+          await addVolunteerRoleTypeFn({
+            data: {
+              membershipId: volunteer.id,
+              organizingTeamId,
+              competitionId,
+              roleType,
+            },
+          })
+        }
         toast.success("Role type added")
       } else {
-        await removeVolunteerRoleTypeFn({
-          data: {
+        if (onRemoveRoleType) {
+          await onRemoveRoleType({
             membershipId: volunteer.id,
-            organizingTeamId,
             competitionId,
             roleType,
-          },
-        })
+          })
+        } else {
+          await removeVolunteerRoleTypeFn({
+            data: {
+              membershipId: volunteer.id,
+              organizingTeamId,
+              competitionId,
+              roleType,
+            },
+          })
+        }
         toast.success("Role type removed")
       }
       // Invalidate route to refresh judge list in JudgeSchedulingContainer
-      router.invalidate()
+      await router.invalidate()
     } catch (error) {
       // Revert on error
       if (checked) {
@@ -307,15 +356,24 @@ export function VolunteerRow({
     setIsPending(true)
 
     try {
-      await updateVolunteerMetadataFn({
-        data: {
+      if (onUpdateMetadata) {
+        await onUpdateMetadata({
           membershipId: volunteer.id,
-          organizingTeamId,
           competitionId,
           metadata: { status: "approved" },
-        },
-      })
+        })
+      } else {
+        await updateVolunteerMetadataFn({
+          data: {
+            membershipId: volunteer.id,
+            organizingTeamId,
+            competitionId,
+            metadata: { status: "approved" },
+          },
+        })
+      }
       toast.success("Volunteer approved")
+      router.invalidate()
     } catch (error) {
       setStatus("pending")
       toast.error(
@@ -331,15 +389,24 @@ export function VolunteerRow({
     setIsPending(true)
 
     try {
-      await updateVolunteerMetadataFn({
-        data: {
+      if (onUpdateMetadata) {
+        await onUpdateMetadata({
           membershipId: volunteer.id,
-          organizingTeamId,
           competitionId,
           metadata: { status: "rejected" },
-        },
-      })
+        })
+      } else {
+        await updateVolunteerMetadataFn({
+          data: {
+            membershipId: volunteer.id,
+            organizingTeamId,
+            competitionId,
+            metadata: { status: "rejected" },
+          },
+        })
+      }
       toast.success("Volunteer rejected")
+      router.invalidate()
     } catch (error) {
       setStatus("pending")
       toast.error(

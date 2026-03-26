@@ -75,32 +75,33 @@ import { Textarea } from "@/components/ui/textarea"
 import { decodeScore, isLowerBetter, type WorkoutScheme } from "@/lib/scoring"
 import {
   type EventDetails,
-  getSubmissionDetailFn,
-  getVerificationLogsFn,
   type SubmissionDetail,
   type VerificationLogEntry,
-  verifySubmissionScoreFn,
-  deleteVerificationLogFn,
-  updateVerificationLogFn,
 } from "@/server-fns/submission-verification-fns"
 import {
-  createReviewNoteFn,
-  deleteReviewNoteFn,
-  getReviewNotesFn,
-  getWorkoutMovementsFn,
-  updateReviewNoteFn,
-} from "@/server-fns/review-note-fns"
+  cohostGetSubmissionDetailFn,
+  cohostGetVerificationLogsFn,
+  cohostVerifySubmissionScoreFn,
+  cohostDeleteVerificationLogFn,
+  cohostUpdateVerificationLogFn,
+  cohostGetOrganizerSubmissionDetailFn,
+  cohostMarkSubmissionReviewedFn,
+  cohostUnmarkSubmissionReviewedFn,
+} from "@/server-fns/cohost/cohost-submission-fns"
 import {
-  getOrganizerSubmissionDetailFn,
-  markSubmissionReviewedFn,
-  unmarkSubmissionReviewedFn,
-} from "@/server-fns/video-submission-fns"
+  cohostCreateReviewNoteFn,
+  cohostDeleteReviewNoteFn,
+  cohostGetReviewNotesFn,
+  cohostGetWorkoutMovementsFn,
+  cohostUpdateReviewNoteFn,
+} from "@/server-fns/cohost/cohost-review-note-fns"
 import { getSubmissionVoteDetailsFn } from "@/server-fns/video-vote-fns"
 import {
   DOWNVOTE_REASON_LABELS,
   type DownvoteReason,
 } from "@/db/schemas/video-votes"
 import { isSafeUrl } from "@/utils/url"
+import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 
 const parentRoute = getRouteApi("/compete/cohost/$competitionId")
 
@@ -109,9 +110,15 @@ export const Route = createFileRoute(
 )({
   component: SubmissionDetailPage,
   loader: async ({ params }) => {
-    // Fetch review data (required) — organizer fn, may fail for cohosts
-    const reviewResult = await getOrganizerSubmissionDetailFn({
+    const { competition } = await getCompetitionByIdFn({
+      data: { competitionId: params.competitionId },
+    })
+    const competitionTeamId = competition!.competitionTeamId!
+
+    // Fetch review data (required)
+    const reviewResult = await cohostGetOrganizerSubmissionDetailFn({
       data: {
+        competitionTeamId,
         submissionId: params.submissionId,
         competitionId: params.competitionId,
       },
@@ -129,15 +136,17 @@ export const Route = createFileRoute(
     if (scoreId) {
       try {
         const [verificationResult, logsResult] = await Promise.all([
-          getSubmissionDetailFn({
+          cohostGetSubmissionDetailFn({
             data: {
+              competitionTeamId,
               competitionId: params.competitionId,
               trackWorkoutId: params.eventId,
               scoreId,
             },
           }),
-          getVerificationLogsFn({
+          cohostGetVerificationLogsFn({
             data: {
+              competitionTeamId,
               scoreId,
               competitionId: params.competitionId,
             },
@@ -152,8 +161,9 @@ export const Route = createFileRoute(
     }
 
     // Fetch review notes
-    const notesResult = await getReviewNotesFn({
+    const notesResult = await cohostGetReviewNotesFn({
       data: {
+        competitionTeamId,
         videoSubmissionId: params.submissionId,
         competitionId: params.competitionId,
       },
@@ -173,8 +183,9 @@ export const Route = createFileRoute(
     } | null = null
 
     const [movementsSettled, votesSettled] = await Promise.allSettled([
-      getWorkoutMovementsFn({
+      cohostGetWorkoutMovementsFn({
         data: {
+          competitionTeamId,
           trackWorkoutId: params.eventId,
           competitionId: params.competitionId,
         },
@@ -214,6 +225,7 @@ interface VerificationControlsProps {
   submission: SubmissionDetail
   event: EventDetails
   competitionId: string
+  competitionTeamId: string
   trackWorkoutId: string
   logs: VerificationLogEntry[]
 }
@@ -239,11 +251,12 @@ function VerificationControls({
   submission,
   event,
   competitionId,
+  competitionTeamId,
   trackWorkoutId,
   logs,
 }: VerificationControlsProps) {
   const router = useRouter()
-  const verifyFn = useServerFn(verifySubmissionScoreFn)
+  const verifyFn = useServerFn(cohostVerifySubmissionScoreFn)
 
   const [isAdjusting, setIsAdjusting] = useState(false)
   const [isPenalizing, setIsPenalizing] = useState(false)
@@ -277,6 +290,7 @@ function VerificationControls({
     try {
       await verifyFn({
         data: {
+          competitionTeamId,
           competitionId,
           trackWorkoutId,
           scoreId: submission.id,
@@ -297,6 +311,7 @@ function VerificationControls({
     try {
       await verifyFn({
         data: {
+          competitionTeamId,
           competitionId,
           trackWorkoutId,
           scoreId: submission.id,
@@ -352,6 +367,7 @@ function VerificationControls({
 
       await verifyFn({
         data: {
+          competitionTeamId,
           competitionId,
           trackWorkoutId,
           scoreId: submission.id,
@@ -381,6 +397,7 @@ function VerificationControls({
     try {
       await verifyFn({
         data: {
+          competitionTeamId,
           competitionId,
           trackWorkoutId,
           scoreId: submission.id,
@@ -868,6 +885,7 @@ function VerificationControls({
                     key={log.id}
                     log={log}
                     competitionId={competitionId}
+                    competitionTeamId={competitionTeamId}
                   />
                 ))}
               </div>
@@ -886,13 +904,15 @@ function VerificationControls({
 function AuditLogEntry({
   log,
   competitionId,
+  competitionTeamId,
 }: {
   log: VerificationLogEntry
   competitionId: string
+  competitionTeamId: string
 }) {
   const router = useRouter()
-  const deleteFn = useServerFn(deleteVerificationLogFn)
-  const updateFn = useServerFn(updateVerificationLogFn)
+  const deleteFn = useServerFn(cohostDeleteVerificationLogFn)
+  const updateFn = useServerFn(cohostUpdateVerificationLogFn)
   const [isEditing, setIsEditing] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [editPenaltyType, setEditPenaltyType] = useState<"minor" | "major" | null>(
@@ -905,7 +925,7 @@ function AuditLogEntry({
   async function handleDelete() {
     setIsDeleting(true)
     try {
-      await deleteFn({ data: { logId: log.id, competitionId } })
+      await deleteFn({ data: { competitionTeamId, logId: log.id, competitionId } })
       await router.invalidate()
     } catch {
       setIsDeleting(false)
@@ -916,6 +936,7 @@ function AuditLogEntry({
     try {
       await updateFn({
         data: {
+          competitionTeamId,
           logId: log.id,
           competitionId,
           penaltyType: editPenaltyType,
@@ -1113,6 +1134,7 @@ function formatTimestamp(seconds: number): string {
 interface ReviewNoteFormProps {
   videoSubmissionId: string
   competitionId: string
+  competitionTeamId: string
   movements: Array<{ id: string; name: string; type: string }>
   playerRef: React.RefObject<VideoPlayerRef | null>
   formTextareaRef: React.RefObject<HTMLTextAreaElement | null>
@@ -1122,12 +1144,13 @@ interface ReviewNoteFormProps {
 function ReviewNoteForm({
   videoSubmissionId,
   competitionId,
+  competitionTeamId,
   movements,
   playerRef,
   formTextareaRef,
   onNoteCreated,
 }: ReviewNoteFormProps) {
-  const createNote = useServerFn(createReviewNoteFn)
+  const createNote = useServerFn(cohostCreateReviewNoteFn)
   const [noteType, setNoteType] = useState<"general" | "no-rep">("general")
   const [content, setContent] = useState("")
   const [timestampSeconds, setTimestampSeconds] = useState<number | null>(null)
@@ -1154,6 +1177,7 @@ function ReviewNoteForm({
     try {
       await createNote({
         data: {
+          competitionTeamId,
           videoSubmissionId,
           competitionId,
           type: noteType,
@@ -1276,13 +1300,14 @@ interface ReviewNotesListProps {
   }>
   movements: Array<{ id: string; name: string }>
   competitionId: string
+  competitionTeamId: string
   playerRef: React.RefObject<VideoPlayerRef | null>
   onNoteUpdated: () => void
 }
 
-function ReviewNotesList({ notes, movements, competitionId, playerRef, onNoteUpdated }: ReviewNotesListProps) {
-  const deleteFn = useServerFn(deleteReviewNoteFn)
-  const updateFn = useServerFn(updateReviewNoteFn)
+function ReviewNotesList({ notes, movements, competitionId, competitionTeamId, playerRef, onNoteUpdated }: ReviewNotesListProps) {
+  const deleteFn = useServerFn(cohostDeleteReviewNoteFn)
+  const updateFn = useServerFn(cohostUpdateReviewNoteFn)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState("")
@@ -1298,7 +1323,7 @@ function ReviewNotesList({ notes, movements, competitionId, playerRef, onNoteUpd
 
   const handleDelete = async (noteId: string) => {
     setDeletingId(noteId)
-    try { await deleteFn({ data: { noteId, competitionId } }); onNoteUpdated() } finally { setDeletingId(null) }
+    try { await deleteFn({ data: { competitionTeamId, noteId, competitionId } }); onNoteUpdated() } finally { setDeletingId(null) }
   }
 
   const startEdit = (note: ReviewNotesListProps["notes"][0]) => {
@@ -1310,7 +1335,7 @@ function ReviewNotesList({ notes, movements, competitionId, playerRef, onNoteUpd
     if (!editingId || !editContent.trim()) return
     setIsSaving(true)
     try {
-      await updateFn({ data: { noteId: editingId, competitionId, content: editContent.trim(), type: editType } })
+      await updateFn({ data: { competitionTeamId, noteId: editingId, competitionId, content: editContent.trim(), type: editType } })
       setEditingId(null); setEditContent(""); onNoteUpdated()
     } finally { setIsSaving(false) }
   }
@@ -1541,11 +1566,12 @@ function SubmissionDetailPage() {
     voteDetails,
   } = Route.useLoaderData()
   const { competition } = parentRoute.useLoaderData()
+  const competitionTeamId = competition.competitionTeamId!
   const params = Route.useParams()
   const router = useRouter()
 
-  const markReviewed = useServerFn(markSubmissionReviewedFn)
-  const unmarkReviewed = useServerFn(unmarkSubmissionReviewedFn)
+  const markReviewed = useServerFn(cohostMarkSubmissionReviewedFn)
+  const unmarkReviewed = useServerFn(cohostUnmarkSubmissionReviewedFn)
 
   const [isUpdating, setIsUpdating] = useState(false)
 
@@ -1588,9 +1614,9 @@ function SubmissionDetailPage() {
     setIsUpdating(true)
     try {
       if (isReviewed) {
-        await unmarkReviewed({ data: { submissionId: submission.id, competitionId: competition.id } })
+        await unmarkReviewed({ data: { competitionTeamId, submissionId: submission.id, competitionId: competition.id } })
       } else {
-        await markReviewed({ data: { submissionId: submission.id, competitionId: competition.id } })
+        await markReviewed({ data: { competitionTeamId, submissionId: submission.id, competitionId: competition.id } })
       }
       router.invalidate()
     } finally {
@@ -1689,6 +1715,7 @@ function SubmissionDetailPage() {
           <ReviewNoteForm
             videoSubmissionId={submission.id}
             competitionId={competition.id}
+            competitionTeamId={competitionTeamId}
             movements={workoutMovements}
             playerRef={playerRef}
             formTextareaRef={noteTextareaRef}
@@ -1699,6 +1726,7 @@ function SubmissionDetailPage() {
             notes={reviewNotes}
             movements={workoutMovements}
             competitionId={competition.id}
+            competitionTeamId={competitionTeamId}
             playerRef={playerRef}
             onNoteUpdated={() => router.invalidate()}
           />
@@ -1758,6 +1786,7 @@ function SubmissionDetailPage() {
               submission={verificationSubmission}
               event={event}
               competitionId={params.competitionId}
+              competitionTeamId={competitionTeamId}
               trackWorkoutId={params.eventId}
               logs={verificationLogs}
             />

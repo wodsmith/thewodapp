@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { Calendar, Clock, MapPin, Minus, Plus, User, Users } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -142,6 +143,12 @@ interface ShiftAssignmentPanelProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onAssignmentChange: (updatedShift: ShiftWithAssignments) => void
+  /** Optional callback to fetch volunteers. Defaults to organizer server fn. */
+  onGetVolunteers?: (params: { competitionTeamId: string }) => Promise<TeamMembershipWithUser[]>
+  /** Optional callback to assign volunteer to shift. Defaults to organizer server fn. */
+  onAssignVolunteer?: (params: { shiftId: string; membershipId: string }) => Promise<unknown>
+  /** Optional callback to unassign volunteer from shift. Defaults to organizer server fn. */
+  onUnassignVolunteer?: (params: { shiftId: string; membershipId: string }) => Promise<unknown>
 }
 
 /**
@@ -155,7 +162,11 @@ export function ShiftAssignmentPanel({
   open,
   onOpenChange,
   onAssignmentChange,
+  onGetVolunteers,
+  onAssignVolunteer,
+  onUnassignVolunteer,
 }: ShiftAssignmentPanelProps) {
+  const router = useRouter()
   const [allVolunteers, setAllVolunteers] = useState<TeamMembershipWithUser[]>(
     [],
   )
@@ -163,9 +174,9 @@ export function ShiftAssignmentPanel({
   const [assigningId, setAssigningId] = useState<string | null>(null)
   const [unassigningId, setUnassigningId] = useState<string | null>(null)
 
-  const getVolunteers = useServerFn(getCompetitionVolunteersFn)
-  const assignVolunteer = useServerFn(assignVolunteerToShiftFn)
-  const unassignVolunteer = useServerFn(unassignVolunteerFromShiftFn)
+  const defaultGetVolunteers = useServerFn(getCompetitionVolunteersFn)
+  const defaultAssignVolunteer = useServerFn(assignVolunteerToShiftFn)
+  const defaultUnassignVolunteer = useServerFn(unassignVolunteerFromShiftFn)
 
   // Fetch all volunteers when panel opens
   // Note: getVolunteers is excluded from deps since it's a stable hook reference
@@ -173,7 +184,10 @@ export function ShiftAssignmentPanel({
   useEffect(() => {
     if (open && competitionTeamId) {
       setLoadingVolunteers(true)
-      getVolunteers({ data: { competitionTeamId } })
+      const fetchFn = onGetVolunteers
+        ? onGetVolunteers({ competitionTeamId })
+        : defaultGetVolunteers({ data: { competitionTeamId } })
+      fetchFn
         .then((volunteers) => {
           setAllVolunteers(volunteers)
         })
@@ -185,7 +199,7 @@ export function ShiftAssignmentPanel({
           setLoadingVolunteers(false)
         })
     }
-  }, [open, competitionTeamId, getVolunteers])
+  }, [open, competitionTeamId, defaultGetVolunteers, onGetVolunteers])
 
   // Get assigned membership IDs for filtering
   const assignedMembershipIds = useMemo(() => {
@@ -231,9 +245,13 @@ export function ShiftAssignmentPanel({
 
       setAssigningId(membershipId)
       try {
-        await assignVolunteer({
-          data: { shiftId: shift.id, membershipId },
-        })
+        if (onAssignVolunteer) {
+          await onAssignVolunteer({ shiftId: shift.id, membershipId })
+        } else {
+          await defaultAssignVolunteer({
+            data: { shiftId: shift.id, membershipId },
+          })
+        }
 
         // Find the volunteer to add to assignments
         const volunteer = allVolunteers.find((v) => v.id === membershipId)
@@ -275,6 +293,7 @@ export function ShiftAssignmentPanel({
         }
 
         toast.success("Volunteer assigned successfully")
+        router.invalidate()
       } catch (error) {
         toast.error(
           error instanceof Error ? error.message : "Failed to assign volunteer",
@@ -283,7 +302,7 @@ export function ShiftAssignmentPanel({
         setAssigningId(null)
       }
     },
-    [shift, assignVolunteer, allVolunteers, onAssignmentChange],
+    [shift, defaultAssignVolunteer, onAssignVolunteer, allVolunteers, onAssignmentChange, router],
   )
 
   const handleUnassign = useCallback(
@@ -292,9 +311,13 @@ export function ShiftAssignmentPanel({
 
       setUnassigningId(membershipId)
       try {
-        await unassignVolunteer({
-          data: { shiftId: shift.id, membershipId },
-        })
+        if (onUnassignVolunteer) {
+          await onUnassignVolunteer({ shiftId: shift.id, membershipId })
+        } else {
+          await defaultUnassignVolunteer({
+            data: { shiftId: shift.id, membershipId },
+          })
+        }
 
         const updatedShift: ShiftWithAssignments = {
           ...shift,
@@ -305,6 +328,7 @@ export function ShiftAssignmentPanel({
         onAssignmentChange(updatedShift)
 
         toast.success("Volunteer unassigned successfully")
+        router.invalidate()
       } catch (error) {
         toast.error(
           error instanceof Error
@@ -315,7 +339,7 @@ export function ShiftAssignmentPanel({
         setUnassigningId(null)
       }
     },
-    [shift, unassignVolunteer, onAssignmentChange],
+    [shift, defaultUnassignVolunteer, onUnassignVolunteer, onAssignmentChange, router],
   )
 
   if (!shift) return null

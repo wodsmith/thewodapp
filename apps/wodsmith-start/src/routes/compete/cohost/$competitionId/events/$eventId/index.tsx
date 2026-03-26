@@ -19,6 +19,22 @@ import { EventSubmissionWindowCard } from "@/components/organizer/event-submissi
 import { HeatSchedulePublishingCard } from "@/components/organizer/heat-schedule-publishing-card"
 import { Button } from "@/components/ui/button"
 import {
+  cohostCreateEventResourceFn,
+  cohostDeleteEventResourceFn,
+  cohostReorderEventResourcesFn,
+  cohostUpdateEventResourceFn,
+} from "@/server-fns/cohost/cohost-event-resources-fns"
+import {
+  cohostCreateJudgingSheetFn,
+  cohostDeleteJudgingSheetFn,
+  cohostUpdateJudgingSheetFn,
+} from "@/server-fns/cohost/cohost-judging-sheet-fns"
+import {
+  cohostPublishAllHeatsForEventFn,
+  cohostPublishHeatScheduleFn,
+} from "@/server-fns/cohost/cohost-schedule-fns"
+import { cohostSaveEventFn } from "@/server-fns/cohost/cohost-workout-fns"
+import {
   Card,
   CardContent,
   CardDescription,
@@ -58,8 +74,42 @@ function EventEditPage() {
     childEvents,
   } = eventRoute.useLoaderData()
   const { competition } = parentRoute.useLoaderData()
+  const competitionTeamId = competition.competitionTeamId!
 
   const [judgingSheets, setJudgingSheets] = useState(initialSheets)
+
+  // Cohost override wrappers that inject competitionTeamId
+  const resourceOverrides = {
+    createFn: (args: { data: any }) =>
+      cohostCreateEventResourceFn({ data: { ...args.data, competitionTeamId } }),
+    updateFn: (args: { data: any }) =>
+      cohostUpdateEventResourceFn({ data: { ...args.data, competitionTeamId } }),
+    deleteFn: (args: { data: any }) =>
+      cohostDeleteEventResourceFn({ data: { ...args.data, competitionTeamId } }),
+    reorderFn: (args: { data: any }) =>
+      cohostReorderEventResourcesFn({ data: { ...args.data, competitionTeamId } }),
+  }
+
+  const judgingOverrides = {
+    createFn: (args: { data: any }) =>
+      cohostCreateJudgingSheetFn({ data: { ...args.data, competitionTeamId } }),
+    updateFn: (args: { data: any }) =>
+      cohostUpdateJudgingSheetFn({ data: { ...args.data, competitionTeamId } }),
+    deleteFn: (args: { data: any }) =>
+      cohostDeleteJudgingSheetFn({ data: { ...args.data, competitionTeamId } }),
+  }
+
+  const eventFormOverrides = {
+    saveFn: (args: { data: any }) =>
+      cohostSaveEventFn({ data: { ...args.data, competitionTeamId } }),
+  }
+
+  const publishingOverrides = {
+    publishHeatFn: (args: { data: any }) =>
+      cohostPublishHeatScheduleFn({ data: { ...args.data, competitionTeamId } }),
+    publishAllFn: (args: { data: any }) =>
+      cohostPublishAllHeatsForEventFn({ data: { ...args.data, competitionTeamId } }),
+  }
 
   const isParentEvent = childEvents.length > 0
 
@@ -91,6 +141,8 @@ function EventEditPage() {
         divisionDescriptions={divisionDescriptions}
         movements={movements}
         sponsors={sponsors}
+        overrides={eventFormOverrides}
+        routePrefix="/compete/cohost"
       />
 
       {/* Event Resources */}
@@ -98,6 +150,7 @@ function EventEditPage() {
         eventId={event.id}
         teamId={competition.organizingTeamId}
         initialResources={resources}
+        overrides={resourceOverrides}
       />
 
       {/* Judging Sheets */}
@@ -106,6 +159,7 @@ function EventEditPage() {
         trackWorkoutId={event.id}
         sheets={judgingSheets}
         onSheetsChange={setJudgingSheets}
+        overrides={judgingOverrides}
       />
 
       {/* Submission Window (online) or Heat Schedule Publishing (in-person) */}
@@ -117,6 +171,7 @@ function EventEditPage() {
             submissionOpensAt={submissionOpensAt}
             submissionClosesAt={submissionClosesAt}
             timezone={timezone}
+            routePrefix="/compete/cohost"
           />
 
           {/* Video Submissions Review Link */}
@@ -151,6 +206,8 @@ function EventEditPage() {
           eventName={event.workout.name}
           competitionId={competition.id}
           organizingTeamId={competition.organizingTeamId}
+          overrides={publishingOverrides}
+          routePrefix="/compete/cohost"
         />
       )}
     </>
@@ -173,9 +230,35 @@ function ParentEventEditPage() {
     childDivisionDescriptions,
   } = eventRoute.useLoaderData()
   const { competition } = parentRoute.useLoaderData()
+  const competitionTeamId = competition.competitionTeamId!
   const { tab } = Route.useSearch()
 
   const [judgingSheets, setJudgingSheets] = useState(initialSheets)
+
+  const resourceOverrides = {
+    createFn: (args: { data: any }) =>
+      cohostCreateEventResourceFn({ data: { ...args.data, competitionTeamId } }),
+    updateFn: (args: { data: any }) =>
+      cohostUpdateEventResourceFn({ data: { ...args.data, competitionTeamId } }),
+    deleteFn: (args: { data: any }) =>
+      cohostDeleteEventResourceFn({ data: { ...args.data, competitionTeamId } }),
+    reorderFn: (args: { data: any }) =>
+      cohostReorderEventResourcesFn({ data: { ...args.data, competitionTeamId } }),
+  }
+
+  const judgingOverrides = {
+    createFn: (args: { data: any }) =>
+      cohostCreateJudgingSheetFn({ data: { ...args.data, competitionTeamId } }),
+    updateFn: (args: { data: any }) =>
+      cohostUpdateJudgingSheetFn({ data: { ...args.data, competitionTeamId } }),
+    deleteFn: (args: { data: any }) =>
+      cohostDeleteJudgingSheetFn({ data: { ...args.data, competitionTeamId } }),
+  }
+
+  const eventFormOverrides = {
+    saveFn: (args: { data: any }) =>
+      cohostSaveEventFn({ data: { ...args.data, competitionTeamId } }),
+  }
 
   const defaultTab =
     (tab && childEvents.some((c) => c.id === tab) ? tab : childEvents[0]?.id) ??
@@ -232,6 +315,8 @@ function ParentEventEditPage() {
             sponsors={sponsors}
             isParentEvent
             formId={parentFormId}
+            overrides={eventFormOverrides}
+            routePrefix="/compete/cohost"
           />
         </CardContent>
       </Card>
@@ -280,6 +365,8 @@ function ParentEventEditPage() {
                   movements={movements}
                   sponsors={sponsors}
                   formId={getChildFormId(child.id)}
+                  overrides={eventFormOverrides}
+                  routePrefix="/compete/cohost"
                 />
               </TabsContent>
             ))}
@@ -292,6 +379,7 @@ function ParentEventEditPage() {
         eventId={event.id}
         teamId={competition.organizingTeamId}
         initialResources={resources}
+        overrides={resourceOverrides}
       />
 
       {/* Judging Sheets */}
@@ -300,6 +388,7 @@ function ParentEventEditPage() {
         trackWorkoutId={event.id}
         sheets={judgingSheets}
         onSheetsChange={setJudgingSheets}
+        overrides={judgingOverrides}
       />
     </>
   )

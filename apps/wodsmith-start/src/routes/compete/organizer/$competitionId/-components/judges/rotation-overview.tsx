@@ -16,6 +16,10 @@ interface RotationOverviewProps {
   hasActiveVersion?: boolean
   nextVersionNumber?: number
   onPublishSuccess?: () => void
+  /** Optional override for publishRotationsFn (used by cohost routes) */
+  onPublishRotations?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<import("@/db/schema").JudgeAssignmentVersion>
 }
 
 /**
@@ -31,6 +35,7 @@ export function RotationOverview({
   hasActiveVersion = false,
   nextVersionNumber = 1,
   onPublishSuccess,
+  onPublishRotations,
 }: RotationOverviewProps) {
   const hasGaps = coverage.gaps.length > 0
   const hasOverlaps = coverage.overlaps.length > 0
@@ -104,6 +109,7 @@ export function RotationOverview({
             hasActiveVersion={hasActiveVersion}
             nextVersionNumber={nextVersionNumber}
             onPublishSuccess={onPublishSuccess}
+            onPublishRotations={onPublishRotations}
           />
         </div>
       </div>

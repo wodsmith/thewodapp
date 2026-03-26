@@ -9,7 +9,6 @@
 import {
   createFileRoute,
   getRouteApi,
-  Link,
   useNavigate,
   useRouter,
 } from "@tanstack/react-router"
@@ -32,7 +31,16 @@ import {
 import React, { useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
-import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
+import {
+  RegistrationQuestionsEditor,
+  type RegistrationQuestionsOverrides,
+} from "@/components/competition-settings/registration-questions-editor"
+import {
+  cohostCreateQuestionFn,
+  cohostDeleteQuestionFn,
+  cohostReorderQuestionsFn,
+  cohostUpdateQuestionFn,
+} from "@/server-fns/cohost/cohost-registration-questions-fns"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -81,6 +89,8 @@ import {
   cohostRemoveRegistrationFn,
   cohostGetRegistrationQuestionsFn,
   cohostGetCompetitionRegistrationAnswersFn,
+  cohostCreateManualRegistrationFn,
+  cohostTransferRegistrationDivisionFn,
 } from "@/server-fns/cohost/cohost-registration-fns"
 import { cohostGetDivisionsWithCountsFn } from "@/server-fns/cohost/cohost-division-fns"
 import {
@@ -95,8 +105,8 @@ import {
   cancelPurchaseTransferFn,
   getPendingTransfersForCompetitionFn,
 } from "@/server-fns/purchase-transfer-fns"
-import { ManualRegistrationDialog } from "../../organizer/$competitionId/-components/manual-registration-dialog"
-import { TransferDivisionDialog } from "../../organizer/$competitionId/-components/transfer-division-dialog"
+import { ManualRegistrationDialog, type ManualRegistrationData } from "../../organizer/$competitionId/-components/manual-registration-dialog"
+import { TransferDivisionDialog, type TransferDivisionData } from "../../organizer/$competitionId/-components/transfer-division-dialog"
 import { TransferRegistrationDialog } from "../../organizer/$competitionId/-components/transfer-registration-dialog"
 
 const parentRoute = getRouteApi("/compete/cohost/$competitionId")
@@ -245,6 +255,22 @@ function CohostAthletesPage() {
   }
   const removeRegistration = useServerFn(cohostRemoveRegistrationFn)
   const cancelPurchaseTransfer = useServerFn(cancelPurchaseTransferFn)
+  const cohostCreateManualRegistration = useServerFn(cohostCreateManualRegistrationFn)
+  const cohostTransferDivision = useServerFn(cohostTransferRegistrationDivisionFn)
+
+  const handleCohostCreateRegistration = async (data: ManualRegistrationData) => {
+    const result = await cohostCreateManualRegistration({
+      data: { ...data, competitionTeamId },
+    })
+    return result
+  }
+
+  const handleCohostTransferDivision = async (data: TransferDivisionData) => {
+    const result = await cohostTransferDivision({
+      data: { ...data, competitionTeamId },
+    })
+    return result
+  }
   const [removingRegistration, setRemovingRegistration] = useState<{
     id: string
     athleteName: string
@@ -270,6 +296,52 @@ function CohostAthletesPage() {
 
   const handleQuestionsChange = () => {
     router.invalidate()
+  }
+
+  // Wrap cohost question fns so they match the callback shape the editor expects
+  const questionOverrides: RegistrationQuestionsOverrides = {
+    createQuestion: ({ data }) =>
+      cohostCreateQuestionFn({
+        data: {
+          competitionTeamId,
+          competitionId: data.competitionId,
+          type: data.type,
+          label: data.label,
+          helpText: data.helpText,
+          options: data.options,
+          required: data.required,
+          forTeammates: data.forTeammates,
+          questionTarget: data.questionTarget,
+        },
+      }),
+    updateQuestion: ({ data }) =>
+      cohostUpdateQuestionFn({
+        data: {
+          competitionTeamId,
+          questionId: data.questionId,
+          type: data.type,
+          label: data.label,
+          helpText: data.helpText,
+          options: data.options,
+          required: data.required,
+          forTeammates: data.forTeammates,
+        },
+      }),
+    deleteQuestion: ({ data }) =>
+      cohostDeleteQuestionFn({
+        data: {
+          competitionTeamId,
+          questionId: data.questionId,
+        },
+      }),
+    reorderQuestions: ({ data }) =>
+      cohostReorderQuestionsFn({
+        data: {
+          competitionTeamId,
+          competitionId: data.competitionId,
+          orderedQuestionIds: data.orderedQuestionIds,
+        },
+      }),
   }
 
   const handleCancelTransfer = async (transferId: string) => {
@@ -914,6 +986,7 @@ function CohostAthletesPage() {
             teamId={competitionTeamId}
             questions={questions.filter((q) => q.source === "competition")}
             onQuestionsChange={handleQuestionsChange}
+            overrides={questionOverrides}
           />
         </TabsContent>
 
@@ -2025,6 +2098,7 @@ function CohostAthletesPage() {
         competitionId={competition.id}
         divisions={divisions}
         questions={questions}
+        onCreateRegistration={handleCohostCreateRegistration}
       />
 
       {transferTarget && (
@@ -2042,6 +2116,7 @@ function CohostAthletesPage() {
                 r.status !== "removed",
             )
             .map((r) => r.divisionId!)}
+          onTransferDivision={handleCohostTransferDivision}
         />
       )}
 
@@ -2051,6 +2126,8 @@ function CohostAthletesPage() {
           onOpenChange={(open) => !open && setTransferRegistrationTarget(null)}
           registration={transferRegistrationTarget}
           competitionId={competition.id}
+          disabled
+          disabledMessage="Registration transfers are not available for cohosts. Please contact the competition organizer."
         />
       )}
     </>

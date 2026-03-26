@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import {
   CalendarDays,
@@ -100,6 +101,18 @@ interface ShiftListProps {
   competitionId: string
   competitionTeamId: string
   shifts: ShiftWithAssignments[]
+  /** Optional callback to delete a shift. Defaults to organizer server fn. */
+  onDeleteShift?: (params: { shiftId: string }) => Promise<{ success: boolean }>
+  /** Optional callback to create a shift. Passed through to ShiftFormDialog. */
+  onCreateShift?: (params: { competitionId: string; name: string; roleType: string; startTime: Date; endTime: Date; location?: string; capacity: number; notes?: string }) => Promise<unknown>
+  /** Optional callback to update a shift. Passed through to ShiftFormDialog. */
+  onUpdateShift?: (params: { shiftId: string; name?: string; roleType?: string; startTime?: Date; endTime?: Date; location?: string | null; capacity?: number; notes?: string | null }) => Promise<unknown>
+  /** Optional callback to fetch volunteers. Passed through to ShiftAssignmentPanel. */
+  onGetVolunteers?: (params: { competitionTeamId: string }) => Promise<import("@/server-fns/volunteer-fns").TeamMembershipWithUser[]>
+  /** Optional callback to assign volunteer to shift. Passed through to ShiftAssignmentPanel. */
+  onAssignVolunteer?: (params: { shiftId: string; membershipId: string }) => Promise<unknown>
+  /** Optional callback to unassign volunteer from shift. Passed through to ShiftAssignmentPanel. */
+  onUnassignVolunteer?: (params: { shiftId: string; membershipId: string }) => Promise<unknown>
 }
 
 /**
@@ -110,7 +123,14 @@ export function ShiftList({
   competitionId,
   competitionTeamId,
   shifts: initialShifts,
+  onDeleteShift,
+  onCreateShift,
+  onUpdateShift,
+  onGetVolunteers,
+  onAssignVolunteer,
+  onUnassignVolunteer,
 }: ShiftListProps) {
+  const router = useRouter()
   const [shifts, setShifts] = useState(initialShifts)
 
   // Sync local state when initialShifts changes (e.g., after router.invalidate())
@@ -193,11 +213,16 @@ export function ShiftList({
 
     setIsDeleting(true)
     try {
-      await deleteShift({
-        data: { shiftId: deletingShiftId },
-      })
+      if (onDeleteShift) {
+        await onDeleteShift({ shiftId: deletingShiftId })
+      } else {
+        await deleteShift({
+          data: { shiftId: deletingShiftId },
+        })
+      }
       toast.success("Shift deleted successfully")
       setShifts((prev) => prev.filter((s) => s.id !== deletingShiftId))
+      await router.invalidate()
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to delete shift",
@@ -236,6 +261,8 @@ export function ShiftList({
           open={formDialogOpen}
           onOpenChange={setFormDialogOpen}
           shift={editingShift}
+          onCreateShift={onCreateShift}
+          onUpdateShift={onUpdateShift}
         />
       </>
     )
@@ -408,6 +435,8 @@ export function ShiftList({
         open={formDialogOpen}
         onOpenChange={setFormDialogOpen}
         shift={editingShift}
+        onCreateShift={onCreateShift}
+        onUpdateShift={onUpdateShift}
       />
 
       {/* Assignment Panel */}
@@ -418,6 +447,9 @@ export function ShiftList({
         open={assignmentPanelOpen}
         onOpenChange={setAssignmentPanelOpen}
         onAssignmentChange={handleAssignmentChange}
+        onGetVolunteers={onGetVolunteers}
+        onAssignVolunteer={onAssignVolunteer}
+        onUnassignVolunteer={onUnassignVolunteer}
       />
     </div>
   )

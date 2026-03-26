@@ -31,6 +31,11 @@ interface QuickActionsHeatsProps {
   heats: HeatWithAssignments[]
   organizingTeamId: string
   competitionSlug: string
+  /** Optional callback to override the default organizer updateCompetitionWorkoutFn */
+  onUpdateWorkout?: (params: {
+    trackWorkoutId: string
+    heatStatus?: "draft" | "published"
+  }) => Promise<unknown>
 }
 
 export function QuickActionsHeats({
@@ -38,10 +43,27 @@ export function QuickActionsHeats({
   heats,
   organizingTeamId,
   competitionSlug,
+  onUpdateWorkout,
 }: QuickActionsHeatsProps) {
   const router = useRouter()
   const updateCompetitionWorkout = useServerFn(updateCompetitionWorkoutFn)
   const [pendingEvents, setPendingEvents] = useState<Set<string>>(new Set())
+
+  const doUpdate = async (params: {
+    trackWorkoutId: string
+    heatStatus?: "draft" | "published"
+  }) => {
+    if (onUpdateWorkout) {
+      return onUpdateWorkout(params)
+    }
+    return updateCompetitionWorkout({
+      data: {
+        trackWorkoutId: params.trackWorkoutId,
+        teamId: organizingTeamId,
+        heatStatus: params.heatStatus,
+      },
+    })
+  }
 
   const handleHeatStatusChange = async (
     trackWorkoutId: string,
@@ -49,12 +71,9 @@ export function QuickActionsHeats({
   ) => {
     setPendingEvents((prev) => new Set(prev).add(trackWorkoutId))
     try {
-      await updateCompetitionWorkout({
-        data: {
-          trackWorkoutId,
-          teamId: organizingTeamId,
-          heatStatus: newStatus as "draft" | "published",
-        },
+      await doUpdate({
+        trackWorkoutId,
+        heatStatus: newStatus as "draft" | "published",
       })
       await router.invalidate()
     } catch (err) {

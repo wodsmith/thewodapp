@@ -36,13 +36,16 @@ import {
 } from "@/server-fns/volunteer-fns"
 import { getCompetitionShiftsFn } from "@/server-fns/volunteer-shift-fns"
 import { getCohostsFn } from "@/server-fns/cohost-fns"
+import { FEATURES } from "@/config/features"
+import { checkTeamHasFeatureFn } from "@/server-fns/entitlements"
 import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ChevronDown } from "lucide-react"
-import { Copy, UserPlus, Trash2 } from "lucide-react"
+import { Copy, Pencil, UserPlus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
+import { EditCohostPermissionsDialog } from "./-components/edit-cohost-permissions-dialog"
 import { InviteCohostDialog } from "./-components/invite-cohost-dialog"
 import { InvitedVolunteersList } from "./-components/invited-volunteers-list"
 import { JudgeSchedulingContainer } from "./-components/judges"
@@ -132,13 +135,21 @@ export const Route = createFileRoute(
 
     const events = eventsResult.workouts
 
-    // Fetch cohosts in parallel (non-blocking — doesn't affect other tabs)
-    const cohostsResult = await getCohostsFn({
-      data: {
-        competitionTeamId,
-        organizingTeamId: competition.organizingTeamId,
-      },
-    })
+    // Fetch cohosts and coupons entitlement in parallel
+    const [cohostsResult, hasCouponsEntitlement] = await Promise.all([
+      getCohostsFn({
+        data: {
+          competitionTeamId,
+          organizingTeamId: competition.organizingTeamId,
+        },
+      }),
+      checkTeamHasFeatureFn({
+        data: {
+          teamId: competition.organizingTeamId,
+          featureKey: FEATURES.PRODUCT_COUPONS,
+        },
+      }).catch(() => false),
+    ])
 
     // For each volunteer, check if they have score access
     const volunteersWithAccess = await Promise.all(
@@ -249,6 +260,7 @@ export const Route = createFileRoute(
       emailToInvitationId,
       cohosts: cohostsResult.memberships,
       pendingCohostInvitations: cohostsResult.pendingInvitations,
+      hasCouponsEntitlement,
     }
   },
   component: VolunteersPage,
@@ -276,10 +288,12 @@ function VolunteersPage() {
     emailToInvitationId,
     cohosts,
     pendingCohostInvitations,
+    hasCouponsEntitlement,
   } = Route.useLoaderData()
 
   const { tab, event: eventFromUrl } = Route.useSearch()
   const navigate = useNavigate()
+  const router = useRouter()
 
   const handleTabChange = (value: string) => {
     navigate({
@@ -325,7 +339,7 @@ function VolunteersPage() {
   }, [isInPerson, tab, navigate])
 
   const handleQuestionsChange = () => {
-    // Loader will refetch on next navigation; for now this is a no-op
+    router.invalidate()
   }
 
   return (
@@ -370,6 +384,7 @@ function VolunteersPage() {
           competitionId={competition.id}
           competitionTeamId={competitionTeamId}
           organizingTeamId={competition.organizingTeamId}
+          hiddenPermissions={hasCouponsEntitlement ? [] : ["coupons"]}
           cohosts={cohosts}
           pendingInvitations={pendingCohostInvitations}
         />
@@ -475,6 +490,7 @@ interface CohostsSectionProps {
   competitionId: string
   competitionTeamId: string
   organizingTeamId: string
+  hiddenPermissions: string[]
   cohosts: Array<{
     id: string
     userId: string | null
@@ -501,10 +517,16 @@ function CohostsSection({
   competitionId,
   competitionTeamId,
   organizingTeamId,
+  hiddenPermissions,
   cohosts,
   pendingInvitations,
 }: CohostsSectionProps) {
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [editingCohost, setEditingCohost] = useState<{
+    id: string
+    name: string
+    permissions: CohostMembershipMetadata
+  } | null>(null)
   const router = useRouter()
 
   const copyInviteLink = async (token: string) => {
@@ -566,14 +588,29 @@ function CohostsSection({
                       <span className="text-xs text-muted-foreground">{cohost.user.email}</span>
                     )}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => handleRemoveCohost(cohost.id, name)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        setEditingCohost({
+                          id: cohost.id,
+                          name,
+                          permissions: cohost.permissions,
+                        })
+                      }
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleRemoveCohost(cohost.id, name)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
                 <CollapsibleContent>
                   <PermissionsList permissions={cohost.permissions} />
@@ -620,9 +657,24 @@ function CohostsSection({
         competitionId={competitionId}
         competitionTeamId={competitionTeamId}
         organizingTeamId={organizingTeamId}
+        hiddenPermissions={hiddenPermissions}
         open={inviteOpen}
         onOpenChange={setInviteOpen}
       />
+
+      {editingCohost && (
+        <EditCohostPermissionsDialog
+          open={!!editingCohost}
+          onOpenChange={(open) => {
+            if (!open) setEditingCohost(null)
+          }}
+          cohostName={editingCohost.name}
+          currentPermissions={editingCohost.permissions}
+          organizingTeamId={organizingTeamId}
+          hiddenPermissions={hiddenPermissions}
+          membershipId={editingCohost.id}
+        />
+      )}
     </section>
   )
 }

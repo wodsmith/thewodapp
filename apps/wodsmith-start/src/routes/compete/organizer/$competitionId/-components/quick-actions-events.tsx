@@ -30,12 +30,21 @@ interface QuickActionsEventsProps {
   events: CompetitionWorkout[]
   organizingTeamId: string
   competitionId: string
+  /** Optional callback to override the default organizer updateCompetitionWorkoutFn */
+  onUpdateWorkout?: (params: {
+    trackWorkoutId: string
+    eventStatus?: "draft" | "published"
+  }) => Promise<unknown>
+  /** Optional route path for results link (defaults to organizer results route) */
+  resultsLinkTo?: string
 }
 
 export function QuickActionsEvents({
   events,
   organizingTeamId,
   competitionId,
+  onUpdateWorkout,
+  resultsLinkTo,
 }: QuickActionsEventsProps) {
   const router = useRouter()
   const updateCompetitionWorkout = useServerFn(updateCompetitionWorkoutFn)
@@ -45,19 +54,29 @@ export function QuickActionsEvents({
   // Filter out sub-events — only show top-level events
   const topLevelEvents = events.filter((e) => !e.parentEventId)
 
+  const doUpdate = async (params: {
+    trackWorkoutId: string
+    eventStatus?: "draft" | "published"
+  }) => {
+    if (onUpdateWorkout) {
+      return onUpdateWorkout(params)
+    }
+    return updateCompetitionWorkout({
+      data: {
+        trackWorkoutId: params.trackWorkoutId,
+        teamId: organizingTeamId,
+        eventStatus: params.eventStatus,
+      },
+    })
+  }
+
   const handleToggleEventStatus = async (
     trackWorkoutId: string,
     newStatus: "draft" | "published",
   ) => {
     setPendingEvents((prev) => new Set(prev).add(trackWorkoutId))
     try {
-      await updateCompetitionWorkout({
-        data: {
-          trackWorkoutId,
-          teamId: organizingTeamId,
-          eventStatus: newStatus,
-        },
-      })
+      await doUpdate({ trackWorkoutId, eventStatus: newStatus })
       await router.invalidate()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update event")
@@ -77,13 +96,7 @@ export function QuickActionsEvents({
     setIsPublishingAll(true)
     try {
       for (const event of draftEvents) {
-        await updateCompetitionWorkout({
-          data: {
-            trackWorkoutId: event.id,
-            teamId: organizingTeamId,
-            eventStatus: "published",
-          },
-        })
+        await doUpdate({ trackWorkoutId: event.id, eventStatus: "published" })
       }
       toast.success(`Published ${draftEvents.length} event(s)`)
       await router.invalidate()
@@ -207,7 +220,10 @@ export function QuickActionsEvents({
                     asChild
                   >
                     <Link
-                      to="/compete/organizer/$competitionId/results"
+                      to={
+                        (resultsLinkTo ??
+                          "/compete/organizer/$competitionId/results") as string
+                      }
                       params={{ competitionId }}
                       search={{ event: event.id }}
                     >

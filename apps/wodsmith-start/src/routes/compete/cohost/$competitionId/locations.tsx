@@ -7,7 +7,7 @@
 
 import { createFileRoute, getRouteApi, useRouter } from "@tanstack/react-router"
 import { VenueManager } from "@/components/organizer/schedule/venue-manager"
-import { cohostGetCompetitionVenuesFn } from "@/server-fns/cohost/cohost-location-fns"
+import { cohostGetCompetitionVenuesFn, cohostCreateVenueFn, cohostUpdateVenueFn, cohostDeleteVenueFn, cohostGetVenueHeatCountFn } from "@/server-fns/cohost/cohost-location-fns"
 
 // Get parent route API to access competition data
 const parentRoute = getRouteApi("/compete/cohost/$competitionId")
@@ -37,6 +37,7 @@ function LocationsPage() {
   const { competitionId } = Route.useParams()
   const { competition } = parentRoute.useLoaderData()
   const router = useRouter()
+  const competitionTeamId = competition.competitionTeamId!
 
   const handleVenueCreate = async () => {
     await router.invalidate()
@@ -48,6 +49,17 @@ function LocationsPage() {
 
   const handleVenueDelete = async () => {
     await router.invalidate()
+  }
+
+  const venueOverrides = {
+    createVenueFn: (args: { data: any }) =>
+      cohostCreateVenueFn({ data: { ...args.data, competitionTeamId } }),
+    updateVenueFn: (args: { data: any }) =>
+      cohostUpdateVenueFn({ data: { ...args.data, competitionTeamId } }),
+    deleteVenueFn: (args: { data: any }) =>
+      cohostDeleteVenueFn({ data: { ...args.data, competitionTeamId } }),
+    getVenueHeatCountFn: (args: { data: any }) =>
+      cohostGetVenueHeatCountFn({ data: { ...args.data, competitionTeamId } }),
   }
 
   return (
@@ -70,6 +82,7 @@ function LocationsPage() {
         onVenueCreate={handleVenueCreate}
         onVenueUpdate={handleVenueUpdate}
         onVenueDelete={handleVenueDelete}
+        overrides={venueOverrides}
       />
     </div>
   )

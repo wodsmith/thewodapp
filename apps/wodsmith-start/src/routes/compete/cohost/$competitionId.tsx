@@ -12,8 +12,10 @@ import {
   redirect,
 } from "@tanstack/react-router"
 import { CohostSidebar } from "@/components/cohost-sidebar"
+import { FEATURES } from "@/config/features"
 import { cohostGetPermissionsFn } from "@/server-fns/cohost/cohost-competition-fns"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
+import { checkTeamHasFeatureFn } from "@/server-fns/entitlements"
 import { validateSession } from "@/server-fns/middleware/auth"
 
 export const Route = createFileRoute("/compete/cohost/$competitionId")({
@@ -70,13 +72,26 @@ export const Route = createFileRoute("/compete/cohost/$competitionId")({
 
     // Get cohost permissions from DB via server function
     // (can't import server/cohost.ts directly — it imports getDb which breaks client boundary)
-    const permissions = await cohostGetPermissionsFn({
-      data: { competitionTeamId: competition.competitionTeamId! },
-    })
+    const [permissions, hasCouponsEntitlement] = await Promise.all([
+      cohostGetPermissionsFn({
+        data: { competitionTeamId: competition.competitionTeamId! },
+      }),
+      checkTeamHasFeatureFn({
+        data: {
+          teamId: competition.organizingTeamId,
+          featureKey: FEATURES.PRODUCT_COUPONS,
+        },
+      }).catch(() => false),
+    ])
+
+    // Mask coupons permission if team doesn't have the entitlement
+    const maskedPermissions = permissions
+      ? { ...permissions, coupons: permissions.coupons && hasCouponsEntitlement }
+      : null
 
     return {
       competition,
-      permissions,
+      permissions: maskedPermissions,
     }
   },
 })
@@ -87,6 +102,7 @@ function CohostCompetitionLayout() {
   return (
     <CohostSidebar
       competitionId={competition.id}
+      competitionName={competition.name}
       competitionType={competition.competitionType}
       permissions={
         permissions ?? {

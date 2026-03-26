@@ -54,6 +54,7 @@ import { cohostGetEventFn } from "@/server-fns/cohost/cohost-workout-fns"
 import { cohostGetDivisionsWithCountsFn } from "@/server-fns/cohost/cohost-division-fns"
 import { cohostGetOrganizerSubmissionsFn } from "@/server-fns/cohost/cohost-submission-fns"
 import { cn } from "@/utils/cn"
+import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 
 const FLAGGED_THRESHOLD = 3
 
@@ -84,14 +85,15 @@ export const Route = createFileRoute(
     division: search?.division,
     status: search?.status,
   }),
-  loader: async ({ params, deps, parentMatchPromise }) => {
-    const parentMatch = await parentMatchPromise
-    const { competition } = parentMatch.loaderData!
+  loader: async ({ params, deps }) => {
+    const { competition } = await getCompetitionByIdFn({
+      data: { competitionId: params.competitionId },
+    })
 
-    const competitionTeamId = competition.competitionTeamId!
+    const competitionTeamId = competition!.competitionTeamId!
 
     // Only allow for online competitions
-    if (competition.competitionType !== "online") {
+    if (competition!.competitionType !== "online") {
       throw new Error(
         "Video submissions are only available for online competitions",
       )

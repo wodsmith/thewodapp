@@ -31,6 +31,10 @@ interface EventDefaultsEditorProps {
   minHeatBuffer: number | null
   competitionDefaultHeats: number
   competitionDefaultPattern: LaneShiftPattern
+  /** Optional override for updateEventDefaultsFn (used by cohost routes) */
+  onUpdateEventDefaults?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<{ success: boolean }>
 }
 
 const LANE_SHIFT_OPTIONS = [
@@ -60,6 +64,7 @@ export function EventDefaultsEditor({
   minHeatBuffer,
   competitionDefaultHeats,
   competitionDefaultPattern,
+  onUpdateEventDefaults,
 }: EventDefaultsEditorProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -84,10 +89,12 @@ export function EventDefaultsEditor({
     setLocalBuffer(effectiveBuffer)
   }, [effectiveBuffer])
 
+  const saveFn = onUpdateEventDefaults ?? updateEventDefaultsFn
+
   const saveHeats = async (newHeats: number) => {
     setIsSubmitting(true)
     try {
-      await updateEventDefaultsFn({
+      await saveFn({
         data: {
           teamId,
           competitionId,
@@ -107,7 +114,7 @@ export function EventDefaultsEditor({
   const saveBuffer = async (newBuffer: number) => {
     setIsSubmitting(true)
     try {
-      await updateEventDefaultsFn({
+      await saveFn({
         data: {
           teamId,
           competitionId,
@@ -175,7 +182,7 @@ export function EventDefaultsEditor({
   const handlePatternChange = async (value: LaneShiftPattern) => {
     setIsSubmitting(true)
     try {
-      await updateEventDefaultsFn({
+      await saveFn({
         data: {
           teamId,
           competitionId,

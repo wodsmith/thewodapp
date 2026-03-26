@@ -30,6 +30,10 @@ interface PublishRotationsButtonProps {
   nextVersionNumber: number
   onPublishSuccess?: () => void
   disabled?: boolean
+  /** Optional override for publishRotationsFn (used by cohost routes) */
+  onPublishRotations?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<import("@/db/schema").JudgeAssignmentVersion>
 }
 
 /**
@@ -45,6 +49,7 @@ export function PublishRotationsButton({
   nextVersionNumber,
   onPublishSuccess,
   disabled = false,
+  onPublishRotations,
 }: PublishRotationsButtonProps) {
   const [notes, setNotes] = useState("")
   const [open, setOpen] = useState(false)
@@ -59,7 +64,8 @@ export function PublishRotationsButton({
 
     setIsPending(true)
     try {
-      const result = await publishRotationsFn({
+      const publishFn = onPublishRotations ?? publishRotationsFn
+      const result = await publishFn({
         data: {
           teamId,
           trackWorkoutId,

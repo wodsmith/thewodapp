@@ -4,11 +4,17 @@
  * Cohost page for managing submission windows for online competitions.
  * Only available for online competition types.
  * Mirrors organizer submission-windows route with cohost auth and server fns.
+ * Passes override callback so upsert mutations use cohost auth.
  */
 
+import { useMemo } from "react"
 import { createFileRoute, getRouteApi, redirect } from "@tanstack/react-router"
+import type { SubmissionWindowsManagerOverrides } from "@/components/compete/submission-windows-manager"
 import { SubmissionWindowsManager } from "@/components/compete/submission-windows-manager"
-import { cohostGetCompetitionEventsFn } from "@/server-fns/cohost/cohost-event-fns"
+import {
+  cohostGetCompetitionEventsFn,
+  cohostUpsertCompetitionEventsFn,
+} from "@/server-fns/cohost/cohost-event-fns"
 import { cohostGetWorkoutsFn } from "@/server-fns/cohost/cohost-workout-fns"
 
 // Get parent route API to access its loader data
@@ -60,6 +66,7 @@ export const Route = createFileRoute(
 function SubmissionWindowsPage() {
   const { workouts, competitionEvents } = Route.useLoaderData()
   const { competition } = parentRoute.useLoaderData()
+  const competitionTeamId = competition.competitionTeamId!
 
   // Map workouts to format expected by SubmissionWindowsManager
   const workoutsWithType = workouts.map((event: any) => ({
@@ -70,13 +77,29 @@ function SubmissionWindowsPage() {
     trackOrder: event.trackOrder,
   }))
 
+  // Build override callback that maps teamId -> competitionTeamId for cohost server fn
+  const overrides = useMemo(
+    (): SubmissionWindowsManagerOverrides => ({
+      upsertCompetitionEvents: async (opts) =>
+        cohostUpsertCompetitionEventsFn({
+          data: {
+            competitionTeamId,
+            competitionId: opts.data.competitionId,
+            events: opts.data.events,
+          },
+        }),
+    }),
+    [competitionTeamId],
+  )
+
   return (
     <SubmissionWindowsManager
       competitionId={competition.id}
-      teamId={competition.organizingTeamId}
+      teamId={competitionTeamId}
       workouts={workoutsWithType}
       initialEvents={competitionEvents}
       timezone={competition.timezone || "America/Denver"}
+      overrides={overrides}
     />
   )
 }

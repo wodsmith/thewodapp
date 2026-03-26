@@ -6,7 +6,7 @@
  * Uses cohost coupon server fns for auth.
  */
 
-import { createFileRoute, getRouteApi, redirect } from "@tanstack/react-router"
+import { createFileRoute, redirect } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { Ban, Copy, Plus, Tag } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -30,8 +30,6 @@ import {
   cohostCreateCouponFn,
   cohostDeactivateCouponFn,
 } from "@/server-fns/cohost/cohost-coupon-fns"
-
-const parentRoute = getRouteApi("/compete/cohost/$competitionId")
 
 export const Route = createFileRoute(
   "/compete/cohost/$competitionId/coupons",

@@ -48,6 +48,21 @@ interface Props {
     organizerFeePercentage: number | null
     organizerFeeFixed: number | null
   }
+  /** Optional callback to override the default organizer fee config save */
+  onUpdateFeeConfig?: (data: {
+    competitionId: string
+    defaultRegistrationFeeCents: number
+    passStripeFeesToCustomer: boolean
+    passPlatformFeesToCustomer: boolean
+  }) => Promise<unknown>
+  /** Optional callback to override the default organizer division fee update */
+  onUpdateDivisionFee?: (data: {
+    competitionId: string
+    divisionId: string
+    feeCents: number | null
+  }) => Promise<unknown>
+  /** Base route prefix for navigation links (defaults to "/compete/organizer") */
+  routePrefix?: string
 }
 
 // Convert cents to dollars for display
@@ -66,6 +81,9 @@ export function PricingSettingsForm({
   divisions,
   currentFees,
   teamFeeSettings,
+  onUpdateFeeConfig,
+  onUpdateDivisionFee,
+  routePrefix = "/compete/organizer",
 }: Props) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -100,14 +118,17 @@ export function PricingSettingsForm({
   const handleSaveDefaultFee = async () => {
     setIsSubmitting(true)
     try {
-      await updateFeeConfig({
-        data: {
-          competitionId: competition.id,
-          defaultRegistrationFeeCents: dollarsToCents(defaultFee),
-          passStripeFeesToCustomer,
-          passPlatformFeesToCustomer,
-        },
-      })
+      const feeData = {
+        competitionId: competition.id,
+        defaultRegistrationFeeCents: dollarsToCents(defaultFee),
+        passStripeFeesToCustomer,
+        passPlatformFeesToCustomer,
+      }
+      if (onUpdateFeeConfig) {
+        await onUpdateFeeConfig(feeData)
+      } else {
+        await updateFeeConfig({ data: feeData })
+      }
       toast.success("Pricing settings updated")
       await router.invalidate()
     } catch (err) {
@@ -124,13 +145,16 @@ export function PricingSettingsForm({
   ) => {
     setIsSubmitting(true)
     try {
-      await updateDivisionFee({
-        data: {
-          competitionId: competition.id,
-          divisionId,
-          feeCents: feeValue ? dollarsToCents(feeValue) : null,
-        },
-      })
+      const divFeeData = {
+        competitionId: competition.id,
+        divisionId,
+        feeCents: feeValue ? dollarsToCents(feeValue) : null,
+      }
+      if (onUpdateDivisionFee) {
+        await onUpdateDivisionFee(divFeeData)
+      } else {
+        await updateDivisionFee({ data: divFeeData })
+      }
       toast.success(
         feeValue ? "Division fee updated" : "Division fee override removed",
       )
@@ -425,7 +449,7 @@ export function PricingSettingsForm({
             </p>
             <Button variant="outline" className="mt-4" asChild>
               <Link
-                to="/compete/organizer/$competitionId/divisions"
+                to={`${routePrefix}/$competitionId/divisions` as string}
                 params={{ competitionId: competition.id }}
               >
                 Configure Divisions

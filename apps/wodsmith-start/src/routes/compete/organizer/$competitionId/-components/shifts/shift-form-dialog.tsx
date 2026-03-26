@@ -97,6 +97,10 @@ interface ShiftFormDialogProps {
   shift?: VolunteerShift
   /** Callback when the form is successfully submitted */
   onSuccess?: () => void
+  /** Optional callback to create a shift. Defaults to organizer server fn. */
+  onCreateShift?: (params: { competitionId: string; name: string; roleType: string; startTime: Date; endTime: Date; location?: string; capacity: number; notes?: string }) => Promise<unknown>
+  /** Optional callback to update a shift. Defaults to organizer server fn. */
+  onUpdateShift?: (params: { shiftId: string; name?: string; roleType?: string; startTime?: Date; endTime?: Date; location?: string | null; capacity?: number; notes?: string | null }) => Promise<unknown>
 }
 
 /**
@@ -124,6 +128,8 @@ export function ShiftFormDialog({
   onOpenChange,
   shift,
   onSuccess,
+  onCreateShift,
+  onUpdateShift,
 }: ShiftFormDialogProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -191,8 +197,8 @@ export function ShiftFormDialog({
 
       if (isEditing && shift) {
         // Update existing shift
-        await updateShift({
-          data: {
+        if (onUpdateShift) {
+          await onUpdateShift({
             shiftId: shift.id,
             name: values.name,
             roleType: values.roleType,
@@ -201,13 +207,26 @@ export function ShiftFormDialog({
             location: values.location || undefined,
             capacity: values.capacity,
             notes: values.notes || undefined,
-          },
-        })
+          })
+        } else {
+          await updateShift({
+            data: {
+              shiftId: shift.id,
+              name: values.name,
+              roleType: values.roleType,
+              startTime,
+              endTime,
+              location: values.location || undefined,
+              capacity: values.capacity,
+              notes: values.notes || undefined,
+            },
+          })
+        }
         toast.success("Shift updated successfully")
       } else {
         // Create new shift
-        await createShift({
-          data: {
+        if (onCreateShift) {
+          await onCreateShift({
             competitionId,
             name: values.name,
             roleType: values.roleType,
@@ -216,13 +235,26 @@ export function ShiftFormDialog({
             location: values.location || undefined,
             capacity: values.capacity,
             notes: values.notes || undefined,
-          },
-        })
+          })
+        } else {
+          await createShift({
+            data: {
+              competitionId,
+              name: values.name,
+              roleType: values.roleType,
+              startTime,
+              endTime,
+              location: values.location || undefined,
+              capacity: values.capacity,
+              notes: values.notes || undefined,
+            },
+          })
+        }
         toast.success("Shift created successfully")
       }
 
       onOpenChange(false)
-      router.invalidate()
+      await router.invalidate()
       onSuccess?.()
     } catch (error) {
       toast.error(

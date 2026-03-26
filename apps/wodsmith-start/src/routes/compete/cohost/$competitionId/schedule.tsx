@@ -11,6 +11,15 @@ import { cohostGetDivisionsWithCountsFn } from "@/server-fns/cohost/cohost-divis
 import {
   cohostGetCompetitionRegistrationsFn,
   cohostGetHeatsForCompetitionFn,
+  cohostCreateHeatFn,
+  cohostDeleteHeatFn,
+  cohostReorderHeatsFn,
+  cohostGetNextHeatNumberFn,
+  cohostBulkCreateHeatsFn,
+  cohostBulkUpdateHeatsFn,
+  cohostCopyHeatsFromEventFn,
+  cohostGetEventsWithHeatsFn,
+  cohostUpdateCompetitionWorkoutFn,
 } from "@/server-fns/cohost/cohost-schedule-fns"
 import { cohostGetCompetitionVenuesFn } from "@/server-fns/cohost/cohost-location-fns"
 import { cohostGetWorkoutsFn } from "@/server-fns/cohost/cohost-workout-fns"
@@ -78,6 +87,28 @@ function SchedulePage() {
 
   // Get competition from parent route for startDate and organizingTeamId
   const { competition } = parentRoute.useLoaderData()
+  const competitionTeamId = competition.competitionTeamId!
+
+  const heatScheduleOverrides = {
+    createHeatFn: (args: { data: any }) =>
+      cohostCreateHeatFn({ data: { ...args.data, competitionTeamId } }),
+    deleteHeatFn: (args: { data: any }) =>
+      cohostDeleteHeatFn({ data: { ...args.data, competitionTeamId } }),
+    reorderHeatsFn: (args: { data: any }) =>
+      cohostReorderHeatsFn({ data: { ...args.data, competitionTeamId } }),
+    getNextHeatNumberFn: (args: { data: any }) =>
+      cohostGetNextHeatNumberFn({ data: { ...args.data, competitionTeamId } }),
+    bulkCreateHeatsFn: (args: { data: any }) =>
+      cohostBulkCreateHeatsFn({ data: { ...args.data, competitionTeamId } }),
+    bulkUpdateHeatsFn: (args: { data: any }) =>
+      cohostBulkUpdateHeatsFn({ data: { ...args.data, competitionTeamId } }),
+    copyHeatsFromEventFn: (args: { data: any }) =>
+      cohostCopyHeatsFromEventFn({ data: { ...args.data, competitionTeamId } }),
+    getEventsWithHeatsFn: (args: { data: any }) =>
+      cohostGetEventsWithHeatsFn({ data: { ...args.data, competitionTeamId } }),
+    updateCompetitionWorkoutFn: (args: { data: any }) =>
+      cohostUpdateCompetitionWorkoutFn({ data: { ...args.data, competitionTeamId } }),
+  }
 
   return (
     <SchedulePageClient
@@ -89,6 +120,8 @@ function SchedulePage() {
       initialHeats={heats}
       divisions={divisions}
       registrations={registrations}
+      heatScheduleOverrides={heatScheduleOverrides}
+      routePrefix="/compete/cohost"
     />
   )
 }
