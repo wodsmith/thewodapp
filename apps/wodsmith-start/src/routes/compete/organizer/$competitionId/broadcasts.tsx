@@ -488,8 +488,8 @@ function ComposeCard({
 					</div>
 				</div>
 
-				{/* Question Filters */}
-				{filterReady && relevantQuestions.length > 0 && (
+				{/* Question Filters — hidden for "Everyone (Public)" since it targets all users */}
+				{filterReady && filterType !== "public" && relevantQuestions.length > 0 && (
 					<div className="space-y-3">
 						{!showQuestionFilters ? (
 							<Button
