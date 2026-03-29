@@ -683,7 +683,7 @@ export function CompetitionLeaderboardTable({
     // Add placeholder spans for leading columns
     groups.push({ label: null, colSpan: leadingCols })
 
-    let currentParentId: string | null | undefined = undefined
+    let currentParentId: string | null | undefined 
     let currentSpan = 0
     let currentName: string | null = null
 

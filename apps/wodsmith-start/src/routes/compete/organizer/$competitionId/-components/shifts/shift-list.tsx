@@ -46,7 +46,7 @@ import {
 } from "@/db/schemas/volunteers"
 import {
   deleteShiftFn,
-  getCompetitionShiftsFn,
+  type getCompetitionShiftsFn,
 } from "@/server-fns/volunteer-shift-fns"
 import { ShiftAssignmentPanel } from "./shift-assignment-panel"
 import { ShiftFormDialog } from "./shift-form-dialog"

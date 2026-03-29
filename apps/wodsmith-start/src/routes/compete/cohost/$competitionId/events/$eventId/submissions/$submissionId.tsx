@@ -73,10 +73,10 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { decodeScore, isLowerBetter, type WorkoutScheme } from "@/lib/scoring"
-import {
-  type EventDetails,
-  type SubmissionDetail,
-  type VerificationLogEntry,
+import type {
+  EventDetails,
+  SubmissionDetail,
+  VerificationLogEntry,
 } from "@/server-fns/submission-verification-fns"
 import {
   cohostGetSubmissionDetailFn,
