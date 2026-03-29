@@ -126,8 +126,8 @@ function CohostOverviewPage() {
     isOnline,
     timezone,
   } = Route.useLoaderData()
-  // Get competition from parent layout loader data
-  const { competition } = parentRoute.useLoaderData()
+  // Get competition and permissions from parent layout loader data
+  const { competition, permissions } = parentRoute.useLoaderData()
 
   // Cohost server fn wrappers — these use competitionTeamId instead of organizingTeamId
   const cohostUpdateWorkout = useServerFn(cohostUpdateWorkoutFn)
@@ -427,51 +427,53 @@ function CohostOverviewPage() {
           </CardContent>
         </Card>
 
-        {/* Revenue Summary Card */}
-        <Card>
-          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <CardTitle>Revenue</CardTitle>
-              <CardDescription>Paid registrations</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {revenueStats.purchaseCount > 0 ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">
-                    Gross Revenue
-                  </span>
-                  <span className="font-medium">
-                    {formatCents(revenueStats.totalGrossCents)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">
-                    Your Net Revenue
-                  </span>
-                  <span className="font-bold text-green-600">
-                    {formatCents(revenueStats.totalOrganizerNetCents)}
-                  </span>
-                </div>
-                <div className="pt-2 border-t">
-                  <div className="text-sm text-muted-foreground">
-                    {revenueStats.purchaseCount} paid{" "}
-                    {revenueStats.purchaseCount === 1
-                      ? "registration"
-                      : "registrations"}
+        {/* Revenue Summary Card - only shown if cohost has revenue permission */}
+        {permissions?.revenue && (
+          <Card>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <CardTitle>Revenue</CardTitle>
+                <CardDescription>Paid registrations</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {revenueStats.purchaseCount > 0 ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      Gross Revenue
+                    </span>
+                    <span className="font-medium">
+                      {formatCents(revenueStats.totalGrossCents)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      Your Net Revenue
+                    </span>
+                    <span className="font-bold text-green-600">
+                      {formatCents(revenueStats.totalOrganizerNetCents)}
+                    </span>
+                  </div>
+                  <div className="pt-2 border-t">
+                    <div className="text-sm text-muted-foreground">
+                      {revenueStats.purchaseCount} paid{" "}
+                      {revenueStats.purchaseCount === 1
+                        ? "registration"
+                        : "registrations"}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="py-4 text-center">
-                <p className="text-sm text-muted-foreground">
-                  No paid registrations yet
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              ) : (
+                <div className="py-4 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    No paid registrations yet
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </>
   )
