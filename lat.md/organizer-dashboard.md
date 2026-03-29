@@ -136,6 +136,12 @@ Manages sponsor logos and groupings displayed on the competition's public page.
 
 Uses `SponsorManager` component with `getCompetitionSponsorsFn`. Sponsors are organized into named groups (e.g., "Gold Sponsors", "Silver Sponsors") plus ungrouped sponsors.
 
+## Co-Hosts
+
+Manages co-host invitations, permissions, and removal at `/compete/organizer/{competitionId}/co-hosts`.
+
+Lists active cohosts and pending invitations. Each cohost row is collapsible to show granted permissions grouped by category (Competition Setup, Run Competition, Business). Uses `InviteCohostDialog` and `EditCohostPermissionsDialog` for invite and permission management. Sidebar link lives under the Business group.
+
 ## Settings
 
 Aggregates multiple configuration forms on a single page: capacity defaults, scoring algorithm, and rotation defaults.
@@ -180,7 +186,7 @@ The organizer selects which competitions to invite to via a multi-select combobo
 
 Cohosts are team members with a `cohost` role on the competition team, granted granular permissions per feature area.
 
-The layout route verifies the user is a cohost (or site admin) on the competition team, then fetches permissions via `cohostGetPermissionsFn`. Permission keys include: `divisions`, `events`, `scoring`, `viewRegistrations`, `editRegistrations`, `waivers`, `schedule`, `locations`, `volunteers`, `results`, `pricing`, `revenue`, `coupons`, `sponsors`. The sidebar hides links for features the cohost lacks permission for. Permissions are also masked by team entitlements: the layout checks `PRODUCT_COUPONS` via [[apps/wodsmith-start/src/server-fns/entitlements.ts#checkTeamHasFeatureFn]] and forces `coupons` to `false` when the organizing team lacks the entitlement. Organizers can edit cohost permissions after the initial invite via `EditCohostPermissionsDialog`, which calls `updateCohostPermissionsFn` (competition level) or `updateSeriesCohostPermissionsFn` (series level, updates all memberships for that email across the series). Both dialogs accept a `hiddenPermissions` prop to hide permission checkboxes for features the team doesn't have (e.g. coupons without `PRODUCT_COUPONS` entitlement). Both are available from the cohost list in the volunteers tab (competition) or the series detail page.
+The layout route verifies the user is a cohost (or site admin) on the competition team, then fetches permissions via `cohostGetPermissionsFn`. Permission keys include: `divisions`, `events`, `scoring`, `viewRegistrations`, `editRegistrations`, `waivers`, `schedule`, `locations`, `volunteers`, `results`, `pricing`, `revenue`, `coupons`, `sponsors`. The sidebar hides links for features the cohost lacks permission for. Permissions are also masked by team entitlements: the layout checks `PRODUCT_COUPONS` via [[apps/wodsmith-start/src/server-fns/entitlements.ts#checkTeamHasFeatureFn]] and forces `coupons` to `false` when the organizing team lacks the entitlement. Organizers can edit cohost permissions after the initial invite via `EditCohostPermissionsDialog`, which calls `updateCohostPermissionsFn` (competition level) or `updateSeriesCohostPermissionsFn` (series level, updates all memberships for that email across the series). Both dialogs accept a `hiddenPermissions` prop to hide permission checkboxes for features the team doesn't have (e.g. coupons without `PRODUCT_COUPONS` entitlement). Both are available from the dedicated co-hosts page (`/compete/organizer/{competitionId}/co-hosts`) or the series detail page.
 
 ## Cohost Server Functions
 

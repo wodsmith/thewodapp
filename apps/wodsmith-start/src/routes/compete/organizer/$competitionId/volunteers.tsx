@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { z } from "zod"
 import type { JudgeAssignmentVersion } from "@/db/schema"
@@ -35,18 +35,6 @@ import {
   getVolunteerAssignmentsFn,
 } from "@/server-fns/volunteer-fns"
 import { getCompetitionShiftsFn } from "@/server-fns/volunteer-shift-fns"
-import { getCohostsFn } from "@/server-fns/cohost-fns"
-import { FEATURES } from "@/config/features"
-import { checkTeamHasFeatureFn } from "@/server-fns/entitlements"
-import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { ChevronDown } from "lucide-react"
-import { Copy, Pencil, UserPlus, Trash2 } from "lucide-react"
-import { toast } from "sonner"
-import { EditCohostPermissionsDialog } from "./-components/edit-cohost-permissions-dialog"
-import { InviteCohostDialog } from "./-components/invite-cohost-dialog"
 import { InvitedVolunteersList } from "./-components/invited-volunteers-list"
 import { JudgeSchedulingContainer } from "./-components/judges"
 import { ShiftList } from "./-components/shifts/shift-list"
@@ -134,22 +122,6 @@ export const Route = createFileRoute(
     const { answersByInvitation, emailToInvitationId } = volunteerAnswersResult
 
     const events = eventsResult.workouts
-
-    // Fetch cohosts and coupons entitlement in parallel
-    const [cohostsResult, hasCouponsEntitlement] = await Promise.all([
-      getCohostsFn({
-        data: {
-          competitionTeamId,
-          organizingTeamId: competition.organizingTeamId,
-        },
-      }),
-      checkTeamHasFeatureFn({
-        data: {
-          teamId: competition.organizingTeamId,
-          featureKey: FEATURES.PRODUCT_COUPONS,
-        },
-      }).catch(() => false),
-    ])
 
     // For each volunteer, check if they have score access
     const volunteersWithAccess = await Promise.all(
@@ -258,9 +230,6 @@ export const Route = createFileRoute(
       volunteerQuestions,
       answersByInvitation,
       emailToInvitationId,
-      cohosts: cohostsResult.memberships,
-      pendingCohostInvitations: cohostsResult.pendingInvitations,
-      hasCouponsEntitlement,
     }
   },
   component: VolunteersPage,
@@ -286,9 +255,6 @@ function VolunteersPage() {
     volunteerQuestions,
     answersByInvitation,
     emailToInvitationId,
-    cohosts,
-    pendingCohostInvitations,
-    hasCouponsEntitlement,
   } = Route.useLoaderData()
 
   const { tab, event: eventFromUrl } = Route.useSearch()
@@ -379,16 +345,6 @@ function VolunteersPage() {
 
       {/* Roster Tab - Volunteer Management */}
       <TabsContent value="roster" className="flex flex-col gap-8">
-        {/* Co-Hosts Section */}
-        <CohostsSection
-          competitionId={competition.id}
-          competitionTeamId={competitionTeamId}
-          organizingTeamId={competition.organizingTeamId}
-          hiddenPermissions={hasCouponsEntitlement ? [] : ["coupons"]}
-          cohosts={cohosts}
-          pendingInvitations={pendingCohostInvitations}
-        />
-
         {/* Invited Volunteers Section - Only show if there are pending direct invites */}
         {pendingDirectInvites.length > 0 && (
           <section>
@@ -479,245 +435,5 @@ function VolunteersPage() {
       </TabsContent>
 
     </Tabs>
-  )
-}
-
-// =============================================================================
-// Co-Hosts Section (inline in Roster tab)
-// =============================================================================
-
-interface CohostsSectionProps {
-  competitionId: string
-  competitionTeamId: string
-  organizingTeamId: string
-  hiddenPermissions: string[]
-  cohosts: Array<{
-    id: string
-    userId: string | null
-    user: {
-      id: string
-      firstName: string | null
-      lastName: string | null
-      email: string
-      avatar: string | null
-    } | null
-    permissions: CohostMembershipMetadata
-    joinedAt: Date | null
-  }>
-  pendingInvitations: Array<{
-    id: string
-    token: string | null
-    email: string
-    permissions: CohostMembershipMetadata
-    createdAt: Date | string | null
-  }>
-}
-
-function CohostsSection({
-  competitionId,
-  competitionTeamId,
-  organizingTeamId,
-  hiddenPermissions,
-  cohosts,
-  pendingInvitations,
-}: CohostsSectionProps) {
-  const [inviteOpen, setInviteOpen] = useState(false)
-  const [editingCohost, setEditingCohost] = useState<{
-    id: string
-    name: string
-    permissions: CohostMembershipMetadata
-  } | null>(null)
-  const router = useRouter()
-
-  const copyInviteLink = async (token: string) => {
-    const url = `${window.location.origin}/compete/cohost-invite/${token}`
-    await navigator.clipboard.writeText(url)
-    toast.success("Invite link copied")
-  }
-
-  const handleRemoveCohost = async (membershipId: string, name: string) => {
-    if (!confirm(`Remove ${name} as a co-host?`)) return
-    try {
-      const { removeCohostFn } = await import("@/server-fns/cohost-fns")
-      await removeCohostFn({
-        data: { membershipId, organizingTeamId },
-      })
-      toast.success(`${name} removed as co-host`)
-      router.invalidate()
-    } catch {
-      toast.error("Failed to remove co-host")
-    }
-  }
-
-  const hasCohosts = cohosts.length > 0 || pendingInvitations.length > 0
-
-  return (
-    <section>
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Co-Hosts</h2>
-          {hasCohosts && (
-            <p className="text-sm text-muted-foreground">
-              {cohosts.length} active{pendingInvitations.length > 0 ? `, ${pendingInvitations.length} pending` : ""}
-            </p>
-          )}
-        </div>
-        <Button onClick={() => setInviteOpen(true)} size="sm" variant="outline">
-          <UserPlus className="mr-1.5 h-4 w-4" />
-          Invite Co-Host
-        </Button>
-      </div>
-
-      {hasCohosts ? (
-        <div className="divide-y rounded-md border">
-          {/* Active cohosts */}
-          {cohosts.map((cohost) => {
-            const name = cohost.user
-              ? `${cohost.user.firstName ?? ""} ${cohost.user.lastName ?? ""}`.trim() ||
-                cohost.user.email
-              : "Unknown"
-            return (
-              <Collapsible key={cohost.id}>
-                <div className="flex items-center justify-between px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <CollapsibleTrigger className="flex items-center gap-1.5 hover:text-foreground text-sm font-medium">
-                      <ChevronDown className="h-3.5 w-3.5 transition-transform [[data-state=open]>&]:rotate-180" />
-                      {name}
-                    </CollapsibleTrigger>
-                    {cohost.user && name !== cohost.user.email && (
-                      <span className="text-xs text-muted-foreground">{cohost.user.email}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        setEditingCohost({
-                          id: cohost.id,
-                          name,
-                          permissions: cohost.permissions,
-                        })
-                      }
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => handleRemoveCohost(cohost.id, name)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-                <CollapsibleContent>
-                  <PermissionsList permissions={cohost.permissions} />
-                </CollapsibleContent>
-              </Collapsible>
-            )
-          })}
-
-          {/* Pending invitations */}
-          {pendingInvitations.map((inv) => (
-            <Collapsible key={inv.id}>
-              <div className="flex items-center justify-between px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <CollapsibleTrigger className="flex items-center gap-1.5 hover:text-foreground text-sm text-muted-foreground">
-                    <ChevronDown className="h-3.5 w-3.5 transition-transform [[data-state=open]>&]:rotate-180" />
-                    {inv.email}
-                  </CollapsibleTrigger>
-                  <Badge variant="outline" className="text-xs">Pending</Badge>
-                </div>
-                {inv.token && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => copyInviteLink(inv.token!)}
-                  >
-                    <Copy className="mr-1.5 h-3.5 w-3.5" />
-                    Copy Link
-                  </Button>
-                )}
-              </div>
-              <CollapsibleContent>
-                <PermissionsList permissions={inv.permissions} />
-              </CollapsibleContent>
-            </Collapsible>
-          ))}
-        </div>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          No co-hosts yet. Invite a partner to help manage this competition.
-        </p>
-      )}
-
-      <InviteCohostDialog
-        competitionId={competitionId}
-        competitionTeamId={competitionTeamId}
-        organizingTeamId={organizingTeamId}
-        hiddenPermissions={hiddenPermissions}
-        open={inviteOpen}
-        onOpenChange={setInviteOpen}
-      />
-
-      {editingCohost && (
-        <EditCohostPermissionsDialog
-          open={!!editingCohost}
-          onOpenChange={(open) => {
-            if (!open) setEditingCohost(null)
-          }}
-          cohostName={editingCohost.name}
-          currentPermissions={editingCohost.permissions}
-          organizingTeamId={organizingTeamId}
-          hiddenPermissions={hiddenPermissions}
-          membershipId={editingCohost.id}
-        />
-      )}
-    </section>
-  )
-}
-
-const PERMISSION_LABELS: Record<string, string> = {
-  divisions: "Divisions",
-  events: "Events",
-  scoring: "Scoring",
-  viewRegistrations: "View registrations",
-  editRegistrations: "Edit registrations",
-  waivers: "Waivers",
-  schedule: "Schedule",
-  locations: "Locations",
-  volunteers: "Volunteers",
-  results: "Results",
-  pricing: "Pricing",
-  revenue: "Revenue",
-  coupons: "Coupons",
-  sponsors: "Sponsors",
-}
-
-function PermissionsList({ permissions }: { permissions: CohostMembershipMetadata }) {
-  const enabled = Object.entries(PERMISSION_LABELS).filter(
-    ([key]) => permissions[key as keyof CohostMembershipMetadata],
-  )
-  const disabled = Object.entries(PERMISSION_LABELS).filter(
-    ([key]) => !permissions[key as keyof CohostMembershipMetadata],
-  )
-
-  return (
-    <div className="px-4 pb-3 pt-0">
-      <div className="flex flex-wrap gap-1.5">
-        {enabled.map(([key, label]) => (
-          <span key={key} className="rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
-            {label}
-          </span>
-        ))}
-        {disabled.map(([key, label]) => (
-          <span key={key} className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground line-through">
-            {label}
-          </span>
-        ))}
-      </div>
-    </div>
   )
 }

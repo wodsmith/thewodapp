@@ -15,6 +15,7 @@ import {
   ClipboardSignature,
   Clock,
   DollarSign,
+  Handshake,
   Home,
   Layers,
   MapPin,
@@ -132,6 +133,11 @@ const getNavigation = (
         { label: "Revenue", href: `${basePath}/revenue`, icon: DollarSign },
         { label: "Coupons", href: `${basePath}/coupons`, icon: Tag },
         { label: "Sponsors", href: `${basePath}/sponsors`, icon: Sparkles },
+        {
+          label: "Co-Hosts",
+          href: `${basePath}/co-hosts`,
+          icon: Handshake,
+        },
       ],
     },
     {
