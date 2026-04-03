@@ -762,7 +762,7 @@ function TextQuestionFilter({
 					placeholder={`Type a value to match...`}
 					className="h-8 text-sm"
 				/>
-				{showSuggestions && filteredSuggestions.length > 0 && (
+				{showSuggestions && (isLoadingSuggestions || filteredSuggestions.length > 0) && (
 					<div className="absolute z-10 mt-1 w-full rounded-md border bg-popover shadow-md">
 						<div className="max-h-32 overflow-y-auto p-1">
 							{isLoadingSuggestions ? (

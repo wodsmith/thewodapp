@@ -336,6 +336,7 @@ export const getDistinctAnswersFn = createServerFn({ method: "GET" })
 					and(
 						eq(competitionRegistrationAnswersTable.questionId, data.questionId),
 						eq(competitionRegistrationsTable.eventId, data.competitionId),
+						ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
 					),
 				)
 
