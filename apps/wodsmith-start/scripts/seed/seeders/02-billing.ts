@@ -250,6 +250,19 @@ export async function seed(client: Connection): Promise<void> {
 			updated_at: ts,
 			update_counter: 0,
 		},
+		{
+			id: "lmt_broadcasts_per_competition",
+			key: "broadcasts_per_competition",
+			name: "Broadcasts per Competition",
+			description:
+				"Maximum broadcast messages per competition (-1: unlimited)",
+			unit: "broadcasts",
+			reset_period: "never",
+			is_active: 1,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
 	])
 
 	// Plans
@@ -329,15 +342,18 @@ export async function seed(client: Connection): Promise<void> {
 		{ id: "pl_free_max_tracks", plan_id: "free", limit_id: "lmt_max_programming_tracks", value: 2, created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "pl_free_ai_messages", plan_id: "free", limit_id: "lmt_ai_messages_per_month", value: 10, created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "pl_free_max_admins", plan_id: "free", limit_id: "lmt_max_admins", value: 2, created_at: ts, updated_at: ts, update_counter: 0 },
+		{ id: "pl_free_broadcasts", plan_id: "free", limit_id: "lmt_broadcasts_per_competition", value: 5, created_at: ts, updated_at: ts, update_counter: 0 },
 		// Pro
 		{ id: "pl_pro_max_members", plan_id: "pro", limit_id: "lmt_max_members_per_team", value: 25, created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "pl_pro_max_tracks", plan_id: "pro", limit_id: "lmt_max_programming_tracks", value: -1, created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "pl_pro_ai_messages", plan_id: "pro", limit_id: "lmt_ai_messages_per_month", value: 200, created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "pl_pro_max_admins", plan_id: "pro", limit_id: "lmt_max_admins", value: 5, created_at: ts, updated_at: ts, update_counter: 0 },
+		{ id: "pl_pro_broadcasts", plan_id: "pro", limit_id: "lmt_broadcasts_per_competition", value: 25, created_at: ts, updated_at: ts, update_counter: 0 },
 		// Enterprise
 		{ id: "pl_ent_max_members", plan_id: "enterprise", limit_id: "lmt_max_members_per_team", value: -1, created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "pl_ent_max_tracks", plan_id: "enterprise", limit_id: "lmt_max_programming_tracks", value: -1, created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "pl_ent_ai_messages", plan_id: "enterprise", limit_id: "lmt_ai_messages_per_month", value: -1, created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "pl_ent_max_admins", plan_id: "enterprise", limit_id: "lmt_max_admins", value: -1, created_at: ts, updated_at: ts, update_counter: 0 },
+		{ id: "pl_ent_broadcasts", plan_id: "enterprise", limit_id: "lmt_broadcasts_per_competition", value: -1, created_at: ts, updated_at: ts, update_counter: 0 },
 	])
 }

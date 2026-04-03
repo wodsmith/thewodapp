@@ -72,11 +72,13 @@ export async function seed(client: Connection): Promise<void> {
 		tle("tle_box1_tracks", "team_cokkpu1klwo0ulfhl1iwzpvnbox1", "lmt_max_programming_tracks", -1, "pro"),
 		tle("tle_box1_ai", "team_cokkpu1klwo0ulfhl1iwzpvnbox1", "lmt_ai_messages_per_month", 200, "pro"),
 		tle("tle_box1_admins", "team_cokkpu1klwo0ulfhl1iwzpvnbox1", "lmt_max_admins", 5, "pro"),
+		tle("tle_box1_broadcasts", "team_cokkpu1klwo0ulfhl1iwzpvnbox1", "lmt_broadcasts_per_competition", 25, "pro"),
 		// Home Gym Heroes (Enterprise)
 		tle("tle_hgh_members", "team_homeymgym", "lmt_max_members_per_team", -1, "enterprise"),
 		tle("tle_hgh_tracks", "team_homeymgym", "lmt_max_programming_tracks", -1, "enterprise"),
 		tle("tle_hgh_ai", "team_homeymgym", "lmt_ai_messages_per_month", -1, "enterprise"),
 		tle("tle_hgh_admins", "team_homeymgym", "lmt_max_admins", -1, "enterprise"),
+		tle("tle_hgh_broadcasts", "team_homeymgym", "lmt_broadcasts_per_competition", -1, "enterprise"),
 		// Personal Teams (Free)
 		tle("tle_padmin_members", "team_personaladmin", "lmt_max_members_per_team", 1, "free"),
 		tle("tle_padmin_tracks", "team_personaladmin", "lmt_max_programming_tracks", 2, "free"),

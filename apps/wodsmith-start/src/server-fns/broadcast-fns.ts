@@ -6,89 +6,85 @@
  */
 // @lat: [[organizer-dashboard#Broadcasts]]
 
-import { createServerFn } from "@tanstack/react-start"
-import { render } from "@react-email/render"
-import { and, count, desc, eq, inArray, ne } from "drizzle-orm"
 import { env } from "cloudflare:workers"
+import { render } from "@react-email/render"
+import { createServerFn } from "@tanstack/react-start"
+import { and, count, desc, eq, inArray, ne } from "drizzle-orm"
 import { z } from "zod"
+import { LIMITS } from "@/config/limits"
 import { getDb } from "@/db"
 import {
-	BROADCAST_EMAIL_DELIVERY_STATUS,
-	BROADCAST_STATUS,
-	competitionBroadcastRecipientsTable,
-	competitionBroadcastsTable,
+  BROADCAST_EMAIL_DELIVERY_STATUS,
+  BROADCAST_STATUS,
+  competitionBroadcastRecipientsTable,
+  competitionBroadcastsTable,
 } from "@/db/schemas/broadcasts"
 import {
-	competitionRegistrationsTable,
-	competitionsTable,
-	REGISTRATION_STATUS,
+  competitionRegistrationsTable,
+  competitionsTable,
+  REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import {
-	SYSTEM_ROLES_ENUM,
-	TEAM_PERMISSIONS,
-	teamMembershipTable,
-	teamTable,
+  SYSTEM_ROLES_ENUM,
+  TEAM_PERMISSIONS,
+  teamMembershipTable,
+  teamTable,
 } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
 import {
-	logInfo,
-	logError,
-	logEntityCreated,
-	updateRequestContext,
-	addRequestContextAttribute,
+  addRequestContextAttribute,
+  logEntityCreated,
+  logError,
+  logInfo,
+  updateRequestContext,
 } from "@/lib/logging"
-import { getSessionFromCookie } from "@/utils/auth"
-import { requireTeamPermission } from "./requireTeamMembership"
 import { BroadcastNotificationEmail } from "@/react-email/broadcast-notification"
 import type { BroadcastEmailMessage } from "@/server/broadcast-queue-consumer"
+import { getTeamLimit } from "@/server/entitlements"
+import { getSessionFromCookie } from "@/utils/auth"
+import { requireTeamPermission } from "./requireTeamMembership"
 
 // ============================================================================
 // Input Schemas
 // ============================================================================
 
 const listBroadcastsInputSchema = z.object({
-	competitionId: z.string().min(1, "Competition ID is required"),
+  competitionId: z.string().min(1, "Competition ID is required"),
 })
 
 const audienceFilterSchema = z
-	.object({
-		type: z.enum([
-			"all",
-			"division",
-			"public",
-			"volunteers",
-			"volunteer_role",
-		]),
-		divisionId: z.string().optional(),
-		volunteerRole: z.string().optional(),
-	})
-	.refine(
-		(filter) =>
-			filter.type !== "division" ||
-			(filter.divisionId && filter.divisionId.length > 0),
-		{ message: "Division ID is required when filtering by division" },
-	)
-	.refine(
-		(filter) =>
-			filter.type !== "volunteer_role" ||
-			(filter.volunteerRole && filter.volunteerRole.length > 0),
-		{ message: "Volunteer role is required when filtering by role" },
-	)
+  .object({
+    type: z.enum(["all", "division", "public", "volunteers", "volunteer_role"]),
+    divisionId: z.string().optional(),
+    volunteerRole: z.string().optional(),
+  })
+  .refine(
+    (filter) =>
+      filter.type !== "division" ||
+      (filter.divisionId && filter.divisionId.length > 0),
+    { message: "Division ID is required when filtering by division" },
+  )
+  .refine(
+    (filter) =>
+      filter.type !== "volunteer_role" ||
+      (filter.volunteerRole && filter.volunteerRole.length > 0),
+    { message: "Volunteer role is required when filtering by role" },
+  )
 
 const sendBroadcastInputSchema = z.object({
-	competitionId: z.string().min(1, "Competition ID is required"),
-	title: z.string().min(1, "Title is required").max(255),
-	body: z.string().min(1, "Body is required"),
-	audienceFilter: audienceFilterSchema.optional(),
-	sendEmail: z.boolean().default(true),
+  competitionId: z.string().min(1, "Competition ID is required"),
+  title: z.string().min(1, "Title is required").max(255),
+  body: z.string().min(1, "Body is required"),
+  audienceFilter: audienceFilterSchema.optional(),
+  sendEmail: z.boolean().default(true),
 })
 
 const getBroadcastInputSchema = z.object({
-	broadcastId: z.string().min(1, "Broadcast ID is required"),
+  broadcastId: z.string().min(1, "Broadcast ID is required"),
 })
 
 const listAthleteBroadcastsInputSchema = z.object({
-	competitionId: z.string().min(1, "Competition ID is required"),
+  competitionId: z.string().min(1, "Competition ID is required"),
 })
 
 // ============================================================================
@@ -96,718 +92,672 @@ const listAthleteBroadcastsInputSchema = z.object({
 // ============================================================================
 
 export const listBroadcastsFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) => listBroadcastsInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		const session = await getSessionFromCookie()
-		if (!session?.userId) throw new Error("Authentication required")
+  .inputValidator((data: unknown) => listBroadcastsInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Authentication required")
 
-		const db = getDb()
+    const db = getDb()
 
-		// Get competition to verify permissions
-		const competition = await db.query.competitionsTable.findFirst({
-			where: eq(competitionsTable.id, data.competitionId),
-			columns: { id: true, organizingTeamId: true },
-		})
-		if (!competition) throw new Error("Competition not found")
+    // Get competition to verify permissions
+    const competition = await db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, data.competitionId),
+      columns: { id: true, organizingTeamId: true },
+    })
+    if (!competition) throw new Error("Competition not found")
 
-		await requireTeamPermission(
-			competition.organizingTeamId,
-			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-		)
+    await requireTeamPermission(
+      competition.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+    )
 
-		const broadcasts = await db.query.competitionBroadcastsTable.findMany({
-			where: eq(
-				competitionBroadcastsTable.competitionId,
-				data.competitionId,
-			),
-			orderBy: [desc(competitionBroadcastsTable.createdAt)],
-		})
+    const broadcasts = await db.query.competitionBroadcastsTable.findMany({
+      where: eq(competitionBroadcastsTable.competitionId, data.competitionId),
+      orderBy: [desc(competitionBroadcastsTable.createdAt)],
+    })
 
-		// Get delivery stats for each broadcast
-		const broadcastsWithStats = await Promise.all(
-			broadcasts.map(async (broadcast) => {
-				const [sentCount] = await db
-					.select({ count: count() })
-					.from(competitionBroadcastRecipientsTable)
-					.where(
-						and(
-							eq(
-								competitionBroadcastRecipientsTable.broadcastId,
-								broadcast.id,
-							),
-							eq(
-								competitionBroadcastRecipientsTable.emailDeliveryStatus,
-								BROADCAST_EMAIL_DELIVERY_STATUS.SENT,
-							),
-						),
-					)
-				const [failedCount] = await db
-					.select({ count: count() })
-					.from(competitionBroadcastRecipientsTable)
-					.where(
-						and(
-							eq(
-								competitionBroadcastRecipientsTable.broadcastId,
-								broadcast.id,
-							),
-							eq(
-								competitionBroadcastRecipientsTable.emailDeliveryStatus,
-								BROADCAST_EMAIL_DELIVERY_STATUS.FAILED,
-							),
-						),
-					)
+    // Get delivery stats for each broadcast
+    const broadcastsWithStats = await Promise.all(
+      broadcasts.map(async (broadcast) => {
+        const [sentCount] = await db
+          .select({ count: count() })
+          .from(competitionBroadcastRecipientsTable)
+          .where(
+            and(
+              eq(competitionBroadcastRecipientsTable.broadcastId, broadcast.id),
+              eq(
+                competitionBroadcastRecipientsTable.emailDeliveryStatus,
+                BROADCAST_EMAIL_DELIVERY_STATUS.SENT,
+              ),
+            ),
+          )
+        const [failedCount] = await db
+          .select({ count: count() })
+          .from(competitionBroadcastRecipientsTable)
+          .where(
+            and(
+              eq(competitionBroadcastRecipientsTable.broadcastId, broadcast.id),
+              eq(
+                competitionBroadcastRecipientsTable.emailDeliveryStatus,
+                BROADCAST_EMAIL_DELIVERY_STATUS.FAILED,
+              ),
+            ),
+          )
 
-				return {
-					...broadcast,
-					deliveryStats: {
-						sent: sentCount?.count ?? 0,
-						failed: failedCount?.count ?? 0,
-					},
-				}
-			}),
-		)
+        return {
+          ...broadcast,
+          deliveryStats: {
+            sent: sentCount?.count ?? 0,
+            failed: failedCount?.count ?? 0,
+          },
+        }
+      }),
+    )
 
-		return { broadcasts: broadcastsWithStats }
-	})
+    // Get broadcast limit and current usage for this competition
+    const broadcastLimit = await getTeamLimit(
+      competition.organizingTeamId,
+      LIMITS.BROADCASTS_PER_COMPETITION,
+    )
+
+    const sentBroadcasts = broadcastsWithStats.filter(
+      (b) => b.status === BROADCAST_STATUS.SENT,
+    )
+
+    return {
+      broadcasts: broadcastsWithStats,
+      broadcastLimit,
+      broadcastCount: sentBroadcasts.length,
+      broadcastsRemaining:
+        broadcastLimit === -1
+          ? null
+          : Math.max(0, broadcastLimit - sentBroadcasts.length),
+    }
+  })
 
 // ============================================================================
 // Organizer: Send Broadcast
 // ============================================================================
 
 export const sendBroadcastFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => sendBroadcastInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		const session = await getSessionFromCookie()
-		if (!session?.userId) throw new Error("Authentication required")
+  .inputValidator((data: unknown) => sendBroadcastInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Authentication required")
 
-		updateRequestContext({ userId: session.userId })
-		addRequestContextAttribute("competitionId", data.competitionId)
+    updateRequestContext({ userId: session.userId })
+    addRequestContextAttribute("competitionId", data.competitionId)
 
-		const db = getDb()
+    const db = getDb()
 
-		// Get competition to verify permissions
-		const competition = await db.query.competitionsTable.findFirst({
-			where: eq(competitionsTable.id, data.competitionId),
-			columns: {
-				id: true,
-				organizingTeamId: true,
-				competitionTeamId: true,
-				name: true,
-				slug: true,
-			},
-		})
-		if (!competition) throw new Error("Competition not found")
+    // Get competition to verify permissions
+    const competition = await db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, data.competitionId),
+      columns: {
+        id: true,
+        organizingTeamId: true,
+        competitionTeamId: true,
+        name: true,
+        slug: true,
+      },
+    })
+    if (!competition) throw new Error("Competition not found")
 
-		await requireTeamPermission(
-			competition.organizingTeamId,
-			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-		)
+    await requireTeamPermission(
+      competition.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+    )
 
-		const filterType = data.audienceFilter?.type ?? "all"
+    // Check broadcast limit for this competition
+    const broadcastLimit = await getTeamLimit(
+      competition.organizingTeamId,
+      LIMITS.BROADCASTS_PER_COMPETITION,
+    )
 
-		// Build recipients list based on audience filter type
-		type Recipient = {
-			registrationId: string | null
-			userId: string
-			email: string | null
-			firstName: string | null
-		}
-		const recipients: Recipient[] = []
+    if (broadcastLimit !== -1) {
+      const [{ count: currentCount }] = await db
+        .select({ count: count() })
+        .from(competitionBroadcastsTable)
+        .where(
+          and(
+            eq(competitionBroadcastsTable.competitionId, data.competitionId),
+            eq(competitionBroadcastsTable.status, BROADCAST_STATUS.SENT),
+          ),
+        )
 
-		const includeAthletes =
-			filterType === "all" ||
-			filterType === "division" ||
-			filterType === "public"
-		const includeVolunteers =
-			filterType === "public" ||
-			filterType === "volunteers" ||
-			filterType === "volunteer_role"
+      if (Number(currentCount) >= broadcastLimit) {
+        throw new Error(
+          `Broadcast limit reached (${broadcastLimit} per competition). Upgrade your plan to send more broadcasts.`,
+        )
+      }
+    }
 
-		if (includeAthletes) {
-			// Note: competitionRegistrationsTable uses eventId to reference competition
-			const conditions = [
-				eq(competitionRegistrationsTable.eventId, data.competitionId),
-				ne(
-					competitionRegistrationsTable.status,
-					REGISTRATION_STATUS.REMOVED,
-				),
-			]
+    const filterType = data.audienceFilter?.type ?? "all"
 
-			if (
-				filterType === "division" &&
-				data.audienceFilter?.divisionId
-			) {
-				conditions.push(
-					eq(
-						competitionRegistrationsTable.divisionId,
-						data.audienceFilter.divisionId,
-					),
-				)
-			}
+    // Build recipients list based on audience filter type
+    type Recipient = {
+      registrationId: string | null
+      userId: string
+      email: string | null
+      firstName: string | null
+    }
+    const recipients: Recipient[] = []
 
-			const athleteRows = await db
-				.select({
-					id: competitionRegistrationsTable.id,
-					userId: competitionRegistrationsTable.userId,
-					email: userTable.email,
-					firstName: userTable.firstName,
-				})
-				.from(competitionRegistrationsTable)
-				.innerJoin(
-					userTable,
-					eq(competitionRegistrationsTable.userId, userTable.id),
-				)
-				.where(and(...conditions))
+    const includeAthletes =
+      filterType === "all" ||
+      filterType === "division" ||
+      filterType === "public"
+    const includeVolunteers =
+      filterType === "public" ||
+      filterType === "volunteers" ||
+      filterType === "volunteer_role"
 
-			recipients.push(
-				...athleteRows.map((r) => ({
-					registrationId: r.id as string | null,
-					userId: r.userId,
-					email: r.email,
-					firstName: r.firstName,
-				})),
-			)
-		}
+    if (includeAthletes) {
+      // Note: competitionRegistrationsTable uses eventId to reference competition
+      const conditions = [
+        eq(competitionRegistrationsTable.eventId, data.competitionId),
+        ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+      ]
 
-		if (includeVolunteers) {
-			// Volunteers are team members on the competition team with VOLUNTEER role
-			const volunteerConditions = [
-				eq(
-					teamMembershipTable.teamId,
-					competition.competitionTeamId,
-				),
-				eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
-				eq(teamMembershipTable.isSystemRole, true),
-			]
+      if (filterType === "division" && data.audienceFilter?.divisionId) {
+        conditions.push(
+          eq(
+            competitionRegistrationsTable.divisionId,
+            data.audienceFilter.divisionId,
+          ),
+        )
+      }
 
-			const volunteerRows = await db
-				.select({
-					userId: teamMembershipTable.userId,
-					email: userTable.email,
-					firstName: userTable.firstName,
-					metadata: teamMembershipTable.metadata,
-				})
-				.from(teamMembershipTable)
-				.innerJoin(
-					userTable,
-					eq(teamMembershipTable.userId, userTable.id),
-				)
-				.where(and(...volunteerConditions))
+      const athleteRows = await db
+        .select({
+          id: competitionRegistrationsTable.id,
+          userId: competitionRegistrationsTable.userId,
+          email: userTable.email,
+          firstName: userTable.firstName,
+        })
+        .from(competitionRegistrationsTable)
+        .innerJoin(
+          userTable,
+          eq(competitionRegistrationsTable.userId, userTable.id),
+        )
+        .where(and(...conditions))
 
-			// Filter by volunteer role if specified
-			let filteredVolunteers = volunteerRows
-			if (
-				filterType === "volunteer_role" &&
-				data.audienceFilter?.volunteerRole
-			) {
-				const targetRole = data.audienceFilter.volunteerRole
-				filteredVolunteers = volunteerRows.filter((v) => {
-					try {
-						const meta = JSON.parse(v.metadata || "{}") as {
-							volunteerRoleTypes?: string[]
-						}
-						return meta.volunteerRoleTypes?.includes(targetRole)
-					} catch {
-						return false
-					}
-				})
-			}
+      recipients.push(
+        ...athleteRows.map((r) => ({
+          registrationId: r.id as string | null,
+          userId: r.userId,
+          email: r.email,
+          firstName: r.firstName,
+        })),
+      )
+    }
 
-			// Deduplicate: don't add volunteers who are already in as athletes
-			const existingUserIds = new Set(recipients.map((r) => r.userId))
-			for (const v of filteredVolunteers) {
-				if (!existingUserIds.has(v.userId)) {
-					recipients.push({
-						registrationId: null,
-						userId: v.userId,
-						email: v.email,
-						firstName: v.firstName,
-					})
-					existingUserIds.add(v.userId)
-				}
-			}
-		}
+    if (includeVolunteers) {
+      // Volunteers are team members on the competition team with VOLUNTEER role
+      const volunteerConditions = [
+        eq(teamMembershipTable.teamId, competition.competitionTeamId),
+        eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+        eq(teamMembershipTable.isSystemRole, true),
+      ]
 
-		if (recipients.length === 0) {
-			throw new Error("No recipients match the selected filter")
-		}
+      const volunteerRows = await db
+        .select({
+          userId: teamMembershipTable.userId,
+          email: userTable.email,
+          firstName: userTable.firstName,
+          metadata: teamMembershipTable.metadata,
+        })
+        .from(teamMembershipTable)
+        .innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
+        .where(and(...volunteerConditions))
 
-		// Get organizer team name for email
-		const team = await db.query.teamTable.findFirst({
-			where: eq(teamTable.id, competition.organizingTeamId),
-			columns: { name: true },
-		})
+      // Filter by volunteer role if specified
+      let filteredVolunteers = volunteerRows
+      if (
+        filterType === "volunteer_role" &&
+        data.audienceFilter?.volunteerRole
+      ) {
+        const targetRole = data.audienceFilter.volunteerRole
+        filteredVolunteers = volunteerRows.filter((v) => {
+          try {
+            const meta = JSON.parse(v.metadata || "{}") as {
+              volunteerRoleTypes?: string[]
+            }
+            return meta.volunteerRoleTypes?.includes(targetRole)
+          } catch {
+            return false
+          }
+        })
+      }
 
-		// Generate recipient IDs upfront so we can reference them in queue messages
-		const { createBroadcastRecipientId } = await import(
-			"@/db/schemas/common"
-		)
+      // Deduplicate: don't add volunteers who are already in as athletes
+      const existingUserIds = new Set(recipients.map((r) => r.userId))
+      for (const v of filteredVolunteers) {
+        if (!existingUserIds.has(v.userId)) {
+          recipients.push({
+            registrationId: null,
+            userId: v.userId,
+            email: v.email,
+            firstName: v.firstName,
+          })
+          existingUserIds.add(v.userId)
+        }
+      }
+    }
 
-		// Insert broadcast + recipients atomically in a transaction
-		const { broadcast, recipientValues } = await db.transaction(
-			async (tx) => {
-				const [broadcast] = await tx
-					.insert(competitionBroadcastsTable)
-					.values({
-						competitionId: data.competitionId,
-						teamId: competition.organizingTeamId,
-						title: data.title,
-						body: data.body,
-						audienceFilter: data.audienceFilter
-							? JSON.stringify(data.audienceFilter)
-							: null,
-						recipientCount: recipients.length,
-						status: BROADCAST_STATUS.SENT,
-						sentAt: new Date(),
-						createdById: session.userId,
-					})
-					.$returningId()
+    if (recipients.length === 0) {
+      throw new Error("No recipients match the selected filter")
+    }
 
-				const recipientValues = recipients.map((r) => ({
-					id: createBroadcastRecipientId(),
-					broadcastId: broadcast.id,
-					registrationId: r.registrationId,
-					userId: r.userId,
-					emailDeliveryStatus:
-						BROADCAST_EMAIL_DELIVERY_STATUS.QUEUED as "queued",
-				}))
+    // Get organizer team name for email
+    const team = await db.query.teamTable.findFirst({
+      where: eq(teamTable.id, competition.organizingTeamId),
+      columns: { name: true },
+    })
 
-				await tx
-					.insert(competitionBroadcastRecipientsTable)
-					.values(recipientValues)
+    // Generate recipient IDs upfront so we can reference them in queue messages
+    const { createBroadcastRecipientId } = await import("@/db/schemas/common")
 
-				return { broadcast, recipientValues }
-			},
-		)
+    // Insert broadcast + recipients atomically in a transaction
+    const { broadcast, recipientValues } = await db.transaction(async (tx) => {
+      const [broadcast] = await tx
+        .insert(competitionBroadcastsTable)
+        .values({
+          competitionId: data.competitionId,
+          teamId: competition.organizingTeamId,
+          title: data.title,
+          body: data.body,
+          audienceFilter: data.audienceFilter
+            ? JSON.stringify(data.audienceFilter)
+            : null,
+          recipientCount: recipients.length,
+          status: BROADCAST_STATUS.SENT,
+          sentAt: new Date(),
+          createdById: session.userId,
+        })
+        .$returningId()
 
-		logEntityCreated({
-			entity: "broadcast",
-			id: broadcast.id,
-			parentEntity: "competition",
-			parentId: data.competitionId,
-			attributes: {
-				title: data.title,
-				audienceFilter: filterType,
-				recipientCount: recipients.length,
-				sendEmail: data.sendEmail,
-			},
-		})
+      const recipientValues = recipients.map((r) => ({
+        id: createBroadcastRecipientId(),
+        broadcastId: broadcast.id,
+        registrationId: r.registrationId,
+        userId: r.userId,
+        emailDeliveryStatus: BROADCAST_EMAIL_DELIVERY_STATUS.QUEUED as "queued",
+      }))
 
-		if (data.sendEmail) {
-			// Pre-render the email template once for all recipients
-			const bodyHtml = await render(
-				BroadcastNotificationEmail({
-					competitionName: competition.name,
-					competitionSlug: competition.slug,
-					broadcastTitle: data.title,
-					broadcastBody: data.body,
-					organizerTeamName: team?.name ?? "Organizer",
-				}),
-			)
+      await tx
+        .insert(competitionBroadcastRecipientsTable)
+        .values(recipientValues)
 
-			// Enqueue batches of up to 100 recipients into Cloudflare Queue
-			const BATCH_SIZE = 100
-			const queue = (env as unknown as Record<string, unknown>)
-				.BROADCAST_EMAIL_QUEUE as
-				| Queue<BroadcastEmailMessage>
-				| undefined
+      return { broadcast, recipientValues }
+    })
 
-			if (queue) {
-				const batchCount = Math.ceil(
-					recipientValues.length / BATCH_SIZE,
-				)
-				for (let i = 0; i < recipientValues.length; i += BATCH_SIZE) {
-					const batchSlice = recipientValues.slice(
-						i,
-						i + BATCH_SIZE,
-					)
-					const message: BroadcastEmailMessage = {
-						broadcastId: broadcast.id,
-						competitionId: data.competitionId,
-						batch: batchSlice.map((rv, idx) => ({
-							recipientId: rv.id,
-							email: recipients[i + idx].email ?? "",
-							athleteName:
-								recipients[i + idx].firstName ?? "Athlete",
-						})),
-						subject: `${data.title} — ${competition.name}`,
-						bodyHtml,
-						replyTo: "support@mail.wodsmith.com",
-					}
-					await queue.send(message)
-				}
+    logEntityCreated({
+      entity: "broadcast",
+      id: broadcast.id,
+      parentEntity: "competition",
+      parentId: data.competitionId,
+      attributes: {
+        title: data.title,
+        audienceFilter: filterType,
+        recipientCount: recipients.length,
+        sendEmail: data.sendEmail,
+      },
+    })
 
-				logInfo({
-					message: "[Broadcast] Emails queued for delivery",
-					attributes: {
-						broadcastId: broadcast.id,
-						recipientCount: recipientValues.length,
-						batchCount,
-					},
-				})
-			} else {
-				// Dev fallback: send emails directly when Queue binding is unavailable
-				logInfo({
-					message:
-						"[Broadcast] No queue binding, sending emails directly (dev fallback)",
-					attributes: {
-						broadcastId: broadcast.id,
-						recipientCount: recipientValues.length,
-					},
-				})
+    if (data.sendEmail) {
+      // Pre-render the email template once for all recipients
+      const bodyHtml = await render(
+        BroadcastNotificationEmail({
+          competitionName: competition.name,
+          competitionSlug: competition.slug,
+          broadcastTitle: data.title,
+          broadcastBody: data.body,
+          organizerTeamName: team?.name ?? "Organizer",
+        }),
+      )
 
-				const { sendEmail: sendEmailFn } = await import(
-					"@/utils/email"
-				)
-				let sentCount = 0
-				let failedCount = 0
-				for (const rv of recipientValues) {
-					const recipient = recipients.find(
-						(r) => r.userId === rv.userId,
-					)
-					if (!recipient || !recipient.email) continue
-					try {
-						await sendEmailFn({
-							to: recipient.email,
-							subject: `${data.title} — ${competition.name}`,
-							template: BroadcastNotificationEmail({
-								competitionName: competition.name,
-								competitionSlug: competition.slug,
-								broadcastTitle: data.title,
-								broadcastBody: data.body,
-								organizerTeamName: team?.name ?? "Organizer",
-							}),
-							tags: [
-								{
-									name: "type",
-									value: "competition-broadcast",
-								},
-							],
-						})
-						await db
-							.update(competitionBroadcastRecipientsTable)
-							.set({
-								emailDeliveryStatus:
-									BROADCAST_EMAIL_DELIVERY_STATUS.SENT,
-							})
-							.where(
-								eq(
-									competitionBroadcastRecipientsTable.id,
-									rv.id,
-								),
-							)
-						sentCount++
-					} catch (err) {
-						await db
-							.update(competitionBroadcastRecipientsTable)
-							.set({
-								emailDeliveryStatus:
-									BROADCAST_EMAIL_DELIVERY_STATUS.FAILED,
-							})
-							.where(
-								eq(
-									competitionBroadcastRecipientsTable.id,
-									rv.id,
-								),
-							)
-						failedCount++
-						logError({
-							message:
-								"[Broadcast] Dev fallback email send failed",
-							error: err,
-							attributes: {
-								broadcastId: broadcast.id,
-								recipientId: rv.id,
-							},
-						})
-					}
-				}
+      // Enqueue batches of up to 100 recipients into Cloudflare Queue
+      const BATCH_SIZE = 100
+      const queue = (env as unknown as Record<string, unknown>)
+        .BROADCAST_EMAIL_QUEUE as Queue<BroadcastEmailMessage> | undefined
 
-				logInfo({
-					message:
-						"[Broadcast] Dev fallback delivery complete",
-					attributes: {
-						broadcastId: broadcast.id,
-						sent: sentCount,
-						failed: failedCount,
-					},
-				})
-			}
-		} else {
-			// No email — mark all recipients as skipped (in-app only)
-			const allIds = recipientValues.map((rv) => rv.id)
-			if (allIds.length > 0) {
-				await db
-					.update(competitionBroadcastRecipientsTable)
-					.set({
-						emailDeliveryStatus:
-							BROADCAST_EMAIL_DELIVERY_STATUS.SKIPPED,
-					})
-					.where(
-						inArray(
-							competitionBroadcastRecipientsTable.id,
-							allIds,
-						),
-					)
-			}
+      if (queue) {
+        const batchCount = Math.ceil(recipientValues.length / BATCH_SIZE)
+        for (let i = 0; i < recipientValues.length; i += BATCH_SIZE) {
+          const batchSlice = recipientValues.slice(i, i + BATCH_SIZE)
+          const message: BroadcastEmailMessage = {
+            broadcastId: broadcast.id,
+            competitionId: data.competitionId,
+            batch: batchSlice.map((rv, idx) => ({
+              recipientId: rv.id,
+              email: recipients[i + idx].email ?? "",
+              athleteName: recipients[i + idx].firstName ?? "Athlete",
+            })),
+            subject: `${data.title} — ${competition.name}`,
+            bodyHtml,
+            replyTo: "support@mail.wodsmith.com",
+          }
+          await queue.send(message)
+        }
 
-			logInfo({
-				message: "[Broadcast] Created as in-app only (no email)",
-				attributes: {
-					broadcastId: broadcast.id,
-					recipientCount: recipients.length,
-				},
-			})
-		}
+        logInfo({
+          message: "[Broadcast] Emails queued for delivery",
+          attributes: {
+            broadcastId: broadcast.id,
+            recipientCount: recipientValues.length,
+            batchCount,
+          },
+        })
+      } else {
+        // Dev fallback: send emails directly when Queue binding is unavailable
+        logInfo({
+          message:
+            "[Broadcast] No queue binding, sending emails directly (dev fallback)",
+          attributes: {
+            broadcastId: broadcast.id,
+            recipientCount: recipientValues.length,
+          },
+        })
 
-		return {
-			broadcastId: broadcast.id,
-			recipientCount: recipients.length,
-		}
-	})
+        const { sendEmail: sendEmailFn } = await import("@/utils/email")
+        let sentCount = 0
+        let failedCount = 0
+        for (const rv of recipientValues) {
+          const recipient = recipients.find((r) => r.userId === rv.userId)
+          if (!recipient || !recipient.email) continue
+          try {
+            await sendEmailFn({
+              to: recipient.email,
+              subject: `${data.title} — ${competition.name}`,
+              template: BroadcastNotificationEmail({
+                competitionName: competition.name,
+                competitionSlug: competition.slug,
+                broadcastTitle: data.title,
+                broadcastBody: data.body,
+                organizerTeamName: team?.name ?? "Organizer",
+              }),
+              tags: [
+                {
+                  name: "type",
+                  value: "competition-broadcast",
+                },
+              ],
+            })
+            await db
+              .update(competitionBroadcastRecipientsTable)
+              .set({
+                emailDeliveryStatus: BROADCAST_EMAIL_DELIVERY_STATUS.SENT,
+              })
+              .where(eq(competitionBroadcastRecipientsTable.id, rv.id))
+            sentCount++
+          } catch (err) {
+            await db
+              .update(competitionBroadcastRecipientsTable)
+              .set({
+                emailDeliveryStatus: BROADCAST_EMAIL_DELIVERY_STATUS.FAILED,
+              })
+              .where(eq(competitionBroadcastRecipientsTable.id, rv.id))
+            failedCount++
+            logError({
+              message: "[Broadcast] Dev fallback email send failed",
+              error: err,
+              attributes: {
+                broadcastId: broadcast.id,
+                recipientId: rv.id,
+              },
+            })
+          }
+        }
+
+        logInfo({
+          message: "[Broadcast] Dev fallback delivery complete",
+          attributes: {
+            broadcastId: broadcast.id,
+            sent: sentCount,
+            failed: failedCount,
+          },
+        })
+      }
+    } else {
+      // No email — mark all recipients as skipped (in-app only)
+      const allIds = recipientValues.map((rv) => rv.id)
+      if (allIds.length > 0) {
+        await db
+          .update(competitionBroadcastRecipientsTable)
+          .set({
+            emailDeliveryStatus: BROADCAST_EMAIL_DELIVERY_STATUS.SKIPPED,
+          })
+          .where(inArray(competitionBroadcastRecipientsTable.id, allIds))
+      }
+
+      logInfo({
+        message: "[Broadcast] Created as in-app only (no email)",
+        attributes: {
+          broadcastId: broadcast.id,
+          recipientCount: recipients.length,
+        },
+      })
+    }
+
+    return {
+      broadcastId: broadcast.id,
+      recipientCount: recipients.length,
+    }
+  })
 
 // ============================================================================
 // Organizer: Get Broadcast Detail
 // ============================================================================
 
 export const getBroadcastFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) => getBroadcastInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		const session = await getSessionFromCookie()
-		if (!session?.userId) throw new Error("Authentication required")
+  .inputValidator((data: unknown) => getBroadcastInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Authentication required")
 
-		const db = getDb()
+    const db = getDb()
 
-		const broadcast = await db.query.competitionBroadcastsTable.findFirst({
-			where: eq(competitionBroadcastsTable.id, data.broadcastId),
-		})
-		if (!broadcast) throw new Error("Broadcast not found")
+    const broadcast = await db.query.competitionBroadcastsTable.findFirst({
+      where: eq(competitionBroadcastsTable.id, data.broadcastId),
+    })
+    if (!broadcast) throw new Error("Broadcast not found")
 
-		await requireTeamPermission(
-			broadcast.teamId,
-			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-		)
+    await requireTeamPermission(
+      broadcast.teamId,
+      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+    )
 
-		// Get recipients with delivery status
-		const recipients = await db
-			.select({
-				id: competitionBroadcastRecipientsTable.id,
-				userId: competitionBroadcastRecipientsTable.userId,
-				emailDeliveryStatus:
-					competitionBroadcastRecipientsTable.emailDeliveryStatus,
-				firstName: userTable.firstName,
-				email: userTable.email,
-			})
-			.from(competitionBroadcastRecipientsTable)
-			.innerJoin(
-				userTable,
-				eq(competitionBroadcastRecipientsTable.userId, userTable.id),
-			)
-			.where(
-				eq(
-					competitionBroadcastRecipientsTable.broadcastId,
-					data.broadcastId,
-				),
-			)
+    // Get recipients with delivery status
+    const recipients = await db
+      .select({
+        id: competitionBroadcastRecipientsTable.id,
+        userId: competitionBroadcastRecipientsTable.userId,
+        emailDeliveryStatus:
+          competitionBroadcastRecipientsTable.emailDeliveryStatus,
+        firstName: userTable.firstName,
+        email: userTable.email,
+      })
+      .from(competitionBroadcastRecipientsTable)
+      .innerJoin(
+        userTable,
+        eq(competitionBroadcastRecipientsTable.userId, userTable.id),
+      )
+      .where(
+        eq(competitionBroadcastRecipientsTable.broadcastId, data.broadcastId),
+      )
 
-		return { broadcast, recipients }
-	})
+    return { broadcast, recipients }
+  })
 
 // ============================================================================
 // Athlete: List Broadcasts for Competition
 // ============================================================================
 
 export const listAthleteBroadcastsFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
-		listAthleteBroadcastsInputSchema.parse(data),
-	)
-	.handler(async ({ data }) => {
-		const session = await getSessionFromCookie()
-		const db = getDb()
+  .inputValidator((data: unknown) =>
+    listAthleteBroadcastsInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    const db = getDb()
 
-		// Public broadcasts are visible to everyone (no auth required)
-		const publicBroadcasts =
-			await db.query.competitionBroadcastsTable.findMany({
-				where: and(
-					eq(
-						competitionBroadcastsTable.competitionId,
-						data.competitionId,
-					),
-					eq(competitionBroadcastsTable.status, BROADCAST_STATUS.SENT),
-					eq(competitionBroadcastsTable.audienceFilter, JSON.stringify({ type: "public" })),
-				),
-				orderBy: [desc(competitionBroadcastsTable.sentAt)],
-			})
+    // Public broadcasts are visible to everyone (no auth required)
+    const publicBroadcasts = await db.query.competitionBroadcastsTable.findMany(
+      {
+        where: and(
+          eq(competitionBroadcastsTable.competitionId, data.competitionId),
+          eq(competitionBroadcastsTable.status, BROADCAST_STATUS.SENT),
+          eq(
+            competitionBroadcastsTable.audienceFilter,
+            JSON.stringify({ type: "public" }),
+          ),
+        ),
+        orderBy: [desc(competitionBroadcastsTable.sentAt)],
+      },
+    )
 
-		// Targeted broadcasts require auth — only show if user is a recipient
-		let targetedBroadcasts: typeof publicBroadcasts = []
-		if (session?.userId) {
-			const recipientBroadcasts = await db
-				.select({
-					broadcastId:
-						competitionBroadcastRecipientsTable.broadcastId,
-				})
-				.from(competitionBroadcastRecipientsTable)
-				.where(
-					eq(
-						competitionBroadcastRecipientsTable.userId,
-						session.userId,
-					),
-				)
+    // Targeted broadcasts require auth — only show if user is a recipient
+    let targetedBroadcasts: typeof publicBroadcasts = []
+    if (session?.userId) {
+      const recipientBroadcasts = await db
+        .select({
+          broadcastId: competitionBroadcastRecipientsTable.broadcastId,
+        })
+        .from(competitionBroadcastRecipientsTable)
+        .where(eq(competitionBroadcastRecipientsTable.userId, session.userId))
 
-			if (recipientBroadcasts.length > 0) {
-				const broadcastIds = recipientBroadcasts.map(
-					(r) => r.broadcastId,
-				)
-				targetedBroadcasts =
-					await db.query.competitionBroadcastsTable.findMany({
-						where: and(
-							eq(
-								competitionBroadcastsTable.competitionId,
-								data.competitionId,
-							),
-							inArray(competitionBroadcastsTable.id, broadcastIds),
-							eq(
-								competitionBroadcastsTable.status,
-								BROADCAST_STATUS.SENT,
-							),
-						),
-						orderBy: [desc(competitionBroadcastsTable.sentAt)],
-					})
-			}
-		}
+      if (recipientBroadcasts.length > 0) {
+        const broadcastIds = recipientBroadcasts.map((r) => r.broadcastId)
+        targetedBroadcasts = await db.query.competitionBroadcastsTable.findMany(
+          {
+            where: and(
+              eq(competitionBroadcastsTable.competitionId, data.competitionId),
+              inArray(competitionBroadcastsTable.id, broadcastIds),
+              eq(competitionBroadcastsTable.status, BROADCAST_STATUS.SENT),
+            ),
+            orderBy: [desc(competitionBroadcastsTable.sentAt)],
+          },
+        )
+      }
+    }
 
-		// Merge and deduplicate, sorted by sentAt descending
-		const seenIds = new Set<string>()
-		const broadcasts = [...publicBroadcasts, ...targetedBroadcasts]
-			.filter((b) => {
-				if (seenIds.has(b.id)) return false
-				seenIds.add(b.id)
-				return true
-			})
-			.sort(
-				(a, b) =>
-					(b.sentAt?.getTime() ?? 0) - (a.sentAt?.getTime() ?? 0),
-			)
+    // Merge and deduplicate, sorted by sentAt descending
+    const seenIds = new Set<string>()
+    const broadcasts = [...publicBroadcasts, ...targetedBroadcasts]
+      .filter((b) => {
+        if (seenIds.has(b.id)) return false
+        seenIds.add(b.id)
+        return true
+      })
+      .sort((a, b) => (b.sentAt?.getTime() ?? 0) - (a.sentAt?.getTime() ?? 0))
 
-		return { broadcasts }
-	})
+    return { broadcasts }
+  })
 
 // ============================================================================
 // Organizer: Preview Audience Count
 // ============================================================================
 
 const previewAudienceInputSchema = z.object({
-	competitionId: z.string().min(1, "Competition ID is required"),
-	audienceFilter: audienceFilterSchema.optional(),
+  competitionId: z.string().min(1, "Competition ID is required"),
+  audienceFilter: audienceFilterSchema.optional(),
 })
 
 export const previewAudienceFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) => previewAudienceInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		const session = await getSessionFromCookie()
-		if (!session?.userId) throw new Error("Authentication required")
+  .inputValidator((data: unknown) => previewAudienceInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Authentication required")
 
-		const db = getDb()
+    const db = getDb()
 
-		const competition = await db.query.competitionsTable.findFirst({
-			where: eq(competitionsTable.id, data.competitionId),
-			columns: {
-				id: true,
-				organizingTeamId: true,
-				competitionTeamId: true,
-			},
-		})
-		if (!competition) throw new Error("Competition not found")
+    const competition = await db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, data.competitionId),
+      columns: {
+        id: true,
+        organizingTeamId: true,
+        competitionTeamId: true,
+      },
+    })
+    if (!competition) throw new Error("Competition not found")
 
-		await requireTeamPermission(
-			competition.organizingTeamId,
-			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-		)
+    await requireTeamPermission(
+      competition.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+    )
 
-		const filterType = data.audienceFilter?.type ?? "all"
-		let athleteCount = 0
-		let volunteerCount = 0
+    const filterType = data.audienceFilter?.type ?? "all"
+    let athleteCount = 0
+    let volunteerCount = 0
 
-		const includeAthletes =
-			filterType === "all" ||
-			filterType === "division" ||
-			filterType === "public"
-		const includeVolunteers =
-			filterType === "public" ||
-			filterType === "volunteers" ||
-			filterType === "volunteer_role"
+    const includeAthletes =
+      filterType === "all" ||
+      filterType === "division" ||
+      filterType === "public"
+    const includeVolunteers =
+      filterType === "public" ||
+      filterType === "volunteers" ||
+      filterType === "volunteer_role"
 
-		if (includeAthletes) {
-			const conditions = [
-				eq(competitionRegistrationsTable.eventId, data.competitionId),
-				ne(
-					competitionRegistrationsTable.status,
-					REGISTRATION_STATUS.REMOVED,
-				),
-			]
-			if (
-				filterType === "division" &&
-				data.audienceFilter?.divisionId
-			) {
-				conditions.push(
-					eq(
-						competitionRegistrationsTable.divisionId,
-						data.audienceFilter.divisionId,
-					),
-				)
-			}
-			const [result] = await db
-				.select({ count: count() })
-				.from(competitionRegistrationsTable)
-				.where(and(...conditions))
-			athleteCount = result?.count ?? 0
-		}
+    if (includeAthletes) {
+      const conditions = [
+        eq(competitionRegistrationsTable.eventId, data.competitionId),
+        ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+      ]
+      if (filterType === "division" && data.audienceFilter?.divisionId) {
+        conditions.push(
+          eq(
+            competitionRegistrationsTable.divisionId,
+            data.audienceFilter.divisionId,
+          ),
+        )
+      }
+      const [result] = await db
+        .select({ count: count() })
+        .from(competitionRegistrationsTable)
+        .where(and(...conditions))
+      athleteCount = result?.count ?? 0
+    }
 
-		if (includeVolunteers) {
-			// For volunteer_role, we need to query all then filter by metadata
-			// For volunteers/public, just count all volunteer memberships
-			const volunteerRows = await db
-				.select({
-					userId: teamMembershipTable.userId,
-					metadata: teamMembershipTable.metadata,
-				})
-				.from(teamMembershipTable)
-				.where(
-					and(
-						eq(
-							teamMembershipTable.teamId,
-							competition.competitionTeamId,
-						),
-						eq(
-							teamMembershipTable.roleId,
-							SYSTEM_ROLES_ENUM.VOLUNTEER,
-						),
-						eq(teamMembershipTable.isSystemRole, true),
-					),
-				)
+    if (includeVolunteers) {
+      // For volunteer_role, we need to query all then filter by metadata
+      // For volunteers/public, just count all volunteer memberships
+      const volunteerRows = await db
+        .select({
+          userId: teamMembershipTable.userId,
+          metadata: teamMembershipTable.metadata,
+        })
+        .from(teamMembershipTable)
+        .where(
+          and(
+            eq(teamMembershipTable.teamId, competition.competitionTeamId),
+            eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+            eq(teamMembershipTable.isSystemRole, true),
+          ),
+        )
 
-			if (
-				filterType === "volunteer_role" &&
-				data.audienceFilter?.volunteerRole
-			) {
-				const targetRole = data.audienceFilter.volunteerRole
-				volunteerCount = volunteerRows.filter((v) => {
-					try {
-						const meta = JSON.parse(v.metadata || "{}") as {
-							volunteerRoleTypes?: string[]
-						}
-						return meta.volunteerRoleTypes?.includes(targetRole)
-					} catch {
-						return false
-					}
-				}).length
-			} else {
-				volunteerCount = volunteerRows.length
-			}
-		}
+      if (
+        filterType === "volunteer_role" &&
+        data.audienceFilter?.volunteerRole
+      ) {
+        const targetRole = data.audienceFilter.volunteerRole
+        volunteerCount = volunteerRows.filter((v) => {
+          try {
+            const meta = JSON.parse(v.metadata || "{}") as {
+              volunteerRoleTypes?: string[]
+            }
+            return meta.volunteerRoleTypes?.includes(targetRole)
+          } catch {
+            return false
+          }
+        }).length
+      } else {
+        volunteerCount = volunteerRows.length
+      }
+    }
 
-		// For public, there may be overlap (volunteer who is also an athlete)
-		// Return the sum as an approximation — exact dedup happens at send time
-		return { count: athleteCount + volunteerCount }
-	})
+    // For public, there may be overlap (volunteer who is also an athlete)
+    // Return the sum as an approximation — exact dedup happens at send time
+    return { count: athleteCount + volunteerCount }
+  })
