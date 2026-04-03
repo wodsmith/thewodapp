@@ -69,7 +69,7 @@ Each venue has a name, address, and capacity. Heats can be assigned to specific 
 
 One-way messages from organizers to competition athletes, delivered in-app and via email.
 
-Defined in [[apps/wodsmith-start/src/db/schemas/broadcasts.ts#competitionBroadcastsTable]] and [[apps/wodsmith-start/src/db/schemas/broadcasts.ts#competitionBroadcastRecipientsTable]]. Each broadcast targets a filtered audience via a JSON `audienceFilter`: all athletes, athletes by division, all volunteers, volunteers by role, or public (everyone). Email delivery is handled asynchronously via Cloudflare Queue with Resend, using per-recipient idempotency keys to prevent duplicates on retry. Recipient delivery status tracks `queued`, `sent`, `failed`, or `skipped` (used when email is disabled or no API key is configured).
+Defined in [[apps/wodsmith-start/src/db/schemas/broadcasts.ts#competitionBroadcastsTable]] and [[apps/wodsmith-start/src/db/schemas/broadcasts.ts#competitionBroadcastRecipientsTable]]. Each broadcast targets a filtered audience via a JSON `audienceFilter`: all athletes, athletes by division, all volunteers, volunteers by role, or public (everyone). Email delivery is handled asynchronously via Cloudflare Queue with Resend, using per-recipient idempotency keys to prevent duplicates on retry. Recipient delivery status tracks `queued`, `sent`, `failed`, or `skipped` (used when email is disabled or no API key is configured). Broadcasts are subject to a per-competition limit controlled by the `broadcasts_per_competition` entitlement limit (Free: 5, Pro: 25, Enterprise: unlimited). The limit is enforced in [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#sendBroadcastFn]] before creating the broadcast record.
 
 ## Workouts
 

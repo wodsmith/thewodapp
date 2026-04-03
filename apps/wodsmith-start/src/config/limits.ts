@@ -23,6 +23,7 @@ export const LIMITS = {
 
   // Competition organizing limits
   MAX_PUBLISHED_COMPETITIONS: "max_published_competitions", // 0: pending approval, -1: unlimited
+  BROADCASTS_PER_COMPETITION: "broadcasts_per_competition", // Free: 5, Pro: 25, Enterprise: unlimited
 } as const
 
 export type LimitKey = (typeof LIMITS)[keyof typeof LIMITS]
