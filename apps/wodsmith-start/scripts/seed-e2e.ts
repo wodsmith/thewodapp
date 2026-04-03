@@ -72,18 +72,13 @@ async function main(): Promise<void> {
 		)
 		// Also clean up users by email
 		await connection.execute(
-			"DELETE FROM `users` WHERE email IN (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"DELETE FROM `users` WHERE email IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			[
 				"test@wodsmith.com", "admin@wodsmith.com",
 				"alice@test.com", "bob@test.com", "carol@test.com",
 				"dave@test.com", "eve@test.com",
-				"volunteer1@test.com", "volunteer2@test.com",
+				"volunteer1@test.com", "volunteer2@test.com", "volunteer3@test.com",
 			],
-		)
-		// Clean up volunteer user not caught by email list
-		await connection.execute(
-			"DELETE FROM `users` WHERE email = ?",
-			["volunteer3@test.com"],
 		)
 		// Clean up workouts by team_id
 		for (const teamId of [

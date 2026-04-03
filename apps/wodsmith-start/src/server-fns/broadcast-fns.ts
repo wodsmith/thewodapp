@@ -149,15 +149,21 @@ async function applyAthleteQuestionFilters(
 			),
 		)
 
-	// Build lookup: registrationId -> questionId -> answer
-	const answerMap = new Map<string, Map<string, string>>()
+	// Build lookup: registrationId -> questionId -> Set of answers
+	// A registration can have multiple answers per question (e.g. team registrations)
+	const answerMap = new Map<string, Map<string, Set<string>>>()
 	for (const a of answers) {
 		let qMap = answerMap.get(a.registrationId)
 		if (!qMap) {
 			qMap = new Map()
 			answerMap.set(a.registrationId, qMap)
 		}
-		qMap.set(a.questionId, a.answer)
+		let values = qMap.get(a.questionId)
+		if (!values) {
+			values = new Set()
+			qMap.set(a.questionId, values)
+		}
+		values.add(a.answer)
 	}
 
 	return recipients.filter((r) => {
@@ -165,8 +171,8 @@ async function applyAthleteQuestionFilters(
 		const qMap = answerMap.get(r.registrationId)
 		if (!qMap) return false
 		return questionFilters.every((f) => {
-			const answer = qMap.get(f.questionId)
-			return answer !== undefined && f.values.includes(answer)
+			const answers = qMap.get(f.questionId)
+			return answers !== undefined && f.values.some((v) => answers.has(v))
 		})
 	})
 }
@@ -228,15 +234,20 @@ async function applyVolunteerQuestionFilters(
 			),
 		)
 
-	// Build lookup: invitationId -> questionId -> answer
-	const answerMap = new Map<string, Map<string, string>>()
+	// Build lookup: invitationId -> questionId -> Set of answers
+	const answerMap = new Map<string, Map<string, Set<string>>>()
 	for (const a of answers) {
 		let qMap = answerMap.get(a.invitationId)
 		if (!qMap) {
 			qMap = new Map()
 			answerMap.set(a.invitationId, qMap)
 		}
-		qMap.set(a.questionId, a.answer)
+		let values = qMap.get(a.questionId)
+		if (!values) {
+			values = new Set()
+			qMap.set(a.questionId, values)
+		}
+		values.add(a.answer)
 	}
 
 	return recipients.filter((r) => {
@@ -245,8 +256,8 @@ async function applyVolunteerQuestionFilters(
 		const qMap = answerMap.get(invitationId)
 		if (!qMap) return false
 		return questionFilters.every((f) => {
-			const answer = qMap.get(f.questionId)
-			return answer !== undefined && f.values.includes(answer)
+			const answers = qMap.get(f.questionId)
+			return answers !== undefined && f.values.some((v) => answers.has(v))
 		})
 	})
 }
@@ -274,6 +285,12 @@ async function partitionQuestionFilters(
 		.where(inArray(competitionRegistrationQuestionsTable.id, questionIds))
 
 	const targetMap = new Map(questions.map((q) => [q.id, q.questionTarget]))
+
+	// Validate all filters resolved to a known question
+	const unresolvedFilters = questionFilters.filter((f) => !targetMap.has(f.questionId))
+	if (unresolvedFilters.length > 0) {
+		throw new Error("One or more registration question filters are no longer valid")
+	}
 
 	const athleteFilters = questionFilters.filter(
 		(f) => targetMap.get(f.questionId) === "athlete",

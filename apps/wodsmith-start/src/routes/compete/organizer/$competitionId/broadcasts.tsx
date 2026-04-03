@@ -509,6 +509,7 @@ function ComposeCard({
 									<Button
 										variant="ghost"
 										size="sm"
+										aria-label="Close registration question filters"
 										onClick={() => {
 											setShowQuestionFilters(false)
 											setQuestionFilters([])
@@ -558,6 +559,11 @@ function ComposeCard({
 											{question?.label}: {f.values.join(", ")}
 											<button
 												type="button"
+												aria-label={
+													question
+														? `Remove filter for ${question.label}`
+														: "Remove filter"
+												}
 												onClick={() =>
 													updateQuestionFilter(f.questionId, [])
 												}
@@ -620,9 +626,9 @@ function QuestionFilterRow({
 			<div className="space-y-2">
 				<Label className="text-sm">{question.label}</Label>
 				<div className="flex flex-wrap gap-3">
-					{question.options.map((option) => {
+					{question.options.map((option, optionIndex) => {
 						const checked = selectedValues.includes(option)
-						const id = `qf-${question.id}-${option}`
+						const id = `qf-${question.id}-${optionIndex}`
 						return (
 							<div
 								key={option}
@@ -728,6 +734,7 @@ function TextQuestionFilter({
 						{val}
 						<button
 							type="button"
+							aria-label={`Remove value ${val}`}
 							onClick={() =>
 								onChange(selectedValues.filter((v) => v !== val))
 							}
