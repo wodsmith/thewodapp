@@ -82,15 +82,17 @@ import {
   deleteVerificationLogFn,
   updateVerificationLogFn,
 } from "@/server-fns/submission-verification-fns"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   createReviewNoteFn,
   deleteReviewNoteFn,
-  getReviewNotesFn,
+  getReviewNotesForRegistrationFn,
   getWorkoutMovementsFn,
   updateReviewNoteFn,
 } from "@/server-fns/review-note-fns"
 import {
   getOrganizerSubmissionDetailFn,
+  getSiblingSubmissionsFn,
   markSubmissionReviewedFn,
   unmarkSubmissionReviewedFn,
 } from "@/server-fns/video-submission-fns"
@@ -150,13 +152,46 @@ export const Route = createFileRoute(
       }
     }
 
-    // Fetch review notes
-    const notesResult = await getReviewNotesFn({
+    // Fetch siblings for tabbed video UI
+    const siblingsResult = await getSiblingSubmissionsFn({
       data: {
-        videoSubmissionId: params.submissionId,
+        submissionId: params.submissionId,
         competitionId: params.competitionId,
       },
     })
+
+    // Fetch review notes for ALL sibling submissions (aggregated tally)
+    let allReviewNotes: Array<{
+      id: string
+      type: string
+      content: string
+      timestampSeconds: number | null
+      movementId: string | null
+      movementName: string | null
+      videoSubmissionId: string
+      createdAt: Date
+      reviewer: {
+        id: string
+        firstName: string | null
+        lastName: string | null
+        avatar: string | null
+      }
+    }> = []
+
+    if (reviewResult.submission.registrationId) {
+      try {
+        const notesResult = await getReviewNotesForRegistrationFn({
+          data: {
+            registrationId: reviewResult.submission.registrationId,
+            trackWorkoutId: reviewResult.submission.trackWorkoutId,
+            competitionId: params.competitionId,
+          },
+        })
+        allReviewNotes = notesResult.notes
+      } catch {
+        // Fall back gracefully if registration notes fetch fails
+      }
+    }
 
     // Fetch workout movements and vote details in parallel
     let workoutMovements: Array<{ id: string; name: string; type: string }> = []
@@ -195,10 +230,11 @@ export const Route = createFileRoute(
 
     return {
       submission: reviewResult.submission,
+      siblings: siblingsResult.siblings,
       verificationSubmission,
       event,
       verificationLogs,
-      reviewNotes: notesResult.notes,
+      allReviewNotes,
       workoutMovements,
       voteDetails,
     }
@@ -2050,10 +2086,11 @@ function CommunityVotesCard({ voteDetails }: CommunityVotesCardProps) {
 function SubmissionDetailPage() {
   const {
     submission,
+    siblings,
     verificationSubmission,
     event,
     verificationLogs,
-    reviewNotes,
+    allReviewNotes,
     workoutMovements,
     voteDetails,
   } = Route.useLoaderData()
@@ -2065,6 +2102,19 @@ function SubmissionDetailPage() {
   const unmarkReviewed = useServerFn(unmarkSubmissionReviewedFn)
 
   const [isUpdating, setIsUpdating] = useState(false)
+  const [activeVideoIndex, setActiveVideoIndex] = useState(
+    submission.videoIndex,
+  )
+
+  // Derive active sibling and per-tab notes
+  const activeSubmission =
+    siblings.find((s) => s.videoIndex === activeVideoIndex) ?? siblings[0]
+  const activeTabNotes = activeSubmission
+    ? allReviewNotes.filter(
+        (n) => n.videoSubmissionId === activeSubmission.id,
+      )
+    : allReviewNotes
+  const hasMultipleVideos = siblings.length > 1
 
   const playerRef = useRef<VideoPlayerRef | null>(null)
   const noteTextareaRef = useRef<HTMLTextAreaElement>(null)
@@ -2105,20 +2155,31 @@ function SubmissionDetailPage() {
     return () => document.removeEventListener("keydown", handleKeyDown)
   }, [])
 
-  const isReviewed = submission.reviewStatus === "reviewed"
-  const hasInteractivePlayer = supportsInteractivePlayer(submission.videoUrl)
-  const platformName = getVideoPlatformName(submission.videoUrl)
+  const activeReviewed = activeSubmission?.reviewedAt != null
+  const allReviewed = siblings.every((s) => s.reviewedAt != null)
+  const reviewedCount = siblings.filter((s) => s.reviewedAt != null).length
+  const isReviewed = hasMultipleVideos ? allReviewed : activeReviewed
+  const activeVideoUrl = activeSubmission?.videoUrl ?? submission.videoUrl
+  const hasInteractivePlayer = supportsInteractivePlayer(activeVideoUrl)
+  const platformName = getVideoPlatformName(activeVideoUrl)
 
   const handleToggleReview = async () => {
+    if (!activeSubmission) return
     setIsUpdating(true)
     try {
-      if (isReviewed) {
+      if (activeReviewed) {
         await unmarkReviewed({
-          data: { submissionId: submission.id, competitionId: competition.id },
+          data: {
+            submissionId: activeSubmission.id,
+            competitionId: competition.id,
+          },
         })
       } else {
         await markReviewed({
-          data: { submissionId: submission.id, competitionId: competition.id },
+          data: {
+            submissionId: activeSubmission.id,
+            competitionId: competition.id,
+          },
         })
       }
       router.invalidate()
@@ -2167,8 +2228,8 @@ function SubmissionDetailPage() {
           </div>
         </div>
 
-        {/* Review action */}
-        {isReviewed ? (
+        {/* Review action — applies to active tab's video */}
+        {activeReviewed ? (
           <Button
             variant="outline"
             onClick={handleToggleReview}
@@ -2191,17 +2252,14 @@ function SubmissionDetailPage() {
       </div>
 
       {/* Status banner */}
-      {isReviewed ? (
+      {allReviewed ? (
         <div className="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
             <p className="text-sm text-green-700 dark:text-green-300">
-              This submission has been reviewed
-              {submission.reviewedAt && (
-                <span className="ml-1 text-green-600/70 dark:text-green-400/70">
-                  on {formatDate(submission.reviewedAt)}
-                </span>
-              )}
+              {hasMultipleVideos
+                ? `All ${siblings.length} videos have been reviewed`
+                : "This submission has been reviewed"}
             </p>
           </div>
         </div>
@@ -2210,7 +2268,9 @@ function SubmissionDetailPage() {
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
             <p className="text-sm text-yellow-700 dark:text-yellow-300">
-              This submission is pending review
+              {hasMultipleVideos
+                ? `${reviewedCount} of ${siblings.length} videos reviewed`
+                : "This submission is pending review"}
             </p>
           </div>
         </div>
@@ -2219,63 +2279,133 @@ function SubmissionDetailPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Video - takes 2 columns */}
         <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Video</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <VideoPlayerEmbed
-                url={submission.videoUrl}
-                title="Submission video"
-                onPlayerReady={
-                  hasInteractivePlayer ? handlePlayerReady : undefined
-                }
-              />
+          {hasMultipleVideos ? (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle>Videos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Tabs
+                  value={String(activeVideoIndex)}
+                  onValueChange={(v) => setActiveVideoIndex(Number(v))}
+                >
+                  <TabsList className="mb-4">
+                    {siblings.map((sib) => (
+                      <TabsTrigger
+                        key={sib.videoIndex}
+                        value={String(sib.videoIndex)}
+                        className="gap-1.5"
+                      >
+                        Video {sib.videoIndex + 1}
+                        {sib.athleteFirstName && (
+                          <span className="text-xs text-muted-foreground">
+                            ({sib.athleteFirstName})
+                          </span>
+                        )}
+                        {sib.reviewedAt != null && (
+                          <CheckCircle2 className="h-3 w-3 text-green-600" />
+                        )}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                  {siblings.map((sib) => (
+                    <TabsContent
+                      key={sib.videoIndex}
+                      value={String(sib.videoIndex)}
+                    >
+                      <VideoPlayerEmbed
+                        url={sib.videoUrl}
+                        title={`Video ${sib.videoIndex + 1}`}
+                        onPlayerReady={
+                          supportsInteractivePlayer(sib.videoUrl)
+                            ? handlePlayerReady
+                            : undefined
+                        }
+                      />
+                      {getVideoPlatformName(sib.videoUrl) && (
+                        <div className="mt-3">
+                          <a
+                            href={
+                              isSafeUrl(sib.videoUrl) ? sib.videoUrl : "#"
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            Open in {getVideoPlatformName(sib.videoUrl)}
+                          </a>
+                        </div>
+                      )}
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Video</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <VideoPlayerEmbed
+                  url={submission.videoUrl}
+                  title="Submission video"
+                  onPlayerReady={
+                    hasInteractivePlayer ? handlePlayerReady : undefined
+                  }
+                />
+                {platformName && (
+                  <div className="mt-3">
+                    <a
+                      href={
+                        isSafeUrl(submission.videoUrl)
+                          ? submission.videoUrl
+                          : "#"
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Open in {platformName}
+                    </a>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
-              {/* Direct link below embed */}
-              {platformName && (
-                <div className="mt-3">
-                  <a
-                    href={
-                      isSafeUrl(submission.videoUrl) ? submission.videoUrl : "#"
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    Open in {platformName}
-                  </a>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Notes */}
-          {submission.notes && (
+          {/* Athlete Notes — per-video */}
+          {activeSubmission?.notes && (
             <Card className="mt-6">
               <CardHeader>
                 <CardTitle>Athlete Notes</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm whitespace-pre-wrap">
-                  {submission.notes}
+                  {activeSubmission.notes}
                 </p>
               </CardContent>
             </Card>
           )}
 
-          <ReviewNoteForm
-            videoSubmissionId={submission.id}
-            competitionId={competition.id}
-            movements={workoutMovements}
-            playerRef={playerRef}
-            formTextareaRef={noteTextareaRef}
-            onNoteCreated={() => router.invalidate()}
-          />
+          {/* Review note form — targets active video */}
+          {activeSubmission && (
+            <ReviewNoteForm
+              key={activeSubmission.id}
+              videoSubmissionId={activeSubmission.id}
+              competitionId={competition.id}
+              movements={workoutMovements}
+              playerRef={playerRef}
+              formTextareaRef={noteTextareaRef}
+              onNoteCreated={() => router.invalidate()}
+            />
+          )}
 
+          {/* Review notes list — filtered to active video */}
           <ReviewNotesList
-            notes={reviewNotes}
+            notes={activeTabNotes}
             movements={workoutMovements}
             competitionId={competition.id}
             playerRef={playerRef}
@@ -2412,7 +2542,9 @@ function SubmissionDetailPage() {
             />
           )}
 
-          {reviewNotes.length > 0 && <MovementTallyCard notes={reviewNotes} />}
+          {allReviewNotes.length > 0 && (
+            <MovementTallyCard notes={allReviewNotes} />
+          )}
         </div>
       </div>
     </div>

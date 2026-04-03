@@ -27,24 +27,28 @@ import { cn } from "@/lib/utils"
 import { getSupportedPlatformsText } from "@/schemas/video-url"
 import { submitVideoFn } from "@/server-fns/video-submission-fns"
 import { isSafeUrl } from "@/utils/url"
-import { SubmissionStatusBadge } from "./submission-status-badge"
 import { VideoSubmissionPreview } from "./video-submission-preview"
+
+interface VideoSubmissionData {
+  id: string
+  videoIndex: number
+  videoUrl: string
+  notes: string | null
+  submittedAt: Date
+  updatedAt: Date
+  reviewStatus: ReviewStatus
+  statusUpdatedAt: Date | null
+  reviewerNotes: string | null
+}
 
 interface VideoSubmissionFormProps {
   trackWorkoutId: string
   competitionId: string
   timezone?: string | null
   initialData?: {
-    submission: {
-      id: string
-      videoUrl: string
-      notes: string | null
-      submittedAt: Date
-      updatedAt: Date
-      reviewStatus: ReviewStatus
-      statusUpdatedAt: Date | null
-      reviewerNotes: string | null
-    } | null
+    submissions: VideoSubmissionData[]
+    teamSize: number
+    isCaptain: boolean
     canSubmit: boolean
     reason?: string
     isRegistered: boolean
@@ -183,34 +187,58 @@ function parseTiebreakValue(
   return Number.isNaN(value) ? null : value
 }
 
+interface VideoSlotState {
+  url: string
+  notes: string
+  validation: VideoUrlValidationState
+  existingSubmission: VideoSubmissionData | null
+}
+
+function createInitialSlots(
+  teamSize: number,
+  submissions: VideoSubmissionData[],
+): VideoSlotState[] {
+  const submissionByIndex = new Map(submissions.map((s) => [s.videoIndex, s]))
+  return Array.from({ length: teamSize }, (_, i) => {
+    const existing = submissionByIndex.get(i) ?? null
+    return {
+      url: existing?.videoUrl ?? "",
+      notes: existing?.notes ?? "",
+      validation: {
+        isValid: false,
+        isPending: false,
+        error: null,
+        parsedUrl: null,
+      },
+      existingSubmission: existing,
+    }
+  })
+}
+
 export function VideoSubmissionForm({
   trackWorkoutId,
   competitionId,
   timezone,
   initialData,
 }: VideoSubmissionFormProps) {
-  const [videoUrl, setVideoUrl] = useState(
-    initialData?.submission?.videoUrl ?? "",
+  const teamSize = initialData?.teamSize ?? 1
+  const isCaptain = initialData?.isCaptain ?? true
+  const existingSubmissions = initialData?.submissions ?? []
+
+  const [videoSlots, setVideoSlots] = useState<VideoSlotState[]>(() =>
+    createInitialSlots(teamSize, existingSubmissions),
   )
-  const [videoValidation, setVideoValidation] =
-    useState<VideoUrlValidationState>({
-      isValid: false,
-      isPending: false,
-      error: null,
-      parsedUrl: null,
-    })
-  const [notes, setNotes] = useState(initialData?.submission?.notes ?? "")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [hasSubmitted, setHasSubmitted] = useState(!!initialData?.submission)
+  const hasAnySubmission = existingSubmissions.length > 0
+  const [hasSubmitted, setHasSubmitted] = useState(hasAnySubmission)
   // Show preview by default if there's an existing submission
-  const [isEditing, setIsEditing] = useState(!initialData?.submission)
+  const [isEditing, setIsEditing] = useState(!hasAnySubmission)
 
-  // Local state for submission/score to avoid mutating props
-  const [submissionData, setSubmissionData] = useState(
-    initialData?.submission ?? null,
-  )
+  // Local state for submissions/score to avoid mutating props
+  const [submissionsData, setSubmissionsData] =
+    useState<VideoSubmissionData[]>(existingSubmissions)
   const [scoreData, setScoreData] = useState(initialData?.existingScore ?? null)
 
   // Score form state
@@ -252,7 +280,6 @@ export function VideoSubmissionForm({
 
   // Derive status from whether time meets or exceeds time cap
   const scoreStatus: "scored" | "cap" = (() => {
-    // First check if we can derive from current parse result
     if (
       parseResult?.isValid &&
       parseResult.encoded !== null &&
@@ -265,7 +292,6 @@ export function VideoSubmissionForm({
       }
     }
 
-    // Fall back to existing score's status on initial load (before parseResult is ready)
     if (
       !parseResult &&
       initialData?.existingScore?.status === "cap" &&
@@ -276,6 +302,13 @@ export function VideoSubmissionForm({
 
     return "scored"
   })()
+
+  // Helper to update a specific video slot
+  const updateSlot = (index: number, updates: Partial<VideoSlotState>) => {
+    setVideoSlots((prev) =>
+      prev.map((slot, i) => (i === index ? { ...slot, ...updates } : slot)),
+    )
+  }
 
   // If user is not registered, show message
   if (!initialData?.isRegistered) {
@@ -292,6 +325,59 @@ export function VideoSubmissionForm({
               You must be registered for this competition to submit your result.
             </AlertDescription>
           </Alert>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Non-captain team members see a read-only view
+  if (!isCaptain) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Team Submission</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Captain Only</AlertTitle>
+            <AlertDescription>
+              Only your team captain can submit videos and scores for this event.
+            </AlertDescription>
+          </Alert>
+          {scoreData?.displayScore && (
+            <div>
+              <p className="text-sm font-medium">Team score:</p>
+              <p className="text-lg font-mono font-bold">
+                {scoreData.displayScore}
+                {scoreData.status === "cap" && " (Capped)"}
+              </p>
+            </div>
+          )}
+          {submissionsData.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">
+                Submitted videos ({submissionsData.length}
+                {teamSize > 1 ? ` of ${teamSize}` : ""}):
+              </p>
+              {submissionsData.map((sub) => (
+                <div key={sub.id} className="flex items-center gap-2">
+                  <a
+                    href={isSafeUrl(sub.videoUrl) ? sub.videoUrl : "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-sm text-primary hover:underline"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    {teamSize > 1
+                      ? `Video ${sub.videoIndex + 1}: `
+                      : ""}
+                    {sub.videoUrl}
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     )
@@ -330,44 +416,37 @@ export function VideoSubmissionForm({
           )}
           {(hasSubmitted || scoreData?.displayScore) && (
             <div className="pt-2 border-t space-y-3">
-              {/* Review Status Badge */}
-              {initialData?.submission?.reviewStatus && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">Status:</span>
-                  <SubmissionStatusBadge
-                    status={initialData.submission.reviewStatus}
-                    statusUpdatedAt={initialData.submission.statusUpdatedAt}
-                    reviewerNotes={initialData.submission.reviewerNotes}
-                  />
-                </div>
-              )}
               {scoreData?.displayScore && (
                 <div>
-                  <p className="text-sm font-medium">Your claimed score:</p>
+                  <p className="text-sm font-medium">
+                    {teamSize > 1 ? "Team score:" : "Your claimed score:"}
+                  </p>
                   <p className="text-lg font-mono font-bold">
                     {scoreData.displayScore}
                     {scoreData.status === "cap" && " (Capped)"}
                   </p>
                 </div>
               )}
-              {submissionData && (
-                <div>
-                  <p className="text-sm font-medium mb-1">
-                    Your submitted video:
+              {submissionsData.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">
+                    {teamSize > 1
+                      ? `Submitted videos (${submissionsData.length} of ${teamSize}):`
+                      : "Your submitted video:"}
                   </p>
-                  <a
-                    href={
-                      isSafeUrl(submissionData.videoUrl)
-                        ? submissionData.videoUrl
-                        : "#"
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-primary hover:underline"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    {submissionData.videoUrl}
-                  </a>
+                  {submissionsData.map((sub) => (
+                    <a
+                      key={sub.id}
+                      href={isSafeUrl(sub.videoUrl) ? sub.videoUrl : "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-primary hover:underline"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      {teamSize > 1 ? `Video ${sub.videoIndex + 1}: ` : ""}
+                      {sub.videoUrl}
+                    </a>
+                  ))}
                 </div>
               )}
             </div>
@@ -382,15 +461,25 @@ export function VideoSubmissionForm({
     setError(null)
     setSuccess(null)
 
-    if (!videoUrl.trim()) {
-      setError("Please enter a video URL")
+    // Find slots that have a video URL to submit
+    const slotsToSubmit = videoSlots
+      .map((slot, index) => ({ slot, index }))
+      .filter(({ slot }) => slot.url.trim())
+
+    if (slotsToSubmit.length === 0) {
+      setError("Please enter at least one video URL")
       return
     }
 
-    // Use video URL validation from the component
-    if (!videoValidation.isValid) {
-      setError(videoValidation.error ?? "Please enter a valid video URL")
-      return
+    // Validate all filled slots have valid URLs
+    for (const { slot, index } of slotsToSubmit) {
+      if (!slot.validation.isValid) {
+        const label = teamSize > 1 ? `Video ${index + 1}: ` : ""
+        setError(
+          `${label}${slot.validation.error ?? "Please enter a valid video URL"}`,
+        )
+        return
+      }
     }
 
     // Validate score — reuse derived parseResult
@@ -406,40 +495,87 @@ export function VideoSubmissionForm({
     setIsSubmitting(true)
 
     try {
-      const result = await submitVideo({
-        data: {
-          trackWorkoutId,
-          competitionId,
-          videoUrl: videoUrl.trim(),
-          notes: notes.trim() || undefined,
-          score: scoreInput.trim() || undefined,
-          scoreStatus: scoreInput.trim() ? scoreStatus : undefined,
-          secondaryScore:
-            scoreStatus === "cap"
-              ? secondaryScore.trim() || undefined
-              : undefined,
-          tiebreakScore: tiebreakScore.trim() || undefined,
-        },
-      })
+      // Submit each video slot (score only sent with the first)
+      const results: Array<{
+        success: boolean
+        submissionId?: string
+        isUpdate?: boolean
+        videoIndex: number
+      }> = []
 
-      if (result.success) {
+      for (const { slot, index } of slotsToSubmit) {
+        const isFirstSlot = index === slotsToSubmit[0].index
+        const result = await submitVideo({
+          data: {
+            trackWorkoutId,
+            competitionId,
+            videoUrl: slot.url.trim(),
+            notes: slot.notes.trim() || undefined,
+            videoIndex: index,
+            // Only send score with the first video slot
+            score: isFirstSlot ? scoreInput.trim() || undefined : undefined,
+            scoreStatus:
+              isFirstSlot && scoreInput.trim() ? scoreStatus : undefined,
+            secondaryScore:
+              isFirstSlot && scoreStatus === "cap"
+                ? secondaryScore.trim() || undefined
+                : undefined,
+            tiebreakScore: isFirstSlot
+              ? tiebreakScore.trim() || undefined
+              : undefined,
+          },
+        })
+        results.push({ ...result, videoIndex: index })
+      }
+
+      const allSuccess = results.every((r) => r.success)
+      if (allSuccess) {
+        const anyUpdate = results.some((r) => r.isUpdate)
         setSuccess(
-          result.isUpdate
+          anyUpdate
             ? "Submission updated successfully!"
             : "Submitted successfully!",
         )
         setHasSubmitted(true)
-        // Update local state with new submission info and switch to preview
-        setSubmissionData({
-          id: result.submissionId ?? submissionData?.id ?? "",
-          videoUrl: videoUrl.trim(),
-          notes: notes.trim() || null,
-          submittedAt: submissionData?.submittedAt ?? new Date(),
-          updatedAt: new Date(),
-          reviewStatus: submissionData?.reviewStatus ?? "pending",
-          statusUpdatedAt: submissionData?.statusUpdatedAt ?? null,
-          reviewerNotes: submissionData?.reviewerNotes ?? null,
-        })
+
+        // Update local submission data
+        const newSubmissions = [...submissionsData]
+        for (const result of results) {
+          const slot = videoSlots[result.videoIndex]
+          const existingIdx = newSubmissions.findIndex(
+            (s) => s.videoIndex === result.videoIndex,
+          )
+          const newSub: VideoSubmissionData = {
+            id: result.submissionId ?? "",
+            videoIndex: result.videoIndex,
+            videoUrl: slot.url.trim(),
+            notes: slot.notes.trim() || null,
+            submittedAt:
+              existingIdx >= 0
+                ? newSubmissions[existingIdx].submittedAt
+                : new Date(),
+            updatedAt: new Date(),
+            reviewStatus:
+              existingIdx >= 0
+                ? newSubmissions[existingIdx].reviewStatus
+                : "pending",
+            statusUpdatedAt:
+              existingIdx >= 0
+                ? newSubmissions[existingIdx].statusUpdatedAt
+                : null,
+            reviewerNotes:
+              existingIdx >= 0
+                ? newSubmissions[existingIdx].reviewerNotes
+                : null,
+          }
+          if (existingIdx >= 0) {
+            newSubmissions[existingIdx] = newSub
+          } else {
+            newSubmissions.push(newSub)
+          }
+        }
+        setSubmissionsData(newSubmissions)
+
         if (scoreInput.trim() && workout && parseResult) {
           setScoreData({
             scoreValue: parseResult.encoded,
@@ -462,11 +598,12 @@ export function VideoSubmissionForm({
   const isTimeCapped = workout?.scheme === "time-with-cap"
   const showSecondaryInput = isTimeCapped && scoreStatus === "cap"
 
-  // Show preview when there's a submission and we're not editing
-  if (hasSubmitted && submissionData && !isEditing) {
+  // Show preview when there are submissions and we're not editing
+  if (hasSubmitted && submissionsData.length > 0 && !isEditing) {
     return (
       <VideoSubmissionPreview
-        submission={submissionData}
+        submissions={submissionsData}
+        teamSize={teamSize}
         score={scoreData}
         workout={
           workout
@@ -493,32 +630,29 @@ export function VideoSubmissionForm({
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-1">
             <CardTitle className="text-lg">
-              {hasSubmitted ? "Update Your Result" : "Submit Your Result"}
+              {hasSubmitted
+                ? "Update Your Result"
+                : teamSize > 1
+                  ? "Submit Team Result"
+                  : "Submit Your Result"}
             </CardTitle>
             <CardDescription>
               {hasSubmitted
                 ? "Update your submission below"
-                : "Submit your score and video for this event"}
+                : teamSize > 1
+                  ? `Submit your team's score and up to ${teamSize} videos`
+                  : "Submit your score and video for this event"}
             </CardDescription>
           </div>
           {hasSubmitted && (
-            <div className="flex items-center gap-2">
-              {initialData?.submission?.reviewStatus && (
-                <SubmissionStatusBadge
-                  status={initialData.submission.reviewStatus}
-                  statusUpdatedAt={initialData.submission.statusUpdatedAt}
-                  reviewerNotes={initialData.submission.reviewerNotes}
-                />
-              )}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsEditing(false)}
-              >
-                Cancel
-              </Button>
-            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsEditing(false)}
+            >
+              Cancel
+            </Button>
           )}
         </div>
       </CardHeader>
@@ -529,7 +663,8 @@ export function VideoSubmissionForm({
             <>
               <div className="space-y-2">
                 <Label htmlFor="score-input">
-                  Your {getSchemeLabel(workout.scheme)}
+                  {teamSize > 1 ? "Team " : "Your "}
+                  {getSchemeLabel(workout.scheme)}
                 </Label>
                 <Input
                   id="score-input"
@@ -617,38 +752,62 @@ export function VideoSubmissionForm({
             </>
           )}
 
-          {/* Video URL Input */}
-          <div className="space-y-2">
-            <Label htmlFor="videoUrl">Video URL</Label>
-            <VideoUrlInput
-              id="videoUrl"
-              value={videoUrl}
-              onChange={setVideoUrl}
-              onValidationChange={setVideoValidation}
-              required
-              disabled={isSubmitting}
-              showPlatformBadge
-              showPreviewLink
-            />
-            <p className="text-xs text-muted-foreground">
-              Upload your video to {getSupportedPlatformsText()} (unlisted is
-              fine) and paste the link
-            </p>
-          </div>
+          {/* Video URL Inputs */}
+          {videoSlots.map((slot, index) => (
+            <div key={index} className="space-y-2">
+              <Label htmlFor={`videoUrl-${index}`}>
+                {teamSize > 1
+                  ? `Video ${index + 1} of ${teamSize} (optional)`
+                  : "Video URL"}
+              </Label>
+              <VideoUrlInput
+                id={`videoUrl-${index}`}
+                value={slot.url}
+                onChange={(url) => updateSlot(index, { url })}
+                onValidationChange={(validation) =>
+                  updateSlot(index, { validation })
+                }
+                required={false}
+                disabled={isSubmitting}
+                showPlatformBadge
+                showPreviewLink
+              />
+              {index === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Upload your video to {getSupportedPlatformsText()} (unlisted
+                  is fine) and paste the link
+                </p>
+              )}
 
-          {/* Notes Input */}
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes (Optional)</Label>
-            <Textarea
-              id="notes"
-              placeholder="Any additional information about your submission..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              disabled={isSubmitting}
-              maxLength={1000}
-            />
-          </div>
+              {/* Per-slot notes */}
+              {teamSize > 1 && (
+                <Textarea
+                  placeholder={`Notes for video ${index + 1} (optional)`}
+                  value={slot.notes}
+                  onChange={(e) => updateSlot(index, { notes: e.target.value })}
+                  rows={1}
+                  disabled={isSubmitting}
+                  maxLength={1000}
+                />
+              )}
+            </div>
+          ))}
+
+          {/* Single notes field for individual submissions */}
+          {teamSize === 1 && (
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes (Optional)</Label>
+              <Textarea
+                id="notes"
+                placeholder="Any additional information about your submission..."
+                value={videoSlots[0]?.notes ?? ""}
+                onChange={(e) => updateSlot(0, { notes: e.target.value })}
+                rows={2}
+                disabled={isSubmitting}
+                maxLength={1000}
+              />
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (
@@ -681,10 +840,13 @@ export function VideoSubmissionForm({
           </Button>
 
           {/* Previous Submission Info */}
-          {hasSubmitted && submissionData && (
+          {hasSubmitted && submissionsData.length > 0 && (
             <div className="pt-2 border-t text-xs text-muted-foreground">
               Last submitted:{" "}
-              {formatSubmissionTime(submissionData.submittedAt, timezone)}
+              {formatSubmissionTime(
+                submissionsData[submissionsData.length - 1].submittedAt,
+                timezone,
+              )}
             </div>
           )}
         </form>
