@@ -203,51 +203,34 @@ async function inviteUserToTeamInternal({
       }
     }
 
-    // User exists but not a member - add directly to team
-    await db.insert(teamMembershipTable).values({
-      teamId,
-      userId: existingUser.id,
-      roleId,
-      isSystemRole,
-      invitedBy,
-      invitedAt: new Date(),
-      joinedAt: new Date(),
-      isActive: true,
-    })
-
-    // Also add to competition_event team if this is a competition team
     if (competitionContext) {
-      // Get competition to find the competition_event team
-      const competition = await db.query.competitionsTable.findFirst({
-        where: eq(competitionsTable.id, competitionContext.competitionId),
+      // For competition invites, always create an invitation and send email
+      // so the user is notified and can complete registration requirements
+      // (questions, waivers). The acceptance flow handles adding them to the team.
+      // Fall through to the invitation creation path below.
+    } else {
+      // Non-competition context: add existing user directly to team
+      await db.insert(teamMembershipTable).values({
+        teamId,
+        userId: existingUser.id,
+        roleId,
+        isSystemRole,
+        invitedBy,
+        invitedAt: new Date(),
+        joinedAt: new Date(),
+        isActive: true,
       })
-      if (competition?.competitionTeamId) {
-        // Check if already a member of competition_event team
-        const existingEventMembership =
-          await db.query.teamMembershipTable.findFirst({
-            where: and(
-              eq(teamMembershipTable.teamId, competition.competitionTeamId),
-              eq(teamMembershipTable.userId, existingUser.id),
-            ),
-          })
-        if (!existingEventMembership) {
-          await db.insert(teamMembershipTable).values({
-            teamId: competition.competitionTeamId,
-            userId: existingUser.id,
-            roleId: SYSTEM_ROLES_ENUM.MEMBER,
-            isSystemRole: true,
-            joinedAt: new Date(),
-            isActive: true,
-          })
-        }
+
+      await updateAllSessionsOfUser(existingUser.id)
+      return {
+        userJoined: true,
+        userId: existingUser.id,
+        invitationSent: false,
       }
     }
-
-    await updateAllSessionsOfUser(existingUser.id)
-    return { userJoined: true, userId: existingUser.id, invitationSent: false }
   }
 
-  // User doesn't exist - create invitation
+  // Create invitation (for new users, or existing users in competition context)
   const token = createId()
   const expiresAt = new Date()
   expiresAt.setDate(expiresAt.getDate() + 30) // 30 days for competition invites
