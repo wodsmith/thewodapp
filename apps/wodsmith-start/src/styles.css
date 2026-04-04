@@ -190,3 +190,15 @@
   }
 }
 
+/* Range slider track visibility in dark mode */
+input[type="range"].range-visible-track::-webkit-slider-runnable-track {
+  background: hsl(var(--muted));
+  border-radius: 9999px;
+  height: 6px;
+}
+input[type="range"].range-visible-track::-moz-range-track {
+  background: hsl(var(--muted));
+  border-radius: 9999px;
+  height: 6px;
+}
+
