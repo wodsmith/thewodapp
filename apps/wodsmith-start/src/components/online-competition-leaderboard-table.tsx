@@ -20,11 +20,12 @@ import {
   ArrowUpDown,
   ArrowUpNarrowWide,
   ChevronDown,
+  Loader2,
   Medal,
   Trophy,
   Video,
 } from "lucide-react"
-import { Fragment, useEffect, useMemo, useState } from "react"
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Collapsible,
@@ -46,8 +47,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { VideoEmbed } from "@/components/video-embed"
 import { VideoVoteButtons } from "@/components/compete/video-vote-buttons"
+import { getLeaderboardVideosFn } from "@/server-fns/video-submission-fns"
 import { getVideoVoteCountsFn } from "@/server-fns/video-vote-fns"
 import { useSession } from "@/utils/auth-client"
 import { getSortDirection } from "@/lib/scoring"
@@ -231,6 +234,78 @@ type VoteCounts = Record<
   { upvotes: number; downvotes: number; userVote: "upvote" | "downvote" | null }
 >
 
+/** Video data returned by the public siblings endpoint */
+type LeaderboardVideo = {
+  id: string
+  videoIndex: number
+  videoUrl: string
+  athleteName: string
+}
+
+/** Hook to fetch all sibling videos for a team submission */
+function useTeamVideos(videoSubmissionId: string | null, isTeam: boolean) {
+  const [videos, setVideos] = useState<LeaderboardVideo[]>([])
+  const [loading, setLoading] = useState(false)
+  const fetchVideos = useServerFn(getLeaderboardVideosFn)
+
+  useEffect(() => {
+    if (!videoSubmissionId || !isTeam) {
+      setVideos([])
+      return
+    }
+
+    let cancelled = false
+    setLoading(true)
+
+    fetchVideos({ data: { videoSubmissionId } })
+      .then((result) => {
+        if (!cancelled) setVideos(result.videos)
+      })
+      .catch(() => {
+        if (!cancelled) setVideos([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [videoSubmissionId, isTeam, fetchVideos])
+
+  return { videos, loading }
+}
+
+/** Single video card with embed and voting */
+function VideoCard({
+  videoUrl,
+  videoSubmissionId,
+  voteCounts,
+  isOwnSubmission,
+  isLoggedIn,
+}: {
+  videoUrl: string
+  videoSubmissionId: string | null
+  voteCounts: VoteCounts
+  isOwnSubmission: boolean
+  isLoggedIn: boolean
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="rounded-lg overflow-hidden border border-border/50 shadow-sm">
+        <VideoEmbed url={videoUrl} />
+      </div>
+      {videoSubmissionId && !isOwnSubmission && (
+        <VideoVoteButtons
+          videoSubmissionId={videoSubmissionId}
+          userVote={voteCounts[videoSubmissionId]?.userVote ?? null}
+          isLoggedIn={isLoggedIn}
+        />
+      )}
+    </div>
+  )
+}
+
 /** Desktop expanded row showing videos and penalty details */
 function ExpandedVideoRow({
   row,
@@ -266,54 +341,129 @@ function ExpandedVideoRow({
   if (resultsToShow.length === 0) return null
 
   return (
-    <TableRow className="table-row bg-muted/30 hover:bg-muted/30">
-      <TableCell colSpan={columnsCount} className="table-cell p-4">
-        <div
-          className={cn(
-            "grid gap-4",
-            resultsToShow.length === 1
-              ? "max-w-2xl"
-              : "grid-cols-1 md:grid-cols-2",
-          )}
-        >
-          {resultsToShow.map((result) => (
-            <div key={result.trackWorkoutId} className="space-y-2">
-              {!selectedEventId && (
-                <span className="text-sm font-medium text-muted-foreground block">
-                  {result.eventName}
-                </span>
-              )}
-              {result.penaltyType && (
-                <div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <AlertTriangle className="h-3 w-3" />
-                  {result.penaltyType === "major" ? "Major" : "Minor"} Penalty
-                  {result.penaltyPercentage != null &&
-                    ` · ${result.penaltyPercentage}% deduction`}
-                </div>
-              )}
-              {!result.penaltyType && result.isDirectlyModified && (
-                <div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <AlertTriangle className="h-3 w-3" />
-                  Score adjusted by organizer
-                </div>
-              )}
-              {result.videoUrl && (
-                <div className="space-y-1">
-                  <VideoEmbed url={result.videoUrl} />
-                  {result.videoSubmissionId && !isOwnSubmission && (
-                    <VideoVoteButtons
-                      videoSubmissionId={result.videoSubmissionId}
-                      userVote={voteCounts[result.videoSubmissionId]?.userVote ?? null}
-                      isLoggedIn={isLoggedIn}
-                    />
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+    <TableRow className="table-row bg-muted/20 hover:bg-muted/20 border-b">
+      <TableCell colSpan={columnsCount} className="table-cell p-0">
+        <div className="px-6 py-5">
+          <div className="max-w-2xl space-y-4">
+            {resultsToShow.map((result) => (
+              <div key={result.trackWorkoutId} className="space-y-3">
+                {!selectedEventId && (
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {result.eventName}
+                  </span>
+                )}
+
+                {/* Penalty / adjustment notices */}
+                {result.penaltyType && (
+                  <div className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="h-3 w-3" />
+                    {result.penaltyType === "major" ? "Major" : "Minor"} Penalty
+                    {result.penaltyPercentage != null &&
+                      ` · ${result.penaltyPercentage}% deduction`}
+                  </div>
+                )}
+                {!result.penaltyType && result.isDirectlyModified && (
+                  <div className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="h-3 w-3" />
+                    Score adjusted by organizer
+                  </div>
+                )}
+
+                {/* Video content */}
+                {result.videoUrl && result.videoSubmissionId && (
+                  <ExpandedVideoContent
+                    result={result}
+                    isTeam={entry.isTeamDivision}
+                    voteCounts={voteCounts}
+                    isOwnSubmission={isOwnSubmission}
+                    isLoggedIn={isLoggedIn}
+                  />
+                )}
+                {result.videoUrl && !result.videoSubmissionId && (
+                  <VideoCard
+                    videoUrl={result.videoUrl}
+                    videoSubmissionId={null}
+                    voteCounts={voteCounts}
+                    isOwnSubmission={isOwnSubmission}
+                    isLoggedIn={isLoggedIn}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </TableCell>
     </TableRow>
+  )
+}
+
+/** Handles fetching team videos and rendering tabs or single video */
+function ExpandedVideoContent({
+  result,
+  isTeam,
+  voteCounts,
+  isOwnSubmission,
+  isLoggedIn,
+}: {
+  result: CompetitionLeaderboardEntry["eventResults"][number]
+  isTeam: boolean
+  voteCounts: VoteCounts
+  isOwnSubmission: boolean
+  isLoggedIn: boolean
+}) {
+  const { videos, loading } = useTeamVideos(
+    result.videoSubmissionId,
+    isTeam,
+  )
+
+  // Team with multiple videos — show tabs
+  if (isTeam && videos.length > 1) {
+    return (
+      <Tabs defaultValue={videos[0].id} className="w-full">
+        <TabsList className="h-8 w-full justify-start bg-muted/60">
+          {videos.map((v) => (
+            <TabsTrigger
+              key={v.id}
+              value={v.id}
+              className="text-xs px-3 py-1 data-[state=active]:bg-background"
+            >
+              {v.athleteName}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        {videos.map((v) => (
+          <TabsContent key={v.id} value={v.id} className="mt-3">
+            <VideoCard
+              videoUrl={v.videoUrl}
+              videoSubmissionId={v.id}
+              voteCounts={voteCounts}
+              isOwnSubmission={isOwnSubmission}
+              isLoggedIn={isLoggedIn}
+            />
+          </TabsContent>
+        ))}
+      </Tabs>
+    )
+  }
+
+  // Loading state for team fetch
+  if (isTeam && loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  // Single video (individual or team with one video)
+  return (
+    <VideoCard
+      videoUrl={result.videoUrl!}
+      videoSubmissionId={result.videoSubmissionId}
+      voteCounts={voteCounts}
+      isOwnSubmission={isOwnSubmission}
+      isLoggedIn={isLoggedIn}
+    />
   )
 }
 
@@ -497,15 +647,24 @@ function MobileOnlineLeaderboardRow({
           {entry.eventResults
             .filter((r) => r.videoUrl)
             .map((result) => (
-              <div key={result.trackWorkoutId} className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">
+              <div key={result.trackWorkoutId} className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {result.eventName} Video
                 </span>
-                <VideoEmbed url={result.videoUrl} />
-                {result.videoSubmissionId && !isOwnSubmission && (
-                  <VideoVoteButtons
-                    videoSubmissionId={result.videoSubmissionId}
-                    userVote={voteCounts[result.videoSubmissionId]?.userVote ?? null}
+                {result.videoSubmissionId ? (
+                  <ExpandedVideoContent
+                    result={result}
+                    isTeam={entry.isTeamDivision}
+                    voteCounts={voteCounts}
+                    isOwnSubmission={isOwnSubmission}
+                    isLoggedIn={isLoggedIn}
+                  />
+                ) : (
+                  <VideoCard
+                    videoUrl={result.videoUrl!}
+                    videoSubmissionId={null}
+                    voteCounts={voteCounts}
+                    isOwnSubmission={isOwnSubmission}
                     isLoggedIn={isLoggedIn}
                   />
                 )}
