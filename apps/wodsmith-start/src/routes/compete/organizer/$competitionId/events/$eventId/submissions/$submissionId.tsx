@@ -2195,13 +2195,13 @@ function SubmissionDetailPage() {
           },
         })
       }
-      // Clear optimistic state — server data takes over on invalidate
+      // Await invalidation so loader data is fresh before clearing optimistic state
+      await router.invalidate()
       setOptimisticReviews((prev) => {
         const next = { ...prev }
         delete next[activeSubmission.id]
         return next
       })
-      router.invalidate()
     } catch {
       // Revert on failure
       setOptimisticReviews((prev) => {
