@@ -260,14 +260,18 @@ function SubmissionsPage() {
             new Date(sb.submittedAt).getTime()
           )
         case "athlete": {
-          const nameA =
+          const nameA = (
+            sa.teamName ||
             `${sa.athlete.firstName || ""} ${sa.athlete.lastName || ""}`
-              .trim()
-              .toLowerCase()
-          const nameB =
+          )
+            .trim()
+            .toLowerCase()
+          const nameB = (
+            sb.teamName ||
             `${sb.athlete.firstName || ""} ${sb.athlete.lastName || ""}`
-              .trim()
-              .toLowerCase()
+          )
+            .trim()
+            .toLowerCase()
           return nameA.localeCompare(nameB)
         }
         case "division": {
@@ -556,8 +560,9 @@ function SubmissionsPage() {
                           <div className="flex flex-col">
                             <div className="flex items-center gap-2">
                               <span className="font-medium">
-                                {submission.athlete.firstName ?? ""}{" "}
-                                {submission.athlete.lastName ?? ""}
+                                {submission.teamName
+                                  ? submission.teamName
+                                  : `${submission.athlete.firstName ?? ""} ${submission.athlete.lastName ?? ""}`}
                               </span>
                               {group.videoCount > 1 && (
                                 <Badge
@@ -571,7 +576,8 @@ function SubmissionsPage() {
                             </div>
                             {submission.teamName && (
                               <span className="text-xs text-muted-foreground">
-                                {submission.teamName}
+                                {submission.athlete.firstName ?? ""}{" "}
+                                {submission.athlete.lastName ?? ""}
                               </span>
                             )}
                           </div>
