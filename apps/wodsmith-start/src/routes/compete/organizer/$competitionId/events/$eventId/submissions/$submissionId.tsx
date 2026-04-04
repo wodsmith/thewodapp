@@ -747,7 +747,7 @@ function VerificationControls({
                   max={penaltyType === "major" ? 40 : 100}
                   value={penaltyPercentage}
                   onChange={(e) => setPenaltyPercentage(Number(e.target.value))}
-                  className="flex-1 accent-orange-600 range-visible-track"
+                  className="flex-1 range-visible-track"
                 />
                 <span className="text-sm font-mono w-10 text-right">
                   {penaltyPercentage}%
@@ -1171,7 +1171,7 @@ function AuditLogEntry({
                   max={editPenaltyType === "major" ? 40 : 100}
                   value={editPenaltyPct}
                   onChange={(e) => setEditPenaltyPct(Number(e.target.value))}
-                  className="flex-1 accent-orange-600 range-visible-track"
+                  className="flex-1 range-visible-track"
                 />
                 <span className="text-sm font-mono w-10 text-right">
                   {editPenaltyPct}%
