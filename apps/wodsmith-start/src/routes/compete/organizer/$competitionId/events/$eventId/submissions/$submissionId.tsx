@@ -2101,10 +2101,13 @@ function SubmissionDetailPage() {
   const markReviewed = useServerFn(markSubmissionReviewedFn)
   const unmarkReviewed = useServerFn(unmarkSubmissionReviewedFn)
 
-  const [isUpdating, setIsUpdating] = useState(false)
   const [activeVideoIndex, setActiveVideoIndex] = useState(
     submission.videoIndex,
   )
+  // Optimistic review state: maps submissionId -> overridden reviewedAt
+  const [optimisticReviews, setOptimisticReviews] = useState<
+    Record<string, Date | null>
+  >({})
 
   // Derive active sibling and per-tab notes
   const activeSubmission =
@@ -2155,9 +2158,14 @@ function SubmissionDetailPage() {
     return () => document.removeEventListener("keydown", handleKeyDown)
   }, [])
 
-  const activeReviewed = activeSubmission?.reviewedAt != null
-  const allReviewed = siblings.every((s) => s.reviewedAt != null)
-  const reviewedCount = siblings.filter((s) => s.reviewedAt != null).length
+  // Resolve review state with optimistic overrides
+  const getReviewedAt = (sub: { id: string; reviewedAt: Date | null }) =>
+    sub.id in optimisticReviews ? optimisticReviews[sub.id] : sub.reviewedAt
+  const activeReviewed = activeSubmission
+    ? getReviewedAt(activeSubmission) != null
+    : false
+  const allReviewed = siblings.every((s) => getReviewedAt(s) != null)
+  const reviewedCount = siblings.filter((s) => getReviewedAt(s) != null).length
   const isReviewed = hasMultipleVideos ? allReviewed : activeReviewed
   const activeVideoUrl = activeSubmission?.videoUrl ?? submission.videoUrl
   const hasInteractivePlayer = supportsInteractivePlayer(activeVideoUrl)
@@ -2165,9 +2173,14 @@ function SubmissionDetailPage() {
 
   const handleToggleReview = async () => {
     if (!activeSubmission) return
-    setIsUpdating(true)
+    const wasReviewed = activeReviewed
+    // Optimistically flip UI immediately
+    setOptimisticReviews((prev) => ({
+      ...prev,
+      [activeSubmission.id]: wasReviewed ? null : new Date(),
+    }))
     try {
-      if (activeReviewed) {
+      if (wasReviewed) {
         await unmarkReviewed({
           data: {
             submissionId: activeSubmission.id,
@@ -2182,9 +2195,20 @@ function SubmissionDetailPage() {
           },
         })
       }
+      // Clear optimistic state — server data takes over on invalidate
+      setOptimisticReviews((prev) => {
+        const next = { ...prev }
+        delete next[activeSubmission.id]
+        return next
+      })
       router.invalidate()
-    } finally {
-      setIsUpdating(false)
+    } catch {
+      // Revert on failure
+      setOptimisticReviews((prev) => {
+        const next = { ...prev }
+        delete next[activeSubmission.id]
+        return next
+      })
     }
   }
 
@@ -2233,20 +2257,20 @@ function SubmissionDetailPage() {
           <Button
             variant="outline"
             onClick={handleToggleReview}
-            disabled={isUpdating}
+
             className="gap-2"
           >
             <Undo2 className="h-4 w-4" />
-            {isUpdating ? "Updating..." : "Unmark Reviewed"}
+            Unmark Reviewed
           </Button>
         ) : (
           <Button
             onClick={handleToggleReview}
-            disabled={isUpdating}
+
             className="gap-2 bg-green-600 hover:bg-green-700"
           >
             <CheckCircle2 className="h-4 w-4" />
-            {isUpdating ? "Updating..." : "Mark as Reviewed"}
+            Mark as Reviewed
           </Button>
         )}
       </div>
@@ -2302,7 +2326,7 @@ function SubmissionDetailPage() {
                             ({sib.athleteFirstName})
                           </span>
                         )}
-                        {sib.reviewedAt != null && (
+                        {getReviewedAt(sib) != null && (
                           <CheckCircle2 className="h-3 w-3 text-green-600" />
                         )}
                       </TabsTrigger>
