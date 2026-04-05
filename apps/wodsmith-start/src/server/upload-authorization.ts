@@ -7,6 +7,7 @@
 import { eq } from "drizzle-orm"
 import { getDb } from "@/db"
 import { competitionsTable } from "@/db/schema"
+import { competitionGroupsTable } from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getCohostPermissions } from "@/server/cohost"
@@ -47,23 +48,43 @@ export async function checkUploadAuthorization(
     return { authorized: true }
   }
 
-  // Judging sheet uploads require team permission (entityId is competitionId)
+  // Judging sheet uploads require team permission (entityId is competitionId or groupId)
   if (purpose === "judging-sheet") {
     if (!entityId) {
       return {
         authorized: false,
-        error: "Competition ID is required for judging sheet uploads",
+        error: "Competition or series group ID is required for judging sheet uploads",
       }
     }
     const db = getDb()
+
+    // Try competition first
     const competition = await db.query.competitionsTable.findFirst({
       where: eq(competitionsTable.id, entityId),
     })
-    if (!competition) {
-      return { authorized: false, error: "Competition not found" }
+
+    let organizingTeamId: string | null = null
+
+    if (competition) {
+      organizingTeamId = competition.organizingTeamId
+    } else {
+      // Try series group (for template event judging sheets)
+      const [group] = await db
+        .select({ organizingTeamId: competitionGroupsTable.organizingTeamId })
+        .from(competitionGroupsTable)
+        .where(eq(competitionGroupsTable.id, entityId))
+        .limit(1)
+      if (group) {
+        organizingTeamId = group.organizingTeamId
+      }
     }
+
+    if (!organizingTeamId) {
+      return { authorized: false, error: "Competition or series group not found" }
+    }
+
     const hasPermission = await hasTeamPermission(
-      competition.organizingTeamId,
+      organizingTeamId,
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
     if (!hasPermission) {
@@ -77,7 +98,7 @@ export async function checkUploadAuthorization(
       }
       return {
         authorized: false,
-        error: "Not authorized to upload judging sheets for this competition",
+        error: "Not authorized to upload judging sheets",
       }
     }
     return { authorized: true }

@@ -8,6 +8,7 @@ import { useEffect } from "react"
 import { z } from "zod"
 import { CompetitionHero } from "@/components/competition-hero"
 import { CouponBanner } from "@/components/coupon-banner"
+import { JsonLd } from "@/components/json-ld"
 import { getAppUrlFn } from "@/lib/env"
 import { getCouponByCodeFn } from "@/server-fns/coupon-fns"
 import { toast } from "sonner"
@@ -175,7 +176,7 @@ export const Route = createFileRoute("/compete/$slug")({
 
     return {
       meta: [
-        { title: competition.name },
+        { title: `${competition.name} | WODsmith` },
         { name: "description", content: description },
         { property: "og:type", content: "website" },
         { property: "og:url", content: pageUrl },
@@ -190,12 +191,15 @@ export const Route = createFileRoute("/compete/$slug")({
         { name: "twitter:description", content: description },
         { name: "twitter:image", content: ogImageUrl },
       ],
+      links: [{ rel: "canonical", href: pageUrl }],
     }
   },
 })
 
 function CompetitionDetailLayout() {
-  const { competition, canManage, isCohost, isVolunteer } = Route.useLoaderData()
+  const loaderData = Route.useLoaderData()
+  const { competition, canManage, isCohost, isVolunteer, registrationStatus } =
+    loaderData
   const { coupon: couponCode } = Route.useSearch()
   const navigate = useNavigate()
 
@@ -239,8 +243,61 @@ function CompetitionDetailLayout() {
     })
   }, [couponCode, competition.slug, navigate])
 
+  const appUrl = loaderData.appUrl || "https://wodsmith.com"
+
+  const sportsEventSchema = {
+    "@context": "https://schema.org",
+    "@type": "SportsEvent",
+    name: competition.name,
+    description: competition.description || undefined,
+    startDate: competition.startDate,
+    endDate: competition.endDate,
+    url: `${appUrl}/compete/${competition.slug}`,
+    eventStatus: "https://schema.org/EventScheduled",
+    eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+    organizer: {
+      "@type": "Organization",
+      name: competition.organizingTeam?.name || "WODsmith",
+      url: appUrl,
+    },
+    ...(competition.defaultRegistrationFeeCents != null && {
+      offers: {
+        "@type": "Offer",
+        price: (competition.defaultRegistrationFeeCents / 100).toFixed(2),
+        priceCurrency: "USD",
+        url: `${appUrl}/compete/${competition.slug}`,
+        availability: registrationStatus.registrationOpen
+          ? "https://schema.org/InStock"
+          : registrationStatus.registrationClosed
+            ? "https://schema.org/SoldOut"
+            : "https://schema.org/PreOrder",
+      },
+    }),
+  }
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Competitions",
+        item: `${appUrl}/compete`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: competition.name,
+        item: `${appUrl}/compete/${competition.slug}`,
+      },
+    ],
+  }
+
   return (
     <div className="relative min-h-screen bg-background print:min-h-0 print:bg-white">
+      <JsonLd data={sportsEventSchema} />
+      <JsonLd data={breadcrumbSchema} />
       {/* Full-bleed banner - absolutely positioned to extend behind the glass card */}
       {hasBanner && (
         <div className="absolute left-1/2 top-0 h-[16rem] w-screen -translate-x-1/2 md:h-[20rem] lg:h-[22rem] print:hidden">

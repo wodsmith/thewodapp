@@ -25,17 +25,21 @@ import { isSafeUrl } from "@/utils/url"
 import { SubmissionStatusBadge } from "./submission-status-badge"
 import { YouTubeEmbed, isYouTubeUrl } from "./youtube-embed"
 
+interface SubmissionData {
+  id: string
+  videoIndex: number
+  videoUrl: string
+  notes: string | null
+  submittedAt: Date
+  updatedAt: Date
+  reviewStatus?: ReviewStatus
+  statusUpdatedAt?: Date | null
+  reviewerNotes?: string | null
+}
+
 interface VideoSubmissionPreviewProps {
-  submission: {
-    id: string
-    videoUrl: string
-    notes: string | null
-    submittedAt: Date
-    updatedAt: Date
-    reviewStatus?: ReviewStatus
-    statusUpdatedAt?: Date | null
-    reviewerNotes?: string | null
-  }
+  submissions: SubmissionData[]
+  teamSize: number
   score?: {
     scoreValue: number | null
     displayScore: string | null
@@ -106,8 +110,96 @@ function getSchemeLabel(scheme: WorkoutScheme): string {
   }
 }
 
-export function VideoSubmissionPreview({
+function VideoPreviewItem({
   submission,
+  workout,
+  timezone,
+  label,
+}: {
+  submission: SubmissionData
+  workout?: VideoSubmissionPreviewProps["workout"]
+  timezone?: string | null
+  label?: string
+}) {
+  const isYouTube = isYouTubeUrl(submission.videoUrl)
+  const hasUpdated =
+    new Date(submission.updatedAt).getTime() !==
+    new Date(submission.submittedAt).getTime()
+
+  return (
+    <div className="space-y-2">
+      {label && (
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium">{label}</p>
+          {submission.reviewStatus && (
+            <SubmissionStatusBadge
+              status={submission.reviewStatus}
+              statusUpdatedAt={submission.statusUpdatedAt ?? null}
+              reviewerNotes={submission.reviewerNotes ?? null}
+            />
+          )}
+        </div>
+      )}
+      {isYouTube ? (
+        <YouTubeEmbed
+          url={submission.videoUrl}
+          title={workout?.name || "Workout submission"}
+        />
+      ) : (
+        <div className="rounded-lg border bg-muted/50 p-4">
+          <div className="flex items-center gap-3">
+            <FileText className="h-5 w-5 text-muted-foreground" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">
+                {submission.videoUrl}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                External video link
+              </p>
+            </div>
+            <a
+              href={isSafeUrl(submission.videoUrl) ? submission.videoUrl : "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-sm text-primary hover:underline shrink-0"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Open
+            </a>
+          </div>
+        </div>
+      )}
+      {submission.notes && (
+        <div className="rounded-lg bg-muted/50 p-4">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+            Notes
+          </p>
+          <p className="text-sm whitespace-pre-wrap">{submission.notes}</p>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <Calendar className="h-3.5 w-3.5" />
+          <span>
+            Submitted {formatSubmissionTime(submission.submittedAt, timezone)}
+          </span>
+        </div>
+        {hasUpdated && (
+          <div className="flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
+            <span>
+              Updated {formatSubmissionTime(submission.updatedAt, timezone)}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export function VideoSubmissionPreview({
+  submissions,
+  teamSize,
   score,
   workout,
   canEdit,
@@ -115,10 +207,9 @@ export function VideoSubmissionPreview({
   timezone,
   onEdit,
 }: VideoSubmissionPreviewProps) {
-  const isYouTube = isYouTubeUrl(submission.videoUrl)
-  const hasUpdated =
-    new Date(submission.updatedAt).getTime() !==
-    new Date(submission.submittedAt).getTime()
+  const isTeam = teamSize > 1
+  // For single submission without label, show review status in header
+  const singleSubmission = submissions.length === 1 ? submissions[0] : null
 
   return (
     <Card className="overflow-hidden">
@@ -127,11 +218,11 @@ export function VideoSubmissionPreview({
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
             <CardTitle className="text-lg">Submission Complete</CardTitle>
-            {submission.reviewStatus && (
+            {!isTeam && singleSubmission?.reviewStatus && (
               <SubmissionStatusBadge
-                status={submission.reviewStatus}
-                statusUpdatedAt={submission.statusUpdatedAt ?? null}
-                reviewerNotes={submission.reviewerNotes ?? null}
+                status={singleSubmission.reviewStatus}
+                statusUpdatedAt={singleSubmission.statusUpdatedAt ?? null}
+                reviewerNotes={singleSubmission.reviewerNotes ?? null}
               />
             )}
           </div>
@@ -149,48 +240,33 @@ export function VideoSubmissionPreview({
         </div>
         <CardDescription>
           {canEdit
-            ? "Your submission is recorded. You can still update it while the submission window is open."
+            ? isTeam
+              ? `${submissions.length} of ${teamSize} videos submitted. You can still update while the submission window is open.`
+              : "Your submission is recorded. You can still update it while the submission window is open."
             : editReason || "Submission window is closed."}
         </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Video Preview */}
-        <div className="space-y-2">
-          {isYouTube ? (
-            <YouTubeEmbed
-              url={submission.videoUrl}
-              title={workout?.name || "Workout submission"}
-            />
-          ) : (
-            <div className="rounded-lg border bg-muted/50 p-4">
-              <div className="flex items-center gap-3">
-                <FileText className="h-5 w-5 text-muted-foreground" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {submission.videoUrl}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    External video link
-                  </p>
-                </div>
-                <a
-                  href={
-                    isSafeUrl(submission.videoUrl) ? submission.videoUrl : "#"
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-sm text-primary hover:underline shrink-0"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Open
-                </a>
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Video Preview(s) */}
+        {submissions.map((submission) => (
+          <VideoPreviewItem
+            key={submission.id}
+            submission={submission}
+            workout={workout}
+            timezone={timezone}
+            label={
+              isTeam
+                ? submission.videoIndex === 0
+                  ? "Captain"
+                  : `Teammate ${submission.videoIndex + 1}`
+                : undefined
+            }
+          />
+        ))}
 
-        <Separator />
+        {submissions.length > 1 && <Separator />}
+        {submissions.length === 1 && <Separator />}
 
         {/* Score Display */}
         {score?.displayScore && (
@@ -199,8 +275,10 @@ export function VideoSubmissionPreview({
             <div className="flex-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
                 {workout
-                  ? `Your ${getSchemeLabel(workout.scheme)}`
-                  : "Your Score"}
+                  ? `${isTeam ? "Team" : "Your"} ${getSchemeLabel(workout.scheme)}`
+                  : isTeam
+                    ? "Team Score"
+                    : "Your Score"}
               </p>
               <p className="text-2xl font-mono font-bold">
                 {score.displayScore}
@@ -226,34 +304,6 @@ export function VideoSubmissionPreview({
             </div>
           </div>
         )}
-
-        {/* Notes */}
-        {submission.notes && (
-          <div className="rounded-lg bg-muted/50 p-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
-              Notes
-            </p>
-            <p className="text-sm whitespace-pre-wrap">{submission.notes}</p>
-          </div>
-        )}
-
-        {/* Submission Metadata */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5">
-            <Calendar className="h-3.5 w-3.5" />
-            <span>
-              Submitted {formatSubmissionTime(submission.submittedAt, timezone)}
-            </span>
-          </div>
-          {hasUpdated && (
-            <div className="flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5" />
-              <span>
-                Updated {formatSubmissionTime(submission.updatedAt, timezone)}
-              </span>
-            </div>
-          )}
-        </div>
 
         {/* Edit Status Banner */}
         {canEdit && (

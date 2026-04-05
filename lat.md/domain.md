@@ -65,6 +65,12 @@ Physical locations for competition events, defined in `competitionVenuesTable`.
 
 Each venue has a name, address, and capacity. Heats can be assigned to specific venues.
 
+## Broadcasts
+
+One-way messages from organizers to competition athletes, delivered in-app and via email.
+
+Defined in [[apps/wodsmith-start/src/db/schemas/broadcasts.ts#competitionBroadcastsTable]] and [[apps/wodsmith-start/src/db/schemas/broadcasts.ts#competitionBroadcastRecipientsTable]]. Each broadcast targets a filtered audience via a JSON `audienceFilter`: all athletes, athletes by division, all volunteers, volunteers by role, or public (everyone). The audience can be further narrowed by registration question answers via an optional `questionFilters` array — multiple question filters are AND'd, with OR logic within each filter's values. Email delivery is handled asynchronously via Cloudflare Queue with Resend, using per-recipient idempotency keys to prevent duplicates on retry. Recipient delivery status tracks `queued`, `sent`, `failed`, or `skipped` (used when email is disabled or no API key is configured).
+
 ## Workouts
 
 Workouts are the core content — descriptions of physical exercises with scoring rules.
@@ -129,3 +135,19 @@ Organizers create waiver templates per competition. Athletes sign waivers during
 Athletes can submit video evidence of their workout performance for remote judging.
 
 Submissions link to a score and include a video URL (e.g., Vimeo). Judges can verify or reject submissions. Community voting is supported via `videoVotesTable`.
+
+### Captain-Only Submission
+
+For team divisions (teamSize > 1), only the team captain can submit videos and scores. Non-captain team members see a read-only view of the team's submissions. Individual athletes (teamSize = 1) are always treated as their own captain.
+
+### Multiple Videos per Team
+
+Team divisions allow up to `teamSize` video submissions per event, tracked via a `videoIndex` column on `videoSubmissionsTable`.
+
+The unique constraint is `(registrationId, trackWorkoutId, videoIndex)`. Videos are optional — teams can submit fewer than `teamSize`. The score is submitted once per team (tied to the captain's userId).
+
+### Grouped Review UX
+
+Organizers review multi-video team submissions in a tabbed UI with aggregated no-rep tallies.
+
+The submission list groups videos by registration into a single row with a badge. The server computes `registrationAllReviewed` from the full unfiltered submission set so grouped rows show correct review status even when a status filter is active. The review detail page uses [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getSiblingSubmissionsFn]] to fetch sibling videos and [[apps/wodsmith-start/src/server-fns/review-note-fns.ts#getReviewNotesForRegistrationFn]] to aggregate review notes across all videos. Both functions scope queries to the competition by joining through `competitionRegistrationsTable.eventId` to prevent cross-competition data access. Per-video notes feed into a shared movement tally. Verification controls and penalties remain per-score (one decision per team per event). Video URLs rendered in the organizer list are guarded with `isSafeUrl` to prevent `javascript:` scheme injection.

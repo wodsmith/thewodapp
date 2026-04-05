@@ -5,13 +5,15 @@ export const Route = createFileRoute("/terms")({
   head: () => ({
     meta: [
       {
-        title: "Terms of Service - WODsmith",
+        title: "Terms of Service | WODsmith",
       },
       {
         name: "description",
-        content: "WODsmith Terms of Service",
+        content:
+          "Read the WODsmith Terms of Service. Understand your rights and responsibilities when using our fitness competition platform.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://wodsmith.com/terms" }],
   }),
   component: TermsPage,
 })

@@ -1,24 +1,21 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import {
-  ArrowLeft,
   ChevronDown,
   Copy,
-  Layers,
   ListPlus,
   Pencil,
   Plus,
   Trash2,
-  Trophy,
   UserPlus,
 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { AddCompetitionsToSeriesDialog } from "@/components/add-competitions-to-series-dialog"
-import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
 import type { CompetitionRevenueData } from "@/components/organizer-competitions-list"
 import { OrganizerCompetitionsList } from "@/components/organizer-competitions-list"
 import { SeriesRevenueSummary } from "@/components/series-competition-revenue-list"
+import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -35,7 +32,6 @@ import {
 } from "@/components/ui/collapsible"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
-import { usePostHog } from "@/lib/posthog"
 import { EditCohostPermissionsDialog } from "@/routes/compete/organizer/$competitionId/-components/edit-cohost-permissions-dialog"
 import { InviteCohostDialog } from "@/routes/compete/organizer/$competitionId/-components/invite-cohost-dialog"
 import type { SeriesRevenueStats } from "@/server-fns/commerce-fns"
@@ -58,7 +54,7 @@ import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
 import { FEATURES } from "@/config/features"
 
 export const Route = createFileRoute(
-  "/compete/organizer/_dashboard/series/$groupId/",
+  "/compete/organizer/series/$groupId/",
 )({
   component: SeriesDetailPage,
   loader: async ({ params, context }) => {
@@ -128,8 +124,8 @@ export const Route = createFileRoute(
         }).catch(() => false),
       ])
 
-    // Filter competitions that belong to this series
-    const seriesCompetitions = competitionsResult.competitions.filter(
+    const allCompetitions = competitionsResult.competitions
+    const seriesCompetitions = allCompetitions.filter(
       (c) => c.groupId === groupId,
     )
 
@@ -141,7 +137,7 @@ export const Route = createFileRoute(
     return {
       group: groupResult.group,
       seriesCompetitions,
-      allCompetitions: competitionsResult.competitions,
+      allCompetitions,
       allGroups: [
         {
           ...groupResult.group,
@@ -205,10 +201,6 @@ function SeriesDetailPage() {
     return map
   }, [seriesRevenueStats])
 
-  const { posthog } = usePostHog()
-  const globalLeaderboardEnabled =
-    posthog.isFeatureEnabled("competition-global-leaderboard") !== false
-
   const updateCompetition = useServerFn(updateCompetitionFn)
   const exportCsv = useServerFn(exportSeriesRevenueCsvFn)
 
@@ -257,98 +249,12 @@ function SeriesDetailPage() {
     }
   }
 
-  if (!teamId) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center py-12">
-          <h1 className="text-2xl font-bold mb-4">No Team Found</h1>
-          <p className="text-muted-foreground mb-6">
-            You need to be part of a team to view series details.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!group) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center py-12">
-          <h1 className="text-2xl font-bold mb-4">Series Not Found</h1>
-          <p className="text-muted-foreground mb-6">
-            The series you're looking for doesn't exist or you don't have
-            permission to view it.
-          </p>
-          <Button variant="outline" asChild>
-            <a href="/compete/organizer/series">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Series
-            </a>
-          </Button>
-        </div>
-      </div>
-    )
+  if (!teamId || !group) {
+    return null
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col gap-6">
-        {/* Header */}
-        <div>
-          <div className="mb-4">
-            <Button variant="ghost" size="sm" asChild>
-              <a href="/compete/organizer/series">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Series
-              </a>
-            </Button>
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold">{group.name}</h1>
-              {group.description && (
-                <p className="text-muted-foreground mt-1">
-                  {group.description}
-                </p>
-              )}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {globalLeaderboardEnabled && (
-                <>
-                  <Button variant="outline" asChild>
-                    <Link
-                      to="/compete/organizer/series/$groupId/divisions"
-                      params={{ groupId: group.id }}
-                    >
-                      <Layers className="h-4 w-4 mr-2" />
-                      Configure Divisions
-                    </Link>
-                  </Button>
-                  <Button variant="outline" asChild>
-                    <Link
-                      to="/compete/organizer/series/$groupId/leaderboard"
-                      params={{ groupId: group.id }}
-                    >
-                      <Trophy className="h-4 w-4 mr-2" />
-                      Global Leaderboard
-                    </Link>
-                  </Button>
-                </>
-              )}
-              <Button variant="outline" asChild>
-                <Link
-                  to="/compete/organizer/series/$groupId/edit"
-                  params={{ groupId: group.id }}
-                >
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Edit Series
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-
+    <div className="flex flex-col gap-6">
         {/* Revenue Summary */}
         {seriesRevenueStats ? (
           <SeriesRevenueSummary
@@ -425,6 +331,7 @@ function SeriesDetailPage() {
           competitions={seriesCompetitions.map((c) => ({ id: c.id, name: c.name }))}
         />
 
+
         {/* Competitions in Series */}
         <div>
           <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
@@ -453,12 +360,10 @@ function SeriesDetailPage() {
             competitions={seriesCompetitions}
             groups={allGroups}
             teamId={teamId}
-            currentGroupId={group.id}
             onRemoveFromSeries={handleRemoveFromSeries}
             revenueByCompetition={revenueByCompetition}
           />
         </div>
-      </div>
 
       {/* Add Existing Competitions Dialog */}
       <AddCompetitionsToSeriesDialog

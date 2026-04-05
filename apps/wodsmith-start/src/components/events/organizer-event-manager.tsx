@@ -74,8 +74,8 @@ export function OrganizerEventManager({
   divisions,
   divisionDescriptionsByWorkout,
   sponsors,
-  seriesName: _seriesName,
-  seriesEventMap: _seriesEventMap,
+  seriesName,
+  seriesEventMap,
   overrides,
   eventDetailRoute,
 }: OrganizerEventManagerProps) {
@@ -463,6 +463,8 @@ export function OrganizerEventManager({
                       isParentEvent={isParent}
                       childCount={children.length}
                       eventDetailRoute={eventDetailRoute}
+                      seriesName={seriesName}
+                      seriesTemplateName={seriesEventMap?.get(event.id)}
                     />
                   </div>
                 </div>
@@ -489,6 +491,8 @@ export function OrganizerEventManager({
                         isSubEvent
                         parentEventId={event.id}
                         eventDetailRoute={eventDetailRoute}
+                        seriesName={seriesName}
+                        seriesTemplateName={seriesEventMap?.get(child.id)}
                       />
                     ))}
                     <Button

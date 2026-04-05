@@ -64,6 +64,7 @@
   /* Animations */
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-card-enter: card-enter 0.4s ease-out backwards;
 }
 
 @keyframes accordion-down {
@@ -81,6 +82,26 @@
   }
   to {
     height: 0;
+  }
+}
+
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes card-enter {
+    from {
+      opacity: 1;
+      transform: none;
+    }
   }
 }
 
@@ -167,5 +188,42 @@
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
   }
+}
+
+/* Range slider track visibility in dark mode */
+input[type="range"].range-visible-track {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: hsl(var(--muted));
+  border-radius: 9999px;
+  outline: none;
+}
+input[type="range"].range-visible-track:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+  border-radius: 9999px;
+}
+input[type="range"].range-visible-track::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: #ea580c;
+  cursor: pointer;
+}
+input[type="range"].range-visible-track::-moz-range-track {
+  background: hsl(var(--muted));
+  border-radius: 9999px;
+  height: 6px;
+}
+input[type="range"].range-visible-track::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 9999px;
+  background: #ea580c;
+  cursor: pointer;
 }
 

@@ -5,7 +5,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, count, eq, inArray, isNotNull, ne } from "drizzle-orm"
+import { and, asc, count, eq, inArray, isNotNull, ne } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -66,6 +66,8 @@ const submitVideoInputSchema = z.object({
   competitionId: z.string().min(1, "Competition ID is required"),
   videoUrl: z.string().url("Please enter a valid URL").max(2000),
   notes: z.string().max(1000).optional(),
+  // 0-indexed position for team video submissions (0 for individuals)
+  videoIndex: z.number().int().min(0).optional().default(0),
   // Score fields
   score: z.string().optional(),
   scoreStatus: z.enum(["scored", "cap"]).optional(),
@@ -180,17 +182,27 @@ async function checkSubmissionWindow(
 
 /**
  * Get the athlete's registration for a competition.
+ * For team members, returns the captain's registration with isCaptain=false.
  */
 async function getAthleteRegistration(
   competitionId: string,
   userId: string,
-): Promise<{ id: string; divisionId: string | null } | null> {
+): Promise<{
+  id: string
+  divisionId: string | null
+  captainUserId: string | null
+  athleteTeamId: string | null
+  isCaptain: boolean
+} | null> {
   const db = getDb()
 
+  // First, look for the user's own registration (works for captains and individuals)
   const [registration] = await db
     .select({
       id: competitionRegistrationsTable.id,
       divisionId: competitionRegistrationsTable.divisionId,
+      captainUserId: competitionRegistrationsTable.captainUserId,
+      athleteTeamId: competitionRegistrationsTable.athleteTeamId,
     })
     .from(competitionRegistrationsTable)
     .where(
@@ -202,7 +214,69 @@ async function getAthleteRegistration(
     )
     .limit(1)
 
-  return registration ?? null
+  if (!registration) {
+    return null
+  }
+
+  // Individual registration (no team) — always treated as captain
+  if (!registration.athleteTeamId) {
+    return { ...registration, isCaptain: true }
+  }
+
+  // Team registration — check if this user is the captain
+  const isCaptain = registration.captainUserId === userId
+
+  // If captain, use their own registration
+  if (isCaptain) {
+    return { ...registration, isCaptain: true }
+  }
+
+  // Non-captain team member: find the captain's registration (used for video submissions)
+  const [captainReg] = await db
+    .select({
+      id: competitionRegistrationsTable.id,
+      divisionId: competitionRegistrationsTable.divisionId,
+      captainUserId: competitionRegistrationsTable.captainUserId,
+      athleteTeamId: competitionRegistrationsTable.athleteTeamId,
+    })
+    .from(competitionRegistrationsTable)
+    .where(
+      and(
+        eq(competitionRegistrationsTable.eventId, competitionId),
+        eq(
+          competitionRegistrationsTable.athleteTeamId,
+          registration.athleteTeamId,
+        ),
+        eq(
+          competitionRegistrationsTable.userId,
+          registration.captainUserId!,
+        ),
+        ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+      ),
+    )
+    .limit(1)
+
+  // Return captain's registration with isCaptain=false for the current user
+  if (captainReg) {
+    return { ...captainReg, isCaptain: false }
+  }
+
+  // Fallback: captain registration not found, use the member's own
+  return { ...registration, isCaptain: false }
+}
+
+/**
+ * Get the team size for a division. Returns 1 for individuals.
+ */
+async function getTeamSize(divisionId: string | null): Promise<number> {
+  if (!divisionId) return 1
+  const db = getDb()
+  const [division] = await db
+    .select({ teamSize: scalingLevelsTable.teamSize })
+    .from(scalingLevelsTable)
+    .where(eq(scalingLevelsTable.id, divisionId))
+    .limit(1)
+  return division?.teamSize ?? 1
 }
 
 /**
@@ -235,9 +309,9 @@ async function getWorkoutDetails(trackWorkoutId: string) {
 // ============================================================================
 
 /**
- * Get the current user's video submission for an event.
- * Returns the submission if it exists, along with submission window status
- * and workout details for score input.
+ * Get the current user's video submission(s) for an event.
+ * For teams, returns all video submissions (up to teamSize) and captain status.
+ * For individuals, returns a single submission (backward compatible).
  */
 export const getVideoSubmissionFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => getVideoSubmissionInputSchema.parse(data))
@@ -245,7 +319,9 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
     const session = await getSessionFromCookie()
     if (!session?.userId) {
       return {
-        submission: null,
+        submissions: [],
+        teamSize: 1,
+        isCaptain: true,
         canSubmit: false,
         reason: "Not authenticated",
         isRegistered: false,
@@ -264,7 +340,9 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
 
     if (!registration) {
       return {
-        submission: null,
+        submissions: [],
+        teamSize: 1,
+        isCaptain: true,
         canSubmit: false,
         reason: "You must be registered for this competition to submit a video",
         isRegistered: false,
@@ -279,10 +357,21 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
       data.trackWorkoutId,
     )
 
-    // Get existing submission
-    const [submission] = await db
+    // Get team size for this division
+    const teamSize = await getTeamSize(registration.divisionId)
+
+    // Non-captain team members cannot submit
+    const canSubmit =
+      windowCheck.allowed && registration.isCaptain
+    const reason = !registration.isCaptain
+      ? "Only the team captain can submit videos and scores"
+      : windowCheck.reason
+
+    // Get all existing submissions for this registration + event (ordered by videoIndex)
+    const submissions = await db
       .select({
         id: videoSubmissionsTable.id,
+        videoIndex: videoSubmissionsTable.videoIndex,
         videoUrl: videoSubmissionsTable.videoUrl,
         notes: videoSubmissionsTable.notes,
         submittedAt: videoSubmissionsTable.submittedAt,
@@ -298,12 +387,12 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
           eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
         ),
       )
-      .limit(1)
+      .orderBy(videoSubmissionsTable.videoIndex)
 
     // Get workout details for score input
     const workout = await getWorkoutDetails(data.trackWorkoutId)
 
-    // Get existing score if any
+    // Get existing score — for teams, look up by captain's userId
     let existingScore: {
       scoreValue: number | null
       displayScore: string | null
@@ -311,6 +400,9 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
       secondaryValue: number | null
       tiebreakValue: number | null
     } | null = null
+
+    // Score belongs to the captain (or the individual athlete)
+    const scoreUserId = registration.captainUserId ?? session.userId
 
     const [score] = await db
       .select({
@@ -324,7 +416,7 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
       .where(
         and(
           eq(scoresTable.competitionEventId, data.trackWorkoutId),
-          eq(scoresTable.userId, session.userId),
+          eq(scoresTable.userId, scoreUserId),
         ),
       )
       .limit(1)
@@ -349,14 +441,14 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
     }
 
     return {
-      submission: submission
-        ? {
-            ...submission,
-            reviewStatus: submission.reviewStatus as ReviewStatus,
-          }
-        : null,
-      canSubmit: windowCheck.allowed,
-      reason: windowCheck.reason,
+      submissions: submissions.map((s) => ({
+        ...s,
+        reviewStatus: s.reviewStatus as ReviewStatus,
+      })),
+      teamSize,
+      isCaptain: registration.isCaptain,
+      canSubmit,
+      reason,
       isRegistered: true,
       submissionWindow:
         windowCheck.opensAt && windowCheck.closesAt
@@ -382,7 +474,7 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
 
 /**
  * Batch-check submission status for multiple track workouts.
- * Returns a map of trackWorkoutId -> { hasSubmitted, canSubmit }
+ * Returns a map of trackWorkoutId -> { hasSubmitted, submittedCount, teamSize, canSubmit }
  * Only meaningful for online competitions with a registered athlete.
  */
 export const getBatchSubmissionStatusFn = createServerFn({ method: "GET" })
@@ -395,7 +487,12 @@ export const getBatchSubmissionStatusFn = createServerFn({ method: "GET" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    type Status = { hasSubmitted: boolean; canSubmit: boolean }
+    type Status = {
+      hasSubmitted: boolean
+      submittedCount: number
+      teamSize: number
+      canSubmit: boolean
+    }
     const session = await getSessionFromCookie()
     if (!session?.userId) {
       return { statuses: {} as Record<string, Status> }
@@ -410,6 +507,8 @@ export const getBatchSubmissionStatusFn = createServerFn({ method: "GET" })
     if (!registration) {
       return { statuses: {} as Record<string, Status> }
     }
+
+    const teamSize = await getTeamSize(registration.divisionId)
 
     // Fetch submission windows and existing submissions in parallel
     const [events, submissions] = await Promise.all([
@@ -432,6 +531,7 @@ export const getBatchSubmissionStatusFn = createServerFn({ method: "GET" })
       db
         .select({
           trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+          videoIndex: videoSubmissionsTable.videoIndex,
         })
         .from(videoSubmissionsTable)
         .where(
@@ -442,7 +542,15 @@ export const getBatchSubmissionStatusFn = createServerFn({ method: "GET" })
         ),
     ])
 
-    const submissionSet = new Set(submissions.map((s) => s.trackWorkoutId))
+    // Count submissions per trackWorkoutId
+    const submissionCountMap = new Map<string, number>()
+    for (const s of submissions) {
+      submissionCountMap.set(
+        s.trackWorkoutId,
+        (submissionCountMap.get(s.trackWorkoutId) ?? 0) + 1,
+      )
+    }
+
     const eventMap = new Map(events.map((e) => [e.trackWorkoutId, e]))
     const now = new Date()
 
@@ -450,16 +558,20 @@ export const getBatchSubmissionStatusFn = createServerFn({ method: "GET" })
 
     for (const twId of data.trackWorkoutIds) {
       const event = eventMap.get(twId)
-      let canSubmit = true
+      let canSubmit = registration.isCaptain
 
-      if (event?.submissionOpensAt && event?.submissionClosesAt) {
+      if (canSubmit && event?.submissionOpensAt && event?.submissionClosesAt) {
         const opensAt = new Date(event.submissionOpensAt)
         const closesAt = new Date(event.submissionClosesAt)
         canSubmit = now >= opensAt && now <= closesAt
       }
 
+      const submittedCount = submissionCountMap.get(twId) ?? 0
+
       statuses[twId] = {
-        hasSubmitted: submissionSet.has(twId),
+        hasSubmitted: submittedCount > 0,
+        submittedCount,
+        teamSize,
         canSubmit,
       }
     }
@@ -470,6 +582,7 @@ export const getBatchSubmissionStatusFn = createServerFn({ method: "GET" })
 /**
  * Submit or update a video submission for an event.
  * Also saves the claimed score to the scores table.
+ * Only the team captain can submit for team divisions.
  * Athletes can re-submit until the submission window closes.
  */
 export const submitVideoFn = createServerFn({ method: "POST" })
@@ -494,6 +607,13 @@ export const submitVideoFn = createServerFn({ method: "POST" })
       )
     }
 
+    // Only team captains can submit for team divisions
+    if (!registration.isCaptain) {
+      throw new Error(
+        "Only the team captain can submit videos and scores",
+      )
+    }
+
     // Check submission window
     const windowCheck = await checkSubmissionWindow(
       data.competitionId,
@@ -504,7 +624,15 @@ export const submitVideoFn = createServerFn({ method: "POST" })
       throw new Error(windowCheck.reason ?? "Cannot submit video at this time")
     }
 
-    // Check for existing video submission
+    // Validate videoIndex against team size
+    const teamSize = await getTeamSize(registration.divisionId)
+    if (data.videoIndex >= teamSize) {
+      throw new Error(
+        `Video index ${data.videoIndex} exceeds team size of ${teamSize}`,
+      )
+    }
+
+    // Check for existing video submission at this index
     const [existingSubmission] = await db
       .select({ id: videoSubmissionsTable.id })
       .from(videoSubmissionsTable)
@@ -512,6 +640,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
         and(
           eq(videoSubmissionsTable.registrationId, registration.id),
           eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
+          eq(videoSubmissionsTable.videoIndex, data.videoIndex),
         ),
       )
       .limit(1)
@@ -535,12 +664,13 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 
       submissionId = existingSubmission.id
     } else {
-      // Create new submission - Generate ID first, insert, then query back
+      // Create new submission
       const id = createVideoSubmissionId()
       await db.insert(videoSubmissionsTable).values({
         id,
         registrationId: registration.id,
         trackWorkoutId: data.trackWorkoutId,
+        videoIndex: data.videoIndex,
         userId: session.userId,
         videoUrl: data.videoUrl,
         notes: data.notes ?? null,
@@ -733,6 +863,7 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
     const submissions = await db
       .select({
         id: videoSubmissionsTable.id,
+        videoIndex: videoSubmissionsTable.videoIndex,
         videoUrl: videoSubmissionsTable.videoUrl,
         notes: videoSubmissionsTable.notes,
         submittedAt: videoSubmissionsTable.submittedAt,
@@ -764,6 +895,7 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
         eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
       )
       .where(eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId))
+      .orderBy(asc(videoSubmissionsTable.videoIndex))
 
     // Get scores for all submissions to determine review status
     // A submission is "reviewed" if there's a corresponding score entry
@@ -839,6 +971,7 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
       }
       return {
         id: submission.id,
+        videoIndex: submission.videoIndex,
         videoUrl: submission.videoUrl,
         notes: submission.notes,
         submittedAt: submission.submittedAt,
@@ -885,6 +1018,18 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
       filtered = filtered.filter((s) => s.reviewStatus === data.statusFilter)
     }
 
+    // Compute per-registration review status from the full (unfiltered) set
+    // so grouped rows show correct status even when a status filter is active
+    const registrationReviewStatus = new Map<string, boolean>()
+    for (const s of result) {
+      const current = registrationReviewStatus.get(s.registrationId) ?? true
+      if (s.reviewStatus !== "reviewed") {
+        registrationReviewStatus.set(s.registrationId, false)
+      } else if (!registrationReviewStatus.has(s.registrationId)) {
+        registrationReviewStatus.set(s.registrationId, current)
+      }
+    }
+
     // Calculate totals
     const totalSubmissions = result.length
     const reviewedCount = result.filter(
@@ -893,7 +1038,11 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
     const pendingCount = totalSubmissions - reviewedCount
 
     return {
-      submissions: filtered,
+      submissions: filtered.map((s) => ({
+        ...s,
+        registrationAllReviewed:
+          registrationReviewStatus.get(s.registrationId) ?? false,
+      })),
       totals: {
         total: totalSubmissions,
         reviewed: reviewedCount,
@@ -1006,6 +1155,7 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
     const [submission] = await db
       .select({
         id: videoSubmissionsTable.id,
+        videoIndex: videoSubmissionsTable.videoIndex,
         videoUrl: videoSubmissionsTable.videoUrl,
         notes: videoSubmissionsTable.notes,
         submittedAt: videoSubmissionsTable.submittedAt,
@@ -1078,6 +1228,8 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
     return {
       submission: {
         id: submission.id,
+        registrationId: submission.registrationId,
+        videoIndex: submission.videoIndex,
         videoUrl: submission.videoUrl,
         notes: submission.notes,
         submittedAt: submission.submittedAt,
@@ -1209,4 +1361,163 @@ export const unmarkSubmissionReviewedFn = createServerFn({ method: "POST" })
       .where(eq(videoSubmissionsTable.id, data.submissionId))
 
     return { success: true }
+  })
+
+/**
+ * Get all sibling video submissions for the same registration + event.
+ * Given one submissionId, returns all videos sharing the same
+ * registrationId + trackWorkoutId, ordered by videoIndex.
+ */
+export const getSiblingSubmissionsFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        submissionId: z.string().min(1),
+        competitionId: z.string().min(1),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const db = getDb()
+
+    // Verify organizer permission
+    const [competition] = await db
+      .select({ organizingTeamId: competitionsTable.organizingTeamId })
+      .from(competitionsTable)
+      .where(eq(competitionsTable.id, data.competitionId))
+      .limit(1)
+
+    if (!competition) {
+      throw new Error("NOT_FOUND: Competition not found")
+    }
+
+    await requireTeamPermission(
+      competition.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+    )
+
+    // Look up the target submission to get its grouping keys,
+    // scoped to the competition via the registration's eventId
+    const [target] = await db
+      .select({
+        registrationId: videoSubmissionsTable.registrationId,
+        trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+      })
+      .from(videoSubmissionsTable)
+      .innerJoin(
+        competitionRegistrationsTable,
+        eq(
+          videoSubmissionsTable.registrationId,
+          competitionRegistrationsTable.id,
+        ),
+      )
+      .where(
+        and(
+          eq(videoSubmissionsTable.id, data.submissionId),
+          eq(competitionRegistrationsTable.eventId, data.competitionId),
+        ),
+      )
+      .limit(1)
+
+    if (!target) {
+      return { siblings: [] }
+    }
+
+    // Fetch all sibling submissions for this registration + event
+    const siblings = await db
+      .select({
+        id: videoSubmissionsTable.id,
+        videoIndex: videoSubmissionsTable.videoIndex,
+        videoUrl: videoSubmissionsTable.videoUrl,
+        notes: videoSubmissionsTable.notes,
+        submittedAt: videoSubmissionsTable.submittedAt,
+        reviewedAt: videoSubmissionsTable.reviewedAt,
+        userId: videoSubmissionsTable.userId,
+        athleteFirstName: userTable.firstName,
+        athleteLastName: userTable.lastName,
+      })
+      .from(videoSubmissionsTable)
+      .innerJoin(userTable, eq(videoSubmissionsTable.userId, userTable.id))
+      .where(
+        and(
+          eq(videoSubmissionsTable.registrationId, target.registrationId),
+          eq(videoSubmissionsTable.trackWorkoutId, target.trackWorkoutId),
+        ),
+      )
+      .orderBy(asc(videoSubmissionsTable.videoIndex))
+
+    return {
+      siblings: siblings.map((s) => ({
+        id: s.id,
+        videoIndex: s.videoIndex,
+        videoUrl: s.videoUrl,
+        notes: s.notes,
+        submittedAt: s.submittedAt,
+        reviewedAt: s.reviewedAt,
+        userId: s.userId,
+        athleteFirstName: s.athleteFirstName,
+        athleteLastName: s.athleteLastName,
+      })),
+    }
+  })
+
+/**
+ * Public endpoint: fetch all video submissions for a given registration + event.
+ * Used on the public leaderboard to show tabbed team member videos.
+ * No auth required — video URLs on published leaderboards are already public.
+ */
+export const getLeaderboardVideosFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        videoSubmissionId: z.string().min(1),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const db = getDb()
+
+    // Look up the target submission to get its grouping keys
+    const [target] = await db
+      .select({
+        registrationId: videoSubmissionsTable.registrationId,
+        trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+      })
+      .from(videoSubmissionsTable)
+      .where(eq(videoSubmissionsTable.id, data.videoSubmissionId))
+      .limit(1)
+
+    if (!target) {
+      return { videos: [] }
+    }
+
+    const siblings = await db
+      .select({
+        id: videoSubmissionsTable.id,
+        videoIndex: videoSubmissionsTable.videoIndex,
+        videoUrl: videoSubmissionsTable.videoUrl,
+        userId: videoSubmissionsTable.userId,
+        athleteFirstName: userTable.firstName,
+        athleteLastName: userTable.lastName,
+      })
+      .from(videoSubmissionsTable)
+      .innerJoin(userTable, eq(videoSubmissionsTable.userId, userTable.id))
+      .where(
+        and(
+          eq(videoSubmissionsTable.registrationId, target.registrationId),
+          eq(videoSubmissionsTable.trackWorkoutId, target.trackWorkoutId),
+        ),
+      )
+      .orderBy(asc(videoSubmissionsTable.videoIndex))
+
+    return {
+      videos: siblings.map((s) => ({
+        id: s.id,
+        videoIndex: s.videoIndex,
+        videoUrl: s.videoUrl,
+        athleteName:
+          `${s.athleteFirstName || ""} ${s.athleteLastName || ""}`.trim() ||
+          "Unknown",
+      })),
+    }
   })

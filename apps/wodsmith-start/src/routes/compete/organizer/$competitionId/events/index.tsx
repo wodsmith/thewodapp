@@ -15,6 +15,7 @@ import {
   getCompetitionWorkoutsFn,
 } from "@/server-fns/competition-workouts-fns"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
+import { getCompetitionEventSeriesMappingStatusFn } from "@/server-fns/series-event-template-fns"
 import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
 
 // Get parent route API to access its loader data
@@ -29,8 +30,8 @@ export const Route = createFileRoute(
     const parentMatch = await parentMatchPromise
     const { competition } = parentMatch.loaderData!
 
-    // Parallel fetch events, divisions, movements, sponsors
-    const [eventsResult, divisionsResult, movementsResult, sponsorsResult] =
+    // Parallel fetch events, divisions, movements, sponsors, and series mapping status
+    const [eventsResult, divisionsResult, movementsResult, sponsorsResult, seriesMappingStatus] =
       await Promise.all([
         getCompetitionWorkoutsFn({
           data: {
@@ -46,6 +47,9 @@ export const Route = createFileRoute(
         }),
         getAllMovementsFn(),
         getCompetitionSponsorsFn({
+          data: { competitionId: params.competitionId },
+        }),
+        getCompetitionEventSeriesMappingStatusFn({
           data: { competitionId: params.competitionId },
         }),
       ])
@@ -82,6 +86,7 @@ export const Route = createFileRoute(
       sponsors: allSponsors,
       divisionDescriptionsByWorkout,
       competition,
+      seriesMappingStatus,
     }
   },
 })
@@ -93,9 +98,18 @@ function EventsPage() {
     movements,
     sponsors,
     divisionDescriptionsByWorkout,
+    seriesMappingStatus,
   } = Route.useLoaderData()
   // Get competition from parent layout loader data (for consistency with other pages)
   const { competition } = parentRoute.useLoaderData()
+
+  // Build a lookup map from competition event ID -> template event name
+  const seriesEventMap = new Map<string, string>()
+  if (seriesMappingStatus.hasTemplate) {
+    for (const mapping of seriesMappingStatus.mappings) {
+      seriesEventMap.set(mapping.competitionEventId, mapping.templateEventName)
+    }
+  }
 
   return (
     <OrganizerEventManager
@@ -106,6 +120,8 @@ function EventsPage() {
       divisions={divisions}
       divisionDescriptionsByWorkout={divisionDescriptionsByWorkout}
       sponsors={sponsors}
+      seriesName={seriesMappingStatus.hasTemplate ? seriesMappingStatus.seriesName : null}
+      seriesEventMap={seriesEventMap}
     />
   )
 }

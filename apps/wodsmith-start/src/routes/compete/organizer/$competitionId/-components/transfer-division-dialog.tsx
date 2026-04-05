@@ -175,7 +175,7 @@ export function TransferDivisionDialog({
           {isAtCapacity && (
             <p className="text-sm text-yellow-600 dark:text-yellow-500">
               Warning: This division is at capacity (
-              {selectedDivision!.registrationCount}/{selectedDivision!.maxSpots}
+              {selectedDivision?.registrationCount}/{selectedDivision?.maxSpots}
               ). The transfer will still proceed.
             </p>
           )}

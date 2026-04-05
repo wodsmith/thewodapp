@@ -114,7 +114,7 @@ export const initiatePurchaseTransferFn = createServerFn({ method: "POST" })
 
       if (session.user?.role !== ROLES_ENUM.ADMIN) {
         const team = session.teams?.find(
-          (t) => t.id === competition!.organizingTeamId,
+          (t) => t.id === competition?.organizingTeamId,
         )
         if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS)) {
           throw new Error("Missing required permission: manage_competitions")

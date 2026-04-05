@@ -73,6 +73,7 @@ const earlier = new Date("2025-06-15T10:00:00Z")
 function createDefaultSubmission(
 	overrides?: Partial<{
 		id: string
+		videoIndex: number
 		videoUrl: string
 		notes: string | null
 		submittedAt: Date
@@ -81,6 +82,7 @@ function createDefaultSubmission(
 ) {
 	return {
 		id: "sub-1",
+		videoIndex: 0,
 		videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
 		notes: null,
 		submittedAt: earlier,
@@ -113,7 +115,8 @@ describe("VideoSubmissionPreview", () => {
 		it("renders YouTube embed for YouTube URLs", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission()}
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
 					canEdit={false}
 				/>,
 			)
@@ -124,9 +127,10 @@ describe("VideoSubmissionPreview", () => {
 		it("renders external link for non-YouTube URLs", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission({
+					submissions={[createDefaultSubmission({
 						videoUrl: "https://vimeo.com/123456",
-					})}
+					})]}
+					teamSize={1}
 					canEdit={false}
 				/>,
 			)
@@ -139,9 +143,10 @@ describe("VideoSubmissionPreview", () => {
 		it("uses safe URL href for external links", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission({
+					submissions={[createDefaultSubmission({
 						videoUrl: "https://vimeo.com/123456",
-					})}
+					})]}
+					teamSize={1}
 					canEdit={false}
 				/>,
 			)
@@ -153,9 +158,10 @@ describe("VideoSubmissionPreview", () => {
 		it("uses # href for unsafe external URLs", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission({
+					submissions={[createDefaultSubmission({
 						videoUrl: "javascript:alert(1)",
-					})}
+					})]}
+					teamSize={1}
 					canEdit={false}
 				/>,
 			)
@@ -169,7 +175,8 @@ describe("VideoSubmissionPreview", () => {
 		it("displays score with scheme label", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission()}
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
 					score={{
 						scoreValue: 300000,
 						displayScore: "5:00",
@@ -189,7 +196,8 @@ describe("VideoSubmissionPreview", () => {
 		it("shows 'Capped' badge when status is cap", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission()}
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
 					score={{
 						scoreValue: 600000,
 						displayScore: "10:00",
@@ -211,7 +219,8 @@ describe("VideoSubmissionPreview", () => {
 		it("shows secondary value (reps at cap) when capped", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission()}
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
 					score={{
 						scoreValue: 600000,
 						displayScore: "10:00",
@@ -235,7 +244,8 @@ describe("VideoSubmissionPreview", () => {
 		it("does not show secondary value when not capped", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission()}
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
 					score={{
 						scoreValue: 300000,
 						displayScore: "5:00",
@@ -256,7 +266,8 @@ describe("VideoSubmissionPreview", () => {
 		it("shows tiebreak time when present", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission()}
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
 					score={{
 						scoreValue: 300000,
 						displayScore: "5:00",
@@ -278,7 +289,8 @@ describe("VideoSubmissionPreview", () => {
 		it("does not show tiebreak when no tiebreak scheme", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission()}
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
 					score={{
 						scoreValue: 300000,
 						displayScore: "5:00",
@@ -309,7 +321,8 @@ describe("VideoSubmissionPreview", () => {
 			for (const { scheme, label } of schemes) {
 				const { unmount } = render(
 					<VideoSubmissionPreview
-						submission={createDefaultSubmission()}
+						submissions={[createDefaultSubmission()]}
+					teamSize={1}
 						score={{
 							scoreValue: 100,
 							displayScore: "100",
@@ -330,7 +343,8 @@ describe("VideoSubmissionPreview", () => {
 		it("shows 'Your Score' when no workout provided", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission()}
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
 					score={{
 						scoreValue: 100,
 						displayScore: "100",
@@ -350,9 +364,10 @@ describe("VideoSubmissionPreview", () => {
 		it("shows notes when present", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission({
+					submissions={[createDefaultSubmission({
 						notes: "Great workout!",
-					})}
+					})]}
+					teamSize={1}
 					canEdit={false}
 				/>,
 			)
@@ -364,7 +379,8 @@ describe("VideoSubmissionPreview", () => {
 		it("does not show notes section when null", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission({ notes: null })}
+					submissions={[createDefaultSubmission({ notes: null })]}
+					teamSize={1}
 					canEdit={false}
 				/>,
 			)
@@ -378,7 +394,8 @@ describe("VideoSubmissionPreview", () => {
 			const onEdit = vi.fn()
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission()}
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
 					canEdit={true}
 					onEdit={onEdit}
 				/>,
@@ -390,7 +407,8 @@ describe("VideoSubmissionPreview", () => {
 		it("hides edit button when canEdit false", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission()}
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
 					canEdit={false}
 					onEdit={vi.fn()}
 				/>,
@@ -402,7 +420,8 @@ describe("VideoSubmissionPreview", () => {
 		it("hides edit button when no onEdit handler", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission()}
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
 					canEdit={true}
 				/>,
 			)
@@ -418,9 +437,10 @@ describe("VideoSubmissionPreview", () => {
 		it("shows submitted timestamp", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission({
+					submissions={[createDefaultSubmission({
 						submittedAt: new Date("2025-06-15T10:00:00Z"),
-					})}
+					})]}
+					teamSize={1}
 					canEdit={false}
 				/>,
 			)
@@ -431,10 +451,11 @@ describe("VideoSubmissionPreview", () => {
 		it("shows updated timestamp when different from submitted", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission({
+					submissions={[createDefaultSubmission({
 						submittedAt: earlier,
 						updatedAt: now,
-					})}
+					})]}
+					teamSize={1}
 					canEdit={false}
 				/>,
 			)
@@ -445,10 +466,11 @@ describe("VideoSubmissionPreview", () => {
 		it("does not show updated timestamp when same as submitted", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission({
+					submissions={[createDefaultSubmission({
 						submittedAt: earlier,
 						updatedAt: earlier,
-					})}
+					})]}
+					teamSize={1}
 					canEdit={false}
 				/>,
 			)
@@ -461,7 +483,8 @@ describe("VideoSubmissionPreview", () => {
 		it("shows open window banner when canEdit", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission()}
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
 					canEdit={true}
 				/>,
 			)
@@ -476,7 +499,8 @@ describe("VideoSubmissionPreview", () => {
 		it("shows edit reason when canEdit is false and reason provided", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission()}
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
 					canEdit={false}
 					editReason="Submission window closes tomorrow"
 				/>,
@@ -492,7 +516,8 @@ describe("VideoSubmissionPreview", () => {
 		it("shows default closed message when canEdit false and no reason", () => {
 			render(
 				<VideoSubmissionPreview
-					submission={createDefaultSubmission()}
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
 					canEdit={false}
 				/>,
 			)

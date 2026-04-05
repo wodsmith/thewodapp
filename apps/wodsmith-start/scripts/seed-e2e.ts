@@ -43,6 +43,10 @@ async function main(): Promise<void> {
 
 		// Clean up in reverse dependency order
 		const cleanupTables = [
+			"volunteer_registration_answers",
+			"competition_registration_answers",
+			"competition_registration_questions",
+			"team_invitations",
 			"competition_registrations",
 			"competition_events",
 			"scaling_levels",
@@ -68,8 +72,13 @@ async function main(): Promise<void> {
 		)
 		// Also clean up users by email
 		await connection.execute(
-			"DELETE FROM `users` WHERE email IN (?, ?)",
-			["test@wodsmith.com", "admin@wodsmith.com"],
+			"DELETE FROM `users` WHERE email IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			[
+				"test@wodsmith.com", "admin@wodsmith.com",
+				"alice@test.com", "bob@test.com", "carol@test.com",
+				"dave@test.com", "eve@test.com",
+				"volunteer1@test.com", "volunteer2@test.com", "volunteer3@test.com",
+			],
 		)
 		// Clean up workouts by team_id
 		for (const teamId of [
@@ -442,6 +451,225 @@ async function main(): Promise<void> {
 		)
 
 		console.log("  competition: 1 + 1 team + 3 divisions inserted")
+
+		// ================================================================
+		// EXTRA ATHLETE USERS (for broadcast question filter testing)
+		// ================================================================
+		console.log("Seeding E2E athlete users...")
+
+		const athleteUsers = [
+			["e2e_athlete_1", "Alice", "Smith", "alice@test.com"],
+			["e2e_athlete_2", "Bob", "Jones", "bob@test.com"],
+			["e2e_athlete_3", "Carol", "Davis", "carol@test.com"],
+			["e2e_athlete_4", "Dave", "Wilson", "dave@test.com"],
+			["e2e_athlete_5", "Eve", "Taylor", "eve@test.com"],
+		]
+
+		for (const [id, firstName, lastName, email] of athleteUsers) {
+			await connection.execute(
+				`INSERT IGNORE INTO \`users\` (id, first_name, last_name, email, password_hash, role, email_verified, current_credits, created_at, updated_at, update_counter)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				[id, firstName, lastName, email, passwordHash, "user", ts, 0, ts, ts, 0],
+			)
+		}
+
+		console.log(`  athlete users: ${athleteUsers.length} rows inserted`)
+
+		// ================================================================
+		// ATHLETE REGISTRATIONS
+		// ================================================================
+		console.log("Seeding E2E athlete registrations...")
+
+		const registrations = [
+			["e2e_reg_1", "e2e_athlete_1", "e2e_div_rx"],
+			["e2e_reg_2", "e2e_athlete_2", "e2e_div_rx"],
+			["e2e_reg_3", "e2e_athlete_3", "e2e_div_scaled"],
+			["e2e_reg_4", "e2e_athlete_4", "e2e_div_scaled"],
+			["e2e_reg_5", "e2e_athlete_5", "e2e_div_rx"],
+		]
+
+		for (const [id, userId, divisionId] of registrations) {
+			const membershipId = `e2e_comp_membership_${userId}`
+			// Insert membership first so the registration FK is valid
+			await connection.execute(
+				`INSERT IGNORE INTO \`team_memberships\` (id, team_id, user_id, role_id, is_system_role, is_active, joined_at, created_at, updated_at, update_counter)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				[membershipId, "e2e_comp_team", userId, "athlete", 1, 1, ts, ts, ts, 0],
+			)
+			await connection.execute(
+				`INSERT IGNORE INTO \`competition_registrations\` (id, event_id, user_id, team_member_id, division_id, status, registered_at, created_at, updated_at, update_counter)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				[id, "e2e_competition", userId, membershipId, divisionId, "confirmed", ts, ts, ts, 0],
+			)
+		}
+
+		console.log(`  registrations: ${registrations.length} rows inserted`)
+
+		// ================================================================
+		// REGISTRATION QUESTIONS (athlete + volunteer)
+		// ================================================================
+		console.log("Seeding E2E registration questions...")
+
+		const questions = [
+			// Athlete questions
+			[
+				"e2e_q_tshirt", "e2e_competition", null, "select",
+				"T-Shirt Size", "What size t-shirt do you want?",
+				JSON.stringify(["S", "M", "L", "XL", "XXL"]),
+				1, 0, 0, "athlete",
+			],
+			[
+				"e2e_q_experience", "e2e_competition", null, "select",
+				"Experience Level", "How long have you been competing?",
+				JSON.stringify(["Beginner", "Intermediate", "Advanced", "Elite"]),
+				1, 0, 1, "athlete",
+			],
+			[
+				"e2e_q_dietary", "e2e_competition", null, "text",
+				"Dietary Restrictions", "Any food allergies or dietary needs?",
+				null,
+				0, 0, 2, "athlete",
+			],
+			[
+				"e2e_q_emergency", "e2e_competition", null, "text",
+				"Emergency Contact Phone", "Phone number for your emergency contact",
+				null,
+				1, 0, 3, "athlete",
+			],
+			// Volunteer questions
+			[
+				"e2e_q_vol_cert", "e2e_competition", null, "select",
+				"First Aid Certification", "Do you have a current first aid or EMT certification?",
+				JSON.stringify(["Yes", "No"]),
+				1, 0, 0, "volunteer",
+			],
+			[
+				"e2e_q_vol_avail", "e2e_competition", null, "select",
+				"Day Availability", "Which days can you volunteer?",
+				JSON.stringify(["Saturday Only", "Sunday Only", "Both Days"]),
+				1, 0, 1, "volunteer",
+			],
+		]
+
+		for (const [id, compId, groupId, type, label, helpText, options, required, forTeammates, sortOrder, questionTarget] of questions) {
+			await connection.execute(
+				`INSERT IGNORE INTO \`competition_registration_questions\` (id, competition_id, group_id, type, label, help_text, options, required, for_teammates, sort_order, question_target, created_at, updated_at, update_counter)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				[id, compId, groupId, type, label, helpText, options, required, forTeammates, sortOrder, questionTarget, ts, ts, 0],
+			)
+		}
+
+		console.log(`  registration questions: ${questions.length} rows inserted`)
+
+		// ================================================================
+		// ATHLETE REGISTRATION ANSWERS
+		// ================================================================
+		console.log("Seeding E2E athlete registration answers...")
+
+		const athleteAnswers = [
+			// Alice: L shirt, Advanced, no dietary, has emergency contact
+			["e2e_ans_1_shirt", "e2e_q_tshirt", "e2e_reg_1", "e2e_athlete_1", "L"],
+			["e2e_ans_1_exp", "e2e_q_experience", "e2e_reg_1", "e2e_athlete_1", "Advanced"],
+			["e2e_ans_1_emerg", "e2e_q_emergency", "e2e_reg_1", "e2e_athlete_1", "555-0101"],
+			// Bob: XL shirt, Elite, gluten-free
+			["e2e_ans_2_shirt", "e2e_q_tshirt", "e2e_reg_2", "e2e_athlete_2", "XL"],
+			["e2e_ans_2_exp", "e2e_q_experience", "e2e_reg_2", "e2e_athlete_2", "Elite"],
+			["e2e_ans_2_diet", "e2e_q_dietary", "e2e_reg_2", "e2e_athlete_2", "Gluten-free"],
+			["e2e_ans_2_emerg", "e2e_q_emergency", "e2e_reg_2", "e2e_athlete_2", "555-0202"],
+			// Carol: M shirt, Beginner, vegan
+			["e2e_ans_3_shirt", "e2e_q_tshirt", "e2e_reg_3", "e2e_athlete_3", "M"],
+			["e2e_ans_3_exp", "e2e_q_experience", "e2e_reg_3", "e2e_athlete_3", "Beginner"],
+			["e2e_ans_3_diet", "e2e_q_dietary", "e2e_reg_3", "e2e_athlete_3", "Vegan"],
+			["e2e_ans_3_emerg", "e2e_q_emergency", "e2e_reg_3", "e2e_athlete_3", "555-0303"],
+			// Dave: L shirt, Intermediate
+			["e2e_ans_4_shirt", "e2e_q_tshirt", "e2e_reg_4", "e2e_athlete_4", "L"],
+			["e2e_ans_4_exp", "e2e_q_experience", "e2e_reg_4", "e2e_athlete_4", "Intermediate"],
+			["e2e_ans_4_emerg", "e2e_q_emergency", "e2e_reg_4", "e2e_athlete_4", "555-0404"],
+			// Eve: S shirt, Advanced, nut allergy
+			["e2e_ans_5_shirt", "e2e_q_tshirt", "e2e_reg_5", "e2e_athlete_5", "S"],
+			["e2e_ans_5_exp", "e2e_q_experience", "e2e_reg_5", "e2e_athlete_5", "Advanced"],
+			["e2e_ans_5_diet", "e2e_q_dietary", "e2e_reg_5", "e2e_athlete_5", "Nut allergy"],
+			["e2e_ans_5_emerg", "e2e_q_emergency", "e2e_reg_5", "e2e_athlete_5", "555-0505"],
+		]
+
+		for (const [id, questionId, registrationId, userId, answer] of athleteAnswers) {
+			await connection.execute(
+				`INSERT IGNORE INTO \`competition_registration_answers\` (id, question_id, registration_id, user_id, answer, created_at, updated_at, update_counter)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				[id, questionId, registrationId, userId, answer, ts, ts, 0],
+			)
+		}
+
+		console.log(`  athlete answers: ${athleteAnswers.length} rows inserted`)
+
+		// ================================================================
+		// VOLUNTEER INVITATIONS + ANSWERS
+		// ================================================================
+		console.log("Seeding E2E volunteer invitations and answers...")
+
+		const volunteerInvitations = [
+			["e2e_vol_inv_1", "e2e_comp_team", "volunteer1@test.com", "e2e_test_user", "e2e_vol_token_1"],
+			["e2e_vol_inv_2", "e2e_comp_team", "volunteer2@test.com", "e2e_test_user", "e2e_vol_token_2"],
+			["e2e_vol_inv_3", "e2e_comp_team", "volunteer3@test.com", "e2e_test_user", "e2e_vol_token_3"],
+		]
+
+		for (const [id, teamId, email, invitedBy, token] of volunteerInvitations) {
+			await connection.execute(
+				`INSERT IGNORE INTO \`team_invitations\` (id, team_id, email, role_id, is_system_role, token, invited_by, expires_at, status, created_at, updated_at, update_counter)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				[id, teamId, email, "volunteer", 1, token, invitedBy, futureTs, "accepted", ts, ts, 0],
+			)
+		}
+
+		// Create volunteer users and memberships
+		const volunteerUsers = [
+			["e2e_vol_user_1", "Frank", "Garcia", "volunteer1@test.com", "e2e_vol_inv_1"],
+			["e2e_vol_user_2", "Grace", "Martinez", "volunteer2@test.com", "e2e_vol_inv_2"],
+			["e2e_vol_user_3", "Hank", "Brown", "volunteer3@test.com", "e2e_vol_inv_3"],
+		]
+
+		for (const [id, firstName, lastName, email, invId] of volunteerUsers) {
+			await connection.execute(
+				`INSERT IGNORE INTO \`users\` (id, first_name, last_name, email, password_hash, role, email_verified, current_credits, created_at, updated_at, update_counter)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				[id, firstName, lastName, email, passwordHash, "user", ts, 0, ts, ts, 0],
+			)
+			// Update invitation with acceptedBy
+			await connection.execute(
+				`UPDATE \`team_invitations\` SET accepted_by = ?, accepted_at = ? WHERE id = ?`,
+				[id, ts, invId],
+			)
+			// Add volunteer team membership with role metadata
+			const metadata = JSON.stringify({ volunteerRoleTypes: id === "e2e_vol_user_1" ? ["judge", "medical"] : id === "e2e_vol_user_2" ? ["judge"] : ["scorekeeper"] })
+			await connection.execute(
+				`INSERT IGNORE INTO \`team_memberships\` (id, team_id, user_id, role_id, is_system_role, is_active, metadata, joined_at, created_at, updated_at, update_counter)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				[`e2e_vol_membership_${id}`, "e2e_comp_team", id, "volunteer", 1, 1, metadata, ts, ts, ts, 0],
+			)
+		}
+
+		// Volunteer answers
+		const volunteerAnswers = [
+			// Frank: has EMT cert, both days
+			["e2e_vans_1_cert", "e2e_q_vol_cert", "e2e_vol_inv_1", "Yes"],
+			["e2e_vans_1_avail", "e2e_q_vol_avail", "e2e_vol_inv_1", "Both Days"],
+			// Grace: no cert, saturday only
+			["e2e_vans_2_cert", "e2e_q_vol_cert", "e2e_vol_inv_2", "No"],
+			["e2e_vans_2_avail", "e2e_q_vol_avail", "e2e_vol_inv_2", "Saturday Only"],
+			// Hank: no cert, both days
+			["e2e_vans_3_cert", "e2e_q_vol_cert", "e2e_vol_inv_3", "No"],
+			["e2e_vans_3_avail", "e2e_q_vol_avail", "e2e_vol_inv_3", "Both Days"],
+		]
+
+		for (const [id, questionId, invitationId, answer] of volunteerAnswers) {
+			await connection.execute(
+				`INSERT IGNORE INTO \`volunteer_registration_answers\` (id, question_id, invitation_id, answer, created_at, updated_at, update_counter)
+				 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				[id, questionId, invitationId, answer, ts, ts, 0],
+			)
+		}
+
+		console.log(`  volunteers: ${volunteerUsers.length} users + ${volunteerAnswers.length} answers inserted`)
 
 		console.log("\nE2E seed complete!")
 	} finally {

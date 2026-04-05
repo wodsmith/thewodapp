@@ -148,6 +148,12 @@ Aggregates multiple configuration forms on a single page: capacity defaults, sco
 
 Uses `CapacitySettingsForm`, `ScoringSettingsForm`, and `RotationSettingsForm` components.
 
+## Broadcasts
+
+One-way broadcast messaging from organizers to registered athletes.
+
+The broadcasts tab at [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/broadcasts.tsx]] lets organizers compose messages with audience filtering (all athletes, by division, all volunteers, volunteers by role, or public/everyone), preview recipient count, and send. Organizers can optionally narrow the audience by registration question answers — select questions show checkboxes, text/number questions offer an autocomplete tag input populated via [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#getDistinctAnswersFn]]. Multiple question filters are AND'd; values within each filter are OR'd. The answer lookup uses `Map<string, Set<string>>` to support multiple answers per registration/question (e.g. team registrations where different teammates answered differently). `partitionQuestionFilters` validates that all filter questionIds resolve to existing questions — stale or deleted filters throw an error rather than silently widening the recipient set. [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#sendBroadcastFn]] pre-renders the email template once and enqueues batches of up to 100 recipients into a Cloudflare Queue. The queue consumer at [[apps/wodsmith-start/src/server/broadcast-queue-consumer.ts#handleBroadcastEmailQueue]] sends emails via Resend with per-recipient idempotency keys, updating delivery status in [[apps/wodsmith-start/src/db/schemas/broadcasts.ts#competitionBroadcastRecipientsTable]]. The queue requires both a producer binding (`BROADCAST_EMAIL_QUEUE` in bindings) and a consumer registration (`eventSources` in [[apps/wodsmith-start/alchemy.run.ts]]) — without `eventSources`, messages are enqueued but never delivered. Athletes see broadcasts at [[apps/wodsmith-start/src/routes/compete/$slug/broadcasts.tsx]].
+
 ## Danger Zone
 
 Destructive actions including competition deletion.
@@ -170,7 +176,7 @@ Fetches organizer-eligible teams, competition groups, and series template divisi
 
 Series (competition groups) aggregate scores across multiple competitions.
 
-Series routes at `_dashboard/series/` support creating, editing, and viewing series. Each series has a leaderboard aggregating results, and a division management page for configuring the shared division template that member competitions inherit. The series detail page also supports managing co-hosts across all competitions in the series via `getSeriesCohostsFn`, `inviteSeriesCohostFn`, and `removeSeriesCohostFn` from `@/server-fns/series-cohost-fns`.
+The series listing and creation pages live under `_dashboard/series/` (with the standard dashboard nav/container). Individual series detail pages at `/compete/organizer/series/{groupId}` use a dedicated sidebar layout (outside the dashboard wrapper), matching the competition organizer sidebar pattern — including team authorization in the layout loader. The sidebar provides navigation to overview, edit, divisions, registration questions, event template, and leaderboard pages. The series detail page also supports managing co-hosts across all competitions in the series via `getSeriesCohostsFn`, `inviteSeriesCohostFn`, and `removeSeriesCohostFn` from `@/server-fns/series-cohost-fns`.
 
 # Cohost Dashboard
 

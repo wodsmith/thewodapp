@@ -26,6 +26,7 @@ import {
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -33,6 +34,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import {
   Select,
   SelectContent,
@@ -80,6 +87,10 @@ interface CompetitionEventRowProps {
   parentEventId?: string
   /** Base route for event detail links (defaults to organizer route) */
   eventDetailRoute?: string
+  /** Series name (shown in tooltip) */
+  seriesName?: string | null
+  /** Template event name if this event is mapped to a series template */
+  seriesTemplateName?: string
 }
 
 export function CompetitionEventRow({
@@ -99,6 +110,8 @@ export function CompetitionEventRow({
   childCount,
   parentEventId,
   eventDetailRoute = "/compete/organizer/$competitionId/events/$eventId",
+  seriesName,
+  seriesTemplateName,
 }: CompetitionEventRowProps) {
   const ref = useRef<HTMLDivElement>(null)
   const dragHandleRef = useRef<HTMLButtonElement>(null)
@@ -345,7 +358,9 @@ export function CompetitionEventRow({
   return (
     <div ref={ref} className="relative">
       {closestEdge && <DropIndicator edge={closestEdge} gap="2px" />}
-      <Card className={`${isDragging ? "opacity-50" : ""} ${isSubEvent ? "border-dashed" : ""} group`}>
+      <Card
+        className={`${isDragging ? "opacity-50" : ""} ${isSubEvent ? "border-dashed" : ""} group`}
+      >
         <Collapsible
           open={isDescriptionsOpen}
           onOpenChange={setIsDescriptionsOpen}
@@ -372,15 +387,36 @@ export function CompetitionEventRow({
                 {/* Event Name */}
                 <span className="flex-1 font-medium truncate min-w-0">
                   {event.workout.name}
-                  {isParentEvent && childCount !== undefined && childCount > 0 && (
-                    <span className="ml-2 text-xs text-muted-foreground font-normal">
-                      ({childCount} sub-event{childCount !== 1 ? "s" : ""})
-                    </span>
-                  )}
+                  {isParentEvent &&
+                    childCount !== undefined &&
+                    childCount > 0 && (
+                      <span className="ml-2 text-xs text-muted-foreground font-normal">
+                        ({childCount} sub-event{childCount !== 1 ? "s" : ""})
+                      </span>
+                    )}
                 </span>
 
                 {/* Badges - hidden on mobile, shown on desktop */}
                 <div className="hidden sm:flex items-center gap-1.5">
+                  {seriesTemplateName && (
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge
+                            variant="outline"
+                            className="text-xs text-muted-foreground border-muted cursor-default"
+                          >
+                            Series
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>
+                            From series{seriesName ? `: ${seriesName}` : ""}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                   {event.workout.scheme && (
                     <span className="text-xs bg-muted px-2 py-1 rounded shrink-0">
                       {event.workout.scheme}
@@ -481,9 +517,14 @@ export function CompetitionEventRow({
                       to={eventDetailRoute}
                       params={{
                         competitionId: competitionId,
-                        eventId: isSubEvent && parentEventId ? parentEventId : event.id,
+                        eventId:
+                          isSubEvent && parentEventId
+                            ? parentEventId
+                            : event.id,
                       }}
-                      search={isSubEvent && parentEventId ? { tab: event.id } : {}}
+                      search={
+                        isSubEvent && parentEventId ? { tab: event.id } : {}
+                      }
                     >
                       <Pencil className="h-4 w-4" />
                     </Link>
@@ -502,6 +543,14 @@ export function CompetitionEventRow({
               {/* Second row - badges, status, actions - visible only on mobile */}
               <div className="flex items-center gap-1.5 sm:hidden">
                 <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                  {seriesTemplateName && (
+                    <Badge
+                      variant="outline"
+                      className="text-xs text-muted-foreground border-muted"
+                    >
+                      Series
+                    </Badge>
+                  )}
                   {event.workout.scheme && (
                     <span className="text-xs bg-muted px-2 py-1 rounded">
                       {event.workout.scheme}
@@ -595,9 +644,14 @@ export function CompetitionEventRow({
                       to={eventDetailRoute}
                       params={{
                         competitionId: competitionId,
-                        eventId: isSubEvent && parentEventId ? parentEventId : event.id,
+                        eventId:
+                          isSubEvent && parentEventId
+                            ? parentEventId
+                            : event.id,
                       }}
-                      search={isSubEvent && parentEventId ? { tab: event.id } : {}}
+                      search={
+                        isSubEvent && parentEventId ? { tab: event.id } : {}
+                      }
                     >
                       <Pencil className="h-4 w-4" />
                     </Link>
