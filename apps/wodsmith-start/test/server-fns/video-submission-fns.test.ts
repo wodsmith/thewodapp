@@ -91,6 +91,8 @@ function createTestRegistration(
 		eventId: string
 		userId: string
 		divisionId: string | null
+		captainUserId: string | null
+		athleteTeamId: string | null
 	}>,
 ) {
 	return {
@@ -98,6 +100,8 @@ function createTestRegistration(
 		eventId: overrides?.eventId ?? "comp-1",
 		userId: overrides?.userId ?? "test-user-123",
 		divisionId: overrides?.divisionId ?? "div-rx",
+		captainUserId: overrides?.captainUserId ?? null,
+		athleteTeamId: overrides?.athleteTeamId ?? null,
 		...overrides,
 	}
 }
@@ -232,7 +236,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				},
 			})
 
-			expect(result.submission).toBeNull()
+			expect(result.submissions).toEqual([])
 			expect(result.canSubmit).toBe(false)
 			expect(result.reason).toBe("Not authenticated")
 			expect(result.isRegistered).toBe(false)
@@ -249,7 +253,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				},
 			})
 
-			expect(result.submission).toBeNull()
+			expect(result.submissions).toEqual([])
 			expect(result.canSubmit).toBe(false)
 			expect(result.reason).toBe(
 				"You must be registered for this competition to submit a video",
@@ -262,12 +266,14 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			const competition = createTestCompetition({ competitionType: "in_person" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			const orderByMock = mockDb.getChainMock().orderBy as ReturnType<typeof vi.fn>
 			limitMock
 				.mockResolvedValueOnce([registration]) // Registration found
 				.mockResolvedValueOnce([competition]) // Competition type check
-				.mockResolvedValueOnce([]) // No submission
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([]) // No workout details
 				.mockResolvedValueOnce([]) // No existing score
+			orderByMock.mockResolvedValueOnce([]) // No submission
 
 			const result = await getVideoSubmissionFn({
 				data: {
@@ -292,13 +298,15 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			})
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			const orderByMock = mockDb.getChainMock().orderBy as ReturnType<typeof vi.fn>
 			limitMock
 				.mockResolvedValueOnce([registration]) // Registration found
 				.mockResolvedValueOnce([competition]) // Competition type check
 				.mockResolvedValueOnce([event]) // Event with submission window
-				.mockResolvedValueOnce([]) // No existing submission
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([]) // No workout details
 				.mockResolvedValueOnce([]) // No existing score
+			orderByMock.mockResolvedValueOnce([]) // No existing submission
 
 			const result = await getVideoSubmissionFn({
 				data: {
@@ -323,13 +331,15 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			})
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			const orderByMock = mockDb.getChainMock().orderBy as ReturnType<typeof vi.fn>
 			limitMock
 				.mockResolvedValueOnce([registration])
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([event])
-				.mockResolvedValueOnce([])
-				.mockResolvedValueOnce([])
-				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
+				.mockResolvedValueOnce([]) // No workout details
+				.mockResolvedValueOnce([]) // No existing score
+			orderByMock.mockResolvedValueOnce([]) // No existing submission
 
 			const result = await getVideoSubmissionFn({
 				data: {
@@ -354,13 +364,15 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			})
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			const orderByMock = mockDb.getChainMock().orderBy as ReturnType<typeof vi.fn>
 			limitMock
 				.mockResolvedValueOnce([registration])
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([event])
-				.mockResolvedValueOnce([])
-				.mockResolvedValueOnce([])
-				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
+				.mockResolvedValueOnce([]) // No workout details
+				.mockResolvedValueOnce([]) // No existing score
+			orderByMock.mockResolvedValueOnce([]) // No existing submission
 
 			const result = await getVideoSubmissionFn({
 				data: {
@@ -379,13 +391,15 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			const submission = createTestVideoSubmission()
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			const orderByMock = mockDb.getChainMock().orderBy as ReturnType<typeof vi.fn>
 			limitMock
 				.mockResolvedValueOnce([registration])
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([]) // No event record = allow submission
-				.mockResolvedValueOnce([submission])
-				.mockResolvedValueOnce([])
-				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
+				.mockResolvedValueOnce([]) // No workout details
+				.mockResolvedValueOnce([]) // No existing score
+			orderByMock.mockResolvedValueOnce([submission]) // Existing submission
 
 			const result = await getVideoSubmissionFn({
 				data: {
@@ -394,8 +408,8 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				},
 			})
 
-			expect(result.submission).toBeDefined()
-			expect(result.submission?.videoUrl).toBe(submission.videoUrl)
+			expect(result.submissions).toBeDefined()
+			expect(result.submissions[0]?.videoUrl).toBe(submission.videoUrl)
 		})
 
 		it("returns workout details for score input", async () => {
@@ -410,13 +424,15 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			const trackWorkout = createTestTrackWorkout()
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			const orderByMock = mockDb.getChainMock().orderBy as ReturnType<typeof vi.fn>
 			limitMock
 				.mockResolvedValueOnce([registration])
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([])
-				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout }])
 				.mockResolvedValueOnce([])
+			orderByMock.mockResolvedValueOnce([]) // No existing submission
 
 			const result = await getVideoSubmissionFn({
 				data: {
@@ -442,13 +458,15 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			})
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			const orderByMock = mockDb.getChainMock().orderBy as ReturnType<typeof vi.fn>
 			limitMock
 				.mockResolvedValueOnce([registration])
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([])
-				.mockResolvedValueOnce([])
-				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
+				.mockResolvedValueOnce([]) // No workout details
 				.mockResolvedValueOnce([score])
+			orderByMock.mockResolvedValueOnce([]) // No existing submission
 
 			const result = await getVideoSubmissionFn({
 				data: {
@@ -550,6 +568,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([registration])
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([]) // No event = allow submission
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([]) // No existing submission
 
 			const result = await submitVideoFn({
@@ -576,6 +595,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([registration])
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([existingSubmission]) // Existing submission found
 
 			const result = await submitVideoFn({
@@ -608,6 +628,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([registration])
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([]) // No existing submission
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }]) // Workout details
 				.mockResolvedValueOnce([track]) // Track for team ownership
@@ -649,6 +670,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([registration])
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([])
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
 				.mockResolvedValueOnce([track])
@@ -690,6 +712,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([registration])
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([])
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
 				.mockResolvedValueOnce([track])
@@ -730,6 +753,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([registration])
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([]) // No existing submission
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
 
@@ -770,6 +794,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([registration])
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([]) // No existing submission
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
 				.mockResolvedValueOnce([track])
@@ -843,6 +868,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([registration])
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([])
 
 			const returningMock = mockDb.getChainMock().returning as ReturnType<
@@ -880,6 +906,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([registration])
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([])
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
 				.mockResolvedValueOnce([track])
@@ -919,6 +946,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([registration])
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([])
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
 				.mockResolvedValueOnce([track])
@@ -958,6 +986,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([registration])
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([])
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
 				.mockResolvedValueOnce([track])
@@ -991,6 +1020,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([registration])
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([]) // No existing video submission
 				.mockResolvedValueOnce([]) // No workout found
 
@@ -1029,6 +1059,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([registration])
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([]) // No existing video submission
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
 				.mockResolvedValueOnce([]) // No track found
@@ -1069,6 +1100,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([registration])
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([]) // No existing submission
 				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }])
 				.mockResolvedValueOnce([track])

@@ -4,7 +4,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, eq, sql } from "drizzle-orm"
+import { and, asc, eq, inArray, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -425,5 +425,117 @@ export const getWorkoutMovementsFn = createServerFn({ method: "GET" })
 
     return {
       movements: results,
+    }
+  })
+
+/**
+ * Get review notes for ALL video submissions sharing the same
+ * registrationId + trackWorkoutId. Enables aggregated movement tally
+ * across multiple team videos.
+ */
+export const getReviewNotesForRegistrationFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        registrationId: z.string().min(1),
+        trackWorkoutId: z.string().min(1),
+        competitionId: z.string().min(1),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const db = getDb()
+
+    // Verify organizer permission
+    const [competition] = await db
+      .select({
+        id: competitionsTable.id,
+        organizingTeamId: competitionsTable.organizingTeamId,
+      })
+      .from(competitionsTable)
+      .where(eq(competitionsTable.id, data.competitionId))
+      .limit(1)
+
+    if (!competition) {
+      throw new Error("NOT_FOUND: Competition not found")
+    }
+
+    await requireTeamPermission(
+      competition.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+    )
+
+    // Get all video submission IDs for this registration + event,
+    // scoped to the competition via the registration's eventId
+    const submissionRows = await db
+      .select({ id: videoSubmissionsTable.id })
+      .from(videoSubmissionsTable)
+      .innerJoin(
+        competitionRegistrationsTable,
+        eq(
+          videoSubmissionsTable.registrationId,
+          competitionRegistrationsTable.id,
+        ),
+      )
+      .where(
+        and(
+          eq(videoSubmissionsTable.registrationId, data.registrationId),
+          eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
+          eq(competitionRegistrationsTable.eventId, data.competitionId),
+        ),
+      )
+
+    const submissionIds = submissionRows.map((r) => r.id)
+    if (submissionIds.length === 0) {
+      return { notes: [] }
+    }
+
+    // Query notes across all sibling submissions
+    const notes = await db
+      .select({
+        id: reviewNotesTable.id,
+        type: reviewNotesTable.type,
+        content: reviewNotesTable.content,
+        timestampSeconds: reviewNotesTable.timestampSeconds,
+        movementId: reviewNotesTable.movementId,
+        movementName: movements.name,
+        videoSubmissionId: reviewNotesTable.videoSubmissionId,
+        createdAt: reviewNotesTable.createdAt,
+        reviewerId: userTable.id,
+        reviewerFirstName: userTable.firstName,
+        reviewerLastName: userTable.lastName,
+        reviewerAvatar: userTable.avatar,
+      })
+      .from(reviewNotesTable)
+      .innerJoin(userTable, eq(reviewNotesTable.userId, userTable.id))
+      .leftJoin(movements, eq(reviewNotesTable.movementId, movements.id))
+      .where(
+        and(
+          inArray(reviewNotesTable.videoSubmissionId, submissionIds),
+          eq(reviewNotesTable.teamId, competition.organizingTeamId),
+        ),
+      )
+      .orderBy(
+        sql`CASE WHEN ${reviewNotesTable.timestampSeconds} IS NULL THEN 1 ELSE 0 END`,
+        asc(reviewNotesTable.timestampSeconds),
+      )
+
+    return {
+      notes: notes.map((n) => ({
+        id: n.id,
+        type: n.type,
+        content: n.content,
+        timestampSeconds: n.timestampSeconds,
+        movementId: n.movementId,
+        movementName: n.movementName,
+        videoSubmissionId: n.videoSubmissionId,
+        createdAt: n.createdAt,
+        reviewer: {
+          id: n.reviewerId,
+          firstName: n.reviewerFirstName,
+          lastName: n.reviewerLastName,
+          avatar: n.reviewerAvatar,
+        },
+      })),
     }
   })

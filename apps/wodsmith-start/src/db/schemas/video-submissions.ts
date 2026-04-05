@@ -11,6 +11,7 @@ import { relations } from "drizzle-orm"
 import {
   datetime,
   index,
+  int,
   mysqlTable,
   text,
   uniqueIndex,
@@ -63,6 +64,10 @@ export const videoSubmissionsTable = mysqlTable(
     // Uses trackWorkoutId to match the competitionEventsTable pattern
     trackWorkoutId: varchar({ length: 255 }).notNull(),
 
+    // 0-indexed position within a team's video submission set
+    // Individual submissions always use 0; teams use 0..teamSize-1
+    videoIndex: int().default(0).notNull(),
+
     // The user who submitted the video
     userId: varchar({ length: 255 }).notNull(),
 
@@ -95,10 +100,11 @@ export const videoSubmissionsTable = mysqlTable(
     reviewedBy: varchar({ length: 255 }),
   },
   (table) => [
-    // One video submission per registration per event
+    // One video submission per registration per event per index
     uniqueIndex("video_submissions_reg_event_idx").on(
       table.registrationId,
       table.trackWorkoutId,
+      table.videoIndex,
     ),
     // Lookup by user
     index("video_submissions_user_idx").on(table.userId),

@@ -53,19 +53,22 @@ test.describe('Competition Registration', () => {
     await independentBtn.click()
 
     // Fill in required registration questions (added by seed data)
-    // T-Shirt Size (select) — find the container div by label text, then click its trigger
-    const tshirtSection = page.locator('div').filter({hasText: /^T-Shirt Size/}).first()
-    await tshirtSection.getByRole('combobox').click()
-    await page.getByRole('option', {name: 'L'}).click()
+    // Each question is in a div.space-y-2 with a <Label> + input/select.
+    // Use the label to find the parent container, then interact with its control.
+
+    // T-Shirt Size (select)
+    const tshirtContainer = page.locator('label', {hasText: 'T-Shirt Size'}).locator('..')
+    await tshirtContainer.getByRole('combobox').click()
+    await page.getByRole('option', {name: 'L', exact: true}).click()
 
     // Experience Level (select)
-    const experienceSection = page.locator('div').filter({hasText: /^Experience Level/}).first()
-    await experienceSection.getByRole('combobox').click()
+    const experienceContainer = page.locator('label', {hasText: 'Experience Level'}).locator('..')
+    await experienceContainer.getByRole('combobox').click()
     await page.getByRole('option', {name: 'Intermediate'}).click()
 
     // Emergency Contact Phone (text input)
-    const emergencySection = page.locator('div').filter({hasText: /^Emergency Contact/}).first()
-    await emergencySection.getByRole('textbox').fill('555-1234')
+    const emergencyContainer = page.locator('label', {hasText: 'Emergency Contact'}).locator('..')
+    await emergencyContainer.getByRole('textbox').fill('555-1234')
 
     // Submit registration
     const submitBtn = page
