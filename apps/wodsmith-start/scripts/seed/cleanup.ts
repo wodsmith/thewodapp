@@ -22,6 +22,7 @@ export async function cleanup(client: Connection): Promise<void> {
 		"competition_events",
 		"competition_heat_assignments",
 		"competition_heats",
+		"volunteer_registration_answers",
 		"competition_registration_answers",
 		"competition_registration_questions",
 		"competition_registrations",

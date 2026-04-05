@@ -52,6 +52,21 @@ test.describe('Competition Registration', () => {
     await expect(independentBtn).toBeVisible({timeout: 5000})
     await independentBtn.click()
 
+    // Fill in required registration questions (added by seed data)
+    // T-Shirt Size (select) — find the container div by label text, then click its trigger
+    const tshirtSection = page.locator('div').filter({hasText: /^T-Shirt Size/}).first()
+    await tshirtSection.getByRole('combobox').click()
+    await page.getByRole('option', {name: 'L'}).click()
+
+    // Experience Level (select)
+    const experienceSection = page.locator('div').filter({hasText: /^Experience Level/}).first()
+    await experienceSection.getByRole('combobox').click()
+    await page.getByRole('option', {name: 'Intermediate'}).click()
+
+    // Emergency Contact Phone (text input)
+    const emergencySection = page.locator('div').filter({hasText: /^Emergency Contact/}).first()
+    await emergencySection.getByRole('textbox').fill('555-1234')
+
     // Submit registration
     const submitBtn = page
       .getByRole('button', {name: /complete registration|register/i})
