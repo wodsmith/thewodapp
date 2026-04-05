@@ -194,6 +194,11 @@ interface VideoSlotState {
   existingSubmission: VideoSubmissionData | null
 }
 
+/** Returns a human-readable label for a video slot based on index */
+function videoSlotLabel(index: number): string {
+  return index === 0 ? "Captain" : `Teammate ${index + 1}`
+}
+
 function createInitialSlots(
   teamSize: number,
   submissions: VideoSubmissionData[],
@@ -370,7 +375,7 @@ export function VideoSubmissionForm({
                   >
                     <ExternalLink className="h-4 w-4" />
                     {teamSize > 1
-                      ? `Video ${sub.videoIndex + 1}: `
+                      ? `${videoSlotLabel(sub.videoIndex)}: `
                       : ""}
                     {sub.videoUrl}
                   </a>
@@ -474,7 +479,7 @@ export function VideoSubmissionForm({
     // Validate all filled slots have valid URLs
     for (const { slot, index } of slotsToSubmit) {
       if (!slot.validation.isValid) {
-        const label = teamSize > 1 ? `Video ${index + 1}: ` : ""
+        const label = teamSize > 1 ? `${videoSlotLabel(index)}: ` : ""
         setError(
           `${label}${slot.validation.error ?? "Please enter a valid video URL"}`,
         )
@@ -757,7 +762,7 @@ export function VideoSubmissionForm({
             <div key={index} className="space-y-2">
               <Label htmlFor={`videoUrl-${index}`}>
                 {teamSize > 1
-                  ? `Video ${index + 1} of ${teamSize} (optional)`
+                  ? `${videoSlotLabel(index)}'s Video (optional)`
                   : "Video URL"}
               </Label>
               <VideoUrlInput
@@ -782,7 +787,7 @@ export function VideoSubmissionForm({
               {/* Per-slot notes */}
               {teamSize > 1 && (
                 <Textarea
-                  placeholder={`Notes for video ${index + 1} (optional)`}
+                  placeholder={`Notes for ${videoSlotLabel(index).toLowerCase()}'s video (optional)`}
                   value={slot.notes}
                   onChange={(e) => updateSlot(index, { notes: e.target.value })}
                   rows={1}

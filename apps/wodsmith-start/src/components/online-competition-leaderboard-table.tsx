@@ -25,7 +25,7 @@ import {
   Trophy,
   Video,
 } from "lucide-react"
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react"
+import { Fragment, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Collapsible,
@@ -341,12 +341,15 @@ function ExpandedVideoRow({
   if (resultsToShow.length === 0) return null
 
   return (
-    <TableRow className="table-row bg-muted/20 hover:bg-muted/20 border-b">
+    <TableRow className="table-row bg-muted/30 hover:bg-muted/30">
       <TableCell colSpan={columnsCount} className="table-cell p-0">
-        <div className="px-6 py-5">
-          <div className="max-w-2xl space-y-4">
+        <div className="border-t border-border/40 px-6 py-5">
+          <div className="mx-auto max-w-2xl space-y-4">
             {resultsToShow.map((result) => (
-              <div key={result.trackWorkoutId} className="space-y-3">
+              <div
+                key={result.trackWorkoutId}
+                className="rounded-xl border border-border/50 bg-background p-4 shadow-sm space-y-3"
+              >
                 {!selectedEventId && (
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {result.eventName}
@@ -420,19 +423,22 @@ function ExpandedVideoContent({
   if (isTeam && videos.length > 1) {
     return (
       <Tabs defaultValue={videos[0].id} className="w-full">
-        <TabsList className="h-8 w-full justify-start bg-muted/60">
+        <TabsList className="h-9 w-auto gap-1 bg-muted/50 p-1">
           {videos.map((v) => (
             <TabsTrigger
               key={v.id}
               value={v.id}
-              className="text-xs px-3 py-1 data-[state=active]:bg-background"
+              className="rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
             >
               {v.athleteName}
+              {v.videoIndex === 0 && (
+                <span className="ml-1 text-muted-foreground">(C)</span>
+              )}
             </TabsTrigger>
           ))}
         </TabsList>
         {videos.map((v) => (
-          <TabsContent key={v.id} value={v.id} className="mt-3">
+          <TabsContent key={v.id} value={v.id} className="mt-3 animate-in fade-in-50 duration-200">
             <VideoCard
               videoUrl={v.videoUrl}
               videoSubmissionId={v.id}

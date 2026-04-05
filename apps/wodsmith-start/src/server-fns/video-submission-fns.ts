@@ -1431,3 +1431,64 @@ export const getSiblingSubmissionsFn = createServerFn({ method: "GET" })
       })),
     }
   })
+
+/**
+ * Public endpoint: fetch all video submissions for a given registration + event.
+ * Used on the public leaderboard to show tabbed team member videos.
+ * No auth required — video URLs on published leaderboards are already public.
+ */
+export const getLeaderboardVideosFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        videoSubmissionId: z.string().min(1),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const db = getDb()
+
+    // Look up the target submission to get its grouping keys
+    const [target] = await db
+      .select({
+        registrationId: videoSubmissionsTable.registrationId,
+        trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+      })
+      .from(videoSubmissionsTable)
+      .where(eq(videoSubmissionsTable.id, data.videoSubmissionId))
+      .limit(1)
+
+    if (!target) {
+      return { videos: [] }
+    }
+
+    const siblings = await db
+      .select({
+        id: videoSubmissionsTable.id,
+        videoIndex: videoSubmissionsTable.videoIndex,
+        videoUrl: videoSubmissionsTable.videoUrl,
+        userId: videoSubmissionsTable.userId,
+        athleteFirstName: userTable.firstName,
+        athleteLastName: userTable.lastName,
+      })
+      .from(videoSubmissionsTable)
+      .innerJoin(userTable, eq(videoSubmissionsTable.userId, userTable.id))
+      .where(
+        and(
+          eq(videoSubmissionsTable.registrationId, target.registrationId),
+          eq(videoSubmissionsTable.trackWorkoutId, target.trackWorkoutId),
+        ),
+      )
+      .orderBy(asc(videoSubmissionsTable.videoIndex))
+
+    return {
+      videos: siblings.map((s) => ({
+        id: s.id,
+        videoIndex: s.videoIndex,
+        videoUrl: s.videoUrl,
+        athleteName:
+          `${s.athleteFirstName || ""} ${s.athleteLastName || ""}`.trim() ||
+          "Unknown",
+      })),
+    }
+  })
