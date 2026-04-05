@@ -16,6 +16,8 @@ import {
 } from "@/db/schemas/competitions"
 import { teamMembershipTable } from "@/db/schemas/teams"
 import { getCohostPermissions } from "@/server/cohost"
+import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
+import { ROLES_ENUM } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"
 import {
   requireCohostCompetitionOwnership,
@@ -41,6 +43,27 @@ export const cohostGetPermissionsFn = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const session = await getSessionFromCookie()
     if (!session) return null
+
+    // Site admin bypass — return all permissions as true
+    if (session.user.role === ROLES_ENUM.ADMIN) {
+      return {
+        divisions: true,
+        editEvents: true,
+        scoringConfig: true,
+        viewRegistrations: true,
+        editRegistrations: true,
+        waivers: true,
+        schedule: true,
+        locations: true,
+        volunteers: true,
+        results: true,
+        pricing: true,
+        revenue: true,
+        coupons: true,
+        sponsors: true,
+      } satisfies CohostMembershipMetadata
+    }
+
     return getCohostPermissions(session, data.competitionTeamId)
   })
 

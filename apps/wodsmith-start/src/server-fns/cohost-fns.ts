@@ -256,6 +256,18 @@ export const getCohostsFn = createServerFn({ method: "GET" })
 
     const db = getDb()
 
+    // Verify that the competition team belongs to a competition owned by the organizing team
+    const competition = await db.query.competitionsTable.findFirst({
+      where: and(
+        eq(competitionsTable.competitionTeamId, data.competitionTeamId),
+        eq(competitionsTable.organizingTeamId, data.organizingTeamId),
+      ),
+      columns: { id: true },
+    })
+    if (!competition) {
+      throw new Error("FORBIDDEN: Competition team does not belong to this organizing team")
+    }
+
     const memberships = await db.query.teamMembershipTable.findMany({
       where: and(
         eq(teamMembershipTable.teamId, data.competitionTeamId),

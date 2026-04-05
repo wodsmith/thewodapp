@@ -376,7 +376,7 @@ export function OrganizerEventManager({
     }))
 
     try {
-      await reorderCompetitionEventsFn({
+      await reorderEventsFn({
         data: {
           competitionId,
           teamId: organizingTeamId,

@@ -40,7 +40,7 @@ export const Route = createFileRoute(
         competitionId: params.competitionId,
         competitionTeamId,
       },
-    }).catch(() => ({ groups: [], ungroupedSponsors: [] }))
+    })
 
     return {
       groups: sponsorsResult.groups,

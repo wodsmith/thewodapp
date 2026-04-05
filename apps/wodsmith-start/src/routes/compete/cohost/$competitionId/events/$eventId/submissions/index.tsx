@@ -90,10 +90,14 @@ export const Route = createFileRoute(
       data: { competitionId: params.competitionId },
     })
 
-    const competitionTeamId = competition!.competitionTeamId!
+    if (!competition) {
+      throw new Error("Competition not found")
+    }
+
+    const competitionTeamId = competition.competitionTeamId!
 
     // Only allow for online competitions
-    if (competition!.competitionType !== "online") {
+    if (competition.competitionType !== "online") {
       throw new Error(
         "Video submissions are only available for online competitions",
       )

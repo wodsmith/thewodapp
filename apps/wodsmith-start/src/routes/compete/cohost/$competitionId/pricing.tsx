@@ -42,14 +42,14 @@ export const Route = createFileRoute(
     // Get Stripe connection status for the organizing team
     const stripeStatus = await getStripeConnectionStatusFn({
       data: { teamId: competition.organizingTeamId },
-    }).catch(() => ({ isConnected: false }))
+    })
 
     const isStripeConnected = stripeStatus.isConnected
 
     // Get team slug for Stripe connection redirect (if not connected)
     const teamSlug = await getTeamSlugFn({
       data: { teamId: competition.organizingTeamId },
-    }).catch(() => null)
+    })
 
     const competitionTeamId = competition.competitionTeamId!
 
@@ -75,7 +75,7 @@ export const Route = createFileRoute(
     if (settings?.divisions?.scalingGroupId) {
       const scalingGroup = await getScalingGroupWithLevelsFn({
         data: { scalingGroupId: settings.divisions.scalingGroupId },
-      }).catch(() => null)
+      })
 
       if (scalingGroup?.scalingLevels) {
         divisions = scalingGroup.scalingLevels.map((level) => ({
@@ -89,12 +89,12 @@ export const Route = createFileRoute(
     // Get current fee configuration
     const feeConfig = await getCompetitionDivisionFeesFn({
       data: { competitionId: competition.id },
-    }).catch(() => null)
+    })
 
     // Get team's fee settings (for founding organizers)
     const teamFeeSettings = await getTeamFeeSettingsFn({
       data: { teamId: competition.organizingTeamId },
-    }).catch(() => undefined)
+    })
 
     return {
       competition: {

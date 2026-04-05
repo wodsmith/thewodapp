@@ -120,7 +120,7 @@ export const Route = createFileRoute(
         competitionId: params.competitionId,
         competitionTeamId,
       },
-    }).catch(() => ({ workouts: [] }))
+    })
     const childEvents = allWorkoutsResult.workouts
       .filter((w) => w.parentEventId === params.eventId)
       .sort((a, b) => a.trackOrder - b.trackOrder)

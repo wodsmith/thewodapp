@@ -1,6 +1,7 @@
 "use client"
 
 import { useRouter } from "@tanstack/react-router"
+import { useSession } from "@/utils/auth-client"
 import { Calendar, Check, ClipboardList, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
@@ -203,6 +204,7 @@ export function VolunteerRow({
 }: VolunteerRowProps) {
   const [showResponses, setShowResponses] = useState(false)
   const router = useRouter()
+  const session = useSession()
   const metadata = parseMetadata(volunteer.metadata)
   const [scoreAccess, setScoreAccess] = useState(volunteer.hasScoreAccess)
   const [selectedRoles, setSelectedRoles] = useState<Set<VolunteerRoleType>>(
@@ -234,7 +236,7 @@ export function VolunteerRow({
             volunteerId: volunteer.user.id,
             competitionTeamId,
             competitionId,
-            grantedBy: volunteer.user.id,
+            grantedBy: session?.userId ?? volunteer.user.id,
           })
         } else {
           await grantScoreAccessFn({
@@ -243,7 +245,7 @@ export function VolunteerRow({
               competitionTeamId,
               organizingTeamId,
               competitionId,
-              grantedBy: volunteer.user.id,
+              grantedBy: session?.userId ?? volunteer.user.id,
             },
           })
         }

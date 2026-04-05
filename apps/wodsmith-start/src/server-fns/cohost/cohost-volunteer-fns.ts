@@ -780,7 +780,6 @@ export const cohostGrantScoreAccessFn = createServerFn({ method: "POST" })
         competitionId: z
           .string()
           .startsWith("comp_", "Invalid competition ID"),
-        grantedBy: z.string().min(1, "Granter ID is required"),
         expiresAt: z.date().optional(),
       })
       .parse(data),
@@ -789,6 +788,10 @@ export const cohostGrantScoreAccessFn = createServerFn({ method: "POST" })
     await requireCohostPermission(data.competitionTeamId, "volunteers")
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
+    const session = await getSessionFromCookie()
+    if (!session) {
+      throw new Error("UNAUTHORIZED: Not authenticated")
+    }
     const db = getDb()
 
     // Ensure the entitlement type exists
@@ -827,7 +830,7 @@ export const cohostGrantScoreAccessFn = createServerFn({ method: "POST" })
       teamId: data.competitionTeamId,
       entitlementTypeId: SCORE_INPUT_TYPE_ID,
       sourceType: "MANUAL",
-      sourceId: data.grantedBy,
+      sourceId: session.userId,
       metadata: {
         competitionId: data.competitionId,
         grantedAt: new Date().toISOString(),

@@ -1618,7 +1618,7 @@ function SubmissionDetailPage() {
       } else {
         await markReviewed({ data: { competitionTeamId, submissionId: submission.id, competitionId: competition.id } })
       }
-      router.invalidate()
+      await router.invalidate()
     } finally {
       setIsUpdating(false)
     }

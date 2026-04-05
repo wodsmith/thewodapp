@@ -34,7 +34,7 @@ export const Route = createFileRoute(
     // Fetch waivers for this competition
     const waiversResult = await cohostGetCompetitionWaiversFn({
       data: { competitionId: params.competitionId, competitionTeamId },
-    }).catch(() => ({ waivers: [] }))
+    })
 
     return {
       waivers: waiversResult.waivers,

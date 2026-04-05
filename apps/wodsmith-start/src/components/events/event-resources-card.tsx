@@ -68,11 +68,6 @@ export function EventResourcesCard({
   // Unique instance ID for drag-and-drop
   const instanceId = useMemo(() => Symbol("event-resources"), [])
 
-  // Sync with initial resources when they change
-  useEffect(() => {
-    setResources(initialResources)
-  }, [initialResources])
-
   // Handle drag-and-drop reorder
   const handleDrop = useCallback(
     async (sourceIndex: number, targetIndex: number) => {

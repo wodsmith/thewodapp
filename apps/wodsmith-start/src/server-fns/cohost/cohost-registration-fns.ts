@@ -425,86 +425,89 @@ export const cohostRemoveRegistrationFn = createServerFn({ method: "POST" })
       },
     })
 
-    // Set registration status to REMOVED
-    await db
-      .update(competitionRegistrationsTable)
-      .set({
-        status: REGISTRATION_STATUS.REMOVED,
-        updatedAt: new Date(),
-      })
-      .where(eq(competitionRegistrationsTable.id, input.registrationId))
+    // Perform all writes in a transaction for atomicity
+    await db.transaction(async (tx) => {
+      // Set registration status to REMOVED
+      await tx
+        .update(competitionRegistrationsTable)
+        .set({
+          status: REGISTRATION_STATUS.REMOVED,
+          updatedAt: new Date(),
+        })
+        .where(eq(competitionRegistrationsTable.id, input.registrationId))
 
-    // Deactivate the captain's team membership
-    await db
-      .update(teamMembershipTable)
-      .set({ isActive: false })
-      .where(eq(teamMembershipTable.id, registration.teamMemberId))
-
-    // For team registrations, deactivate all athlete team memberships and cancel invitations
-    if (registration.athleteTeamId) {
-      await db
+      // Deactivate the captain's team membership
+      await tx
         .update(teamMembershipTable)
         .set({ isActive: false })
-        .where(
-          and(
-            eq(teamMembershipTable.teamId, registration.athleteTeamId),
-            eq(teamMembershipTable.isActive, true),
-          ),
-        )
+        .where(eq(teamMembershipTable.id, registration.teamMemberId))
 
-      await db
-        .update(teamInvitationTable)
-        .set({ status: INVITATION_STATUS.CANCELLED })
-        .where(
-          and(
-            eq(teamInvitationTable.teamId, registration.athleteTeamId),
-            eq(teamInvitationTable.status, INVITATION_STATUS.PENDING),
-          ),
-        )
-    }
-
-    // Delete heat assignments for this registration
-    await db
-      .delete(competitionHeatAssignmentsTable)
-      .where(
-        eq(
-          competitionHeatAssignmentsTable.registrationId,
-          input.registrationId,
-        ),
-      )
-
-    // Delete scores for the registered user(s) in this competition's events
-    const competitionEvents = await db
-      .select({ id: competitionEventsTable.id })
-      .from(competitionEventsTable)
-      .where(eq(competitionEventsTable.competitionId, input.competitionId))
-
-    if (competitionEvents.length > 0) {
-      const eventIds = competitionEvents.map((e) => e.id)
-      const userIds = [registration.userId]
-
+      // For team registrations, deactivate all athlete team memberships and cancel invitations
       if (registration.athleteTeamId) {
-        const teammates = await db
-          .select({ userId: teamMembershipTable.userId })
-          .from(teamMembershipTable)
-          .where(eq(teamMembershipTable.teamId, registration.athleteTeamId))
+        await tx
+          .update(teamMembershipTable)
+          .set({ isActive: false })
+          .where(
+            and(
+              eq(teamMembershipTable.teamId, registration.athleteTeamId),
+              eq(teamMembershipTable.isActive, true),
+            ),
+          )
 
-        for (const tm of teammates) {
-          if (tm.userId && !userIds.includes(tm.userId)) {
-            userIds.push(tm.userId)
-          }
-        }
+        await tx
+          .update(teamInvitationTable)
+          .set({ status: INVITATION_STATUS.CANCELLED })
+          .where(
+            and(
+              eq(teamInvitationTable.teamId, registration.athleteTeamId),
+              eq(teamInvitationTable.status, INVITATION_STATUS.PENDING),
+            ),
+          )
       }
 
-      await db
-        .delete(scoresTable)
+      // Delete heat assignments for this registration
+      await tx
+        .delete(competitionHeatAssignmentsTable)
         .where(
-          and(
-            inArray(scoresTable.competitionEventId, eventIds),
-            inArray(scoresTable.userId, userIds),
+          eq(
+            competitionHeatAssignmentsTable.registrationId,
+            input.registrationId,
           ),
         )
-    }
+
+      // Delete scores for the registered user(s) in this competition's events
+      const competitionEvents = await tx
+        .select({ id: competitionEventsTable.id })
+        .from(competitionEventsTable)
+        .where(eq(competitionEventsTable.competitionId, input.competitionId))
+
+      if (competitionEvents.length > 0) {
+        const eventIds = competitionEvents.map((e) => e.id)
+        const userIds = [registration.userId]
+
+        if (registration.athleteTeamId) {
+          const teammates = await tx
+            .select({ userId: teamMembershipTable.userId })
+            .from(teamMembershipTable)
+            .where(eq(teamMembershipTable.teamId, registration.athleteTeamId))
+
+          for (const tm of teammates) {
+            if (tm.userId && !userIds.includes(tm.userId)) {
+              userIds.push(tm.userId)
+            }
+          }
+        }
+
+        await tx
+          .delete(scoresTable)
+          .where(
+            and(
+              inArray(scoresTable.competitionEventId, eventIds),
+              inArray(scoresTable.userId, userIds),
+            ),
+          )
+      }
+    })
 
     logInfo({
       message: "[Cohost Registration] Registration removed successfully",
