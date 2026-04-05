@@ -56,6 +56,7 @@ import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-di
 import { getCompetitionEventFn } from "@/server-fns/competition-workouts-fns"
 import { getOrganizerSubmissionsFn } from "@/server-fns/video-submission-fns"
 import { cn } from "@/utils/cn"
+import { isSafeUrl } from "@/utils/url"
 
 const FLAGGED_THRESHOLD = 3
 
@@ -222,9 +223,6 @@ function SubmissionsPage() {
         existing.videoCount += 1
         existing.totalUpvotes += sub.votes.upvotes
         existing.totalDownvotes += sub.votes.downvotes
-        if (sub.reviewStatus !== "reviewed") {
-          existing.allReviewed = false
-        }
         // Keep the lowest videoIndex as primary (server orders by videoIndex ASC)
         if (sub.videoIndex < existing.primary.videoIndex) {
           existing.primary = sub
@@ -234,7 +232,8 @@ function SubmissionsPage() {
           key,
           primary: sub,
           videoCount: 1,
-          allReviewed: sub.reviewStatus === "reviewed",
+          // Use server-computed status that considers ALL videos for this registration
+          allReviewed: sub.registrationAllReviewed,
           totalUpvotes: sub.votes.upvotes,
           totalDownvotes: sub.votes.downvotes,
         })
@@ -629,17 +628,23 @@ function SubmissionsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <a
-                          href={submission.videoUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Play className="h-3.5 w-3.5" />
-                          Watch
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
+                        {isSafeUrl(submission.videoUrl) ? (
+                          <a
+                            href={submission.videoUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Play className="h-3.5 w-3.5" />
+                            Watch
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            Invalid URL
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {group.allReviewed ? (

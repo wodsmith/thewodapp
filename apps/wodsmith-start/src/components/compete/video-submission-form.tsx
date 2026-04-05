@@ -24,7 +24,7 @@ import {
 import type { ParseResult, ScoreType, WorkoutScheme } from "@/lib/scoring"
 import { decodeScore, parseScore } from "@/lib/scoring"
 import { cn } from "@/lib/utils"
-import { getSupportedPlatformsText } from "@/schemas/video-url"
+import { getSupportedPlatformsText, parseVideoUrl } from "@/schemas/video-url"
 import { submitVideoFn } from "@/server-fns/video-submission-fns"
 import { isSafeUrl } from "@/utils/url"
 import { VideoSubmissionPreview } from "./video-submission-preview"
@@ -210,10 +210,12 @@ function createInitialSlots(
       url: existing?.videoUrl ?? "",
       notes: existing?.notes ?? "",
       validation: {
-        isValid: false,
+        isValid: !!existing?.videoUrl,
         isPending: false,
         error: null,
-        parsedUrl: null,
+        parsedUrl: existing?.videoUrl
+          ? parseVideoUrl(existing.videoUrl)
+          : null,
       },
       existingSubmission: existing,
     }

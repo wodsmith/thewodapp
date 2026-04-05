@@ -465,14 +465,23 @@ export const getReviewNotesForRegistrationFn = createServerFn({ method: "GET" })
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
 
-    // Get all video submission IDs for this registration + event
+    // Get all video submission IDs for this registration + event,
+    // scoped to the competition via the registration's eventId
     const submissionRows = await db
       .select({ id: videoSubmissionsTable.id })
       .from(videoSubmissionsTable)
+      .innerJoin(
+        competitionRegistrationsTable,
+        eq(
+          videoSubmissionsTable.registrationId,
+          competitionRegistrationsTable.id,
+        ),
+      )
       .where(
         and(
           eq(videoSubmissionsTable.registrationId, data.registrationId),
           eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
+          eq(competitionRegistrationsTable.eventId, data.competitionId),
         ),
       )
 

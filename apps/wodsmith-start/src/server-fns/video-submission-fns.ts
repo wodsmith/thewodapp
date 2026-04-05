@@ -1018,6 +1018,18 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
       filtered = filtered.filter((s) => s.reviewStatus === data.statusFilter)
     }
 
+    // Compute per-registration review status from the full (unfiltered) set
+    // so grouped rows show correct status even when a status filter is active
+    const registrationReviewStatus = new Map<string, boolean>()
+    for (const s of result) {
+      const current = registrationReviewStatus.get(s.registrationId) ?? true
+      if (s.reviewStatus !== "reviewed") {
+        registrationReviewStatus.set(s.registrationId, false)
+      } else if (!registrationReviewStatus.has(s.registrationId)) {
+        registrationReviewStatus.set(s.registrationId, current)
+      }
+    }
+
     // Calculate totals
     const totalSubmissions = result.length
     const reviewedCount = result.filter(
@@ -1026,7 +1038,11 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
     const pendingCount = totalSubmissions - reviewedCount
 
     return {
-      submissions: filtered,
+      submissions: filtered.map((s) => ({
+        ...s,
+        registrationAllReviewed:
+          registrationReviewStatus.get(s.registrationId) ?? false,
+      })),
       totals: {
         total: totalSubmissions,
         reviewed: reviewedCount,
@@ -1380,14 +1396,27 @@ export const getSiblingSubmissionsFn = createServerFn({ method: "GET" })
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
 
-    // Look up the target submission to get its grouping keys
+    // Look up the target submission to get its grouping keys,
+    // scoped to the competition via the registration's eventId
     const [target] = await db
       .select({
         registrationId: videoSubmissionsTable.registrationId,
         trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
       })
       .from(videoSubmissionsTable)
-      .where(eq(videoSubmissionsTable.id, data.submissionId))
+      .innerJoin(
+        competitionRegistrationsTable,
+        eq(
+          videoSubmissionsTable.registrationId,
+          competitionRegistrationsTable.id,
+        ),
+      )
+      .where(
+        and(
+          eq(videoSubmissionsTable.id, data.submissionId),
+          eq(competitionRegistrationsTable.eventId, data.competitionId),
+        ),
+      )
       .limit(1)
 
     if (!target) {
