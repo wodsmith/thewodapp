@@ -267,14 +267,16 @@ function CohostOverviewPage() {
             />
           )}
 
-          {/* Events - Full Width */}
-          <QuickActionsEvents
-            events={events}
-            organizingTeamId={competitionTeamId}
-            competitionId={competition.id}
-            onUpdateWorkout={handleCohostUpdateWorkout}
-            resultsLinkTo="/compete/cohost/$competitionId/results"
-          />
+          {/* Events publish toggle — only shown if cohost has editEvents permission */}
+          {permissions?.editEvents && (
+            <QuickActionsEvents
+              events={events}
+              organizingTeamId={competitionTeamId}
+              competitionId={competition.id}
+              onUpdateWorkout={handleCohostUpdateWorkout}
+              resultsLinkTo="/compete/cohost/$competitionId/results"
+            />
+          )}
         </div>
       )}
 

@@ -102,7 +102,7 @@ export const cohostGetEventResourcesFn = createServerFn({ method: "GET" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "events")
+    await requireCohostPermission(data.competitionTeamId, "editEvents")
 
     const db = getDb()
 
@@ -121,7 +121,7 @@ export const cohostGetEventResourcesFn = createServerFn({ method: "GET" })
 export const cohostCreateEventResourceFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => createEventResourceInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "events")
+    await requireCohostPermission(data.competitionTeamId, "editEvents")
     getEvlog()?.set({
       action: "cohost_create_event_resource",
       eventResource: { eventId: data.eventId },
@@ -164,7 +164,7 @@ export const cohostCreateEventResourceFn = createServerFn({ method: "POST" })
 export const cohostUpdateEventResourceFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => updateEventResourceInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "events")
+    await requireCohostPermission(data.competitionTeamId, "editEvents")
     getEvlog()?.set({
       action: "cohost_update_event_resource",
       eventResource: { id: data.resourceId },
@@ -211,7 +211,7 @@ export const cohostUpdateEventResourceFn = createServerFn({ method: "POST" })
 export const cohostDeleteEventResourceFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => deleteEventResourceInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "events")
+    await requireCohostPermission(data.competitionTeamId, "editEvents")
     getEvlog()?.set({
       action: "cohost_delete_event_resource",
       eventResource: { id: data.resourceId },
@@ -235,7 +235,7 @@ export const cohostReorderEventResourcesFn = createServerFn({ method: "POST" })
     reorderEventResourcesInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "events")
+    await requireCohostPermission(data.competitionTeamId, "editEvents")
     getEvlog()?.set({
       action: "cohost_reorder_event_resources",
       eventResource: { eventId: data.eventId },

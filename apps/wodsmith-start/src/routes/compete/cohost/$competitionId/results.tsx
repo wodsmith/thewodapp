@@ -720,7 +720,7 @@ function InPersonResultsEntry({
         )}
       </div>
 
-      {isParentEvent && childScoreDataList.length > 0 ? (
+      {isParentEvent && childScoreDataList.length > 0 && childScoreDataList[0].event ? (
         <ResultsEntryForm
           key={`${selectedEventId}-${selectedDivisionId}`}
           competitionId={competitionId}
@@ -754,7 +754,7 @@ function InPersonResultsEntry({
           }))}
         />
       ) : (
-        scoreEntryData && (
+        scoreEntryData?.event && (
           <ResultsEntryForm
             key={`${selectedEventId}-${selectedDivisionId}`}
             competitionId={competitionId}

@@ -88,11 +88,11 @@ export async function checkUploadAuthorization(
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
     if (!hasPermission) {
-      // Also check cohost "events" permission (cohosts use a separate permission model)
+      // Also check cohost "editEvents" permission (cohosts use a separate permission model)
       const session = await getSessionFromCookie()
       if (session) {
         const cohostPerms = await getCohostPermissions(session, competition.competitionTeamId)
-        if (cohostPerms?.events) {
+        if (cohostPerms?.editEvents) {
           return { authorized: true }
         }
       }

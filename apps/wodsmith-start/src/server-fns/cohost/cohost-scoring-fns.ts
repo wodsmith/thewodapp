@@ -149,7 +149,7 @@ export const cohostGetEventScoreEntryDataFn = createServerFn({ method: "GET" })
     cohostGetEventScoreEntryDataInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostPermission(data.competitionTeamId, "results")
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 

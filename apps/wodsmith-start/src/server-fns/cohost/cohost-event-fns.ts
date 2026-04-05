@@ -52,7 +52,7 @@ const cohostDeleteEventInputSchema = z.object({
 export const cohostGetCompetitionEventsFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => cohostGetEventsInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "events")
+    await requireCohostPermission(data.competitionTeamId, "editEvents")
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
@@ -80,7 +80,7 @@ export const cohostUpsertCompetitionEventsFn = createServerFn({
 })
   .inputValidator((data: unknown) => cohostUpsertEventsInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "events")
+    await requireCohostPermission(data.competitionTeamId, "editEvents")
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
@@ -131,7 +131,7 @@ export const cohostDeleteCompetitionEventFn = createServerFn({
 })
   .inputValidator((data: unknown) => cohostDeleteEventInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "events")
+    await requireCohostPermission(data.competitionTeamId, "editEvents")
     const db = getDb()
 
     // Verify event exists and belongs to a competition with matching competitionTeamId

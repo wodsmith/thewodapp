@@ -1010,7 +1010,7 @@ export const cohostGetVerificationLogsFn = createServerFn({ method: "GET" })
     cohostGetVerificationLogsInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostPermission(data.competitionTeamId, "results")
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
@@ -1102,7 +1102,7 @@ export const cohostDeleteVerificationLogFn = createServerFn({ method: "POST" })
     cohostDeleteVerificationLogInputSchema.parse(data),
   )
   .handler(async ({ data }): Promise<{ success: boolean }> => {
-    await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostPermission(data.competitionTeamId, "results")
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const session = await getSessionFromCookie()
@@ -1152,7 +1152,7 @@ export const cohostUpdateVerificationLogFn = createServerFn({ method: "POST" })
     cohostUpdateVerificationLogInputSchema.parse(data),
   )
   .handler(async ({ data }): Promise<{ success: boolean }> => {
-    await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostPermission(data.competitionTeamId, "results")
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const session = await getSessionFromCookie()
@@ -1299,7 +1299,7 @@ export const cohostMarkSubmissionReviewedFn = createServerFn({
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostPermission(data.competitionTeamId, "results")
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const session = await getSessionFromCookie()
@@ -1338,7 +1338,7 @@ export const cohostUnmarkSubmissionReviewedFn = createServerFn({
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostPermission(data.competitionTeamId, "results")
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const session = await getSessionFromCookie()
@@ -1382,7 +1382,7 @@ export const cohostGetOrganizerSubmissionDetailFn = createServerFn({
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostPermission(data.competitionTeamId, "results")
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 

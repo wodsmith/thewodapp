@@ -123,7 +123,7 @@ describe("checkUploadAuthorization", () => {
 			mockHasTeamPermission.mockResolvedValue(false)
 			const mockSession = { userId, teams: [] }
 			mockGetSessionFromCookie.mockResolvedValue(mockSession)
-			mockGetCohostPermissions.mockResolvedValue({ events: true })
+			mockGetCohostPermissions.mockResolvedValue({ editEvents: true })
 
 			const result = await checkUploadAuthorization(
 				"judging-sheet",
@@ -142,7 +142,7 @@ describe("checkUploadAuthorization", () => {
 			mockHasTeamPermission.mockResolvedValue(false)
 			const mockSession = { userId, teams: [] }
 			mockGetSessionFromCookie.mockResolvedValue(mockSession)
-			mockGetCohostPermissions.mockResolvedValue({ events: false })
+			mockGetCohostPermissions.mockResolvedValue({ editEvents: false })
 
 			const result = await checkUploadAuthorization(
 				"judging-sheet",
@@ -152,7 +152,7 @@ describe("checkUploadAuthorization", () => {
 
 			expect(result.authorized).toBe(false)
 			expect(result.error).toBe(
-				"Not authorized to upload judging sheets for this competition",
+				"Not authorized to upload judging sheets",
 			)
 			expect(mockGetCohostPermissions).toHaveBeenCalledWith(mockSession, competitionTeamId)
 		})

@@ -32,8 +32,8 @@ export async function requireCohostPermission(
   if (session.user.role === ROLES_ENUM.ADMIN) {
     return {
       divisions: true,
-      events: true,
-      scoring: true,
+      editEvents: true,
+      scoringConfig: true,
       viewRegistrations: true,
       editRegistrations: true,
       waivers: true,

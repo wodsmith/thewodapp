@@ -82,7 +82,7 @@ const getNavigation = (
         ...(permissions?.divisions
           ? [{ label: "Divisions", href: `${basePath}/divisions`, icon: Layers }]
           : []),
-        ...(permissions?.events
+        ...(permissions?.editEvents
           ? [
               { label: "Events", href: `${basePath}/events`, icon: Trophy },
               ...(competitionType === "online"
@@ -96,7 +96,7 @@ const getNavigation = (
                 : []),
             ]
           : []),
-        ...(permissions?.scoring
+        ...(permissions?.scoringConfig
           ? [{ label: "Scoring", href: `${basePath}/scoring`, icon: Calculator }]
           : []),
         ...(permissions?.viewRegistrations || permissions?.editRegistrations

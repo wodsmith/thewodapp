@@ -32,8 +32,8 @@ const groupIdSchema = z.string().startsWith("cgrp_", "Invalid group ID")
 
 const cohostPermissionsSchema = z.object({
   divisions: z.boolean(),
-  events: z.boolean(),
-  scoring: z.boolean(),
+  editEvents: z.boolean(),
+  scoringConfig: z.boolean(),
   viewRegistrations: z.boolean(),
   editRegistrations: z.boolean(),
   waivers: z.boolean(),
@@ -70,8 +70,8 @@ function parsePermissions(metadata: string | null): CohostMembershipMetadata {
       const meta = JSON.parse(metadata) as Partial<CohostMembershipMetadata>
       return {
         divisions: meta.divisions ?? DEFAULT_COHOST_PERMISSIONS.divisions,
-        events: meta.events ?? DEFAULT_COHOST_PERMISSIONS.events,
-        scoring: meta.scoring ?? DEFAULT_COHOST_PERMISSIONS.scoring,
+        editEvents: meta.editEvents ?? meta.events ?? DEFAULT_COHOST_PERMISSIONS.editEvents,
+        scoringConfig: meta.scoringConfig ?? meta.scoring ?? DEFAULT_COHOST_PERMISSIONS.scoringConfig,
         viewRegistrations: meta.viewRegistrations ?? DEFAULT_COHOST_PERMISSIONS.viewRegistrations,
         editRegistrations: meta.editRegistrations ?? DEFAULT_COHOST_PERMISSIONS.editRegistrations,
         waivers: meta.waivers ?? DEFAULT_COHOST_PERMISSIONS.waivers,
@@ -348,8 +348,8 @@ export const inviteSeriesCohostFn = createServerFn({ method: "POST" })
         seriesGroupId: string
       } = {
         divisions: data.permissions.divisions,
-        events: data.permissions.events,
-        scoring: data.permissions.scoring,
+        editEvents: data.permissions.editEvents,
+        scoringConfig: data.permissions.scoringConfig,
         viewRegistrations: data.permissions.viewRegistrations,
         editRegistrations: data.permissions.editRegistrations,
         waivers: data.permissions.waivers,

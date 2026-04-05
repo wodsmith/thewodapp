@@ -1017,6 +1017,7 @@ export const cohostGetUnassignedRegistrationsFn = createServerFn({
   })
 
 // ============================================================================
+// ============================================================================
 // Heat Publishing Input Schemas
 // ============================================================================
 
@@ -1396,7 +1397,6 @@ const updateCompetitionWorkoutInputSchema = cohostBaseSchema.extend({
   pointsMultiplier: z.number().min(0).optional(),
   notes: z.string().nullable().optional(),
   heatStatus: z.enum(["draft", "published"]).optional(),
-  eventStatus: z.enum(["draft", "published"]).optional(),
 })
 
 /**
@@ -1433,9 +1433,6 @@ export const cohostUpdateCompetitionWorkoutFn = createServerFn({
     }
     if (data.heatStatus !== undefined) {
       updateData.heatStatus = data.heatStatus
-    }
-    if (data.eventStatus !== undefined) {
-      updateData.eventStatus = data.eventStatus
     }
 
     await db

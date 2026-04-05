@@ -358,7 +358,7 @@ export const cohostUpdateScoringConfigFn = createServerFn({ method: "POST" })
     cohostScoringConfigInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostPermission(data.competitionTeamId, "scoringConfig")
     const db = getDb()
 
     const competition = await db.query.competitionsTable.findFirst({

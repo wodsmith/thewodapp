@@ -71,7 +71,7 @@ const reorderJudgingSheetsInputSchema = cohostBaseSchema.extend({
 export const cohostCreateJudgingSheetFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => createJudgingSheetInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "events")
+    await requireCohostPermission(data.competitionTeamId, "editEvents")
     if (data.competitionId) {
       await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     }
@@ -154,7 +154,7 @@ export const cohostCreateJudgingSheetFn = createServerFn({ method: "POST" })
 export const cohostUpdateJudgingSheetFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => updateJudgingSheetInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "events")
+    await requireCohostPermission(data.competitionTeamId, "editEvents")
     getEvlog()?.set({
       action: "cohost_update_judging_sheet",
       judgingSheet: { id: data.judgingSheetId },
@@ -199,7 +199,7 @@ export const cohostUpdateJudgingSheetFn = createServerFn({ method: "POST" })
 export const cohostDeleteJudgingSheetFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => deleteJudgingSheetInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "events")
+    await requireCohostPermission(data.competitionTeamId, "editEvents")
     getEvlog()?.set({
       action: "cohost_delete_judging_sheet",
       judgingSheet: { id: data.judgingSheetId },
@@ -228,7 +228,7 @@ export const cohostReorderJudgingSheetsFn = createServerFn({ method: "POST" })
     reorderJudgingSheetsInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "events")
+    await requireCohostPermission(data.competitionTeamId, "editEvents")
     getEvlog()?.set({
       action: "cohost_reorder_judging_sheets",
       judgingSheet: { trackWorkoutId: data.trackWorkoutId },

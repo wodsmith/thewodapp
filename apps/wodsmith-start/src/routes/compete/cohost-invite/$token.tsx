@@ -328,7 +328,7 @@ function PermissionsSummary({
   permissions: {
     divisions?: boolean
     events?: boolean
-    scoring?: boolean
+    scoringConfig?: boolean
     viewRegistrations?: boolean
     editRegistrations?: boolean
     waivers?: boolean
@@ -344,8 +344,8 @@ function PermissionsSummary({
 }) {
   const granted = [
     permissions.divisions && "Divisions",
-    permissions.events && "Events",
-    permissions.scoring && "Scoring",
+    permissions.editEvents && "Edit events",
+    permissions.scoringConfig && "Scoring config",
     permissions.viewRegistrations && "View registrations",
     permissions.editRegistrations && "Edit registrations",
     permissions.waivers && "Waivers",

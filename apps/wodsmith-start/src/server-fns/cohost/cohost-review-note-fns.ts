@@ -83,7 +83,7 @@ export const cohostGetReviewNotesFn = createServerFn({ method: "GET" })
     cohostGetReviewNotesInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostPermission(data.competitionTeamId, "results")
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
@@ -153,7 +153,7 @@ export const cohostCreateReviewNoteFn = createServerFn({ method: "POST" })
     cohostCreateReviewNoteInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostPermission(data.competitionTeamId, "results")
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const session = await getSessionFromCookie()
@@ -260,7 +260,7 @@ export const cohostUpdateReviewNoteFn = createServerFn({ method: "POST" })
     cohostUpdateReviewNoteInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostPermission(data.competitionTeamId, "results")
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const session = await getSessionFromCookie()
@@ -311,7 +311,7 @@ export const cohostDeleteReviewNoteFn = createServerFn({ method: "POST" })
     cohostDeleteReviewNoteInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostPermission(data.competitionTeamId, "results")
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const session = await getSessionFromCookie()
@@ -368,7 +368,7 @@ export const cohostGetWorkoutMovementsFn = createServerFn({ method: "GET" })
     cohostGetWorkoutMovementsInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostPermission(data.competitionTeamId, "results")
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 

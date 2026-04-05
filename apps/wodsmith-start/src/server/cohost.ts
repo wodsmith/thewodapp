@@ -51,8 +51,8 @@ export async function getCohostPermissions(
 
   return {
     divisions: metadata.divisions ?? DEFAULT_COHOST_PERMISSIONS.divisions,
-    events: metadata.events ?? DEFAULT_COHOST_PERMISSIONS.events,
-    scoring: metadata.scoring ?? DEFAULT_COHOST_PERMISSIONS.scoring,
+    editEvents: (metadata as any).editEvents ?? (metadata as any).events ?? DEFAULT_COHOST_PERMISSIONS.editEvents,
+    scoringConfig: metadata.scoringConfig ?? metadata.scoring ?? DEFAULT_COHOST_PERMISSIONS.scoringConfig,
     viewRegistrations: metadata.viewRegistrations ?? DEFAULT_COHOST_PERMISSIONS.viewRegistrations,
     editRegistrations: metadata.editRegistrations ?? DEFAULT_COHOST_PERMISSIONS.editRegistrations,
     waivers: metadata.waivers ?? DEFAULT_COHOST_PERMISSIONS.waivers,
