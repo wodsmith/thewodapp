@@ -59,7 +59,7 @@ test.describe('Competition Registration', () => {
     // T-Shirt Size (select)
     const tshirtContainer = page.locator('label', {hasText: 'T-Shirt Size'}).locator('..')
     await tshirtContainer.getByRole('combobox').click()
-    await page.getByRole('option', {name: 'L'}).click()
+    await page.getByRole('option', {name: 'L', exact: true}).click()
 
     // Experience Level (select)
     const experienceContainer = page.locator('label', {hasText: 'Experience Level'}).locator('..')
