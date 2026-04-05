@@ -13,7 +13,10 @@ import { FEATURES } from "@/config/features"
 import { logInfo } from "@/lib/logging"
 import { hasFeature } from "@/server/entitlements"
 import { getSessionFromCookie } from "@/utils/auth"
-import { requireCohostPermission } from "@/utils/cohost-auth"
+import {
+  requireCohostCompetitionOwnership,
+  requireCohostPermission,
+} from "@/utils/cohost-auth"
 
 // ============================================================================
 // Input Schemas
@@ -35,6 +38,7 @@ const cohostCreateCouponInputSchema = z.object({
 
 const cohostDeactivateCouponInputSchema = z.object({
   competitionTeamId: z.string().min(1, "Competition team ID is required"),
+  competitionId: z.string().min(1, "Competition ID is required"),
   couponId: z.string().min(1, "Coupon ID is required"),
 })
 
@@ -51,6 +55,7 @@ export const cohostListCouponsFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "coupons")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     // Look up the competition to get the organizing team ID for coupon queries
@@ -85,6 +90,7 @@ export const cohostCreateCouponFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "coupons")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const session = await getSessionFromCookie()
     if (!session?.userId) {
@@ -162,11 +168,15 @@ export const cohostDeactivateCouponFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "coupons")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
-    // Verify coupon exists — look up via competition to get team
+    // Verify coupon exists and belongs to this competition
     const coupon = await db.query.productCouponsTable.findFirst({
-      where: eq(productCouponsTable.id, data.couponId),
+      where: and(
+        eq(productCouponsTable.id, data.couponId),
+        eq(productCouponsTable.productId, data.competitionId),
+      ),
     })
 
     if (!coupon) {

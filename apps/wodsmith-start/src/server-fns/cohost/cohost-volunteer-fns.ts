@@ -38,7 +38,10 @@ import {
   isVolunteer,
 } from "@/server/volunteers"
 import { getSessionFromCookie } from "@/utils/auth"
-import { requireCohostPermission } from "@/utils/cohost-auth"
+import {
+  requireCohostCompetitionOwnership,
+  requireCohostPermission,
+} from "@/utils/cohost-auth"
 
 // ============================================================================
 // Constants
@@ -230,6 +233,7 @@ export const cohostGetVolunteerAssignmentsFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 
@@ -387,6 +391,7 @@ export const cohostInviteVolunteerFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const metadata: {
       volunteerRoleTypes: typeof data.roleTypes
@@ -495,13 +500,17 @@ export const cohostAddVolunteerRoleTypeFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
     const isInvitation = data.membershipId.startsWith("tinv_")
 
     if (isInvitation) {
       const invitation = await db.query.teamInvitationTable.findFirst({
-        where: eq(teamInvitationTable.id, data.membershipId),
+        where: and(
+          eq(teamInvitationTable.id, data.membershipId),
+          eq(teamInvitationTable.teamId, data.competitionTeamId),
+        ),
       })
 
       if (!invitation) {
@@ -530,7 +539,10 @@ export const cohostAddVolunteerRoleTypeFn = createServerFn({ method: "POST" })
         .where(eq(teamInvitationTable.id, data.membershipId))
     } else {
       const membership = await db.query.teamMembershipTable.findFirst({
-        where: eq(teamMembershipTable.id, data.membershipId),
+        where: and(
+          eq(teamMembershipTable.id, data.membershipId),
+          eq(teamMembershipTable.teamId, data.competitionTeamId),
+        ),
       })
 
       if (!membership) {
@@ -590,13 +602,17 @@ export const cohostRemoveVolunteerRoleTypeFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
     const isInvitation = data.membershipId.startsWith("tinv_")
 
     if (isInvitation) {
       const invitation = await db.query.teamInvitationTable.findFirst({
-        where: eq(teamInvitationTable.id, data.membershipId),
+        where: and(
+          eq(teamInvitationTable.id, data.membershipId),
+          eq(teamInvitationTable.teamId, data.competitionTeamId),
+        ),
       })
 
       if (!invitation) {
@@ -627,7 +643,10 @@ export const cohostRemoveVolunteerRoleTypeFn = createServerFn({
         .where(eq(teamInvitationTable.id, data.membershipId))
     } else {
       const membership = await db.query.teamMembershipTable.findFirst({
-        where: eq(teamMembershipTable.id, data.membershipId),
+        where: and(
+          eq(teamMembershipTable.id, data.membershipId),
+          eq(teamMembershipTable.teamId, data.competitionTeamId),
+        ),
       })
 
       if (!membership) {
@@ -683,6 +702,7 @@ export const cohostUpdateVolunteerMetadataFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const session = await getSessionFromCookie()
     if (!session) {
@@ -695,7 +715,10 @@ export const cohostUpdateVolunteerMetadataFn = createServerFn({
 
     if (isInvitation) {
       const invitation = await db.query.teamInvitationTable.findFirst({
-        where: eq(teamInvitationTable.id, data.membershipId),
+        where: and(
+          eq(teamInvitationTable.id, data.membershipId),
+          eq(teamInvitationTable.teamId, data.competitionTeamId),
+        ),
       })
 
       if (!invitation) {
@@ -716,7 +739,10 @@ export const cohostUpdateVolunteerMetadataFn = createServerFn({
         .where(eq(teamInvitationTable.id, data.membershipId))
     } else {
       const membership = await db.query.teamMembershipTable.findFirst({
-        where: eq(teamMembershipTable.id, data.membershipId),
+        where: and(
+          eq(teamMembershipTable.id, data.membershipId),
+          eq(teamMembershipTable.teamId, data.competitionTeamId),
+        ),
       })
 
       if (!membership) {
@@ -761,6 +787,7 @@ export const cohostGrantScoreAccessFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 
@@ -830,6 +857,7 @@ export const cohostRevokeScoreAccessFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 
@@ -875,6 +903,7 @@ export const cohostGetCompetitionShiftsFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 
@@ -922,6 +951,7 @@ export const cohostCreateShiftFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     if (data.endTime <= data.startTime) {
       throw new Error("VALIDATION_ERROR: End time must be after start time")
@@ -1108,7 +1138,10 @@ export const cohostAssignVolunteerToShiftFn = createServerFn({
     }
 
     const membership = await db.query.teamMembershipTable.findFirst({
-      where: eq(teamMembershipTable.id, data.membershipId),
+      where: and(
+        eq(teamMembershipTable.id, data.membershipId),
+        eq(teamMembershipTable.teamId, data.competitionTeamId),
+      ),
     })
 
     if (!membership) {
@@ -1200,6 +1233,7 @@ export const cohostBulkAssignVolunteerRoleFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 
@@ -1209,7 +1243,10 @@ export const cohostBulkAssignVolunteerRoleFn = createServerFn({
 
         if (isInvitation) {
           const invitation = await db.query.teamInvitationTable.findFirst({
-            where: eq(teamInvitationTable.id, membershipId),
+            where: and(
+              eq(teamInvitationTable.id, membershipId),
+              eq(teamInvitationTable.teamId, data.competitionTeamId),
+            ),
           })
           if (!invitation) return
 
@@ -1235,7 +1272,10 @@ export const cohostBulkAssignVolunteerRoleFn = createServerFn({
           }
         } else {
           const membership = await db.query.teamMembershipTable.findFirst({
-            where: eq(teamMembershipTable.id, membershipId),
+            where: and(
+              eq(teamMembershipTable.id, membershipId),
+              eq(teamMembershipTable.teamId, data.competitionTeamId),
+            ),
           })
           if (!membership || !isVolunteer(membership)) return
 

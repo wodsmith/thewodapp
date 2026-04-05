@@ -40,7 +40,10 @@ import {
   notifyRegistrationConfirmed,
   registerForCompetition,
 } from "@/lib/registration-stubs"
-import { requireCohostPermission } from "@/utils/cohost-auth"
+import {
+  requireCohostCompetitionOwnership,
+  requireCohostPermission,
+} from "@/utils/cohost-auth"
 import { requireVerifiedEmail } from "@/utils/auth"
 
 // ============================================================================
@@ -154,6 +157,7 @@ export const cohostGetOrganizerRegistrationsFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "viewRegistrations")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 
@@ -231,6 +235,7 @@ export const cohostCreateManualRegistrationFn = createServerFn({
   )
   .handler(async ({ data: input }) => {
     await requireCohostPermission(input.competitionTeamId, "editRegistrations")
+    await requireCohostCompetitionOwnership(input.competitionTeamId, input.competitionId)
 
     const session = await requireVerifiedEmail()
     const db = getDb()
@@ -378,6 +383,7 @@ export const cohostRemoveRegistrationFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data: input }) => {
     await requireCohostPermission(input.competitionTeamId, "editRegistrations")
+    await requireCohostCompetitionOwnership(input.competitionTeamId, input.competitionId)
 
     const session = await requireVerifiedEmail()
     const db = getDb()
@@ -523,6 +529,7 @@ export const cohostTransferRegistrationDivisionFn = createServerFn({
   )
   .handler(async ({ data: input }) => {
     await requireCohostPermission(input.competitionTeamId, "editRegistrations")
+    await requireCohostCompetitionOwnership(input.competitionTeamId, input.competitionId)
 
     const session = await requireVerifiedEmail()
     const db = getDb()
@@ -654,6 +661,7 @@ export const cohostGetRegistrationQuestionsFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "viewRegistrations")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 
@@ -746,6 +754,7 @@ export const cohostGetCompetitionRegistrationAnswersFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "viewRegistrations")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 

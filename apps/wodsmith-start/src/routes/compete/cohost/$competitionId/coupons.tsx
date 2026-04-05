@@ -174,7 +174,7 @@ function CouponsPage() {
 
   async function handleDeactivate(couponId: string) {
     try {
-      await deactivate({ data: { couponId, competitionTeamId } })
+      await deactivate({ data: { couponId, competitionTeamId, competitionId } })
       toast.success("Coupon deactivated")
       await refreshCoupons()
     } catch (err) {

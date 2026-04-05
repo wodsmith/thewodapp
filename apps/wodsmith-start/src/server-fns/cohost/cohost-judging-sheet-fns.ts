@@ -18,7 +18,7 @@ import {
   logInfo,
 } from "@/lib/logging"
 import { getSessionFromCookie } from "@/utils/auth"
-import { requireCohostPermission } from "@/utils/cohost-auth"
+import { requireCohostCompetitionOwnership, requireCohostPermission } from "@/utils/cohost-auth"
 
 // ============================================================================
 // Input Schemas
@@ -72,6 +72,9 @@ export const cohostCreateJudgingSheetFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => createJudgingSheetInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "events")
+    if (data.competitionId) {
+      await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    }
     getEvlog()?.set({
       action: "cohost_create_judging_sheet",
       judgingSheet: {

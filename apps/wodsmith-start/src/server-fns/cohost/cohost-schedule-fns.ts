@@ -43,7 +43,10 @@ import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { userTable } from "@/db/schemas/users"
 import { workouts } from "@/db/schemas/workouts"
 import { getAffiliate } from "@/utils/registration-metadata"
-import { requireCohostPermission } from "@/utils/cohost-auth"
+import {
+  requireCohostCompetitionOwnership,
+  requireCohostPermission,
+} from "@/utils/cohost-auth"
 
 // ============================================================================
 // Types
@@ -336,6 +339,7 @@ export const cohostGetHeatsForCompetitionFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => getHeatsInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "schedule")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 
@@ -363,6 +367,7 @@ export const cohostGetCompetitionRegistrationsFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "schedule")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 
@@ -442,6 +447,7 @@ export const cohostCreateHeatFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => createHeatInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "schedule")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     getEvlog()?.set({
       action: "cohost_create_heat",
       heat: {
@@ -648,6 +654,7 @@ export const cohostBulkCreateHeatsFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => bulkCreateHeatsInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "schedule")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     getEvlog()?.set({
       action: "cohost_bulk_create_heats",
       heat: {
@@ -914,6 +921,7 @@ export const cohostGetUnassignedRegistrationsFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "schedule")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 
@@ -1136,6 +1144,7 @@ export const cohostGetEventsWithHeatsFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => getEventsWithHeatsInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "schedule")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 

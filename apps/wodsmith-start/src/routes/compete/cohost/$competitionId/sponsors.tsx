@@ -105,6 +105,7 @@ function SponsorsPage() {
         cohostUpdateSponsorFn({
           data: {
             competitionTeamId,
+            competitionId: competition.id,
             sponsorId: opts.data.sponsorId,
             groupId: opts.data.groupId,
             name: opts.data.name,
@@ -116,6 +117,7 @@ function SponsorsPage() {
         cohostDeleteSponsorFn({
           data: {
             competitionTeamId,
+            competitionId: competition.id,
             sponsorId: opts.data.sponsorId,
           },
         }),

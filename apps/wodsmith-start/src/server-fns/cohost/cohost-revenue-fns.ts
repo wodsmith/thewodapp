@@ -6,7 +6,7 @@
 
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
-import { requireCohostPermission } from "@/utils/cohost-auth"
+import { requireCohostCompetitionOwnership, requireCohostPermission } from "@/utils/cohost-auth"
 import { getCompetitionRevenueStats } from "@/server/commerce/fee-calculator"
 
 // Re-export type for consumers
@@ -34,6 +34,7 @@ export const cohostGetRevenueStatsFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "revenue")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const stats = await getCompetitionRevenueStats(data.competitionId)
     return { stats }

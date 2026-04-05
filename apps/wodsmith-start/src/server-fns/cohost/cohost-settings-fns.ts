@@ -18,7 +18,10 @@ import {
   competitionsTable,
   scalingLevelsTable,
 } from "@/db/schema"
-import { requireCohostPermission } from "@/utils/cohost-auth"
+import {
+  requireCohostCompetitionOwnership,
+  requireCohostPermission,
+} from "@/utils/cohost-auth"
 
 // ============================================================================
 // Input Schemas
@@ -66,6 +69,7 @@ export const cohostGetCapacitySettingsFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId)
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const competition = await db.query.competitionsTable.findFirst({
@@ -94,6 +98,7 @@ export const cohostUpdateCapacitySettingsFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "divisions")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const [competition] = await db
@@ -132,6 +137,7 @@ export const cohostUpdateDivisionCapacityFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "divisions")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     // Verify division exists
@@ -184,6 +190,7 @@ export const cohostGetScoringSettingsFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId)
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const competition = await db.query.competitionsTable.findFirst({
@@ -217,6 +224,7 @@ export const cohostGetRotationDefaultsFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId)
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const competition = await db.query.competitionsTable.findFirst({

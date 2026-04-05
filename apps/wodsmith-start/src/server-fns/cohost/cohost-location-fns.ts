@@ -5,7 +5,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { asc, eq } from "drizzle-orm"
+import { and, asc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { getEvlog } from "@/lib/evlog"
@@ -15,7 +15,10 @@ import {
   competitionVenuesTable,
 } from "@/db/schemas/competitions"
 import { createCompetitionVenueId } from "@/db/schemas/common"
-import { requireCohostPermission } from "@/utils/cohost-auth"
+import {
+  requireCohostCompetitionOwnership,
+  requireCohostPermission,
+} from "@/utils/cohost-auth"
 
 // ============================================================================
 // Input Schemas
@@ -39,6 +42,7 @@ const createVenueInputSchema = cohostBaseSchema.extend({
 })
 
 const updateVenueInputSchema = cohostBaseSchema.extend({
+  competitionId: z.string().min(1, "Competition ID is required"),
   venueId: z.string().min(1, "Venue ID is required"),
   name: z.string().min(1).max(100).optional(),
   laneCount: z.number().int().min(1).max(100).optional(),
@@ -48,6 +52,7 @@ const updateVenueInputSchema = cohostBaseSchema.extend({
 })
 
 const deleteVenueInputSchema = cohostBaseSchema.extend({
+  competitionId: z.string().min(1, "Competition ID is required"),
   venueId: z.string().min(1, "Venue ID is required"),
 })
 
@@ -68,6 +73,7 @@ export const cohostGetCompetitionVenuesFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "locations")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 
@@ -99,6 +105,7 @@ export const cohostCreateVenueFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => createVenueInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "locations")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     getEvlog()?.set({
       action: "cohost_create_venue",
       venue: { competitionId: data.competitionId },
@@ -145,6 +152,7 @@ export const cohostUpdateVenueFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => updateVenueInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "locations")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     getEvlog()?.set({
       action: "cohost_update_venue",
       venue: { id: data.venueId },
@@ -166,7 +174,12 @@ export const cohostUpdateVenueFn = createServerFn({ method: "POST" })
     await db
       .update(competitionVenuesTable)
       .set(updateData)
-      .where(eq(competitionVenuesTable.id, data.venueId))
+      .where(
+        and(
+          eq(competitionVenuesTable.id, data.venueId),
+          eq(competitionVenuesTable.competitionId, data.competitionId),
+        ),
+      )
 
     return { success: true }
   })
@@ -178,6 +191,7 @@ export const cohostDeleteVenueFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => deleteVenueInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "locations")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     getEvlog()?.set({
       action: "cohost_delete_venue",
       venue: { id: data.venueId },
@@ -187,7 +201,12 @@ export const cohostDeleteVenueFn = createServerFn({ method: "POST" })
 
     await db
       .delete(competitionVenuesTable)
-      .where(eq(competitionVenuesTable.id, data.venueId))
+      .where(
+        and(
+          eq(competitionVenuesTable.id, data.venueId),
+          eq(competitionVenuesTable.competitionId, data.competitionId),
+        ),
+      )
 
     return { success: true }
   })

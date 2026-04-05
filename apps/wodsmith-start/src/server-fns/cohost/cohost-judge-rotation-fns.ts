@@ -22,7 +22,7 @@ import {
   trackWorkoutsTable,
 } from "@/db/schema"
 import { expandRotationToAssignments } from "@/lib/judge-rotation-utils"
-import { requireCohostPermission } from "@/utils/cohost-auth"
+import { requireCohostCompetitionOwnership, requireCohostPermission } from "@/utils/cohost-auth"
 
 // ============================================================================
 // Input Schemas
@@ -550,6 +550,7 @@ export const cohostCreateJudgeRotationFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => createRotationSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const validation = await validateRotationConflictsInternal({
       trackWorkoutId: data.trackWorkoutId,
@@ -659,6 +660,7 @@ export const cohostUpdateEventDefaultsFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => updateEventDefaultsSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 
@@ -696,6 +698,7 @@ export const cohostBatchCreateRotationsFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => batchCreateRotationsSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 
@@ -793,6 +796,7 @@ export const cohostBatchUpdateVolunteerRotationsFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 
@@ -965,6 +969,7 @@ export const cohostBatchDeleteRotationsFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => batchDeleteRotationsSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 
@@ -1172,6 +1177,7 @@ export const cohostAdjustRotationsForOccupiedLanesFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 

@@ -29,7 +29,7 @@ import {
 } from "@/lib/scoring"
 import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk } from "@/utils/batch-query"
-import { requireCohostPermission } from "@/utils/cohost-auth"
+import { requireCohostCompetitionOwnership, requireCohostPermission } from "@/utils/cohost-auth"
 
 // ============================================================================
 // Input Schemas
@@ -81,6 +81,7 @@ export const cohostGetOrganizerSubmissionsFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "results")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     // Get all video submissions for this event with athlete and registration info
@@ -258,6 +259,7 @@ export const cohostGetSubmissionDetailFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "results")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     // Verify the event belongs to this competition
@@ -502,6 +504,7 @@ export const cohostVerifySubmissionScoreFn = createServerFn({
       data,
     }): Promise<{ success: boolean; verificationStatus: string }> => {
       await requireCohostPermission(data.competitionTeamId, "results")
+      await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
       const session = await getSessionFromCookie()
       if (!session?.userId) {
@@ -853,6 +856,7 @@ export const cohostGetEventSubmissionsFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "results")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     // Verify the event belongs to this competition
@@ -1007,6 +1011,7 @@ export const cohostGetVerificationLogsFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const logs = await db
@@ -1098,6 +1103,7 @@ export const cohostDeleteVerificationLogFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<{ success: boolean }> => {
     await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const session = await getSessionFromCookie()
     if (!session?.userId) {
@@ -1147,6 +1153,7 @@ export const cohostUpdateVerificationLogFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<{ success: boolean }> => {
     await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const session = await getSessionFromCookie()
     if (!session?.userId) {
@@ -1293,6 +1300,7 @@ export const cohostMarkSubmissionReviewedFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const session = await getSessionFromCookie()
     if (!session?.userId) {
@@ -1331,6 +1339,7 @@ export const cohostUnmarkSubmissionReviewedFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const session = await getSessionFromCookie()
     if (!session?.userId) {
@@ -1374,6 +1383,7 @@ export const cohostGetOrganizerSubmissionDetailFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const [submission] = await db

@@ -20,7 +20,10 @@ import {
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoresTable } from "@/db/schemas/scores"
 import { workouts as workoutsTable } from "@/db/schemas/workouts"
-import { requireCohostPermission } from "@/utils/cohost-auth"
+import {
+  requireCohostCompetitionOwnership,
+  requireCohostPermission,
+} from "@/utils/cohost-auth"
 import type {
   AllEventsResultsStatusResponse,
   DivisionResultStatus,
@@ -114,6 +117,7 @@ export const cohostGetDivisionResultsStatusFn = createServerFn({
       EventDivisionResultsStatusResponse | AllEventsResultsStatusResponse
     > => {
       await requireCohostPermission(data.competitionTeamId, "results")
+      await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
       const db = getDb()
 
       const [competition] = await db
@@ -373,6 +377,7 @@ export const cohostPublishDivisionResultsFn = createServerFn({
       data,
     }): Promise<{ success: boolean; publishedAt: Date | null }> => {
       await requireCohostPermission(data.competitionTeamId, "results")
+      await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
       const db = getDb()
 
       const [competition] = await db
@@ -424,6 +429,7 @@ export const cohostPublishAllDivisionResultsFn = createServerFn({
   .handler(
     async ({ data }): Promise<{ success: boolean; updatedCount: number }> => {
       await requireCohostPermission(data.competitionTeamId, "results")
+      await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
       const db = getDb()
 
       const [competition] = await db

@@ -19,7 +19,7 @@ import {
 } from "@/db/schemas/competitions"
 import { scalingGroupsTable, scalingLevelsTable } from "@/db/schemas/scaling"
 import { seriesDivisionMappingsTable } from "@/db/schemas/series"
-import { requireCohostPermission } from "@/utils/cohost-auth"
+import { requireCohostCompetitionOwnership, requireCohostPermission } from "@/utils/cohost-auth"
 
 // ============================================================================
 // Types
@@ -436,6 +436,7 @@ export const cohostGetDivisionsWithCountsFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => cohostDivisionsInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "divisions")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const [competition] = await db
@@ -545,6 +546,7 @@ export const cohostAddCompetitionDivisionFn = createServerFn({
   .inputValidator((data: unknown) => cohostAddDivisionInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "divisions")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const { scalingGroupId } = await ensureCohostOwnedScalingGroup({
       competitionId: data.competitionId,
@@ -571,6 +573,7 @@ export const cohostUpdateCompetitionDivisionFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "divisions")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const { scalingGroupId } = await ensureCohostOwnedScalingGroup({
@@ -607,6 +610,7 @@ export const cohostDeleteCompetitionDivisionFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "divisions")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const { scalingGroupId } = await ensureCohostOwnedScalingGroup({
@@ -674,6 +678,7 @@ export const cohostReorderCompetitionDivisionsFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "divisions")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const { scalingGroupId } = await ensureCohostOwnedScalingGroup({
@@ -713,6 +718,7 @@ export const cohostUpdateDivisionDescriptionFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "divisions")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const { scalingGroupId } = await ensureCohostOwnedScalingGroup({
@@ -772,6 +778,7 @@ export const cohostUpdateDivisionCapacityFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "divisions")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const { scalingGroupId } = await ensureCohostOwnedScalingGroup({
@@ -831,6 +838,7 @@ export const cohostInitializeCompetitionDivisionsFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "divisions")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     // Verify competition exists

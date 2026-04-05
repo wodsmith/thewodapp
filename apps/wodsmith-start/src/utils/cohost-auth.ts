@@ -3,9 +3,12 @@
  * Separate from requireTeamPermission — checks cohost role on competition_event team.
  */
 import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
+import { competitionsTable } from "@/db/schemas/competitions"
 import { ROLES_ENUM } from "@/db/schemas/users"
+import { getDb } from "@/db"
 import { getCohostPermissions } from "@/server/cohost"
 import { getSessionFromCookie } from "@/utils/auth"
+import { and, eq } from "drizzle-orm"
 
 /**
  * Require cohost access to a competition.
@@ -57,4 +60,32 @@ export async function requireCohostPermission(
   }
 
   return permissions
+}
+
+/**
+ * Verify that a competitionId actually belongs to the given competitionTeamId.
+ * Call this after requireCohostPermission when the handler receives both IDs.
+ * Throws FORBIDDEN if the competition doesn't belong to the team.
+ */
+export async function requireCohostCompetitionOwnership(
+  competitionTeamId: string,
+  competitionId: string,
+): Promise<void> {
+  const db = getDb()
+  const [competition] = await db
+    .select({ id: competitionsTable.id })
+    .from(competitionsTable)
+    .where(
+      and(
+        eq(competitionsTable.id, competitionId),
+        eq(competitionsTable.competitionTeamId, competitionTeamId),
+      ),
+    )
+    .limit(1)
+
+  if (!competition) {
+    throw new Error(
+      "FORBIDDEN: Competition does not belong to this team",
+    )
+  }
 }

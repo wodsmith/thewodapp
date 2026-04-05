@@ -17,7 +17,10 @@ import {
 import { teamMembershipTable } from "@/db/schemas/teams"
 import { getCohostPermissions } from "@/server/cohost"
 import { getSessionFromCookie } from "@/utils/auth"
-import { requireCohostPermission } from "@/utils/cohost-auth"
+import {
+  requireCohostCompetitionOwnership,
+  requireCohostPermission,
+} from "@/utils/cohost-auth"
 
 // ============================================================================
 // Get Cohost Permissions (server function wrapper)
@@ -174,7 +177,12 @@ export const cohostGetCompetitionByIdFn = createServerFn({ method: "GET" })
         addressesTable,
         eq(competitionsTable.primaryAddressId, addressesTable.id),
       )
-      .where(eq(competitionsTable.id, data.competitionId))
+      .where(
+        and(
+          eq(competitionsTable.id, data.competitionId),
+          eq(competitionsTable.competitionTeamId, data.competitionTeamId),
+        ),
+      )
       .limit(1)
 
     if (!result[0]) {
@@ -218,6 +226,7 @@ export const cohostGetRegistrationCountFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId)
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const result = await db
@@ -242,6 +251,7 @@ export const cohostGetRegistrationsFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId)
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const whereConditions = [
@@ -330,7 +340,12 @@ export const cohostUpdateRotationSettingsFn = createServerFn({
           | undefined,
         updatedAt: new Date(),
       })
-      .where(eq(competitionsTable.id, data.competitionId))
+      .where(
+        and(
+          eq(competitionsTable.id, data.competitionId),
+          eq(competitionsTable.competitionTeamId, data.competitionTeamId),
+        ),
+      )
 
     return { success: true }
   })
@@ -347,7 +362,10 @@ export const cohostUpdateScoringConfigFn = createServerFn({ method: "POST" })
     const db = getDb()
 
     const competition = await db.query.competitionsTable.findFirst({
-      where: eq(competitionsTable.id, data.competitionId),
+      where: and(
+        eq(competitionsTable.id, data.competitionId),
+        eq(competitionsTable.competitionTeamId, data.competitionTeamId),
+      ),
     })
     if (!competition) throw new Error("Competition not found")
 
@@ -371,7 +389,12 @@ export const cohostUpdateScoringConfigFn = createServerFn({ method: "POST" })
         settings: JSON.stringify(newSettings),
         updatedAt: new Date(),
       })
-      .where(eq(competitionsTable.id, data.competitionId))
+      .where(
+        and(
+          eq(competitionsTable.id, data.competitionId),
+          eq(competitionsTable.competitionTeamId, data.competitionTeamId),
+        ),
+      )
 
     return { success: true }
   })

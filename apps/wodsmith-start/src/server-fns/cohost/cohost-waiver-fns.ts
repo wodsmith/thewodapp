@@ -14,7 +14,10 @@ import {
   waiverSignaturesTable,
   waiversTable,
 } from "@/db/schemas/waivers"
-import { requireCohostPermission } from "@/utils/cohost-auth"
+import {
+  requireCohostCompetitionOwnership,
+  requireCohostPermission,
+} from "@/utils/cohost-auth"
 
 // ============================================================================
 // Input Schemas
@@ -90,6 +93,7 @@ export const cohostGetCompetitionWaiversFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }): Promise<{ waivers: Waiver[] }> => {
     await requireCohostPermission(data.competitionTeamId, "waivers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 
@@ -122,6 +126,7 @@ export const cohostGetCompetitionWaiverSignaturesFn = createServerFn({
       }>
     }> => {
       await requireCohostPermission(data.competitionTeamId, "waivers")
+      await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
       const db = getDb()
 
@@ -156,6 +161,7 @@ export const cohostCreateWaiverFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => createWaiverInputSchema.parse(data))
   .handler(async ({ data }): Promise<{ success: true; waiver: Waiver }> => {
     await requireCohostPermission(data.competitionTeamId, "waivers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 
@@ -196,6 +202,7 @@ export const cohostUpdateWaiverFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => updateWaiverInputSchema.parse(data))
   .handler(async ({ data }): Promise<{ success: true; waiver: Waiver }> => {
     await requireCohostPermission(data.competitionTeamId, "waivers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 
@@ -250,6 +257,7 @@ export const cohostDeleteWaiverFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => deleteWaiverInputSchema.parse(data))
   .handler(async ({ data }): Promise<{ success: true }> => {
     await requireCohostPermission(data.competitionTeamId, "waivers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 
@@ -272,6 +280,7 @@ export const cohostReorderWaiversFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => reorderWaiversInputSchema.parse(data))
   .handler(async ({ data }): Promise<{ success: true }> => {
     await requireCohostPermission(data.competitionTeamId, "waivers")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const db = getDb()
 

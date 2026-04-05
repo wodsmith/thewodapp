@@ -244,6 +244,7 @@ export function VenueManager({
       const updateVenFn = overrides?.updateVenueFn ?? updateVenueFn
       await updateVenFn({
         data: {
+          competitionId,
           venueId: editingVenue.id,
           name: data.name.trim(),
           laneCount: data.laneCount,
@@ -306,7 +307,7 @@ export function VenueManager({
 
       const deleteVenFn = overrides?.deleteVenueFn ?? deleteVenueFn
       await deleteVenFn({
-        data: { venueId: venue.id },
+        data: { competitionId, venueId: venue.id },
       })
 
       if (onVenueDelete) {

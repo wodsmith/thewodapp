@@ -39,7 +39,7 @@ import {
   workouts,
   workoutTags,
 } from "@/db/schemas/workouts"
-import { requireCohostPermission } from "@/utils/cohost-auth"
+import { requireCohostCompetitionOwnership, requireCohostPermission } from "@/utils/cohost-auth"
 
 // ============================================================================
 // Types
@@ -274,6 +274,7 @@ export const cohostGetWorkoutsFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => cohostGetWorkoutsInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "events")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const track = await getCompetitionTrack(data.competitionId)
@@ -692,6 +693,7 @@ export const cohostReorderEventsFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "events")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const track = await getCompetitionTrack(data.competitionId)
@@ -763,6 +765,7 @@ export const cohostCreateWorkoutFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "events")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     // Get or create the competition track

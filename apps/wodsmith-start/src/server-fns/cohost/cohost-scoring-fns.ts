@@ -43,7 +43,7 @@ import {
 import { logInfo } from "@/lib/logging"
 import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk } from "@/utils/batch-query"
-import { requireCohostPermission } from "@/utils/cohost-auth"
+import { requireCohostCompetitionOwnership, requireCohostPermission } from "@/utils/cohost-auth"
 
 // ============================================================================
 // Types
@@ -150,6 +150,7 @@ export const cohostGetEventScoreEntryDataFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     // Get the track workout with workout details
@@ -357,6 +358,7 @@ export const cohostSaveCompetitionScoreFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => cohostSaveScoreInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "results")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const session = await getSessionFromCookie()
     if (!session?.userId) {
@@ -600,6 +602,7 @@ export const cohostDeleteCompetitionScoreFn = createServerFn({
   .inputValidator((data: unknown) => cohostDeleteScoreInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "results")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const [score] = await db

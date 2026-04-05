@@ -13,7 +13,7 @@ import {
   competitionsTable,
 } from "@/db/schemas/competitions"
 import { createCompetitionRegistrationQuestionId } from "@/db/schemas/common"
-import { requireCohostPermission } from "@/utils/cohost-auth"
+import { requireCohostCompetitionOwnership, requireCohostPermission } from "@/utils/cohost-auth"
 import {
   QUESTION_TYPES,
   type RegistrationQuestion,
@@ -112,6 +112,7 @@ export const cohostCreateQuestionFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "editRegistrations")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     // Verify competition exists
@@ -287,6 +288,7 @@ export const cohostReorderQuestionsFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "editRegistrations")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     // Update sort orders in a transaction

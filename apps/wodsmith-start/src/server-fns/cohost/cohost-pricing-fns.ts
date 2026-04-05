@@ -12,7 +12,10 @@ import {
   competitionDivisionsTable,
   competitionsTable,
 } from "@/db/schema"
-import { requireCohostPermission } from "@/utils/cohost-auth"
+import {
+  requireCohostCompetitionOwnership,
+  requireCohostPermission,
+} from "@/utils/cohost-auth"
 
 // ============================================================================
 // Input Schemas
@@ -53,6 +56,7 @@ export const cohostGetPricingSettingsFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "pricing")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const competition = await db.query.competitionsTable.findFirst({
@@ -103,6 +107,7 @@ export const cohostUpdateDefaultFeeFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "pricing")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const competition = await db.query.competitionsTable.findFirst({
@@ -134,6 +139,7 @@ export const cohostUpdateDivisionFeeFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "pricing")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const competition = await db.query.competitionsTable.findFirst({

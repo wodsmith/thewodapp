@@ -12,7 +12,7 @@ import {
   competitionEventsTable,
   competitionsTable,
 } from "@/db/schemas/competitions"
-import { requireCohostPermission } from "@/utils/cohost-auth"
+import { requireCohostCompetitionOwnership, requireCohostPermission } from "@/utils/cohost-auth"
 
 // ============================================================================
 // Input Schemas
@@ -53,6 +53,7 @@ export const cohostGetCompetitionEventsFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => cohostGetEventsInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "events")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     const events = await db
@@ -80,6 +81,7 @@ export const cohostUpsertCompetitionEventsFn = createServerFn({
   .inputValidator((data: unknown) => cohostUpsertEventsInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "events")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     // Verify competition exists and the competitionTeamId matches

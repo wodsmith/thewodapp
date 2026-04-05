@@ -20,7 +20,10 @@ import { userTable } from "@/db/schemas/users"
 import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
 import { movements, workoutMovements } from "@/db/schemas/workouts"
 import { getSessionFromCookie } from "@/utils/auth"
-import { requireCohostPermission } from "@/utils/cohost-auth"
+import {
+  requireCohostCompetitionOwnership,
+  requireCohostPermission,
+} from "@/utils/cohost-auth"
 
 // ============================================================================
 // Input Schemas
@@ -81,6 +84,7 @@ export const cohostGetReviewNotesFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     // Get organizing team ID for note filtering
@@ -150,6 +154,7 @@ export const cohostCreateReviewNoteFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const session = await getSessionFromCookie()
     if (!session?.userId) {
@@ -256,6 +261,7 @@ export const cohostUpdateReviewNoteFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const session = await getSessionFromCookie()
     if (!session?.userId) {
@@ -306,6 +312,7 @@ export const cohostDeleteReviewNoteFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
 
     const session = await getSessionFromCookie()
     if (!session?.userId) {
@@ -362,6 +369,7 @@ export const cohostGetWorkoutMovementsFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "scoring")
+    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
     // Resolve workoutId from trackWorkoutId if needed
