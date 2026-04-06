@@ -327,7 +327,7 @@ function PermissionsSummary({
 }: {
   permissions: {
     divisions?: boolean
-    events?: boolean
+    editEvents?: boolean
     scoringConfig?: boolean
     viewRegistrations?: boolean
     editRegistrations?: boolean

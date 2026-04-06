@@ -17,7 +17,7 @@ import {
 } from "@/db/schema"
 import { createTeamMembershipId } from "@/db/schemas/common"
 import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
-import { DEFAULT_COHOST_PERMISSIONS } from "@/db/schemas/cohost"
+import { DEFAULT_COHOST_PERMISSIONS, parseCohostMetadata } from "@/db/schemas/cohost"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { inviteUserToTeam } from "@/server/team-members"
 import { getSessionFromCookie } from "@/utils/auth"
@@ -105,31 +105,7 @@ export const getCohostInviteFn = createServerFn({ method: "GET" })
     }
 
     // Parse permissions from metadata
-    let permissions: CohostMembershipMetadata
-    try {
-      const meta = invitation.metadata
-        ? (JSON.parse(invitation.metadata) as Partial<CohostMembershipMetadata>)
-        : {}
-      permissions = {
-        divisions: meta.divisions ?? DEFAULT_COHOST_PERMISSIONS.divisions,
-        editEvents: meta.editEvents ?? meta.events ?? DEFAULT_COHOST_PERMISSIONS.editEvents,
-        scoringConfig: meta.scoringConfig ?? meta.scoring ?? DEFAULT_COHOST_PERMISSIONS.scoringConfig,
-        viewRegistrations: meta.viewRegistrations ?? DEFAULT_COHOST_PERMISSIONS.viewRegistrations,
-        editRegistrations: meta.editRegistrations ?? DEFAULT_COHOST_PERMISSIONS.editRegistrations,
-        waivers: meta.waivers ?? DEFAULT_COHOST_PERMISSIONS.waivers,
-        schedule: meta.schedule ?? DEFAULT_COHOST_PERMISSIONS.schedule,
-        locations: meta.locations ?? DEFAULT_COHOST_PERMISSIONS.locations,
-        volunteers: meta.volunteers ?? DEFAULT_COHOST_PERMISSIONS.volunteers,
-        results: meta.results ?? DEFAULT_COHOST_PERMISSIONS.results,
-        pricing: meta.pricing ?? DEFAULT_COHOST_PERMISSIONS.pricing,
-        revenue: meta.revenue ?? DEFAULT_COHOST_PERMISSIONS.revenue,
-        coupons: meta.coupons ?? DEFAULT_COHOST_PERMISSIONS.coupons,
-        sponsors: meta.sponsors ?? DEFAULT_COHOST_PERMISSIONS.sponsors,
-        inviteNotes: meta.inviteNotes,
-      }
-    } catch {
-      permissions = { ...DEFAULT_COHOST_PERMISSIONS }
-    }
+    const permissions = parseCohostMetadata(invitation.metadata)
 
     // For series invitations, find all sibling competitions this invite covers
     let seriesCompetitions: Array<{ competitionId: string; competitionName: string }> = []
@@ -222,17 +198,7 @@ export const checkExistingCohostMembershipFn = createServerFn({ method: "GET" })
 
     if (!membership) return null
 
-    let permissions: CohostMembershipMetadata = { ...DEFAULT_COHOST_PERMISSIONS }
-    try {
-      if (membership.metadata) {
-        const meta = JSON.parse(membership.metadata) as Partial<CohostMembershipMetadata>
-        permissions = { ...DEFAULT_COHOST_PERMISSIONS, ...meta }
-      }
-    } catch {
-      // Invalid metadata
-    }
-
-    return { permissions }
+    return { permissions: parseCohostMetadata(membership.metadata) }
   })
 
 /**
@@ -299,30 +265,7 @@ export const getCohostsFn = createServerFn({ method: "GET" })
 
     return {
       memberships: memberships.map((m) => {
-        let permissions: CohostMembershipMetadata = { ...DEFAULT_COHOST_PERMISSIONS }
-        try {
-          if (m.metadata) {
-            const meta = JSON.parse(m.metadata) as Partial<CohostMembershipMetadata>
-            permissions = {
-              divisions: meta.divisions ?? DEFAULT_COHOST_PERMISSIONS.divisions,
-              editEvents: meta.editEvents ?? meta.events ?? DEFAULT_COHOST_PERMISSIONS.editEvents,
-              scoringConfig: meta.scoringConfig ?? meta.scoring ?? DEFAULT_COHOST_PERMISSIONS.scoringConfig,
-              viewRegistrations: meta.viewRegistrations ?? DEFAULT_COHOST_PERMISSIONS.viewRegistrations,
-              editRegistrations: meta.editRegistrations ?? DEFAULT_COHOST_PERMISSIONS.editRegistrations,
-              waivers: meta.waivers ?? DEFAULT_COHOST_PERMISSIONS.waivers,
-              schedule: meta.schedule ?? DEFAULT_COHOST_PERMISSIONS.schedule,
-              locations: meta.locations ?? DEFAULT_COHOST_PERMISSIONS.locations,
-              volunteers: meta.volunteers ?? DEFAULT_COHOST_PERMISSIONS.volunteers,
-                    pricing: meta.pricing ?? DEFAULT_COHOST_PERMISSIONS.pricing,
-              revenue: meta.revenue ?? DEFAULT_COHOST_PERMISSIONS.revenue,
-              coupons: meta.coupons ?? DEFAULT_COHOST_PERMISSIONS.coupons,
-              sponsors: meta.sponsors ?? DEFAULT_COHOST_PERMISSIONS.sponsors,
-              inviteNotes: meta.inviteNotes,
-            }
-          }
-        } catch {
-          // Invalid metadata
-        }
+        const permissions = parseCohostMetadata(m.metadata)
         return {
           id: m.id,
           userId: m.userId,
@@ -332,35 +275,11 @@ export const getCohostsFn = createServerFn({ method: "GET" })
         }
       }),
       pendingInvitations: pendingInvitations.map((inv) => {
-        let permissions: CohostMembershipMetadata = { ...DEFAULT_COHOST_PERMISSIONS }
-        try {
-          if (inv.metadata) {
-            const meta = JSON.parse(inv.metadata) as Partial<CohostMembershipMetadata>
-            permissions = {
-              divisions: meta.divisions ?? DEFAULT_COHOST_PERMISSIONS.divisions,
-              editEvents: meta.editEvents ?? meta.events ?? DEFAULT_COHOST_PERMISSIONS.editEvents,
-              scoringConfig: meta.scoringConfig ?? meta.scoring ?? DEFAULT_COHOST_PERMISSIONS.scoringConfig,
-              viewRegistrations: meta.viewRegistrations ?? DEFAULT_COHOST_PERMISSIONS.viewRegistrations,
-              editRegistrations: meta.editRegistrations ?? DEFAULT_COHOST_PERMISSIONS.editRegistrations,
-              waivers: meta.waivers ?? DEFAULT_COHOST_PERMISSIONS.waivers,
-              schedule: meta.schedule ?? DEFAULT_COHOST_PERMISSIONS.schedule,
-              locations: meta.locations ?? DEFAULT_COHOST_PERMISSIONS.locations,
-              volunteers: meta.volunteers ?? DEFAULT_COHOST_PERMISSIONS.volunteers,
-                    pricing: meta.pricing ?? DEFAULT_COHOST_PERMISSIONS.pricing,
-              revenue: meta.revenue ?? DEFAULT_COHOST_PERMISSIONS.revenue,
-              coupons: meta.coupons ?? DEFAULT_COHOST_PERMISSIONS.coupons,
-              sponsors: meta.sponsors ?? DEFAULT_COHOST_PERMISSIONS.sponsors,
-              inviteNotes: meta.inviteNotes,
-            }
-          }
-        } catch {
-          // Invalid metadata
-        }
         return {
           id: inv.id,
           token: inv.token,
           email: inv.email,
-          permissions,
+          permissions: parseCohostMetadata(inv.metadata),
           createdAt: inv.createdAt,
           expiresAt: inv.expiresAt,
         }
@@ -525,33 +444,17 @@ export const acceptCohostInviteFn = createServerFn({ method: "POST" })
     }
 
     // Parse permissions from invitation metadata
-    let permissions: CohostMembershipMetadata = { ...DEFAULT_COHOST_PERMISSIONS }
+    const permissions = parseCohostMetadata(invitation.metadata)
     let competitionId: string | null = null
     let seriesGroupId: string | null = null
     try {
       if (invitation.metadata) {
-        const meta = JSON.parse(invitation.metadata) as Partial<CohostMembershipMetadata> & { competitionId?: string; seriesGroupId?: string }
-        permissions = {
-          divisions: meta.divisions ?? DEFAULT_COHOST_PERMISSIONS.divisions,
-          editEvents: meta.editEvents ?? meta.events ?? DEFAULT_COHOST_PERMISSIONS.editEvents,
-          scoringConfig: meta.scoringConfig ?? meta.scoring ?? DEFAULT_COHOST_PERMISSIONS.scoringConfig,
-          viewRegistrations: meta.viewRegistrations ?? DEFAULT_COHOST_PERMISSIONS.viewRegistrations,
-          editRegistrations: meta.editRegistrations ?? DEFAULT_COHOST_PERMISSIONS.editRegistrations,
-          waivers: meta.waivers ?? DEFAULT_COHOST_PERMISSIONS.waivers,
-          schedule: meta.schedule ?? DEFAULT_COHOST_PERMISSIONS.schedule,
-          locations: meta.locations ?? DEFAULT_COHOST_PERMISSIONS.locations,
-          volunteers: meta.volunteers ?? DEFAULT_COHOST_PERMISSIONS.volunteers,
-            pricing: meta.pricing ?? DEFAULT_COHOST_PERMISSIONS.pricing,
-          revenue: meta.revenue ?? DEFAULT_COHOST_PERMISSIONS.revenue,
-          coupons: meta.coupons ?? DEFAULT_COHOST_PERMISSIONS.coupons,
-          sponsors: meta.sponsors ?? DEFAULT_COHOST_PERMISSIONS.sponsors,
-          inviteNotes: meta.inviteNotes,
-        }
-        competitionId = meta.competitionId ?? null
-        seriesGroupId = meta.seriesGroupId ?? null
+        const raw = JSON.parse(invitation.metadata)
+        competitionId = typeof raw?.competitionId === "string" ? raw.competitionId : null
+        seriesGroupId = typeof raw?.seriesGroupId === "string" ? raw.seriesGroupId : null
       }
     } catch {
-      // Invalid metadata — use defaults
+      // Invalid metadata
     }
 
     // Check if user already has cohost membership
@@ -632,31 +535,7 @@ export const acceptCohostInviteFn = createServerFn({ method: "POST" })
         })
 
         for (const siblingInv of matchingSiblings) {
-          // Parse sibling permissions
-          let siblingPermissions: CohostMembershipMetadata = { ...DEFAULT_COHOST_PERMISSIONS }
-          try {
-            if (siblingInv.metadata) {
-              const meta = JSON.parse(siblingInv.metadata) as Partial<CohostMembershipMetadata>
-              siblingPermissions = {
-                divisions: meta.divisions ?? DEFAULT_COHOST_PERMISSIONS.divisions,
-                editEvents: meta.editEvents ?? meta.events ?? DEFAULT_COHOST_PERMISSIONS.editEvents,
-                scoringConfig: meta.scoringConfig ?? meta.scoring ?? DEFAULT_COHOST_PERMISSIONS.scoringConfig,
-                viewRegistrations: meta.viewRegistrations ?? DEFAULT_COHOST_PERMISSIONS.viewRegistrations,
-                editRegistrations: meta.editRegistrations ?? DEFAULT_COHOST_PERMISSIONS.editRegistrations,
-                waivers: meta.waivers ?? DEFAULT_COHOST_PERMISSIONS.waivers,
-                schedule: meta.schedule ?? DEFAULT_COHOST_PERMISSIONS.schedule,
-                locations: meta.locations ?? DEFAULT_COHOST_PERMISSIONS.locations,
-                volunteers: meta.volunteers ?? DEFAULT_COHOST_PERMISSIONS.volunteers,
-                        pricing: meta.pricing ?? DEFAULT_COHOST_PERMISSIONS.pricing,
-                revenue: meta.revenue ?? DEFAULT_COHOST_PERMISSIONS.revenue,
-                coupons: meta.coupons ?? DEFAULT_COHOST_PERMISSIONS.coupons,
-                sponsors: meta.sponsors ?? DEFAULT_COHOST_PERMISSIONS.sponsors,
-                inviteNotes: meta.inviteNotes,
-              }
-            }
-          } catch {
-            // Invalid metadata — use defaults
-          }
+          const siblingPermissions = parseCohostMetadata(siblingInv.metadata)
 
           // Check if user already has membership on this sibling team
           const existingSiblingMembership = await db.query.teamMembershipTable.findFirst({

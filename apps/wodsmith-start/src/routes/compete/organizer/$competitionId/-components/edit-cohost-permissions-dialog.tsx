@@ -75,6 +75,7 @@ export function EditCohostPermissionsDialog(props: EditCohostPermissionsDialogPr
     schedule: currentPermissions.schedule,
     locations: currentPermissions.locations,
     volunteers: currentPermissions.volunteers,
+    results: currentPermissions.results,
     pricing: currentPermissions.pricing,
     revenue: currentPermissions.revenue,
     coupons: currentPermissions.coupons,

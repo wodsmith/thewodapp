@@ -45,7 +45,7 @@ const formSchema = z.object({
     .email("Please enter a valid email address")
     .min(1, "Email is required"),
   divisions: z.boolean(),
-  events: z.boolean(),
+  editEvents: z.boolean(),
   scoringConfig: z.boolean(),
   viewRegistrations: z.boolean(),
   editRegistrations: z.boolean(),
@@ -146,7 +146,7 @@ export function InviteCohostDialog(props: InviteCohostDialogProps) {
     try {
       const permissions = {
         divisions: data.divisions,
-        events: data.events,
+        editEvents: data.editEvents,
         scoringConfig: data.scoringConfig,
         viewRegistrations: data.viewRegistrations,
         editRegistrations: data.editRegistrations,
@@ -409,7 +409,7 @@ export function InviteCohostDialog(props: InviteCohostDialogProps) {
                           <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                             <FormControl>
                               <Checkbox
-                                checked={field.value}
+                                checked={!!field.value}
                                 onCheckedChange={field.onChange}
                               />
                             </FormControl>

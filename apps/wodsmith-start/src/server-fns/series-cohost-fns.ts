@@ -16,7 +16,7 @@ import {
   userTable,
 } from "@/db/schema"
 import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
-import { DEFAULT_COHOST_PERMISSIONS } from "@/db/schemas/cohost"
+import { parseCohostMetadata } from "@/db/schemas/cohost"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { inviteUserToTeam } from "@/server/team-members"
 import { sendCohostInviteEmail } from "@/utils/email"
@@ -63,34 +63,7 @@ async function getSeriesCompetitions(groupId: string, organizingTeamId: string) 
   })
 }
 
-/** Parse cohost permissions from a JSON metadata string. */
-function parsePermissions(metadata: string | null): CohostMembershipMetadata {
-  try {
-    if (metadata) {
-      const meta = JSON.parse(metadata) as Partial<CohostMembershipMetadata>
-      return {
-        divisions: meta.divisions ?? DEFAULT_COHOST_PERMISSIONS.divisions,
-        editEvents: meta.editEvents ?? meta.events ?? DEFAULT_COHOST_PERMISSIONS.editEvents,
-        scoringConfig: meta.scoringConfig ?? meta.scoring ?? DEFAULT_COHOST_PERMISSIONS.scoringConfig,
-        viewRegistrations: meta.viewRegistrations ?? DEFAULT_COHOST_PERMISSIONS.viewRegistrations,
-        editRegistrations: meta.editRegistrations ?? DEFAULT_COHOST_PERMISSIONS.editRegistrations,
-        waivers: meta.waivers ?? DEFAULT_COHOST_PERMISSIONS.waivers,
-        schedule: meta.schedule ?? DEFAULT_COHOST_PERMISSIONS.schedule,
-        locations: meta.locations ?? DEFAULT_COHOST_PERMISSIONS.locations,
-        volunteers: meta.volunteers ?? DEFAULT_COHOST_PERMISSIONS.volunteers,
-        results: meta.results ?? DEFAULT_COHOST_PERMISSIONS.results,
-        pricing: meta.pricing ?? DEFAULT_COHOST_PERMISSIONS.pricing,
-        revenue: meta.revenue ?? DEFAULT_COHOST_PERMISSIONS.revenue,
-        coupons: meta.coupons ?? DEFAULT_COHOST_PERMISSIONS.coupons,
-        sponsors: meta.sponsors ?? DEFAULT_COHOST_PERMISSIONS.sponsors,
-        inviteNotes: meta.inviteNotes,
-      }
-    }
-  } catch {
-    // Invalid metadata
-  }
-  return { ...DEFAULT_COHOST_PERMISSIONS }
-}
+// Uses shared parseCohostMetadata from cohost schema
 
 // ============================================================================
 // Query Functions
@@ -191,7 +164,7 @@ export const getSeriesCohostsFn = createServerFn({ method: "GET" })
             email: string
             avatar: string | null
           } | null,
-          permissions: parsePermissions(m.metadata),
+          permissions: parseCohostMetadata(m.metadata),
           competitionCount: 1,
           membershipIds: [m.id],
         })
@@ -220,7 +193,7 @@ export const getSeriesCohostsFn = createServerFn({ method: "GET" })
       } else {
         pendingMap.set(email, {
           email,
-          permissions: parsePermissions(inv.metadata),
+          permissions: parseCohostMetadata(inv.metadata),
           competitionCount: 1,
           firstToken: inv.token,
         })
@@ -542,7 +515,7 @@ export const updateSeriesCohostPermissionsFn = createServerFn({ method: "POST" }
 
     // Update each membership with merged permissions
     for (const membership of memberships) {
-      const currentMetadata = parsePermissions(membership.metadata)
+      const currentMetadata = parseCohostMetadata(membership.metadata)
       const updatedMetadata = { ...currentMetadata, ...data.permissions }
 
       await db

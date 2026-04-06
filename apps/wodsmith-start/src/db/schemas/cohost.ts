@@ -45,6 +45,42 @@ export interface CohostMembershipMetadata {
   inviteNotes?: string
 }
 
+/**
+ * Parse cohost permissions from a JSON metadata string.
+ * Handles backward compat for renamed fields (events→editEvents, scoring→scoringConfig).
+ */
+export function parseCohostMetadata(json: string | null | undefined): CohostMembershipMetadata {
+  if (!json) return { ...DEFAULT_COHOST_PERMISSIONS }
+  try {
+    const raw = JSON.parse(json)
+    if (typeof raw !== "object" || raw === null) return { ...DEFAULT_COHOST_PERMISSIONS }
+    const bool = (key: string, legacy?: string) => {
+      if (typeof raw[key] === "boolean") return raw[key]
+      if (legacy && typeof raw[legacy] === "boolean") return raw[legacy]
+      return undefined
+    }
+    return {
+      divisions: bool("divisions") ?? DEFAULT_COHOST_PERMISSIONS.divisions,
+      editEvents: bool("editEvents", "events") ?? DEFAULT_COHOST_PERMISSIONS.editEvents,
+      scoringConfig: bool("scoringConfig", "scoring") ?? DEFAULT_COHOST_PERMISSIONS.scoringConfig,
+      viewRegistrations: bool("viewRegistrations") ?? DEFAULT_COHOST_PERMISSIONS.viewRegistrations,
+      editRegistrations: bool("editRegistrations") ?? DEFAULT_COHOST_PERMISSIONS.editRegistrations,
+      waivers: bool("waivers") ?? DEFAULT_COHOST_PERMISSIONS.waivers,
+      schedule: bool("schedule") ?? DEFAULT_COHOST_PERMISSIONS.schedule,
+      locations: bool("locations") ?? DEFAULT_COHOST_PERMISSIONS.locations,
+      volunteers: bool("volunteers") ?? DEFAULT_COHOST_PERMISSIONS.volunteers,
+      results: bool("results") ?? DEFAULT_COHOST_PERMISSIONS.results,
+      pricing: bool("pricing") ?? DEFAULT_COHOST_PERMISSIONS.pricing,
+      revenue: bool("revenue") ?? DEFAULT_COHOST_PERMISSIONS.revenue,
+      coupons: bool("coupons") ?? DEFAULT_COHOST_PERMISSIONS.coupons,
+      sponsors: bool("sponsors") ?? DEFAULT_COHOST_PERMISSIONS.sponsors,
+      inviteNotes: typeof raw.inviteNotes === "string" ? raw.inviteNotes : undefined,
+    }
+  } catch {
+    return { ...DEFAULT_COHOST_PERMISSIONS }
+  }
+}
+
 /** Default permissions for new cohost invitations */
 export const DEFAULT_COHOST_PERMISSIONS: Omit<
   CohostMembershipMetadata,

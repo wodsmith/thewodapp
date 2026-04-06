@@ -107,7 +107,7 @@ function CohostCompetitionLayout() {
       permissions={
         permissions ?? {
           divisions: false,
-          events: false,
+          editEvents: false,
           scoringConfig: false,
           viewRegistrations: false,
           editRegistrations: false,

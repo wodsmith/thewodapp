@@ -91,7 +91,7 @@ export async function checkUploadAuthorization(
       // Also check cohost "editEvents" permission (cohosts use a separate permission model)
       const session = await getSessionFromCookie()
       if (session) {
-        const cohostPerms = await getCohostPermissions(session, competition.competitionTeamId)
+        const cohostPerms = competition ? await getCohostPermissions(session, competition.competitionTeamId) : null
         if (cohostPerms?.editEvents) {
           return { authorized: true }
         }
