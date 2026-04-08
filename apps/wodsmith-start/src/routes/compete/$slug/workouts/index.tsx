@@ -26,10 +26,11 @@ import {
   type PublicScheduleEvent,
 } from "@/server-fns/competition-heats-fns"
 import {
+  type DivisionDescription,
   getBatchWorkoutDivisionDescriptionsFn,
   getPublishedCompetitionWorkoutsWithDetailsFn,
-  type DivisionDescription,
 } from "@/server-fns/competition-workouts-fns"
+import { getPublicEventDivisionMappingsFn } from "@/server-fns/event-division-mapping-fns"
 import { getBatchSubmissionStatusFn } from "@/server-fns/video-submission-fns"
 import { getSessionFromCookie } from "@/utils/auth"
 import { useDeferredSchedule } from "@/utils/use-deferred-schedule"
@@ -76,6 +77,10 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
         deferredSchedule: Promise.resolve({
           events: [] as PublicScheduleEvent[],
         }),
+        eventDivisionMappings: {
+          mappings: [] as Array<{ trackWorkoutId: string; divisionId: string }>,
+          hasMappings: false,
+        },
       }
     }
 
@@ -86,15 +91,19 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
       data: { competitionId },
     })
 
-    // Fetch workouts and optionally user's registered division in parallel
-    const [workoutsResult, athleteDivisionResult] = await Promise.all([
-      getPublishedCompetitionWorkoutsWithDetailsFn({
-        data: { competitionId },
-      }),
-      getAthleteRegisteredDivisionFn({
-        data: { competitionId },
-      }),
-    ])
+    // Fetch workouts, registered division, and event-division mappings in parallel
+    const [workoutsResult, athleteDivisionResult, eventDivisionMappingResult] =
+      await Promise.all([
+        getPublishedCompetitionWorkoutsWithDetailsFn({
+          data: { competitionId },
+        }),
+        getAthleteRegisteredDivisionFn({
+          data: { competitionId },
+        }),
+        getPublicEventDivisionMappingsFn({
+          data: { competitionId },
+        }),
+      ])
 
     const workouts = workoutsResult.workouts
     const athleteRegisteredDivisionId = athleteDivisionResult.divisionId
@@ -180,6 +189,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
       athleteRegisteredDivisionId,
       submissionStatusMap,
       deferredSchedule,
+      eventDivisionMappings: eventDivisionMappingResult,
     }
   },
 })
@@ -192,6 +202,7 @@ function CompetitionWorkoutsPage() {
     athleteRegisteredDivisionId,
     submissionStatusMap,
     deferredSchedule,
+    eventDivisionMappings,
   } = Route.useLoaderData()
   const { competition, divisions } = parentRoute.useLoaderData()
   const { slug } = Route.useParams()
@@ -297,6 +308,7 @@ function CompetitionWorkoutsPage() {
             submissionStatusMap={submissionStatusMap}
             venueMap={venueMap}
             scheduleMap={scheduleMap}
+            eventDivisionMappings={eventDivisionMappings}
           />
         </div>
       </div>
@@ -341,6 +353,7 @@ function WorkoutsList({
   submissionStatusMap,
   venueMap,
   scheduleMap,
+  eventDivisionMappings,
 }: {
   workouts: EnrichedWorkout[]
   slug: string
@@ -350,9 +363,23 @@ function WorkoutsList({
   submissionStatusMap: Record<string, SubmissionStatus>
   venueMap: Record<string, VenueInfo>
   scheduleMap: Map<string, ScheduleInfo> | null
+  eventDivisionMappings: {
+    mappings: Array<{ trackWorkoutId: string; divisionId: string }>
+    hasMappings: boolean
+  }
 }) {
   // Show only top-level events (standalone + parents). Sub-events are shown on the parent's detail page.
-  const topLevelWorkouts = workouts.filter((w) => !w.parentEventId)
+  let topLevelWorkouts = workouts.filter((w) => !w.parentEventId)
+
+  // Filter by event-division mappings when they exist
+  if (eventDivisionMappings.hasMappings && selectedDivisionId) {
+    const mappedEventIds = new Set(
+      eventDivisionMappings.mappings
+        .filter((m) => m.divisionId === selectedDivisionId)
+        .map((m) => m.trackWorkoutId),
+    )
+    topLevelWorkouts = topLevelWorkouts.filter((w) => mappedEventIds.has(w.id))
+  }
 
   return (
     <div className="space-y-6">

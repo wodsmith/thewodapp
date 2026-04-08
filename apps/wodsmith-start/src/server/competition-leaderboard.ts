@@ -10,7 +10,7 @@
  * @see @/lib/scoring/tiebreakers - Tiebreaker logic
  */
 
-import { and, eq, inArray, ne, or, isNull } from "drizzle-orm"
+import { and, eq, inArray, isNull, ne, or } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
   competitionHeatAssignmentsTable,
@@ -19,6 +19,7 @@ import {
   competitionsTable,
   REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
+import { eventDivisionMappingsTable } from "@/db/schemas/event-division-mappings"
 import {
   programmingTracksTable,
   trackWorkoutsTable,
@@ -327,62 +328,100 @@ export async function getCompetitionLeaderboard(params: {
     return { entries: [], scoringConfig, events: [] }
   }
 
-  // Filter workouts by division heat assignments when a division is selected.
-  // If a division has no heats for a workout, that workout shouldn't appear
-  // on that division's leaderboard. If no heats exist at all, show everything.
+  // Filter workouts by division when a division is selected.
+  // Two filtering mechanisms (event-division mappings take priority over heats):
+  // 1. Event-division mappings: explicit organizer-configured event↔division assignments
+  // 2. Heat-based filtering: fallback using heat assignments when no explicit mappings exist
   let filteredTrackWorkouts = trackWorkouts
   if (params.divisionId) {
-    const trackWorkoutIds = trackWorkouts.map((tw) => tw.id)
-    const heatsForWorkouts = await db
+    // Check for explicit event-division mappings first
+    const eventDivisionMappings = await db
       .select({
-        id: competitionHeatsTable.id,
-        trackWorkoutId: competitionHeatsTable.trackWorkoutId,
-        divisionId: competitionHeatsTable.divisionId,
+        trackWorkoutId: eventDivisionMappingsTable.trackWorkoutId,
       })
-      .from(competitionHeatsTable)
-      .where(inArray(competitionHeatsTable.trackWorkoutId, trackWorkoutIds))
+      .from(eventDivisionMappingsTable)
+      .where(eq(eventDivisionMappingsTable.competitionId, params.competitionId))
 
-    // Fetch assignments for mixed heats (divisionId=null)
-    const mixedHeatIds = heatsForWorkouts
-      .filter((h) => h.divisionId === null)
-      .map((h) => h.id)
+    if (eventDivisionMappings.length > 0) {
+      // Mappings exist — filter to events mapped to this division
+      const mappedToDiv = await db
+        .select({
+          trackWorkoutId: eventDivisionMappingsTable.trackWorkoutId,
+        })
+        .from(eventDivisionMappingsTable)
+        .where(
+          and(
+            eq(eventDivisionMappingsTable.competitionId, params.competitionId),
+            eq(eventDivisionMappingsTable.divisionId, params.divisionId),
+          ),
+        )
 
-    const mixedHeatAssignments =
-      mixedHeatIds.length > 0
-        ? await db
-            .select({
-              heatId: competitionHeatAssignmentsTable.heatId,
-              divisionId: competitionRegistrationsTable.divisionId,
-            })
-            .from(competitionHeatAssignmentsTable)
-            .innerJoin(
-              competitionRegistrationsTable,
-              eq(
-                competitionHeatAssignmentsTable.registrationId,
-                competitionRegistrationsTable.id,
-              ),
-            )
-            .where(
-              inArray(competitionHeatAssignmentsTable.heatId, mixedHeatIds),
-            )
-        : []
+      const mappedEventIds = new Set(mappedToDiv.map((m) => m.trackWorkoutId))
 
-    const relevantIds = getRelevantWorkoutIds({
-      heats: heatsForWorkouts,
-      mixedHeatAssignments,
-      divisionId: params.divisionId,
-    })
-
-    if (relevantIds) {
-      // Also include child events whose parent is relevant (children inherit parent's heat relevance)
+      // Include child events whose parent is mapped
       filteredTrackWorkouts = trackWorkouts.filter(
         (tw) =>
-          relevantIds.has(tw.id) ||
-          (tw.parentEventId && relevantIds.has(tw.parentEventId)),
+          mappedEventIds.has(tw.id) ||
+          (tw.parentEventId && mappedEventIds.has(tw.parentEventId)),
       )
 
       if (filteredTrackWorkouts.length === 0) {
         return { entries: [], scoringConfig, events: [] }
+      }
+    } else {
+      // No explicit mappings — fall back to heat-based filtering
+      const trackWorkoutIds = trackWorkouts.map((tw) => tw.id)
+      const heatsForWorkouts = await db
+        .select({
+          id: competitionHeatsTable.id,
+          trackWorkoutId: competitionHeatsTable.trackWorkoutId,
+          divisionId: competitionHeatsTable.divisionId,
+        })
+        .from(competitionHeatsTable)
+        .where(inArray(competitionHeatsTable.trackWorkoutId, trackWorkoutIds))
+
+      // Fetch assignments for mixed heats (divisionId=null)
+      const mixedHeatIds = heatsForWorkouts
+        .filter((h) => h.divisionId === null)
+        .map((h) => h.id)
+
+      const mixedHeatAssignments =
+        mixedHeatIds.length > 0
+          ? await db
+              .select({
+                heatId: competitionHeatAssignmentsTable.heatId,
+                divisionId: competitionRegistrationsTable.divisionId,
+              })
+              .from(competitionHeatAssignmentsTable)
+              .innerJoin(
+                competitionRegistrationsTable,
+                eq(
+                  competitionHeatAssignmentsTable.registrationId,
+                  competitionRegistrationsTable.id,
+                ),
+              )
+              .where(
+                inArray(competitionHeatAssignmentsTable.heatId, mixedHeatIds),
+              )
+          : []
+
+      const relevantIds = getRelevantWorkoutIds({
+        heats: heatsForWorkouts,
+        mixedHeatAssignments,
+        divisionId: params.divisionId,
+      })
+
+      if (relevantIds) {
+        // Also include child events whose parent is relevant (children inherit parent's heat relevance)
+        filteredTrackWorkouts = trackWorkouts.filter(
+          (tw) =>
+            relevantIds.has(tw.id) ||
+            (tw.parentEventId && relevantIds.has(tw.parentEventId)),
+        )
+
+        if (filteredTrackWorkouts.length === 0) {
+          return { entries: [], scoringConfig, events: [] }
+        }
       }
     }
   }
@@ -521,10 +560,7 @@ export async function getCompetitionLeaderboard(params: {
       : []
 
   // Index video submissions by registrationId+trackWorkoutId for fast lookup
-  const videoMap = new Map<
-    string,
-    { url: string; submissionId: string }
-  >()
+  const videoMap = new Map<string, { url: string; submissionId: string }>()
   for (const vs of videoSubmissions) {
     videoMap.set(`${vs.registrationId}:${vs.trackWorkoutId}`, {
       url: vs.videoUrl,
@@ -706,7 +742,10 @@ export async function getCompetitionLeaderboard(params: {
                 `${registration.registration.id}:${trackWorkout.id}`,
               )?.url ?? null)
             : null,
-          videoSubmissionId: isEventDivisionPublished(trackWorkout.id, divisionId)
+          videoSubmissionId: isEventDivisionPublished(
+            trackWorkout.id,
+            divisionId,
+          )
             ? (videoMap.get(
                 `${registration.registration.id}:${trackWorkout.id}`,
               )?.submissionId ?? null)
@@ -744,8 +783,12 @@ export async function getCompetitionLeaderboard(params: {
           videoUrl: isEventDivisionPublished(trackWorkout.id, entry.divisionId)
             ? (videoMap.get(`${regId}:${trackWorkout.id}`)?.url ?? null)
             : null,
-          videoSubmissionId: isEventDivisionPublished(trackWorkout.id, entry.divisionId)
-            ? (videoMap.get(`${regId}:${trackWorkout.id}`)?.submissionId ?? null)
+          videoSubmissionId: isEventDivisionPublished(
+            trackWorkout.id,
+            entry.divisionId,
+          )
+            ? (videoMap.get(`${regId}:${trackWorkout.id}`)?.submissionId ??
+              null)
             : null,
           parentEventId: trackWorkout.parentEventId,
           parentEventName: trackWorkout.parentEventId

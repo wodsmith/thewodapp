@@ -70,6 +70,7 @@ const routeLabels: Record<string, string> = {
   divisions: "Divisions",
   athletes: "Registrations",
   events: "Events",
+  "event-divisions": "Event Divisions",
   "submission-windows": "Submission Windows",
   schedule: "Schedule",
   locations: "Locations",

@@ -15,6 +15,7 @@ import {
   ClipboardSignature,
   Clock,
   DollarSign,
+  Grid3X3,
   Home,
   Layers,
   MapPin,
@@ -81,6 +82,11 @@ const getNavigation = (
       items: [
         { label: "Divisions", href: `${basePath}/divisions`, icon: Layers },
         { label: "Events", href: `${basePath}/events`, icon: Trophy },
+        {
+          label: "Event Divisions",
+          href: `${basePath}/event-divisions`,
+          icon: Grid3X3,
+        },
         // Submission Windows only for online competitions
         ...(competitionType === "online"
           ? [

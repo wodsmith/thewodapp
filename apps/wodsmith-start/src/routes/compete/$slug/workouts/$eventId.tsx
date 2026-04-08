@@ -15,9 +15,8 @@ import {
 } from "lucide-react"
 import { z } from "zod"
 import { VideoSubmissionForm } from "@/components/compete/video-submission-form"
-import { formatTrackOrder } from "@/utils/format-track-order"
-import { EventHeatSchedule } from "@/components/event-heat-schedule"
 import { CompetitionTabs } from "@/components/competition-tabs"
+import { EventHeatSchedule } from "@/components/event-heat-schedule"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -39,10 +38,12 @@ import {
   getPublishedCompetitionWorkoutsFn,
   getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
+import { getPublicEventDivisionMappingsFn } from "@/server-fns/event-division-mapping-fns"
 import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
 import { getVideoSubmissionFn } from "@/server-fns/video-submission-fns"
 import { getGoogleMapsUrl, hasAddressData } from "@/utils/address"
 import { getSessionFromCookie } from "@/utils/auth"
+import { formatTrackOrder } from "@/utils/format-track-order"
 
 const eventSearchSchema = z.object({
   division: z.string().optional(),
@@ -80,12 +81,14 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       throw notFound()
     }
 
-    // Fetch event details, judging sheets, athlete's division, and video submission in parallel
+    // Fetch event details, judging sheets, athlete's division, video submission,
+    // and event-division mappings in parallel
     const [
       eventResult,
       judgingSheetsResult,
       athleteDivisionResult,
       videoSubmissionResult,
+      eventDivisionMappingResult,
     ] = await Promise.all([
       getPublicEventDetailsFn({
         data: { eventId, competitionId: competition.id },
@@ -100,6 +103,9 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
             data: { trackWorkoutId: eventId, competitionId: competition.id },
           })
         : Promise.resolve(null),
+      getPublicEventDivisionMappingsFn({
+        data: { competitionId: competition.id },
+      }),
     ])
 
     if (!eventResult.event) {
@@ -149,9 +155,9 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 
     // If this is a sub-event, find the parent event for context
     const parentEvent = eventResult.event.parentEventId
-      ? allWorkoutsResult.workouts.find(
+      ? (allWorkoutsResult.workouts.find(
           (w) => w.id === eventResult.event.parentEventId,
-        ) ?? null
+        ) ?? null)
       : null
 
     // Fetch division descriptions for children
@@ -179,6 +185,18 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       }
     }
 
+    // Determine if athlete's division is mapped to this event
+    // When no mappings exist, event is available to all divisions (backwards compatible)
+    const athleteDivisionId = athleteDivisionResult.divisionId
+    const eventMappings = eventDivisionMappingResult
+    let isEventMappedToAthleteDivision = true
+    if (eventMappings.hasMappings && athleteDivisionId) {
+      isEventMappedToAthleteDivision = eventMappings.mappings.some(
+        (m) =>
+          m.trackWorkoutId === eventId && m.divisionId === athleteDivisionId,
+      )
+    }
+
     return {
       competition,
       event: eventResult.event,
@@ -188,13 +206,14 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       totalEvents: eventResult.totalEvents,
       divisionDescriptions,
       divisions,
-      athleteRegisteredDivisionId: athleteDivisionResult.divisionId,
+      athleteRegisteredDivisionId: athleteDivisionId,
       venue: venueResult.venue,
       videoSubmission: videoSubmissionResult,
       deferredEventHeats,
       childEvents,
       childDivisionDescriptions,
       parentEvent,
+      isEventMappedToAthleteDivision,
     }
   },
 })
@@ -255,6 +274,7 @@ function EventDetailsPage() {
     childEvents,
     childDivisionDescriptions,
     parentEvent,
+    isEventMappedToAthleteDivision,
   } = Route.useLoaderData()
   const { slug } = Route.useParams()
   const search = Route.useSearch()
@@ -321,7 +341,10 @@ function EventDetailsPage() {
                 {parentEvent && (
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">
-                      Part of <span className="font-medium">{parentEvent.workout.name}</span>
+                      Part of{" "}
+                      <span className="font-medium">
+                        {parentEvent.workout.name}
+                      </span>
                     </p>
                     {parentEvent.workout.description && (
                       <p className="text-sm text-muted-foreground">
@@ -447,14 +470,17 @@ function EventDetailsPage() {
             )}
 
             {/* Video & Score Submission Form - Below description for online competitions */}
-            {competition.competitionType === "online" && videoSubmission && (
-              <VideoSubmissionForm
-                trackWorkoutId={event.id}
-                competitionId={competition.id}
-                timezone={competition.timezone}
-                initialData={videoSubmission}
-              />
-            )}
+            {/* Only show when event is mapped to athlete's division (or no mappings configured) */}
+            {competition.competitionType === "online" &&
+              videoSubmission &&
+              isEventMappedToAthleteDivision && (
+                <VideoSubmissionForm
+                  trackWorkoutId={event.id}
+                  competitionId={competition.id}
+                  timezone={competition.timezone}
+                  initialData={videoSubmission}
+                />
+              )}
           </div>
         </div>
       </div>
