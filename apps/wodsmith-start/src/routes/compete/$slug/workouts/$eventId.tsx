@@ -15,9 +15,8 @@ import {
 } from "lucide-react"
 import { z } from "zod"
 import { VideoSubmissionForm } from "@/components/compete/video-submission-form"
-import { formatTrackOrder } from "@/utils/format-track-order"
-import { EventHeatSchedule } from "@/components/event-heat-schedule"
 import { CompetitionTabs } from "@/components/competition-tabs"
+import { EventHeatSchedule } from "@/components/event-heat-schedule"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
+import { getUserCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
 import {
   getPublicEventHeatsFn,
   getVenueForTrackWorkoutByDivisionFn,
@@ -43,27 +42,32 @@ import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
 import { getVideoSubmissionFn } from "@/server-fns/video-submission-fns"
 import { getGoogleMapsUrl, hasAddressData } from "@/utils/address"
 import { getSessionFromCookie } from "@/utils/auth"
+import { formatTrackOrder } from "@/utils/format-track-order"
 
 const eventSearchSchema = z.object({
   division: z.string().optional(),
 })
 
-// Server function to get athlete's registered division for this competition
-const getAthleteRegisteredDivisionFn = createServerFn({ method: "GET" })
+// Server function to get ALL athlete registered divisions for this competition
+const getAthleteRegisteredDivisionsFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) =>
     z.object({ competitionId: z.string() }).parse(data),
   )
   .handler(async ({ data }) => {
     const session = await getSessionFromCookie()
     if (!session?.user?.id) {
-      return { divisionId: null }
+      return { divisionIds: [] }
     }
 
-    const result = await getUserCompetitionRegistrationFn({
+    const result = await getUserCompetitionRegistrationsFn({
       data: { competitionId: data.competitionId, userId: session.user.id },
     })
 
-    return { divisionId: result.registration?.divisionId ?? null }
+    const divisionIds = result.registrations
+      .map((r) => r.divisionId)
+      .filter((id): id is string => id !== null)
+
+    return { divisionIds }
   })
 
 export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
@@ -80,27 +84,17 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       throw notFound()
     }
 
-    // Fetch event details, judging sheets, athlete's division, and video submission in parallel
-    const [
-      eventResult,
-      judgingSheetsResult,
-      athleteDivisionResult,
-      videoSubmissionResult,
-    ] = await Promise.all([
-      getPublicEventDetailsFn({
-        data: { eventId, competitionId: competition.id },
-      }),
-      getEventJudgingSheetsFn({ data: { trackWorkoutId: eventId } }),
-      getAthleteRegisteredDivisionFn({
-        data: { competitionId: competition.id },
-      }),
-      // Only fetch video submission for online competitions
-      competition.competitionType === "online"
-        ? getVideoSubmissionFn({
-            data: { trackWorkoutId: eventId, competitionId: competition.id },
-          })
-        : Promise.resolve(null),
-    ])
+    // Fetch event details, judging sheets, and athlete's registered divisions in parallel
+    const [eventResult, judgingSheetsResult, athleteDivisionsResult] =
+      await Promise.all([
+        getPublicEventDetailsFn({
+          data: { eventId, competitionId: competition.id },
+        }),
+        getEventJudgingSheetsFn({ data: { trackWorkoutId: eventId } }),
+        getAthleteRegisteredDivisionsFn({
+          data: { competitionId: competition.id },
+        }),
+      ])
 
     if (!eventResult.event) {
       throw notFound()
@@ -133,6 +127,29 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
         })
       : { venue: null }
 
+    // Resolve athlete's registered divisions with labels
+    const athleteRegisteredDivisionIds = athleteDivisionsResult.divisionIds
+    const athleteRegisteredDivisions = athleteRegisteredDivisionIds
+      .map((divId) => {
+        const div = divisions.find((d) => d.id === divId)
+        return div ? { divisionId: div.id, label: div.label } : null
+      })
+      .filter((d): d is { divisionId: string; label: string } => d !== null)
+
+    // For online competitions, fetch video submission scoped to the first registered division
+    const initialSubmissionDivisionId =
+      athleteRegisteredDivisionIds[0] ?? undefined
+    const videoSubmissionResult =
+      competition.competitionType === "online"
+        ? await getVideoSubmissionFn({
+            data: {
+              trackWorkoutId: eventId,
+              competitionId: competition.id,
+              divisionId: initialSubmissionDivisionId,
+            },
+          })
+        : null
+
     // Defer heat schedule fetch - not needed for initial render
     const deferredEventHeats =
       eventResult.event.heatStatus === "published"
@@ -149,9 +166,9 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 
     // If this is a sub-event, find the parent event for context
     const parentEvent = eventResult.event.parentEventId
-      ? allWorkoutsResult.workouts.find(
+      ? (allWorkoutsResult.workouts.find(
           (w) => w.id === eventResult.event.parentEventId,
-        ) ?? null
+        ) ?? null)
       : null
 
     // Fetch division descriptions for children
@@ -188,7 +205,8 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       totalEvents: eventResult.totalEvents,
       divisionDescriptions,
       divisions,
-      athleteRegisteredDivisionId: athleteDivisionResult.divisionId,
+      athleteRegisteredDivisions,
+      athleteRegisteredDivisionId: athleteRegisteredDivisionIds[0] ?? null,
       venue: venueResult.venue,
       videoSubmission: videoSubmissionResult,
       deferredEventHeats,
@@ -248,6 +266,7 @@ function EventDetailsPage() {
     totalEvents,
     divisionDescriptions,
     divisions,
+    athleteRegisteredDivisions,
     athleteRegisteredDivisionId,
     venue,
     videoSubmission,
@@ -321,7 +340,10 @@ function EventDetailsPage() {
                 {parentEvent && (
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">
-                      Part of <span className="font-medium">{parentEvent.workout.name}</span>
+                      Part of{" "}
+                      <span className="font-medium">
+                        {parentEvent.workout.name}
+                      </span>
                     </p>
                     {parentEvent.workout.description && (
                       <p className="text-sm text-muted-foreground">
@@ -452,6 +474,7 @@ function EventDetailsPage() {
                 trackWorkoutId={event.id}
                 competitionId={competition.id}
                 timezone={competition.timezone}
+                registeredDivisions={athleteRegisteredDivisions}
                 initialData={videoSubmission}
               />
             )}

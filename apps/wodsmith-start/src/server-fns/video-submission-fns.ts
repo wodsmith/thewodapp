@@ -52,6 +52,7 @@ import { requireTeamPermission } from "@/utils/team-auth"
 const getVideoSubmissionInputSchema = z.object({
   trackWorkoutId: z.string().min(1, "Track workout ID is required"),
   competitionId: z.string().min(1, "Competition ID is required"),
+  divisionId: z.string().optional(),
 })
 
 const getOrganizerSubmissionsInputSchema = z.object({
@@ -64,6 +65,7 @@ const getOrganizerSubmissionsInputSchema = z.object({
 const submitVideoInputSchema = z.object({
   trackWorkoutId: z.string().min(1, "Track workout ID is required"),
   competitionId: z.string().min(1, "Competition ID is required"),
+  divisionId: z.string().optional(),
   videoUrl: z.string().url("Please enter a valid URL").max(2000),
   notes: z.string().max(1000).optional(),
   // 0-indexed position for team video submissions (0 for individuals)
@@ -182,11 +184,14 @@ async function checkSubmissionWindow(
 
 /**
  * Get the athlete's registration for a competition.
+ * When divisionId is provided, returns the registration for that specific division.
+ * When omitted, falls back to the first registration found (backward compat).
  * For team members, returns the captain's registration with isCaptain=false.
  */
 async function getAthleteRegistration(
   competitionId: string,
   userId: string,
+  divisionId?: string,
 ): Promise<{
   id: string
   divisionId: string | null
@@ -195,6 +200,16 @@ async function getAthleteRegistration(
   isCaptain: boolean
 } | null> {
   const db = getDb()
+
+  // Build where conditions — include divisionId filter when provided
+  const conditions = [
+    eq(competitionRegistrationsTable.eventId, competitionId),
+    eq(competitionRegistrationsTable.userId, userId),
+    ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+  ]
+  if (divisionId) {
+    conditions.push(eq(competitionRegistrationsTable.divisionId, divisionId))
+  }
 
   // First, look for the user's own registration (works for captains and individuals)
   const [registration] = await db
@@ -205,13 +220,7 @@ async function getAthleteRegistration(
       athleteTeamId: competitionRegistrationsTable.athleteTeamId,
     })
     .from(competitionRegistrationsTable)
-    .where(
-      and(
-        eq(competitionRegistrationsTable.eventId, competitionId),
-        eq(competitionRegistrationsTable.userId, userId),
-        ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
-      ),
-    )
+    .where(and(...conditions))
     .limit(1)
 
   if (!registration) {
@@ -247,10 +256,7 @@ async function getAthleteRegistration(
           competitionRegistrationsTable.athleteTeamId,
           registration.athleteTeamId,
         ),
-        eq(
-          competitionRegistrationsTable.userId,
-          registration.captainUserId!,
-        ),
+        eq(competitionRegistrationsTable.userId, registration.captainUserId!),
         ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
       ),
     )
@@ -332,10 +338,11 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
 
     const db = getDb()
 
-    // Check if user is registered for this competition
+    // Check if user is registered for this competition (scoped to division when provided)
     const registration = await getAthleteRegistration(
       data.competitionId,
       session.userId,
+      data.divisionId,
     )
 
     if (!registration) {
@@ -361,8 +368,7 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
     const teamSize = await getTeamSize(registration.divisionId)
 
     // Non-captain team members cannot submit
-    const canSubmit =
-      windowCheck.allowed && registration.isCaptain
+    const canSubmit = windowCheck.allowed && registration.isCaptain
     const reason = !registration.isCaptain
       ? "Only the team captain can submit videos and scores"
       : windowCheck.reason
@@ -404,6 +410,17 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
     // Score belongs to the captain (or the individual athlete)
     const scoreUserId = registration.captainUserId ?? session.userId
 
+    // Scope score lookup by division when available
+    const scoreConditions = [
+      eq(scoresTable.competitionEventId, data.trackWorkoutId),
+      eq(scoresTable.userId, scoreUserId),
+    ]
+    if (registration.divisionId) {
+      scoreConditions.push(
+        eq(scoresTable.scalingLevelId, registration.divisionId),
+      )
+    }
+
     const [score] = await db
       .select({
         scoreValue: scoresTable.scoreValue,
@@ -413,12 +430,7 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
         scheme: scoresTable.scheme,
       })
       .from(scoresTable)
-      .where(
-        and(
-          eq(scoresTable.competitionEventId, data.trackWorkoutId),
-          eq(scoresTable.userId, scoreUserId),
-        ),
-      )
+      .where(and(...scoreConditions))
       .limit(1)
 
     if (score) {
@@ -595,10 +607,11 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 
     const db = getDb()
 
-    // Check if user is registered for this competition
+    // Check if user is registered for this competition (scoped to division when provided)
     const registration = await getAthleteRegistration(
       data.competitionId,
       session.userId,
+      data.divisionId,
     )
 
     if (!registration) {
@@ -609,9 +622,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 
     // Only team captains can submit for team divisions
     if (!registration.isCaptain) {
-      throw new Error(
-        "Only the team captain can submit videos and scores",
-      )
+      throw new Error("Only the team captain can submit videos and scores")
     }
 
     // Check submission window
@@ -936,8 +947,10 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
 
     // Batch-fetch vote counts for all submissions
     const submissionIds = submissions.map((s) => s.id)
-    const voteCountsMap: Record<string, { upvotes: number; downvotes: number }> =
-      {}
+    const voteCountsMap: Record<
+      string,
+      { upvotes: number; downvotes: number }
+    > = {}
 
     if (submissionIds.length > 0) {
       const voteCounts = await db
