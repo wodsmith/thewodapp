@@ -2321,11 +2321,9 @@ function SubmissionDetailPage() {
                         className="gap-1.5"
                       >
                         Video {sib.videoIndex + 1}
-                        {sib.athleteFirstName && (
-                          <span className="text-xs text-muted-foreground">
-                            ({sib.athleteFirstName})
-                          </span>
-                        )}
+                        <span className="text-xs text-muted-foreground">
+                          ({sib.videoIndex === 0 ? "Captain" : `Teammate ${sib.videoIndex}`})
+                        </span>
                         {getReviewedAt(sib) != null && (
                           <CheckCircle2 className="h-3 w-3 text-green-600" />
                         )}
@@ -2556,7 +2554,7 @@ function SubmissionDetailPage() {
           <CommunityVotesCard voteDetails={voteDetails} />
 
           {/* Verification Controls */}
-          {verificationSubmission && event && (
+          {verificationSubmission && event ? (
             <VerificationControls
               submission={verificationSubmission}
               event={event}
@@ -2564,6 +2562,22 @@ function SubmissionDetailPage() {
               trackWorkoutId={params.eventId}
               logs={verificationLogs}
             />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Verification Controls</CardTitle>
+                <CardDescription>
+                  Review the video and confirm or correct the athlete&apos;s
+                  claimed score
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  No score submitted yet. Verification controls will be available
+                  once the athlete submits a score.
+                </p>
+              </CardContent>
+            </Card>
           )}
 
           {allReviewNotes.length > 0 && (

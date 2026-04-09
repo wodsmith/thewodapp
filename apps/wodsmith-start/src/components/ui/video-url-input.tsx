@@ -77,6 +77,12 @@ const VideoUrlInput = React.forwardRef<HTMLInputElement, VideoUrlInputProps>(
         parsedUrl: null,
       })
 
+    // Stabilize onValidationChange with a ref to avoid infinite effect loops
+    const onValidationChangeRef = React.useRef(onValidationChange)
+    React.useEffect(() => {
+      onValidationChangeRef.current = onValidationChange
+    })
+
     // Sync local value with controlled value
     React.useEffect(() => {
       setLocalValue(value)
@@ -96,7 +102,7 @@ const VideoUrlInput = React.forwardRef<HTMLInputElement, VideoUrlInputProps>(
             parsedUrl: null,
           }
           setValidationState(newState)
-          onValidationChange?.(newState)
+          onValidationChangeRef.current?.(newState)
           return
         }
 
@@ -111,7 +117,7 @@ const VideoUrlInput = React.forwardRef<HTMLInputElement, VideoUrlInputProps>(
             parsedUrl: null,
           }
           setValidationState(newState)
-          onValidationChange?.(newState)
+          onValidationChangeRef.current?.(newState)
           return
         }
 
@@ -125,7 +131,7 @@ const VideoUrlInput = React.forwardRef<HTMLInputElement, VideoUrlInputProps>(
             parsedUrl: parsed,
           }
           setValidationState(newState)
-          onValidationChange?.(newState)
+          onValidationChangeRef.current?.(newState)
         } else {
           const newState: VideoUrlValidationState = {
             isValid: false,
@@ -134,10 +140,10 @@ const VideoUrlInput = React.forwardRef<HTMLInputElement, VideoUrlInputProps>(
             parsedUrl: null,
           }
           setValidationState(newState)
-          onValidationChange?.(newState)
+          onValidationChangeRef.current?.(newState)
         }
       },
-      [required, onValidationChange],
+      [required],
     )
 
     // Debounced validation for 'change' mode
