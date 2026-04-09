@@ -91,3 +91,11 @@ Cascading cleanup: deactivates team memberships (captain in event team + all mem
 Organizers can move a registration between divisions via `transferRegistrationDivisionFn`.
 
 Validates same team size between source and target divisions (individual-to-team blocked). Updates the registration's `divisionId`, removes heat assignments (division-specific), and updates the commerce purchase record. Does not enforce capacity (organizer decision).
+
+## Teammate Transfer
+
+Captains or organizers can replace a teammate on a team registration via [[apps/wodsmith-start/src/server-fns/teammate-transfer-fns.ts#transferTeammateFn]].
+
+Two transfer types are supported: **member** (confirmed teammate with active membership) and **invitation** (pending invitation that hasn't been accepted). For members, the existing membership in the `athleteTeamId` team is deactivated and the removed user's sessions are refreshed. For invitations, the old invitation is deleted. In both cases, a new invitation is sent to the replacement email via `inviteUserToTeam` with `forceInvitation: true`.
+
+Authorization: captains can only transfer while the registration window is open; organizers with `MANAGE_COMPETITIONS` permission (or platform admins) can transfer at any time. The captain themselves cannot be transferred — that requires a purchase transfer instead.

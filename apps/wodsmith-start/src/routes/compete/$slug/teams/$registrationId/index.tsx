@@ -15,12 +15,14 @@ import {
 import { eq } from "drizzle-orm"
 import {
   AlertTriangle,
+  ArrowRightLeft,
   CheckCircle,
   ChevronDown,
   Clock,
   Copy,
   Crown,
   Mail,
+  MoreHorizontal,
   Users,
 } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -38,6 +40,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import type { Waiver, WaiverSignature } from "@/db/schemas/waivers"
 import {
   getRegistrationDetailsFn,
@@ -56,6 +64,7 @@ import {
   getWaiverSignaturesForUserFn,
 } from "@/server-fns/waiver-fns"
 import { AffiliateEditor } from "./-components/affiliate-editor"
+import { TransferTeammateDialog } from "./-components/transfer-teammate-dialog"
 import { RegistrationDetailsCard } from "./-components/registration-details"
 import { WaiverSection } from "./-components/waiver-section"
 import { WelcomeModal } from "./-components/welcome-modal"
@@ -417,6 +426,11 @@ function TeamManagementPage() {
   const { welcome } = Route.useSearch()
   const navigate = useNavigate()
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
+  const [transferTarget, setTransferTarget] = useState<{
+    targetId: string
+    type: "member" | "invitation"
+    currentIdentifier: string
+  } | null>(null)
 
   // Show welcome modal when ?welcome=true is in URL
   useEffect(() => {
@@ -636,7 +650,7 @@ function TeamManagementPage() {
                       key={member.id}
                       className="flex items-center justify-between p-3 rounded-lg border bg-card"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
                         <Avatar className="w-10 h-10">
                           <AvatarImage src={member.user?.avatar || undefined} />
                           <AvatarFallback>
@@ -644,8 +658,8 @@ function TeamManagementPage() {
                             {member.user?.lastName?.[0] || ""}
                           </AvatarFallback>
                         </Avatar>
-                        <div>
-                          <div className="flex items-center gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium">
                               {member.user?.firstName} {member.user?.lastName}
                             </span>
@@ -656,7 +670,7 @@ function TeamManagementPage() {
                               </Badge>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm text-muted-foreground truncate">
                             {member.user?.email}
                           </p>
                           <p className="text-xs text-muted-foreground mt-0.5">
@@ -664,9 +678,37 @@ function TeamManagementPage() {
                           </p>
                         </div>
                       </div>
-                      <Badge variant="outline" className="text-green-600">
-                        Confirmed
-                      </Badge>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isRegisteredUser && isRegistrationOpen && !member.isCaptain && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  setTransferTarget({
+                                    targetId: member.id,
+                                    type: "member",
+                                    currentIdentifier:
+                                      `${member.user?.firstName ?? ""} ${member.user?.lastName ?? ""}`.trim() ||
+                                      member.user?.email ||
+                                      "Unknown",
+                                  })
+                                }
+                              >
+                                <ArrowRightLeft className="h-4 w-4 mr-2" />
+                                Transfer
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                        <Badge variant="outline" className="text-green-600 shrink-0">
+                          Confirmed
+                        </Badge>
+                      </div>
                     </div>
                   )
                 })}
@@ -688,14 +730,14 @@ function TeamManagementPage() {
                         key={invite.id}
                         className="flex items-center justify-between p-3 rounded-lg border bg-card"
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
                           <Avatar className="w-10 h-10">
                             <AvatarFallback>
                               <Mail className="w-4 h-4" />
                             </AvatarFallback>
                           </Avatar>
-                          <div>
-                            <p className="font-medium">{invite.email}</p>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{invite.email}</p>
                             <p className="text-sm text-muted-foreground">
                               Invited{" "}
                               {invite.invitedAt
@@ -709,18 +751,43 @@ function TeamManagementPage() {
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {isRegisteredUser && invite.token && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => copyInviteLink(invite.token!)}
-                            >
-                              <Copy className="w-4 h-4 mr-1" />
-                              Copy Link
+                        <div className="flex items-center gap-2 shrink-0">
+                          {isRegisteredUser && isRegistrationOpen && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {invite.token && (
+                                  <DropdownMenuItem onClick={() => copyInviteLink(invite.token!)}>
+                                    <Copy className="h-4 w-4 mr-2" />
+                                    Copy Invite Link
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    setTransferTarget({
+                                      targetId: invite.id,
+                                      type: "invitation",
+                                      currentIdentifier: invite.email,
+                                    })
+                                  }
+                                >
+                                  <ArrowRightLeft className="h-4 w-4 mr-2" />
+                                  Transfer
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                          {isRegisteredUser && !isRegistrationOpen && invite.token && (
+                            <Button variant="ghost" size="sm" onClick={() => copyInviteLink(invite.token!)}>
+                              <Copy className="w-4 h-4 sm:mr-1" />
+                              <span className="hidden sm:inline">Copy Link</span>
                             </Button>
                           )}
-                          <Badge variant="outline" className="text-yellow-600">
+                          <Badge variant="outline" className="text-yellow-600 shrink-0">
                             Pending
                           </Badge>
                         </div>
@@ -775,6 +842,17 @@ function TeamManagementPage() {
           </Card>
         )}
       </div>
+
+      {transferTarget && (
+        <TransferTeammateDialog
+          open={!!transferTarget}
+          onOpenChange={(open) => !open && setTransferTarget(null)}
+          registrationId={registration.id}
+          targetId={transferTarget.targetId}
+          type={transferTarget.type}
+          currentIdentifier={transferTarget.currentIdentifier}
+        />
+      )}
     </>
   )
 }

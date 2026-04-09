@@ -54,6 +54,7 @@ Uses `getOrganizerRegistrationsFn` for the full registration list with detailed 
 - Remove registration (soft-delete with cascading cleanup — see [[registration#Registration Removal]])
 - Transfer registration to a different division (see [[registration#Division Transfer]])
 - Transfer registration to a different person (purchase transfer)
+- Transfer teammate — replace a non-captain team member or pending invitation with a new email (see [[registration#Teammate Transfer]])
 - CSV export of athlete data
 - Registration questions editor (custom questions athletes answer during signup)
 - Pending teammate invitations tab for team divisions
