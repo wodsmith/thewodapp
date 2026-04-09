@@ -408,10 +408,10 @@ export function VideoSubmissionForm({
 
   // Division selector rendered at the top of submission forms
   const divisionSelector = hasMultipleDivisions ? (
-    <div className="flex items-center gap-3 rounded-lg border border-orange-200 bg-orange-50 p-3 dark:border-orange-800 dark:bg-orange-950/30">
+    <div className="flex items-center gap-3 rounded-lg border border-orange-200 bg-orange-50 p-3 dark:border-orange-500 dark:bg-orange-950">
       <Label
         htmlFor="submission-division"
-        className="text-sm font-medium whitespace-nowrap"
+        className="text-sm font-medium whitespace-nowrap text-orange-900 dark:text-orange-100"
       >
         Submitting for:
       </Label>
@@ -422,7 +422,7 @@ export function VideoSubmissionForm({
       >
         <SelectTrigger
           id="submission-division"
-          className="h-9 font-medium bg-white dark:bg-background"
+          className="h-9 font-medium bg-background text-foreground"
         >
           <SelectValue placeholder="Select division" />
         </SelectTrigger>
@@ -918,7 +918,7 @@ export function VideoSubmissionForm({
             <div key={index} className="space-y-2">
               <Label htmlFor={`videoUrl-${index}`}>
                 {teamSize > 1
-                  ? `${videoSlotLabel(index)}'s Video (optional)`
+                  ? `${videoSlotLabel(index)}'s Video`
                   : "Video URL"}
               </Label>
               <VideoUrlInput
@@ -943,7 +943,7 @@ export function VideoSubmissionForm({
               {/* Per-slot notes */}
               {teamSize > 1 && (
                 <Textarea
-                  placeholder={`Notes for ${videoSlotLabel(index).toLowerCase()}'s video (optional)`}
+                  placeholder={`Notes for ${videoSlotLabel(index).toLowerCase()}'s video`}
                   value={slot.notes}
                   onChange={(e) => updateSlot(index, { notes: e.target.value })}
                   rows={1}
@@ -987,7 +987,7 @@ export function VideoSubmissionForm({
           )}
 
           {/* Submit Button */}
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
+          <Button type="submit" className="w-full bg-orange-500 text-white hover:bg-orange-600" disabled={isSubmitting}>
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

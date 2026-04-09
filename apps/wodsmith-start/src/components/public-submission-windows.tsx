@@ -1,8 +1,10 @@
 "use client"
 
-import { AlertCircle, Calendar, CheckCircle2, Clock, Timer } from "lucide-react"
+import { Link } from "@tanstack/react-router"
+import { AlertCircle, Calendar, CheckCircle2, Clock, Send, Timer } from "lucide-react"
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import type { CompetitionWorkout } from "@/server-fns/competition-workouts-fns"
 import { cn } from "@/utils/cn"
@@ -21,6 +23,8 @@ interface PublicSubmissionWindowsProps {
   submissionWindows: SubmissionWindowEvent[]
   competitionStarted: boolean
   timezone?: string
+  slug?: string
+  isLoggedIn?: boolean
 }
 
 function formatDateOnly(isoString: string, timezone?: string): string {
@@ -108,6 +112,8 @@ export function PublicSubmissionWindows({
   submissionWindows,
   competitionStarted,
   timezone,
+  slug,
+  isLoggedIn,
 }: PublicSubmissionWindowsProps) {
   // State must be declared before any early returns (React hooks rules)
   const [selectedTab, setSelectedTab] = useState<string>("all")
@@ -295,6 +301,8 @@ export function PublicSubmissionWindows({
                     window={window}
                     status={status}
                     timezone={timezone}
+                    slug={slug}
+                    isLoggedIn={isLoggedIn}
                   />
                 ))}
               </div>
@@ -311,6 +319,8 @@ interface SubmissionWindowRowProps {
   window: SubmissionWindowEvent | null
   status: WindowStatus
   timezone?: string
+  slug?: string
+  isLoggedIn?: boolean
 }
 
 function SubmissionWindowRow({
@@ -318,6 +328,8 @@ function SubmissionWindowRow({
   window,
   status,
   timezone,
+  slug,
+  isLoggedIn,
 }: SubmissionWindowRowProps) {
   // Check if window spans multiple days (timezone-aware)
   const getDateKey = (isoString: string): string => {
@@ -398,6 +410,17 @@ function SubmissionWindowRow({
           opensAt={window?.submissionOpensAt ?? null}
           closesAt={window?.submissionClosesAt ?? null}
         />
+        {isLoggedIn && slug && status === "open" && (
+          <Button size="sm" variant="outline" className="border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white" asChild>
+            <Link
+              to="/compete/$slug/workouts/$eventId"
+              params={{ slug, eventId: event.id }}
+            >
+              <Send className="h-3.5 w-3.5 mr-1.5" />
+              Submit
+            </Link>
+          </Button>
+        )}
       </div>
     </div>
   )
