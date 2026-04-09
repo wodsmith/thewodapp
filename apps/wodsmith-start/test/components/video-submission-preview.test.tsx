@@ -527,4 +527,97 @@ describe("VideoSubmissionPreview", () => {
 			).toBeTruthy()
 		})
 	})
+
+	describe("team display", () => {
+		it("shows Captain and Teammate labels for team submissions", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[
+						createDefaultSubmission({ videoIndex: 0 }),
+						createDefaultSubmission({
+							id: "sub-2",
+							videoIndex: 1,
+							videoUrl: "https://vimeo.com/456",
+						}),
+					]}
+					teamSize={3}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.getByText("Captain")).toBeTruthy()
+			expect(screen.getByText("Teammate 2")).toBeTruthy()
+		})
+
+		it("shows team submission count in description", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[
+						createDefaultSubmission({ videoIndex: 0 }),
+						createDefaultSubmission({ id: "sub-2", videoIndex: 1 }),
+					]}
+					teamSize={3}
+					canEdit={true}
+				/>,
+			)
+
+			expect(
+				screen.getByText(
+					/2 of 3 videos submitted/,
+				),
+			).toBeTruthy()
+		})
+
+		it("shows Team score label for team with workout", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={2}
+					score={{
+						scoreValue: 300000,
+						displayScore: "5:00",
+						status: "scored",
+						secondaryValue: null,
+						tiebreakValue: null,
+					}}
+					workout={createDefaultWorkout()}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.getByText("Team Time")).toBeTruthy()
+		})
+
+		it("shows individual label when teamSize is 1", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
+					score={{
+						scoreValue: 300000,
+						displayScore: "5:00",
+						status: "scored",
+						secondaryValue: null,
+						tiebreakValue: null,
+					}}
+					workout={createDefaultWorkout()}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.getByText("Your Time")).toBeTruthy()
+		})
+
+		it("does not show per-video labels for individual submissions", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.queryByText("Captain")).toBeNull()
+		})
+	})
 })

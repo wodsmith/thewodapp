@@ -136,6 +136,12 @@ Athletes can submit video evidence of their workout performance for remote judgi
 
 Submissions link to a score and include a video URL (e.g., Vimeo). Judges can verify or reject submissions. Community voting is supported via `videoVotesTable`.
 
+### Multi-Division Submission
+
+Athletes registered in multiple divisions see a division picker on the submission form. Single-division athletes see a static badge.
+
+Switching divisions fetches that division's submission data via [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getVideoSubmissionFn]] with the `divisionId` parameter. Scores and video submissions are scoped per-division so each registration gets its own submission state. The picker lives in [[apps/wodsmith-start/src/components/compete/video-submission-form.tsx#VideoSubmissionForm]].
+
 ### Captain-Only Submission
 
 For team divisions (teamSize > 1), only the team captain can submit videos and scores. Non-captain team members see a read-only view of the team's submissions. Individual athletes (teamSize = 1) are always treated as their own captain.
