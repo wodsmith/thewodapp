@@ -188,12 +188,12 @@ export function EventSection({ event }: EventSectionProps) {
             </div>
           )}
 
-          {/* Judge Sheets */}
+          {/* Event Documents */}
           {judgingSheets && judgingSheets.length > 0 && (
             <div className="border rounded-lg p-4 bg-blue-50/50 dark:bg-blue-950/20">
               <h4 className="text-sm font-semibold mb-3 flex items-center gap-1.5">
                 <FileText className="h-4 w-4" />
-                Judge Sheets
+                Event Documents
               </h4>
               <ul className="space-y-2">
                 {judgingSheets.map((sheet) => (

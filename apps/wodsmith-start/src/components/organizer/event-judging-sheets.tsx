@@ -87,7 +87,7 @@ export function EventJudgingSheets({
 
   const handleCreateSheet = useCallback(async () => {
     if (!pendingUpload || !newSheetTitle.trim()) {
-      toast.error("Please provide a title for the judging sheet")
+      toast.error("Please provide a title for the document")
       return
     }
 
@@ -110,13 +110,13 @@ export function EventJudgingSheets({
       onSheetsChange([...sheets, result.sheet as JudgingSheet])
       setPendingUpload(null)
       setNewSheetTitle("")
-      toast.success("Judging sheet uploaded")
+      toast.success("Document uploaded")
     } catch (error) {
       console.error("Failed to create judging sheet:", error)
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to upload judging sheet",
+          : "Failed to upload document",
       )
     } finally {
       setIsUploading(false)
@@ -171,13 +171,13 @@ export function EventJudgingSheets({
         )
         setEditingId(null)
         setEditTitle("")
-        toast.success("Judging sheet updated")
+        toast.success("Document updated")
       } catch (error) {
         console.error("Failed to update judging sheet:", error)
         toast.error(
           error instanceof Error
             ? error.message
-            : "Failed to update judging sheet",
+            : "Failed to update document",
         )
       }
     },
@@ -194,13 +194,13 @@ export function EventJudgingSheets({
         })
 
         onSheetsChange(sheets.filter((s) => s.id !== sheetId))
-        toast.success("Judging sheet deleted")
+        toast.success("Document deleted")
       } catch (error) {
         console.error("Failed to delete judging sheet:", error)
         toast.error(
           error instanceof Error
             ? error.message
-            : "Failed to delete judging sheet",
+            : "Failed to delete document",
         )
       }
     },
@@ -210,9 +210,10 @@ export function EventJudgingSheets({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Judging Sheets</CardTitle>
+        <CardTitle>Event Documents</CardTitle>
         <CardDescription>
-          Upload PDF judging sheets for athletes to download
+          Upload files for judging sheets, workout flow, division breakdowns,
+          etc.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -287,7 +288,7 @@ export function EventJudgingSheets({
                 id="sheet-title"
                 value={newSheetTitle}
                 onChange={(e) => setNewSheetTitle(e.target.value)}
-                placeholder="Enter a title for this judging sheet"
+                placeholder="Enter a title for this document"
                 autoFocus
               />
             </div>
@@ -297,7 +298,7 @@ export function EventJudgingSheets({
                 onClick={handleCreateSheet}
                 disabled={isUploading || !newSheetTitle.trim()}
               >
-                {isUploading ? "Saving..." : "Save Judging Sheet"}
+                {isUploading ? "Saving..." : "Save Document"}
               </Button>
               <Button
                 type="button"
@@ -323,7 +324,7 @@ export function EventJudgingSheets({
 
         {sheets.length === 0 && !pendingUpload && (
           <p className="text-sm text-muted-foreground text-center py-2">
-            No judging sheets uploaded yet
+            No documents uploaded yet
           </p>
         )}
       </CardContent>

@@ -676,7 +676,7 @@ function SeriesSingleEventEditPage() {
                   initialResources={resources}
                 />
 
-                {/* Judging Sheets */}
+                {/* Event Documents */}
                 <EventJudgingSheets
                   groupId={groupId}
                   trackWorkoutId={event.id}
@@ -920,7 +920,7 @@ function SeriesParentEventEditPage() {
           initialResources={resources}
         />
 
-        {/* Judging Sheets */}
+        {/* Event Documents */}
         <EventJudgingSheets
           groupId={groupId}
           trackWorkoutId={event.id}

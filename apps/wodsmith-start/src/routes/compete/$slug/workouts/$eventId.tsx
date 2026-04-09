@@ -755,11 +755,11 @@ function EventDetailsPage() {
           </Card>
         )}
 
-        {/* Judge Sheets Card */}
+        {/* Event Documents Card */}
         {judgingSheets && judgingSheets.length > 0 && (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Judge Sheets</CardTitle>
+              <CardTitle className="text-lg">Event Documents</CardTitle>
             </CardHeader>
             <CardContent>
               <ul className="space-y-3">

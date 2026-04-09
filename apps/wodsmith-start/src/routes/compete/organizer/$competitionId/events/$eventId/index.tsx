@@ -103,7 +103,7 @@ function EventEditPage() {
         initialResources={resources}
       />
 
-      {/* Judging Sheets */}
+      {/* Event Documents */}
       <EventJudgingSheets
         competitionId={competition.id}
         trackWorkoutId={event.id}
@@ -299,7 +299,7 @@ function ParentEventEditPage() {
         initialResources={resources}
       />
 
-      {/* Judging Sheets */}
+      {/* Event Documents */}
       <EventJudgingSheets
         competitionId={competition.id}
         trackWorkoutId={event.id}
