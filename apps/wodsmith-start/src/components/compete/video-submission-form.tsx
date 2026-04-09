@@ -305,7 +305,6 @@ export function VideoSubmissionForm({
   const handleDivisionChange = useCallback(
     async (divisionId: string) => {
       if (divisionId === selectedDivisionId) return
-      setSelectedDivisionId(divisionId)
       setIsDivisionLoading(true)
       setError(null)
       setSuccess(null)
@@ -319,6 +318,7 @@ export function VideoSubmissionForm({
           },
         })
 
+        setSelectedDivisionId(divisionId)
         // Reset all form state for the new division
         setCurrentData(result)
         const subs = result.submissions ?? []
