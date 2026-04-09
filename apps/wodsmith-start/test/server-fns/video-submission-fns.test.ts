@@ -3,6 +3,7 @@ import { FakeDrizzleDb } from "@repo/test-utils"
 import {
 	getVideoSubmissionFn,
 	submitVideoFn,
+	getBatchSubmissionStatusFn,
 	getOrganizerSubmissionsFn,
 	getOrganizerSubmissionDetailFn,
 	markSubmissionReviewedFn,
@@ -1119,6 +1120,275 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			expect(result.submissionId).toBeDefined()
 			// Verifies insert was called (for both video submission and score)
 			expect(mockDb.insert).toHaveBeenCalled()
+		})
+	})
+
+	describe("getVideoSubmissionFn — multi-division", () => {
+		it("accepts optional divisionId parameter", async () => {
+			const registration = createTestRegistration({ divisionId: "div-rx" })
+			const competition = createTestCompetition({ competitionType: "online" })
+
+			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			const orderByMock = mockDb.getChainMock().orderBy as ReturnType<typeof vi.fn>
+			limitMock
+				.mockResolvedValueOnce([registration]) // Registration found (scoped to divisionId)
+				.mockResolvedValueOnce([competition]) // Competition type check
+				.mockResolvedValueOnce([]) // No event record = allow submission
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
+				.mockResolvedValueOnce([]) // No workout details
+				.mockResolvedValueOnce([]) // No existing score
+			orderByMock.mockResolvedValueOnce([]) // No existing submission
+
+			const result = await getVideoSubmissionFn({
+				data: {
+					trackWorkoutId: "tw-1",
+					competitionId: "comp-1",
+					divisionId: "div-rx",
+				},
+			})
+
+			expect(result.isRegistered).toBe(true)
+			expect(result.canSubmit).toBe(true)
+			expect(result.teamSize).toBe(1)
+			expect(result.isCaptain).toBe(true)
+		})
+
+		it("returns teamSize from division lookup", async () => {
+			const registration = createTestRegistration({ divisionId: "div-team" })
+			const competition = createTestCompetition({ competitionType: "online" })
+
+			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			const orderByMock = mockDb.getChainMock().orderBy as ReturnType<typeof vi.fn>
+			limitMock
+				.mockResolvedValueOnce([registration])
+				.mockResolvedValueOnce([competition])
+				.mockResolvedValueOnce([]) // No event record
+				.mockResolvedValueOnce([{ teamSize: 3 }]) // Team of 3
+				.mockResolvedValueOnce([]) // No workout details
+				.mockResolvedValueOnce([]) // No existing score
+			orderByMock.mockResolvedValueOnce([]) // No existing submission
+
+			const result = await getVideoSubmissionFn({
+				data: {
+					trackWorkoutId: "tw-1",
+					competitionId: "comp-1",
+				},
+			})
+
+			expect(result.teamSize).toBe(3)
+		})
+
+		it("returns isCaptain false for non-captain team member", async () => {
+			// Non-captain: registration has a captainUserId different from session user
+			const memberRegistration = createTestRegistration({
+				userId: "test-user-123",
+				captainUserId: "captain-user",
+				athleteTeamId: "athlete-team-1",
+			})
+			const competition = createTestCompetition({ competitionType: "online" })
+
+			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			const orderByMock = mockDb.getChainMock().orderBy as ReturnType<typeof vi.fn>
+			limitMock
+				.mockResolvedValueOnce([memberRegistration]) // Member's registration
+				.mockResolvedValueOnce([{
+					...memberRegistration,
+					id: "captain-reg",
+					userId: "captain-user",
+					captainUserId: "captain-user",
+				}]) // Captain's registration lookup
+				.mockResolvedValueOnce([competition])
+				.mockResolvedValueOnce([]) // No event record
+				.mockResolvedValueOnce([{ teamSize: 2 }])
+				.mockResolvedValueOnce([]) // No workout details
+				.mockResolvedValueOnce([]) // No existing score
+			orderByMock.mockResolvedValueOnce([]) // No existing submission
+
+			const result = await getVideoSubmissionFn({
+				data: {
+					trackWorkoutId: "tw-1",
+					competitionId: "comp-1",
+				},
+			})
+
+			expect(result.isCaptain).toBe(false)
+			expect(result.canSubmit).toBe(false)
+			expect(result.reason).toBe("Only the team captain can submit videos and scores")
+		})
+
+		it("returns multiple submissions ordered by videoIndex", async () => {
+			const registration = createTestRegistration({ divisionId: "div-team" })
+			const competition = createTestCompetition({ competitionType: "online" })
+			const sub0 = createTestVideoSubmission({ id: "sub-0", videoUrl: "https://youtube.com/watch?v=0" })
+			const sub1 = createTestVideoSubmission({ id: "sub-1", videoUrl: "https://youtube.com/watch?v=1" })
+
+			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			const orderByMock = mockDb.getChainMock().orderBy as ReturnType<typeof vi.fn>
+			limitMock
+				.mockResolvedValueOnce([registration])
+				.mockResolvedValueOnce([competition])
+				.mockResolvedValueOnce([]) // No event record
+				.mockResolvedValueOnce([{ teamSize: 2 }])
+				.mockResolvedValueOnce([]) // No workout details
+				.mockResolvedValueOnce([]) // No existing score
+			orderByMock.mockResolvedValueOnce([sub0, sub1]) // Two submissions
+
+			const result = await getVideoSubmissionFn({
+				data: {
+					trackWorkoutId: "tw-1",
+					competitionId: "comp-1",
+				},
+			})
+
+			expect(result.submissions).toHaveLength(2)
+			expect(result.submissions[0]?.videoUrl).toBe(sub0.videoUrl)
+			expect(result.submissions[1]?.videoUrl).toBe(sub1.videoUrl)
+		})
+	})
+
+	describe("submitVideoFn — multi-division", () => {
+		it("throws when non-captain tries to submit", async () => {
+			const memberRegistration = createTestRegistration({
+				userId: "test-user-123",
+				captainUserId: "captain-user",
+				athleteTeamId: "athlete-team-1",
+			})
+			const competition = createTestCompetition({ competitionType: "online" })
+
+			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			limitMock
+				.mockResolvedValueOnce([memberRegistration]) // Member's registration
+				.mockResolvedValueOnce([{
+					...memberRegistration,
+					id: "captain-reg",
+					userId: "captain-user",
+					captainUserId: "captain-user",
+				}]) // Captain's registration lookup
+				.mockResolvedValueOnce([competition]) // Competition type check
+
+			await expect(
+				submitVideoFn({
+					data: {
+						trackWorkoutId: "tw-1",
+						competitionId: "comp-1",
+						videoUrl: "https://youtube.com/watch?v=test",
+					},
+				}),
+			).rejects.toThrow("Only the team captain can submit videos and scores")
+		})
+
+		it("throws when videoIndex exceeds team size", async () => {
+			const registration = createTestRegistration()
+			const competition = createTestCompetition({ competitionType: "online" })
+
+			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			limitMock
+				.mockResolvedValueOnce([registration])
+				.mockResolvedValueOnce([competition])
+				.mockResolvedValueOnce([]) // No event = allow submission
+				.mockResolvedValueOnce([{ teamSize: 2 }]) // Team of 2
+
+			await expect(
+				submitVideoFn({
+					data: {
+						trackWorkoutId: "tw-1",
+						competitionId: "comp-1",
+						videoUrl: "https://youtube.com/watch?v=test",
+						videoIndex: 5, // Exceeds team size of 2
+					},
+				}),
+			).rejects.toThrow("Video index 5 exceeds team size of 2")
+		})
+
+		it("creates submission with divisionId and videoIndex", async () => {
+			const registration = createTestRegistration({ divisionId: "div-rx" })
+			const competition = createTestCompetition({ competitionType: "online" })
+
+			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			limitMock
+				.mockResolvedValueOnce([registration])
+				.mockResolvedValueOnce([competition])
+				.mockResolvedValueOnce([]) // No event = allow submission
+				.mockResolvedValueOnce([{ teamSize: 3 }]) // Team of 3
+				.mockResolvedValueOnce([]) // No existing submission at this index
+
+			const result = await submitVideoFn({
+				data: {
+					trackWorkoutId: "tw-1",
+					competitionId: "comp-1",
+					divisionId: "div-rx",
+					videoUrl: "https://youtube.com/watch?v=test",
+					videoIndex: 1,
+				},
+			})
+
+			expect(result.success).toBe(true)
+			expect(result.isUpdate).toBe(false)
+			expect(mockDb.insert).toHaveBeenCalled()
+		})
+
+		it("allows videoIndex 0 (default) for individual athletes", async () => {
+			const registration = createTestRegistration()
+			const competition = createTestCompetition({ competitionType: "online" })
+
+			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			limitMock
+				.mockResolvedValueOnce([registration])
+				.mockResolvedValueOnce([competition])
+				.mockResolvedValueOnce([]) // No event = allow submission
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // Individual
+				.mockResolvedValueOnce([]) // No existing submission
+
+			const result = await submitVideoFn({
+				data: {
+					trackWorkoutId: "tw-1",
+					competitionId: "comp-1",
+					videoUrl: "https://youtube.com/watch?v=test",
+					videoIndex: 0,
+				},
+			})
+
+			expect(result.success).toBe(true)
+		})
+	})
+
+	describe("getBatchSubmissionStatusFn", () => {
+		it("returns empty statuses when not authenticated", async () => {
+			setMockSession(null)
+
+			const result = await getBatchSubmissionStatusFn({
+				data: {
+					competitionId: "comp-1",
+					trackWorkoutIds: ["tw-1", "tw-2"],
+				},
+			})
+
+			expect(result.statuses).toEqual({})
+		})
+
+		it("returns empty statuses when user not registered", async () => {
+			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			limitMock.mockResolvedValueOnce([]) // No registration
+
+			const result = await getBatchSubmissionStatusFn({
+				data: {
+					competitionId: "comp-1",
+					trackWorkoutIds: ["tw-1"],
+				},
+			})
+
+			expect(result.statuses).toEqual({})
+		})
+
+		it("throws on invalid input - empty competitionId", async () => {
+			await expect(
+				getBatchSubmissionStatusFn({
+					data: {
+						competitionId: "",
+						trackWorkoutIds: ["tw-1"],
+					},
+				}),
+			).rejects.toThrow()
 		})
 	})
 

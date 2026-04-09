@@ -2,8 +2,9 @@
 
 import { useServerFn } from "@tanstack/react-start"
 import { AlertCircle, CheckCircle2, ExternalLink, Loader2 } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -14,18 +15,28 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import type { ReviewStatus } from "@/db/schemas/video-submissions"
 import {
   VideoUrlInput,
   type VideoUrlValidationState,
 } from "@/components/ui/video-url-input"
+import type { ReviewStatus } from "@/db/schemas/video-submissions"
 import type { ParseResult, ScoreType, WorkoutScheme } from "@/lib/scoring"
 import { decodeScore, parseScore } from "@/lib/scoring"
 import { cn } from "@/lib/utils"
 import { getSupportedPlatformsText, parseVideoUrl } from "@/schemas/video-url"
-import { submitVideoFn } from "@/server-fns/video-submission-fns"
+import {
+  getVideoSubmissionFn,
+  submitVideoFn,
+} from "@/server-fns/video-submission-fns"
 import { isSafeUrl } from "@/utils/url"
 import { VideoSubmissionPreview } from "./video-submission-preview"
 
@@ -41,38 +52,46 @@ interface VideoSubmissionData {
   reviewerNotes: string | null
 }
 
+interface RegisteredDivision {
+  divisionId: string
+  label: string
+}
+
+interface VideoSubmissionInitialData {
+  submissions: VideoSubmissionData[]
+  teamSize: number
+  isCaptain: boolean
+  canSubmit: boolean
+  reason?: string
+  isRegistered: boolean
+  submissionWindow?: {
+    opensAt: string
+    closesAt: string
+  } | null
+  workout?: {
+    workoutId: string
+    name: string
+    scheme: WorkoutScheme
+    scoreType: ScoreType | null
+    timeCap: number | null
+    tiebreakScheme: string | null
+    repsPerRound: number | null
+  } | null
+  existingScore?: {
+    scoreValue: number | null
+    displayScore: string | null
+    status: string | null
+    secondaryValue: number | null
+    tiebreakValue: number | null
+  } | null
+}
+
 interface VideoSubmissionFormProps {
   trackWorkoutId: string
   competitionId: string
   timezone?: string | null
-  initialData?: {
-    submissions: VideoSubmissionData[]
-    teamSize: number
-    isCaptain: boolean
-    canSubmit: boolean
-    reason?: string
-    isRegistered: boolean
-    submissionWindow?: {
-      opensAt: string
-      closesAt: string
-    } | null
-    workout?: {
-      workoutId: string
-      name: string
-      scheme: WorkoutScheme
-      scoreType: ScoreType | null
-      timeCap: number | null
-      tiebreakScheme: string | null
-      repsPerRound: number | null
-    } | null
-    existingScore?: {
-      scoreValue: number | null
-      displayScore: string | null
-      status: string | null
-      secondaryValue: number | null
-      tiebreakValue: number | null
-    } | null
-  }
+  registeredDivisions?: RegisteredDivision[]
+  initialData?: VideoSubmissionInitialData
 }
 
 function formatSubmissionTime(
@@ -213,9 +232,7 @@ function createInitialSlots(
         isValid: !!existing?.videoUrl,
         isPending: false,
         error: null,
-        parsedUrl: existing?.videoUrl
-          ? parseVideoUrl(existing.videoUrl)
-          : null,
+        parsedUrl: existing?.videoUrl ? parseVideoUrl(existing.videoUrl) : null,
       },
       existingSubmission: existing,
     }
@@ -226,11 +243,25 @@ export function VideoSubmissionForm({
   trackWorkoutId,
   competitionId,
   timezone,
+  registeredDivisions,
   initialData,
 }: VideoSubmissionFormProps) {
-  const teamSize = initialData?.teamSize ?? 1
-  const isCaptain = initialData?.isCaptain ?? true
-  const existingSubmissions = initialData?.submissions ?? []
+  const hasMultipleDivisions = (registeredDivisions?.length ?? 0) > 1
+
+  // Division selection state — default to first registered division
+  const [selectedDivisionId, setSelectedDivisionId] = useState<
+    string | undefined
+  >(registeredDivisions?.[0]?.divisionId)
+
+  // Track the current data (may be swapped when switching divisions)
+  const [currentData, setCurrentData] = useState<
+    VideoSubmissionInitialData | undefined
+  >(initialData)
+  const [isDivisionLoading, setIsDivisionLoading] = useState(false)
+
+  const teamSize = currentData?.teamSize ?? 1
+  const isCaptain = currentData?.isCaptain ?? true
+  const existingSubmissions = currentData?.submissions ?? []
 
   const [videoSlots, setVideoSlots] = useState<VideoSlotState[]>(() =>
     createInitialSlots(teamSize, existingSubmissions),
@@ -246,18 +277,18 @@ export function VideoSubmissionForm({
   // Local state for submissions/score to avoid mutating props
   const [submissionsData, setSubmissionsData] =
     useState<VideoSubmissionData[]>(existingSubmissions)
-  const [scoreData, setScoreData] = useState(initialData?.existingScore ?? null)
+  const [scoreData, setScoreData] = useState(currentData?.existingScore ?? null)
 
   // Score form state
   const [scoreInput, setScoreInput] = useState(
-    initialData?.existingScore?.displayScore ?? "",
+    currentData?.existingScore?.displayScore ?? "",
   )
   const [secondaryScore, setSecondaryScore] = useState(
-    initialData?.existingScore?.secondaryValue?.toString() ?? "",
+    currentData?.existingScore?.secondaryValue?.toString() ?? "",
   )
   const [tiebreakScore, setTiebreakScore] = useState(() => {
-    const tiebreakValue = initialData?.existingScore?.tiebreakValue
-    const tiebreakScheme = initialData?.workout?.tiebreakScheme
+    const tiebreakValue = currentData?.existingScore?.tiebreakValue
+    const tiebreakScheme = currentData?.workout?.tiebreakScheme
     if (tiebreakValue === null || tiebreakValue === undefined) return ""
     if (tiebreakScheme === "time") {
       return decodeScore(tiebreakValue, "time", { compact: true })
@@ -266,8 +297,62 @@ export function VideoSubmissionForm({
   })
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const submitVideo = useServerFn(submitVideoFn)
+  const fetchSubmission = useServerFn(getVideoSubmissionFn)
 
-  const workout = initialData?.workout
+  const workout = currentData?.workout
+
+  // Handle division switch — fetch submission data for the new division
+  const handleDivisionChange = useCallback(
+    async (divisionId: string) => {
+      if (divisionId === selectedDivisionId) return
+      setIsDivisionLoading(true)
+      setError(null)
+      setSuccess(null)
+
+      try {
+        const result = await fetchSubmission({
+          data: {
+            trackWorkoutId,
+            competitionId,
+            divisionId,
+          },
+        })
+
+        setSelectedDivisionId(divisionId)
+        // Reset all form state for the new division
+        setCurrentData(result)
+        const subs = result.submissions ?? []
+        setSubmissionsData(subs)
+        setVideoSlots(createInitialSlots(result.teamSize, subs))
+        setScoreData(result.existingScore ?? null)
+        setScoreInput(result.existingScore?.displayScore ?? "")
+        setSecondaryScore(
+          result.existingScore?.secondaryValue?.toString() ?? "",
+        )
+        if (
+          result.existingScore?.tiebreakValue != null &&
+          result.workout?.tiebreakScheme
+        ) {
+          setTiebreakScore(
+            result.workout.tiebreakScheme === "time"
+              ? decodeScore(result.existingScore.tiebreakValue, "time", {
+                  compact: true,
+                })
+              : result.existingScore.tiebreakValue.toString(),
+          )
+        } else {
+          setTiebreakScore("")
+        }
+        setHasSubmitted(subs.length > 0)
+        setIsEditing(subs.length === 0)
+      } catch {
+        setError("Failed to load submission data for this division")
+      } finally {
+        setIsDivisionLoading(false)
+      }
+    },
+    [selectedDivisionId, trackWorkoutId, competitionId, fetchSubmission],
+  )
 
   // Transition to preview mode after success message displays
   useEffect(() => {
@@ -301,7 +386,7 @@ export function VideoSubmissionForm({
 
     if (
       !parseResult &&
-      initialData?.existingScore?.status === "cap" &&
+      currentData?.existingScore?.status === "cap" &&
       workout?.scheme === "time-with-cap"
     ) {
       return "cap"
@@ -317,8 +402,70 @@ export function VideoSubmissionForm({
     )
   }
 
+  const selectedDivisionLabel = registeredDivisions?.find(
+    (d) => d.divisionId === selectedDivisionId,
+  )?.label
+
+  // Division selector rendered at the top of submission forms
+  const divisionSelector = hasMultipleDivisions ? (
+    <div className="flex items-center gap-3 rounded-lg border border-orange-200 bg-orange-50 p-3 dark:border-orange-500 dark:bg-orange-950">
+      <Label
+        htmlFor="submission-division"
+        className="text-sm font-medium whitespace-nowrap text-orange-900 dark:text-orange-100"
+      >
+        Submitting for:
+      </Label>
+      <Select
+        value={selectedDivisionId}
+        onValueChange={handleDivisionChange}
+        disabled={isDivisionLoading || isSubmitting}
+      >
+        <SelectTrigger
+          id="submission-division"
+          className="h-9 font-medium bg-background text-foreground"
+        >
+          <SelectValue placeholder="Select division" />
+        </SelectTrigger>
+        <SelectContent>
+          {registeredDivisions?.map((div) => (
+            <SelectItem
+              key={div.divisionId}
+              value={div.divisionId}
+              className="cursor-pointer"
+            >
+              {div.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  ) : selectedDivisionLabel ? (
+    <div className="flex items-center gap-2">
+      <span className="text-sm text-muted-foreground">Division:</span>
+      <Badge variant="secondary">{selectedDivisionLabel}</Badge>
+    </div>
+  ) : null
+
+  // Loading overlay when switching divisions
+  if (isDivisionLoading) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Submit Your Result</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {divisionSelector}
+          <div className="flex items-center justify-center py-8 text-muted-foreground">
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            Loading submission data...
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   // If user is not registered, show message
-  if (!initialData?.isRegistered) {
+  if (!currentData?.isRegistered) {
     return (
       <Card>
         <CardHeader className="pb-3">
@@ -349,7 +496,8 @@ export function VideoSubmissionForm({
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Captain Only</AlertTitle>
             <AlertDescription>
-              Only your team captain can submit videos and scores for this event.
+              Only your team captain can submit videos and scores for this
+              event.
             </AlertDescription>
           </Alert>
           {scoreData?.displayScore && (
@@ -376,9 +524,7 @@ export function VideoSubmissionForm({
                     className="flex items-center gap-2 text-sm text-primary hover:underline"
                   >
                     <ExternalLink className="h-4 w-4" />
-                    {teamSize > 1
-                      ? `${videoSlotLabel(sub.videoIndex)}: `
-                      : ""}
+                    {teamSize > 1 ? `${videoSlotLabel(sub.videoIndex)}: ` : ""}
                     {sub.videoUrl}
                   </a>
                 </div>
@@ -391,31 +537,32 @@ export function VideoSubmissionForm({
   }
 
   // If submission window is not open, show status
-  if (!initialData?.canSubmit && initialData?.reason) {
+  if (!currentData?.canSubmit && currentData?.reason) {
     return (
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">Submit Your Result</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {divisionSelector}
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Submission Closed</AlertTitle>
-            <AlertDescription>{initialData.reason}</AlertDescription>
+            <AlertDescription>{currentData.reason}</AlertDescription>
           </Alert>
-          {initialData?.submissionWindow && (
+          {currentData?.submissionWindow && (
             <div className="text-sm text-muted-foreground space-y-1">
               <p>
                 <strong>Opens:</strong>{" "}
                 {formatSubmissionTime(
-                  initialData.submissionWindow.opensAt,
+                  currentData.submissionWindow.opensAt,
                   timezone,
                 )}
               </p>
               <p>
                 <strong>Closes:</strong>{" "}
                 {formatSubmissionTime(
-                  initialData.submissionWindow.closesAt,
+                  currentData.submissionWindow.closesAt,
                   timezone,
                 )}
               </p>
@@ -516,6 +663,7 @@ export function VideoSubmissionForm({
           data: {
             trackWorkoutId,
             competitionId,
+            divisionId: selectedDivisionId,
             videoUrl: slot.url.trim(),
             notes: slot.notes.trim() || undefined,
             videoIndex: index,
@@ -608,26 +756,29 @@ export function VideoSubmissionForm({
   // Show preview when there are submissions and we're not editing
   if (hasSubmitted && submissionsData.length > 0 && !isEditing) {
     return (
-      <VideoSubmissionPreview
-        submissions={submissionsData}
-        teamSize={teamSize}
-        score={scoreData}
-        workout={
-          workout
-            ? {
-                name: workout.name,
-                scheme: workout.scheme,
-                scoreType: workout.scoreType,
-                timeCap: workout.timeCap,
-                tiebreakScheme: workout.tiebreakScheme,
-              }
-            : undefined
-        }
-        canEdit={initialData.canSubmit}
-        editReason={initialData.reason}
-        timezone={timezone}
-        onEdit={() => setIsEditing(true)}
-      />
+      <div className="space-y-3">
+        {divisionSelector}
+        <VideoSubmissionPreview
+          submissions={submissionsData}
+          teamSize={teamSize}
+          score={scoreData}
+          workout={
+            workout
+              ? {
+                  name: workout.name,
+                  scheme: workout.scheme,
+                  scoreType: workout.scoreType,
+                  timeCap: workout.timeCap,
+                  tiebreakScheme: workout.tiebreakScheme,
+                }
+              : undefined
+          }
+          canEdit={currentData.canSubmit}
+          editReason={currentData.reason}
+          timezone={timezone}
+          onEdit={() => setIsEditing(true)}
+        />
+      </div>
     )
   }
 
@@ -665,6 +816,9 @@ export function VideoSubmissionForm({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Division Selector */}
+          {divisionSelector}
+
           {/* Score Section */}
           {workout && (
             <>
@@ -764,7 +918,7 @@ export function VideoSubmissionForm({
             <div key={index} className="space-y-2">
               <Label htmlFor={`videoUrl-${index}`}>
                 {teamSize > 1
-                  ? `${videoSlotLabel(index)}'s Video (optional)`
+                  ? `${videoSlotLabel(index)}'s Video`
                   : "Video URL"}
               </Label>
               <VideoUrlInput
@@ -789,7 +943,7 @@ export function VideoSubmissionForm({
               {/* Per-slot notes */}
               {teamSize > 1 && (
                 <Textarea
-                  placeholder={`Notes for ${videoSlotLabel(index).toLowerCase()}'s video (optional)`}
+                  placeholder={`Notes for ${videoSlotLabel(index).toLowerCase()}'s video`}
                   value={slot.notes}
                   onChange={(e) => updateSlot(index, { notes: e.target.value })}
                   rows={1}
@@ -833,7 +987,7 @@ export function VideoSubmissionForm({
           )}
 
           {/* Submit Button */}
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
+          <Button type="submit" className="w-full bg-orange-500 text-white hover:bg-orange-600" disabled={isSubmitting}>
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
