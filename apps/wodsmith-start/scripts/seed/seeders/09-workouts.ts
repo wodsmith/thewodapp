@@ -106,6 +106,8 @@ export async function seed(client: Connection): Promise<void> {
 		wod("wod_online_couplet_parent", "Online Qualifier Event 4 - Couplet Challenge", "Two-part test: a sprint workout followed by a max lift. Sub-events scored independently.", "time", "private", BOX1_TEAM, 1, null, null, null),
 		wod("wod_online_couplet_sprint", "Sprint WOD", "For time:\n\n3 rounds:\n• 10 Power Cleans (135/95 lb)\n• 20 Box Jumps (24/20 in)\n\nTime cap: 8 minutes", "time-with-cap", "private", BOX1_TEAM, 1, null, 480, "min"),
 		wod("wod_online_couplet_max_clean", "Max Clean", "For max load:\n\n1 Rep Max Clean\n• 3 attempts, 90 seconds between attempts\n\nScore is heaviest successful lift.", "load", "private", BOX1_TEAM, 1, null, null, "max"),
+		// Online Qualifier Event 5 — multi-round scoring (rounds_to_score = 3)
+		wod("wod_online_triple_amrap", "Online Qualifier Event 5 - Triple AMRAP", "3 rounds, each scored individually:\n\nRound 1: 3 min AMRAP of 10 Thrusters (95/65 lb) + 10 Toes-to-Bar\nRound 2: 3 min AMRAP of 10 Power Cleans (135/95 lb) + 10 Bar-Facing Burpees\nRound 3: 3 min AMRAP of 10 Shoulder-to-Overhead (135/95 lb) + 10 Chest-to-Bar Pull-ups\n\n1 min rest between rounds. Score each round separately.", "rounds-reps", "private", BOX1_TEAM, 3, null, 660, "max"),
 	])
 
 	// Workout tags
