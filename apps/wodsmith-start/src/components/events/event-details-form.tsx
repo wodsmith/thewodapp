@@ -129,6 +129,7 @@ interface CompetitionWorkout {
   trackId: string
   workoutId: string
   trackOrder: number
+  parentEventId: string | null
   notes: string | null
   pointsMultiplier: number | null
   sponsorId: string | null
@@ -174,14 +175,18 @@ export function EventDetailsForm({
   const router = useRouter()
   const navigate = useNavigate()
 
-  // Filter divisions to only those mapped to this event (if mappings exist)
+  // Filter divisions to only those mapped to this event (if mappings exist).
+  // Sub-events inherit their parent's mappings.
   const variationDivisions = (() => {
     if (!eventDivisionMappings?.hasMappings) return divisions
+    const lookupId = event.parentEventId ?? event.id
     const mappedDivisionIds = new Set(
       eventDivisionMappings.mappings
-        .filter((m) => m.trackWorkoutId === event.id)
+        .filter((m) => m.trackWorkoutId === lookupId)
         .map((m) => m.divisionId),
     )
+    // If this event (or its parent) has no explicit mappings, show all divisions
+    if (mappedDivisionIds.size === 0) return divisions
     return divisions.filter((d) => mappedDivisionIds.has(d.id))
   })()
 

@@ -25,6 +25,7 @@ function createTestEvent(scheme: WorkoutScheme, tiebreakScheme?: string) {
 		trackId: "track-1",
 		workoutId: "workout-1",
 		trackOrder: 1,
+		parentEventId: null,
 		notes: null,
 		pointsMultiplier: 100,
 		sponsorId: null,
