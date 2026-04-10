@@ -136,6 +136,12 @@ Athletes can submit video evidence of their workout performance for remote judgi
 
 Submissions link to a score and include a video URL (e.g., Vimeo). Judges can verify or reject submissions. Community voting is supported via `videoVotesTable`.
 
+### Supported Video Platforms
+
+YouTube, Vimeo, and WodProof URLs are validated and parsed by [[apps/wodsmith-start/src/schemas/video-url.ts#parseVideoUrl]].
+
+YouTube and Vimeo use iframe embeds. WodProof cloud URLs (`wodproofapp.com/cloud/?v=ID`) are resolved to direct S3 MP4 URLs via [[apps/wodsmith-start/src/schemas/video-url.ts#getWodProofVideoUrl]] and rendered with a native `<video>` element in both the athlete-facing [[apps/wodsmith-start/src/components/video-embed.tsx#VideoEmbed]] and the interactive [[apps/wodsmith-start/src/components/compete/video-player-embed.tsx#VideoPlayerEmbed]] components.
+
 ### Multi-Division Submission
 
 Athletes registered in multiple divisions see a division picker on the submission form. Single-division athletes see a static badge.
