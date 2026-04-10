@@ -18,6 +18,7 @@ import { getUserCompetitionRegistrationsFn } from "@/server-fns/competition-deta
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
+import { hasJudgesScheduleFn } from "@/server-fns/judge-scheduling-fns"
 import { getTeamContactEmailFn } from "@/server-fns/team-fns"
 import {
   DEFAULT_TIMEZONE,
@@ -86,6 +87,7 @@ export const Route = createFileRoute("/compete/$slug")({
       sponsorsResult,
       organizerContactEmail,
       userRegsResult,
+      judgesScheduleResult,
     ] = await Promise.all([
       getPublicCompetitionDivisionsFn({
         data: { competitionId: competition.id },
@@ -104,6 +106,9 @@ export const Route = createFileRoute("/compete/$slug")({
             },
           })
         : Promise.resolve({ registrations: [] }),
+      hasJudgesScheduleFn({
+        data: { competitionId: competition.id },
+      }),
     ])
 
     const divisions = divisionsResult.divisions
@@ -147,6 +152,7 @@ export const Route = createFileRoute("/compete/$slug")({
       userDivisions,
       maxSpots: undefined as number | undefined,
       organizerContactEmail,
+      hasJudgesSchedule: judgesScheduleResult.hasSchedule,
     }
   },
   head: ({ loaderData }) => {
@@ -187,8 +193,13 @@ export const Route = createFileRoute("/compete/$slug")({
 
 function CompetitionDetailLayout() {
   const loaderData = Route.useLoaderData()
-  const { competition, canManage, isVolunteer, registrationStatus } =
-    loaderData
+  const {
+    competition,
+    canManage,
+    isVolunteer,
+    registrationStatus,
+    hasJudgesSchedule,
+  } = loaderData
   const { coupon: couponCode } = Route.useSearch()
   const navigate = useNavigate()
 
@@ -314,6 +325,7 @@ function CompetitionDetailLayout() {
           competition={competition}
           canManage={canManage}
           isVolunteer={isVolunteer}
+          hasJudgesSchedule={hasJudgesSchedule}
         />
       </div>
 

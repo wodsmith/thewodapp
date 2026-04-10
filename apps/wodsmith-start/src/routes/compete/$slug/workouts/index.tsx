@@ -8,6 +8,7 @@ import { Dumbbell, Filter } from "lucide-react"
 import { z } from "zod"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import {
+  type ChildEvent,
   CompetitionWorkoutCard,
   type SubmissionStatus,
 } from "@/components/competition-workout-card"
@@ -260,7 +261,7 @@ function CompetitionWorkoutsPage() {
               <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                 Workouts
                 <span className="inline-flex items-center justify-center rounded-full bg-muted px-2.5 py-0.5 text-sm font-medium text-muted-foreground">
-                  {workouts.length}
+                  {workouts.filter((w) => !w.parentEventId).length}
                 </span>
               </h2>
               <p className="text-sm text-muted-foreground hidden sm:block">
@@ -371,14 +372,45 @@ function WorkoutsList({
   // Show only top-level events (standalone + parents). Sub-events are shown on the parent's detail page.
   let topLevelWorkouts = workouts.filter((w) => !w.parentEventId)
 
-  // Filter by event-division mappings when they exist
+  // Filter by event-division mappings: only hide events explicitly mapped to other divisions.
+  // Events with no mappings remain visible to all divisions.
   if (eventDivisionMappings.hasMappings && selectedDivisionId) {
-    const mappedEventIds = new Set(
+    const eventsWithMappings = new Set(
+      eventDivisionMappings.mappings.map((m) => m.trackWorkoutId),
+    )
+    const mappedToSelectedDiv = new Set(
       eventDivisionMappings.mappings
         .filter((m) => m.divisionId === selectedDivisionId)
         .map((m) => m.trackWorkoutId),
     )
-    topLevelWorkouts = topLevelWorkouts.filter((w) => mappedEventIds.has(w.id))
+    topLevelWorkouts = topLevelWorkouts.filter(
+      (w) => !eventsWithMappings.has(w.id) || mappedToSelectedDiv.has(w.id),
+    )
+  }
+
+  // Build a map of parent -> child events
+  const childEventsMap = new Map<string, ChildEvent[]>()
+  for (const w of workouts) {
+    if (w.parentEventId) {
+      const children = childEventsMap.get(w.parentEventId) ?? []
+      children.push({
+        id: w.id,
+        workoutId: w.workoutId,
+        workout: {
+          name: w.workout.name,
+          description: w.workout.description,
+          scheme: w.workout.scheme,
+          timeCap: w.workout.timeCap,
+        },
+        pointsMultiplier: w.pointsMultiplier,
+        trackOrder: w.trackOrder,
+      })
+      childEventsMap.set(w.parentEventId, children)
+    }
+  }
+  // Sort children by trackOrder
+  for (const children of childEventsMap.values()) {
+    children.sort((a, b) => a.trackOrder - b.trackOrder)
   }
 
   return (
@@ -408,6 +440,8 @@ function WorkoutsList({
             timeCap={event.workout.timeCap}
             venue={venueMap?.[event.id]}
             schedule={scheduleMap?.get(event.id) ?? null}
+            childEvents={childEventsMap.get(event.id)}
+            childDivisionDescriptionsMap={divisionDescriptionsMap}
           />
         )
       })}

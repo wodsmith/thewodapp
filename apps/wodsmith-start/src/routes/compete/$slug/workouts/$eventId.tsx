@@ -186,15 +186,28 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
     }
 
     // Determine if athlete's division is mapped to this event
-    // When no mappings exist, event is available to all divisions (backwards compatible)
+    // Events with no mappings are visible to all divisions.
+    // Only events with explicit mappings are filtered by division.
     const athleteDivisionId = athleteDivisionResult.divisionId
     const eventMappings = eventDivisionMappingResult
     let isEventMappedToAthleteDivision = true
     if (eventMappings.hasMappings && athleteDivisionId) {
-      isEventMappedToAthleteDivision = eventMappings.mappings.some(
+      const parentId = eventResult.event.parentEventId
+      // Check if this event (or parent) has ANY mappings at all
+      const eventHasMappings = eventMappings.mappings.some(
         (m) =>
-          m.trackWorkoutId === eventId && m.divisionId === athleteDivisionId,
+          m.trackWorkoutId === eventId ||
+          (parentId && m.trackWorkoutId === parentId),
       )
+      // Only filter if this event has explicit mappings
+      if (eventHasMappings) {
+        isEventMappedToAthleteDivision = eventMappings.mappings.some(
+          (m) =>
+            m.divisionId === athleteDivisionId &&
+            (m.trackWorkoutId === eventId ||
+              (parentId && m.trackWorkoutId === parentId)),
+        )
+      }
     }
 
     return {
@@ -214,6 +227,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       childDivisionDescriptions,
       parentEvent,
       isEventMappedToAthleteDivision,
+      eventDivisionMappings: eventMappings,
     }
   },
 })
@@ -275,8 +289,9 @@ function EventDetailsPage() {
     childDivisionDescriptions,
     parentEvent,
     isEventMappedToAthleteDivision,
+    eventDivisionMappings,
   } = Route.useLoaderData()
-  const { slug } = Route.useParams()
+  const { slug, eventId } = Route.useParams()
   const search = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
 
@@ -284,15 +299,35 @@ function EventDetailsPage() {
   const formattedTimeCap = workout.timeCap ? formatTime(workout.timeCap) : null
   const schemeLabel = getSchemeLabel(workout.scheme, workout.timeCap)
 
+  // Filter divisions by event-division mappings (if configured)
+  const filteredDivisions =
+    eventDivisionMappings.hasMappings && divisions
+      ? (() => {
+          const parentId = event.parentEventId
+          const mappedDivisionIds = new Set(
+            eventDivisionMappings.mappings
+              .filter(
+                (m) =>
+                  m.trackWorkoutId === eventId ||
+                  (parentId && m.trackWorkoutId === parentId),
+              )
+              .map((m) => m.divisionId),
+          )
+          return divisions.filter((d) => mappedDivisionIds.has(d.id))
+        })()
+      : divisions
+
   // Sort division descriptions by position
   const sortedDivisions = [...divisionDescriptions].sort(
     (a, b) => a.position - b.position,
   )
 
-  // Default to athlete's registered division, otherwise first division
+  // Default to athlete's registered division, otherwise first filtered division
   const defaultDivisionId =
     athleteRegisteredDivisionId ||
-    (divisions && divisions.length > 0 ? divisions[0].id : undefined)
+    (filteredDivisions && filteredDivisions.length > 0
+      ? filteredDivisions[0].id
+      : undefined)
   const selectedDivisionId = search.division || defaultDivisionId
 
   // Get the selected division's scale info (separate from base description)
@@ -355,7 +390,7 @@ function EventDetailsPage() {
                 )}
               </div>
 
-              {divisions && divisions.length > 0 && (
+              {filteredDivisions && filteredDivisions.length > 0 && (
                 <div className="flex items-center gap-2">
                   <Filter className="h-4 w-4 text-muted-foreground hidden sm:block" />
                   <Select
@@ -366,7 +401,7 @@ function EventDetailsPage() {
                       <SelectValue placeholder="Select Division" />
                     </SelectTrigger>
                     <SelectContent>
-                      {divisions.map((division) => (
+                      {filteredDivisions.map((division) => (
                         <SelectItem
                           key={division.id}
                           value={division.id}
@@ -384,9 +419,11 @@ function EventDetailsPage() {
             {/* Event Description */}
             <div className="space-y-4">
               {/* Base workout description */}
-              <div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
-                {workout.description || "Details coming soon."}
-              </div>
+              {workout.description && (
+                <div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
+                  {workout.description}
+                </div>
+              )}
 
               {/* Division-specific scale info */}
               {divisionScale && (
@@ -439,9 +476,11 @@ function EventDetailsPage() {
                             </span>
                           )}
                       </div>
-                      <div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
-                        {child.workout.description || "Details coming soon."}
-                      </div>
+                      {child.workout.description && (
+                        <div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
+                          {child.workout.description}
+                        </div>
+                      )}
                       {childScale && (
                         <div className="flex items-start gap-2 mt-1">
                           <Badge
@@ -662,12 +701,12 @@ function EventDetailsPage() {
         )}
 
         {/* Venue Card */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Venue</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {venue?.address && hasAddressData(venue.address) ? (
+        {venue?.address && hasAddressData(venue.address) && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Venue</CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="space-y-3">
                 <div className="flex items-start gap-3">
                   <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
@@ -713,16 +752,9 @@ function EventDetailsPage() {
                   </a>
                 </Button>
               </div>
-            ) : (
-              <div className="flex items-start gap-3">
-                <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                <p className="text-sm text-muted-foreground">
-                  Venue to be announced
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Event Resources Card */}
         {resources && resources.length > 0 && (
