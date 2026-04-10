@@ -417,18 +417,25 @@ async function ensureCompetitionOwnedScalingGroup({
       }
 
       // Create default divisions
-      await createScalingLevel({
+      const openLevel = await createScalingLevel({
         scalingGroupId: newGroup.id,
         label: "Open",
         position: 0,
         tx,
       })
-      await createScalingLevel({
+      const scaledLevel = await createScalingLevel({
         scalingGroupId: newGroup.id,
         label: "Scaled",
         position: 1,
         tx,
       })
+
+      // Create competition_divisions rows
+      const defaultFee = competition.defaultRegistrationFeeCents ?? 0
+      await tx.insert(competitionDivisionsTable).values([
+        { competitionId, divisionId: openLevel.id, feeCents: defaultFee },
+        { competitionId, divisionId: scaledLevel.id, feeCents: defaultFee },
+      ])
 
       // Update competition settings
       const newSettings = stringifyCompetitionSettings({
@@ -482,14 +489,28 @@ async function ensureCompetitionOwnedScalingGroup({
     }
 
     // Clone levels
+    const clonedLevels: Array<{ id: string }> = []
     for (const level of templateLevels) {
-      await createScalingLevel({
+      const created = await createScalingLevel({
         scalingGroupId: newGroup.id,
         label: level.label,
         position: level.position,
         teamSize: level.teamSize,
         tx,
       })
+      clonedLevels.push(created)
+    }
+
+    // Create competition_divisions rows for cloned levels
+    const defaultFee = competition.defaultRegistrationFeeCents ?? 0
+    if (clonedLevels.length > 0) {
+      await tx.insert(competitionDivisionsTable).values(
+        clonedLevels.map((l) => ({
+          competitionId,
+          divisionId: l.id,
+          feeCents: defaultFee,
+        })),
+      )
     }
 
     // Update competition settings
@@ -942,6 +963,8 @@ export const initializeCompetitionDivisionsFn = createServerFn({
         throw new Error("Failed to create scaling group")
       }
 
+      const createdLevels: Array<{ id: string }> = []
+
       if (data.templateGroupId) {
         // Clone levels from template, optionally filtering to selected subset
         const levelsToClone = data.templateDivisionIds
@@ -951,28 +974,42 @@ export const initializeCompetitionDivisionsFn = createServerFn({
           : templateLevels
         for (let i = 0; i < levelsToClone.length; i++) {
           const level = levelsToClone[i]
-          await createScalingLevel({
+          const created = await createScalingLevel({
             scalingGroupId: newGroup.id,
             label: level.label,
             position: i,
             teamSize: level.teamSize,
             tx,
           })
+          createdLevels.push(created)
         }
       } else {
         // Create default divisions
-        await createScalingLevel({
+        const openLevel = await createScalingLevel({
           scalingGroupId: newGroup.id,
           label: "Open",
           position: 0,
           tx,
         })
-        await createScalingLevel({
+        const scaledLevel = await createScalingLevel({
           scalingGroupId: newGroup.id,
           label: "Scaled",
           position: 1,
           tx,
         })
+        createdLevels.push(openLevel, scaledLevel)
+      }
+
+      // Create competition_divisions rows
+      const defaultFee = competition.defaultRegistrationFeeCents ?? 0
+      if (createdLevels.length > 0) {
+        await tx.insert(competitionDivisionsTable).values(
+          createdLevels.map((l) => ({
+            competitionId: data.competitionId,
+            divisionId: l.id,
+            feeCents: defaultFee,
+          })),
+        )
       }
 
       // Update competition settings with new scaling group
@@ -1018,10 +1055,24 @@ export const addCompetitionDivisionFn = createServerFn({ method: "POST" })
       teamId: data.teamId,
     })
 
+    const db = getDb()
     const level = await createScalingLevel({
       scalingGroupId,
       label: data.label,
       teamSize: data.teamSize,
+    })
+
+    // Create competition_divisions row for the new division
+    const [competition] = await db
+      .select({ defaultRegistrationFeeCents: competitionsTable.defaultRegistrationFeeCents })
+      .from(competitionsTable)
+      .where(eq(competitionsTable.id, data.competitionId))
+    const defaultFee = competition?.defaultRegistrationFeeCents ?? 0
+
+    await db.insert(competitionDivisionsTable).values({
+      competitionId: data.competitionId,
+      divisionId: level.id,
+      feeCents: defaultFee,
     })
 
     return { divisionId: level.id }
@@ -1759,6 +1810,24 @@ async function switchCompetitionScalingGroupCore({
         await tx
           .delete(competitionDivisionsTable)
           .where(eq(competitionDivisionsTable.id, oldConfig.id))
+      }
+    }
+
+    // Ensure all new levels have competition_divisions rows
+    const defaultFee = competition.defaultRegistrationFeeCents ?? 0
+    for (const level of newLevels) {
+      const existing = await tx.query.competitionDivisionsTable.findFirst({
+        where: and(
+          eq(competitionDivisionsTable.competitionId, competitionId),
+          eq(competitionDivisionsTable.divisionId, level.id),
+        ),
+      })
+      if (!existing) {
+        await tx.insert(competitionDivisionsTable).values({
+          competitionId,
+          divisionId: level.id,
+          feeCents: defaultFee,
+        })
       }
     }
 
