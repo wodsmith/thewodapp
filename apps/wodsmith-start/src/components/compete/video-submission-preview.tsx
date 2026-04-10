@@ -109,12 +109,10 @@ function getSchemeLabel(scheme: WorkoutScheme): string {
 
 function VideoPreviewItem({
   submission,
-  workout,
   timezone,
   label,
 }: {
   submission: SubmissionData
-  workout?: VideoSubmissionPreviewProps["workout"]
   timezone?: string | null
   label?: string
 }) {
@@ -221,7 +219,6 @@ export function VideoSubmissionPreview({
           <VideoPreviewItem
             key={submission.id}
             submission={submission}
-            workout={workout}
             timezone={timezone}
             label={
               isTeam
