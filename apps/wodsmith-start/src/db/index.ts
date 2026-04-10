@@ -50,6 +50,7 @@ export const getDb = createServerOnlyFn((): Database => {
   // but mysql2 doesn't recognize it (uses `ssl` object instead) and warns/hangs.
   const url = new URL(connectionString)
   url.searchParams.delete("ssl-mode")
+  url.searchParams.delete("sslmode")
 
   const connection = mysql.createConnection({
     uri: url.toString(),
