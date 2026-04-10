@@ -512,7 +512,7 @@ describe("VideoSubmissionPreview", () => {
 	})
 
 	describe("team display", () => {
-		it("shows Captain and Teammate labels for team submissions", () => {
+		it("shows Partner labels for team submissions", () => {
 			render(
 				<VideoSubmissionPreview
 					submissions={[
@@ -528,8 +528,8 @@ describe("VideoSubmissionPreview", () => {
 				/>,
 			)
 
-			expect(screen.getByText("Captain")).toBeTruthy()
-			expect(screen.getByText("Teammate 2")).toBeTruthy()
+			expect(screen.getByText("Partner 1")).toBeTruthy()
+			expect(screen.getByText("Partner 2")).toBeTruthy()
 		})
 
 		it("shows team submission count in description", () => {
@@ -600,7 +600,7 @@ describe("VideoSubmissionPreview", () => {
 				/>,
 			)
 
-			expect(screen.queryByText("Captain")).toBeNull()
+			expect(screen.queryByText("Partner 1")).toBeNull()
 		})
 	})
 })

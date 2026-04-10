@@ -76,6 +76,7 @@ interface VideoSubmissionInitialData {
     timeCap: number | null
     tiebreakScheme: string | null
     repsPerRound: number | null
+    roundsToScore: number | null
   } | null
   existingScore?: {
     scoreValue: number | null
@@ -83,6 +84,11 @@ interface VideoSubmissionInitialData {
     status: string | null
     secondaryValue: number | null
     tiebreakValue: number | null
+    roundScores?: Array<{
+      roundNumber: number
+      value: number
+      displayScore: string | null
+    }>
   } | null
 }
 
@@ -213,9 +219,9 @@ interface VideoSlotState {
   existingSubmission: VideoSubmissionData | null
 }
 
-/** Returns a human-readable label for a video slot based on index */
+/** Returns a human-readable label for a video slot based on partner index */
 function videoSlotLabel(index: number): string {
-  return index === 0 ? "Captain" : `Teammate ${index + 1}`
+  return `Partner ${index + 1}`
 }
 
 function createInitialSlots(
@@ -295,11 +301,23 @@ export function VideoSubmissionForm({
     }
     return tiebreakValue.toString()
   })
+  // Per-round score inputs for multi-round workouts
+  const [roundScoreInputs, setRoundScoreInputs] = useState<string[]>(() => {
+    const roundsToScore = currentData?.workout?.roundsToScore ?? 1
+    if (roundsToScore <= 1) return []
+    const existingRounds = currentData?.existingScore?.roundScores ?? []
+    return Array.from({ length: roundsToScore }, (_, i) => {
+      const existing = existingRounds.find((r) => r.roundNumber === i + 1)
+      return existing?.displayScore ?? ""
+    })
+  })
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const submitVideo = useServerFn(submitVideoFn)
   const fetchSubmission = useServerFn(getVideoSubmissionFn)
 
   const workout = currentData?.workout
+  const roundsToScore = workout?.roundsToScore ?? 1
+  const isMultiRound = roundsToScore > 1
 
   // Handle division switch — fetch submission data for the new division
   const handleDivisionChange = useCallback(
@@ -343,6 +361,21 @@ export function VideoSubmissionForm({
         } else {
           setTiebreakScore("")
         }
+        // Reset round score inputs for the new division's workout
+        const newRoundsToScore = result.workout?.roundsToScore ?? 1
+        if (newRoundsToScore > 1) {
+          const existingRounds = result.existingScore?.roundScores ?? []
+          setRoundScoreInputs(
+            Array.from({ length: newRoundsToScore }, (_, i) => {
+              const existing = existingRounds.find(
+                (r) => r.roundNumber === i + 1,
+              )
+              return existing?.displayScore ?? ""
+            }),
+          )
+        } else {
+          setRoundScoreInputs([])
+        }
         setHasSubmitted(subs.length > 0)
         setIsEditing(subs.length === 0)
       } catch {
@@ -367,8 +400,17 @@ export function VideoSubmissionForm({
   }, [success])
 
   // Derived state — parseResult is a pure function of scoreInput + scheme
+  // For multi-round, parse each round independently
+  const roundParseResults: (ParseResult | null)[] = isMultiRound && workout
+    ? roundScoreInputs.map((input) =>
+        input.trim() ? parseScore(input, workout.scheme) : null,
+      )
+    : []
+
   const parseResult: ParseResult | null =
-    workout && scoreInput.trim() ? parseScore(scoreInput, workout.scheme) : null
+    !isMultiRound && workout && scoreInput.trim()
+      ? parseScore(scoreInput, workout.scheme)
+      : null
 
   // Derive status from whether time meets or exceeds time cap
   const scoreStatus: "scored" | "cap" = (() => {
@@ -615,6 +657,20 @@ export function VideoSubmissionForm({
     setError(null)
     setSuccess(null)
 
+    // For teams, require ALL video links; for individuals, require at least one
+    if (teamSize > 1) {
+      const missingSlots = videoSlots
+        .map((slot, index) => ({ slot, index }))
+        .filter(({ slot }) => !slot.url.trim())
+      if (missingSlots.length > 0) {
+        const labels = missingSlots
+          .map(({ index }) => videoSlotLabel(index))
+          .join(", ")
+        setError(`Missing video links for: ${labels}`)
+        return
+      }
+    }
+
     // Find slots that have a video URL to submit
     const slotsToSubmit = videoSlots
       .map((slot, index) => ({ slot, index }))
@@ -636,8 +692,28 @@ export function VideoSubmissionForm({
       }
     }
 
-    // Validate score — reuse derived parseResult
-    if (scoreInput.trim() && workout) {
+    // Validate score — multi-round or single
+    if (isMultiRound && workout) {
+      const filledRounds = roundScoreInputs.filter((s) => s.trim())
+      if (filledRounds.length > 0 && filledRounds.length < roundsToScore) {
+        setError(
+          `Please enter scores for all ${roundsToScore} rounds, or leave them all empty`,
+        )
+        return
+      }
+      for (let i = 0; i < roundScoreInputs.length; i++) {
+        const input = roundScoreInputs[i]
+        if (input.trim()) {
+          const result = parseScore(input, workout.scheme)
+          if (!result.isValid) {
+            setError(
+              `Round ${i + 1}: ${result.error || "Please check your score entry"}`,
+            )
+            return
+          }
+        }
+      }
+    } else if (scoreInput.trim() && workout) {
       if (!parseResult?.isValid) {
         setError(
           `Invalid score: ${parseResult?.error || "Please check your score entry"}`,
@@ -657,6 +733,13 @@ export function VideoSubmissionForm({
         videoIndex: number
       }> = []
 
+      // Build round scores array for multi-round workouts
+      const roundScoresPayload = isMultiRound
+        ? roundScoreInputs
+            .filter((s) => s.trim())
+            .map((s) => ({ score: s.trim() }))
+        : undefined
+
       for (const { slot, index } of slotsToSubmit) {
         const isFirstSlot = index === slotsToSubmit[0].index
         const result = await submitVideo({
@@ -668,16 +751,24 @@ export function VideoSubmissionForm({
             notes: slot.notes.trim() || undefined,
             videoIndex: index,
             // Only send score with the first video slot
-            score: isFirstSlot ? scoreInput.trim() || undefined : undefined,
+            score: isFirstSlot && !isMultiRound
+              ? scoreInput.trim() || undefined
+              : undefined,
             scoreStatus:
-              isFirstSlot && scoreInput.trim() ? scoreStatus : undefined,
+              isFirstSlot && !isMultiRound && scoreInput.trim()
+                ? scoreStatus
+                : undefined,
             secondaryScore:
-              isFirstSlot && scoreStatus === "cap"
+              isFirstSlot && !isMultiRound && scoreStatus === "cap"
                 ? secondaryScore.trim() || undefined
                 : undefined,
             tiebreakScore: isFirstSlot
               ? tiebreakScore.trim() || undefined
               : undefined,
+            roundScores:
+              isFirstSlot && roundScoresPayload?.length
+                ? roundScoresPayload
+                : undefined,
           },
         })
         results.push({ ...result, videoIndex: index })
@@ -731,7 +822,26 @@ export function VideoSubmissionForm({
         }
         setSubmissionsData(newSubmissions)
 
-        if (scoreInput.trim() && workout && parseResult) {
+        if (isMultiRound && roundScoresPayload?.length && workout) {
+          // For multi-round, we don't compute the aggregate client-side —
+          // just store the round display values for preview
+          setScoreData({
+            scoreValue: null,
+            displayScore: roundScoreInputs.filter((s) => s.trim()).join(" + "),
+            status: "scored",
+            secondaryValue: null,
+            tiebreakValue: tiebreakScore
+              ? parseTiebreakValue(tiebreakScore, workout.tiebreakScheme)
+              : null,
+            roundScores: roundScoreInputs
+              .filter((s) => s.trim())
+              .map((s, i) => ({
+                roundNumber: i + 1,
+                value: 0,
+                displayScore: s.trim(),
+              })),
+          })
+        } else if (scoreInput.trim() && workout && parseResult) {
           setScoreData({
             scoreValue: parseResult.encoded,
             displayScore: parseResult.formatted ?? scoreInput,
@@ -798,7 +908,7 @@ export function VideoSubmissionForm({
               {hasSubmitted
                 ? "Update your submission below"
                 : teamSize > 1
-                  ? `Submit your team's score and up to ${teamSize} videos`
+                  ? `Submit your team's score and ${teamSize} partner videos`
                   : "Submit your score and video for this event"}
             </CardDescription>
           </div>
@@ -822,49 +932,104 @@ export function VideoSubmissionForm({
           {/* Score Section */}
           {workout && (
             <>
-              <div className="space-y-2">
-                <Label htmlFor="score-input">
-                  {teamSize > 1 ? "Team " : "Your "}
-                  {getSchemeLabel(workout.scheme)}
-                </Label>
-                <Input
-                  id="score-input"
-                  value={scoreInput}
-                  onChange={(e) => setScoreInput(e.target.value)}
-                  placeholder={getPlaceholder(workout.scheme)}
-                  className={cn(
-                    "font-mono",
-                    parseResult?.error &&
-                      !parseResult?.isValid &&
-                      "border-destructive",
+              {isMultiRound ? (
+                /* Per-round score inputs for multi-round workouts */
+                <div className="space-y-3">
+                  <Label>
+                    {getSchemeLabel(workout.scheme)} per Round
+                  </Label>
+                  {roundScoreInputs.map((input, i) => {
+                    const roundResult = roundParseResults[i]
+                    return (
+                      <div key={i} className="space-y-1">
+                        <Label
+                          htmlFor={`round-score-${i}`}
+                          className="text-sm font-normal text-muted-foreground"
+                        >
+                          Round {i + 1}
+                        </Label>
+                        <Input
+                          id={`round-score-${i}`}
+                          value={input}
+                          onChange={(e) => {
+                            const updated = [...roundScoreInputs]
+                            updated[i] = e.target.value
+                            setRoundScoreInputs(updated)
+                          }}
+                          placeholder={getPlaceholder(workout.scheme)}
+                          className={cn(
+                            "font-mono",
+                            roundResult?.error &&
+                              !roundResult?.isValid &&
+                              "border-destructive",
+                          )}
+                          disabled={isSubmitting}
+                        />
+                        {roundResult?.isValid && (
+                          <p className="text-xs text-green-600 dark:text-green-400">
+                            Parsed as: {roundResult.formatted}
+                          </p>
+                        )}
+                        {roundResult?.error && (
+                          <p className="text-xs text-destructive">
+                            {roundResult.error}
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })}
+                  {getHelpText(workout.scheme, workout.timeCap) && (
+                    <p className="text-xs text-muted-foreground">
+                      {getHelpText(workout.scheme, workout.timeCap)}
+                    </p>
                   )}
-                  disabled={isSubmitting}
-                />
-                {getHelpText(workout.scheme, workout.timeCap) && (
-                  <p className="text-xs text-muted-foreground">
-                    {getHelpText(workout.scheme, workout.timeCap)}
-                  </p>
-                )}
-                {parseResult?.isValid && (
-                  <p className="text-xs text-green-600 dark:text-green-400">
-                    Parsed as: {parseResult.formatted}
-                    {scoreStatus === "cap" && " (Time Cap)"}
-                  </p>
-                )}
-                {parseResult?.error && (
-                  <p className="text-xs text-destructive">
-                    {parseResult.error}
-                  </p>
-                )}
-              </div>
+                </div>
+              ) : (
+                /* Single score input */
+                <div className="space-y-2">
+                  <Label htmlFor="score-input">
+                    {teamSize > 1 ? "Team " : "Your "}
+                    {getSchemeLabel(workout.scheme)}
+                  </Label>
+                  <Input
+                    id="score-input"
+                    value={scoreInput}
+                    onChange={(e) => setScoreInput(e.target.value)}
+                    placeholder={getPlaceholder(workout.scheme)}
+                    className={cn(
+                      "font-mono",
+                      parseResult?.error &&
+                        !parseResult?.isValid &&
+                        "border-destructive",
+                    )}
+                    disabled={isSubmitting}
+                  />
+                  {getHelpText(workout.scheme, workout.timeCap) && (
+                    <p className="text-xs text-muted-foreground">
+                      {getHelpText(workout.scheme, workout.timeCap)}
+                    </p>
+                  )}
+                  {parseResult?.isValid && (
+                    <p className="text-xs text-green-600 dark:text-green-400">
+                      Parsed as: {parseResult.formatted}
+                      {scoreStatus === "cap" && " (Time Cap)"}
+                    </p>
+                  )}
+                  {parseResult?.error && (
+                    <p className="text-xs text-destructive">
+                      {parseResult.error}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Secondary Score (reps at cap) - shown when time equals time cap */}
-              {scoreStatus === "cap" && (
+              {!isMultiRound && scoreStatus === "cap" && (
                 <p className="text-xs text-amber-600 dark:text-amber-400">
                   You hit the time cap. Enter the reps you completed below.
                 </p>
               )}
-              {showSecondaryInput && (
+              {!isMultiRound && showSecondaryInput && (
                 <div className="space-y-2">
                   <Label htmlFor="secondary-input">Reps Completed at Cap</Label>
                   <Input
@@ -913,61 +1078,86 @@ export function VideoSubmissionForm({
             </>
           )}
 
-          {/* Video URL Inputs */}
-          {videoSlots.map((slot, index) => (
-            <div key={index} className="space-y-2">
-              <Label htmlFor={`videoUrl-${index}`}>
-                {teamSize > 1
-                  ? `${videoSlotLabel(index)}'s Video`
-                  : "Video URL"}
-              </Label>
-              <VideoUrlInput
-                id={`videoUrl-${index}`}
-                value={slot.url}
-                onChange={(url) => updateSlot(index, { url })}
-                onValidationChange={(validation) =>
-                  updateSlot(index, { validation })
-                }
-                required={false}
-                disabled={isSubmitting}
-                showPlatformBadge
-                showPreviewLink
-              />
-              {index === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Upload your video to {getSupportedPlatformsText()} (unlisted
-                  is fine) and paste the link
+          {/* Partner Submission Links — separate section for teams */}
+          {teamSize > 1 && (
+            <div className="space-y-3">
+              <div>
+                <Label className="text-base">Partner Submission Links</Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Each partner must provide a video link. Upload to{" "}
+                  {getSupportedPlatformsText()} (unlisted is fine) and paste the
+                  link.
                 </p>
-              )}
+              </div>
+              {videoSlots.map((slot, index) => (
+                <div key={index} className="space-y-2">
+                  <Label htmlFor={`videoUrl-${index}`}>
+                    {videoSlotLabel(index)}&apos;s Video
+                  </Label>
+                  <VideoUrlInput
+                    id={`videoUrl-${index}`}
+                    value={slot.url}
+                    onChange={(url) => updateSlot(index, { url })}
+                    onValidationChange={(validation) =>
+                      updateSlot(index, { validation })
+                    }
+                    required
+                    disabled={isSubmitting}
+                    showPlatformBadge
+                    showPreviewLink
+                  />
+                  <Textarea
+                    placeholder={`Notes for ${videoSlotLabel(index).toLowerCase()}'s video`}
+                    value={slot.notes}
+                    onChange={(e) =>
+                      updateSlot(index, { notes: e.target.value })
+                    }
+                    rows={1}
+                    disabled={isSubmitting}
+                    maxLength={1000}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
 
-              {/* Per-slot notes */}
-              {teamSize > 1 && (
+          {/* Individual video submission */}
+          {teamSize === 1 && (
+            <>
+              {videoSlots.map((slot, index) => (
+                <div key={index} className="space-y-2">
+                  <Label htmlFor={`videoUrl-${index}`}>Video URL</Label>
+                  <VideoUrlInput
+                    id={`videoUrl-${index}`}
+                    value={slot.url}
+                    onChange={(url) => updateSlot(index, { url })}
+                    onValidationChange={(validation) =>
+                      updateSlot(index, { validation })
+                    }
+                    required={false}
+                    disabled={isSubmitting}
+                    showPlatformBadge
+                    showPreviewLink
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Upload your video to {getSupportedPlatformsText()} (unlisted
+                    is fine) and paste the link
+                  </p>
+                </div>
+              ))}
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes (Optional)</Label>
                 <Textarea
-                  placeholder={`Notes for ${videoSlotLabel(index).toLowerCase()}'s video`}
-                  value={slot.notes}
-                  onChange={(e) => updateSlot(index, { notes: e.target.value })}
-                  rows={1}
+                  id="notes"
+                  placeholder="Any additional information about your submission..."
+                  value={videoSlots[0]?.notes ?? ""}
+                  onChange={(e) => updateSlot(0, { notes: e.target.value })}
+                  rows={2}
                   disabled={isSubmitting}
                   maxLength={1000}
                 />
-              )}
-            </div>
-          ))}
-
-          {/* Single notes field for individual submissions */}
-          {teamSize === 1 && (
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes (Optional)</Label>
-              <Textarea
-                id="notes"
-                placeholder="Any additional information about your submission..."
-                value={videoSlots[0]?.notes ?? ""}
-                onChange={(e) => updateSlot(0, { notes: e.target.value })}
-                rows={2}
-                disabled={isSubmitting}
-                maxLength={1000}
-              />
-            </div>
+              </div>
+            </>
           )}
 
           {/* Error Message */}
