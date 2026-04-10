@@ -1056,23 +1056,28 @@ export const addCompetitionDivisionFn = createServerFn({ method: "POST" })
     })
 
     const db = getDb()
-    const level = await createScalingLevel({
-      scalingGroupId,
-      label: data.label,
-      teamSize: data.teamSize,
-    })
+    const level = await db.transaction(async (tx) => {
+      const created = await createScalingLevel({
+        scalingGroupId,
+        label: data.label,
+        teamSize: data.teamSize,
+        tx,
+      })
 
-    // Create competition_divisions row for the new division
-    const [competition] = await db
-      .select({ defaultRegistrationFeeCents: competitionsTable.defaultRegistrationFeeCents })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-    const defaultFee = competition?.defaultRegistrationFeeCents ?? 0
+      // Create competition_divisions row for the new division
+      const [competition] = await tx
+        .select({ defaultRegistrationFeeCents: competitionsTable.defaultRegistrationFeeCents })
+        .from(competitionsTable)
+        .where(eq(competitionsTable.id, data.competitionId))
+      const defaultFee = competition?.defaultRegistrationFeeCents ?? 0
 
-    await db.insert(competitionDivisionsTable).values({
-      competitionId: data.competitionId,
-      divisionId: level.id,
-      feeCents: defaultFee,
+      await tx.insert(competitionDivisionsTable).values({
+        competitionId: data.competitionId,
+        divisionId: created.id,
+        feeCents: defaultFee,
+      })
+
+      return created
     })
 
     return { divisionId: level.id }
