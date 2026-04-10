@@ -2,6 +2,7 @@ import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { CompetitionLocationCard } from "@/components/competition-location-card"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import {
+  type ChildEvent,
   CompetitionWorkoutCard,
   type SubmissionStatus,
 } from "@/components/competition-workout-card"
@@ -101,7 +102,6 @@ function CompetitionOverviewPage() {
     userDivision,
     userDivisions,
     maxSpots,
-    organizerContactEmail,
   } = parentRoute.useLoaderData()
 
   const { slug } = Route.useParams()
@@ -116,6 +116,30 @@ function CompetitionOverviewPage() {
   const isTeamRegistration = (userDivision?.teamSize ?? 1) > 1
   const timezone = competition.timezone ?? "America/Denver"
   const scheduleMap = useDeferredSchedule({ deferredSchedule, timezone })
+
+  // Build parent -> child events map
+  const childEventsMap = new Map<string, ChildEvent[]>()
+  for (const w of workouts) {
+    if (w.parentEventId) {
+      const children = childEventsMap.get(w.parentEventId) ?? []
+      children.push({
+        id: w.id,
+        workoutId: w.workoutId,
+        workout: {
+          name: w.workout.name,
+          description: w.workout.description,
+          scheme: w.workout.scheme,
+          timeCap: w.workout.timeCap,
+        },
+        pointsMultiplier: w.pointsMultiplier,
+        trackOrder: w.trackOrder,
+      })
+      childEventsMap.set(w.parentEventId, children)
+    }
+  }
+  for (const children of childEventsMap.values()) {
+    children.sort((a, b) => a.trackOrder - b.trackOrder)
+  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -165,6 +189,8 @@ function CompetitionOverviewPage() {
                           }
                           timeCap={event.workout.timeCap}
                           schedule={scheduleMap?.get(event.id) ?? null}
+                          childEvents={childEventsMap.get(event.id)}
+                          childDivisionDescriptionsMap={divisionDescriptionsMap}
                         />
                       )
                     })}
@@ -188,7 +214,6 @@ function CompetitionOverviewPage() {
           isTeamRegistration={isTeamRegistration}
           isCaptain={userRegistration?.userId === session?.userId}
           isVolunteer={isVolunteer}
-          organizerContactEmail={organizerContactEmail}
           userRegistrations={userDivisions}
           session={session}
           competitionCapacity={competitionCapacity}

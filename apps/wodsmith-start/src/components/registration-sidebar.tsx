@@ -4,13 +4,12 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
-  Mail,
   MapPin,
   Plus,
   Users,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
 import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
 import type { Team } from "@/db/schemas/teams"
@@ -135,7 +134,6 @@ interface RegistrationSidebarProps {
   isTeamRegistration?: boolean
   isCaptain?: boolean
   isVolunteer?: boolean
-  organizerContactEmail?: string | null
   userRegistrations?: UserRegistrationEntry[]
   session?: { userId: string } | null
   competitionCapacity?: {
@@ -173,7 +171,6 @@ export function RegistrationSidebar({
   isTeamRegistration,
   isCaptain,
   isVolunteer = false,
-  organizerContactEmail,
   userRegistrations = [],
   session,
   competitionCapacity,
@@ -476,29 +473,6 @@ export function RegistrationSidebar({
         </CardContent>
       </Card>
 
-      {/* Contact Card */}
-      {competition.organizingTeam && (
-        <Card className="border-white/10 bg-white/5 backdrop-blur-md">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Contact</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <p className="font-medium text-sm">
-              {competition.organizingTeam.name}
-            </p>
-            {organizerContactEmail && (
-              <div className="mt-2 flex gap-2">
-                <Button variant="outline" size="sm" className="h-8" asChild>
-                  <a href={`mailto:${organizerContactEmail}`}>
-                    <Mail className="mr-1 h-3 w-3" />
-                    Email
-                  </a>
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }

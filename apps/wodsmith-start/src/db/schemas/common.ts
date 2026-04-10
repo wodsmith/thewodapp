@@ -130,6 +130,9 @@ export const createSeriesTemplateDivisionId = () => `std_${ulid()}`
 // Series event mapping ID generators
 export const createSeriesEventMappingId = () => `sem_${ulid()}`
 
+// Event-division mapping ID generators (per-competition event↔division assignments)
+export const createEventDivisionMappingId = () => `edm_${ulid()}`
+
 // Broadcast ID generators
 export const createBroadcastId = () => `bcast_${ulid()}`
 export const createBroadcastRecipientId = () => `brcpt_${ulid()}`

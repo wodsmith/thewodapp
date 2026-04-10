@@ -868,6 +868,24 @@ export interface JudgesScheduleEvent {
 // ============================================================================
 
 /**
+ * Lightweight check: does the competition have any heats at all?
+ * Used to conditionally show the "Judges Schedule" button.
+ */
+export const hasJudgesScheduleFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z.object({ competitionId: z.string() }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const db = getDb()
+    const [row] = await db
+      .select({ id: competitionHeatsTable.id })
+      .from(competitionHeatsTable)
+      .where(eq(competitionHeatsTable.competitionId, data.competitionId))
+      .limit(1)
+    return { hasSchedule: !!row }
+  })
+
+/**
  * Get all heats with judge assignments for the judges schedule view.
  * Returns events with heats sorted by time, including judge and lane assignments.
  */

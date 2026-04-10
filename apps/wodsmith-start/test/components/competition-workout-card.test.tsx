@@ -359,7 +359,7 @@ describe("CompetitionWorkoutCard", () => {
 			).toBeTruthy()
 		})
 
-		it("shows placeholder when no description", () => {
+		it("renders no description text when description is null", () => {
 			render(
 				<CompetitionWorkoutCard
 					{...defaultProps}
@@ -368,8 +368,8 @@ describe("CompetitionWorkoutCard", () => {
 			)
 
 			expect(
-				screen.getByText("Details to be announced."),
-			).toBeTruthy()
+				screen.queryByText("Details to be announced."),
+			).toBeNull()
 		})
 
 		it("shows division-specific scale when selected division has description", () => {

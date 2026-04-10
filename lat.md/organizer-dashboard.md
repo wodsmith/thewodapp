@@ -32,6 +32,18 @@ Events link workouts to the competition. Each event represents a workout athlete
 
 Fetches events, divisions, movements, and sponsors in parallel. Uses `OrganizerEventManager` for creating, editing, reordering, and deleting events. Events can have per-division workout descriptions, attached resources, and judging sheets. Supports parent/sub-event hierarchy for multi-workout events. Publishing or unpublishing a parent event cascades to all its child sub-events via [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-components/quick-actions-events.tsx]].
 
+### Event-Division Mappings
+
+Controls which events are visible to which divisions within a competition via `event_division_mappings` ([[apps/wodsmith-start/src/db/schemas/event-division-mappings.ts#eventDivisionMappingsTable]]).
+
+If NO mappings exist for a competition, all events apply to all divisions (backwards compatible). If mappings exist for an event, only the mapped divisions see and score that event. An event with no explicit mappings remains visible to all divisions even when other events in the competition have mappings (partial mapping). An event can map to multiple divisions; a division can have multiple events. Cascade cleanup is handled at the application level since PlanetScale does not enforce foreign keys. Division IDs in mappings come from `competition_divisions.divisionId` (the same IDs registrations use), not directly from `scaling_levels` — this ensures the leaderboard's division filtering matches.
+
+The save endpoint ([[apps/wodsmith-start/src/server-fns/event-division-mapping-fns.ts#saveEventDivisionMappingsFn]]) validates all submitted trackWorkoutId/divisionId pairs belong to the competition before inserting, since PlanetScale has no FK enforcement. The read endpoint filters returned mappings against current events and divisions, discarding stale rows from changed programming tracks or scaling groups. DB error handling only catches `ER_NO_SUCH_TABLE` (for fresh deployments); all other errors propagate.
+
+Sub-events inherit their parent container event's division mappings — only top-level events are mapped in the matrix. The workouts list ([[apps/wodsmith-start/src/routes/compete/$slug/workouts/index.tsx]]) also filters child events by division mappings, preventing sub-events from leaking across divisions. The workout count badge reflects the filtered count. The leaderboard ([[apps/wodsmith-start/src/server/competition-leaderboard.ts]]) and event detail page ([[apps/wodsmith-start/src/routes/compete/$slug/workouts/$eventId.tsx]]) both check the parent's mappings when evaluating a sub-event's visibility. The event detail page falls back to showing all divisions when the specific event has no mappings. The leaderboard UI ([[apps/wodsmith-start/src/components/leaderboard-page-content.tsx]]) validates `selectedEventId` against the division-filtered events list via `effectiveEventId`, so stale URL params (e.g. shared links across divisions) fall back to the overall view.
+
+The event edit form ([[apps/wodsmith-start/src/components/events/event-details-form.tsx]]) also respects mappings — the "Division Variations" section only shows divisions mapped to the current event. If no mappings exist for the competition, all divisions are shown (backwards compatible).
+
 ## Heat Scheduling
 
 The schedule page manages heats — time blocks where groups of athletes perform a workout together at a venue.

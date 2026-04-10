@@ -57,6 +57,7 @@ function EventEditPage() {
     submissionClosesAt,
     timezone,
     childEvents,
+    eventDivisionMappings,
   } = eventRoute.useLoaderData()
   // Get competition from parent layout loader data
   const { competition } = parentRoute.useLoaderData()
@@ -94,6 +95,7 @@ function EventEditPage() {
         divisionDescriptions={divisionDescriptions}
         movements={movements}
         sponsors={sponsors}
+        eventDivisionMappings={eventDivisionMappings}
       />
 
       {/* Event Resources */}
@@ -174,6 +176,7 @@ function ParentEventEditPage() {
     judgingSheets: initialSheets,
     childEvents,
     childDivisionDescriptions,
+    eventDivisionMappings,
   } = eventRoute.useLoaderData()
   const { competition } = parentRoute.useLoaderData()
   const { tab } = Route.useSearch()
@@ -237,6 +240,7 @@ function ParentEventEditPage() {
             sponsors={sponsors}
             isParentEvent
             formId={parentFormId}
+            eventDivisionMappings={eventDivisionMappings}
           />
         </CardContent>
       </Card>
@@ -285,6 +289,7 @@ function ParentEventEditPage() {
                   movements={movements}
                   sponsors={sponsors}
                   formId={getChildFormId(child.id)}
+                  eventDivisionMappings={eventDivisionMappings}
                 />
               </TabsContent>
             ))}
