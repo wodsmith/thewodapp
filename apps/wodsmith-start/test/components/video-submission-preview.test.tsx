@@ -35,22 +35,11 @@ vi.mock("lucide-react", () => {
 	}
 })
 
-// Mock YouTube embed components
-vi.mock("@/components/compete/youtube-embed", () => ({
-	YouTubeEmbed: ({ url, title }: { url: string; title?: string }) => (
-		<div data-testid="youtube-embed" data-url={url} data-title={title} />
+// Mock VideoEmbed component
+vi.mock("@/components/video-embed", () => ({
+	VideoEmbed: ({ url }: { url: string | null }) => (
+		<div data-testid="video-embed" data-url={url} />
 	),
-	isYouTubeUrl: (url: string) => {
-		try {
-			const parsed = new URL(url)
-			return (
-				parsed.hostname.includes("youtube.com") ||
-				parsed.hostname.includes("youtu.be")
-			)
-		} catch {
-			return false
-		}
-	},
 }))
 
 // Mock url utility
@@ -112,7 +101,7 @@ function createDefaultWorkout(
 
 describe("VideoSubmissionPreview", () => {
 	describe("video display", () => {
-		it("renders YouTube embed for YouTube URLs", () => {
+		it("renders VideoEmbed for YouTube URLs", () => {
 			render(
 				<VideoSubmissionPreview
 					submissions={[createDefaultSubmission()]}
@@ -121,10 +110,14 @@ describe("VideoSubmissionPreview", () => {
 				/>,
 			)
 
-			expect(screen.getByTestId("youtube-embed")).toBeTruthy()
+			const embed = screen.getByTestId("video-embed")
+			expect(embed).toBeTruthy()
+			expect(embed.getAttribute("data-url")).toBe(
+				"https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+			)
 		})
 
-		it("renders external link for non-YouTube URLs", () => {
+		it("renders VideoEmbed for Vimeo URLs", () => {
 			render(
 				<VideoSubmissionPreview
 					submissions={[createDefaultSubmission({
@@ -135,39 +128,29 @@ describe("VideoSubmissionPreview", () => {
 				/>,
 			)
 
-			expect(screen.queryByTestId("youtube-embed")).toBeNull()
-			expect(screen.getByText("External video link")).toBeTruthy()
-			expect(screen.getByText("Open")).toBeTruthy()
+			const embed = screen.getByTestId("video-embed")
+			expect(embed).toBeTruthy()
+			expect(embed.getAttribute("data-url")).toBe(
+				"https://vimeo.com/123456",
+			)
 		})
 
-		it("uses safe URL href for external links", () => {
+		it("renders VideoEmbed for WodProof URLs", () => {
 			render(
 				<VideoSubmissionPreview
 					submissions={[createDefaultSubmission({
-						videoUrl: "https://vimeo.com/123456",
+						videoUrl: "https://wodproofapp.com/cloud/?v=abc123test",
 					})]}
 					teamSize={1}
 					canEdit={false}
 				/>,
 			)
 
-			const link = screen.getByText("Open").closest("a")
-			expect(link?.href).toContain("vimeo.com/123456")
-		})
-
-		it("uses # href for unsafe external URLs", () => {
-			render(
-				<VideoSubmissionPreview
-					submissions={[createDefaultSubmission({
-						videoUrl: "javascript:alert(1)",
-					})]}
-					teamSize={1}
-					canEdit={false}
-				/>,
+			const embed = screen.getByTestId("video-embed")
+			expect(embed).toBeTruthy()
+			expect(embed.getAttribute("data-url")).toBe(
+				"https://wodproofapp.com/cloud/?v=abc123test",
 			)
-
-			const link = screen.getByText("Open").closest("a")
-			expect(link?.getAttribute("href")).toBe("#")
 		})
 	})
 
