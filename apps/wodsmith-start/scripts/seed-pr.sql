@@ -411,7 +411,7 @@ INSERT IGNORE INTO competition_registrations (id, event_id, user_id, team_member
 -- ============================================================================
 
 UPDATE competitions
-SET settings = '{"divisionResults":{"tw_pr_event1":{"div_pr_rxplus":{"publishedAt":"2026-05-09T00:00:00.000Z"},"div_pr_rx":{"publishedAt":"2026-05-09T00:00:00.000Z"},"div_pr_scaled":{"publishedAt":"2026-05-09T00:00:00.000Z"},"div_pr_partners":{"publishedAt":"2026-05-09T00:00:00.000Z"}},"tw_pr_event2":{"div_pr_rxplus":{"publishedAt":"2026-05-13T00:00:00.000Z"},"div_pr_rx":{"publishedAt":"2026-05-13T00:00:00.000Z"}},"tw_pr_event3":{"div_pr_partners":{"publishedAt":"2026-05-16T00:00:00.000Z"}}}}'
+SET settings = '{"divisions":{"scalingGroupId":"sgrp_pr_online_comp"},"divisionResults":{"tw_pr_event1":{"div_pr_rxplus":{"publishedAt":"2026-05-09T00:00:00.000Z"},"div_pr_rx":{"publishedAt":"2026-05-09T00:00:00.000Z"},"div_pr_scaled":{"publishedAt":"2026-05-09T00:00:00.000Z"},"div_pr_partners":{"publishedAt":"2026-05-09T00:00:00.000Z"}},"tw_pr_event2":{"div_pr_rxplus":{"publishedAt":"2026-05-13T00:00:00.000Z"},"div_pr_rx":{"publishedAt":"2026-05-13T00:00:00.000Z"}},"tw_pr_event3":{"div_pr_partners":{"publishedAt":"2026-05-16T00:00:00.000Z"}}}}'
 WHERE id = 'comp_pr_online_throwdown';
 
 -- ============================================================================

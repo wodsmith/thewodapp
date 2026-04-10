@@ -115,13 +115,41 @@ export function LeaderboardPageContent({
   const getEventDetails = useServerFn(getPublicEventDetailsFn)
   const getDivisionDescriptions = useServerFn(getWorkoutDivisionDescriptionsFn)
 
-  // Close preview when event changes
-  // biome-ignore lint/correctness/useExhaustiveDependencies: selectedEventId triggers reset intentionally
+  // Extract events from leaderboard data — must be before effectiveEventId and preview hooks
+  const events = useMemo(() => {
+    if (leaderboard.length === 0) return []
+
+    const firstEntry = leaderboard[0]
+    if (!firstEntry) return []
+
+    return firstEntry.eventResults
+      .map((r) => ({
+        id: r.trackWorkoutId,
+        name: r.eventName,
+        trackOrder: r.trackOrder,
+        scheme: r.scheme,
+        parentEventId: r.parentEventId,
+        parentEventName: r.parentEventName,
+      }))
+      .sort((a, b) => a.trackOrder - b.trackOrder)
+  }, [leaderboard])
+
+  // Validate selectedEventId against division-filtered events to prevent stale URL params.
+  // When event-division mappings exist, the server only returns events mapped to
+  // the selected division. If the URL has an event ID that's not in the filtered list
+  // (e.g. shared link across divisions), fall back to overall view.
+  const effectiveEventId = useMemo(() => {
+    if (!selectedEventId) return null
+    return events.some((e) => e.id === selectedEventId) ? selectedEventId : null
+  }, [selectedEventId, events])
+
+  // Close preview when effective event changes (includes division-filtered invalidation)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: effectiveEventId triggers reset intentionally
   useEffect(() => {
     setIsPreviewOpen(false)
     setPreviewData(null)
     setPreviewError(null)
-  }, [selectedEventId])
+  }, [effectiveEventId])
 
   const handleTogglePreview = useCallback(async () => {
     if (isPreviewOpen) {
@@ -129,10 +157,10 @@ export function LeaderboardPageContent({
       return
     }
 
-    if (!selectedEventId) return
+    if (!effectiveEventId) return
 
     // Check cache first
-    const cached = previewCache.current.get(selectedEventId)
+    const cached = previewCache.current.get(effectiveEventId)
     if (cached) {
       setPreviewData(cached)
       setIsPreviewOpen(true)
@@ -147,7 +175,7 @@ export function LeaderboardPageContent({
     try {
       const result = await getEventDetails({
         data: {
-          eventId: selectedEventId,
+          eventId: effectiveEventId,
           competitionId,
         },
       })
@@ -177,7 +205,7 @@ export function LeaderboardPageContent({
           workoutId: result.event.workout.id,
           divisionDescriptions,
         }
-        previewCache.current.set(selectedEventId, data)
+        previewCache.current.set(effectiveEventId, data)
         setPreviewData(data)
       } else {
         setPreviewError("Workout details not found.")
@@ -189,7 +217,7 @@ export function LeaderboardPageContent({
     }
   }, [
     isPreviewOpen,
-    selectedEventId,
+    effectiveEventId,
     competitionId,
     divisions,
     getEventDetails,
@@ -279,25 +307,6 @@ export function LeaderboardPageContent({
     },
     [navigate],
   )
-
-  // Extract events from leaderboard data
-  const events = useMemo(() => {
-    if (leaderboard.length === 0) return []
-
-    const firstEntry = leaderboard[0]
-    if (!firstEntry) return []
-
-    return firstEntry.eventResults
-      .map((r) => ({
-        id: r.trackWorkoutId,
-        name: r.eventName,
-        trackOrder: r.trackOrder,
-        scheme: r.scheme,
-        parentEventId: r.parentEventId,
-        parentEventName: r.parentEventName,
-      }))
-      .sort((a, b) => a.trackOrder - b.trackOrder)
-  }, [leaderboard])
 
   // Extract unique affiliates for filter dropdown
   const affiliates = useMemo(() => {
@@ -466,7 +475,7 @@ export function LeaderboardPageContent({
           {/* View selector (Overall vs individual events) */}
           {events.length > 0 && (
             <Select
-              value={selectedEventId ?? "overall"}
+              value={effectiveEventId ?? "overall"}
               onValueChange={handleEventChange}
             >
               <SelectTrigger className="w-[200px]">
@@ -504,7 +513,7 @@ export function LeaderboardPageContent({
           )}
 
           {/* View Workout button */}
-          {selectedEventId && (
+          {effectiveEventId && (
             <Button variant="outline" size="sm" onClick={handleTogglePreview}>
               {isPreviewOpen ? (
                 <EyeOff className="h-4 w-4 mr-1.5" />
@@ -525,7 +534,7 @@ export function LeaderboardPageContent({
       </div>
 
       {/* Desktop: Collapsible workout preview */}
-      {selectedEventId && !isMobile && (
+      {effectiveEventId && !isMobile && (
         <Collapsible open={isPreviewOpen}>
           <CollapsibleContent>
             {previewError ? (
@@ -542,7 +551,7 @@ export function LeaderboardPageContent({
                 tags={previewData?.tags ?? []}
                 eventDetailUrl={{
                   slug: competition.slug,
-                  eventId: selectedEventId,
+                  eventId: effectiveEventId,
                 }}
                 isLoading={isPreviewLoading}
                 divisionScale={selectedDivisionDesc?.description}
@@ -558,21 +567,21 @@ export function LeaderboardPageContent({
           <OnlineCompetitionLeaderboardTable
             leaderboard={filteredLeaderboard}
             events={events}
-            selectedEventId={selectedEventId}
+            selectedEventId={effectiveEventId}
             scoringAlgorithm={scoringAlgorithm}
           />
         ) : (
           <CompetitionLeaderboardTable
             leaderboard={filteredLeaderboard}
             events={events}
-            selectedEventId={selectedEventId}
+            selectedEventId={effectiveEventId}
             scoringAlgorithm={scoringAlgorithm}
           />
         )}
       </div>
 
       {/* Mobile: Bottom Sheet workout preview */}
-      {selectedEventId && isMobile && (
+      {effectiveEventId && isMobile && (
         <Sheet open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
           <SheetContent
             side="bottom"
@@ -595,7 +604,7 @@ export function LeaderboardPageContent({
                 tags={previewData?.tags ?? []}
                 eventDetailUrl={{
                   slug: competition.slug,
-                  eventId: selectedEventId,
+                  eventId: effectiveEventId,
                 }}
                 isLoading={isPreviewLoading}
                 divisionScale={selectedDivisionDesc?.description}

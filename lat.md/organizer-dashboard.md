@@ -38,7 +38,7 @@ Controls which events are visible to which divisions within a competition via `e
 
 If NO mappings exist for a competition, all events apply to all divisions (backwards compatible). If mappings exist for an event, only the mapped divisions see and score that event. An event can map to multiple divisions; a division can have multiple events. Cascade cleanup is handled at the application level since PlanetScale does not enforce foreign keys. Division IDs in mappings come from `competition_divisions.divisionId` (the same IDs registrations use), not directly from `scaling_levels` — this ensures the leaderboard's division filtering matches.
 
-Sub-events inherit their parent container event's division mappings — only top-level events are mapped in the matrix. The leaderboard ([[apps/wodsmith-start/src/server/competition-leaderboard.ts]]) and event detail page ([[apps/wodsmith-start/src/routes/compete/$slug/workouts/$eventId.tsx]]) both check the parent's mappings when evaluating a sub-event's visibility.
+Sub-events inherit their parent container event's division mappings — only top-level events are mapped in the matrix. The leaderboard ([[apps/wodsmith-start/src/server/competition-leaderboard.ts]]) and event detail page ([[apps/wodsmith-start/src/routes/compete/$slug/workouts/$eventId.tsx]]) both check the parent's mappings when evaluating a sub-event's visibility. The leaderboard UI ([[apps/wodsmith-start/src/components/leaderboard-page-content.tsx]]) validates `selectedEventId` against the division-filtered events list via `effectiveEventId`, so stale URL params (e.g. shared links across divisions) fall back to the overall view.
 
 ## Heat Scheduling
 
