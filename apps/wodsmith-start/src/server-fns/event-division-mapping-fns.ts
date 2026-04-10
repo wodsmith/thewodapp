@@ -16,6 +16,7 @@ import {
   programmingTracksTable,
   trackWorkoutsTable,
 } from "@/db/schemas/programming"
+import { competitionDivisionsTable } from "@/db/schemas/commerce"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { workouts } from "@/db/schemas/workouts"
@@ -115,27 +116,26 @@ export const getEventDivisionMappingsFn = createServerFn({ method: "GET" })
       }))
     }
 
-    // Get competition divisions via scaling group
-    const settings = competition.settings
-      ? JSON.parse(competition.settings)
-      : null
-    const scalingGroupId = settings?.divisions?.scalingGroupId
+    // Get competition divisions from competition_divisions table joined to
+    // scaling_levels for label/metadata. This ensures divisionId values match
+    // what registrations use (competition_divisions.divisionId), not a
+    // potentially different scaling group in settings.
+    const compDivisions = await db
+      .select({
+        divisionId: competitionDivisionsTable.divisionId,
+        label: scalingLevelsTable.label,
+        teamSize: scalingLevelsTable.teamSize,
+        position: scalingLevelsTable.position,
+      })
+      .from(competitionDivisionsTable)
+      .innerJoin(
+        scalingLevelsTable,
+        eq(competitionDivisionsTable.divisionId, scalingLevelsTable.id),
+      )
+      .where(eq(competitionDivisionsTable.competitionId, data.competitionId))
+      .orderBy(scalingLevelsTable.position)
 
-    let divisions: EventDivisionMappingData["divisions"] = []
-    if (scalingGroupId) {
-      const levels = await db
-        .select({
-          divisionId: scalingLevelsTable.id,
-          label: scalingLevelsTable.label,
-          teamSize: scalingLevelsTable.teamSize,
-          position: scalingLevelsTable.position,
-        })
-        .from(scalingLevelsTable)
-        .where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))
-        .orderBy(scalingLevelsTable.position)
-
-      divisions = levels
-    }
+    const divisions: EventDivisionMappingData["divisions"] = compDivisions
 
     // Get existing mappings
     const existingMappings = await db
@@ -239,17 +239,24 @@ export const getPublicEventDivisionMappingsFn = createServerFn({
     }> => {
       const db = getDb()
 
-      const mappings = await db
-        .select({
-          trackWorkoutId: eventDivisionMappingsTable.trackWorkoutId,
-          divisionId: eventDivisionMappingsTable.divisionId,
-        })
-        .from(eventDivisionMappingsTable)
-        .where(eq(eventDivisionMappingsTable.competitionId, data.competitionId))
+      try {
+        const mappings = await db
+          .select({
+            trackWorkoutId: eventDivisionMappingsTable.trackWorkoutId,
+            divisionId: eventDivisionMappingsTable.divisionId,
+          })
+          .from(eventDivisionMappingsTable)
+          .where(
+            eq(eventDivisionMappingsTable.competitionId, data.competitionId),
+          )
 
-      return {
-        mappings,
-        hasMappings: mappings.length > 0,
+        return {
+          mappings,
+          hasMappings: mappings.length > 0,
+        }
+      } catch {
+        // Table may not exist yet — no mappings means no filtering
+        return { mappings: [], hasMappings: false }
       }
     },
   )

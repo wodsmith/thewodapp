@@ -335,12 +335,19 @@ export async function getCompetitionLeaderboard(params: {
   let filteredTrackWorkouts = trackWorkouts
   if (params.divisionId) {
     // Check for explicit event-division mappings first
-    const eventDivisionMappings = await db
-      .select({
-        trackWorkoutId: eventDivisionMappingsTable.trackWorkoutId,
-      })
-      .from(eventDivisionMappingsTable)
-      .where(eq(eventDivisionMappingsTable.competitionId, params.competitionId))
+    let eventDivisionMappings: Array<{ trackWorkoutId: string }> = []
+    try {
+      eventDivisionMappings = await db
+        .select({
+          trackWorkoutId: eventDivisionMappingsTable.trackWorkoutId,
+        })
+        .from(eventDivisionMappingsTable)
+        .where(
+          eq(eventDivisionMappingsTable.competitionId, params.competitionId),
+        )
+    } catch {
+      // Table may not exist yet — skip mapping-based filtering
+    }
 
     if (eventDivisionMappings.length > 0) {
       // Mappings exist — filter to events mapped to this division
@@ -356,18 +363,26 @@ export async function getCompetitionLeaderboard(params: {
           ),
         )
 
-      const mappedEventIds = new Set(mappedToDiv.map((m) => m.trackWorkoutId))
-
-      // Include child events whose parent is mapped
-      filteredTrackWorkouts = trackWorkouts.filter(
-        (tw) =>
-          mappedEventIds.has(tw.id) ||
-          (tw.parentEventId && mappedEventIds.has(tw.parentEventId)),
+      const mappedToSelectedDiv = new Set(
+        mappedToDiv.map((m) => m.trackWorkoutId),
+      )
+      const allMappedEventIds = new Set(
+        eventDivisionMappings.map((m) => m.trackWorkoutId),
       )
 
-      if (filteredTrackWorkouts.length === 0) {
-        return { entries: [], scoringConfig, events: [] }
-      }
+      // Only filter events that have explicit mappings; unmapped events stay visible
+      filteredTrackWorkouts = trackWorkouts.filter(
+        (tw) => {
+          const hasMapping =
+            allMappedEventIds.has(tw.id) ||
+            (tw.parentEventId && allMappedEventIds.has(tw.parentEventId))
+          if (!hasMapping) return true // unmapped → visible to all
+          return (
+            mappedToSelectedDiv.has(tw.id) ||
+            (tw.parentEventId && mappedToSelectedDiv.has(tw.parentEventId))
+          )
+        },
+      )
     } else {
       // No explicit mappings — fall back to heat-based filtering
       const trackWorkoutIds = trackWorkouts.map((tw) => tw.id)
