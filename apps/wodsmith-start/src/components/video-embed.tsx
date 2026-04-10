@@ -5,7 +5,7 @@
  * Uses the shared parseVideoUrl parser from @/schemas/video-url.
  */
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { ExternalLink, VideoOff } from "lucide-react"
 import { getWodProofVideoUrl, parseVideoUrl } from "@/schemas/video-url"
 import { isSafeUrl } from "@/utils/url"
@@ -64,20 +64,14 @@ export function VideoEmbed({
     )
   }
 
-  // WodProof — render native video player
+  // WodProof — render native video player with fallback to external link
   if (videoInfo.platform === "wodproof") {
     return (
-      <div
-        className={`relative overflow-hidden rounded-lg bg-black ${className}`}
-        style={{ aspectRatio }}
-      >
-        <video
-          src={getWodProofVideoUrl(videoInfo.videoId)}
-          controls
-          playsInline
-          className="absolute inset-0 h-full w-full"
-        />
-      </div>
+      <WodProofVideoEmbed
+        videoInfo={videoInfo}
+        className={className}
+        aspectRatio={aspectRatio}
+      />
     )
   }
 
@@ -117,6 +111,61 @@ export function VideoEmbed({
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowFullScreen
         className="absolute inset-0 h-full w-full"
+      />
+    </div>
+  )
+}
+
+/**
+ * WodProof video player with fallback to external link on load error
+ */
+function WodProofVideoEmbed({
+  videoInfo,
+  className = "",
+  aspectRatio = "16/9",
+}: {
+  videoInfo: { videoId: string; originalUrl: string }
+  className?: string
+  aspectRatio?: string
+}) {
+  const [error, setError] = useState(false)
+
+  if (error) {
+    return (
+      <div
+        className={`bg-muted flex flex-col items-center justify-center gap-3 rounded-lg p-6 ${className}`}
+        style={{ aspectRatio }}
+      >
+        <div className="text-muted-foreground flex flex-col items-center gap-2">
+          <VideoOff className="h-12 w-12" />
+          <span className="text-sm">Video could not be loaded</span>
+        </div>
+        <a
+          href={
+            isSafeUrl(videoInfo.originalUrl) ? videoInfo.originalUrl : "#"
+          }
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          <ExternalLink className="h-4 w-4" />
+          Open in WodProof
+        </a>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-lg bg-black ${className}`}
+      style={{ aspectRatio }}
+    >
+      <video
+        src={getWodProofVideoUrl(videoInfo.videoId)}
+        controls
+        playsInline
+        className="absolute inset-0 h-full w-full"
+        onError={() => setError(true)}
       />
     </div>
   )

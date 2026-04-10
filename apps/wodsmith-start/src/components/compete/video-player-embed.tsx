@@ -8,7 +8,7 @@
  */
 
 import { ExternalLink } from "lucide-react"
-import { useEffect, useId, useRef } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 import {
   getWodProofVideoUrl,
@@ -216,16 +216,19 @@ function VimeoPlayer({
 
 function WodProofPlayer({
   videoId,
+  originalUrl,
   className,
   onPlayerReady,
 }: {
   videoId: string
+  originalUrl: string
   className?: string
   onPlayerReady?: (player: VideoPlayerRef) => void
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const onReadyRef = useRef(onPlayerReady)
   onReadyRef.current = onPlayerReady
+  const [error, setError] = useState(false)
 
   useEffect(() => {
     const video = videoRef.current
@@ -250,6 +253,30 @@ function WodProofPlayer({
     return () => video.removeEventListener("canplay", handleCanPlay)
   }, [videoId])
 
+  if (error) {
+    return (
+      <div
+        className={cn(
+          "relative aspect-video w-full overflow-hidden rounded-lg bg-muted flex flex-col items-center justify-center gap-3 p-4",
+          className,
+        )}
+      >
+        <span className="text-sm text-muted-foreground">
+          Video could not be loaded
+        </span>
+        <a
+          href={isSafeUrl(originalUrl) ? originalUrl : "#"}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 text-primary hover:underline text-sm"
+        >
+          <ExternalLink className="h-4 w-4" />
+          Open in WodProof
+        </a>
+      </div>
+    )
+  }
+
   return (
     <div
       className={cn(
@@ -263,6 +290,7 @@ function WodProofPlayer({
         controls
         playsInline
         className="absolute inset-0 h-full w-full"
+        onError={() => setError(true)}
       />
     </div>
   )
@@ -321,6 +349,7 @@ export function VideoPlayerEmbed({
       return (
         <WodProofPlayer
           videoId={parsed.videoId}
+          originalUrl={parsed.originalUrl}
           className={className}
           onPlayerReady={onPlayerReady}
         />
