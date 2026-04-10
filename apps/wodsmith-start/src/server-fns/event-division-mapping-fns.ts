@@ -7,7 +7,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { competitionsTable } from "@/db/schemas/competitions"
@@ -116,26 +116,38 @@ export const getEventDivisionMappingsFn = createServerFn({ method: "GET" })
       }))
     }
 
-    // Get competition divisions from competition_divisions table joined to
-    // scaling_levels for label/metadata. This ensures divisionId values match
-    // what registrations use (competition_divisions.divisionId), not a
-    // potentially different scaling group in settings.
-    const compDivisions = await db
-      .select({
-        divisionId: competitionDivisionsTable.divisionId,
-        label: scalingLevelsTable.label,
-        teamSize: scalingLevelsTable.teamSize,
-        position: scalingLevelsTable.position,
-      })
-      .from(competitionDivisionsTable)
-      .innerJoin(
-        scalingLevelsTable,
-        eq(competitionDivisionsTable.divisionId, scalingLevelsTable.id),
-      )
-      .where(eq(competitionDivisionsTable.competitionId, data.competitionId))
-      .orderBy(scalingLevelsTable.position)
+    // Get competition divisions from scaling_levels via settings, left-joining
+    // competition_divisions for fee/capacity metadata. This works whether or
+    // not competition_divisions rows have been created yet.
+    const settings = competition.settings
+      ? (JSON.parse(competition.settings as string) as {
+          divisions?: { scalingGroupId?: string }
+        })
+      : null
+    const scalingGroupId = settings?.divisions?.scalingGroupId
 
-    const divisions: EventDivisionMappingData["divisions"] = compDivisions
+    let divisions: EventDivisionMappingData["divisions"] = []
+    if (scalingGroupId) {
+      const compDivisions = await db
+        .select({
+          divisionId: scalingLevelsTable.id,
+          label: scalingLevelsTable.label,
+          teamSize: scalingLevelsTable.teamSize,
+          position: scalingLevelsTable.position,
+        })
+        .from(scalingLevelsTable)
+        .leftJoin(
+          competitionDivisionsTable,
+          and(
+            eq(competitionDivisionsTable.divisionId, scalingLevelsTable.id),
+            eq(competitionDivisionsTable.competitionId, data.competitionId),
+          ),
+        )
+        .where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))
+        .orderBy(scalingLevelsTable.position)
+
+      divisions = compDivisions
+    }
 
     // Get existing mappings, filtering out stale rows that no longer match
     // current events or divisions (e.g. after programming track changes)
@@ -214,11 +226,21 @@ export const saveEventDivisionMappingsFn = createServerFn({ method: "POST" })
         for (const tw of trackWorkouts) validEventIds.add(tw.id)
       }
 
-      const compDivisions = await db
-        .select({ divisionId: competitionDivisionsTable.divisionId })
-        .from(competitionDivisionsTable)
-        .where(eq(competitionDivisionsTable.competitionId, data.competitionId))
-      const validDivisionIds = new Set(compDivisions.map((d) => d.divisionId))
+      // Resolve valid divisions from scaling_levels via settings
+      const settings = competition.settings
+        ? (JSON.parse(competition.settings as string) as {
+            divisions?: { scalingGroupId?: string }
+          })
+        : null
+      const sgId = settings?.divisions?.scalingGroupId
+      const validDivisionIds = new Set<string>()
+      if (sgId) {
+        const levels = await db
+          .select({ id: scalingLevelsTable.id })
+          .from(scalingLevelsTable)
+          .where(eq(scalingLevelsTable.scalingGroupId, sgId))
+        for (const l of levels) validDivisionIds.add(l.id)
+      }
 
       for (const m of data.mappings) {
         if (!validEventIds.has(m.trackWorkoutId) || !validDivisionIds.has(m.divisionId)) {
