@@ -10,6 +10,7 @@ interface Workout {
   id: string
   name: string
   trackWorkoutId: string
+  children?: { id: string; name: string }[]
 }
 
 interface SubmissionWindowProps {
@@ -209,18 +210,32 @@ export function SubmissionWindow({
               {workouts.map((workout) => (
                 <div
                   key={workout.id}
-                  className="flex items-center justify-between rounded-md border bg-card p-3"
+                  className="rounded-md border bg-card p-3"
                 >
-                  <span className="text-sm font-medium">{workout.name}</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onRemoveWorkout(workout.trackWorkoutId)}
-                    aria-label={`Remove ${workout.name}`}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{workout.name}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onRemoveWorkout(workout.trackWorkoutId)}
+                      aria-label={`Remove ${workout.name}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {workout.children && workout.children.length > 0 && (
+                    <div className="mt-2 ml-4 space-y-1">
+                      {workout.children.map((child) => (
+                        <div
+                          key={child.id}
+                          className="text-xs text-muted-foreground"
+                        >
+                          └ {child.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

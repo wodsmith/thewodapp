@@ -63,6 +63,7 @@ function SubmissionWindowsPage() {
     name: event.workout?.name || `Event #${event.trackOrder}`,
     workoutType: event.workout?.scheme || "for-time",
     trackOrder: event.trackOrder,
+    parentEventId: event.parentEventId ?? null,
   }))
 
   return (

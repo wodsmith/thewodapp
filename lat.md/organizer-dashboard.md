@@ -70,13 +70,13 @@ Organizers enter scores for each athlete per event, or review video submissions 
 
 For **in-person competitions**: `ResultsEntryForm` provides a per-event, per-division score entry grid. Organizers select an event and division, then enter scores for each athlete. Supports publishing/unpublishing division results.
 
-For **online competitions**: Shows a submissions overview with links to individual video verification pages at `/events/{eventId}/submissions/`. Displays submission counts and verification status per event. Parent events with sub-events aggregate submission stats from their children. Events without `competition_events` rows (no submission window configured) are handled gracefully.
+For **online competitions**: Shows a submissions overview with links to individual video verification pages at `/events/{eventId}/submissions/`. Each child sub-event is listed as its own row with submission counts and verification status; the parent event name is shown as contextual metadata alongside each child row. Events without `competition_events` rows (no submission window configured) are handled gracefully.
 
 ## Submission Windows
 
 Manages time windows during which athletes can submit video evidence for online competitions.
 
-Only available when `competitionType === "online"`. Fetches workouts and competition events. Each event can have a submission window with open/close dates. Uses `SubmissionWindowsManager` component.
+Only available when `competitionType === "online"`. Fetches workouts and competition events. Each event can have a submission window with open/close dates. Uses `SubmissionWindowsManager` component. Only parent (top-level) events appear in the unassigned pool and are draggable; sub-events are automatically assigned to the same window as their parent and displayed as children on the window card.
 
 ## Volunteers
 

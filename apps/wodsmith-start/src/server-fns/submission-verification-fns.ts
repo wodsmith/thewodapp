@@ -1039,8 +1039,14 @@ export const getEventDetailsForVerificationFn = createServerFn({
         data.competitionId,
         data.trackWorkoutId,
       )
-    } catch {
-      return { event: null }
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === "Event not found in this competition"
+      ) {
+        return { event: null }
+      }
+      throw error
     }
 
     // Get the track workout with workout details

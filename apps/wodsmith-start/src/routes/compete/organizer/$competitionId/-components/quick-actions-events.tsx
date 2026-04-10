@@ -61,18 +61,14 @@ export function QuickActionsEvents({
       return next
     })
     try {
-      // Update parent and all children
-      await Promise.all(
-        allIds.map((id) =>
-          updateCompetitionWorkout({
-            data: {
-              trackWorkoutId: id,
-              teamId: organizingTeamId,
-              eventStatus: newStatus,
-            },
-          }),
-        ),
-      )
+      // Server cascades eventStatus to child sub-events automatically
+      await updateCompetitionWorkout({
+        data: {
+          trackWorkoutId,
+          teamId: organizingTeamId,
+          eventStatus: newStatus,
+        },
+      })
       await router.invalidate()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update event")
@@ -102,18 +98,20 @@ export function QuickActionsEvents({
 
     setIsPublishingAll(true)
     try {
+      // Server cascades eventStatus to child sub-events automatically,
+      // so we only need to update parent events
       await Promise.all(
-        allDraftIds.map((id) =>
+        draftParents.map((parent) =>
           updateCompetitionWorkout({
             data: {
-              trackWorkoutId: id,
+              trackWorkoutId: parent.id,
               teamId: organizingTeamId,
               eventStatus: "published",
             },
           }),
         ),
       )
-      toast.success(`Published ${draftParents.length} event(s)`)
+      toast.success(`Published ${allDraftIds.length} event(s)`)
       await router.invalidate()
     } catch (err) {
       toast.error(

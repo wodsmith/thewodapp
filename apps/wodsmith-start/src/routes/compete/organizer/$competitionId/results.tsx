@@ -147,17 +147,23 @@ export const Route = createFileRoute(
               withVideo,
               withoutVideo: submissions.length - withVideo,
             }
-          } catch {
+          } catch (error) {
             // Event may not have a competition_events row yet
-            return {
-              eventId: event.id,
-              eventName: event.workout.name,
-              parentName,
-              trackOrder: event.trackOrder,
-              totalSubmissions: 0,
-              withVideo: 0,
-              withoutVideo: 0,
+            if (
+              error instanceof Error &&
+              error.message === "Event not found in this competition"
+            ) {
+              return {
+                eventId: event.id,
+                eventName: event.workout.name,
+                parentName,
+                trackOrder: event.trackOrder,
+                totalSubmissions: 0,
+                withVideo: 0,
+                withoutVideo: 0,
+              }
             }
+            throw error
           }
         }),
       )
