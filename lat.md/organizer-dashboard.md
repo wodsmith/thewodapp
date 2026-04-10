@@ -30,7 +30,7 @@ Fetches divisions with registration counts, scaling groups, and series mapping s
 
 Events link workouts to the competition. Each event represents a workout athletes will perform and be scored on.
 
-Fetches events, divisions, movements, and sponsors in parallel. Uses `OrganizerEventManager` for creating, editing, reordering, and deleting events. Events can have per-division workout descriptions, attached resources, and judging sheets. Supports parent/sub-event hierarchy for multi-workout events.
+Fetches events, divisions, movements, and sponsors in parallel. Uses `OrganizerEventManager` for creating, editing, reordering, and deleting events. Events can have per-division workout descriptions, attached resources, and judging sheets. Supports parent/sub-event hierarchy for multi-workout events. Publishing or unpublishing a parent event cascades to all its child sub-events via [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-components/quick-actions-events.tsx]].
 
 ## Heat Scheduling
 
@@ -70,7 +70,7 @@ Organizers enter scores for each athlete per event, or review video submissions 
 
 For **in-person competitions**: `ResultsEntryForm` provides a per-event, per-division score entry grid. Organizers select an event and division, then enter scores for each athlete. Supports publishing/unpublishing division results.
 
-For **online competitions**: Shows a submissions overview with links to individual video verification pages at `/events/{eventId}/submissions/`. Displays submission counts and verification status per event.
+For **online competitions**: Shows a submissions overview with links to individual video verification pages at `/events/{eventId}/submissions/`. Displays submission counts and verification status per event. Parent events with sub-events aggregate submission stats from their children. Events without `competition_events` rows (no submission window configured) are handled gracefully.
 
 ## Submission Windows
 

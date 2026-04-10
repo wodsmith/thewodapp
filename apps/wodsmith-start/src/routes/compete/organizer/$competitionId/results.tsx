@@ -104,23 +104,60 @@ export const Route = createFileRoute(
     const divisions = divisionsResult.divisions
 
     // For online competitions, fetch submission stats for each event
+    // Show sub-events individually (scores are per sub-event), group under parent for context
     if (isOnline) {
+      // Build a flat list of reviewable events: sub-events if parent has children, otherwise the event itself
+      const reviewableEvents: Array<{
+        event: (typeof events)[number]
+        parentName: string | null
+      }> = []
+      for (const event of events) {
+        if (event.parentEventId) continue // handled below via parent
+        const children = events.filter(
+          (e) => e.parentEventId === event.id,
+        )
+        if (children.length > 0) {
+          for (const child of children) {
+            reviewableEvents.push({
+              event: child,
+              parentName: event.workout.name,
+            })
+          }
+        } else {
+          reviewableEvents.push({ event, parentName: null })
+        }
+      }
+
       const eventSubmissionStats = await Promise.all(
-        events.map(async (event) => {
-          const { submissions } = await getEventSubmissionsFn({
-            data: {
-              competitionId: params.competitionId,
-              trackWorkoutId: event.id,
-            },
-          })
-          const withVideo = submissions.filter((s) => s.hasVideo).length
-          return {
-            eventId: event.id,
-            eventName: event.workout.name,
-            trackOrder: event.trackOrder,
-            totalSubmissions: submissions.length,
-            withVideo,
-            withoutVideo: submissions.length - withVideo,
+        reviewableEvents.map(async ({ event, parentName }) => {
+          try {
+            const { submissions } = await getEventSubmissionsFn({
+              data: {
+                competitionId: params.competitionId,
+                trackWorkoutId: event.id,
+              },
+            })
+            const withVideo = submissions.filter((s) => s.hasVideo).length
+            return {
+              eventId: event.id,
+              eventName: event.workout.name,
+              parentName,
+              trackOrder: event.trackOrder,
+              totalSubmissions: submissions.length,
+              withVideo,
+              withoutVideo: submissions.length - withVideo,
+            }
+          } catch {
+            // Event may not have a competition_events row yet
+            return {
+              eventId: event.id,
+              eventName: event.workout.name,
+              parentName,
+              trackOrder: event.trackOrder,
+              totalSubmissions: 0,
+              withVideo: 0,
+              withoutVideo: 0,
+            }
           }
         }),
       )
@@ -233,6 +270,7 @@ function OnlineSubmissionsOverview({
     eventSubmissionStats: Array<{
       eventId: string
       eventName: string
+      parentName: string | null
       trackOrder: number
       totalSubmissions: number
       withVideo: number
@@ -333,7 +371,16 @@ function OnlineSubmissionsOverview({
                     <TableCell className="font-medium">
                       #{formatTrackOrder(stat.trackOrder)}
                     </TableCell>
-                    <TableCell>{stat.eventName}</TableCell>
+                    <TableCell>
+                      <div>
+                        {stat.eventName}
+                        {stat.parentName && (
+                          <span className="text-xs text-muted-foreground ml-1.5">
+                            ({stat.parentName})
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-center">
                       {stat.totalSubmissions}
                     </TableCell>
