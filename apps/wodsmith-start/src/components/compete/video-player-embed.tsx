@@ -217,14 +217,22 @@ export function VideoPlayerEmbed({
 }: VideoPlayerEmbedProps) {
   const parsed = parseVideoUrl(url)
 
-  if (!parsed) {
+  // No parse result or platform without embed support (e.g., WodProof)
+  if (!parsed || !parsed.supportsEmbed) {
+    const platformLabel =
+      parsed?.platform === "wodproof" ? "WodProof" : undefined
     return (
       <div
         className={cn(
-          "relative aspect-video w-full overflow-hidden rounded-lg bg-muted flex items-center justify-center p-4",
+          "relative aspect-video w-full overflow-hidden rounded-lg bg-muted flex flex-col items-center justify-center gap-3 p-4",
           className,
         )}
       >
+        {platformLabel && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+            {platformLabel}
+          </span>
+        )}
         <a
           href={isSafeUrl(url) ? url : "#"}
           target="_blank"
@@ -232,7 +240,7 @@ export function VideoPlayerEmbed({
           className="inline-flex items-center gap-2 text-primary hover:underline text-sm"
         >
           <ExternalLink className="h-4 w-4" />
-          Open video in new tab
+          {platformLabel ? `Open in ${platformLabel}` : "Open video in new tab"}
         </a>
       </div>
     )
@@ -264,7 +272,7 @@ export function VideoPlayerEmbed({
  */
 export function supportsInteractivePlayer(url: string): boolean {
   const parsed = parseVideoUrl(url)
-  return parsed?.platform === "youtube" || parsed?.platform === "vimeo"
+  return parsed !== null && parsed.supportsEmbed
 }
 
 /**
@@ -278,5 +286,7 @@ export function getVideoPlatformName(url: string): string | null {
       return "YouTube"
     case "vimeo":
       return "Vimeo"
+    case "wodproof":
+      return "WodProof"
   }
 }

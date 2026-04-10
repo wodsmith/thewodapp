@@ -1,12 +1,12 @@
 /**
  * Video Embed Component
  *
- * Renders an embedded video player for YouTube or Vimeo URLs.
+ * Renders an embedded video player for YouTube, Vimeo, or WodProof URLs.
  * Uses the shared parseVideoUrl parser from @/schemas/video-url.
  */
 
 import { useMemo } from "react"
-import { VideoOff } from "lucide-react"
+import { ExternalLink, VideoOff } from "lucide-react"
 import { parseVideoUrl } from "@/schemas/video-url"
 import { isSafeUrl } from "@/utils/url"
 
@@ -64,6 +64,34 @@ export function VideoEmbed({
     )
   }
 
+  // Platform without embed support (e.g., WodProof) — show external link
+  if (!videoInfo.supportsEmbed) {
+    return (
+      <div
+        className={`bg-muted flex flex-col items-center justify-center gap-3 rounded-lg p-6 ${className}`}
+        style={{ aspectRatio }}
+      >
+        <div className="text-muted-foreground flex flex-col items-center gap-2">
+          <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+            {videoInfo.platform === "wodproof" ? "WodProof" : videoInfo.platform}
+          </span>
+          <span className="text-sm">
+            This video must be viewed on the platform
+          </span>
+        </div>
+        <a
+          href={isSafeUrl(videoInfo.originalUrl) ? videoInfo.originalUrl : "#"}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          <ExternalLink className="h-4 w-4" />
+          Open in WodProof
+        </a>
+      </div>
+    )
+  }
+
   return (
     <div
       className={`relative overflow-hidden rounded-lg ${className}`}
@@ -116,13 +144,13 @@ export function VideoThumbnail({
     )
   }
 
-  // Vimeo placeholder
+  // Vimeo / WodProof / other — platform label placeholder
   return (
     <div
       className={`bg-muted flex items-center justify-center rounded ${className}`}
     >
       <span className="text-muted-foreground text-xs capitalize">
-        {videoInfo.platform}
+        {videoInfo.platform === "wodproof" ? "WodProof" : videoInfo.platform}
       </span>
     </div>
   )

@@ -2,7 +2,7 @@
  * Video URL Validation Schema
  *
  * Validates video URLs for online competition submissions.
- * Supports YouTube and Vimeo URL formats with video ID extraction.
+ * Supports YouTube, Vimeo, and WodProof URL formats with video ID extraction.
  */
 
 import { z } from "zod"
@@ -10,7 +10,7 @@ import { z } from "zod"
 /**
  * Supported video platforms
  */
-export const VIDEO_PLATFORMS = ["youtube", "vimeo"] as const
+export const VIDEO_PLATFORMS = ["youtube", "vimeo", "wodproof"] as const
 export type VideoPlatform = (typeof VIDEO_PLATFORMS)[number]
 
 /**
@@ -24,6 +24,8 @@ export interface ParsedVideoUrl {
   thumbnailUrl: string
   /** Privacy hash for unlisted Vimeo videos */
   privacyHash?: string
+  /** Whether this platform supports inline embedding (iframe/player) */
+  supportsEmbed: boolean
 }
 
 /**
@@ -78,6 +80,49 @@ const VIMEO_PATTERNS = [
 ] as const
 
 /**
+ * WodProof URL patterns:
+ *
+ * WodProof is a closed platform with no public API or embed support.
+ * Videos are shared as opaque cloud links generated from the mobile app.
+ * We accept these URLs and display them as external links until a formal
+ * integration is established.
+ *
+ * Known domain patterns:
+ * - wodproofapp.com/* (main site and potential cloud links)
+ * - backend.wodproofapp.com/* (backend/API — unlikely as share links)
+ * - *.wodproof.com/* (any subdomain)
+ *
+ * Since WodProof doesn't publish their video URL format, we match broadly
+ * on the domain and extract the path as the identifier.
+ */
+const WODPROOF_PATTERNS = [
+  // wodproofapp.com with any path (main domain)
+  /^(?:https?:\/\/)?(?:www\.)?wodproofapp\.com\/(.+)$/,
+  // Any subdomain of wodproofapp.com with path
+  /^(?:https?:\/\/)?([a-z0-9-]+\.)?wodproofapp\.com\/(.+)$/,
+  // wodproof.com (alternate domain) with path
+  /^(?:https?:\/\/)?(?:www\.)?wodproof\.com\/(.+)$/,
+] as const
+
+/**
+ * Check if a URL is from WodProof
+ * Returns the path portion as an identifier (opaque — no known video ID format)
+ */
+function extractWodProofId(url: string): string | null {
+  for (const pattern of WODPROOF_PATTERNS) {
+    const match = url.match(pattern)
+    if (match) {
+      // Use the last captured group (the path) as the ID
+      const path = match[match.length - 1]
+      if (path && path.length > 0) {
+        return path.replace(/[?#].*$/, "") // strip query/hash
+      }
+    }
+  }
+  return null
+}
+
+/**
  * Extract video ID from YouTube URL
  */
 function extractYouTubeId(url: string): string | null {
@@ -122,6 +167,7 @@ export function parseVideoUrl(url: string): ParsedVideoUrl | null {
       originalUrl: trimmedUrl,
       embedUrl: `https://www.youtube.com/embed/${youtubeId}`,
       thumbnailUrl: `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`,
+      supportsEmbed: true,
     }
   }
 
@@ -140,6 +186,21 @@ export function parseVideoUrl(url: string): ParsedVideoUrl | null {
       // Vimeo thumbnails require API access, use placeholder
       thumbnailUrl: `https://vumbnail.com/${vimeoResult.id}.jpg`,
       privacyHash: vimeoResult.hash,
+      supportsEmbed: true,
+    }
+  }
+
+  // Try WodProof
+  const wodproofId = extractWodProofId(trimmedUrl)
+  if (wodproofId) {
+    return {
+      platform: "wodproof",
+      videoId: wodproofId,
+      originalUrl: trimmedUrl,
+      // WodProof has no embed API — link opens in new tab
+      embedUrl: trimmedUrl,
+      thumbnailUrl: "",
+      supportsEmbed: false,
     }
   }
 
@@ -157,7 +218,7 @@ export function isSupportedVideoUrl(url: string): boolean {
  * Get a human-readable list of supported platforms
  */
 export function getSupportedPlatformsText(): string {
-  return "YouTube or Vimeo"
+  return "YouTube, Vimeo, or WodProof"
 }
 
 /**
