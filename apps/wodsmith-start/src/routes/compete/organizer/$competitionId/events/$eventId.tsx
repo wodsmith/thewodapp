@@ -13,6 +13,7 @@ import {
   getCompetitionWorkoutsFn,
   getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
+import { getEventDivisionMappingsFn } from "@/server-fns/event-division-mapping-fns"
 import { getEventResourcesFn } from "@/server-fns/event-resources-fns"
 import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
@@ -29,7 +30,7 @@ export const Route = createFileRoute(
 
     const isOnline = competition.competitionType === "online"
 
-    // Parallel fetch event, divisions, movements, sponsors, resources, judging sheets, and competition events
+    // Parallel fetch event, divisions, movements, sponsors, resources, judging sheets, competition events, and mappings
     const [
       eventResult,
       divisionsResult,
@@ -38,6 +39,7 @@ export const Route = createFileRoute(
       resourcesResult,
       judgingSheetsResult,
       competitionEventsResult,
+      mappingsResult,
     ] = await Promise.all([
       getCompetitionEventFn({
         data: {
@@ -70,6 +72,9 @@ export const Route = createFileRoute(
             data: { competitionId: params.competitionId },
           })
         : Promise.resolve({ events: [] }),
+      getEventDivisionMappingsFn({
+        data: { competitionId: params.competitionId },
+      }),
     ])
 
     if (!eventResult.event) {
@@ -168,6 +173,7 @@ export const Route = createFileRoute(
       timezone: competition.timezone || "America/Denver",
       childEvents,
       childDivisionDescriptions,
+      eventDivisionMappings: mappingsResult,
     }
   },
 })

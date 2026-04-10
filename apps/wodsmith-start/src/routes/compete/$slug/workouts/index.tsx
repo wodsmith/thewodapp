@@ -261,7 +261,23 @@ function CompetitionWorkoutsPage() {
               <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                 Workouts
                 <span className="inline-flex items-center justify-center rounded-full bg-muted px-2.5 py-0.5 text-sm font-medium text-muted-foreground">
-                  {workouts.filter((w) => !w.parentEventId).length}
+                  {(() => {
+                    let visibleTopLevel = workouts.filter((w) => !w.parentEventId)
+                    if (eventDivisionMappings.hasMappings && selectedDivisionId) {
+                      const eventsWithMappings = new Set(
+                        eventDivisionMappings.mappings.map((m) => m.trackWorkoutId),
+                      )
+                      const mappedToSelectedDiv = new Set(
+                        eventDivisionMappings.mappings
+                          .filter((m) => m.divisionId === selectedDivisionId)
+                          .map((m) => m.trackWorkoutId),
+                      )
+                      visibleTopLevel = visibleTopLevel.filter(
+                        (w) => !eventsWithMappings.has(w.id) || mappedToSelectedDiv.has(w.id),
+                      )
+                    }
+                    return visibleTopLevel.length
+                  })()}
                 </span>
               </h2>
               <p className="text-sm text-muted-foreground hidden sm:block">
@@ -388,10 +404,21 @@ function WorkoutsList({
     )
   }
 
-  // Build a map of parent -> child events
+  // Build a map of parent -> child events, filtering by division mappings
   const childEventsMap = new Map<string, ChildEvent[]>()
   for (const w of workouts) {
     if (w.parentEventId) {
+      // Filter child events by division mappings too
+      if (eventDivisionMappings.hasMappings && selectedDivisionId) {
+        const hasAnyMapping = eventDivisionMappings.mappings.some(
+          (m) => m.trackWorkoutId === w.id,
+        )
+        const isMappedToSelectedDivision = eventDivisionMappings.mappings.some(
+          (m) =>
+            m.trackWorkoutId === w.id && m.divisionId === selectedDivisionId,
+        )
+        if (hasAnyMapping && !isMappedToSelectedDivision) continue
+      }
       const children = childEventsMap.get(w.parentEventId) ?? []
       children.push({
         id: w.id,

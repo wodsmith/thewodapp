@@ -299,20 +299,20 @@ function EventDetailsPage() {
   const formattedTimeCap = workout.timeCap ? formatTime(workout.timeCap) : null
   const schemeLabel = getSchemeLabel(workout.scheme, workout.timeCap)
 
-  // Filter divisions by event-division mappings (if configured)
+  // Filter divisions by event-division mappings (if configured).
+  // If this specific event has no mappings, show all divisions (unmapped = visible to all).
   const filteredDivisions =
     eventDivisionMappings.hasMappings && divisions
       ? (() => {
           const parentId = event.parentEventId
-          const mappedDivisionIds = new Set(
-            eventDivisionMappings.mappings
-              .filter(
-                (m) =>
-                  m.trackWorkoutId === eventId ||
-                  (parentId && m.trackWorkoutId === parentId),
-              )
-              .map((m) => m.divisionId),
+          const eventMappings = eventDivisionMappings.mappings.filter(
+            (m) =>
+              m.trackWorkoutId === eventId ||
+              (parentId && m.trackWorkoutId === parentId),
           )
+          // No mappings for this specific event → show all divisions
+          if (eventMappings.length === 0) return divisions
+          const mappedDivisionIds = new Set(eventMappings.map((m) => m.divisionId))
           return divisions.filter((d) => mappedDivisionIds.has(d.id))
         })()
       : divisions

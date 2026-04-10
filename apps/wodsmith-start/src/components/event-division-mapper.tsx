@@ -314,6 +314,7 @@ export function EventDivisionMapper({ competitionId, data, onSaved }: Props) {
                       >
                         <div className="flex items-center justify-center">
                           <Checkbox
+                            aria-label={`Map ${event.eventName} to ${d.label}`}
                             checked={isChecked}
                             onCheckedChange={() =>
                               toggleMapping(event.trackWorkoutId, d.divisionId)

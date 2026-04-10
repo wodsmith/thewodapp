@@ -137,7 +137,8 @@ export const getEventDivisionMappingsFn = createServerFn({ method: "GET" })
 
     const divisions: EventDivisionMappingData["divisions"] = compDivisions
 
-    // Get existing mappings
+    // Get existing mappings, filtering out stale rows that no longer match
+    // current events or divisions (e.g. after programming track changes)
     const existingMappings = await db
       .select({
         trackWorkoutId: eventDivisionMappingsTable.trackWorkoutId,
@@ -146,11 +147,17 @@ export const getEventDivisionMappingsFn = createServerFn({ method: "GET" })
       .from(eventDivisionMappingsTable)
       .where(eq(eventDivisionMappingsTable.competitionId, data.competitionId))
 
+    const validEventIds = new Set(events.map((e) => e.trackWorkoutId))
+    const validDivisionIds = new Set(divisions.map((d) => d.divisionId))
+    const mappings = existingMappings.filter(
+      (m) => validEventIds.has(m.trackWorkoutId) && validDivisionIds.has(m.divisionId),
+    )
+
     return {
       events,
       divisions,
-      mappings: existingMappings,
-      hasMappings: existingMappings.length > 0,
+      mappings,
+      hasMappings: mappings.length > 0,
     }
   })
 
@@ -192,6 +199,33 @@ export const saveEventDivisionMappingsFn = createServerFn({ method: "POST" })
       competition.organizingTeamId,
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
+
+    // Validate submitted IDs belong to this competition (no FK enforcement in PlanetScale)
+    if (data.mappings.length > 0) {
+      const track = await db.query.programmingTracksTable.findFirst({
+        where: eq(programmingTracksTable.competitionId, data.competitionId),
+      })
+      const validEventIds = new Set<string>()
+      if (track) {
+        const trackWorkouts = await db
+          .select({ id: trackWorkoutsTable.id })
+          .from(trackWorkoutsTable)
+          .where(eq(trackWorkoutsTable.trackId, track.id))
+        for (const tw of trackWorkouts) validEventIds.add(tw.id)
+      }
+
+      const compDivisions = await db
+        .select({ divisionId: competitionDivisionsTable.divisionId })
+        .from(competitionDivisionsTable)
+        .where(eq(competitionDivisionsTable.competitionId, data.competitionId))
+      const validDivisionIds = new Set(compDivisions.map((d) => d.divisionId))
+
+      for (const m of data.mappings) {
+        if (!validEventIds.has(m.trackWorkoutId) || !validDivisionIds.has(m.divisionId)) {
+          throw new Error("Invalid mapping: event or division does not belong to this competition")
+        }
+      }
+    }
 
     // Full-replace atomically
     await db.transaction(async (tx) => {
@@ -254,9 +288,16 @@ export const getPublicEventDivisionMappingsFn = createServerFn({
           mappings,
           hasMappings: mappings.length > 0,
         }
-      } catch {
-        // Table may not exist yet — no mappings means no filtering
-        return { mappings: [], hasMappings: false }
+      } catch (error: unknown) {
+        if (
+          error &&
+          typeof error === "object" &&
+          "code" in error &&
+          (error as { code?: string | number }).code === "ER_NO_SUCH_TABLE"
+        ) {
+          return { mappings: [], hasMappings: false }
+        }
+        throw error
       }
     },
   )

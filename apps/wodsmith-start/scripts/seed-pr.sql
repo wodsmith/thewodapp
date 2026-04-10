@@ -210,10 +210,10 @@ INSERT IGNORE INTO team_subscriptions (id, team_id, plan_id, status, current_per
 -- ============================================================================
 -- DEMO WORKOUTS
 -- ============================================================================
-INSERT IGNORE INTO workouts (id, team_id, name, description, scheme, created_at, updated_at, update_counter) VALUES
-('wkt_pr_fran', 'team_pr_personal_demo', 'Fran', '21-15-9 Thrusters (95/65 lb) and Pull-ups', 'time', NOW(), NOW(), 0),
-('wkt_pr_cindy', 'team_pr_personal_demo', 'Cindy', '5 Pull-ups, 10 Push-ups, 15 Squats - AMRAP 20 minutes', 'rounds-reps', NOW(), NOW(), 0),
-('wkt_pr_grace', 'team_pr_personal_demo', 'Grace', '30 Clean and Jerks (135/95 lb) for time', 'time', NOW(), NOW(), 0);
+INSERT IGNORE INTO workouts (id, team_id, name, description, scheme, time_cap, created_at, updated_at, update_counter) VALUES
+('wkt_pr_fran', 'team_pr_personal_demo', 'Fran', '21-15-9 Thrusters (95/65 lb) and Pull-ups', 'time', NULL, NOW(), NOW(), 0),
+('wkt_pr_cindy', 'team_pr_personal_demo', 'Cindy', '5 Pull-ups, 10 Push-ups, 15 Squats - AMRAP 20 minutes', 'rounds-reps', 1200, NOW(), NOW(), 0),
+('wkt_pr_grace', 'team_pr_personal_demo', 'Grace', '30 Clean and Jerks (135/95 lb) for time', 'time', NULL, NOW(), NOW(), 0);
 
 -- ============================================================================
 -- TEAM FEATURE ENTITLEMENTS

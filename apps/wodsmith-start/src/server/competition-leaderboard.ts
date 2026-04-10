@@ -345,8 +345,17 @@ export async function getCompetitionLeaderboard(params: {
         .where(
           eq(eventDivisionMappingsTable.competitionId, params.competitionId),
         )
-    } catch {
-      // Table may not exist yet — skip mapping-based filtering
+    } catch (error: unknown) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        (error as { code?: string | number }).code === "ER_NO_SUCH_TABLE"
+      ) {
+        // Table may not exist yet — skip mapping-based filtering
+      } else {
+        throw error
+      }
     }
 
     if (eventDivisionMappings.length > 0) {
