@@ -142,6 +142,12 @@ Athletes registered in multiple divisions see a division picker on the submissio
 
 Switching divisions fetches that division's submission data via [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getVideoSubmissionFn]] with the `divisionId` parameter. Scores and video submissions are scoped per-division so each registration gets its own submission state. The picker lives in [[apps/wodsmith-start/src/components/compete/video-submission-form.tsx#VideoSubmissionForm]].
 
+### Sub-Event Submissions
+
+Events with sub-events (parent/child hierarchy) show a separate submission form per child event on the parent workout page.
+
+The loader in [[apps/wodsmith-start/src/routes/compete/$slug/workouts/$eventId.tsx]] fetches video submissions for each child event in parallel via `getVideoSubmissionFn`. Each child renders its own [[apps/wodsmith-start/src/components/compete/video-submission-form.tsx#VideoSubmissionForm]] with the child's `trackWorkoutId`. Team divisions get the same multi-video slot behavior per sub-event. The parent event itself has no submission form when children exist — all scoring is per sub-event.
+
 ### Captain-Only Submission
 
 For team divisions (teamSize > 1), only the team captain can submit videos and scores. Non-captain team members see a read-only view of the team's submissions. Individual athletes (teamSize = 1) are always treated as their own captain.

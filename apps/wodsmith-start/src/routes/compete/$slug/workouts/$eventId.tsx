@@ -136,20 +136,6 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       })
       .filter((d): d is { divisionId: string; label: string } => d !== null)
 
-    // For online competitions, fetch video submission scoped to the first registered division
-    const initialSubmissionDivisionId =
-      athleteRegisteredDivisionIds[0] ?? undefined
-    const videoSubmissionResult =
-      competition.competitionType === "online"
-        ? await getVideoSubmissionFn({
-            data: {
-              trackWorkoutId: eventId,
-              competitionId: competition.id,
-              divisionId: initialSubmissionDivisionId,
-            },
-          })
-        : null
-
     // Defer heat schedule fetch - not needed for initial render
     const deferredEventHeats =
       eventResult.event.heatStatus === "published"
@@ -163,6 +149,47 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
     const childEvents = allWorkoutsResult.workouts
       .filter((w) => w.parentEventId === eventId)
       .sort((a, b) => a.trackOrder - b.trackOrder)
+
+    // For online competitions, fetch video submissions
+    const initialSubmissionDivisionId =
+      athleteRegisteredDivisionIds[0] ?? undefined
+    const hasChildEvents = childEvents.length > 0
+
+    // If event has children, fetch submissions per child; otherwise fetch for this event
+    let videoSubmissionResult: Awaited<
+      ReturnType<typeof getVideoSubmissionFn>
+    > | null = null
+    const childVideoSubmissions: Record<
+      string,
+      Awaited<ReturnType<typeof getVideoSubmissionFn>>
+    > = {}
+
+    if (competition.competitionType === "online") {
+      if (hasChildEvents) {
+        const childResults = await Promise.all(
+          childEvents.map((child) =>
+            getVideoSubmissionFn({
+              data: {
+                trackWorkoutId: child.id,
+                competitionId: competition.id,
+                divisionId: initialSubmissionDivisionId,
+              },
+            }),
+          ),
+        )
+        for (let i = 0; i < childEvents.length; i++) {
+          childVideoSubmissions[childEvents[i].id] = childResults[i]
+        }
+      } else {
+        videoSubmissionResult = await getVideoSubmissionFn({
+          data: {
+            trackWorkoutId: eventId,
+            competitionId: competition.id,
+            divisionId: initialSubmissionDivisionId,
+          },
+        })
+      }
+    }
 
     // If this is a sub-event, find the parent event for context
     const parentEvent = eventResult.event.parentEventId
@@ -209,6 +236,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       athleteRegisteredDivisionId: athleteRegisteredDivisionIds[0] ?? null,
       venue: venueResult.venue,
       videoSubmission: videoSubmissionResult,
+      childVideoSubmissions,
       deferredEventHeats,
       childEvents,
       childDivisionDescriptions,
@@ -270,6 +298,7 @@ function EventDetailsPage() {
     athleteRegisteredDivisionId,
     venue,
     videoSubmission,
+    childVideoSubmissions,
     deferredEventHeats,
     childEvents,
     childDivisionDescriptions,
@@ -282,6 +311,13 @@ function EventDetailsPage() {
   const workout = event.workout
   const formattedTimeCap = workout.timeCap ? formatTime(workout.timeCap) : null
   const schemeLabel = getSchemeLabel(workout.scheme, workout.timeCap)
+
+  // For sidebar submission window display, use the first child's data for parent events
+  const sidebarSubmission =
+    videoSubmission ??
+    (childEvents.length > 0
+      ? Object.values(childVideoSubmissions)[0] ?? null
+      : null)
 
   // Sort division descriptions by position
   const sortedDivisions = [...divisionDescriptions].sort(
@@ -421,39 +457,55 @@ function EventDetailsPage() {
                     child.workout.scheme,
                     child.workout.timeCap,
                   )
+                  const childSubmission =
+                    childVideoSubmissions[child.id] ?? null
 
                   return (
-                    <div key={child.id} className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-base font-semibold">
-                          {child.workout.name}
-                        </h3>
-                        <Badge variant="secondary" className="text-xs">
-                          {childScheme}
-                        </Badge>
-                        {child.pointsMultiplier &&
-                          child.pointsMultiplier !== 100 && (
-                            <span className="text-xs text-muted-foreground">
-                              {child.pointsMultiplier / 100}x points
-                            </span>
-                          )}
-                      </div>
-                      <div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
-                        {child.workout.description || "Details coming soon."}
-                      </div>
-                      {childScale && (
-                        <div className="flex items-start gap-2 mt-1">
-                          <Badge
-                            variant="secondary"
-                            className="shrink-0 text-xs"
-                          >
-                            {childDivisionDesc?.divisionLabel || "Division"}
+                    <div key={child.id} className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-base font-semibold">
+                            {child.workout.name}
+                          </h3>
+                          <Badge variant="secondary" className="text-xs">
+                            {childScheme}
                           </Badge>
-                          <p className="font-mono text-sm whitespace-pre-wrap text-muted-foreground">
-                            {childScale}
-                          </p>
+                          {child.pointsMultiplier &&
+                            child.pointsMultiplier !== 100 && (
+                              <span className="text-xs text-muted-foreground">
+                                {child.pointsMultiplier / 100}x points
+                              </span>
+                            )}
                         </div>
-                      )}
+                        <div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
+                          {child.workout.description || "Details coming soon."}
+                        </div>
+                        {childScale && (
+                          <div className="flex items-start gap-2 mt-1">
+                            <Badge
+                              variant="secondary"
+                              className="shrink-0 text-xs"
+                            >
+                              {childDivisionDesc?.divisionLabel || "Division"}
+                            </Badge>
+                            <p className="font-mono text-sm whitespace-pre-wrap text-muted-foreground">
+                              {childScale}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Per-sub-event submission form for online competitions */}
+                      {competition.competitionType === "online" &&
+                        childSubmission && (
+                          <VideoSubmissionForm
+                            trackWorkoutId={child.id}
+                            competitionId={competition.id}
+                            timezone={competition.timezone}
+                            registeredDivisions={athleteRegisteredDivisions}
+                            initialData={childSubmission}
+                          />
+                        )}
                     </div>
                   )
                 })}
@@ -468,16 +520,18 @@ function EventDetailsPage() {
               />
             )}
 
-            {/* Video & Score Submission Form - Below description for online competitions */}
-            {competition.competitionType === "online" && videoSubmission && (
-              <VideoSubmissionForm
-                trackWorkoutId={event.id}
-                competitionId={competition.id}
-                timezone={competition.timezone}
-                registeredDivisions={athleteRegisteredDivisions}
-                initialData={videoSubmission}
-              />
-            )}
+            {/* Video & Score Submission Form - For events without sub-events */}
+            {competition.competitionType === "online" &&
+              videoSubmission &&
+              childEvents.length === 0 && (
+                <VideoSubmissionForm
+                  trackWorkoutId={event.id}
+                  competitionId={competition.id}
+                  timezone={competition.timezone}
+                  registeredDivisions={athleteRegisteredDivisions}
+                  initialData={videoSubmission}
+                />
+              )}
           </div>
         </div>
       </div>
@@ -486,7 +540,7 @@ function EventDetailsPage() {
       <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
         {/* Submission Info Card - For online competitions */}
         {competition.competitionType === "online" &&
-          videoSubmission?.submissionWindow && (
+          sidebarSubmission?.submissionWindow && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Submission Window</CardTitle>
@@ -500,7 +554,7 @@ function EventDetailsPage() {
                     </p>
                     <p className="font-medium text-sm">
                       {formatHeatTime(
-                        new Date(videoSubmission.submissionWindow.opensAt),
+                        new Date(sidebarSubmission.submissionWindow.opensAt),
                         competition.timezone,
                       )}
                     </p>
@@ -514,19 +568,19 @@ function EventDetailsPage() {
                     </p>
                     <p className="font-medium text-sm">
                       {formatHeatTime(
-                        new Date(videoSubmission.submissionWindow.closesAt),
+                        new Date(sidebarSubmission.submissionWindow.closesAt),
                         competition.timezone,
                       )}
                     </p>
                   </div>
                 </div>
-                {videoSubmission.canSubmit ? (
+                {sidebarSubmission.canSubmit ? (
                   <p className="text-xs text-green-600 dark:text-green-400 font-medium">
                     Submission window is open
                   </p>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    {videoSubmission.reason}
+                    {sidebarSubmission.reason}
                   </p>
                 )}
               </CardContent>
