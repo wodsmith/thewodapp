@@ -82,36 +82,47 @@ const VIMEO_PATTERNS = [
 /**
  * WodProof URL patterns:
  *
- * WodProof is a closed platform with no public API or embed support.
- * Videos are shared as opaque cloud links generated from the mobile app.
- * We accept these URLs and display them as external links until a formal
- * integration is established.
+ * WodProof videos are shared as cloud links from the mobile app.
+ * The cloud URL format is: https://wodproofapp.com/cloud/?v=VIDEO_ID
+ * The actual MP4 is hosted at: https://s3.us-east-1.amazonaws.com/wodproof-cloud/VIDEO_ID.mp4
+ *
+ * We extract the video ID from the `v` query parameter and construct
+ * the S3 URL for direct <video> element playback.
  *
  * Known domain patterns:
- * - wodproofapp.com/* (main site and potential cloud links)
- * - backend.wodproofapp.com/* (backend/API — unlikely as share links)
+ * - wodproofapp.com/cloud/?v=ID (cloud share links)
+ * - wodproofapp.com/* (other paths)
  * - *.wodproof.com/* (any subdomain)
- *
- * Since WodProof doesn't publish their video URL format, we match broadly
- * on the domain and extract the path as the identifier.
  */
 const WODPROOF_PATTERNS = [
-  // wodproofapp.com with any path (main domain)
+  // wodproofapp.com with any path (main domain, www only)
   /^(?:https?:\/\/)?(?:www\.)?wodproofapp\.com\/(.+)$/,
-  // Any subdomain of wodproofapp.com with path
-  /^(?:https?:\/\/)?([a-z0-9-]+\.)?wodproofapp\.com\/(.+)$/,
   // wodproof.com (alternate domain) with path
   /^(?:https?:\/\/)?(?:www\.)?wodproof\.com\/(.+)$/,
 ] as const
 
 /**
- * Check if a URL is from WodProof
- * Returns the path portion as an identifier (opaque — no known video ID format)
+ * Extract the video ID from a WodProof URL.
+ * For cloud URLs (wodproofapp.com/cloud/?v=ID), extracts the `v` query parameter.
+ * For other WodProof URLs, falls back to the path as an identifier.
  */
 function extractWodProofId(url: string): string | null {
   for (const pattern of WODPROOF_PATTERNS) {
     const match = url.match(pattern)
     if (match) {
+      // Try to extract `v` query parameter from cloud URLs
+      try {
+        const parsed = new URL(
+          url.startsWith("http") ? url : `https://${url}`,
+        )
+        const videoId = parsed.searchParams.get("v")
+        if (videoId) {
+          return videoId
+        }
+      } catch {
+        // Fall through to path-based extraction
+      }
+
       // Use the last captured group (the path) as the ID
       const path = match[match.length - 1]
       if (path && path.length > 0) {
@@ -120,6 +131,14 @@ function extractWodProofId(url: string): string | null {
     }
   }
   return null
+}
+
+/**
+ * Construct the direct S3 MP4 URL for a WodProof video.
+ * WodProof stores videos at: https://s3.us-east-1.amazonaws.com/wodproof-cloud/{videoId}.mp4
+ */
+export function getWodProofVideoUrl(videoId: string): string {
+  return `https://s3.us-east-1.amazonaws.com/wodproof-cloud/${videoId}.mp4`
 }
 
 /**
@@ -197,10 +216,9 @@ export function parseVideoUrl(url: string): ParsedVideoUrl | null {
       platform: "wodproof",
       videoId: wodproofId,
       originalUrl: trimmedUrl,
-      // WodProof has no embed API — link opens in new tab
-      embedUrl: trimmedUrl,
+      embedUrl: getWodProofVideoUrl(wodproofId),
       thumbnailUrl: "",
-      supportsEmbed: false,
+      supportsEmbed: true,
     }
   }
 

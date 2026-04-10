@@ -7,7 +7,7 @@
 
 import { useMemo } from "react"
 import { ExternalLink, VideoOff } from "lucide-react"
-import { parseVideoUrl } from "@/schemas/video-url"
+import { getWodProofVideoUrl, parseVideoUrl } from "@/schemas/video-url"
 import { isSafeUrl } from "@/utils/url"
 
 interface VideoEmbedProps {
@@ -64,7 +64,24 @@ export function VideoEmbed({
     )
   }
 
-  // Platform without embed support (e.g., WodProof) — show external link
+  // WodProof — render native video player
+  if (videoInfo.platform === "wodproof") {
+    return (
+      <div
+        className={`relative overflow-hidden rounded-lg bg-black ${className}`}
+        style={{ aspectRatio }}
+      >
+        <video
+          src={getWodProofVideoUrl(videoInfo.videoId)}
+          controls
+          playsInline
+          className="absolute inset-0 h-full w-full"
+        />
+      </div>
+    )
+  }
+
+  // Platform without embed support — show external link
   if (!videoInfo.supportsEmbed) {
     return (
       <div
@@ -72,9 +89,6 @@ export function VideoEmbed({
         style={{ aspectRatio }}
       >
         <div className="text-muted-foreground flex flex-col items-center gap-2">
-          <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
-            {videoInfo.platform === "wodproof" ? "WodProof" : videoInfo.platform}
-          </span>
           <span className="text-sm">
             This video must be viewed on the platform
           </span>
@@ -86,7 +100,7 @@ export function VideoEmbed({
           className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
           <ExternalLink className="h-4 w-4" />
-          Open in WodProof
+          Open video
         </a>
       </div>
     )

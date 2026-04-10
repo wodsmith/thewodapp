@@ -10,7 +10,11 @@
 import { ExternalLink } from "lucide-react"
 import { useEffect, useId, useRef } from "react"
 import { cn } from "@/lib/utils"
-import { parseVideoUrl, type VideoPlatform } from "@/schemas/video-url"
+import {
+  getWodProofVideoUrl,
+  parseVideoUrl,
+  type VideoPlatform,
+} from "@/schemas/video-url"
 import { isSafeUrl } from "@/utils/url"
 
 // ── Common player interface ──────────────────────────────────────────
@@ -208,6 +212,62 @@ function VimeoPlayer({
   )
 }
 
+// ── WodProof Player ─────────────────────────────────────────────────
+
+function WodProofPlayer({
+  videoId,
+  className,
+  onPlayerReady,
+}: {
+  videoId: string
+  className?: string
+  onPlayerReady?: (player: VideoPlayerRef) => void
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const onReadyRef = useRef(onPlayerReady)
+  onReadyRef.current = onPlayerReady
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    const handleCanPlay = () => {
+      const ref: VideoPlayerRef = {
+        platform: "wodproof",
+        pauseVideo: () => video.pause(),
+        playVideo: () => {
+          video.play()
+        },
+        getCurrentTime: () => video.currentTime,
+        seekTo: (seconds) => {
+          video.currentTime = seconds
+        },
+      }
+      onReadyRef.current?.(ref)
+    }
+
+    video.addEventListener("canplay", handleCanPlay)
+    return () => video.removeEventListener("canplay", handleCanPlay)
+  }, [videoId])
+
+  return (
+    <div
+      className={cn(
+        "relative aspect-video w-full overflow-hidden rounded-lg bg-black",
+        className,
+      )}
+    >
+      <video
+        ref={videoRef}
+        src={getWodProofVideoUrl(videoId)}
+        controls
+        playsInline
+        className="absolute inset-0 h-full w-full"
+      />
+    </div>
+  )
+}
+
 // ── Unified component ────────────────────────────────────────────────
 
 export function VideoPlayerEmbed({
@@ -217,10 +277,8 @@ export function VideoPlayerEmbed({
 }: VideoPlayerEmbedProps) {
   const parsed = parseVideoUrl(url)
 
-  // No parse result or platform without embed support (e.g., WodProof)
+  // No parse result or platform without embed support
   if (!parsed || !parsed.supportsEmbed) {
-    const platformLabel =
-      parsed?.platform === "wodproof" ? "WodProof" : undefined
     return (
       <div
         className={cn(
@@ -228,11 +286,6 @@ export function VideoPlayerEmbed({
           className,
         )}
       >
-        {platformLabel && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
-            {platformLabel}
-          </span>
-        )}
         <a
           href={isSafeUrl(url) ? url : "#"}
           target="_blank"
@@ -240,7 +293,7 @@ export function VideoPlayerEmbed({
           className="inline-flex items-center gap-2 text-primary hover:underline text-sm"
         >
           <ExternalLink className="h-4 w-4" />
-          {platformLabel ? `Open in ${platformLabel}` : "Open video in new tab"}
+          Open video in new tab
         </a>
       </div>
     )
@@ -260,6 +313,14 @@ export function VideoPlayerEmbed({
         <VimeoPlayer
           videoId={parsed.videoId}
           privacyHash={parsed.privacyHash}
+          className={className}
+          onPlayerReady={onPlayerReady}
+        />
+      )
+    case "wodproof":
+      return (
+        <WodProofPlayer
+          videoId={parsed.videoId}
           className={className}
           onPlayerReady={onPlayerReady}
         />

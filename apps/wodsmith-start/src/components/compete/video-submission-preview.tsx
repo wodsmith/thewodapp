@@ -5,8 +5,6 @@ import {
   CheckCircle2,
   Clock,
   Edit3,
-  ExternalLink,
-  FileText,
   Trophy,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -18,12 +16,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { VideoEmbed } from "@/components/video-embed"
 import { Separator } from "@/components/ui/separator"
 import type { ReviewStatus } from "@/db/schemas/video-submissions"
 import type { ScoreType, WorkoutScheme } from "@/lib/scoring"
-import { isSafeUrl } from "@/utils/url"
 import { SubmissionStatusBadge } from "./submission-status-badge"
-import { YouTubeEmbed, isYouTubeUrl } from "./youtube-embed"
 
 interface SubmissionData {
   id: string
@@ -121,7 +118,6 @@ function VideoPreviewItem({
   timezone?: string | null
   label?: string
 }) {
-  const isYouTube = isYouTubeUrl(submission.videoUrl)
   const hasUpdated =
     new Date(submission.updatedAt).getTime() !==
     new Date(submission.submittedAt).getTime()
@@ -140,35 +136,7 @@ function VideoPreviewItem({
           )}
         </div>
       )}
-      {isYouTube ? (
-        <YouTubeEmbed
-          url={submission.videoUrl}
-          title={workout?.name || "Workout submission"}
-        />
-      ) : (
-        <div className="rounded-lg border bg-muted/50 p-4">
-          <div className="flex items-center gap-3">
-            <FileText className="h-5 w-5 text-muted-foreground" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">
-                {submission.videoUrl}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                External video link
-              </p>
-            </div>
-            <a
-              href={isSafeUrl(submission.videoUrl) ? submission.videoUrl : "#"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-sm text-primary hover:underline shrink-0"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Open
-            </a>
-          </div>
-        </div>
-      )}
+      <VideoEmbed url={submission.videoUrl} />
       {submission.notes && (
         <div className="rounded-lg bg-muted/50 p-4">
           <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
