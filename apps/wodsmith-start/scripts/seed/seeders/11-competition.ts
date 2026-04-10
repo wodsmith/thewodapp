@@ -53,6 +53,7 @@ export async function seed(client: Connection): Promise<void> {
 		{ id: "slvl_online_rx", scaling_group_id: "sgrp_online_qualifier_2026", label: "RX", position: 0, team_size: 1, created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "slvl_online_scaled", scaling_group_id: "sgrp_online_qualifier_2026", label: "Scaled", position: 1, team_size: 1, created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "slvl_online_masters", scaling_group_id: "sgrp_online_qualifier_2026", label: "Masters 40+", position: 2, team_size: 1, created_at: ts, updated_at: ts, update_counter: 0 },
+		{ id: "slvl_online_team_rx", scaling_group_id: "sgrp_online_qualifier_2026", label: "Team RX", position: 3, team_size: 2, created_at: ts, updated_at: ts, update_counter: 0 },
 	])
 
 	// Competitions
@@ -153,7 +154,7 @@ export async function seed(client: Connection): Promise<void> {
 		reg("creg_kaitlyn_winter", "comp_winter_throwdown_2025", "usr_athlete_kaitlyn", "tmem_kaitlyn_winter_throwdown", "slvl_winter_scaled", "2024-12-31 17:00:00", "2024-12-31 17:01:00"),
 		// Masters 40+
 		reg("creg_chris_winter", "comp_winter_throwdown_2025", "usr_athlete_chris", "tmem_chris_winter_throwdown", "slvl_winter_masters_40", "2024-12-28 09:00:00", "2024-12-28 09:01:00"),
-		// Online Qualifier registrations
+		// Online Qualifier registrations (individual)
 		{ id: "creg_john_online", event_id: "comp_online_qualifier_2026", user_id: "usr_demo3member", team_member_id: "tmem_john_online", division_id: "slvl_online_rx", registered_at: ts, payment_status: "PAID", paid_at: ts, created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "creg_jane_online", event_id: "comp_online_qualifier_2026", user_id: "usr_demo4member", team_member_id: "tmem_jane_online", division_id: "slvl_online_scaled", registered_at: ts, payment_status: "PAID", paid_at: ts, created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "creg_mike_online", event_id: "comp_online_qualifier_2026", user_id: "usr_athlete_mike", team_member_id: "tmem_mike_online", division_id: "slvl_online_rx", registered_at: ts, payment_status: "PAID", paid_at: ts, created_at: ts, updated_at: ts, update_counter: 0 },
@@ -161,10 +162,20 @@ export async function seed(client: Connection): Promise<void> {
 		{ id: "creg_alex_online", event_id: "comp_online_qualifier_2026", user_id: "usr_athlete_alex", team_member_id: "tmem_alex_online", division_id: "slvl_online_masters", registered_at: ts, payment_status: "PAID", paid_at: ts, created_at: ts, updated_at: ts, update_counter: 0 },
 	])
 
+	// Online Qualifier team registrations (Team Send It: Mike captain, Ryan teammate)
+	await batchInsert(client, "competition_registrations", [
+		{ id: "creg_mike_online_team", event_id: "comp_online_qualifier_2026", user_id: "usr_athlete_mike", team_member_id: "tmem_mike_team_sendit", division_id: "slvl_online_team_rx", team_name: "Team Send It", captain_user_id: "usr_athlete_mike", athlete_team_id: "team_online_team_mike_ryan", registered_at: datetimeToUnix(ts), payment_status: "PAID", paid_at: datetimeToUnix(ts), created_at: ts, updated_at: ts, update_counter: 0 },
+		{ id: "creg_ryan_online_team", event_id: "comp_online_qualifier_2026", user_id: "usr_athlete_ryan", team_member_id: "tmem_ryan_team_sendit", division_id: "slvl_online_team_rx", team_name: "Team Send It", captain_user_id: "usr_athlete_mike", athlete_team_id: "team_online_team_mike_ryan", registered_at: datetimeToUnix(ts), payment_status: "PAID", paid_at: datetimeToUnix(ts), created_at: ts, updated_at: ts, update_counter: 0 },
+	])
+
 	// Competition events (submission windows for online qualifier)
 	await batchInsert(client, "competition_events", [
 		{ id: "cevt_online_event1", competition_id: "comp_online_qualifier_2026", track_workout_id: "tw_online_event1", submission_opens_at: pastDatetime(8), submission_closes_at: pastDatetime(1), created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "cevt_online_event2", competition_id: "comp_online_qualifier_2026", track_workout_id: "tw_online_event2", submission_opens_at: pastDatetime(1), submission_closes_at: futureDatetime(6), created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "cevt_online_event3", competition_id: "comp_online_qualifier_2026", track_workout_id: "tw_online_event3", submission_opens_at: futureDatetime(6), submission_closes_at: futureDatetime(13), created_at: ts, updated_at: ts, update_counter: 0 },
+		// Event 4: Couplet Challenge — parent + sub-events share the same active window
+		{ id: "cevt_online_event4_parent", competition_id: "comp_online_qualifier_2026", track_workout_id: "tw_online_event4_parent", submission_opens_at: pastDatetime(1), submission_closes_at: futureDatetime(6), created_at: ts, updated_at: ts, update_counter: 0 },
+		{ id: "cevt_online_event4_sprint", competition_id: "comp_online_qualifier_2026", track_workout_id: "tw_online_event4_sprint", submission_opens_at: pastDatetime(1), submission_closes_at: futureDatetime(6), created_at: ts, updated_at: ts, update_counter: 0 },
+		{ id: "cevt_online_event4_clean", competition_id: "comp_online_qualifier_2026", track_workout_id: "tw_online_event4_clean", submission_opens_at: pastDatetime(1), submission_closes_at: futureDatetime(6), created_at: ts, updated_at: ts, update_counter: 0 },
 	])
 }

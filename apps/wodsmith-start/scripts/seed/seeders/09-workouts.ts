@@ -102,6 +102,10 @@ export async function seed(client: Connection): Promise<void> {
 		wod("wod_online_fran", "Online Qualifier Event 1 - Fran", "For time:\n\n21-15-9 reps of:\n\u2022 Thrusters (95/65 lb)\n\u2022 Pull-ups\n\nTime cap: 10 minutes\n\nMovement Standards:\n- Thrusters: Full depth squat, bar finishes overhead with hips and knees fully extended\n- Pull-ups: Chin must break the horizontal plane of the bar", "time-with-cap", "private", BOX1_TEAM, 1, "wod_fran", 600),
 		wod("wod_online_karen", "Online Qualifier Event 2 - Karen", "For time:\n\n150 Wall Ball Shots (20/14 lb to 10/9 ft)\n\nTime cap: 15 minutes\n\nMovement Standards:\n- Wall Ball: Hip crease must pass below knee at bottom\n- Ball must hit target at or above required height", "time-with-cap", "private", BOX1_TEAM, 1, "wod_karen", 900),
 		wod("wod_online_amrap", "Online Qualifier Event 3 - Chipper AMRAP", "AMRAP 12 minutes:\n\n5 Deadlifts (225/155 lb)\n10 Box Jump Overs (24/20 in)\n15 Toes-to-Bar\n\nMovement Standards:\n- Deadlifts: Full hip and knee extension at top\n- Box Jump Overs: Two-foot takeoff, both feet must touch top of box\n- Toes-to-Bar: Both feet must touch the bar simultaneously", "rounds-reps", "private", BOX1_TEAM, 1, null, null),
+		// Online Qualifier Event 4 — parent event with 2 sub-events
+		wod("wod_online_couplet_parent", "Online Qualifier Event 4 - Couplet Challenge", "Two-part test: a sprint workout followed by a max lift. Sub-events scored independently.", "time", "private", BOX1_TEAM, 1, null, null, null),
+		wod("wod_online_couplet_sprint", "Sprint WOD", "For time:\n\n3 rounds:\n• 10 Power Cleans (135/95 lb)\n• 20 Box Jumps (24/20 in)\n\nTime cap: 8 minutes", "time-with-cap", "private", BOX1_TEAM, 1, null, 480, "min"),
+		wod("wod_online_couplet_max_clean", "Max Clean", "For max load:\n\n1 Rep Max Clean\n• 3 attempts, 90 seconds between attempts\n\nScore is heaviest successful lift.", "load", "private", BOX1_TEAM, 1, null, null, "max"),
 	])
 
 	// Workout tags

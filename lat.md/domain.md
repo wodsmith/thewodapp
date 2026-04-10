@@ -134,7 +134,7 @@ Organizers create waiver templates per competition. Athletes sign waivers during
 
 Athletes can submit video evidence of their workout performance for remote judging.
 
-Submissions link to a score and include a video URL (e.g., Vimeo). Judges can verify or reject submissions. Community voting is supported via `videoVotesTable`.
+Submissions link to a score and include a video URL (e.g., Vimeo). Judges can verify or reject submissions. Community voting is supported via `videoVotesTable`. Event ownership validation in [[apps/wodsmith-start/src/server-fns/submission-verification-fns.ts]] uses `verifyEventBelongsToCompetition` which checks `competition_events` first, then falls back to `track_workouts` → `programming_tracks` for sub-events without submission windows.
 
 ### Supported Video Platforms
 
@@ -147,6 +147,12 @@ YouTube and Vimeo use iframe embeds. WodProof cloud URLs (`wodproofapp.com/cloud
 Athletes registered in multiple divisions see a division picker on the submission form. Single-division athletes see a static badge.
 
 Switching divisions fetches that division's submission data via [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getVideoSubmissionFn]] with the `divisionId` parameter. Scores and video submissions are scoped per-division so each registration gets its own submission state. The picker lives in [[apps/wodsmith-start/src/components/compete/video-submission-form.tsx#VideoSubmissionForm]].
+
+### Sub-Event Submissions
+
+Events with sub-events (parent/child hierarchy) show a separate submission form per child event on the parent workout page.
+
+The loader in [[apps/wodsmith-start/src/routes/compete/$slug/workouts/$eventId.tsx#Route]] fetches video submissions for each child event in parallel via [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getVideoSubmissionFn]]. Each child renders its own [[apps/wodsmith-start/src/components/compete/video-submission-form.tsx#VideoSubmissionForm]] with the child's `trackWorkoutId`. Team divisions get the same multi-video slot behavior per sub-event. The parent event itself has no submission form when children exist — all scoring is per sub-event.
 
 ### Captain-Only Submission
 

@@ -30,7 +30,7 @@ Fetches divisions with registration counts, scaling groups, and series mapping s
 
 Events link workouts to the competition. Each event represents a workout athletes will perform and be scored on.
 
-Fetches events, divisions, movements, and sponsors in parallel. Uses `OrganizerEventManager` for creating, editing, reordering, and deleting events. Events can have per-division workout descriptions, attached resources, and judging sheets. Supports parent/sub-event hierarchy for multi-workout events.
+Fetches events, divisions, movements, and sponsors in parallel. Uses `OrganizerEventManager` for creating, editing, reordering, and deleting events. Events can have per-division workout descriptions, attached resources, and judging sheets. Supports parent/sub-event hierarchy for multi-workout events. Publishing or unpublishing a parent event cascades to all its child sub-events via [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-components/quick-actions-events.tsx]].
 
 ## Heat Scheduling
 
@@ -70,13 +70,13 @@ Organizers enter scores for each athlete per event, or review video submissions 
 
 For **in-person competitions**: `ResultsEntryForm` provides a per-event, per-division score entry grid. Organizers select an event and division, then enter scores for each athlete. Supports publishing/unpublishing division results.
 
-For **online competitions**: Shows a submissions overview with links to individual video verification pages at `/events/{eventId}/submissions/`. Displays submission counts and verification status per event.
+For **online competitions**: Shows a submissions overview with links to individual video verification pages at `/events/{eventId}/submissions/`. Each child sub-event is listed as its own row with submission counts and verification status; the parent event name is shown as contextual metadata alongside each child row. Events without `competition_events` rows (no submission window configured) are handled gracefully.
 
 ## Submission Windows
 
 Manages time windows during which athletes can submit video evidence for online competitions.
 
-Only available when `competitionType === "online"`. Fetches workouts and competition events. Each event can have a submission window with open/close dates. Uses `SubmissionWindowsManager` component.
+Only available when `competitionType === "online"`. Fetches workouts and competition events. Each event can have a submission window with open/close dates. Uses `SubmissionWindowsManager` component. Only parent (top-level) events appear in the unassigned pool and are draggable; sub-events are automatically assigned to the same window as their parent and displayed as children on the window card.
 
 ## Volunteers
 
