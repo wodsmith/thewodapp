@@ -251,7 +251,7 @@ function WodProofPlayer({
 
     video.addEventListener("canplay", handleCanPlay)
     return () => video.removeEventListener("canplay", handleCanPlay)
-  }, [videoId])
+  }, [])
 
   if (error) {
     return (
@@ -284,6 +284,7 @@ function WodProofPlayer({
         className,
       )}
     >
+      {/* biome-ignore lint/a11y/useMediaCaption: workout videos don't have captions */}
       <video
         ref={videoRef}
         src={getWodProofVideoUrl(videoId)}
@@ -362,7 +363,7 @@ export function VideoPlayerEmbed({
  */
 export function supportsInteractivePlayer(url: string): boolean {
   const parsed = parseVideoUrl(url)
-  return parsed !== null && parsed.supportsEmbed
+  return parsed?.supportsEmbed ?? false
 }
 
 /**

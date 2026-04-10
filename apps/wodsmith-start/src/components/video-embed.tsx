@@ -160,6 +160,7 @@ function WodProofVideoEmbed({
       className={`relative overflow-hidden rounded-lg bg-black ${className}`}
       style={{ aspectRatio }}
     >
+      {/* biome-ignore lint/a11y/useMediaCaption: workout videos don't have captions */}
       <video
         src={getWodProofVideoUrl(videoInfo.videoId)}
         controls
