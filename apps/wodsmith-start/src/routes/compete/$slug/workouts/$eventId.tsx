@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
+import { getUserCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
 import {
   getPublicEventHeatsFn,
   getVenueForTrackWorkoutByDivisionFn,
@@ -49,22 +49,26 @@ const eventSearchSchema = z.object({
   division: z.string().optional(),
 })
 
-// Server function to get athlete's registered division for this competition
-const getAthleteRegisteredDivisionFn = createServerFn({ method: "GET" })
+// Server function to get ALL athlete registered divisions for this competition
+const getAthleteRegisteredDivisionsFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) =>
     z.object({ competitionId: z.string() }).parse(data),
   )
   .handler(async ({ data }) => {
     const session = await getSessionFromCookie()
     if (!session?.user?.id) {
-      return { divisionId: null }
+      return { divisionIds: [] }
     }
 
-    const result = await getUserCompetitionRegistrationFn({
+    const result = await getUserCompetitionRegistrationsFn({
       data: { competitionId: data.competitionId, userId: session.user.id },
     })
 
-    return { divisionId: result.registration?.divisionId ?? null }
+    const divisionIds = result.registrations
+      .map((r) => r.divisionId)
+      .filter((id): id is string => id !== null)
+
+    return { divisionIds }
   })
 
 export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
@@ -81,28 +85,21 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       throw notFound()
     }
 
-    // Fetch event details, judging sheets, athlete's division, video submission,
+    // Fetch event details, judging sheets, athlete's registered divisions,
     // and event-division mappings in parallel
     const [
       eventResult,
       judgingSheetsResult,
-      athleteDivisionResult,
-      videoSubmissionResult,
+      athleteDivisionsResult,
       eventDivisionMappingResult,
     ] = await Promise.all([
       getPublicEventDetailsFn({
         data: { eventId, competitionId: competition.id },
       }),
       getEventJudgingSheetsFn({ data: { trackWorkoutId: eventId } }),
-      getAthleteRegisteredDivisionFn({
+      getAthleteRegisteredDivisionsFn({
         data: { competitionId: competition.id },
       }),
-      // Only fetch video submission for online competitions
-      competition.competitionType === "online"
-        ? getVideoSubmissionFn({
-            data: { trackWorkoutId: eventId, competitionId: competition.id },
-          })
-        : Promise.resolve(null),
       getPublicEventDivisionMappingsFn({
         data: { competitionId: competition.id },
       }),
@@ -139,6 +136,15 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
         })
       : { venue: null }
 
+    // Resolve athlete's registered divisions with labels
+    const athleteRegisteredDivisionIds = athleteDivisionsResult.divisionIds
+    const athleteRegisteredDivisions = athleteRegisteredDivisionIds
+      .map((divId) => {
+        const div = divisions.find((d) => d.id === divId)
+        return div ? { divisionId: div.id, label: div.label } : null
+      })
+      .filter((d): d is { divisionId: string; label: string } => d !== null)
+
     // Defer heat schedule fetch - not needed for initial render
     const deferredEventHeats =
       eventResult.event.heatStatus === "published"
@@ -152,6 +158,47 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
     const childEvents = allWorkoutsResult.workouts
       .filter((w) => w.parentEventId === eventId)
       .sort((a, b) => a.trackOrder - b.trackOrder)
+
+    // For online competitions, fetch video submissions
+    const initialSubmissionDivisionId =
+      athleteRegisteredDivisionIds[0] ?? undefined
+    const hasChildEvents = childEvents.length > 0
+
+    // If event has children, fetch submissions per child; otherwise fetch for this event
+    let videoSubmissionResult: Awaited<
+      ReturnType<typeof getVideoSubmissionFn>
+    > | null = null
+    const childVideoSubmissions: Record<
+      string,
+      Awaited<ReturnType<typeof getVideoSubmissionFn>>
+    > = {}
+
+    if (competition.competitionType === "online") {
+      if (hasChildEvents) {
+        const childResults = await Promise.all(
+          childEvents.map((child) =>
+            getVideoSubmissionFn({
+              data: {
+                trackWorkoutId: child.id,
+                competitionId: competition.id,
+                divisionId: initialSubmissionDivisionId,
+              },
+            }),
+          ),
+        )
+        for (let i = 0; i < childEvents.length; i++) {
+          childVideoSubmissions[childEvents[i].id] = childResults[i]
+        }
+      } else {
+        videoSubmissionResult = await getVideoSubmissionFn({
+          data: {
+            trackWorkoutId: eventId,
+            competitionId: competition.id,
+            divisionId: initialSubmissionDivisionId,
+          },
+        })
+      }
+    }
 
     // If this is a sub-event, find the parent event for context
     const parentEvent = eventResult.event.parentEventId
@@ -188,10 +235,9 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
     // Determine if athlete's division is mapped to this event
     // Events with no mappings are visible to all divisions.
     // Only events with explicit mappings are filtered by division.
-    const athleteDivisionId = athleteDivisionResult.divisionId
     const eventMappings = eventDivisionMappingResult
     let isEventMappedToAthleteDivision = true
-    if (eventMappings.hasMappings && athleteDivisionId) {
+    if (eventMappings.hasMappings && athleteRegisteredDivisionIds.length > 0) {
       const parentId = eventResult.event.parentEventId
       // Check if this event (or parent) has ANY mappings at all
       const eventHasMappings = eventMappings.mappings.some(
@@ -203,7 +249,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       if (eventHasMappings) {
         isEventMappedToAthleteDivision = eventMappings.mappings.some(
           (m) =>
-            m.divisionId === athleteDivisionId &&
+            athleteRegisteredDivisionIds.includes(m.divisionId) &&
             (m.trackWorkoutId === eventId ||
               (parentId && m.trackWorkoutId === parentId)),
         )
@@ -219,9 +265,11 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       totalEvents: eventResult.totalEvents,
       divisionDescriptions,
       divisions,
-      athleteRegisteredDivisionId: athleteDivisionId,
+      athleteRegisteredDivisions,
+      athleteRegisteredDivisionId: athleteRegisteredDivisionIds[0] ?? null,
       venue: venueResult.venue,
       videoSubmission: videoSubmissionResult,
+      childVideoSubmissions,
       deferredEventHeats,
       childEvents,
       childDivisionDescriptions,
@@ -281,9 +329,11 @@ function EventDetailsPage() {
     totalEvents,
     divisionDescriptions,
     divisions,
+    athleteRegisteredDivisions,
     athleteRegisteredDivisionId,
     venue,
     videoSubmission,
+    childVideoSubmissions,
     deferredEventHeats,
     childEvents,
     childDivisionDescriptions,
@@ -316,6 +366,13 @@ function EventDetailsPage() {
           return divisions.filter((d) => mappedDivisionIds.has(d.id))
         })()
       : divisions
+
+  // For sidebar submission window display, use the first child's data for parent events
+  const sidebarSubmission =
+    videoSubmission ??
+    (childEvents.length > 0
+      ? Object.values(childVideoSubmissions)[0] ?? null
+      : null)
 
   // Sort division descriptions by position
   const sortedDivisions = [...divisionDescriptions].sort(
@@ -459,41 +516,55 @@ function EventDetailsPage() {
                     child.workout.scheme,
                     child.workout.timeCap,
                   )
+                  const childSubmission =
+                    childVideoSubmissions[child.id] ?? null
 
                   return (
-                    <div key={child.id} className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-base font-semibold">
-                          {child.workout.name}
-                        </h3>
-                        <Badge variant="secondary" className="text-xs">
-                          {childScheme}
-                        </Badge>
-                        {child.pointsMultiplier &&
-                          child.pointsMultiplier !== 100 && (
-                            <span className="text-xs text-muted-foreground">
-                              {child.pointsMultiplier / 100}x points
-                            </span>
-                          )}
-                      </div>
-                      {child.workout.description && (
-                        <div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
-                          {child.workout.description}
-                        </div>
-                      )}
-                      {childScale && (
-                        <div className="flex items-start gap-2 mt-1">
-                          <Badge
-                            variant="secondary"
-                            className="shrink-0 text-xs"
-                          >
-                            {childDivisionDesc?.divisionLabel || "Division"}
+                    <div key={child.id} className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-base font-semibold">
+                            {child.workout.name}
+                          </h3>
+                          <Badge variant="secondary" className="text-xs">
+                            {childScheme}
                           </Badge>
-                          <p className="font-mono text-sm whitespace-pre-wrap text-muted-foreground">
-                            {childScale}
-                          </p>
+                          {child.pointsMultiplier &&
+                            child.pointsMultiplier !== 100 && (
+                              <span className="text-xs text-muted-foreground">
+                                {child.pointsMultiplier / 100}x points
+                              </span>
+                            )}
                         </div>
-                      )}
+                        <div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
+                          {child.workout.description || "Details coming soon."}
+                        </div>
+                        {childScale && (
+                          <div className="flex items-start gap-2 mt-1">
+                            <Badge
+                              variant="secondary"
+                              className="shrink-0 text-xs"
+                            >
+                              {childDivisionDesc?.divisionLabel || "Division"}
+                            </Badge>
+                            <p className="font-mono text-sm whitespace-pre-wrap text-muted-foreground">
+                              {childScale}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Per-sub-event submission form for online competitions */}
+                      {competition.competitionType === "online" &&
+                        childSubmission && (
+                          <VideoSubmissionForm
+                            trackWorkoutId={child.id}
+                            competitionId={competition.id}
+                            timezone={competition.timezone}
+                            registeredDivisions={athleteRegisteredDivisions}
+                            initialData={childSubmission}
+                          />
+                        )}
                     </div>
                   )
                 })}
@@ -508,15 +579,17 @@ function EventDetailsPage() {
               />
             )}
 
-            {/* Video & Score Submission Form - Below description for online competitions */}
+            {/* Video & Score Submission Form - For events without sub-events */}
             {/* Only show when event is mapped to athlete's division (or no mappings configured) */}
             {competition.competitionType === "online" &&
               videoSubmission &&
+              childEvents.length === 0 &&
               isEventMappedToAthleteDivision && (
                 <VideoSubmissionForm
                   trackWorkoutId={event.id}
                   competitionId={competition.id}
                   timezone={competition.timezone}
+                  registeredDivisions={athleteRegisteredDivisions}
                   initialData={videoSubmission}
                 />
               )}
@@ -528,7 +601,7 @@ function EventDetailsPage() {
       <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
         {/* Submission Info Card - For online competitions */}
         {competition.competitionType === "online" &&
-          videoSubmission?.submissionWindow && (
+          sidebarSubmission?.submissionWindow && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Submission Window</CardTitle>
@@ -542,7 +615,7 @@ function EventDetailsPage() {
                     </p>
                     <p className="font-medium text-sm">
                       {formatHeatTime(
-                        new Date(videoSubmission.submissionWindow.opensAt),
+                        new Date(sidebarSubmission.submissionWindow.opensAt),
                         competition.timezone,
                       )}
                     </p>
@@ -556,19 +629,19 @@ function EventDetailsPage() {
                     </p>
                     <p className="font-medium text-sm">
                       {formatHeatTime(
-                        new Date(videoSubmission.submissionWindow.closesAt),
+                        new Date(sidebarSubmission.submissionWindow.closesAt),
                         competition.timezone,
                       )}
                     </p>
                   </div>
                 </div>
-                {videoSubmission.canSubmit ? (
+                {sidebarSubmission.canSubmit ? (
                   <p className="text-xs text-green-600 dark:text-green-400 font-medium">
                     Submission window is open
                   </p>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    {videoSubmission.reason}
+                    {sidebarSubmission.reason}
                   </p>
                 )}
               </CardContent>

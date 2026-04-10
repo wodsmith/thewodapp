@@ -16,6 +16,7 @@ interface WorkoutWithType {
   name: string
   workoutType: string
   trackOrder: number
+  parentEventId: string | null
 }
 
 interface UnassignedWorkoutsPoolProps {

@@ -430,10 +430,7 @@ function ExpandedVideoContent({
               value={v.id}
               className="rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
             >
-              {v.athleteName}
-              {v.videoIndex === 0 && (
-                <span className="ml-1 text-muted-foreground">(C)</span>
-              )}
+              {v.videoIndex === 0 ? "Captain" : `Teammate ${v.videoIndex}`}
             </TabsTrigger>
           ))}
         </TabsList>

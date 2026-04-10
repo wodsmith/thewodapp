@@ -81,5 +81,9 @@ export async function seed(client: Connection): Promise<void> {
 		mem("tmem_mike_online", "team_online_qualifier_2026", "usr_athlete_mike", "member"),
 		mem("tmem_sarah_online", "team_online_qualifier_2026", "usr_athlete_sarah", "member"),
 		mem("tmem_alex_online", "team_online_qualifier_2026", "usr_athlete_alex", "member"),
+		mem("tmem_ryan_online", "team_online_qualifier_2026", "usr_athlete_ryan", "member"),
+		// Athlete team memberships (competition_team type) for Team Send It
+		mem("tmem_mike_team_sendit", "team_online_team_mike_ryan", "usr_athlete_mike", "owner"),
+		mem("tmem_ryan_team_sendit", "team_online_team_mike_ryan", "usr_athlete_ryan", "member"),
 	])
 }

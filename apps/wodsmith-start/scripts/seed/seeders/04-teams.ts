@@ -137,5 +137,20 @@ export async function seed(client: Connection): Promise<void> {
 			current_plan_id: null,
 			parent_organization_id: null,
 		},
+		// Athlete team for online qualifier team division (Mike captain, Ryan teammate)
+		{
+			id: "team_online_team_mike_ryan",
+			name: "Team Send It",
+			slug: "team-send-it",
+			type: "competition_team",
+			description: "Mike & Ryan's team for Online Qualifier 2026",
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+			is_personal_team: 0,
+			personal_team_owner_id: null,
+			current_plan_id: null,
+			parent_organization_id: null,
+		},
 	])
 }

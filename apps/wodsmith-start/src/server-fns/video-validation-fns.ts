@@ -130,6 +130,28 @@ async function checkVimeoAccessibility(videoId: string): Promise<boolean> {
 }
 
 /**
+ * Check if a WodProof video is accessible by sending a HEAD request to the S3 URL
+ */
+async function checkWodProofAccessibility(videoId: string): Promise<boolean> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), OEMBED_TIMEOUT_MS)
+
+  try {
+    const s3Url = `https://s3.us-east-1.amazonaws.com/wodproof-cloud/${videoId}.mp4`
+    const response = await fetch(s3Url, {
+      method: "HEAD",
+      signal: controller.signal,
+    })
+
+    clearTimeout(timeoutId)
+    return response.ok
+  } catch {
+    clearTimeout(timeoutId)
+    return false
+  }
+}
+
+/**
  * Check video accessibility based on platform
  */
 async function checkVideoAccessibility(
@@ -140,6 +162,8 @@ async function checkVideoAccessibility(
       return checkYouTubeAccessibility(parsed.videoId)
     case "vimeo":
       return checkVimeoAccessibility(parsed.videoId)
+    case "wodproof":
+      return checkWodProofAccessibility(parsed.videoId)
     default:
       return false
   }
