@@ -130,9 +130,8 @@ export function AthleteScoreSubmissionPanel({
     }
   }, [eventDivisionMappings, division?.id])
 
-  // Filter parents and children by division mappings.
-  // Sub-events inherit their parent's mapping — only top-level events are mapped in the matrix.
-  // Children with their own explicit mappings are filtered individually as a secondary filter.
+  // Filter by division mappings. Only top-level events are mapped;
+  // sub-events inherit their parent's visibility.
   const { filteredParents, filteredChildEventsMap } = useMemo(() => {
     const isVisible = (id: string) =>
       eventsWithMappings.size === 0 || !eventsWithMappings.has(id) || mappedToSelectedDiv.has(id)
@@ -150,16 +149,12 @@ export function AthleteScoreSubmissionPanel({
         continue
       }
 
-      // Parent with children: check parent's mapping first.
-      // If the parent is explicitly mapped to other divisions, skip it and all children.
+      // Parent with children: check parent's mapping.
+      // Only top-level events are mapped; children inherit the parent's visibility.
       if (!isVisible(parent.id)) continue
 
-      // Then filter children individually (children with their own explicit mappings)
-      const visibleChildren = children.filter((c) => isVisible(c.id))
-      if (visibleChildren.length > 0) {
-        visibleParents.push(parent)
-        childMap.set(parent.id, visibleChildren)
-      }
+      visibleParents.push(parent)
+      childMap.set(parent.id, children)
     }
 
     return { filteredParents: visibleParents, filteredChildEventsMap: childMap }
