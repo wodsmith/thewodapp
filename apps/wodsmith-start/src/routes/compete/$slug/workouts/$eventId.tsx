@@ -173,12 +173,28 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       .map((w) => ({ id: w.id, trackOrder: w.trackOrder }))
 
     // For online competitions, fetch video submissions
-    // Prefer the URL's division param when it matches a registered division,
+    // Prefer the URL's division param when it matches a registered AND event-mapped division,
     // so that the form initializes with the correct teamSize for team divisions.
+    // Filter athlete divisions by event-division mappings (same logic as component-side filtering)
+    const loaderEventMappings = eventDivisionMappingResult
+    const loaderMappedDivisionIds = (() => {
+      if (!loaderEventMappings.hasMappings || !athleteRegisteredDivisionIds.length) {
+        return athleteRegisteredDivisionIds
+      }
+      const parentId = eventResult.event.parentEventId
+      const relevantMappings = loaderEventMappings.mappings.filter(
+        (m) =>
+          m.trackWorkoutId === eventId ||
+          (parentId && m.trackWorkoutId === parentId),
+      )
+      if (relevantMappings.length === 0) return athleteRegisteredDivisionIds
+      const mappedSet = new Set(relevantMappings.map((m) => m.divisionId))
+      return athleteRegisteredDivisionIds.filter((id) => mappedSet.has(id))
+    })()
     const initialSubmissionDivisionId =
-      (deps.division && athleteRegisteredDivisionIds.includes(deps.division)
+      (deps.division && loaderMappedDivisionIds.includes(deps.division)
         ? deps.division
-        : athleteRegisteredDivisionIds[0]) ?? undefined
+        : loaderMappedDivisionIds[0]) ?? undefined
     const hasChildEvents = childEvents.length > 0
 
     // If event has children, fetch submissions per child; otherwise fetch for this event

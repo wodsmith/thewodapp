@@ -389,12 +389,55 @@ export function VideoSubmissionForm({
     [selectedDivisionId, trackWorkoutId, competitionId, fetchSubmission],
   )
 
-  // Sync division when initialDivisionId prop changes (e.g., URL navigation)
+  // Sync form state from loader props when initialDivisionId changes (e.g., URL navigation).
+  // The route loader already re-fetches with the correct division, so initialData is fresh —
+  // no need to trigger another network request via handleDivisionChange.
   useEffect(() => {
     if (initialDivisionId && initialDivisionId !== selectedDivisionId) {
-      handleDivisionChange(initialDivisionId)
+      setSelectedDivisionId(initialDivisionId)
+      if (initialData) {
+        setCurrentData(initialData)
+        const subs = initialData.submissions ?? []
+        setSubmissionsData(subs)
+        setVideoSlots(createInitialSlots(initialData.teamSize, subs))
+        setScoreData(initialData.existingScore ?? null)
+        setScoreInput(initialData.existingScore?.displayScore ?? "")
+        setSecondaryScore(
+          initialData.existingScore?.secondaryValue?.toString() ?? "",
+        )
+        if (
+          initialData.existingScore?.tiebreakValue != null &&
+          initialData.workout?.tiebreakScheme
+        ) {
+          setTiebreakScore(
+            initialData.workout.tiebreakScheme === "time"
+              ? decodeScore(initialData.existingScore.tiebreakValue, "time", {
+                  compact: true,
+                })
+              : initialData.existingScore.tiebreakValue.toString(),
+          )
+        } else {
+          setTiebreakScore("")
+        }
+        const newRoundsToScore = initialData.workout?.roundsToScore ?? 1
+        if (newRoundsToScore > 1) {
+          const existingRounds = initialData.existingScore?.roundScores ?? []
+          setRoundScoreInputs(
+            Array.from({ length: newRoundsToScore }, (_, i) => {
+              const existing = existingRounds.find(
+                (r) => r.roundNumber === i + 1,
+              )
+              return existing?.displayScore ?? ""
+            }),
+          )
+        } else {
+          setRoundScoreInputs([])
+        }
+        setHasSubmitted(subs.length > 0)
+        setIsEditing(subs.length === 0)
+      }
     }
-  }, [initialDivisionId, selectedDivisionId, handleDivisionChange])
+  }, [initialDivisionId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Transition to preview mode after success message displays
   useEffect(() => {
