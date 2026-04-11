@@ -80,7 +80,8 @@ const getAthleteRegisteredDivisionsFn = createServerFn({ method: "GET" })
 export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
   component: EventDetailsPage,
   validateSearch: (search) => eventSearchSchema.parse(search),
-  loader: async ({ params, parentMatchPromise }) => {
+  loaderDeps: ({ search }) => ({ division: search.division }),
+  loader: async ({ params, parentMatchPromise, deps }) => {
     const { eventId } = params
 
     const parentMatch = await parentMatchPromise
@@ -172,8 +173,12 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       .map((w) => ({ id: w.id, trackOrder: w.trackOrder }))
 
     // For online competitions, fetch video submissions
+    // Prefer the URL's division param when it matches a registered division,
+    // so that the form initializes with the correct teamSize for team divisions.
     const initialSubmissionDivisionId =
-      athleteRegisteredDivisionIds[0] ?? undefined
+      (deps.division && athleteRegisteredDivisionIds.includes(deps.division)
+        ? deps.division
+        : athleteRegisteredDivisionIds[0]) ?? undefined
     const hasChildEvents = childEvents.length > 0
 
     // If event has children, fetch submissions per child; otherwise fetch for this event
@@ -279,6 +284,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       divisions,
       athleteRegisteredDivisions,
       athleteRegisteredDivisionId: athleteRegisteredDivisionIds[0] ?? null,
+      initialSubmissionDivisionId: initialSubmissionDivisionId ?? null,
       venue: venueResult.venue,
       videoSubmission: videoSubmissionResult,
       childVideoSubmissions,
@@ -343,6 +349,7 @@ function EventDetailsPage() {
     divisions,
     athleteRegisteredDivisions,
     athleteRegisteredDivisionId,
+    initialSubmissionDivisionId,
     venue,
     videoSubmission,
     childVideoSubmissions,
@@ -624,6 +631,7 @@ function EventDetailsPage() {
                             timezone={competition.timezone}
                             registeredDivisions={filteredRegisteredDivisions}
                             initialData={childSubmission}
+                            initialDivisionId={initialSubmissionDivisionId ?? undefined}
                           />
                         )}
                     </div>
@@ -652,6 +660,7 @@ function EventDetailsPage() {
                   timezone={competition.timezone}
                   registeredDivisions={athleteRegisteredDivisions}
                   initialData={videoSubmission}
+                  initialDivisionId={initialSubmissionDivisionId ?? undefined}
                 />
               )}
           </div>

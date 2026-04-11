@@ -98,6 +98,7 @@ interface VideoSubmissionFormProps {
   timezone?: string | null
   registeredDivisions?: RegisteredDivision[]
   initialData?: VideoSubmissionInitialData
+  initialDivisionId?: string
 }
 
 function formatSubmissionTime(
@@ -251,13 +252,14 @@ export function VideoSubmissionForm({
   timezone,
   registeredDivisions,
   initialData,
+  initialDivisionId,
 }: VideoSubmissionFormProps) {
   const hasMultipleDivisions = (registeredDivisions?.length ?? 0) > 1
 
-  // Division selection state — default to first registered division
+  // Division selection state — prefer initialDivisionId (from URL param), fall back to first
   const [selectedDivisionId, setSelectedDivisionId] = useState<
     string | undefined
-  >(registeredDivisions?.[0]?.divisionId)
+  >(initialDivisionId ?? registeredDivisions?.[0]?.divisionId)
 
   // Track the current data (may be swapped when switching divisions)
   const [currentData, setCurrentData] = useState<
