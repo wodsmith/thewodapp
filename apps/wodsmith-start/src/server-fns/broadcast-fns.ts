@@ -8,7 +8,7 @@
 
 import { createServerFn } from "@tanstack/react-start"
 import { render } from "@react-email/render"
-import { and, count, desc, eq, inArray, ne } from "drizzle-orm"
+import { and, count, countDistinct, desc, eq, inArray, ne } from "drizzle-orm"
 import { env } from "cloudflare:workers"
 import { z } from "zod"
 import { getDb } from "@/db"
@@ -552,14 +552,20 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 				)
 				.where(and(...conditions))
 
-			recipients.push(
-				...athleteRows.map((r) => ({
-					registrationId: r.id as string | null,
-					userId: r.userId,
-					email: r.email,
-					firstName: r.firstName,
-				})),
-			)
+			// Deduplicate athletes by userId — a user may have multiple registrations
+			// (e.g. across divisions) but should only receive one broadcast recipient row
+			const seenAthleteUserIds = new Set<string>()
+			for (const r of athleteRows) {
+				if (!seenAthleteUserIds.has(r.userId)) {
+					seenAthleteUserIds.add(r.userId)
+					recipients.push({
+						registrationId: r.id as string | null,
+						userId: r.userId,
+						email: r.email,
+						firstName: r.firstName,
+					})
+				}
+			}
 		}
 
 		if (includeVolunteers) {
@@ -1096,14 +1102,19 @@ export const previewAudienceFn = createServerFn({ method: "GET" })
 					)
 					.where(and(...conditions))
 
-				recipients.push(
-					...athleteRows.map((r) => ({
-						registrationId: r.id as string | null,
-						userId: r.userId,
-						email: r.email,
-						firstName: r.firstName,
-					})),
-				)
+				// Deduplicate athletes by userId — a user may have multiple registrations
+				const seenAthleteUserIds = new Set<string>()
+				for (const r of athleteRows) {
+					if (!seenAthleteUserIds.has(r.userId)) {
+						seenAthleteUserIds.add(r.userId)
+						recipients.push({
+							registrationId: r.id as string | null,
+							userId: r.userId,
+							email: r.email,
+							firstName: r.firstName,
+						})
+					}
+				}
 			}
 
 			if (includeVolunteers) {
@@ -1207,10 +1218,10 @@ export const previewAudienceFn = createServerFn({ method: "GET" })
 				)
 			}
 			const [result] = await db
-				.select({ count: count() })
+				.select({ count: countDistinct(competitionRegistrationsTable.userId) })
 				.from(competitionRegistrationsTable)
 				.where(and(...conditions))
-			athleteCount = result?.count ?? 0
+			athleteCount = Number(result?.count ?? 0)
 		}
 
 		if (includeVolunteers) {
