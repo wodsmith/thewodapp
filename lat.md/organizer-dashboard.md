@@ -140,7 +140,7 @@ Fetches revenue stats and Stripe connection status in parallel. Uses `RevenueSta
 
 Discount codes that reduce registration fees for athletes.
 
-Requires `PRODUCT_COUPONS` entitlement. `CouponsPage` handles creating and deactivating coupons with code, discount amount, usage limits, and expiration. Uses `createCouponFn`, `listCouponsFn`, `deactivateCouponFn`.
+Requires `PRODUCT_COUPONS` entitlement. `CouponsPage` handles creating and deactivating coupons with code, discount amount, usage limits, and expiration. Uses `createCouponFn`, `listCouponsFn`, `deactivateCouponFn`. All three server functions authorize both platform admins (`session.user.role === "admin"`) and team admin/owner members.
 
 ## Sponsors
 
