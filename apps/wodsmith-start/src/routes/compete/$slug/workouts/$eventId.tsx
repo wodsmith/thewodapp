@@ -379,6 +379,23 @@ function EventDetailsPage() {
         })()
       : divisions
 
+  // Filter the athlete's registered divisions by event-division mappings
+  // so the division picker only shows divisions mapped to this event
+  const filteredRegisteredDivisions = (() => {
+    if (!eventDivisionMappings.hasMappings || !athleteRegisteredDivisions.length) {
+      return athleteRegisteredDivisions
+    }
+    const parentId = event.parentEventId
+    const eventMappings = eventDivisionMappings.mappings.filter(
+      (m) =>
+        m.trackWorkoutId === eventId ||
+        (parentId && m.trackWorkoutId === parentId),
+    )
+    if (eventMappings.length === 0) return athleteRegisteredDivisions
+    const mappedDivisionIds = new Set(eventMappings.map((m) => m.divisionId))
+    return athleteRegisteredDivisions.filter((d) => mappedDivisionIds.has(d.divisionId))
+  })()
+
   // For sidebar submission window display, use the first child's data for parent events
   const sidebarSubmission =
     videoSubmission ??
@@ -605,7 +622,7 @@ function EventDetailsPage() {
                             trackWorkoutId={child.id}
                             competitionId={competition.id}
                             timezone={competition.timezone}
-                            registeredDivisions={athleteRegisteredDivisions}
+                            registeredDivisions={filteredRegisteredDivisions}
                             initialData={childSubmission}
                           />
                         )}
