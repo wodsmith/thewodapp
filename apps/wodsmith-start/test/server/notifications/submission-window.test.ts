@@ -153,10 +153,9 @@ describe("Submission Window Notifications", () => {
 			mockDb.registerTable("submissionWindowNotificationsTable")
 			mockDb.setMockSingleValue(mockUser)
 
-			// reserveNotification checks submissionWindowNotificationsTable.findFirst()
-			// Return existing notification = already sent = reservation fails
-			const notifFindFirst = mockDb.query.submissionWindowNotificationsTable.findFirst as any
-			notifFindFirst.mockResolvedValueOnce({ id: "existing_notif" })
+			// The atomic transaction uses select().from().where() to check for existing reservations.
+			// Set mockReturnValue so the select chain returns an existing record.
+			mockDb.setMockReturnValue([{ id: "existing_notif" }])
 
 			const { sendWindowOpensNotification } = await import(
 				"@/server/notifications/submission-window"

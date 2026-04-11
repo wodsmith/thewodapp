@@ -248,22 +248,49 @@ export async function sendWindowOpensNotification(params: {
     return false
   }
 
-  // Reserve notification slots for all events in this window group.
-  // If at least one reservation succeeds, we need to send the email.
-  const reservedEventIds: string[] = []
-  for (const eventId of competitionEventIds) {
-    const reserved = await reserveNotification({
-      competitionId,
-      competitionEventId: eventId,
-      registrationId,
-      userId,
-      type: SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_OPENS,
-      sentToEmail: user.email,
-    })
-    if (reserved) {
-      reservedEventIds.push(eventId)
+  // Reserve notification slots for all events in this window group atomically.
+  // Uses a transaction so either all reservations succeed or none do,
+  // preventing duplicate grouped emails from concurrent cron runs.
+  const reservedEventIds = await db.transaction(async (tx) => {
+    const reserved: string[] = []
+    for (const eventId of competitionEventIds) {
+      const [existing] = await tx
+        .select({ id: submissionWindowNotificationsTable.id })
+        .from(submissionWindowNotificationsTable)
+        .where(
+          and(
+            eq(
+              submissionWindowNotificationsTable.competitionEventId,
+              eventId,
+            ),
+            eq(
+              submissionWindowNotificationsTable.registrationId,
+              registrationId,
+            ),
+            eq(
+              submissionWindowNotificationsTable.type,
+              SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_OPENS,
+            ),
+          ),
+        )
+
+      if (existing) {
+        // This event was already reserved — another process owns this group
+        return []
+      }
+
+      await tx.insert(submissionWindowNotificationsTable).values({
+        competitionId,
+        competitionEventId: eventId,
+        registrationId,
+        userId,
+        type: SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_OPENS,
+        sentToEmail: user.email,
+      })
+      reserved.push(eventId)
     }
-  }
+    return reserved
+  })
 
   if (reservedEventIds.length === 0) {
     // All events already notified by another process
@@ -661,7 +688,7 @@ export async function processSubmissionWindowNotifications(): Promise<ProcessedN
 
       // 1. Window just opened (within last 15 minutes) — collect for grouped email
       if (opensAt <= now && opensAt > fifteenMinutesAgo) {
-        const groupKey = `${competition.id}::${event.submissionOpensAt}`
+        const groupKey = `${competition.id}::${event.submissionOpensAt}::${event.submissionClosesAt ?? ""}`
         const existing = windowOpenGroups.get(groupKey)
         if (existing) {
           existing.eventIds.push(event.id)
