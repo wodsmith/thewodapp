@@ -60,11 +60,13 @@ export const createCouponFn = createServerFn({ method: "POST" })
   .handler(async ({ data: input }) => {
     const session = await requireVerifiedEmail()
 
-    const canManage = session.teams?.find(
-      (t) =>
-        t.id === input.teamId &&
-        (t.role.id === "admin" || t.role.id === "owner"),
-    )
+    const canManage =
+      session.user?.role === "admin" ||
+      session.teams?.find(
+        (t) =>
+          t.id === input.teamId &&
+          (t.role.id === "admin" || t.role.id === "owner"),
+      )
     if (!canManage) throw new Error("Unauthorized")
 
     getEvlog()?.set({ action: "create_coupon", coupon: { competitionId: input.competitionId }, teamId: input.teamId })
@@ -142,11 +144,13 @@ export const listCouponsFn = createServerFn({ method: "GET" })
   .handler(async ({ data: input }) => {
     const session = await requireVerifiedEmail()
 
-    const canManage = session.teams?.find(
-      (t) =>
-        t.id === input.teamId &&
-        (t.role.id === "admin" || t.role.id === "owner"),
-    )
+    const canManage =
+      session.user?.role === "admin" ||
+      session.teams?.find(
+        (t) =>
+          t.id === input.teamId &&
+          (t.role.id === "admin" || t.role.id === "owner"),
+      )
     if (!canManage) throw new Error("Unauthorized")
 
     const db = getDb()
@@ -230,11 +234,13 @@ export const deactivateCouponFn = createServerFn({ method: "POST" })
   .handler(async ({ data: input }) => {
     const session = await requireVerifiedEmail()
 
-    const canManage = session.teams?.find(
-      (t) =>
-        t.id === input.teamId &&
-        (t.role.id === "admin" || t.role.id === "owner"),
-    )
+    const canManage =
+      session.user?.role === "admin" ||
+      session.teams?.find(
+        (t) =>
+          t.id === input.teamId &&
+          (t.role.id === "admin" || t.role.id === "owner"),
+      )
     if (!canManage) throw new Error("Unauthorized")
 
     getEvlog()?.set({ action: "deactivate_coupon", coupon: { id: input.couponId }, teamId: input.teamId })
