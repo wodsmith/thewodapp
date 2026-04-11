@@ -17,6 +17,7 @@ import {
   getPublishedCompetitionWorkoutsWithDetailsFn,
   type DivisionDescription,
 } from "@/server-fns/competition-workouts-fns"
+import { getPublicEventDivisionMappingsFn } from "@/server-fns/event-division-mapping-fns"
 import { getBatchSubmissionStatusFn } from "@/server-fns/video-submission-fns"
 import { useDeferredSchedule } from "@/utils/use-deferred-schedule"
 
@@ -37,6 +38,10 @@ export const Route = createFileRoute("/compete/$slug/")({
         deferredSchedule: Promise.resolve({
           events: [] as PublicScheduleEvent[],
         }),
+        eventDivisionMappings: {
+          mappings: [] as Array<{ trackWorkoutId: string; divisionId: string }>,
+          hasMappings: false,
+        },
       }
     }
 
@@ -47,9 +52,14 @@ export const Route = createFileRoute("/compete/$slug/")({
       data: { competitionId },
     })
 
-    const workoutsResult = await getPublishedCompetitionWorkoutsWithDetailsFn({
-      data: { competitionId },
-    })
+    const [workoutsResult, eventDivisionMappings] = await Promise.all([
+      getPublishedCompetitionWorkoutsWithDetailsFn({
+        data: { competitionId },
+      }),
+      getPublicEventDivisionMappingsFn({
+        data: { competitionId },
+      }),
+    ])
 
     const workouts = workoutsResult.workouts
     const divisionIds = divisions?.map((d) => d.id) ?? []
@@ -85,6 +95,7 @@ export const Route = createFileRoute("/compete/$slug/")({
       divisionDescriptionsMap,
       submissionStatusMap,
       deferredSchedule,
+      eventDivisionMappings,
     }
   },
 })
@@ -110,6 +121,7 @@ function CompetitionOverviewPage() {
     divisionDescriptionsMap,
     submissionStatusMap,
     deferredSchedule,
+    eventDivisionMappings,
   } = Route.useLoaderData()
 
   const isRegistered = !!userRegistration
@@ -117,10 +129,39 @@ function CompetitionOverviewPage() {
   const timezone = competition.timezone ?? "America/Denver"
   const scheduleMap = useDeferredSchedule({ deferredSchedule, timezone })
 
-  // Build parent -> child events map
+  // Filter top-level workouts by event-division mappings for registered athlete
+  const registeredDivisionId = userRegistration?.divisionId
+  let topLevelWorkouts = workouts.filter((w) => !w.parentEventId)
+  if (eventDivisionMappings.hasMappings && registeredDivisionId) {
+    const eventsWithMappings = new Set(
+      eventDivisionMappings.mappings.map((m) => m.trackWorkoutId),
+    )
+    const mappedToRegisteredDiv = new Set(
+      eventDivisionMappings.mappings
+        .filter((m) => m.divisionId === registeredDivisionId)
+        .map((m) => m.trackWorkoutId),
+    )
+    topLevelWorkouts = topLevelWorkouts.filter(
+      (w) => !eventsWithMappings.has(w.id) || mappedToRegisteredDiv.has(w.id),
+    )
+  }
+
+  // Build parent -> child events map, filtering by division mappings
   const childEventsMap = new Map<string, ChildEvent[]>()
   for (const w of workouts) {
     if (w.parentEventId) {
+      if (eventDivisionMappings.hasMappings && registeredDivisionId) {
+        const hasAnyMapping = eventDivisionMappings.mappings.some(
+          (m) => m.trackWorkoutId === w.id,
+        )
+        const isMappedToRegisteredDivision =
+          eventDivisionMappings.mappings.some(
+            (m) =>
+              m.trackWorkoutId === w.id &&
+              m.divisionId === registeredDivisionId,
+          )
+        if (hasAnyMapping && !isMappedToRegisteredDivision) continue
+      }
       const children = childEventsMap.get(w.parentEventId) ?? []
       children.push({
         id: w.id,
@@ -157,11 +198,11 @@ function CompetitionOverviewPage() {
             divisions={divisions.length > 0 ? divisions : undefined}
             sponsors={sponsors}
             workoutsContent={
-              workouts.length > 0 ? (
+              topLevelWorkouts.length > 0 ? (
                 <div className="space-y-6">
                   <h2 className="text-xl font-semibold mb-4">Workouts</h2>
                   <div className="space-y-6">
-                    {workouts.filter((w) => !w.parentEventId).map((event) => {
+                    {topLevelWorkouts.map((event, index) => {
                       const divisionDescriptionsResult =
                         divisionDescriptionsMap[event.workoutId]
                       return (
@@ -169,7 +210,7 @@ function CompetitionOverviewPage() {
                           key={event.id}
                           eventId={event.id}
                           slug={slug}
-                          trackOrder={event.trackOrder}
+                          trackOrder={index + 1}
                           name={event.workout.name}
                           scheme={event.workout.scheme}
                           description={event.workout.description}
@@ -182,7 +223,7 @@ function CompetitionOverviewPage() {
                           }
                           sponsorName={event.sponsorName}
                           sponsorLogoUrl={event.sponsorLogoUrl}
-                          selectedDivisionId="default"
+                          selectedDivisionId={registeredDivisionId ?? "default"}
                           isRegistered={isRegistered}
                           submissionStatus={
                             submissionStatusMap[event.id] ?? null

@@ -93,7 +93,10 @@ export function WorkoutPreview({ event, className }: WorkoutPreviewProps) {
               <div>Rounds: {workout.roundsToScore}</div>
             )}
             {workout.tiebreakScheme && (
-              <div>Tiebreak: {workout.tiebreakScheme}</div>
+              <div>
+                Tiebreak: {workout.tiebreakScheme === "reps" ? "Rep/Weight" : workout.tiebreakScheme}
+                <div className="text-muted-foreground">{workout.tiebreakScheme === "time" ? "lower is better" : "higher is better"}</div>
+              </div>
             )}
           </div>
 

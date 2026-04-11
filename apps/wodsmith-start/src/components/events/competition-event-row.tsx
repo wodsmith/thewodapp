@@ -50,6 +50,11 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { EVENT_STATUS, type EventStatus, type Sponsor } from "@/db/schema"
+
+const TIEBREAK_LABELS: Record<string, string> = {
+  time: "Time",
+  reps: "Rep/Weight",
+}
 import {
   type CompetitionWorkout,
   updateCompetitionWorkoutFn,
@@ -421,7 +426,7 @@ export function CompetitionEventRow({
                   )}
                   {event.workout.tiebreakScheme && (
                     <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200 px-2 py-1 rounded shrink-0">
-                      TB: {event.workout.tiebreakScheme}
+                      TB: {TIEBREAK_LABELS[event.workout.tiebreakScheme] ?? event.workout.tiebreakScheme}
                     </span>
                   )}
                   {event.pointsMultiplier && event.pointsMultiplier !== 100 && (
@@ -555,7 +560,7 @@ export function CompetitionEventRow({
                   )}
                   {event.workout.tiebreakScheme && (
                     <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200 px-2 py-1 rounded">
-                      TB: {event.workout.tiebreakScheme}
+                      TB: {TIEBREAK_LABELS[event.workout.tiebreakScheme] ?? event.workout.tiebreakScheme}
                     </span>
                   )}
                   {event.pointsMultiplier && event.pointsMultiplier !== 100 && (

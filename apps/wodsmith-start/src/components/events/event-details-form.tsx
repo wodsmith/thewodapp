@@ -71,7 +71,7 @@ const SCORE_TYPES = [
 
 const TIEBREAK_SCHEMES = [
   { value: "time", label: "Time" },
-  { value: "reps", label: "Reps" },
+  { value: "reps", label: "Rep/Weight" },
 ] as const
 
 // Get default score type based on scheme

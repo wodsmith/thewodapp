@@ -47,5 +47,5 @@ export const SCORE_TYPES = [
 
 export const TIEBREAK_SCHEMES = [
   { value: "time", label: "Time" },
-  { value: "reps", label: "Reps" },
+  { value: "reps", label: "Rep/Weight" },
 ] as const
