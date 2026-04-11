@@ -1052,7 +1052,7 @@ export function VideoSubmissionForm({
                 <div className="space-y-2">
                   <Label htmlFor="tiebreak-input">
                     Tiebreak (
-                    {workout.tiebreakScheme === "time" ? "Time" : "Reps"})
+                    {workout.tiebreakScheme === "time" ? "Time" : "Rep/Weight"})
                   </Label>
                   <Input
                     id="tiebreak-input"

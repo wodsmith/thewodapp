@@ -442,13 +442,13 @@ function WorkoutsList({
 
   return (
     <div className="space-y-6">
-      {topLevelWorkouts.map((event) => {
+      {topLevelWorkouts.map((event, index) => {
         return (
           <CompetitionWorkoutCard
             key={event.id}
             eventId={event.id}
             slug={slug}
-            trackOrder={event.trackOrder}
+            trackOrder={index + 1}
             name={event.workout.name}
             scheme={event.workout.scheme}
             description={event.workout.description}
