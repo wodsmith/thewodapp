@@ -403,6 +403,15 @@ function EventDetailsPage() {
     return athleteRegisteredDivisions.filter((d) => mappedDivisionIds.has(d.divisionId))
   })()
 
+  // Constrain initialDivisionId to filtered divisions so unmapped divisions aren't used
+  const effectiveSubmissionDivisionId =
+    initialSubmissionDivisionId &&
+    filteredRegisteredDivisions.some(
+      (d) => d.divisionId === initialSubmissionDivisionId,
+    )
+      ? initialSubmissionDivisionId
+      : filteredRegisteredDivisions[0]?.divisionId
+
   // For sidebar submission window display, use the first child's data for parent events
   const sidebarSubmission =
     videoSubmission ??
@@ -631,7 +640,7 @@ function EventDetailsPage() {
                             timezone={competition.timezone}
                             registeredDivisions={filteredRegisteredDivisions}
                             initialData={childSubmission}
-                            initialDivisionId={initialSubmissionDivisionId ?? undefined}
+                            initialDivisionId={effectiveSubmissionDivisionId}
                           />
                         )}
                     </div>
@@ -660,7 +669,7 @@ function EventDetailsPage() {
                   timezone={competition.timezone}
                   registeredDivisions={athleteRegisteredDivisions}
                   initialData={videoSubmission}
-                  initialDivisionId={initialSubmissionDivisionId ?? undefined}
+                  initialDivisionId={effectiveSubmissionDivisionId}
                 />
               )}
           </div>

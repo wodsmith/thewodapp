@@ -389,6 +389,13 @@ export function VideoSubmissionForm({
     [selectedDivisionId, trackWorkoutId, competitionId, fetchSubmission],
   )
 
+  // Sync division when initialDivisionId prop changes (e.g., URL navigation)
+  useEffect(() => {
+    if (initialDivisionId && initialDivisionId !== selectedDivisionId) {
+      handleDivisionChange(initialDivisionId)
+    }
+  }, [initialDivisionId, selectedDivisionId, handleDivisionChange])
+
   // Transition to preview mode after success message displays
   useEffect(() => {
     if (!success) return
