@@ -784,7 +784,7 @@ export const inviteUserFn = createServerFn({ method: "POST" })
     // User doesn't exist, create an invitation
     const token = createId()
     const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + 7) // Valid for 7 days
+    expiresAt.setDate(expiresAt.getDate() + 30) // Valid for 30 days
 
     // Check if there's an existing invitation
     const existingInvitation = await db.query.teamInvitationTable.findFirst({
