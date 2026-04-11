@@ -38,6 +38,7 @@ import {
   switchCompetitionScalingGroupFn,
   updateCompetitionDivisionFn,
   updateDivisionCapacityFn,
+  updateDivisionCutoffFn,
   updateDivisionDescriptionFn,
 } from "@/server-fns/competition-divisions-fns"
 import { OrganizerDivisionItem } from "./organizer-division-item"
@@ -51,6 +52,7 @@ interface Division {
   description: string | null
   feeCents: number | null
   maxSpots: number | null
+  cutoffRank: number | null
 }
 
 interface ScalingGroupWithLevels {
@@ -74,6 +76,7 @@ interface OrganizerDivisionManagerProps {
   scalingGroupTitle: string | null
   scalingGroups: ScalingGroupWithLevels[]
   defaultMaxSpotsPerDivision: number | null
+  defaultCutoffRank: number | null
 }
 
 export function OrganizerDivisionManager({
@@ -84,6 +87,7 @@ export function OrganizerDivisionManager({
   scalingGroupTitle,
   scalingGroups,
   defaultMaxSpotsPerDivision,
+  defaultCutoffRank,
 }: OrganizerDivisionManagerProps) {
   const router = useRouter()
   const [divisions, setDivisions] = useState(initialDivisions)
@@ -249,6 +253,43 @@ export function OrganizerDivisionManager({
         prev.map((d) =>
           d.id === divisionId
             ? { ...d, maxSpots: original?.maxSpots ?? newMaxSpots }
+            : d,
+        ),
+      )
+    }
+  }
+
+  const handleCutoffRankSave = async (
+    divisionId: string,
+    newCutoffRank: number | null,
+  ) => {
+    const original = initialDivisions.find((d) => d.id === divisionId)
+    if (original && original.cutoffRank === newCutoffRank) return
+
+    setDivisions((prev) =>
+      prev.map((d) =>
+        d.id === divisionId ? { ...d, cutoffRank: newCutoffRank } : d,
+      ),
+    )
+
+    try {
+      await updateDivisionCutoffFn({
+        data: {
+          teamId,
+          competitionId,
+          divisionId,
+          cutoffRank: newCutoffRank,
+        },
+      })
+      toast.success("Division cutoff updated")
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update cutoff",
+      )
+      setDivisions((prev) =>
+        prev.map((d) =>
+          d.id === divisionId
+            ? { ...d, cutoffRank: original?.cutoffRank ?? newCutoffRank }
             : d,
         ),
       )
@@ -421,6 +462,8 @@ export function OrganizerDivisionManager({
                   description={division.description}
                   maxSpots={division.maxSpots}
                   defaultMaxSpots={defaultMaxSpotsPerDivision}
+                  cutoffRank={division.cutoffRank}
+                  defaultCutoffRank={defaultCutoffRank}
                   index={index}
                   registrationCount={division.registrationCount}
                   isOnly={divisions.length === 1}
@@ -431,6 +474,9 @@ export function OrganizerDivisionManager({
                   }
                   onMaxSpotsSave={(spots) =>
                     handleMaxSpotsSave(division.id, spots)
+                  }
+                  onCutoffRankSave={(rank) =>
+                    handleCutoffRankSave(division.id, rank)
                   }
                   onRemove={() => handleRemove(division.id)}
                   onDrop={handleDrop}

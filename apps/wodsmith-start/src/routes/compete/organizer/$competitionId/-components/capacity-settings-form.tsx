@@ -23,6 +23,7 @@ interface Props {
     organizingTeamId: string
     defaultMaxSpotsPerDivision: number | null
     maxTotalRegistrations: number | null
+    defaultCutoffRank: number | null
   }
 }
 
@@ -34,6 +35,9 @@ export function CapacitySettingsForm({ competition }: Props) {
   )
   const [maxTotal, setMaxTotal] = useState<string>(
     competition.maxTotalRegistrations?.toString() ?? "",
+  )
+  const [cutoffRank, setCutoffRank] = useState<string>(
+    competition.defaultCutoffRank?.toString() ?? "",
   )
 
   const updateCapacity = useServerFn(updateCompetitionDefaultCapacityFn)
@@ -63,12 +67,24 @@ export function CapacitySettingsForm({ competition }: Props) {
         return
       }
 
+      const parsedCutoff = cutoffRank.trim() === "" ? null : parseInt(cutoffRank, 10)
+
+      if (
+        parsedCutoff !== null &&
+        (Number.isNaN(parsedCutoff) || parsedCutoff < 1)
+      ) {
+        toast.error("Cutoff rank must be 1 or higher")
+        setIsSubmitting(false)
+        return
+      }
+
       await updateCapacity({
         data: {
           competitionId: competition.id,
           teamId: competition.organizingTeamId,
           defaultMaxSpotsPerDivision: parsedValue,
           maxTotalRegistrations: parsedTotal,
+          defaultCutoffRank: parsedCutoff,
         },
       })
       toast.success("Capacity settings updated")
@@ -85,9 +101,12 @@ export function CapacitySettingsForm({ competition }: Props) {
     if (parsed !== null && Number.isNaN(parsed)) return false
     const parsedTotal = maxTotal.trim() === "" ? null : Number(maxTotal)
     if (parsedTotal !== null && (!Number.isFinite(parsedTotal) || !Number.isInteger(parsedTotal))) return false
+    const parsedCutoff = cutoffRank.trim() === "" ? null : parseInt(cutoffRank, 10)
+    if (parsedCutoff !== null && Number.isNaN(parsedCutoff)) return false
     return (
       parsed !== competition.defaultMaxSpotsPerDivision ||
-      parsedTotal !== competition.maxTotalRegistrations
+      parsedTotal !== competition.maxTotalRegistrations ||
+      parsedCutoff !== competition.defaultCutoffRank
     )
   })()
 
@@ -99,7 +118,7 @@ export function CapacitySettingsForm({ competition }: Props) {
           <CardTitle>Capacity Settings</CardTitle>
         </div>
         <CardDescription>
-          Set registration limits for this competition.
+          Set registration limits and leaderboard cutoff for this competition.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -143,6 +162,28 @@ export function CapacitySettingsForm({ competition }: Props) {
           <p className="text-xs text-muted-foreground">
             Athletes will see available spots and cannot register when a
             division is full.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="cutoffRank">Default cutoff rank</Label>
+          <div className="flex items-center gap-4">
+            <Input
+              id="cutoffRank"
+              type="number"
+              min={1}
+              placeholder="No cutoff"
+              value={cutoffRank}
+              onChange={(e) => setCutoffRank(e.target.value)}
+              className="w-full sm:w-32"
+            />
+            <span className="text-sm text-muted-foreground">
+              Leave blank for no cutoff line
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            An orange line will appear on the leaderboard after this rank
+            position across all divisions.
           </p>
         </div>
 

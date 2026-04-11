@@ -158,6 +158,8 @@ export const competitionDivisionsTable = mysqlTable(
     description: text(),
     // Max spots for this division (null = use competition default)
     maxSpots: int(),
+    // Cutoff rank for this division (null = use competition default)
+    cutoffRank: int(),
   },
   (table) => [
     // Each division can only have one config per competition

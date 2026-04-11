@@ -56,6 +56,7 @@ function SettingsPage() {
             organizingTeamId: competition.organizingTeamId,
             defaultMaxSpotsPerDivision: competition.defaultMaxSpotsPerDivision,
             maxTotalRegistrations: competition.maxTotalRegistrations,
+            defaultCutoffRank: competition.defaultCutoffRank,
           }}
         />
       </section>

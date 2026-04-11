@@ -75,6 +75,9 @@ export function LeaderboardPageContent({
   const selectedEventId = searchParams.event ?? null
   const selectedAffiliate = searchParams.affiliate ?? "all"
 
+  // Get cutoff rank for the selected division
+  const cutoffRank = divisions?.find((d) => d.id === selectedDivision)?.cutoffRank ?? null
+
   const [leaderboard, setLeaderboard] = useState<CompetitionLeaderboardEntry[]>(
     [],
   )
@@ -569,6 +572,7 @@ export function LeaderboardPageContent({
             events={events}
             selectedEventId={effectiveEventId}
             scoringAlgorithm={scoringAlgorithm}
+            cutoffRank={cutoffRank}
           />
         ) : (
           <CompetitionLeaderboardTable
@@ -576,6 +580,7 @@ export function LeaderboardPageContent({
             events={events}
             selectedEventId={effectiveEventId}
             scoringAlgorithm={scoringAlgorithm}
+            cutoffRank={cutoffRank}
           />
         )}
       </div>

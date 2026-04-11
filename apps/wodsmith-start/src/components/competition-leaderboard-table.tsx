@@ -74,6 +74,7 @@ interface CompetitionLeaderboardTableProps {
   }>
   selectedEventId: string | null // null = overall view
   scoringAlgorithm: ScoringAlgorithm
+  cutoffRank: number | null
 }
 
 function getRankIcon(rank: number) {
@@ -426,6 +427,7 @@ export function CompetitionLeaderboardTable({
   events,
   selectedEventId,
   scoringAlgorithm,
+  cutoffRank,
 }: CompetitionLeaderboardTableProps) {
   // Compute the correct default sort column based on view mode
   const defaultSortColumn = selectedEventId ? "eventRank" : "overallRank"
@@ -825,14 +827,30 @@ export function CompetitionLeaderboardTable({
           </div>
         ) : (
           <div>
-            {tableData.map((entry) => (
-              <MobileLeaderboardRow
-                key={entry.registrationId}
-                entry={entry}
-                events={events}
-                scoringAlgorithm={scoringAlgorithm}
-              />
-            ))}
+            {tableData.map((entry, idx) => {
+              const nextEntry = tableData[idx + 1]
+              const showCutoff =
+                cutoffRank != null &&
+                !selectedEventId &&
+                entry.overallRank <= cutoffRank &&
+                (!nextEntry || nextEntry.overallRank > cutoffRank)
+              return (
+                <Fragment key={entry.registrationId}>
+                  <MobileLeaderboardRow
+                    entry={entry}
+                    events={events}
+                    scoringAlgorithm={scoringAlgorithm}
+                  />
+                  {showCutoff && (
+                    <div
+                      className="h-[3px] bg-orange-500"
+                      role="separator"
+                      aria-label="Division cutoff line"
+                    />
+                  )}
+                </Fragment>
+              )
+            })}
           </div>
         )}
       </div>
@@ -885,18 +903,37 @@ export function CompetitionLeaderboardTable({
                 </TableCell>
               </TableRow>
             ) : (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} className="table-row">
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="table-cell">
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              table.getRowModel().rows.map((row, rowIdx) => {
+                const entry = row.original
+                const rows = table.getRowModel().rows
+                const nextRow = rows[rowIdx + 1]
+                const showCutoff =
+                  cutoffRank != null &&
+                  !selectedEventId &&
+                  entry.overallRank <= cutoffRank &&
+                  (!nextRow || nextRow.original.overallRank > cutoffRank)
+                return (
+                  <Fragment key={row.id}>
+                    <TableRow className="table-row">
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id} className="table-cell">
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                    {showCutoff && (
+                      <tr aria-hidden="true">
+                        <td colSpan={columns.length} className="p-0">
+                          <div className="h-[3px] bg-orange-500" />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                )
+              })
             )}
           </TableBody>
         </Table>

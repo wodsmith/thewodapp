@@ -129,6 +129,8 @@ export const competitionsTable = mysqlTable(
     defaultMaxSpotsPerDivision: int(),
     // Capacity: max total registrations across all divisions (null = unlimited)
     maxTotalRegistrations: int({ unsigned: true }),
+    // Cutoff: default leaderboard cutoff rank per division (null = no cutoff line)
+    defaultCutoffRank: int(),
     // Primary address for the competition
     primaryAddressId: varchar({ length: 255 }),
   },
