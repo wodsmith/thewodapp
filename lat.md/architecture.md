@@ -55,6 +55,8 @@ Authenticated routes requiring a valid session. Contains the main app dashboard,
 
 Public-facing competition pages. Athletes browse, register for, and view results of competitions at `/compete/{slug}`.
 
+The event details view ([[apps/wodsmith-start/src/components/event-details-content.tsx]]) groups divisions by price tier, each tier collapsible (default open) with a chevron toggle.
+
 ### compete/organizer
 
 Competition management dashboard for organizers. Accessible at `/compete/organizer/{competitionId}/`. Handles divisions, heats, scheduling, scoring, volunteers, and settings.
