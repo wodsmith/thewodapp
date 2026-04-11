@@ -1,6 +1,12 @@
-import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router"
+import {
+  Link,
+  createFileRoute,
+  notFound,
+  useNavigate,
+} from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
 import {
+  ArrowLeft,
   Calendar,
   Clock,
   Dumbbell,
@@ -151,13 +157,19 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
         ? getPublicEventHeatsFn({ data: { trackWorkoutId: eventId } })
         : Promise.resolve({ heats: [] })
 
-    // Fetch child events if this is a parent
+    // Fetch all events - needed for child events and division-filtered "Event X of Y"
     const allWorkoutsResult = await getPublishedCompetitionWorkoutsFn({
       data: { competitionId: competition.id },
     })
     const childEvents = allWorkoutsResult.workouts
       .filter((w) => w.parentEventId === eventId)
       .sort((a, b) => a.trackOrder - b.trackOrder)
+
+    // Top-level events for "Event X of Y" display (filtered by division in component)
+    const allTopLevelEvents = allWorkoutsResult.workouts
+      .filter((w) => !w.parentEventId)
+      .sort((a, b) => a.trackOrder - b.trackOrder)
+      .map((w) => ({ id: w.id, trackOrder: w.trackOrder }))
 
     // For online competitions, fetch video submissions
     const initialSubmissionDivisionId =
@@ -262,7 +274,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       resources: eventResult.resources,
       judgingSheets: judgingSheetsResult.sheets,
       heatTimes: eventResult.heatTimes,
-      totalEvents: eventResult.totalEvents,
+      allTopLevelEvents,
       divisionDescriptions,
       divisions,
       athleteRegisteredDivisions,
@@ -326,7 +338,7 @@ function EventDetailsPage() {
     resources,
     judgingSheets,
     heatTimes,
-    totalEvents,
+    allTopLevelEvents,
     divisionDescriptions,
     divisions,
     athleteRegisteredDivisions,
@@ -394,6 +406,27 @@ function EventDetailsPage() {
   const divisionScale = selectedDivision?.description?.trim() || null
   const divisionLabel = selectedDivision?.divisionLabel || null
 
+  // Compute division-filtered "Event X of Y" display
+  const visibleTopLevelEvents = (() => {
+    if (!eventDivisionMappings.hasMappings || !selectedDivisionId) {
+      return allTopLevelEvents
+    }
+    const eventsWithMappings = new Set(
+      eventDivisionMappings.mappings.map((m) => m.trackWorkoutId),
+    )
+    const mappedToSelectedDiv = new Set(
+      eventDivisionMappings.mappings
+        .filter((m) => m.divisionId === selectedDivisionId)
+        .map((m) => m.trackWorkoutId),
+    )
+    return allTopLevelEvents.filter(
+      (e) => !eventsWithMappings.has(e.id) || mappedToSelectedDiv.has(e.id),
+    )
+  })()
+  const eventPosition =
+    visibleTopLevelEvents.findIndex((e) => e.id === event.id) + 1
+  const totalVisibleEvents = visibleTopLevelEvents.length
+
   const handleDivisionChange = (divisionId: string) => {
     navigate({
       search: (prev) => ({ ...prev, division: divisionId }),
@@ -410,6 +443,16 @@ function EventDetailsPage() {
           <CompetitionTabs slug={slug} />
         </div>
 
+        {/* Back to Workouts */}
+        <Link
+          to="/compete/$slug/workouts"
+          params={{ slug }}
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          All Workouts
+        </Link>
+
         {/* Glassmorphism Content Container */}
         <div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
           <div className="space-y-8">
@@ -418,7 +461,7 @@ function EventDetailsPage() {
               <div className="space-y-1">
                 <div className="flex items-center gap-3">
                   <Badge variant="outline" className="text-xs font-medium">
-                    Event {formatTrackOrder(event.trackOrder)} of {totalEvents}
+                    Event {eventPosition > 0 ? eventPosition : formatTrackOrder(event.trackOrder)} of {totalVisibleEvents}
                   </Badge>
                   {event.sponsorName && (
                     <span className="text-xs text-muted-foreground">
@@ -833,7 +876,7 @@ function EventDetailsPage() {
         {resources && resources.length > 0 && (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Event Resources</CardTitle>
+              <CardTitle className="text-lg">Quick Links</CardTitle>
             </CardHeader>
             <CardContent>
               <ul className="space-y-3">
@@ -867,7 +910,7 @@ function EventDetailsPage() {
         {judgingSheets && judgingSheets.length > 0 && (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Judge Sheets</CardTitle>
+              <CardTitle className="text-lg">Workout Documents</CardTitle>
             </CardHeader>
             <CardContent>
               <ul className="space-y-3">

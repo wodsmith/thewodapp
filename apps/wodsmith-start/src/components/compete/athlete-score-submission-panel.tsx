@@ -63,9 +63,15 @@ interface WorkoutSubmission {
   hasScore: boolean
   displayScore: string | null
   scoreStatus: string | null
+  secondaryValue: number | null
   verificationStatus: string | null
   canSubmit: boolean
   windowStatus: "open" | "not_yet_open" | "closed" | "no_window"
+}
+
+interface EventDivisionMappings {
+  mappings: Array<{ trackWorkoutId: string; divisionId: string }>
+  hasMappings: boolean
 }
 
 interface AthleteScoreSubmissionPanelProps {
@@ -73,14 +79,7 @@ interface AthleteScoreSubmissionPanelProps {
   slug: string
   userDivisions: UserDivision[]
   workouts: WorkoutInfo[]
-}
-
-function formatTrackOrder(trackOrder: number | string): string {
-  const n = Number(trackOrder)
-  if (n % 1 === 0) return String(n).padStart(2, "0")
-  const whole = Math.floor(n)
-  const decimal = Math.round((n - whole) * 100)
-  return `${whole}.${String(decimal).padStart(2, "0")}`
+  eventDivisionMappings: EventDivisionMappings
 }
 
 export function AthleteScoreSubmissionPanel({
@@ -88,6 +87,7 @@ export function AthleteScoreSubmissionPanel({
   slug,
   userDivisions,
   workouts,
+  eventDivisionMappings,
 }: AthleteScoreSubmissionPanelProps) {
   const [selectedDivisionIdx, setSelectedDivisionIdx] = useState(0)
   const [submissions, setSubmissions] = useState<WorkoutSubmission[]>([])
@@ -97,17 +97,56 @@ export function AthleteScoreSubmissionPanel({
   const registration = selectedUserDiv?.registration
   const division = selectedUserDiv?.division
 
-  // Only show parent-level (non-child) workouts
-  const parentWorkouts = useMemo(
-    () => workouts.filter((w) => !w.parentEventId),
-    [workouts],
-  )
+  // Build parent -> children map
+  const childEventsMap = useMemo(() => {
+    const map = new Map<string, WorkoutInfo[]>()
+    for (const w of workouts) {
+      if (w.parentEventId) {
+        const children = map.get(w.parentEventId) ?? []
+        children.push(w)
+        map.set(w.parentEventId, children)
+      }
+    }
+    for (const children of map.values()) {
+      children.sort((a, b) => a.trackOrder - b.trackOrder)
+    }
+    return map
+  }, [workouts])
 
-  // Stable list of trackWorkout IDs for fetching
-  const trackWorkoutIds = useMemo(
-    () => parentWorkouts.map((w) => w.id),
-    [parentWorkouts],
-  )
+  // Only show parent-level (non-child) workouts, filtered by division mappings
+  const parentWorkouts = useMemo(() => {
+    let filtered = workouts.filter((w) => !w.parentEventId)
+
+    if (eventDivisionMappings.hasMappings && division?.id) {
+      const eventsWithMappings = new Set(
+        eventDivisionMappings.mappings.map((m) => m.trackWorkoutId),
+      )
+      const mappedToSelectedDiv = new Set(
+        eventDivisionMappings.mappings
+          .filter((m) => m.divisionId === division.id)
+          .map((m) => m.trackWorkoutId),
+      )
+      filtered = filtered.filter(
+        (w) => !eventsWithMappings.has(w.id) || mappedToSelectedDiv.has(w.id),
+      )
+    }
+
+    return filtered
+  }, [workouts, eventDivisionMappings, division?.id])
+
+  // Collect all IDs we need submissions for: parents without children + all children
+  const trackWorkoutIds = useMemo(() => {
+    const ids: string[] = []
+    for (const parent of parentWorkouts) {
+      const children = childEventsMap.get(parent.id)
+      if (children && children.length > 0) {
+        ids.push(...children.map((c) => c.id))
+      } else {
+        ids.push(parent.id)
+      }
+    }
+    return ids
+  }, [parentWorkouts, childEventsMap])
 
   useEffect(() => {
     if (!registration?.id || !division?.id || trackWorkoutIds.length === 0) {
@@ -148,6 +187,7 @@ export function AthleteScoreSubmissionPanel({
     submissions.map((s) => [s.trackWorkoutId, s]),
   )
 
+  const totalSubmittable = trackWorkoutIds.length
   const submittedCount = submissions.filter(
     (s) => s.hasScore || s.hasVideo,
   ).length
@@ -186,10 +226,10 @@ export function AthleteScoreSubmissionPanel({
           </p>
         )}
 
-        {!loading && parentWorkouts.length > 0 && (
+        {!loading && totalSubmittable > 0 && (
           <p className="text-xs text-muted-foreground">
-            {submittedCount} of {parentWorkouts.length} workout
-            {parentWorkouts.length !== 1 ? "s" : ""} submitted
+            {submittedCount} of {totalSubmittable} workout score
+            {totalSubmittable !== 1 ? "s" : ""} submitted
           </p>
         )}
       </CardHeader>
@@ -200,7 +240,42 @@ export function AthleteScoreSubmissionPanel({
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          parentWorkouts.map((event) => {
+          parentWorkouts.map((event, idx) => {
+            const position = idx + 1
+            const children = childEventsMap.get(event.id)
+
+            if (children && children.length > 0) {
+              return (
+                <div key={event.id} className="space-y-1">
+                  {/* Parent group label */}
+                  <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
+                    <NumberBadge value={String(position).padStart(2, "0")} />
+                    <span className="text-sm font-semibold truncate">
+                      {event.workout.name}
+                    </span>
+                  </div>
+                  {/* Sub-event rows with left accent */}
+                  <div className="ml-[22px] border-l-2 border-border/40 pl-0 space-y-1">
+                    {children.map((child, childIdx) => {
+                      const sub = submissionMap.get(child.id)
+                      const letter = String.fromCharCode(65 + childIdx)
+                      return (
+                        <WorkoutRow
+                          key={child.id}
+                          event={child}
+                          submission={sub ?? null}
+                          slug={slug}
+                          divisionId={division?.id}
+                          parentEventId={event.id}
+                          badge={letter}
+                        />
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            }
+
             const sub = submissionMap.get(event.id)
             return (
               <WorkoutRow
@@ -209,6 +284,7 @@ export function AthleteScoreSubmissionPanel({
                 submission={sub ?? null}
                 slug={slug}
                 divisionId={division?.id}
+                badge={String(position).padStart(2, "0")}
               />
             )
           })
@@ -218,120 +294,165 @@ export function AthleteScoreSubmissionPanel({
   )
 }
 
+function NumberBadge({ value }: { value: string }) {
+  return (
+    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-bold tabular-nums">
+      {value}
+    </div>
+  )
+}
+
+function StatusLine({ submission, canSubmit, windowStatus }: {
+  submission: WorkoutSubmission | null
+  canSubmit: boolean
+  windowStatus: WorkoutSubmission["windowStatus"]
+}) {
+  const hasSubmitted = submission?.hasScore || submission?.hasVideo
+
+  if (hasSubmitted && submission) {
+    return (
+      <div className="flex flex-wrap items-center gap-1.5">
+        {submission.displayScore && (
+          <span className="text-xs font-medium text-foreground">
+            {submission.displayScore}
+            {submission.scoreStatus === "cap" && " (Cap)"}
+            {submission.scoreStatus === "cap" &&
+              submission.secondaryValue !== null &&
+              ` — ${submission.secondaryValue} reps`}
+          </span>
+        )}
+
+        {submission.hasVideo && submission.videoReviewStatus && (
+          <SubmissionStatusBadge
+            status={submission.videoReviewStatus}
+            size="sm"
+            showTooltip={false}
+          />
+        )}
+
+        {!submission.hasVideo &&
+          submission.hasScore &&
+          submission.verificationStatus && (
+            <Badge
+              variant="outline"
+              className="text-[10px] px-2 py-0.5 bg-green-100 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-900"
+            >
+              <CheckCircle2 className="mr-1 h-3 w-3" />
+              Score Submitted
+            </Badge>
+          )}
+
+        {submission.hasScore &&
+          !submission.hasVideo &&
+          !submission.verificationStatus && (
+            <Badge
+              variant="outline"
+              className="text-[10px] px-2 py-0.5 bg-green-100 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-900"
+            >
+              <CheckCircle2 className="mr-1 h-3 w-3" />
+              Submitted
+            </Badge>
+          )}
+      </div>
+    )
+  }
+
+  if (canSubmit) {
+    return (
+      <span className="text-xs text-primary font-medium">Ready to submit</span>
+    )
+  }
+
+  if (windowStatus === "not_yet_open") {
+    return (
+      <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+        <Clock className="h-3 w-3" />
+        Not yet open
+      </span>
+    )
+  }
+
+  return (
+    <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+      <Lock className="h-3 w-3" />
+      Submission closed
+    </span>
+  )
+}
+
+function ActionIndicator({ submission, canSubmit, windowStatus }: {
+  submission: WorkoutSubmission | null
+  canSubmit: boolean
+  windowStatus: WorkoutSubmission["windowStatus"]
+}) {
+  const hasSubmitted = submission?.hasScore || submission?.hasVideo
+
+  if (hasSubmitted && canSubmit) {
+    return (
+      <Badge variant="outline" className="text-xs">
+        Edit
+      </Badge>
+    )
+  }
+  if (hasSubmitted && !canSubmit) {
+    return <Eye className="h-4 w-4 text-muted-foreground" />
+  }
+  if (canSubmit) {
+    return (
+      <Button size="sm" variant="default" className="h-7 text-xs pointer-events-none">
+        Submit
+      </Button>
+    )
+  }
+  if (windowStatus === "not_yet_open") {
+    return <Clock className="h-4 w-4 text-muted-foreground" />
+  }
+  return <Lock className="h-4 w-4 text-muted-foreground" />
+}
+
 function WorkoutRow({
   event,
   submission,
   slug,
   divisionId,
+  parentEventId,
+  badge,
 }: {
   event: WorkoutInfo
   submission: WorkoutSubmission | null
   slug: string
   divisionId?: string
+  parentEventId?: string
+  badge: string
 }) {
+  const linkEventId = parentEventId ?? event.id
   const hasSubmitted = submission?.hasScore || submission?.hasVideo
   const canSubmit = submission?.canSubmit ?? false
   const windowStatus = submission?.windowStatus ?? "no_window"
-
-  // Row is interactive if there's something to submit/edit, or something to view
   const isInteractive = canSubmit || hasSubmitted
 
   const rowContent = (
     <>
-      {/* Event number */}
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-bold tabular-nums">
-        {formatTrackOrder(event.trackOrder)}
-      </div>
+      <NumberBadge value={badge} />
 
-      {/* Workout info */}
-      <div className="min-w-0 flex-1">
-        <p className={`truncate text-sm font-medium ${!isInteractive ? "text-muted-foreground" : ""}`}>
+      {/* Two-line content: name + status — always same structure */}
+      <div className="min-w-0 flex-1 space-y-1">
+        <p className={`truncate text-sm font-medium leading-tight ${!isInteractive ? "text-muted-foreground" : ""}`}>
           {event.workout.name}
         </p>
-
-        {hasSubmitted && submission ? (
-          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            {/* Score display */}
-            {submission.displayScore && (
-              <span className="text-xs font-medium text-foreground">
-                {submission.displayScore}
-                {submission.scoreStatus === "cap" && " (Cap)"}
-              </span>
-            )}
-
-            {/* Video review status badge */}
-            {submission.hasVideo && submission.videoReviewStatus && (
-              <SubmissionStatusBadge
-                status={submission.videoReviewStatus}
-                size="sm"
-                showTooltip={false}
-              />
-            )}
-
-            {/* Score-only verification status (when no video) */}
-            {!submission.hasVideo &&
-              submission.hasScore &&
-              submission.verificationStatus && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] px-2 py-0.5 bg-green-100 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-900"
-                >
-                  <CheckCircle2 className="mr-1 h-3 w-3" />
-                  Score Submitted
-                </Badge>
-              )}
-
-            {/* Submitted but no verification status yet */}
-            {submission.hasScore &&
-              !submission.hasVideo &&
-              !submission.verificationStatus && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] px-2 py-0.5 bg-green-100 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-900"
-                >
-                  <CheckCircle2 className="mr-1 h-3 w-3" />
-                  Submitted
-                </Badge>
-              )}
-          </div>
-        ) : (
-          <div className="mt-1">
-            {canSubmit ? (
-              <span className="text-xs text-primary font-medium">
-                Ready to submit
-              </span>
-            ) : windowStatus === "not_yet_open" ? (
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                Not yet open
-              </span>
-            ) : (
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Lock className="h-3 w-3" />
-                Submission closed
-              </span>
-            )}
-          </div>
-        )}
+        <StatusLine
+          submission={submission}
+          canSubmit={canSubmit}
+          windowStatus={windowStatus}
+        />
       </div>
 
-      {/* Action indicator */}
       <div className="shrink-0">
-        {hasSubmitted && canSubmit ? (
-          <Badge variant="outline" className="text-xs">
-            Edit
-          </Badge>
-        ) : hasSubmitted && !canSubmit ? (
-          <Eye className="h-4 w-4 text-muted-foreground" />
-        ) : canSubmit ? (
-          <Button size="sm" variant="default" className="h-7 text-xs pointer-events-none">
-            Submit
-          </Button>
-        ) : windowStatus === "not_yet_open" ? (
-          <Clock className="h-4 w-4 text-muted-foreground" />
-        ) : (
-          <Lock className="h-4 w-4 text-muted-foreground" />
-        )}
+        <ActionIndicator
+          submission={submission}
+          canSubmit={canSubmit}
+          windowStatus={windowStatus}
+        />
       </div>
 
       {isInteractive && (
@@ -351,7 +472,7 @@ function WorkoutRow({
   return (
     <Link
       to="/compete/$slug/workouts/$eventId"
-      params={{ slug, eventId: event.id }}
+      params={{ slug, eventId: linkEventId }}
       search={divisionId ? { division: divisionId } : {}}
       className="group flex items-center gap-3 rounded-lg border bg-background p-3 transition-colors hover:bg-accent/50"
     >

@@ -154,6 +154,8 @@ Events with sub-events (parent/child hierarchy) show a separate submission form 
 
 The loader in [[apps/wodsmith-start/src/routes/compete/$slug/workouts/$eventId.tsx#Route]] fetches video submissions for each child event in parallel via [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getVideoSubmissionFn]]. Each child renders its own [[apps/wodsmith-start/src/components/compete/video-submission-form.tsx#VideoSubmissionForm]] with the child's `trackWorkoutId`. Team divisions get the same multi-video slot behavior per sub-event. The parent event itself has no submission form when children exist — all scoring is per sub-event.
 
+The [[apps/wodsmith-start/src/components/compete/athlete-score-submission-panel.tsx#AthleteScoreSubmissionPanel]] also respects this hierarchy. For parents with children, it renders a compact parent header with individual child rows beneath it. Submission data is fetched for child IDs (not the parent), and child rows link to the parent event page where per-sub-event forms live.
+
 ### Captain-Only Submission
 
 For team divisions (teamSize > 1), only the team captain can submit videos and scores. Non-captain team members see a read-only view of the team's submissions. Individual athletes (teamSize = 1) are always treated as their own captain.

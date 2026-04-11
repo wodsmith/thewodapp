@@ -18,6 +18,7 @@ import {
   getPublishedCompetitionWorkoutsWithDetailsFn,
   type DivisionDescription,
 } from "@/server-fns/competition-workouts-fns"
+import { getPublicEventDivisionMappingsFn } from "@/server-fns/event-division-mapping-fns"
 import { getBatchSubmissionStatusFn } from "@/server-fns/video-submission-fns"
 import { useDeferredSchedule } from "@/utils/use-deferred-schedule"
 
@@ -38,6 +39,7 @@ export const Route = createFileRoute("/compete/$slug/")({
         deferredSchedule: Promise.resolve({
           events: [] as PublicScheduleEvent[],
         }),
+        eventDivisionMappings: { mappings: [], hasMappings: false },
       }
     }
 
@@ -64,21 +66,28 @@ export const Route = createFileRoute("/compete/$slug/")({
       Object.assign(divisionDescriptionsMap, batchResult.descriptionsByWorkout)
     }
 
-    // Fetch submission statuses for online competitions with registered athletes
+    // Fetch submission statuses and event-division mappings in parallel
     const userRegistration = parentMatch.loaderData?.userRegistration
     let submissionStatusMap: Record<string, SubmissionStatus> = {}
-    if (
+
+    const [submissionResult, eventDivisionMappings] = await Promise.all([
       competition.competitionType === "online" &&
       userRegistration &&
       workouts.length > 0
-    ) {
-      const result = await getBatchSubmissionStatusFn({
-        data: {
-          competitionId,
-          trackWorkoutIds: workouts.map((w) => w.id),
-        },
-      })
-      submissionStatusMap = result.statuses
+        ? getBatchSubmissionStatusFn({
+            data: {
+              competitionId,
+              trackWorkoutIds: workouts.map((w) => w.id),
+            },
+          })
+        : Promise.resolve(null),
+      getPublicEventDivisionMappingsFn({
+        data: { competitionId },
+      }),
+    ])
+
+    if (submissionResult) {
+      submissionStatusMap = submissionResult.statuses
     }
 
     return {
@@ -86,6 +95,7 @@ export const Route = createFileRoute("/compete/$slug/")({
       divisionDescriptionsMap,
       submissionStatusMap,
       deferredSchedule,
+      eventDivisionMappings,
     }
   },
 })
@@ -111,6 +121,7 @@ function CompetitionOverviewPage() {
     divisionDescriptionsMap,
     submissionStatusMap,
     deferredSchedule,
+    eventDivisionMappings,
   } = Route.useLoaderData()
 
   const isRegistered = !!userRegistration
@@ -174,6 +185,7 @@ function CompetitionOverviewPage() {
                 scheme: w.workout.scheme,
               },
             }))}
+            eventDivisionMappings={eventDivisionMappings}
           />
         )}
 

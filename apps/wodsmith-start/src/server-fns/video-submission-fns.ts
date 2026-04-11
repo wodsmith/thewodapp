@@ -659,6 +659,7 @@ export const getAthleteDivisionSubmissionsFn = createServerFn({ method: "GET" })
       hasScore: boolean
       displayScore: string | null
       scoreStatus: string | null
+      secondaryValue: number | null
       verificationStatus: string | null
       canSubmit: boolean
       windowStatus: "open" | "not_yet_open" | "closed" | "no_window"
@@ -735,6 +736,7 @@ export const getAthleteDivisionSubmissionsFn = createServerFn({ method: "GET" })
         .select({
           competitionEventId: scoresTable.competitionEventId,
           scoreValue: scoresTable.scoreValue,
+          secondaryValue: scoresTable.secondaryValue,
           status: scoresTable.status,
           scheme: scoresTable.scheme,
           verificationStatus: scoresTable.verificationStatus,
@@ -796,7 +798,7 @@ export const getAthleteDivisionSubmissionsFn = createServerFn({ method: "GET" })
           displayScore = decodeScore(
             score.scoreValue!,
             score.scheme as WorkoutScheme,
-            { compact: false },
+            { compact: true },
           )
         }
 
@@ -807,6 +809,7 @@ export const getAthleteDivisionSubmissionsFn = createServerFn({ method: "GET" })
           hasScore: score !== undefined && score.scoreValue !== null,
           displayScore,
           scoreStatus: score?.status ?? null,
+          secondaryValue: score?.secondaryValue ?? null,
           verificationStatus: score?.verificationStatus ?? null,
           canSubmit,
           windowStatus,
