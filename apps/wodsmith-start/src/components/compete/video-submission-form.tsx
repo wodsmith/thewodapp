@@ -392,6 +392,7 @@ export function VideoSubmissionForm({
   // Sync form state from loader props when initialDivisionId changes (e.g., URL navigation).
   // The route loader already re-fetches with the correct division, so initialData is fresh —
   // no need to trigger another network request via handleDivisionChange.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally only react to initialDivisionId — initialData is read but shouldn't trigger re-sync
   useEffect(() => {
     if (initialDivisionId && initialDivisionId !== selectedDivisionId) {
       setSelectedDivisionId(initialDivisionId)
@@ -437,7 +438,7 @@ export function VideoSubmissionForm({
         setIsEditing(subs.length === 0)
       }
     }
-  }, [initialDivisionId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [initialDivisionId])
 
   // Transition to preview mode after success message displays
   useEffect(() => {
