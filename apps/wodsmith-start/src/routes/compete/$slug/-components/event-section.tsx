@@ -357,7 +357,10 @@ function ScoringBadges({ workout }: { workout: WorkoutDetails }) {
         className="px-3 py-1 text-sm flex gap-2 items-center font-normal"
       >
         <Target className="h-4 w-4" />
-        Tiebreak: {workout.tiebreakScheme}
+        <span>
+          Tiebreak: {workout.tiebreakScheme === "reps" ? "Rep/Weight" : workout.tiebreakScheme}
+          <span className="block text-xs text-muted-foreground">higher is better</span>
+        </span>
       </Badge>,
     )
   }
