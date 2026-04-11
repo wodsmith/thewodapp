@@ -80,7 +80,8 @@ const getAthleteRegisteredDivisionsFn = createServerFn({ method: "GET" })
 export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
   component: EventDetailsPage,
   validateSearch: (search) => eventSearchSchema.parse(search),
-  loader: async ({ params, parentMatchPromise }) => {
+  loaderDeps: ({ search }) => ({ division: search.division }),
+  loader: async ({ params, parentMatchPromise, deps }) => {
     const { eventId } = params
 
     const parentMatch = await parentMatchPromise
@@ -172,8 +173,28 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       .map((w) => ({ id: w.id, trackOrder: w.trackOrder }))
 
     // For online competitions, fetch video submissions
+    // Prefer the URL's division param when it matches a registered AND event-mapped division,
+    // so that the form initializes with the correct teamSize for team divisions.
+    // Filter athlete divisions by event-division mappings (same logic as component-side filtering)
+    const loaderEventMappings = eventDivisionMappingResult
+    const loaderMappedDivisionIds = (() => {
+      if (!loaderEventMappings.hasMappings || !athleteRegisteredDivisionIds.length) {
+        return athleteRegisteredDivisionIds
+      }
+      const parentId = eventResult.event.parentEventId
+      const relevantMappings = loaderEventMappings.mappings.filter(
+        (m) =>
+          m.trackWorkoutId === eventId ||
+          (parentId && m.trackWorkoutId === parentId),
+      )
+      if (relevantMappings.length === 0) return athleteRegisteredDivisionIds
+      const mappedSet = new Set(relevantMappings.map((m) => m.divisionId))
+      return athleteRegisteredDivisionIds.filter((id) => mappedSet.has(id))
+    })()
     const initialSubmissionDivisionId =
-      athleteRegisteredDivisionIds[0] ?? undefined
+      (deps.division && loaderMappedDivisionIds.includes(deps.division)
+        ? deps.division
+        : loaderMappedDivisionIds[0]) ?? undefined
     const hasChildEvents = childEvents.length > 0
 
     // If event has children, fetch submissions per child; otherwise fetch for this event
@@ -279,6 +300,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       divisions,
       athleteRegisteredDivisions,
       athleteRegisteredDivisionId: athleteRegisteredDivisionIds[0] ?? null,
+      initialSubmissionDivisionId: initialSubmissionDivisionId ?? null,
       venue: venueResult.venue,
       videoSubmission: videoSubmissionResult,
       childVideoSubmissions,
@@ -343,6 +365,7 @@ function EventDetailsPage() {
     divisions,
     athleteRegisteredDivisions,
     athleteRegisteredDivisionId,
+    initialSubmissionDivisionId,
     venue,
     videoSubmission,
     childVideoSubmissions,
@@ -395,6 +418,15 @@ function EventDetailsPage() {
     const mappedDivisionIds = new Set(eventMappings.map((m) => m.divisionId))
     return athleteRegisteredDivisions.filter((d) => mappedDivisionIds.has(d.divisionId))
   })()
+
+  // Constrain initialDivisionId to filtered divisions so unmapped divisions aren't used
+  const effectiveSubmissionDivisionId =
+    initialSubmissionDivisionId &&
+    filteredRegisteredDivisions.some(
+      (d) => d.divisionId === initialSubmissionDivisionId,
+    )
+      ? initialSubmissionDivisionId
+      : filteredRegisteredDivisions[0]?.divisionId
 
   // For sidebar submission window display, use the first child's data for parent events
   const sidebarSubmission =
@@ -624,6 +656,7 @@ function EventDetailsPage() {
                             timezone={competition.timezone}
                             registeredDivisions={filteredRegisteredDivisions}
                             initialData={childSubmission}
+                            initialDivisionId={effectiveSubmissionDivisionId}
                           />
                         )}
                     </div>
@@ -652,6 +685,7 @@ function EventDetailsPage() {
                   timezone={competition.timezone}
                   registeredDivisions={athleteRegisteredDivisions}
                   initialData={videoSubmission}
+                  initialDivisionId={effectiveSubmissionDivisionId}
                 />
               )}
           </div>
