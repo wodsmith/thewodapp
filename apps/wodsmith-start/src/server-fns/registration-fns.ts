@@ -2101,7 +2101,8 @@ export const refreshCompetitionTeamInviteFn = createServerFn({
       throw new Error("Only the team captain can refresh invites")
     }
 
-    // Get the invitation
+    // Get the invitation (only pending invites can be refreshed)
+    const { INVITATION_STATUS } = await import("@/db/schema")
     const invitation = await db.query.teamInvitationTable.findFirst({
       where: and(
         eq(teamInvitationTable.id, data.invitationId),
@@ -2109,6 +2110,7 @@ export const refreshCompetitionTeamInviteFn = createServerFn({
           teamInvitationTable.teamId,
           registration.athleteTeamId ?? "",
         ),
+        eq(teamInvitationTable.status, INVITATION_STATUS.PENDING),
       ),
     })
 
@@ -2118,6 +2120,11 @@ export const refreshCompetitionTeamInviteFn = createServerFn({
 
     if (invitation.acceptedAt) {
       throw new Error("Invitation has already been accepted")
+    }
+
+    // Only allow refreshing expired invitations
+    if (!invitation.expiresAt || new Date(invitation.expiresAt) >= new Date()) {
+      throw new Error("Only expired invitations can be refreshed")
     }
 
     // Generate new token and extend expiry to 30 days
