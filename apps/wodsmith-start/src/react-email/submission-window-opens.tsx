@@ -3,6 +3,7 @@ import {
   Container,
   Head,
   Heading,
+  Hr,
   Html,
   Link,
   Section,
@@ -10,12 +11,20 @@ import {
 } from "@react-email/components"
 import { SITE_DOMAIN } from "@/constants"
 
+export interface WorkoutInfo {
+  name: string
+  description?: string
+}
+
 export interface SubmissionWindowOpensProps {
   athleteName?: string
   competitionName?: string
   competitionSlug?: string
+  /** @deprecated Use `workouts` array instead */
   workoutName?: string
+  /** @deprecated Use `workouts` array instead */
   workoutDescription?: string
+  workouts?: WorkoutInfo[]
   submissionClosesAt?: string
   timezone?: string
 }
@@ -24,12 +33,22 @@ export const SubmissionWindowOpensEmail = ({
   athleteName = "Athlete",
   competitionName = "Competition",
   competitionSlug = "competition",
-  workoutName = "Workout 1",
+  workoutName,
   workoutDescription,
+  workouts: workoutsProp,
   submissionClosesAt,
   timezone = "UTC",
 }: SubmissionWindowOpensProps) => {
   const competitionUrl = `https://${SITE_DOMAIN}/compete/${competitionSlug}`
+
+  // Support both legacy single-workout and new multi-workout props
+  const workouts: WorkoutInfo[] =
+    workoutsProp && workoutsProp.length > 0
+      ? workoutsProp
+      : [{ name: workoutName || "Workout 1", description: workoutDescription }]
+
+  const isSingleWorkout = workouts.length === 1
+  const workoutLabel = isSingleWorkout ? "workout" : "workouts"
 
   return (
     <Html>
@@ -39,24 +58,41 @@ export const SubmissionWindowOpensEmail = ({
           <Heading style={preheader}>Submission Window Now Open!</Heading>
           <Text style={paragraph}>Hi {athleteName},</Text>
           <Text style={paragraph}>
-            The submission window for <strong>{workoutName}</strong> in{" "}
-            <strong>{competitionName}</strong> is now open. You can submit your
-            score!
+            The submission window for{" "}
+            {isSingleWorkout ? (
+              <>
+                <strong>{workouts[0].name}</strong> in{" "}
+              </>
+            ) : (
+              <>
+                {workouts.length} {workoutLabel} in{" "}
+              </>
+            )}
+            <strong>{competitionName}</strong> is now open. You can submit your{" "}
+            {isSingleWorkout ? "score" : "scores"}!
           </Text>
 
           <Section style={detailsBox}>
-            <Text style={detailsTitle}>Event Details</Text>
+            <Text style={detailsTitle}>
+              {isSingleWorkout ? "Event Details" : "Events Now Open"}
+            </Text>
             <Text style={detailRow}>
               <strong>Competition:</strong> {competitionName}
             </Text>
-            <Text style={detailRow}>
-              <strong>Event:</strong> {workoutName}
-            </Text>
-            {workoutDescription && (
-              <Text style={detailRow}>
-                <strong>Description:</strong> {workoutDescription}
-              </Text>
-            )}
+            {workouts.map((workout, index) => (
+              <Section key={workout.name}>
+                {!isSingleWorkout && index > 0 && <Hr style={divider} />}
+                <Text style={detailRow}>
+                  <strong>{isSingleWorkout ? "Event:" : `Event ${index + 1}:`}</strong>{" "}
+                  {workout.name}
+                </Text>
+                {workout.description && (
+                  <Text style={detailRow}>
+                    <strong>Description:</strong> {workout.description}
+                  </Text>
+                )}
+              </Section>
+            ))}
             {submissionClosesAt && (
               <Text style={detailRow}>
                 <strong>Submit By:</strong> {submissionClosesAt} ({timezone})
@@ -66,13 +102,15 @@ export const SubmissionWindowOpensEmail = ({
 
           <Section style={buttonContainer}>
             <Link style={button} href={competitionUrl}>
-              Submit Your Score
+              Submit Your {isSingleWorkout ? "Score" : "Scores"}
             </Link>
           </Section>
 
           <Text style={paragraph}>
-            Make sure to complete the workout and submit your score before the
-            window closes. Good luck!
+            Make sure to complete the{" "}
+            {isSingleWorkout ? "workout" : "workouts"} and submit your{" "}
+            {isSingleWorkout ? "score" : "scores"} before the window closes.
+            Good luck!
           </Text>
         </Container>
         <Text style={footer}>
@@ -88,8 +126,11 @@ SubmissionWindowOpensEmail.PreviewProps = {
   athleteName: "John Smith",
   competitionName: "CrossFit Open 2025",
   competitionSlug: "crossfit-open-2025",
-  workoutName: "25.1",
-  workoutDescription: "15-12-9 Thrusters and Bar Muscle-ups",
+  workouts: [
+    { name: "25.1", description: "15-12-9 Thrusters and Bar Muscle-ups" },
+    { name: "25.2", description: "5 Rounds: 10 Deadlifts, 20 Double-unders" },
+    { name: "25.3" },
+  ],
   submissionClosesAt: "Monday, March 17, 2025 at 5:00 PM",
   timezone: "America/Denver",
 } as SubmissionWindowOpensProps
@@ -152,6 +193,11 @@ const detailRow = {
   fontSize: "15px",
   lineHeight: "20px",
   margin: "8px 0",
+}
+
+const divider = {
+  borderColor: "#e2e8f0",
+  margin: "12px 0",
 }
 
 const buttonContainer = {
