@@ -842,11 +842,7 @@ export function CompetitionLeaderboardTable({
                     scoringAlgorithm={scoringAlgorithm}
                   />
                   {showCutoff && (
-                    <div
-                      className="h-[3px] bg-orange-500"
-                      role="separator"
-                      aria-label="Division cutoff line"
-                    />
+                    <div className="h-[3px] bg-orange-500" />
                   )}
                 </Fragment>
               )
