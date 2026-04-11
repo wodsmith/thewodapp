@@ -921,7 +921,7 @@ export function CompetitionLeaderboardTable({
                       ))}
                     </TableRow>
                     {showCutoff && (
-                      <tr aria-hidden="true">
+                      <tr>
                         <td colSpan={columns.length} className="p-0">
                           <div className="h-[3px] bg-orange-500" />
                         </td>
