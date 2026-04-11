@@ -634,6 +634,217 @@ export const getBatchSubmissionStatusFn = createServerFn({ method: "GET" })
   })
 
 /**
+ * Per-division submission & score data for the athlete score panel.
+ * Returns for each (registration, trackWorkout) pair:
+ *  - whether a video has been submitted & its review status
+ *  - the athlete's score display value + status
+ *  - whether the submission window is open
+ */
+export const getAthleteDivisionSubmissionsFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        competitionId: z.string().min(1),
+        trackWorkoutIds: z.array(z.string().min(1)).min(1),
+        registrationId: z.string().min(1),
+        divisionId: z.string().min(1),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    interface WorkoutSubmission {
+      trackWorkoutId: string
+      hasVideo: boolean
+      videoReviewStatus: ReviewStatus | null
+      hasScore: boolean
+      displayScore: string | null
+      scoreStatus: string | null
+      secondaryValue: number | null
+      verificationStatus: string | null
+      canSubmit: boolean
+      windowStatus: "open" | "not_yet_open" | "closed" | "no_window"
+    }
+
+    const session = await getSessionFromCookie()
+    if (!session?.userId) {
+      return { submissions: [] as WorkoutSubmission[] }
+    }
+
+    const db = getDb()
+
+    // Verify the registration belongs to the user (or their team captain)
+    const [registration] = await db
+      .select({
+        id: competitionRegistrationsTable.id,
+        userId: competitionRegistrationsTable.userId,
+        captainUserId: competitionRegistrationsTable.captainUserId,
+        divisionId: competitionRegistrationsTable.divisionId,
+      })
+      .from(competitionRegistrationsTable)
+      .where(
+        and(
+          eq(competitionRegistrationsTable.id, data.registrationId),
+          ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+        ),
+      )
+      .limit(1)
+
+    if (!registration) {
+      return { submissions: [] as WorkoutSubmission[] }
+    }
+
+    // Ensure the user owns this registration or is a team member
+    const isOwner = registration.userId === session.userId
+    const isCaptain = registration.captainUserId === session.userId
+    if (!isOwner && !isCaptain) {
+      return { submissions: [] as WorkoutSubmission[] }
+    }
+
+    // For team registrations, only the captain can submit
+    const isTeamCaptain = !registration.captainUserId || registration.captainUserId === session.userId
+    const scoreUserId = registration.captainUserId ?? registration.userId
+
+    // Fetch events, video submissions, and scores in parallel
+    const [events, videoSubs, scores] = await Promise.all([
+      db
+        .select({
+          trackWorkoutId: competitionEventsTable.trackWorkoutId,
+          submissionOpensAt: competitionEventsTable.submissionOpensAt,
+          submissionClosesAt: competitionEventsTable.submissionClosesAt,
+        })
+        .from(competitionEventsTable)
+        .where(
+          and(
+            eq(competitionEventsTable.competitionId, data.competitionId),
+            inArray(
+              competitionEventsTable.trackWorkoutId,
+              data.trackWorkoutIds,
+            ),
+          ),
+        ),
+      db
+        .select({
+          trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+          reviewStatus: videoSubmissionsTable.reviewStatus,
+        })
+        .from(videoSubmissionsTable)
+        .where(
+          and(
+            eq(videoSubmissionsTable.registrationId, data.registrationId),
+            inArray(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutIds),
+          ),
+        ),
+      db
+        .select({
+          competitionEventId: scoresTable.competitionEventId,
+          scoreValue: scoresTable.scoreValue,
+          secondaryValue: scoresTable.secondaryValue,
+          status: scoresTable.status,
+          scheme: scoresTable.scheme,
+          verificationStatus: scoresTable.verificationStatus,
+        })
+        .from(scoresTable)
+        .where(
+          and(
+            eq(scoresTable.userId, scoreUserId),
+            inArray(scoresTable.competitionEventId, data.trackWorkoutIds),
+            ...(data.divisionId
+              ? [eq(scoresTable.scalingLevelId, data.divisionId)]
+              : []),
+          ),
+        ),
+    ])
+
+    const eventMap = new Map(events.map((e) => [e.trackWorkoutId, e]))
+    // Group videos by trackWorkoutId, pick highest-precedence review status
+    const reviewStatusPrecedence: Record<string, number> = {
+      verified: 4,
+      approved: 3,
+      under_review: 2,
+      adjusted: 1,
+      penalized: 1,
+      invalid: 0,
+    }
+    const videoMap = new Map<
+      string,
+      { hasVideo: boolean; reviewStatus: ReviewStatus | null }
+    >()
+    for (const v of videoSubs) {
+      const existing = videoMap.get(v.trackWorkoutId)
+      const newStatus = v.reviewStatus as ReviewStatus | null
+      if (!existing) {
+        videoMap.set(v.trackWorkoutId, {
+          hasVideo: true,
+          reviewStatus: newStatus,
+        })
+      } else {
+        const existingRank = existing.reviewStatus
+          ? (reviewStatusPrecedence[existing.reviewStatus] ?? -1)
+          : -1
+        const newRank = newStatus
+          ? (reviewStatusPrecedence[newStatus] ?? -1)
+          : -1
+        if (newRank > existingRank) {
+          existing.reviewStatus = newStatus
+        }
+      }
+    }
+    const scoreMap = new Map(
+      scores.map((s) => [s.competitionEventId, s]),
+    )
+
+    const now = new Date()
+    const submissions: WorkoutSubmission[] = data.trackWorkoutIds.map(
+      (twId) => {
+        const event = eventMap.get(twId)
+        let canSubmit = isTeamCaptain
+        let windowStatus: WorkoutSubmission["windowStatus"] = "no_window"
+
+        if (event?.submissionOpensAt && event?.submissionClosesAt) {
+          const opensAt = new Date(event.submissionOpensAt)
+          const closesAt = new Date(event.submissionClosesAt)
+          if (now < opensAt) {
+            canSubmit = false
+            windowStatus = "not_yet_open"
+          } else if (now > closesAt) {
+            canSubmit = false
+            windowStatus = "closed"
+          } else {
+            canSubmit = isTeamCaptain
+            windowStatus = "open"
+          }
+        }
+
+        const video = videoMap.get(twId)
+        const score = scoreMap.get(twId)
+        let displayScore: string | null = null
+        if (score?.scoreValue !== null && score?.scheme) {
+          displayScore = decodeScore(
+            score.scoreValue!,
+            score.scheme as WorkoutScheme,
+            { compact: true },
+          )
+        }
+
+        return {
+          trackWorkoutId: twId,
+          hasVideo: video?.hasVideo ?? false,
+          videoReviewStatus: video?.reviewStatus ?? null,
+          hasScore: score !== undefined && score.scoreValue !== null,
+          displayScore,
+          scoreStatus: score?.status ?? null,
+          secondaryValue: score?.secondaryValue ?? null,
+          verificationStatus: score?.verificationStatus ?? null,
+          canSubmit,
+          windowStatus,
+        }
+      },
+    )
+
+    return { submissions }
+  })
+
+/**
  * Submit or update a video submission for an event.
  * Also saves the claimed score to the scores table.
  * Only the team captain can submit for team divisions.

@@ -1,4 +1,6 @@
+import { useEffect, useMemo, useState } from "react"
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
+import { AthleteScoreSubmissionPanel } from "@/components/compete/athlete-score-submission-panel"
 import { CompetitionLocationCard } from "@/components/competition-location-card"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import {
@@ -17,6 +19,7 @@ import {
   getPublishedCompetitionWorkoutsWithDetailsFn,
   type DivisionDescription,
 } from "@/server-fns/competition-workouts-fns"
+import { getPublicEventDivisionMappingsFn } from "@/server-fns/event-division-mapping-fns"
 import { getBatchSubmissionStatusFn } from "@/server-fns/video-submission-fns"
 import { useDeferredSchedule } from "@/utils/use-deferred-schedule"
 
@@ -37,6 +40,7 @@ export const Route = createFileRoute("/compete/$slug/")({
         deferredSchedule: Promise.resolve({
           events: [] as PublicScheduleEvent[],
         }),
+        eventDivisionMappings: { mappings: [], hasMappings: false },
       }
     }
 
@@ -63,21 +67,28 @@ export const Route = createFileRoute("/compete/$slug/")({
       Object.assign(divisionDescriptionsMap, batchResult.descriptionsByWorkout)
     }
 
-    // Fetch submission statuses for online competitions with registered athletes
+    // Fetch submission statuses and event-division mappings in parallel
     const userRegistration = parentMatch.loaderData?.userRegistration
     let submissionStatusMap: Record<string, SubmissionStatus> = {}
-    if (
+
+    const [submissionResult, eventDivisionMappings] = await Promise.all([
       competition.competitionType === "online" &&
       userRegistration &&
       workouts.length > 0
-    ) {
-      const result = await getBatchSubmissionStatusFn({
-        data: {
-          competitionId,
-          trackWorkoutIds: workouts.map((w) => w.id),
-        },
-      })
-      submissionStatusMap = result.statuses
+        ? getBatchSubmissionStatusFn({
+            data: {
+              competitionId,
+              trackWorkoutIds: workouts.map((w) => w.id),
+            },
+          })
+        : Promise.resolve(null),
+      getPublicEventDivisionMappingsFn({
+        data: { competitionId },
+      }).catch(() => ({ mappings: [] as Array<{ trackWorkoutId: string; divisionId: string }>, hasMappings: false })),
+    ])
+
+    if (submissionResult) {
+      submissionStatusMap = submissionResult.statuses
     }
 
     return {
@@ -85,6 +96,7 @@ export const Route = createFileRoute("/compete/$slug/")({
       divisionDescriptionsMap,
       submissionStatusMap,
       deferredSchedule,
+      eventDivisionMappings,
     }
   },
 })
@@ -110,6 +122,7 @@ function CompetitionOverviewPage() {
     divisionDescriptionsMap,
     submissionStatusMap,
     deferredSchedule,
+    eventDivisionMappings,
   } = Route.useLoaderData()
 
   const isRegistered = !!userRegistration
@@ -141,6 +154,48 @@ function CompetitionOverviewPage() {
     children.sort((a, b) => a.trackOrder - b.trackOrder)
   }
 
+  const showScorePanel =
+    competition.competitionType === "online" &&
+    isRegistered &&
+    !!session &&
+    userDivisions.length > 0 &&
+    workouts.length > 0
+
+  const scorePanelWorkouts = useMemo(
+    () =>
+      workouts.map((w) => ({
+        id: w.id,
+        workoutId: w.workoutId,
+        trackOrder: w.trackOrder,
+        parentEventId: w.parentEventId,
+        workout: {
+          name: w.workout.name,
+          scheme: w.workout.scheme,
+        },
+      })),
+    [workouts],
+  )
+
+  // Track lg breakpoint to render score panel in one location only
+  const [isDesktop, setIsDesktop] = useState(false)
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 1024px)")
+    const onChange = () => setIsDesktop(mql.matches)
+    mql.addEventListener("change", onChange)
+    setIsDesktop(mql.matches)
+    return () => mql.removeEventListener("change", onChange)
+  }, [])
+
+  const scorePanelEl = showScorePanel ? (
+    <AthleteScoreSubmissionPanel
+      competitionId={competition.id}
+      slug={slug}
+      userDivisions={userDivisions}
+      workouts={scorePanelWorkouts}
+      eventDivisionMappings={eventDivisionMappings}
+    />
+  ) : null
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       {/* Main Content Column */}
@@ -149,6 +204,9 @@ function CompetitionOverviewPage() {
         <div className="sticky top-4 z-10">
           <CompetitionTabs slug={competition.slug} />
         </div>
+
+        {/* Score panel — desktop only (in main column) */}
+        {isDesktop && scorePanelEl}
 
         {/* Content Panel */}
         <div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
@@ -203,7 +261,9 @@ function CompetitionOverviewPage() {
       </div>
 
       {/* Sidebar - Order first on mobile/tablet for prominent Register button */}
-      <aside className="order-first space-y-4 lg:order-none lg:sticky lg:top-4 lg:self-start">
+      <aside className="order-first min-w-0 space-y-4 lg:order-none lg:sticky lg:top-4 lg:self-start">
+        {/* Score panel — mobile only (above registrations) */}
+        {!isDesktop && scorePanelEl}
         <RegistrationSidebar
           competition={competition}
           isRegistered={isRegistered}

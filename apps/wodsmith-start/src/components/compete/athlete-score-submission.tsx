@@ -408,7 +408,7 @@ export function AthleteScoreSubmission({
               <div className="space-y-2">
                 <Label htmlFor="tiebreak-input">
                   Tiebreak (
-                  {workoutDetails.tiebreakScheme === "time" ? "Time" : "Reps"})
+                  {workoutDetails.tiebreakScheme === "time" ? "Time" : "Reps/Weight"})
                 </Label>
                 <Input
                   id="tiebreak-input"
@@ -424,7 +424,7 @@ export function AthleteScoreSubmission({
                 <p className="text-xs text-muted-foreground">
                   {workoutDetails.tiebreakScheme === "time"
                     ? "Time to complete specified reps/work"
-                    : "Reps completed for tiebreak"}
+                    : "Reps/Weight completed for tiebreak"}
                 </p>
               </div>
             )}
