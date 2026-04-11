@@ -1,4 +1,5 @@
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
+import { AthleteScoreSubmissionPanel } from "@/components/compete/athlete-score-submission-panel"
 import { CompetitionLocationCard } from "@/components/competition-location-card"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import {
@@ -141,6 +142,13 @@ function CompetitionOverviewPage() {
     children.sort((a, b) => a.trackOrder - b.trackOrder)
   }
 
+  const showScorePanel =
+    competition.competitionType === "online" &&
+    isRegistered &&
+    !!session &&
+    userDivisions.length > 0 &&
+    workouts.length > 0
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       {/* Main Content Column */}
@@ -149,6 +157,25 @@ function CompetitionOverviewPage() {
         <div className="sticky top-4 z-10">
           <CompetitionTabs slug={competition.slug} />
         </div>
+
+        {/* Athlete Score Submission Panel - front & center for online competitions */}
+        {showScorePanel && (
+          <AthleteScoreSubmissionPanel
+            competitionId={competition.id}
+            slug={slug}
+            userDivisions={userDivisions}
+            workouts={workouts.map((w) => ({
+              id: w.id,
+              workoutId: w.workoutId,
+              trackOrder: w.trackOrder,
+              parentEventId: w.parentEventId,
+              workout: {
+                name: w.workout.name,
+                scheme: w.workout.scheme,
+              },
+            }))}
+          />
+        )}
 
         {/* Content Panel */}
         <div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
