@@ -55,7 +55,7 @@ Each division becomes a separate line item in Stripe Checkout and a separate `co
 
 Team divisions (teamSize > 1) require a team name and teammate emails during registration.
 
-The captain (registering user) creates the team. A `competition_team` is created in the `teamTable` with `competitionMetadata` JSON storing `competitionId` and `divisionId`. Teammates are invited via `inviteUserToTeamInternal`: existing users are added directly to the team; new users receive an email invitation with a 30-day token. Teammates are also added to the `competition_event` team.
+The captain (registering user) creates the team. A `competition_team` is created in the `teamTable` with `competitionMetadata` JSON storing `competitionId` and `divisionId`. Teammates are invited via [[apps/wodsmith-start/src/server/registration.ts#inviteUserToTeamInternal]]: existing users are added directly to the team; new users receive an email invitation with a 30-day token. Teammates are also added to the `competition_event` team. Captains can refresh expired invites via [[apps/wodsmith-start/src/server-fns/registration-fns.ts#refreshCompetitionTeamInviteFn]], which generates a new token, extends the expiry by 30 days, and resends the email.
 
 ## Capacity Management
 

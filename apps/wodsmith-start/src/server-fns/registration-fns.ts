@@ -10,6 +10,7 @@
  * - Payment flow states (pending, completed, cancelled) are logged
  */
 
+import { createId } from "@paralleldrive/cuid2"
 import { createServerFn } from "@tanstack/react-start"
 import { and, eq, inArray, isNull, ne, or, sql } from "drizzle-orm"
 import type Stripe from "stripe"
@@ -877,6 +878,7 @@ interface PendingInviteData {
   email: string
   token: string | null
   invitedAt: Date | null
+  expiresAt: Date | null
 }
 
 export interface TeamRosterResult {
@@ -1152,6 +1154,7 @@ export const getTeamRosterFn = createServerFn({ method: "GET" })
       email: i.email,
       token: i.token,
       invitedAt: i.createdAt ? new Date(i.createdAt) : null,
+      expiresAt: i.expiresAt ? new Date(i.expiresAt) : null,
     }))
 
     return {
@@ -2053,4 +2056,117 @@ export const createManualRegistrationFn = createServerFn({ method: "POST" })
       divisionFeeCents,
       isNewAthlete,
     }
+  })
+
+// ============================================================================
+// Refresh Competition Team Invite
+// ============================================================================
+
+const refreshInviteSchema = z.object({
+  invitationId: z.string().min(1),
+  registrationId: z.string().min(1),
+})
+
+/**
+ * Regenerate a competition team invite token and resend the email.
+ * Only the team captain (registration owner) can refresh invites.
+ */
+export const refreshCompetitionTeamInviteFn = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data: unknown) => refreshInviteSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await requireVerifiedEmail()
+    const db = getDb()
+
+    // Verify the registration exists and the caller is the captain
+    const registration =
+      await db.query.competitionRegistrationsTable.findFirst({
+        where: eq(competitionRegistrationsTable.id, data.registrationId),
+        with: {
+          competition: {
+            columns: { id: true, name: true, slug: true },
+          },
+          division: {
+            columns: { id: true, label: true },
+          },
+        },
+      })
+
+    if (!registration) {
+      throw new Error("Registration not found")
+    }
+
+    if (registration.userId !== session.userId) {
+      throw new Error("Only the team captain can refresh invites")
+    }
+
+    // Get the invitation (only pending invites can be refreshed)
+    const { INVITATION_STATUS } = await import("@/db/schema")
+    const invitation = await db.query.teamInvitationTable.findFirst({
+      where: and(
+        eq(teamInvitationTable.id, data.invitationId),
+        eq(
+          teamInvitationTable.teamId,
+          registration.athleteTeamId ?? "",
+        ),
+        eq(teamInvitationTable.status, INVITATION_STATUS.PENDING),
+      ),
+    })
+
+    if (!invitation) {
+      throw new Error("Invitation not found")
+    }
+
+    if (invitation.acceptedAt) {
+      throw new Error("Invitation has already been accepted")
+    }
+
+    // Only allow refreshing expired invitations
+    if (!invitation.expiresAt || new Date(invitation.expiresAt) >= new Date()) {
+      throw new Error("Only expired invitations can be refreshed")
+    }
+
+    // Generate new token and extend expiry to 30 days
+    const newToken = createId()
+    const newExpiresAt = new Date()
+    newExpiresAt.setDate(newExpiresAt.getDate() + 30)
+
+    await db
+      .update(teamInvitationTable)
+      .set({
+        token: newToken,
+        expiresAt: newExpiresAt,
+        updatedAt: new Date(),
+      })
+      .where(eq(teamInvitationTable.id, invitation.id))
+
+    // Resend the invite email
+    const competition = Array.isArray(registration.competition)
+      ? registration.competition[0]
+      : registration.competition
+    const division = Array.isArray(registration.division)
+      ? registration.division[0]
+      : registration.division
+
+    const inviter = await db.query.userTable.findFirst({
+      where: eq(userTable.id, session.userId),
+      columns: { firstName: true, lastName: true },
+    })
+    const inviterName = inviter
+      ? `${inviter.firstName || ""} ${inviter.lastName || ""}`.trim() ||
+        "Your team captain"
+      : "Your team captain"
+
+    const { sendCompetitionTeamInviteEmail } = await import("@/utils/email")
+    await sendCompetitionTeamInviteEmail({
+      email: invitation.email,
+      invitationToken: newToken,
+      teamName: registration.teamName ?? "Team",
+      competitionName: competition?.name ?? "the competition",
+      divisionName: division?.label ?? "Division",
+      inviterName,
+    })
+
+    return { success: true, newToken }
   })

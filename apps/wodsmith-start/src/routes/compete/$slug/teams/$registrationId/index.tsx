@@ -11,6 +11,7 @@ import {
   notFound,
   redirect,
   useNavigate,
+  useRouter,
 } from "@tanstack/react-router"
 import { eq } from "drizzle-orm"
 import {
@@ -21,6 +22,7 @@ import {
   Copy,
   Crown,
   Mail,
+  RefreshCw,
   Users,
 } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -42,6 +44,7 @@ import type { Waiver, WaiverSignature } from "@/db/schemas/waivers"
 import {
   getRegistrationDetailsFn,
   getTeamRosterFn,
+  refreshCompetitionTeamInviteFn,
   type RegistrationDetails,
   type TeamRosterResult,
 } from "@/server-fns/registration-fns"
@@ -416,6 +419,7 @@ function TeamManagementPage() {
 
   const { welcome } = Route.useSearch()
   const navigate = useNavigate()
+  const router = useRouter()
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
 
   // Show welcome modal when ?welcome=true is in URL
@@ -452,6 +456,28 @@ function TeamManagementPage() {
       toast.success("Invite link copied to clipboard")
     } catch {
       toast.error("Failed to copy invite link")
+    }
+  }
+
+  const [refreshingInviteId, setRefreshingInviteId] = useState<string | null>(
+    null,
+  )
+
+  const handleRefreshInvite = async (inviteId: string) => {
+    setRefreshingInviteId(inviteId)
+    try {
+      await refreshCompetitionTeamInviteFn({
+        data: {
+          invitationId: inviteId,
+          registrationId: registration.id,
+        },
+      })
+      toast.success("Invite refreshed and email resent")
+      router.invalidate()
+    } catch {
+      toast.error("Failed to refresh invite")
+    } finally {
+      setRefreshingInviteId(null)
     }
   }
 
@@ -683,6 +709,8 @@ function TeamManagementPage() {
                 <div className="space-y-2">
                   {pending.map((invite) => {
                     const pendingAffiliate = getPendingAffiliate(invite.email)
+                    const isExpired =
+                      invite.expiresAt && new Date(invite.expiresAt) < new Date()
                     return (
                       <div
                         key={invite.id}
@@ -710,19 +738,48 @@ function TeamManagementPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {isRegisteredUser && invite.token && (
+                          {isRegisteredUser && isExpired && (
                             <Button
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
-                              onClick={() => copyInviteLink(invite.token!)}
+                              onClick={() => handleRefreshInvite(invite.id)}
+                              disabled={refreshingInviteId === invite.id}
                             >
-                              <Copy className="w-4 h-4 mr-1" />
-                              Copy Link
+                              <RefreshCw
+                                className={`w-4 h-4 mr-1 ${refreshingInviteId === invite.id ? "animate-spin" : ""}`}
+                              />
+                              {refreshingInviteId === invite.id
+                                ? "Refreshing..."
+                                : "Resend Invite"}
                             </Button>
                           )}
-                          <Badge variant="outline" className="text-yellow-600">
-                            Pending
-                          </Badge>
+                          {isRegisteredUser &&
+                            !isExpired &&
+                            invite.token && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => copyInviteLink(invite.token!)}
+                              >
+                                <Copy className="w-4 h-4 mr-1" />
+                                Copy Link
+                              </Button>
+                            )}
+                          {isExpired ? (
+                            <Badge
+                              variant="outline"
+                              className="text-destructive"
+                            >
+                              Expired
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="text-yellow-600"
+                            >
+                              Pending
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     )
