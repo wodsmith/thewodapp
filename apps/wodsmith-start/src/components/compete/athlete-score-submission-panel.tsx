@@ -131,8 +131,7 @@ export function AthleteScoreSubmissionPanel({
   }, [eventDivisionMappings, division?.id])
 
   // Filter parents and children by division mappings.
-  // If a parent has a mapping, it applies transitively — children inherit it
-  // unless they have their own explicit mapping.
+  // Children with explicit mappings can survive even if the parent is mapped out.
   const { filteredParents, filteredChildEventsMap } = useMemo(() => {
     const isVisible = (id: string) =>
       eventsWithMappings.size === 0 || !eventsWithMappings.has(id) || mappedToSelectedDiv.has(id)
@@ -142,19 +141,16 @@ export function AthleteScoreSubmissionPanel({
     const visibleParents: WorkoutInfo[] = []
 
     for (const parent of parents) {
-      const parentVisible = isVisible(parent.id)
       const children = rawChildEventsMap.get(parent.id)
 
       if (!children || children.length === 0) {
         // Leaf parent — filter by its own mapping
-        if (parentVisible) visibleParents.push(parent)
+        if (isVisible(parent.id)) visibleParents.push(parent)
         continue
       }
 
-      // Parent with children: if parent is mapped out, exclude entire group.
-      // If parent passes (or has no mapping), filter children individually.
-      if (!parentVisible) continue
-
+      // Filter children first — children with explicit mappings survive
+      // even if parent is mapped out
       const visibleChildren = children.filter((c) => isVisible(c.id))
       if (visibleChildren.length > 0) {
         visibleParents.push(parent)
@@ -259,7 +255,7 @@ export function AthleteScoreSubmissionPanel({
           </p>
         )}
 
-        {!loading && totalSubmittable > 0 && (
+        {!loading && !fetchError && totalSubmittable > 0 && (
           <p className="text-xs text-muted-foreground">
             {submittedCount} of {totalSubmittable} workout score
             {totalSubmittable !== 1 ? "s" : ""} submitted

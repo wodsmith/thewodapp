@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { AthleteScoreSubmissionPanel } from "@/components/compete/athlete-score-submission-panel"
 import { CompetitionLocationCard } from "@/components/competition-location-card"
@@ -84,7 +84,7 @@ export const Route = createFileRoute("/compete/$slug/")({
         : Promise.resolve(null),
       getPublicEventDivisionMappingsFn({
         data: { competitionId },
-      }),
+      }).catch(() => ({ mappings: [] as Array<{ trackWorkoutId: string; divisionId: string }>, hasMappings: false })),
     ])
 
     if (submissionResult) {
@@ -176,6 +176,16 @@ function CompetitionOverviewPage() {
     [workouts],
   )
 
+  // Track lg breakpoint to render score panel in one location only
+  const [isDesktop, setIsDesktop] = useState(false)
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 1024px)")
+    const onChange = () => setIsDesktop(mql.matches)
+    mql.addEventListener("change", onChange)
+    setIsDesktop(mql.matches)
+    return () => mql.removeEventListener("change", onChange)
+  }, [])
+
   const scorePanelEl = showScorePanel ? (
     <AthleteScoreSubmissionPanel
       competitionId={competition.id}
@@ -196,9 +206,7 @@ function CompetitionOverviewPage() {
         </div>
 
         {/* Score panel — desktop only (in main column) */}
-        {scorePanelEl && (
-          <div className="hidden lg:block">{scorePanelEl}</div>
-        )}
+        {isDesktop && scorePanelEl}
 
         {/* Content Panel */}
         <div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
@@ -255,9 +263,7 @@ function CompetitionOverviewPage() {
       {/* Sidebar - Order first on mobile/tablet for prominent Register button */}
       <aside className="order-first min-w-0 space-y-4 lg:order-none lg:sticky lg:top-4 lg:self-start">
         {/* Score panel — mobile only (above registrations) */}
-        {scorePanelEl && (
-          <div className="lg:hidden">{scorePanelEl}</div>
-        )}
+        {!isDesktop && scorePanelEl}
         <RegistrationSidebar
           competition={competition}
           isRegistered={isRegistered}
