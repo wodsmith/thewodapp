@@ -12,7 +12,6 @@ import {
 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -92,6 +91,7 @@ export function AthleteScoreSubmissionPanel({
   const [selectedDivisionIdx, setSelectedDivisionIdx] = useState(0)
   const [submissions, setSubmissions] = useState<WorkoutSubmission[]>([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(false)
 
   const selectedUserDiv = userDivisions[selectedDivisionIdx]
   const registration = selectedUserDiv?.registration
@@ -157,6 +157,7 @@ export function AthleteScoreSubmissionPanel({
 
     let cancelled = false
     setLoading(true)
+    setFetchError(false)
 
     getAthleteDivisionSubmissionsFn({
       data: {
@@ -172,7 +173,7 @@ export function AthleteScoreSubmissionPanel({
         }
       })
       .catch(() => {
-        if (!cancelled) setSubmissions([])
+        if (!cancelled) setFetchError(true)
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -239,6 +240,10 @@ export function AthleteScoreSubmissionPanel({
           <div className="flex items-center justify-center py-6">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
+        ) : fetchError ? (
+          <p className="text-sm text-destructive py-4 text-center">
+            Failed to load submissions. Please try refreshing.
+          </p>
         ) : (
           parentWorkouts.map((event, idx) => {
             const position = idx + 1
@@ -399,9 +404,9 @@ function ActionIndicator({ submission, canSubmit, windowStatus }: {
   }
   if (canSubmit) {
     return (
-      <Button size="sm" variant="default" className="h-7 text-xs pointer-events-none">
+      <span className="inline-flex h-7 items-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground">
         Submit
-      </Button>
+      </span>
     )
   }
   if (windowStatus === "not_yet_open") {

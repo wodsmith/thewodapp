@@ -160,6 +160,25 @@ function CompetitionOverviewPage() {
     userDivisions.length > 0 &&
     workouts.length > 0
 
+  const scorePanelProps = showScorePanel
+    ? {
+        competitionId: competition.id,
+        slug,
+        userDivisions,
+        workouts: workouts.map((w) => ({
+          id: w.id,
+          workoutId: w.workoutId,
+          trackOrder: w.trackOrder,
+          parentEventId: w.parentEventId,
+          workout: {
+            name: w.workout.name,
+            scheme: w.workout.scheme,
+          },
+        })),
+        eventDivisionMappings,
+      }
+    : null
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       {/* Main Content Column */}
@@ -169,24 +188,11 @@ function CompetitionOverviewPage() {
           <CompetitionTabs slug={competition.slug} />
         </div>
 
-        {/* Athlete Score Submission Panel - front & center for online competitions */}
-        {showScorePanel && (
-          <AthleteScoreSubmissionPanel
-            competitionId={competition.id}
-            slug={slug}
-            userDivisions={userDivisions}
-            workouts={workouts.map((w) => ({
-              id: w.id,
-              workoutId: w.workoutId,
-              trackOrder: w.trackOrder,
-              parentEventId: w.parentEventId,
-              workout: {
-                name: w.workout.name,
-                scheme: w.workout.scheme,
-              },
-            }))}
-            eventDivisionMappings={eventDivisionMappings}
-          />
+        {/* Score panel — desktop only (mobile version is in sidebar) */}
+        {scorePanelProps && (
+          <div className="hidden lg:block">
+            <AthleteScoreSubmissionPanel {...scorePanelProps} />
+          </div>
         )}
 
         {/* Content Panel */}
@@ -243,6 +249,12 @@ function CompetitionOverviewPage() {
 
       {/* Sidebar - Order first on mobile/tablet for prominent Register button */}
       <aside className="order-first space-y-4 lg:order-none lg:sticky lg:top-4 lg:self-start">
+        {/* Score panel — mobile only, above registrations */}
+        {scorePanelProps && (
+          <div className="lg:hidden">
+            <AthleteScoreSubmissionPanel {...scorePanelProps} />
+          </div>
+        )}
         <RegistrationSidebar
           competition={competition}
           isRegistered={isRegistered}

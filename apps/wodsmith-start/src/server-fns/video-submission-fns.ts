@@ -652,7 +652,7 @@ export const getAthleteDivisionSubmissionsFn = createServerFn({ method: "GET" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    type WorkoutSubmission = {
+    interface WorkoutSubmission {
       trackWorkoutId: string
       hasVideo: boolean
       videoReviewStatus: ReviewStatus | null
@@ -700,6 +700,8 @@ export const getAthleteDivisionSubmissionsFn = createServerFn({ method: "GET" })
       return { submissions: [] as WorkoutSubmission[] }
     }
 
+    // For team registrations, only the captain can submit
+    const isTeamCaptain = !registration.captainUserId || registration.captainUserId === session.userId
     const scoreUserId = registration.captainUserId ?? registration.userId
 
     // Fetch events, video submissions, and scores in parallel
@@ -754,16 +756,38 @@ export const getAthleteDivisionSubmissionsFn = createServerFn({ method: "GET" })
     ])
 
     const eventMap = new Map(events.map((e) => [e.trackWorkoutId, e]))
-    // Group videos by trackWorkoutId, pick best review status
+    // Group videos by trackWorkoutId, pick highest-precedence review status
+    const reviewStatusPrecedence: Record<string, number> = {
+      verified: 4,
+      approved: 3,
+      under_review: 2,
+      adjusted: 1,
+      penalized: 1,
+      invalid: 0,
+    }
     const videoMap = new Map<
       string,
       { hasVideo: boolean; reviewStatus: ReviewStatus | null }
     >()
     for (const v of videoSubs) {
-      videoMap.set(v.trackWorkoutId, {
-        hasVideo: true,
-        reviewStatus: v.reviewStatus as ReviewStatus | null,
-      })
+      const existing = videoMap.get(v.trackWorkoutId)
+      const newStatus = v.reviewStatus as ReviewStatus | null
+      if (!existing) {
+        videoMap.set(v.trackWorkoutId, {
+          hasVideo: true,
+          reviewStatus: newStatus,
+        })
+      } else {
+        const existingRank = existing.reviewStatus
+          ? (reviewStatusPrecedence[existing.reviewStatus] ?? -1)
+          : -1
+        const newRank = newStatus
+          ? (reviewStatusPrecedence[newStatus] ?? -1)
+          : -1
+        if (newRank > existingRank) {
+          existing.reviewStatus = newStatus
+        }
+      }
     }
     const scoreMap = new Map(
       scores.map((s) => [s.competitionEventId, s]),
@@ -773,7 +797,7 @@ export const getAthleteDivisionSubmissionsFn = createServerFn({ method: "GET" })
     const submissions: WorkoutSubmission[] = data.trackWorkoutIds.map(
       (twId) => {
         const event = eventMap.get(twId)
-        let canSubmit = true
+        let canSubmit = isTeamCaptain
         let windowStatus: WorkoutSubmission["windowStatus"] = "no_window"
 
         if (event?.submissionOpensAt && event?.submissionClosesAt) {
@@ -786,7 +810,7 @@ export const getAthleteDivisionSubmissionsFn = createServerFn({ method: "GET" })
             canSubmit = false
             windowStatus = "closed"
           } else {
-            canSubmit = true
+            canSubmit = isTeamCaptain
             windowStatus = "open"
           }
         }
