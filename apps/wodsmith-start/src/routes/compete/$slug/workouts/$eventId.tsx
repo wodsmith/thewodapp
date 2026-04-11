@@ -423,8 +423,9 @@ function EventDetailsPage() {
       (e) => !eventsWithMappings.has(e.id) || mappedToSelectedDiv.has(e.id),
     )
   })()
+  const lookupId = event.parentEventId ?? event.id
   const eventPosition =
-    visibleTopLevelEvents.findIndex((e) => e.id === event.id) + 1
+    visibleTopLevelEvents.findIndex((e) => e.id === lookupId) + 1
   const totalVisibleEvents = visibleTopLevelEvents.length
 
   const handleDivisionChange = (divisionId: string) => {

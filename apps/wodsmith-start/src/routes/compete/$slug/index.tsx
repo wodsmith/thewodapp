@@ -1,3 +1,4 @@
+import { useMemo } from "react"
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { AthleteScoreSubmissionPanel } from "@/components/compete/athlete-score-submission-panel"
 import { CompetitionLocationCard } from "@/components/competition-location-card"
@@ -160,24 +161,30 @@ function CompetitionOverviewPage() {
     userDivisions.length > 0 &&
     workouts.length > 0
 
-  const scorePanelProps = showScorePanel
-    ? {
-        competitionId: competition.id,
-        slug,
-        userDivisions,
-        workouts: workouts.map((w) => ({
-          id: w.id,
-          workoutId: w.workoutId,
-          trackOrder: w.trackOrder,
-          parentEventId: w.parentEventId,
-          workout: {
-            name: w.workout.name,
-            scheme: w.workout.scheme,
-          },
-        })),
-        eventDivisionMappings,
-      }
-    : null
+  const scorePanelWorkouts = useMemo(
+    () =>
+      workouts.map((w) => ({
+        id: w.id,
+        workoutId: w.workoutId,
+        trackOrder: w.trackOrder,
+        parentEventId: w.parentEventId,
+        workout: {
+          name: w.workout.name,
+          scheme: w.workout.scheme,
+        },
+      })),
+    [workouts],
+  )
+
+  const scorePanelEl = showScorePanel ? (
+    <AthleteScoreSubmissionPanel
+      competitionId={competition.id}
+      slug={slug}
+      userDivisions={userDivisions}
+      workouts={scorePanelWorkouts}
+      eventDivisionMappings={eventDivisionMappings}
+    />
+  ) : null
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -188,11 +195,9 @@ function CompetitionOverviewPage() {
           <CompetitionTabs slug={competition.slug} />
         </div>
 
-        {/* Score panel — desktop only (mobile version is in sidebar) */}
-        {scorePanelProps && (
-          <div className="hidden lg:block">
-            <AthleteScoreSubmissionPanel {...scorePanelProps} />
-          </div>
+        {/* Score panel — desktop only (in main column) */}
+        {scorePanelEl && (
+          <div className="hidden lg:block">{scorePanelEl}</div>
         )}
 
         {/* Content Panel */}
@@ -248,12 +253,10 @@ function CompetitionOverviewPage() {
       </div>
 
       {/* Sidebar - Order first on mobile/tablet for prominent Register button */}
-      <aside className="order-first space-y-4 lg:order-none lg:sticky lg:top-4 lg:self-start">
-        {/* Score panel — mobile only, above registrations */}
-        {scorePanelProps && (
-          <div className="lg:hidden">
-            <AthleteScoreSubmissionPanel {...scorePanelProps} />
-          </div>
+      <aside className="order-first min-w-0 space-y-4 lg:order-none lg:sticky lg:top-4 lg:self-start">
+        {/* Score panel — mobile only (above registrations) */}
+        {scorePanelEl && (
+          <div className="lg:hidden">{scorePanelEl}</div>
         )}
         <RegistrationSidebar
           competition={competition}

@@ -97,8 +97,8 @@ export function AthleteScoreSubmissionPanel({
   const registration = selectedUserDiv?.registration
   const division = selectedUserDiv?.division
 
-  // Build parent -> children map
-  const childEventsMap = useMemo(() => {
+  // Build parent -> children map (unfiltered)
+  const rawChildEventsMap = useMemo(() => {
     const map = new Map<string, WorkoutInfo[]>()
     for (const w of workouts) {
       if (w.parentEventId) {
@@ -113,32 +113,63 @@ export function AthleteScoreSubmissionPanel({
     return map
   }, [workouts])
 
-  // Only show parent-level (non-child) workouts, filtered by division mappings
-  const parentWorkouts = useMemo(() => {
-    let filtered = workouts.filter((w) => !w.parentEventId)
-
-    if (eventDivisionMappings.hasMappings && division?.id) {
-      const eventsWithMappings = new Set(
+  // Division mapping sets for filtering both parents and children
+  const { eventsWithMappings, mappedToSelectedDiv } = useMemo(() => {
+    if (!eventDivisionMappings.hasMappings || !division?.id) {
+      return { eventsWithMappings: new Set<string>(), mappedToSelectedDiv: new Set<string>() }
+    }
+    return {
+      eventsWithMappings: new Set(
         eventDivisionMappings.mappings.map((m) => m.trackWorkoutId),
-      )
-      const mappedToSelectedDiv = new Set(
+      ),
+      mappedToSelectedDiv: new Set(
         eventDivisionMappings.mappings
           .filter((m) => m.divisionId === division.id)
           .map((m) => m.trackWorkoutId),
-      )
-      filtered = filtered.filter(
-        (w) => !eventsWithMappings.has(w.id) || mappedToSelectedDiv.has(w.id),
-      )
+      ),
+    }
+  }, [eventDivisionMappings, division?.id])
+
+  // Filter parents and children by division mappings.
+  // If a parent has a mapping, it applies transitively — children inherit it
+  // unless they have their own explicit mapping.
+  const { filteredParents, filteredChildEventsMap } = useMemo(() => {
+    const isVisible = (id: string) =>
+      eventsWithMappings.size === 0 || !eventsWithMappings.has(id) || mappedToSelectedDiv.has(id)
+
+    const parents = workouts.filter((w) => !w.parentEventId)
+    const childMap = new Map<string, WorkoutInfo[]>()
+    const visibleParents: WorkoutInfo[] = []
+
+    for (const parent of parents) {
+      const parentVisible = isVisible(parent.id)
+      const children = rawChildEventsMap.get(parent.id)
+
+      if (!children || children.length === 0) {
+        // Leaf parent — filter by its own mapping
+        if (parentVisible) visibleParents.push(parent)
+        continue
+      }
+
+      // Parent with children: if parent is mapped out, exclude entire group.
+      // If parent passes (or has no mapping), filter children individually.
+      if (!parentVisible) continue
+
+      const visibleChildren = children.filter((c) => isVisible(c.id))
+      if (visibleChildren.length > 0) {
+        visibleParents.push(parent)
+        childMap.set(parent.id, visibleChildren)
+      }
     }
 
-    return filtered
-  }, [workouts, eventDivisionMappings, division?.id])
+    return { filteredParents: visibleParents, filteredChildEventsMap: childMap }
+  }, [workouts, rawChildEventsMap, eventsWithMappings, mappedToSelectedDiv])
 
-  // Collect all IDs we need submissions for: parents without children + all children
+  // Collect all IDs we need submissions for: parents without children + visible children
   const trackWorkoutIds = useMemo(() => {
     const ids: string[] = []
-    for (const parent of parentWorkouts) {
-      const children = childEventsMap.get(parent.id)
+    for (const parent of filteredParents) {
+      const children = filteredChildEventsMap.get(parent.id)
       if (children && children.length > 0) {
         ids.push(...children.map((c) => c.id))
       } else {
@@ -146,11 +177,12 @@ export function AthleteScoreSubmissionPanel({
       }
     }
     return ids
-  }, [parentWorkouts, childEventsMap])
+  }, [filteredParents, filteredChildEventsMap])
 
   useEffect(() => {
     if (!registration?.id || !division?.id || trackWorkoutIds.length === 0) {
       setSubmissions([])
+      setFetchError(false)
       setLoading(false)
       return
     }
@@ -194,7 +226,7 @@ export function AthleteScoreSubmissionPanel({
   ).length
 
   return (
-    <Card className="border-primary/30 bg-primary/5 dark:border-primary/20 dark:bg-primary/5">
+    <Card className="overflow-hidden border-primary/30 bg-primary/5 dark:border-primary/20 dark:bg-primary/5">
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-primary" />
@@ -245,9 +277,9 @@ export function AthleteScoreSubmissionPanel({
             Failed to load submissions. Please try refreshing.
           </p>
         ) : (
-          parentWorkouts.map((event, idx) => {
+          filteredParents.map((event, idx) => {
             const position = idx + 1
-            const children = childEventsMap.get(event.id)
+            const children = filteredChildEventsMap.get(event.id)
 
             if (children && children.length > 0) {
               return (
