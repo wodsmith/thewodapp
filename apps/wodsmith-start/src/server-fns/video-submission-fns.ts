@@ -661,6 +661,7 @@ export const getAthleteDivisionSubmissionsFn = createServerFn({ method: "GET" })
       scoreStatus: string | null
       verificationStatus: string | null
       canSubmit: boolean
+      windowStatus: "open" | "not_yet_open" | "closed" | "no_window"
     }
 
     const session = await getSessionFromCookie()
@@ -771,10 +772,21 @@ export const getAthleteDivisionSubmissionsFn = createServerFn({ method: "GET" })
       (twId) => {
         const event = eventMap.get(twId)
         let canSubmit = true
+        let windowStatus: WorkoutSubmission["windowStatus"] = "no_window"
+
         if (event?.submissionOpensAt && event?.submissionClosesAt) {
           const opensAt = new Date(event.submissionOpensAt)
           const closesAt = new Date(event.submissionClosesAt)
-          canSubmit = now >= opensAt && now <= closesAt
+          if (now < opensAt) {
+            canSubmit = false
+            windowStatus = "not_yet_open"
+          } else if (now > closesAt) {
+            canSubmit = false
+            windowStatus = "closed"
+          } else {
+            canSubmit = true
+            windowStatus = "open"
+          }
         }
 
         const video = videoMap.get(twId)
@@ -797,6 +809,7 @@ export const getAthleteDivisionSubmissionsFn = createServerFn({ method: "GET" })
           scoreStatus: score?.status ?? null,
           verificationStatus: score?.verificationStatus ?? null,
           canSubmit,
+          windowStatus,
         }
       },
     )

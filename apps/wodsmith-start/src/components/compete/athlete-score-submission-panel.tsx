@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router"
 import {
   CheckCircle2,
   ChevronRight,
+  Clock,
   Eye,
   Lock,
   Loader2,
@@ -64,6 +65,7 @@ interface WorkoutSubmission {
   scoreStatus: string | null
   verificationStatus: string | null
   canSubmit: boolean
+  windowStatus: "open" | "not_yet_open" | "closed" | "no_window"
 }
 
 interface AthleteScoreSubmissionPanelProps {
@@ -229,14 +231,13 @@ function WorkoutRow({
 }) {
   const hasSubmitted = submission?.hasScore || submission?.hasVideo
   const canSubmit = submission?.canSubmit ?? false
+  const windowStatus = submission?.windowStatus ?? "no_window"
 
-  return (
-    <Link
-      to="/compete/$slug/workouts/$eventId"
-      params={{ slug, eventId: event.id }}
-      search={divisionId ? { division: divisionId } : {}}
-      className="group flex items-center gap-3 rounded-lg border bg-background p-3 transition-colors hover:bg-accent/50"
-    >
+  // Row is interactive if there's something to submit/edit, or something to view
+  const isInteractive = canSubmit || hasSubmitted
+
+  const rowContent = (
+    <>
       {/* Event number */}
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-bold tabular-nums">
         {formatTrackOrder(event.trackOrder)}
@@ -244,7 +245,9 @@ function WorkoutRow({
 
       {/* Workout info */}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{event.workout.name}</p>
+        <p className={`truncate text-sm font-medium ${!isInteractive ? "text-muted-foreground" : ""}`}>
+          {event.workout.name}
+        </p>
 
         {hasSubmitted && submission ? (
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -297,6 +300,11 @@ function WorkoutRow({
               <span className="text-xs text-primary font-medium">
                 Ready to submit
               </span>
+            ) : windowStatus === "not_yet_open" ? (
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                Not yet open
+              </span>
             ) : (
               <span className="text-xs text-muted-foreground flex items-center gap-1">
                 <Lock className="h-3 w-3" />
@@ -319,12 +327,35 @@ function WorkoutRow({
           <Button size="sm" variant="default" className="h-7 text-xs pointer-events-none">
             Submit
           </Button>
+        ) : windowStatus === "not_yet_open" ? (
+          <Clock className="h-4 w-4 text-muted-foreground" />
         ) : (
           <Lock className="h-4 w-4 text-muted-foreground" />
         )}
       </div>
 
-      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+      {isInteractive && (
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+      )}
+    </>
+  )
+
+  if (!isInteractive) {
+    return (
+      <div className="flex items-center gap-3 rounded-lg border bg-background p-3 opacity-60">
+        {rowContent}
+      </div>
+    )
+  }
+
+  return (
+    <Link
+      to="/compete/$slug/workouts/$eventId"
+      params={{ slug, eventId: event.id }}
+      search={divisionId ? { division: divisionId } : {}}
+      className="group flex items-center gap-3 rounded-lg border bg-background p-3 transition-colors hover:bg-accent/50"
+    >
+      {rowContent}
     </Link>
   )
 }
