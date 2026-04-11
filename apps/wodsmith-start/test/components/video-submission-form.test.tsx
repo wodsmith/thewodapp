@@ -168,6 +168,7 @@ function createInitialData(overrides?: Partial<{
 		timeCap: number | null
 		tiebreakScheme: string | null
 		repsPerRound: number | null
+		roundsToScore: number | null
 	} | null
 	existingScore: null
 }>) {
@@ -351,8 +352,8 @@ describe("VideoSubmissionForm", () => {
 			)
 
 			expect(screen.getByText(/Submitted videos \(2 of 3\)/)).toBeTruthy()
-			expect(screen.getByText(/Captain:/)).toBeTruthy()
-			expect(screen.getByText(/Teammate 2:/)).toBeTruthy()
+			expect(screen.getByText(/Partner 1:/)).toBeTruthy()
+			expect(screen.getByText(/Partner 2:/)).toBeTruthy()
 		})
 	})
 
@@ -370,9 +371,9 @@ describe("VideoSubmissionForm", () => {
 			)
 
 			expect(screen.getByText("Submit Team Result")).toBeTruthy()
-			expect(screen.getByText("Captain's Video")).toBeTruthy()
-			expect(screen.getByText("Teammate 2's Video")).toBeTruthy()
-			expect(screen.getByText("Teammate 3's Video")).toBeTruthy()
+			expect(screen.getByText("Partner 1's Video")).toBeTruthy()
+			expect(screen.getByText("Partner 2's Video")).toBeTruthy()
+			expect(screen.getByText("Partner 3's Video")).toBeTruthy()
 		})
 
 		it("shows individual video URL label for teamSize 1", () => {
@@ -407,6 +408,7 @@ describe("VideoSubmissionForm", () => {
 							timeCap: null,
 							tiebreakScheme: null,
 							repsPerRound: null,
+							roundsToScore: 1,
 						},
 					})}
 				/>,

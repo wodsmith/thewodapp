@@ -177,5 +177,7 @@ export async function seed(client: Connection): Promise<void> {
 		{ id: "cevt_online_event4_parent", competition_id: "comp_online_qualifier_2026", track_workout_id: "tw_online_event4_parent", submission_opens_at: pastDatetime(1), submission_closes_at: futureDatetime(6), created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "cevt_online_event4_sprint", competition_id: "comp_online_qualifier_2026", track_workout_id: "tw_online_event4_sprint", submission_opens_at: pastDatetime(1), submission_closes_at: futureDatetime(6), created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "cevt_online_event4_clean", competition_id: "comp_online_qualifier_2026", track_workout_id: "tw_online_event4_clean", submission_opens_at: pastDatetime(1), submission_closes_at: futureDatetime(6), created_at: ts, updated_at: ts, update_counter: 0 },
+		// Event 5: Triple AMRAP — multi-round scoring, window currently open
+		{ id: "cevt_online_event5", competition_id: "comp_online_qualifier_2026", track_workout_id: "tw_online_event5", submission_opens_at: pastDatetime(1), submission_closes_at: futureDatetime(6), created_at: ts, updated_at: ts, update_counter: 0 },
 	])
 }

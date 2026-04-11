@@ -222,9 +222,7 @@ export function VideoSubmissionPreview({
             timezone={timezone}
             label={
               isTeam
-                ? submission.videoIndex === 0
-                  ? "Captain"
-                  : `Teammate ${submission.videoIndex + 1}`
+                ? `Partner ${submission.videoIndex + 1}`
                 : undefined
             }
           />
