@@ -86,6 +86,8 @@ Organizers can soft-delete registrations via `removeRegistrationFn`, setting sta
 
 Cascading cleanup: deactivates team memberships (captain in event team + all members in athlete team), cancels pending invitations, deletes heat assignments, and deletes scores for the registered user(s) across all competition events. Requires `MANAGE_COMPETITIONS` permission.
 
+Leaderboard and downstream queries (competition leaderboard, series leaderboard, legacy [[apps/wodsmith-start/src/server-fns/leaderboard-fns.ts#getLeaderboardDataFn]], heats, divisions, broadcasts, video submissions) filter out `REMOVED` registrations so removed athletes never appear in standings or counts.
+
 ## Division Transfer
 
 Organizers can move a registration between divisions via `transferRegistrationDivisionFn`.
