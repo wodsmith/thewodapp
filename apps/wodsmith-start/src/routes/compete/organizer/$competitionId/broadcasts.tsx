@@ -149,21 +149,9 @@ function BroadcastsPage() {
 									<CardTitle className="text-lg">
 										{broadcast.title}
 									</CardTitle>
-									<div className="flex items-center gap-2">
-										<Badge variant="outline" className="gap-1">
-											<Users className="h-3 w-3" />
-											{broadcast.recipientCount}
-										</Badge>
-										{broadcast.deliveryStats.failed > 0 ? (
-											<Badge variant="destructive">
-												{broadcast.deliveryStats.failed} failed
-											</Badge>
-										) : (
-											<Badge variant="secondary">
-												{broadcast.deliveryStats.sent} delivered
-											</Badge>
-										)}
-									</div>
+									<Badge variant="secondary">
+										Sent
+									</Badge>
 								</div>
 								<CardDescription>
 									{broadcast.sentAt
