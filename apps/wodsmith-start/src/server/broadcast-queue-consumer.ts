@@ -20,8 +20,26 @@ import {
 import { getResendApiKey, getEmailFrom, getEmailFromName } from "@/lib/env"
 import { logError, logInfo } from "@/lib/logging"
 
-/** Delay between individual email sends to stay under Resend rate limits (5 emails/s). */
-const SEND_DELAY_MS = 200
+/**
+ * Delay between individual email sends to stay under Resend's 5 emails/s
+ * account-wide rate limit.
+ *
+ * IMPORTANT: this throttle only works because the queue consumer is pinned to
+ * `maxConcurrency: 1` in alchemy.run.ts. Without that, Cloudflare autoscales
+ * multiple consumer invocations and the aggregate send rate would blow past
+ * Resend's limit.
+ *
+ * 250ms → ~4 emails/s, leaving headroom for clock skew and Resend's
+ * token-bucket edges.
+ */
+const SEND_DELAY_MS = 250
+
+/**
+ * Base back-off (in seconds) when Resend returns HTTP 429. The message is
+ * re-queued and re-delivered after at least this many seconds, letting
+ * Resend's rate-limit window drain.
+ */
+const RATE_LIMIT_BACKOFF_SECONDS = 10
 
 function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms))
@@ -149,6 +167,8 @@ export async function handleBroadcastEmailQueue(
 				success: boolean
 			}> = []
 
+			let rateLimited = false
+
 			for (const recipient of pendingRecipients) {
 				try {
 					const response = await fetch(
@@ -176,6 +196,25 @@ export async function handleBroadcastEmailQueue(
 						},
 					)
 
+					// Resend rate-limit hit: stop this invocation immediately,
+					// persist anything we've already sent, and push the whole
+					// message back onto the queue with a delay. The recipient
+					// row stays PENDING so the next attempt re-reads it via
+					// the `alreadySent` filter above.
+					if (response.status === 429) {
+						logError({
+							message:
+								"[BroadcastQueue] Resend rate limit hit (429), backing off",
+							attributes: {
+								recipientId: recipient.recipientId,
+								broadcastId,
+								backoffSeconds: RATE_LIMIT_BACKOFF_SECONDS,
+							},
+						})
+						rateLimited = true
+						break
+					}
+
 					if (!response.ok) {
 						const errorBody = await response
 							.text()
@@ -195,9 +234,6 @@ export async function handleBroadcastEmailQueue(
 						recipientId: recipient.recipientId,
 						success: response.ok,
 					})
-
-					// Throttle to stay under Resend's 5 emails/s rate limit
-					await delay(SEND_DELAY_MS)
 				} catch (err) {
 					logError({
 						message: "[BroadcastQueue] Email send failed",
@@ -212,6 +248,11 @@ export async function handleBroadcastEmailQueue(
 						success: false,
 					})
 				}
+
+				// Throttle to stay under Resend's 5 emails/s rate limit.
+				// Only effective because the queue consumer is pinned to
+				// maxConcurrency: 1 in alchemy.run.ts.
+				await delay(SEND_DELAY_MS)
 			}
 
 			// Step 3: Update delivery statuses in bulk
@@ -259,10 +300,18 @@ export async function handleBroadcastEmailQueue(
 					sent: sentIds.length,
 					failed: failedIds.length,
 					skipped: alreadySent.size,
+					rateLimited,
 				},
 			})
 
-			message.ack()
+			if (rateLimited) {
+				// Don't ack — re-deliver the whole message after a delay.
+				// Already-sent recipients were persisted above and will be
+				// filtered out of pendingRecipients on the next attempt.
+				message.retry({ delaySeconds: RATE_LIMIT_BACKOFF_SECONDS })
+			} else {
+				message.ack()
+			}
 		} catch (err) {
 			logError({
 				message: "[BroadcastQueue] Failed to process message",

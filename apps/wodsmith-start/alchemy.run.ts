@@ -501,6 +501,16 @@ const manualRegistrationWorkflow = Workflow(
 )
 
 /**
+ * Dead letter queue for broadcast emails that exhaust all retries.
+ *
+ * Messages land here after `maxRetries` attempts so they can be inspected,
+ * alerted on, or manually replayed instead of silently vanishing.
+ */
+const broadcastEmailDLQ = await Queue(`broadcast-email-dlq-${stage}`, {
+  adopt: true,
+})
+
+/**
  * Cloudflare Queue for async broadcast email delivery.
  *
  * When an organizer sends a broadcast, recipient batches are enqueued here.
@@ -566,9 +576,36 @@ const website = await TanStackStart("app", {
    * Registers this Worker as the consumer for the broadcast email queue
    * so Cloudflare delivers queued messages to the queue() handler in server.ts.
    *
+   * Consumer settings are deliberately conservative to stay under Resend's
+   * 5 emails/second account-wide rate limit:
+   *
+   * - `maxConcurrency: 1` — only one consumer invocation runs at a time across
+   *   the entire account, so the per-invocation 250ms throttle in the consumer
+   *   actually translates to a global ~4 emails/second. Without this, Cloudflare
+   *   autoscales consumers up to 250 concurrent invocations by default and the
+   *   per-invocation delay becomes meaningless.
+   * - `batchSize: 1` — one queue message (≈100 recipients) per invocation, so
+   *   a single invocation finishes in roughly 100 × 250ms ≈ 25s, comfortably
+   *   under the Worker CPU wall-clock ceiling.
+   * - `maxRetries: 3` + `deadLetterQueue` — poison messages eventually land in
+   *   a DLQ for inspection/replay instead of disappearing.
+   * - `retryDelay: 10` — base back-off when a message is retried (the consumer
+   *   also calls `message.retry({ delaySeconds })` explicitly on Resend 429s).
+   *
    * @see src/server/broadcast-queue-consumer.ts for the consumer implementation
    */
-  eventSources: [broadcastEmailQueue],
+  eventSources: [
+    {
+      queue: broadcastEmailQueue,
+      settings: {
+        maxConcurrency: 1,
+        batchSize: 1,
+        maxRetries: 3,
+        retryDelay: 10,
+        deadLetterQueue: broadcastEmailDLQ,
+      },
+    },
+  ],
 
   /**
    * Cloudflare resource bindings available to the application.
