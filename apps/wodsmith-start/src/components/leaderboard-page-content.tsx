@@ -1,10 +1,9 @@
 "use client"
 
-import { getRouteApi, useNavigate, useSearch } from "@tanstack/react-router"
+import { useNavigate, useSearch } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { BarChart3, Eye, EyeOff } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useIsMobile } from "@/hooks/use-mobile"
 import { CompetitionLeaderboardTable } from "@/components/competition-leaderboard-table"
 import { OnlineCompetitionLeaderboardTable } from "@/components/online-competition-leaderboard-table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -24,26 +23,44 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  type CompetitionLeaderboardEntry,
-  getCompetitionLeaderboardFn,
-} from "@/server-fns/leaderboard-fns"
+import { WorkoutPreview } from "@/components/workout-preview"
+import { useIsMobile } from "@/hooks/use-mobile"
 import {
   type DivisionDescription,
   getPublicEventDetailsFn,
   getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
-import { WorkoutPreview } from "@/components/workout-preview"
+import {
+  type CompetitionLeaderboardEntry,
+  getCompetitionLeaderboardFn,
+} from "@/server-fns/leaderboard-fns"
 import type { ScoringAlgorithm } from "@/types/scoring"
 
-// Get parent route API to access divisions from loader
-const parentRoute = getRouteApi("/compete/$slug")
+interface LeaderboardDivision {
+  id: string
+  label: string
+}
+
+interface LeaderboardCompetitionInfo {
+  slug: string
+  competitionType: "in-person" | "online"
+}
 
 /**
  * Props for the LeaderboardPageContent component
  */
 interface LeaderboardPageContentProps {
   competitionId: string
+  /** Divisions available for filtering. Required. */
+  divisions: LeaderboardDivision[] | null | undefined
+  /** Competition info needed for URL generation and table selection. */
+  competition: LeaderboardCompetitionInfo
+  /**
+   * Preview mode: request the leaderboard with the publication filter
+   * bypassed so organizers see unpublished results. Caller is responsible
+   * for routing this only to authorized organizer views.
+   */
+  preview?: boolean
 }
 
 /**
@@ -54,6 +71,9 @@ interface LeaderboardPageContentProps {
  */
 export function LeaderboardPageContent({
   competitionId,
+  divisions,
+  competition,
+  preview = false,
 }: LeaderboardPageContentProps) {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
@@ -63,9 +83,6 @@ export function LeaderboardPageContent({
     event?: string
     affiliate?: string
   }
-
-  // Get divisions and competition from parent route loader
-  const { divisions, competition } = parentRoute.useLoaderData()
 
   // Default to first division if available
   const defaultDivision = divisions?.[0]?.id ?? ""
@@ -245,6 +262,7 @@ export function LeaderboardPageContent({
           data: {
             competitionId,
             divisionId: selectedDivision,
+            preview,
           },
         })
 
@@ -273,7 +291,7 @@ export function LeaderboardPageContent({
     return () => {
       cancelled = true
     }
-  }, [competitionId, selectedDivision, getLeaderboard])
+  }, [competitionId, selectedDivision, getLeaderboard, preview])
 
   // Handle division change - update URL
   const handleDivisionChange = useCallback(

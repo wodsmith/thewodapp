@@ -274,6 +274,14 @@ export function getRelevantWorkoutIds(params: {
 export async function getCompetitionLeaderboard(params: {
   competitionId: string
   divisionId?: string
+  /**
+   * When true, skip the division-results publishing filter entirely and
+   * include ALL scored events/divisions regardless of published state.
+   * Used by the organizer leaderboard preview so organizers can see the
+   * aggregated standings before publishing. Must be authorized at the
+   * caller layer — this function does not enforce organizer permissions.
+   */
+  bypassPublicationFilter?: boolean
 }): Promise<CompetitionLeaderboardResult> {
   const db = getDb()
 
@@ -294,9 +302,12 @@ export async function getCompetitionLeaderboard(params: {
   // Division results publishing state — controls leaderboard visibility.
   // For online competitions, default to empty (everything hidden until explicitly published).
   // For in-person competitions, absent divisionResults means show all (backwards compat).
-  const divisionResults =
-    settings?.divisionResults ??
-    (competition.competitionType === "online" ? {} : undefined)
+  // When `bypassPublicationFilter` is set, we treat divisionResults as undefined so
+  // every score is included (used by the organizer preview).
+  const divisionResults = params.bypassPublicationFilter
+    ? undefined
+    : (settings?.divisionResults ??
+      (competition.competitionType === "online" ? {} : undefined))
 
   // Get competition track
   const track = await getCompetitionTrack(params.competitionId)
@@ -380,18 +391,16 @@ export async function getCompetitionLeaderboard(params: {
       )
 
       // Only filter events that have explicit mappings; unmapped events stay visible
-      filteredTrackWorkouts = trackWorkouts.filter(
-        (tw) => {
-          const hasMapping =
-            allMappedEventIds.has(tw.id) ||
-            (tw.parentEventId && allMappedEventIds.has(tw.parentEventId))
-          if (!hasMapping) return true // unmapped → visible to all
-          return (
-            mappedToSelectedDiv.has(tw.id) ||
-            (tw.parentEventId && mappedToSelectedDiv.has(tw.parentEventId))
-          )
-        },
-      )
+      filteredTrackWorkouts = trackWorkouts.filter((tw) => {
+        const hasMapping =
+          allMappedEventIds.has(tw.id) ||
+          (tw.parentEventId && allMappedEventIds.has(tw.parentEventId))
+        if (!hasMapping) return true // unmapped → visible to all
+        return (
+          mappedToSelectedDiv.has(tw.id) ||
+          (tw.parentEventId && mappedToSelectedDiv.has(tw.parentEventId))
+        )
+      })
     } else {
       // No explicit mappings — fall back to heat-based filtering
       const trackWorkoutIds = trackWorkouts.map((tw) => tw.id)

@@ -84,6 +84,12 @@ For **in-person competitions**: `ResultsEntryForm` provides a per-event, per-div
 
 For **online competitions**: Shows a submissions overview with links to individual video verification pages at `/events/{eventId}/submissions/`. Each child sub-event is listed as its own row with submission counts and verification status; the parent event name is shown as contextual metadata alongside each child row. Events without `competition_events` rows (no submission window configured) are handled gracefully.
 
+## Leaderboard Preview
+
+Organizer-only leaderboard that shows aggregated standings including unpublished division results, letting admins review the full picture before they hit publish.
+
+Lives in the "Run Competition" sidebar group at `/compete/organizer/{competitionId}/leaderboard-preview`. The route ([[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/leaderboard-preview.tsx]]) reuses the public [[apps/wodsmith-start/src/components/leaderboard-page-content.tsx]] component with a `preview` prop. When `preview` is set, [[apps/wodsmith-start/src/server-fns/leaderboard-fns.ts#getCompetitionLeaderboardFn]] runs a server-side `requireTeamPermission(MANAGE_COMPETITIONS)` check against the organizing team and then calls [[apps/wodsmith-start/src/server/competition-leaderboard.ts#getCompetitionLeaderboard]] with `bypassPublicationFilter: true`, which treats the `divisionResults` settings as undefined so scores from every event/division are included regardless of publish state. Athletes never hit this route; the public leaderboard at `/compete/{slug}/leaderboard` always passes `preview = false` and goes through the standard publish gating.
+
 ## Submission Windows
 
 Manages time windows during which athletes can submit video evidence for online competitions.
