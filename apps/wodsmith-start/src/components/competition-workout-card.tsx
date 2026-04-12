@@ -276,14 +276,7 @@ export function CompetitionWorkoutCard({
           {/* Specs Row */}
           <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
             {formattedTimeCap && (
-              <div
-                className={cn(
-                  "inline-flex items-center gap-1 px-2 py-0.5 sm:gap-1.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium border",
-                  scheme === "time-with-cap"
-                    ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900"
-                    : "bg-secondary text-secondary-foreground border-transparent",
-                )}
-              >
+              <div className="inline-flex items-center gap-1 px-2 py-0.5 sm:gap-1.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium bg-secondary text-secondary-foreground">
                 <Timer className="h-3 w-3 sm:h-4 sm:w-4" />
                 {formattedTimeCap} Cap
               </div>
