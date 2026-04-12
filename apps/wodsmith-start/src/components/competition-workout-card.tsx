@@ -169,7 +169,6 @@ function getCtaConfig(
 export function CompetitionWorkoutCard({
   eventId,
   slug,
-  trackOrder,
   name,
   scheme,
   description,
@@ -219,15 +218,6 @@ export function CompetitionWorkoutCard({
             {/* Mobile: stacked layout */}
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               <div className="flex items-baseline gap-3 sm:items-start sm:gap-4">
-                <span className="text-4xl sm:text-6xl font-black text-primary/70 leading-none select-none">
-                  {(() => {
-                    const n = Number(trackOrder)
-                    if (n % 1 === 0) return String(n).padStart(2, "0")
-                    const whole = Math.floor(n)
-                    const decimal = Math.round((n - whole) * 100)
-                    return `${whole}.${String(decimal).padStart(2, "0")}`
-                  })()}
-                </span>
                 <div className="sm:pt-1">
                   <div className="flex items-center gap-2">
                     <h3 className="text-xl sm:text-2xl font-bold tracking-tight">
