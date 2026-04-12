@@ -1105,7 +1105,7 @@ export function VideoSubmissionForm({
                 <div className="space-y-2">
                   <Label htmlFor="tiebreak-input">
                     Tiebreak (
-                    {workout.tiebreakScheme === "time" ? "Time" : "Reps"})
+                    {workout.tiebreakScheme === "time" ? "Time" : "Reps/Weight"})
                   </Label>
                   <Input
                     id="tiebreak-input"
@@ -1122,7 +1122,7 @@ export function VideoSubmissionForm({
                   <p className="text-xs text-muted-foreground">
                     {workout.tiebreakScheme === "time"
                       ? "Time to complete specified reps/work"
-                      : "Reps completed for tiebreak"}
+                      : "Reps or weight completed for tiebreak"}
                   </p>
                 </div>
               )}
