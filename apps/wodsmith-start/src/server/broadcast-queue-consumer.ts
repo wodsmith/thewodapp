@@ -20,6 +20,13 @@ import {
 import { getResendApiKey, getEmailFrom, getEmailFromName } from "@/lib/env"
 import { logError, logInfo } from "@/lib/logging"
 
+/** Delay between individual email sends to stay under Resend rate limits (5 emails/s). */
+const SEND_DELAY_MS = 200
+
+function delay(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 /**
  * Shape of each queue message — matches what sendBroadcastFn enqueues.
  */
@@ -188,6 +195,9 @@ export async function handleBroadcastEmailQueue(
 						recipientId: recipient.recipientId,
 						success: response.ok,
 					})
+
+					// Throttle to stay under Resend's 5 emails/s rate limit
+					await delay(SEND_DELAY_MS)
 				} catch (err) {
 					logError({
 						message: "[BroadcastQueue] Email send failed",
