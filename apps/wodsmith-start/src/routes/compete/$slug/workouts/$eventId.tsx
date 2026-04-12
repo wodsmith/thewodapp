@@ -683,7 +683,7 @@ function EventDetailsPage() {
                   trackWorkoutId={event.id}
                   competitionId={competition.id}
                   timezone={competition.timezone}
-                  registeredDivisions={athleteRegisteredDivisions}
+                  registeredDivisions={filteredRegisteredDivisions}
                   initialData={videoSubmission}
                   initialDivisionId={effectiveSubmissionDivisionId}
                 />
