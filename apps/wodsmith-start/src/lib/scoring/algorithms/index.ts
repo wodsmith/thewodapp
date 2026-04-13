@@ -617,6 +617,50 @@ function getStatusHandling(
 }
 
 /**
+ * Calculate the points awarded for a specific finishing place under the
+ * configured scoring algorithm. Used to award missing-score athletes the
+ * "tied for worst" position without running them through the full scoring
+ * pipeline.
+ *
+ * P-Score returns 0 because P-Score has no static place→points mapping;
+ * inactive athletes always get 0 (matching `calculatePScore` behavior).
+ */
+export function calculatePointsForPlace(
+  place: number,
+  config: ScoringConfig,
+): number {
+  switch (config.algorithm) {
+    case "traditional":
+      return calculateTraditionalPoints(
+        place,
+        config.traditional ?? DEFAULT_TRADITIONAL_CONFIG,
+      )
+    case "online":
+      return calculateOnlinePoints(place)
+    case "winner_takes_more":
+      return calculateCustomPoints(place, {
+        baseTemplate: "winner_takes_more",
+        overrides: {},
+      })
+    case "custom":
+      return calculateCustomPoints(
+        place,
+        config.customTable ?? {
+          baseTemplate: "traditional" as const,
+          overrides: {},
+        },
+        config.traditional ?? DEFAULT_TRADITIONAL_CONFIG,
+      )
+    case "p_score":
+      return 0
+    default: {
+      const _exhaustive: never = config.algorithm
+      throw new Error(`Unknown scoring algorithm: ${_exhaustive}`)
+    }
+  }
+}
+
+/**
  * Get scoring algorithm display name
  */
 export function getScoringAlgorithmName(

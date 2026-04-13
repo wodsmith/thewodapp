@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
 	calculateEventPoints,
+	calculatePointsForPlace,
 	DEFAULT_SCORING_CONFIG,
 	DEFAULT_TRADITIONAL_CONFIG,
 	DEFAULT_PSCORE_CONFIG,
@@ -316,6 +317,65 @@ describe("Scoring Factory", () => {
 		it("provides valid DEFAULT_PSCORE_CONFIG", () => {
 			expect(DEFAULT_PSCORE_CONFIG.allowNegatives).toBe(true)
 			expect(DEFAULT_PSCORE_CONFIG.medianField).toBe("top_half")
+		})
+	})
+
+	describe("calculatePointsForPlace", () => {
+		it("returns traditional points for traditional algorithm", () => {
+			const config: ScoringConfig = {
+				algorithm: "traditional",
+				traditional: { step: 5, firstPlacePoints: 100 },
+				tiebreaker: { primary: "countback" },
+				statusHandling: { dnf: "last_place", dns: "zero", withdrawn: "exclude" },
+			}
+			expect(calculatePointsForPlace(1, config)).toBe(100)
+			expect(calculatePointsForPlace(6, config)).toBe(75)
+		})
+
+		it("returns place as points for online algorithm", () => {
+			const config: ScoringConfig = {
+				algorithm: "online",
+				tiebreaker: { primary: "countback" },
+				statusHandling: { dnf: "last_place", dns: "zero", withdrawn: "exclude" },
+			}
+			// 5 scored athletes → missing athletes tie at place 6 = 6 points
+			expect(calculatePointsForPlace(6, config)).toBe(6)
+			expect(calculatePointsForPlace(1, config)).toBe(1)
+			expect(calculatePointsForPlace(50, config)).toBe(50)
+		})
+
+		it("returns winner_takes_more table value for winner_takes_more", () => {
+			const config: ScoringConfig = {
+				algorithm: "winner_takes_more",
+				tiebreaker: { primary: "countback" },
+				statusHandling: { dnf: "last_place", dns: "zero", withdrawn: "exclude" },
+			}
+			expect(calculatePointsForPlace(1, config)).toBe(100)
+			expect(calculatePointsForPlace(2, config)).toBe(85)
+			// Beyond table → 0
+			expect(calculatePointsForPlace(50, config)).toBe(0)
+		})
+
+		it("returns custom table points for custom algorithm", () => {
+			const config: ScoringConfig = {
+				algorithm: "custom",
+				customTable: { baseTemplate: "traditional", overrides: { "1": 200 } },
+				traditional: { step: 5, firstPlacePoints: 100 },
+				tiebreaker: { primary: "countback" },
+				statusHandling: { dnf: "last_place", dns: "zero", withdrawn: "exclude" },
+			}
+			expect(calculatePointsForPlace(1, config)).toBe(200)
+			expect(calculatePointsForPlace(2, config)).toBe(95)
+		})
+
+		it("returns 0 for p_score (no static place→points mapping)", () => {
+			const config: ScoringConfig = {
+				algorithm: "p_score",
+				pScore: { allowNegatives: true, medianField: "top_half" },
+				tiebreaker: { primary: "countback" },
+				statusHandling: { dnf: "last_place", dns: "zero", withdrawn: "exclude" },
+			}
+			expect(calculatePointsForPlace(6, config)).toBe(0)
 		})
 	})
 })
