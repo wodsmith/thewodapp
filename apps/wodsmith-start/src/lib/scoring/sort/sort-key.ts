@@ -204,11 +204,19 @@ export function extractFromSortKey(
   // Extract primary value from its segment
   const primaryBits = (sortKey >> PRIMARY_SHIFT) & SEGMENT_MAX
 
+  // Strip any bit-packed cappedRoundCount so the returned value is the
+  // original time (ms). Cap packing only happens on the ascending branch
+  // in the "cap" status bucket.
+  const timeBits =
+    statusOrder === STATUS_ORDER.cap && direction === "asc"
+      ? primaryBits & CAP_TIME_MASK
+      : primaryBits
+
   // Denormalize the primary value
   const value =
     direction === "asc"
-      ? Number(primaryBits)
-      : Number(SEGMENT_MAX - primaryBits)
+      ? Number(timeBits)
+      : Number(SEGMENT_MAX - timeBits)
 
   return { statusOrder, value }
 }

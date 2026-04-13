@@ -877,7 +877,10 @@ export async function getCompetitionLeaderboard(params: {
       ).length
       const missingPlace = activeCount + 1
       const missingPoints = Math.round(
-        calculatePointsForPlace(missingPlace, scoringConfig) * multiplier,
+        calculatePointsForPlace({
+          place: missingPlace,
+          config: scoringConfig,
+        }) * multiplier,
       )
 
       const scoredUserIds = new Set(divisionScores.map((s) => s.userId))

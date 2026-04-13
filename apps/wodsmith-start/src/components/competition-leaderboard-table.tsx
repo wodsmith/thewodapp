@@ -435,6 +435,7 @@ function MobileLeaderboardRow({
                     <div className="flex flex-col gap-0.5">
                       <span className="font-medium tabular-nums inline-flex items-center gap-1">
                         {result.formattedScore}
+                        <CappedRoundsIndicator result={result} />
                         <PenaltyIndicator result={result} />
                         {result.formattedTiebreak && (
                           <span className="text-muted-foreground font-normal ml-1">
@@ -586,6 +587,7 @@ export function CompetitionLeaderboardTable({
             return (
               <span className="font-medium tabular-nums inline-flex items-center gap-1">
                 {result.formattedScore}
+                <CappedRoundsIndicator result={result} />
                 <PenaltyIndicator result={result} />
                 {result.formattedTiebreak && (
                   <span className="text-muted-foreground font-normal ml-1">

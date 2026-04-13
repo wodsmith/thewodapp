@@ -328,8 +328,8 @@ describe("Scoring Factory", () => {
 				tiebreaker: { primary: "countback" },
 				statusHandling: { dnf: "last_place", dns: "zero", withdrawn: "exclude" },
 			}
-			expect(calculatePointsForPlace(1, config)).toBe(100)
-			expect(calculatePointsForPlace(6, config)).toBe(75)
+			expect(calculatePointsForPlace({ place: 1, config })).toBe(100)
+			expect(calculatePointsForPlace({ place: 6, config })).toBe(75)
 		})
 
 		it("returns place as points for online algorithm", () => {
@@ -339,9 +339,9 @@ describe("Scoring Factory", () => {
 				statusHandling: { dnf: "last_place", dns: "zero", withdrawn: "exclude" },
 			}
 			// 5 scored athletes → missing athletes tie at place 6 = 6 points
-			expect(calculatePointsForPlace(6, config)).toBe(6)
-			expect(calculatePointsForPlace(1, config)).toBe(1)
-			expect(calculatePointsForPlace(50, config)).toBe(50)
+			expect(calculatePointsForPlace({ place: 6, config })).toBe(6)
+			expect(calculatePointsForPlace({ place: 1, config })).toBe(1)
+			expect(calculatePointsForPlace({ place: 50, config })).toBe(50)
 		})
 
 		it("returns winner_takes_more table value for winner_takes_more", () => {
@@ -350,10 +350,10 @@ describe("Scoring Factory", () => {
 				tiebreaker: { primary: "countback" },
 				statusHandling: { dnf: "last_place", dns: "zero", withdrawn: "exclude" },
 			}
-			expect(calculatePointsForPlace(1, config)).toBe(100)
-			expect(calculatePointsForPlace(2, config)).toBe(85)
+			expect(calculatePointsForPlace({ place: 1, config })).toBe(100)
+			expect(calculatePointsForPlace({ place: 2, config })).toBe(85)
 			// Beyond table → 0
-			expect(calculatePointsForPlace(50, config)).toBe(0)
+			expect(calculatePointsForPlace({ place: 50, config })).toBe(0)
 		})
 
 		it("returns custom table points for custom algorithm", () => {
@@ -364,8 +364,8 @@ describe("Scoring Factory", () => {
 				tiebreaker: { primary: "countback" },
 				statusHandling: { dnf: "last_place", dns: "zero", withdrawn: "exclude" },
 			}
-			expect(calculatePointsForPlace(1, config)).toBe(200)
-			expect(calculatePointsForPlace(2, config)).toBe(95)
+			expect(calculatePointsForPlace({ place: 1, config })).toBe(200)
+			expect(calculatePointsForPlace({ place: 2, config })).toBe(95)
 		})
 
 		it("returns 0 for p_score (no static place→points mapping)", () => {
@@ -375,7 +375,7 @@ describe("Scoring Factory", () => {
 				tiebreaker: { primary: "countback" },
 				statusHandling: { dnf: "last_place", dns: "zero", withdrawn: "exclude" },
 			}
-			expect(calculatePointsForPlace(6, config)).toBe(0)
+			expect(calculatePointsForPlace({ place: 6, config })).toBe(0)
 		})
 	})
 })

@@ -93,18 +93,6 @@ function mapToNewStatus(status: ScoreStatus): "scored" | "cap" | "dq" | "withdra
   }
 }
 
-function getStatusOrder(status: ScoreStatus): number {
-  switch (status) {
-    case "scored": return STATUS_ORDER.scored
-    case "cap": return STATUS_ORDER.cap
-    case "dq": return STATUS_ORDER.dq
-    case "withdrawn":
-    case "dns":
-    case "dnf": return STATUS_ORDER.withdrawn
-    default: return STATUS_ORDER.scored
-  }
-}
-
 export const Route = createFileRoute("/api/compete/scores/judge")({
   server: {
     handlers: {
@@ -221,6 +209,14 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
           if (data.roundScores && data.roundScores.length > 0) {
             const roundInputs = data.roundScores.map((rs) => ({ raw: rs.score }))
             const result = encodeRounds(roundInputs, scheme, scoreType)
+            // Reject partial rounds so roundStatuses aligns with the rows
+            // we insert below (encodeRounds silently drops null encodes).
+            if (result.rounds.length !== data.roundScores.length) {
+              return json(
+                { error: "Every round must be a valid score" },
+                { status: 422, headers },
+              )
+            }
             encodedValue = result.aggregated
             encodedRounds = result.rounds
           } else if (data.score?.trim()) {
@@ -246,7 +242,11 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
               roundStatuses.push(isRoundCapped ? "cap" : "scored")
               if (isRoundCapped) cappedRoundCount++
             }
-            newStatus = cappedRoundCount > 0 ? "cap" : "scored"
+            // Preserve terminal statuses (dq/withdrawn). Only flip between
+            // scored/cap when the caller said the score is scored/cap.
+            if (newStatus !== "dq" && newStatus !== "withdrawn") {
+              newStatus = cappedRoundCount > 0 ? "cap" : "scored"
+            }
           } else if (
             newStatus === "cap" &&
             scheme === "time-with-cap" &&
@@ -303,7 +303,7 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
                 scoreType,
                 scoreValue: encodedValue,
                 status: newStatus,
-                statusOrder: getStatusOrder(data.scoreStatus),
+                statusOrder: STATUS_ORDER[newStatus],
                 sortKey: sortKey ? sortKeyToString(sortKey) : null,
                 tiebreakScheme: workoutTiebreakScheme,
                 tiebreakValue,
@@ -317,7 +317,7 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
                 set: {
                   scoreValue: encodedValue,
                   status: newStatus,
-                  statusOrder: getStatusOrder(data.scoreStatus),
+                  statusOrder: STATUS_ORDER[newStatus],
                   sortKey: sortKey ? sortKeyToString(sortKey) : null,
                   tiebreakScheme: workoutTiebreakScheme,
                   tiebreakValue,

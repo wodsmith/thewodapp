@@ -625,10 +625,13 @@ function getStatusHandling(
  * P-Score returns 0 because P-Score has no static place→points mapping;
  * inactive athletes always get 0 (matching `calculatePScore` behavior).
  */
-export function calculatePointsForPlace(
-  place: number,
-  config: ScoringConfig,
-): number {
+export function calculatePointsForPlace({
+  place,
+  config,
+}: {
+  place: number
+  config: ScoringConfig
+}): number {
   switch (config.algorithm) {
     case "traditional":
       return calculateTraditionalPoints(

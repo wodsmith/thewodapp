@@ -415,6 +415,7 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
         roundNumber: number
         value: number
         displayScore: string | null
+        status: string | null
       }>
     } | null = null
 

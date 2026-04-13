@@ -478,6 +478,26 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
         )
       }
 
+      // Normalize multi-round payload: sort by roundNumber and reject
+      // duplicates so the per-round rewrite below can't silently drop or
+      // double-count a round. Order-sensitive scoreTypes (first/last) also
+      // depend on this being sorted ascending.
+      if (data.adjustedRoundScores && hasAdjustedRoundScores) {
+        const sorted = [...data.adjustedRoundScores].sort(
+          (a, b) => a.roundNumber - b.roundNumber,
+        )
+        const seen = new Set<number>()
+        for (const round of sorted) {
+          if (seen.has(round.roundNumber)) {
+            throw new Error(
+              "adjustedRoundScores must contain unique roundNumber values",
+            )
+          }
+          seen.add(round.roundNumber)
+        }
+        data.adjustedRoundScores = sorted
+      }
+
       const scheme = score.scheme as WorkoutScheme
       let newStatus = data.adjustedScoreStatus
       const resolvedScoreType =
@@ -498,6 +518,7 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
         hasAdjustedRoundScores || existingRounds.length > 1
 
       let encodedValue: number | null = null
+      let encodedAdjustedRounds: number[] = []
       const roundStatuses: Array<"scored" | "cap"> = []
       let cappedRoundCount = 0
 
@@ -510,7 +531,16 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
           raw: rs.score,
         }))
         const result = encodeRounds(roundInputs, scheme, resolvedScoreType)
+        // `encodeRounds` silently drops rounds that fail to encode, which
+        // would misalign roundStatuses with the per-round rows we rewrite
+        // below. Reject here so the caller fixes the input.
+        if (result.rounds.length !== data.adjustedRoundScores.length) {
+          throw new Error(
+            "Every round in adjustedRoundScores must be a valid score",
+          )
+        }
         encodedValue = result.aggregated
+        encodedAdjustedRounds = result.rounds
 
         if (scheme === "time-with-cap" && score.timeCapMs) {
           const capMs = score.timeCapMs
@@ -640,25 +670,17 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
             .delete(scoreRoundsTable)
             .where(eq(scoreRoundsTable.scoreId, data.scoreId))
 
+          // Reuse the already-encoded round values from `encodeRounds` so
+          // roundStatuses (also derived from that output) lines up with the
+          // rows we write. The length guard above guarantees 1:1 alignment
+          // with data.adjustedRoundScores.
           const roundsToInsert = data.adjustedRoundScores.map(
-            (round, index) => {
-              let roundValue: number
-              if (scheme === "rounds-reps") {
-                const parts = round.score.split("+").map((p) => p.trim())
-                const roundsNum =
-                  Number.parseInt(parts[0] ?? round.score, 10) || 0
-                const reps = Number.parseInt(parts[1] ?? "0", 10) || 0
-                roundValue = roundsNum * 100000 + reps
-              } else {
-                roundValue = encodeScore(round.score, scheme) ?? 0
-              }
-              return {
-                scoreId: data.scoreId,
-                roundNumber: round.roundNumber,
-                value: roundValue,
-                status: roundStatuses[index] ?? null,
-              }
-            },
+            (round, index) => ({
+              scoreId: data.scoreId,
+              roundNumber: round.roundNumber,
+              value: encodedAdjustedRounds[index] ?? 0,
+              status: roundStatuses[index] ?? null,
+            }),
           )
 
           await tx.insert(scoreRoundsTable).values(roundsToInsert)

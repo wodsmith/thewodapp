@@ -237,26 +237,6 @@ async function isWithinSubmissionWindow(
 }
 
 /**
- * Map ScoreStatus to statusOrder for the scores table.
- */
-function getStatusOrder(status: ScoreStatus): number {
-  switch (status) {
-    case "scored":
-      return STATUS_ORDER.scored // 0
-    case "cap":
-      return STATUS_ORDER.cap // 1
-    case "dq":
-      return STATUS_ORDER.dq // 2
-    case "withdrawn":
-    case "dns":
-    case "dnf":
-      return STATUS_ORDER.withdrawn // 3
-    default:
-      return STATUS_ORDER.scored // 0 - default to scored
-  }
-}
-
-/**
  * Map ScoreStatus to the simplified status type for scores table.
  */
 function mapToNewStatus(
@@ -918,6 +898,13 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
         // Multi-round: encode each round and aggregate
         const roundInputs = data.roundScores.map((rs) => ({ raw: rs.score }))
         const result = encodeRounds(roundInputs, scheme, scoreType)
+        // `encodeRounds` drops rounds that fail to encode — that would
+        // misalign roundStatuses with the per-round rows we insert below.
+        if (result.rounds.length !== data.roundScores.length) {
+          throw new Error(
+            "Every round in roundScores must be a valid score",
+          )
+        }
         encodedValue = result.aggregated
         encodedRounds = result.rounds
       } else if (data.score?.trim()) {
@@ -947,7 +934,11 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
           roundStatuses.push(isRoundCapped ? "cap" : "scored")
           if (isRoundCapped) cappedRoundCount++
         }
-        newStatus = cappedRoundCount > 0 ? "cap" : "scored"
+        // Preserve terminal statuses (dq/withdrawn). Only flip between
+        // scored/cap when the caller declared a non-terminal status.
+        if (newStatus !== "dq" && newStatus !== "withdrawn") {
+          newStatus = cappedRoundCount > 0 ? "cap" : "scored"
+        }
       } else if (
         newStatus === "cap" &&
         scheme === "time-with-cap" &&
@@ -1045,7 +1036,7 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
             scoreType,
             scoreValue: encodedValue,
             status: newStatus,
-            statusOrder: getStatusOrder(data.scoreStatus),
+            statusOrder: STATUS_ORDER[newStatus],
             sortKey: sortKey ? sortKeyToString(sortKey) : null,
             tiebreakScheme: workoutTiebreakScheme,
             tiebreakValue,
@@ -1059,7 +1050,7 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
             set: {
               scoreValue: encodedValue,
               status: newStatus,
-              statusOrder: getStatusOrder(data.scoreStatus),
+              statusOrder: STATUS_ORDER[newStatus],
               sortKey: sortKey ? sortKeyToString(sortKey) : null,
               tiebreakScheme: workoutTiebreakScheme,
               tiebreakValue,
@@ -1552,14 +1543,30 @@ export const backfillMultiRoundCapScoresFn = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data }) => {
+    const db = getDb()
+
+    const [competition] = await db
+      .select({ organizingTeamId: competitionsTable.organizingTeamId })
+      .from(competitionsTable)
+      .where(eq(competitionsTable.id, data.competitionId))
+      .limit(1)
+
+    if (!competition) {
+      throw new Error("Competition not found")
+    }
+
+    if (competition.organizingTeamId !== data.organizingTeamId) {
+      throw new Error("Competition does not belong to this team")
+    }
+
     await requireTeamPermission(
-      data.organizingTeamId,
+      competition.organizingTeamId,
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
 
-    const db = getDb()
-
-    // Resolve track for this competition to scope trackWorkoutIds
+    // Resolve track for this competition to scope trackWorkoutIds.
+    // Competition ownership was verified above, so competitionId filter is
+    // sufficient for multi-tenant isolation.
     const track = await db.query.programmingTracksTable.findFirst({
       where: eq(programmingTracksTable.competitionId, data.competitionId),
     })
