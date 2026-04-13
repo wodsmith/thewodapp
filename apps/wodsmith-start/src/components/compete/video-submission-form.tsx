@@ -30,7 +30,12 @@ import {
 } from "@/components/ui/video-url-input"
 import type { ReviewStatus } from "@/db/schemas/video-submissions"
 import type { ParseResult, ScoreType, WorkoutScheme } from "@/lib/scoring"
-import { decodeScore, parseScore } from "@/lib/scoring"
+import {
+  decodeScore,
+  encodeRounds,
+  getDefaultScoreType,
+  parseScore,
+} from "@/lib/scoring"
 import { cn } from "@/lib/utils"
 import { getSupportedPlatformsText, parseVideoUrl } from "@/schemas/video-url"
 import {
@@ -88,6 +93,7 @@ interface VideoSubmissionInitialData {
       roundNumber: number
       value: number
       displayScore: string | null
+      status?: string | null
     }>
   } | null
 }
@@ -876,23 +882,46 @@ export function VideoSubmissionForm({
         setSubmissionsData(newSubmissions)
 
         if (isMultiRound && roundScoresPayload?.length && workout) {
-          // For multi-round, we don't compute the aggregate client-side —
-          // just store the round display values for preview
+          // Compute the aggregate client-side to mirror what the server
+          // will persist (e.g. sum of round times for partner workouts).
+          const scheme = workout.scheme as WorkoutScheme
+          const scoreType =
+            (workout.scoreType as ScoreType) || getDefaultScoreType(scheme)
+          const roundInputs = roundScoresPayload.map((rs) => ({ raw: rs.score }))
+          const { rounds: encodedRounds, aggregated } = encodeRounds(
+            roundInputs,
+            scheme,
+            scoreType,
+          )
+          const capMs =
+            scheme === "time-with-cap" && workout.timeCap
+              ? workout.timeCap * 1000
+              : null
+          const anyRoundCapped =
+            capMs !== null && encodedRounds.some((v) => v >= capMs)
+          const optimisticStatus: "scored" | "cap" = anyRoundCapped
+            ? "cap"
+            : "scored"
+          const optimisticDisplay =
+            aggregated !== null
+              ? decodeScore(aggregated, scheme, { compact: false })
+              : roundScoreInputs.filter((s) => s.trim()).join(" + ")
+
           setScoreData({
-            scoreValue: null,
-            displayScore: roundScoreInputs.filter((s) => s.trim()).join(" + "),
-            status: "scored",
+            scoreValue: aggregated,
+            displayScore: optimisticDisplay,
+            status: optimisticStatus,
             secondaryValue: null,
             tiebreakValue: tiebreakScore
               ? parseTiebreakValue(tiebreakScore, workout.tiebreakScheme)
               : null,
-            roundScores: roundScoreInputs
-              .filter((s) => s.trim())
-              .map((s, i) => ({
-                roundNumber: i + 1,
-                value: 0,
-                displayScore: s.trim(),
-              })),
+            roundScores: encodedRounds.map((value, i) => ({
+              roundNumber: i + 1,
+              value,
+              displayScore: decodeScore(value, scheme, { compact: false }),
+              status:
+                capMs !== null && value >= capMs ? "cap" : "scored",
+            })),
           })
         } else if (scoreInput.trim() && workout && parseResult) {
           setScoreData({

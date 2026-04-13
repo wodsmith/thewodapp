@@ -43,6 +43,11 @@ interface VideoSubmissionPreviewProps {
     status: string | null
     secondaryValue: number | null
     tiebreakValue: number | null
+    roundScores?: Array<{
+      roundNumber: number
+      displayScore: string | null
+      status?: string | null
+    }>
   } | null
   workout?: {
     name: string
@@ -251,6 +256,29 @@ export function VideoSubmissionPreview({
                   </Badge>
                 )}
               </p>
+              {score.roundScores && score.roundScores.length > 1 && (
+                <div className="mt-2 space-y-0.5">
+                  {score.roundScores.map((round) => (
+                    <div
+                      key={round.roundNumber}
+                      className="flex items-center gap-2 text-sm text-muted-foreground font-mono"
+                    >
+                      <span className="text-xs uppercase tracking-wider w-8">
+                        R{round.roundNumber}
+                      </span>
+                      <span>{round.displayScore ?? "—"}</span>
+                      {round.status === "cap" && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] px-1 py-0 h-4"
+                        >
+                          Cap
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
               {score.secondaryValue !== null && score.status === "cap" && (
                 <p className="text-sm text-muted-foreground mt-1">
                   {score.secondaryValue} reps completed at cap

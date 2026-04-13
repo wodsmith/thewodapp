@@ -2513,6 +2513,30 @@ function SubmissionDetailPage() {
                       Capped
                     </Badge>
                   )}
+                  {submission.score.roundScores &&
+                    submission.score.roundScores.length > 1 && (
+                      <div className="mt-3 space-y-1">
+                        {submission.score.roundScores.map((round) => (
+                          <div
+                            key={round.roundNumber}
+                            className="flex items-center gap-2 text-sm text-muted-foreground font-mono"
+                          >
+                            <span className="text-xs uppercase tracking-wider w-8">
+                              R{round.roundNumber}
+                            </span>
+                            <span>{round.displayScore ?? "—"}</span>
+                            {round.status === "cap" && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] px-1 py-0 h-4"
+                              >
+                                Cap
+                              </Badge>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                 </div>
               ) : (
                 <p className="text-muted-foreground">No score submitted</p>

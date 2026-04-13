@@ -62,6 +62,9 @@ import {
   sortKeyToString,
 } from "@/lib/scoring"
 import { getSessionFromCookie } from "@/utils/auth"
+import { requireTeamPermission } from "@/utils/team-auth"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { aggregateValues } from "@/lib/scoring"
 
 // ============================================================================
 // Types
@@ -1493,4 +1496,246 @@ export const getCompetitionDivisionsForScoreEntryFn = createServerFn({
       .orderBy(scalingLevelsTable.position)
 
     return { divisions }
+  })
+
+/**
+ * Backfill: Recompute multi-round time-with-cap scores that were saved
+ * with the old clamping bug (parent scoreValue clamped to timeCap).
+ *
+ * For each affected score:
+ * - Re-aggregates parent scoreValue from the persisted rounds using the
+ *   workout's scoreType.
+ * - Recomputes per-round status based on encoded value vs cap.
+ * - Recomputes parent status: "cap" if any round capped, else "scored".
+ * - Recomputes sortKey.
+ *
+ * Scoped to a single competition. Requires MANAGE_COMPETITIONS.
+ */
+export const backfillMultiRoundCapScoresFn = createServerFn({ method: "POST" })
+  .inputValidator((raw: unknown) =>
+    z
+      .object({
+        organizingTeamId: z.string().min(1),
+        competitionId: z.string().min(1),
+        /** Dry-run: compute but don't write. Defaults to false. */
+        dryRun: z.boolean().optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data }) => {
+    await requireTeamPermission(
+      data.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+    )
+
+    const db = getDb()
+
+    // Resolve track for this competition to scope trackWorkoutIds
+    const track = await db.query.programmingTracksTable.findFirst({
+      where: eq(programmingTracksTable.competitionId, data.competitionId),
+    })
+    if (!track) {
+      return { scanned: 0, updated: 0, skipped: 0, changes: [] }
+    }
+
+    const trackWorkoutRows = await db
+      .select({
+        id: trackWorkoutsTable.id,
+        workoutId: trackWorkoutsTable.workoutId,
+        scheme: workouts.scheme,
+        scoreType: workouts.scoreType,
+        timeCap: workouts.timeCap,
+        tiebreakScheme: workouts.tiebreakScheme,
+      })
+      .from(trackWorkoutsTable)
+      .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+      .where(
+        and(
+          eq(trackWorkoutsTable.trackId, track.id),
+          eq(workouts.scheme, "time-with-cap"),
+        ),
+      )
+
+    if (trackWorkoutRows.length === 0) {
+      return { scanned: 0, updated: 0, skipped: 0, changes: [] }
+    }
+
+    const trackWorkoutIds = trackWorkoutRows.map((tw) => tw.id)
+    const twById = new Map(trackWorkoutRows.map((tw) => [tw.id, tw]))
+
+    // Load all scores for these track workouts
+    const scores = await db
+      .select({
+        id: scoresTable.id,
+        userId: scoresTable.userId,
+        competitionEventId: scoresTable.competitionEventId,
+        scheme: scoresTable.scheme,
+        scoreType: scoresTable.scoreType,
+        scoreValue: scoresTable.scoreValue,
+        status: scoresTable.status,
+        timeCapMs: scoresTable.timeCapMs,
+        tiebreakScheme: scoresTable.tiebreakScheme,
+        tiebreakValue: scoresTable.tiebreakValue,
+        secondaryValue: scoresTable.secondaryValue,
+      })
+      .from(scoresTable)
+      .where(inArray(scoresTable.competitionEventId, trackWorkoutIds))
+
+    if (scores.length === 0) {
+      return { scanned: 0, updated: 0, skipped: 0, changes: [] }
+    }
+
+    const scoreIds = scores.map((s) => s.id)
+    const roundRows = await db
+      .select({
+        scoreId: scoreRoundsTable.scoreId,
+        id: scoreRoundsTable.id,
+        roundNumber: scoreRoundsTable.roundNumber,
+        value: scoreRoundsTable.value,
+        status: scoreRoundsTable.status,
+      })
+      .from(scoreRoundsTable)
+      .where(inArray(scoreRoundsTable.scoreId, scoreIds))
+
+    // Group rounds by scoreId
+    const roundsByScore = new Map<string, typeof roundRows>()
+    for (const r of roundRows) {
+      const list = roundsByScore.get(r.scoreId) ?? []
+      list.push(r)
+      roundsByScore.set(r.scoreId, list)
+    }
+
+    const changes: Array<{
+      scoreId: string
+      userId: string
+      trackWorkoutId: string | null
+      before: { scoreValue: number | null; status: string }
+      after: { scoreValue: number; status: "scored" | "cap" }
+      rounds: Array<{ roundNumber: number; value: number; status: "scored" | "cap" }>
+    }> = []
+
+    let updated = 0
+    let skipped = 0
+
+    for (const score of scores) {
+      const rounds = (roundsByScore.get(score.id) ?? []).sort(
+        (a, b) => a.roundNumber - b.roundNumber,
+      )
+      if (rounds.length < 2) {
+        skipped++
+        continue
+      }
+      const tw = score.competitionEventId
+        ? twById.get(score.competitionEventId)
+        : null
+      if (!tw || !tw.timeCap) {
+        skipped++
+        continue
+      }
+
+      const capMs = tw.timeCap * 1000
+      const roundValues = rounds.map((r) => r.value)
+      const effectiveScoreType =
+        (tw.scoreType as ScoreType) ||
+        (score.scoreType as ScoreType) ||
+        getDefaultScoreType("time-with-cap")
+
+      const recomputedValue = aggregateValues(roundValues, effectiveScoreType)
+      if (recomputedValue === null) {
+        skipped++
+        continue
+      }
+
+      const roundStatuses: Array<"scored" | "cap"> = roundValues.map((v) =>
+        v >= capMs ? "cap" : "scored",
+      )
+      const anyCap = roundStatuses.some((s) => s === "cap")
+      const newStatus: "scored" | "cap" = anyCap ? "cap" : "scored"
+
+      // Only update when something actually changed
+      const valueChanged = score.scoreValue !== recomputedValue
+      const statusChanged = score.status !== newStatus
+      const roundStatusChanged = rounds.some(
+        (r, i) => (r.status ?? null) !== roundStatuses[i],
+      )
+
+      if (!valueChanged && !statusChanged && !roundStatusChanged) {
+        skipped++
+        continue
+      }
+
+      const newSortKey = computeSortKey({
+        value: recomputedValue,
+        status: newStatus,
+        scheme: "time-with-cap",
+        scoreType: effectiveScoreType,
+        tiebreak:
+          score.tiebreakValue !== null && score.tiebreakScheme
+            ? {
+                scheme: score.tiebreakScheme as "time" | "reps",
+                value: score.tiebreakValue,
+              }
+            : undefined,
+      })
+
+      changes.push({
+        scoreId: score.id,
+        userId: score.userId,
+        trackWorkoutId: score.competitionEventId,
+        before: { scoreValue: score.scoreValue, status: score.status },
+        after: { scoreValue: recomputedValue, status: newStatus },
+        rounds: rounds.map((r, i) => ({
+          roundNumber: r.roundNumber,
+          value: r.value,
+          status: roundStatuses[i],
+        })),
+      })
+
+      if (!data.dryRun) {
+        await db.transaction(async (tx) => {
+          await tx
+            .update(scoresTable)
+            .set({
+              scoreValue: recomputedValue,
+              status: newStatus,
+              statusOrder: STATUS_ORDER[newStatus],
+              sortKey: sortKeyToString(newSortKey),
+              updatedAt: new Date(),
+            })
+            .where(eq(scoresTable.id, score.id))
+
+          for (let i = 0; i < rounds.length; i++) {
+            const round = rounds[i]
+            const desired = roundStatuses[i]
+            if ((round.status ?? null) !== desired) {
+              await tx
+                .update(scoreRoundsTable)
+                .set({ status: desired })
+                .where(eq(scoreRoundsTable.id, round.id))
+            }
+          }
+        })
+      }
+
+      updated++
+    }
+
+    logInfo({
+      message: "[Score] Multi-round cap backfill completed",
+      attributes: {
+        competitionId: data.competitionId,
+        scanned: scores.length,
+        updated,
+        skipped,
+        dryRun: !!data.dryRun,
+      },
+    })
+
+    return {
+      scanned: scores.length,
+      updated,
+      skipped,
+      dryRun: !!data.dryRun,
+      changes,
+    }
   })

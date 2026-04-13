@@ -106,6 +106,14 @@ Key design:
 - Tiebreak values stored separately for time-capped workouts
 - Score rounds (`scoreRoundsTable`) store per-round breakdowns for multi-round workouts
 
+### Multi-round time caps
+
+For multi-round `time-with-cap` workouts, the cap is enforced **per round**, not against the summed total, and the summed total is preserved on the parent score rather than clamped to the cap.
+
+On video submissions, [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#submitVideoFn]] compares each round's encoded time to `workout.timeCap * 1000`. Any round whose value meets or exceeds the cap is persisted with `scoreRoundsTable.status = "cap"`, and the parent `scoresTable.status` is set to `"cap"` whenever at least one round is capped. The parent `scoreValue` is the aggregation of rounds per the workout's `scoreType` (`sum` for "R1 + R2 = total" partner workouts; `min` for best-of). Under the "missed reps add seconds" convention a capped round's encoded value already includes its penalty, so the sum is meaningful. Single-round `time-with-cap` still clamps to the cap and records reps-at-cap in `secondaryValue`.
+
+Scores saved before this fix have `scoreValue` clamped to the cap even though rounds were persisted correctly. [[apps/wodsmith-start/src/server-fns/competition-score-fns.ts#backfillMultiRoundCapScoresFn]] rescans a competition, re-aggregates parent `scoreValue` from rounds using the workout's `scoreType`, and recomputes per-round status, parent status, and `sortKey`. Supports a `dryRun` flag to preview changes before writing.
+
 ## Volunteers
 
 Volunteers are competition staff assigned roles like judge, scorekeeper, medical, and emcee.
@@ -167,6 +175,14 @@ Individual athletes (teamSize = 1) are always treated as their own captain. Both
 Team divisions allow up to `teamSize` video submissions per event, tracked via a `videoIndex` column on `videoSubmissionsTable`.
 
 The unique constraint is `(registrationId, trackWorkoutId, videoIndex)`. Videos are optional — teams can submit fewer than `teamSize`. The score is submitted once per team (tied to the captain's userId).
+
+### Round Breakdown Display
+
+Multi-round scores are displayed with a total followed by each round's time, so athletes and organizers can see how the aggregate was built.
+
+[[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getVideoSubmissionFn]] and [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getOrganizerSubmissionDetailFn]] both join `scoreRoundsTable` when `workout.roundsToScore > 1` and return `roundScores: Array<{roundNumber, value, displayScore, status}>` on the returned score. [[apps/wodsmith-start/src/components/compete/video-submission-preview.tsx#VideoSubmissionPreview]] (athlete-facing) and the Claimed Score card in [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId.tsx]] (organizer-facing) render the rounds under the total when `roundScores.length > 1`, each row tagged with a "Cap" badge if `status === "cap"`. Single-round workouts render unchanged.
+
+After a successful submit, [[apps/wodsmith-start/src/components/compete/video-submission-form.tsx#VideoSubmissionForm]] computes the optimistic preview aggregate locally using `encodeRounds` + `decodeScore` with the workout's `scoreType`, so the athlete sees the correct total (e.g. `41:00.000` for a partner sum workout) immediately rather than a "R1 + R2" concatenation. Per-round cap state is inferred client-side from `encodedRound >= timeCap * 1000` to mirror the server derivation — once the loader refetches, the server-computed values take over.
 
 ### Grouped Review UX
 
