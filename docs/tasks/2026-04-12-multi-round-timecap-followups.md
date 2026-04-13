@@ -24,36 +24,33 @@ Visible impact: athlete-facing leaderboard + series leaderboard + any component 
 
 ---
 
-### #2 — Same clamping bug still live in two other score-entry paths ✅ DONE
+### #2 — Same clamping bug still live in two other score-entry paths ✅ FIXED (commit `e8715311`)
 
-The fix in `submitVideoFn` was **not** propagated to these two entry points. Both unconditionally do `encodedValue = workout.timeCap * 1000` when status is `"cap"`, regardless of whether the score was multi-round:
+The fix in `submitVideoFn` was **not** propagated to these two entry points. Both unconditionally did `encodedValue = workout.timeCap * 1000` when status is `"cap"`, regardless of whether the score was multi-round:
 
-1. **`apps/wodsmith-start/src/server-fns/competition-score-fns.ts:929–935`** — `saveCompetitionScoreFn`. Reached from the organizer in-person scoring UI. Also hardcodes `status: null` on round inserts at `:1088–1093`.
+1. **`apps/wodsmith-start/src/server-fns/competition-score-fns.ts:929–935`** — `saveCompetitionScoreFn`. Reached from the organizer in-person scoring UI. Also hardcoded `status: null` on round inserts at `:1088–1093`.
 2. **`apps/wodsmith-start/src/routes/api/compete/scores/judge.ts:227–229`** — HTTP judge API. Same pattern.
 
-**Fix sketch:** Copy the per-round cap derivation pattern from `submitVideoFn` (`video-submission-fns.ts:996–1041`). Persist per-round status to `scoreRoundsTable.status` in both insert loops.
-
-**Severity:** P0. Any organizer or judge entering a multi-round capped score will reintroduce the exact bug the initial fix addressed.
+**Resolution:** Both paths now mirror `submitVideoFn` — server-side per-round cap derivation, `roundStatuses[index]` persisted on `scoreRoundsTable.status`, and `cappedRoundCount` threaded into `computeSortKey`. `backfillMultiRoundCapScoresFn` also treats a stale persisted `sortKey` as sufficient reason to rewrite a row so legacy data gets repaired on the next backfill run. See commit `e8715311`.
 
 ---
 
-### #3 — Organizer adjustment path re-clamps multi-round scores
+### #3 — Organizer adjustment path re-clamps multi-round scores ✅ FIXED (minimum viable)
 
-**File:** `apps/wodsmith-start/src/server-fns/submission-verification-fns.ts:465–466`
+**File:** `apps/wodsmith-start/src/server-fns/submission-verification-fns.ts` (adjust action)
 
-```ts
-if (newStatus === "cap" && score.timeCapMs) {
-  encodedValue = score.timeCapMs
-}
-```
+The adjust handler used to clamp `encodedValue = score.timeCapMs` whenever `newStatus === "cap"`, destroying any legitimate multi-round summed total, and never touched `scoreRoundsTable` so per-round rows went stale relative to the new parent.
 
-When an organizer adjusts a video-reviewed score to `"cap"` status, the handler clamps to `timeCapMs`. `adjustedScore` is also a single string — the adjust flow has no concept of rounds, so per-round statuses never get re-derived. Additionally, the transaction never touches `scoreRoundsTable`, so rounds go stale.
+**Resolution (minimum viable):** the handler now queries `scoreRoundsTable` up front. When the score has `>1` rounds:
 
-**Fix sketch (minimum viable):** if the score has `>1` rows in `scoreRoundsTable`, do NOT re-clamp `scoreValue` on adjust-to-cap — either pass through the encoded `adjustedScore` as-is or reject the adjust action and require a round-aware adjustment UI. Document the limitation.
+- `adjustedScore` is encoded directly via `encodeScore` regardless of `newStatus` — no clamp-to-cap.
+- `cappedRoundCount` is derived from the existing per-round `status` rows and threaded into `computeSortKey` so the cap-bucket tiebreaker stays honored.
+- Per-round rows are intentionally left as-is (no delete + re-insert), and a `logInfo` warning is emitted noting that the round breakdown was preserved and may now diverge from the parent total.
+- `scoreType` resolution was also fixed from a hardcoded `"max"` fallback to `score.scoreType ?? getDefaultScoreType(scheme)` so time-with-cap and partner sum schemes use the correct sort direction.
 
-**Fix sketch (proper):** extend the adjust input schema to accept `adjustedRoundScores` (array) for multi-round workouts, re-encode per round, re-derive parent status, delete+insert rounds, recompute sort key — mirroring `submitVideoFn`.
+Single-round scores (`rounds.length <= 1`) keep the legacy clamp-to-cap behavior unchanged.
 
-**Severity:** P0. Any post-submission adjustment will reintroduce the bug and orphan the round rows.
+**Out of scope for this fix:** round-aware adjust UI (proper fix sketch), per-round audit log (#5), penalty math on multi-round (#6). See follow-ups #4, #5, #6 below.
 
 ---
 

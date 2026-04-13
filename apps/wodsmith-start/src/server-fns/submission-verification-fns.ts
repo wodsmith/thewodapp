@@ -19,7 +19,11 @@ import {
   trackWorkoutsTable,
 } from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
-import { scoresTable, scoreVerificationLogsTable } from "@/db/schemas/scores"
+import {
+  scoreRoundsTable,
+  scoresTable,
+  scoreVerificationLogsTable,
+} from "@/db/schemas/scores"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
 import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
@@ -29,7 +33,10 @@ import { logInfo } from "@/lib/logging"
 import {
   computeSortKey,
   decodeScore,
+  encodeRounds,
   encodeScore,
+  getDefaultScoreType,
+  type ScoreType,
   sortKeyToString,
   type WorkoutScheme,
 } from "@/lib/scoring"
@@ -213,6 +220,14 @@ const verifySubmissionScoreInputSchema = z.object({
   action: z.enum(["verify", "adjust", "invalid"]),
   // Required only when action === "adjust"
   adjustedScore: z.string().optional(),
+  adjustedRoundScores: z
+    .array(
+      z.object({
+        roundNumber: z.number().int().min(1),
+        score: z.string().min(1),
+      }),
+    )
+    .optional(),
   adjustedScoreStatus: z.enum(["scored", "cap"]).optional(),
   secondaryScore: z.string().optional(),
   tieBreakScore: z.string().optional(),
@@ -460,9 +475,27 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
       const scheme = score.scheme as WorkoutScheme
       const newStatus = data.adjustedScoreStatus
 
+      // Detect multi-round so we don't re-clamp the summed total to the
+      // per-round time cap. The adjust UI only sends a single value, so for
+      // multi-round we trust `adjustedScore` as the parent total and leave
+      // the per-round breakdown alone — see followups doc #3.
+      const existingRounds = await db
+        .select({
+          status: scoreRoundsTable.status,
+        })
+        .from(scoreRoundsTable)
+        .where(eq(scoreRoundsTable.scoreId, data.scoreId))
+
+      const isMultiRound = existingRounds.length > 1
+      const cappedRoundCount = existingRounds.filter(
+        (r) => r.status === "cap",
+      ).length
+
       // Encode the adjusted score
       let encodedValue: number | null = null
-      if (newStatus === "cap" && score.timeCapMs) {
+      if (isMultiRound) {
+        encodedValue = encodeScore(data.adjustedScore, scheme)
+      } else if (newStatus === "cap" && score.timeCapMs) {
         encodedValue = score.timeCapMs
       } else {
         encodedValue = encodeScore(data.adjustedScore, scheme)
@@ -492,13 +525,16 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
 
       // Compute sort key
       const statusOrder = newStatus === "cap" ? 1 : 0
+      const resolvedScoreType =
+        (score.scoreType as ScoreType | null) ?? getDefaultScoreType(scheme)
       const sortKey =
         encodedValue !== null
           ? computeSortKey({
               value: encodedValue,
               status: newStatus,
               scheme,
-              scoreType: (score.scoreType as "max" | "min") ?? "max",
+              scoreType: resolvedScoreType,
+              cappedRoundCount: isMultiRound ? cappedRoundCount : undefined,
               timeCap:
                 newStatus === "cap" &&
                 score.timeCapMs &&
@@ -514,6 +550,22 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
                   : undefined,
             })
           : null
+
+      if (isMultiRound) {
+        logInfo({
+          message:
+            "[Score] Multi-round adjust applied — parent total updated, round breakdown preserved as-is and may diverge",
+          attributes: {
+            scoreId: data.scoreId,
+            competitionId: data.competitionId,
+            verifiedByUserId: session.userId,
+            roundCount: existingRounds.length,
+            cappedRoundCount,
+            newStatus,
+            encodedValue,
+          },
+        })
+      }
 
       // Determine review status for video submission based on penalty
       const videoReviewStatus = data.penaltyType ? "penalized" : "adjusted"
