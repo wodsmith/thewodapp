@@ -251,6 +251,11 @@ interface VerificationControlsProps {
   competitionId: string
   trackWorkoutId: string
   logs: VerificationLogEntry[]
+  roundScores?: Array<{
+    roundNumber: number
+    displayScore: string | null
+    status?: string | null
+  }> | null
 }
 
 /**
@@ -289,9 +294,16 @@ function VerificationControls({
   competitionId,
   trackWorkoutId,
   logs,
+  roundScores,
 }: VerificationControlsProps) {
   const router = useRouter()
   const verifyFn = useServerFn(verifySubmissionScoreFn)
+
+  const isMultiRound = (roundScores?.length ?? 0) > 1
+  const sortedRoundScores = isMultiRound
+    ? [...(roundScores ?? [])].sort((a, b) => a.roundNumber - b.roundNumber)
+    : []
+  const initialRoundInputs = sortedRoundScores.map((r) => r.displayScore ?? "")
 
   const [isAdjusting, setIsAdjusting] = useState(false)
   const [isPenalizing, setIsPenalizing] = useState(false)
@@ -302,6 +314,8 @@ function VerificationControls({
   const [adjustedScore, setAdjustedScore] = useState(
     submission.score.displayValue,
   )
+  const [adjustedRoundScores, setAdjustedRoundScores] =
+    useState<string[]>(initialRoundInputs)
   const [adjustedStatus, setAdjustedStatus] = useState<"scored" | "cap">(
     submission.score.status === "cap" ? "cap" : "scored",
   )
@@ -311,6 +325,11 @@ function VerificationControls({
       : "",
   )
   const [reviewerNotes, setReviewerNotes] = useState("")
+
+  const canSubmitAdjust = isMultiRound
+    ? adjustedRoundScores.length > 0 &&
+      adjustedRoundScores.every((s) => s.trim().length > 0)
+    : adjustedScore.trim().length > 0
 
   // Penalty form state
   const [penaltyType, setPenaltyType] = useState<"minor" | "major">("minor")
@@ -345,18 +364,37 @@ function VerificationControls({
     setIsSubmitting(true)
     setError(null)
     try {
-      await verifyFn({
-        data: {
-          competitionId,
-          trackWorkoutId,
-          scoreId: submission.id,
-          action: "adjust",
-          adjustedScore,
-          adjustedScoreStatus: adjustedStatus,
-          secondaryScore: secondaryScore || undefined,
-          reviewerNotes: reviewerNotes.trim() || undefined,
-        },
-      })
+      if (isMultiRound) {
+        await verifyFn({
+          data: {
+            competitionId,
+            trackWorkoutId,
+            scoreId: submission.id,
+            action: "adjust",
+            adjustedRoundScores: adjustedRoundScores.map((score, i) => ({
+              roundNumber: i + 1,
+              score: score.trim(),
+            })),
+            // Server derives the real status from each round's time vs the
+            // per-round cap; this value is required by the schema but ignored.
+            adjustedScoreStatus: adjustedStatus,
+            reviewerNotes: reviewerNotes.trim() || undefined,
+          },
+        })
+      } else {
+        await verifyFn({
+          data: {
+            competitionId,
+            trackWorkoutId,
+            scoreId: submission.id,
+            action: "adjust",
+            adjustedScore,
+            adjustedScoreStatus: adjustedStatus,
+            secondaryScore: secondaryScore || undefined,
+            reviewerNotes: reviewerNotes.trim() || undefined,
+          },
+        })
+      }
       setIsAdjusting(false)
       await router.invalidate()
     } catch (err) {
@@ -883,51 +921,89 @@ function VerificationControls({
             <p className="text-xs text-muted-foreground">
               Correct the rep count without applying a penalty deduction.
             </p>
-            <div className="space-y-2">
-              <Label htmlFor="adjusted-score" className="text-xs">
-                New score
-              </Label>
-              <Input
-                id="adjusted-score"
-                value={adjustedScore}
-                onChange={(e) => setAdjustedScore(e.target.value)}
-                placeholder={event.workout.timeCap ? "10:30" : "155"}
-                className="font-mono"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="adjusted-status" className="text-xs">
-                Status
-              </Label>
-              <Select
-                value={adjustedStatus}
-                onValueChange={(v) => setAdjustedStatus(v as "scored" | "cap")}
-              >
-                <SelectTrigger id="adjusted-status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="scored">Scored</SelectItem>
-                  {event.workout.timeCap && (
-                    <SelectItem value="cap">Capped</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            {adjustedStatus === "cap" && (
+            {isMultiRound ? (
               <div className="space-y-2">
-                <Label htmlFor="secondary-score" className="text-xs">
-                  Reps at cap
-                </Label>
-                <Input
-                  id="secondary-score"
-                  value={secondaryScore}
-                  onChange={(e) => setSecondaryScore(e.target.value)}
-                  placeholder="e.g. 42"
-                  type="number"
-                  min="0"
-                />
+                <Label className="text-xs">New score per round</Label>
+                <div className="space-y-2">
+                  {adjustedRoundScores.map((value, i) => (
+                    <div
+                      key={sortedRoundScores[i]?.roundNumber ?? i + 1}
+                      className="flex items-center gap-2"
+                    >
+                      <span className="text-xs uppercase tracking-wider w-8 text-muted-foreground">
+                        R{i + 1}
+                      </span>
+                      <Input
+                        value={value}
+                        onChange={(e) =>
+                          setAdjustedRoundScores((prev) => {
+                            const next = [...prev]
+                            next[i] = e.target.value
+                            return next
+                          })
+                        }
+                        placeholder={event.workout.timeCap ? "10:30" : "155"}
+                        className="font-mono"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Status is derived from each round&apos;s time vs the
+                  per-round cap.
+                </p>
               </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="adjusted-score" className="text-xs">
+                    New score
+                  </Label>
+                  <Input
+                    id="adjusted-score"
+                    value={adjustedScore}
+                    onChange={(e) => setAdjustedScore(e.target.value)}
+                    placeholder={event.workout.timeCap ? "10:30" : "155"}
+                    className="font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="adjusted-status" className="text-xs">
+                    Status
+                  </Label>
+                  <Select
+                    value={adjustedStatus}
+                    onValueChange={(v) =>
+                      setAdjustedStatus(v as "scored" | "cap")
+                    }
+                  >
+                    <SelectTrigger id="adjusted-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="scored">Scored</SelectItem>
+                      {event.workout.timeCap && (
+                        <SelectItem value="cap">Capped</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {adjustedStatus === "cap" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="secondary-score" className="text-xs">
+                      Reps at cap
+                    </Label>
+                    <Input
+                      id="secondary-score"
+                      value={secondaryScore}
+                      onChange={(e) => setSecondaryScore(e.target.value)}
+                      placeholder="e.g. 42"
+                      type="number"
+                      min="0"
+                    />
+                  </div>
+                )}
+              </>
             )}
             <div className="space-y-2">
               <Label htmlFor="reviewer-notes" className="text-xs">
@@ -946,7 +1022,7 @@ function VerificationControls({
               <Button
                 className="flex-1"
                 size="sm"
-                disabled={isSubmitting || !adjustedScore.trim()}
+                disabled={isSubmitting || !canSubmitAdjust}
                 onClick={handleAdjust}
               >
                 {isSubmitting ? "Saving..." : "Save Adjustment"}
@@ -957,6 +1033,7 @@ function VerificationControls({
                 disabled={isSubmitting}
                 onClick={() => {
                   setIsAdjusting(false)
+                  setAdjustedRoundScores(initialRoundInputs)
                   setError(null)
                 }}
               >
@@ -2585,6 +2662,7 @@ function SubmissionDetailPage() {
               competitionId={params.competitionId}
               trackWorkoutId={params.eventId}
               logs={verificationLogs}
+              roundScores={submission.score?.roundScores ?? null}
             />
           ) : (
             <Card>
