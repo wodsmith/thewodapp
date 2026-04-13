@@ -80,9 +80,20 @@ Fetches events for head-to-head tiebreaker selection. Uses `ScoringSettingsForm`
 
 Organizers enter scores for each athlete per event, or review video submissions for online competitions.
 
-For **in-person competitions**: `ResultsEntryForm` provides a per-event, per-division score entry grid. Organizers select an event and division, then enter scores for each athlete. Supports publishing/unpublishing division results.
+For **in-person competitions**: `ResultsEntryForm` provides a per-event, per-division score entry grid. Organizers select an event and division, then enter scores for each athlete. Supports publishing/unpublishing division results. Multi-round scores flow through [[apps/wodsmith-start/src/server-fns/competition-score-fns.ts#saveCompetitionScoreFn]], which for `time-with-cap` workouts derives per-round cap status server-side from each round's encoded value against `workout.timeCap * 1000`, persists that status on `scoreRoundsTable`, preserves the summed total on `scoresTable.scoreValue` (instead of clamping to the cap), and threads `cappedRoundCount` into `computeSortKey` so the leaderboard tiebreaker honors "fewer capped rounds wins".
 
 For **online competitions**: Shows a submissions overview with links to individual video verification pages at `/events/{eventId}/submissions/`. Each child sub-event is listed as its own row with submission counts and verification status; the parent event name is shown as contextual metadata alongside each child row. Events without `competition_events` rows (no submission window configured) are handled gracefully.
+
+### Division Results Publish Gate
+
+Controls whether scores for a given (event, division) pair are visible on the public leaderboard. Organizers toggle publish state per event-division from the results entry UI.
+
+Publish state lives in `competitionsTable.settings.divisionResults[trackWorkoutId][divisionId].publishedAt` — an ISO timestamp when published, absent/null when in draft. [[apps/wodsmith-start/src/server/competition-leaderboard.ts#getCompetitionLeaderboard]] reads this shape and gates two flows with it:
+
+1. Per-event leaderboard entries: inside the per-event loop, `if (!divisionPublishState?.publishedAt) continue` drops any (event, division) that isn't published.
+2. Video visibility: the `isEventDivisionPublished` helper returns `false` for unpublished pairs so their videos don't leak.
+
+Defaults: when `divisionResults` is absent entirely, online competitions treat everything as hidden (opt-in publishing) while in-person competitions show everything (backwards compat for gyms that never opted into the gate). Organizers can bulk-publish all divisions for an event from `QuickActionsDivisionResults`.
 
 ## Submission Windows
 
