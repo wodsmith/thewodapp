@@ -1004,6 +1004,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
       let status: "scored" | "cap" = "scored"
       let secondaryValue: number | null = null
       const roundStatuses: Array<"scored" | "cap"> = []
+      let cappedRoundCount = 0
 
       if (
         scheme === "time-with-cap" &&
@@ -1014,13 +1015,12 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 
         if (hasRoundScores && encodedRounds.length > 0) {
           // Per-round cap inference — don't clamp the summed total.
-          let cappedCount = 0
           for (const roundValue of encodedRounds) {
             const isRoundCapped = roundValue >= capMs
             roundStatuses.push(isRoundCapped ? "cap" : "scored")
-            if (isRoundCapped) cappedCount++
+            if (isRoundCapped) cappedRoundCount++
           }
-          if (cappedCount > 0) {
+          if (cappedRoundCount > 0) {
             status = "cap"
           }
         } else if (encodedValue >= capMs) {
@@ -1057,7 +1057,9 @@ export const submitVideoFn = createServerFn({ method: "POST" })
       // Time cap in milliseconds
       const timeCapMs = workout.timeCap ? workout.timeCap * 1000 : null
 
-      // Compute sort key (includes secondary_value and tiebreak for proper ordering)
+      // Compute sort key (includes secondary_value, tiebreak, and the
+      // multi-round `cappedRoundCount` tiebreaker so more capped rounds
+      // sort below fewer capped rounds regardless of summed total).
       const sortKey =
         encodedValue !== null
           ? computeSortKey({
@@ -1065,6 +1067,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
               status,
               scheme,
               scoreType,
+              cappedRoundCount,
               timeCap:
                 status === "cap" && secondaryValue !== null
                   ? { ms: timeCapMs ?? 0, secondaryValue }

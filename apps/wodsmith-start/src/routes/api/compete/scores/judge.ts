@@ -213,18 +213,45 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
           const workoutTiebreakScheme = (workoutInfo.tiebreakScheme as TiebreakScheme) ?? null
 
           let encodedValue: number | null = null
+          let encodedRounds: number[] = []
+          const hasRoundScores = !!(
+            data.roundScores && data.roundScores.length > 0
+          )
 
           if (data.roundScores && data.roundScores.length > 0) {
             const roundInputs = data.roundScores.map((rs) => ({ raw: rs.score }))
             const result = encodeRounds(roundInputs, scheme, scoreType)
             encodedValue = result.aggregated
+            encodedRounds = result.rounds
           } else if (data.score?.trim()) {
             encodedValue = encodeScore(data.score, scheme)
           }
 
-          const newStatus = mapToNewStatus(data.scoreStatus)
+          // For multi-round `time-with-cap` the status is derived server
+          // side from individual rounds (parent becomes "cap" if any round
+          // meets the per-round cap). Single-round keeps legacy clamping.
+          let newStatus = mapToNewStatus(data.scoreStatus)
+          const roundStatuses: Array<"scored" | "cap"> = []
+          let cappedRoundCount = 0
 
-          if (newStatus === "cap" && scheme === "time-with-cap" && workoutInfo.timeCap) {
+          if (
+            scheme === "time-with-cap" &&
+            workoutInfo.timeCap &&
+            hasRoundScores &&
+            encodedValue !== null
+          ) {
+            const capMs = workoutInfo.timeCap * 1000
+            for (const roundValue of encodedRounds) {
+              const isRoundCapped = roundValue >= capMs
+              roundStatuses.push(isRoundCapped ? "cap" : "scored")
+              if (isRoundCapped) cappedRoundCount++
+            }
+            newStatus = cappedRoundCount > 0 ? "cap" : "scored"
+          } else if (
+            newStatus === "cap" &&
+            scheme === "time-with-cap" &&
+            workoutInfo.timeCap
+          ) {
             encodedValue = workoutInfo.timeCap * 1000
           }
 
@@ -252,6 +279,7 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
                   status: newStatus,
                   scheme,
                   scoreType,
+                  cappedRoundCount,
                   timeCap:
                     newStatus === "cap" && timeCapMs && secondaryValue !== null
                       ? { ms: timeCapMs, secondaryValue }
@@ -329,7 +357,12 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
                   roundValue = encodeScore(round.score, scheme) ?? 0
                 }
 
-                return { scoreId: id, roundNumber: index + 1, value: roundValue, status: null }
+                return {
+                  scoreId: id,
+                  roundNumber: index + 1,
+                  value: roundValue,
+                  status: roundStatuses[index] ?? null,
+                }
               })
 
               await tx.insert(scoreRoundsTable).values(roundsToInsert)

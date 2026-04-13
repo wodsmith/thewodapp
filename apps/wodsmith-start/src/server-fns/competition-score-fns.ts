@@ -911,26 +911,49 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 
       // Encode score using encoding
       let encodedValue: number | null = null
+      let encodedRounds: number[] = []
+      const hasRoundScores = !!(data.roundScores && data.roundScores.length > 0)
 
       if (data.roundScores && data.roundScores.length > 0) {
         // Multi-round: encode each round and aggregate
         const roundInputs = data.roundScores.map((rs) => ({ raw: rs.score }))
         const result = encodeRounds(roundInputs, scheme, scoreType)
         encodedValue = result.aggregated
+        encodedRounds = result.rounds
       } else if (data.score?.trim()) {
         // Single score: encode directly
         encodedValue = encodeScore(data.score, scheme)
       }
 
-      // Map status to simplified type
-      const newStatus = mapToNewStatus(data.scoreStatus)
+      // Map client-declared status to simplified type. For multi-round
+      // `time-with-cap` we derive status server-side from the rounds
+      // themselves (mirroring `submitVideoFn`), ignoring the client value.
+      let newStatus = mapToNewStatus(data.scoreStatus)
+      const roundStatuses: Array<"scored" | "cap"> = []
+      let cappedRoundCount = 0
 
-      // Handle CAP status for time-with-cap workouts
       if (
+        scheme === "time-with-cap" &&
+        data.workout.timeCap &&
+        hasRoundScores &&
+        encodedValue !== null
+      ) {
+        // Multi-round time cap: per-round inference. Preserve the summed
+        // total — do NOT clamp to cap. Parent status becomes "cap" if any
+        // round is capped.
+        const capMs = data.workout.timeCap * 1000
+        for (const roundValue of encodedRounds) {
+          const isRoundCapped = roundValue >= capMs
+          roundStatuses.push(isRoundCapped ? "cap" : "scored")
+          if (isRoundCapped) cappedRoundCount++
+        }
+        newStatus = cappedRoundCount > 0 ? "cap" : "scored"
+      } else if (
         newStatus === "cap" &&
         scheme === "time-with-cap" &&
         data.workout.timeCap
       ) {
+        // Single-round legacy clamp + reps-at-cap behavior.
         encodedValue = data.workout.timeCap * 1000
       }
 
@@ -961,8 +984,10 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
         }
       }
 
-      // Compute sort key for efficient leaderboard queries
-      // Include tiebreak in sortKey so tied scores can be differentiated
+      // Compute sort key for efficient leaderboard queries.
+      // Includes the multi-round `cappedRoundCount` tiebreaker so scores
+      // with fewer capped rounds sort ahead of scores with more, even
+      // when the summed total is slower.
       const sortKey =
         encodedValue !== null
           ? computeSortKey({
@@ -970,6 +995,7 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
               status: newStatus,
               scheme,
               scoreType,
+              cappedRoundCount,
               // Include time cap info for capped scores
               timeCap:
                 newStatus === "cap" && timeCapMs && secondaryValue !== null
@@ -1069,7 +1095,10 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
             .delete(scoreRoundsTable)
             .where(eq(scoreRoundsTable.scoreId, id))
 
-          // Convert and insert new rounds
+          // Convert and insert new rounds. For multi-round time caps we
+          // persist per-round `status` ("cap" / "scored") derived above
+          // so the leaderboard can count capped rounds without replaying
+          // the cap check, and so the round breakdown UI tags each round.
           const roundsToInsert = data.roundScores.map((round, index) => {
             let roundValue: number
 
@@ -1092,7 +1121,7 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
               scoreId: id,
               roundNumber: index + 1,
               value: roundValue,
-              status: null,
+              status: roundStatuses[index] ?? null,
             }
           })
 
@@ -1577,6 +1606,7 @@ export const backfillMultiRoundCapScoresFn = createServerFn({ method: "POST" })
         tiebreakScheme: scoresTable.tiebreakScheme,
         tiebreakValue: scoresTable.tiebreakValue,
         secondaryValue: scoresTable.secondaryValue,
+        sortKey: scoresTable.sortKey,
       })
       .from(scoresTable)
       .where(inArray(scoresTable.competitionEventId, trackWorkoutIds))
@@ -1649,26 +1679,16 @@ export const backfillMultiRoundCapScoresFn = createServerFn({ method: "POST" })
       const roundStatuses: Array<"scored" | "cap"> = roundValues.map((v) =>
         v >= capMs ? "cap" : "scored",
       )
-      const anyCap = roundStatuses.some((s) => s === "cap")
+      const cappedRoundCount = roundStatuses.filter((s) => s === "cap").length
+      const anyCap = cappedRoundCount > 0
       const newStatus: "scored" | "cap" = anyCap ? "cap" : "scored"
-
-      // Only update when something actually changed
-      const valueChanged = score.scoreValue !== recomputedValue
-      const statusChanged = score.status !== newStatus
-      const roundStatusChanged = rounds.some(
-        (r, i) => (r.status ?? null) !== roundStatuses[i],
-      )
-
-      if (!valueChanged && !statusChanged && !roundStatusChanged) {
-        skipped++
-        continue
-      }
 
       const newSortKey = computeSortKey({
         value: recomputedValue,
         status: newStatus,
         scheme: "time-with-cap",
         scoreType: effectiveScoreType,
+        cappedRoundCount,
         tiebreak:
           score.tiebreakValue !== null && score.tiebreakScheme
             ? {
@@ -1677,6 +1697,27 @@ export const backfillMultiRoundCapScoresFn = createServerFn({ method: "POST" })
               }
             : undefined,
       })
+      const newSortKeyString = sortKeyToString(newSortKey)
+
+      // Only update when something actually changed. A stale `sortKey` is
+      // on its own sufficient reason to rewrite — this is how the backfill
+      // repairs scores written before the cap-count tiebreaker was added.
+      const valueChanged = score.scoreValue !== recomputedValue
+      const statusChanged = score.status !== newStatus
+      const roundStatusChanged = rounds.some(
+        (r, i) => (r.status ?? null) !== roundStatuses[i],
+      )
+      const sortKeyChanged = score.sortKey !== newSortKeyString
+
+      if (
+        !valueChanged &&
+        !statusChanged &&
+        !roundStatusChanged &&
+        !sortKeyChanged
+      ) {
+        skipped++
+        continue
+      }
 
       changes.push({
         scoreId: score.id,
@@ -1699,7 +1740,7 @@ export const backfillMultiRoundCapScoresFn = createServerFn({ method: "POST" })
               scoreValue: recomputedValue,
               status: newStatus,
               statusOrder: STATUS_ORDER[newStatus],
-              sortKey: sortKeyToString(newSortKey),
+              sortKey: newSortKeyString,
               updatedAt: new Date(),
             })
             .where(eq(scoresTable.id, score.id))
