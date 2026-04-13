@@ -75,6 +75,12 @@ export async function seed(client: Connection): Promise<void> {
 		mem("tmem_volunteer_maria", "team_winter_throwdown_2025", "usr_volunteer_maria", "volunteer", '{"volunteerRoleTypes":["judge","emcee"],"credentials":"Former competitor","shirtSize":"S","availability":"all_day","status":"approved","inviteSource":"direct"}'),
 		mem("tmem_volunteer_brian", "team_winter_throwdown_2025", "usr_volunteer_brian", "volunteer", '{"volunteerRoleTypes":["judge","equipment","staff"],"shirtSize":"XL","availability":"morning","status":"approved","inviteSource":"application"}'),
 		mem("tmem_volunteer_sandra", "team_winter_throwdown_2025", "usr_volunteer_sandra", "volunteer", '{"volunteerRoleTypes":["judge","general"],"credentials":"L1 Trainer","shirtSize":"M","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+		// Online competition volunteers
+		mem("tmem_vol_dave_online", "team_online_qualifier_2026", "usr_volunteer_dave", "volunteer", '{"volunteerRoleTypes":["judge","head_judge"],"credentials":"L1 Judge Certified","shirtSize":"L","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+		mem("tmem_vol_lisa_online", "team_online_qualifier_2026", "usr_volunteer_lisa", "volunteer", '{"volunteerRoleTypes":["judge","scorekeeper"],"credentials":"CrossFit L2","shirtSize":"S","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+		mem("tmem_vol_rachel_online", "team_online_qualifier_2026", "usr_volunteer_rachel", "volunteer", '{"volunteerRoleTypes":["judge","medical"],"credentials":"EMT Certified","shirtSize":"M","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+		mem("tmem_vol_james_online", "team_online_qualifier_2026", "usr_volunteer_james", "volunteer", '{"volunteerRoleTypes":["judge","floor_manager"],"credentials":"5 years judging experience","shirtSize":"L","availability":"all_day","status":"approved","inviteSource":"direct"}'),
+		mem("tmem_vol_kevin_online", "team_online_qualifier_2026", "usr_volunteer_kevin", "volunteer", '{"volunteerRoleTypes":["judge","scorekeeper"],"credentials":"L1 Trainer","shirtSize":"M","availability":"all_day","status":"approved","inviteSource":"direct"}'),
 		// Online competition memberships
 		mem("tmem_john_online", "team_online_qualifier_2026", "usr_demo3member", "member"),
 		mem("tmem_jane_online", "team_online_qualifier_2026", "usr_demo4member", "member"),

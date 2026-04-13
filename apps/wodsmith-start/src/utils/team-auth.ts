@@ -6,9 +6,14 @@
  * See tanstack-start-server-only skill for details.
  */
 
+import { and, eq, gt, isNull, or } from "drizzle-orm"
 import { getCookie } from "@tanstack/react-start/server"
 import { ACTIVE_TEAM_COOKIE_NAME } from "@/constants"
+import { getDb } from "@/db"
 import { ROLES_ENUM } from "@/db/schema"
+import { competitionsTable } from "@/db/schemas/competitions"
+import { entitlementTable } from "@/db/schemas/entitlements"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { getSessionFromCookie } from "./auth"
 
 /**
@@ -179,4 +184,77 @@ export async function requireTeamPermissionOrAdmin(
       "FORBIDDEN: You don't have the required permission in this team",
     )
   }
+}
+
+const SCORE_INPUT_TYPE_ID = "competition_score_input"
+
+/**
+ * Require submission review access: organizer permission OR volunteer score-input entitlement.
+ * Used by video submission, verification, and review note server functions.
+ * Returns the competition's organizingTeamId for callers that need it (e.g. review notes scoping).
+ */
+export async function requireSubmissionReviewAccess(
+	competitionId: string,
+): Promise<{ organizingTeamId: string }> {
+	const session = await getSessionFromCookie()
+
+	if (!session?.userId) {
+		throw new Error("NOT_AUTHORIZED: Not authenticated")
+	}
+
+	const db = getDb()
+	const [competition] = await db
+		.select({
+			organizingTeamId: competitionsTable.organizingTeamId,
+			competitionTeamId: competitionsTable.competitionTeamId,
+		})
+		.from(competitionsTable)
+		.where(eq(competitionsTable.id, competitionId))
+		.limit(1)
+
+	if (!competition) {
+		throw new Error("NOT_FOUND: Competition not found")
+	}
+
+	// Admin bypass
+	if (session.user.role === ROLES_ENUM.ADMIN) {
+		return { organizingTeamId: competition.organizingTeamId }
+	}
+
+	// Check organizer permission first (fast — session-based, no DB query)
+	const hasOrgPermission = await hasTeamPermission(
+		competition.organizingTeamId,
+		TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+	)
+	if (hasOrgPermission) {
+		return { organizingTeamId: competition.organizingTeamId }
+	}
+
+	// Fall back to volunteer entitlement check
+	if (!competition.competitionTeamId) {
+		throw new Error(
+			"FORBIDDEN: You don't have the required permission to review submissions",
+		)
+	}
+
+	const entitlements = await db.query.entitlementTable.findMany({
+		where: and(
+			eq(entitlementTable.userId, session.userId),
+			eq(entitlementTable.teamId, competition.competitionTeamId),
+			eq(entitlementTable.entitlementTypeId, SCORE_INPUT_TYPE_ID),
+			isNull(entitlementTable.deletedAt),
+			or(
+				isNull(entitlementTable.expiresAt),
+				gt(entitlementTable.expiresAt, new Date()),
+			),
+		),
+	})
+
+	if (entitlements.length === 0) {
+		throw new Error(
+			"FORBIDDEN: You don't have the required permission to review submissions",
+		)
+	}
+
+	return { organizingTeamId: competition.organizingTeamId }
 }
