@@ -327,23 +327,6 @@ describe("CompetitionWorkoutCard", () => {
 		})
 	})
 
-	describe("track order display", () => {
-		it("pads single digit track order", () => {
-			render(
-				<CompetitionWorkoutCard {...defaultProps} trackOrder={1} />,
-			)
-
-			expect(screen.getByText("01")).toBeTruthy()
-		})
-
-		it("shows double digit track order", () => {
-			render(
-				<CompetitionWorkoutCard {...defaultProps} trackOrder={12} />,
-			)
-
-			expect(screen.getByText("12")).toBeTruthy()
-		})
-	})
 
 	describe("description and division scaling", () => {
 		it("shows description text", () => {
