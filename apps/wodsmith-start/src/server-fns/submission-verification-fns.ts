@@ -19,7 +19,11 @@ import {
   trackWorkoutsTable,
 } from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
-import { scoresTable, scoreVerificationLogsTable } from "@/db/schemas/scores"
+import {
+  scoreRoundsTable,
+  scoresTable,
+  scoreVerificationLogsTable,
+} from "@/db/schemas/scores"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
 import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
@@ -29,7 +33,10 @@ import { logInfo } from "@/lib/logging"
 import {
   computeSortKey,
   decodeScore,
+  encodeRounds,
   encodeScore,
+  getDefaultScoreType,
+  type ScoreType,
   sortKeyToString,
   type WorkoutScheme,
 } from "@/lib/scoring"
@@ -213,6 +220,14 @@ const verifySubmissionScoreInputSchema = z.object({
   action: z.enum(["verify", "adjust", "invalid"]),
   // Required only when action === "adjust"
   adjustedScore: z.string().optional(),
+  adjustedRoundScores: z
+    .array(
+      z.object({
+        roundNumber: z.number().int().min(1),
+        score: z.string().min(1),
+      }),
+    )
+    .optional(),
   adjustedScoreStatus: z.enum(["scored", "cap"]).optional(),
   secondaryScore: z.string().optional(),
   tieBreakScore: z.string().optional(),
@@ -451,26 +466,114 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
       }
 
       // action === "adjust"
-      if (!data.adjustedScore || !data.adjustedScoreStatus) {
+      const hasAdjustedRoundScores =
+        !!data.adjustedRoundScores && data.adjustedRoundScores.length > 0
+
+      if (
+        (!data.adjustedScore && !hasAdjustedRoundScores) ||
+        !data.adjustedScoreStatus
+      ) {
         throw new Error(
-          "adjustedScore and adjustedScoreStatus are required for adjust action",
+          "adjustedScore (or adjustedRoundScores) and adjustedScoreStatus are required for adjust action",
         )
       }
 
-      const scheme = score.scheme as WorkoutScheme
-      const newStatus = data.adjustedScoreStatus
-
-      // Encode the adjusted score
-      let encodedValue: number | null = null
-      if (newStatus === "cap" && score.timeCapMs) {
-        encodedValue = score.timeCapMs
-      } else {
-        encodedValue = encodeScore(data.adjustedScore, scheme)
+      // Normalize multi-round payload: sort by roundNumber and reject
+      // duplicates so the per-round rewrite below can't silently drop or
+      // double-count a round. Order-sensitive scoreTypes (first/last) also
+      // depend on this being sorted ascending.
+      if (data.adjustedRoundScores && hasAdjustedRoundScores) {
+        const sorted = [...data.adjustedRoundScores].sort(
+          (a, b) => a.roundNumber - b.roundNumber,
+        )
+        const seen = new Set<number>()
+        for (const round of sorted) {
+          if (seen.has(round.roundNumber)) {
+            throw new Error(
+              "adjustedRoundScores must contain unique roundNumber values",
+            )
+          }
+          seen.add(round.roundNumber)
+        }
+        data.adjustedRoundScores = sorted
       }
 
-      // Parse secondary value (reps at cap)
+      const scheme = score.scheme as WorkoutScheme
+      let newStatus = data.adjustedScoreStatus
+      const resolvedScoreType =
+        (score.scoreType as ScoreType | null) ?? getDefaultScoreType(scheme)
+
+      // Pull existing rounds so we can either thread the previously-derived
+      // cap count through the sort key (no per-round inputs supplied) or
+      // delete them before re-inserting fresh ones (per-round inputs
+      // supplied — see followups doc #3 / #4).
+      const existingRounds = await db
+        .select({
+          status: scoreRoundsTable.status,
+        })
+        .from(scoreRoundsTable)
+        .where(eq(scoreRoundsTable.scoreId, data.scoreId))
+
+      const isMultiRound =
+        hasAdjustedRoundScores || existingRounds.length > 1
+
+      let encodedValue: number | null = null
+      let encodedAdjustedRounds: number[] = []
+      const roundStatuses: Array<"scored" | "cap"> = []
+      let cappedRoundCount = 0
+
+      if (hasAdjustedRoundScores && data.adjustedRoundScores) {
+        // Multi-round adjust with per-round inputs: encode each round and
+        // derive cap status server-side, mirroring submitVideoFn /
+        // saveCompetitionScoreFn so the parent total + tiebreaker stay
+        // consistent.
+        const roundInputs = data.adjustedRoundScores.map((rs) => ({
+          raw: rs.score,
+        }))
+        const result = encodeRounds(roundInputs, scheme, resolvedScoreType)
+        // `encodeRounds` silently drops rounds that fail to encode, which
+        // would misalign roundStatuses with the per-round rows we rewrite
+        // below. Reject here so the caller fixes the input.
+        if (result.rounds.length !== data.adjustedRoundScores.length) {
+          throw new Error(
+            "Every round in adjustedRoundScores must be a valid score",
+          )
+        }
+        encodedValue = result.aggregated
+        encodedAdjustedRounds = result.rounds
+
+        if (scheme === "time-with-cap" && score.timeCapMs) {
+          const capMs = score.timeCapMs
+          for (const roundValue of result.rounds) {
+            const isCapped = roundValue >= capMs
+            roundStatuses.push(isCapped ? "cap" : "scored")
+            if (isCapped) cappedRoundCount++
+          }
+          // Server derivation wins over the client-declared status.
+          newStatus = cappedRoundCount > 0 ? "cap" : "scored"
+        }
+      } else if (data.adjustedScore) {
+        // Legacy single-value path (single-round, or multi-round penalty
+        // direct override that doesn't restate per-round values).
+        if (!isMultiRound && newStatus === "cap" && score.timeCapMs) {
+          encodedValue = score.timeCapMs
+        } else {
+          encodedValue = encodeScore(data.adjustedScore, scheme)
+        }
+        cappedRoundCount = existingRounds.filter(
+          (r) => r.status === "cap",
+        ).length
+      }
+
+      // Parse secondary value (reps at cap). Only meaningful for the
+      // single-value path — when per-round inputs are supplied the
+      // breakdown encodes any cap penalty already.
       let secondaryValue: number | null = null
-      if (data.secondaryScore && newStatus === "cap") {
+      if (
+        !hasAdjustedRoundScores &&
+        data.secondaryScore &&
+        newStatus === "cap"
+      ) {
         const parsed = Number.parseInt(data.secondaryScore.trim(), 10)
         if (!Number.isNaN(parsed) && parsed >= 0) {
           secondaryValue = parsed
@@ -498,7 +601,8 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
               value: encodedValue,
               status: newStatus,
               scheme,
-              scoreType: (score.scoreType as "max" | "min") ?? "max",
+              scoreType: resolvedScoreType,
+              cappedRoundCount: isMultiRound ? cappedRoundCount : undefined,
               timeCap:
                 newStatus === "cap" &&
                 score.timeCapMs &&
@@ -514,6 +618,25 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
                   : undefined,
             })
           : null
+
+      if (isMultiRound) {
+        logInfo({
+          message: hasAdjustedRoundScores
+            ? "[Score] Multi-round adjust applied with per-round inputs — rounds rewritten"
+            : "[Score] Multi-round adjust applied — parent total updated, round breakdown preserved as-is and may diverge",
+          attributes: {
+            scoreId: data.scoreId,
+            competitionId: data.competitionId,
+            verifiedByUserId: session.userId,
+            roundCount: hasAdjustedRoundScores
+              ? (data.adjustedRoundScores?.length ?? 0)
+              : existingRounds.length,
+            cappedRoundCount,
+            newStatus,
+            encodedValue,
+          },
+        })
+      }
 
       // Determine review status for video submission based on penalty
       const videoReviewStatus = data.penaltyType ? "penalized" : "adjusted"
@@ -537,6 +660,31 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
             updatedAt: now,
           })
           .where(eq(scoresTable.id, data.scoreId))
+
+        // Per-round inputs supplied → rewrite the round breakdown.
+        // Delete + insert (rather than update) so the leaderboard
+        // cap-count tiebreaker stays consistent with the new parent total
+        // even if the organizer changed the number of rounds.
+        if (hasAdjustedRoundScores && data.adjustedRoundScores) {
+          await tx
+            .delete(scoreRoundsTable)
+            .where(eq(scoreRoundsTable.scoreId, data.scoreId))
+
+          // Reuse the already-encoded round values from `encodeRounds` so
+          // roundStatuses (also derived from that output) lines up with the
+          // rows we write. The length guard above guarantees 1:1 alignment
+          // with data.adjustedRoundScores.
+          const roundsToInsert = data.adjustedRoundScores.map(
+            (round, index) => ({
+              scoreId: data.scoreId,
+              roundNumber: round.roundNumber,
+              value: encodedAdjustedRounds[index] ?? 0,
+              status: roundStatuses[index] ?? null,
+            }),
+          )
+
+          await tx.insert(scoreRoundsTable).values(roundsToInsert)
+        }
 
         await tx.insert(scoreVerificationLogsTable).values({
           scoreId: data.scoreId,

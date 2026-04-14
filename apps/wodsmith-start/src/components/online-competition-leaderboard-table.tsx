@@ -137,6 +137,35 @@ function formatMemberName(member: TeamMemberInfo): string {
   return member.isCaptain ? `${name} (C)` : name
 }
 
+/**
+ * Compact badge showing how many rounds were capped on a multi-round score.
+ * Hidden for single-round and fully-scored multi-round results.
+ */
+function CappedRoundsIndicator({
+  result,
+}: {
+  result: CompetitionLeaderboardEntry["eventResults"][number]
+}) {
+  if (result.totalRoundCount <= 1) return null
+  if (result.cappedRoundCount <= 0) return null
+
+  const allCapped = result.cappedRoundCount === result.totalRoundCount
+  const label = allCapped
+    ? `All ${result.totalRoundCount} rounds capped`
+    : `${result.cappedRoundCount}/${result.totalRoundCount} rounds capped`
+
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      title={label}
+      className="inline-flex items-center rounded-sm border border-amber-500/40 bg-amber-500/10 px-1 py-px text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300"
+    >
+      {result.cappedRoundCount}/{result.totalRoundCount} cap
+    </span>
+  )
+}
+
 /** Subtle warning icon indicating a penalty or score adjustment */
 function PenaltyIndicator({
   result,
@@ -201,13 +230,13 @@ function SortableHeader({
   return (
     <button
       type="button"
-      className="flex items-center gap-1.5 text-xs uppercase tracking-wide font-medium hover:text-foreground transition-colors"
+      className="flex w-full items-center justify-between gap-1.5 text-xs uppercase tracking-wide font-medium hover:text-foreground transition-colors"
       onClick={() => column.toggleSorting()}
     >
-      {children}
+      <span className="min-w-0 flex-1 truncate text-left">{children}</span>
       <ArrowUpDown
         className={cn(
-          "h-3 w-3 transition-colors",
+          "h-3 w-3 shrink-0 transition-colors",
           sorted ? "text-foreground" : "text-muted-foreground/40",
         )}
       />
@@ -609,8 +638,9 @@ function MobileOnlineLeaderboardRow({
                   </span>
                   {result && result.rank > 0 ? (
                     <div className="flex flex-col gap-0.5">
-                      <span className="font-medium tabular-nums">
+                      <span className="font-medium tabular-nums inline-flex items-center gap-1">
                         {result.formattedScore}
+                        <CappedRoundsIndicator result={result} />
                         {result.formattedTiebreak && (
                           <span className="text-muted-foreground font-normal ml-1">
                             (TB: {result.formattedTiebreak})
@@ -873,6 +903,7 @@ export function OnlineCompetitionLeaderboardTable({
             return (
               <span className="font-medium tabular-nums inline-flex items-center gap-1">
                 {result.formattedScore}
+                <CappedRoundsIndicator result={result} />
                 <PenaltyIndicator result={result} />
                 {result.formattedTiebreak && (
                   <span className="text-muted-foreground font-normal ml-1">
@@ -948,9 +979,7 @@ export function OnlineCompetitionLeaderboardTable({
         id: `event-${event.id}`,
         header: ({ column }: LeaderboardHeaderContext) => (
           <SortableHeader column={column}>
-            <span className="truncate max-w-[100px]" title={event.name}>
-              {event.name}
-            </span>
+            <span title={event.name}>{event.name}</span>
           </SortableHeader>
         ),
         accessorFn: (row: CompetitionLeaderboardEntry) => {
@@ -970,6 +999,7 @@ export function OnlineCompetitionLeaderboardTable({
             <div className="flex flex-col gap-0.5">
               <span className="font-medium tabular-nums inline-flex items-center gap-1">
                 {result.formattedScore}
+                <CappedRoundsIndicator result={result} />
                 <PenaltyIndicator result={result} />
                 {result.formattedTiebreak && (
                   <span className="text-muted-foreground font-normal ml-1">

@@ -86,6 +86,15 @@ export interface Score {
     secondaryValue: number
   }
 
+  /**
+   * Per-round cap counts for multi-round `time-with-cap` workouts.
+   * When present, `computeSortKey` uses `cappedRoundCount` as a tiebreaker
+   * *above* the summed total within the "cap" status bucket, so scores with
+   * fewer capped rounds always rank ahead of scores with more capped rounds.
+   */
+  cappedRoundCount?: number
+  totalRoundCount?: number
+
   // Computed sort key (for database storage)
   sortKey?: bigint
 }
