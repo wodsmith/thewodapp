@@ -900,6 +900,33 @@ export const submitVideoFn = createServerFn({ method: "POST" })
       )
     }
 
+    // A score is required — either provided in this request or already
+    // persisted from a prior submission for the same event. Notes alone are
+    // not a substitute for a score.
+    const hasIncomingScore = !!data.score || (data.roundScores?.length ?? 0) > 0
+
+    if (!hasIncomingScore) {
+      const [existingScoreRow] = await db
+        .select({ id: scoresTable.id })
+        .from(scoresTable)
+        .where(
+          and(
+            eq(scoresTable.competitionEventId, data.trackWorkoutId),
+            eq(scoresTable.userId, session.userId),
+            registration.divisionId
+              ? eq(scoresTable.scalingLevelId, registration.divisionId)
+              : sql`1=1`,
+          ),
+        )
+        .limit(1)
+
+      if (!existingScoreRow) {
+        throw new Error(
+          "A score is required to submit. Please enter your score before submitting.",
+        )
+      }
+    }
+
     // Check for existing video submission at this index
     const [existingSubmission] = await db
       .select({ id: videoSubmissionsTable.id })

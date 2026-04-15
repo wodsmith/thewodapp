@@ -192,6 +192,12 @@ Team divisions allow up to `teamSize` video submissions per event, tracked via a
 
 The unique constraint is `(registrationId, trackWorkoutId, videoIndex)`. Videos are optional — teams can submit fewer than `teamSize`. The score is submitted once per team (tied to the captain's userId).
 
+### Score Is Required
+
+A score must always accompany a submission — the optional notes field is not a substitute for entering a value in the score input.
+
+[[apps/wodsmith-start/src/components/compete/video-submission-form.tsx#VideoSubmissionForm]] blocks submission when the score input is empty (or when any round of a multi-round workout is blank). [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#submitVideoFn]] enforces the same invariant on the server: if the request carries no `score`/`roundScores` and no prior score row exists for this `(competitionEventId, userId, scalingLevelId)`, it rejects with "A score is required to submit". Subsequent partner video uploads in a team submission don't re-send the score and therefore skip this check by relying on the existing score row the first upload persisted.
+
 ### Round Breakdown Display
 
 Multi-round scores are displayed with a total followed by each round's time, so athletes and organizers can see how the aggregate was built.

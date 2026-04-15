@@ -751,28 +751,31 @@ export function VideoSubmissionForm({
       }
     }
 
-    // Validate score — multi-round or single
+    // Validate score — multi-round or single. A score is required; notes
+    // alone do not count as a submission.
     if (isMultiRound && workout) {
       const filledRounds = roundScoreInputs.filter((s) => s.trim())
-      if (filledRounds.length > 0 && filledRounds.length < roundsToScore) {
+      if (filledRounds.length < roundsToScore) {
         setError(
-          `Please enter scores for all ${roundsToScore} rounds, or leave them all empty`,
+          `Please enter scores for all ${roundsToScore} rounds`,
         )
         return
       }
       for (let i = 0; i < roundScoreInputs.length; i++) {
         const input = roundScoreInputs[i]
-        if (input.trim()) {
-          const result = parseScore(input, workout.scheme)
-          if (!result.isValid) {
-            setError(
-              `Round ${i + 1}: ${result.error || "Please check your score entry"}`,
-            )
-            return
-          }
+        const result = parseScore(input, workout.scheme)
+        if (!result.isValid) {
+          setError(
+            `Round ${i + 1}: ${result.error || "Please check your score entry"}`,
+          )
+          return
         }
       }
-    } else if (scoreInput.trim() && workout) {
+    } else if (workout) {
+      if (!scoreInput.trim()) {
+        setError("Please enter your score")
+        return
+      }
       if (!parseResult?.isValid) {
         setError(
           `Invalid score: ${parseResult?.error || "Please check your score entry"}`,

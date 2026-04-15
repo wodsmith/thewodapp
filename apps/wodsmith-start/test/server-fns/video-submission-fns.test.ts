@@ -570,6 +570,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([]) // No event = allow submission
 				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
+				.mockResolvedValueOnce([{ id: "score-existing" }]) // Existing score satisfies score-required check
 				.mockResolvedValueOnce([]) // No existing submission
 
 			const result = await submitVideoFn({
@@ -597,6 +598,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([])
 				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
+				.mockResolvedValueOnce([{ id: "score-existing" }]) // Existing score satisfies score-required check
 				.mockResolvedValueOnce([existingSubmission]) // Existing submission found
 
 			const result = await submitVideoFn({
@@ -856,9 +858,16 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			).rejects.toThrow()
 		})
 
-		it("includes notes in submission when provided", async () => {
+		it("includes notes in submission when provided alongside a score", async () => {
 			const registration = createTestRegistration()
 			const competition = createTestCompetition({ competitionType: "online" })
+			const workout = createTestWorkout({
+				id: "wk-1",
+				scheme: "time",
+				scoreType: "min",
+			})
+			const trackWorkout = createTestTrackWorkout({ workoutId: "wk-1" })
+			const track = { ownerTeamId: "team-1" }
 			const newSubmission = createTestVideoSubmission({
 				id: "sub-new",
 				notes: "Great performance!",
@@ -870,7 +879,11 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([])
 				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
-				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([]) // No existing submission
+				.mockResolvedValueOnce([
+					{ ...trackWorkout, ...workout, trackId: "track-1" },
+				]) // Workout details
+				.mockResolvedValueOnce([track]) // Track for team ownership
 
 			const returningMock = mockDb.getChainMock().returning as ReturnType<
 				typeof vi.fn
@@ -883,11 +896,40 @@ describe("Video Submission Server Functions (TanStack)", () => {
 					competitionId: "comp-1",
 					videoUrl: "https://youtube.com/watch?v=test",
 					notes: "Great performance!",
+					score: "5:30",
+					scoreStatus: "scored",
 				},
 			})
 
 			expect(result.success).toBe(true)
 			expect(mockDb.insert).toHaveBeenCalled()
+		})
+
+		it("throws when no score is provided and no prior score exists", async () => {
+			// Regression guard: teams were submitting without a score by putting
+			// the value in the notes field. A score must always be present —
+			// either in the request or already persisted from a prior submission.
+			const registration = createTestRegistration()
+			const competition = createTestCompetition({ competitionType: "online" })
+
+			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			limitMock
+				.mockResolvedValueOnce([registration])
+				.mockResolvedValueOnce([competition])
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
+				.mockResolvedValueOnce([]) // No existing score row
+
+			await expect(
+				submitVideoFn({
+					data: {
+						trackWorkoutId: "tw-1",
+						competitionId: "comp-1",
+						videoUrl: "https://youtube.com/watch?v=test",
+						notes: "Our time was 5:30",
+					},
+				}),
+			).rejects.toThrow(/score is required/i)
 		})
 
 		it("handles rounds-reps score format", async () => {
@@ -1310,6 +1352,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([]) // No event = allow submission
 				.mockResolvedValueOnce([{ teamSize: 3 }]) // Team of 3
+				.mockResolvedValueOnce([{ id: "score-existing" }]) // Existing score satisfies score-required check
 				.mockResolvedValueOnce([]) // No existing submission at this index
 
 			const result = await submitVideoFn({
@@ -1337,6 +1380,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([]) // No event = allow submission
 				.mockResolvedValueOnce([{ teamSize: 1 }]) // Individual
+				.mockResolvedValueOnce([{ id: "score-existing" }]) // Existing score satisfies score-required check
 				.mockResolvedValueOnce([]) // No existing submission
 
 			const result = await submitVideoFn({
