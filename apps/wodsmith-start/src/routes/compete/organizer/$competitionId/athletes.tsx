@@ -555,11 +555,18 @@ function AthletesPage() {
     }
 
     // Parse registration metadata for per-user affiliates
-    const registrationMetadata = registration.metadata
-      ? (typeof registration.metadata === "string"
-          ? JSON.parse(registration.metadata)
-          : registration.metadata)
-      : null
+    let registrationMetadata: Record<string, unknown> | null = null
+    if (registration.metadata) {
+      if (typeof registration.metadata === "string") {
+        try {
+          registrationMetadata = JSON.parse(registration.metadata)
+        } catch {
+          // Invalid JSON, fall back to null
+        }
+      } else {
+        registrationMetadata = registration.metadata as Record<string, unknown>
+      }
+    }
     const metadataAffiliates =
       registrationMetadata?.affiliates as Record<string, string | null> | undefined
 
