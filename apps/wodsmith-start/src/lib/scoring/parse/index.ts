@@ -35,8 +35,12 @@ export { parseTime, validateTimeInput } from "./time"
  * @param options - Optional parsing options
  *
  * @example
- * parseScore("1234", "time")
+ * parseScore("12:34", "time")
  * // → { isValid: true, encoded: 754000, formatted: "12:34" }
+ *
+ * parseScore("2000", "time")
+ * // → { isValid: true, encoded: 2000000, formatted: "33:20" }
+ * // (bare digits = raw seconds, matching encodeScore)
  *
  * parseScore("5+12", "rounds-reps")
  * // → { isValid: true, encoded: 500012, formatted: "5+12" }
