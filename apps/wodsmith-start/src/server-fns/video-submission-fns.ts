@@ -918,12 +918,16 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 
     const now = new Date()
 
-    // Validate score is present before saving anything
+    // Validate score is present before saving anything.
+    // For team divisions the captain submits all videos in one form action;
+    // the score is only sent with the first slot (videoIndex 0) and shared
+    // across the team's submission, so subsequent slots intentionally arrive
+    // without a score and must not be rejected here.
     const hasRoundScores =
       data.roundScores && data.roundScores.length > 0
     const hasScore = data.score || hasRoundScores
 
-    if (!hasScore) {
+    if (data.videoIndex === 0 && !hasScore) {
       throw new Error("A score is required when submitting")
     }
 
