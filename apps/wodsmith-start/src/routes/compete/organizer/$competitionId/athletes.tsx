@@ -554,8 +554,24 @@ function AthletesPage() {
         })
     }
 
+    // Parse registration metadata for per-user affiliates
+    const registrationMetadata = registration.metadata
+      ? (typeof registration.metadata === "string"
+          ? JSON.parse(registration.metadata)
+          : registration.metadata)
+      : null
+    const metadataAffiliates =
+      registrationMetadata?.affiliates as Record<string, string | null> | undefined
+
     // Create a row for each member
     allMembers.forEach((member, memberIndex) => {
+      const userId = member.user?.id ?? ""
+      // Prefer affiliate from registration metadata, fall back to user profile
+      const affiliateName =
+        metadataAffiliates?.[userId] ??
+        (member.user as { affiliateName?: string | null })?.affiliateName ??
+        null
+
       athleteRows.push({
         registrationId: registration.id,
         registrationStatus: registration.status,
@@ -565,14 +581,12 @@ function AthletesPage() {
         ordinal: rowIndex,
         ordinalLabel: memberIndex === 0 ? String(rowIndex) : "",
         athlete: {
-          id: member.user?.id ?? "",
+          id: userId,
           firstName: member.user?.firstName ?? null,
           lastName: member.user?.lastName ?? null,
           email: member.user?.email ?? null,
           avatar: member.user?.avatar ?? null,
-          affiliateName:
-            (member.user as { affiliateName?: string | null })?.affiliateName ??
-            null,
+          affiliateName,
         },
         isCaptain: member.isCaptain,
         status: "registered",
