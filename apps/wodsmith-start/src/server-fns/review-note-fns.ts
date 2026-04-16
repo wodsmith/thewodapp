@@ -7,19 +7,15 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, asc, eq, inArray, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
-import {
-  competitionRegistrationsTable,
-  competitionsTable,
-} from "@/db/schemas/competitions"
+import { competitionRegistrationsTable } from "@/db/schemas/competitions"
 import { createReviewNoteId } from "@/db/schemas/common"
 import { trackWorkoutsTable } from "@/db/schemas/programming"
 import { reviewNotesTable } from "@/db/schemas/review-notes"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
 import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
 import { movements, workoutMovements } from "@/db/schemas/workouts"
 import { getSessionFromCookie } from "@/utils/auth"
-import { requireTeamPermission } from "@/utils/team-auth"
+import { requireSubmissionReviewAccess } from "@/utils/team-auth"
 
 // ============================================================================
 // Input Schemas
@@ -75,23 +71,8 @@ export const getReviewNotesFn = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const db = getDb()
 
-    // Verify organizer permission
-    const [competition] = await db
-      .select({
-        id: competitionsTable.id,
-        organizingTeamId: competitionsTable.organizingTeamId,
-      })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-      .limit(1)
-
-    if (!competition) {
-      throw new Error("NOT_FOUND: Competition not found")
-    }
-
-    await requireTeamPermission(
-      competition.organizingTeamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+    const { organizingTeamId } = await requireSubmissionReviewAccess(
+      data.competitionId,
     )
 
     // Query notes with reviewer info and movement name
@@ -115,7 +96,7 @@ export const getReviewNotesFn = createServerFn({ method: "GET" })
       .where(
         and(
           eq(reviewNotesTable.videoSubmissionId, data.videoSubmissionId),
-          eq(reviewNotesTable.teamId, competition.organizingTeamId),
+          eq(reviewNotesTable.teamId, organizingTeamId),
         ),
       )
       .orderBy(
@@ -155,23 +136,8 @@ export const createReviewNoteFn = createServerFn({ method: "POST" })
 
     const db = getDb()
 
-    // Verify organizer permission
-    const [competition] = await db
-      .select({
-        id: competitionsTable.id,
-        organizingTeamId: competitionsTable.organizingTeamId,
-      })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-      .limit(1)
-
-    if (!competition) {
-      throw new Error("NOT_FOUND: Competition not found")
-    }
-
-    await requireTeamPermission(
-      competition.organizingTeamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+    const { organizingTeamId } = await requireSubmissionReviewAccess(
+      data.competitionId,
     )
 
     // Verify video submission belongs to this competition
@@ -205,7 +171,7 @@ export const createReviewNoteFn = createServerFn({ method: "POST" })
       id,
       videoSubmissionId: data.videoSubmissionId,
       userId: session.userId,
-      teamId: competition.organizingTeamId,
+      teamId: organizingTeamId,
       type: data.type,
       content: data.content,
       timestampSeconds: data.timestampSeconds ?? null,
@@ -265,23 +231,8 @@ export const updateReviewNoteFn = createServerFn({ method: "POST" })
 
     const db = getDb()
 
-    // Verify organizer permission
-    const [competition] = await db
-      .select({
-        id: competitionsTable.id,
-        organizingTeamId: competitionsTable.organizingTeamId,
-      })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-      .limit(1)
-
-    if (!competition) {
-      throw new Error("NOT_FOUND: Competition not found")
-    }
-
-    await requireTeamPermission(
-      competition.organizingTeamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+    const { organizingTeamId } = await requireSubmissionReviewAccess(
+      data.competitionId,
     )
 
     // Build update fields
@@ -300,7 +251,7 @@ export const updateReviewNoteFn = createServerFn({ method: "POST" })
       .where(
         and(
           eq(reviewNotesTable.id, data.noteId),
-          eq(reviewNotesTable.teamId, competition.organizingTeamId),
+          eq(reviewNotesTable.teamId, organizingTeamId),
         ),
       )
 
@@ -320,23 +271,8 @@ export const deleteReviewNoteFn = createServerFn({ method: "POST" })
 
     const db = getDb()
 
-    // Verify organizer permission
-    const [competition] = await db
-      .select({
-        id: competitionsTable.id,
-        organizingTeamId: competitionsTable.organizingTeamId,
-      })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-      .limit(1)
-
-    if (!competition) {
-      throw new Error("NOT_FOUND: Competition not found")
-    }
-
-    await requireTeamPermission(
-      competition.organizingTeamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+    const { organizingTeamId } = await requireSubmissionReviewAccess(
+      data.competitionId,
     )
 
     // Verify note exists and belongs to this competition's team
@@ -346,7 +282,7 @@ export const deleteReviewNoteFn = createServerFn({ method: "POST" })
       .where(
         and(
           eq(reviewNotesTable.id, data.noteId),
-          eq(reviewNotesTable.teamId, competition.organizingTeamId),
+          eq(reviewNotesTable.teamId, organizingTeamId),
         ),
       )
       .limit(1)
@@ -360,7 +296,7 @@ export const deleteReviewNoteFn = createServerFn({ method: "POST" })
       .where(
         and(
           eq(reviewNotesTable.id, data.noteId),
-          eq(reviewNotesTable.teamId, competition.organizingTeamId),
+          eq(reviewNotesTable.teamId, organizingTeamId),
         ),
       )
 
@@ -375,24 +311,7 @@ export const getWorkoutMovementsFn = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const db = getDb()
 
-    // Verify organizer permission
-    const [competition] = await db
-      .select({
-        id: competitionsTable.id,
-        organizingTeamId: competitionsTable.organizingTeamId,
-      })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-      .limit(1)
-
-    if (!competition) {
-      throw new Error("NOT_FOUND: Competition not found")
-    }
-
-    await requireTeamPermission(
-      competition.organizingTeamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-    )
+    await requireSubmissionReviewAccess(data.competitionId)
 
     // Resolve workoutId from trackWorkoutId if needed
     let resolvedWorkoutId = data.workoutId
@@ -446,23 +365,8 @@ export const getReviewNotesForRegistrationFn = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const db = getDb()
 
-    // Verify organizer permission
-    const [competition] = await db
-      .select({
-        id: competitionsTable.id,
-        organizingTeamId: competitionsTable.organizingTeamId,
-      })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-      .limit(1)
-
-    if (!competition) {
-      throw new Error("NOT_FOUND: Competition not found")
-    }
-
-    await requireTeamPermission(
-      competition.organizingTeamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+    const { organizingTeamId } = await requireSubmissionReviewAccess(
+      data.competitionId,
     )
 
     // Get all video submission IDs for this registration + event,
@@ -512,7 +416,7 @@ export const getReviewNotesForRegistrationFn = createServerFn({ method: "GET" })
       .where(
         and(
           inArray(reviewNotesTable.videoSubmissionId, submissionIds),
-          eq(reviewNotesTable.teamId, competition.organizingTeamId),
+          eq(reviewNotesTable.teamId, organizingTeamId),
         ),
       )
       .orderBy(

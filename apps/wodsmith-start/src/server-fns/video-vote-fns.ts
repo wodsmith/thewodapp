@@ -9,11 +9,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, count, eq, inArray, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
-import {
-  competitionRegistrationsTable,
-  competitionsTable,
-} from "@/db/schemas/competitions"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { competitionRegistrationsTable } from "@/db/schemas/competitions"
 import {
   createVideoVoteId,
   downvoteReasons,
@@ -22,7 +18,7 @@ import {
 import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
 import { userTable } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"
-import { requireTeamPermission } from "@/utils/team-auth"
+import { requireSubmissionReviewAccess } from "@/utils/team-auth"
 
 // ============================================================================
 // Input Schemas
@@ -224,20 +220,7 @@ export const getSubmissionVoteDetailsFn = createServerFn({ method: "GET" })
     const db = getDb()
 
     // Verify organizer permission
-    const [competition] = await db
-      .select({ organizingTeamId: competitionsTable.organizingTeamId })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-      .limit(1)
-
-    if (!competition) {
-      throw new Error("NOT_FOUND: Competition not found")
-    }
-
-    await requireTeamPermission(
-      competition.organizingTeamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-    )
+    await requireSubmissionReviewAccess(data.competitionId)
 
     // Verify the submission belongs to this competition
     const [submission] = await db
@@ -331,20 +314,7 @@ export const getFlaggedSubmissionsFn = createServerFn({ method: "GET" })
     const db = getDb()
 
     // Verify organizer permission
-    const [competition] = await db
-      .select({ organizingTeamId: competitionsTable.organizingTeamId })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-      .limit(1)
-
-    if (!competition) {
-      throw new Error("NOT_FOUND: Competition not found")
-    }
-
-    await requireTeamPermission(
-      competition.organizingTeamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-    )
+    await requireSubmissionReviewAccess(data.competitionId)
 
     // Get submissions with downvote counts >= threshold
     // Join through video_submissions to filter by competition

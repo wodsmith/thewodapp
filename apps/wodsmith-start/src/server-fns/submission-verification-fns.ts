@@ -12,7 +12,6 @@ import { getDb } from "@/db"
 import {
   competitionEventsTable,
   competitionRegistrationsTable,
-  competitionsTable,
 } from "@/db/schemas/competitions"
 import {
   programmingTracksTable,
@@ -24,7 +23,6 @@ import {
   scoresTable,
   scoreVerificationLogsTable,
 } from "@/db/schemas/scores"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
 import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
 import { workouts } from "@/db/schemas/workouts"
@@ -42,7 +40,7 @@ import {
 } from "@/lib/scoring"
 import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk } from "@/utils/batch-query"
-import { requireTeamPermission } from "@/utils/team-auth"
+import { requireSubmissionReviewAccess } from "@/utils/team-auth"
 
 // ============================================================================
 // Helpers
@@ -260,23 +258,21 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
         throw new Error("Not authenticated")
       }
 
-      // Load competition to get organizingTeamId
-      const [competition] = await db
-        .select({ organizingTeamId: competitionsTable.organizingTeamId })
-        .from(competitionsTable)
-        .where(eq(competitionsTable.id, data.competitionId))
-        .limit(1)
+      await requireSubmissionReviewAccess(data.competitionId)
 
-      if (!competition) {
-        throw new Error("Competition not found")
-      }
-
-      await requireTeamPermission(
-        competition.organizingTeamId,
-        TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-      )
-
-      getEvlog()?.set({ action: data.action === "verify" ? "verify_submission" : data.action === "adjust" ? "adjust_submission" : "reject_submission", verification: { competitionId: data.competitionId, scoreId: data.scoreId, trackWorkoutId: data.trackWorkoutId } })
+      getEvlog()?.set({
+        action:
+          data.action === "verify"
+            ? "verify_submission"
+            : data.action === "adjust"
+              ? "adjust_submission"
+              : "reject_submission",
+        verification: {
+          competitionId: data.competitionId,
+          scoreId: data.scoreId,
+          trackWorkoutId: data.trackWorkoutId,
+        },
+      })
 
       // Verify the event belongs to this competition
       await verifyEventBelongsToCompetition(
@@ -514,8 +510,7 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
         .from(scoreRoundsTable)
         .where(eq(scoreRoundsTable.scoreId, data.scoreId))
 
-      const isMultiRound =
-        hasAdjustedRoundScores || existingRounds.length > 1
+      const isMultiRound = hasAdjustedRoundScores || existingRounds.length > 1
 
       let encodedValue: number | null = null
       let encodedAdjustedRounds: number[] = []
@@ -761,20 +756,7 @@ export const getSubmissionDetailFn = createServerFn({ method: "GET" })
         throw new Error("Not authenticated")
       }
 
-      const [competition] = await db
-        .select({ organizingTeamId: competitionsTable.organizingTeamId })
-        .from(competitionsTable)
-        .where(eq(competitionsTable.id, data.competitionId))
-        .limit(1)
-
-      if (!competition) {
-        throw new Error("Competition not found")
-      }
-
-      await requireTeamPermission(
-        competition.organizingTeamId,
-        TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-      )
+      await requireSubmissionReviewAccess(data.competitionId)
 
       // Verify the event belongs to this competition
       const eventWindow = await verifyEventBelongsToCompetition(
@@ -1006,20 +988,7 @@ export const getEventSubmissionsFn = createServerFn({ method: "GET" })
       throw new Error("Not authenticated")
     }
 
-    const [competition] = await db
-      .select({ organizingTeamId: competitionsTable.organizingTeamId })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-      .limit(1)
-
-    if (!competition) {
-      throw new Error("Competition not found")
-    }
-
-    await requireTeamPermission(
-      competition.organizingTeamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-    )
+    await requireSubmissionReviewAccess(data.competitionId)
 
     // Verify the event belongs to this competition
     await verifyEventBelongsToCompetition(
@@ -1164,23 +1133,13 @@ export const getEventDetailsForVerificationFn = createServerFn({
       throw new Error("Not authenticated")
     }
 
-    const [competition] = await db
-      .select({ organizingTeamId: competitionsTable.organizingTeamId })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-      .limit(1)
-
-    if (!competition) {
-      throw new Error("Competition not found")
-    }
-
-    await requireTeamPermission(
-      competition.organizingTeamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-    )
+    await requireSubmissionReviewAccess(data.competitionId)
 
     // Verify the event belongs to this competition and get submission window
-    let eventWindow: { submissionOpensAt: string | null; submissionClosesAt: string | null }
+    let eventWindow: {
+      submissionOpensAt: string | null
+      submissionClosesAt: string | null
+    }
     try {
       eventWindow = await verifyEventBelongsToCompetition(
         db,
@@ -1245,20 +1204,7 @@ export const getVerificationLogsFn = createServerFn({ method: "GET" })
     const db = getDb()
 
     // Verify organizer permission
-    const [competition] = await db
-      .select({ organizingTeamId: competitionsTable.organizingTeamId })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-      .limit(1)
-
-    if (!competition) {
-      return { logs: [] }
-    }
-
-    await requireTeamPermission(
-      competition.organizingTeamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-    )
+    await requireSubmissionReviewAccess(data.competitionId)
 
     // Get logs for this score, newest first
     const logs = await db
@@ -1374,22 +1320,12 @@ export const deleteVerificationLogFn = createServerFn({ method: "POST" })
       throw new Error("Not authenticated")
     }
 
-    const [competition] = await db
-      .select({ organizingTeamId: competitionsTable.organizingTeamId })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-      .limit(1)
+    await requireSubmissionReviewAccess(data.competitionId)
 
-    if (!competition) {
-      throw new Error("Competition not found")
-    }
-
-    await requireTeamPermission(
-      competition.organizingTeamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-    )
-
-    getEvlog()?.set({ action: "delete_verification_log", verification: { competitionId: data.competitionId, logId: data.logId } })
+    getEvlog()?.set({
+      action: "delete_verification_log",
+      verification: { competitionId: data.competitionId, logId: data.logId },
+    })
 
     // Verify the log entry belongs to this competition
     const [log] = await db
@@ -1438,22 +1374,12 @@ export const updateVerificationLogFn = createServerFn({ method: "POST" })
       throw new Error("Not authenticated")
     }
 
-    const [competition] = await db
-      .select({ organizingTeamId: competitionsTable.organizingTeamId })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-      .limit(1)
+    await requireSubmissionReviewAccess(data.competitionId)
 
-    if (!competition) {
-      throw new Error("Competition not found")
-    }
-
-    await requireTeamPermission(
-      competition.organizingTeamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-    )
-
-    getEvlog()?.set({ action: "update_verification_log", verification: { competitionId: data.competitionId, logId: data.logId } })
+    getEvlog()?.set({
+      action: "update_verification_log",
+      verification: { competitionId: data.competitionId, logId: data.logId },
+    })
 
     // Verify the log entry belongs to this competition and get scoreId + context
     const [log] = await db

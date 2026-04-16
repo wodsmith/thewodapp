@@ -199,7 +199,7 @@ export function RegistrationSidebar({
             <Button asChild variant="default" size="sm" className="w-full">
               <a href={`/compete/${competition.slug}/my-schedule`}>
                 <Calendar className="mr-2 h-4 w-4" />
-                My Volunteer Schedule
+                Volunteer Dashboard
               </a>
             </Button>
           </CardContent>

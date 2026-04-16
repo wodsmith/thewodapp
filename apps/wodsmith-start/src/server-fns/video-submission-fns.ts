@@ -20,7 +20,6 @@ import {
 } from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
 import type { ReviewStatus } from "@/db/schemas/video-submissions"
 import {
@@ -44,7 +43,7 @@ import {
 } from "@/lib/scoring"
 import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk } from "@/utils/batch-query"
-import { requireTeamPermission } from "@/utils/team-auth"
+import { requireSubmissionReviewAccess } from "@/utils/team-auth"
 
 // ============================================================================
 // Input Schemas
@@ -77,9 +76,7 @@ const submitVideoInputSchema = z.object({
   secondaryScore: z.string().optional(),
   tiebreakScore: z.string().optional(),
   // Per-round scores for multi-round workouts
-  roundScores: z
-    .array(z.object({ score: z.string() }))
-    .optional(),
+  roundScores: z.array(z.object({ score: z.string() })).optional(),
 })
 
 // ============================================================================
@@ -411,6 +408,8 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
       status: string | null
       secondaryValue: number | null
       tiebreakValue: number | null
+      verificationStatus: string | null
+      penaltyType: string | null
       roundScores: Array<{
         roundNumber: number
         value: number
@@ -441,6 +440,8 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
         secondaryValue: scoresTable.secondaryValue,
         tiebreakValue: scoresTable.tiebreakValue,
         scheme: scoresTable.scheme,
+        verificationStatus: scoresTable.verificationStatus,
+        penaltyType: scoresTable.penaltyType,
       })
       .from(scoresTable)
       .where(and(...scoreConditions))
@@ -493,6 +494,8 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
         status: score.status,
         secondaryValue: score.secondaryValue,
         tiebreakValue: score.tiebreakValue,
+        verificationStatus: score.verificationStatus ?? null,
+        penaltyType: score.penaltyType ?? null,
         roundScores,
       }
     }
@@ -705,7 +708,9 @@ export const getAthleteDivisionSubmissionsFn = createServerFn({ method: "GET" })
     }
 
     // For team registrations, only the captain can submit
-    const isTeamCaptain = !registration.captainUserId || registration.captainUserId === session.userId
+    const isTeamCaptain =
+      !registration.captainUserId ||
+      registration.captainUserId === session.userId
     const scoreUserId = registration.captainUserId ?? registration.userId
 
     // Fetch events, video submissions, and scores in parallel
@@ -793,9 +798,7 @@ export const getAthleteDivisionSubmissionsFn = createServerFn({ method: "GET" })
         }
       }
     }
-    const scoreMap = new Map(
-      scores.map((s) => [s.competitionEventId, s]),
-    )
+    const scoreMap = new Map(scores.map((s) => [s.competitionEventId, s]))
 
     const now = new Date()
     const submissions: WorkoutSubmission[] = data.trackWorkoutIds.map(
@@ -1194,21 +1197,8 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const db = getDb()
 
-    // Verify user is authenticated and has organizer permission
-    const [competition] = await db
-      .select({ organizingTeamId: competitionsTable.organizingTeamId })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-      .limit(1)
-
-    if (!competition) {
-      throw new Error("NOT_FOUND: Competition not found")
-    }
-
-    await requireTeamPermission(
-      competition.organizingTeamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-    )
+    // Verify user has organizer permission or volunteer score-input entitlement
+    await requireSubmissionReviewAccess(data.competitionId)
 
     // Get all video submissions for this event with athlete and registration info
     const submissions = await db
@@ -1489,21 +1479,8 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const db = getDb()
 
-    // Verify user has organizer permission for this competition
-    const [competition] = await db
-      .select({ organizingTeamId: competitionsTable.organizingTeamId })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-      .limit(1)
-
-    if (!competition) {
-      throw new Error("NOT_FOUND: Competition not found")
-    }
-
-    await requireTeamPermission(
-      competition.organizingTeamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-    )
+    // Verify user has organizer permission or volunteer score-input entitlement
+    await requireSubmissionReviewAccess(data.competitionId)
 
     const [submission] = await db
       .select({
@@ -1514,6 +1491,8 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
         submittedAt: videoSubmissionsTable.submittedAt,
         reviewedAt: videoSubmissionsTable.reviewedAt,
         reviewedBy: videoSubmissionsTable.reviewedBy,
+        reviewerNotes: videoSubmissionsTable.reviewerNotes,
+        reviewStatus: videoSubmissionsTable.reviewStatus,
         trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
         registrationId: videoSubmissionsTable.registrationId,
         userId: videoSubmissionsTable.userId,
@@ -1632,6 +1611,7 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
             }
           : null,
         teamName: submission.teamName,
+        reviewerNotes: submission.reviewerNotes,
         scoreId: score?.id ?? null,
         score: score
           ? {
@@ -1668,21 +1648,8 @@ export const markSubmissionReviewedFn = createServerFn({ method: "POST" })
 
     const db = getDb()
 
-    // Verify organizer permission
-    const [competition] = await db
-      .select({ organizingTeamId: competitionsTable.organizingTeamId })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-      .limit(1)
-
-    if (!competition) {
-      throw new Error("NOT_FOUND: Competition not found")
-    }
-
-    await requireTeamPermission(
-      competition.organizingTeamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-    )
+    // Verify user has organizer permission or volunteer score-input entitlement
+    await requireSubmissionReviewAccess(data.competitionId)
 
     await db
       .update(videoSubmissionsTable)
@@ -1717,21 +1684,8 @@ export const unmarkSubmissionReviewedFn = createServerFn({ method: "POST" })
 
     const db = getDb()
 
-    // Verify organizer permission
-    const [competition] = await db
-      .select({ organizingTeamId: competitionsTable.organizingTeamId })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-      .limit(1)
-
-    if (!competition) {
-      throw new Error("NOT_FOUND: Competition not found")
-    }
-
-    await requireTeamPermission(
-      competition.organizingTeamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-    )
+    // Verify user has organizer permission or volunteer score-input entitlement
+    await requireSubmissionReviewAccess(data.competitionId)
 
     await db
       .update(videoSubmissionsTable)
@@ -1763,21 +1717,8 @@ export const getSiblingSubmissionsFn = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const db = getDb()
 
-    // Verify organizer permission
-    const [competition] = await db
-      .select({ organizingTeamId: competitionsTable.organizingTeamId })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-      .limit(1)
-
-    if (!competition) {
-      throw new Error("NOT_FOUND: Competition not found")
-    }
-
-    await requireTeamPermission(
-      competition.organizingTeamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-    )
+    // Verify user has organizer permission or volunteer score-input entitlement
+    await requireSubmissionReviewAccess(data.competitionId)
 
     // Look up the target submission to get its grouping keys,
     // scoped to the competition via the registration's eventId

@@ -838,7 +838,14 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
     }> => {
       const db = getDb()
 
-      getEvlog()?.set({ action: "save_score", score: { competitionId: data.competitionId, registrationId: data.registrationId, workoutId: data.workoutId } })
+      getEvlog()?.set({
+        action: "save_score",
+        score: {
+          competitionId: data.competitionId,
+          registrationId: data.registrationId,
+          workoutId: data.workoutId,
+        },
+      })
 
       // Update request context for tracing
       addRequestContextAttribute("competitionId", data.competitionId)
@@ -901,9 +908,7 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
         // `encodeRounds` drops rounds that fail to encode — that would
         // misalign roundStatuses with the per-round rows we insert below.
         if (result.rounds.length !== data.roundScores.length) {
-          throw new Error(
-            "Every round in roundScores must be a valid score",
-          )
+          throw new Error("Every round in roundScores must be a valid score")
         }
         encodedValue = result.aggregated
         encodedRounds = result.rounds
@@ -1183,7 +1188,10 @@ export const saveCompetitionScoresFn = createServerFn({ method: "POST" })
       const errors: Array<{ userId: string; error: string }> = []
       let savedCount = 0
 
-      getEvlog()?.set({ action: "save_scores_batch", batch: { competitionId: data.competitionId, count: data.scores.length } })
+      getEvlog()?.set({
+        action: "save_scores_batch",
+        batch: { competitionId: data.competitionId, count: data.scores.length },
+      })
 
       // Update request context
       addRequestContextAttribute("competitionId", data.competitionId)
@@ -1275,7 +1283,15 @@ export const saveCompetitionScoresFn = createServerFn({ method: "POST" })
       }
 
       // Restore batch-level action after per-item saves overwrote it
-      getEvlog()?.set({ action: "save_scores_batch", batch: { competitionId: data.competitionId, count: data.scores.length, saved: savedCount, errors: errors.length } })
+      getEvlog()?.set({
+        action: "save_scores_batch",
+        batch: {
+          competitionId: data.competitionId,
+          count: data.scores.length,
+          saved: savedCount,
+          errors: errors.length,
+        },
+      })
 
       logInfo({
         message: "[Score] Batch save competition scores completed",
@@ -1301,7 +1317,13 @@ export const deleteCompetitionScoreFn = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ success: boolean }> => {
     const db = getDb()
 
-    getEvlog()?.set({ action: "delete_score", score: { competitionId: data.competitionId, trackWorkoutId: data.trackWorkoutId } })
+    getEvlog()?.set({
+      action: "delete_score",
+      score: {
+        competitionId: data.competitionId,
+        trackWorkoutId: data.trackWorkoutId,
+      },
+    })
 
     // Update request context
     addRequestContextAttribute("competitionId", data.competitionId)
@@ -1435,6 +1457,7 @@ export const getCompetitionWorkoutsForScoreEntryFn = createServerFn({
         trackOrder: trackWorkoutsTable.trackOrder,
         notes: trackWorkoutsTable.notes,
         pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+        parentEventId: trackWorkoutsTable.parentEventId,
         heatStatus: trackWorkoutsTable.heatStatus,
         eventStatus: trackWorkoutsTable.eventStatus,
         sponsorId: trackWorkoutsTable.sponsorId,
@@ -1648,7 +1671,11 @@ export const backfillMultiRoundCapScoresFn = createServerFn({ method: "POST" })
       trackWorkoutId: string | null
       before: { scoreValue: number | null; status: string }
       after: { scoreValue: number; status: "scored" | "cap" }
-      rounds: Array<{ roundNumber: number; value: number; status: "scored" | "cap" }>
+      rounds: Array<{
+        roundNumber: number
+        value: number
+        status: "scored" | "cap"
+      }>
     }> = []
 
     let updated = 0
