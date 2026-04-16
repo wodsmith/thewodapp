@@ -277,8 +277,10 @@ function VerificationControls({
 
   const [reviewerNotes, setReviewerNotes] = useState("")
 
-  // Penalty form state
-  const [penaltyType, setPenaltyType] = useState<"minor" | "major">("minor")
+  // Adjustment form state (penalty is optional)
+  const [penaltyType, setPenaltyType] = useState<"none" | "minor" | "major">(
+    "none",
+  )
   const [noRepCount, setNoRepCount] = useState("")
   const [penaltyScore, setPenaltyScore] = useState(
     submission.score.displayValue,
@@ -328,14 +330,14 @@ function VerificationControls({
           adjustedScoreStatus: penaltyStatus,
           secondaryScore: penaltySecondaryScore || undefined,
           reviewerNotes: reviewerNotes.trim() || undefined,
-          penaltyType,
+          penaltyType: penaltyType === "none" ? undefined : penaltyType,
           noRepCount: noRepCount ? Number.parseInt(noRepCount, 10) : undefined,
         },
       })
       setIsPenalizing(false)
       await router.invalidate()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Penalty failed")
+      setError(err instanceof Error ? err.message : "Adjustment failed")
     } finally {
       setIsSubmitting(false)
     }
@@ -500,8 +502,8 @@ function VerificationControls({
               disabled={isSubmitting}
               onClick={() => setIsPenalizing(true)}
             >
-              <AlertTriangle className="h-4 w-4 mr-2" />
-              Apply Penalty
+              <Pencil className="h-4 w-4 mr-2" />
+              Adjust Score
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -547,19 +549,30 @@ function VerificationControls({
           </div>
         )}
 
-        {/* Penalty form */}
+        {/* Adjust score form */}
         {isPenalizing && (
           <div className="space-y-3 rounded-md border border-orange-200 p-3">
-            <p className="text-sm font-medium">Apply Penalty</p>
+            <p className="text-sm font-medium">Adjust Score</p>
 
-            {/* Penalty type selector */}
+            {/* Penalty type selector (optional) */}
             <div className="space-y-2">
-              <Label className="text-xs">Penalty type</Label>
+              <Label className="text-xs">Penalty (optional)</Label>
               <RadioGroup
                 value={penaltyType}
-                onValueChange={(v) => setPenaltyType(v as "minor" | "major")}
+                onValueChange={(v) =>
+                  setPenaltyType(v as "none" | "minor" | "major")
+                }
                 className="flex gap-4"
               >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="none" id="penalty-none" />
+                  <Label
+                    htmlFor="penalty-none"
+                    className="text-xs font-normal"
+                  >
+                    None
+                  </Label>
+                </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="minor" id="penalty-minor" />
                   <Label
@@ -656,7 +669,7 @@ function VerificationControls({
                 id="penalty-notes"
                 value={reviewerNotes}
                 onChange={(e) => setReviewerNotes(e.target.value)}
-                placeholder="Explain the penalty reason..."
+                placeholder="Explain the adjustment..."
                 rows={2}
                 className="text-sm"
               />
@@ -669,7 +682,7 @@ function VerificationControls({
                 disabled={isSubmitting || !penaltyScore.trim()}
                 onClick={handleApplyPenalty}
               >
-                {isSubmitting ? "Applying..." : "Apply Penalty"}
+                {isSubmitting ? "Applying..." : "Adjust Score"}
               </Button>
               <Button
                 variant="ghost"
