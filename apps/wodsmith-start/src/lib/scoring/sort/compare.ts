@@ -30,9 +30,35 @@ export function compareScores(a: Score, b: Score): number {
     return statusDiff
   }
 
-  // For capped results, compare secondary values (higher is better)
-  // This takes precedence since capped scores have null primary values
+  // For capped results, multi-round cap count dominates. Scores with fewer
+  // capped rounds always rank ahead of scores with more capped rounds,
+  // regardless of summed total — mirrors the bit-packed tiebreaker baked
+  // into `computeSortKey` for the persisted sort key.
   if (a.status === "cap" && b.status === "cap") {
+    const aCapped =
+      a.cappedRoundCount ??
+      (a.rounds?.filter((r) => r.status === "cap").length ?? 0)
+    const bCapped =
+      b.cappedRoundCount ??
+      (b.rounds?.filter((r) => r.status === "cap").length ?? 0)
+    if (aCapped !== bCapped) {
+      return aCapped - bCapped // Fewer capped rounds = better
+    }
+
+    // Same capped-round count (including both 0 for single-round caps):
+    // fall back to summed total for multi-round, secondary reps for
+    // legacy single-round caps.
+    if (a.value !== null && b.value !== null) {
+      const direction = getSortDirection(a.scheme, a.scoreType)
+      const valueDiff =
+        direction === "asc" ? a.value - b.value : b.value - a.value
+      if (valueDiff !== 0) return valueDiff
+    } else if (a.value === null && b.value !== null) {
+      return 1
+    } else if (a.value !== null && b.value === null) {
+      return -1
+    }
+
     const aSecondary = a.timeCap?.secondaryValue ?? 0
     const bSecondary = b.timeCap?.secondaryValue ?? 0
     const secondaryDiff = bSecondary - aSecondary // Higher is better

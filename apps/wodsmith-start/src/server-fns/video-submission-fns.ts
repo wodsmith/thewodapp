@@ -414,6 +414,7 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
         roundNumber: number
         value: number
         displayScore: string | null
+        status: string | null
       }>
     } | null = null
 
@@ -459,6 +460,7 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
         roundNumber: number
         value: number
         displayScore: string | null
+        status: string | null
       }> = []
 
       if (workout && (workout.roundsToScore ?? 1) > 1) {
@@ -466,6 +468,7 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
           .select({
             roundNumber: scoreRoundsTable.roundNumber,
             value: scoreRoundsTable.value,
+            status: scoreRoundsTable.status,
           })
           .from(scoreRoundsTable)
           .where(eq(scoreRoundsTable.scoreId, score.id))
@@ -479,6 +482,7 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
                 compact: false,
               })
             : null,
+          status: r.status,
         }))
       }
 
@@ -990,9 +994,17 @@ export const submitVideoFn = createServerFn({ method: "POST" })
       }
 
       // Derive status server-side (ignore client-provided scoreStatus)
-      // For time-with-cap, any time >= cap is treated as capped
+      // For time-with-cap:
+      // - Single-round: time >= cap → capped, clamp to cap
+      // - Multi-round: cap applies per round. Any round with encoded time >= cap
+      //   is capped for that round; summed total is preserved so the display
+      //   reflects what the team actually entered (e.g., 4:00 + 10:02 = 14:02).
+      //   Under the "missed reps add seconds" convention, a capped round's
+      //   encoded value already bakes in the penalty, so the sum is meaningful.
       let status: "scored" | "cap" = "scored"
       let secondaryValue: number | null = null
+      const roundStatuses: Array<"scored" | "cap"> = []
+      let cappedRoundCount = 0
 
       if (
         scheme === "time-with-cap" &&
@@ -1000,21 +1012,29 @@ export const submitVideoFn = createServerFn({ method: "POST" })
         encodedValue !== null
       ) {
         const capMs = workout.timeCap * 1000
-        if (encodedValue >= capMs) {
+
+        if (hasRoundScores && encodedRounds.length > 0) {
+          // Per-round cap inference — don't clamp the summed total.
+          for (const roundValue of encodedRounds) {
+            const isRoundCapped = roundValue >= capMs
+            roundStatuses.push(isRoundCapped ? "cap" : "scored")
+            if (isRoundCapped) cappedRoundCount++
+          }
+          if (cappedRoundCount > 0) {
+            status = "cap"
+          }
+        } else if (encodedValue >= capMs) {
+          // Single-round: preserve legacy clamp + reps-at-cap behavior
           status = "cap"
-          // Normalize over-cap submissions to exactly the cap time
           encodedValue = capMs
 
-          // Parse secondary score (reps at cap) only when capped
           if (data.secondaryScore) {
             const trimmed = data.secondaryScore.trim()
             if (trimmed) {
               const parsed = Number.parseInt(trimmed, 10)
-              // Validate: must be a non-negative integer
               if (!Number.isNaN(parsed) && parsed >= 0) {
                 secondaryValue = parsed
               }
-              // Invalid values are silently ignored (clamped to null)
             }
           }
         }
@@ -1037,7 +1057,9 @@ export const submitVideoFn = createServerFn({ method: "POST" })
       // Time cap in milliseconds
       const timeCapMs = workout.timeCap ? workout.timeCap * 1000 : null
 
-      // Compute sort key (includes secondary_value and tiebreak for proper ordering)
+      // Compute sort key (includes secondary_value, tiebreak, and the
+      // multi-round `cappedRoundCount` tiebreaker so more capped rounds
+      // sort below fewer capped rounds regardless of summed total).
       const sortKey =
         encodedValue !== null
           ? computeSortKey({
@@ -1045,6 +1067,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
               status,
               scheme,
               scoreType,
+              cappedRoundCount,
               timeCap:
                 status === "cap" && secondaryValue !== null
                   ? { ms: timeCapMs ?? 0, secondaryValue }
@@ -1132,12 +1155,14 @@ export const submitVideoFn = createServerFn({ method: "POST" })
             .delete(scoreRoundsTable)
             .where(eq(scoreRoundsTable.scoreId, upsertedScore.id))
 
-          // Insert new rounds
+          // Insert new rounds. Persist per-round cap status from the
+          // per-round derivation above so the leaderboard can later rank
+          // by number of capped rounds.
           const roundsToInsert = encodedRounds.map((value, index) => ({
             scoreId: upsertedScore.id,
             roundNumber: index + 1,
             value,
-            status: null,
+            status: roundStatuses[index] ?? null,
           }))
 
           await db.insert(scoreRoundsTable).values(roundsToInsert)
@@ -1521,6 +1546,35 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
       )
     }
 
+    // Load per-round scores for multi-round workouts so the organizer
+    // review page can show the round-by-round breakdown.
+    let roundScores: Array<{
+      roundNumber: number
+      value: number
+      displayScore: string | null
+      status: string | null
+    }> = []
+    if (score?.id && score?.scheme) {
+      const rounds = await db
+        .select({
+          roundNumber: scoreRoundsTable.roundNumber,
+          value: scoreRoundsTable.value,
+          status: scoreRoundsTable.status,
+        })
+        .from(scoreRoundsTable)
+        .where(eq(scoreRoundsTable.scoreId, score.id))
+        .orderBy(asc(scoreRoundsTable.roundNumber))
+
+      roundScores = rounds.map((r) => ({
+        roundNumber: r.roundNumber,
+        value: r.value,
+        displayScore: decodeScore(r.value, score.scheme as WorkoutScheme, {
+          compact: false,
+        }),
+        status: r.status,
+      }))
+    }
+
     return {
       submission: {
         id: submission.id,
@@ -1552,6 +1606,7 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
               value: score.scoreValue,
               displayScore,
               status: score.status,
+              roundScores,
             }
           : null,
         reviewStatus: submission.reviewedAt

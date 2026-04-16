@@ -25,18 +25,21 @@ import {
   trackWorkoutsTable,
 } from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
-import { scoresTable } from "@/db/schemas/scores"
+import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
 import { teamMembershipTable } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
 import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
 import { workouts } from "@/db/schemas/workouts"
 import {
   calculateEventPoints,
+  calculatePointsForPlace,
+  computeSortKey,
   DEFAULT_SCORING_CONFIG,
   decodeScore,
   type EventScoreInput,
   formatScore,
   getDefaultScoreType,
+  sortKeyToString,
   type WorkoutScheme,
 } from "@/lib/scoring"
 import {
@@ -100,7 +103,17 @@ export interface CompetitionLeaderboardEntry {
     parentEventName: string | null
     /** True if this is a parent event with aggregated sub-event points */
     isParentEvent: boolean
+    /** Number of individual rounds marked as capped (0 for single-round or none) */
+    cappedRoundCount: number
+    /** Total number of rounds persisted for this score (0 for single-round) */
+    totalRoundCount: number
   }>
+}
+
+/** Round-cap summary for a single score */
+interface RoundCapSummary {
+  cappedRoundCount: number
+  totalRoundCount: number
 }
 
 export interface EventLeaderboardEntry {
@@ -173,6 +186,40 @@ async function fetchScores(params: {
     )
 
   return scores
+}
+
+/**
+ * For each score id, count how many rounds were persisted and how many
+ * of those carry `status = "cap"`. Used to visually indicate per-round
+ * cap state on multi-round leaderboards without shipping the full round
+ * payload to the client.
+ */
+async function fetchRoundCapSummaries(
+  scoreIds: string[],
+): Promise<Map<string, RoundCapSummary>> {
+  const summaries = new Map<string, RoundCapSummary>()
+  if (scoreIds.length === 0) return summaries
+
+  const db = getDb()
+  const rows = await db
+    .select({
+      scoreId: scoreRoundsTable.scoreId,
+      status: scoreRoundsTable.status,
+    })
+    .from(scoreRoundsTable)
+    .where(inArray(scoreRoundsTable.scoreId, scoreIds))
+
+  for (const row of rows) {
+    const existing = summaries.get(row.scoreId) ?? {
+      cappedRoundCount: 0,
+      totalRoundCount: 0,
+    }
+    existing.totalRoundCount += 1
+    if (row.status === "cap") existing.cappedRoundCount += 1
+    summaries.set(row.scoreId, existing)
+  }
+
+  return summaries
 }
 
 /**
@@ -567,6 +614,9 @@ export async function getCompetitionLeaderboard(params: {
   const userIds = filteredRegistrations.map((r) => r.user.id)
 
   const allScores = await fetchScores({ trackWorkoutIds, userIds })
+  const roundCapSummariesByScoreId = await fetchRoundCapSummaries(
+    allScores.map((s) => s.id),
+  )
 
   // Fetch video submissions for online competitions
   const registrationIds = filteredRegistrations.map((r) => r.registration.id)
@@ -674,13 +724,46 @@ export async function getCompetitionLeaderboard(params: {
         if (!divisionPublishState?.publishedAt) continue
       }
 
-      // Convert to EventScoreInput format
-      const eventScoreInputs: EventScoreInput[] = divisionScores.map((s) => ({
-        userId: s.userId,
-        value: s.scoreValue ?? 0,
-        status: mapScoreStatus(s.status),
-        sortKey: s.sortKey,
-      }))
+      // Convert to EventScoreInput format.
+      //
+      // IMPORTANT: we deliberately recompute `sortKey` here rather than
+      // trusting the stored `s.sortKey`. The stored value is only refreshed
+      // when a score is written through `computeSortKey` — direct DB edits
+      // to `scoreRoundsTable.status`, and any scores written before the
+      // cap-count tiebreaker was added to `computeSortKey`, leave the
+      // persisted key stale. Recomputing here with the freshly-fetched
+      // `cappedRoundCount` guarantees "fewer caps beats more caps" on the
+      // public leaderboard with no backfill required.
+      const eventScoreType =
+        trackWorkout.workout.scoreType ||
+        getDefaultScoreType(trackWorkout.workout.scheme)
+      const eventScoreInputs: EventScoreInput[] = divisionScores.map((s) => {
+        const roundSummary = roundCapSummariesByScoreId.get(s.id)
+        const recomputedSortKey = computeSortKey({
+          scheme: s.scheme as WorkoutScheme,
+          scoreType: eventScoreType,
+          value: s.scoreValue,
+          status: s.status as "scored" | "cap" | "dq" | "withdrawn",
+          cappedRoundCount: roundSummary?.cappedRoundCount ?? 0,
+          timeCap:
+            s.timeCapMs && s.secondaryValue !== null
+              ? { ms: s.timeCapMs, secondaryValue: s.secondaryValue }
+              : undefined,
+          tiebreak:
+            s.tiebreakValue !== null && s.tiebreakScheme
+              ? {
+                  scheme: s.tiebreakScheme as "reps" | "time",
+                  value: s.tiebreakValue,
+                }
+              : undefined,
+        })
+        return {
+          userId: s.userId,
+          value: s.scoreValue ?? 0,
+          status: mapScoreStatus(s.status),
+          sortKey: sortKeyToString(recomputedSortKey),
+        }
+      })
 
       // Calculate points using the factory
       const scheme = trackWorkout.workout.scheme as WorkoutScheme
@@ -709,14 +792,9 @@ export async function getCompetitionLeaderboard(params: {
         const basePoints = pointsResult?.points ?? 0
         const points = Math.round(basePoints * multiplier)
 
-        // Format score for display
-        const scoreType =
-          trackWorkout.workout.scoreType ||
-          getDefaultScoreType(trackWorkout.workout.scheme)
-
         const scoreObj: Parameters<typeof formatScore>[0] = {
           scheme: score.scheme as WorkoutScheme,
-          scoreType,
+          scoreType: eventScoreType,
           value: score.scoreValue ?? 0,
           status: score.status as "scored" | "cap" | "dq" | "withdrawn",
         }
@@ -745,6 +823,11 @@ export async function getCompetitionLeaderboard(params: {
             score.tiebreakScheme as WorkoutScheme,
             { compact: true },
           )
+        }
+
+        const roundSummary = roundCapSummariesByScoreId.get(score.id) ?? {
+          cappedRoundCount: 0,
+          totalRoundCount: 0,
         }
 
         entry.eventResults.push({
@@ -779,9 +862,73 @@ export async function getCompetitionLeaderboard(params: {
             ? (parentNameMap.get(trackWorkout.parentEventId) ?? null)
             : null,
           isParentEvent: false,
+          cappedRoundCount: roundSummary.cappedRoundCount,
+          totalRoundCount: roundSummary.totalRoundCount,
         })
 
         entry.totalPoints += points
+      }
+
+      // Athletes registered in this division who didn't submit a score for
+      // this event tie at the worst position (activeCount + 1) so that the
+      // absence of a score never beats a recorded score on totals.
+      const activeCount = eventScoreInputs.filter(
+        (s) => s.status === "scored" || s.status === "cap",
+      ).length
+      const missingPlace = activeCount + 1
+      const missingPoints = Math.round(
+        calculatePointsForPlace({
+          place: missingPlace,
+          config: scoringConfig,
+        }) * multiplier,
+      )
+
+      const scoredUserIds = new Set(divisionScores.map((s) => s.userId))
+      const missingRegs = filteredRegistrations.filter(
+        (r) =>
+          (r.registration.divisionId || "open") === divisionId &&
+          !scoredUserIds.has(r.user.id),
+      )
+
+      for (const reg of missingRegs) {
+        const entry = leaderboardMap.get(reg.registration.id)
+        if (!entry) continue
+
+        const eventDivPublished = isEventDivisionPublished(
+          trackWorkout.id,
+          divisionId,
+        )
+        const videoInfo = videoMap.get(
+          `${reg.registration.id}:${trackWorkout.id}`,
+        )
+
+        entry.eventResults.push({
+          trackWorkoutId: trackWorkout.id,
+          trackOrder: trackWorkout.trackOrder,
+          eventName: trackWorkout.workout.name,
+          scheme: trackWorkout.workout.scheme,
+          rank: missingPlace,
+          points: missingPoints,
+          rawScore: null,
+          formattedScore: "N/A",
+          formattedTiebreak: null,
+          penaltyType: null,
+          penaltyPercentage: null,
+          isDirectlyModified: false,
+          videoUrl: eventDivPublished ? (videoInfo?.url ?? null) : null,
+          videoSubmissionId: eventDivPublished
+            ? (videoInfo?.submissionId ?? null)
+            : null,
+          parentEventId: trackWorkout.parentEventId,
+          parentEventName: trackWorkout.parentEventId
+            ? (parentNameMap.get(trackWorkout.parentEventId) ?? null)
+            : null,
+          isParentEvent: false,
+          cappedRoundCount: 0,
+          totalRoundCount: 0,
+        })
+
+        entry.totalPoints += missingPoints
       }
     }
 
@@ -819,6 +966,8 @@ export async function getCompetitionLeaderboard(params: {
             ? (parentNameMap.get(trackWorkout.parentEventId) ?? null)
             : null,
           isParentEvent: false,
+          cappedRoundCount: 0,
+          totalRoundCount: 0,
         })
       }
     }

@@ -54,6 +54,7 @@ export {
   calculateCustomPoints,
   // Factory function - main entry point
   calculateEventPoints,
+  calculatePointsForPlace,
   // Algorithm implementations
   calculatePScore,
   calculateTraditionalPoints,

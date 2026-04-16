@@ -57,10 +57,16 @@ function formatSpecialStatus(
 
   switch (score.status) {
     case "cap": {
-      // For capped results, show the secondary score (always reps)
+      // Single-round capped: `timeCap.secondaryValue` holds reps at cap.
       if (score.timeCap?.secondaryValue !== undefined) {
         const repsFormatted = `${score.timeCap.secondaryValue} reps`
         return showStatus ? `${statusPrefix} (${repsFormatted})` : repsFormatted
+      }
+      // Multi-round capped: `value` is the summed total across rounds
+      // (per-round caps enforced separately), so surface it.
+      if (score.value !== null) {
+        const decoded = decodeScore(score.value, score.scheme, options)
+        return showStatus ? `${statusPrefix} (${decoded})` : decoded
       }
       return statusPrefix || "CAP"
     }

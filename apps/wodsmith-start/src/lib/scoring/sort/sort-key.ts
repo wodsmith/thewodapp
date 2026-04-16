@@ -31,6 +31,19 @@ const STATUS_SHIFT = 120n
 const DATA_BITS = 120n
 
 /**
+ * Within the "cap" bucket we bit-pack `cappedRoundCount` into the top 8 bits
+ * of the 40-bit primary segment so that a score with fewer capped rounds
+ * always sorts ahead of a score with more, regardless of summed total.
+ *
+ * Time-with-cap values are milliseconds (32-bit safe for workouts up to ~49
+ * days), so the low 32 bits of the primary slot hold the time and the next
+ * 8 bits hold the capped-round count.
+ */
+const CAP_TIME_BITS = 32n
+const CAP_TIME_MASK = (1n << CAP_TIME_BITS) - 1n
+const CAP_COUNT_MAX = 255
+
+/**
  * Compute a sort key for database storage.
  *
  * The sort key encodes status, score value, secondary value (reps at cap),
@@ -50,12 +63,23 @@ const DATA_BITS = 120n
  */
 export function computeSortKey(
   score: Pick<Score, "value" | "status" | "scheme" | "scoreType"> &
-    Partial<Pick<Score, "timeCap" | "tiebreak">>,
+    Partial<
+      Pick<Score, "timeCap" | "tiebreak" | "cappedRoundCount" | "rounds">
+    >,
 ): bigint {
   const direction = getSortDirection(score.scheme, score.scoreType)
 
   // Extract secondary value (reps at cap) if present
   const secondaryValue = score.timeCap?.secondaryValue ?? 0
+
+  // Derive capped-round count. Prefer the explicit field; otherwise fall
+  // back to counting rounds with status "cap" when the full array is
+  // available. This is the dominant tiebreaker inside the "cap" bucket.
+  const cappedRoundCount =
+    score.cappedRoundCount ??
+    (score.rounds
+      ? score.rounds.filter((r) => r.status === "cap").length
+      : 0)
 
   // Extract tiebreak value if present
   // For time-based tiebreaks, lower is better (use as-is)
@@ -75,6 +99,7 @@ export function computeSortKey(
     direction,
     secondaryValue,
     tiebreakValue,
+    cappedRoundCount,
   )
 }
 
@@ -86,6 +111,8 @@ export function computeSortKey(
  * @param direction - Sort direction for primary value
  * @param secondaryValue - Secondary value (reps at cap), higher is better
  * @param tiebreakValue - Pre-normalized tiebreak value
+ * @param cappedRoundCount - Count of individual rounds marked "cap" (used
+ *   as a dominant tiebreaker within the "cap" status bucket)
  */
 function computeSortKeyWithComponents(
   value: number | null,
@@ -93,6 +120,7 @@ function computeSortKeyWithComponents(
   direction: SortDirection,
   secondaryValue: number,
   tiebreakValue: bigint,
+  cappedRoundCount: number = 0,
 ): bigint {
   const statusBits = BigInt(STATUS_ORDER[status]) << STATUS_SHIFT
 
@@ -104,10 +132,20 @@ function computeSortKeyWithComponents(
   // Normalize primary value based on sort direction
   // For ascending (lower is better): use value as-is
   // For descending (higher is better): invert so higher values get lower sort keys
-  const normalizedPrimary =
+  let normalizedPrimary =
     direction === "asc"
       ? BigInt(value) & SEGMENT_MAX
       : SEGMENT_MAX - (BigInt(value) & SEGMENT_MAX)
+
+  // Cap bucket: bit-pack `cappedRoundCount` above the time value so more
+  // caps → larger primary → worse sort key, regardless of summed total.
+  // Only meaningful for "asc" (time-with-cap is always asc) and only when
+  // time fits in 32 bits (holds up to ~49 days of ms, far beyond any WOD).
+  if (status === "cap" && direction === "asc" && cappedRoundCount > 0) {
+    const clampedCount = Math.min(cappedRoundCount, CAP_COUNT_MAX)
+    const timeBits = normalizedPrimary & CAP_TIME_MASK
+    normalizedPrimary = (BigInt(clampedCount) << CAP_TIME_BITS) | timeBits
+  }
 
   // For capped status, secondary value (reps) matters - higher is better, so invert
   // For scored status, secondary doesn't matter (use 0)
@@ -166,11 +204,19 @@ export function extractFromSortKey(
   // Extract primary value from its segment
   const primaryBits = (sortKey >> PRIMARY_SHIFT) & SEGMENT_MAX
 
+  // Strip any bit-packed cappedRoundCount so the returned value is the
+  // original time (ms). Cap packing only happens on the ascending branch
+  // in the "cap" status bucket.
+  const timeBits =
+    statusOrder === STATUS_ORDER.cap && direction === "asc"
+      ? primaryBits & CAP_TIME_MASK
+      : primaryBits
+
   // Denormalize the primary value
   const value =
     direction === "asc"
-      ? Number(primaryBits)
-      : Number(SEGMENT_MAX - primaryBits)
+      ? Number(timeBits)
+      : Number(SEGMENT_MAX - timeBits)
 
   return { statusOrder, value }
 }
