@@ -563,6 +563,8 @@ describe("Video Submission Server Functions (TanStack)", () => {
 		it("creates new video submission successfully", async () => {
 			const registration = createTestRegistration()
 			const competition = createTestCompetition({ competitionType: "online" })
+			const workout = createTestWorkout({ id: "wk-1", scheme: "time" })
+			const trackWorkout = createTestTrackWorkout({ workoutId: "wk-1" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			limitMock
@@ -571,12 +573,18 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([]) // No event = allow submission
 				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([]) // No existing submission
+				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }]) // Workout details
+				.mockResolvedValueOnce([{ ownerTeamId: "team-1" }]) // Track for team ownership
+
+			const returningMock = mockDb.getChainMock().returning as ReturnType<typeof vi.fn>
+			returningMock.mockResolvedValueOnce([{ id: "sub-new" }])
 
 			const result = await submitVideoFn({
 				data: {
 					trackWorkoutId: "tw-1",
 					competitionId: "comp-1",
 					videoUrl: "https://youtube.com/watch?v=test",
+					score: "10:00",
 				},
 			})
 
@@ -590,6 +598,8 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			const registration = createTestRegistration()
 			const competition = createTestCompetition({ competitionType: "online" })
 			const existingSubmission = createTestVideoSubmission({ id: "sub-existing" })
+			const workout = createTestWorkout({ id: "wk-1", scheme: "time" })
+			const trackWorkout = createTestTrackWorkout({ workoutId: "wk-1" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			limitMock
@@ -598,12 +608,15 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([])
 				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([existingSubmission]) // Existing submission found
+				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }]) // Workout details
+				.mockResolvedValueOnce([{ ownerTeamId: "team-1" }]) // Track for team ownership
 
 			const result = await submitVideoFn({
 				data: {
 					trackWorkoutId: "tw-1",
 					competitionId: "comp-1",
 					videoUrl: "https://youtube.com/watch?v=updated",
+					score: "10:00",
 				},
 			})
 
@@ -863,6 +876,8 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				id: "sub-new",
 				notes: "Great performance!",
 			})
+			const workout = createTestWorkout({ id: "wk-1", scheme: "time" })
+			const trackWorkout = createTestTrackWorkout({ workoutId: "wk-1" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			limitMock
@@ -870,7 +885,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([])
 				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
-				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([]) // No existing submission
+				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }]) // Workout details
+				.mockResolvedValueOnce([{ ownerTeamId: "team-1" }]) // Track for team ownership
 
 			const returningMock = mockDb.getChainMock().returning as ReturnType<
 				typeof vi.fn
@@ -883,6 +900,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 					competitionId: "comp-1",
 					videoUrl: "https://youtube.com/watch?v=test",
 					notes: "Great performance!",
+					score: "10:00",
 				},
 			})
 
@@ -1303,6 +1321,8 @@ describe("Video Submission Server Functions (TanStack)", () => {
 		it("creates submission with divisionId and videoIndex", async () => {
 			const registration = createTestRegistration({ divisionId: "div-rx" })
 			const competition = createTestCompetition({ competitionType: "online" })
+			const workout = createTestWorkout({ id: "wk-1", scheme: "time" })
+			const trackWorkout = createTestTrackWorkout({ workoutId: "wk-1" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			limitMock
@@ -1311,6 +1331,8 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([]) // No event = allow submission
 				.mockResolvedValueOnce([{ teamSize: 3 }]) // Team of 3
 				.mockResolvedValueOnce([]) // No existing submission at this index
+				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }]) // Workout details
+				.mockResolvedValueOnce([{ ownerTeamId: "team-1" }]) // Track for team ownership
 
 			const result = await submitVideoFn({
 				data: {
@@ -1319,6 +1341,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 					divisionId: "div-rx",
 					videoUrl: "https://youtube.com/watch?v=test",
 					videoIndex: 1,
+					score: "10:00",
 				},
 			})
 
@@ -1330,6 +1353,8 @@ describe("Video Submission Server Functions (TanStack)", () => {
 		it("allows videoIndex 0 (default) for individual athletes", async () => {
 			const registration = createTestRegistration()
 			const competition = createTestCompetition({ competitionType: "online" })
+			const workout = createTestWorkout({ id: "wk-1", scheme: "time" })
+			const trackWorkout = createTestTrackWorkout({ workoutId: "wk-1" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			limitMock
@@ -1338,6 +1363,8 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([]) // No event = allow submission
 				.mockResolvedValueOnce([{ teamSize: 1 }]) // Individual
 				.mockResolvedValueOnce([]) // No existing submission
+				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }]) // Workout details
+				.mockResolvedValueOnce([{ ownerTeamId: "team-1" }]) // Track for team ownership
 
 			const result = await submitVideoFn({
 				data: {
@@ -1345,6 +1372,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 					competitionId: "comp-1",
 					videoUrl: "https://youtube.com/watch?v=test",
 					videoIndex: 0,
+					score: "10:00",
 				},
 			})
 
