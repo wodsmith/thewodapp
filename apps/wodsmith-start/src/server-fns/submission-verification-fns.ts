@@ -23,7 +23,6 @@ import {
   scoresTable,
   scoreVerificationLogsTable,
 } from "@/db/schemas/scores"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
 import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
 import { workouts } from "@/db/schemas/workouts"
