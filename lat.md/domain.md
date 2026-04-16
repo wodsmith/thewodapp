@@ -106,6 +106,12 @@ Key design:
 - Tiebreak values stored separately for time-capped workouts
 - Score rounds (`scoreRoundsTable`) store per-round breakdowns for multi-round workouts
 
+### Time input parsing matches save semantics
+
+Bare numeric input on a time score (no colon — e.g. `2000`) is treated as **raw seconds** in both the live preview and the save path, so the two can never disagree.
+
+[[apps/wodsmith-start/src/lib/scoring/parse/time.ts#parseTime]] defers to [[apps/wodsmith-start/src/lib/scoring/encode/time.ts#encodeTime]] for any non-colon input. An earlier version smart-padded bare digits as MM:SS (`2000` → `20:00` in preview) while the save persisted `33:20`, which confused athletes typing on a phone. Colon-delimited input (`12:34`, `1:02:34.567`) is unchanged. Use `precision: "ms"` only when explicitly persisting raw milliseconds.
+
 ### Missing scores tie at worst place
 
 Athletes registered in a division who never submitted a score for an event are awarded the same points as if they finished one place behind every recorded score in their division.
