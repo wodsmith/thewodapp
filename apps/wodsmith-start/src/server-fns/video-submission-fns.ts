@@ -948,10 +948,14 @@ export const submitVideoFn = createServerFn({ method: "POST" })
       submissionId = id
     }
 
-    // Save claimed score if provided (single score or round scores)
+    // Save claimed score (required — athletes must submit a score with their video)
     const hasRoundScores =
       data.roundScores && data.roundScores.length > 0
     const hasScore = data.score || hasRoundScores
+
+    if (!hasScore) {
+      throw new Error("A score is required when submitting")
+    }
 
     if (hasScore) {
       // Get workout details for encoding
