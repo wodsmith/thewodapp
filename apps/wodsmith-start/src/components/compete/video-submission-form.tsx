@@ -89,6 +89,8 @@ interface VideoSubmissionInitialData {
     status: string | null
     secondaryValue: number | null
     tiebreakValue: number | null
+    verificationStatus?: string | null
+    penaltyType?: string | null
     roundScores?: Array<{
       roundNumber: number
       value: number
@@ -460,11 +462,12 @@ export function VideoSubmissionForm({
 
   // Derived state — parseResult is a pure function of scoreInput + scheme
   // For multi-round, parse each round independently
-  const roundParseResults: (ParseResult | null)[] = isMultiRound && workout
-    ? roundScoreInputs.map((input) =>
-        input.trim() ? parseScore(input, workout.scheme) : null,
-      )
-    : []
+  const roundParseResults: (ParseResult | null)[] =
+    isMultiRound && workout
+      ? roundScoreInputs.map((input) =>
+          input.trim() ? parseScore(input, workout.scheme) : null,
+        )
+      : []
 
   const parseResult: ParseResult | null =
     !isMultiRound && workout && scoreInput.trim()
@@ -810,9 +813,10 @@ export function VideoSubmissionForm({
             notes: slot.notes.trim() || undefined,
             videoIndex: index,
             // Only send score with the first video slot
-            score: isFirstSlot && !isMultiRound
-              ? scoreInput.trim() || undefined
-              : undefined,
+            score:
+              isFirstSlot && !isMultiRound
+                ? scoreInput.trim() || undefined
+                : undefined,
             scoreStatus:
               isFirstSlot && !isMultiRound && scoreInput.trim()
                 ? scoreStatus
@@ -887,7 +891,9 @@ export function VideoSubmissionForm({
           const scheme = workout.scheme as WorkoutScheme
           const scoreType =
             (workout.scoreType as ScoreType) || getDefaultScoreType(scheme)
-          const roundInputs = roundScoresPayload.map((rs) => ({ raw: rs.score }))
+          const roundInputs = roundScoresPayload.map((rs) => ({
+            raw: rs.score,
+          }))
           const { rounds: encodedRounds, aggregated } = encodeRounds(
             roundInputs,
             scheme,
@@ -919,8 +925,7 @@ export function VideoSubmissionForm({
               roundNumber: i + 1,
               value,
               displayScore: decodeScore(value, scheme, { compact: false }),
-              status:
-                capMs !== null && value >= capMs ? "cap" : "scored",
+              status: capMs !== null && value >= capMs ? "cap" : "scored",
             })),
           })
         } else if (scoreInput.trim() && workout && parseResult) {
@@ -1017,9 +1022,7 @@ export function VideoSubmissionForm({
               {isMultiRound ? (
                 /* Per-round score inputs for multi-round workouts */
                 <div className="space-y-3">
-                  <Label>
-                    {getSchemeLabel(workout.scheme)} per Round
-                  </Label>
+                  <Label>{getSchemeLabel(workout.scheme)} per Round</Label>
                   {roundScoreInputs.map((input, i) => {
                     const roundResult = roundParseResults[i]
                     return (
@@ -1134,7 +1137,8 @@ export function VideoSubmissionForm({
                 <div className="space-y-2">
                   <Label htmlFor="tiebreak-input">
                     Tiebreak (
-                    {workout.tiebreakScheme === "time" ? "Time" : "Reps/Weight"})
+                    {workout.tiebreakScheme === "time" ? "Time" : "Reps/Weight"}
+                    )
                   </Label>
                   <Input
                     id="tiebreak-input"
@@ -1259,7 +1263,11 @@ export function VideoSubmissionForm({
           )}
 
           {/* Submit Button */}
-          <Button type="submit" className="w-full bg-orange-500 text-white hover:bg-orange-600" disabled={isSubmitting}>
+          <Button
+            type="submit"
+            className="w-full bg-orange-500 text-white hover:bg-orange-600"
+            disabled={isSubmitting}
+          >
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

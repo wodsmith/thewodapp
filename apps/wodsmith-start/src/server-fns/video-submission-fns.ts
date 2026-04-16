@@ -76,9 +76,7 @@ const submitVideoInputSchema = z.object({
   secondaryScore: z.string().optional(),
   tiebreakScore: z.string().optional(),
   // Per-round scores for multi-round workouts
-  roundScores: z
-    .array(z.object({ score: z.string() }))
-    .optional(),
+  roundScores: z.array(z.object({ score: z.string() })).optional(),
 })
 
 // ============================================================================
@@ -410,6 +408,8 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
       status: string | null
       secondaryValue: number | null
       tiebreakValue: number | null
+      verificationStatus: string | null
+      penaltyType: string | null
       roundScores: Array<{
         roundNumber: number
         value: number
@@ -440,6 +440,8 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
         secondaryValue: scoresTable.secondaryValue,
         tiebreakValue: scoresTable.tiebreakValue,
         scheme: scoresTable.scheme,
+        verificationStatus: scoresTable.verificationStatus,
+        penaltyType: scoresTable.penaltyType,
       })
       .from(scoresTable)
       .where(and(...scoreConditions))
@@ -492,6 +494,8 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
         status: score.status,
         secondaryValue: score.secondaryValue,
         tiebreakValue: score.tiebreakValue,
+        verificationStatus: score.verificationStatus ?? null,
+        penaltyType: score.penaltyType ?? null,
         roundScores,
       }
     }
@@ -704,7 +708,9 @@ export const getAthleteDivisionSubmissionsFn = createServerFn({ method: "GET" })
     }
 
     // For team registrations, only the captain can submit
-    const isTeamCaptain = !registration.captainUserId || registration.captainUserId === session.userId
+    const isTeamCaptain =
+      !registration.captainUserId ||
+      registration.captainUserId === session.userId
     const scoreUserId = registration.captainUserId ?? registration.userId
 
     // Fetch events, video submissions, and scores in parallel
@@ -792,9 +798,7 @@ export const getAthleteDivisionSubmissionsFn = createServerFn({ method: "GET" })
         }
       }
     }
-    const scoreMap = new Map(
-      scores.map((s) => [s.competitionEventId, s]),
-    )
+    const scoreMap = new Map(scores.map((s) => [s.competitionEventId, s]))
 
     const now = new Date()
     const submissions: WorkoutSubmission[] = data.trackWorkoutIds.map(
@@ -948,8 +952,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
     }
 
     // Save claimed score if provided (single score or round scores)
-    const hasRoundScores =
-      data.roundScores && data.roundScores.length > 0
+    const hasRoundScores = data.roundScores && data.roundScores.length > 0
     const hasScore = data.score || hasRoundScores
 
     if (hasScore) {
@@ -1482,6 +1485,8 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
         submittedAt: videoSubmissionsTable.submittedAt,
         reviewedAt: videoSubmissionsTable.reviewedAt,
         reviewedBy: videoSubmissionsTable.reviewedBy,
+        reviewerNotes: videoSubmissionsTable.reviewerNotes,
+        reviewStatus: videoSubmissionsTable.reviewStatus,
         trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
         registrationId: videoSubmissionsTable.registrationId,
         userId: videoSubmissionsTable.userId,
@@ -1600,6 +1605,7 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
             }
           : null,
         teamName: submission.teamName,
+        reviewerNotes: submission.reviewerNotes,
         scoreId: score?.id ?? null,
         score: score
           ? {
