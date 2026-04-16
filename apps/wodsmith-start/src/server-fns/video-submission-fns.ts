@@ -918,6 +918,15 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 
     const now = new Date()
 
+    // Validate score is present before saving anything
+    const hasRoundScores =
+      data.roundScores && data.roundScores.length > 0
+    const hasScore = data.score || hasRoundScores
+
+    if (!hasScore) {
+      throw new Error("A score is required when submitting")
+    }
+
     // Save or update video submission
     let submissionId: string
 
@@ -951,10 +960,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
       submissionId = id
     }
 
-    // Save claimed score if provided (single score or round scores)
-    const hasRoundScores = data.roundScores && data.roundScores.length > 0
-    const hasScore = data.score || hasRoundScores
-
+    // Save claimed score (score is validated as required above)
     if (hasScore) {
       // Get workout details for encoding
       const workout = await getWorkoutDetails(data.trackWorkoutId)

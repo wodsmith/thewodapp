@@ -284,6 +284,7 @@ export function VideoSubmissionForm({
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
   const hasAnySubmission = existingSubmissions.length > 0
   const [hasSubmitted, setHasSubmitted] = useState(hasAnySubmission)
@@ -718,6 +719,7 @@ export function VideoSubmissionForm({
     e.preventDefault()
     setError(null)
     setSuccess(null)
+    setHasAttemptedSubmit(true)
 
     // For teams, require ALL video links; for individuals, require at least one
     if (teamSize > 1) {
@@ -754,29 +756,41 @@ export function VideoSubmissionForm({
       }
     }
 
-    // Validate score — multi-round or single
-    if (isMultiRound && workout) {
+    // Validate score — score is required for all submissions
+    if (isMultiRound) {
       const filledRounds = roundScoreInputs.filter((s) => s.trim())
-      if (filledRounds.length > 0 && filledRounds.length < roundsToScore) {
+      if (filledRounds.length === 0) {
         setError(
-          `Please enter scores for all ${roundsToScore} rounds, or leave them all empty`,
+          `Please enter scores for all ${roundsToScore} rounds`,
         )
         return
       }
-      for (let i = 0; i < roundScoreInputs.length; i++) {
-        const input = roundScoreInputs[i]
-        if (input.trim()) {
-          const result = parseScore(input, workout.scheme)
-          if (!result.isValid) {
-            setError(
-              `Round ${i + 1}: ${result.error || "Please check your score entry"}`,
-            )
-            return
+      if (filledRounds.length < roundsToScore) {
+        setError(
+          `Please enter scores for all ${roundsToScore} rounds`,
+        )
+        return
+      }
+      if (workout) {
+        for (let i = 0; i < roundScoreInputs.length; i++) {
+          const input = roundScoreInputs[i]
+          if (input.trim()) {
+            const result = parseScore(input, workout.scheme)
+            if (!result.isValid) {
+              setError(
+                `Round ${i + 1}: ${result.error || "Please check your score entry"}`,
+              )
+              return
+            }
           }
         }
       }
-    } else if (scoreInput.trim() && workout) {
-      if (!parseResult?.isValid) {
+    } else {
+      if (!scoreInput.trim()) {
+        setError("Please enter your score")
+        return
+      }
+      if (workout && !parseResult?.isValid) {
         setError(
           `Invalid score: ${parseResult?.error || "Please check your score entry"}`,
         )
@@ -1044,8 +1058,8 @@ export function VideoSubmissionForm({
                           placeholder={getPlaceholder(workout.scheme)}
                           className={cn(
                             "font-mono",
-                            roundResult?.error &&
-                              !roundResult?.isValid &&
+                            ((roundResult?.error && !roundResult?.isValid) ||
+                              (hasAttemptedSubmit && !input.trim())) &&
                               "border-destructive",
                           )}
                           disabled={isSubmitting}
@@ -1058,6 +1072,11 @@ export function VideoSubmissionForm({
                         {roundResult?.error && (
                           <p className="text-xs text-destructive">
                             {roundResult.error}
+                          </p>
+                        )}
+                        {hasAttemptedSubmit && !input.trim() && (
+                          <p className="text-xs text-destructive">
+                            Please enter a score for round {i + 1}
                           </p>
                         )}
                       </div>
@@ -1083,8 +1102,8 @@ export function VideoSubmissionForm({
                     placeholder={getPlaceholder(workout.scheme)}
                     className={cn(
                       "font-mono",
-                      parseResult?.error &&
-                        !parseResult?.isValid &&
+                      ((parseResult?.error && !parseResult?.isValid) ||
+                        (hasAttemptedSubmit && !scoreInput.trim())) &&
                         "border-destructive",
                     )}
                     disabled={isSubmitting}
@@ -1103,6 +1122,11 @@ export function VideoSubmissionForm({
                   {parseResult?.error && (
                     <p className="text-xs text-destructive">
                       {parseResult.error}
+                    </p>
+                  )}
+                  {hasAttemptedSubmit && !scoreInput.trim() && (
+                    <p className="text-xs text-destructive">
+                      Please enter your score
                     </p>
                   )}
                 </div>
