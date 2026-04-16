@@ -1353,6 +1353,57 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			expect(mockDb.insert).toHaveBeenCalled()
 		})
 
+		it("allows team videoIndex > 0 without a score (captain's first slot carries the team score)", async () => {
+			const registration = createTestRegistration({ divisionId: "div-rx" })
+			const competition = createTestCompetition({ competitionType: "online" })
+
+			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			limitMock
+				.mockResolvedValueOnce([registration])
+				.mockResolvedValueOnce([competition])
+				.mockResolvedValueOnce([]) // No event = allow submission
+				.mockResolvedValueOnce([{ teamSize: 3 }]) // Team of 3
+				.mockResolvedValueOnce([]) // No existing submission at this index
+
+			const result = await submitVideoFn({
+				data: {
+					trackWorkoutId: "tw-1",
+					competitionId: "comp-1",
+					divisionId: "div-rx",
+					videoUrl: "https://youtube.com/watch?v=test",
+					videoIndex: 1,
+					// no score — only the captain's first slot (videoIndex 0) sends it
+				},
+			})
+
+			expect(result.success).toBe(true)
+			expect(result.isUpdate).toBe(false)
+		})
+
+		it("rejects videoIndex 0 submission with no score", async () => {
+			const registration = createTestRegistration()
+			const competition = createTestCompetition({ competitionType: "online" })
+
+			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			limitMock
+				.mockResolvedValueOnce([registration])
+				.mockResolvedValueOnce([competition])
+				.mockResolvedValueOnce([]) // No event = allow submission
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // Individual
+				.mockResolvedValueOnce([]) // No existing submission
+
+			await expect(
+				submitVideoFn({
+					data: {
+						trackWorkoutId: "tw-1",
+						competitionId: "comp-1",
+						videoUrl: "https://youtube.com/watch?v=test",
+						videoIndex: 0,
+					},
+				}),
+			).rejects.toThrow("A score is required when submitting")
+		})
+
 		it("allows videoIndex 0 (default) for individual athletes", async () => {
 			const registration = createTestRegistration()
 			const competition = createTestCompetition({ competitionType: "online" })

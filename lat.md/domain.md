@@ -106,6 +106,12 @@ Key design:
 - Tiebreak values stored separately for time-capped workouts
 - Score rounds (`scoreRoundsTable`) store per-round breakdowns for multi-round workouts
 
+### Time input parsing matches save semantics
+
+Bare numeric input on a time score (no colon — e.g. `2000`) is treated as **raw seconds** in both the live preview and the save path, so the two can never disagree.
+
+[[apps/wodsmith-start/src/lib/scoring/parse/time.ts#parseTime]] defers to [[apps/wodsmith-start/src/lib/scoring/encode/time.ts#encodeTime]] for any non-colon input. An earlier version smart-padded bare digits as MM:SS (`2000` → `20:00` in preview) while the save persisted `33:20`, which confused athletes typing on a phone. Colon-delimited input (`12:34`, `1:02:34.567`) is unchanged. Use `precision: "ms"` only when explicitly persisting raw milliseconds.
+
 ### Missing scores tie at worst place
 
 Athletes registered in a division who never submitted a score for an event are awarded the same points as if they finished one place behind every recorded score in their division.
@@ -158,7 +164,7 @@ Organizers create waiver templates per competition. Athletes sign waivers during
 
 Athletes can submit video evidence of their workout performance for remote judging.
 
-Submissions link to a score and include a video URL (e.g., Vimeo). A valid score is **required** — both [[apps/wodsmith-start/src/components/compete/video-submission-form.tsx#VideoSubmissionForm]] and [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#submitVideoFn]] reject submissions without a score to prevent athletes from entering scores in the notes field instead. Judges can verify or reject submissions. Community voting is supported via `videoVotesTable`. Event ownership validation in [[apps/wodsmith-start/src/server-fns/submission-verification-fns.ts]] uses `verifyEventBelongsToCompetition` which checks `competition_events` first, then falls back to `track_workouts` → `programming_tracks` for sub-events without submission windows.
+Submissions link to a score and include a video URL (e.g., Vimeo). A valid score is **required** — both [[apps/wodsmith-start/src/components/compete/video-submission-form.tsx#VideoSubmissionForm]] and [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#submitVideoFn]] reject submissions without a score to prevent athletes from entering scores in the notes field instead. The server-side check is gated on `videoIndex === 0` so that a team captain submitting multiple teammate videos in one form action — where the score is intentionally only sent with the first slot — is not rejected on subsequent slots. Judges can verify or reject submissions. Community voting is supported via `videoVotesTable`. Event ownership validation in [[apps/wodsmith-start/src/server-fns/submission-verification-fns.ts]] uses `verifyEventBelongsToCompetition` which checks `competition_events` first, then falls back to `track_workouts` → `programming_tracks` for sub-events without submission windows.
 
 ### Supported Video Platforms
 
@@ -190,7 +196,7 @@ Individual athletes (teamSize = 1) are always treated as their own captain. Both
 
 Team divisions allow up to `teamSize` video submissions per event, tracked via a `videoIndex` column on `videoSubmissionsTable`.
 
-The unique constraint is `(registrationId, trackWorkoutId, videoIndex)`. Videos are optional — teams can submit fewer than `teamSize`. The score is submitted once per team (tied to the captain's userId).
+The unique constraint is `(registrationId, trackWorkoutId, videoIndex)`. Videos are optional — teams can submit fewer than `teamSize`. The score is submitted once per team (tied to the captain's userId): the form sends the score (and `roundScores`) only with the first slot's `submitVideoFn` call (`videoIndex === 0`); subsequent teammate slots arrive with no score by design, and the server's score-required check matches that contract by gating on `videoIndex === 0`.
 
 ### Round Breakdown Display
 
