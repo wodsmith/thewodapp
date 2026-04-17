@@ -321,7 +321,9 @@ function VerificationControls({
       ? String(submission.score.secondaryValue)
       : "",
   )
-  const [penaltyTiebreakScore, setPenaltyTiebreakScore] = useState("")
+  const [penaltyTiebreakScore, setPenaltyTiebreakScore] = useState(
+    submission.score.tiebreakValue ?? "",
+  )
 
   // Scheme config from event.workout — mirrors video-submission-form.tsx so
   // the Adjust Score form validates with the same rules athletes submit under.

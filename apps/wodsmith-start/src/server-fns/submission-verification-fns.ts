@@ -898,6 +898,12 @@ export const enterSubmissionScoreFn = createServerFn({ method: "POST" })
       const timeCapMs = trackWorkout.timeCap ? trackWorkout.timeCap * 1000 : null
 
       if (hasRoundScores && data.roundScores) {
+        const expectedRoundCount = trackWorkout.roundsToScore ?? 1
+        if (expectedRoundCount <= 1) {
+          throw new Error(
+            "roundScores is only valid for multi-round workouts",
+          )
+        }
         const sorted = [...data.roundScores].sort(
           (a, b) => a.roundNumber - b.roundNumber,
         )
@@ -907,6 +913,14 @@ export const enterSubmissionScoreFn = createServerFn({ method: "POST" })
             throw new Error("roundScores must contain unique roundNumber values")
           }
           seen.add(round.roundNumber)
+        }
+        if (
+          sorted.length !== expectedRoundCount ||
+          sorted.some((round, index) => round.roundNumber !== index + 1)
+        ) {
+          throw new Error(
+            `Expected exactly ${expectedRoundCount} contiguous round scores (1..${expectedRoundCount})`,
+          )
         }
         const result = encodeRounds(
           sorted.map((rs) => ({ raw: rs.score })),
@@ -995,6 +1009,27 @@ export const enterSubmissionScoreFn = createServerFn({ method: "POST" })
       const now = new Date()
 
       const newScoreId = await db.transaction(async (tx) => {
+        // Re-check inside the transaction to narrow the TOCTOU window from
+        // the pre-transaction existence check above. A duplicate-key error
+        // from the unique index is still possible under concurrent inserts
+        // and is caught below to surface the same friendly message.
+        const [existingInTx] = await tx
+          .select({ id: scoresTable.id })
+          .from(scoresTable)
+          .where(
+            and(
+              eq(scoresTable.competitionEventId, data.trackWorkoutId),
+              eq(scoresTable.userId, scoreUserId),
+            ),
+          )
+          .limit(1)
+
+        if (existingInTx) {
+          throw new Error(
+            "A score already exists for this submission. Use the adjust action to change it.",
+          )
+        }
+
         const insertValues: typeof scoresTable.$inferInsert = {
           userId: scoreUserId,
           teamId: ownerTeamId,
@@ -1091,6 +1126,20 @@ export const enterSubmissionScoreFn = createServerFn({ method: "POST" })
           )
 
         return insertedId
+      }).catch((err: unknown) => {
+        // The `idx_scores_competition_user_unique` unique index catches
+        // concurrent inserts that slip past the SELECT checks — rethrow
+        // the friendly message so the caller sees a consistent error.
+        if (
+          err instanceof Error &&
+          err.message.includes("Duplicate entry") &&
+          err.message.includes("idx_scores_competition_user_unique")
+        ) {
+          throw new Error(
+            "A score already exists for this submission. Use the adjust action to change it.",
+          )
+        }
+        throw err
       })
 
       logInfo({

@@ -78,6 +78,11 @@ export function EnterScoreForm({
     ? roundScoreInputs.map((s) => (s.trim() ? parseScore(s, scheme) : null))
     : []
 
+  const tiebreakParseResult: ParseResult | null =
+    tiebreakScheme && tiebreakInput.trim()
+      ? parseScore(tiebreakInput, tiebreakScheme)
+      : null
+
   // Auto-derive cap status from parsed time vs the workout's time cap —
   // mirrors video-submission-form.tsx so reviewers don't need a separate
   // status picker.
@@ -127,6 +132,11 @@ export function EnterScoreForm({
         setError(parseResult?.error ?? "Invalid score")
         return
       }
+    }
+
+    if (tiebreakScheme && tiebreakInput.trim() && !tiebreakParseResult?.isValid) {
+      setError(tiebreakParseResult?.error ?? "Invalid tiebreak")
+      return
     }
 
     setIsSubmitting(true)
@@ -315,9 +325,24 @@ export function EnterScoreForm({
               placeholder={
                 tiebreakScheme === "time" ? "e.g., 3:45" : "e.g., 100"
               }
-              className="font-mono"
+              className={cn(
+                "font-mono",
+                tiebreakParseResult?.error &&
+                  !tiebreakParseResult?.isValid &&
+                  "border-destructive",
+              )}
               disabled={isSubmitting}
             />
+            {tiebreakParseResult?.isValid && (
+              <p className="text-xs text-green-600 dark:text-green-400">
+                Parsed as: {tiebreakParseResult.formatted}
+              </p>
+            )}
+            {tiebreakParseResult?.error && (
+              <p className="text-xs text-destructive">
+                {tiebreakParseResult.error}
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">
               {tiebreakScheme === "time"
                 ? "Time to complete specified reps/work"
