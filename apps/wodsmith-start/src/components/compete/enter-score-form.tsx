@@ -11,18 +11,19 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import type { ParseResult, WorkoutScheme } from "@/lib/scoring"
+import { parseScore } from "@/lib/scoring"
+import { cn } from "@/lib/utils"
 import {
   enterSubmissionScoreFn,
   type EventDetails,
 } from "@/server-fns/submission-verification-fns"
+import {
+  getSchemeLabel,
+  getScoreHelpText,
+  getScorePlaceholder,
+} from "./score-entry-helpers"
 
 interface EnterScoreFormProps {
   videoSubmissionId: string
@@ -36,6 +37,10 @@ interface EnterScoreFormProps {
  * video without filling in the score field. Renders in the no-score branch
  * of both the organizer and volunteer review surfaces; once submitted, the
  * route invalidates and the standard `VerificationControls` takes over.
+ *
+ * Mirrors the score-entry UX of `video-submission-form.tsx` — schema-aware
+ * parsing, auto-derived cap status for time-with-cap, tiebreak input — so
+ * reviewers enter scores through the same validation path as athletes.
  */
 export function EnterScoreForm({
   videoSubmissionId,
@@ -46,29 +51,85 @@ export function EnterScoreForm({
   const router = useRouter()
   const enterFn = useServerFn(enterSubmissionScoreFn)
 
+  const scheme = event.workout.scheme as WorkoutScheme
   const roundsToScore = Math.max(1, event.workout.roundsToScore ?? 1)
   const isMultiRound = roundsToScore > 1
+  const timeCap = event.workout.timeCap
+  const tiebreakScheme = event.workout.tiebreakScheme as WorkoutScheme | null
 
-  const [score, setScore] = useState("")
-  const [roundScores, setRoundScores] = useState<string[]>(() =>
+  const [scoreInput, setScoreInput] = useState("")
+  const [roundScoreInputs, setRoundScoreInputs] = useState<string[]>(() =>
     Array.from({ length: roundsToScore }, () => ""),
   )
-  const [scoreStatus, setScoreStatus] = useState<"scored" | "cap">("scored")
   const [secondaryScore, setSecondaryScore] = useState("")
+  const [tiebreakInput, setTiebreakInput] = useState("")
   const [reviewerNotes, setReviewerNotes] = useState("")
   const [noRepCount, setNoRepCount] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false)
 
-  const placeholder = event.workout.timeCap ? "10:30" : "155"
+  const parseResult: ParseResult | null =
+    !isMultiRound && scoreInput.trim()
+      ? parseScore(scoreInput, scheme)
+      : null
+
+  const roundParseResults: (ParseResult | null)[] = isMultiRound
+    ? roundScoreInputs.map((s) => (s.trim() ? parseScore(s, scheme) : null))
+    : []
+
+  // Auto-derive cap status from parsed time vs the workout's time cap —
+  // mirrors video-submission-form.tsx so reviewers don't need a separate
+  // status picker.
+  const scoreStatus: "scored" | "cap" = (() => {
+    if (
+      parseResult?.isValid &&
+      parseResult.encoded !== null &&
+      scheme === "time-with-cap" &&
+      timeCap
+    ) {
+      const capMs = timeCap * 1000
+      if (parseResult.encoded >= capMs) return "cap"
+    }
+    return "scored"
+  })()
+
+  const showSecondaryInput =
+    !isMultiRound && scheme === "time-with-cap" && scoreStatus === "cap"
 
   const canSubmit = isMultiRound
-    ? roundScores.every((s) => s.trim().length > 0)
-    : score.trim().length > 0
+    ? roundScoreInputs.every((s) => s.trim().length > 0)
+    : scoreInput.trim().length > 0
 
   async function handleSubmit() {
-    setIsSubmitting(true)
     setError(null)
+    setHasAttemptedSubmit(true)
+
+    if (isMultiRound) {
+      for (let i = 0; i < roundScoreInputs.length; i++) {
+        const input = roundScoreInputs[i]
+        if (!input.trim()) {
+          setError(`Please enter a score for round ${i + 1}`)
+          return
+        }
+        const r = parseScore(input, scheme)
+        if (!r.isValid) {
+          setError(`Round ${i + 1}: ${r.error ?? "invalid score"}`)
+          return
+        }
+      }
+    } else {
+      if (!scoreInput.trim()) {
+        setError("Please enter a score")
+        return
+      }
+      if (!parseResult?.isValid) {
+        setError(parseResult?.error ?? "Invalid score")
+        return
+      }
+    }
+
+    setIsSubmitting(true)
     try {
       if (isMultiRound) {
         await enterFn({
@@ -76,10 +137,11 @@ export function EnterScoreForm({
             competitionId,
             trackWorkoutId,
             videoSubmissionId,
-            roundScores: roundScores.map((s, i) => ({
+            roundScores: roundScoreInputs.map((s, i) => ({
               roundNumber: i + 1,
               score: s.trim(),
             })),
+            tieBreakScore: tiebreakInput.trim() || undefined,
             reviewerNotes: reviewerNotes.trim() || undefined,
             noRepCount: noRepCount
               ? Number.parseInt(noRepCount, 10)
@@ -92,9 +154,13 @@ export function EnterScoreForm({
             competitionId,
             trackWorkoutId,
             videoSubmissionId,
-            score: score.trim(),
+            score: scoreInput.trim(),
             scoreStatus,
-            secondaryScore: secondaryScore || undefined,
+            secondaryScore:
+              scoreStatus === "cap"
+                ? secondaryScore.trim() || undefined
+                : undefined,
+            tieBreakScore: tiebreakInput.trim() || undefined,
             reviewerNotes: reviewerNotes.trim() || undefined,
             noRepCount: noRepCount
               ? Number.parseInt(noRepCount, 10)
@@ -128,87 +194,136 @@ export function EnterScoreForm({
         )}
 
         {isMultiRound ? (
-          <div className="space-y-2">
-            <Label className="text-xs">Score per round</Label>
-            <div className="space-y-2">
-              {roundScores.map((value, i) => (
-                <div
-                  key={`enter-r-${i + 1}`}
-                  className="flex items-center gap-2"
-                >
-                  <span className="text-xs uppercase tracking-wider w-8 text-muted-foreground">
-                    R{i + 1}
-                  </span>
+          <div className="space-y-3">
+            <Label>{getSchemeLabel(scheme)} per Round</Label>
+            {roundScoreInputs.map((input, i) => {
+              const roundResult = roundParseResults[i]
+              return (
+                <div key={`enter-r-${i + 1}`} className="space-y-1">
+                  <Label
+                    htmlFor={`enter-round-${i}`}
+                    className="text-sm font-normal text-muted-foreground"
+                  >
+                    Round {i + 1}
+                  </Label>
                   <Input
-                    value={value}
-                    onChange={(e) =>
-                      setRoundScores((prev) => {
-                        const next = [...prev]
-                        next[i] = e.target.value
-                        return next
-                      })
-                    }
-                    placeholder={placeholder}
-                    className="font-mono"
+                    id={`enter-round-${i}`}
+                    value={input}
+                    onChange={(e) => {
+                      const next = [...roundScoreInputs]
+                      next[i] = e.target.value
+                      setRoundScoreInputs(next)
+                    }}
+                    placeholder={getScorePlaceholder(scheme)}
+                    className={cn(
+                      "font-mono",
+                      ((roundResult?.error && !roundResult?.isValid) ||
+                        (hasAttemptedSubmit && !input.trim())) &&
+                        "border-destructive",
+                    )}
+                    disabled={isSubmitting}
                   />
+                  {roundResult?.isValid && (
+                    <p className="text-xs text-green-600 dark:text-green-400">
+                      Parsed as: {roundResult.formatted}
+                    </p>
+                  )}
+                  {roundResult?.error && (
+                    <p className="text-xs text-destructive">
+                      {roundResult.error}
+                    </p>
+                  )}
                 </div>
-              ))}
-            </div>
-            {event.workout.timeCap ? (
+              )
+            })}
+            {getScoreHelpText(scheme, timeCap) && (
+              <p className="text-xs text-muted-foreground">
+                {getScoreHelpText(scheme, timeCap)}
+              </p>
+            )}
+            {scheme === "time-with-cap" && timeCap ? (
               <p className="text-[11px] text-muted-foreground">
                 Status is derived per round from the time vs the per-round cap.
               </p>
             ) : null}
           </div>
         ) : (
-          <>
-            <div className="space-y-2">
-              <Label htmlFor="enter-score" className="text-xs">
-                Score
-              </Label>
-              <Input
-                id="enter-score"
-                value={score}
-                onChange={(e) => setScore(e.target.value)}
-                placeholder={placeholder}
-                className="font-mono"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="enter-status" className="text-xs">
-                Status
-              </Label>
-              <Select
-                value={scoreStatus}
-                onValueChange={(v) => setScoreStatus(v as "scored" | "cap")}
-              >
-                <SelectTrigger id="enter-status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="scored">Scored</SelectItem>
-                  {event.workout.timeCap && (
-                    <SelectItem value="cap">Capped</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            {scoreStatus === "cap" && (
-              <div className="space-y-2">
-                <Label htmlFor="enter-secondary" className="text-xs">
-                  Reps at cap
-                </Label>
-                <Input
-                  id="enter-secondary"
-                  value={secondaryScore}
-                  onChange={(e) => setSecondaryScore(e.target.value)}
-                  placeholder="e.g. 42"
-                  type="number"
-                  min="0"
-                />
-              </div>
+          <div className="space-y-2">
+            <Label htmlFor="enter-score">{getSchemeLabel(scheme)}</Label>
+            <Input
+              id="enter-score"
+              value={scoreInput}
+              onChange={(e) => setScoreInput(e.target.value)}
+              placeholder={getScorePlaceholder(scheme)}
+              className={cn(
+                "font-mono",
+                ((parseResult?.error && !parseResult?.isValid) ||
+                  (hasAttemptedSubmit && !scoreInput.trim())) &&
+                  "border-destructive",
+              )}
+              disabled={isSubmitting}
+            />
+            {getScoreHelpText(scheme, timeCap) && (
+              <p className="text-xs text-muted-foreground">
+                {getScoreHelpText(scheme, timeCap)}
+              </p>
             )}
-          </>
+            {parseResult?.isValid && (
+              <p className="text-xs text-green-600 dark:text-green-400">
+                Parsed as: {parseResult.formatted}
+                {scoreStatus === "cap" && " (Time Cap)"}
+              </p>
+            )}
+            {parseResult?.error && (
+              <p className="text-xs text-destructive">{parseResult.error}</p>
+            )}
+          </div>
+        )}
+
+        {!isMultiRound && scoreStatus === "cap" && (
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            Time cap hit. Enter the reps completed at the cap below.
+          </p>
+        )}
+        {showSecondaryInput && (
+          <div className="space-y-2">
+            <Label htmlFor="enter-secondary">Reps Completed at Cap</Label>
+            <Input
+              id="enter-secondary"
+              type="number"
+              value={secondaryScore}
+              onChange={(e) => setSecondaryScore(e.target.value)}
+              placeholder="e.g., 150"
+              min="0"
+              disabled={isSubmitting}
+            />
+            <p className="text-xs text-muted-foreground">
+              Total reps/work completed when the time cap hit
+            </p>
+          </div>
+        )}
+
+        {tiebreakScheme && (
+          <div className="space-y-2">
+            <Label htmlFor="enter-tiebreak">
+              Tiebreak ({tiebreakScheme === "time" ? "Time" : "Reps/Weight"})
+            </Label>
+            <Input
+              id="enter-tiebreak"
+              value={tiebreakInput}
+              onChange={(e) => setTiebreakInput(e.target.value)}
+              placeholder={
+                tiebreakScheme === "time" ? "e.g., 3:45" : "e.g., 100"
+              }
+              className="font-mono"
+              disabled={isSubmitting}
+            />
+            <p className="text-xs text-muted-foreground">
+              {tiebreakScheme === "time"
+                ? "Time to complete specified reps/work"
+                : "Reps or weight completed for tiebreak"}
+            </p>
+          </div>
         )}
 
         <div className="space-y-2">

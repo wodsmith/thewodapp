@@ -71,7 +71,18 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { decodeScore, type WorkoutScheme } from "@/lib/scoring"
+import {
+  decodeScore,
+  type ParseResult,
+  parseScore,
+  type WorkoutScheme,
+} from "@/lib/scoring"
+import { cn } from "@/lib/utils"
+import {
+  getSchemeLabel,
+  getScoreHelpText,
+  getScorePlaceholder,
+} from "@/components/compete/score-entry-helpers"
 import {
   type EventDetails,
   getEventDetailsForVerificationFn,
@@ -309,14 +320,59 @@ function VerificationControls({
   )
   const [penaltyRoundScores, setPenaltyRoundScores] =
     useState<string[]>(initialRoundInputs)
-  const [penaltyStatus, setPenaltyStatus] = useState<"scored" | "cap">(
-    submission.score.status === "cap" ? "cap" : "scored",
-  )
   const [penaltySecondaryScore, setPenaltySecondaryScore] = useState(
     submission.score.secondaryValue !== null
       ? String(submission.score.secondaryValue)
       : "",
   )
+  const [penaltyTiebreakScore, setPenaltyTiebreakScore] = useState("")
+
+  // Scheme config from event.workout — mirrors video-submission-form.tsx so
+  // the Adjust Score form validates with the same rules athletes submit under.
+  const scheme = event.workout.scheme as WorkoutScheme
+  const timeCap = event.workout.timeCap
+  const tiebreakScheme = event.workout.tiebreakScheme as WorkoutScheme | null
+
+  const penaltyParseResult: ParseResult | null =
+    !isMultiRound && penaltyScore.trim()
+      ? parseScore(penaltyScore, scheme)
+      : null
+
+  const penaltyRoundParseResults: (ParseResult | null)[] = isMultiRound
+    ? penaltyRoundScores.map((s) =>
+        s.trim() ? parseScore(s, scheme) : null,
+      )
+    : []
+
+  // Auto-derive cap status from parsed time vs the time cap for single-round
+  // workouts. Multi-round status is derived server-side per round.
+  const penaltyStatus: "scored" | "cap" = (() => {
+    if (isMultiRound) {
+      return penaltyRoundParseResults.some(
+        (r) =>
+          r?.isValid &&
+          r.encoded !== null &&
+          scheme === "time-with-cap" &&
+          timeCap &&
+          r.encoded >= timeCap * 1000,
+      )
+        ? "cap"
+        : "scored"
+    }
+    if (
+      penaltyParseResult?.isValid &&
+      penaltyParseResult.encoded !== null &&
+      scheme === "time-with-cap" &&
+      timeCap
+    ) {
+      const capMs = timeCap * 1000
+      if (penaltyParseResult.encoded >= capMs) return "cap"
+    }
+    return "scored"
+  })()
+
+  const showPenaltySecondaryInput =
+    !isMultiRound && scheme === "time-with-cap" && penaltyStatus === "cap"
 
   const verificationStatus = submission.verification.status
 
@@ -346,8 +402,32 @@ function VerificationControls({
     : penaltyScore.trim().length > 0
 
   async function handleApplyPenalty() {
-    setIsSubmitting(true)
     setError(null)
+    if (isMultiRound) {
+      for (let i = 0; i < penaltyRoundScores.length; i++) {
+        const input = penaltyRoundScores[i]
+        if (!input.trim()) {
+          setError(`Please enter a score for round ${i + 1}`)
+          return
+        }
+        const r = parseScore(input, scheme)
+        if (!r.isValid) {
+          setError(`Round ${i + 1}: ${r.error ?? "invalid score"}`)
+          return
+        }
+      }
+    } else {
+      if (!penaltyScore.trim()) {
+        setError("Please enter an adjusted score")
+        return
+      }
+      if (!penaltyParseResult?.isValid) {
+        setError(penaltyParseResult?.error ?? "Invalid score")
+        return
+      }
+    }
+
+    setIsSubmitting(true)
     try {
       if (isMultiRound) {
         await verifyFn({
@@ -361,6 +441,7 @@ function VerificationControls({
               score: score.trim(),
             })),
             adjustedScoreStatus: penaltyStatus,
+            tieBreakScore: penaltyTiebreakScore.trim() || undefined,
             reviewerNotes: reviewerNotes.trim() || undefined,
             penaltyType: penaltyType === "none" ? undefined : penaltyType,
             noRepCount: noRepCount
@@ -377,7 +458,11 @@ function VerificationControls({
             action: "adjust",
             adjustedScore: penaltyScore,
             adjustedScoreStatus: penaltyStatus,
-            secondaryScore: penaltySecondaryScore || undefined,
+            secondaryScore:
+              penaltyStatus === "cap"
+                ? penaltySecondaryScore.trim() || undefined
+                : undefined,
+            tieBreakScore: penaltyTiebreakScore.trim() || undefined,
             reviewerNotes: reviewerNotes.trim() || undefined,
             penaltyType: penaltyType === "none" ? undefined : penaltyType,
             noRepCount: noRepCount
@@ -488,6 +573,12 @@ function VerificationControls({
                   ? `, ${submission.score.secondaryValue} reps`
                   : ""}
                 )
+              </span>
+            )}
+            {tiebreakScheme && (
+              <span className="text-muted-foreground text-sm font-normal">
+                {" "}
+                &middot; TB: {submission.score.tiebreakValue || "—"}
               </span>
             )}
           </p>
@@ -666,72 +757,106 @@ function VerificationControls({
             {/* Adjusted score */}
             {isMultiRound ? (
               <div className="space-y-2">
-                <Label className="text-xs">Adjusted score per round</Label>
+                <Label className="text-xs">
+                  Adjusted {getSchemeLabel(scheme)} per round
+                </Label>
                 <div className="space-y-2">
-                  {penaltyRoundScores.map((value, i) => (
-                    <div
-                      key={sortedRoundScores[i]?.roundNumber ?? i + 1}
-                      className="flex items-center gap-2"
-                    >
-                      <span className="text-xs uppercase tracking-wider w-8 text-muted-foreground">
-                        R{i + 1}
-                      </span>
-                      <Input
-                        value={value}
-                        onChange={(e) =>
-                          setPenaltyRoundScores((prev) => {
-                            const next = [...prev]
-                            next[i] = e.target.value
-                            return next
-                          })
-                        }
-                        placeholder={event.workout.timeCap ? "10:30" : "155"}
-                        className="font-mono"
-                      />
-                    </div>
-                  ))}
+                  {penaltyRoundScores.map((value, i) => {
+                    const roundResult = penaltyRoundParseResults[i]
+                    return (
+                      <div
+                        key={sortedRoundScores[i]?.roundNumber ?? i + 1}
+                        className="space-y-1"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs uppercase tracking-wider w-8 text-muted-foreground">
+                            R{i + 1}
+                          </span>
+                          <Input
+                            value={value}
+                            onChange={(e) =>
+                              setPenaltyRoundScores((prev) => {
+                                const next = [...prev]
+                                next[i] = e.target.value
+                                return next
+                              })
+                            }
+                            placeholder={getScorePlaceholder(scheme)}
+                            className={cn(
+                              "font-mono",
+                              roundResult?.error &&
+                                !roundResult?.isValid &&
+                                "border-destructive",
+                            )}
+                          />
+                        </div>
+                        {roundResult?.isValid && (
+                          <p className="pl-10 text-[11px] text-green-600 dark:text-green-400">
+                            Parsed as: {roundResult.formatted}
+                          </p>
+                        )}
+                        {roundResult?.error && (
+                          <p className="pl-10 text-[11px] text-destructive">
+                            {roundResult.error}
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Status is derived from each round&apos;s time vs the per-round
-                  cap.
-                </p>
+                {getScoreHelpText(scheme, timeCap) && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {getScoreHelpText(scheme, timeCap)}
+                  </p>
+                )}
+                {scheme === "time-with-cap" && timeCap ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    Status is derived from each round&apos;s time vs the
+                    per-round cap.
+                  </p>
+                ) : null}
               </div>
             ) : (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="penalty-score" className="text-xs">
-                    Adjusted score
+                    Adjusted {getSchemeLabel(scheme)}
                   </Label>
                   <Input
                     id="penalty-score"
                     value={penaltyScore}
                     onChange={(e) => setPenaltyScore(e.target.value)}
-                    placeholder={event.workout.timeCap ? "10:30" : "155"}
-                    className="font-mono"
+                    placeholder={getScorePlaceholder(scheme)}
+                    className={cn(
+                      "font-mono",
+                      penaltyParseResult?.error &&
+                        !penaltyParseResult?.isValid &&
+                        "border-destructive",
+                    )}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="penalty-status" className="text-xs">
-                    Status
-                  </Label>
-                  <Select
-                    value={penaltyStatus}
-                    onValueChange={(v) =>
-                      setPenaltyStatus(v as "scored" | "cap")
-                    }
-                  >
-                    <SelectTrigger id="penalty-status">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="scored">Scored</SelectItem>
-                      {event.workout.timeCap && (
-                        <SelectItem value="cap">Capped</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  {getScoreHelpText(scheme, timeCap) && (
+                    <p className="text-[11px] text-muted-foreground">
+                      {getScoreHelpText(scheme, timeCap)}
+                    </p>
+                  )}
+                  {penaltyParseResult?.isValid && (
+                    <p className="text-[11px] text-green-600 dark:text-green-400">
+                      Parsed as: {penaltyParseResult.formatted}
+                      {penaltyStatus === "cap" && " (Time Cap)"}
+                    </p>
+                  )}
+                  {penaltyParseResult?.error && (
+                    <p className="text-[11px] text-destructive">
+                      {penaltyParseResult.error}
+                    </p>
+                  )}
                 </div>
                 {penaltyStatus === "cap" && (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                    Time cap hit. Enter the reps completed at the cap below.
+                  </p>
+                )}
+                {showPenaltySecondaryInput && (
                   <div className="space-y-2">
                     <Label htmlFor="penalty-secondary" className="text-xs">
                       Reps at cap
@@ -747,6 +872,23 @@ function VerificationControls({
                   </div>
                 )}
               </>
+            )}
+            {tiebreakScheme && (
+              <div className="space-y-2">
+                <Label htmlFor="penalty-tiebreak" className="text-xs">
+                  Tiebreak (
+                  {tiebreakScheme === "time" ? "Time" : "Reps/Weight"})
+                </Label>
+                <Input
+                  id="penalty-tiebreak"
+                  value={penaltyTiebreakScore}
+                  onChange={(e) => setPenaltyTiebreakScore(e.target.value)}
+                  placeholder={
+                    tiebreakScheme === "time" ? "e.g. 3:45" : "e.g. 100"
+                  }
+                  className="font-mono"
+                />
+              </div>
             )}
 
             {/* Reviewer notes */}
