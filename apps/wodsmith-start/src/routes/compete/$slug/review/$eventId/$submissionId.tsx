@@ -94,6 +94,7 @@ import {
   deleteVerificationLogFn,
 } from "@/server-fns/submission-verification-fns"
 import { EnterScoreForm } from "@/components/compete/enter-score-form"
+import { OrganizerVideoLinksEditor } from "@/components/compete/organizer-video-links-editor"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   createReviewNoteFn,
@@ -264,6 +265,9 @@ export const Route = createFileRoute(
     return {
       submission: reviewResult.submission,
       siblings: siblingsResult.siblings,
+      siblingsTeamSize: siblingsResult.teamSize,
+      siblingsRegistrationId: siblingsResult.registrationId,
+      siblingsTrackWorkoutId: siblingsResult.trackWorkoutId,
       verificationSubmission,
       event,
       verificationLogs,
@@ -1882,6 +1886,9 @@ function SubmissionDetailPage() {
   const {
     submission,
     siblings,
+    siblingsTeamSize,
+    siblingsRegistrationId,
+    siblingsTrackWorkoutId,
     verificationSubmission,
     event,
     verificationLogs,
@@ -2375,6 +2382,19 @@ function SubmissionDetailPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* Video link editor — appears under Adjust Score for fixing broken links */}
+          <OrganizerVideoLinksEditor
+            submissions={siblings.map((s) => ({
+              id: s.id,
+              videoIndex: s.videoIndex,
+              videoUrl: s.videoUrl,
+            }))}
+            competitionId={competition.id}
+            teamSize={siblingsTeamSize}
+            registrationId={siblingsRegistrationId}
+            trackWorkoutId={siblingsTrackWorkoutId}
+          />
 
           {allReviewNotes.length > 0 && (
             <MovementTallyCard notes={allReviewNotes} />

@@ -12,6 +12,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router"
 import {
+  AlertTriangle,
   Calendar,
   CheckCircle2,
   Clock,
@@ -147,6 +148,63 @@ export const Route = createFileRoute(
   },
 })
 
+type SubmissionScore = NonNullable<
+  Awaited<ReturnType<typeof getOrganizerSubmissionsFn>>["submissions"][number]["score"]
+>
+
+function ClaimedScoreCell({ score }: { score: SubmissionScore | null }) {
+  if (!score?.displayScore) {
+    return <span className="text-muted-foreground">—</span>
+  }
+
+  const rounds = score.roundScores ?? []
+  const isMultiRound = rounds.length > 1
+  const cappedRoundCount = score.cappedRoundCount ?? 0
+  const totalRoundCount = score.totalRoundCount ?? rounds.length
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <div className="flex items-center gap-1.5">
+        <span className="font-mono text-sm">{score.displayScore}</span>
+        {isMultiRound && cappedRoundCount > 0 && (
+          <span
+            title={
+              cappedRoundCount === totalRoundCount
+                ? `All ${totalRoundCount} rounds capped`
+                : `${cappedRoundCount} of ${totalRoundCount} rounds capped`
+            }
+            className="inline-flex items-center rounded-sm border border-amber-500/40 bg-amber-500/10 px-1 py-px text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300"
+          >
+            {cappedRoundCount}/{totalRoundCount} cap
+          </span>
+        )}
+      </div>
+      {isMultiRound && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground font-mono">
+          {rounds.map((round, i) => (
+            <span key={round.roundNumber} className="flex items-center gap-1">
+              {i > 0 && <span className="text-muted-foreground/50">·</span>}
+              <span className="uppercase tracking-wider text-[10px]">
+                R{round.roundNumber}
+              </span>
+              <span
+                className={cn(
+                  round.status === "cap" &&
+                    "text-amber-700 dark:text-amber-300",
+                )}
+              >
+                {round.status === "cap"
+                  ? `CAP (${round.displayScore ?? "—"})`
+                  : (round.displayScore ?? "—")}
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function SubmissionsPage() {
   const {
     event,
@@ -209,6 +267,7 @@ function SubmissionsPage() {
     key: string
     primary: (typeof submissions)[0]
     videoCount: number
+    teamSize: number
     allReviewed: boolean
     totalUpvotes: number
     totalDownvotes: number
@@ -232,6 +291,7 @@ function SubmissionsPage() {
           key,
           primary: sub,
           videoCount: 1,
+          teamSize: sub.division?.teamSize ?? 1,
           // Use server-computed status that considers ALL videos for this registration
           allReviewed: sub.registrationAllReviewed,
           totalUpvotes: sub.votes.upvotes,
@@ -563,7 +623,17 @@ function SubmissionsPage() {
                                   ? submission.teamName
                                   : `${submission.athlete.firstName ?? ""} ${submission.athlete.lastName ?? ""}`}
                               </span>
-                              {group.videoCount > 1 && (
+                              {group.teamSize > 1 &&
+                              group.videoCount < group.teamSize ? (
+                                <Badge
+                                  variant="outline"
+                                  className="gap-1 text-xs px-1.5 py-0 border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                                  title={`${group.videoCount} of ${group.teamSize} partner videos submitted`}
+                                >
+                                  <AlertTriangle className="h-3 w-3" />
+                                  {group.videoCount}/{group.teamSize} videos
+                                </Badge>
+                              ) : group.videoCount > 1 ? (
                                 <Badge
                                   variant="secondary"
                                   className="gap-1 text-xs px-1.5 py-0"
@@ -571,7 +641,7 @@ function SubmissionsPage() {
                                   <Video className="h-3 w-3" />
                                   {group.videoCount} videos
                                 </Badge>
-                              )}
+                              ) : null}
                             </div>
                             {submission.teamName && (
                               <span className="text-xs text-muted-foreground">
@@ -592,18 +662,7 @@ function SubmissionsPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {submission.score?.displayScore ? (
-                          <span className="font-mono">
-                            {submission.score.displayScore}
-                            {submission.score.status === "cap" && (
-                              <span className="ml-1 text-xs text-muted-foreground">
-                                (cap)
-                              </span>
-                            )}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
+                        <ClaimedScoreCell score={submission.score} />
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {formatDate(submission.submittedAt)}
