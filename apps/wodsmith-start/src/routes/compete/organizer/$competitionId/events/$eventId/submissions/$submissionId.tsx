@@ -74,6 +74,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { decodeScore, type WorkoutScheme } from "@/lib/scoring"
 import {
   type EventDetails,
+  getEventDetailsForVerificationFn,
   getSubmissionDetailFn,
   getVerificationLogsFn,
   type SubmissionDetail,
@@ -81,6 +82,7 @@ import {
   verifySubmissionScoreFn,
   deleteVerificationLogFn,
 } from "@/server-fns/submission-verification-fns"
+import { EnterScoreForm } from "@/components/compete/enter-score-form"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   createReviewNoteFn,
@@ -121,7 +123,9 @@ export const Route = createFileRoute(
       throw new Error("Submission not found")
     }
 
-    // If we have a score ID, fetch verification data and audit logs
+    // If we have a score ID, fetch verification data and audit logs.
+    // Otherwise still fetch event details so the no-score branch can render
+    // the manual-entry form ([[lat.md/domain#Score Adjustments#Manual Score Entry]]).
     let verificationSubmission: SubmissionDetail | null = null
     let event: EventDetails | null = null
     let verificationLogs: VerificationLogEntry[] = []
@@ -148,6 +152,18 @@ export const Route = createFileRoute(
         verificationLogs = logsResult.logs
       } catch {
         // Verification data not available - controls won't show
+      }
+    } else {
+      try {
+        const eventResult = await getEventDetailsForVerificationFn({
+          data: {
+            competitionId: params.competitionId,
+            trackWorkoutId: params.eventId,
+          },
+        })
+        event = eventResult.event
+      } catch {
+        // Event lookup failed — entry form won't render, falls back to placeholder
       }
     }
 
@@ -2361,19 +2377,21 @@ function SubmissionDetailPage() {
               roundScores={submission.score?.roundScores ?? null}
               submissionReviewerNotes={submission.reviewerNotes}
             />
+          ) : event ? (
+            <EnterScoreForm
+              videoSubmissionId={params.submissionId}
+              competitionId={params.competitionId}
+              trackWorkoutId={params.eventId}
+              event={event}
+            />
           ) : (
             <Card>
               <CardHeader>
                 <CardTitle>Verification Controls</CardTitle>
-                <CardDescription>
-                  Review the video and confirm or correct the athlete&apos;s
-                  claimed score
-                </CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  No score submitted yet. Verification controls will be
-                  available once the athlete submits a score.
+                  Could not load event details. Refresh and try again.
                 </p>
               </CardContent>
             </Card>
