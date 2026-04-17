@@ -112,6 +112,7 @@ export interface PublicCompetitionDivision {
   maxSpots: number | null
   spotsAvailable: number | null
   isFull: boolean
+  cutoffRank: number | null
 }
 
 export interface CompetitionDivisionWithCounts {
@@ -122,6 +123,7 @@ export interface CompetitionDivisionWithCounts {
   description: string | null
   feeCents: number | null
   maxSpots: number | null
+  cutoffRank: number | null
   teamSize: number
 }
 
@@ -205,6 +207,7 @@ const updateCompetitionDefaultCapacityInputSchema = z.object({
   teamId: z.string().min(1, "Team ID is required"),
   defaultMaxSpotsPerDivision: z.number().int().min(1).nullable().optional(),
   maxTotalRegistrations: z.number().int().min(1).nullable().optional(),
+  defaultCutoffRank: z.number().int().min(1).nullable().optional(),
 })
 
 const getCompetitionSpotsAvailableInputSchema = z.object({
@@ -217,6 +220,13 @@ const updateDivisionCapacityInputSchema = z.object({
   teamId: z.string().min(1, "Team ID is required"),
   divisionId: z.string().min(1, "Division ID is required"),
   maxSpots: z.number().int().min(1).nullable(),
+})
+
+const updateDivisionCutoffInputSchema = z.object({
+  competitionId: z.string().min(1, "Competition ID is required"),
+  teamId: z.string().min(1, "Team ID is required"),
+  divisionId: z.string().min(1, "Division ID is required"),
+  cutoffRank: z.number().int().min(1).nullable(),
 })
 
 const getDivisionSpotsAvailableInputSchema = z.object({
@@ -621,6 +631,7 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
           description: competitionDivisionsTable.description,
           feeCents: competitionDivisionsTable.feeCents,
           maxSpots: competitionDivisionsTable.maxSpots,
+          cutoffRank: competitionDivisionsTable.cutoffRank,
           registrationCount: sql<number>`cast(count(${competitionRegistrationsTable.id}) as unsigned)`,
         })
         .from(scalingLevelsTable)
@@ -648,6 +659,7 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
           competitionDivisionsTable.description,
           competitionDivisionsTable.feeCents,
           competitionDivisionsTable.maxSpots,
+          competitionDivisionsTable.cutoffRank,
         )
         .orderBy(scalingLevelsTable.position),
       // Count pending purchases (reservations) per division
@@ -696,6 +708,7 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
         maxSpots: capacity.effectiveMax,
         spotsAvailable: capacity.spotsAvailable,
         isFull: capacity.isFull,
+        cutoffRank: d.cutoffRank ?? competition.defaultCutoffRank ?? null,
       }
     })
 
@@ -775,6 +788,7 @@ export const getCompetitionDivisionsWithCountsFn = createServerFn({
         description: competitionDivisionsTable.description,
         feeCents: competitionDivisionsTable.feeCents,
         maxSpots: competitionDivisionsTable.maxSpots,
+        cutoffRank: competitionDivisionsTable.cutoffRank,
         teamSize: scalingLevelsTable.teamSize,
         registrationCount: sql<number>`cast(count(${competitionRegistrationsTable.id}) as unsigned)`,
       })
@@ -801,6 +815,7 @@ export const getCompetitionDivisionsWithCountsFn = createServerFn({
         competitionDivisionsTable.description,
         competitionDivisionsTable.feeCents,
         competitionDivisionsTable.maxSpots,
+        competitionDivisionsTable.cutoffRank,
       )
       .orderBy(scalingLevelsTable.position)
 
@@ -808,11 +823,13 @@ export const getCompetitionDivisionsWithCountsFn = createServerFn({
       scalingGroupId,
       scalingGroupTitle: scalingGroup?.title ?? null,
       defaultMaxSpotsPerDivision: competition.defaultMaxSpotsPerDivision,
+      defaultCutoffRank: competition.defaultCutoffRank,
       divisions: divisions.map((d) => ({
         ...d,
         description: d.description ?? null,
         feeCents: d.feeCents ?? competition.defaultRegistrationFeeCents ?? null,
         maxSpots: d.maxSpots ?? null,
+        cutoffRank: d.cutoffRank ?? null,
       })) as CompetitionDivisionWithCounts[],
     }
   })
@@ -1349,7 +1366,7 @@ export const updateCompetitionDefaultCapacityFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_competition_default_capacity", competition: { id: data.competitionId }, capacity: { defaultMaxSpotsPerDivision: data.defaultMaxSpotsPerDivision, maxTotalRegistrations: data.maxTotalRegistrations }, teamId: data.teamId })
+    getEvlog()?.set({ action: "update_competition_default_capacity", competition: { id: data.competitionId }, capacity: { defaultMaxSpotsPerDivision: data.defaultMaxSpotsPerDivision, maxTotalRegistrations: data.maxTotalRegistrations, defaultCutoffRank: data.defaultCutoffRank }, teamId: data.teamId })
 
     // Verify competition exists and belongs to team
     const [competition] = await db
@@ -1371,6 +1388,9 @@ export const updateCompetitionDefaultCapacityFn = createServerFn({
     }
     if (data.maxTotalRegistrations !== undefined) {
       updateData.maxTotalRegistrations = data.maxTotalRegistrations
+    }
+    if (data.defaultCutoffRank !== undefined) {
+      updateData.defaultCutoffRank = data.defaultCutoffRank
     }
 
     await db
@@ -1445,6 +1465,71 @@ export const updateDivisionCapacityFn = createServerFn({ method: "POST" })
         divisionId: data.divisionId,
         feeCents: defaultFee,
         maxSpots: data.maxSpots,
+      })
+    }
+
+    return { success: true }
+  })
+
+/**
+ * Update cutoff rank for a specific division (override)
+ */
+export const updateDivisionCutoffFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    updateDivisionCutoffInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const db = getDb()
+
+    const session = await getSessionFromCookie()
+    if (!session?.userId) {
+      throw new Error("Not authenticated")
+    }
+
+    await requireTeamPermission(
+      data.teamId,
+      TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+    )
+
+    getEvlog()?.set({ action: "update_division_cutoff", division: { id: data.divisionId, competitionId: data.competitionId, cutoffRank: data.cutoffRank }, teamId: data.teamId })
+
+    const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
+      competitionId: data.competitionId,
+      teamId: data.teamId,
+    })
+
+    const [division] = await db
+      .select()
+      .from(scalingLevelsTable)
+      .where(eq(scalingLevelsTable.id, data.divisionId))
+
+    if (!division || division.scalingGroupId !== scalingGroupId) {
+      throw new Error("Division not found in this competition")
+    }
+
+    const existing = await db.query.competitionDivisionsTable.findFirst({
+      where: and(
+        eq(competitionDivisionsTable.competitionId, data.competitionId),
+        eq(competitionDivisionsTable.divisionId, data.divisionId),
+      ),
+    })
+
+    if (existing) {
+      await db
+        .update(competitionDivisionsTable)
+        .set({ cutoffRank: data.cutoffRank, updatedAt: new Date() })
+        .where(eq(competitionDivisionsTable.id, existing.id))
+    } else {
+      const competition = await db.query.competitionsTable.findFirst({
+        where: eq(competitionsTable.id, data.competitionId),
+      })
+      const defaultFee = competition?.defaultRegistrationFeeCents ?? 0
+
+      await db.insert(competitionDivisionsTable).values({
+        competitionId: data.competitionId,
+        divisionId: data.divisionId,
+        feeCents: defaultFee,
+        cutoffRank: data.cutoffRank,
       })
     }
 

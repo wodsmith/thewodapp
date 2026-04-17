@@ -81,6 +81,7 @@ interface OnlineCompetitionLeaderboardTableProps {
   }>
   selectedEventId: string | null
   scoringAlgorithm: ScoringAlgorithm
+  cutoffRank: number | null
 }
 
 function getRankIcon(rank: number) {
@@ -714,6 +715,7 @@ export function OnlineCompetitionLeaderboardTable({
   events,
   selectedEventId,
   scoringAlgorithm,
+  cutoffRank,
 }: OnlineCompetitionLeaderboardTableProps) {
   const session = useSession()
   const isLoggedIn = !!session?.userId
@@ -1199,17 +1201,29 @@ export function OnlineCompetitionLeaderboardTable({
           </div>
         ) : (
           <div>
-            {tableData.map((entry) => (
-              <MobileOnlineLeaderboardRow
-                key={entry.registrationId}
-                entry={entry}
-                events={events}
-                scoringAlgorithm={scoringAlgorithm}
-                voteCounts={voteCounts}
-                isLoggedIn={isLoggedIn}
-                currentUserId={currentUserId}
-              />
-            ))}
+            {tableData.map((entry, idx) => {
+              const nextEntry = tableData[idx + 1]
+              const showCutoff =
+                cutoffRank != null &&
+                !selectedEventId &&
+                entry.overallRank <= cutoffRank &&
+                (!nextEntry || nextEntry.overallRank > cutoffRank)
+              return (
+                <Fragment key={entry.registrationId}>
+                  <MobileOnlineLeaderboardRow
+                    entry={entry}
+                    events={events}
+                    scoringAlgorithm={scoringAlgorithm}
+                    voteCounts={voteCounts}
+                    isLoggedIn={isLoggedIn}
+                    currentUserId={currentUserId}
+                  />
+                  {showCutoff && (
+                    <div className="h-[3px] bg-orange-500" />
+                  )}
+                </Fragment>
+              )
+            })}
           </div>
         )}
       </div>
@@ -1269,43 +1283,61 @@ export function OnlineCompetitionLeaderboardTable({
                 </TableCell>
               </TableRow>
             ) : (
-              table.getRowModel().rows.map((row) => (
-                <Fragment key={row.id}>
-                  <TableRow
-                    key={row.id}
-                    className={cn(
-                      "table-row",
-                      row.getIsExpanded() && "border-b-0",
-                      hasExpandableContent(row.original, selectedEventId) &&
-                        "cursor-pointer",
+              table.getRowModel().rows.map((row, rowIdx) => {
+                const entry = row.original
+                const rows = table.getRowModel().rows
+                const nextRow = rows[rowIdx + 1]
+                const showCutoff =
+                  cutoffRank != null &&
+                  !selectedEventId &&
+                  entry.overallRank <= cutoffRank &&
+                  (!nextRow || nextRow.original.overallRank > cutoffRank)
+                return (
+                  <Fragment key={row.id}>
+                    <TableRow
+                      className={cn(
+                        "table-row",
+                        row.getIsExpanded() && "border-b-0",
+                        hasExpandableContent(row.original, selectedEventId) &&
+                          "cursor-pointer",
+                      )}
+                      onClick={() => {
+                        if (
+                          hasExpandableContent(row.original, selectedEventId)
+                        ) {
+                          row.toggleExpanded()
+                        }
+                      }}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id} className="table-cell">
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                    {row.getIsExpanded() && (
+                      <ExpandedVideoRow
+                        row={row}
+                        selectedEventId={selectedEventId}
+                        columnsCount={columns.length}
+                        voteCounts={voteCounts}
+                        isLoggedIn={isLoggedIn}
+                        currentUserId={currentUserId}
+                      />
                     )}
-                    onClick={() => {
-                      if (hasExpandableContent(row.original, selectedEventId)) {
-                        row.toggleExpanded()
-                      }
-                    }}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="table-cell">
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                  {row.getIsExpanded() && (
-                    <ExpandedVideoRow
-                      row={row}
-                      selectedEventId={selectedEventId}
-                      columnsCount={columns.length}
-                      voteCounts={voteCounts}
-                      isLoggedIn={isLoggedIn}
-                      currentUserId={currentUserId}
-                    />
-                  )}
-                </Fragment>
-              ))
+                    {showCutoff && (
+                      <tr>
+                        <td colSpan={columns.length} className="p-0">
+                          <div className="h-[3px] bg-orange-500" />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                )
+              })
             )}
           </TableBody>
         </Table>

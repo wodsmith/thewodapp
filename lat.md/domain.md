@@ -45,7 +45,7 @@ Defined in `competitionEventsTable`. Each event references a `workoutId` and bel
 
 Divisions segment athletes within a competition (e.g., "RX Male", "Scaled Female", "Masters 40+").
 
-Stored in competition `settings` JSON. Athletes register into a specific division. Division-specific registration fees can override the competition default.
+Stored in competition `settings` JSON. Athletes register into a specific division. Division-specific registration fees, capacity (max spots), and leaderboard cutoff rank can each override the competition default.
 
 ### Heats
 

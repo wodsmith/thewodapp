@@ -79,6 +79,7 @@ const mockDivisions = [
 		maxSpots: null,
 		spotsAvailable: null,
 		isFull: false,
+		cutoffRank: null,
 	},
 	{
 		id: "div-2",
@@ -90,6 +91,7 @@ const mockDivisions = [
 		maxSpots: null,
 		spotsAvailable: null,
 		isFull: false,
+		cutoffRank: null,
 	},
 ]
 

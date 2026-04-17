@@ -190,6 +190,7 @@ export const getPublicCompetitionsFn = createServerFn({ method: "GET" })
         defaultMaxSpotsPerDivision:
           competitionsTable.defaultMaxSpotsPerDivision,
         maxTotalRegistrations: competitionsTable.maxTotalRegistrations,
+        defaultCutoffRank: competitionsTable.defaultCutoffRank,
         primaryAddressId: competitionsTable.primaryAddressId,
         createdAt: competitionsTable.createdAt,
         updatedAt: competitionsTable.updatedAt,
@@ -263,6 +264,7 @@ export const getPublicCompetitionsFn = createServerFn({ method: "GET" })
         defaultLaneShiftPattern: row.defaultLaneShiftPattern,
         defaultMaxSpotsPerDivision: row.defaultMaxSpotsPerDivision,
         maxTotalRegistrations: row.maxTotalRegistrations,
+        defaultCutoffRank: row.defaultCutoffRank,
         primaryAddressId: row.primaryAddressId,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
@@ -338,6 +340,7 @@ export const getOrganizerCompetitionsFn = createServerFn({ method: "GET" })
         defaultMaxSpotsPerDivision:
           competitionsTable.defaultMaxSpotsPerDivision,
         maxTotalRegistrations: competitionsTable.maxTotalRegistrations,
+        defaultCutoffRank: competitionsTable.defaultCutoffRank,
         primaryAddressId: competitionsTable.primaryAddressId,
         createdAt: competitionsTable.createdAt,
         updatedAt: competitionsTable.updatedAt,
@@ -413,6 +416,7 @@ export const getOrganizerCompetitionsFn = createServerFn({ method: "GET" })
       defaultLaneShiftPattern: row.defaultLaneShiftPattern,
       defaultMaxSpotsPerDivision: row.defaultMaxSpotsPerDivision,
       maxTotalRegistrations: row.maxTotalRegistrations,
+      defaultCutoffRank: row.defaultCutoffRank,
       primaryAddressId: row.primaryAddressId,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -481,6 +485,7 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
         defaultMaxSpotsPerDivision:
           competitionsTable.defaultMaxSpotsPerDivision,
         maxTotalRegistrations: competitionsTable.maxTotalRegistrations,
+        defaultCutoffRank: competitionsTable.defaultCutoffRank,
         primaryAddressId: competitionsTable.primaryAddressId,
         createdAt: competitionsTable.createdAt,
         updatedAt: competitionsTable.updatedAt,
@@ -548,6 +553,7 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
       defaultLaneShiftPattern: row.defaultLaneShiftPattern,
       defaultMaxSpotsPerDivision: row.defaultMaxSpotsPerDivision,
       maxTotalRegistrations: row.maxTotalRegistrations,
+      defaultCutoffRank: row.defaultCutoffRank,
       primaryAddressId: row.primaryAddressId,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,

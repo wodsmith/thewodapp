@@ -24,7 +24,13 @@ Fetches competition groups for the organizing team. Uses `OrganizerCompetitionEd
 
 Organizers configure which divisions athletes can register into, sourced from the team's scaling groups.
 
-Fetches divisions with registration counts, scaling groups, and series mapping status in parallel. Uses `OrganizerDivisionManager` for CRUD on divisions. Also includes `CapacitySettingsForm` for per-division and default max spots configuration. For series competitions, shows mapping status indicating whether divisions are synced from the series template.
+Fetches divisions with registration counts, scaling groups, and series mapping status in parallel. Uses `OrganizerDivisionManager` for CRUD on divisions. Also includes `CapacitySettingsForm` for per-division and default max spots configuration, as well as a default cutoff rank that draws an orange line on the leaderboard. For series competitions, shows mapping status indicating whether divisions are synced from the series template.
+
+### Cutoff Rank
+
+Configures a leaderboard cutoff line — a bold orange line rendered after the Nth-ranked athlete.
+
+Uses the same two-level fallback as capacity: `competitionsTable.defaultCutoffRank` is the competition-wide default, `competitionDivisionsTable.cutoffRank` is the per-division override (null = use default). The effective cutoff flows to the public leaderboard via `getPublicCompetitionDivisionsFn` and renders in both `CompetitionLeaderboardTable` and `OnlineCompetitionLeaderboardTable` (desktop + mobile). Only shown on overall view, hidden in single-event view.
 
 ## Event Management
 

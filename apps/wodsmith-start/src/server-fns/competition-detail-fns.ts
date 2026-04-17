@@ -210,6 +210,7 @@ export const getCompetitionByIdFn = createServerFn({ method: "GET" })
         defaultMaxSpotsPerDivision:
           competitionsTable.defaultMaxSpotsPerDivision,
         maxTotalRegistrations: competitionsTable.maxTotalRegistrations,
+        defaultCutoffRank: competitionsTable.defaultCutoffRank,
         primaryAddressId: competitionsTable.primaryAddressId,
         createdAt: competitionsTable.createdAt,
         updatedAt: competitionsTable.updatedAt,

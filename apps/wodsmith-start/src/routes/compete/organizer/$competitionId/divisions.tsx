@@ -64,6 +64,7 @@ export const Route = createFileRoute(
       scalingGroups: scalingGroupsResult.groups,
       defaultMaxSpotsPerDivision:
         divisionsResult.defaultMaxSpotsPerDivision ?? null,
+      defaultCutoffRank: divisionsResult.defaultCutoffRank ?? null,
       seriesMappingStatus,
     }
   },
@@ -76,6 +77,7 @@ function DivisionsPage() {
     scalingGroupTitle,
     scalingGroups,
     defaultMaxSpotsPerDivision,
+    defaultCutoffRank,
     seriesMappingStatus,
   } = Route.useLoaderData()
   // Get competition from parent layout loader data
@@ -98,6 +100,7 @@ function DivisionsPage() {
             organizingTeamId: competition.organizingTeamId,
             defaultMaxSpotsPerDivision,
             maxTotalRegistrations: competition.maxTotalRegistrations,
+            defaultCutoffRank,
           }}
         />
       )}
@@ -111,6 +114,7 @@ function DivisionsPage() {
         scalingGroupTitle={scalingGroupTitle}
         scalingGroups={scalingGroups}
         defaultMaxSpotsPerDivision={defaultMaxSpotsPerDivision}
+        defaultCutoffRank={defaultCutoffRank}
       />
     </div>
   )

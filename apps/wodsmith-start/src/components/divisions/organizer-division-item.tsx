@@ -38,6 +38,8 @@ export interface OrganizerDivisionItemProps {
   description: string | null
   maxSpots: number | null
   defaultMaxSpots: number | null
+  cutoffRank: number | null
+  defaultCutoffRank: number | null
   index: number
   registrationCount: number
   isOnly: boolean
@@ -45,6 +47,7 @@ export interface OrganizerDivisionItemProps {
   onLabelSave: (value: string) => void
   onDescriptionSave: (value: string | null) => void
   onMaxSpotsSave: (value: number | null) => void
+  onCutoffRankSave: (value: number | null) => void
   onRemove: () => void
   onDrop: (sourceIndex: number, targetIndex: number) => void
 }
@@ -55,6 +58,8 @@ export function OrganizerDivisionItem({
   description,
   maxSpots,
   defaultMaxSpots,
+  cutoffRank,
+  defaultCutoffRank,
   index,
   registrationCount,
   isOnly,
@@ -62,6 +67,7 @@ export function OrganizerDivisionItem({
   onLabelSave,
   onDescriptionSave,
   onMaxSpotsSave,
+  onCutoffRankSave,
   onRemove,
   onDrop,
 }: OrganizerDivisionItemProps) {
@@ -74,6 +80,7 @@ export function OrganizerDivisionItem({
   const labelRef = useRef(label)
   const [localDescription, setLocalDescription] = useState(description ?? "")
   const [localMaxSpots, setLocalMaxSpots] = useState(maxSpots?.toString() ?? "")
+  const [localCutoffRank, setLocalCutoffRank] = useState(cutoffRank?.toString() ?? "")
   const [isExpanded, setIsExpanded] = useState(false)
 
   // Sync local state when prop changes (e.g., after server update)
@@ -89,6 +96,10 @@ export function OrganizerDivisionItem({
   useEffect(() => {
     setLocalMaxSpots(maxSpots?.toString() ?? "")
   }, [maxSpots])
+
+  useEffect(() => {
+    setLocalCutoffRank(cutoffRank?.toString() ?? "")
+  }, [cutoffRank])
 
   const canDelete = registrationCount === 0 && !isOnly
 
@@ -316,6 +327,48 @@ export function OrganizerDivisionItem({
                   {defaultMaxSpots
                     ? "Leave blank to use competition default"
                     : "Leave blank for unlimited"}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <label
+                  htmlFor={`cutoffRank-${id}`}
+                  className="text-sm text-muted-foreground whitespace-nowrap"
+                >
+                  Cutoff rank:
+                </label>
+                <Input
+                  id={`cutoffRank-${id}`}
+                  type="number"
+                  min={1}
+                  value={localCutoffRank}
+                  onChange={(e) => setLocalCutoffRank(e.target.value)}
+                  onBlur={() => {
+                    const newVal =
+                      localCutoffRank.trim() === ""
+                        ? null
+                        : parseInt(localCutoffRank, 10)
+                    if (newVal !== cutoffRank) {
+                      if (
+                        newVal !== null &&
+                        (Number.isNaN(newVal) || newVal < 1)
+                      ) {
+                        setLocalCutoffRank(cutoffRank?.toString() ?? "")
+                        return
+                      }
+                      onCutoffRankSave(newVal)
+                    }
+                  }}
+                  placeholder={
+                    defaultCutoffRank
+                      ? `${defaultCutoffRank} (default)`
+                      : "No cutoff"
+                  }
+                  className="w-32 text-sm"
+                />
+                <span className="text-xs text-muted-foreground">
+                  {defaultCutoffRank
+                    ? "Leave blank to use competition default"
+                    : "Leave blank for no cutoff line"}
                 </span>
               </div>
               <Textarea
