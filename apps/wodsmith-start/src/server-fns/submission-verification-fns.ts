@@ -25,6 +25,7 @@ import {
 } from "@/db/schemas/scores"
 import { userTable } from "@/db/schemas/users"
 import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
+import type { TiebreakScheme } from "@/db/schemas/workouts"
 import { workouts } from "@/db/schemas/workouts"
 import { getEvlog } from "@/lib/evlog"
 import { logInfo } from "@/lib/logging"
@@ -153,7 +154,11 @@ export interface EventDetails {
     name: string
     description: string
     scheme: string
+    scoreType: string | null
     timeCap: number | null
+    roundsToScore: number | null
+    repsPerRound: number | null
+    tiebreakScheme: string | null
   }
   submissionWindow: {
     opensAt: string | null
@@ -737,6 +742,423 @@ export const verifySubmissionScoreFn = createServerFn({ method: "POST" })
     },
   )
 
+const enterSubmissionScoreInputSchema = z.object({
+  competitionId: z.string().min(1),
+  trackWorkoutId: z.string().min(1),
+  videoSubmissionId: z.string().min(1),
+  score: z.string().optional(),
+  roundScores: z
+    .array(
+      z.object({
+        roundNumber: z.number().int().min(1),
+        score: z.string().min(1),
+      }),
+    )
+    .optional(),
+  scoreStatus: z.enum(["scored", "cap"]).optional(),
+  secondaryScore: z.string().optional(),
+  tieBreakScore: z.string().optional(),
+  reviewerNotes: z.string().optional(),
+  noRepCount: z.number().int().min(0).optional(),
+})
+
+/**
+ * Create a `scores` row for a video submission that doesn't yet have one.
+ *
+ * Mirrors the score-encoding/sort-key logic of `submitVideoFn` but for the
+ * organizer/volunteer review surface — used when the athlete uploaded a video
+ * without filling in the score field (possible for submissions made before the
+ * "score required" check landed in PR #401, or via clients that bypass it).
+ *
+ * Refuses to overwrite an existing score for the same user + event so that
+ * accidental double-submission doesn't clobber an existing record (the adjust
+ * action on `verifySubmissionScoreFn` handles updates).
+ */
+export const enterSubmissionScoreFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    enterSubmissionScoreInputSchema.parse(data),
+  )
+  .handler(
+    async ({ data }): Promise<{ success: boolean; scoreId: string }> => {
+      const session = await getSessionFromCookie()
+      if (!session?.userId) {
+        throw new Error("Not authenticated")
+      }
+
+      await requireSubmissionReviewAccess(data.competitionId)
+
+      const db = getDb()
+
+      await verifyEventBelongsToCompetition(
+        db,
+        data.competitionId,
+        data.trackWorkoutId,
+      )
+
+      const [submission] = await db
+        .select({
+          id: videoSubmissionsTable.id,
+          registrationId: videoSubmissionsTable.registrationId,
+          trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+        })
+        .from(videoSubmissionsTable)
+        .where(eq(videoSubmissionsTable.id, data.videoSubmissionId))
+        .limit(1)
+
+      if (!submission || submission.trackWorkoutId !== data.trackWorkoutId) {
+        throw new Error("Video submission not found for this event")
+      }
+
+      const [registration] = await db
+        .select({
+          id: competitionRegistrationsTable.id,
+          userId: competitionRegistrationsTable.userId,
+          captainUserId: competitionRegistrationsTable.captainUserId,
+          divisionId: competitionRegistrationsTable.divisionId,
+          eventId: competitionRegistrationsTable.eventId,
+        })
+        .from(competitionRegistrationsTable)
+        .where(eq(competitionRegistrationsTable.id, submission.registrationId))
+        .limit(1)
+
+      if (!registration || registration.eventId !== data.competitionId) {
+        throw new Error("Registration not found for this competition")
+      }
+
+      // Score is owned by the captain (or the lone individual athlete).
+      const scoreUserId = registration.captainUserId ?? registration.userId
+
+      // Bail if a score already exists — this fn is for first-time entry only.
+      const [existingScore] = await db
+        .select({ id: scoresTable.id })
+        .from(scoresTable)
+        .where(
+          and(
+            eq(scoresTable.competitionEventId, data.trackWorkoutId),
+            eq(scoresTable.userId, scoreUserId),
+          ),
+        )
+        .limit(1)
+
+      if (existingScore) {
+        throw new Error(
+          "A score already exists for this submission. Use the adjust action to change it.",
+        )
+      }
+
+      const [trackWorkout] = await db
+        .select({
+          id: trackWorkoutsTable.id,
+          trackId: trackWorkoutsTable.trackId,
+          workoutId: workouts.id,
+          scheme: workouts.scheme,
+          scoreType: workouts.scoreType,
+          timeCap: workouts.timeCap,
+          roundsToScore: workouts.roundsToScore,
+          tiebreakScheme: workouts.tiebreakScheme,
+        })
+        .from(trackWorkoutsTable)
+        .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+        .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+        .limit(1)
+
+      if (!trackWorkout) {
+        throw new Error("Workout not found for this event")
+      }
+
+      const [track] = await db
+        .select({ ownerTeamId: programmingTracksTable.ownerTeamId })
+        .from(programmingTracksTable)
+        .where(eq(programmingTracksTable.id, trackWorkout.trackId))
+        .limit(1)
+
+      if (!track?.ownerTeamId) {
+        throw new Error("Could not determine team ownership")
+      }
+      const ownerTeamId = track.ownerTeamId
+
+      const scheme = trackWorkout.scheme as WorkoutScheme
+      const resolvedScoreType =
+        (trackWorkout.scoreType as ScoreType | null) ??
+        getDefaultScoreType(scheme)
+
+      const hasRoundScores =
+        !!data.roundScores && data.roundScores.length > 0
+
+      if (!data.score && !hasRoundScores) {
+        throw new Error("A score (or roundScores) is required")
+      }
+
+      let encodedValue: number | null = null
+      let encodedRounds: number[] = []
+      const roundStatuses: Array<"scored" | "cap"> = []
+      let cappedRoundCount = 0
+      let status: "scored" | "cap" = data.scoreStatus ?? "scored"
+      let secondaryValue: number | null = null
+      const timeCapMs = trackWorkout.timeCap ? trackWorkout.timeCap * 1000 : null
+
+      if (hasRoundScores && data.roundScores) {
+        const expectedRoundCount = trackWorkout.roundsToScore ?? 1
+        if (expectedRoundCount <= 1) {
+          throw new Error(
+            "roundScores is only valid for multi-round workouts",
+          )
+        }
+        const sorted = [...data.roundScores].sort(
+          (a, b) => a.roundNumber - b.roundNumber,
+        )
+        const seen = new Set<number>()
+        for (const round of sorted) {
+          if (seen.has(round.roundNumber)) {
+            throw new Error("roundScores must contain unique roundNumber values")
+          }
+          seen.add(round.roundNumber)
+        }
+        if (
+          sorted.length !== expectedRoundCount ||
+          sorted.some((round, index) => round.roundNumber !== index + 1)
+        ) {
+          throw new Error(
+            `Expected exactly ${expectedRoundCount} contiguous round scores (1..${expectedRoundCount})`,
+          )
+        }
+        const result = encodeRounds(
+          sorted.map((rs) => ({ raw: rs.score })),
+          scheme,
+          resolvedScoreType,
+        )
+        if (result.rounds.length !== sorted.length) {
+          throw new Error("Every round in roundScores must be a valid score")
+        }
+        encodedValue = result.aggregated
+        encodedRounds = result.rounds
+        data.roundScores = sorted
+
+        if (scheme === "time-with-cap" && timeCapMs) {
+          for (const roundValue of encodedRounds) {
+            const isCapped = roundValue >= timeCapMs
+            roundStatuses.push(isCapped ? "cap" : "scored")
+            if (isCapped) cappedRoundCount++
+          }
+          status = cappedRoundCount > 0 ? "cap" : "scored"
+        }
+      } else if (data.score) {
+        if (scheme === "time-with-cap" && status === "cap" && timeCapMs) {
+          encodedValue = timeCapMs
+          if (data.secondaryScore) {
+            const parsed = Number.parseInt(data.secondaryScore.trim(), 10)
+            if (!Number.isNaN(parsed) && parsed >= 0) {
+              secondaryValue = parsed
+            }
+          }
+        } else {
+          encodedValue = encodeScore(data.score, scheme)
+          if (
+            scheme === "time-with-cap" &&
+            timeCapMs &&
+            encodedValue !== null &&
+            encodedValue >= timeCapMs
+          ) {
+            status = "cap"
+            encodedValue = timeCapMs
+            if (data.secondaryScore) {
+              const parsed = Number.parseInt(data.secondaryScore.trim(), 10)
+              if (!Number.isNaN(parsed) && parsed >= 0) {
+                secondaryValue = parsed
+              }
+            }
+          }
+        }
+      }
+
+      let tiebreakValue: number | null = null
+      if (data.tieBreakScore && trackWorkout.tiebreakScheme) {
+        try {
+          tiebreakValue = encodeScore(
+            data.tieBreakScore,
+            trackWorkout.tiebreakScheme as WorkoutScheme,
+          )
+        } catch {
+          // Ignore tiebreak encoding errors
+        }
+      }
+
+      const isMultiRound = encodedRounds.length > 1
+      const sortKey =
+        encodedValue !== null
+          ? computeSortKey({
+              value: encodedValue,
+              status,
+              scheme,
+              scoreType: resolvedScoreType,
+              cappedRoundCount: isMultiRound ? cappedRoundCount : undefined,
+              timeCap:
+                status === "cap" && timeCapMs && secondaryValue !== null
+                  ? { ms: timeCapMs, secondaryValue }
+                  : undefined,
+              tiebreak:
+                tiebreakValue !== null && trackWorkout.tiebreakScheme
+                  ? {
+                      scheme: trackWorkout.tiebreakScheme as "time" | "reps",
+                      value: tiebreakValue,
+                    }
+                  : undefined,
+            })
+          : null
+
+      const now = new Date()
+
+      const newScoreId = await db.transaction(async (tx) => {
+        // Re-check inside the transaction to narrow the TOCTOU window from
+        // the pre-transaction existence check above. A duplicate-key error
+        // from the unique index is still possible under concurrent inserts
+        // and is caught below to surface the same friendly message.
+        const [existingInTx] = await tx
+          .select({ id: scoresTable.id })
+          .from(scoresTable)
+          .where(
+            and(
+              eq(scoresTable.competitionEventId, data.trackWorkoutId),
+              eq(scoresTable.userId, scoreUserId),
+            ),
+          )
+          .limit(1)
+
+        if (existingInTx) {
+          throw new Error(
+            "A score already exists for this submission. Use the adjust action to change it.",
+          )
+        }
+
+        const insertValues: typeof scoresTable.$inferInsert = {
+          userId: scoreUserId,
+          teamId: ownerTeamId,
+          workoutId: trackWorkout.workoutId,
+          competitionEventId: data.trackWorkoutId,
+          scheme,
+          scoreType: resolvedScoreType,
+          scoreValue: encodedValue,
+          status,
+          statusOrder: status === "cap" ? 1 : 0,
+          sortKey: sortKey ? sortKeyToString(sortKey) : null,
+          tiebreakScheme:
+            (trackWorkout.tiebreakScheme as TiebreakScheme | null) ?? null,
+          tiebreakValue,
+          timeCapMs,
+          secondaryValue,
+          scalingLevelId: registration.divisionId,
+          asRx: true,
+          recordedAt: now,
+          verificationStatus: "adjusted",
+          verifiedAt: now,
+          verifiedByUserId: session.userId,
+          noRepCount: data.noRepCount ?? null,
+        }
+        await tx.insert(scoresTable).values(insertValues)
+
+        // The id is generated by `$defaultFn(createScoreId)` so re-fetch it
+        // by the natural key (user + event). The pre-insert "no existing
+        // score" check above guarantees this lookup returns the row we just
+        // wrote rather than a stale one.
+        const [inserted] = await tx
+          .select({ id: scoresTable.id })
+          .from(scoresTable)
+          .where(
+            and(
+              eq(scoresTable.competitionEventId, data.trackWorkoutId),
+              eq(scoresTable.userId, scoreUserId),
+            ),
+          )
+          .limit(1)
+
+        if (!inserted) {
+          throw new Error("Failed to fetch inserted score")
+        }
+
+        const insertedId = inserted.id
+
+        if (encodedRounds.length > 0 && data.roundScores) {
+          await tx.insert(scoreRoundsTable).values(
+            data.roundScores.map((round, index) => ({
+              scoreId: insertedId,
+              roundNumber: round.roundNumber,
+              value: encodedRounds[index] ?? 0,
+              status: roundStatuses[index] ?? null,
+            })),
+          )
+        }
+
+        await tx.insert(scoreVerificationLogsTable).values({
+          scoreId: insertedId,
+          competitionId: data.competitionId,
+          trackWorkoutId: data.trackWorkoutId,
+          athleteUserId: scoreUserId,
+          // First-time entry uses the "adjusted" action with null original
+          // values so the audit trail still distinguishes it from a real edit.
+          action: "adjusted",
+          originalScoreValue: null,
+          originalStatus: null,
+          originalSecondaryValue: null,
+          originalTiebreakValue: null,
+          newScoreValue: encodedValue,
+          newStatus: status,
+          newSecondaryValue: secondaryValue,
+          newTiebreakValue: tiebreakValue,
+          noRepCount: data.noRepCount ?? null,
+          performedByUserId: session.userId,
+          performedAt: now,
+        })
+
+        await tx
+          .update(videoSubmissionsTable)
+          .set({
+            reviewStatus: "adjusted",
+            statusUpdatedAt: now,
+            reviewedAt: now,
+            reviewedBy: session.userId,
+            reviewerNotes: data.reviewerNotes || null,
+          })
+          .where(
+            and(
+              eq(videoSubmissionsTable.registrationId, registration.id),
+              eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
+            ),
+          )
+
+        return insertedId
+      }).catch((err: unknown) => {
+        // The `idx_scores_competition_user_unique` unique index catches
+        // concurrent inserts that slip past the SELECT checks — rethrow
+        // the friendly message so the caller sees a consistent error.
+        if (
+          err instanceof Error &&
+          err.message.includes("Duplicate entry") &&
+          err.message.includes("idx_scores_competition_user_unique")
+        ) {
+          throw new Error(
+            "A score already exists for this submission. Use the adjust action to change it.",
+          )
+        }
+        throw err
+      })
+
+      logInfo({
+        message: "[Score] Organizer entered initial score for missing submission",
+        attributes: {
+          scoreId: newScoreId,
+          competitionId: data.competitionId,
+          trackWorkoutId: data.trackWorkoutId,
+          videoSubmissionId: data.videoSubmissionId,
+          performedByUserId: session.userId,
+          status,
+          encodedValue,
+        },
+      })
+
+      return { success: true, scoreId: newScoreId }
+    },
+  )
+
 /**
  * Get a single submission detail for verification
  */
@@ -804,7 +1226,11 @@ export const getSubmissionDetailFn = createServerFn({ method: "GET" })
           workoutName: workouts.name,
           workoutDescription: workouts.description,
           workoutScheme: workouts.scheme,
+          workoutScoreType: workouts.scoreType,
           workoutTimeCap: workouts.timeCap,
+          workoutRoundsToScore: workouts.roundsToScore,
+          workoutRepsPerRound: workouts.repsPerRound,
+          workoutTiebreakScheme: workouts.tiebreakScheme,
         })
         .from(trackWorkoutsTable)
         .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
@@ -823,7 +1249,11 @@ export const getSubmissionDetailFn = createServerFn({ method: "GET" })
           name: trackWorkout.workoutName,
           description: trackWorkout.workoutDescription,
           scheme: trackWorkout.workoutScheme,
+          scoreType: trackWorkout.workoutScoreType,
           timeCap: trackWorkout.workoutTimeCap,
+          roundsToScore: trackWorkout.workoutRoundsToScore,
+          repsPerRound: trackWorkout.workoutRepsPerRound,
+          tiebreakScheme: trackWorkout.workoutTiebreakScheme,
         },
         submissionWindow: {
           opensAt: eventWindow.submissionOpensAt,
@@ -1165,7 +1595,11 @@ export const getEventDetailsForVerificationFn = createServerFn({
         workoutName: workouts.name,
         workoutDescription: workouts.description,
         workoutScheme: workouts.scheme,
+        workoutScoreType: workouts.scoreType,
         workoutTimeCap: workouts.timeCap,
+        workoutRoundsToScore: workouts.roundsToScore,
+        workoutRepsPerRound: workouts.repsPerRound,
+        workoutTiebreakScheme: workouts.tiebreakScheme,
       })
       .from(trackWorkoutsTable)
       .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
@@ -1185,7 +1619,11 @@ export const getEventDetailsForVerificationFn = createServerFn({
           name: trackWorkout.workoutName,
           description: trackWorkout.workoutDescription,
           scheme: trackWorkout.workoutScheme,
+          scoreType: trackWorkout.workoutScoreType,
           timeCap: trackWorkout.workoutTimeCap,
+          roundsToScore: trackWorkout.workoutRoundsToScore,
+          repsPerRound: trackWorkout.workoutRepsPerRound,
+          tiebreakScheme: trackWorkout.workoutTiebreakScheme,
         },
         submissionWindow: {
           opensAt: eventWindow.submissionOpensAt,
