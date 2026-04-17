@@ -177,15 +177,25 @@ The default athlete audience matches the organizer athletes page — solo regist
 
 Captains and solo registrants come from [[apps/wodsmith-start/src/db/schemas/competitions.ts#competitionRegistrationsTable]]. Accepted non-captain teammates come from [[apps/wodsmith-start/src/db/schemas/teams.ts#teamMembershipTable]] on the athlete team with `SYSTEM_ROLES_ENUM.MEMBER`. Pending invites come from [[apps/wodsmith-start/src/db/schemas/teams.ts#teamInvitationTable]] with `acceptedAt IS NULL` and non-cancelled status.
 
-[[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#fetchAthleteAudienceRows]] fetches the raw rows and [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#buildBroadcastRecipients]] deduplicates them: user rows by userId, invite rows by invitationId; an invite whose email matches an included user is dropped in favor of the user.
+[[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#fetchAthleteAudienceRows]] fetches the raw rows and [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#buildBroadcastRecipients]] deduplicates them: user rows by userId, invite rows by invitationId; an invite whose email matches an included user is dropped in favor of the user. Pending invitations are excluded when cancelled, already accepted, or past their `expiresAt` (invitations have no EXPIRED status so the timestamp is the only stale-signal).
+
+When a `public` broadcast merges volunteers and athletes, a pending-invite row whose email matches a volunteer's user email is dropped in favor of the volunteer row — prevents the same person getting two copies.
 
 Pending-invite recipients have `userId=null` and a populated `invitationId` + captured `email` on [[apps/wodsmith-start/src/db/schemas/broadcasts.ts#competitionBroadcastRecipientsTable]], keyed by a second unique index on `(broadcastId, invitationId)` that tolerates multiple NULLs in MySQL.
+
+### Question-filter inheritance
+
+Teammates and pending invites inherit their captain's match against registration-question filters so that "Division = RX" keeps the whole team, not just the captain.
+
+[[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#applyAthleteQuestionFilters]] computes the set of `athleteTeamId`s whose captain's registration matched every filter, then keeps all teammates and pending invites on those teams. Captains/solos are still matched individually by `registrationId`. Without inheritance, filters silently dropped the three non-captain rows per team.
+
+Each `Recipient` carries its `athleteTeamId` (captain/teammate/invite) or `null` (solo) so the inheritance step has the team context without re-fetching.
 
 ### Pending teammate invites filter
 
 The `pending_teammates` audience type targets only unclaimed invitations — useful for nudging invitees to accept or submit their waiver/questions.
 
-Optional `divisionId` narrows by inheriting `athleteTeamId`s from registrations in that division. Question filters are ignored for this audience type since invitees have no registration answers to match against.
+Optional `divisionId` narrows by inheriting `athleteTeamId`s from registrations in that division. Question filters are rejected at the schema layer ([[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#audienceFilterSchema]]) for this audience type since invitees have no registration answers to match against.
 
 The filter is exposed in the audience type picker in [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/broadcasts.tsx]] and produces invite-only recipient rows that appear in email delivery but not in the athlete in-app broadcasts list, since [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#listAthleteBroadcastsFn]] filters by `userId`.
 

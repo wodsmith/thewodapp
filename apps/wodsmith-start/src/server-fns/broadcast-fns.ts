@@ -9,7 +9,7 @@
 import { env } from "cloudflare:workers"
 import { render } from "@react-email/render"
 import { createServerFn } from "@tanstack/react-start"
-import { and, count, desc, eq, inArray, isNull, ne } from "drizzle-orm"
+import { and, count, desc, eq, gt, inArray, isNull, ne } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -62,7 +62,7 @@ const questionFilterSchema = z.object({
 
 export type QuestionFilter = z.infer<typeof questionFilterSchema>
 
-const audienceFilterSchema = z
+export const audienceFilterSchema = z
   .object({
     type: z.enum([
       "all",
@@ -87,6 +87,16 @@ const audienceFilterSchema = z
       filter.type !== "volunteer_role" ||
       (filter.volunteerRole && filter.volunteerRole.length > 0),
     { message: "Volunteer role is required when filtering by role" },
+  )
+  .refine(
+    (filter) =>
+      filter.type !== "pending_teammates" ||
+      !filter.questionFilters ||
+      filter.questionFilters.length === 0,
+    {
+      message:
+        "Registration question filters are not supported for pending teammate invites (invitees have no registration answers)",
+    },
   )
 
 const sendBroadcastInputSchema = z.object({
@@ -227,6 +237,9 @@ async function fetchAthleteAudienceRows(params: {
           eq(teamInvitationTable.isSystemRole, true),
           isNull(teamInvitationTable.acceptedAt),
           ne(teamInvitationTable.status, INVITATION_STATUS.CANCELLED),
+          // INVITATION_STATUS has no EXPIRED value, so expiresAt is the only
+          // signal that an unaccepted invite is stale (30-day window at issue time).
+          gt(teamInvitationTable.expiresAt, new Date()),
         ),
       )
     pendingInvitations = invitationRows
@@ -252,6 +265,11 @@ export type Recipient = {
   invitationId: string | null
   email: string | null
   firstName: string | null
+  // Athlete team association used by question-filter inheritance: teammates and
+  // pending invites on the same athleteTeamId as a captain whose registration
+  // matches the filter are kept. Null for solo registrants (no team context) and
+  // for volunteer-only rows.
+  athleteTeamId: string | null
 }
 
 /**
@@ -334,6 +352,7 @@ export function buildBroadcastRecipients(
         invitationId: null,
         email: r.email,
         firstName: r.firstName,
+        athleteTeamId: r.athleteTeamId,
       })
     }
 
@@ -347,6 +366,7 @@ export function buildBroadcastRecipients(
         invitationId: null,
         email: m.email,
         firstName: m.firstName,
+        athleteTeamId: m.teamId,
       })
     }
   }
@@ -366,6 +386,7 @@ export function buildBroadcastRecipients(
       invitationId: inv.id,
       email: inv.email,
       firstName,
+      athleteTeamId: inv.teamId,
     })
   }
 
@@ -374,7 +395,12 @@ export function buildBroadcastRecipients(
 
 /**
  * Apply question filters to a list of athlete recipients.
- * Fetches answers for matching registrations and filters in-memory.
+ *
+ * Only captain/solo registrations carry answers — teammates and pending
+ * invitees inherit their athleteTeamId captain's match, so a filter like
+ * "division = RX" applied to a full team keeps all four members instead of
+ * silently dropping the three non-captain rows.
+ *
  * AND across question filters, OR within each filter's values.
  */
 async function applyAthleteQuestionFilters(
@@ -388,7 +414,9 @@ async function applyAthleteQuestionFilters(
     .map((r) => r.registrationId)
     .filter((id): id is string => id !== null)
 
-  if (registrationIds.length === 0) return recipients
+  // No captain/solo registrations in the pool means no answers to match
+  // against; a question filter can't select anyone by inheritance either.
+  if (registrationIds.length === 0) return []
 
   const questionIds = questionFilters.map((f) => f.questionId)
 
@@ -427,14 +455,29 @@ async function applyAthleteQuestionFilters(
     values.add(a.answer)
   }
 
-  return recipients.filter((r) => {
-    if (!r.registrationId) return false
+  // Compute which registrations pass, and inherit pass-state to all teammates
+  // and pending invites on the same athleteTeamId.
+  const matchedRegistrationIds = new Set<string>()
+  const matchedAthleteTeamIds = new Set<string>()
+  for (const r of recipients) {
+    if (!r.registrationId) continue
     const qMap = answerMap.get(r.registrationId)
-    if (!qMap) return false
-    return questionFilters.every((f) => {
-      const answers = qMap.get(f.questionId)
-      return answers !== undefined && f.values.some((v) => answers.has(v))
+    if (!qMap) continue
+    const passes = questionFilters.every((f) => {
+      const answered = qMap.get(f.questionId)
+      return answered !== undefined && f.values.some((v) => answered.has(v))
     })
+    if (passes) {
+      matchedRegistrationIds.add(r.registrationId)
+      if (r.athleteTeamId) matchedAthleteTeamIds.add(r.athleteTeamId)
+    }
+  }
+
+  return recipients.filter((r) => {
+    if (r.registrationId) return matchedRegistrationIds.has(r.registrationId)
+    // Teammate or pending-invite row: keep if its captain's team matched.
+    if (r.athleteTeamId) return matchedAthleteTeamIds.has(r.athleteTeamId)
+    return false
   })
 }
 
@@ -856,9 +899,29 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
             invitationId: null,
             email: v.email,
             firstName: v.firstName,
+            athleteTeamId: null,
           })
           existingUserIds.add(v.userId)
         }
+      }
+
+      // Drop pending-invite athlete rows whose email collides with a volunteer
+      // we're about to send to — volunteer has a real user account, so their
+      // row wins and prevents the same person getting two emails.
+      if (volunteerRecipients.length > 0) {
+        const volunteerEmails = new Set(
+          volunteerRecipients
+            .map((v) => v.email?.toLowerCase())
+            .filter((e): e is string => !!e),
+        )
+        athleteRecipients = athleteRecipients.filter(
+          (r) =>
+            !(
+              r.invitationId !== null &&
+              r.email !== null &&
+              volunteerEmails.has(r.email.toLowerCase())
+            ),
+        )
       }
     }
 
@@ -869,21 +932,13 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
       const { athleteFilters, volunteerFilters } =
         await partitionQuestionFilters(questionFilters)
 
-      // Athlete-side question filters match against competitionRegistrationAnswersTable
-      // keyed by registrationId. Only captain/solo recipients have a registrationId,
-      // so non-captain teammate and pending-invite rows are dropped when an athlete
-      // question filter is applied. (Pre-teammate-expansion, this was "all athlete
-      // recipients had a registrationId" so behavior is unchanged for the common case.)
-      const filterableAthletes = athleteRecipients.filter(
-        (r) => r.registrationId !== null,
-      )
-
+      // Athlete question filters are answered by the captain/solo registration;
+      // applyAthleteQuestionFilters inherits captain matches to same-team
+      // teammates + pending invites so a filter on "Division=RX" keeps the
+      // whole team, not just the captain.
       const filteredAthletes =
         athleteFilters.length > 0
-          ? await applyAthleteQuestionFilters(
-              filterableAthletes,
-              athleteFilters,
-            )
+          ? await applyAthleteQuestionFilters(athleteRecipients, athleteFilters)
           : athleteRecipients
 
       const filteredVolunteers =
@@ -1347,9 +1402,28 @@ export const previewAudienceFn = createServerFn({ method: "GET" })
             invitationId: null,
             email: v.email,
             firstName: v.firstName,
+            athleteTeamId: null,
           })
           existingUserIds.add(v.userId)
         }
+      }
+
+      // Drop pending-invite athlete rows whose email collides with a volunteer
+      // — keep preview count in lock-step with send-time dedup.
+      if (volunteerRecipients.length > 0) {
+        const volunteerEmails = new Set(
+          volunteerRecipients
+            .map((v) => v.email?.toLowerCase())
+            .filter((e): e is string => !!e),
+        )
+        athleteRecipients = athleteRecipients.filter(
+          (r) =>
+            !(
+              r.invitationId !== null &&
+              r.email !== null &&
+              volunteerEmails.has(r.email.toLowerCase())
+            ),
+        )
       }
     }
 
@@ -1360,15 +1434,9 @@ export const previewAudienceFn = createServerFn({ method: "GET" })
       const { athleteFilters, volunteerFilters } =
         await partitionQuestionFilters(questionFilters)
 
-      const filterableAthletes = athleteRecipients.filter(
-        (r) => r.registrationId !== null,
-      )
       athleteRecipients =
         athleteFilters.length > 0
-          ? await applyAthleteQuestionFilters(
-              filterableAthletes,
-              athleteFilters,
-            )
+          ? await applyAthleteQuestionFilters(athleteRecipients, athleteFilters)
           : athleteRecipients
 
       volunteerRecipients =

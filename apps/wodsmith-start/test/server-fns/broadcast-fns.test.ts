@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+	audienceFilterSchema,
 	buildBroadcastRecipients,
 	type RawAthleteRegistrationRow,
 	type RawPendingInvitationRow,
@@ -166,5 +167,66 @@ describe("buildBroadcastRecipients", () => {
 		const userIds = recipients.map((r) => r.userId)
 		expect(userIds).toContain("user_captain1")
 		expect(userIds).toContain("user_teammate1")
+	})
+
+	it("carries athleteTeamId on captain/teammate/invite rows for filter inheritance", () => {
+		// athleteTeamId drives question-filter inheritance downstream, so assert
+		// every non-solo row is tagged with the team and solo is null.
+		const recipients = buildBroadcastRecipients({
+			athleteRegistrations: [soloRegistration, captainRegistration],
+			teammateMemberships: [teammateMembership],
+			pendingInvitations: [pendingInvite],
+		})
+		const byUser = (userId: string) =>
+			recipients.find((r) => r.userId === userId)
+		expect(byUser("user_solo1")?.athleteTeamId).toBeNull()
+		expect(byUser("user_captain1")?.athleteTeamId).toBe("team_athlete1")
+		expect(byUser("user_teammate1")?.athleteTeamId).toBe("team_athlete1")
+		const invite = recipients.find((r) => r.invitationId === "tinv_pending1")
+		expect(invite?.athleteTeamId).toBe("team_athlete1")
+	})
+})
+
+// ============================================================================
+// audienceFilterSchema
+// ============================================================================
+
+describe("audienceFilterSchema", () => {
+	it("rejects pending_teammates with questionFilters", () => {
+		const result = audienceFilterSchema.safeParse({
+			type: "pending_teammates",
+			questionFilters: [{ questionId: "q1", values: ["RX"] }],
+		})
+		expect(result.success).toBe(false)
+		if (!result.success) {
+			expect(result.error.issues[0].message).toMatch(
+				/not supported for pending teammate invites/i,
+			)
+		}
+	})
+
+	it("accepts pending_teammates without questionFilters", () => {
+		const result = audienceFilterSchema.safeParse({
+			type: "pending_teammates",
+		})
+		expect(result.success).toBe(true)
+	})
+
+	it("accepts pending_teammates with divisionId for scoping", () => {
+		const result = audienceFilterSchema.safeParse({
+			type: "pending_teammates",
+			divisionId: "div_rx",
+		})
+		expect(result.success).toBe(true)
+	})
+
+	it("requires divisionId when type=division", () => {
+		const result = audienceFilterSchema.safeParse({ type: "division" })
+		expect(result.success).toBe(false)
+	})
+
+	it("requires volunteerRole when type=volunteer_role", () => {
+		const result = audienceFilterSchema.safeParse({ type: "volunteer_role" })
+		expect(result.success).toBe(false)
 	})
 })
