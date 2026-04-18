@@ -50,8 +50,8 @@ export const BroadcastNotificationEmail = ({
 					</Section>
 
 					<Text style={paragraph}>
-						You are receiving this because you are registered for{" "}
-						{competitionName}.
+						You are receiving this because the organizer of {competitionName}{" "}
+						sent this message to you.
 					</Text>
 				</Container>
 				<Text style={footer}>

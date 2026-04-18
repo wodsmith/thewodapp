@@ -169,7 +169,35 @@ Uses `CapacitySettingsForm`, `ScoringSettingsForm`, and `RotationSettingsForm` c
 
 One-way broadcast messaging from organizers to registered athletes.
 
-The broadcasts tab at [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/broadcasts.tsx]] lets organizers compose messages with audience filtering (all athletes, by division, all volunteers, volunteers by role, or public/everyone), preview recipient count, and send. Organizers can optionally narrow the audience by registration question answers — select questions show checkboxes, text/number questions offer an autocomplete tag input populated via [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#getDistinctAnswersFn]]. Multiple question filters are AND'd; values within each filter are OR'd. The answer lookup uses `Map<string, Set<string>>` to support multiple answers per registration/question (e.g. team registrations where different teammates answered differently). `partitionQuestionFilters` validates that all filter questionIds resolve to existing questions — stale or deleted filters throw an error rather than silently widening the recipient set. [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#sendBroadcastFn]] pre-renders the email template once and enqueues batches of up to 100 recipients into a Cloudflare Queue. The queue consumer at [[apps/wodsmith-start/src/server/broadcast-queue-consumer.ts#handleBroadcastEmailQueue]] sends emails via Resend with per-recipient idempotency keys, updating delivery status in [[apps/wodsmith-start/src/db/schemas/broadcasts.ts#competitionBroadcastRecipientsTable]]. The queue requires both a producer binding (`BROADCAST_EMAIL_QUEUE` in bindings) and a consumer registration (`eventSources` in [[apps/wodsmith-start/alchemy.run.ts]]) — without `eventSources`, messages are enqueued but never delivered. Athletes see broadcasts at [[apps/wodsmith-start/src/routes/compete/$slug/broadcasts.tsx]].
+The broadcasts tab at [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/broadcasts.tsx]] lets organizers compose messages with audience filtering (all athletes, by division, all volunteers, volunteers by role, pending teammate invites, or public/everyone), preview recipient count, and send. Organizers can optionally narrow the audience by registration question answers — select questions show checkboxes, text/number questions offer an autocomplete tag input populated via [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#getDistinctAnswersFn]]. Multiple question filters are AND'd; values within each filter are OR'd. The answer lookup uses `Map<string, Set<string>>` to support multiple answers per registration/question (e.g. team registrations where different teammates answered differently). `partitionQuestionFilters` validates that all filter questionIds resolve to existing questions — stale or deleted filters throw an error rather than silently widening the recipient set. [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#sendBroadcastFn]] pre-renders the email template once and enqueues batches of up to 100 recipients into a Cloudflare Queue. The queue consumer at [[apps/wodsmith-start/src/server/broadcast-queue-consumer.ts#handleBroadcastEmailQueue]] sends emails via Resend with per-recipient idempotency keys, updating delivery status in [[apps/wodsmith-start/src/db/schemas/broadcasts.ts#competitionBroadcastRecipientsTable]]. The queue requires both a producer binding (`BROADCAST_EMAIL_QUEUE` in bindings) and a consumer registration (`eventSources` in [[apps/wodsmith-start/alchemy.run.ts]]) — without `eventSources`, messages are enqueued but never delivered. Athletes see broadcasts at [[apps/wodsmith-start/src/routes/compete/$slug/broadcasts.tsx]].
+
+### Audience expansion
+
+The default athlete audience matches the organizer athletes page — solo registrants, team captains, accepted non-captain teammates, and pending teammate invites that haven't been claimed.
+
+Captains and solo registrants come from [[apps/wodsmith-start/src/db/schemas/competitions.ts#competitionRegistrationsTable]]. Accepted non-captain teammates come from [[apps/wodsmith-start/src/db/schemas/teams.ts#teamMembershipTable]] on the athlete team with `SYSTEM_ROLES_ENUM.MEMBER`. Pending invites come from [[apps/wodsmith-start/src/db/schemas/teams.ts#teamInvitationTable]] with `acceptedAt IS NULL` and non-cancelled status.
+
+[[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#fetchAthleteAudienceRows]] fetches the raw rows and [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#buildBroadcastRecipients]] deduplicates them: user rows by userId, invite rows by invitationId; an invite whose email matches an included user is dropped in favor of the user. Pending invitations are excluded when cancelled, already accepted, or past their `expiresAt` (invitations have no EXPIRED status so the timestamp is the only stale-signal).
+
+When a `public` broadcast merges volunteers and athletes, a pending-invite row whose email matches a volunteer's user email is dropped in favor of the volunteer row — prevents the same person getting two copies. This dedup runs *after* question filtering so that a volunteer filtered out by question answers doesn't silently drop the pending-invite athlete sharing their email.
+
+Pending-invite recipients have `userId=null` and a populated `invitationId` + captured `email` on [[apps/wodsmith-start/src/db/schemas/broadcasts.ts#competitionBroadcastRecipientsTable]], keyed by a second unique index on `(broadcastId, invitationId)` that tolerates multiple NULLs in MySQL.
+
+### Question-filter inheritance
+
+Teammates and pending invites inherit their captain's match against registration-question filters so that "Division = RX" keeps the whole team, not just the captain.
+
+[[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#applyAthleteQuestionFilters]] computes the set of `athleteTeamId`s whose captain's registration matched every filter, then keeps all teammates and pending invites on those teams. Captains/solos are still matched individually by `registrationId`. Without inheritance, filters silently dropped the three non-captain rows per team.
+
+Each `Recipient` carries its `athleteTeamId` (captain/teammate/invite) or `null` (solo) so the inheritance step has the team context without re-fetching.
+
+### Pending teammate invites filter
+
+The `pending_teammates` audience type targets only unclaimed invitations — useful for nudging invitees to accept or submit their waiver/questions.
+
+Optional `divisionId` narrows by inheriting `athleteTeamId`s from registrations in that division. Question filters are rejected at the schema layer ([[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#audienceFilterSchema]]) for this audience type since invitees have no registration answers to match against.
+
+The filter is exposed in the audience type picker in [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/broadcasts.tsx]] and produces invite-only recipient rows that appear in email delivery but not in the athlete in-app broadcasts list, since [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#listAthleteBroadcastsFn]] filters by `userId`.
 
 ## Danger Zone
 
