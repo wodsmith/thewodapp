@@ -159,8 +159,10 @@ function CappedRoundsIndicator({
 
   return (
     <span
-      className="inline-flex items-center rounded-sm border border-amber-500/40 bg-amber-500/10 px-1 py-px text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300"
+      role="img"
+      aria-label={label}
       title={label}
+      className="inline-flex items-center rounded-sm border border-amber-500/40 bg-amber-500/10 px-1 py-px text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300"
     >
       {result.cappedRoundCount}/{result.totalRoundCount} cap
     </span>
