@@ -1,0 +1,11 @@
+{
+  "init_version": 1,
+  "file_hashes": {
+    "AGENTS.md": "5fd49383be7fd33deec07b4e7a6cbac441568611e392864c7474e5495c8ab0d3",
+    "CLAUDE.md": "5fd49383be7fd33deec07b4e7a6cbac441568611e392864c7474e5495c8ab0d3",
+    ".claude/skills/lat-md/SKILL.md": "39c77385d424367ce6f9290973e2abef5660d288e4efda3609e4c2c50e0b574a",
+    ".pi/extensions/lat.ts": "de0844a8dad6c80cb60a02d1986c91fac34919e79d8652f5557b10477177c0bb",
+    ".pi/skills/lat-md/SKILL.md": "39c77385d424367ce6f9290973e2abef5660d288e4efda3609e4c2c50e0b574a",
+    ".agents/skills/lat-md/SKILL.md": "39c77385d424367ce6f9290973e2abef5660d288e4efda3609e4c2c50e0b574a"
+  }
+}

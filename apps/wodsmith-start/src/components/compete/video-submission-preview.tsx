@@ -1,6 +1,8 @@
 "use client"
 
 import {
+  AlertTriangle,
+  Ban,
   Calendar,
   CheckCircle2,
   Clock,
@@ -43,6 +45,13 @@ interface VideoSubmissionPreviewProps {
     status: string | null
     secondaryValue: number | null
     tiebreakValue: number | null
+    verificationStatus?: string | null
+    penaltyType?: string | null
+    roundScores?: Array<{
+      roundNumber: number
+      displayScore: string | null
+      status?: string | null
+    }>
   } | null
   workout?: {
     name: string
@@ -220,16 +229,47 @@ export function VideoSubmissionPreview({
             key={submission.id}
             submission={submission}
             timezone={timezone}
-            label={
-              isTeam
-                ? `Partner ${submission.videoIndex + 1}`
-                : undefined
-            }
+            label={isTeam ? `Partner ${submission.videoIndex + 1}` : undefined}
           />
         ))}
 
         {submissions.length > 1 && <Separator />}
         {submissions.length === 1 && <Separator />}
+
+        {/* Invalid Score Banner */}
+        {score?.verificationStatus === "invalid" && (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 space-y-1">
+            <div className="flex items-center gap-2">
+              <Ban className="h-4 w-4 text-red-600 dark:text-red-400" />
+              <p className="text-sm font-medium text-red-700 dark:text-red-300">
+                This submission has been marked invalid
+              </p>
+            </div>
+            {submissions.some((s) => s.reviewerNotes) && (
+              <p className="text-sm text-red-600/80 dark:text-red-400/80 ml-6">
+                {submissions.find((s) => s.reviewerNotes)?.reviewerNotes}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Penalty Banner */}
+        {score?.penaltyType && score.verificationStatus !== "invalid" && (
+          <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 px-4 py-3 space-y-1">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+              <p className="text-sm font-medium text-orange-700 dark:text-orange-300">
+                {score.penaltyType === "major" ? "Major" : "Minor"} penalty
+                applied — your score has been adjusted
+              </p>
+            </div>
+            {submissions.some((s) => s.reviewerNotes) && (
+              <p className="text-sm text-orange-600/80 dark:text-orange-400/80 ml-6">
+                {submissions.find((s) => s.reviewerNotes)?.reviewerNotes}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Score Display */}
         {score?.displayScore && (
@@ -251,6 +291,29 @@ export function VideoSubmissionPreview({
                   </Badge>
                 )}
               </p>
+              {score.roundScores && score.roundScores.length > 1 && (
+                <div className="mt-2 space-y-0.5">
+                  {score.roundScores.map((round) => (
+                    <div
+                      key={round.roundNumber}
+                      className="flex items-center gap-2 text-sm text-muted-foreground font-mono"
+                    >
+                      <span className="text-xs uppercase tracking-wider w-8">
+                        R{round.roundNumber}
+                      </span>
+                      <span>{round.displayScore ?? "—"}</span>
+                      {round.status === "cap" && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] px-1 py-0 h-4"
+                        >
+                          Cap
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
               {score.secondaryValue !== null && score.status === "cap" && (
                 <p className="text-sm text-muted-foreground mt-1">
                   {score.secondaryValue} reps completed at cap

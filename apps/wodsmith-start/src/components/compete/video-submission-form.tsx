@@ -30,7 +30,12 @@ import {
 } from "@/components/ui/video-url-input"
 import type { ReviewStatus } from "@/db/schemas/video-submissions"
 import type { ParseResult, ScoreType, WorkoutScheme } from "@/lib/scoring"
-import { decodeScore, parseScore } from "@/lib/scoring"
+import {
+  decodeScore,
+  encodeRounds,
+  getDefaultScoreType,
+  parseScore,
+} from "@/lib/scoring"
 import { cn } from "@/lib/utils"
 import { getSupportedPlatformsText, parseVideoUrl } from "@/schemas/video-url"
 import {
@@ -84,10 +89,13 @@ interface VideoSubmissionInitialData {
     status: string | null
     secondaryValue: number | null
     tiebreakValue: number | null
+    verificationStatus?: string | null
+    penaltyType?: string | null
     roundScores?: Array<{
       roundNumber: number
       value: number
       displayScore: string | null
+      status?: string | null
     }>
   } | null
 }
@@ -276,6 +284,7 @@ export function VideoSubmissionForm({
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
   const hasAnySubmission = existingSubmissions.length > 0
   const [hasSubmitted, setHasSubmitted] = useState(hasAnySubmission)
@@ -454,11 +463,12 @@ export function VideoSubmissionForm({
 
   // Derived state — parseResult is a pure function of scoreInput + scheme
   // For multi-round, parse each round independently
-  const roundParseResults: (ParseResult | null)[] = isMultiRound && workout
-    ? roundScoreInputs.map((input) =>
-        input.trim() ? parseScore(input, workout.scheme) : null,
-      )
-    : []
+  const roundParseResults: (ParseResult | null)[] =
+    isMultiRound && workout
+      ? roundScoreInputs.map((input) =>
+          input.trim() ? parseScore(input, workout.scheme) : null,
+        )
+      : []
 
   const parseResult: ParseResult | null =
     !isMultiRound && workout && scoreInput.trim()
@@ -709,6 +719,7 @@ export function VideoSubmissionForm({
     e.preventDefault()
     setError(null)
     setSuccess(null)
+    setHasAttemptedSubmit(true)
 
     // For teams, require ALL video links; for individuals, require at least one
     if (teamSize > 1) {
@@ -745,29 +756,41 @@ export function VideoSubmissionForm({
       }
     }
 
-    // Validate score — multi-round or single
-    if (isMultiRound && workout) {
+    // Validate score — score is required for all submissions
+    if (isMultiRound) {
       const filledRounds = roundScoreInputs.filter((s) => s.trim())
-      if (filledRounds.length > 0 && filledRounds.length < roundsToScore) {
+      if (filledRounds.length === 0) {
         setError(
-          `Please enter scores for all ${roundsToScore} rounds, or leave them all empty`,
+          `Please enter scores for all ${roundsToScore} rounds`,
         )
         return
       }
-      for (let i = 0; i < roundScoreInputs.length; i++) {
-        const input = roundScoreInputs[i]
-        if (input.trim()) {
-          const result = parseScore(input, workout.scheme)
-          if (!result.isValid) {
-            setError(
-              `Round ${i + 1}: ${result.error || "Please check your score entry"}`,
-            )
-            return
+      if (filledRounds.length < roundsToScore) {
+        setError(
+          `Please enter scores for all ${roundsToScore} rounds`,
+        )
+        return
+      }
+      if (workout) {
+        for (let i = 0; i < roundScoreInputs.length; i++) {
+          const input = roundScoreInputs[i]
+          if (input.trim()) {
+            const result = parseScore(input, workout.scheme)
+            if (!result.isValid) {
+              setError(
+                `Round ${i + 1}: ${result.error || "Please check your score entry"}`,
+              )
+              return
+            }
           }
         }
       }
-    } else if (scoreInput.trim() && workout) {
-      if (!parseResult?.isValid) {
+    } else {
+      if (!scoreInput.trim()) {
+        setError("Please enter your score")
+        return
+      }
+      if (workout && !parseResult?.isValid) {
         setError(
           `Invalid score: ${parseResult?.error || "Please check your score entry"}`,
         )
@@ -804,9 +827,10 @@ export function VideoSubmissionForm({
             notes: slot.notes.trim() || undefined,
             videoIndex: index,
             // Only send score with the first video slot
-            score: isFirstSlot && !isMultiRound
-              ? scoreInput.trim() || undefined
-              : undefined,
+            score:
+              isFirstSlot && !isMultiRound
+                ? scoreInput.trim() || undefined
+                : undefined,
             scoreStatus:
               isFirstSlot && !isMultiRound && scoreInput.trim()
                 ? scoreStatus
@@ -876,23 +900,47 @@ export function VideoSubmissionForm({
         setSubmissionsData(newSubmissions)
 
         if (isMultiRound && roundScoresPayload?.length && workout) {
-          // For multi-round, we don't compute the aggregate client-side —
-          // just store the round display values for preview
+          // Compute the aggregate client-side to mirror what the server
+          // will persist (e.g. sum of round times for partner workouts).
+          const scheme = workout.scheme as WorkoutScheme
+          const scoreType =
+            (workout.scoreType as ScoreType) || getDefaultScoreType(scheme)
+          const roundInputs = roundScoresPayload.map((rs) => ({
+            raw: rs.score,
+          }))
+          const { rounds: encodedRounds, aggregated } = encodeRounds(
+            roundInputs,
+            scheme,
+            scoreType,
+          )
+          const capMs =
+            scheme === "time-with-cap" && workout.timeCap
+              ? workout.timeCap * 1000
+              : null
+          const anyRoundCapped =
+            capMs !== null && encodedRounds.some((v) => v >= capMs)
+          const optimisticStatus: "scored" | "cap" = anyRoundCapped
+            ? "cap"
+            : "scored"
+          const optimisticDisplay =
+            aggregated !== null
+              ? decodeScore(aggregated, scheme, { compact: false })
+              : roundScoreInputs.filter((s) => s.trim()).join(" + ")
+
           setScoreData({
-            scoreValue: null,
-            displayScore: roundScoreInputs.filter((s) => s.trim()).join(" + "),
-            status: "scored",
+            scoreValue: aggregated,
+            displayScore: optimisticDisplay,
+            status: optimisticStatus,
             secondaryValue: null,
             tiebreakValue: tiebreakScore
               ? parseTiebreakValue(tiebreakScore, workout.tiebreakScheme)
               : null,
-            roundScores: roundScoreInputs
-              .filter((s) => s.trim())
-              .map((s, i) => ({
-                roundNumber: i + 1,
-                value: 0,
-                displayScore: s.trim(),
-              })),
+            roundScores: encodedRounds.map((value, i) => ({
+              roundNumber: i + 1,
+              value,
+              displayScore: decodeScore(value, scheme, { compact: false }),
+              status: capMs !== null && value >= capMs ? "cap" : "scored",
+            })),
           })
         } else if (scoreInput.trim() && workout && parseResult) {
           setScoreData({
@@ -988,9 +1036,7 @@ export function VideoSubmissionForm({
               {isMultiRound ? (
                 /* Per-round score inputs for multi-round workouts */
                 <div className="space-y-3">
-                  <Label>
-                    {getSchemeLabel(workout.scheme)} per Round
-                  </Label>
+                  <Label>{getSchemeLabel(workout.scheme)} per Round</Label>
                   {roundScoreInputs.map((input, i) => {
                     const roundResult = roundParseResults[i]
                     return (
@@ -1012,8 +1058,8 @@ export function VideoSubmissionForm({
                           placeholder={getPlaceholder(workout.scheme)}
                           className={cn(
                             "font-mono",
-                            roundResult?.error &&
-                              !roundResult?.isValid &&
+                            ((roundResult?.error && !roundResult?.isValid) ||
+                              (hasAttemptedSubmit && !input.trim())) &&
                               "border-destructive",
                           )}
                           disabled={isSubmitting}
@@ -1026,6 +1072,11 @@ export function VideoSubmissionForm({
                         {roundResult?.error && (
                           <p className="text-xs text-destructive">
                             {roundResult.error}
+                          </p>
+                        )}
+                        {hasAttemptedSubmit && !input.trim() && (
+                          <p className="text-xs text-destructive">
+                            Please enter a score for round {i + 1}
                           </p>
                         )}
                       </div>
@@ -1051,8 +1102,8 @@ export function VideoSubmissionForm({
                     placeholder={getPlaceholder(workout.scheme)}
                     className={cn(
                       "font-mono",
-                      parseResult?.error &&
-                        !parseResult?.isValid &&
+                      ((parseResult?.error && !parseResult?.isValid) ||
+                        (hasAttemptedSubmit && !scoreInput.trim())) &&
                         "border-destructive",
                     )}
                     disabled={isSubmitting}
@@ -1071,6 +1122,11 @@ export function VideoSubmissionForm({
                   {parseResult?.error && (
                     <p className="text-xs text-destructive">
                       {parseResult.error}
+                    </p>
+                  )}
+                  {hasAttemptedSubmit && !scoreInput.trim() && (
+                    <p className="text-xs text-destructive">
+                      Please enter your score
                     </p>
                   )}
                 </div>
@@ -1105,7 +1161,8 @@ export function VideoSubmissionForm({
                 <div className="space-y-2">
                   <Label htmlFor="tiebreak-input">
                     Tiebreak (
-                    {workout.tiebreakScheme === "time" ? "Time" : "Reps/Weight"})
+                    {workout.tiebreakScheme === "time" ? "Time" : "Reps/Weight"}
+                    )
                   </Label>
                   <Input
                     id="tiebreak-input"
@@ -1230,7 +1287,11 @@ export function VideoSubmissionForm({
           )}
 
           {/* Submit Button */}
-          <Button type="submit" className="w-full bg-orange-500 text-white hover:bg-orange-600" disabled={isSubmitting}>
+          <Button
+            type="submit"
+            className="w-full bg-orange-500 text-white hover:bg-orange-600"
+            disabled={isSubmitting}
+          >
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

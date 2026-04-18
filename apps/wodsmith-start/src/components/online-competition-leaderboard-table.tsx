@@ -233,13 +233,13 @@ function SortableHeader({
   return (
     <button
       type="button"
-      className="flex items-center gap-1.5 text-xs uppercase tracking-wide font-medium hover:text-foreground transition-colors"
+      className="flex w-full items-center justify-between gap-1.5 text-xs uppercase tracking-wide font-medium hover:text-foreground transition-colors"
       onClick={() => column.toggleSorting()}
     >
-      {children}
+      <span className="min-w-0 flex-1 truncate text-left">{children}</span>
       <ArrowUpDown
         className={cn(
-          "h-3 w-3 transition-colors",
+          "h-3 w-3 shrink-0 transition-colors",
           sorted ? "text-foreground" : "text-muted-foreground/40",
         )}
       />
@@ -982,9 +982,7 @@ export function OnlineCompetitionLeaderboardTable({
         id: `event-${event.id}`,
         header: ({ column }: LeaderboardHeaderContext) => (
           <SortableHeader column={column}>
-            <span className="truncate max-w-[100px]" title={event.name}>
-              {event.name}
-            </span>
+            <span title={event.name}>{event.name}</span>
           </SortableHeader>
         ),
         accessorFn: (row: CompetitionLeaderboardEntry) => {

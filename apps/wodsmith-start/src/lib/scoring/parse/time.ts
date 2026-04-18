@@ -2,17 +2,16 @@
  * Smart time parsing: converts various input formats to standardized time
  */
 
-import { MS_PER_SECOND } from "../constants"
 import { decodeTime } from "../decode/time"
 import { encodeTime } from "../encode/time"
 import type { ParseResult } from "../types"
 
 export interface TimeParseOptions {
   /**
-   * How to interpret raw numbers without colons:
-   * - 'auto': Smart parsing (e.g., "1234" → "12:34")
-   * - 'seconds': Treat as raw seconds
-   * - 'ms': Treat as raw milliseconds
+   * How to interpret bare numeric input:
+   * - 'auto' (default) / 'seconds': Treat as raw seconds — matches `encodeTime` so
+   *   the live preview always agrees with what `encodeScore` will save.
+   * - 'ms': Treat as raw milliseconds.
    */
   precision?: "auto" | "seconds" | "ms"
 }
@@ -20,29 +19,26 @@ export interface TimeParseOptions {
 /**
  * Parse a time input string with smart formatting.
  *
- * Supports multiple input formats:
- * - Standard: "12:34" or "12:34.567" or "1:02:34.567"
- * - Period-delimited: "12.34.567" (MM.SS.ms) or "1.02.34.567" (H.MM.SS.ms)
- * - Digits only: "1234" → "12:34"
+ * Mirrors `encodeTime` so the live preview always matches what `encodeScore`
+ * will persist on save — there is no separate "smart digit padding" path.
  *
- * Smart parsing rules (when precision is 'auto'):
- * - Input with colons: parse as MM:SS or HH:MM:SS
- * - Input with 2+ periods: treat as period-delimited time (MM.SS.ms or H.MM.SS.ms)
- * - Input with 1 period: treat as time.milliseconds (e.g., "1234.567" → "12:34.567")
- * - 1-2 digits: treat as seconds (e.g., "45" → "0:45")
- * - 3 digits: treat as M:SS (e.g., "345" → "3:45")
- * - 4 digits: treat as MM:SS (e.g., "1234" → "12:34")
- * - 5 digits: treat as H:MM:SS (e.g., "10234" → "1:02:34")
- * - 6+ digits: treat as HH:MM:SS or more
+ * Supported formats:
+ * - Colon-delimited: "MM:SS", "MM:SS.fff", "HH:MM:SS", "HH:MM:SS.fff"
+ * - Period-delimited (3+ parts): "MM.SS.fff", "H.MM.SS.fff"
+ * - Decimal seconds (single period): "12.34" → 12.34 sec, "1234.567" → 1234.567 sec
+ * - Bare digits: treated as raw seconds — "2000" → 33:20, "45" → 0:45
+ *
+ * The `precision` option only matters for explicit overrides:
+ * - 'auto' (default) and 'seconds' both treat bare numbers as raw seconds
+ * - 'ms' treats bare integers as raw milliseconds
  *
  * @example
- * parseTime("1234")        // → { encoded: 754000, formatted: "12:34" }
  * parseTime("12:34")       // → { encoded: 754000, formatted: "12:34" }
  * parseTime("12:34.567")   // → { encoded: 754567, formatted: "12:34.567" }
  * parseTime("12.34.567")   // → { encoded: 754567, formatted: "12:34.567" }
  * parseTime("1.02.34.567") // → { encoded: 3754567, formatted: "1:02:34.567" }
- * parseTime("45")          // → { encoded: 45000, formatted: "0:45" }
- * parseTime("345")         // → { encoded: 225000, formatted: "3:45" }
+ * parseTime("45")          // → { encoded: 45000,  formatted: "0:45" }
+ * parseTime("2000")        // → { encoded: 2000000, formatted: "33:20" }
  */
 export function parseTime(
   input: string,
@@ -60,117 +56,7 @@ export function parseTime(
 
   const precision = options?.precision ?? "auto"
 
-  // If input already has colons, parse directly
-  if (trimmed.includes(":")) {
-    const encoded = encodeTime(trimmed)
-    if (encoded === null) {
-      return {
-        isValid: false,
-        encoded: null,
-        formatted: trimmed,
-        error: "Invalid time format",
-      }
-    }
-    return {
-      isValid: true,
-      encoded,
-      formatted: decodeTime(encoded),
-    }
-  }
-
-  // Handle period-delimited input (e.g., "12.34.567" or "1.02.34.567")
-  if (trimmed.includes(".")) {
-    const parts = trimmed.split(".")
-
-    // If 3+ parts, treat as period-delimited time: MM.SS.ms or H.MM.SS.ms
-    if (parts.length >= 3) {
-      // Last part is always milliseconds
-      const msPart = parts[parts.length - 1] ?? "0"
-      const timeParts = parts.slice(0, -1)
-
-      // Convert to colon format: join time parts with colons
-      const colonFormat = timeParts.join(":")
-      const withMs = `${colonFormat}.${msPart}`
-
-      const encoded = encodeTime(withMs)
-      if (encoded === null) {
-        return {
-          isValid: false,
-          encoded: null,
-          formatted: trimmed,
-          error: "Invalid time format",
-        }
-      }
-      return {
-        isValid: true,
-        encoded,
-        formatted: decodeTime(encoded),
-      }
-    }
-
-    // If 2 parts (one period), treat as time.milliseconds
-    const [wholePart, decimalPart] = parts
-    if (!wholePart) {
-      return {
-        isValid: false,
-        encoded: null,
-        formatted: trimmed,
-        error: "Invalid time format",
-      }
-    }
-
-    // Parse the whole part as time, then add milliseconds
-    const {
-      isValid,
-      encoded: wholeEncoded,
-      error,
-    } = parseTime(wholePart, options)
-    if (!isValid || wholeEncoded === null) {
-      return { isValid: false, encoded: null, formatted: trimmed, error }
-    }
-
-    // Add milliseconds
-    const ms = Number.parseInt(
-      (decimalPart ?? "0").padEnd(3, "0").slice(0, 3),
-      10,
-    )
-    if (Number.isNaN(ms)) {
-      return {
-        isValid: false,
-        encoded: null,
-        formatted: trimmed,
-        error: "Invalid milliseconds",
-      }
-    }
-
-    const encoded = wholeEncoded + ms
-    return {
-      isValid: true,
-      encoded,
-      formatted: decodeTime(encoded),
-    }
-  }
-
-  // No colons - smart parse based on precision option
-  if (precision === "seconds") {
-    const seconds = Number.parseFloat(trimmed)
-    if (Number.isNaN(seconds) || seconds < 0) {
-      return {
-        isValid: false,
-        encoded: null,
-        formatted: trimmed,
-        error: "Invalid number",
-      }
-    }
-    const encoded = Math.round(seconds * MS_PER_SECOND)
-    return {
-      isValid: true,
-      encoded,
-      formatted: decodeTime(encoded),
-    }
-  }
-
-  if (precision === "ms") {
+  if (precision === "ms" && !trimmed.includes(":") && !trimmed.includes(".")) {
     const ms = Number.parseInt(trimmed, 10)
     if (Number.isNaN(ms) || ms < 0) {
       return {
@@ -187,71 +73,12 @@ export function parseTime(
     }
   }
 
-  // Auto precision - smart parsing
-  return parseTimeAuto(trimmed)
-}
-
-/**
- * Smart auto-parse for time without colons.
- */
-function parseTimeAuto(input: string): ParseResult {
-  // Remove any non-digit characters
-  const digits = input.replace(/\D/g, "")
-  if (!digits) {
-    return {
-      isValid: false,
-      encoded: null,
-      formatted: input,
-      error: "No digits found",
-    }
-  }
-
-  let formatted: string
-
-  switch (digits.length) {
-    case 1:
-    case 2:
-      // 1-2 digits: treat as seconds (e.g., "45" → "0:45")
-      formatted = `0:${digits.padStart(2, "0")}`
-      break
-
-    case 3:
-      // 3 digits: M:SS (e.g., "345" → "3:45")
-      formatted = `${digits[0]}:${digits.slice(1)}`
-      break
-
-    case 4:
-      // 4 digits: MM:SS (e.g., "1234" → "12:34")
-      formatted = `${digits.slice(0, 2)}:${digits.slice(2)}`
-      break
-
-    case 5:
-      // 5 digits: H:MM:SS (e.g., "10234" → "1:02:34")
-      formatted = `${digits[0]}:${digits.slice(1, 3)}:${digits.slice(3)}`
-      break
-
-    case 6:
-      // 6 digits: HH:MM:SS (e.g., "010234" → "1:02:34")
-      formatted = `${digits.slice(0, 2)}:${digits.slice(2, 4)}:${digits.slice(4)}`
-      break
-
-    default: {
-      // 7+ digits: parse as HH...H:MM:SS
-      const hours = digits.slice(0, -4)
-      const minutes = digits.slice(-4, -2)
-      const seconds = digits.slice(-2)
-      formatted = `${hours}:${minutes}:${seconds}`
-      break
-    }
-  }
-
-  // Now encode the formatted time
-  const encoded = encodeTime(formatted)
+  const encoded = encodeTime(trimmed)
   if (encoded === null) {
     return {
       isValid: false,
       encoded: null,
-      formatted: input,
+      formatted: trimmed,
       error: "Invalid time format",
     }
   }

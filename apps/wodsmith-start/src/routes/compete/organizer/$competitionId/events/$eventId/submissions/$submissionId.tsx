@@ -71,17 +71,30 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { decodeScore, isLowerBetter, type WorkoutScheme } from "@/lib/scoring"
+import {
+  decodeScore,
+  type ParseResult,
+  parseScore,
+  type WorkoutScheme,
+} from "@/lib/scoring"
+import { cn } from "@/lib/utils"
+import {
+  getSchemeLabel,
+  getScoreHelpText,
+  getScorePlaceholder,
+} from "@/components/compete/score-entry-helpers"
 import {
   type EventDetails,
+  getEventDetailsForVerificationFn,
   getSubmissionDetailFn,
   getVerificationLogsFn,
   type SubmissionDetail,
   type VerificationLogEntry,
   verifySubmissionScoreFn,
   deleteVerificationLogFn,
-  updateVerificationLogFn,
 } from "@/server-fns/submission-verification-fns"
+import { EnterScoreForm } from "@/components/compete/enter-score-form"
+import { OrganizerVideoLinksEditor } from "@/components/compete/organizer-video-links-editor"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   createReviewNoteFn,
@@ -122,7 +135,9 @@ export const Route = createFileRoute(
       throw new Error("Submission not found")
     }
 
-    // If we have a score ID, fetch verification data and audit logs
+    // If we have a score ID, fetch verification data and audit logs.
+    // Otherwise still fetch event details so the no-score branch can render
+    // the manual-entry form ([[lat.md/domain#Score Adjustments#Manual Score Entry]]).
     let verificationSubmission: SubmissionDetail | null = null
     let event: EventDetails | null = null
     let verificationLogs: VerificationLogEntry[] = []
@@ -149,6 +164,18 @@ export const Route = createFileRoute(
         verificationLogs = logsResult.logs
       } catch {
         // Verification data not available - controls won't show
+      }
+    } else {
+      try {
+        const eventResult = await getEventDetailsForVerificationFn({
+          data: {
+            competitionId: params.competitionId,
+            trackWorkoutId: params.eventId,
+          },
+        })
+        event = eventResult.event
+      } catch {
+        // Event lookup failed — entry form won't render, falls back to placeholder
       }
     }
 
@@ -231,6 +258,9 @@ export const Route = createFileRoute(
     return {
       submission: reviewResult.submission,
       siblings: siblingsResult.siblings,
+      siblingsTeamSize: siblingsResult.teamSize,
+      siblingsRegistrationId: siblingsResult.registrationId,
+      siblingsTrackWorkoutId: siblingsResult.trackWorkoutId,
       verificationSubmission,
       event,
       verificationLogs,
@@ -251,36 +281,13 @@ interface VerificationControlsProps {
   competitionId: string
   trackWorkoutId: string
   logs: VerificationLogEntry[]
-}
-
-/**
- * Calculates the adjusted score after applying a penalty percentage.
- *
- * Lower-is-better schemes (time, time-with-cap scored): ADD to score (higher = worse)
- * Higher-is-better schemes (reps, emom, load, etc.): SUBTRACT from score (lower = worse)
- *
- * For time-with-cap with cap status, the penalty applies to secondaryValue (reps)
- * not the time, so this function isn't used for that case — see handleApplyPenalty.
- */
-function calculatePenaltyScore(
-  rawValue: number,
-  percentage: number,
-  scheme: string,
-  scoreStatus?: string,
-): number {
-  // Time-with-cap capped scores are rep-based (secondary value) — higher reps is better
-  // Time-with-cap scored (finished) scores are time-based — lower time is better
-  const lowerIsBetter =
-    scheme === "time-with-cap"
-      ? scoreStatus !== "cap"
-      : isLowerBetter(scheme as WorkoutScheme)
-
-  if (lowerIsBetter) {
-    // Lower-is-better: add percentage as penalty (higher = worse)
-    return Math.round(rawValue + rawValue * (percentage / 100))
-  }
-  // Higher-is-better: deduct percentage as penalty (lower = worse)
-  return Math.max(0, Math.round(rawValue - rawValue * (percentage / 100)))
+  roundScores?: Array<{
+    roundNumber: number
+    value: number
+    displayScore: string | null
+    status?: string | null
+  }> | null
+  submissionReviewerNotes?: string | null
 }
 
 function VerificationControls({
@@ -289,35 +296,87 @@ function VerificationControls({
   competitionId,
   trackWorkoutId,
   logs,
+  roundScores,
+  submissionReviewerNotes,
 }: VerificationControlsProps) {
   const router = useRouter()
   const verifyFn = useServerFn(verifySubmissionScoreFn)
 
-  const [isAdjusting, setIsAdjusting] = useState(false)
+  const isMultiRound = (roundScores?.length ?? 0) > 1
+  const sortedRoundScores = isMultiRound
+    ? [...(roundScores ?? [])].sort((a, b) => a.roundNumber - b.roundNumber)
+    : []
+  const initialRoundInputs = sortedRoundScores.map((r) => r.displayScore ?? "")
+
   const [isPenalizing, setIsPenalizing] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Adjust form state
-  const [adjustedScore, setAdjustedScore] = useState(
+  const [reviewerNotes, setReviewerNotes] = useState("")
+
+  // Adjustment form state (penalty is optional)
+  const [penaltyType, setPenaltyType] = useState<"none" | "minor" | "major">(
+    "none",
+  )
+  const [noRepCount, setNoRepCount] = useState("")
+  const [penaltyScore, setPenaltyScore] = useState(
     submission.score.displayValue,
   )
-  const [adjustedStatus, setAdjustedStatus] = useState<"scored" | "cap">(
-    submission.score.status === "cap" ? "cap" : "scored",
-  )
-  const [secondaryScore, setSecondaryScore] = useState(
+  const [penaltyRoundScores, setPenaltyRoundScores] =
+    useState<string[]>(initialRoundInputs)
+  const [penaltySecondaryScore, setPenaltySecondaryScore] = useState(
     submission.score.secondaryValue !== null
       ? String(submission.score.secondaryValue)
       : "",
   )
-  const [reviewerNotes, setReviewerNotes] = useState("")
+  const [penaltyTiebreakScore, setPenaltyTiebreakScore] = useState("")
 
-  // Penalty form state
-  const [penaltyType, setPenaltyType] = useState<"minor" | "major">("minor")
-  const [penaltyPercentage, setPenaltyPercentage] = useState(10)
-  const [noRepCount, setNoRepCount] = useState("")
-  const [useDirectOverride, setUseDirectOverride] = useState(false)
-  const [directOverrideScore, setDirectOverrideScore] = useState("")
+  // Scheme config from event.workout — mirrors video-submission-form.tsx so
+  // the Adjust Score form validates with the same rules athletes submit under.
+  const scheme = event.workout.scheme as WorkoutScheme
+  const timeCap = event.workout.timeCap
+  const tiebreakScheme = event.workout.tiebreakScheme as WorkoutScheme | null
+
+  const penaltyParseResult: ParseResult | null =
+    !isMultiRound && penaltyScore.trim()
+      ? parseScore(penaltyScore, scheme)
+      : null
+
+  const penaltyRoundParseResults: (ParseResult | null)[] = isMultiRound
+    ? penaltyRoundScores.map((s) =>
+        s.trim() ? parseScore(s, scheme) : null,
+      )
+    : []
+
+  // Auto-derive cap status from parsed time vs the time cap for single-round
+  // workouts. Multi-round status is derived server-side per round.
+  const penaltyStatus: "scored" | "cap" = (() => {
+    if (isMultiRound) {
+      return penaltyRoundParseResults.some(
+        (r) =>
+          r?.isValid &&
+          r.encoded !== null &&
+          scheme === "time-with-cap" &&
+          timeCap &&
+          r.encoded >= timeCap * 1000,
+      )
+        ? "cap"
+        : "scored"
+    }
+    if (
+      penaltyParseResult?.isValid &&
+      penaltyParseResult.encoded !== null &&
+      scheme === "time-with-cap" &&
+      timeCap
+    ) {
+      const capMs = timeCap * 1000
+      if (penaltyParseResult.encoded >= capMs) return "cap"
+    }
+    return "scored"
+  })()
+
+  const showPenaltySecondaryInput =
+    !isMultiRound && scheme === "time-with-cap" && penaltyStatus === "cap"
 
   const verificationStatus = submission.verification.status
 
@@ -341,89 +400,86 @@ function VerificationControls({
     }
   }
 
-  async function handleAdjust() {
-    setIsSubmitting(true)
-    setError(null)
-    try {
-      await verifyFn({
-        data: {
-          competitionId,
-          trackWorkoutId,
-          scoreId: submission.id,
-          action: "adjust",
-          adjustedScore,
-          adjustedScoreStatus: adjustedStatus,
-          secondaryScore: secondaryScore || undefined,
-          reviewerNotes: reviewerNotes.trim() || undefined,
-        },
-      })
-      setIsAdjusting(false)
-      await router.invalidate()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Adjustment failed")
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
+  const canSubmitPenalty = isMultiRound
+    ? penaltyRoundScores.length > 0 &&
+      penaltyRoundScores.every((s) => s.trim().length > 0)
+    : penaltyScore.trim().length > 0
 
   async function handleApplyPenalty() {
-    setIsSubmitting(true)
     setError(null)
+    if (isMultiRound) {
+      for (let i = 0; i < penaltyRoundScores.length; i++) {
+        const input = penaltyRoundScores[i]
+        if (!input.trim()) {
+          setError(`Please enter a score for round ${i + 1}`)
+          return
+        }
+        const r = parseScore(input, scheme)
+        if (!r.isValid) {
+          setError(`Round ${i + 1}: ${r.error ?? "invalid score"}`)
+          return
+        }
+      }
+    } else {
+      if (!penaltyScore.trim()) {
+        setError("Please enter an adjusted score")
+        return
+      }
+      if (!penaltyParseResult?.isValid) {
+        setError(penaltyParseResult?.error ?? "Invalid score")
+        return
+      }
+    }
+
+    setIsSubmitting(true)
     try {
-      const penaltyScheme = event.workout.scheme as WorkoutScheme
-      const isCapped =
-        penaltyScheme === "time-with-cap" && submission.score.status === "cap"
-
-      // For capped time-with-cap: penalty applies to secondaryValue (reps)
-      // For everything else: penalty applies to the primary score
-      let finalScore: string
-      let finalSecondaryScore: string | undefined
-
-      if (useDirectOverride) {
-        finalScore = directOverrideScore
-      } else if (isCapped && submission.score.secondaryValue !== null) {
-        // Capped: keep time as-is, subtract reps from secondary
-        const penalizedReps = calculatePenaltyScore(
-          submission.score.secondaryValue,
-          penaltyPercentage,
-          "reps",
-          "cap",
-        )
-        finalScore = submission.score.displayValue
-        finalSecondaryScore = String(penalizedReps)
-      } else if (submission.score.rawValue !== null) {
-        // Normal: apply penalty to the encoded value, then decode for display
-        const penalizedEncoded = calculatePenaltyScore(
-          submission.score.rawValue,
-          penaltyPercentage,
-          penaltyScheme,
-          submission.score.status,
-        )
-        finalScore = decodeScore(penalizedEncoded, penaltyScheme)
+      if (isMultiRound) {
+        await verifyFn({
+          data: {
+            competitionId,
+            trackWorkoutId,
+            scoreId: submission.id,
+            action: "adjust",
+            adjustedRoundScores: penaltyRoundScores.map((score, i) => ({
+              roundNumber: i + 1,
+              score: score.trim(),
+            })),
+            adjustedScoreStatus: penaltyStatus,
+            tieBreakScore: penaltyTiebreakScore.trim() || undefined,
+            reviewerNotes: reviewerNotes.trim() || undefined,
+            penaltyType: penaltyType === "none" ? undefined : penaltyType,
+            noRepCount: noRepCount
+              ? Number.parseInt(noRepCount, 10)
+              : undefined,
+          },
+        })
       } else {
-        finalScore = submission.score.displayValue
+        await verifyFn({
+          data: {
+            competitionId,
+            trackWorkoutId,
+            scoreId: submission.id,
+            action: "adjust",
+            adjustedScore: penaltyScore,
+            adjustedScoreStatus: penaltyStatus,
+            secondaryScore:
+              penaltyStatus === "cap"
+                ? penaltySecondaryScore.trim() || undefined
+                : undefined,
+            tieBreakScore: penaltyTiebreakScore.trim() || undefined,
+            reviewerNotes: reviewerNotes.trim() || undefined,
+            penaltyType: penaltyType === "none" ? undefined : penaltyType,
+            noRepCount: noRepCount
+              ? Number.parseInt(noRepCount, 10)
+              : undefined,
+          },
+        })
       }
 
-      await verifyFn({
-        data: {
-          competitionId,
-          trackWorkoutId,
-          scoreId: submission.id,
-          action: "adjust",
-          adjustedScore: finalScore,
-          adjustedScoreStatus:
-            submission.score.status === "cap" ? "cap" : "scored",
-          secondaryScore: finalSecondaryScore,
-          reviewerNotes: reviewerNotes.trim() || undefined,
-          penaltyType,
-          penaltyPercentage,
-          noRepCount: noRepCount ? Number.parseInt(noRepCount, 10) : undefined,
-        },
-      })
       setIsPenalizing(false)
       await router.invalidate()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Penalty failed")
+      setError(err instanceof Error ? err.message : "Adjustment failed")
     } finally {
       setIsSubmitting(false)
     }
@@ -449,34 +505,6 @@ function VerificationControls({
       setIsSubmitting(false)
     }
   }
-
-  // Compute live preview for penalty
-  const scheme = event.workout.scheme as WorkoutScheme
-  const scoreStatus = submission.score.status
-  // For time-with-cap capped scores, penalty applies to secondaryValue (reps)
-  const isCappedTimeWithCap =
-    scheme === "time-with-cap" && scoreStatus === "cap"
-  const penaltyBaseValue = isCappedTimeWithCap
-    ? submission.score.secondaryValue
-    : submission.score.rawValue
-
-  const previewPenaltyScore =
-    penaltyBaseValue !== null
-      ? calculatePenaltyScore(
-          penaltyBaseValue,
-          penaltyPercentage,
-          isCappedTimeWithCap ? "reps" : scheme,
-          scoreStatus,
-        )
-      : null
-  const previewDeduction =
-    penaltyBaseValue !== null && previewPenaltyScore !== null
-      ? Math.abs(penaltyBaseValue - previewPenaltyScore)
-      : null
-
-  // Determine if penalty direction is "add" (lower-is-better) or "subtract" (higher-is-better)
-  const penaltyAddsToScore =
-    scheme === "time-with-cap" ? scoreStatus !== "cap" : isLowerBetter(scheme)
 
   const statusBadge = () => {
     if (!verificationStatus) {
@@ -551,6 +579,12 @@ function VerificationControls({
                 )
               </span>
             )}
+            {tiebreakScheme && (
+              <span className="text-muted-foreground text-sm font-normal">
+                {" "}
+                &middot; TB: {submission.score.tiebreakValue || "—"}
+              </span>
+            )}
           </p>
         </div>
 
@@ -573,23 +607,33 @@ function VerificationControls({
                 <span>{submission.verification.noRepCount} no-reps</span>
               )}
             </div>
+            {submissionReviewerNotes && (
+              <p className="text-xs text-orange-600 dark:text-orange-400 italic mt-1">
+                Note: {submissionReviewerNotes}
+              </p>
+            )}
           </div>
         )}
 
         {/* Invalid info display */}
         {verificationStatus === "invalid" && (
-          <div className="rounded-md border border-gray-300 bg-gray-50 dark:bg-gray-900 dark:border-gray-700 p-3">
+          <div className="rounded-md border border-gray-300 bg-gray-50 dark:bg-gray-900 dark:border-gray-700 p-3 space-y-1">
             <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
               This submission has been marked invalid. The workout score has
               been zeroed.
             </p>
+            {submissionReviewerNotes && (
+              <p className="text-xs text-gray-600 dark:text-gray-400 italic">
+                Reason: {submissionReviewerNotes}
+              </p>
+            )}
           </div>
         )}
 
         <Separator />
 
         {/* Action buttons */}
-        {!isAdjusting && !isPenalizing && (
+        {!isPenalizing && (
           <div className="grid grid-cols-2 gap-2">
             <Button
               variant={
@@ -604,17 +648,10 @@ function VerificationControls({
             <Button
               variant="outline"
               disabled={isSubmitting}
-              onClick={() => setIsAdjusting(true)}
-            >
-              Adjust Score
-            </Button>
-            <Button
-              variant="outline"
-              disabled={isSubmitting}
               onClick={() => setIsPenalizing(true)}
             >
-              <AlertTriangle className="h-4 w-4 mr-2" />
-              Apply Penalty
+              <Pencil className="h-4 w-4 mr-2" />
+              Adjust Score
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -660,38 +697,30 @@ function VerificationControls({
           </div>
         )}
 
-        {/* Penalty form */}
+        {/* Adjust score form */}
         {isPenalizing && (
           <div className="space-y-3 rounded-md border border-orange-200 p-3">
-            <p className="text-sm font-medium">Apply Penalty</p>
+            <p className="text-sm font-medium">Adjust Score</p>
 
-            {/* Penalty guidance */}
-            <div className="rounded-md bg-muted/50 p-2 text-xs space-y-1">
-              <p className="font-medium">Penalty Guidance</p>
-              <p className="text-muted-foreground">
-                <strong>Minor:</strong> Small number of no-reps. Discretionary
-                deduction at your judgment.
-              </p>
-              <p className="text-muted-foreground">
-                <strong>Major:</strong> Significant no-reps. Typical 15-40%
-                deduction.
-              </p>
-            </div>
-
-            {/* Penalty type selector */}
+            {/* Penalty type selector (optional) */}
             <div className="space-y-2">
-              <Label className="text-xs">Penalty type</Label>
+              <Label className="text-xs">Penalty (optional)</Label>
               <RadioGroup
                 value={penaltyType}
-                onValueChange={(v) => {
-                  const type = v as "minor" | "major"
-                  setPenaltyType(type)
-                  if (type === "major" && penaltyPercentage < 15) {
-                    setPenaltyPercentage(15)
-                  }
-                }}
+                onValueChange={(v) =>
+                  setPenaltyType(v as "none" | "minor" | "major")
+                }
                 className="flex gap-4"
               >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="none" id="penalty-none" />
+                  <Label
+                    htmlFor="penalty-none"
+                    className="text-xs font-normal"
+                  >
+                    None
+                  </Label>
+                </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="minor" id="penalty-minor" />
                   <Label
@@ -729,110 +758,142 @@ function VerificationControls({
               />
             </div>
 
-            {/* Percentage */}
-            <div className="space-y-2">
-              <Label htmlFor="penalty-pct" className="text-xs">
-                Deduction percentage
-                {penaltyType === "major" && (
-                  <span className="text-muted-foreground ml-1">
-                    (15-40% recommended)
-                  </span>
-                )}
-              </Label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="range"
-                  id="penalty-pct"
-                  min={penaltyType === "major" ? 15 : 1}
-                  max={penaltyType === "major" ? 40 : 100}
-                  value={penaltyPercentage}
-                  onChange={(e) => setPenaltyPercentage(Number(e.target.value))}
-                  className="flex-1 range-visible-track"
-                />
-                <span className="text-sm font-mono w-10 text-right">
-                  {penaltyPercentage}%
-                </span>
-              </div>
-            </div>
-
-            {/* Before/after preview */}
-            {penaltyBaseValue !== null && (
-              <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-                <p className="text-xs font-medium">
-                  Score Preview
-                  {isCappedTimeWithCap && (
-                    <span className="text-muted-foreground font-normal ml-1">
-                      (reps at cap)
-                    </span>
-                  )}
-                </p>
-                <div className="flex items-center gap-3 text-sm font-mono">
-                  <div className="text-center">
-                    <p className="text-muted-foreground text-[10px] uppercase">
-                      Original
-                    </p>
-                    <p className="font-semibold">
-                      {isCappedTimeWithCap
-                        ? `${penaltyBaseValue} reps`
-                        : submission.score.displayValue}
-                    </p>
-                  </div>
-                  <span className="text-muted-foreground">&rarr;</span>
-                  <div className="text-center">
-                    <p className="text-muted-foreground text-[10px] uppercase">
-                      {penaltyAddsToScore ? "Addition" : "Deduction"}
-                    </p>
-                    <p className="text-orange-600 font-semibold">
-                      {penaltyAddsToScore ? "+" : "-"}
-                      {previewDeduction !== null
-                        ? isCappedTimeWithCap
-                          ? previewDeduction
-                          : decodeScore(previewDeduction, scheme)
-                        : "—"}
-                    </p>
-                  </div>
-                  <span className="text-muted-foreground">&rarr;</span>
-                  <div className="text-center">
-                    <p className="text-muted-foreground text-[10px] uppercase">
-                      Adjusted
-                    </p>
-                    <p className="font-bold text-orange-700">
-                      {useDirectOverride
-                        ? directOverrideScore || "—"
-                        : previewPenaltyScore !== null
-                          ? isCappedTimeWithCap
-                            ? `${previewPenaltyScore} reps`
-                            : decodeScore(previewPenaltyScore, scheme)
-                          : "—"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Direct override */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="use-override"
-                  checked={useDirectOverride}
-                  onChange={(e) => setUseDirectOverride(e.target.checked)}
-                  className="rounded border-gray-300"
-                />
-                <Label htmlFor="use-override" className="text-xs font-normal">
-                  Override with a specific score instead
+            {/* Adjusted score */}
+            {isMultiRound ? (
+              <div className="space-y-2">
+                <Label className="text-xs">
+                  Adjusted {getSchemeLabel(scheme)} per round
                 </Label>
+                <div className="space-y-2">
+                  {penaltyRoundScores.map((value, i) => {
+                    const roundResult = penaltyRoundParseResults[i]
+                    return (
+                      <div
+                        key={sortedRoundScores[i]?.roundNumber ?? i + 1}
+                        className="space-y-1"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs uppercase tracking-wider w-8 text-muted-foreground">
+                            R{i + 1}
+                          </span>
+                          <Input
+                            value={value}
+                            onChange={(e) =>
+                              setPenaltyRoundScores((prev) => {
+                                const next = [...prev]
+                                next[i] = e.target.value
+                                return next
+                              })
+                            }
+                            placeholder={getScorePlaceholder(scheme)}
+                            className={cn(
+                              "font-mono",
+                              roundResult?.error &&
+                                !roundResult?.isValid &&
+                                "border-destructive",
+                            )}
+                          />
+                        </div>
+                        {roundResult?.isValid && (
+                          <p className="pl-10 text-[11px] text-green-600 dark:text-green-400">
+                            Parsed as: {roundResult.formatted}
+                          </p>
+                        )}
+                        {roundResult?.error && (
+                          <p className="pl-10 text-[11px] text-destructive">
+                            {roundResult.error}
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+                {getScoreHelpText(scheme, timeCap) && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {getScoreHelpText(scheme, timeCap)}
+                  </p>
+                )}
+                {scheme === "time-with-cap" && timeCap ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    Status is derived from each round&apos;s time vs the
+                    per-round cap.
+                  </p>
+                ) : null}
               </div>
-              {useDirectOverride && (
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="penalty-score" className="text-xs">
+                    Adjusted {getSchemeLabel(scheme)}
+                  </Label>
+                  <Input
+                    id="penalty-score"
+                    value={penaltyScore}
+                    onChange={(e) => setPenaltyScore(e.target.value)}
+                    placeholder={getScorePlaceholder(scheme)}
+                    className={cn(
+                      "font-mono",
+                      penaltyParseResult?.error &&
+                        !penaltyParseResult?.isValid &&
+                        "border-destructive",
+                    )}
+                  />
+                  {getScoreHelpText(scheme, timeCap) && (
+                    <p className="text-[11px] text-muted-foreground">
+                      {getScoreHelpText(scheme, timeCap)}
+                    </p>
+                  )}
+                  {penaltyParseResult?.isValid && (
+                    <p className="text-[11px] text-green-600 dark:text-green-400">
+                      Parsed as: {penaltyParseResult.formatted}
+                      {penaltyStatus === "cap" && " (Time Cap)"}
+                    </p>
+                  )}
+                  {penaltyParseResult?.error && (
+                    <p className="text-[11px] text-destructive">
+                      {penaltyParseResult.error}
+                    </p>
+                  )}
+                </div>
+                {penaltyStatus === "cap" && (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                    Time cap hit. Enter the reps completed at the cap below.
+                  </p>
+                )}
+                {showPenaltySecondaryInput && (
+                  <div className="space-y-2">
+                    <Label htmlFor="penalty-secondary" className="text-xs">
+                      Reps at cap
+                    </Label>
+                    <Input
+                      id="penalty-secondary"
+                      value={penaltySecondaryScore}
+                      onChange={(e) => setPenaltySecondaryScore(e.target.value)}
+                      placeholder="e.g. 42"
+                      type="number"
+                      min="0"
+                    />
+                  </div>
+                )}
+              </>
+            )}
+            {tiebreakScheme && (
+              <div className="space-y-2">
+                <Label htmlFor="penalty-tiebreak" className="text-xs">
+                  Tiebreak (
+                  {tiebreakScheme === "time" ? "Time" : "Reps/Weight"})
+                </Label>
                 <Input
-                  value={directOverrideScore}
-                  onChange={(e) => setDirectOverrideScore(e.target.value)}
-                  placeholder={event.workout.timeCap ? "10:30" : "155"}
+                  id="penalty-tiebreak"
+                  value={penaltyTiebreakScore}
+                  onChange={(e) => setPenaltyTiebreakScore(e.target.value)}
+                  placeholder={
+                    tiebreakScheme === "time" ? "e.g. 3:45" : "e.g. 100"
+                  }
                   className="font-mono"
                 />
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Reviewer notes */}
             <div className="space-y-2">
@@ -843,7 +904,7 @@ function VerificationControls({
                 id="penalty-notes"
                 value={reviewerNotes}
                 onChange={(e) => setReviewerNotes(e.target.value)}
-                placeholder="Explain the penalty reason..."
+                placeholder="Explain the adjustment..."
                 rows={2}
                 className="text-sm"
               />
@@ -853,13 +914,10 @@ function VerificationControls({
               <Button
                 className="flex-1"
                 size="sm"
-                disabled={
-                  isSubmitting ||
-                  (useDirectOverride && !directOverrideScore.trim())
-                }
+                disabled={isSubmitting || !canSubmitPenalty}
                 onClick={handleApplyPenalty}
               >
-                {isSubmitting ? "Applying..." : "Apply Penalty"}
+                {isSubmitting ? "Applying..." : "Adjust Score"}
               </Button>
               <Button
                 variant="ghost"
@@ -867,96 +925,6 @@ function VerificationControls({
                 disabled={isSubmitting}
                 onClick={() => {
                   setIsPenalizing(false)
-                  setError(null)
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Adjust form (score correction, no penalty) */}
-        {isAdjusting && (
-          <div className="space-y-3 rounded-md border p-3">
-            <p className="text-sm font-medium">Adjust Score</p>
-            <p className="text-xs text-muted-foreground">
-              Correct the rep count without applying a penalty deduction.
-            </p>
-            <div className="space-y-2">
-              <Label htmlFor="adjusted-score" className="text-xs">
-                New score
-              </Label>
-              <Input
-                id="adjusted-score"
-                value={adjustedScore}
-                onChange={(e) => setAdjustedScore(e.target.value)}
-                placeholder={event.workout.timeCap ? "10:30" : "155"}
-                className="font-mono"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="adjusted-status" className="text-xs">
-                Status
-              </Label>
-              <Select
-                value={adjustedStatus}
-                onValueChange={(v) => setAdjustedStatus(v as "scored" | "cap")}
-              >
-                <SelectTrigger id="adjusted-status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="scored">Scored</SelectItem>
-                  {event.workout.timeCap && (
-                    <SelectItem value="cap">Capped</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            {adjustedStatus === "cap" && (
-              <div className="space-y-2">
-                <Label htmlFor="secondary-score" className="text-xs">
-                  Reps at cap
-                </Label>
-                <Input
-                  id="secondary-score"
-                  value={secondaryScore}
-                  onChange={(e) => setSecondaryScore(e.target.value)}
-                  placeholder="e.g. 42"
-                  type="number"
-                  min="0"
-                />
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="reviewer-notes" className="text-xs">
-                Note to athlete (optional)
-              </Label>
-              <Textarea
-                id="reviewer-notes"
-                value={reviewerNotes}
-                onChange={(e) => setReviewerNotes(e.target.value)}
-                placeholder="Explain the reason for the adjustment..."
-                rows={2}
-                className="text-sm"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button
-                className="flex-1"
-                size="sm"
-                disabled={isSubmitting || !adjustedScore.trim()}
-                onClick={handleAdjust}
-              >
-                {isSubmitting ? "Saving..." : "Save Adjustment"}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={isSubmitting}
-                onClick={() => {
-                  setIsAdjusting(false)
                   setError(null)
                 }}
               >
@@ -994,6 +962,10 @@ function VerificationControls({
                     key={log.id}
                     log={log}
                     competitionId={competitionId}
+                    scoreId={submission.id}
+                    trackWorkoutId={trackWorkoutId}
+                    timeCap={event.workout.timeCap}
+                    submissionReviewerNotes={submissionReviewerNotes}
                   />
                 ))}
               </div>
@@ -1012,23 +984,38 @@ function VerificationControls({
 function AuditLogEntry({
   log,
   competitionId,
+  scoreId,
+  trackWorkoutId,
+  timeCap,
+  submissionReviewerNotes,
 }: {
   log: VerificationLogEntry
   competitionId: string
+  scoreId: string
+  trackWorkoutId: string
+  timeCap: number | null
+  submissionReviewerNotes?: string | null
 }) {
   const router = useRouter()
   const deleteFn = useServerFn(deleteVerificationLogFn)
-  const updateFn = useServerFn(updateVerificationLogFn)
+  const verifyFn = useServerFn(verifySubmissionScoreFn)
   const [isEditing, setIsEditing] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [editPenaltyType, setEditPenaltyType] = useState<
     "minor" | "major" | null
   >((log.penaltyType as "minor" | "major") ?? null)
-  const [editPenaltyPct, setEditPenaltyPct] = useState(
-    log.penaltyPercentage ?? 0,
-  )
   const [editNoRepCount, setEditNoRepCount] = useState(
     log.noRepCount?.toString() ?? "",
+  )
+  const [editScore, setEditScore] = useState(
+    log.newScoreValue !== null && log.scheme
+      ? decodeScore(log.newScoreValue, log.scheme as WorkoutScheme, {
+          compact: false,
+        })
+      : "",
+  )
+  const [editStatus, setEditStatus] = useState<"scored" | "cap">(
+    (log.newStatus as "scored" | "cap") ?? "scored",
   )
 
   async function handleDelete() {
@@ -1043,15 +1030,18 @@ function AuditLogEntry({
 
   async function handleUpdate() {
     try {
-      await updateFn({
+      await verifyFn({
         data: {
-          logId: log.id,
           competitionId,
-          penaltyType: editPenaltyType,
-          penaltyPercentage: editPenaltyType !== null ? editPenaltyPct : null,
+          trackWorkoutId,
+          scoreId,
+          action: "adjust",
+          adjustedScore: editScore,
+          adjustedScoreStatus: editStatus,
+          penaltyType: editPenaltyType ?? undefined,
           noRepCount: editNoRepCount
             ? Number.parseInt(editNoRepCount, 10)
-            : null,
+            : undefined,
         },
       })
       setIsEditing(false)
@@ -1068,19 +1058,6 @@ function AuditLogEntry({
       <div className="space-y-3 rounded-md border border-orange-200 p-3">
         <p className="text-sm font-medium">Edit Penalty</p>
 
-        {/* Penalty guidance */}
-        <div className="rounded-md bg-muted/50 p-2 text-xs space-y-1">
-          <p className="font-medium">Penalty Guidance</p>
-          <p className="text-muted-foreground">
-            <strong>Minor:</strong> Small number of no-reps. Discretionary
-            deduction at your judgment.
-          </p>
-          <p className="text-muted-foreground">
-            <strong>Major:</strong> Significant no-reps. Typical 15-40%
-            deduction.
-          </p>
-        </div>
-
         {/* Penalty type selector */}
         <div className="space-y-2">
           <Label className="text-xs">Penalty type</Label>
@@ -1091,11 +1068,7 @@ function AuditLogEntry({
                 setEditPenaltyType(null)
                 return
               }
-              const type = v as "minor" | "major"
-              setEditPenaltyType(type)
-              if (type === "major" && editPenaltyPct < 15) {
-                setEditPenaltyPct(15)
-              }
+              setEditPenaltyType(v as "minor" | "major")
             }}
             className="flex gap-4"
           >
@@ -1135,111 +1108,58 @@ function AuditLogEntry({
           </RadioGroup>
         </div>
 
-        {editPenaltyType && (
-          <>
-            {/* No-rep count */}
-            <div className="space-y-2">
-              <Label htmlFor={`edit-norep-${log.id}`} className="text-xs">
-                No-rep count (optional)
-              </Label>
-              <Input
-                id={`edit-norep-${log.id}`}
-                value={editNoRepCount}
-                onChange={(e) => setEditNoRepCount(e.target.value)}
-                placeholder="e.g. 12"
-                type="number"
-                min="0"
-                className="font-mono"
-              />
-            </div>
+        {/* No-rep count */}
+        <div className="space-y-2">
+          <Label htmlFor={`edit-norep-${log.id}`} className="text-xs">
+            No-rep count (optional)
+          </Label>
+          <Input
+            id={`edit-norep-${log.id}`}
+            value={editNoRepCount}
+            onChange={(e) => setEditNoRepCount(e.target.value)}
+            placeholder="e.g. 12"
+            type="number"
+            min="0"
+            className="font-mono"
+          />
+        </div>
 
-            {/* Percentage */}
-            <div className="space-y-2">
-              <Label htmlFor={`edit-pct-${log.id}`} className="text-xs">
-                Deduction percentage
-                {editPenaltyType === "major" && (
-                  <span className="text-muted-foreground ml-1">
-                    (15-40% recommended)
-                  </span>
-                )}
-              </Label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="range"
-                  id={`edit-pct-${log.id}`}
-                  min={editPenaltyType === "major" ? 15 : 1}
-                  max={editPenaltyType === "major" ? 40 : 100}
-                  value={editPenaltyPct}
-                  onChange={(e) => setEditPenaltyPct(Number(e.target.value))}
-                  className="flex-1 range-visible-track"
-                />
-                <span className="text-sm font-mono w-10 text-right">
-                  {editPenaltyPct}%
-                </span>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Score preview */}
-        {editPenaltyType && log.originalScoreValue !== null && log.scheme && (
-          <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-            <p className="text-xs font-medium">Score Preview</p>
-            {(() => {
-              const scheme = log.scheme as WorkoutScheme
-              const lowerBetter =
-                scheme === "time-with-cap"
-                  ? log.originalStatus !== "cap"
-                  : isLowerBetter(scheme)
-              const previewScore = calculatePenaltyScore(
-                log.originalScoreValue!,
-                editPenaltyPct,
-                scheme,
-                log.originalStatus ?? undefined,
-              )
-              const deduction = Math.abs(log.originalScoreValue! - previewScore)
-              return (
-                <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
-                  <div className="text-center">
-                    <p className="text-muted-foreground text-[10px] uppercase">
-                      Original
-                    </p>
-                    <p className="font-semibold">
-                      {decodeScore(log.originalScoreValue!, scheme, {
-                        compact: false,
-                      })}
-                    </p>
-                  </div>
-                  <span className="text-muted-foreground">&rarr;</span>
-                  <div className="text-center">
-                    <p className="text-muted-foreground text-[10px] uppercase">
-                      {lowerBetter ? "Addition" : "Deduction"}
-                    </p>
-                    <p className="text-orange-600 font-semibold">
-                      {lowerBetter ? "+" : "-"}
-                      {decodeScore(deduction, scheme, { compact: false })}
-                    </p>
-                  </div>
-                  <span className="text-muted-foreground">&rarr;</span>
-                  <div className="text-center">
-                    <p className="text-muted-foreground text-[10px] uppercase">
-                      Adjusted
-                    </p>
-                    <p className="font-bold text-orange-700">
-                      {decodeScore(previewScore, scheme, { compact: false })}
-                    </p>
-                  </div>
-                </div>
-              )
-            })()}
-          </div>
-        )}
+        {/* Adjusted score */}
+        <div className="space-y-2">
+          <Label htmlFor={`edit-score-${log.id}`} className="text-xs">
+            Adjusted score
+          </Label>
+          <Input
+            id={`edit-score-${log.id}`}
+            value={editScore}
+            onChange={(e) => setEditScore(e.target.value)}
+            placeholder={timeCap ? "10:30" : "155"}
+            className="font-mono"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={`edit-status-${log.id}`} className="text-xs">
+            Status
+          </Label>
+          <Select
+            value={editStatus}
+            onValueChange={(v) => setEditStatus(v as "scored" | "cap")}
+          >
+            <SelectTrigger id={`edit-status-${log.id}`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="scored">Scored</SelectItem>
+              {timeCap && <SelectItem value="cap">Capped</SelectItem>}
+            </SelectContent>
+          </Select>
+        </div>
 
         <div className="flex gap-2">
           <Button
             className="flex-1"
             size="sm"
-            disabled={isSaving}
+            disabled={isSaving || !editScore.trim()}
             onClick={async () => {
               setIsSaving(true)
               await handleUpdate()
@@ -1254,10 +1174,18 @@ function AuditLogEntry({
             disabled={isSaving}
             onClick={() => {
               setIsEditing(false)
-              // Reset to original values
               setEditPenaltyType((log.penaltyType as "minor" | "major") ?? null)
-              setEditPenaltyPct(log.penaltyPercentage ?? 0)
               setEditNoRepCount(log.noRepCount?.toString() ?? "")
+              setEditScore(
+                log.newScoreValue !== null && log.scheme
+                  ? decodeScore(
+                      log.newScoreValue,
+                      log.scheme as WorkoutScheme,
+                      { compact: false },
+                    )
+                  : "",
+              )
+              setEditStatus((log.newStatus as "scored" | "cap") ?? "scored")
             }}
           >
             Cancel
@@ -1350,6 +1278,16 @@ function AuditLogEntry({
         <p className="text-muted-foreground">
           {log.penaltyPercentage}% deduction
           {log.noRepCount !== null && ` · ${log.noRepCount} no-reps`}
+        </p>
+      )}
+      {log.noRepCount !== null && log.penaltyPercentage === null && (
+        <p className="text-muted-foreground">
+          {log.noRepCount} no-reps
+        </p>
+      )}
+      {submissionReviewerNotes && (
+        <p className="text-muted-foreground italic">
+          Note: {submissionReviewerNotes}
         </p>
       )}
     </div>
@@ -2025,9 +1963,8 @@ function CommunityVotesCard({ voteDetails }: CommunityVotesCardProps) {
                 >
                   <span>
                     {r.reason
-                      ? (DOWNVOTE_REASON_LABELS[
-                          r.reason as DownvoteReason
-                        ] ?? r.reason)
+                      ? (DOWNVOTE_REASON_LABELS[r.reason as DownvoteReason] ??
+                        r.reason)
                       : "Unknown"}
                   </span>
                   <Badge variant="secondary" className="text-xs">
@@ -2087,6 +2024,9 @@ function SubmissionDetailPage() {
   const {
     submission,
     siblings,
+    siblingsTeamSize,
+    siblingsRegistrationId,
+    siblingsTrackWorkoutId,
     verificationSubmission,
     event,
     verificationLogs,
@@ -2113,9 +2053,7 @@ function SubmissionDetailPage() {
   const activeSubmission =
     siblings.find((s) => s.videoIndex === activeVideoIndex) ?? siblings[0]
   const activeTabNotes = activeSubmission
-    ? allReviewNotes.filter(
-        (n) => n.videoSubmissionId === activeSubmission.id,
-      )
+    ? allReviewNotes.filter((n) => n.videoSubmissionId === activeSubmission.id)
     : allReviewNotes
   const hasMultipleVideos = siblings.length > 1
 
@@ -2257,7 +2195,6 @@ function SubmissionDetailPage() {
           <Button
             variant="outline"
             onClick={handleToggleReview}
-
             className="gap-2"
           >
             <Undo2 className="h-4 w-4" />
@@ -2266,7 +2203,6 @@ function SubmissionDetailPage() {
         ) : (
           <Button
             onClick={handleToggleReview}
-
             className="gap-2 bg-green-600 hover:bg-green-700"
           >
             <CheckCircle2 className="h-4 w-4" />
@@ -2322,7 +2258,11 @@ function SubmissionDetailPage() {
                       >
                         Video {sib.videoIndex + 1}
                         <span className="text-xs text-muted-foreground">
-                          ({sib.videoIndex === 0 ? "Captain" : `Teammate ${sib.videoIndex}`})
+                          (
+                          {sib.videoIndex === 0
+                            ? "Captain"
+                            : `Teammate ${sib.videoIndex}`}
+                          )
                         </span>
                         {getReviewedAt(sib) != null && (
                           <CheckCircle2 className="h-3 w-3 text-green-600" />
@@ -2347,9 +2287,7 @@ function SubmissionDetailPage() {
                       {getVideoPlatformName(sib.videoUrl) && (
                         <div className="mt-3">
                           <a
-                            href={
-                              isSafeUrl(sib.videoUrl) ? sib.videoUrl : "#"
-                            }
+                            href={isSafeUrl(sib.videoUrl) ? sib.videoUrl : "#"}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
@@ -2513,6 +2451,30 @@ function SubmissionDetailPage() {
                       Capped
                     </Badge>
                   )}
+                  {submission.score.roundScores &&
+                    submission.score.roundScores.length > 1 && (
+                      <div className="mt-3 space-y-1">
+                        {submission.score.roundScores.map((round) => (
+                          <div
+                            key={round.roundNumber}
+                            className="flex items-center gap-2 text-sm text-muted-foreground font-mono"
+                          >
+                            <span className="text-xs uppercase tracking-wider w-8">
+                              R{round.roundNumber}
+                            </span>
+                            <span>{round.displayScore ?? "—"}</span>
+                            {round.status === "cap" && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] px-1 py-0 h-4"
+                              >
+                                Cap
+                              </Badge>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                 </div>
               ) : (
                 <p className="text-muted-foreground">No score submitted</p>
@@ -2561,24 +2523,41 @@ function SubmissionDetailPage() {
               competitionId={params.competitionId}
               trackWorkoutId={params.eventId}
               logs={verificationLogs}
+              roundScores={submission.score?.roundScores ?? null}
+              submissionReviewerNotes={submission.reviewerNotes}
+            />
+          ) : event ? (
+            <EnterScoreForm
+              videoSubmissionId={params.submissionId}
+              competitionId={params.competitionId}
+              trackWorkoutId={params.eventId}
+              event={event}
             />
           ) : (
             <Card>
               <CardHeader>
                 <CardTitle>Verification Controls</CardTitle>
-                <CardDescription>
-                  Review the video and confirm or correct the athlete&apos;s
-                  claimed score
-                </CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  No score submitted yet. Verification controls will be available
-                  once the athlete submits a score.
+                  Could not load event details. Refresh and try again.
                 </p>
               </CardContent>
             </Card>
           )}
+
+          {/* Video link editor — appears under Adjust Score for fixing broken links */}
+          <OrganizerVideoLinksEditor
+            submissions={siblings.map((s) => ({
+              id: s.id,
+              videoIndex: s.videoIndex,
+              videoUrl: s.videoUrl,
+            }))}
+            competitionId={params.competitionId}
+            teamSize={siblingsTeamSize}
+            registrationId={siblingsRegistrationId}
+            trackWorkoutId={siblingsTrackWorkoutId}
+          />
 
           {allReviewNotes.length > 0 && (
             <MovementTallyCard notes={allReviewNotes} />

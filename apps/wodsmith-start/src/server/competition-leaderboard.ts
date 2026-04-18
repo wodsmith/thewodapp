@@ -32,20 +32,18 @@ import { userTable } from "@/db/schemas/users"
 import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
 import { workouts } from "@/db/schemas/workouts"
 import {
-  calculateCustomPoints,
   calculateEventPoints,
-  calculateTraditionalPoints,
+  calculatePointsForPlace,
+  computeSortKey,
   DEFAULT_SCORING_CONFIG,
-  DEFAULT_TRADITIONAL_CONFIG,
   decodeScore,
   type EventScoreInput,
   formatScore,
   getDefaultScoreType,
   isTimeBasedScheme,
+  sortKeyToString,
   type WorkoutScheme,
 } from "@/lib/scoring"
-import { calculateOnlinePoints } from "@/lib/scoring/algorithms/online"
-import type { ScoringConfig } from "@/types/scoring"
 import {
   applyTiebreakers,
   type TiebreakerInput,
@@ -205,9 +203,13 @@ async function fetchScores(params: {
 
 /**
  * For each score id, count how many rounds were persisted and how many
- * of those carry `status = "cap"`. Used to drive the capped-rounds badge
- * on multi-round leaderboard scores without shipping the full round
- * payload to the client.
+ * of those carry `status = "cap"`. Drives two things at once:
+ *
+ * 1. The capped-rounds badge on multi-round leaderboard scores (without
+ *    shipping the full round payload to the client).
+ * 2. The in-flight `computeSortKey` recomputation below, which uses
+ *    `cappedRoundCount` as a dominant tiebreaker inside the cap bucket
+ *    ("fewer caps beats more caps").
  */
 async function fetchRoundCapSummaries(
   scoreIds: string[],
@@ -235,41 +237,6 @@ async function fetchRoundCapSummaries(
   }
 
   return summaries
-}
-
-/**
- * Compute the points awarded for a given place under the competition's
- * scoring config. Used to assign the tied-for-worst points value to
- * athletes registered in a division who didn't submit a score for an event —
- * specifically for online scoring, where `totalPoints = 0` would otherwise
- * outrank any recorded submission (lower total wins).
- */
-function calculatePointsForPlace(
-  place: number,
-  config: ScoringConfig,
-): number {
-  switch (config.algorithm) {
-    case "online":
-      return calculateOnlinePoints(place)
-    case "traditional":
-      return calculateTraditionalPoints(
-        place,
-        config.traditional ?? DEFAULT_TRADITIONAL_CONFIG,
-      )
-    case "winner_takes_more":
-      return calculateCustomPoints(place, {
-        baseTemplate: "winner_takes_more",
-        overrides: {},
-      })
-    case "custom":
-      return config.customTable
-        ? calculateCustomPoints(place, config.customTable, config.traditional)
-        : 0
-    case "p_score":
-      // P-score isn't placement-based; fall back to 0 so a missing submission
-      // doesn't artificially depress or inflate an athlete's total.
-      return 0
-  }
 }
 
 /**
@@ -779,9 +746,9 @@ export async function getCompetitionLeaderboard(params: {
     allScores.map((s) => s.id),
   )
 
-  // Breakdown so we can see what the 15 raw scores actually look like:
-  // status tells us whether points get computed (only "scored"/"cap" earn points
-  // in online scoring — "dns"/"dnf"/etc. are treated as inactive).
+  // Breakdown so we can see what the raw scores actually look like:
+  // status tells us whether points get computed (only "scored"/"cap" earn
+  // points in online scoring — "dns"/"dnf"/etc. are treated as inactive).
   // verificationStatus tells us review state (null = unreviewed).
   const statusBreakdown = allScores.reduce<Record<string, number>>(
     (acc, s) => {
@@ -944,13 +911,46 @@ export async function getCompetitionLeaderboard(params: {
         }
       }
 
-      // Convert to EventScoreInput format
-      const eventScoreInputs: EventScoreInput[] = divisionScores.map((s) => ({
-        userId: s.userId,
-        value: s.scoreValue ?? 0,
-        status: mapScoreStatus(s.status),
-        sortKey: s.sortKey,
-      }))
+      // Convert to EventScoreInput format.
+      //
+      // IMPORTANT: we deliberately recompute `sortKey` here rather than
+      // trusting the stored `s.sortKey`. The stored value is only refreshed
+      // when a score is written through `computeSortKey` — direct DB edits
+      // to `scoreRoundsTable.status`, and any scores written before the
+      // cap-count tiebreaker was added to `computeSortKey`, leave the
+      // persisted key stale. Recomputing here with the freshly-fetched
+      // `cappedRoundCount` guarantees "fewer caps beats more caps" on the
+      // public leaderboard with no backfill required.
+      const eventScoreType =
+        trackWorkout.workout.scoreType ||
+        getDefaultScoreType(trackWorkout.workout.scheme)
+      const eventScoreInputs: EventScoreInput[] = divisionScores.map((s) => {
+        const roundSummary = roundCapSummariesByScoreId.get(s.id)
+        const recomputedSortKey = computeSortKey({
+          scheme: s.scheme as WorkoutScheme,
+          scoreType: eventScoreType,
+          value: s.scoreValue,
+          status: s.status as "scored" | "cap" | "dq" | "withdrawn",
+          cappedRoundCount: roundSummary?.cappedRoundCount ?? 0,
+          timeCap:
+            s.timeCapMs && s.secondaryValue !== null
+              ? { ms: s.timeCapMs, secondaryValue: s.secondaryValue }
+              : undefined,
+          tiebreak:
+            s.tiebreakValue !== null && s.tiebreakScheme
+              ? {
+                  scheme: s.tiebreakScheme as "reps" | "time",
+                  value: s.tiebreakValue,
+                }
+              : undefined,
+        })
+        return {
+          userId: s.userId,
+          value: s.scoreValue ?? 0,
+          status: mapScoreStatus(s.status),
+          sortKey: sortKeyToString(recomputedSortKey),
+        }
+      })
 
       // Calculate points using the factory
       const scheme = trackWorkout.workout.scheme as WorkoutScheme
@@ -978,11 +978,6 @@ export async function getCompetitionLeaderboard(params: {
         const rank = pointsResult?.rank ?? 0
         const basePoints = pointsResult?.points ?? 0
         const points = Math.round(basePoints * multiplier)
-
-        // Format score for display
-        const scoreType =
-          trackWorkout.workout.scoreType ||
-          getDefaultScoreType(trackWorkout.workout.scheme)
 
         const roundSummary = roundCapSummariesByScoreId.get(score.id) ?? {
           cappedRoundCount: 0,
@@ -1034,7 +1029,7 @@ export async function getCompetitionLeaderboard(params: {
 
           const scoreObj: Parameters<typeof formatScore>[0] = {
             scheme: scoreScheme,
-            scoreType,
+            scoreType: eventScoreType,
             value: displayValue,
             status: formatStatus,
           }
@@ -1067,7 +1062,9 @@ export async function getCompetitionLeaderboard(params: {
           const tbDisplay = isTimeBasedScheme(tbScheme)
             ? Math.floor(score.tiebreakValue / 1000) * 1000
             : score.tiebreakValue
-          formattedTiebreak = decodeScore(tbDisplay, tbScheme, { compact: true })
+          formattedTiebreak = decodeScore(tbDisplay, tbScheme, {
+            compact: true,
+          })
         }
 
         entry.eventResults.push({
@@ -1118,7 +1115,10 @@ export async function getCompetitionLeaderboard(params: {
       ).length
       const missingPlace = activeCount + 1
       const missingPoints = Math.round(
-        calculatePointsForPlace(missingPlace, scoringConfig) * multiplier,
+        calculatePointsForPlace({
+          place: missingPlace,
+          config: scoringConfig,
+        }) * multiplier,
       )
 
       const scoredUserIds = new Set(divisionScores.map((s) => s.userId))
@@ -1132,12 +1132,12 @@ export async function getCompetitionLeaderboard(params: {
         const entry = leaderboardMap.get(reg.registration.id)
         if (!entry) continue
 
-        const videoInfo = videoMap.get(
-          `${reg.registration.id}:${trackWorkout.id}`,
-        )
         const eventDivPublished = isEventDivisionPublished(
           trackWorkout.id,
           divisionId,
+        )
+        const videoInfo = videoMap.get(
+          `${reg.registration.id}:${trackWorkout.id}`,
         )
 
         entry.eventResults.push({

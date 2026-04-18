@@ -92,11 +92,29 @@ competitionBroadcastsTable
   createdById, createdAt, updatedAt
 
 competitionBroadcastRecipientsTable
-  id, broadcastId, registrationId, userId, emailDeliveryStatus,
-  createdAt
+  id, broadcastId, registrationId, userId (nullable), invitationId (nullable),
+  email (nullable), emailDeliveryStatus, createdAt
+  UNIQUE (broadcastId, userId)       -- tolerates NULLs for invite-only rows
+  UNIQUE (broadcastId, invitationId) -- tolerates NULLs for user rows
 ```
 
 The `audienceFilter` column stores a JSON object describing the filter criteria. At send time, the filter is evaluated against current registrations to determine recipients, and a row is inserted into the recipients table for each matched athlete for delivery tracking.
+
+Exactly one of `userId`/`invitationId` is populated per recipient row. Pending teammate invites have no user account yet, so they're stored with `userId=NULL`, `invitationId=<teamInvitationTable.id>`, and the captured `email`. The `email` column is denormalized so sends remain deliverable even if the invitation is later cancelled. MySQL permits multiple NULLs inside a unique index, so rows keyed by invitationId don't collide on `(broadcastId, userId)` and vice versa.
+
+### Audience Expansion (v1.1)
+
+The original MVP pulled recipients from `competitionRegistrationsTable` joined on `userId`, which only surfaced the captain row for team registrations. Non-captain teammates (who exist as `teamMembershipTable` rows on the athlete team after accepting their invite) and pending teammate invitees (who exist only as `teamInvitationTable` rows before accepting) were excluded — diverging from the organizer athletes UI that shows all three groups.
+
+The default athlete audience now matches the organizer athletes page:
+
+1. Registrations (captains + solo) from `competitionRegistrationsTable`
+2. Accepted non-captain teammates — `teamMembershipTable` rows where `teamId IN athleteTeamIds`, `roleId = SYSTEM_ROLES_ENUM.MEMBER`, `isActive = true`
+3. Pending teammate invitations — `teamInvitationTable` rows where `teamId IN athleteTeamIds`, `roleId = SYSTEM_ROLES_ENUM.MEMBER`, `acceptedAt IS NULL`, `status != CANCELLED`
+
+Deduplication runs after collection: user rows dedup by `userId`, invite rows dedup by `invitationId`, and an invitation whose email matches an already-included user is dropped in favor of the user row.
+
+A new audience filter type `pending_teammates` targets only step (3) recipients, giving organizers a direct channel to nudge invitees who haven't accepted yet. It honors an optional `divisionId` that narrows the inherited `athleteTeamIds`. Registration-question filters are **ignored** for `pending_teammates` since invitees have no registration answers to match against — the intent of the filter is "send to invitees regardless of form state" (waiver/answer form submission is explicitly the reason most organizers reach out).
 
 ### Email Delivery via Resend
 

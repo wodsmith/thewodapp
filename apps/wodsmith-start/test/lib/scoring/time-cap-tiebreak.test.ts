@@ -71,6 +71,117 @@ describe('Time Cap Scenarios', () => {
     // Note: Secondary scheme is now always reps for time-capped workouts
   })
 
+  describe('Multi-round capped score display', () => {
+    // @lat: [[lat.md/domain#Domain Model#Scoring#Multi-round time caps]]
+    it('should surface the summed total for multi-round capped scores', () => {
+      const score: Score = {
+        scheme: 'time-with-cap',
+        scoreType: 'sum',
+        value: 2460000, // 41:00 summed across 2 rounds
+        status: 'cap',
+        // No timeCap.secondaryValue — multi-round aggregates via rounds,
+        // not via a single reps-at-cap field.
+      }
+      expect(formatScore(score)).toBe('CAP (41:00)')
+    })
+
+    it('should surface summed total without status prefix', () => {
+      const score: Score = {
+        scheme: 'time-with-cap',
+        scoreType: 'sum',
+        value: 2460000,
+        status: 'cap',
+      }
+      expect(formatScore(score, {showStatus: false})).toBe('41:00')
+    })
+
+    it('should rank fewer capped rounds ahead of more capped rounds, even when the total time is slower', () => {
+      // Two capped multi-round scores. The one with 2 capped rounds has a
+      // *faster* summed total but must still rank below the one with only
+      // 1 capped round — the gate is round count first, then total.
+      const oneCap: Score = {
+        scheme: 'time-with-cap',
+        scoreType: 'sum',
+        value: 2340000, // 39:00 total
+        status: 'cap',
+        cappedRoundCount: 1,
+        totalRoundCount: 2,
+      }
+      const twoCaps: Score = {
+        scheme: 'time-with-cap',
+        scoreType: 'sum',
+        value: 2247000, // 37:27 total — faster than oneCap but worse rounds
+        status: 'cap',
+        cappedRoundCount: 2,
+        totalRoundCount: 2,
+      }
+
+      const sorted = sortScores([twoCaps, oneCap])
+
+      expect(sorted[0]?.cappedRoundCount).toBe(1)
+      expect(sorted[1]?.cappedRoundCount).toBe(2)
+    })
+
+    it('should fall back to total time when capped-round counts match', () => {
+      const slower: Score = {
+        scheme: 'time-with-cap',
+        scoreType: 'sum',
+        value: 2460000, // 41:00
+        status: 'cap',
+        cappedRoundCount: 1,
+        totalRoundCount: 2,
+      }
+      const faster: Score = {
+        scheme: 'time-with-cap',
+        scoreType: 'sum',
+        value: 2340000, // 39:00
+        status: 'cap',
+        cappedRoundCount: 1,
+        totalRoundCount: 2,
+      }
+
+      const sorted = sortScores([slower, faster])
+
+      expect(sorted[0]?.value).toBe(2340000)
+      expect(sorted[1]?.value).toBe(2460000)
+    })
+
+    it('should sort multi-round capped scores below any fully-scored time', () => {
+      const scores: Score[] = [
+        // Multi-round capped: 41:00 total, at least one round capped
+        {
+          scheme: 'time-with-cap',
+          scoreType: 'sum',
+          value: 2460000,
+          status: 'cap',
+        },
+        // Slow but fully scored (no capped rounds): 30:00 total
+        {
+          scheme: 'time-with-cap',
+          scoreType: 'sum',
+          value: 1800000,
+          status: 'scored',
+        },
+        // Very slow fully scored: 50:00 total — still outranks capped
+        {
+          scheme: 'time-with-cap',
+          scoreType: 'sum',
+          value: 3000000,
+          status: 'scored',
+        },
+      ]
+
+      const sorted = sortScores([...scores])
+
+      expect(sorted[0]?.status).toBe('scored')
+      expect(sorted[0]?.value).toBe(1800000)
+      expect(sorted[1]?.status).toBe('scored')
+      expect(sorted[1]?.value).toBe(3000000) // scored > capped even when slower
+      expect(sorted[2]?.status).toBe('cap')
+      expect(sorted[2]?.value).toBe(2460000)
+    })
+  })
+
   describe('Sorting finished vs capped athletes', () => {
     it('should sort finished athletes before capped athletes', () => {
       const scores: Score[] = [

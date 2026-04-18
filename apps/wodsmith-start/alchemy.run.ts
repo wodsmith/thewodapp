@@ -568,7 +568,16 @@ const website = await TanStackStart("app", {
    *
    * @see src/server/broadcast-queue-consumer.ts for the consumer implementation
    */
-  eventSources: [broadcastEmailQueue],
+  eventSources: [
+    {
+      queue: broadcastEmailQueue,
+      settings: {
+        // Process one queue message at a time so the per-send delay in
+        // broadcast-queue-consumer.ts keeps us under Resend's 5 emails/s limit.
+        maxConcurrency: 1,
+      },
+    },
+  ],
 
   /**
    * Cloudflare resource bindings available to the application.

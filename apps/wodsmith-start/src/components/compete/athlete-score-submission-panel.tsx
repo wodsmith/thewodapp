@@ -2,6 +2,7 @@
 
 import { Link } from "@tanstack/react-router"
 import {
+  Ban,
   CheckCircle2,
   ChevronRight,
   Clock,
@@ -12,12 +13,7 @@ import {
 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { Badge } from "@/components/ui/badge"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Select,
   SelectContent,
@@ -116,7 +112,10 @@ export function AthleteScoreSubmissionPanel({
   // Division mapping sets for filtering both parents and children
   const { eventsWithMappings, mappedToSelectedDiv } = useMemo(() => {
     if (!eventDivisionMappings.hasMappings || !division?.id) {
-      return { eventsWithMappings: new Set<string>(), mappedToSelectedDiv: new Set<string>() }
+      return {
+        eventsWithMappings: new Set<string>(),
+        mappedToSelectedDiv: new Set<string>(),
+      }
     }
     return {
       eventsWithMappings: new Set(
@@ -134,7 +133,9 @@ export function AthleteScoreSubmissionPanel({
   // sub-events inherit their parent's visibility.
   const { filteredParents, filteredChildEventsMap } = useMemo(() => {
     const isVisible = (id: string) =>
-      eventsWithMappings.size === 0 || !eventsWithMappings.has(id) || mappedToSelectedDiv.has(id)
+      eventsWithMappings.size === 0 ||
+      !eventsWithMappings.has(id) ||
+      mappedToSelectedDiv.has(id)
 
     const parents = workouts.filter((w) => !w.parentEventId)
     const childMap = new Map<string, WorkoutInfo[]>()
@@ -211,9 +212,7 @@ export function AthleteScoreSubmissionPanel({
     }
   }, [competitionId, registration?.id, division?.id, trackWorkoutIds])
 
-  const submissionMap = new Map(
-    submissions.map((s) => [s.trackWorkoutId, s]),
-  )
+  const submissionMap = new Map(submissions.map((s) => [s.trackWorkoutId, s]))
 
   const totalSubmittable = trackWorkoutIds.length
   const submittedCount = submissions.filter(
@@ -334,7 +333,11 @@ function NumberBadge({ value }: { value: string }) {
   )
 }
 
-function StatusLine({ submission, canSubmit, windowStatus }: {
+function StatusLine({
+  submission,
+  canSubmit,
+  windowStatus,
+}: {
   submission: WorkoutSubmission | null
   canSubmit: boolean
   windowStatus: WorkoutSubmission["windowStatus"]
@@ -342,6 +345,21 @@ function StatusLine({ submission, canSubmit, windowStatus }: {
   const hasSubmitted = submission?.hasScore || submission?.hasVideo
 
   if (hasSubmitted && submission) {
+    // Invalid score — show prominently
+    if (submission.verificationStatus === "invalid") {
+      return (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge
+            variant="outline"
+            className="text-[10px] px-2 py-0.5 bg-red-100 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900"
+          >
+            <Ban className="mr-1 h-3 w-3" />
+            Invalid
+          </Badge>
+        </div>
+      )
+    }
+
     return (
       <div className="flex flex-wrap items-center gap-1.5">
         {submission.displayScore && (
@@ -412,7 +430,11 @@ function StatusLine({ submission, canSubmit, windowStatus }: {
   )
 }
 
-function ActionIndicator({ submission, canSubmit, windowStatus }: {
+function ActionIndicator({
+  submission,
+  canSubmit,
+  windowStatus,
+}: {
   submission: WorkoutSubmission | null
   canSubmit: boolean
   windowStatus: WorkoutSubmission["windowStatus"]
@@ -469,7 +491,9 @@ function WorkoutRow({
 
       {/* Two-line content: name + status — always same structure */}
       <div className="min-w-0 flex-1 space-y-1">
-        <p className={`truncate text-sm font-medium leading-tight ${!isInteractive ? "text-muted-foreground" : ""}`}>
+        <p
+          className={`truncate text-sm font-medium leading-tight ${!isInteractive ? "text-muted-foreground" : ""}`}
+        >
           {event.workout.name}
         </p>
         <StatusLine

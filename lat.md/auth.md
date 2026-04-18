@@ -20,6 +20,8 @@ Route-level auth is enforced by the `_protected` layout route. Server function a
 
 Team-level permissions use `hasTeamPermission` / `requireTeamPermission` helpers that check the user's role against `TEAM_PERMISSIONS` constants. See [[domain#Teams#Team Roles and Permissions]].
 
+Composite access helpers combine multiple checks: `requireSubmissionReviewAccess` in [[apps/wodsmith-start/src/utils/team-auth.ts#requireSubmissionReviewAccess]] verifies organizer permission OR volunteer score-input entitlement for video submission review, review notes, and verification flows.
+
 ## Placeholder Users
 
 Organizers can manually register athletes who don't yet have accounts, creating placeholder user records.

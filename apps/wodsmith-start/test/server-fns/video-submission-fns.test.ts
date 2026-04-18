@@ -40,6 +40,9 @@ vi.mock("@/utils/auth", () => ({
 // Mock team auth - default to allowing
 vi.mock("@/utils/team-auth", () => ({
 	requireTeamPermission: vi.fn(() => Promise.resolve()),
+	requireSubmissionReviewAccess: vi.fn(() =>
+		Promise.resolve({ organizingTeamId: "team-org-1" }),
+	),
 }))
 
 // Mock TanStack createServerFn to make server functions directly callable in tests
@@ -62,7 +65,7 @@ vi.mock("@tanstack/react-start", () => ({
 
 // Import mocked modules so we can change behavior in tests
 import { getSessionFromCookie } from "@/utils/auth"
-import { requireTeamPermission } from "@/utils/team-auth"
+import { requireSubmissionReviewAccess } from "@/utils/team-auth"
 
 // Helper to set mock session with proper type coercion
 const setMockSession = (session: unknown) => {
@@ -563,6 +566,8 @@ describe("Video Submission Server Functions (TanStack)", () => {
 		it("creates new video submission successfully", async () => {
 			const registration = createTestRegistration()
 			const competition = createTestCompetition({ competitionType: "online" })
+			const workout = createTestWorkout({ id: "wk-1", scheme: "time" })
+			const trackWorkout = createTestTrackWorkout({ workoutId: "wk-1" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			limitMock
@@ -571,12 +576,18 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([]) // No event = allow submission
 				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([]) // No existing submission
+				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }]) // Workout details
+				.mockResolvedValueOnce([{ ownerTeamId: "team-1" }]) // Track for team ownership
+
+			const returningMock = mockDb.getChainMock().returning as ReturnType<typeof vi.fn>
+			returningMock.mockResolvedValueOnce([{ id: "sub-new" }])
 
 			const result = await submitVideoFn({
 				data: {
 					trackWorkoutId: "tw-1",
 					competitionId: "comp-1",
 					videoUrl: "https://youtube.com/watch?v=test",
+					score: "10:00",
 				},
 			})
 
@@ -590,6 +601,8 @@ describe("Video Submission Server Functions (TanStack)", () => {
 			const registration = createTestRegistration()
 			const competition = createTestCompetition({ competitionType: "online" })
 			const existingSubmission = createTestVideoSubmission({ id: "sub-existing" })
+			const workout = createTestWorkout({ id: "wk-1", scheme: "time" })
+			const trackWorkout = createTestTrackWorkout({ workoutId: "wk-1" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			limitMock
@@ -598,12 +611,15 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([])
 				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([existingSubmission]) // Existing submission found
+				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }]) // Workout details
+				.mockResolvedValueOnce([{ ownerTeamId: "team-1" }]) // Track for team ownership
 
 			const result = await submitVideoFn({
 				data: {
 					trackWorkoutId: "tw-1",
 					competitionId: "comp-1",
 					videoUrl: "https://youtube.com/watch?v=updated",
+					score: "10:00",
 				},
 			})
 
@@ -863,6 +879,8 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				id: "sub-new",
 				notes: "Great performance!",
 			})
+			const workout = createTestWorkout({ id: "wk-1", scheme: "time" })
+			const trackWorkout = createTestTrackWorkout({ workoutId: "wk-1" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			limitMock
@@ -870,7 +888,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([competition])
 				.mockResolvedValueOnce([])
 				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
-				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([]) // No existing submission
+				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }]) // Workout details
+				.mockResolvedValueOnce([{ ownerTeamId: "team-1" }]) // Track for team ownership
 
 			const returningMock = mockDb.getChainMock().returning as ReturnType<
 				typeof vi.fn
@@ -883,6 +903,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 					competitionId: "comp-1",
 					videoUrl: "https://youtube.com/watch?v=test",
 					notes: "Great performance!",
+					score: "10:00",
 				},
 			})
 
@@ -1303,6 +1324,38 @@ describe("Video Submission Server Functions (TanStack)", () => {
 		it("creates submission with divisionId and videoIndex", async () => {
 			const registration = createTestRegistration({ divisionId: "div-rx" })
 			const competition = createTestCompetition({ competitionType: "online" })
+			const workout = createTestWorkout({ id: "wk-1", scheme: "time" })
+			const trackWorkout = createTestTrackWorkout({ workoutId: "wk-1" })
+
+			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			limitMock
+				.mockResolvedValueOnce([registration])
+				.mockResolvedValueOnce([competition])
+				.mockResolvedValueOnce([]) // No event = allow submission
+				.mockResolvedValueOnce([{ teamSize: 3 }]) // Team of 3
+				.mockResolvedValueOnce([]) // No existing submission at this index
+				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }]) // Workout details
+				.mockResolvedValueOnce([{ ownerTeamId: "team-1" }]) // Track for team ownership
+
+			const result = await submitVideoFn({
+				data: {
+					trackWorkoutId: "tw-1",
+					competitionId: "comp-1",
+					divisionId: "div-rx",
+					videoUrl: "https://youtube.com/watch?v=test",
+					videoIndex: 1,
+					score: "10:00",
+				},
+			})
+
+			expect(result.success).toBe(true)
+			expect(result.isUpdate).toBe(false)
+			expect(mockDb.insert).toHaveBeenCalled()
+		})
+
+		it("allows team videoIndex > 0 without a score (captain's first slot carries the team score)", async () => {
+			const registration = createTestRegistration({ divisionId: "div-rx" })
+			const competition = createTestCompetition({ competitionType: "online" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			limitMock
@@ -1319,15 +1372,15 @@ describe("Video Submission Server Functions (TanStack)", () => {
 					divisionId: "div-rx",
 					videoUrl: "https://youtube.com/watch?v=test",
 					videoIndex: 1,
+					// no score — only the captain's first slot (videoIndex 0) sends it
 				},
 			})
 
 			expect(result.success).toBe(true)
 			expect(result.isUpdate).toBe(false)
-			expect(mockDb.insert).toHaveBeenCalled()
 		})
 
-		it("allows videoIndex 0 (default) for individual athletes", async () => {
+		it("rejects videoIndex 0 submission with no score", async () => {
 			const registration = createTestRegistration()
 			const competition = createTestCompetition({ competitionType: "online" })
 
@@ -1339,12 +1392,41 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([{ teamSize: 1 }]) // Individual
 				.mockResolvedValueOnce([]) // No existing submission
 
+			await expect(
+				submitVideoFn({
+					data: {
+						trackWorkoutId: "tw-1",
+						competitionId: "comp-1",
+						videoUrl: "https://youtube.com/watch?v=test",
+						videoIndex: 0,
+					},
+				}),
+			).rejects.toThrow("A score is required when submitting")
+		})
+
+		it("allows videoIndex 0 (default) for individual athletes", async () => {
+			const registration = createTestRegistration()
+			const competition = createTestCompetition({ competitionType: "online" })
+			const workout = createTestWorkout({ id: "wk-1", scheme: "time" })
+			const trackWorkout = createTestTrackWorkout({ workoutId: "wk-1" })
+
+			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			limitMock
+				.mockResolvedValueOnce([registration])
+				.mockResolvedValueOnce([competition])
+				.mockResolvedValueOnce([]) // No event = allow submission
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // Individual
+				.mockResolvedValueOnce([]) // No existing submission
+				.mockResolvedValueOnce([{ ...trackWorkout, ...workout, trackId: "track-1" }]) // Workout details
+				.mockResolvedValueOnce([{ ownerTeamId: "team-1" }]) // Track for team ownership
+
 			const result = await submitVideoFn({
 				data: {
 					trackWorkoutId: "tw-1",
 					competitionId: "comp-1",
 					videoUrl: "https://youtube.com/watch?v=test",
 					videoIndex: 0,
+					score: "10:00",
 				},
 			})
 
@@ -1399,8 +1481,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 		}
 
 		it("throws when competition not found", async () => {
-			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
-			limitMock.mockResolvedValueOnce([]) // No competition
+			vi.mocked(requireSubmissionReviewAccess).mockRejectedValueOnce(
+				new Error("NOT_FOUND: Competition not found"),
+			)
 
 			await expect(
 				getOrganizerSubmissionsFn({ data: validInput }),
@@ -1408,26 +1491,17 @@ describe("Video Submission Server Functions (TanStack)", () => {
 		})
 
 		it("checks team permission for the competition's organizing team", async () => {
-			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
-			limitMock.mockResolvedValueOnce([{ organizingTeamId: "team-org-1" }])
-
 			// Mock the submissions query to return empty
 			mockDb.setMockReturnValue([])
 
 			await getOrganizerSubmissionsFn({ data: validInput })
 
-			expect(requireTeamPermission).toHaveBeenCalledWith(
-				"team-org-1",
-				"manage_competitions",
-			)
+			expect(requireSubmissionReviewAccess).toHaveBeenCalledWith("comp-1")
 		})
 
 		it("throws when user lacks team permission", async () => {
-			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
-			limitMock.mockResolvedValueOnce([{ organizingTeamId: "team-org-1" }])
-
-			vi.mocked(requireTeamPermission).mockRejectedValueOnce(
-				new Error("FORBIDDEN: You don't have the required permission in this team"),
+			vi.mocked(requireSubmissionReviewAccess).mockRejectedValueOnce(
+				new Error("FORBIDDEN: You don't have the required permission to review submissions"),
 			)
 
 			await expect(
@@ -1436,9 +1510,6 @@ describe("Video Submission Server Functions (TanStack)", () => {
 		})
 
 		it("returns submissions when authorized", async () => {
-			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
-			limitMock.mockResolvedValueOnce([{ organizingTeamId: "team-org-1" }])
-
 			// Submissions query returns empty
 			mockDb.setMockReturnValue([])
 
@@ -1456,8 +1527,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 		}
 
 		it("throws when competition not found", async () => {
-			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
-			limitMock.mockResolvedValueOnce([]) // No competition
+			vi.mocked(requireSubmissionReviewAccess).mockRejectedValueOnce(
+				new Error("NOT_FOUND: Competition not found"),
+			)
 
 			await expect(
 				getOrganizerSubmissionDetailFn({ data: validInput }),
@@ -1466,24 +1538,16 @@ describe("Video Submission Server Functions (TanStack)", () => {
 
 		it("checks team permission for the competition's organizing team", async () => {
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
-			limitMock
-				.mockResolvedValueOnce([{ organizingTeamId: "team-org-2" }]) // Competition
-				.mockResolvedValueOnce([]) // Submission not found
+			limitMock.mockResolvedValueOnce([]) // Submission not found
 
 			await getOrganizerSubmissionDetailFn({ data: validInput })
 
-			expect(requireTeamPermission).toHaveBeenCalledWith(
-				"team-org-2",
-				"manage_competitions",
-			)
+			expect(requireSubmissionReviewAccess).toHaveBeenCalledWith("comp-1")
 		})
 
 		it("throws when user lacks team permission", async () => {
-			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
-			limitMock.mockResolvedValueOnce([{ organizingTeamId: "team-org-2" }])
-
-			vi.mocked(requireTeamPermission).mockRejectedValueOnce(
-				new Error("FORBIDDEN: You don't have the required permission in this team"),
+			vi.mocked(requireSubmissionReviewAccess).mockRejectedValueOnce(
+				new Error("FORBIDDEN: You don't have the required permission to review submissions"),
 			)
 
 			await expect(
@@ -1493,9 +1557,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 
 		it("returns null submission when not found but authorized", async () => {
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
-			limitMock
-				.mockResolvedValueOnce([{ organizingTeamId: "team-org-2" }])
-				.mockResolvedValueOnce([]) // No submission
+			limitMock.mockResolvedValueOnce([]) // No submission
 
 			const result = await getOrganizerSubmissionDetailFn({ data: validInput })
 
@@ -1518,8 +1580,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 		})
 
 		it("throws when competition not found", async () => {
-			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
-			limitMock.mockResolvedValueOnce([]) // No competition
+			vi.mocked(requireSubmissionReviewAccess).mockRejectedValueOnce(
+				new Error("NOT_FOUND: Competition not found"),
+			)
 
 			await expect(
 				markSubmissionReviewedFn({ data: validInput }),
@@ -1528,22 +1591,16 @@ describe("Video Submission Server Functions (TanStack)", () => {
 
 		it("checks team permission before updating", async () => {
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
-			limitMock.mockResolvedValueOnce([{ organizingTeamId: "team-org-3" }])
+			limitMock.mockResolvedValueOnce([{ id: "sub-1" }]) // Submission found
 
 			await markSubmissionReviewedFn({ data: validInput })
 
-			expect(requireTeamPermission).toHaveBeenCalledWith(
-				"team-org-3",
-				"manage_competitions",
-			)
+			expect(requireSubmissionReviewAccess).toHaveBeenCalledWith("comp-1")
 			expect(mockDb.update).toHaveBeenCalled()
 		})
 
 		it("throws when user lacks team permission", async () => {
-			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
-			limitMock.mockResolvedValueOnce([{ organizingTeamId: "team-org-3" }])
-
-			vi.mocked(requireTeamPermission).mockRejectedValueOnce(
+			vi.mocked(requireSubmissionReviewAccess).mockRejectedValueOnce(
 				new Error("FORBIDDEN"),
 			)
 
@@ -1569,8 +1626,9 @@ describe("Video Submission Server Functions (TanStack)", () => {
 		})
 
 		it("throws when competition not found", async () => {
-			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
-			limitMock.mockResolvedValueOnce([]) // No competition
+			vi.mocked(requireSubmissionReviewAccess).mockRejectedValueOnce(
+				new Error("NOT_FOUND: Competition not found"),
+			)
 
 			await expect(
 				unmarkSubmissionReviewedFn({ data: validInput }),
@@ -1579,22 +1637,16 @@ describe("Video Submission Server Functions (TanStack)", () => {
 
 		it("checks team permission before updating", async () => {
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
-			limitMock.mockResolvedValueOnce([{ organizingTeamId: "team-org-4" }])
+			limitMock.mockResolvedValueOnce([{ id: "sub-1" }]) // Submission found
 
 			await unmarkSubmissionReviewedFn({ data: validInput })
 
-			expect(requireTeamPermission).toHaveBeenCalledWith(
-				"team-org-4",
-				"manage_competitions",
-			)
+			expect(requireSubmissionReviewAccess).toHaveBeenCalledWith("comp-1")
 			expect(mockDb.update).toHaveBeenCalled()
 		})
 
 		it("throws when user lacks team permission", async () => {
-			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
-			limitMock.mockResolvedValueOnce([{ organizingTeamId: "team-org-4" }])
-
-			vi.mocked(requireTeamPermission).mockRejectedValueOnce(
+			vi.mocked(requireSubmissionReviewAccess).mockRejectedValueOnce(
 				new Error("FORBIDDEN"),
 			)
 
