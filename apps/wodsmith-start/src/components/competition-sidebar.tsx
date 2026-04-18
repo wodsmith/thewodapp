@@ -10,6 +10,7 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import {
   AlertTriangle,
+  BarChart3,
   Calculator,
   Calendar,
   ClipboardSignature,
@@ -129,6 +130,11 @@ const getNavigation = (
           label: competitionType === "online" ? "Submissions" : "Results",
           href: `${basePath}/results`,
           icon: Medal,
+        },
+        {
+          label: "Leaderboard Preview",
+          href: `${basePath}/leaderboard-preview`,
+          icon: BarChart3,
         },
         {
           label: "Broadcasts",

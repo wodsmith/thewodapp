@@ -141,6 +141,9 @@ function CappedRoundsIndicator({
 }: {
   result: CompetitionLeaderboardEntry["eventResults"][number]
 }) {
+  // Only surface the badge next to a real score. Missing-submission rows
+  // (rawScore null) and single-round scores don't get one.
+  if (result.rawScore === null) return null
   if (result.totalRoundCount <= 1) return null
   if (result.cappedRoundCount <= 0) return null
 

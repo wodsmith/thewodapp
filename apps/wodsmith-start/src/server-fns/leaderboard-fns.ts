@@ -19,6 +19,12 @@ import {
   programmingTracksTable,
   trackWorkoutsTable,
 } from "@/db/schemas/programming"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import {
+  addRequestContextAttribute,
+  logInfo,
+  logWarning,
+} from "@/lib/logging"
 import {
   getCompetitionLeaderboard,
   getEventLeaderboard,
@@ -27,6 +33,7 @@ import {
   type TeamMemberInfo as ServerTeamMemberInfo,
 } from "@/server/competition-leaderboard"
 import type { ScoringAlgorithm } from "@/types/scoring"
+import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
 // Types (Re-export from server layer with additions)
@@ -54,6 +61,12 @@ export interface CompetitionLeaderboardResponse {
 const getCompetitionLeaderboardInputSchema = z.object({
   competitionId: z.string().min(1, "Competition ID is required"),
   divisionId: z.string().optional(),
+  /**
+   * When true, requests the organizer preview: includes all scored
+   * events/divisions even if division results are unpublished.
+   * Requires MANAGE_COMPETITIONS permission on the organizing team.
+   */
+  preview: z.boolean().optional(),
 })
 
 const getEventLeaderboardInputSchema = z.object({
@@ -74,9 +87,77 @@ export const getCompetitionLeaderboardFn = createServerFn({ method: "GET" })
     getCompetitionLeaderboardInputSchema.parse(data),
   )
   .handler(async ({ data }): Promise<CompetitionLeaderboardResponse> => {
+    addRequestContextAttribute("competitionId", data.competitionId)
+    if (data.divisionId) {
+      addRequestContextAttribute("divisionId", data.divisionId)
+    }
+    addRequestContextAttribute("leaderboardPreview", data.preview === true)
+
+    logInfo({
+      message: "[Leaderboard] Fetch requested",
+      attributes: {
+        competitionId: data.competitionId,
+        divisionId: data.divisionId ?? null,
+        preview: data.preview === true,
+      },
+    })
+
+    // Preview mode bypasses the publish filter so organizers can see
+    // unpublished scores as they come in. It MUST be authorized against
+    // the organizing team before we skip the filter.
+    if (data.preview) {
+      const db = getDb()
+      const competition = await db.query.competitionsTable.findFirst({
+        where: eq(competitionsTable.id, data.competitionId),
+        columns: { id: true, organizingTeamId: true },
+      })
+
+      if (!competition) {
+        logWarning({
+          message: "[Leaderboard] Preview denied - competition not found",
+          attributes: { competitionId: data.competitionId },
+        })
+        throw new Error("Competition not found")
+      }
+
+      await requireTeamPermission(
+        competition.organizingTeamId,
+        TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+      )
+    }
+
     const result = await getCompetitionLeaderboard({
       competitionId: data.competitionId,
       divisionId: data.divisionId,
+      bypassPublicationFilter: data.preview === true,
+    })
+
+    const scoredEntries = result.entries.filter((e) =>
+      e.eventResults.some((er) => er.rawScore !== null),
+    ).length
+
+    // Surface the first few entries as the client will render them so we can
+    // see whether unscored athletes are sorting above scored ones.
+    const topEntries = result.entries.slice(0, 10).map((e) => ({
+      athleteName: e.athleteName,
+      divisionId: e.divisionId,
+      overallRank: e.overallRank,
+      totalPoints: e.totalPoints,
+      hasAnyScore: e.eventResults.some((er) => er.rawScore !== null),
+    }))
+
+    logInfo({
+      message: "[Leaderboard] Fetch complete",
+      attributes: {
+        competitionId: data.competitionId,
+        divisionId: data.divisionId ?? null,
+        preview: data.preview === true,
+        entryCount: result.entries.length,
+        scoredEntryCount: scoredEntries,
+        eventCount: result.events.length,
+        scoringAlgorithm: result.scoringConfig.algorithm,
+        topEntries,
+      },
     })
 
     return {

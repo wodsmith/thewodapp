@@ -95,6 +95,12 @@ Publish state lives in `competitionsTable.settings.divisionResults[trackWorkoutI
 
 Defaults: when `divisionResults` is absent entirely, online competitions treat everything as hidden (opt-in publishing) while in-person competitions show everything (backwards compat for gyms that never opted into the gate). Organizers can bulk-publish all divisions for an event from `QuickActionsDivisionResults`.
 
+## Leaderboard Preview
+
+Organizer-only leaderboard that shows aggregated standings including unpublished division results and draft events, letting admins review the full picture before they hit publish.
+
+Lives in the "Run Competition" sidebar group at `/compete/organizer/{competitionId}/leaderboard-preview`. The route ([[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/leaderboard-preview.tsx]]) reuses the public [[apps/wodsmith-start/src/components/leaderboard-page-content.tsx]] component with a `preview` prop. When `preview` is set, [[apps/wodsmith-start/src/server-fns/leaderboard-fns.ts#getCompetitionLeaderboardFn]] runs a server-side `requireTeamPermission(MANAGE_COMPETITIONS)` check against the organizing team and then calls [[apps/wodsmith-start/src/server/competition-leaderboard.ts#getCompetitionLeaderboard]] with `bypassPublicationFilter: true`. That flag skips both gates the public leaderboard enforces: (1) the `eventStatus = 'published'` filter on track workouts, so scores entered on draft events still appear; and (2) the per-division `divisionResults` publish check, so every scored division is included regardless of publish state. Athletes never hit this route; the public leaderboard at `/compete/{slug}/leaderboard` always passes `preview = false` and goes through the standard publish gating.
+
 ## Submission Windows
 
 Manages time windows during which athletes can submit video evidence for online competitions.
