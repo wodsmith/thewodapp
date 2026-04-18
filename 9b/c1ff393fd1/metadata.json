@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "9bc1ff393fd1",
+  "strategy": "manual-commit",
+  "branch": "zac/athlete-details-page",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/$registrationId.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/add-teammate-dialog.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/answers-section.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/athlete-profile-card.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/event-score-card.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/event-submission-card.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/manual-submission-dialog.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/registration-info-card.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/scores-section.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/team-members-section.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/types.ts",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/video-submissions-section.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/waivers-section.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/index.tsx",
+    "apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts",
+    "lat.md/.cache/vectors.db",
+    "lat.md/domain.md",
+    "lat.md/organizer-dashboard.md",
+    "lat.md/registration.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9b/c1ff393fd1/0/metadata.json",
+      "transcript": "/9b/c1ff393fd1/0/full.jsonl",
+      "context": "/9b/c1ff393fd1/0/context.md",
+      "content_hash": "/9b/c1ff393fd1/0/content_hash.txt",
+      "prompt": "/9b/c1ff393fd1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2865,
+    "cache_creation_tokens": 381973,
+    "cache_read_tokens": 8035987,
+    "output_tokens": 45869,
+    "api_call_count": 67
+  }
+}

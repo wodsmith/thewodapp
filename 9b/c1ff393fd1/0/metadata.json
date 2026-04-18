@@ -1,0 +1,48 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "9bc1ff393fd1",
+  "session_id": "e33fc2ab-6b9d-4e34-848d-b794b2fc4ac0",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-18T06:02:55.00657Z",
+  "branch": "zac/athlete-details-page",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/$registrationId.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/add-teammate-dialog.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/answers-section.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/athlete-profile-card.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/event-score-card.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/event-submission-card.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/manual-submission-dialog.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/registration-info-card.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/scores-section.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/team-members-section.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/types.ts",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/video-submissions-section.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/waivers-section.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/index.tsx",
+    "apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts",
+    "lat.md/.cache/vectors.db",
+    "lat.md/domain.md",
+    "lat.md/organizer-dashboard.md",
+    "lat.md/registration.md"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 2865,
+    "cache_creation_tokens": 381973,
+    "cache_read_tokens": 8035987,
+    "output_tokens": 45869,
+    "api_call_count": 67
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-18T06:02:54.916144Z",
+    "agent_lines": 6500,
+    "human_added": 656,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 7156,
+    "agent_percentage": 90.83286752375629
+  }
+}
