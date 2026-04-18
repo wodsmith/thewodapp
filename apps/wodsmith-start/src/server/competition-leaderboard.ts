@@ -980,55 +980,76 @@ export async function getCompetitionLeaderboard(params: {
           totalRoundCount: 0,
         }
 
-        // Multi-round scores (partner/team relays, multi-round time, etc.)
-        // aggregate a real numeric total even when individual rounds hit the
-        // cap — the athlete logs cap time + 1s/missed-rep per round and we
-        // sum those into `scoreValue`. Rendering the literal "CAP" label
-        // would hide that aggregate. For multi-round entries we therefore
-        // force status to "scored" so `formatScore` emits the value, and
-        // surface the cap state through `CappedRoundsIndicator` instead.
-        const isMultiRound = roundSummary.totalRoundCount > 1
-        const formatStatus: "scored" | "cap" | "dq" | "withdrawn" =
-          isMultiRound && score.scoreValue !== null
-            ? "scored"
-            : (score.status as "scored" | "cap" | "dq" | "withdrawn")
-
-        // Clamp time values to whole seconds for leaderboard display.
-        // `compact: true` only hides milliseconds when they happen to be zero,
-        // so an aggregated multi-round total like 905_123 ms would still
-        // render as `15:05.123` — which is noise we don't want on the board.
+        // DB `status` is wider than `formatScore`'s accepted union — it can
+        // also be "dns" / "dnf" / null, which `formatScore` would silently
+        // fall through on and render misleading values (e.g. a DNS with
+        // value 0 would print "0:00"). Handle those inactive statuses with
+        // explicit labels before touching `formatScore`.
         const scoreScheme = score.scheme as WorkoutScheme
-        const displayValue =
-          score.scoreValue !== null && isTimeBasedScheme(scoreScheme)
-            ? Math.floor(score.scoreValue / 1000) * 1000
-            : (score.scoreValue ?? 0)
 
-        const scoreObj: Parameters<typeof formatScore>[0] = {
-          scheme: scoreScheme,
-          scoreType,
-          value: displayValue,
-          status: formatStatus,
-        }
+        let formattedScore: string
+        if (score.status === "dns") {
+          formattedScore = "DNS"
+        } else if (score.status === "dnf") {
+          formattedScore = "DNF"
+        } else {
+          // Multi-round scores (partner/team relays, multi-round time, etc.)
+          // aggregate a real numeric total even when individual rounds hit the
+          // cap — the athlete logs cap time + 1s/missed-rep per round and we
+          // sum those into `scoreValue`. Rendering the literal "CAP" label
+          // would hide that aggregate. For multi-round entries we therefore
+          // force status to "scored" so `formatScore` emits the value, and
+          // surface the cap state through `CappedRoundsIndicator` instead.
+          const isMultiRound = roundSummary.totalRoundCount > 1
+          const isKnownFormatStatus =
+            score.status === "scored" ||
+            score.status === "cap" ||
+            score.status === "dq" ||
+            score.status === "withdrawn"
+          const formatStatus: "scored" | "cap" | "dq" | "withdrawn" =
+            isMultiRound && score.scoreValue !== null
+              ? "scored"
+              : isKnownFormatStatus
+                ? (score.status as "scored" | "cap" | "dq" | "withdrawn")
+                : "scored"
 
-        if (score.tiebreakValue !== null && score.tiebreakScheme) {
-          const tbScheme = score.tiebreakScheme as "reps" | "time"
-          scoreObj.tiebreak = {
-            scheme: tbScheme,
-            value:
-              tbScheme === "time"
-                ? Math.floor(score.tiebreakValue / 1000) * 1000
-                : score.tiebreakValue,
+          // Clamp time values to whole seconds for leaderboard display.
+          // `compact: true` only hides milliseconds when they happen to be
+          // zero, so an aggregated multi-round total like 905_123 ms would
+          // still render as `15:05.123` — which is noise we don't want on
+          // the board.
+          const displayValue =
+            score.scoreValue !== null && isTimeBasedScheme(scoreScheme)
+              ? Math.floor(score.scoreValue / 1000) * 1000
+              : (score.scoreValue ?? 0)
+
+          const scoreObj: Parameters<typeof formatScore>[0] = {
+            scheme: scoreScheme,
+            scoreType,
+            value: displayValue,
+            status: formatStatus,
           }
-        }
 
-        if (score.timeCapMs && score.secondaryValue !== null) {
-          scoreObj.timeCap = {
-            ms: score.timeCapMs,
-            secondaryValue: score.secondaryValue,
+          if (score.tiebreakValue !== null && score.tiebreakScheme) {
+            const tbScheme = score.tiebreakScheme as "reps" | "time"
+            scoreObj.tiebreak = {
+              scheme: tbScheme,
+              value:
+                tbScheme === "time"
+                  ? Math.floor(score.tiebreakValue / 1000) * 1000
+                  : score.tiebreakValue,
+            }
           }
-        }
 
-        const formattedScore = formatScore(scoreObj, { compact: true })
+          if (score.timeCapMs && score.secondaryValue !== null) {
+            scoreObj.timeCap = {
+              ms: score.timeCapMs,
+              secondaryValue: score.secondaryValue,
+            }
+          }
+
+          formattedScore = formatScore(scoreObj, { compact: true })
+        }
 
         // Format tiebreak separately
         let formattedTiebreak: string | null = null
