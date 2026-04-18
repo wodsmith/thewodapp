@@ -24,7 +24,10 @@ import {
 } from "@/db/schema"
 import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 import { SubmissionWindowClosedEmail } from "@/react-email/submission-window-closed"
-import { SubmissionWindowOpensEmail } from "@/react-email/submission-window-opens"
+import {
+  SubmissionWindowOpensEmail,
+  type WorkoutInfo,
+} from "@/react-email/submission-window-opens"
 import { SubmissionWindowReminderEmail } from "@/react-email/submission-window-reminder"
 import { sendEmail } from "@/utils/email"
 
@@ -206,17 +209,17 @@ async function hasUserSubmittedScore(params: {
 // ============================================================================
 
 /**
- * Send a "submission window opens" notification to an athlete
+ * Send a "submission window opens" notification to an athlete.
+ * Supports multiple workouts in a single email when events share the same window.
  */
 export async function sendWindowOpensNotification(params: {
   userId: string
   registrationId: string
   competitionId: string
-  competitionEventId: string
+  competitionEventIds: string[]
   competitionName: string
   competitionSlug: string
-  workoutName: string
-  workoutDescription?: string
+  workouts: WorkoutInfo[]
   submissionClosesAt?: string
   timezone: string
 }): Promise<boolean> {
@@ -224,11 +227,10 @@ export async function sendWindowOpensNotification(params: {
     userId,
     registrationId,
     competitionId,
-    competitionEventId,
+    competitionEventIds,
     competitionName,
     competitionSlug,
-    workoutName,
-    workoutDescription,
+    workouts,
     submissionClosesAt,
     timezone,
   } = params
@@ -241,23 +243,57 @@ export async function sendWindowOpensNotification(params: {
   if (!user?.email) {
     logError({
       message: "[Submission Notification] Cannot send window opens - no email",
-      attributes: { userId, registrationId, competitionEventId },
+      attributes: { userId, registrationId, competitionEventIds },
     })
     return false
   }
 
-  // Reserve the notification slot first (prevents race conditions)
-  const reserved = await reserveNotification({
-    competitionId,
-    competitionEventId,
-    registrationId,
-    userId,
-    type: SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_OPENS,
-    sentToEmail: user.email,
+  // Reserve notification slots for all events in this window group atomically.
+  // Uses a transaction so either all reservations succeed or none do,
+  // preventing duplicate grouped emails from concurrent cron runs.
+  const reservedEventIds = await db.transaction(async (tx) => {
+    const reserved: string[] = []
+    for (const eventId of competitionEventIds) {
+      const [existing] = await tx
+        .select({ id: submissionWindowNotificationsTable.id })
+        .from(submissionWindowNotificationsTable)
+        .where(
+          and(
+            eq(
+              submissionWindowNotificationsTable.competitionEventId,
+              eventId,
+            ),
+            eq(
+              submissionWindowNotificationsTable.registrationId,
+              registrationId,
+            ),
+            eq(
+              submissionWindowNotificationsTable.type,
+              SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_OPENS,
+            ),
+          ),
+        )
+
+      if (existing) {
+        // This event was already reserved — another process owns this group
+        return []
+      }
+
+      await tx.insert(submissionWindowNotificationsTable).values({
+        competitionId,
+        competitionEventId: eventId,
+        registrationId,
+        userId,
+        type: SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_OPENS,
+        sentToEmail: user.email,
+      })
+      reserved.push(eventId)
+    }
+    return reserved
   })
 
-  if (!reserved) {
-    // Already sent by another process
+  if (reservedEventIds.length === 0) {
+    // All events already notified by another process
     return false
   }
 
@@ -267,15 +303,16 @@ export async function sendWindowOpensNotification(params: {
       ? formatDateTimeForDisplay(submissionClosesAt, timezone)
       : undefined
 
+    const workoutNames = workouts.map((w) => w.name).join(", ")
+
     await sendEmail({
       to: user.email,
-      subject: `Submission Window Open: ${workoutName} - ${competitionName}`,
+      subject: `Submission Window Open: ${workoutNames} - ${competitionName}`,
       template: SubmissionWindowOpensEmail({
         athleteName,
         competitionName,
         competitionSlug,
-        workoutName,
-        workoutDescription,
+        workouts,
         submissionClosesAt: formattedCloseTime,
         timezone,
       }),
@@ -287,25 +324,28 @@ export async function sendWindowOpensNotification(params: {
       attributes: {
         userId,
         registrationId,
-        competitionEventId,
+        competitionEventIds,
         competitionName,
-        workoutName,
+        workoutNames,
+        workoutCount: workouts.length,
       },
     })
 
     return true
   } catch (err) {
-    // Email failed - delete reservation to allow retry on next cron run
-    await deleteNotificationReservation({
-      competitionEventId,
-      registrationId,
-      type: SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_OPENS,
-    })
+    // Email failed - delete reservations to allow retry on next cron run
+    for (const eventId of reservedEventIds) {
+      await deleteNotificationReservation({
+        competitionEventId: eventId,
+        registrationId,
+        type: SUBMISSION_WINDOW_NOTIFICATION_TYPES.WINDOW_OPENS,
+      })
+    }
     logError({
       message:
         "[Submission Notification] Failed to send window opens notification",
       error: err,
-      attributes: { userId, registrationId, competitionEventId },
+      attributes: { userId, registrationId, competitionEventIds },
     })
     return false
   }
@@ -607,11 +647,38 @@ export async function processSubmissionWindowNotifications(): Promise<ProcessedN
         ),
       )
 
+    // Time window calculations for 15-minute cron intervals
+    const fifteenMinutesMs = 15 * 60 * 1000
+    const oneHourMs = 60 * 60 * 1000
+    const twentyFourHoursMs = 24 * 60 * 60 * 1000
+
+    const fifteenMinutesAgo = new Date(now.getTime() - fifteenMinutesMs)
+    const fifteenMinutesFromNow = new Date(now.getTime() + fifteenMinutesMs)
+    const fortyFiveMinutesFromNow = new Date(now.getTime() + 45 * 60 * 1000)
+    const oneHourFromNow = new Date(now.getTime() + oneHourMs)
+    const twentyThreeHours45mFromNow = new Date(
+      now.getTime() + twentyFourHoursMs - fifteenMinutesMs,
+    )
+    const twentyFourHoursFromNow = new Date(now.getTime() + twentyFourHoursMs)
+
+    // Group events by competition + submissionOpensAt so we can send
+    // a single "window opens" email listing all workouts that share the same window
+    interface WindowOpenGroup {
+      competitionId: string
+      competitionName: string
+      competitionSlug: string
+      timezone: string
+      submissionClosesAt: string | undefined
+      eventIds: string[]
+      workouts: WorkoutInfo[]
+    }
+
+    const windowOpenGroups = new Map<string, WindowOpenGroup>()
+
     for (const { event, competition, workout } of events) {
       if (!event.submissionOpensAt) continue
 
       // Normalize datetime strings to UTC-aware ISO format
-      // Handles both SQLite format ("2026-01-27 00:36:37") and ISO with timezone
       const opensAt = new Date(normalizeToUtcDatetime(event.submissionOpensAt))
       const closesAt = event.submissionClosesAt
         ? new Date(normalizeToUtcDatetime(event.submissionClosesAt))
@@ -619,59 +686,63 @@ export async function processSubmissionWindowNotifications(): Promise<ProcessedN
 
       const timezone = competition.timezone || "America/Denver"
 
-      // Get all registrations for this competition
-      const registrations = await db
-        .select({
-          registration: competitionRegistrationsTable,
-          user: userTable,
-        })
-        .from(competitionRegistrationsTable)
-        .innerJoin(
-          userTable,
-          eq(competitionRegistrationsTable.userId, userTable.id),
-        )
-        .where(eq(competitionRegistrationsTable.eventId, competition.id))
-
-      // Time window calculations for 15-minute cron intervals
-      const fifteenMinutesMs = 15 * 60 * 1000
-      const oneHourMs = 60 * 60 * 1000
-      const twentyFourHoursMs = 24 * 60 * 60 * 1000
-
-      const fifteenMinutesAgo = new Date(now.getTime() - fifteenMinutesMs)
-      const fifteenMinutesFromNow = new Date(now.getTime() + fifteenMinutesMs)
-      const fortyFiveMinutesFromNow = new Date(now.getTime() + 45 * 60 * 1000)
-      const oneHourFromNow = new Date(now.getTime() + oneHourMs)
-      const twentyThreeHours45mFromNow = new Date(
-        now.getTime() + twentyFourHoursMs - fifteenMinutesMs,
-      )
-      const twentyFourHoursFromNow = new Date(now.getTime() + twentyFourHoursMs)
-
-      for (const { registration, user } of registrations) {
-        if (!user.email) continue
-
-        const baseParams = {
-          userId: user.id,
-          registrationId: registration.id,
-          competitionId: competition.id,
-          competitionEventId: event.id,
-          competitionName: competition.name,
-          competitionSlug: competition.slug,
-          workoutName: workout.name,
-          workoutDescription: workout.description || undefined,
-          timezone,
-        }
-
-        // 1. Window just opened (within last 15 minutes)
-        if (opensAt <= now && opensAt > fifteenMinutesAgo) {
-          const sent = await sendWindowOpensNotification({
-            ...baseParams,
-            submissionClosesAt: event.submissionClosesAt || undefined,
+      // 1. Window just opened (within last 15 minutes) — collect for grouped email
+      if (opensAt <= now && opensAt > fifteenMinutesAgo) {
+        const groupKey = `${competition.id}::${event.submissionOpensAt}::${event.submissionClosesAt ?? ""}`
+        const existing = windowOpenGroups.get(groupKey)
+        if (existing) {
+          existing.eventIds.push(event.id)
+          existing.workouts.push({
+            name: workout.name,
+            description: workout.description || undefined,
           })
-          if (sent) result.windowOpens++
+        } else {
+          windowOpenGroups.set(groupKey, {
+            competitionId: competition.id,
+            competitionName: competition.name,
+            competitionSlug: competition.slug,
+            timezone,
+            submissionClosesAt: event.submissionClosesAt || undefined,
+            eventIds: [event.id],
+            workouts: [
+              {
+                name: workout.name,
+                description: workout.description || undefined,
+              },
+            ],
+          })
         }
+      }
 
-        // Only process closing notifications if we have a close time
-        if (closesAt) {
+      // Per-event notifications for closing/closed (these remain per-event)
+      if (closesAt) {
+        const registrations = await db
+          .select({
+            registration: competitionRegistrationsTable,
+            user: userTable,
+          })
+          .from(competitionRegistrationsTable)
+          .innerJoin(
+            userTable,
+            eq(competitionRegistrationsTable.userId, userTable.id),
+          )
+          .where(eq(competitionRegistrationsTable.eventId, competition.id))
+
+        for (const { registration, user } of registrations) {
+          if (!user.email) continue
+
+          const baseParams = {
+            userId: user.id,
+            registrationId: registration.id,
+            competitionId: competition.id,
+            competitionEventId: event.id,
+            competitionName: competition.name,
+            competitionSlug: competition.slug,
+            workoutName: workout.name,
+            workoutDescription: workout.description || undefined,
+            timezone,
+          }
+
           // 2. Window closes in ~24 hours (23h45m - 24h window)
           if (
             closesAt <= twentyFourHoursFromNow &&
@@ -716,7 +787,6 @@ export async function processSubmissionWindowNotifications(): Promise<ProcessedN
 
           // 5. Window just closed (within last 15 minutes)
           if (closesAt <= now && closesAt > fifteenMinutesAgo) {
-            // Check if user has actually submitted a score for this event
             const hasSubmitted = await hasUserSubmittedScore({
               userId: user.id,
               competitionEventId: event.id,
@@ -729,6 +799,39 @@ export async function processSubmissionWindowNotifications(): Promise<ProcessedN
             if (sent) result.windowClosed++
           }
         }
+      }
+    }
+
+    // Process grouped window-opens notifications
+    // Each group is a set of events in the same competition that share the same submissionOpensAt
+    for (const group of windowOpenGroups.values()) {
+      const registrations = await db
+        .select({
+          registration: competitionRegistrationsTable,
+          user: userTable,
+        })
+        .from(competitionRegistrationsTable)
+        .innerJoin(
+          userTable,
+          eq(competitionRegistrationsTable.userId, userTable.id),
+        )
+        .where(eq(competitionRegistrationsTable.eventId, group.competitionId))
+
+      for (const { registration, user } of registrations) {
+        if (!user.email) continue
+
+        const sent = await sendWindowOpensNotification({
+          userId: user.id,
+          registrationId: registration.id,
+          competitionId: group.competitionId,
+          competitionEventIds: group.eventIds,
+          competitionName: group.competitionName,
+          competitionSlug: group.competitionSlug,
+          workouts: group.workouts,
+          submissionClosesAt: group.submissionClosesAt,
+          timezone: group.timezone,
+        })
+        if (sent) result.windowOpens++
       }
     }
 

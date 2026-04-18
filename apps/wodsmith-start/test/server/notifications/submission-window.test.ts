@@ -86,10 +86,10 @@ describe("Submission Window Notifications", () => {
 				userId: "user_123",
 				registrationId: "reg_123",
 				competitionId: "comp_123",
-				competitionEventId: "event_123",
+				competitionEventIds: ["event_123"],
 				competitionName: "Test Competition",
 				competitionSlug: "test-comp",
-				workoutName: "Test Workout",
+				workouts: [{ name: "Test Workout" }],
 				timezone: "America/Denver",
 			})
 
@@ -104,17 +104,17 @@ describe("Submission Window Notifications", () => {
 			)
 		})
 
-		it("does not send notification when reservation fails (already sent)", async () => {
+		it("sends single email with multiple workouts when events share a window", async () => {
 			// Arrange - user exists with email
 			const mockUser = { id: "user_123", email: "athlete@example.com", firstName: "John" }
 			mockDb.registerTable("userTable")
 			mockDb.registerTable("submissionWindowNotificationsTable")
 			mockDb.setMockSingleValue(mockUser)
 
-			// reserveNotification checks submissionWindowNotificationsTable.findFirst()
-			// Return existing notification = already sent = reservation fails
+			// Both event reservations succeed (first time sending)
 			const notifFindFirst = mockDb.query.submissionWindowNotificationsTable.findFirst as any
-			notifFindFirst.mockResolvedValueOnce({ id: "existing_notif" })
+			notifFindFirst.mockResolvedValueOnce(null) // event_1 reservation succeeds
+			notifFindFirst.mockResolvedValueOnce(null) // event_2 reservation succeeds
 
 			const { sendWindowOpensNotification } = await import(
 				"@/server/notifications/submission-window"
@@ -125,10 +125,51 @@ describe("Submission Window Notifications", () => {
 				userId: "user_123",
 				registrationId: "reg_123",
 				competitionId: "comp_123",
-				competitionEventId: "event_123",
+				competitionEventIds: ["event_1", "event_2"],
 				competitionName: "Test Competition",
 				competitionSlug: "test-comp",
-				workoutName: "Test Workout",
+				workouts: [
+					{ name: "Workout 1", description: "10 Thrusters" },
+					{ name: "Workout 2", description: "20 Pull-ups" },
+				],
+				timezone: "America/Denver",
+			})
+
+			// Assert - only one email sent, containing both workout names
+			expect(result).toBe(true)
+			expect(mockSendEmail).toHaveBeenCalledTimes(1)
+			expect(mockSendEmail).toHaveBeenCalledWith(
+				expect.objectContaining({
+					to: "athlete@example.com",
+					subject: "Submission Window Open: Workout 1, Workout 2 - Test Competition",
+				}),
+			)
+		})
+
+		it("does not send notification when all reservations fail (already sent)", async () => {
+			// Arrange - user exists with email
+			const mockUser = { id: "user_123", email: "athlete@example.com", firstName: "John" }
+			mockDb.registerTable("userTable")
+			mockDb.registerTable("submissionWindowNotificationsTable")
+			mockDb.setMockSingleValue(mockUser)
+
+			// The atomic transaction uses select().from().where() to check for existing reservations.
+			// Set mockReturnValue so the select chain returns an existing record.
+			mockDb.setMockReturnValue([{ id: "existing_notif" }])
+
+			const { sendWindowOpensNotification } = await import(
+				"@/server/notifications/submission-window"
+			)
+
+			// Act
+			const result = await sendWindowOpensNotification({
+				userId: "user_123",
+				registrationId: "reg_123",
+				competitionId: "comp_123",
+				competitionEventIds: ["event_123"],
+				competitionName: "Test Competition",
+				competitionSlug: "test-comp",
+				workouts: [{ name: "Test Workout" }],
 				timezone: "America/Denver",
 			})
 
@@ -164,10 +205,10 @@ describe("Submission Window Notifications", () => {
 				userId: "user_123",
 				registrationId: "reg_123",
 				competitionId: "comp_123",
-				competitionEventId: "event_123",
+				competitionEventIds: ["event_123"],
 				competitionName: "Test Competition",
 				competitionSlug: "test-comp",
-				workoutName: "Test Workout",
+				workouts: [{ name: "Test Workout" }],
 				timezone: "America/Denver",
 			})
 
@@ -194,10 +235,10 @@ describe("Submission Window Notifications", () => {
 				userId: "user_123",
 				registrationId: "reg_123",
 				competitionId: "comp_123",
-				competitionEventId: "event_123",
+				competitionEventIds: ["event_123"],
 				competitionName: "Test Competition",
 				competitionSlug: "test-comp",
-				workoutName: "Test Workout",
+				workouts: [{ name: "Test Workout" }],
 				timezone: "America/Denver",
 			})
 
