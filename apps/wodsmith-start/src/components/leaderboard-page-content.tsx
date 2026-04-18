@@ -587,6 +587,8 @@ export function LeaderboardPageContent({
             events={events}
             selectedEventId={effectiveEventId}
             scoringAlgorithm={scoringAlgorithm}
+            linkToSubmission={preview}
+            competitionId={competitionId}
           />
         ) : (
           <CompetitionLeaderboardTable
