@@ -132,6 +132,48 @@ function formatPoints(points: number, algorithm: ScoringAlgorithm): string {
   return `+${points}`
 }
 
+/**
+ * Badge showing how many individual rounds were capped for a multi-round score.
+ * Hidden for single-round scores and for scores with zero capped rounds.
+ */
+function CappedRoundsIndicator({
+  result,
+}: {
+  result: CompetitionLeaderboardEntry["eventResults"][number]
+}) {
+  // Only surface the badge next to a real score. Missing-submission rows
+  // (rawScore null) and single-round scores don't get one.
+  if (result.rawScore === null) return null
+  if (result.totalRoundCount <= 1) return null
+  if (result.cappedRoundCount <= 0) return null
+
+  const allCapped = result.cappedRoundCount === result.totalRoundCount
+  const label = allCapped
+    ? `All ${result.totalRoundCount} rounds capped`
+    : `${result.cappedRoundCount}/${result.totalRoundCount} rounds capped`
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center rounded-sm border border-amber-500/40 bg-amber-500/10 px-1 py-px text-[10px] font-semibold uppercase tracking-wide text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
+          aria-label={label}
+        >
+          {result.cappedRoundCount}/{result.totalRoundCount} cap
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto max-w-[240px] p-3">
+        <p className="text-sm font-medium">{label}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          At least one round hit the per-round time cap. The summed total
+          above includes penalty time from each capped round.
+        </p>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 /** Clickable icon for any score modification (penalty or direct adjust) */
 function PenaltyIndicator({
   result,
@@ -184,6 +226,7 @@ function EventResultCell({
       {/* Primary: Score value - medium weight for emphasis */}
       <span className="font-medium tabular-nums inline-flex items-center gap-1">
         {result.formattedScore}
+        <CappedRoundsIndicator result={result} />
         <PenaltyIndicator result={result} />
         {result.formattedTiebreak && (
           <span className="text-muted-foreground font-normal ml-1">
@@ -395,6 +438,7 @@ function MobileLeaderboardRow({
                     <div className="flex flex-col gap-0.5">
                       <span className="font-medium tabular-nums inline-flex items-center gap-1">
                         {result.formattedScore}
+                        <CappedRoundsIndicator result={result} />
                         <PenaltyIndicator result={result} />
                         {result.formattedTiebreak && (
                           <span className="text-muted-foreground font-normal ml-1">
@@ -546,6 +590,7 @@ export function CompetitionLeaderboardTable({
             return (
               <span className="font-medium tabular-nums inline-flex items-center gap-1">
                 {result.formattedScore}
+                <CappedRoundsIndicator result={result} />
                 <PenaltyIndicator result={result} />
                 {result.formattedTiebreak && (
                   <span className="text-muted-foreground font-normal ml-1">

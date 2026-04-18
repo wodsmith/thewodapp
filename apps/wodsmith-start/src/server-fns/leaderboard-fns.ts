@@ -21,6 +21,11 @@ import {
 } from "@/db/schemas/programming"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import {
+  addRequestContextAttribute,
+  logInfo,
+  logWarning,
+} from "@/lib/logging"
+import {
   getCompetitionLeaderboard,
   getEventLeaderboard,
   type EventLeaderboardEntry as ServerEventLeaderboardEntry,
@@ -82,6 +87,21 @@ export const getCompetitionLeaderboardFn = createServerFn({ method: "GET" })
     getCompetitionLeaderboardInputSchema.parse(data),
   )
   .handler(async ({ data }): Promise<CompetitionLeaderboardResponse> => {
+    addRequestContextAttribute("competitionId", data.competitionId)
+    if (data.divisionId) {
+      addRequestContextAttribute("divisionId", data.divisionId)
+    }
+    addRequestContextAttribute("leaderboardPreview", data.preview === true)
+
+    logInfo({
+      message: "[Leaderboard] Fetch requested",
+      attributes: {
+        competitionId: data.competitionId,
+        divisionId: data.divisionId ?? null,
+        preview: data.preview === true,
+      },
+    })
+
     // Preview mode bypasses the publish filter so organizers can see
     // unpublished scores as they come in. It MUST be authorized against
     // the organizing team before we skip the filter.
@@ -93,6 +113,10 @@ export const getCompetitionLeaderboardFn = createServerFn({ method: "GET" })
       })
 
       if (!competition) {
+        logWarning({
+          message: "[Leaderboard] Preview denied - competition not found",
+          attributes: { competitionId: data.competitionId },
+        })
         throw new Error("Competition not found")
       }
 
@@ -106,6 +130,34 @@ export const getCompetitionLeaderboardFn = createServerFn({ method: "GET" })
       competitionId: data.competitionId,
       divisionId: data.divisionId,
       bypassPublicationFilter: data.preview === true,
+    })
+
+    const scoredEntries = result.entries.filter((e) =>
+      e.eventResults.some((er) => er.rawScore !== null),
+    ).length
+
+    // Surface the first few entries as the client will render them so we can
+    // see whether unscored athletes are sorting above scored ones.
+    const topEntries = result.entries.slice(0, 10).map((e) => ({
+      athleteName: e.athleteName,
+      divisionId: e.divisionId,
+      overallRank: e.overallRank,
+      totalPoints: e.totalPoints,
+      hasAnyScore: e.eventResults.some((er) => er.rawScore !== null),
+    }))
+
+    logInfo({
+      message: "[Leaderboard] Fetch complete",
+      attributes: {
+        competitionId: data.competitionId,
+        divisionId: data.divisionId ?? null,
+        preview: data.preview === true,
+        entryCount: result.entries.length,
+        scoredEntryCount: scoredEntries,
+        eventCount: result.events.length,
+        scoringAlgorithm: result.scoringConfig.algorithm,
+        topEntries,
+      },
     })
 
     return {

@@ -12,6 +12,7 @@
 
 import { and, eq, inArray, isNull, ne, or } from "drizzle-orm"
 import { getDb } from "@/db"
+import { logInfo, logWarning } from "@/lib/logging"
 import {
   competitionHeatAssignmentsTable,
   competitionHeatsTable,
@@ -25,20 +26,26 @@ import {
   trackWorkoutsTable,
 } from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
-import { scoresTable } from "@/db/schemas/scores"
+import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
 import { teamMembershipTable } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
 import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
 import { workouts } from "@/db/schemas/workouts"
 import {
+  calculateCustomPoints,
   calculateEventPoints,
+  calculateTraditionalPoints,
   DEFAULT_SCORING_CONFIG,
+  DEFAULT_TRADITIONAL_CONFIG,
   decodeScore,
   type EventScoreInput,
   formatScore,
   getDefaultScoreType,
+  isTimeBasedScheme,
   type WorkoutScheme,
 } from "@/lib/scoring"
+import { calculateOnlinePoints } from "@/lib/scoring/algorithms/online"
+import type { ScoringConfig } from "@/types/scoring"
 import {
   applyTiebreakers,
   type TiebreakerInput,
@@ -100,7 +107,17 @@ export interface CompetitionLeaderboardEntry {
     parentEventName: string | null
     /** True if this is a parent event with aggregated sub-event points */
     isParentEvent: boolean
+    /** Number of individual rounds marked as capped (0 for single-round or none) */
+    cappedRoundCount: number
+    /** Total number of rounds persisted for this score (0 for single-round) */
+    totalRoundCount: number
   }>
+}
+
+/** Round-cap summary for a single score */
+interface RoundCapSummary {
+  cappedRoundCount: number
+  totalRoundCount: number
 }
 
 export interface EventLeaderboardEntry {
@@ -133,11 +150,17 @@ export interface CompetitionLeaderboardResult {
 // ============================================================================
 
 /**
- * Fetch scores from the scores table
+ * Fetch scores from the scores table.
+ *
+ * In preview mode, we return every score regardless of `verificationStatus`
+ * (including `"invalid"`) so organizers can see the full raw picture. The
+ * verification status comes back on each entry so the UI can flag it.
+ * The public path still excludes invalidated scores.
  */
 async function fetchScores(params: {
   trackWorkoutIds: string[]
   userIds: string[]
+  includeInvalid?: boolean
 }) {
   const db = getDb()
 
@@ -161,18 +184,92 @@ async function fetchScores(params: {
     })
     .from(scoresTable)
     .where(
-      and(
-        inArray(scoresTable.competitionEventId, params.trackWorkoutIds),
-        inArray(scoresTable.userId, params.userIds),
-        // Exclude invalidated scores from leaderboard
-        or(
-          isNull(scoresTable.verificationStatus),
-          ne(scoresTable.verificationStatus, "invalid"),
-        ),
-      ),
+      params.includeInvalid
+        ? and(
+            inArray(scoresTable.competitionEventId, params.trackWorkoutIds),
+            inArray(scoresTable.userId, params.userIds),
+          )
+        : and(
+            inArray(scoresTable.competitionEventId, params.trackWorkoutIds),
+            inArray(scoresTable.userId, params.userIds),
+            // Exclude invalidated scores from leaderboard
+            or(
+              isNull(scoresTable.verificationStatus),
+              ne(scoresTable.verificationStatus, "invalid"),
+            ),
+          ),
     )
 
   return scores
+}
+
+/**
+ * For each score id, count how many rounds were persisted and how many
+ * of those carry `status = "cap"`. Used to drive the capped-rounds badge
+ * on multi-round leaderboard scores without shipping the full round
+ * payload to the client.
+ */
+async function fetchRoundCapSummaries(
+  scoreIds: string[],
+): Promise<Map<string, RoundCapSummary>> {
+  const summaries = new Map<string, RoundCapSummary>()
+  if (scoreIds.length === 0) return summaries
+
+  const db = getDb()
+  const rows = await db
+    .select({
+      scoreId: scoreRoundsTable.scoreId,
+      status: scoreRoundsTable.status,
+    })
+    .from(scoreRoundsTable)
+    .where(inArray(scoreRoundsTable.scoreId, scoreIds))
+
+  for (const row of rows) {
+    const existing = summaries.get(row.scoreId) ?? {
+      cappedRoundCount: 0,
+      totalRoundCount: 0,
+    }
+    existing.totalRoundCount += 1
+    if (row.status === "cap") existing.cappedRoundCount += 1
+    summaries.set(row.scoreId, existing)
+  }
+
+  return summaries
+}
+
+/**
+ * Compute the points awarded for a given place under the competition's
+ * scoring config. Used to assign the tied-for-worst points value to
+ * athletes registered in a division who didn't submit a score for an event —
+ * specifically for online scoring, where `totalPoints = 0` would otherwise
+ * outrank any recorded submission (lower total wins).
+ */
+function calculatePointsForPlace(
+  place: number,
+  config: ScoringConfig,
+): number {
+  switch (config.algorithm) {
+    case "online":
+      return calculateOnlinePoints(place)
+    case "traditional":
+      return calculateTraditionalPoints(
+        place,
+        config.traditional ?? DEFAULT_TRADITIONAL_CONFIG,
+      )
+    case "winner_takes_more":
+      return calculateCustomPoints(place, {
+        baseTemplate: "winner_takes_more",
+        overrides: {},
+      })
+    case "custom":
+      return config.customTable
+        ? calculateCustomPoints(place, config.customTable, config.traditional)
+        : 0
+    case "p_score":
+      // P-score isn't placement-based; fall back to 0 so a missing submission
+      // doesn't artificially depress or inflate an athlete's total.
+      return 0
+  }
 }
 
 /**
@@ -275,15 +372,25 @@ export async function getCompetitionLeaderboard(params: {
   competitionId: string
   divisionId?: string
   /**
-   * When true, skip the division-results publishing filter entirely and
-   * include ALL scored events/divisions regardless of published state.
-   * Used by the organizer leaderboard preview so organizers can see the
-   * aggregated standings before publishing. Must be authorized at the
-   * caller layer — this function does not enforce organizer permissions.
+   * When true, skip both the event-visibility (`eventStatus`) filter and
+   * the per-division `divisionResults` publishing filter — include every
+   * track workout and score regardless of publish state. Used by the
+   * organizer leaderboard preview so organizers can see aggregated
+   * standings before publishing events to athletes. Must be authorized at
+   * the caller layer — this function does not enforce organizer permissions.
    */
   bypassPublicationFilter?: boolean
 }): Promise<CompetitionLeaderboardResult> {
   const db = getDb()
+
+  logInfo({
+    message: "[Leaderboard] getCompetitionLeaderboard start",
+    attributes: {
+      competitionId: params.competitionId,
+      divisionId: params.divisionId ?? null,
+      bypassPublicationFilter: params.bypassPublicationFilter === true,
+    },
+  })
 
   // Get competition with settings
   const competition = await db.query.competitionsTable.findFirst({
@@ -291,6 +398,10 @@ export async function getCompetitionLeaderboard(params: {
   })
 
   if (!competition) {
+    logWarning({
+      message: "[Leaderboard] Competition not found",
+      attributes: { competitionId: params.competitionId },
+    })
     throw new Error("Competition not found")
   }
 
@@ -309,13 +420,30 @@ export async function getCompetitionLeaderboard(params: {
     : (settings?.divisionResults ??
       (competition.competitionType === "online" ? {} : undefined))
 
+  logInfo({
+    message: "[Leaderboard] Publication gates",
+    attributes: {
+      competitionId: params.competitionId,
+      bypassPublicationFilter: params.bypassPublicationFilter === true,
+      competitionType: competition.competitionType,
+      hasDivisionResultsSetting: !!settings?.divisionResults,
+      divisionResultsActive: !!divisionResults,
+    },
+  })
+
   // Get competition track
   const track = await getCompetitionTrack(params.competitionId)
   if (!track) {
+    logWarning({
+      message: "[Leaderboard] No programming track for competition",
+      attributes: { competitionId: params.competitionId },
+    })
     return { entries: [], scoringConfig, events: [] }
   }
 
-  // Get all track workouts for this competition
+  // Get all track workouts for this competition.
+  // In preview mode, include draft events too — organizers can enter scores
+  // on draft events and need to see them before publishing.
   const trackWorkouts = await db
     .select({
       id: trackWorkoutsTable.id,
@@ -323,19 +451,48 @@ export async function getCompetitionLeaderboard(params: {
       pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
       workoutId: trackWorkoutsTable.workoutId,
       parentEventId: trackWorkoutsTable.parentEventId,
+      eventStatus: trackWorkoutsTable.eventStatus,
       workout: workouts,
     })
     .from(trackWorkoutsTable)
     .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
     .where(
-      and(
-        eq(trackWorkoutsTable.trackId, track.id),
-        eq(trackWorkoutsTable.eventStatus, "published"),
-      ),
+      params.bypassPublicationFilter
+        ? eq(trackWorkoutsTable.trackId, track.id)
+        : and(
+            eq(trackWorkoutsTable.trackId, track.id),
+            eq(trackWorkoutsTable.eventStatus, "published"),
+          ),
     )
     .orderBy(trackWorkoutsTable.trackOrder)
 
+  const draftTrackWorkouts = trackWorkouts.filter(
+    (tw) => tw.eventStatus !== "published",
+  ).length
+
+  logInfo({
+    message: "[Leaderboard] Track workouts loaded",
+    attributes: {
+      competitionId: params.competitionId,
+      trackId: track.id,
+      trackWorkoutCount: trackWorkouts.length,
+      // Preview includes draft events — count separately so we know if this
+      // pathway is pulling in draft events that the public query would skip
+      draftEventsIncluded: params.bypassPublicationFilter
+        ? draftTrackWorkouts
+        : 0,
+    },
+  })
+
   if (trackWorkouts.length === 0) {
+    logWarning({
+      message: "[Leaderboard] No track workouts match filters",
+      attributes: {
+        competitionId: params.competitionId,
+        trackId: track.id,
+        bypassPublicationFilter: params.bypassPublicationFilter === true,
+      },
+    })
     return { entries: [], scoringConfig, events: [] }
   }
 
@@ -480,6 +637,18 @@ export async function getCompetitionLeaderboard(params: {
     (tw) => !childEventIds.has(tw.id),
   )
 
+  logInfo({
+    message: "[Leaderboard] Event filtering complete",
+    attributes: {
+      competitionId: params.competitionId,
+      divisionId: params.divisionId ?? null,
+      trackWorkoutCount: trackWorkouts.length,
+      filteredTrackWorkoutCount: filteredTrackWorkouts.length,
+      scorableEventCount: scorableEvents.length,
+      parentEventCount: childEventIds.size,
+    },
+  })
+
   // Get all registrations for this competition
   const registrations = await db
     .select({
@@ -522,6 +691,13 @@ export async function getCompetitionLeaderboard(params: {
           : null,
         isParentEvent: false,
       }))
+    logWarning({
+      message: "[Leaderboard] No registrations for competition",
+      attributes: {
+        competitionId: params.competitionId,
+        divisionId: params.divisionId ?? null,
+      },
+    })
     return { entries: [], scoringConfig, events }
   }
 
@@ -531,6 +707,16 @@ export async function getCompetitionLeaderboard(params: {
         (r) => r.registration.divisionId === params.divisionId,
       )
     : registrations
+
+  logInfo({
+    message: "[Leaderboard] Registrations loaded",
+    attributes: {
+      competitionId: params.competitionId,
+      divisionId: params.divisionId ?? null,
+      totalRegistrations: registrations.length,
+      filteredRegistrations: filteredRegistrations.length,
+    },
+  })
 
   // Get team members for team registrations
   const athleteTeamIds = filteredRegistrations
@@ -575,7 +761,49 @@ export async function getCompetitionLeaderboard(params: {
   const trackWorkoutIds = filteredTrackWorkouts.map((tw) => tw.id)
   const userIds = filteredRegistrations.map((r) => r.user.id)
 
-  const allScores = await fetchScores({ trackWorkoutIds, userIds })
+  const allScores = await fetchScores({
+    trackWorkoutIds,
+    userIds,
+    includeInvalid: params.bypassPublicationFilter === true,
+  })
+  const roundCapSummariesByScoreId = await fetchRoundCapSummaries(
+    allScores.map((s) => s.id),
+  )
+
+  // Breakdown so we can see what the 15 raw scores actually look like:
+  // status tells us whether points get computed (only "scored"/"cap" earn points
+  // in online scoring — "dns"/"dnf"/etc. are treated as inactive).
+  // verificationStatus tells us review state (null = unreviewed).
+  const statusBreakdown = allScores.reduce<Record<string, number>>(
+    (acc, s) => {
+      const key = s.status ?? "null"
+      acc[key] = (acc[key] ?? 0) + 1
+      return acc
+    },
+    {},
+  )
+  const verificationBreakdown = allScores.reduce<Record<string, number>>(
+    (acc, s) => {
+      const key = s.verificationStatus ?? "null"
+      acc[key] = (acc[key] ?? 0) + 1
+      return acc
+    },
+    {},
+  )
+
+  logInfo({
+    message: "[Leaderboard] Scores fetched",
+    attributes: {
+      competitionId: params.competitionId,
+      divisionId: params.divisionId ?? null,
+      trackWorkoutCount: trackWorkoutIds.length,
+      userCount: userIds.length,
+      scoreCount: allScores.length,
+      scoresByStatus: statusBreakdown,
+      scoresByVerificationStatus: verificationBreakdown,
+      includedInvalid: params.bypassPublicationFilter === true,
+    },
+  })
 
   // Fetch video submissions for online competitions
   const registrationIds = filteredRegistrations.map((r) => r.registration.id)
@@ -652,24 +880,45 @@ export async function getCompetitionLeaderboard(params: {
     })
   }
 
+  // Track per-event outcomes so we can surface why scores may be missing
+  const eventProcessingLog: Array<{
+    trackWorkoutId: string
+    eventName: string
+    eventStatus: string | null
+    scoresInDivisionMap: number
+    divisionsWithScores: number
+    divisionsGatedOut: number
+    divisionsProcessed: number
+  }> = []
+
   // Process each scorable event (standalone + children, skip parents)
   for (const trackWorkout of scorableEvents) {
     // Get scores for this event, grouped by division
     const eventScoresByDivision = new Map<string, typeof allScores>()
 
+    let scoresSeenForEvent = 0
+    let scoresMissingRegistration = 0
+
     for (const score of allScores) {
       if (score.competitionEventId !== trackWorkout.id) continue
+      scoresSeenForEvent++
 
       const registration = filteredRegistrations.find(
         (r) => r.user.id === score.userId,
       )
-      if (!registration) continue
+      if (!registration) {
+        scoresMissingRegistration++
+        continue
+      }
 
       const divisionId = registration.registration.divisionId || "open"
       const existing = eventScoresByDivision.get(divisionId) || []
       existing.push(score)
       eventScoresByDivision.set(divisionId, existing)
     }
+
+    let gatedOut = 0
+    let processed = 0
 
     // Calculate points for each division using the scoring algorithm
     for (const [divisionId, divisionScores] of eventScoresByDivision) {
@@ -680,7 +929,10 @@ export async function getCompetitionLeaderboard(params: {
       if (divisionResults) {
         const eventPublishState = divisionResults[trackWorkout.id]
         const divisionPublishState = eventPublishState?.[divisionId]
-        if (!divisionPublishState?.publishedAt) continue
+        if (!divisionPublishState?.publishedAt) {
+          gatedOut++
+          continue
+        }
       }
 
       // Convert to EventScoreInput format
@@ -723,17 +975,49 @@ export async function getCompetitionLeaderboard(params: {
           trackWorkout.workout.scoreType ||
           getDefaultScoreType(trackWorkout.workout.scheme)
 
+        const roundSummary = roundCapSummariesByScoreId.get(score.id) ?? {
+          cappedRoundCount: 0,
+          totalRoundCount: 0,
+        }
+
+        // Multi-round scores (partner/team relays, multi-round time, etc.)
+        // aggregate a real numeric total even when individual rounds hit the
+        // cap — the athlete logs cap time + 1s/missed-rep per round and we
+        // sum those into `scoreValue`. Rendering the literal "CAP" label
+        // would hide that aggregate. For multi-round entries we therefore
+        // force status to "scored" so `formatScore` emits the value, and
+        // surface the cap state through `CappedRoundsIndicator` instead.
+        const isMultiRound = roundSummary.totalRoundCount > 1
+        const formatStatus: "scored" | "cap" | "dq" | "withdrawn" =
+          isMultiRound && score.scoreValue !== null
+            ? "scored"
+            : (score.status as "scored" | "cap" | "dq" | "withdrawn")
+
+        // Clamp time values to whole seconds for leaderboard display.
+        // `compact: true` only hides milliseconds when they happen to be zero,
+        // so an aggregated multi-round total like 905_123 ms would still
+        // render as `15:05.123` — which is noise we don't want on the board.
+        const scoreScheme = score.scheme as WorkoutScheme
+        const displayValue =
+          score.scoreValue !== null && isTimeBasedScheme(scoreScheme)
+            ? Math.floor(score.scoreValue / 1000) * 1000
+            : (score.scoreValue ?? 0)
+
         const scoreObj: Parameters<typeof formatScore>[0] = {
-          scheme: score.scheme as WorkoutScheme,
+          scheme: scoreScheme,
           scoreType,
-          value: score.scoreValue ?? 0,
-          status: score.status as "scored" | "cap" | "dq" | "withdrawn",
+          value: displayValue,
+          status: formatStatus,
         }
 
         if (score.tiebreakValue !== null && score.tiebreakScheme) {
+          const tbScheme = score.tiebreakScheme as "reps" | "time"
           scoreObj.tiebreak = {
-            scheme: score.tiebreakScheme as "reps" | "time",
-            value: score.tiebreakValue,
+            scheme: tbScheme,
+            value:
+              tbScheme === "time"
+                ? Math.floor(score.tiebreakValue / 1000) * 1000
+                : score.tiebreakValue,
           }
         }
 
@@ -749,11 +1033,11 @@ export async function getCompetitionLeaderboard(params: {
         // Format tiebreak separately
         let formattedTiebreak: string | null = null
         if (score.tiebreakValue !== null && score.tiebreakScheme) {
-          formattedTiebreak = decodeScore(
-            score.tiebreakValue,
-            score.tiebreakScheme as WorkoutScheme,
-            { compact: true },
-          )
+          const tbScheme = score.tiebreakScheme as WorkoutScheme
+          const tbDisplay = isTimeBasedScheme(tbScheme)
+            ? Math.floor(score.tiebreakValue / 1000) * 1000
+            : score.tiebreakValue
+          formattedTiebreak = decodeScore(tbDisplay, tbScheme, { compact: true })
         }
 
         entry.eventResults.push({
@@ -788,11 +1072,85 @@ export async function getCompetitionLeaderboard(params: {
             ? (parentNameMap.get(trackWorkout.parentEventId) ?? null)
             : null,
           isParentEvent: false,
+          cappedRoundCount: roundSummary.cappedRoundCount,
+          totalRoundCount: roundSummary.totalRoundCount,
         })
 
         entry.totalPoints += points
       }
+
+      // Athletes registered in this division who didn't submit a score for
+      // this event tie at the worst position (activeCount + 1). Without this,
+      // an absent submission would have totalPoints = 0 and outrank a
+      // recorded submission under lower-is-better algorithms (online).
+      const activeCount = eventScoreInputs.filter(
+        (s) => s.status === "scored" || s.status === "cap",
+      ).length
+      const missingPlace = activeCount + 1
+      const missingPoints = Math.round(
+        calculatePointsForPlace(missingPlace, scoringConfig) * multiplier,
+      )
+
+      const scoredUserIds = new Set(divisionScores.map((s) => s.userId))
+      const missingRegs = filteredRegistrations.filter(
+        (r) =>
+          (r.registration.divisionId || "open") === divisionId &&
+          !scoredUserIds.has(r.user.id),
+      )
+
+      for (const reg of missingRegs) {
+        const entry = leaderboardMap.get(reg.registration.id)
+        if (!entry) continue
+
+        const videoInfo = videoMap.get(
+          `${reg.registration.id}:${trackWorkout.id}`,
+        )
+        const eventDivPublished = isEventDivisionPublished(
+          trackWorkout.id,
+          divisionId,
+        )
+
+        entry.eventResults.push({
+          trackWorkoutId: trackWorkout.id,
+          trackOrder: trackWorkout.trackOrder,
+          eventName: trackWorkout.workout.name,
+          scheme: trackWorkout.workout.scheme,
+          rank: missingPlace,
+          points: missingPoints,
+          rawScore: null,
+          formattedScore: "N/A",
+          formattedTiebreak: null,
+          penaltyType: null,
+          penaltyPercentage: null,
+          isDirectlyModified: false,
+          videoUrl: eventDivPublished ? (videoInfo?.url ?? null) : null,
+          videoSubmissionId: eventDivPublished
+            ? (videoInfo?.submissionId ?? null)
+            : null,
+          parentEventId: trackWorkout.parentEventId,
+          parentEventName: trackWorkout.parentEventId
+            ? (parentNameMap.get(trackWorkout.parentEventId) ?? null)
+            : null,
+          isParentEvent: false,
+          cappedRoundCount: 0,
+          totalRoundCount: 0,
+        })
+
+        entry.totalPoints += missingPoints
+      }
+
+      processed++
     }
+
+    eventProcessingLog.push({
+      trackWorkoutId: trackWorkout.id,
+      eventName: trackWorkout.workout.name,
+      eventStatus: trackWorkout.eventStatus ?? null,
+      scoresInDivisionMap: scoresSeenForEvent - scoresMissingRegistration,
+      divisionsWithScores: eventScoresByDivision.size,
+      divisionsGatedOut: gatedOut,
+      divisionsProcessed: processed,
+    })
 
     // Add empty results for athletes who didn't complete this event
     for (const [regId, entry] of leaderboardMap) {
@@ -828,6 +1186,8 @@ export async function getCompetitionLeaderboard(params: {
             ? (parentNameMap.get(trackWorkout.parentEventId) ?? null)
             : null,
           isParentEvent: false,
+          cappedRoundCount: 0,
+          totalRoundCount: 0,
         })
       }
     }
@@ -835,6 +1195,26 @@ export async function getCompetitionLeaderboard(params: {
 
   // Parent events are not scored directly — sub-events appear as top-level columns
   // on the leaderboard, so we skip adding parent aggregate entries to eventResults.
+
+  const totalScoresProcessed = eventProcessingLog.reduce(
+    (sum, e) => sum + e.scoresInDivisionMap,
+    0,
+  )
+  const totalDivisionsGated = eventProcessingLog.reduce(
+    (sum, e) => sum + e.divisionsGatedOut,
+    0,
+  )
+
+  logInfo({
+    message: "[Leaderboard] Event processing breakdown",
+    attributes: {
+      competitionId: params.competitionId,
+      divisionId: params.divisionId ?? null,
+      totalScoresProcessed,
+      totalDivisionsGatedByPublishFilter: totalDivisionsGated,
+      perEvent: eventProcessingLog,
+    },
+  })
 
   // Convert to array and apply tiebreakers for overall ranking
   const leaderboard = Array.from(leaderboardMap.values())
