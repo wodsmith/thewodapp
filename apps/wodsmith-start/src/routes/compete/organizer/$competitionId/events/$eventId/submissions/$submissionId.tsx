@@ -32,6 +32,7 @@ import {
   User,
 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { z } from "zod"
 import {
   VideoPlayerEmbed,
   supportsInteractivePlayer,
@@ -118,9 +119,26 @@ import { isSafeUrl } from "@/utils/url"
 
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 
+/**
+ * Accept an optional `back` search param so callers (e.g. the organizer
+ * leaderboard preview) can deep-link here and have the back button return
+ * to whatever filtered view the user was on. Restricted to app-relative
+ * paths to avoid open-redirect: must start with "/" and must not start
+ * with "//" (protocol-relative).
+ */
+const submissionDetailSearchSchema = z.object({
+  back: z
+    .string()
+    .refine((v) => v.startsWith("/") && !v.startsWith("//"), {
+      message: "back must be an app-relative path",
+    })
+    .optional(),
+})
+
 export const Route = createFileRoute(
   "/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId",
 )({
+  validateSearch: submissionDetailSearchSchema,
   component: SubmissionDetailPage,
   loader: async ({ params }) => {
     // Fetch review data (required)
@@ -2036,6 +2054,7 @@ function SubmissionDetailPage() {
   } = Route.useLoaderData()
   const { competition } = parentRoute.useLoaderData()
   const params = Route.useParams()
+  const { back: backUrl } = Route.useSearch()
   const router = useRouter()
 
   const markReviewed = useServerFn(markSubmissionReviewedFn)
@@ -2172,15 +2191,21 @@ function SubmissionDetailPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button asChild variant="ghost" size="icon">
-            <Link
-              to="/compete/organizer/$competitionId/events/$eventId/submissions"
-              params={{
-                competitionId: competition.id,
-                eventId: params.eventId,
-              }}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
+            {backUrl ? (
+              <a href={backUrl} aria-label="Back">
+                <ArrowLeft className="h-4 w-4" />
+              </a>
+            ) : (
+              <Link
+                to="/compete/organizer/$competitionId/events/$eventId/submissions"
+                params={{
+                  competitionId: competition.id,
+                  eventId: params.eventId,
+                }}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            )}
           </Button>
           <div>
             <h1 className="text-2xl font-bold">Review Submission</h1>

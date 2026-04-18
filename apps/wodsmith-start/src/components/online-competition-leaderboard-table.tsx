@@ -1,6 +1,6 @@
 "use client"
 
-import { Link } from "@tanstack/react-router"
+import { Link, useLocation } from "@tanstack/react-router"
 import {
   type CellContext,
   type ColumnDef,
@@ -111,13 +111,19 @@ function SubmissionLinkWrapper({
   submissionId: string | null
   children: React.ReactNode
 }) {
+  const location = useLocation()
   if (!enabled || !competitionId || !submissionId) {
     return <>{children}</>
   }
+  // Record the exact preview URL (path + any filter search params) so the
+  // submission page's back button returns us to this view — same division,
+  // event, and affiliate filters intact.
+  const back = `${location.pathname}${location.searchStr ?? ""}`
   return (
     <Link
       to="/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId"
       params={{ competitionId, eventId, submissionId }}
+      search={{ back }}
       className="block hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
     >
       {children}
