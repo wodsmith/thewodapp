@@ -179,7 +179,7 @@ Captains and solo registrants come from [[apps/wodsmith-start/src/db/schemas/com
 
 [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#fetchAthleteAudienceRows]] fetches the raw rows and [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#buildBroadcastRecipients]] deduplicates them: user rows by userId, invite rows by invitationId; an invite whose email matches an included user is dropped in favor of the user. Pending invitations are excluded when cancelled, already accepted, or past their `expiresAt` (invitations have no EXPIRED status so the timestamp is the only stale-signal).
 
-When a `public` broadcast merges volunteers and athletes, a pending-invite row whose email matches a volunteer's user email is dropped in favor of the volunteer row — prevents the same person getting two copies.
+When a `public` broadcast merges volunteers and athletes, a pending-invite row whose email matches a volunteer's user email is dropped in favor of the volunteer row — prevents the same person getting two copies. This dedup runs *after* question filtering so that a volunteer filtered out by question answers doesn't silently drop the pending-invite athlete sharing their email.
 
 Pending-invite recipients have `userId=null` and a populated `invitationId` + captured `email` on [[apps/wodsmith-start/src/db/schemas/broadcasts.ts#competitionBroadcastRecipientsTable]], keyed by a second unique index on `(broadcastId, invitationId)` that tolerates multiple NULLs in MySQL.
 

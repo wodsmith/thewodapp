@@ -904,25 +904,6 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
           existingUserIds.add(v.userId)
         }
       }
-
-      // Drop pending-invite athlete rows whose email collides with a volunteer
-      // we're about to send to — volunteer has a real user account, so their
-      // row wins and prevents the same person getting two emails.
-      if (volunteerRecipients.length > 0) {
-        const volunteerEmails = new Set(
-          volunteerRecipients
-            .map((v) => v.email?.toLowerCase())
-            .filter((e): e is string => !!e),
-        )
-        athleteRecipients = athleteRecipients.filter(
-          (r) =>
-            !(
-              r.invitationId !== null &&
-              r.email !== null &&
-              volunteerEmails.has(r.email.toLowerCase())
-            ),
-        )
-      }
     }
 
     // Apply question filters if present — but skip for pending_teammates since
@@ -952,6 +933,27 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 
       athleteRecipients = filteredAthletes
       volunteerRecipients = filteredVolunteers
+    }
+
+    // Drop pending-invite athlete rows whose email collides with a volunteer
+    // we're about to send to — volunteer has a real user account, so their
+    // row wins and prevents the same person getting two emails. Done after
+    // question filtering so a volunteer that was later filtered out doesn't
+    // silently drop the pending-invite athlete with the same email.
+    if (volunteerRecipients.length > 0) {
+      const volunteerEmails = new Set(
+        volunteerRecipients
+          .map((v) => v.email?.toLowerCase())
+          .filter((e): e is string => !!e),
+      )
+      athleteRecipients = athleteRecipients.filter(
+        (r) =>
+          !(
+            r.invitationId !== null &&
+            r.email !== null &&
+            volunteerEmails.has(r.email.toLowerCase())
+          ),
+      )
     }
 
     const recipients: Recipient[] = [
@@ -1033,22 +1035,50 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
         }),
       )
 
+      // Pair each recipient-value with its source recipient, then partition
+      // into deliverable (has email) vs skipped (no email). Skipped rows are
+      // marked in DB up front so dashboard counts don't leave them "queued".
+      const paired = recipientValues.map((rv, idx) => ({
+        rv,
+        recipient: recipients[idx],
+      }))
+      const deliverable = paired.filter(({ recipient }) => !!recipient?.email)
+      const skippedIds = paired
+        .filter(({ recipient }) => !recipient?.email)
+        .map(({ rv }) => rv.id)
+
+      if (skippedIds.length > 0) {
+        await db
+          .update(competitionBroadcastRecipientsTable)
+          .set({
+            emailDeliveryStatus: BROADCAST_EMAIL_DELIVERY_STATUS.SKIPPED,
+          })
+          .where(inArray(competitionBroadcastRecipientsTable.id, skippedIds))
+        logInfo({
+          message: "[Broadcast] Skipped recipients with no email",
+          attributes: {
+            broadcastId: broadcast.id,
+            skippedCount: skippedIds.length,
+          },
+        })
+      }
+
       // Enqueue batches of up to 100 recipients into Cloudflare Queue
       const BATCH_SIZE = 100
       const queue = (env as unknown as Record<string, unknown>)
         .BROADCAST_EMAIL_QUEUE as Queue<BroadcastEmailMessage> | undefined
 
       if (queue) {
-        const batchCount = Math.ceil(recipientValues.length / BATCH_SIZE)
-        for (let i = 0; i < recipientValues.length; i += BATCH_SIZE) {
-          const batchSlice = recipientValues.slice(i, i + BATCH_SIZE)
+        const batchCount = Math.ceil(deliverable.length / BATCH_SIZE)
+        for (let i = 0; i < deliverable.length; i += BATCH_SIZE) {
+          const batchSlice = deliverable.slice(i, i + BATCH_SIZE)
           const message: BroadcastEmailMessage = {
             broadcastId: broadcast.id,
             competitionId: data.competitionId,
-            batch: batchSlice.map((rv, idx) => ({
+            batch: batchSlice.map(({ rv, recipient }) => ({
               recipientId: rv.id,
-              email: recipients[i + idx].email ?? "",
-              athleteName: recipients[i + idx].firstName ?? "Athlete",
+              email: recipient.email ?? "",
+              athleteName: recipient.firstName ?? "Athlete",
             })),
             subject: `${data.title} — ${competition.name}`,
             bodyHtml,
@@ -1061,7 +1091,7 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
           message: "[Broadcast] Emails queued for delivery",
           attributes: {
             broadcastId: broadcast.id,
-            recipientCount: recipientValues.length,
+            recipientCount: deliverable.length,
             batchCount,
           },
         })
@@ -1072,17 +1102,15 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
             "[Broadcast] No queue binding, sending emails directly (dev fallback)",
           attributes: {
             broadcastId: broadcast.id,
-            recipientCount: recipientValues.length,
+            recipientCount: deliverable.length,
           },
         })
 
         const { sendEmail: sendEmailFn } = await import("@/utils/email")
         let sentCount = 0
         let failedCount = 0
-        for (let idx = 0; idx < recipientValues.length; idx++) {
-          const rv = recipientValues[idx]
-          const recipient = recipients[idx]
-          if (!recipient || !recipient.email) continue
+        for (const { rv, recipient } of deliverable) {
+          if (!recipient?.email) continue
           try {
             await sendEmailFn({
               to: recipient.email,

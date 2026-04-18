@@ -372,6 +372,14 @@ export async function seed(client: Connection): Promise<void> {
 		["creg_megan_winter", "usr_athlete_megan"],
 		["creg_ashley_winter", "usr_athlete_ashley"],
 		["creg_brittany_winter", "usr_athlete_brittany"],
+		["creg_stephanie_winter", "usr_athlete_stephanie"],
+		["creg_lauren_winter", "usr_athlete_lauren"],
+		["creg_nicole_winter", "usr_athlete_nicole"],
+		["creg_amanda_winter", "usr_athlete_amanda"],
+		["creg_kaitlyn_winter", "usr_athlete_kaitlyn"],
+	]
+	const allMastersRegs: Array<[string, string]> = [
+		["creg_chris_winter", "usr_athlete_chris"],
 	]
 	const allPartnerRegs: Array<[string, string]> = [
 		// Mike's captain reg shows up here (dedup'd by userId against Mike's RX reg,
@@ -389,6 +397,7 @@ export async function seed(client: Connection): Promise<void> {
 	for (const [regId, userId] of [
 		...allRxRegs,
 		...allScaledRegs,
+		...allMastersRegs,
 		...allPartnerRegs,
 	]) {
 		allRecipients.push(
