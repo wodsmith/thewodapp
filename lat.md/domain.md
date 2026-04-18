@@ -194,6 +194,8 @@ Individual athletes (teamSize = 1) are always treated as their own captain. Both
 
 Reviewers bypass the captain restriction through [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#updateSubmissionVideoUrlFn]] (see [[lat.md/domain#Domain Model#Video Submissions#Reviewer Video Link Editor]]): organizers and score-input volunteers can edit existing links and create new rows for unfilled slots, and the server still attributes those inserts to `registration.captainUserId` (falling back to `registration.userId` for solo) so the team's submissions stay grouped under a single athlete id for downstream queries like `getOrganizerSubmissionsFn`.
 
+Organizers on the [[organizer-dashboard#Registrations (Athletes)#Athlete Detail Page]] get a stronger backdoor: [[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#createOrganizerVideoSubmissionFn]] creates a submission from scratch (URL + optional score in one call) for any slot, and [[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#deleteOrganizerVideoSubmissionFn]] removes one — cascade-deleting the linked score row when the deleted submission was the score owner (`videoIndex === 0`). Both still honor the "score only with `videoIndex === 0`" contract when writing.
+
 ### Multiple Videos per Team
 
 Team divisions allow up to `teamSize` video submissions per event, tracked via a `videoIndex` column on `videoSubmissionsTable`.

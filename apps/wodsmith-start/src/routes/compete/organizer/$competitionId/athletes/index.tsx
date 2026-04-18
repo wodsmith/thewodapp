@@ -19,6 +19,7 @@ import {
   ArrowRight,
   ArrowUp,
   ArrowUpDown,
+  ArrowUpRight,
   Calendar,
   Download,
   Link2,
@@ -82,14 +83,11 @@ import {
   type PendingTeammateInvite,
 } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
-import { removeRegistrationFn } from "@/server-fns/registration-fns"
-import { ManualRegistrationDialog } from "./-components/manual-registration-dialog"
 import {
   cancelPurchaseTransferFn,
   getPendingTransfersForCompetitionFn,
 } from "@/server-fns/purchase-transfer-fns"
-import { TransferDivisionDialog } from "./-components/transfer-division-dialog"
-import { TransferRegistrationDialog } from "./-components/transfer-registration-dialog"
+import { removeRegistrationFn } from "@/server-fns/registration-fns"
 import {
   getCompetitionQuestionsFn,
   getCompetitionRegistrationAnswersFn,
@@ -98,6 +96,9 @@ import {
   getCompetitionWaiverSignaturesFn,
   getCompetitionWaiversFn,
 } from "@/server-fns/waiver-fns"
+import { ManualRegistrationDialog } from "../-components/manual-registration-dialog"
+import { TransferDivisionDialog } from "../-components/transfer-division-dialog"
+import { TransferRegistrationDialog } from "../-components/transfer-registration-dialog"
 
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 
@@ -128,7 +129,7 @@ const athletesSearchSchema = z.object({
 })
 
 export const Route = createFileRoute(
-  "/compete/organizer/$competitionId/athletes",
+  "/compete/organizer/$competitionId/athletes/",
 )({
   staleTime: 10_000,
   component: AthletesPage,
@@ -567,8 +568,9 @@ function AthletesPage() {
         registrationMetadata = registration.metadata as Record<string, unknown>
       }
     }
-    const metadataAffiliates =
-      registrationMetadata?.affiliates as Record<string, string | null> | undefined
+    const metadataAffiliates = registrationMetadata?.affiliates as
+      | Record<string, string | null>
+      | undefined
 
     // Create a row for each member
     allMembers.forEach((member, memberIndex) => {
@@ -1225,23 +1227,35 @@ function AthletesPage() {
                                   </AvatarFallback>
                                 </Avatar>
                                 <div className="flex flex-col min-w-0">
-                                  <span className="font-medium truncate">
+                                  <span className="font-medium truncate hover:underline">
                                     {row.status === "pending" ? (
                                       <span className="italic text-muted-foreground">
                                         Invited
                                       </span>
                                     ) : row.status === "accepted" ? (
                                       row.pendingInvite?.guestName ? (
-                                        <span>
+                                        <Link
+                                          to="/compete/organizer/$competitionId/athletes/$registrationId"
+                                          params={{
+                                            competitionId: competition.id,
+                                            registrationId: row.registrationId,
+                                          }}
+                                        >
                                           {row.pendingInvite.guestName}
-                                        </span>
+                                        </Link>
                                       ) : (
                                         <span className="italic text-muted-foreground">
                                           Invited
                                         </span>
                                       )
                                     ) : (
-                                      <>
+                                      <Link
+                                        to="/compete/organizer/$competitionId/athletes/$registrationId"
+                                        params={{
+                                          competitionId: competition.id,
+                                          registrationId: row.registrationId,
+                                        }}
+                                      >
                                         {row.athlete.firstName ?? ""}{" "}
                                         {row.athlete.lastName ?? ""}
                                         {row.isCaptain && row.teamName && (
@@ -1249,7 +1263,7 @@ function AthletesPage() {
                                             (captain)
                                           </span>
                                         )}
-                                      </>
+                                      </Link>
                                     )}
                                   </span>
                                   <span className="text-xs text-muted-foreground truncate">
@@ -1542,6 +1556,21 @@ function AthletesPage() {
                                 </>
                               )}
                             </div>
+                            {!isRowRemoved && row.status === "registered" && (
+                              <div className="mt-3 pt-3 border-t">
+                                <Link
+                                  to="/compete/organizer/$competitionId/athletes/$registrationId"
+                                  params={{
+                                    competitionId: competition.id,
+                                    registrationId: row.registrationId,
+                                  }}
+                                  className="text-sm text-primary inline-flex items-center gap-1 hover:underline"
+                                >
+                                  View details
+                                  <ArrowUpRight className="h-3.5 w-3.5" />
+                                </Link>
+                              </div>
+                            )}
                           </CardContent>
                         </Card>
                       )
@@ -1633,6 +1662,7 @@ function AthletesPage() {
                                 <SortIcon column="joinedAt" />
                               </button>
                             </TableHead>
+                            <TableHead className="w-[50px]">View</TableHead>
                             <TableHead className="w-[40px]">
                               <span className="sr-only">Actions</span>
                             </TableHead>
@@ -1736,23 +1766,37 @@ function AthletesPage() {
                                       </AvatarFallback>
                                     </Avatar>
                                     <div className="flex flex-col">
-                                      <span className="font-medium">
+                                      <span className="font-medium hover:underline">
                                         {row.status === "pending" ? (
                                           <span className="italic text-muted-foreground">
                                             Invited
                                           </span>
                                         ) : row.status === "accepted" ? (
                                           row.pendingInvite?.guestName ? (
-                                              <span>
-                                                {row.pendingInvite.guestName}
-                                              </span>
-                                            ) : (
-                                              <span className="italic text-muted-foreground">
-                                                Invited
-                                              </span>
-                                            )
+                                            <Link
+                                              to="/compete/organizer/$competitionId/athletes/$registrationId"
+                                              params={{
+                                                competitionId: competition.id,
+                                                registrationId:
+                                                  row.registrationId,
+                                              }}
+                                            >
+                                              {row.pendingInvite.guestName}
+                                            </Link>
+                                          ) : (
+                                            <span className="italic text-muted-foreground">
+                                              Invited
+                                            </span>
+                                          )
                                         ) : (
-                                          <>
+                                          <Link
+                                            to="/compete/organizer/$competitionId/athletes/$registrationId"
+                                            params={{
+                                              competitionId: competition.id,
+                                              registrationId:
+                                                row.registrationId,
+                                            }}
+                                          >
                                             {row.athlete.firstName ?? ""}{" "}
                                             {row.athlete.lastName ?? ""}
                                             {row.isCaptain && row.teamName && (
@@ -1760,7 +1804,7 @@ function AthletesPage() {
                                                 (captain)
                                               </span>
                                             )}
-                                          </>
+                                          </Link>
                                         )}
                                       </span>
                                       <span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -1895,6 +1939,28 @@ function AthletesPage() {
                                   {row.joinedAt
                                     ? formatDate(row.joinedAt)
                                     : null}
+                                </TableCell>
+                                <TableCell>
+                                  {!isRowRemoved &&
+                                    row.status === "registered" && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                        asChild
+                                      >
+                                        <Link
+                                          to="/compete/organizer/$competitionId/athletes/$registrationId"
+                                          params={{
+                                            competitionId: competition.id,
+                                            registrationId: row.registrationId,
+                                          }}
+                                          aria-label="View athlete details"
+                                        >
+                                          <ArrowUpRight className="h-4 w-4" />
+                                        </Link>
+                                      </Button>
+                                    )}
                                 </TableCell>
                                 <TableCell>
                                   {row.isCaptain && !isRowRemoved && (

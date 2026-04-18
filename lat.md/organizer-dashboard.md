@@ -69,6 +69,23 @@ Uses `getOrganizerRegistrationsFn` for the full registration list with detailed 
 - CSV export of athlete data
 - Registration questions editor (custom questions athletes answer during signup)
 - Pending teammate invitations tab for team divisions
+- Per-athlete deep link (name + "View" column) to the [[organizer-dashboard#Registrations (Athletes)#Athlete Detail Page]]
+
+### Athlete Detail Page
+
+At `/compete/organizer/{competitionId}/athletes/{registrationId}` — organizer-only editing surface covering every field on a single registration plus per-event scores or video submissions.
+
+The route lives at [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/$registrationId.tsx]] and composes section components under the `-components/` sibling folder. It hydrates from [[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#getOrganizerAthleteDetailFn]], a single fetch that returns the registration, captain user, athlete team memberships, pending invites, registration questions + answers, waivers + signatures, competition events, and all linked video submissions / scores.
+
+Sections and the mutations they call:
+- **Registration info** — inline edit of `teamName` via [[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#updateRegistrationTeamNameFn]]; division change opens the shared `TransferDivisionDialog` which calls [[apps/wodsmith-start/src/server-fns/registration-fns.ts#transferRegistrationDivisionFn]]; registration removal calls [[apps/wodsmith-start/src/server-fns/registration-fns.ts#removeRegistrationFn]] and redirects back to the list.
+- **Athlete profile (per member)** — first name, last name, email via [[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#updateAthleteUserProfileFn]]. Edits write directly to the `userTable` row, so this mutates the user's global profile, not a competition-scoped override.
+- **Team members** (team divisions only) — active member list with remove-teammate ([[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#removeTeammateFromRegistrationFn]]); pending invites list with resend ([[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#resendTeamInviteAsOrganizerFn]]) and cancel ([[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#cancelPendingTeamInviteFn]]); "Add Teammate" dialog calls [[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#addTeammateToRegistrationFn]] (inline invite + email send, bypasses the captain-only `INVITE_MEMBERS` check).
+- **Registration answers** — per-question per-member inline edit via [[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#updateRegistrationAnswerFn]] (empty answer deletes the row).
+- **Video submissions** (online competitions) — per competition event, shows each existing submission with an inline `VideoPlayerEmbed`, reuses `OrganizerVideoLinksEditor` for URL edits and `EnterScoreForm` for first-time score entry, and links to the full submission-verification page for score adjustments. Empty event slots offer a **ManualSubmissionDialog** that calls [[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#createOrganizerVideoSubmissionFn]] (creates the submission and, when `videoIndex === 0`, the score in a single call). Delete goes through [[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#deleteOrganizerVideoSubmissionFn]], which cascade-deletes the linked score row when the deleted submission was the score owner.
+- **Scores** (in-person competitions) — per competition event, edit with [[apps/wodsmith-start/src/server-fns/competition-score-fns.ts#saveCompetitionScoreFn]] and delete with [[apps/wodsmith-start/src/server-fns/competition-score-fns.ts#deleteCompetitionScoreFn]].
+
+Why a dedicated org-side `resendTeamInviteAsOrganizerFn` exists: the captain-facing [[apps/wodsmith-start/src/server-fns/registration-fns.ts#refreshCompetitionTeamInviteFn]] rejects non-captain callers and only allows refreshing *expired* invites. The organizer variant authorizes via `MANAGE_COMPETITIONS` on the organizing team and lets organizers resend any pending invite regardless of expiry.
 
 ## Scoring Configuration
 
