@@ -591,7 +591,16 @@ export async function getCompetitionLeaderboard(params: {
                 ),
               )
               .where(
-                inArray(competitionHeatAssignmentsTable.heatId, mixedHeatIds),
+                and(
+                  inArray(
+                    competitionHeatAssignmentsTable.heatId,
+                    mixedHeatIds,
+                  ),
+                  ne(
+                    competitionRegistrationsTable.status,
+                    REGISTRATION_STATUS.REMOVED,
+                  ),
+                ),
               )
           : []
 
