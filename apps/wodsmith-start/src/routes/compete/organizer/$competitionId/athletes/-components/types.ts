@@ -94,6 +94,9 @@ export interface AthleteDetailWaiverSignature {
 export interface AthleteDetailEvent {
   id: string
   trackWorkoutId: string
+  // Parent's trackWorkoutId when this is a sub-event; null for standalone/parent.
+  // Parents with children have no submissions of their own — scoring is per child.
+  parentTrackWorkoutId: string | null
   workoutId: string
   workoutName: string
   scheme: string

@@ -269,8 +269,9 @@ function AthleteDetailPage() {
     }
   }
 
-  const handleRemoveTeammate = async () => {
+  const handleRemoveTeammate = async (event: React.MouseEvent) => {
     if (!removeTeammateTarget) return
+    event.preventDefault()
     setIsRemovingTeammate(true)
     try {
       await removeTeammate({

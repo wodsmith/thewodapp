@@ -114,8 +114,9 @@ export function EventScoreCard({
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const handleDelete = async () => {
+  const handleDelete = async (e: React.MouseEvent) => {
     if (!captain) return
+    e.preventDefault()
     setIsDeleting(true)
     try {
       await deleteScore({

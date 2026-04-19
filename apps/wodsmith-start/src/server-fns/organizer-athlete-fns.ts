@@ -589,6 +589,7 @@ export const getOrganizerAthleteDetailFn = createServerFn({ method: "GET" })
       events: visibleCompetitionEvents.map((e) => ({
         id: e.id,
         trackWorkoutId: e.trackWorkoutId,
+        parentTrackWorkoutId: e.parentEventId,
         workoutId: e.workoutId,
         workoutName: e.workoutName,
         scheme: e.scheme,

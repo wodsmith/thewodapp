@@ -137,8 +137,9 @@ export function EventSubmissionCard({
   const hasMultipleRounds =
     !!captainScore && captainScore.scoreRounds.length > 1
 
-  const handleDelete = async () => {
+  const handleDelete = async (event: React.MouseEvent) => {
     if (!deleteTarget) return
+    event.preventDefault()
     setIsDeleting(true)
     try {
       await deleteSubmission({
