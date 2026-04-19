@@ -62,11 +62,14 @@ Lists all registered athletes with division, payment status, team info, and mana
 
 Uses `getOrganizerRegistrationsFn` for the full registration list with detailed athlete info. Features include:
 - Sortable table with division and status filters
+- Free-text search over athlete name, email, and team name (URL-backed via `?q=`)
+- Affiliate filter with an explicit "None" option for athletes without an affiliate
+- Client-side pagination (default page size 100, configurable 25/50/100/200/500) — all filter, search, sort, and pagination state are URL-backed search params so views are shareable
 - Manual registration dialog (organizer adds athletes directly — see [[registration#Registration Flow#Organizer Manual Registration]])
 - Remove registration (soft-delete with cascading cleanup — see [[registration#Registration Removal]])
 - Transfer registration to a different division (see [[registration#Division Transfer]])
 - Transfer registration to a different person (purchase transfer)
-- CSV export of athlete data
+- CSV export of athlete data (exports the full filtered+sorted list, not just the current page)
 - Registration questions editor (custom questions athletes answer during signup)
 - Pending teammate invitations tab for team divisions
 

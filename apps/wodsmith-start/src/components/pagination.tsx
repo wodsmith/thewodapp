@@ -10,12 +10,16 @@ export interface PaginationProps {
   totalCount: number
   /** Number of items per page */
   pageSize: number
-  /** Base path for navigation (e.g., "/workouts") */
+  /** Base path for navigation (e.g., "/workouts"). Use "." to stay on the current route. */
   basePath: string
   /** Callback to build search params for a given page */
   buildSearchParams: (page: number) => Record<string, unknown>
   /** Optional className for the container */
   className?: string
+  /** Label for the items being paginated (e.g., "workouts", "athletes"). Defaults to "items" */
+  itemLabel?: string
+  /** Optional route params, required for dynamic routes (e.g., { competitionId: "abc" }) */
+  params?: Record<string, string>
 }
 
 /**
@@ -89,6 +93,8 @@ export function Pagination({
   basePath,
   buildSearchParams,
   className,
+  itemLabel = "items",
+  params,
 }: PaginationProps) {
   const totalPages = Math.ceil(totalCount / pageSize)
 
@@ -115,7 +121,7 @@ export function Pagination({
     >
       {/* Page info */}
       <p className="text-sm text-muted-foreground order-2 sm:order-1">
-        Showing {startItem} to {endItem} of {totalCount} workouts
+        Showing {startItem} to {endItem} of {totalCount} {itemLabel}
       </p>
 
       {/* Page navigation */}
@@ -131,6 +137,7 @@ export function Pagination({
           {hasPreviousPage ? (
             <Link
               to={basePath}
+              params={params}
               search={buildSearchParams(currentPage - 1)}
               aria-label="Go to previous page"
             >
@@ -168,7 +175,11 @@ export function Pagination({
                 {item.page === currentPage ? (
                   <span>{item.page}</span>
                 ) : (
-                  <Link to={basePath} search={buildSearchParams(item.page)}>
+                  <Link
+                    to={basePath}
+                    params={params}
+                    search={buildSearchParams(item.page)}
+                  >
                     {item.page}
                   </Link>
                 )}
@@ -188,6 +199,7 @@ export function Pagination({
           {hasNextPage ? (
             <Link
               to={basePath}
+              params={params}
               search={buildSearchParams(currentPage + 1)}
               aria-label="Go to next page"
             >
