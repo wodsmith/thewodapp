@@ -3,7 +3,7 @@
   "checkpoint_id": "fb14ce00c2bf",
   "strategy": "manual-commit",
   "branch": "zac/athlete-details-page",
-  "checkpoints_count": 35,
+  "checkpoints_count": 41,
   "files_touched": [
     "apps/wodsmith-start/src/components/compete/organizer-video-links-editor.tsx",
     "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/$registrationId.tsx",
@@ -90,13 +90,20 @@
       "context": "/fb/14ce00c2bf/8/context.md",
       "content_hash": "/fb/14ce00c2bf/8/content_hash.txt",
       "prompt": "/fb/14ce00c2bf/8/prompt.txt"
+    },
+    {
+      "metadata": "/fb/14ce00c2bf/9/metadata.json",
+      "transcript": "/fb/14ce00c2bf/9/full.jsonl",
+      "context": "/fb/14ce00c2bf/9/context.md",
+      "content_hash": "/fb/14ce00c2bf/9/content_hash.txt",
+      "prompt": "/fb/14ce00c2bf/9/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 4022,
-    "cache_creation_tokens": 2127931,
-    "cache_read_tokens": 99074213,
-    "output_tokens": 331174,
-    "api_call_count": 570
+    "input_tokens": 4125,
+    "cache_creation_tokens": 2294069,
+    "cache_read_tokens": 108872386,
+    "output_tokens": 372723,
+    "api_call_count": 643
   }
 }
