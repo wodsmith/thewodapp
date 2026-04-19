@@ -186,6 +186,8 @@ The loader in [[apps/wodsmith-start/src/routes/compete/$slug/workouts/$eventId.t
 
 The [[apps/wodsmith-start/src/components/compete/athlete-score-submission-panel.tsx#AthleteScoreSubmissionPanel]] also respects this hierarchy. For parents with children, it renders a compact parent header with individual child rows beneath it. Submission data is fetched for child IDs (not the parent), and child rows link to the parent event page where per-sub-event forms live. The panel filters events by event-division mappings: if a parent is mapped to specific divisions and the selected division isn't included, the entire group (parent + children) is excluded. Children without explicit mappings inherit their parent's mapping visibility. On mobile the panel renders above the registration sidebar; on desktop it appears in the main content column.
 
+The organizer-side [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/video-submissions-section.tsx#VideoSubmissionsSection]] follows the same rule. Events are grouped by `parentTrackWorkoutId` (returned from [[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#getOrganizerAthleteDetailFn]], sourced from `trackWorkoutsTable.parentEventId`): standalone events render a single card, while parents with children render a wrapper card whose header shows only the parent workout name and a "Scored per sub-event below" note — no score or video editor on the parent itself — with one nested card per child.
+
 ### Captain-Only Submission
 
 For team divisions (teamSize > 1), only the team captain can submit videos and scores. Non-captain team members see a read-only view of the team's submissions.
@@ -193,6 +195,8 @@ For team divisions (teamSize > 1), only the team captain can submit videos and s
 Individual athletes (teamSize = 1) are always treated as their own captain. Both [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getAthleteDivisionSubmissionsFn]] and [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#submitVideoFn]] enforce this — the panel sets `canSubmit = false` for non-captains so they never see submit/edit actions.
 
 Reviewers bypass the captain restriction through [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#updateSubmissionVideoUrlFn]] (see [[lat.md/domain#Domain Model#Video Submissions#Reviewer Video Link Editor]]): organizers and score-input volunteers can edit existing links and create new rows for unfilled slots, and the server still attributes those inserts to `registration.captainUserId` (falling back to `registration.userId` for solo) so the team's submissions stay grouped under a single athlete id for downstream queries like `getOrganizerSubmissionsFn`.
+
+Organizers on the [[organizer-dashboard#Registrations (Athletes)#Athlete Detail Page]] also reuse [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#updateSubmissionVideoUrlFn]] (the same shared reviewer endpoint) to add or replace per-slot video URLs, and [[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#deleteOrganizerVideoSubmissionFn]] to remove a submission — cascade-deleting the linked score row when the deleted submission was the score owner (`videoIndex === 0`).
 
 ### Multiple Videos per Team
 

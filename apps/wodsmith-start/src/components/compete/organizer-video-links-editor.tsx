@@ -37,6 +37,22 @@ interface OrganizerVideoLinksEditorProps {
   registrationId: string | null
   /** Track workout id used to create new rows for unfilled slots */
   trackWorkoutId: string | null
+  /**
+   * Optional render-prop for per-slot trailing actions (e.g. a Delete button
+   * that only makes sense once a submission exists). Returned node renders
+   * next to the slot's Save button. Non-breaking when omitted.
+   */
+  renderSlotActions?: (slot: {
+    submissionId: string | null
+    videoIndex: number
+  }) => React.ReactNode
+  /**
+   * Compact mode drops the outer Card + header and tightens the per-slot
+   * layout (label/badges inline, actions on the right of the input row, no
+   * standalone "open current link" affordance). For embedding inside another
+   * card surface like the athlete detail page. Default: false.
+   */
+  compact?: boolean
 }
 
 interface SlotState {
@@ -87,6 +103,8 @@ export function OrganizerVideoLinksEditor({
   teamSize,
   registrationId,
   trackWorkoutId,
+  renderSlotActions,
+  compact = false,
 }: OrganizerVideoLinksEditorProps) {
   const router = useRouter()
   const updateFn = useServerFn(updateSubmissionVideoUrlFn)
@@ -171,78 +189,114 @@ export function OrganizerVideoLinksEditor({
     }
   }
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Video className="h-4 w-4" />
-          Video Links
-        </CardTitle>
-        <CardDescription>
-          {teamSize > 1
-            ? "Update or add a link for each partner on the athlete's behalf"
-            : "Update a broken or incorrect link on the athlete's behalf"}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {slots.map((slot, index) => {
-          const isDirty = slot.url !== slot.originalUrl
-          const isMissing = !slot.submissionId
-          return (
-            <div
-              key={`${slot.submissionId ?? "new"}-${index}`}
-              className="space-y-2"
-            >
-              <div className="flex items-center justify-between gap-2">
+  const slotsBody = (
+    <div className={compact ? "space-y-2.5" : "space-y-4"}>
+      {slots.map((slot, index) => {
+        const isDirty = slot.url !== slot.originalUrl
+        const isMissing = !slot.submissionId
+        return (
+          <div
+            key={`${slot.submissionId ?? "new"}-${index}`}
+            className={compact ? "space-y-1.5" : "space-y-2"}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
                 <Label
                   htmlFor={`video-url-${index}`}
-                  className="text-sm font-medium"
+                  className={
+                    compact
+                      ? "text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                      : "text-sm font-medium"
+                  }
                 >
                   {roleLabel(index, teamSize)}
                 </Label>
-                <div className="flex items-center gap-2">
-                  {isMissing && (
-                    <Badge
-                      variant="outline"
-                      className="text-xs border-amber-500 text-amber-600 dark:text-amber-400"
-                    >
-                      Not submitted
-                    </Badge>
-                  )}
-                  {teamSize > 1 && (
-                    <Badge variant="secondary" className="text-xs">
-                      Video {index + 1}
-                    </Badge>
-                  )}
-                </div>
+                {isMissing && (
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] border-amber-500 text-amber-600 dark:text-amber-400 px-1.5 py-0 h-4"
+                  >
+                    Not submitted
+                  </Badge>
+                )}
+                {!compact && teamSize > 1 && (
+                  <Badge variant="secondary" className="text-xs">
+                    Video {index + 1}
+                  </Badge>
+                )}
               </div>
-              <VideoUrlInput
-                id={`video-url-${index}`}
-                value={slot.url}
-                onChange={(url) => setSlot(index, { url, error: null })}
-                onValidationChange={(validation) =>
-                  setSlot(index, { validation })
-                }
-                required
-                disabled={slot.isSaving}
-                showPlatformBadge
-                showPreviewLink
-              />
-              {slot.originalUrl && isSafeUrl(slot.originalUrl) && (
+              {compact && slot.originalUrl && isSafeUrl(slot.originalUrl) && (
                 <a
                   href={slot.originalUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                  title="Open current link in a new tab"
                 >
                   <ExternalLink className="h-3 w-3" />
-                  Open current link
+                  Open
                 </a>
               )}
-              {slot.error && (
-                <p className="text-xs text-destructive">{slot.error}</p>
+            </div>
+            <div
+              className={
+                compact
+                  ? "flex flex-col sm:flex-row sm:items-start gap-2"
+                  : undefined
+              }
+            >
+              <div className={compact ? "flex-1 min-w-0" : undefined}>
+                <VideoUrlInput
+                  id={`video-url-${index}`}
+                  value={slot.url}
+                  onChange={(url) => setSlot(index, { url, error: null })}
+                  onValidationChange={(validation) =>
+                    setSlot(index, { validation })
+                  }
+                  required
+                  disabled={slot.isSaving}
+                  showPlatformBadge={!compact}
+                  showPreviewLink={!compact}
+                />
+              </div>
+              {compact && (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={slot.isSaving || !isDirty || !slot.url.trim()}
+                    onClick={() => handleSave(index)}
+                    className="h-9"
+                  >
+                    {slot.isSaving ? "Saving..." : isMissing ? "Add" : "Save"}
+                  </Button>
+                  {renderSlotActions?.({
+                    submissionId: slot.submissionId,
+                    videoIndex: index,
+                  })}
+                </div>
               )}
-              <div className="flex justify-end">
+            </div>
+            {!compact && slot.originalUrl && isSafeUrl(slot.originalUrl) && (
+              <a
+                href={slot.originalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Open current link
+              </a>
+            )}
+            {slot.error && (
+              <p className="text-xs text-destructive">{slot.error}</p>
+            )}
+            {!compact && (
+              <div className="flex items-center justify-end gap-1.5">
+                {renderSlotActions?.({
+                  submissionId: slot.submissionId,
+                  videoIndex: index,
+                })}
                 <Button
                   size="sm"
                   variant="outline"
@@ -256,10 +310,31 @@ export function OrganizerVideoLinksEditor({
                       : "Save"}
                 </Button>
               </div>
-            </div>
-          )
-        })}
-      </CardContent>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+
+  if (compact) {
+    return slotsBody
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Video className="h-4 w-4" />
+          Video Links
+        </CardTitle>
+        <CardDescription>
+          {teamSize > 1
+            ? "Update or add a link for each partner on the athlete's behalf"
+            : "Update a broken or incorrect link on the athlete's behalf"}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>{slotsBody}</CardContent>
     </Card>
   )
 }
