@@ -111,7 +111,10 @@ export const Route = createFileRoute(
         reviewableEventIds.length > 0
           ? (
               await getSubmissionCountsByEventFn({
-                data: { trackWorkoutIds: reviewableEventIds },
+                data: {
+                  competitionId: params.competitionId,
+                  trackWorkoutIds: reviewableEventIds,
+                },
               })
             ).counts
           : {}

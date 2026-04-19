@@ -1495,14 +1495,20 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
  * Get submission counts grouped by trackWorkoutId for the review index page.
  * Returns total submissions and reviewed count (users with scores) per event.
  *
- * Excludes submissions whose registration has been marked REMOVED so the counts
- * stay consistent with the public leaderboard and the in-person results entry
- * grid (both of which apply the same filter).
+ * Requires organizer or volunteer-review access for the given competition, and
+ * filters the requested `trackWorkoutIds` down to events that actually belong
+ * to that competition (via its programming track). Event IDs that don't belong
+ * — or don't exist — come back with zeroed counts rather than leaking data.
+ *
+ * Excludes submissions whose registration has been marked REMOVED so the
+ * counts stay consistent with the public leaderboard and the in-person results
+ * entry grid (both of which apply the same filter).
  */
 export const getSubmissionCountsByEventFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) =>
     z
       .object({
+        competitionId: z.string().min(1),
         trackWorkoutIds: z.array(z.string().min(1)).min(1),
       })
       .parse(data),
@@ -1510,64 +1516,94 @@ export const getSubmissionCountsByEventFn = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const db = getDb()
 
-    // Query 1: total submissions per trackWorkoutId
-    const submissionCounts = await autochunk(
+    // Gate on organizer permission OR volunteer score-input entitlement.
+    // Same check the per-event detail endpoints use.
+    await requireSubmissionReviewAccess(data.competitionId)
+
+    // Restrict the requested IDs to events that actually belong to this
+    // competition so a caller can't enumerate counts across tenants by
+    // passing arbitrary trackWorkoutIds. We resolve ownership through
+    // programming_tracks (the same source of truth verifyEventBelongsToCompetition
+    // falls back on for sub-events without competition_events rows).
+    const allowedRows = await autochunk(
       { items: data.trackWorkoutIds },
       async (chunk) =>
         db
-          .select({
-            trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
-            total: count(),
-          })
-          .from(videoSubmissionsTable)
+          .select({ id: trackWorkoutsTable.id })
+          .from(trackWorkoutsTable)
           .innerJoin(
-            competitionRegistrationsTable,
-            eq(
-              videoSubmissionsTable.registrationId,
-              competitionRegistrationsTable.id,
-            ),
+            programmingTracksTable,
+            eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
           )
           .where(
             and(
-              inArray(videoSubmissionsTable.trackWorkoutId, chunk),
-              ne(
-                competitionRegistrationsTable.status,
-                REGISTRATION_STATUS.REMOVED,
-              ),
+              inArray(trackWorkoutsTable.id, chunk),
+              eq(programmingTracksTable.competitionId, data.competitionId),
             ),
-          )
-          .groupBy(videoSubmissionsTable.trackWorkoutId),
+          ),
     )
+    const allowedIds = allowedRows.map((r) => r.id)
+
+    // Query 1: total submissions per trackWorkoutId
+    const submissionCounts =
+      allowedIds.length > 0
+        ? await autochunk({ items: allowedIds }, async (chunk) =>
+            db
+              .select({
+                trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+                total: count(),
+              })
+              .from(videoSubmissionsTable)
+              .innerJoin(
+                competitionRegistrationsTable,
+                eq(
+                  videoSubmissionsTable.registrationId,
+                  competitionRegistrationsTable.id,
+                ),
+              )
+              .where(
+                and(
+                  inArray(videoSubmissionsTable.trackWorkoutId, chunk),
+                  ne(
+                    competitionRegistrationsTable.status,
+                    REGISTRATION_STATUS.REMOVED,
+                  ),
+                ),
+              )
+              .groupBy(videoSubmissionsTable.trackWorkoutId),
+          )
+        : []
 
     // Query 2: reviewed count — submissions where reviewedAt is set
-    const reviewedCounts = await autochunk(
-      { items: data.trackWorkoutIds },
-      async (chunk) =>
-        db
-          .select({
-            trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
-            reviewed: count(),
-          })
-          .from(videoSubmissionsTable)
-          .innerJoin(
-            competitionRegistrationsTable,
-            eq(
-              videoSubmissionsTable.registrationId,
-              competitionRegistrationsTable.id,
-            ),
+    const reviewedCounts =
+      allowedIds.length > 0
+        ? await autochunk({ items: allowedIds }, async (chunk) =>
+            db
+              .select({
+                trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+                reviewed: count(),
+              })
+              .from(videoSubmissionsTable)
+              .innerJoin(
+                competitionRegistrationsTable,
+                eq(
+                  videoSubmissionsTable.registrationId,
+                  competitionRegistrationsTable.id,
+                ),
+              )
+              .where(
+                and(
+                  inArray(videoSubmissionsTable.trackWorkoutId, chunk),
+                  isNotNull(videoSubmissionsTable.reviewedAt),
+                  ne(
+                    competitionRegistrationsTable.status,
+                    REGISTRATION_STATUS.REMOVED,
+                  ),
+                ),
+              )
+              .groupBy(videoSubmissionsTable.trackWorkoutId),
           )
-          .where(
-            and(
-              inArray(videoSubmissionsTable.trackWorkoutId, chunk),
-              isNotNull(videoSubmissionsTable.reviewedAt),
-              ne(
-                competitionRegistrationsTable.status,
-                REGISTRATION_STATUS.REMOVED,
-              ),
-            ),
-          )
-          .groupBy(videoSubmissionsTable.trackWorkoutId),
-    )
+        : []
 
     // Build result map
     const subMap = new Map(
