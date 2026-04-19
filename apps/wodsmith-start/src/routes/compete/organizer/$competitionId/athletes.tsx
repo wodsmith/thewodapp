@@ -25,6 +25,7 @@ import {
   Mail,
   MoreHorizontal,
   Plus,
+  Search,
   Trash2,
   UserPlus,
   X,
@@ -46,6 +47,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Pagination } from "@/components/pagination"
 import {
   Card,
   CardContent,
@@ -112,12 +115,21 @@ const sortColumns = [
 type SortColumn = (typeof sortColumns)[number]
 type SortDirection = "asc" | "desc"
 
+const DEFAULT_PAGE_SIZE = 100
+const PAGE_SIZE_OPTIONS = [25, 50, 100, 200, 500]
+// Sentinel value for the Affiliate filter indicating "athletes without an affiliate"
+const NO_AFFILIATE_FILTER = "__none__"
+
 const athletesSearchSchema = z.object({
   tab: z
     .enum(["athletes", "registration-rules"])
     .optional()
     .default("athletes"),
   division: z.string().optional(),
+  // Free-text search over athlete name, email, and team name
+  q: z.string().optional(),
+  // Affiliate filter: either an affiliate name, the NO_AFFILIATE_FILTER sentinel, or undefined for all
+  affiliate: z.string().optional(),
   // questionFilters: { questionId: ["value1", "value2"] }
   questionFilters: z.record(z.string(), z.array(z.string())).optional(),
   // waiverFilters: ["waiverId:signed", "waiverId:unsigned"]
@@ -125,6 +137,9 @@ const athletesSearchSchema = z.object({
   // Sorting
   sortBy: z.enum(sortColumns).optional(),
   sortDir: z.enum(["asc", "desc"]).optional(),
+  // Pagination
+  page: z.number().int().min(1).optional(),
+  pageSize: z.number().int().min(1).max(1000).optional(),
 })
 
 export const Route = createFileRoute(
@@ -230,7 +245,12 @@ function AthletesPage() {
   } = Route.useLoaderData()
   const navigate = useNavigate()
   const router = useRouter()
-  const { tab } = Route.useSearch()
+  const search = Route.useSearch()
+  const { tab } = search
+  const currentSearchQuery = search.q ?? ""
+  const currentAffiliateFilter = search.affiliate
+  const currentPage = search.page ?? 1
+  const currentPageSize = search.pageSize ?? DEFAULT_PAGE_SIZE
   const handleTabChange = (value: string) => {
     navigate({
       to: ".",
@@ -312,10 +332,54 @@ function AthletesPage() {
       search: (prev) => ({
         ...prev,
         division: value === "all" ? undefined : value,
+        page: undefined,
       }),
       resetScroll: false,
     })
   }
+
+  const handleAffiliateChange = (value: string) => {
+    navigate({
+      to: ".",
+      search: (prev) => ({
+        ...prev,
+        affiliate: value === "all" ? undefined : value,
+        page: undefined,
+      }),
+      resetScroll: false,
+    })
+  }
+
+  const handleSearchChange = (value: string) => {
+    navigate({
+      to: ".",
+      search: (prev) => ({
+        ...prev,
+        q: value.trim() === "" ? undefined : value,
+        page: undefined,
+      }),
+      replace: true,
+      resetScroll: false,
+    })
+  }
+
+  const handlePageSizeChange = (value: string) => {
+    const parsed = Number(value)
+    navigate({
+      to: ".",
+      search: (prev) => ({
+        ...prev,
+        pageSize: Number.isFinite(parsed) ? parsed : undefined,
+        page: undefined,
+      }),
+      resetScroll: false,
+    })
+  }
+
+  const buildPaginationSearchParams = (page: number) => ({
+    ...search,
+    page,
+  })
 
   // Toggle a question filter value (add if not present, remove if present)
   const toggleQuestionFilter = (questionId: string, value: string) => {
@@ -342,6 +406,7 @@ function AthletesPage() {
           ...prev,
           questionFilters:
             Object.keys(newFilters).length > 0 ? newFilters : undefined,
+          page: undefined,
         }
       },
       resetScroll: false,
@@ -367,6 +432,7 @@ function AthletesPage() {
           ...prev,
           questionFilters:
             Object.keys(newFilters).length > 0 ? newFilters : undefined,
+          page: undefined,
         }
       },
       resetScroll: false,
@@ -385,11 +451,13 @@ function AthletesPage() {
           return {
             ...prev,
             waiverFilters: filtered.length > 0 ? filtered : undefined,
+            page: undefined,
           }
         } else {
           return {
             ...prev,
             waiverFilters: [...currentFilters, filterValue],
+            page: undefined,
           }
         }
       },
@@ -408,6 +476,7 @@ function AthletesPage() {
         return {
           ...prev,
           waiverFilters: filtered.length > 0 ? filtered : undefined,
+          page: undefined,
         }
       },
       resetScroll: false,
@@ -422,13 +491,23 @@ function AthletesPage() {
         // If clicking the same column, toggle direction or clear
         if (prev.sortBy === column) {
           if (prev.sortDir === "asc") {
-            return { ...prev, sortDir: "desc" as const }
+            return { ...prev, sortDir: "desc" as const, page: undefined }
           }
           // Clear sort
-          return { ...prev, sortBy: undefined, sortDir: undefined }
+          return {
+            ...prev,
+            sortBy: undefined,
+            sortDir: undefined,
+            page: undefined,
+          }
         }
         // New column, default to ascending
-        return { ...prev, sortBy: column, sortDir: "asc" as const }
+        return {
+          ...prev,
+          sortBy: column,
+          sortDir: "asc" as const,
+          page: undefined,
+        }
       },
       resetScroll: false,
     })
@@ -668,8 +747,50 @@ function AthletesPage() {
     {} as Record<string, string[]>,
   )
 
-  // Filter athlete rows based on question and waiver filters (all OR logic)
+  // Unique affiliate options derived from all flattened rows
+  const affiliateOptions = (() => {
+    const names = new Set<string>()
+    for (const row of athleteRows) {
+      if (row.athlete.affiliateName) {
+        names.add(row.athlete.affiliateName)
+      }
+    }
+    return Array.from(names).sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" }),
+    )
+  })()
+
+  const normalizedSearchQuery = currentSearchQuery.trim().toLowerCase()
+
+  // Filter athlete rows based on search query, affiliate, question, and waiver filters
   const filteredAthleteRows = athleteRows.filter((row) => {
+    // Apply free-text search over name, guest name, email, and team name
+    if (normalizedSearchQuery) {
+      const fullName = `${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`
+        .trim()
+        .toLowerCase()
+      const guestName = row.pendingInvite?.guestName?.toLowerCase() ?? ""
+      const email = row.athlete.email?.toLowerCase() ?? ""
+      const team = row.teamName?.toLowerCase() ?? ""
+      if (
+        !fullName.includes(normalizedSearchQuery) &&
+        !guestName.includes(normalizedSearchQuery) &&
+        !email.includes(normalizedSearchQuery) &&
+        !team.includes(normalizedSearchQuery)
+      ) {
+        return false
+      }
+    }
+
+    // Apply affiliate filter
+    if (currentAffiliateFilter) {
+      if (currentAffiliateFilter === NO_AFFILIATE_FILTER) {
+        if (row.athlete.affiliateName) return false
+      } else if (row.athlete.affiliateName !== currentAffiliateFilter) {
+        return false
+      }
+    }
+
     // Apply question filters (match ANY of the selected values per question)
     for (const [questionId, filterValues] of Object.entries(
       currentQuestionFilters,
@@ -750,6 +871,17 @@ function AthletesPage() {
         return 0
     }
   })
+
+  // Compute pagination slice from the fully filtered + sorted rows.
+  // The unpaginated sortedAthleteRows are still used for CSV export below.
+  const totalFilteredCount = sortedAthleteRows.length
+  const totalPages = Math.max(1, Math.ceil(totalFilteredCount / currentPageSize))
+  const clampedPage = Math.min(Math.max(1, currentPage), totalPages)
+  const pageStartIndex = (clampedPage - 1) * currentPageSize
+  const paginatedAthleteRows = sortedAthleteRows.slice(
+    pageStartIndex,
+    pageStartIndex + currentPageSize,
+  )
 
   const handleExportCSV = () => {
     // Build CSV header
@@ -993,6 +1125,19 @@ function AthletesPage() {
             <div className="flex flex-col gap-4">
               {/* Filters */}
               <div className="flex flex-col gap-3">
+                {/* Search */}
+                <div className="relative w-full sm:max-w-sm">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    value={currentSearchQuery}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    placeholder="Search by name, email, or team"
+                    className="pl-9"
+                    aria-label="Search athletes"
+                  />
+                </div>
+
                 {/* Filter dropdowns */}
                 <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
                   {/* Division filter (single select) */}
@@ -1008,6 +1153,27 @@ function AthletesPage() {
                       {divisions.map((division) => (
                         <SelectItem key={division.id} value={division.id}>
                           {division.label} ({division.registrationCount})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Affiliate filter (single select) */}
+                  <Select
+                    value={currentAffiliateFilter ?? "all"}
+                    onValueChange={handleAffiliateChange}
+                  >
+                    <SelectTrigger className="w-full sm:w-[220px]">
+                      <SelectValue placeholder="All Affiliates" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Affiliates</SelectItem>
+                      <SelectItem value={NO_AFFILIATE_FILTER}>
+                        None (no affiliate)
+                      </SelectItem>
+                      {affiliateOptions.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1194,7 +1360,7 @@ function AthletesPage() {
                 <>
                   {/* Mobile card view */}
                   <div className="flex flex-col gap-3 md:hidden">
-                    {sortedAthleteRows.map((row) => {
+                    {paginatedAthleteRows.map((row) => {
                       const isRowRemoved = row.registrationStatus === "removed"
                       return (
                         <Card
@@ -1639,7 +1805,7 @@ function AthletesPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {sortedAthleteRows.map((row) => {
+                          {paginatedAthleteRows.map((row) => {
                             const isRowRemoved =
                               row.registrationStatus === "removed"
                             return (
@@ -2007,6 +2173,40 @@ function AthletesPage() {
                       </Table>
                     </CardContent>
                   </Card>
+
+                  {/* Pagination controls */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        Rows per page
+                      </span>
+                      <Select
+                        value={String(currentPageSize)}
+                        onValueChange={handlePageSizeChange}
+                      >
+                        <SelectTrigger className="w-[90px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PAGE_SIZE_OPTIONS.map((size) => (
+                            <SelectItem key={size} value={String(size)}>
+                              {size}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Pagination
+                      currentPage={clampedPage}
+                      totalCount={totalFilteredCount}
+                      pageSize={currentPageSize}
+                      basePath="/compete/organizer/$competitionId/athletes"
+                      params={{ competitionId: competition.id }}
+                      buildSearchParams={buildPaginationSearchParams}
+                      itemLabel="athletes"
+                      className="sm:justify-end"
+                    />
+                  </div>
                 </>
               )}
             </div>

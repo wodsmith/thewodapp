@@ -416,6 +416,7 @@ function WorkoutsPage() {
         basePath="/workouts"
         buildSearchParams={buildPaginationSearchParams}
         className="mt-8"
+        itemLabel="workouts"
       />
     </div>
   )
