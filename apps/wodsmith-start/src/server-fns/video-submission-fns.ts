@@ -1241,7 +1241,15 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
         scalingLevelsTable,
         eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
       )
-      .where(eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId))
+      .where(
+        and(
+          eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
+          ne(
+            competitionRegistrationsTable.status,
+            REGISTRATION_STATUS.REMOVED,
+          ),
+        ),
+      )
       .orderBy(asc(videoSubmissionsTable.videoIndex))
 
     // Workout details drive how we format the claimed score (multi-round
@@ -1486,6 +1494,10 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
 /**
  * Get submission counts grouped by trackWorkoutId for the review index page.
  * Returns total submissions and reviewed count (users with scores) per event.
+ *
+ * Excludes submissions whose registration has been marked REMOVED so the counts
+ * stay consistent with the public leaderboard and the in-person results entry
+ * grid (both of which apply the same filter).
  */
 export const getSubmissionCountsByEventFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) =>
@@ -1508,7 +1520,22 @@ export const getSubmissionCountsByEventFn = createServerFn({ method: "GET" })
             total: count(),
           })
           .from(videoSubmissionsTable)
-          .where(inArray(videoSubmissionsTable.trackWorkoutId, chunk))
+          .innerJoin(
+            competitionRegistrationsTable,
+            eq(
+              videoSubmissionsTable.registrationId,
+              competitionRegistrationsTable.id,
+            ),
+          )
+          .where(
+            and(
+              inArray(videoSubmissionsTable.trackWorkoutId, chunk),
+              ne(
+                competitionRegistrationsTable.status,
+                REGISTRATION_STATUS.REMOVED,
+              ),
+            ),
+          )
           .groupBy(videoSubmissionsTable.trackWorkoutId),
     )
 
@@ -1522,10 +1549,21 @@ export const getSubmissionCountsByEventFn = createServerFn({ method: "GET" })
             reviewed: count(),
           })
           .from(videoSubmissionsTable)
+          .innerJoin(
+            competitionRegistrationsTable,
+            eq(
+              videoSubmissionsTable.registrationId,
+              competitionRegistrationsTable.id,
+            ),
+          )
           .where(
             and(
               inArray(videoSubmissionsTable.trackWorkoutId, chunk),
               isNotNull(videoSubmissionsTable.reviewedAt),
+              ne(
+                competitionRegistrationsTable.status,
+                REGISTRATION_STATUS.REMOVED,
+              ),
             ),
           )
           .groupBy(videoSubmissionsTable.trackWorkoutId),
