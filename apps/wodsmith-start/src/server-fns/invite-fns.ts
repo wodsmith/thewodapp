@@ -6,10 +6,11 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, count, eq, inArray, or } from "drizzle-orm"
+import { and, count, eq, inArray, or, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+  affiliatesTable,
   competitionRegistrationsTable,
   competitionsTable,
   INVITATION_STATUS,
@@ -964,11 +965,63 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
               }
             }
 
+            // Transfer organizer-set affiliate (if any) onto the registration
+            // metadata, keyed by this newly-joined user's id.
+            if (
+              inviteMetadata &&
+              registrationId &&
+              typeof inviteMetadata.affiliateName === "string" &&
+              inviteMetadata.affiliateName.trim().length > 0
+            ) {
+              const affiliateName = inviteMetadata.affiliateName.trim()
+              const reg =
+                await db.query.competitionRegistrationsTable.findFirst({
+                  where: eq(competitionRegistrationsTable.id, registrationId),
+                  columns: { metadata: true },
+                })
+              let regMetadata: Record<string, unknown> = {}
+              if (reg?.metadata) {
+                try {
+                  regMetadata = JSON.parse(reg.metadata) as Record<
+                    string,
+                    unknown
+                  >
+                } catch {
+                  regMetadata = {}
+                }
+              }
+              if (
+                !regMetadata.affiliates ||
+                typeof regMetadata.affiliates !== "object"
+              ) {
+                regMetadata.affiliates = {}
+              }
+              ;(regMetadata.affiliates as Record<string, string>)[
+                session.userId
+              ] = affiliateName
+
+              await db
+                .update(competitionRegistrationsTable)
+                .set({
+                  metadata: JSON.stringify(regMetadata),
+                  updatedAt: new Date(),
+                })
+                .where(eq(competitionRegistrationsTable.id, registrationId))
+
+              if (affiliateName.toLowerCase() !== "independent") {
+                await db
+                  .insert(affiliatesTable)
+                  .values({ name: affiliateName })
+                  .onDuplicateKeyUpdate({ set: { name: sql`name` } })
+              }
+            }
+
             // Clear pending data from metadata now that it's transferred
             if (inviteMetadata && registrationId) {
               delete inviteMetadata.pendingAnswers
               delete inviteMetadata.pendingSignatures
               delete inviteMetadata.submittedAt
+              delete inviteMetadata.affiliateName
 
               await db
                 .update(teamInvitationTable)

@@ -15,6 +15,11 @@ export interface AthleteDetailMember {
   isCaptain: boolean
   isActive: boolean
   joinedAt: Date | null
+  // True when the user has no password and no verified email — i.e. an
+  // organizer-created placeholder that has not been claimed yet. Organizers
+  // may edit name/email only while this is true; after claim, the athlete
+  // owns their own profile.
+  isPlaceholder: boolean
 }
 
 export interface AthleteDetailRegistration {
@@ -59,6 +64,7 @@ export interface AthleteDetailPendingInvite {
     signatureName: string
   }>
   submittedAt?: string
+  affiliateName?: string
 }
 
 export interface AthleteDetailQuestion {
@@ -88,11 +94,14 @@ export interface AthleteDetailWaiverSignature {
 export interface AthleteDetailEvent {
   id: string
   trackWorkoutId: string
+  workoutId: string
   workoutName: string
   scheme: string
   scoreType: string | null
   timeCap: number | null
   tiebreakScheme: string | null
+  repsPerRound: number | null
+  roundsToScore: number | null
   submissionWindowStartsAt: Date | string | null
   submissionWindowEndsAt: Date | string | null
   ordinal: number

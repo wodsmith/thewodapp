@@ -1227,35 +1227,21 @@ function AthletesPage() {
                                   </AvatarFallback>
                                 </Avatar>
                                 <div className="flex flex-col min-w-0">
-                                  <span className="font-medium truncate hover:underline">
+                                  <span className="font-medium truncate">
                                     {row.status === "pending" ? (
                                       <span className="italic text-muted-foreground">
                                         Invited
                                       </span>
                                     ) : row.status === "accepted" ? (
                                       row.pendingInvite?.guestName ? (
-                                        <Link
-                                          to="/compete/organizer/$competitionId/athletes/$registrationId"
-                                          params={{
-                                            competitionId: competition.id,
-                                            registrationId: row.registrationId,
-                                          }}
-                                        >
-                                          {row.pendingInvite.guestName}
-                                        </Link>
+                                        row.pendingInvite.guestName
                                       ) : (
                                         <span className="italic text-muted-foreground">
                                           Invited
                                         </span>
                                       )
                                     ) : (
-                                      <Link
-                                        to="/compete/organizer/$competitionId/athletes/$registrationId"
-                                        params={{
-                                          competitionId: competition.id,
-                                          registrationId: row.registrationId,
-                                        }}
-                                      >
+                                      <>
                                         {row.athlete.firstName ?? ""}{" "}
                                         {row.athlete.lastName ?? ""}
                                         {row.isCaptain && row.teamName && (
@@ -1263,7 +1249,7 @@ function AthletesPage() {
                                             (captain)
                                           </span>
                                         )}
-                                      </Link>
+                                      </>
                                     )}
                                   </span>
                                   <span className="text-xs text-muted-foreground truncate">
@@ -1284,6 +1270,18 @@ function AthletesPage() {
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
+                                    <DropdownMenuItem asChild>
+                                      <Link
+                                        to="/compete/organizer/$competitionId/athletes/$registrationId"
+                                        params={{
+                                          competitionId: competition.id,
+                                          registrationId: row.registrationId,
+                                        }}
+                                      >
+                                        <ArrowUpRight className="h-4 w-4 mr-2" />
+                                        View Details
+                                      </Link>
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem
                                       onClick={() => {
                                         const athleteName =
@@ -1662,7 +1660,6 @@ function AthletesPage() {
                                 <SortIcon column="joinedAt" />
                               </button>
                             </TableHead>
-                            <TableHead className="w-[50px]">View</TableHead>
                             <TableHead className="w-[40px]">
                               <span className="sr-only">Actions</span>
                             </TableHead>
@@ -1766,37 +1763,21 @@ function AthletesPage() {
                                       </AvatarFallback>
                                     </Avatar>
                                     <div className="flex flex-col">
-                                      <span className="font-medium hover:underline">
+                                      <span className="font-medium">
                                         {row.status === "pending" ? (
                                           <span className="italic text-muted-foreground">
                                             Invited
                                           </span>
                                         ) : row.status === "accepted" ? (
                                           row.pendingInvite?.guestName ? (
-                                            <Link
-                                              to="/compete/organizer/$competitionId/athletes/$registrationId"
-                                              params={{
-                                                competitionId: competition.id,
-                                                registrationId:
-                                                  row.registrationId,
-                                              }}
-                                            >
-                                              {row.pendingInvite.guestName}
-                                            </Link>
+                                            row.pendingInvite.guestName
                                           ) : (
                                             <span className="italic text-muted-foreground">
                                               Invited
                                             </span>
                                           )
                                         ) : (
-                                          <Link
-                                            to="/compete/organizer/$competitionId/athletes/$registrationId"
-                                            params={{
-                                              competitionId: competition.id,
-                                              registrationId:
-                                                row.registrationId,
-                                            }}
-                                          >
+                                          <>
                                             {row.athlete.firstName ?? ""}{" "}
                                             {row.athlete.lastName ?? ""}
                                             {row.isCaptain && row.teamName && (
@@ -1804,7 +1785,7 @@ function AthletesPage() {
                                                 (captain)
                                               </span>
                                             )}
-                                          </Link>
+                                          </>
                                         )}
                                       </span>
                                       <span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -1941,28 +1922,6 @@ function AthletesPage() {
                                     : null}
                                 </TableCell>
                                 <TableCell>
-                                  {!isRowRemoved &&
-                                    row.status === "registered" && (
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8"
-                                        asChild
-                                      >
-                                        <Link
-                                          to="/compete/organizer/$competitionId/athletes/$registrationId"
-                                          params={{
-                                            competitionId: competition.id,
-                                            registrationId: row.registrationId,
-                                          }}
-                                          aria-label="View athlete details"
-                                        >
-                                          <ArrowUpRight className="h-4 w-4" />
-                                        </Link>
-                                      </Button>
-                                    )}
-                                </TableCell>
-                                <TableCell>
                                   {row.isCaptain && !isRowRemoved && (
                                     <DropdownMenu>
                                       <DropdownMenuTrigger asChild>
@@ -1976,6 +1935,18 @@ function AthletesPage() {
                                         </Button>
                                       </DropdownMenuTrigger>
                                       <DropdownMenuContent align="end">
+                                        <DropdownMenuItem asChild>
+                                          <Link
+                                            to="/compete/organizer/$competitionId/athletes/$registrationId"
+                                            params={{
+                                              competitionId: competition.id,
+                                              registrationId: row.registrationId,
+                                            }}
+                                          >
+                                            <ArrowUpRight className="h-4 w-4 mr-2" />
+                                            View Details
+                                          </Link>
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem
                                           onClick={() => {
                                             const athleteName =

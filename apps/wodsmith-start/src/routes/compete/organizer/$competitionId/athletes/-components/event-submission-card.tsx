@@ -1,11 +1,9 @@
 import { Link, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { ExternalLink, Plus, Trash2 } from "lucide-react"
+import { ExternalLink, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
-import { EnterScoreForm } from "@/components/compete/enter-score-form"
 import { OrganizerVideoLinksEditor } from "@/components/compete/organizer-video-links-editor"
-import { VideoPlayerEmbed } from "@/components/compete/video-player-embed"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,36 +23,89 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { deleteOrganizerVideoSubmissionFn } from "@/server-fns/organizer-athlete-fns"
-import type { EventDetails } from "@/server-fns/submission-verification-fns"
-import { ManualSubmissionDialog } from "./manual-submission-dialog"
 import {
-  type AthleteDetailEvent,
-  type AthleteDetailMember,
-  type AthleteDetailScore,
-  type AthleteDetailVideoSubmission,
-  memberDisplayName,
+  decodeScore,
+  formatScore,
+  getDefaultScoreType,
+  type ScoreStatus as LibScoreStatus,
+  type ScoreType,
+  type WorkoutScheme,
+} from "@/lib/scoring"
+import { deleteOrganizerVideoSubmissionFn } from "@/server-fns/organizer-athlete-fns"
+import { OrganizerScoreEditor } from "./organizer-score-editor"
+import type {
+  AthleteDetailEvent,
+  AthleteDetailScore,
+  AthleteDetailVideoSubmission,
 } from "./types"
 
 interface EventSubmissionCardProps {
   event: AthleteDetailEvent
   registrationId: string
   competitionId: string
+  organizingTeamId: string
+  divisionId: string | null
   submissions: AthleteDetailVideoSubmission[]
   scores: AthleteDetailScore[]
-  members: AthleteDetailMember[]
   teamSize: number
   captainUserId: string
   formatDateTime: (d: Date | string | null | undefined) => string
+}
+
+function safeDecode(value: number, scheme: string): string {
+  try {
+    return decodeScore(value, scheme as WorkoutScheme, { compact: false })
+  } catch {
+    return String(value)
+  }
+}
+
+// `formatScore` canonically renders capped results as `CAP (15:30)` for
+// multi-round or `CAP (142 reps)` for single-round, plus `DQ` / `WD` for
+// terminal statuses. It doesn't cover `dnf` / `dns`, which we short-circuit
+// here so the number slot doesn't decay to "N/A".
+function formatCaptainScore(
+  score: AthleteDetailScore,
+  event: AthleteDetailEvent,
+): string {
+  if (score.scoreStatus === "dnf") return "DNF"
+  if (score.scoreStatus === "dns") return "DNS"
+  const scheme = event.scheme as WorkoutScheme
+  const scoreType =
+    (event.scoreType as ScoreType | null) ?? getDefaultScoreType(scheme)
+  const hasMultipleRounds = score.scoreRounds.length > 1
+  try {
+    return formatScore({
+      scheme,
+      scoreType,
+      value: score.scoreValue,
+      status: score.scoreStatus as LibScoreStatus,
+      timeCap:
+        score.scoreStatus === "cap" &&
+        !hasMultipleRounds &&
+        event.timeCap &&
+        score.secondaryScore !== null
+          ? {
+              ms: event.timeCap * 1000,
+              secondaryValue: score.secondaryScore,
+            }
+          : undefined,
+    })
+  } catch {
+    return score.scoreValue !== null
+      ? safeDecode(score.scoreValue, event.scheme)
+      : "—"
+  }
 }
 
 export function EventSubmissionCard({
   event,
   registrationId,
   competitionId,
+  organizingTeamId,
+  divisionId,
   submissions,
   scores,
-  members,
   teamSize,
   captainUserId,
   formatDateTime,
@@ -62,49 +113,29 @@ export function EventSubmissionCard({
   const router = useRouter()
   const deleteSubmission = useServerFn(deleteOrganizerVideoSubmissionFn)
 
-  const [deleteTarget, setDeleteTarget] =
-    useState<AthleteDetailVideoSubmission | null>(null)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [showManualDialog, setShowManualDialog] = useState(false)
-  const [editingVideoLinks, setEditingVideoLinks] = useState(false)
-  const [enteringScoreForSubmission, setEnteringScoreForSubmission] = useState<
-    string | null
-  >(null)
+  const [enteringScore, setEnteringScore] = useState(false)
 
   const captainScore = scores.find((s) => s.userId === captainUserId)
-  const submissionByIndex = new Map<number, AthleteDetailVideoSubmission>()
-  for (const s of submissions) submissionByIndex.set(s.videoIndex, s)
+  const captainSubmission = submissions.find((s) => s.videoIndex === 0) ?? null
+  const deleteTarget = deleteTargetId
+    ? (submissions.find((s) => s.id === deleteTargetId) ?? null)
+    : null
 
-  const slots = Array.from({ length: Math.max(teamSize, 1) }, (_, i) => ({
-    index: i,
-    submission: submissionByIndex.get(i) ?? null,
-  }))
-
-  const hasAnySubmission = submissions.length > 0
-
-  const eventDetails: EventDetails = {
-    id: event.trackWorkoutId,
-    trackOrder: event.ordinal,
-    workout: {
-      id: event.trackWorkoutId,
-      name: event.workoutName,
-      description: "",
-      scheme: event.scheme,
-      scoreType: event.scoreType,
-      timeCap: event.timeCap,
-      roundsToScore: 1,
-      repsPerRound: null,
-      tiebreakScheme: event.tiebreakScheme,
-    },
-    submissionWindow: {
-      opensAt: event.submissionWindowStartsAt
-        ? new Date(event.submissionWindowStartsAt).toISOString()
-        : null,
-      closesAt: event.submissionWindowEndsAt
-        ? new Date(event.submissionWindowEndsAt).toISOString()
-        : null,
-    },
-  }
+  const captainDisplayScore = captainScore
+    ? formatCaptainScore(captainScore, event)
+    : null
+  // Tiebreak is decoded with its *own* scheme ("time" → "M:SS.mmm",
+  // "reps" → raw integer), not the main score scheme.
+  const captainTiebreakDisplay =
+    captainScore?.tieBreakScore != null
+      ? event.tiebreakScheme === "time"
+        ? safeDecode(captainScore.tieBreakScore, "time")
+        : String(captainScore.tieBreakScore)
+      : null
+  const hasMultipleRounds =
+    !!captainScore && captainScore.scoreRounds.length > 1
 
   const handleDelete = async () => {
     if (!deleteTarget) return
@@ -114,7 +145,7 @@ export function EventSubmissionCard({
         data: { submissionId: deleteTarget.id, competitionId },
       })
       toast.success("Submission deleted")
-      setDeleteTarget(null)
+      setDeleteTargetId(null)
       router.invalidate()
     } catch (error) {
       toast.error(
@@ -142,21 +173,119 @@ export function EventSubmissionCard({
                 {formatDateTime(event.submissionWindowEndsAt)}
               </CardDescription>
             </div>
-            {hasAnySubmission && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setEditingVideoLinks((v) => !v)}
-                className="shrink-0"
-              >
-                {editingVideoLinks ? "Close video editor" : "Edit video URLs"}
-              </Button>
-            )}
           </div>
         </CardHeader>
 
         <CardContent className="space-y-5">
-          {editingVideoLinks && (
+          {/* Score block — decoded display matches the submission verification page */}
+          <div className="rounded-md border bg-muted/30 px-4 py-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-1.5">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-medium">
+                Score
+              </div>
+              {!captainScore && !enteringScore && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7"
+                  onClick={() => setEnteringScore(true)}
+                >
+                  Enter score
+                </Button>
+              )}
+              {captainScore && !enteringScore && (
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7"
+                    onClick={() => setEnteringScore(true)}
+                  >
+                    Edit
+                  </Button>
+                  {captainSubmission && (
+                    <Button variant="ghost" size="sm" asChild className="h-7">
+                      <Link
+                        to="/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId"
+                        params={{
+                          competitionId,
+                          eventId: event.trackWorkoutId,
+                          submissionId: captainSubmission.id,
+                        }}
+                      >
+                        Review &amp; adjust
+                        <ExternalLink className="h-3 w-3 ml-1" />
+                      </Link>
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {enteringScore ? (
+              <OrganizerScoreEditor
+                event={event}
+                competitionId={competitionId}
+                organizingTeamId={organizingTeamId}
+                registrationId={registrationId}
+                userId={captainUserId}
+                divisionId={divisionId}
+                existing={
+                  captainScore
+                    ? {
+                        scoreValue: captainScore.scoreValue,
+                        scoreStatus: captainScore.scoreStatus,
+                        tieBreakScore: captainScore.tieBreakScore,
+                        secondaryScore: captainScore.secondaryScore,
+                        scoreRounds: captainScore.scoreRounds,
+                      }
+                    : null
+                }
+                onCancel={() => setEnteringScore(false)}
+                onSaved={() => setEnteringScore(false)}
+              />
+            ) : captainScore ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-2xl font-mono font-bold">
+                    {captainDisplayScore ?? "—"}
+                  </span>
+                  {captainTiebreakDisplay && (
+                    <span className="text-xs text-muted-foreground font-mono">
+                      Tiebreak: {captainTiebreakDisplay}
+                    </span>
+                  )}
+                </div>
+                {hasMultipleRounds && (
+                  <div className="space-y-0.5 pt-1">
+                    {captainScore.scoreRounds.map((round) => (
+                      <div
+                        key={round.roundIndex}
+                        className="flex items-center gap-2 text-xs text-muted-foreground font-mono"
+                      >
+                        <span className="uppercase tracking-wider w-8">
+                          R{round.roundIndex}
+                        </span>
+                        <span>
+                          {safeDecode(round.scoreValue, event.scheme)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                No score recorded yet.
+              </div>
+            )}
+          </div>
+
+          {/* Per-teammate video URL editor — compact mode keeps Save/Delete inline with the input */}
+          <div className="space-y-2">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-medium">
+              Video Links
+            </div>
             <OrganizerVideoLinksEditor
               submissions={submissions.map((s) => ({
                 id: s.id,
@@ -167,149 +296,29 @@ export function EventSubmissionCard({
               teamSize={teamSize}
               registrationId={registrationId}
               trackWorkoutId={event.trackWorkoutId}
-            />
-          )}
-
-          {captainScore && (
-            <div className="flex items-center justify-between gap-3 rounded-md bg-muted/40 px-3 py-2 text-sm">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Score
-                </span>
-                <span className="font-mono font-medium">
-                  {captainScore.scoreValue ?? "—"}
-                </span>
-                <Badge variant="outline" className="text-xs">
-                  {captainScore.scoreStatus}
-                </Badge>
-              </div>
-              {submissions[0] && (
-                <Button variant="ghost" size="sm" asChild className="shrink-0">
-                  <Link
-                    to="/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId"
-                    params={{
-                      competitionId,
-                      eventId: event.trackWorkoutId,
-                      submissionId: submissions[0].id,
-                    }}
+              compact
+              renderSlotActions={({ submissionId }) =>
+                submissionId ? (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => setDeleteTargetId(submissionId)}
+                    className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    aria-label="Delete video"
+                    title="Delete video"
                   >
-                    Review & adjust
-                    <ExternalLink className="h-3 w-3 ml-1" />
-                  </Link>
-                </Button>
-              )}
-            </div>
-          )}
-
-          <div className="space-y-4">
-            {slots.map(({ index, submission }) => {
-              const slotLabel =
-                teamSize <= 1
-                  ? "Submission"
-                  : index === 0
-                    ? "Captain video"
-                    : `Teammate video ${index}`
-              const slotMember =
-                submission &&
-                members.find((m) => m.userId === submission.userId)
-
-              if (!submission) {
-                return (
-                  <div
-                    key={`empty-${index}`}
-                    className="rounded-md border border-dashed p-4 flex items-center justify-between gap-3 flex-wrap"
-                  >
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium">{slotLabel}</div>
-                      <div className="text-xs text-muted-foreground">
-                        No submission yet.
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowManualDialog(true)}
-                    >
-                      <Plus className="h-3.5 w-3.5 mr-1.5" />
-                      Add manually
-                    </Button>
-                  </div>
-                )
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                ) : null
               }
-
-              const hasScore = !!scores.find(
-                (s) => s.userId === submission.userId,
-              )
-
-              return (
-                <div key={submission.id} className="space-y-2">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <div className="text-sm font-medium">{slotLabel}</div>
-                      {slotMember && (
-                        <span className="text-xs text-muted-foreground">
-                          {memberDisplayName(slotMember)}
-                        </span>
-                      )}
-                      <Badge variant="secondary" className="text-xs">
-                        {submission.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      {!hasScore && submission.videoIndex === 0 && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            setEnteringScoreForSubmission(
-                              enteringScoreForSubmission === submission.id
-                                ? null
-                                : submission.id,
-                            )
-                          }
-                        >
-                          {enteringScoreForSubmission === submission.id
-                            ? "Close"
-                            : "Enter score"}
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setDeleteTarget(submission)}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="rounded-md overflow-hidden border bg-black">
-                    <VideoPlayerEmbed url={submission.videoUrl} />
-                  </div>
-                  {submission.notes && (
-                    <div className="text-xs text-muted-foreground">
-                      Notes: {submission.notes}
-                    </div>
-                  )}
-                  {enteringScoreForSubmission === submission.id && (
-                    <EnterScoreForm
-                      videoSubmissionId={submission.id}
-                      competitionId={competitionId}
-                      trackWorkoutId={event.trackWorkoutId}
-                      event={eventDetails}
-                    />
-                  )}
-                </div>
-              )
-            })}
+            />
           </div>
         </CardContent>
       </Card>
 
       <AlertDialog
         open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onOpenChange={(open) => !open && setDeleteTargetId(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -332,17 +341,6 @@ export function EventSubmissionCard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <ManualSubmissionDialog
-        open={showManualDialog}
-        onOpenChange={setShowManualDialog}
-        registrationId={registrationId}
-        competitionId={competitionId}
-        trackWorkoutId={event.trackWorkoutId}
-        members={members}
-        teamSize={teamSize}
-        existingSubmissionIndexes={submissions.map((s) => s.videoIndex)}
-      />
     </>
   )
 }

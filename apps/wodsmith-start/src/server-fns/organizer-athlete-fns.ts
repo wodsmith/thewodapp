@@ -10,10 +10,11 @@ import "server-only"
 
 import { createId } from "@paralleldrive/cuid2"
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm"
+import { and, asc, eq, inArray, isNull, ne, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+  affiliatesTable,
   commercePurchaseTable,
   competitionEventsTable,
   competitionRegistrationAnswersTable,
@@ -22,7 +23,6 @@ import {
   competitionsTable,
   createCompetitionRegistrationAnswerId,
   createTeamInvitationId,
-  createVideoSubmissionId,
   INVITATION_STATUS,
   REGISTRATION_STATUS,
   ROLES_ENUM,
@@ -39,6 +39,7 @@ import {
   waiverSignaturesTable,
   waiversTable,
 } from "@/db/schema"
+import { eventDivisionMappingsTable } from "@/db/schemas/event-division-mappings"
 import { trackWorkoutsTable } from "@/db/schemas/programming"
 import { workouts } from "@/db/schemas/workouts"
 import { getEvlog } from "@/lib/evlog"
@@ -51,7 +52,6 @@ import {
   updateRequestContext,
 } from "@/lib/logging"
 import { requireVerifiedEmail } from "@/utils/auth"
-import { saveCompetitionScoreFn } from "./competition-score-fns"
 
 // ============================================================================
 // Helpers
@@ -145,6 +145,8 @@ export const getOrganizerAthleteDetailFn = createServerFn({ method: "GET" })
               lastName: true,
               email: true,
               avatar: true,
+              passwordHash: true,
+              emailVerified: true,
             },
           },
           division: {
@@ -169,6 +171,8 @@ export const getOrganizerAthleteDetailFn = createServerFn({ method: "GET" })
                       lastName: true,
                       email: true,
                       avatar: true,
+                      passwordHash: true,
+                      emailVerified: true,
                     },
                   },
                 },
@@ -195,15 +199,103 @@ export const getOrganizerAthleteDetailFn = createServerFn({ method: "GET" })
     }
     const memberUserIdList = [...memberUserIds]
 
+    // Fetch competition events up front so we can scope the scores query
+    // to this competition's trackWorkoutIds (otherwise it pulls every score
+    // these users have across every competition and filters in-memory).
+    const competitionEvents = await db
+      .select({
+        id: competitionEventsTable.id,
+        trackWorkoutId: competitionEventsTable.trackWorkoutId,
+        parentEventId: trackWorkoutsTable.parentEventId,
+        submissionOpensAt: competitionEventsTable.submissionOpensAt,
+        submissionClosesAt: competitionEventsTable.submissionClosesAt,
+        ordinal: trackWorkoutsTable.trackOrder,
+        workoutId: workouts.id,
+        workoutName: workouts.name,
+        scheme: workouts.scheme,
+        scoreType: workouts.scoreType,
+        timeCap: workouts.timeCap,
+        tiebreakScheme: workouts.tiebreakScheme,
+        repsPerRound: workouts.repsPerRound,
+        roundsToScore: workouts.roundsToScore,
+      })
+      .from(competitionEventsTable)
+      .innerJoin(
+        trackWorkoutsTable,
+        eq(competitionEventsTable.trackWorkoutId, trackWorkoutsTable.id),
+      )
+      .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+      .where(eq(competitionEventsTable.competitionId, data.competitionId))
+      .orderBy(asc(trackWorkoutsTable.trackOrder))
+
+    // Filter events by event-division mappings using this registration's
+    // division. Mirrors the leaderboard rule (see [[organizer-dashboard#Event-Division Mappings]]):
+    // - if NO mappings exist for the competition → all events visible
+    // - if mappings exist, an event is visible when neither it nor its parent
+    //   has a mapping (unmapped → visible to all) OR when its mapping (or its
+    //   parent's mapping, for sub-events) covers the registration's division.
+    let visibleCompetitionEvents = competitionEvents
+    if (registration.divisionId && competitionEvents.length > 0) {
+      let allMappings: Array<{
+        trackWorkoutId: string
+        divisionId: string
+      }> = []
+      try {
+        allMappings = await db
+          .select({
+            trackWorkoutId: eventDivisionMappingsTable.trackWorkoutId,
+            divisionId: eventDivisionMappingsTable.divisionId,
+          })
+          .from(eventDivisionMappingsTable)
+          .where(
+            eq(eventDivisionMappingsTable.competitionId, data.competitionId),
+          )
+      } catch (error: unknown) {
+        // Table may not exist yet on fresh deployments — skip mapping filter.
+        if (
+          !error ||
+          typeof error !== "object" ||
+          !("code" in error) ||
+          (error as { code?: string | number }).code !== "ER_NO_SUCH_TABLE"
+        ) {
+          throw error
+        }
+      }
+
+      if (allMappings.length > 0) {
+        const mappedEventIds = new Set(allMappings.map((m) => m.trackWorkoutId))
+        const mappedToThisDivision = new Set(
+          allMappings
+            .filter((m) => m.divisionId === registration.divisionId)
+            .map((m) => m.trackWorkoutId),
+        )
+        visibleCompetitionEvents = competitionEvents.filter((e) => {
+          // Sub-events inherit the parent's mapping; check both ids.
+          const hasMapping =
+            mappedEventIds.has(e.trackWorkoutId) ||
+            (e.parentEventId !== null && mappedEventIds.has(e.parentEventId))
+          if (!hasMapping) return true // unmapped → visible to every division
+          return (
+            mappedToThisDivision.has(e.trackWorkoutId) ||
+            (e.parentEventId !== null &&
+              mappedToThisDivision.has(e.parentEventId))
+          )
+        })
+      }
+    }
+
+    const eventTrackWorkoutIds = visibleCompetitionEvents.map(
+      (e) => e.trackWorkoutId,
+    )
+
     // Parallel-fetch: pending invites, questions, answers, waivers, signatures,
-    // events + scores + video submissions, commerce purchase
+    // video submissions, scores, commerce purchase
     const [
       pendingInvitesRows,
       questions,
       answersRows,
       waivers,
       waiverSignaturesRows,
-      competitionEvents,
       videoSubmissionsRows,
       scoresRows,
       commercePurchase,
@@ -267,36 +359,19 @@ export const getOrganizerAthleteDetailFn = createServerFn({ method: "GET" })
             )
         : Promise.resolve([]),
       db
-        .select({
-          id: competitionEventsTable.id,
-          trackWorkoutId: competitionEventsTable.trackWorkoutId,
-          submissionOpensAt: competitionEventsTable.submissionOpensAt,
-          submissionClosesAt: competitionEventsTable.submissionClosesAt,
-          ordinal: trackWorkoutsTable.trackOrder,
-          workoutId: workouts.id,
-          workoutName: workouts.name,
-          scheme: workouts.scheme,
-          scoreType: workouts.scoreType,
-          timeCap: workouts.timeCap,
-          tiebreakScheme: workouts.tiebreakScheme,
-        })
-        .from(competitionEventsTable)
-        .innerJoin(
-          trackWorkoutsTable,
-          eq(competitionEventsTable.trackWorkoutId, trackWorkoutsTable.id),
-        )
-        .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
-        .where(eq(competitionEventsTable.competitionId, data.competitionId))
-        .orderBy(asc(trackWorkoutsTable.trackOrder)),
-      db
         .select()
         .from(videoSubmissionsTable)
         .where(eq(videoSubmissionsTable.registrationId, data.registrationId)),
-      memberUserIdList.length > 0
+      memberUserIdList.length > 0 && eventTrackWorkoutIds.length > 0
         ? db
             .select()
             .from(scoresTable)
-            .where(inArray(scoresTable.userId, memberUserIdList))
+            .where(
+              and(
+                inArray(scoresTable.userId, memberUserIdList),
+                inArray(scoresTable.competitionEventId, eventTrackWorkoutIds),
+              ),
+            )
         : Promise.resolve([] as (typeof scoresTable.$inferSelect)[]),
       registration.commercePurchaseId
         ? db.query.commercePurchaseTable.findFirst({
@@ -315,17 +390,7 @@ export const getOrganizerAthleteDetailFn = createServerFn({ method: "GET" })
         : Promise.resolve(null),
     ])
 
-    // Filter scores to only those for this competition's events
-    const trackWorkoutIdSet = new Set(
-      competitionEvents.map((e) => e.trackWorkoutId),
-    )
-    const relevantScores = (
-      scoresRows as (typeof scoresTable.$inferSelect)[]
-    ).filter(
-      (s) =>
-        s.competitionEventId !== null &&
-        trackWorkoutIdSet.has(s.competitionEventId),
-    )
+    const relevantScores = scoresRows as (typeof scoresTable.$inferSelect)[]
 
     // Load rounds for relevant scores in one query
     const scoreIds = relevantScores.map((s) => s.id)
@@ -368,6 +433,7 @@ export const getOrganizerAthleteDetailFn = createServerFn({ method: "GET" })
         | undefined
       let submittedAt: string | undefined
       let guestName: string | undefined
+      let affiliateName: string | undefined
       if (inv.metadata) {
         try {
           const meta = JSON.parse(inv.metadata) as Record<string, unknown>
@@ -384,6 +450,9 @@ export const getOrganizerAthleteDetailFn = createServerFn({ method: "GET" })
           if (typeof meta.guestName === "string") {
             guestName = meta.guestName
           }
+          if (typeof meta.affiliateName === "string") {
+            affiliateName = meta.affiliateName
+          }
         } catch {
           // ignore invalid JSON
         }
@@ -398,12 +467,30 @@ export const getOrganizerAthleteDetailFn = createServerFn({ method: "GET" })
         pendingAnswers,
         pendingSignatures,
         submittedAt,
+        affiliateName,
       }
     })
 
-    const captain = Array.isArray(registration.captain)
+    const captainRaw = Array.isArray(registration.captain)
       ? registration.captain[0]
       : registration.captain
+
+    // A placeholder user was created by an organizer (or self-registration
+    // fallback) and has never set a password or verified their email. Once
+    // they claim their account, these fields become set. Organizer edits to
+    // name/email are allowed ONLY while the user is still a placeholder —
+    // after claim, the user owns their own profile.
+    const captain = captainRaw
+      ? {
+          id: captainRaw.id,
+          firstName: captainRaw.firstName,
+          lastName: captainRaw.lastName,
+          email: captainRaw.email,
+          avatar: captainRaw.avatar,
+          isPlaceholder:
+            !captainRaw.passwordHash && !captainRaw.emailVerified,
+        }
+      : null
 
     const division = Array.isArray(registration.division)
       ? registration.division[0]
@@ -457,6 +544,8 @@ export const getOrganizerAthleteDetailFn = createServerFn({ method: "GET" })
                       lastName: string | null
                       email: string
                       avatar: string | null
+                      passwordHash: string | null
+                      emailVerified: Date | null
                     }
                   | null
                   | Array<{
@@ -465,16 +554,31 @@ export const getOrganizerAthleteDetailFn = createServerFn({ method: "GET" })
                       lastName: string | null
                       email: string
                       avatar: string | null
+                      passwordHash: string | null
+                      emailVerified: Date | null
                     }>
               }>
-            ).map((m) => ({
-              id: m.id,
-              userId: m.userId,
-              joinedAt: m.joinedAt,
-              isActive: m.isActive,
-              role: m.roleId,
-              user: Array.isArray(m.user) ? m.user[0] : m.user,
-            })),
+            ).map((m) => {
+              const rawUser = Array.isArray(m.user) ? m.user[0] : m.user
+              return {
+                id: m.id,
+                userId: m.userId,
+                joinedAt: m.joinedAt,
+                isActive: m.isActive,
+                role: m.roleId,
+                user: rawUser
+                  ? {
+                      id: rawUser.id,
+                      firstName: rawUser.firstName,
+                      lastName: rawUser.lastName,
+                      email: rawUser.email,
+                      avatar: rawUser.avatar,
+                      isPlaceholder:
+                        !rawUser.passwordHash && !rawUser.emailVerified,
+                    }
+                  : null,
+              }
+            }),
           }
         : null,
       pendingInvites,
@@ -482,14 +586,17 @@ export const getOrganizerAthleteDetailFn = createServerFn({ method: "GET" })
       answers,
       waivers,
       waiverSignatures: waiverSignaturesRows,
-      events: competitionEvents.map((e) => ({
+      events: visibleCompetitionEvents.map((e) => ({
         id: e.id,
         trackWorkoutId: e.trackWorkoutId,
+        workoutId: e.workoutId,
         workoutName: e.workoutName,
         scheme: e.scheme,
         scoreType: e.scoreType,
         timeCap: e.timeCap,
         tiebreakScheme: e.tiebreakScheme,
+        repsPerRound: e.repsPerRound,
+        roundsToScore: e.roundsToScore,
         submissionWindowStartsAt: e.submissionOpensAt,
         submissionWindowEndsAt: e.submissionClosesAt,
         ordinal: e.ordinal,
@@ -640,6 +747,22 @@ export const updateAthleteUserProfileFn = createServerFn({ method: "POST" })
       throw new Error("User is not a member of this registration")
     }
 
+    // Only allow organizer edits to name/email while the user is still a
+    // placeholder (no password, no verified email). Once claimed, the user
+    // owns their own profile — organizers must not overwrite it from a
+    // competition-scoped surface.
+    const targetUser = await db.query.userTable.findFirst({
+      where: eq(userTable.id, data.userId),
+      columns: { id: true, passwordHash: true, emailVerified: true },
+    })
+    if (!targetUser) throw new Error("User not found")
+    const isPlaceholder = !targetUser.passwordHash && !targetUser.emailVerified
+    if (!isPlaceholder) {
+      throw new Error(
+        "This athlete has claimed their account — only the athlete can edit their profile. Update the affiliate instead, which is scoped to this registration.",
+      )
+    }
+
     // Check email uniqueness if email is being changed
     const updates: {
       firstName?: string
@@ -678,6 +801,219 @@ export const updateAthleteUserProfileFn = createServerFn({ method: "POST" })
         competitionId: data.competitionId,
         registrationId: data.registrationId,
         performedBy: session.userId,
+      },
+    })
+
+    return { success: true }
+  })
+
+// ============================================================================
+// A3b. updateRegistrationAffiliateAsOrganizerFn
+// Organizer-scoped affiliate edit. The athlete-facing
+// `updateRegistrationAffiliateFn` rejects callers updating someone else's
+// userId; this variant authorizes via MANAGE_COMPETITIONS instead.
+// ============================================================================
+
+const updateRegistrationAffiliateAsOrganizerInputSchema = z.object({
+  registrationId: z.string().min(1),
+  competitionId: z.string().min(1),
+  userId: z.string().min(1),
+  affiliateName: z.string().max(255).nullable(),
+})
+
+export const updateRegistrationAffiliateAsOrganizerFn = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data: unknown) =>
+    updateRegistrationAffiliateAsOrganizerInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const session = await requireVerifiedEmail()
+    if (!session) throw new Error("Unauthorized")
+
+    const db = getDb()
+    updateRequestContext({ userId: session.userId })
+    addRequestContextAttribute("competitionId", data.competitionId)
+    addRequestContextAttribute("registrationId", data.registrationId)
+    addRequestContextAttribute("targetUserId", data.userId)
+
+    const competition = await loadCompetitionForAuth(data.competitionId)
+    requireCanManage(session, competition.organizingTeamId)
+
+    const registration = await loadRegistrationOrThrow(
+      data.registrationId,
+      data.competitionId,
+    )
+
+    // Verify target user is captain or member of athlete team — same pattern
+    // as updateAthleteUserProfileFn.
+    let isAuthorizedTarget = registration.userId === data.userId
+    if (!isAuthorizedTarget && registration.athleteTeamId) {
+      const membership = await db.query.teamMembershipTable.findFirst({
+        where: and(
+          eq(teamMembershipTable.teamId, registration.athleteTeamId),
+          eq(teamMembershipTable.userId, data.userId),
+        ),
+      })
+      isAuthorizedTarget = !!membership
+    }
+    if (!isAuthorizedTarget) {
+      throw new Error("User is not a member of this registration")
+    }
+
+    let metadata: Record<string, unknown> = {}
+    if (registration.metadata) {
+      try {
+        metadata = JSON.parse(registration.metadata) as Record<string, unknown>
+      } catch {
+        metadata = {}
+      }
+    }
+
+    if (!metadata.affiliates || typeof metadata.affiliates !== "object") {
+      metadata.affiliates = {}
+    }
+    const affiliates = metadata.affiliates as Record<string, string | null>
+
+    const trimmed = data.affiliateName?.trim() ?? null
+    if (trimmed) {
+      affiliates[data.userId] = trimmed
+    } else {
+      delete affiliates[data.userId]
+    }
+    if (Object.keys(affiliates).length === 0) {
+      delete metadata.affiliates
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(competitionRegistrationsTable)
+        .set({
+          metadata:
+            Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : null,
+          updatedAt: new Date(),
+        })
+        .where(eq(competitionRegistrationsTable.id, data.registrationId))
+
+      if (trimmed && trimmed.toLowerCase() !== "independent") {
+        await tx
+          .insert(affiliatesTable)
+          .values({ name: trimmed })
+          .onDuplicateKeyUpdate({ set: { name: sql`name` } })
+      }
+    })
+
+    logEntityUpdated({
+      entity: "competition_registration",
+      id: data.registrationId,
+      fields: ["metadata.affiliates"],
+      attributes: {
+        competitionId: data.competitionId,
+        targetUserId: data.userId,
+        affiliateName: trimmed,
+      },
+    })
+
+    return { success: true }
+  })
+
+// ============================================================================
+// A3c. updatePendingInviteAffiliateAsOrganizerFn
+// Sets a per-invite affiliate on the invitation metadata so the organizer can
+// pre-fill an affiliate for a teammate who hasn't created an account yet. The
+// affiliate is transferred onto the registration's `metadata.affiliates[userId]`
+// during invite acceptance (see acceptCompetitionTeamInviteFn in invite-fns.ts).
+// ============================================================================
+
+const updatePendingInviteAffiliateAsOrganizerInputSchema = z.object({
+  invitationId: z.string().min(1),
+  registrationId: z.string().min(1),
+  competitionId: z.string().min(1),
+  affiliateName: z.string().max(255).nullable(),
+})
+
+export const updatePendingInviteAffiliateAsOrganizerFn = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data: unknown) =>
+    updatePendingInviteAffiliateAsOrganizerInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const session = await requireVerifiedEmail()
+    if (!session) throw new Error("Unauthorized")
+
+    const db = getDb()
+    updateRequestContext({ userId: session.userId })
+    addRequestContextAttribute("competitionId", data.competitionId)
+    addRequestContextAttribute("registrationId", data.registrationId)
+    addRequestContextAttribute("invitationId", data.invitationId)
+
+    const competition = await loadCompetitionForAuth(data.competitionId)
+    requireCanManage(session, competition.organizingTeamId)
+
+    const registration = await loadRegistrationOrThrow(
+      data.registrationId,
+      data.competitionId,
+    )
+    if (!registration.athleteTeamId) {
+      throw new Error("This registration has no athlete team")
+    }
+
+    const invitation = await db.query.teamInvitationTable.findFirst({
+      where: and(
+        eq(teamInvitationTable.id, data.invitationId),
+        eq(teamInvitationTable.teamId, registration.athleteTeamId),
+      ),
+    })
+    if (!invitation) throw new Error("Invitation not found")
+
+    let inviteMetadata: Record<string, unknown> = {}
+    if (invitation.metadata) {
+      try {
+        inviteMetadata = JSON.parse(invitation.metadata) as Record<
+          string,
+          unknown
+        >
+      } catch {
+        inviteMetadata = {}
+      }
+    }
+
+    const trimmed = data.affiliateName?.trim() ?? null
+    if (trimmed) {
+      inviteMetadata.affiliateName = trimmed
+    } else {
+      delete inviteMetadata.affiliateName
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(teamInvitationTable)
+        .set({
+          metadata:
+            Object.keys(inviteMetadata).length > 0
+              ? JSON.stringify(inviteMetadata)
+              : null,
+          updatedAt: new Date(),
+        })
+        .where(eq(teamInvitationTable.id, data.invitationId))
+
+      if (trimmed && trimmed.toLowerCase() !== "independent") {
+        await tx
+          .insert(affiliatesTable)
+          .values({ name: trimmed })
+          .onDuplicateKeyUpdate({ set: { name: sql`name` } })
+      }
+    })
+
+    logEntityUpdated({
+      entity: "team_invitation",
+      id: data.invitationId,
+      fields: ["metadata.affiliateName"],
+      attributes: {
+        competitionId: data.competitionId,
+        registrationId: data.registrationId,
+        affiliateName: trimmed,
       },
     })
 
@@ -756,6 +1092,115 @@ export const updateRegistrationAnswerFn = createServerFn({ method: "POST" })
       entity: "registration_answer",
       id: `${data.registrationId}:${data.userId}:${data.questionId}`,
       attributes: { competitionId: data.competitionId },
+    })
+
+    return { success: true }
+  })
+
+// ============================================================================
+// A4b. updatePendingInviteAnswerAsOrganizerFn
+// Edits a pending teammate invite's pre-filled registration answer by mutating
+// the `pendingAnswers` array inside `teamInvitationTable.metadata`. When the
+// invitee later accepts the invite, `acceptTeamInvitationFn` transfers these
+// into the answers table (pending wins over captain-entered defaults).
+// ============================================================================
+
+const updatePendingInviteAnswerAsOrganizerInputSchema = z.object({
+  invitationId: z.string().min(1),
+  registrationId: z.string().min(1),
+  competitionId: z.string().min(1),
+  questionId: z.string().min(1),
+  answer: z.string(),
+})
+
+export const updatePendingInviteAnswerAsOrganizerFn = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data: unknown) =>
+    updatePendingInviteAnswerAsOrganizerInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const session = await requireVerifiedEmail()
+    if (!session) throw new Error("Unauthorized")
+
+    const db = getDb()
+    updateRequestContext({ userId: session.userId })
+    addRequestContextAttribute("competitionId", data.competitionId)
+    addRequestContextAttribute("registrationId", data.registrationId)
+    addRequestContextAttribute("invitationId", data.invitationId)
+
+    const competition = await loadCompetitionForAuth(data.competitionId)
+    requireCanManage(session, competition.organizingTeamId)
+
+    const registration = await loadRegistrationOrThrow(
+      data.registrationId,
+      data.competitionId,
+    )
+    if (!registration.athleteTeamId) {
+      throw new Error("This registration has no athlete team")
+    }
+
+    const invitation = await db.query.teamInvitationTable.findFirst({
+      where: and(
+        eq(teamInvitationTable.id, data.invitationId),
+        eq(teamInvitationTable.teamId, registration.athleteTeamId),
+      ),
+    })
+    if (!invitation) throw new Error("Invitation not found")
+
+    let inviteMetadata: Record<string, unknown> = {}
+    if (invitation.metadata) {
+      try {
+        inviteMetadata = JSON.parse(invitation.metadata) as Record<
+          string,
+          unknown
+        >
+      } catch {
+        inviteMetadata = {}
+      }
+    }
+
+    const existing: Array<{ questionId: string; answer: string }> =
+      Array.isArray(inviteMetadata.pendingAnswers)
+        ? (inviteMetadata.pendingAnswers as Array<{
+            questionId: string
+            answer: string
+          }>)
+        : []
+
+    const trimmed = data.answer.trim()
+    const next = existing.filter((a) => a.questionId !== data.questionId)
+    if (trimmed !== "") {
+      next.push({ questionId: data.questionId, answer: trimmed })
+    }
+
+    if (next.length > 0) {
+      inviteMetadata.pendingAnswers = next
+    } else {
+      delete inviteMetadata.pendingAnswers
+    }
+
+    await db
+      .update(teamInvitationTable)
+      .set({
+        metadata:
+          Object.keys(inviteMetadata).length > 0
+            ? JSON.stringify(inviteMetadata)
+            : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(teamInvitationTable.id, data.invitationId))
+
+    logEntityUpdated({
+      entity: "team_invitation",
+      id: data.invitationId,
+      fields: ["metadata.pendingAnswers"],
+      attributes: {
+        competitionId: data.competitionId,
+        registrationId: data.registrationId,
+        questionId: data.questionId,
+        cleared: trimmed === "",
+      },
     })
 
     return { success: true }
@@ -1102,176 +1547,6 @@ export const addTeammateToRegistrationFn = createServerFn({ method: "POST" })
   })
 
 // ============================================================================
-// A8. createOrganizerVideoSubmissionFn
-// ============================================================================
-
-const createOrganizerVideoSubmissionInputSchema = z.object({
-  registrationId: z.string().min(1),
-  competitionId: z.string().min(1),
-  trackWorkoutId: z.string().min(1),
-  userId: z.string().min(1),
-  videoUrl: z.string().url().max(2000),
-  videoIndex: z.number().int().min(0).default(0),
-  notes: z.string().max(1000).optional(),
-  score: z.string().optional(),
-  roundScores: z.array(z.object({ score: z.string() })).optional(),
-  scoreStatus: z.enum(["scored", "cap", "dq", "withdrawn"]).optional(),
-  secondaryScore: z.string().optional(),
-  tieBreakScore: z.string().optional(),
-})
-
-export const createOrganizerVideoSubmissionFn = createServerFn({
-  method: "POST",
-})
-  .inputValidator((data: unknown) =>
-    createOrganizerVideoSubmissionInputSchema.parse(data),
-  )
-  .handler(async ({ data }) => {
-    const session = await requireVerifiedEmail()
-    if (!session) throw new Error("Unauthorized")
-
-    const db = getDb()
-    updateRequestContext({ userId: session.userId })
-    addRequestContextAttribute("competitionId", data.competitionId)
-    addRequestContextAttribute("registrationId", data.registrationId)
-    addRequestContextAttribute("trackWorkoutId", data.trackWorkoutId)
-
-    const competition = await loadCompetitionForAuth(data.competitionId)
-    requireCanManage(session, competition.organizingTeamId)
-
-    const registration = await loadRegistrationOrThrow(
-      data.registrationId,
-      data.competitionId,
-    )
-
-    // Look up the workout info needed to save the score
-    const workoutInfo = await db
-      .select({
-        workoutId: workouts.id,
-        scheme: workouts.scheme,
-        scoreType: workouts.scoreType,
-        timeCap: workouts.timeCap,
-        tiebreakScheme: workouts.tiebreakScheme,
-      })
-      .from(trackWorkoutsTable)
-      .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
-      .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
-      .limit(1)
-
-    const workout = workoutInfo[0]
-    if (!workout) throw new Error("Track workout not found")
-
-    const now = new Date()
-
-    // Upsert video submission (one per registration + trackWorkoutId + videoIndex)
-    const [existing] = await db
-      .select({ id: videoSubmissionsTable.id })
-      .from(videoSubmissionsTable)
-      .where(
-        and(
-          eq(videoSubmissionsTable.registrationId, data.registrationId),
-          eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
-          eq(videoSubmissionsTable.videoIndex, data.videoIndex),
-        ),
-      )
-      .limit(1)
-
-    let submissionId: string
-    if (existing) {
-      submissionId = existing.id
-      await db
-        .update(videoSubmissionsTable)
-        .set({
-          userId: data.userId,
-          videoUrl: data.videoUrl,
-          notes: data.notes ?? null,
-          submittedAt: now,
-          updatedAt: now,
-        })
-        .where(eq(videoSubmissionsTable.id, existing.id))
-      logEntityUpdated({
-        entity: "video_submission",
-        id: submissionId,
-        attributes: {
-          competitionId: data.competitionId,
-          registrationId: data.registrationId,
-          trackWorkoutId: data.trackWorkoutId,
-          videoIndex: data.videoIndex,
-        },
-      })
-    } else {
-      submissionId = createVideoSubmissionId()
-      await db.insert(videoSubmissionsTable).values({
-        id: submissionId,
-        registrationId: data.registrationId,
-        trackWorkoutId: data.trackWorkoutId,
-        videoIndex: data.videoIndex,
-        userId: data.userId,
-        videoUrl: data.videoUrl,
-        notes: data.notes ?? null,
-        submittedAt: now,
-        reviewStatus: "pending",
-      })
-      logEntityCreated({
-        entity: "video_submission",
-        id: submissionId,
-        parentId: data.registrationId,
-        parentEntity: "competition_registration",
-        attributes: {
-          competitionId: data.competitionId,
-          trackWorkoutId: data.trackWorkoutId,
-          videoIndex: data.videoIndex,
-        },
-      })
-    }
-
-    // Score is owned by videoIndex=0 only. Teammate slots intentionally carry
-    // no score and must not overwrite the shared team score.
-    const hasScore = data.score !== undefined && data.score.trim().length > 0
-    const hasRoundScores =
-      data.roundScores !== undefined && data.roundScores.length > 0
-    const shouldCreateScore =
-      data.videoIndex === 0 && (hasScore || hasRoundScores)
-
-    let scoreResult: {
-      resultId: string
-      isNew: boolean
-    } | null = null
-
-    if (shouldCreateScore) {
-      const result = await saveCompetitionScoreFn({
-        data: {
-          competitionId: data.competitionId,
-          organizingTeamId: competition.organizingTeamId,
-          trackWorkoutId: data.trackWorkoutId,
-          workoutId: workout.workoutId,
-          registrationId: data.registrationId,
-          userId: data.userId,
-          divisionId: registration.divisionId ?? null,
-          score: data.score ?? "",
-          scoreStatus: data.scoreStatus ?? "scored",
-          tieBreakScore: data.tieBreakScore ?? null,
-          secondaryScore: data.secondaryScore ?? null,
-          roundScores: data.roundScores,
-          workout: {
-            scheme: workout.scheme,
-            scoreType: workout.scoreType,
-            timeCap: workout.timeCap,
-            tiebreakScheme: workout.tiebreakScheme,
-          },
-        },
-      })
-      scoreResult = result.data
-    }
-
-    return {
-      success: true,
-      submissionId,
-      scoreId: scoreResult?.resultId ?? null,
-    }
-  })
-
-// ============================================================================
 // A9. deleteOrganizerVideoSubmissionFn
 // ============================================================================
 
@@ -1413,15 +1688,6 @@ export const resendTeamInviteAsOrganizerFn = createServerFn({ method: "POST" })
     const newExpiresAt = new Date()
     newExpiresAt.setDate(newExpiresAt.getDate() + 30)
 
-    await db
-      .update(teamInvitationTable)
-      .set({
-        token: newToken,
-        expiresAt: newExpiresAt,
-        updatedAt: new Date(),
-      })
-      .where(eq(teamInvitationTable.id, invitation.id))
-
     const division = registration.divisionId
       ? await db.query.scalingLevelsTable.findFirst({
           where: eq(scalingLevelsTable.id, registration.divisionId),
@@ -1438,6 +1704,10 @@ export const resendTeamInviteAsOrganizerFn = createServerFn({ method: "POST" })
         "The competition organizer"
       : "The competition organizer"
 
+    // Send the email first. Only rotate the token in the DB after a successful
+    // send — otherwise a failed email would leave the invite with a new token
+    // that was never delivered, making the old (still-valid) link the only
+    // way to accept the invite.
     const { sendCompetitionTeamInviteEmail } = await import("@/utils/email")
     await sendCompetitionTeamInviteEmail({
       email: invitation.email,
@@ -1447,6 +1717,15 @@ export const resendTeamInviteAsOrganizerFn = createServerFn({ method: "POST" })
       divisionName: division?.label ?? "Division",
       inviterName,
     })
+
+    await db
+      .update(teamInvitationTable)
+      .set({
+        token: newToken,
+        expiresAt: newExpiresAt,
+        updatedAt: new Date(),
+      })
+      .where(eq(teamInvitationTable.id, invitation.id))
 
     logEntityUpdated({
       entity: "team_invitation",
