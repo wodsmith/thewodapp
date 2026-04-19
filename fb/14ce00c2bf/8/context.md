@@ -1,0 +1,13 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+@apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/index.tsx lets not do the bold orange for athlete name, lets actually just remove clickable link for athlete column since we added the view action under "..."
+
+### Prompt 2
+
+Stop hook feedback:
+The codebase has changes (4547 lines) but `lat.md/` may not be fully in sync (26 lines changed). Verify `lat.md/` is in sync — run `lat search` to find relevant sections. Run `lat check` at the end.
+
