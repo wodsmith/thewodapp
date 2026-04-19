@@ -1,0 +1,13 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+@apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/$registrationId.tsx please make sure that the organizer is only ever editing the registration record for the competition when it comes to athlete and team information. I'm pretty sure I just updated an athletes actual last name on their profile as the organizer.
+
+### Prompt 2
+
+Stop hook feedback:
+The codebase has changes (4484 lines) but `lat.md/` may not be fully in sync (26 lines changed). Verify `lat.md/` is in sync — run `lat search` to find relevant sections. Run `lat check` at the end.
+
