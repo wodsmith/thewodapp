@@ -217,20 +217,18 @@ function CappedRoundsIndicator({
   )
 }
 
-/** Subtle warning icon indicating a penalty or score adjustment */
+/** Subtle warning icon shown only for minor/major penalties */
 function PenaltyIndicator({
   result,
 }: {
   result: CompetitionLeaderboardEntry["eventResults"][number]
 }) {
-  if (!result.penaltyType && !result.isDirectlyModified) return null
+  if (!result.penaltyType) return null
 
-  const label = result.penaltyType
-    ? `${result.penaltyType === "major" ? "Major" : "Minor"} Penalty${result.penaltyPercentage != null ? ` (${result.penaltyPercentage}%)` : ""}`
-    : "Score Adjusted"
+  const label = `${result.penaltyType === "major" ? "Major" : "Minor"} Penalty${result.penaltyPercentage != null ? ` (${result.penaltyPercentage}%)` : ""}`
 
   return (
-    <span title={label}>
+    <span title={label} aria-label={label}>
       <AlertTriangle className="h-3 w-3 text-muted-foreground" />
     </span>
   )
@@ -304,7 +302,7 @@ function hasExpandableContent(
   return entry.eventResults.some(
     (r) =>
       r.trackWorkoutId === selectedEventId &&
-      (r.videoUrl || r.penaltyType || r.isDirectlyModified),
+      (r.videoUrl || r.penaltyType),
   )
 }
 
@@ -412,11 +410,9 @@ function ExpandedVideoRow({
     ? entry.eventResults.filter(
         (r) =>
           r.trackWorkoutId === selectedEventId &&
-          (r.videoUrl || r.penaltyType || r.isDirectlyModified),
+          (r.videoUrl || r.penaltyType),
       )
-    : entry.eventResults.filter(
-        (r) => r.videoUrl || r.penaltyType || r.isDirectlyModified,
-      )
+    : entry.eventResults.filter((r) => r.videoUrl || r.penaltyType)
 
   if (resultsToShow.length === 0) return null
 
@@ -436,19 +432,13 @@ function ExpandedVideoRow({
                   </span>
                 )}
 
-                {/* Penalty / adjustment notices */}
+                {/* Penalty notice */}
                 {result.penaltyType && (
                   <div className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
                     <AlertTriangle className="h-3 w-3" />
                     {result.penaltyType === "major" ? "Major" : "Minor"} Penalty
                     {result.penaltyPercentage != null &&
                       ` · ${result.penaltyPercentage}% deduction`}
-                  </div>
-                )}
-                {!result.penaltyType && result.isDirectlyModified && (
-                  <div className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-                    <AlertTriangle className="h-3 w-3" />
-                    Score adjusted by organizer
                   </div>
                 )}
 
@@ -651,9 +641,7 @@ function MobileOnlineLeaderboardRow({
           {entry.eventResults.some((r) => r.videoUrl) && (
             <Video className="h-4 w-4 text-muted-foreground shrink-0" />
           )}
-          {entry.eventResults.some(
-            (r) => r.penaltyType || r.isDirectlyModified,
-          ) && (
+          {entry.eventResults.some((r) => r.penaltyType) && (
             <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           )}
 
@@ -719,12 +707,6 @@ function MobileOnlineLeaderboardRow({
                             Penalty
                             {result.penaltyPercentage != null &&
                               ` · ${result.penaltyPercentage}% deduction`}
-                          </span>
-                        )}
-                        {!result.penaltyType && result.isDirectlyModified && (
-                          <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
-                            <AlertTriangle className="h-2.5 w-2.5" />
-                            Score adjusted by organizer
                           </span>
                         )}
                       </div>

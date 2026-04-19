@@ -559,7 +559,7 @@ describe("LeaderboardPageContent", () => {
 			expect(indicators.length).toBeGreaterThan(0)
 		})
 
-		it("shows indicator for directly modified score", async () => {
+		it("does not show indicator for directly modified score without penalty", async () => {
 			const entries = [
 				createMockEntry({
 					eventResults: [
@@ -600,8 +600,8 @@ describe("LeaderboardPageContent", () => {
 				expect(screen.getAllByText("4:50").length).toBeGreaterThan(0)
 			})
 
-			const indicators = screen.getAllByLabelText("Score Adjusted")
-			expect(indicators.length).toBeGreaterThan(0)
+			expect(screen.queryByLabelText(/penalty/i)).not.toBeInTheDocument()
+			expect(screen.queryByLabelText(/adjusted/i)).not.toBeInTheDocument()
 		})
 
 		it("shows penalty details in popover on click", async () => {
@@ -654,7 +654,7 @@ describe("LeaderboardPageContent", () => {
 			})
 		})
 
-		it("shows organizer message for directly modified scores in popover", async () => {
+		it("does not show popover for directly modified scores without penalty", async () => {
 			const entries = [
 				createMockEntry({
 					eventResults: [
@@ -695,13 +695,10 @@ describe("LeaderboardPageContent", () => {
 				expect(screen.getAllByText("4:50").length).toBeGreaterThan(0)
 			})
 
-			const indicator = screen.getAllByLabelText("Score Adjusted")[0]
-			fireEvent.click(indicator)
-
-			await waitFor(() => {
-				expect(screen.getByText("Score Adjusted")).toBeInTheDocument()
-				expect(screen.getByText("This score was modified by an organizer.")).toBeInTheDocument()
-			})
+			expect(screen.queryByLabelText("Score Adjusted")).not.toBeInTheDocument()
+			expect(
+				screen.queryByText("This score was modified by an organizer."),
+			).not.toBeInTheDocument()
 		})
 	})
 
