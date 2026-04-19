@@ -17,35 +17,22 @@ import {
 import { useServerFn } from "@tanstack/react-start"
 import {
   AlertTriangle,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
   Eye,
   EyeOff,
   Loader2,
   Video,
-  VideoOff,
 } from "lucide-react"
 import { useCallback, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
 import { ResultsEntryForm } from "@/components/organizer/results/results-entry-form"
-import { formatTrackOrder } from "@/utils/format-track-order"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Progress } from "@/components/ui/progress"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import {
   getEventScoreEntryDataWithHeatsFn,
@@ -57,7 +44,9 @@ import {
   getDivisionResultsStatusFn,
   publishDivisionResultsFn,
 } from "@/server-fns/division-results-fns"
-import { getEventSubmissionsFn } from "@/server-fns/submission-verification-fns"
+import { getSubmissionCountsByEventFn } from "@/server-fns/video-submission-fns"
+import { cn } from "@/utils/cn"
+import { formatTrackOrder } from "@/utils/format-track-order"
 
 // Get parent route API to access competition data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -103,75 +92,37 @@ export const Route = createFileRoute(
     const events = eventsResult.workouts
     const divisions = divisionsResult.divisions
 
-    // For online competitions, fetch submission stats for each event
-    // Show sub-events individually (scores are per sub-event), group under parent for context
+    // For online competitions, fetch submission counts in a single aggregate
+    // query for every reviewable event (sub-events when present, otherwise the
+    // standalone event itself) instead of materializing per-event submission
+    // rows just to count them.
     if (isOnline) {
-      // Build a flat list of reviewable events: sub-events if parent has children, otherwise the event itself
-      const reviewableEvents: Array<{
-        event: (typeof events)[number]
-        parentName: string | null
-      }> = []
+      const reviewableEventIds: string[] = []
       for (const event of events) {
-        if (event.parentEventId) continue // handled below via parent
-        const children = events.filter(
-          (e) => e.parentEventId === event.id,
-        )
-        if (children.length > 0) {
-          for (const child of children) {
-            reviewableEvents.push({
-              event: child,
-              parentName: event.workout.name,
-            })
-          }
-        } else {
-          reviewableEvents.push({ event, parentName: null })
+        if (event.parentEventId) {
+          reviewableEventIds.push(event.id)
+          continue
         }
+        const hasChildren = events.some((e) => e.parentEventId === event.id)
+        if (!hasChildren) reviewableEventIds.push(event.id)
       }
 
-      const eventSubmissionStats = await Promise.all(
-        reviewableEvents.map(async ({ event, parentName }) => {
-          try {
-            const { submissions } = await getEventSubmissionsFn({
-              data: {
-                competitionId: params.competitionId,
-                trackWorkoutId: event.id,
-              },
-            })
-            const withVideo = submissions.filter((s) => s.hasVideo).length
-            return {
-              eventId: event.id,
-              eventName: event.workout.name,
-              parentName,
-              trackOrder: event.trackOrder,
-              totalSubmissions: submissions.length,
-              withVideo,
-              withoutVideo: submissions.length - withVideo,
-            }
-          } catch (error) {
-            // Event may not have a competition_events row yet
-            if (
-              error instanceof Error &&
-              error.message === "Event not found in this competition"
-            ) {
-              return {
-                eventId: event.id,
-                eventName: event.workout.name,
-                parentName,
-                trackOrder: event.trackOrder,
-                totalSubmissions: 0,
-                withVideo: 0,
-                withoutVideo: 0,
-              }
-            }
-            throw error
-          }
-        }),
-      )
+      const submissionCounts =
+        reviewableEventIds.length > 0
+          ? (
+              await getSubmissionCountsByEventFn({
+                data: {
+                  competitionId: params.competitionId,
+                  trackWorkoutIds: reviewableEventIds,
+                },
+              })
+            ).counts
+          : {}
 
       return {
         isOnline: true as const,
         events,
-        eventSubmissionStats,
+        submissionCounts,
       }
     }
 
@@ -191,7 +142,9 @@ export const Route = createFileRoute(
       ? events.find((e) => e.id === deps.eventId)
       : undefined
     const selectedEventId =
-      requestedEvent?.parentEventId ?? requestedEvent?.id ?? topLevelEvents[0]?.id
+      requestedEvent?.parentEventId ??
+      requestedEvent?.id ??
+      topLevelEvents[0]?.id
 
     // Check if selected event is a parent (has children)
     const childEvents = events
@@ -200,8 +153,12 @@ export const Route = createFileRoute(
     const isParentEvent = childEvents.length > 0
 
     // For parent events, load score data for ALL child events in parallel
-    let childScoreDataList: Array<Awaited<ReturnType<typeof getEventScoreEntryDataWithHeatsFn>>> = []
-    let scoreEntryData: Awaited<ReturnType<typeof getEventScoreEntryDataWithHeatsFn>> | null = null
+    let childScoreDataList: Array<
+      Awaited<ReturnType<typeof getEventScoreEntryDataWithHeatsFn>>
+    > = []
+    let scoreEntryData: Awaited<
+      ReturnType<typeof getEventScoreEntryDataWithHeatsFn>
+    > | null = null
 
     if (isParentEvent && childEvents.length > 0) {
       childScoreDataList = await Promise.all(
@@ -213,8 +170,8 @@ export const Route = createFileRoute(
               trackWorkoutId: child.id,
               divisionId: deps.divisionId,
             },
-          })
-        )
+          }),
+        ),
       )
     } else if (selectedEventId && !isParentEvent) {
       // Standalone event - load single score entry data
@@ -259,58 +216,71 @@ function ResultsPage() {
   return <InPersonResultsEntry data={loaderData} />
 }
 
+type OverviewEvent = {
+  id: string
+  workout: { name: string }
+  trackOrder: number | string
+  parentEventId: string | null
+}
+type CountEntry = { total: number; reviewed: number; pending: number }
+
+const EMPTY_COUNTS: CountEntry = { total: 0, reviewed: 0, pending: 0 }
+
+function sumCounts(entries: CountEntry[]): CountEntry {
+  return entries.reduce(
+    (acc, c) => ({
+      total: acc.total + c.total,
+      reviewed: acc.reviewed + c.reviewed,
+      pending: acc.pending + c.pending,
+    }),
+    { ...EMPTY_COUNTS },
+  )
+}
+
 /**
  * Online competition submissions overview
- * Shows all events with submission counts and links to verification pages
+ * Shows all events with submission counts and links to verification pages.
+ * Mirrors the volunteer review page (`/compete/$slug/review`) layout.
  */
 function OnlineSubmissionsOverview({
   data,
 }: {
   data: {
     isOnline: true
-    events: Array<{
-      id: string
-      workout: { name: string }
-      trackOrder: number
-    }>
-    eventSubmissionStats: Array<{
-      eventId: string
-      eventName: string
-      parentName: string | null
-      trackOrder: number
-      totalSubmissions: number
-      withVideo: number
-      withoutVideo: number
-    }>
+    events: OverviewEvent[]
+    submissionCounts: Record<string, CountEntry>
   }
 }) {
   const { competitionId } = Route.useParams()
+  const { events, submissionCounts } = data
 
-  // Calculate totals
-  const totals = data.eventSubmissionStats.reduce(
-    (acc, stat) => ({
-      totalSubmissions: acc.totalSubmissions + stat.totalSubmissions,
-      withVideo: acc.withVideo + stat.withVideo,
-      withoutVideo: acc.withoutVideo + stat.withoutVideo,
-    }),
-    { totalSubmissions: 0, withVideo: 0, withoutVideo: 0 },
-  )
-
-  if (data.events.length === 0) {
-    return (
-      <div className="flex flex-col gap-4">
-        <div>
-          <h2 className="text-xl font-semibold">Submissions</h2>
-          <p className="text-muted-foreground text-sm">
-            Review athlete video submissions
-          </p>
-        </div>
-        <div className="text-center py-12 text-muted-foreground">
-          No events found for this competition. Add events first.
-        </div>
-      </div>
-    )
+  // Group events into parents (no parentEventId) and their children
+  const childrenByParent = new Map<string, OverviewEvent[]>()
+  const topLevel: OverviewEvent[] = []
+  for (const event of events) {
+    if (event.parentEventId) {
+      const existing = childrenByParent.get(event.parentEventId) ?? []
+      existing.push(event)
+      childrenByParent.set(event.parentEventId, existing)
+    } else {
+      topLevel.push(event)
+    }
   }
+  for (const children of childrenByParent.values()) {
+    children.sort((a, b) => Number(a.trackOrder) - Number(b.trackOrder))
+  }
+
+  // Aggregate totals across every real submission bucket (children where
+  // present, otherwise the standalone event).
+  const eventTotals: CountEntry = sumCounts(
+    topLevel.flatMap((event) => {
+      const children = childrenByParent.get(event.id)
+      if (children && children.length > 0) {
+        return children.map((c) => submissionCounts[c.id] ?? EMPTY_COUNTS)
+      }
+      return [submissionCounts[event.id] ?? EMPTY_COUNTS]
+    }),
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -321,108 +291,292 @@ function OnlineSubmissionsOverview({
         </p>
       </div>
 
-      {/* Summary Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total Submissions</CardDescription>
-            <CardTitle className="text-4xl">
-              {totals.totalSubmissions}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>With Video</CardDescription>
-            <CardTitle className="text-4xl text-green-600">
-              {totals.withVideo}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Without Video</CardDescription>
-            <CardTitle className="text-4xl text-yellow-600">
-              {totals.withoutVideo}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
+      {/* Stat strip */}
+      {events.length > 0 && (
+        <div className="grid grid-cols-3 gap-3 animate-in fade-in-0 slide-in-from-bottom-2 duration-400 sm:gap-4">
+          <StatTile
+            label="Events"
+            value={topLevel.length}
+            icon={<Video className="h-4 w-4" />}
+            delay={0}
+          />
+          <StatTile
+            label="Pending"
+            value={eventTotals.pending}
+            icon={<Clock3 className="h-4 w-4" />}
+            tone="pending"
+            delay={50}
+          />
+          <StatTile
+            label="Reviewed"
+            value={eventTotals.reviewed}
+            icon={<CheckCircle2 className="h-4 w-4" />}
+            tone="reviewed"
+            delay={100}
+          />
+        </div>
+      )}
 
-      {/* Events Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Events</CardTitle>
-          <CardDescription>
-            Click on an event to review submissions
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-20">Event</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead className="text-center">Submissions</TableHead>
-                <TableHead className="text-center">With Video</TableHead>
-                <TableHead className="text-center">Without Video</TableHead>
-                <TableHead className="w-30">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[...data.eventSubmissionStats]
-                .sort((a, b) => a.trackOrder - b.trackOrder)
-                .map((stat) => (
-                  <TableRow key={stat.eventId}>
-                    <TableCell className="font-medium">
-                      #{formatTrackOrder(stat.trackOrder)}
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        {stat.eventName}
-                        {stat.parentName && (
-                          <span className="text-xs text-muted-foreground ml-1.5">
-                            ({stat.parentName})
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {stat.totalSubmissions}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <Video className="h-4 w-4 text-green-600" />
-                        <span className="text-green-600">{stat.withVideo}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <VideoOff className="h-4 w-4 text-yellow-600" />
-                        <span className="text-yellow-600">
-                          {stat.withoutVideo}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link
-                          to="/compete/organizer/$competitionId/events/$eventId/submissions"
-                          params={{
-                            competitionId,
-                            eventId: stat.eventId,
-                          }}
-                        >
-                          Review
-                        </Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* Event list */}
+      {events.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <div className="space-y-3 animate-in fade-in-0 duration-400 delay-150">
+          {topLevel.map((event, index) => {
+            const children = childrenByParent.get(event.id) ?? []
+            const hasChildren = children.length > 0
+            const counts = hasChildren
+              ? sumCounts(
+                  children.map((c) => submissionCounts[c.id] ?? EMPTY_COUNTS),
+                )
+              : (submissionCounts[event.id] ?? EMPTY_COUNTS)
+
+            return (
+              <EventRow
+                key={event.id}
+                competitionId={competitionId}
+                event={event}
+                counts={counts}
+                childEvents={children}
+                childCountsMap={submissionCounts}
+                index={index}
+              />
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function StatTile({
+  label,
+  value,
+  icon,
+  tone,
+  delay = 0,
+}: {
+  label: string
+  value: number
+  icon: React.ReactNode
+  tone?: "pending" | "reviewed"
+  delay?: number
+}) {
+  return (
+    <div
+      style={{ animationDelay: `${delay}ms` }}
+      className={cn(
+        "rounded-2xl border bg-black/5 p-4 backdrop-blur-md animate-in fade-in-0 slide-in-from-bottom-2 duration-350 dark:bg-white/5",
+        tone === "pending" &&
+          "border-amber-500/30 bg-amber-500/5 dark:bg-amber-500/10",
+        tone === "reviewed" &&
+          "border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/10",
+        !tone && "border-black/10 dark:border-white/10",
+      )}
+    >
+      <div className="text-muted-foreground mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]">
+        {icon}
+        {label}
+      </div>
+      <div
+        style={{ animationDelay: `${delay + 100}ms` }}
+        className="text-3xl font-bold tabular-nums animate-in fade-in-0 duration-300"
+      >
+        {value}
+      </div>
+    </div>
+  )
+}
+
+function EventRow({
+  competitionId,
+  event,
+  counts,
+  childEvents,
+  childCountsMap,
+  index = 0,
+}: {
+  competitionId: string
+  event: OverviewEvent
+  counts: CountEntry
+  childEvents: OverviewEvent[]
+  childCountsMap: Record<string, CountEntry>
+  index?: number
+}) {
+  const hasChildren = childEvents.length > 0
+  const progress = counts.total > 0 ? (counts.reviewed / counts.total) * 100 : 0
+  const baseDelay = 200 + index * 60
+
+  const Wrapper: React.ElementType = hasChildren ? "div" : Link
+  const wrapperProps = hasChildren
+    ? {}
+    : {
+        to: "/compete/organizer/$competitionId/events/$eventId/submissions",
+        params: { competitionId, eventId: event.id },
+      }
+
+  return (
+    <div
+      style={{ animationDelay: `${baseDelay}ms` }}
+      className="rounded-2xl border border-black/10 bg-black/5 p-4 backdrop-blur-md transition-colors animate-in fade-in-0 slide-in-from-bottom-2 duration-350 dark:border-white/10 dark:bg-white/5 sm:p-5"
+    >
+      <Wrapper
+        {...wrapperProps}
+        className={cn(
+          "flex items-center gap-4",
+          !hasChildren &&
+            "group -m-1 rounded-xl p-1 transition-colors hover:bg-black/5 dark:hover:bg-white/5",
+        )}
+      >
+        <TrackOrderChip trackOrder={event.trackOrder} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h2 className="truncate text-lg font-semibold tracking-tight">
+              {event.workout.name}
+            </h2>
+            {hasChildren && (
+              <Badge
+                variant="secondary"
+                className="shrink-0 text-[10px] font-semibold uppercase tracking-wider"
+              >
+                {childEvents.length} sub-events
+              </Badge>
+            )}
+          </div>
+          <CountsLine
+            counts={counts}
+            hasChildren={hasChildren}
+            childCount={childEvents.length}
+          />
+          {counts.total > 0 && (
+            <div
+              style={{ animationDelay: `${baseDelay + 100}ms` }}
+              className="mt-3 animate-in fade-in-0 duration-400"
+            >
+              <Progress value={progress} className="h-1.5" />
+            </div>
+          )}
+        </div>
+        {!hasChildren && (
+          <ChevronRight className="text-muted-foreground h-5 w-5 shrink-0 transition-transform group-hover:translate-x-0.5" />
+        )}
+      </Wrapper>
+
+      {hasChildren && (
+        <div
+          style={{ animationDelay: `${baseDelay + 150}ms` }}
+          className="mt-4 space-y-1.5 border-t border-black/10 pt-4 animate-in fade-in-0 duration-300 dark:border-white/10"
+        >
+          {childEvents.map((child) => {
+            const childCounts = childCountsMap[child.id] ?? EMPTY_COUNTS
+            return (
+              <Link
+                key={child.id}
+                to="/compete/organizer/$competitionId/events/$eventId/submissions"
+                params={{ competitionId, eventId: child.id }}
+                className="group flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+              >
+                <span className="text-muted-foreground w-12 shrink-0 font-mono text-xs tabular-nums">
+                  {formatTrackOrder(child.trackOrder)}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                  {child.workout.name}
+                </span>
+                <ChildCountsPills counts={childCounts} />
+                <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TrackOrderChip({ trackOrder }: { trackOrder: number | string }) {
+  return (
+    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-black/10 bg-white/60 font-mono text-base font-bold tabular-nums shadow-sm dark:border-white/10 dark:bg-black/30">
+      {formatTrackOrder(trackOrder)}
+    </div>
+  )
+}
+
+function CountsLine({
+  counts,
+  hasChildren,
+  childCount,
+}: {
+  counts: CountEntry
+  hasChildren: boolean
+  childCount: number
+}) {
+  if (hasChildren && counts.total === 0) {
+    return (
+      <p className="text-muted-foreground mt-0.5 text-sm">
+        Submissions split across {childCount} sub-events
+      </p>
+    )
+  }
+  if (counts.total === 0) {
+    return (
+      <p className="text-muted-foreground mt-0.5 text-sm">No submissions yet</p>
+    )
+  }
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+      {counts.pending > 0 && (
+        <span className="flex items-center gap-1.5 font-medium text-amber-600 dark:text-amber-400">
+          <Clock3 className="h-3.5 w-3.5" />
+          {counts.pending} pending
+        </span>
+      )}
+      {counts.reviewed > 0 && (
+        <span className="flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400">
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          {counts.reviewed} reviewed
+        </span>
+      )}
+      <span className="text-muted-foreground tabular-nums">
+        {counts.total} total
+      </span>
+    </div>
+  )
+}
+
+function ChildCountsPills({ counts }: { counts: CountEntry }) {
+  if (counts.total === 0) {
+    return (
+      <span className="text-muted-foreground shrink-0 text-xs">
+        No submissions
+      </span>
+    )
+  }
+  return (
+    <div className="flex shrink-0 items-center gap-1.5 text-xs">
+      {counts.pending > 0 && (
+        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 font-semibold text-amber-700 tabular-nums dark:text-amber-300">
+          {counts.pending}
+        </span>
+      )}
+      {counts.reviewed > 0 && (
+        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-700 tabular-nums dark:text-emerald-300">
+          {counts.reviewed}
+        </span>
+      )}
+    </div>
+  )
+}
+
+function EmptyState() {
+  return (
+    <div className="rounded-2xl border border-dashed border-black/15 bg-black/[0.02] p-12 text-center backdrop-blur-md animate-in fade-in-0 zoom-in-95 duration-400 dark:border-white/15 dark:bg-white/[0.02]">
+      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-black/10 bg-white/60 animate-in fade-in-0 zoom-in-95 duration-300 delay-100 dark:border-white/10 dark:bg-black/30">
+        <Video className="text-muted-foreground h-5 w-5" />
+      </div>
+      <p className="font-semibold">Nothing to review yet</p>
+      <p className="text-muted-foreground mt-1 text-sm">
+        No events found for this competition. Add events first.
+      </p>
     </div>
   )
 }
@@ -449,7 +603,9 @@ function InPersonResultsEntry({
       ReturnType<typeof getEventScoreEntryDataWithHeatsFn>
     > | null
     isParentEvent: boolean
-    childScoreDataList: Array<Awaited<ReturnType<typeof getEventScoreEntryDataWithHeatsFn>>>
+    childScoreDataList: Array<
+      Awaited<ReturnType<typeof getEventScoreEntryDataWithHeatsFn>>
+    >
     divisionResultsStatus: AllEventsResultsStatusResponse
   }
 }) {
@@ -714,13 +870,16 @@ function InPersonResultsEntry({
             ...childScoreDataList[0].event,
             workout: {
               ...childScoreDataList[0].event.workout,
-              name: events.find((e) => e.id === selectedEventId)?.workout.name
-                ?? childScoreDataList[0].event.workout.name,
+              name:
+                events.find((e) => e.id === selectedEventId)?.workout.name ??
+                childScoreDataList[0].event.workout.name,
             },
           }}
           athletes={childScoreDataList[0].athletes}
           heats={childScoreDataList[0].heats}
-          unassignedRegistrationIds={childScoreDataList[0].unassignedRegistrationIds}
+          unassignedRegistrationIds={
+            childScoreDataList[0].unassignedRegistrationIds
+          }
           divisions={divisions.map((d) => ({
             id: d.id,
             label: d.label,
