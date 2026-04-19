@@ -1,0 +1,21 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+the @apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/video-submissions-section.tsx needs to respect subevents and properly nest them in the parent [Image #7]
+
+### Prompt 2
+
+[Image: source: /Users/zacjones/.claude/image-cache/c3ca0c9f-bdb5-4887-a596-74fca1a153e4/7.png]
+
+### Prompt 3
+
+Stop hook feedback:
+The codebase has changes (87 lines) but `lat.md/` may not be fully in sync (2 lines changed). Verify `lat.md/` is in sync — run `lat search` to find relevant sections. Run `lat check` at the end.
+
+### Prompt 4
+
+commit and push
+
