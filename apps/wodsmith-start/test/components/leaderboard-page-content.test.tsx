@@ -93,6 +93,11 @@ const mockDivisions = [
 	},
 ]
 
+const mockCompetition = {
+	slug: "test-comp",
+	competitionType: "in-person" as const,
+}
+
 const createMockEntry = (
 	overrides: Partial<CompetitionLeaderboardEntry> = {},
 ): CompetitionLeaderboardEntry => ({
@@ -178,7 +183,11 @@ describe("LeaderboardPageContent", () => {
 
 			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
 
-			render(<LeaderboardPageContent competitionId="comp-1" />)
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
 
 			await waitFor(() => {
 				// Use getAllByText since the name appears in both desktop and mobile views
@@ -196,7 +205,11 @@ describe("LeaderboardPageContent", () => {
 
 			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
 
-			render(<LeaderboardPageContent competitionId="comp-1" />)
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
 
 			await waitFor(() => {
 				// Event name appears in both mobile and desktop views
@@ -265,7 +278,11 @@ describe("LeaderboardPageContent", () => {
 
 			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
 
-			render(<LeaderboardPageContent competitionId="comp-1" />)
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
 
 			await waitFor(() => {
 				expect(screen.getAllByText("John Doe").length).toBeGreaterThan(0)
@@ -308,7 +325,11 @@ describe("LeaderboardPageContent", () => {
 
 			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
 
-			render(<LeaderboardPageContent competitionId="comp-1" />)
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
 
 			await waitFor(() => {
 				expect(screen.getAllByText("John Doe").length).toBeGreaterThan(0)
@@ -328,7 +349,11 @@ describe("LeaderboardPageContent", () => {
 
 			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
 
-			render(<LeaderboardPageContent competitionId="comp-1" />)
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
 
 			await waitFor(() => {
 				expect(screen.getAllByText("John Doe").length).toBeGreaterThan(0)
@@ -343,7 +368,11 @@ describe("LeaderboardPageContent", () => {
 		it("displays leaderboard content after loading", async () => {
 			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse([createMockEntry()]))
 
-			render(<LeaderboardPageContent competitionId="comp-1" />)
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
 
 			await waitFor(() => {
 				// Wait for data to load - athlete name should be displayed
@@ -356,7 +385,11 @@ describe("LeaderboardPageContent", () => {
 				mockLeaderboardResponse([createMockEntry({ totalPoints: 15.5 })], "p_score"),
 			)
 
-			render(<LeaderboardPageContent competitionId="comp-1" />)
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
 
 			await waitFor(() => {
 				expect(screen.getAllByText("John Doe").length).toBeGreaterThan(0)
@@ -368,7 +401,11 @@ describe("LeaderboardPageContent", () => {
 		it("displays leaderboard with custom points", async () => {
 			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse([createMockEntry()]))
 
-			render(<LeaderboardPageContent competitionId="comp-1" />)
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
 
 			await waitFor(() => {
 				expect(screen.getAllByText("John Doe").length).toBeGreaterThan(0)
@@ -382,7 +419,11 @@ describe("LeaderboardPageContent", () => {
 
 			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
 
-			render(<LeaderboardPageContent competitionId="comp-1" />)
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
 
 			await waitFor(() => {
 				// Points appear in both mobile and desktop views
@@ -395,7 +436,11 @@ describe("LeaderboardPageContent", () => {
 
 			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
 
-			render(<LeaderboardPageContent competitionId="comp-1" />)
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
 
 			await waitFor(() => {
 				// Should display points (appears in both views)
@@ -410,7 +455,11 @@ describe("LeaderboardPageContent", () => {
 
 			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
 
-			render(<LeaderboardPageContent competitionId="comp-1" />)
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
 
 			await waitFor(() => {
 				expect(screen.getAllByText("John Doe").length).toBeGreaterThan(0)
@@ -451,7 +500,11 @@ describe("LeaderboardPageContent", () => {
 
 			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
 
-			render(<LeaderboardPageContent competitionId="comp-1" />)
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
 
 			await waitFor(() => {
 				expect(screen.getAllByText("5:30").length).toBeGreaterThan(0)
@@ -492,7 +545,11 @@ describe("LeaderboardPageContent", () => {
 
 			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
 
-			render(<LeaderboardPageContent competitionId="comp-1" />)
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
 
 			await waitFor(() => {
 				expect(screen.getAllByText("135 reps").length).toBeGreaterThan(0)
@@ -533,7 +590,11 @@ describe("LeaderboardPageContent", () => {
 
 			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
 
-			render(<LeaderboardPageContent competitionId="comp-1" />)
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
 
 			await waitFor(() => {
 				expect(screen.getAllByText("4:50").length).toBeGreaterThan(0)
@@ -574,7 +635,11 @@ describe("LeaderboardPageContent", () => {
 
 			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
 
-			render(<LeaderboardPageContent competitionId="comp-1" />)
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
 
 			await waitFor(() => {
 				expect(screen.getAllByText("5:30").length).toBeGreaterThan(0)
@@ -620,7 +685,11 @@ describe("LeaderboardPageContent", () => {
 
 			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
 
-			render(<LeaderboardPageContent competitionId="comp-1" />)
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
 
 			await waitFor(() => {
 				expect(screen.getAllByText("4:50").length).toBeGreaterThan(0)
@@ -645,7 +714,11 @@ describe("LeaderboardPageContent", () => {
 					}),
 			)
 
-			render(<LeaderboardPageContent competitionId="comp-1" />)
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
 
 			// The loading state shows skeleton elements
 			expect(screen.getByText("Leaderboard")).toBeInTheDocument()
@@ -654,7 +727,11 @@ describe("LeaderboardPageContent", () => {
 		it("shows empty state when no results", async () => {
 			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse([]))
 
-			render(<LeaderboardPageContent competitionId="comp-1" />)
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
 
 			await waitFor(() => {
 				expect(

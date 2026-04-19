@@ -16,7 +16,9 @@ export const Route = createFileRoute("/compete/$slug/leaderboard")({
   validateSearch: leaderboardSearchSchema,
   head: ({ params }) => {
     const { slug } = params
-    const displayName = slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+    const displayName = slug
+      .replace(/-/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase())
     return {
       meta: [
         {
@@ -26,14 +28,29 @@ export const Route = createFileRoute("/compete/$slug/leaderboard")({
           name: "description",
           content: `View live leaderboard and results for ${displayName} on WODsmith.`,
         },
-        { property: "og:title", content: `${displayName} Leaderboard | WODsmith` },
-        { property: "og:description", content: `View live leaderboard and results for ${displayName} on WODsmith.` },
-        { property: "og:url", content: `https://wodsmith.com/compete/${slug}/leaderboard` },
+        {
+          property: "og:title",
+          content: `${displayName} Leaderboard | WODsmith`,
+        },
+        {
+          property: "og:description",
+          content: `View live leaderboard and results for ${displayName} on WODsmith.`,
+        },
+        {
+          property: "og:url",
+          content: `https://wodsmith.com/compete/${slug}/leaderboard`,
+        },
         { property: "og:type", content: "website" },
         { property: "og:site_name", content: "WODsmith" },
         { name: "twitter:card", content: "summary" },
-        { name: "twitter:title", content: `${displayName} Leaderboard | WODsmith` },
-        { name: "twitter:description", content: `View live leaderboard and results for ${displayName} on WODsmith.` },
+        {
+          name: "twitter:title",
+          content: `${displayName} Leaderboard | WODsmith`,
+        },
+        {
+          name: "twitter:description",
+          content: `View live leaderboard and results for ${displayName} on WODsmith.`,
+        },
       ],
       links: [
         {
@@ -47,7 +64,7 @@ export const Route = createFileRoute("/compete/$slug/leaderboard")({
 })
 
 function CompetitionLeaderboardPage() {
-  const { competition } = parentRoute.useLoaderData()
+  const { competition, divisions } = parentRoute.useLoaderData()
 
   return (
     <div className="space-y-4">
@@ -55,7 +72,14 @@ function CompetitionLeaderboardPage() {
         <CompetitionTabs slug={competition.slug} />
       </div>
       <div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
-        <LeaderboardPageContent competitionId={competition.id} />
+        <LeaderboardPageContent
+          competitionId={competition.id}
+          divisions={divisions}
+          competition={{
+            slug: competition.slug,
+            competitionType: competition.competitionType,
+          }}
+        />
       </div>
     </div>
   )

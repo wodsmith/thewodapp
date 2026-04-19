@@ -76,6 +76,7 @@ const routeLabels: Record<string, string> = {
   locations: "Locations",
   volunteers: "Volunteers",
   results: "Results", // Overridden to "Submissions" for online competitions
+  "leaderboard-preview": "Leaderboard Preview",
   review: "Review",
   pricing: "Pricing",
   revenue: "Revenue",

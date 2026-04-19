@@ -87,6 +87,7 @@ export const Route = createFileRoute("/compete/$slug/review")({
     if (events.length > 0) {
       const countsResult = await getSubmissionCountsByEventFn({
         data: {
+          competitionId: competition.id,
           trackWorkoutIds: events.map((e) => e.id),
         },
       })
