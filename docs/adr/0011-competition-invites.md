@@ -134,7 +134,7 @@ A qualification source attached to a championship competition.
 | `championshipCompetitionId` | varchar(255) | The competition receiving invites. |
 | `kind` | varchar(20) | `"competition"` \| `"series"` |
 | `sourceCompetitionId` | varchar(255) NULL | When `kind = competition`. |
-| `sourceGroupId` | varchar(255) NULL | When `kind = series`. |
+| `sourceGroupId` | varchar(255) NULL | When `kind = series`. Logical reference to `competitionGroupsTable.id` (the existing "series" entity in `apps/wodsmith-start/src/db/schemas/competitions.ts`). No FK per PlanetScale conventions. |
 | `directSpotsPerComp` | int NULL | For series: how many top-N from each comp in the series get a slot. |
 | `globalSpots` | int NULL | For series: how many additional from the series global leaderboard. For single comp, the total top-N. |
 | `divisionMappings` | text (JSON) | `[{ sourceDivisionId, championshipDivisionId, spots? }]` so a source's "RX Men" maps to the championship's "RX Men" and contributes its own quota. |
@@ -197,10 +197,11 @@ The per-athlete invite row.
 | `claimedRegistrationId` | varchar(255) NULL | The `competition_registrations.id` that resulted from accept. |
 | `emailDeliveryStatus` | varchar(20) | `"queued"` \| `"sent"` \| `"failed"` \| `"skipped"` (mirrors broadcast pattern). |
 | `emailLastError` | text NULL | |
+| `activeMarker` | varchar(8) NULL | Literal `"active"` while `status IN (pending, accepted, accepted_paid)`; set to NULL the moment the invite transitions to `declined`, `expired`, or `revoked`. Powers the unique-active-invite index below. |
 
 Indexes:
-- Unique `(championshipCompetitionId, email, championshipDivisionId)` — an athlete can only have one *active* invite per (championship, division), regardless of whether it's source-derived or bespoke. The duplicate-prevention rule is the same; the origin doesn't matter. On revoke we either delete the row or soft-status it (TBD by Phase 2 implementer based on whether re-invites need history).
-- Unique `claimTokenHash` (sparse via NULL on revoked? — see "Token model" below).
+- Unique `(championshipCompetitionId, email, championshipDivisionId, activeMarker)` — enforces "at most one *active* invite per (championship, division, email)" while still allowing historical rows to accumulate. MySQL treats multiple NULLs as distinct in unique indexes, so revoked/declined/expired rows (where `activeMarker IS NULL`) don't collide with a fresh re-invite. This resolves the conflict with OQ#1: we **keep** terminal invite rows for audit, and the re-invite path (Phase 3, "revoke R1 before issuing R2") works by transitioning R1 to `revoked` (which nulls `activeMarker` and zeros `claimTokenHash`) *in the same transaction* that inserts the R2 row.
+- Unique `claimTokenHash` — MySQL allows multiple NULLs, so setting `claimTokenHash = NULL` on terminal transitions lets any number of historical rows coexist. Plaintext tokens are never stored; see "Token model" below.
 - `(roundId)`, `(sourceId)`, `(origin)`, `(status)`, `(email)` for the organizer table queries.
 
 Write-time constraints (enforced in `competition_invites` write helpers, not by the DB):
@@ -235,17 +236,44 @@ The token is the integrity boundary. The flow:
    - If signed in but emails differ: render a "this invite belongs to someone else" page with a sign-out + sign-in-as link. Explicitly does **not** allow proceeding.
    - If not signed in and a user with `invite.email` exists: redirect to `/sign-in?email=<invite.email>&claim=<token>` — email field is pre-filled and read-only on the sign-in page when `claim` is present, so the user cannot accidentally sign into a different account.
    - If not signed in and no user exists for `invite.email`: redirect to `/sign-up?email=<invite.email>&claim=<token>` — email field pre-filled and read-only; on sign-up the new user is bound to the invite by re-running the claim with the new session cookie.
-4. **Pre-attached registration.** The claim page presents the championship + division (no division picker — the invite specifies one), waivers if any, and the existing checkout button. We extend `initiateRegistrationPaymentFn` with an optional `inviteToken` param. When present, it (a) re-validates the invite + email match, (b) skips the registration-window check (organizers can have invites land before public registration opens), (c) skips division-capacity for accepted-not-yet-paid invites against an "invited-but-unpaid" reservation count, (d) tags the resulting `commercePurchase` with `inviteId` in metadata.
+4. **Pre-attached registration.** The claim page presents the championship + division (no division picker — the invite specifies one), waivers if any, and the existing checkout button. We extend `initiateRegistrationPaymentFn` with an optional `inviteToken` param. When present, it (a) re-validates the invite + email match, (b) skips the registration-window check (organizers can have invites land before public registration opens), (c) applies the invite-aware capacity rule (see "Capacity Math" below), (d) tags the resulting `commercePurchase` with `inviteId` in metadata.
 5. **Stripe webhook.** The existing [Stripe Checkout Workflow](./../../lat.md/registration.md) finalizes the registration. It reads `inviteId` off the purchase metadata and, on success, sets `competition_invites.status = "accepted_paid"`, `paidAt = now`, `claimedRegistrationId = <new registration id>`. For free competitions the same status bump runs synchronously inside `registerForCompetition`.
 6. **Decline.** The email body contains a `Decline the invitation` link to `routes/compete/$slug/claim/$token/decline.tsx`. Same identity-match rules. Decline sets `status = "declined"`, `declinedAt = now`, and revokes the token by zeroing `claimTokenHash` (or deleting the row, see "Token model" below).
 7. **Expiry.** A scheduled task (Cloudflare Cron Trigger, hourly) sweeps invites with `status = "pending"` and `expiresAt < now`, transitioning them to `"expired"` and zeroing the token hash. The organizer roster surfaces these as "Expired — no response" with a one-click "extend by N days" action that bumps `expiresAt` and re-sets the token (and re-sends the email if the organizer chooses).
 8. **Forwarding defense.** Because the token is bound to `invite.email` at click time, forwarding the email to a friend who's signed in as a different user just shows the "wrong account" page. This is the design.
 
+#### Capacity Math
+
+Division and competition capacity counts are kept independent of the invite lifecycle with one narrow exception:
+
+- **Pending invites do NOT consume capacity.** An invite in `pending` or `declined`/`expired`/`revoked` is not a registration and doesn't reduce "spots remaining." This means organizers can (and do) over-send: 20 invites for 10 spots is expected and intended.
+- **`accepted_paid` consumes capacity** via the real `competitionRegistrations` row it produces — same as any other registration. No new capacity column is introduced.
+- **`accepted` (between claim-page-visit and Stripe-success) does NOT consume capacity.** This is the race window. If 12 athletes click claim simultaneously for 10 spots, the first 10 to finish Stripe Checkout get the `commercePurchase` → registration creation; the 11th/12th see "This division just filled" on checkout return (existing registration-path behavior) and their invite stays in `accepted` status with a `claimedRegistrationId = NULL`. The organizer surface shows these as **"Accepted — not paid (division full)"** with a one-click "open a temporary extra slot" action that raises the division's `maxAthletes` by 1 and lets the athlete retry. This matches the existing "division filled while I was paying" UX for public registration.
+- **Round builder over-allocation warning** (`project/invites/round-builder.jsx`) fires when `(selectedRecipients + currentAcceptedPaid + currentPending) > divisionMaxAthletes`, and is advisory only — it does not block sending. The copy reads "You're inviting 14 to a division with 10 spots and 3 already paid — expect wave 2 to fill any drops."
+- **Free competitions** skip Stripe entirely; `registerForCompetition` does the capacity check synchronously at claim time and atomically flips the invite to `accepted_paid`. No race window exists for free comps.
+
+The key rule: **invites don't reserve spots; payment does.** This keeps the invite system layered on top of registration without forking capacity logic.
+
+#### Revoke and Refund
+
+- **Organizer-initiated revoke** on a `pending` invite: clicks "Revoke" on the roster row (Phase 3 UI) → transitions the invite to `revoked`, nulls `activeMarker` + `claimTokenHash`, records `revokedAt` + `revokedByUserId`. The email link dies immediately. Multiple subsequent revokes / re-invites of the same athlete are unblocked by the `activeMarker`-based unique index.
+- **Organizer-initiated revoke** on an `accepted_paid` invite: disallowed. Revoking a paid invite requires cancelling the registration via the existing registration-cancel flow (out of scope for this ADR); the invite status tracks the registration's cancel state via the `claimedRegistrationId` link and reflects "cancelled — refunded" or similar on the roster.
+- **Refunds**: this ADR does not introduce a new refund path. Invite-driven registrations refund exactly like public-registration-driven ones.
+
+#### Idempotent Round Send
+
+`sendInviteRoundFn` is guarded against double-clicks and partial-send retries:
+
+1. Hard precondition: `round.status` must be `"draft"`. The transaction opens by `SELECT ... FOR UPDATE` on the round row and rejects if status already advanced to `"sending"` / `"sent"` / `"failed"`. This stops double-click submission.
+2. Invite rows are inserted with `INSERT ... ON DUPLICATE KEY UPDATE` keyed on `(championshipCompetitionId, email, championshipDivisionId, activeMarker)`. If an active row already exists for a recipient (e.g. a re-submitted send that partially succeeded), it's treated as "already issued" rather than double-inserting — the row's `roundId` is left on whichever round issued it first.
+3. Queue enqueue uses `Idempotency-Key: invite-${inviteId}` on the Resend side, so even if the queue consumer retries a message the athlete sees exactly one email.
+4. If the transaction fails mid-insert (network, constraint), no partial state leaks: the round stays in `draft`, no `activeMarker`-rows are committed. Organizer clicks Send again → a clean retry.
+
 #### Token Model — Why Hash and Not Just Random
 
 We hash because the token is a credential — anyone with it can sign-in-as / sign-up-as the invite's email if they also have access to that mailbox. Storing only the hash means a database read does not yield reusable tokens. We keep `claimTokenLast4` plaintext so an organizer asking "did this athlete click?" support question can be answered against the email's actual link.
 
-On status changes (`declined`, `expired`, `revoked`, `accepted_paid`) we zero `claimTokenHash` so re-replays of an old token after acceptance can't trigger a second registration attempt. The unique index on `claimTokenHash` allows multiple NULLs (MySQL semantics) so this works.
+On status changes (`declined`, `expired`, `revoked`, `accepted_paid`) we set `claimTokenHash = NULL` (not empty string) so re-replays of an old token after acceptance can't trigger a second registration attempt. The unique index on `claimTokenHash` allows multiple NULLs (MySQL semantics) so this works. `activeMarker` is nulled in the same statement for all terminal transitions *except* `accepted_paid` — paid invites keep `activeMarker = "active"` so a second "claim" attempt by the same email sees an existing active invite and short-circuits to "you're already registered."
 
 ### Roster Computation
 
@@ -476,8 +504,10 @@ This is a hefty feature. We ship in phases; each phase ends in something deploya
 - [ ] R2 draft can pre-select next-N-on-leaderboard via the corresponding quick action.
 - [ ] R2 draft can pre-select all draft bespoke invitees via the "All draft bespoke invitees" quick action.
 - [ ] A round's recipient list can mix sourced and bespoke invitees freely; the round detail view groups them visually.
-- [ ] Sending an R2 to athletes who already have a `pending` R1 invite revokes the R1 token before issuing R2 (each athlete has at most one active invite per division, regardless of origin).
+- [ ] Sending an R2 to athletes who already have a `pending` R1 invite revokes the R1 token before issuing R2 (each athlete has at most one active invite per division, regardless of origin). Revoke + insert happens in one transaction; partial failure leaves R1 intact.
 - [ ] Organizer can edit a round's subject/body/deadline only while `status = draft`.
+- [ ] Organizer can manually revoke a `pending` invite from the roster via a "Revoke" row action; the link is dead on next click; the row shows `revoked` status and the athlete is eligible for a fresh re-invite in any subsequent round.
+- [ ] `sendInviteRoundFn` is idempotent: double-clicking Send does not duplicate invites or emails; a crashed partial send can be retried cleanly from the same draft.
 
 ### Phase 4 — Email Composer + Template Library
 
@@ -565,7 +595,8 @@ Not in scope for the initial ship; documented here for future ADR follow-ups:
 - **Do not** store plaintext claim tokens in the database.
 - **Do not** add a `status = "invited"` to `competition_registrations` — the invite is its own table.
 - **Do not** allow organizer-supplied raw HTML in email bodies; the composer is the only authoring surface.
-- **Do not** forget to lowercase + trim emails on every write and every lookup; the email is the lock.
+- **Do not** forget to lowercase + trim emails on every write and every lookup; the email is the lock. Normalization rule: `email.trim().toLowerCase()` — no unicode case-folding, no IDN normalization (WODsmith users are ASCII-email today; revisit if that changes). Apply at: invite creation, bespoke CSV parse, token-resolution lookup, session identity match.
+- **Do not** compare `session.email` to `invite.email` for identity match after the first successful claim. Once `userId` is set on the invite, all subsequent lookups (status display, "my pending invitations" list) go through `userId`. This protects users who legitimately change their account email after accepting an invite.
 
 ### Verification (end-to-end, when all phases ship)
 
@@ -600,9 +631,11 @@ Not in scope for the initial ship; documented here for future ADR follow-ups:
 
 ## Open Questions (resolve before Phase 2 start)
 
-1. On invite revoke (e.g. organizer manually rescinds, or athlete is removed from source leaderboard), do we keep the row with `status = "revoked"` for audit, or delete it? Suggest **keep** for organizer-facing history.
-2. When an athlete already has a paid registration for the championship (organizer-manual or public path) and an invite is being issued, do we (a) skip with a warning, (b) issue anyway as a no-op (status auto-`accepted_paid` on issue), or (c) hard-block? Suggest **(a) skip with warning** — organizer sees "12 of 14 will be sent; 2 already registered."
-3. Multi-division: can one athlete be invited to RX Men *and* Masters 35-39 in the same round, generating two distinct invites? Suggest **yes** — different `championshipDivisionId` rows are allowed by the unique index.
-4. Per-team-org email-templates vs per-championship: keep templates at the org level (current design) or scope them to a championship? Suggest **org level** — organizers running multiple championships will want consistent templates.
-5. Bespoke / source dedup tie-breaking: when an athlete is both on a source leaderboard *and* added as a bespoke invitee for the same championship + division, the roster shows the bespoke row (per the design). Should the bespoke row also inherit/display the source placement as secondary info ("Bespoke · also #4 SLC Throwdown") or stay clean ("Bespoke · Sponsored athlete")? Suggest **stay clean** — the bespoke reason is what the organizer wanted shown.
-6. Bespoke import file format: CSV only, or also accept a `.tsv` / Excel-paste (tab-separated)? Suggest **accept both CSV and tab-separated** since pasting a column from Google Sheets defaults to TSV.
+1. When an athlete already has a paid registration for the championship (organizer-manual or public path) and an invite is being issued, do we (a) skip with a warning, (b) issue anyway as a no-op (status auto-`accepted_paid` on issue), or (c) hard-block? Suggest **(a) skip with warning** — organizer sees "12 of 14 will be sent; 2 already registered." This rule applies identically to source-derived and bespoke origins.
+2. Multi-division: can one athlete be invited to RX Men *and* Masters 35-39 in the same round, generating two distinct invites? Suggest **yes** — different `championshipDivisionId` rows are allowed by the unique-active index.
+3. Per-team-org email-templates vs per-championship: keep templates at the org level (current design) or scope them to a championship? Suggest **org level** — organizers running multiple championships will want consistent templates.
+4. Bespoke / source dedup tie-breaking: when an athlete is both on a source leaderboard *and* added as a bespoke invitee for the same championship + division, the roster shows the bespoke row (per the design). Should the bespoke row also inherit/display the source placement as secondary info ("Bespoke · also #4 SLC Throwdown") or stay clean ("Bespoke · Sponsored athlete")? Suggest **stay clean** — the bespoke reason is what the organizer wanted shown.
+5. Bespoke import file format: CSV only, or also accept a `.tsv` / Excel-paste (tab-separated)? Suggest **accept both CSV and tab-separated** since pasting a column from Google Sheets defaults to TSV.
+6. **Cross-org sources**: the current "declaring a source requires `MANAGE_COMPETITIONS` on the source comp" rule effectively means sources are *same-org only*, because WODsmith does not today support cross-org permission grants. Confirm this is acceptable for MVP, or specify a grant mechanism. Suggest **same-org only** for MVP; cross-org sharing becomes a separate feature.
+7. **RSVP deadline timezone**: `rsvpDeadlineAt` is stored as naive `datetime`. Interpret as the **championship's `competitionTimezone`** at write time (consistent with registration-window handling) and render in both championship TZ and recipient's local TZ in email footers via the `date-timezone` skill helpers. Confirm before Phase 3.
+8. **Bulk bespoke cap**: cap CSV/paste imports at 500 rows per submission to bound one-shot validation cost. Confirm.
