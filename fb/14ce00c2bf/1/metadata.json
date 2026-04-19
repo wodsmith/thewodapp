@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "fb14ce00c2bf",
+  "session_id": "2205ad91-e2a9-47b0-9b75-7785c62efb98",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-19T21:43:28.43746Z",
+  "branch": "zac/athlete-details-page",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/manual-submission-dialog.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/registration-info-card.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/team-members-section.tsx"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 205,
+    "cache_creation_tokens": 203672,
+    "cache_read_tokens": 8502247,
+    "output_tokens": 19808,
+    "api_call_count": 64
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-19T21:43:28.356398Z",
+    "agent_lines": 0,
+    "human_added": 3401,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 3401,
+    "agent_percentage": 0
+  }
+}

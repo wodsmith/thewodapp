@@ -3,7 +3,7 @@
   "checkpoint_id": "fb14ce00c2bf",
   "strategy": "manual-commit",
   "branch": "zac/athlete-details-page",
-  "checkpoints_count": 2,
+  "checkpoints_count": 4,
   "files_touched": [
     "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/$registrationId.tsx",
     "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/answers-section.tsx",
@@ -11,6 +11,7 @@
     "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/event-submission-card.tsx",
     "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/manual-submission-dialog.tsx",
     "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/registration-info-card.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/team-members-section.tsx",
     "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/types.ts",
     "apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts",
     "lat.md/organizer-dashboard.md"
@@ -22,13 +23,20 @@
       "context": "/fb/14ce00c2bf/0/context.md",
       "content_hash": "/fb/14ce00c2bf/0/content_hash.txt",
       "prompt": "/fb/14ce00c2bf/0/prompt.txt"
+    },
+    {
+      "metadata": "/fb/14ce00c2bf/1/metadata.json",
+      "transcript": "/fb/14ce00c2bf/1/full.jsonl",
+      "context": "/fb/14ce00c2bf/1/context.md",
+      "content_hash": "/fb/14ce00c2bf/1/content_hash.txt",
+      "prompt": "/fb/14ce00c2bf/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 109,
-    "cache_creation_tokens": 172178,
-    "cache_read_tokens": 9333106,
-    "output_tokens": 28050,
-    "api_call_count": 90
+    "input_tokens": 314,
+    "cache_creation_tokens": 375850,
+    "cache_read_tokens": 17835353,
+    "output_tokens": 47858,
+    "api_call_count": 154
   }
 }
