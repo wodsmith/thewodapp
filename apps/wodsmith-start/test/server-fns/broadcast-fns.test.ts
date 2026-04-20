@@ -229,4 +229,26 @@ describe("audienceFilterSchema", () => {
 		const result = audienceFilterSchema.safeParse({ type: "volunteer_role" })
 		expect(result.success).toBe(false)
 	})
+
+	it("requires divisionId when type=missing_submissions", () => {
+		const result = audienceFilterSchema.safeParse({ type: "missing_submissions" })
+		expect(result.success).toBe(false)
+	})
+
+	it("accepts missing_submissions with divisionId", () => {
+		const result = audienceFilterSchema.safeParse({
+			type: "missing_submissions",
+			divisionId: "div_rx",
+		})
+		expect(result.success).toBe(true)
+	})
+
+	it("accepts missing_submissions with questionFilters for further narrowing", () => {
+		const result = audienceFilterSchema.safeParse({
+			type: "missing_submissions",
+			divisionId: "div_rx",
+			questionFilters: [{ questionId: "q1", values: ["male"] }],
+		})
+		expect(result.success).toBe(true)
+	})
 })

@@ -190,6 +190,7 @@ type AudienceFilterType =
   | "volunteers"
   | "volunteer_role"
   | "pending_teammates"
+  | "missing_submissions"
 
 const VOLUNTEER_ROLES = [
   { value: "judge", label: "Judge" },
@@ -236,7 +237,10 @@ function ComposeCard({
 
   // Determine which questions to show based on audience type
   const relevantQuestions = useMemo(() => {
-    const isAthleteAudience = filterType === "all" || filterType === "division"
+    const isAthleteAudience =
+      filterType === "all" ||
+      filterType === "division" ||
+      filterType === "missing_submissions"
     const isVolunteerAudience =
       filterType === "volunteers" || filterType === "volunteer_role"
     const isPublic = filterType === "public"
@@ -261,9 +265,11 @@ function ComposeCard({
                   divisionId,
                 }
               : { type: "pending_teammates" as const }
-            : {
-                type: filterType as "all" | "public" | "volunteers",
-              }
+            : filterType === "missing_submissions" && divisionId
+              ? { type: "missing_submissions" as const, divisionId }
+              : {
+                  type: filterType as "all" | "public" | "volunteers",
+                }
 
     if (questionFilters.length > 0) {
       return { ...base, questionFilters }
@@ -274,7 +280,8 @@ function ComposeCard({
   // Auto-fetch recipient count when filter is complete
   const filterReady =
     (filterType !== "division" || !!divisionId) &&
-    (filterType !== "volunteer_role" || !!volunteerRole)
+    (filterType !== "volunteer_role" || !!volunteerRole) &&
+    (filterType !== "missing_submissions" || !!divisionId)
 
   // Debounce the preview call
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -336,6 +343,11 @@ function ComposeCard({
     }
 
     if (filterType === "division" && !divisionId) {
+      toast.error("Please select a division")
+      return
+    }
+
+    if (filterType === "missing_submissions" && !divisionId) {
       toast.error("Please select a division")
       return
     }
@@ -421,6 +433,9 @@ function ComposeCard({
                 <SelectItem value="public">Everyone (Public)</SelectItem>
                 <SelectItem value="all">All Athletes</SelectItem>
                 <SelectItem value="division">Athletes by Division</SelectItem>
+                <SelectItem value="missing_submissions">
+                  Athletes Missing Submissions (by Division)
+                </SelectItem>
                 <SelectItem value="volunteers">All Volunteers</SelectItem>
                 <SelectItem value="volunteer_role">
                   Volunteers by Role
@@ -432,7 +447,8 @@ function ComposeCard({
             </Select>
 
             {(filterType === "division" ||
-              filterType === "pending_teammates") && (
+              filterType === "pending_teammates" ||
+              filterType === "missing_submissions") && (
               <Select
                 value={divisionId}
                 onValueChange={(v) => {

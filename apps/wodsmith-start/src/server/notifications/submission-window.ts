@@ -184,17 +184,22 @@ async function deleteNotificationReservation(params: {
 }
 
 /**
- * Check if a user has submitted a score for a competition event
+ * Check if a user has submitted a score for a competition event.
+ *
+ * NOTE: `scoresTable.competitionEventId` stores the `trackWorkoutId`, not
+ * `competitionEventsTable.id` — the column name is historical. Every insert
+ * site writes `data.trackWorkoutId` into this column, so we match on it here.
+ * Do not pass `competitionEventsTable.id`; the query will never match.
  */
 async function hasUserSubmittedScore(params: {
   userId: string
-  competitionEventId: string
+  trackWorkoutId: string
 }): Promise<boolean> {
   const db = getDb()
   const score = await db.query.scoresTable.findFirst({
     where: and(
       eq(scoresTable.userId, params.userId),
-      eq(scoresTable.competitionEventId, params.competitionEventId),
+      eq(scoresTable.competitionEventId, params.trackWorkoutId),
     ),
     columns: { id: true },
   })
@@ -716,10 +721,12 @@ export async function processSubmissionWindowNotifications(): Promise<ProcessedN
 
           // 5. Window just closed (within last 15 minutes)
           if (closesAt <= now && closesAt > fifteenMinutesAgo) {
-            // Check if user has actually submitted a score for this event
+            // Check if user has actually submitted a score for this event.
+            // scoresTable.competitionEventId stores the trackWorkoutId, not
+            // competitionEventsTable.id — see hasUserSubmittedScore comment.
             const hasSubmitted = await hasUserSubmittedScore({
               userId: user.id,
-              competitionEventId: event.id,
+              trackWorkoutId: event.trackWorkoutId,
             })
 
             const sent = await sendWindowClosedNotification({

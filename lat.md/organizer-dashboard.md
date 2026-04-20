@@ -228,6 +228,18 @@ Optional `divisionId` narrows by inheriting `athleteTeamId`s from registrations 
 
 The filter is exposed in the audience type picker in [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/broadcasts.tsx]] and produces invite-only recipient rows that appear in email delivery but not in the athlete in-app broadcasts list, since [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#listAthleteBroadcastsFn]] filters by `userId`.
 
+### Missing submissions filter
+
+The `missing_submissions` audience type targets athletes in a specified division who have not submitted scores for every event required of that division — useful for nudging stragglers before a submission window closes on online competitions.
+
+Requires `divisionId` (enforced in [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#audienceFilterSchema]]). The division scopes both the audience (via `fetchAthleteAudienceRows`) and the set of required events. The filter resolves required events via [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#getDivisionRequiredTrackWorkoutIds]]: pulls all `competitionEventsTable` rows for the competition, then honors any [[apps/wodsmith-start/src/db/schemas/event-division-mappings.ts#eventDivisionMappingsTable]] entries — if mappings exist, an event is required only when unmapped or explicitly mapped to this division. If no mappings exist, every event is required for every division (backwards-compatible).
+
+[[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#applyMissingSubmissionsFilter]] is the per-user check: for each recipient with a userId, batch-load their scores where `scoresTable.competitionEventId` (which actually stores `trackWorkoutId` — the column name predates the trackWorkoutsTable split) matches any required event, then keep the recipient if the distinct count is less than the total required. Pending-invite recipients have no user account and zero submissions by definition, so they're always kept whenever any event is required; this matches the division-scoped pending_teammates behavior where the organizer still wants to reach them.
+
+The filter runs *after* question filters in both [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#sendBroadcastFn]] and [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#previewAudienceFn]] so [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#applyAthleteQuestionFilters]] still has the captain row available for team inheritance. Reversing the order would strip a captain who had submitted all their scores and leave a teammate whose captain is no longer in the pool for the inheritance step to match against.
+
+Dedup across divisions is handled upstream by [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#buildBroadcastRecipients]] (user rows dedup by `userId`), so an athlete registered in multiple divisions filtered by "missing submissions in Division A" only appears once in the recipient list regardless of their Division B state.
+
 ## Danger Zone
 
 Destructive actions including competition deletion.

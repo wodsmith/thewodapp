@@ -19,6 +19,7 @@ import {
   competitionBroadcastsTable,
 } from "@/db/schemas/broadcasts"
 import {
+  competitionEventsTable,
   competitionRegistrationAnswersTable,
   competitionRegistrationQuestionsTable,
   competitionRegistrationsTable,
@@ -26,6 +27,8 @@ import {
   REGISTRATION_STATUS,
   volunteerRegistrationAnswersTable,
 } from "@/db/schemas/competitions"
+import { eventDivisionMappingsTable } from "@/db/schemas/event-division-mappings"
+import { scoresTable } from "@/db/schemas/scores"
 import {
   INVITATION_STATUS,
   SYSTEM_ROLES_ENUM,
@@ -71,6 +74,7 @@ export const audienceFilterSchema = z
       "volunteers",
       "volunteer_role",
       "pending_teammates",
+      "missing_submissions",
     ]),
     divisionId: z.string().optional(),
     volunteerRole: z.string().optional(),
@@ -96,6 +100,14 @@ export const audienceFilterSchema = z
     {
       message:
         "Registration question filters are not supported for pending teammate invites (invitees have no registration answers)",
+    },
+  )
+  .refine(
+    (filter) =>
+      filter.type !== "missing_submissions" ||
+      (filter.divisionId && filter.divisionId.length > 0),
+    {
+      message: "Division ID is required when filtering by missing submissions",
     },
   )
 
@@ -615,6 +627,125 @@ async function partitionQuestionFilters(
 }
 
 // ============================================================================
+// Missing Submissions Filter
+// ============================================================================
+
+/**
+ * Return the set of trackWorkoutIds that athletes in `divisionId` are expected
+ * to have a score for. Honors event-division mappings — an event is required
+ * for the division when it's unmapped (applies to all) or explicitly mapped
+ * to this division. Sub-event mappings inherit from the parent event, matching
+ * the leaderboard rule used elsewhere in the app.
+ */
+async function getDivisionRequiredTrackWorkoutIds(params: {
+  competitionId: string
+  divisionId: string
+}): Promise<string[]> {
+  const db = getDb()
+
+  const events = await db
+    .select({
+      trackWorkoutId: competitionEventsTable.trackWorkoutId,
+    })
+    .from(competitionEventsTable)
+    .where(eq(competitionEventsTable.competitionId, params.competitionId))
+
+  if (events.length === 0) return []
+
+  const mappings = await db
+    .select({
+      trackWorkoutId: eventDivisionMappingsTable.trackWorkoutId,
+      divisionId: eventDivisionMappingsTable.divisionId,
+    })
+    .from(eventDivisionMappingsTable)
+    .where(eq(eventDivisionMappingsTable.competitionId, params.competitionId))
+
+  if (mappings.length === 0) {
+    return events.map((e) => e.trackWorkoutId)
+  }
+
+  const mappedEventIds = new Set(mappings.map((m) => m.trackWorkoutId))
+  const mappedToThisDivision = new Set(
+    mappings
+      .filter((m) => m.divisionId === params.divisionId)
+      .map((m) => m.trackWorkoutId),
+  )
+
+  return events
+    .filter((e) =>
+      !mappedEventIds.has(e.trackWorkoutId)
+        ? true
+        : mappedToThisDivision.has(e.trackWorkoutId),
+    )
+    .map((e) => e.trackWorkoutId)
+}
+
+/**
+ * Filter athlete recipients down to those who have NOT submitted a score for
+ * every required event in the division.
+ *
+ * Pending-invite recipients (userId=null) have zero submissions by definition
+ * and are kept whenever any event is required.
+ *
+ * `scoresTable.competitionEventId` actually stores the `trackWorkoutId`
+ * (see comment on [[apps/wodsmith-start/src/db/schemas/workouts.ts#competitionEventId]]),
+ * which is why we match scores against the trackWorkoutId set directly.
+ */
+async function applyMissingSubmissionsFilter(
+  recipients: Recipient[],
+  params: { competitionId: string; divisionId: string },
+): Promise<Recipient[]> {
+  if (recipients.length === 0) return recipients
+
+  const requiredTrackWorkoutIds = await getDivisionRequiredTrackWorkoutIds({
+    competitionId: params.competitionId,
+    divisionId: params.divisionId,
+  })
+
+  // No required events means every recipient is trivially "complete" — nobody
+  // qualifies as missing submissions.
+  if (requiredTrackWorkoutIds.length === 0) return []
+
+  const userIds = recipients
+    .map((r) => r.userId)
+    .filter((id): id is string => id !== null)
+
+  const submittedByUser = new Map<string, Set<string>>()
+  if (userIds.length > 0) {
+    const db = getDb()
+    const rows = await db
+      .select({
+        userId: scoresTable.userId,
+        competitionEventId: scoresTable.competitionEventId,
+      })
+      .from(scoresTable)
+      .where(
+        and(
+          inArray(scoresTable.userId, userIds),
+          inArray(scoresTable.competitionEventId, requiredTrackWorkoutIds),
+        ),
+      )
+
+    for (const r of rows) {
+      if (!r.competitionEventId) continue
+      let set = submittedByUser.get(r.userId)
+      if (!set) {
+        set = new Set()
+        submittedByUser.set(r.userId, set)
+      }
+      set.add(r.competitionEventId)
+    }
+  }
+
+  const requiredCount = requiredTrackWorkoutIds.length
+  return recipients.filter((r) => {
+    if (!r.userId) return true // pending invites are always incomplete
+    const submitted = submittedByUser.get(r.userId)
+    return !submitted || submitted.size < requiredCount
+  })
+}
+
+// ============================================================================
 // Organizer: Get Distinct Answer Values (for UI autocomplete)
 // ============================================================================
 
@@ -822,18 +953,22 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
     const includeAthletes =
       filterType === "all" ||
       filterType === "division" ||
-      filterType === "public"
+      filterType === "public" ||
+      filterType === "missing_submissions"
     const includeVolunteers =
       filterType === "public" ||
       filterType === "volunteers" ||
       filterType === "volunteer_role"
     const isPendingTeammates = filterType === "pending_teammates"
+    const isMissingSubmissions = filterType === "missing_submissions"
 
     if (includeAthletes || isPendingTeammates) {
       const audienceRows = await fetchAthleteAudienceRows({
         competitionId: data.competitionId,
         divisionId:
-          filterType === "division" || isPendingTeammates
+          filterType === "division" ||
+          isPendingTeammates ||
+          isMissingSubmissions
             ? (data.audienceFilter?.divisionId ?? null)
             : null,
       })
@@ -933,6 +1068,21 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 
       athleteRecipients = filteredAthletes
       volunteerRecipients = filteredVolunteers
+    }
+
+    // Apply missing-submissions filter last so question-filter team inheritance
+    // isn't broken: the question filter looks up captain/solo registrations to
+    // decide which teammates/invites pass, and narrowing by missing submissions
+    // first could strip the captain (who submitted everything) while leaving a
+    // teammate whose captain is no longer in the pool to inherit from.
+    if (isMissingSubmissions && data.audienceFilter?.divisionId) {
+      athleteRecipients = await applyMissingSubmissionsFilter(
+        athleteRecipients,
+        {
+          competitionId: data.competitionId,
+          divisionId: data.audienceFilter.divisionId,
+        },
+      )
     }
 
     // Drop pending-invite athlete rows whose email collides with a volunteer
@@ -1352,12 +1502,14 @@ export const previewAudienceFn = createServerFn({ method: "GET" })
     const includeAthletes =
       filterType === "all" ||
       filterType === "division" ||
-      filterType === "public"
+      filterType === "public" ||
+      filterType === "missing_submissions"
     const includeVolunteers =
       filterType === "public" ||
       filterType === "volunteers" ||
       filterType === "volunteer_role"
     const isPendingTeammates = filterType === "pending_teammates"
+    const isMissingSubmissions = filterType === "missing_submissions"
 
     // Build the athlete-side recipient set via the shared helper so preview
     // and send stay in lock-step on audience expansion + dedup rules.
@@ -1366,7 +1518,9 @@ export const previewAudienceFn = createServerFn({ method: "GET" })
       const audienceRows = await fetchAthleteAudienceRows({
         competitionId: data.competitionId,
         divisionId:
-          filterType === "division" || isPendingTeammates
+          filterType === "division" ||
+          isPendingTeammates ||
+          isMissingSubmissions
             ? (data.audienceFilter?.divisionId ?? null)
             : null,
       })
@@ -1475,6 +1629,19 @@ export const previewAudienceFn = createServerFn({ method: "GET" })
               competition.competitionTeamId,
             )
           : volunteerRecipients
+    }
+
+    // Apply missing-submissions filter after question filters so team
+    // inheritance in applyAthleteQuestionFilters still has the captain row
+    // available to resolve teammate matches (kept in lock-step with send).
+    if (isMissingSubmissions && data.audienceFilter?.divisionId) {
+      athleteRecipients = await applyMissingSubmissionsFilter(
+        athleteRecipients,
+        {
+          competitionId: data.competitionId,
+          divisionId: data.audienceFilter.divisionId,
+        },
+      )
     }
 
     return {
