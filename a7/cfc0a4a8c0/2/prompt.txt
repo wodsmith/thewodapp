@@ -1,0 +1,65 @@
+Root cause confirmed — it's a data-model bug, not just one submission path
+
+  The issue is structural and affects any view that reads scores by userId.
+
+  The broken invariant
+
+  scoresTable has a unique index on just (competitionEventId, userId) — apps/wodsmith-start/src/db/schemas/scores.ts:122-125. A single user can only have one score row per competition event,
+  regardless of division. When an online competition reuses the same trackWorkout across both an individual and a partner division, a user registered in both divisions has one shared row. Every
+  write is onDuplicateKeyUpdate, so the last submission wins and overwrites scalingLevelId.
+
+  Where the bug manifests
+
+  All read paths key scores by (competitionEventId, userId) with no division filter, so whichever row exists is attributed to every registration the user has:
+
+  - Preview leaderboard — apps/wodsmith-start/src/server/competition-leaderboard.ts:740-744 fetches by userIds, then at lines 882-893 maps each score back via filteredRations.find(r =>
+  r.user.id === score.userId) and buckets into registration.registration.divisionId (NOT score.scalingLevelId). When the leaderboard is filtered to the individual division, it finds the individual
+  registration and the partner-division score lands there.
+  - Organizer athlete detail page (…/athletes/creg_…) — apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts:366-374 queries inArray(userId, …) AND inArray(competitionEventId, …) with no
+  division filter.
+  - getAthleteEventScoreFn — athlete-score-fns.ts:562-568 matches (competitionEventId, userId) only.
+
+  Contributing bugs in write paths
+
+  - athlete-score-fns.ts:359-375 (submitAthleteScoreFn) does registration lookup with .limit(1) and no divisionId filter — whichever registration returns first wins. The input schema also doesn't
+  accept a divisionId (line 85-92). This file looks orphaned (not referenced anywhere), but still live code.
+  - video-submission-fns.ts:1113-1147 and routes/api/compete/scores/submit.ts:2ectly scope the registration lookup by divisionId, but the upsert still collides on (competitionEventId,
+  userId), so the row still gets clobbered.
+
+  Recommended fix (not implemented yet — want your sign-off)
+
+  1. Change the unique index to (competitionEventId, userId, scalingLevelId) so one user can hold a distinct row per division. This is the root fix.
+  2. Read paths: filter scores by scalingLevelId = registration.divisionId in competition-leaderboard.ts (fetchScores + the grouping at line 890 should use score.scalingLevelId as ground truth),
+  organizer-athlete-fns.ts, and getAthleteEventScoreFn.
+  3. Write paths: require divisionId in submitAthleteScoreFn and /api/compete/scores/submit input, scope the registration lookup by it, and use onDuplicateKeyUpdate that matches the new 3-column
+  unique key.
+  4. Data backfill: existing score rows already have scalingLevelId, but we need to confirm no data will collide under the new index (it can't — only one row existed before).
+
+  Tradeoff: This needmigration (pnpm db:generate) and touches several read/write sites. The alternative — adding an explicit registrationId FK to scoresTable — is cleaner but a bigger change.
+
+  Want me to proceed with option 1 (unique-index fix + read/write updates) on this branch? --- please understand this issue. Given this unique constraint issue that we just uncovered we need to find what users are affected so essentially for this competition that I'm going to give you we have Many divisions. A lot of them are indie, which means there's only one person, and then there's partner divisions that have two people and you can sign up for as many divisions as you want. We didn't put any constraints on what divisions or how many divisions you can sign up. up. So we need to look for a couple cases in production. The first one being a captain who signed up for a partner division, say a male male partner rx division also signs up for a male rx individual division And the competition in question has four workouts where two of the partner workouts are unique to the partner division and two of the workouts number three and number four are shared with the individual division. So the issue is on three and four with in this scenario where that person who signs up for partner and individual when they try to submit their individual that will overwrite their partner division score or vice versa and then the other issue is say you're an individual athlete and you're not not quite sure what level you want to compete at, so you sign up for an RX and then an intermediate division. All four workouts are going to be shared there. So that's going to be a big issue, even though from a use case standpoint I expect that to be less frequent because most people will stick to a division. A non-issue that you might find is when an individual signs up for an RX division and then an individual RX Masters division. which if they're both if the masters division and the individual Rx division division or both RX, then the scores would be the same anyway. So the overwrite doesn't matter, but when we apply a new fix, we will need to duplicate that score. to whichever division doesn't get it
+
+---
+
+Stop hook feedback:
+The codebase has changes (499 lines) but `lat.md/` may not be fully in sync (6 lines changed). Verify `lat.md/` is in sync — run `lat search` to find relevant sections. Run `lat check` at the end.
+
+---
+
+please replicate this scenario on the score-division-unique planetscale branch. use the planetscale mcp. make sure the competition is under the admin@example.com user
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+try again
+
+---
+
+please actually set this scenario up for comp_online_qualifier_2026.
+
+---
+
+please walk me through how I'd verify the scenario is set up correct here
