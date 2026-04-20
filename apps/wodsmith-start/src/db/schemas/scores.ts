@@ -51,7 +51,10 @@ export const scoresTable = mysqlTable(
 
     // What was scored
     workoutId: varchar({ length: 255 }).notNull(),
-    competitionEventId: varchar({ length: 255 }), // NULL for personal logs
+    // References trackWorkoutsTable.id (NOT competitionEventsTable.id) despite
+    // the name. The column predates the event/workout split; all insert sites
+    // write the trackWorkoutId here. NULL for personal logs.
+    competitionEventId: varchar({ length: 255 }),
     scheduledWorkoutInstanceId: varchar({ length: 255 }),
 
     // Score classification
