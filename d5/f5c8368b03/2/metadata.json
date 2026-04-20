@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "d5f5c8368b03",
+  "session_id": "654f50cd-a10e-41dd-8392-7aaf8d4b2564",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-20T03:49:26.029636Z",
+  "branch": "bug/score-unique-index",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/wodsmith-start/sql/score-division-unique.sql",
+    "docs/bug-reports/mwfc-score-overwrite-audit.md",
+    "multi-division-registrations.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "7ae418d7-d1b9-4851-94a5-a26d25554ae3",
+  "token_usage": {
+    "input_tokens": 964,
+    "cache_creation_tokens": 248381,
+    "cache_read_tokens": 10929782,
+    "output_tokens": 86170,
+    "api_call_count": 76
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-20T03:49:25.930157Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 374,
+    "human_removed": 71,
+    "total_committed": 321,
+    "agent_percentage": 0
+  }
+}

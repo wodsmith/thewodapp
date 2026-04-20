@@ -3,7 +3,7 @@
   "checkpoint_id": "d5f5c8368b03",
   "strategy": "manual-commit",
   "branch": "bug/score-unique-index",
-  "checkpoints_count": 8,
+  "checkpoints_count": 10,
   "files_touched": [
     "apps/wodsmith-start/sql/score-division-unique.sql",
     "apps/wodsmith-start/src/db/schemas/scores.ts",
@@ -41,13 +41,20 @@
       "context": "/d5/f5c8368b03/1/context.md",
       "content_hash": "/d5/f5c8368b03/1/content_hash.txt",
       "prompt": "/d5/f5c8368b03/1/prompt.txt"
+    },
+    {
+      "metadata": "/d5/f5c8368b03/2/metadata.json",
+      "transcript": "/d5/f5c8368b03/2/full.jsonl",
+      "context": "/d5/f5c8368b03/2/context.md",
+      "content_hash": "/d5/f5c8368b03/2/content_hash.txt",
+      "prompt": "/d5/f5c8368b03/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 374,
-    "cache_creation_tokens": 1143006,
-    "cache_read_tokens": 41974853,
-    "output_tokens": 105298,
-    "api_call_count": 252
+    "input_tokens": 1338,
+    "cache_creation_tokens": 1391387,
+    "cache_read_tokens": 52904635,
+    "output_tokens": 191468,
+    "api_call_count": 328
   }
 }
