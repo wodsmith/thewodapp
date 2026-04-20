@@ -1574,16 +1574,17 @@ export const removeRegistrationFn = createServerFn({ method: "POST" })
         ),
       )
 
-    // 8. Delete scores for the registered user(s) in this competition's events
-
-    // Get all competition event IDs
+    // 8. Delete scores for the registered user(s) in this competition's events.
+    // `scores.competition_event_id` actually stores a `track_workouts.id`
+    // (column is misleadingly named), so key the delete by trackWorkoutId, not
+    // competition_events.id — comparing the two would silently match nothing.
     const competitionEvents = await db
-      .select({ id: competitionEventsTable.id })
+      .select({ trackWorkoutId: competitionEventsTable.trackWorkoutId })
       .from(competitionEventsTable)
       .where(eq(competitionEventsTable.competitionId, input.competitionId))
 
     if (competitionEvents.length > 0) {
-      const eventIds = competitionEvents.map((e) => e.id)
+      const eventIds = competitionEvents.map((e) => e.trackWorkoutId)
 
       // Collect all user IDs to clean up scores for
       const userIds = [registration.userId]
@@ -1602,15 +1603,18 @@ export const removeRegistrationFn = createServerFn({ method: "POST" })
         }
       }
 
-      // Delete scores for these users in this competition's events
-      await db
-        .delete(scoresTable)
-        .where(
-          and(
-            inArray(scoresTable.competitionEventId, eventIds),
-            inArray(scoresTable.userId, userIds),
-          ),
-        )
+      // Delete scores for these users in this competition's events. Always
+      // scope by this registration's division (or explicit null) so removing
+      // one registration never nukes the athlete's score in a sibling
+      // division when the same workout is shared across divisions.
+      const deleteScoresConditions = [
+        inArray(scoresTable.competitionEventId, eventIds),
+        inArray(scoresTable.userId, userIds),
+        registration.divisionId
+          ? eq(scoresTable.scalingLevelId, registration.divisionId)
+          : isNull(scoresTable.scalingLevelId),
+      ]
+      await db.delete(scoresTable).where(and(...deleteScoresConditions))
     }
 
     logInfo({

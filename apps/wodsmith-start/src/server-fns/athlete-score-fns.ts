@@ -11,7 +11,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, ne } from "drizzle-orm"
+import { and, eq, isNull, ne, type SQL } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -85,6 +85,7 @@ export interface AthleteEventScore {
 const submitScoreInputSchema = z.object({
   competitionId: z.string().min(1),
   trackWorkoutId: z.string().min(1),
+  divisionId: z.string().optional(),
   score: z.string().min(1, "Score is required"),
   status: z.enum(["scored", "cap"]),
   secondaryScore: z.string().optional(),
@@ -94,6 +95,7 @@ const submitScoreInputSchema = z.object({
 const getScoreInputSchema = z.object({
   competitionId: z.string().min(1),
   trackWorkoutId: z.string().min(1),
+  divisionId: z.string().optional(),
 })
 
 const getSubmissionWindowInputSchema = z.object({
@@ -221,6 +223,94 @@ async function checkSubmissionWindow(
   }
 }
 
+/**
+ * Resolution outcome for an athlete's division when reading/writing a score.
+ * Callers handle each kind explicitly so a null divisionId is never silently
+ * collapsed into an unscoped (event, user) query that leaks across divisions.
+ */
+type ResolvedDivision =
+  | { kind: "specific"; divisionId: string }
+  | { kind: "open" } // exactly one registration with a null divisionId
+  | { kind: "ambiguous" } // multiple registrations and caller did not pick one
+  | { kind: "notFound" } // caller asked for a divisionId the user is not in
+
+/**
+ * Resolve which division to scope a score read/write to.
+ */
+async function resolveAthleteDivisionId({
+  competitionId,
+  userId,
+  requestedDivisionId,
+}: {
+  competitionId: string
+  userId: string
+  requestedDivisionId?: string
+}): Promise<ResolvedDivision> {
+  const db = getDb()
+
+  const baseConditions = [
+    eq(competitionRegistrationsTable.eventId, competitionId),
+    eq(competitionRegistrationsTable.userId, userId),
+    ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+  ]
+
+  if (requestedDivisionId) {
+    const [reg] = await db
+      .select({ divisionId: competitionRegistrationsTable.divisionId })
+      .from(competitionRegistrationsTable)
+      .where(
+        and(
+          ...baseConditions,
+          eq(competitionRegistrationsTable.divisionId, requestedDivisionId),
+        ),
+      )
+      .limit(1)
+    if (!reg) return { kind: "notFound" }
+    return { kind: "specific", divisionId: requestedDivisionId }
+  }
+
+  const regs = await db
+    .select({ divisionId: competitionRegistrationsTable.divisionId })
+    .from(competitionRegistrationsTable)
+    .where(and(...baseConditions))
+    .limit(2)
+
+  if (regs.length === 0) return { kind: "notFound" }
+  if (regs.length > 1) return { kind: "ambiguous" }
+  const divisionId = regs[0].divisionId
+  return divisionId
+    ? { kind: "specific", divisionId }
+    : { kind: "open" }
+}
+
+/**
+ * Build the predicate that scopes a score query to a resolved division. Returns
+ * null when the resolved division can't pick a unique row (ambiguous or not
+ * found), letting the caller short-circuit with an empty result instead of
+ * dropping the divisionId predicate and reading from another division.
+ */
+function divisionScopePredicate(resolved: ResolvedDivision): SQL | null {
+  switch (resolved.kind) {
+    case "specific":
+      return eq(scoresTable.scalingLevelId, resolved.divisionId)
+    case "open":
+      return isNull(scoresTable.scalingLevelId)
+    case "ambiguous":
+    case "notFound":
+      return null
+  }
+}
+
+const EMPTY_ATHLETE_EVENT_SCORE: AthleteEventScore = {
+  scoreId: null,
+  scoreValue: null,
+  displayScore: null,
+  status: null,
+  secondaryValue: null,
+  tiebreakValue: null,
+  submittedAt: null,
+}
+
 // ============================================================================
 // Server Functions
 // ============================================================================
@@ -259,7 +349,27 @@ export const getAthleteEventScoreFn = createServerFn({ method: "GET" })
 
     const db = getDb()
 
-    // Get the user's existing score for this event
+    // Resolve the athlete's division for this competition. When an athlete is
+    // registered in multiple divisions that share a workout, scores are keyed
+    // per-division — pick the right row by scoping to divisionId. Ambiguous /
+    // not-found resolutions return an empty score rather than dropping the
+    // divisionId predicate (which would leak across divisions).
+    const resolved = await resolveAthleteDivisionId({
+      competitionId: data.competitionId,
+      userId: session.userId,
+      requestedDivisionId: data.divisionId,
+    })
+
+    const divisionPredicate = divisionScopePredicate(resolved)
+    if (!divisionPredicate) return EMPTY_ATHLETE_EVENT_SCORE
+
+    const scoreConditions = [
+      eq(scoresTable.competitionEventId, data.trackWorkoutId),
+      eq(scoresTable.userId, session.userId),
+      divisionPredicate,
+    ]
+
+    // Get the user's existing score for this event (division-scoped)
     const [existingScore] = await db
       .select({
         id: scoresTable.id,
@@ -271,25 +381,10 @@ export const getAthleteEventScoreFn = createServerFn({ method: "GET" })
         scheme: scoresTable.scheme,
       })
       .from(scoresTable)
-      .where(
-        and(
-          eq(scoresTable.competitionEventId, data.trackWorkoutId),
-          eq(scoresTable.userId, session.userId),
-        ),
-      )
+      .where(and(...scoreConditions))
       .limit(1)
 
-    if (!existingScore) {
-      return {
-        scoreId: null,
-        scoreValue: null,
-        displayScore: null,
-        status: null,
-        secondaryValue: null,
-        tiebreakValue: null,
-        submittedAt: null,
-      }
-    }
+    if (!existingScore) return EMPTY_ATHLETE_EVENT_SCORE
 
     // Decode the score for display
     const { decodeScore } = await import("@/lib/scoring")
@@ -355,37 +450,58 @@ export const submitAthleteScoreFn = createServerFn({ method: "POST" })
         },
       })
 
-      // 1. Check that user is registered for this competition
-      const [registration] = await db
+      // 1. Resolve the registration scoped to the division the athlete is
+      // submitting for. If divisionId is provided, match it exactly. Otherwise,
+      // only proceed when the user has a single registration — ambiguity between
+      // multi-division registrations would silently write to the wrong division.
+      const regConditions = [
+        eq(competitionRegistrationsTable.eventId, data.competitionId),
+        eq(competitionRegistrationsTable.userId, session.userId),
+        ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+      ]
+      if (data.divisionId) {
+        regConditions.push(
+          eq(competitionRegistrationsTable.divisionId, data.divisionId),
+        )
+      }
+
+      const registrations = await db
         .select({
           id: competitionRegistrationsTable.id,
           divisionId: competitionRegistrationsTable.divisionId,
         })
         .from(competitionRegistrationsTable)
-        .where(
-          and(
-            eq(competitionRegistrationsTable.eventId, data.competitionId),
-            eq(competitionRegistrationsTable.userId, session.userId),
-            ne(
-              competitionRegistrationsTable.status,
-              REGISTRATION_STATUS.REMOVED,
-            ),
-          ),
-        )
-        .limit(1)
+        .where(and(...regConditions))
+        .limit(2)
 
-      if (!registration) {
+      if (registrations.length === 0) {
         logWarning({
           message: "[AthleteScore] Submission denied - not registered",
           attributes: {
             competitionId: data.competitionId,
             trackWorkoutId: data.trackWorkoutId,
             userId: session.userId,
+            divisionId: data.divisionId ?? null,
           },
         })
         throw new Error("You are not registered for this competition")
       }
 
+      if (registrations.length > 1) {
+        logWarning({
+          message: "[AthleteScore] Submission denied - ambiguous division",
+          attributes: {
+            competitionId: data.competitionId,
+            trackWorkoutId: data.trackWorkoutId,
+            userId: session.userId,
+          },
+        })
+        throw new Error(
+          "You are registered in multiple divisions for this competition. Please specify which division to submit for.",
+        )
+      }
+
+      const registration = registrations[0]
       addRequestContextAttribute("registrationId", registration.id)
 
       // 2. Check submission window
@@ -555,16 +671,20 @@ export const submitAthleteScoreFn = createServerFn({ method: "POST" })
           },
         })
 
-      // Get the final score ID
+      // Get the final score ID — scope by division to match the 3-col unique
+      // key. Null divisionId is its own scope (isNull), not a wildcard, so we
+      // never accidentally pick up a sibling division's row.
+      const finalScoreConditions = [
+        eq(scoresTable.competitionEventId, data.trackWorkoutId),
+        eq(scoresTable.userId, session.userId),
+        registration.divisionId
+          ? eq(scoresTable.scalingLevelId, registration.divisionId)
+          : isNull(scoresTable.scalingLevelId),
+      ]
       const [finalScore] = await db
         .select({ id: scoresTable.id })
         .from(scoresTable)
-        .where(
-          and(
-            eq(scoresTable.competitionEventId, data.trackWorkoutId),
-            eq(scoresTable.userId, session.userId),
-          ),
-        )
+        .where(and(...finalScoreConditions))
         .limit(1)
 
       if (!finalScore) {

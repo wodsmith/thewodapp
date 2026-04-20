@@ -167,6 +167,7 @@ async function fetchScores(params: {
       id: scoresTable.id,
       userId: scoresTable.userId,
       competitionEventId: scoresTable.competitionEventId,
+      scalingLevelId: scoresTable.scalingLevelId,
       scheme: scoresTable.scheme,
       scoreValue: scoresTable.scoreValue,
       tiebreakScheme: scoresTable.tiebreakScheme,
@@ -879,18 +880,27 @@ export async function getCompetitionLeaderboard(params: {
       if (score.competitionEventId !== trackWorkout.id) continue
       scoresSeenForEvent++
 
+      // Group by the score's own scalingLevelId — NOT the first registration's
+      // division. An athlete in multiple divisions holds a distinct score row
+      // per division (the unique key is event+user+scalingLevel); resolving via
+      // `filteredRegistrations.find(r.user.id === score.userId)` would
+      // attribute every one of their scores to whichever registration happened
+      // to come first in the list, so the partner division's score would leak
+      // onto the individual leaderboard.
+      const scoreDivisionId = score.scalingLevelId || "open"
       const registration = filteredRegistrations.find(
-        (r) => r.user.id === score.userId,
+        (r) =>
+          r.user.id === score.userId &&
+          (r.registration.divisionId || "open") === scoreDivisionId,
       )
       if (!registration) {
         scoresMissingRegistration++
         continue
       }
 
-      const divisionId = registration.registration.divisionId || "open"
-      const existing = eventScoresByDivision.get(divisionId) || []
+      const existing = eventScoresByDivision.get(scoreDivisionId) || []
       existing.push(score)
-      eventScoresByDivision.set(divisionId, existing)
+      eventScoresByDivision.set(scoreDivisionId, existing)
     }
 
     let gatedOut = 0
@@ -964,10 +974,17 @@ export async function getCompetitionLeaderboard(params: {
       // Apply points multiplier
       const multiplier = (trackWorkout.pointsMultiplier ?? 100) / 100
 
-      // Update leaderboard entries with results
+      // Update leaderboard entries with results. Match the score to its
+      // exact registration by (userId, scalingLevelId) so an athlete in
+      // multiple divisions lands on the correct registration entry — matching
+      // by userId alone would point every score at whichever of their
+      // registrations appears first in `filteredRegistrations`.
       for (const score of divisionScores) {
         const registration = filteredRegistrations.find(
-          (r) => r.user.id === score.userId,
+          (r) =>
+            r.user.id === score.userId &&
+            (r.registration.divisionId || "open") ===
+              (score.scalingLevelId || "open"),
         )
         if (!registration) continue
 

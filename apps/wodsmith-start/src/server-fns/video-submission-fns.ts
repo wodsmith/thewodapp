@@ -5,7 +5,16 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, count, eq, inArray, isNotNull, ne, sql } from "drizzle-orm"
+import {
+  and,
+  asc,
+  count,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  ne,
+} from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -422,16 +431,16 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
     // Score belongs to the captain (or the individual athlete)
     const scoreUserId = registration.captainUserId ?? session.userId
 
-    // Scope score lookup by division when available
+    // Scope score lookup by division — null divisionId is its own scope
+    // (isNull), not a wildcard that would leak across divisions on a shared
+    // workout.
     const scoreConditions = [
       eq(scoresTable.competitionEventId, data.trackWorkoutId),
       eq(scoresTable.userId, scoreUserId),
+      registration.divisionId
+        ? eq(scoresTable.scalingLevelId, registration.divisionId)
+        : isNull(scoresTable.scalingLevelId),
     ]
-    if (registration.divisionId) {
-      scoreConditions.push(
-        eq(scoresTable.scalingLevelId, registration.divisionId),
-      )
-    }
 
     const [score] = await db
       .select({
@@ -1158,7 +1167,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
               eq(scoresTable.userId, session.userId),
               registration.divisionId
                 ? eq(scoresTable.scalingLevelId, registration.divisionId)
-                : sql`1=1`,
+                : isNull(scoresTable.scalingLevelId),
             ),
           )
           .limit(1)
@@ -1690,7 +1699,16 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
       return { submission: null }
     }
 
-    // Get score for this user + event
+    // Get score for this user + event, scoped to the submission's division so
+    // we don't surface a different division's score on a shared workout. Null
+    // divisionId is its own scope (isNull), not a wildcard.
+    const scoreLookupConditions = [
+      eq(scoresTable.competitionEventId, submission.trackWorkoutId),
+      eq(scoresTable.userId, submission.userId),
+      submission.divisionId
+        ? eq(scoresTable.scalingLevelId, submission.divisionId)
+        : isNull(scoresTable.scalingLevelId),
+    ]
     const [score] = await db
       .select({
         id: scoresTable.id,
@@ -1699,12 +1717,7 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
         scheme: scoresTable.scheme,
       })
       .from(scoresTable)
-      .where(
-        and(
-          eq(scoresTable.competitionEventId, submission.trackWorkoutId),
-          eq(scoresTable.userId, submission.userId),
-        ),
-      )
+      .where(and(...scoreLookupConditions))
       .limit(1)
 
     let displayScore: string | null = null

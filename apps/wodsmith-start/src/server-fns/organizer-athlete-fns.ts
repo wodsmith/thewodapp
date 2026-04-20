@@ -363,15 +363,22 @@ export const getOrganizerAthleteDetailFn = createServerFn({ method: "GET" })
         .from(videoSubmissionsTable)
         .where(eq(videoSubmissionsTable.registrationId, data.registrationId)),
       memberUserIdList.length > 0 && eventTrackWorkoutIds.length > 0
-        ? db
-            .select()
-            .from(scoresTable)
-            .where(
-              and(
-                inArray(scoresTable.userId, memberUserIdList),
-                inArray(scoresTable.competitionEventId, eventTrackWorkoutIds),
-              ),
-            )
+        ? (() => {
+            // Scope to the registration's division so the athlete's score in a
+            // different division (shared-workout case) doesn't leak into this
+            // registration's view.
+            const scoreConditions = [
+              inArray(scoresTable.userId, memberUserIdList),
+              inArray(scoresTable.competitionEventId, eventTrackWorkoutIds),
+              registration.divisionId
+                ? eq(scoresTable.scalingLevelId, registration.divisionId)
+                : isNull(scoresTable.scalingLevelId),
+            ]
+            return db
+              .select()
+              .from(scoresTable)
+              .where(and(...scoreConditions))
+          })()
         : Promise.resolve([] as (typeof scoresTable.$inferSelect)[]),
       registration.commercePurchaseId
         ? db.query.commercePurchaseTable.findFirst({
@@ -1591,18 +1598,21 @@ export const deleteOrganizerVideoSubmissionFn = createServerFn({
     if (!registration)
       throw new Error("Submission does not belong to this competition")
 
-    // If videoIndex === 0 this is the score owner — delete the linked score too
+    // If videoIndex === 0 this is the score owner — delete the linked score too.
+    // Scope by division so a different division's score for a shared workout
+    // isn't collateral damage.
     if (submission.videoIndex === 0) {
-      // Find the score keyed by (competitionEventId = trackWorkoutId, userId)
+      const scoreLookupConditions = [
+        eq(scoresTable.competitionEventId, submission.trackWorkoutId),
+        eq(scoresTable.userId, submission.userId),
+        registration.divisionId
+          ? eq(scoresTable.scalingLevelId, registration.divisionId)
+          : isNull(scoresTable.scalingLevelId),
+      ]
       const [score] = await db
         .select({ id: scoresTable.id })
         .from(scoresTable)
-        .where(
-          and(
-            eq(scoresTable.competitionEventId, submission.trackWorkoutId),
-            eq(scoresTable.userId, submission.userId),
-          ),
-        )
+        .where(and(...scoreLookupConditions))
         .limit(1)
       if (score) {
         await db
