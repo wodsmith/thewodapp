@@ -3,9 +3,18 @@
   "checkpoint_id": "a7cfc0a4a8c0",
   "strategy": "manual-commit",
   "branch": "bug/score-unique-index",
-  "checkpoints_count": 8,
+  "checkpoints_count": 10,
   "files_touched": [
+    "apps/wodsmith-start/src/routes/api/compete/scores/judge.ts",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/event-score-card.tsx",
+    "apps/wodsmith-start/src/server-fns/athlete-score-fns.ts",
+    "apps/wodsmith-start/src/server-fns/competition-score-fns.ts",
+    "apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts",
+    "apps/wodsmith-start/src/server-fns/registration-fns.ts",
+    "apps/wodsmith-start/src/server-fns/submission-verification-fns.ts",
+    "apps/wodsmith-start/src/server-fns/video-submission-fns.ts",
     "flagged-multi-division-submissions.md",
+    "lat.md/domain.md",
     "team-partners-individual-registrations.md",
     "team-partners-individual-scores-wk3-wk4.md"
   ],
@@ -30,13 +39,20 @@
       "context": "/a7/cfc0a4a8c0/2/context.md",
       "content_hash": "/a7/cfc0a4a8c0/2/content_hash.txt",
       "prompt": "/a7/cfc0a4a8c0/2/prompt.txt"
+    },
+    {
+      "metadata": "/a7/cfc0a4a8c0/3/metadata.json",
+      "transcript": "/a7/cfc0a4a8c0/3/full.jsonl",
+      "context": "/a7/cfc0a4a8c0/3/context.md",
+      "content_hash": "/a7/cfc0a4a8c0/3/content_hash.txt",
+      "prompt": "/a7/cfc0a4a8c0/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 210,
-    "cache_creation_tokens": 437360,
-    "cache_read_tokens": 14452629,
-    "output_tokens": 164745,
-    "api_call_count": 95
+    "input_tokens": 3476,
+    "cache_creation_tokens": 809948,
+    "cache_read_tokens": 28072422,
+    "output_tokens": 212476,
+    "api_call_count": 204
   }
 }

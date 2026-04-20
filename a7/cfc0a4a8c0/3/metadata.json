@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "a7cfc0a4a8c0",
+  "session_id": "40783b89-5ccf-4633-bad7-b4dcff9f945e",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-20T05:14:08.862495Z",
+  "branch": "bug/score-unique-index",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/wodsmith-start/src/routes/api/compete/scores/judge.ts",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/athletes/-components/event-score-card.tsx",
+    "apps/wodsmith-start/src/server-fns/athlete-score-fns.ts",
+    "apps/wodsmith-start/src/server-fns/competition-score-fns.ts",
+    "apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts",
+    "apps/wodsmith-start/src/server-fns/registration-fns.ts",
+    "apps/wodsmith-start/src/server-fns/submission-verification-fns.ts",
+    "apps/wodsmith-start/src/server-fns/video-submission-fns.ts",
+    "lat.md/domain.md"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 3266,
+    "cache_creation_tokens": 372588,
+    "cache_read_tokens": 13619793,
+    "output_tokens": 47731,
+    "api_call_count": 109
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-20T05:14:08.76077Z",
+    "agent_lines": 164,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 164,
+    "agent_percentage": 100
+  }
+}
