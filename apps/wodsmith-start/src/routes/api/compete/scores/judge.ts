@@ -24,7 +24,7 @@
 
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
-import { and, eq } from "drizzle-orm"
+import { and, eq, isNull } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -331,12 +331,10 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
             const finalScoreConditions = [
               eq(scoresTable.competitionEventId, data.trackWorkoutId),
               eq(scoresTable.userId, data.userId),
+              data.divisionId
+                ? eq(scoresTable.scalingLevelId, data.divisionId)
+                : isNull(scoresTable.scalingLevelId),
             ]
-            if (data.divisionId) {
-              finalScoreConditions.push(
-                eq(scoresTable.scalingLevelId, data.divisionId),
-              )
-            }
             const [finalScore] = await tx
               .select({ id: scoresTable.id })
               .from(scoresTable)

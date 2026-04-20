@@ -370,12 +370,10 @@ export const getOrganizerAthleteDetailFn = createServerFn({ method: "GET" })
             const scoreConditions = [
               inArray(scoresTable.userId, memberUserIdList),
               inArray(scoresTable.competitionEventId, eventTrackWorkoutIds),
+              registration.divisionId
+                ? eq(scoresTable.scalingLevelId, registration.divisionId)
+                : isNull(scoresTable.scalingLevelId),
             ]
-            if (registration.divisionId) {
-              scoreConditions.push(
-                eq(scoresTable.scalingLevelId, registration.divisionId),
-              )
-            }
             return db
               .select()
               .from(scoresTable)
@@ -1607,12 +1605,10 @@ export const deleteOrganizerVideoSubmissionFn = createServerFn({
       const scoreLookupConditions = [
         eq(scoresTable.competitionEventId, submission.trackWorkoutId),
         eq(scoresTable.userId, submission.userId),
+        registration.divisionId
+          ? eq(scoresTable.scalingLevelId, registration.divisionId)
+          : isNull(scoresTable.scalingLevelId),
       ]
-      if (registration.divisionId) {
-        scoreLookupConditions.push(
-          eq(scoresTable.scalingLevelId, registration.divisionId),
-        )
-      }
       const [score] = await db
         .select({ id: scoresTable.id })
         .from(scoresTable)

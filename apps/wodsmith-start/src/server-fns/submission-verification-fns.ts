@@ -6,7 +6,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, desc, eq, inArray } from "drizzle-orm"
+import { and, desc, eq, inArray, isNull } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -834,12 +834,10 @@ export const enterSubmissionScoreFn = createServerFn({ method: "POST" })
       const existingScoreConditions = [
         eq(scoresTable.competitionEventId, data.trackWorkoutId),
         eq(scoresTable.userId, scoreUserId),
+        registration.divisionId
+          ? eq(scoresTable.scalingLevelId, registration.divisionId)
+          : isNull(scoresTable.scalingLevelId),
       ]
-      if (registration.divisionId) {
-        existingScoreConditions.push(
-          eq(scoresTable.scalingLevelId, registration.divisionId),
-        )
-      }
       const [existingScore] = await db
         .select({ id: scoresTable.id })
         .from(scoresTable)
@@ -1022,12 +1020,10 @@ export const enterSubmissionScoreFn = createServerFn({ method: "POST" })
         const existingInTxConditions = [
           eq(scoresTable.competitionEventId, data.trackWorkoutId),
           eq(scoresTable.userId, scoreUserId),
+          registration.divisionId
+            ? eq(scoresTable.scalingLevelId, registration.divisionId)
+            : isNull(scoresTable.scalingLevelId),
         ]
-        if (registration.divisionId) {
-          existingInTxConditions.push(
-            eq(scoresTable.scalingLevelId, registration.divisionId),
-          )
-        }
         const [existingInTx] = await tx
           .select({ id: scoresTable.id })
           .from(scoresTable)
@@ -1073,12 +1069,10 @@ export const enterSubmissionScoreFn = createServerFn({ method: "POST" })
         const insertedConditions = [
           eq(scoresTable.competitionEventId, data.trackWorkoutId),
           eq(scoresTable.userId, scoreUserId),
+          registration.divisionId
+            ? eq(scoresTable.scalingLevelId, registration.divisionId)
+            : isNull(scoresTable.scalingLevelId),
         ]
-        if (registration.divisionId) {
-          insertedConditions.push(
-            eq(scoresTable.scalingLevelId, registration.divisionId),
-          )
-        }
         const [inserted] = await tx
           .select({ id: scoresTable.id })
           .from(scoresTable)
