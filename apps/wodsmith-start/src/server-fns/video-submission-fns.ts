@@ -1690,7 +1690,17 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
       return { submission: null }
     }
 
-    // Get score for this user + event
+    // Get score for this user + event, scoped to the submission's division so
+    // we don't surface a different division's score on a shared workout.
+    const scoreLookupConditions = [
+      eq(scoresTable.competitionEventId, submission.trackWorkoutId),
+      eq(scoresTable.userId, submission.userId),
+    ]
+    if (submission.divisionId) {
+      scoreLookupConditions.push(
+        eq(scoresTable.scalingLevelId, submission.divisionId),
+      )
+    }
     const [score] = await db
       .select({
         id: scoresTable.id,
@@ -1699,12 +1709,7 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
         scheme: scoresTable.scheme,
       })
       .from(scoresTable)
-      .where(
-        and(
-          eq(scoresTable.competitionEventId, submission.trackWorkoutId),
-          eq(scoresTable.userId, submission.userId),
-        ),
-      )
+      .where(and(...scoreLookupConditions))
       .limit(1)
 
     let displayScore: string | null = null

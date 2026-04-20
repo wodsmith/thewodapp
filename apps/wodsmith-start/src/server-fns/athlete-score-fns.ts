@@ -85,6 +85,7 @@ export interface AthleteEventScore {
 const submitScoreInputSchema = z.object({
   competitionId: z.string().min(1),
   trackWorkoutId: z.string().min(1),
+  divisionId: z.string().optional(),
   score: z.string().min(1, "Score is required"),
   status: z.enum(["scored", "cap"]),
   secondaryScore: z.string().optional(),
@@ -94,6 +95,7 @@ const submitScoreInputSchema = z.object({
 const getScoreInputSchema = z.object({
   competitionId: z.string().min(1),
   trackWorkoutId: z.string().min(1),
+  divisionId: z.string().optional(),
 })
 
 const getSubmissionWindowInputSchema = z.object({
@@ -221,6 +223,54 @@ async function checkSubmissionWindow(
   }
 }
 
+/**
+ * Resolve which divisionId to scope a score read/write to. When the caller
+ * supplies a divisionId, verify the user is actually registered in it. Otherwise,
+ * if the user has exactly one active registration, use that division. If they
+ * have multiple registrations and none was specified, return null so the caller
+ * can decide how to handle the ambiguity (error vs. "any of their divisions").
+ */
+async function resolveAthleteDivisionId({
+  competitionId,
+  userId,
+  requestedDivisionId,
+}: {
+  competitionId: string
+  userId: string
+  requestedDivisionId?: string
+}): Promise<string | null> {
+  const db = getDb()
+
+  const baseConditions = [
+    eq(competitionRegistrationsTable.eventId, competitionId),
+    eq(competitionRegistrationsTable.userId, userId),
+    ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+  ]
+
+  if (requestedDivisionId) {
+    const [reg] = await db
+      .select({ divisionId: competitionRegistrationsTable.divisionId })
+      .from(competitionRegistrationsTable)
+      .where(
+        and(
+          ...baseConditions,
+          eq(competitionRegistrationsTable.divisionId, requestedDivisionId),
+        ),
+      )
+      .limit(1)
+    return reg?.divisionId ?? null
+  }
+
+  const regs = await db
+    .select({ divisionId: competitionRegistrationsTable.divisionId })
+    .from(competitionRegistrationsTable)
+    .where(and(...baseConditions))
+    .limit(2)
+
+  if (regs.length === 1) return regs[0].divisionId ?? null
+  return null
+}
+
 // ============================================================================
 // Server Functions
 // ============================================================================
@@ -259,7 +309,24 @@ export const getAthleteEventScoreFn = createServerFn({ method: "GET" })
 
     const db = getDb()
 
-    // Get the user's existing score for this event
+    // Resolve the athlete's division for this competition. When an athlete is
+    // registered in multiple divisions that share a workout, scores are keyed
+    // per-division — pick the right row by scoping to divisionId.
+    const resolvedDivisionId = await resolveAthleteDivisionId({
+      competitionId: data.competitionId,
+      userId: session.userId,
+      requestedDivisionId: data.divisionId,
+    })
+
+    const scoreConditions = [
+      eq(scoresTable.competitionEventId, data.trackWorkoutId),
+      eq(scoresTable.userId, session.userId),
+    ]
+    if (resolvedDivisionId) {
+      scoreConditions.push(eq(scoresTable.scalingLevelId, resolvedDivisionId))
+    }
+
+    // Get the user's existing score for this event (division-scoped)
     const [existingScore] = await db
       .select({
         id: scoresTable.id,
@@ -271,12 +338,7 @@ export const getAthleteEventScoreFn = createServerFn({ method: "GET" })
         scheme: scoresTable.scheme,
       })
       .from(scoresTable)
-      .where(
-        and(
-          eq(scoresTable.competitionEventId, data.trackWorkoutId),
-          eq(scoresTable.userId, session.userId),
-        ),
-      )
+      .where(and(...scoreConditions))
       .limit(1)
 
     if (!existingScore) {
@@ -355,37 +417,58 @@ export const submitAthleteScoreFn = createServerFn({ method: "POST" })
         },
       })
 
-      // 1. Check that user is registered for this competition
-      const [registration] = await db
+      // 1. Resolve the registration scoped to the division the athlete is
+      // submitting for. If divisionId is provided, match it exactly. Otherwise,
+      // only proceed when the user has a single registration — ambiguity between
+      // multi-division registrations would silently write to the wrong division.
+      const regConditions = [
+        eq(competitionRegistrationsTable.eventId, data.competitionId),
+        eq(competitionRegistrationsTable.userId, session.userId),
+        ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+      ]
+      if (data.divisionId) {
+        regConditions.push(
+          eq(competitionRegistrationsTable.divisionId, data.divisionId),
+        )
+      }
+
+      const registrations = await db
         .select({
           id: competitionRegistrationsTable.id,
           divisionId: competitionRegistrationsTable.divisionId,
         })
         .from(competitionRegistrationsTable)
-        .where(
-          and(
-            eq(competitionRegistrationsTable.eventId, data.competitionId),
-            eq(competitionRegistrationsTable.userId, session.userId),
-            ne(
-              competitionRegistrationsTable.status,
-              REGISTRATION_STATUS.REMOVED,
-            ),
-          ),
-        )
-        .limit(1)
+        .where(and(...regConditions))
+        .limit(2)
 
-      if (!registration) {
+      if (registrations.length === 0) {
         logWarning({
           message: "[AthleteScore] Submission denied - not registered",
           attributes: {
             competitionId: data.competitionId,
             trackWorkoutId: data.trackWorkoutId,
             userId: session.userId,
+            divisionId: data.divisionId ?? null,
           },
         })
         throw new Error("You are not registered for this competition")
       }
 
+      if (registrations.length > 1) {
+        logWarning({
+          message: "[AthleteScore] Submission denied - ambiguous division",
+          attributes: {
+            competitionId: data.competitionId,
+            trackWorkoutId: data.trackWorkoutId,
+            userId: session.userId,
+          },
+        })
+        throw new Error(
+          "You are registered in multiple divisions for this competition. Please specify which division to submit for.",
+        )
+      }
+
+      const registration = registrations[0]
       addRequestContextAttribute("registrationId", registration.id)
 
       // 2. Check submission window
@@ -555,16 +638,20 @@ export const submitAthleteScoreFn = createServerFn({ method: "POST" })
           },
         })
 
-      // Get the final score ID
+      // Get the final score ID — scope by division to match the 3-col unique key
+      const finalScoreConditions = [
+        eq(scoresTable.competitionEventId, data.trackWorkoutId),
+        eq(scoresTable.userId, session.userId),
+      ]
+      if (registration.divisionId) {
+        finalScoreConditions.push(
+          eq(scoresTable.scalingLevelId, registration.divisionId),
+        )
+      }
       const [finalScore] = await db
         .select({ id: scoresTable.id })
         .from(scoresTable)
-        .where(
-          and(
-            eq(scoresTable.competitionEventId, data.trackWorkoutId),
-            eq(scoresTable.userId, session.userId),
-          ),
-        )
+        .where(and(...finalScoreConditions))
         .limit(1)
 
       if (!finalScore) {

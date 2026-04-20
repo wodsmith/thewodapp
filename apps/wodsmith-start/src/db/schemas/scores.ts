@@ -118,10 +118,15 @@ export const scoresTable = mysqlTable(
     ),
     // Scheduled workout lookup
     index("idx_scores_scheduled").on(table.scheduledWorkoutInstanceId),
-    // Unique constraint for competition scores (one score per user per event)
+    // Unique constraint for competition scores: one score per user per event per division.
+    // Scoping by scalingLevelId lets an athlete registered in multiple divisions
+    // (e.g. individual + partner) hold a separate score for a workout shared
+    // across divisions — without scalingLevelId here, the upsert merges the two
+    // divisions' scores into one row and leaks across leaderboards.
     uniqueIndex("idx_scores_competition_user_unique").on(
       table.competitionEventId,
       table.userId,
+      table.scalingLevelId,
     ),
   ],
 )

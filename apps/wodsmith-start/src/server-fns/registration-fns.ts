@@ -1602,15 +1602,20 @@ export const removeRegistrationFn = createServerFn({ method: "POST" })
         }
       }
 
-      // Delete scores for these users in this competition's events
-      await db
-        .delete(scoresTable)
-        .where(
-          and(
-            inArray(scoresTable.competitionEventId, eventIds),
-            inArray(scoresTable.userId, userIds),
-          ),
+      // Delete scores for these users in this competition's events. Scope by
+      // this registration's division so removing one registration doesn't
+      // nuke the athlete's scores in their other division(s) when the same
+      // workout is shared across divisions.
+      const deleteScoresConditions = [
+        inArray(scoresTable.competitionEventId, eventIds),
+        inArray(scoresTable.userId, userIds),
+      ]
+      if (registration.divisionId) {
+        deleteScoresConditions.push(
+          eq(scoresTable.scalingLevelId, registration.divisionId),
         )
+      }
+      await db.delete(scoresTable).where(and(...deleteScoresConditions))
     }
 
     logInfo({

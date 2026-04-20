@@ -125,6 +125,7 @@ export function EventScoreCard({
           competitionId,
           trackWorkoutId: event.trackWorkoutId,
           userId: captain.userId,
+          divisionId: divisionId ?? undefined,
         },
       })
       toast.success("Score deleted")

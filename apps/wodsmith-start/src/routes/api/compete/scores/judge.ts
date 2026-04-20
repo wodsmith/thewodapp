@@ -328,15 +328,19 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
                 },
               })
 
+            const finalScoreConditions = [
+              eq(scoresTable.competitionEventId, data.trackWorkoutId),
+              eq(scoresTable.userId, data.userId),
+            ]
+            if (data.divisionId) {
+              finalScoreConditions.push(
+                eq(scoresTable.scalingLevelId, data.divisionId),
+              )
+            }
             const [finalScore] = await tx
               .select({ id: scoresTable.id })
               .from(scoresTable)
-              .where(
-                and(
-                  eq(scoresTable.competitionEventId, data.trackWorkoutId),
-                  eq(scoresTable.userId, data.userId),
-                ),
-              )
+              .where(and(...finalScoreConditions))
               .limit(1)
 
             if (!finalScore) throw new Error("Failed to retrieve score after upsert")
