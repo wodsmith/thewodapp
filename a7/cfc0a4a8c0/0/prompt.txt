@@ -1,0 +1,122 @@
+please find all users that have signed up for multiple divisions, output a document that shows the user email and the divisions with their name and id
+
+---
+
+Base directory for this skill: /Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/.claude/skills/team-memory
+
+# Team Memory
+
+Manage a shared team memory system backed by a Cloudflare Worker with semantic search.
+
+## Commands
+
+### /remember — Store an observation
+
+Save a new observation to team memory.
+
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/remember.ts "<observation text>" [--category=<category>] [--priority=<priority>]
+```
+
+**Categories:** `convention`, `gotcha`, `debugging`, `architecture`, `workflow`
+**Priorities:** `critical`, `moderate`, `ephemeral`
+
+Defaults: category=convention, priority=moderate
+
+Examples:
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/remember.ts "PlanetScale returns strings for COUNT columns — always wrap with Number()" --category=gotcha --priority=critical
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/remember.ts "Use ULID for ID generation, not CUID2" --category=convention
+```
+
+### /recall — Search memories
+
+Search team memory by semantic query.
+
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/recall.ts "<query>" [--limit=<n>] [--category=<category>] [--priority=<priority>]
+```
+
+Default limit: 5. Results are ranked by relevance.
+
+Examples:
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/recall.ts "database migration patterns"
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/recall.ts "Stripe" --category=gotcha --limit=10
+```
+
+### /feedback — Rate a memory
+
+Provide feedback on a memory's usefulness.
+
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/feedback.ts <observation-id> <signal> [--note="<reason>"]
+```
+
+**Signals:** `helpful`, `harmful`, `irrelevant`
+
+Examples:
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/feedback.ts 01J5K3M2N7 helpful --note="Saved me from a production bug"
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/feedback.ts 01J5K3M2N7 irrelevant
+```
+
+## Environment
+
+Production URL: `https://team-memory.zacjones93.workers.dev`
+
+All commands below include the env var inline. If `TEAM_MEMORY_URL` is already set in your shell, the prefix is optional.
+
+## Hooks
+
+- **SessionStart**: Reminds the agent about the memory system and how to use /recall for task-relevant lookups
+- **SessionEnd**: Reads transcript JSONL, extracts user/assistant messages, POSTs to `/sessions`
+- **Export**: Syncs memories to MEMORY.md between `<!-- BEGIN TEAM-MEMORY -->` / `<!-- END TEAM-MEMORY -->` markers
+
+
+ARGUMENTS: /recall "registration division schema"
+
+---
+
+Stop hook feedback:
+The codebase has changes (499 lines) but `lat.md/` may not be fully in sync (6 lines changed). Verify `lat.md/` is in sync — run `lat search` to find relevant sections. Run `lat check` at the end.
+
+---
+
+for emails with a --- by it please look at what submissions they have in our system and check to see if they have submitted 1 at all but 2 for both which divisions
+
+---
+
+Stop hook feedback:
+The codebase has changes (499 lines) but `lat.md/` may not be fully in sync (12 lines changed). Verify `lat.md/` is in sync — run `lat search` to find relevant sections. Run `lat check` at the end.
+
+---
+
+there are 25 emails you need to check against...
+
+---
+
+| [abbigaylemiranda12@gmail.com](mailto:abbigaylemiranda12@gmail.com) | Women's Individual INT — 5             | Women's Team INT (*Down Bad Crying At The Gym*) — 10   |
+| [bjortman@gmail.com](mailto:bjortman@gmail.com)                     | 35+ Masters Men's Individual INT — 5   | 35+ Masters Men's Team INT (*Okay-est Old Guys*) — 4   |
+| [gwensolum@gmail.com](mailto:gwensolum@gmail.com)                   | 35+ Masters Women's Individual INT — 5 | 35+ Masters Women's Team INT (*Skol Iron Moms*) — 8    |
+| [halliesrain@gmail.com](mailto:halliesrain@gmail.com)               | Women's Individual INT — 5             | Women's Team Rookie (*Dark Horses*) — 10               |
+| [jordan.nickel05@gmail.com](mailto:jordan.nickel05@gmail.com)       | 35+ Masters Men's Individual RX — 5    | 35+ Masters Men's Team RX (*Sling Meat*) — 10          |
+| [jsandoval6465@gmail.com](mailto:jsandoval6465@gmail.com)           | 35+ Masters Men's Individual INT — 5   | 35+ Masters Men's Team INT (*BB8 |
+| [karismalee92@gmail.com](mailto:karismalee92@gmail.com)             | Women's Individual INT — 5             | Women's Team INT (*Tattoos & Khaos*) — 10              |
+| [kaythom11@icloud.com](mailto:kaythom11@icloud.com)                 | Women's Individual INT — 5             | Women's Team INT (*Salute the Glutes*) — 10            |
+| [megan2324@gmail.com](mailto:megan2324@gmail.com)                   | 35+ Masters Women's Individual RX — 5  | Women's Team RX (*MC Hammered*) — 10                   |
+| [mikrazusa@gmail.com](mailto:mikrazusa@gmail.com)                   | Men's Individual INT — 5               | Men's Team INT (*Dumbbell Daddies*) — 10               |
+| [nthayer55@gmail.com](mailto:nthayer55@gmail.com)                   | Men's Individual RX — 5                | Men's Team RX (*Noodle Boyz*) — 10                     |
+| [shelbyeileen3@gmail.com](mailto:shelbyeileen3@gmail.com)           | Women's Individual INT — 5             | Women's Team INT (*Sisters in Cro| look at all the users in these teams partner divisions and see if both parterns are signed up for individual divisions. please show all divisions involved
+
+---
+
+for ## ✅ Both Partners Also in Individual Divisions (6 teams), please record the scores for each partner for workout #3 and #4 in the individual division
+
+---
+
+yeah I know they are pending video submission. repor them anyway
+
+---
+
+please separate this by workout more clearly come on

@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "a7cfc0a4a8c0",
+  "strategy": "manual-commit",
+  "branch": "bug/score-unique-index",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "flagged-multi-division-submissions.md",
+    "team-partners-individual-registrations.md",
+    "team-partners-individual-scores-wk3-wk4.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a7/cfc0a4a8c0/0/metadata.json",
+      "transcript": "/a7/cfc0a4a8c0/0/full.jsonl",
+      "context": "/a7/cfc0a4a8c0/0/context.md",
+      "content_hash": "/a7/cfc0a4a8c0/0/content_hash.txt",
+      "prompt": "/a7/cfc0a4a8c0/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 65,
+    "cache_creation_tokens": 86322,
+    "cache_read_tokens": 4049610,
+    "output_tokens": 38748,
+    "api_call_count": 25
+  }
+}
