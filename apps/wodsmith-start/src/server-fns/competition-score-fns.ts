@@ -326,6 +326,11 @@ const deleteCompetitionScoreInputSchema = z.object({
   competitionId: z.string().min(1),
   trackWorkoutId: z.string().min(1),
   userId: z.string().min(1),
+  // Required (nullable). `null` targets an open/null-division registration's
+  // score; an explicit string targets that specific division. Optional was
+  // unsafe — a missing field collapsed to an unscoped delete that wiped every
+  // division's score for the user/workout pair.
+  divisionId: z.string().nullable(),
 })
 
 // ============================================================================
@@ -523,19 +528,28 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
 
     const filteredRegistrations = registrations
 
-    // Get existing scores for this event
+    // Get existing scores for this event. When an athlete is registered in
+    // multiple divisions for a shared workout, a lookup by userId alone
+    // returns rows for every division. We pull all rows for the candidate
+    // users and key the result map by (userId, scalingLevelId) below so each
+    // registration is matched to its own division's score — never another
+    // division's row.
     const userIds = filteredRegistrations.map((r) => r.user.id)
+    const existingScoresConditions = [
+      eq(scoresTable.competitionEventId, data.trackWorkoutId),
+      inArray(scoresTable.userId, userIds),
+    ]
+    if (data.divisionId) {
+      existingScoresConditions.push(
+        eq(scoresTable.scalingLevelId, data.divisionId),
+      )
+    }
     const existingScores =
       userIds.length > 0
         ? await db
             .select()
             .from(scoresTable)
-            .where(
-              and(
-                eq(scoresTable.competitionEventId, data.trackWorkoutId),
-                inArray(scoresTable.userId, userIds),
-              ),
-            )
+            .where(and(...existingScoresConditions))
         : []
 
     // Get score_rounds for all existing scores
@@ -589,8 +603,13 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
       setsByScoreId.set(round.scoreId, existing)
     }
 
-    // Create a map of userId to score
-    const scoresByUserId = new Map(existingScores.map((s) => [s.userId, s]))
+    // Key by (userId, scalingLevelId) so a multi-division athlete's score in
+    // division A doesn't get attached to their division-B registration row.
+    const scoreKey = (userId: string, scalingLevelId: string | null) =>
+      `${userId}::${scalingLevelId ?? ""}`
+    const scoresByUserDivision = new Map(
+      existingScores.map((s) => [scoreKey(s.userId, s.scalingLevelId), s]),
+    )
 
     // Get unique divisions for the filter dropdown
     const divisionIds = [
@@ -659,7 +678,9 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
     // Build athletes array
     const athletes: EventScoreEntryAthlete[] = filteredRegistrations.map(
       (reg) => {
-        const existingScore = scoresByUserId.get(reg.user.id)
+        const existingScore = scoresByUserDivision.get(
+          scoreKey(reg.user.id, reg.registration.divisionId),
+        )
         const scoreSets = existingScore
           ? (setsByScoreId.get(existingScore.id) || []).sort(
               (a, b) => a.setNumber - b.setNumber,
@@ -1066,16 +1087,21 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
             },
           })
 
-        // Get the final score ID (either new or existing)
+        // Get the final score ID (either new or existing). Always scope by
+        // division — null divisionId is its own scope (isNull), not a
+        // wildcard, so we never grab a sibling division's row when the
+        // athlete has scores in multiple divisions for a shared workout.
+        const finalScoreConditions = [
+          eq(scoresTable.competitionEventId, data.trackWorkoutId),
+          eq(scoresTable.userId, data.userId),
+          data.divisionId
+            ? eq(scoresTable.scalingLevelId, data.divisionId)
+            : isNull(scoresTable.scalingLevelId),
+        ]
         const [finalScore] = await tx
           .select({ id: scoresTable.id })
           .from(scoresTable)
-          .where(
-            and(
-              eq(scoresTable.competitionEventId, data.trackWorkoutId),
-              eq(scoresTable.userId, data.userId),
-            ),
-          )
+          .where(and(...finalScoreConditions))
           .limit(1)
 
         if (!finalScore) {
@@ -1339,15 +1365,18 @@ export const deleteCompetitionScoreFn = createServerFn({ method: "POST" })
       },
     })
 
-    // Delete from scores table (score_rounds are cascade deleted)
-    await db
-      .delete(scoresTable)
-      .where(
-        and(
-          eq(scoresTable.competitionEventId, data.trackWorkoutId),
-          eq(scoresTable.userId, data.userId),
-        ),
-      )
+    // Delete from scores table (score_rounds are cascade deleted). Always
+    // scope by division (or explicit null) so removing one registration's
+    // score never wipes the athlete's score in a sibling division when a
+    // workout is shared across divisions.
+    const deleteConditions = [
+      eq(scoresTable.competitionEventId, data.trackWorkoutId),
+      eq(scoresTable.userId, data.userId),
+      data.divisionId
+        ? eq(scoresTable.scalingLevelId, data.divisionId)
+        : isNull(scoresTable.scalingLevelId),
+    ]
+    await db.delete(scoresTable).where(and(...deleteConditions))
 
     logEntityDeleted({
       entity: "score",

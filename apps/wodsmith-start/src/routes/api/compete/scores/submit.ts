@@ -158,21 +158,33 @@ export const Route = createFileRoute("/api/compete/scores/submit")({
             )
           }
 
-          const [registration] = await db
+          const registrations = await db
             .select({
               id: competitionRegistrationsTable.id,
               divisionId: competitionRegistrationsTable.divisionId,
             })
             .from(competitionRegistrationsTable)
             .where(and(...regConditions))
-            .limit(1)
+            .limit(2)
 
-          if (!registration) {
+          if (registrations.length === 0) {
             return json(
               { error: "You are not registered for this competition" },
               { status: 403, headers },
             )
           }
+
+          if (registrations.length > 1) {
+            return json(
+              {
+                error:
+                  "You are registered in multiple divisions for this competition. Please specify divisionId.",
+              },
+              { status: 422, headers },
+            )
+          }
+
+          const registration = registrations[0]
 
           // Check submission window
           const windowStatus = await checkSubmissionWindow(

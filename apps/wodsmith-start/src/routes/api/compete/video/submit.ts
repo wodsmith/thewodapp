@@ -48,6 +48,7 @@ import { corsHeaders, getSessionFromBearerOrCookie } from "@/utils/bearer-auth"
 const submitVideoSchema = z.object({
   trackWorkoutId: z.string().min(1),
   competitionId: z.string().min(1),
+  divisionId: z.string().optional(),
   videoUrl: z.string().url().max(2000),
   notes: z.string().max(1000).optional(),
   score: z.string().optional(),
@@ -140,21 +141,40 @@ export const Route = createFileRoute("/api/compete/video/submit")({
         const userId = session.userId
 
         try {
-          // Check registration
-          const [registration] = await db
+          // Check registration — scope to the submitted division so partner +
+          // individual registrations don't collide when the same workout is
+          // shared across divisions.
+          const regConditions = [
+            eq(competitionRegistrationsTable.eventId, data.competitionId),
+            eq(competitionRegistrationsTable.userId, userId),
+            ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+          ]
+          if (data.divisionId) {
+            regConditions.push(
+              eq(competitionRegistrationsTable.divisionId, data.divisionId),
+            )
+          }
+
+          const registrations = await db
             .select({
               id: competitionRegistrationsTable.id,
               divisionId: competitionRegistrationsTable.divisionId,
             })
             .from(competitionRegistrationsTable)
-            .where(
-              and(
-                eq(competitionRegistrationsTable.eventId, data.competitionId),
-                eq(competitionRegistrationsTable.userId, userId),
-                ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
-              ),
+            .where(and(...regConditions))
+            .limit(2)
+
+          if (registrations.length > 1) {
+            return json(
+              {
+                error:
+                  "You are registered in multiple divisions for this competition. Please specify divisionId.",
+              },
+              { status: 422, headers },
             )
-            .limit(1)
+          }
+
+          const registration = registrations[0]
 
           if (!registration) {
             return json(

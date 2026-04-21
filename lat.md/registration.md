@@ -51,6 +51,8 @@ Athletes can register for multiple divisions in a single checkout session.
 
 Each division becomes a separate line item in Stripe Checkout and a separate `commercePurchaseTable` record. Free divisions within a mixed checkout are registered immediately while paid ones go through Stripe. The `items` array in the input schema supports this, with duplicate division validation.
 
+Downstream, scores stay scoped per division — see [[lat.md/domain#Domain Model#Scoring#One score per athlete per event per division]] for the unique key and write/read contracts that prevent a partner-division score from leaking onto the individual leaderboard when the same track workout is shared across both divisions.
+
 ## Team Registration
 
 Team divisions (teamSize > 1) require a team name and teammate emails during registration.
