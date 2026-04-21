@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "83f9a4ceb6cb",
+  "session_id": "089d6c29-7acc-4641-91a8-80ae0eb4259b",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-21T05:22:25.920971Z",
+  "branch": "claude/enhance-leaderboard-preview-0jBGD",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/src/components/online-competition-leaderboard-table.tsx",
+    "apps/wodsmith-start/src/components/ui/video-url-input.tsx",
+    "apps/wodsmith-start/src/server-fns/video-validation-fns.ts",
+    "apps/wodsmith-start/src/server-fns/wetime-resolve-fns.ts",
+    "lat.md/domain.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "caf69e2a-449b-440a-8a77-0dbc8500a888",
+  "token_usage": {
+    "input_tokens": 46,
+    "cache_creation_tokens": 60564,
+    "cache_read_tokens": 2003753,
+    "output_tokens": 9424,
+    "api_call_count": 32
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-21T05:22:25.870157Z",
+    "agent_lines": 74,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 74,
+    "agent_percentage": 100
+  }
+}
