@@ -258,6 +258,8 @@ The adjust inputs mirror the athlete submission form: `parseScore` validates ent
 
 The Adjust Score form's penalty-tiebreak state is seeded from `submission.score.tiebreakValue` (the decoded display string) rather than the empty string, so editing other fields without touching the tiebreak input preserves the existing value. Without that seed, the server would receive `tieBreakScore: undefined`, fail the `if (data.tieBreakScore && score.tiebreakScheme)` truthiness check, and persist `tiebreakValue: null`, silently erasing a previously-entered tiebreak.
 
+The public leaderboard only surfaces a warning icon — and the accompanying expanded notice — for scores carrying a Minor or Major penalty. Plain score adjustments (`isDirectlyModified` with `penaltyType: null`) are treated as data-entry corrections and intentionally render without any warning badge so athletes aren't alarmed by routine fixes. Both [[apps/wodsmith-start/src/components/competition-leaderboard-table.tsx#PenaltyIndicator]] and [[apps/wodsmith-start/src/components/online-competition-leaderboard-table.tsx#PenaltyIndicator]] gate on `penaltyType` alone, and the online table's expanded row / mobile collapsible suppress the "Score adjusted by organizer" line for the same reason.
+
 ### Manual Score Entry
 
 When an athlete uploads a video without filling in the score field, the sidebar renders [[apps/wodsmith-start/src/components/compete/enter-score-form.tsx#EnterScoreForm]] instead of the placeholder, letting the reviewer create the missing score in one step.

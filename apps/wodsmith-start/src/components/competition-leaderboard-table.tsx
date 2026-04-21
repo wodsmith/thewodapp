@@ -174,22 +174,19 @@ function CappedRoundsIndicator({
   )
 }
 
-/** Clickable icon for any score modification (penalty or direct adjust) */
+/** Clickable icon shown only for minor/major penalties */
 function PenaltyIndicator({
   result,
 }: {
   result: CompetitionLeaderboardEntry["eventResults"][number]
 }) {
-  if (!result.penaltyType && !result.isDirectlyModified) return null
+  if (!result.penaltyType) return null
 
-  const label = result.penaltyType
-    ? `${result.penaltyType === "major" ? "Major" : "Minor"} Penalty`
-    : "Score Adjusted"
-
+  const label = `${result.penaltyType === "major" ? "Major" : "Minor"} Penalty`
   const detail =
     result.penaltyPercentage != null
       ? `${result.penaltyPercentage}% deduction applied`
-      : "This score was modified by an organizer."
+      : "A penalty was applied to this score."
 
   return (
     <Popover>
