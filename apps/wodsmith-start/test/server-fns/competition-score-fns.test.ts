@@ -22,10 +22,6 @@ function createDbMock(config: {
   teamResult?: unknown
   workout?: unknown
   finalScore?: unknown
-  competition?: unknown
-  competitionEvent?: unknown
-  /** Set to true for functions that check submission windows (saveCompetitionScoreFn) */
-  withSubmissionWindowCheck?: boolean
 }) {
   const defaults = {
     trackWorkout: null,
@@ -41,10 +37,6 @@ function createDbMock(config: {
     teamResult: null,
     workout: null,
     finalScore: null,
-    // Default to in-person competition (bypasses submission window check)
-    competition: {competitionType: 'in-person'},
-    competitionEvent: null,
-    withSubmissionWindowCheck: false,
     ...config,
   }
 
@@ -76,35 +68,6 @@ function createDbMock(config: {
     chain.limit = vi.fn(() => {
       queryCount++
 
-      // For functions with submission window check, competition is queried first
-      if (defaults.withSubmissionWindowCheck) {
-        // First limit call is for competition (isWithinSubmissionWindow)
-        if (queryCount === 1) {
-          return Promise.resolve(
-            defaults.competition ? [defaults.competition] : [],
-          )
-        }
-        // Second limit call for competition event (if online)
-        if (queryCount === 2 && defaults.competitionEvent) {
-          return Promise.resolve([defaults.competitionEvent])
-        }
-        // Track workout / team result query (queryCount 2 or 3)
-        if (queryCount === 2 || queryCount === 3) {
-          if (defaults.teamResult) {
-            return Promise.resolve([defaults.teamResult])
-          }
-          return Promise.resolve(
-            defaults.trackWorkout ? [defaults.trackWorkout] : [],
-          )
-        }
-        // Final score query
-        if (defaults.finalScore) {
-          return Promise.resolve([defaults.finalScore])
-        }
-        return Promise.resolve([])
-      }
-
-      // Original query order for functions without submission window check
       // First limit call is for track workout
       if (queryCount === 1) {
         return Promise.resolve(
@@ -408,7 +371,7 @@ describe('Competition Score Server Functions (TanStack)', () => {
 
   describe('saveCompetitionScoreFn', () => {
     it('throws error when workout info is not provided', async () => {
-      mockDbInstance = createDbMock({withSubmissionWindowCheck: true})
+      mockDbInstance = createDbMock({})
 
       await expect(
         saveCompetitionScoreFn({

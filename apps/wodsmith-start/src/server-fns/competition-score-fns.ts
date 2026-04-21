@@ -26,7 +26,6 @@ import {
 import { getEvlog } from "@/lib/evlog"
 import {
   type CompetitionHeat,
-  competitionEventsTable,
   competitionHeatAssignmentsTable,
   competitionHeatsTable,
   competitionRegistrationsTable,
@@ -160,81 +159,6 @@ export interface EventScoreEntryDataWithHeats extends EventScoreEntryData {
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-/**
- * Check if current time is within the event's submission window.
- * Only applies to online competitions.
- */
-async function isWithinSubmissionWindow(
-  competitionId: string,
-  trackWorkoutId: string,
-): Promise<{ allowed: boolean; reason?: string }> {
-  const db = getDb()
-
-  // Get competition type
-  const [competition] = await db
-    .select({
-      competitionType: competitionsTable.competitionType,
-    })
-    .from(competitionsTable)
-    .where(eq(competitionsTable.id, competitionId))
-    .limit(1)
-
-  if (!competition) {
-    return { allowed: false, reason: "Competition not found" }
-  }
-
-  // Only check submission windows for online competitions
-  if (competition.competitionType !== "online") {
-    return { allowed: true }
-  }
-
-  // Get competition event with submission window
-  const [event] = await db
-    .select({
-      submissionOpensAt: competitionEventsTable.submissionOpensAt,
-      submissionClosesAt: competitionEventsTable.submissionClosesAt,
-    })
-    .from(competitionEventsTable)
-    .where(
-      and(
-        eq(competitionEventsTable.competitionId, competitionId),
-        eq(competitionEventsTable.trackWorkoutId, trackWorkoutId),
-      ),
-    )
-    .limit(1)
-
-  // If no event record exists, allow submission (backward compatibility)
-  if (!event) {
-    return { allowed: true }
-  }
-
-  // If no submission window is configured, allow submission
-  if (!event.submissionOpensAt || !event.submissionClosesAt) {
-    return { allowed: true }
-  }
-
-  // Check if current time is within the window
-  const now = new Date()
-  const opensAt = new Date(event.submissionOpensAt)
-  const closesAt = new Date(event.submissionClosesAt)
-
-  if (now < opensAt) {
-    return {
-      allowed: false,
-      reason: `Submission window opens at ${opensAt.toISOString()}`,
-    }
-  }
-
-  if (now > closesAt) {
-    return {
-      allowed: false,
-      reason: `Submission window closed at ${closesAt.toISOString()}`,
-    }
-  }
-
-  return { allowed: true }
-}
 
 /**
  * Map ScoreStatus to the simplified status type for scores table.
@@ -885,26 +809,10 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
         },
       })
 
-      // Check submission window for online competitions
-      const submissionCheck = await isWithinSubmissionWindow(
-        data.competitionId,
-        data.trackWorkoutId,
-      )
-
-      if (!submissionCheck.allowed) {
-        logWarning({
-          message: "[Score] Submission window blocked",
-          attributes: {
-            competitionId: data.competitionId,
-            trackWorkoutId: data.trackWorkoutId,
-            userId: data.userId,
-            reason: submissionCheck.reason,
-          },
-        })
-        throw new Error(
-          submissionCheck.reason || "Score submission not allowed at this time",
-        )
-      }
+      // Organizer/volunteer score entry is intentionally not gated by the
+      // event submission window. The window only restricts athlete-facing
+      // self-submission paths (see athlete-score-fns.ts and
+      // video-submission-fns.ts).
 
       // Validate workout info is provided
       if (!data.workout) {
@@ -1231,26 +1139,6 @@ export const saveCompetitionScoresFn = createServerFn({ method: "POST" })
           scoreCount: data.scores.length,
         },
       })
-
-      // Check submission window for online competitions
-      const submissionCheck = await isWithinSubmissionWindow(
-        data.competitionId,
-        data.trackWorkoutId,
-      )
-
-      if (!submissionCheck.allowed) {
-        logWarning({
-          message: "[Score] Batch submission window blocked",
-          attributes: {
-            competitionId: data.competitionId,
-            trackWorkoutId: data.trackWorkoutId,
-            reason: submissionCheck.reason,
-          },
-        })
-        throw new Error(
-          submissionCheck.reason || "Score submission not allowed at this time",
-        )
-      }
 
       // Get workout info for all scores
       const db = getDb()

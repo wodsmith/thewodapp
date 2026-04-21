@@ -27,11 +27,6 @@ import { json } from "@tanstack/react-start"
 import { and, eq, isNull } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
-import {
-  competitionEventsTable,
-  competitionsTable,
-} from "@/db/schemas/competitions"
-
 import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
 import {
   SCORE_STATUS_VALUES,
@@ -163,38 +158,9 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
             workoutInfo = workoutRow
           }
 
-          // Check submission window
-          const [competition] = await db
-            .select({ competitionType: competitionsTable.competitionType })
-            .from(competitionsTable)
-            .where(eq(competitionsTable.id, data.competitionId))
-            .limit(1)
-
-          if (competition?.competitionType === "online") {
-            const [event] = await db
-              .select({
-                submissionOpensAt: competitionEventsTable.submissionOpensAt,
-                submissionClosesAt: competitionEventsTable.submissionClosesAt,
-              })
-              .from(competitionEventsTable)
-              .where(
-                and(
-                  eq(competitionEventsTable.competitionId, data.competitionId),
-                  eq(competitionEventsTable.trackWorkoutId, data.trackWorkoutId),
-                ),
-              )
-              .limit(1)
-
-            if (event?.submissionOpensAt && event?.submissionClosesAt) {
-              const now = new Date()
-              if (now > new Date(event.submissionClosesAt)) {
-                return json(
-                  { error: "Score submission not allowed at this time" },
-                  { status: 422, headers },
-                )
-              }
-            }
-          }
+          // Organizer/judge score entry is intentionally not gated by the
+          // event submission window — that only applies to athlete-facing
+          // self-submission (see /api/compete/scores/submit.ts).
 
           const scheme = workoutInfo.scheme as ScoringWorkoutScheme
           const scoreType = (workoutInfo.scoreType as ScoreType) || getDefaultScoreType(scheme)

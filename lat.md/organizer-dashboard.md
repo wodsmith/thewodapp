@@ -140,6 +140,12 @@ Manages time windows during which athletes can submit video evidence for online 
 
 Only available when `competitionType === "online"`. Fetches workouts and competition events. Each event can have a submission window with open/close dates. Uses `SubmissionWindowsManager` component. Only parent (top-level) events appear in the unassigned pool and are draggable; sub-events are automatically assigned to the same window as their parent and displayed as children on the window card.
 
+### Organizers are never gated by the submission window
+
+The submission window gates athlete self-submission only. Organizer and volunteer score-entry paths intentionally bypass it so scores can be entered or corrected before, during, or after the window.
+
+Organizer/volunteer entry points — [[apps/wodsmith-start/src/server-fns/competition-score-fns.ts#saveCompetitionScoreFn]], [[apps/wodsmith-start/src/server-fns/competition-score-fns.ts#saveCompetitionScoresFn]], and the judge API at [[apps/wodsmith-start/src/routes/api/compete/scores/judge.ts]] — do not check `submissionOpensAt`/`submissionClosesAt`. Athlete self-submission still enforces the window: [[apps/wodsmith-start/src/server-fns/athlete-score-fns.ts#submitAthleteScoreFn]], [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#submitVideoFn]], [[apps/wodsmith-start/src/routes/api/compete/scores/submit.ts]], and [[apps/wodsmith-start/src/routes/api/compete/video/submit.ts]] all reject when the window is closed.
+
 ## Volunteers
 
 Manages competition staff across four tabs: roster, shifts, judge scheduling, and registration rules.
