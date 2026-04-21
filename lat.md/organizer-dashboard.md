@@ -126,6 +126,14 @@ Lives in the "Run Competition" sidebar group at `/compete/organizer/{competition
 
 Preview and public both bucket scores by `score.scalingLevelId` (the score's own division), not by the first registration found for that userId, so a multi-division athlete's partner score is attributed to their partner registration and their individual score to their individual registration — even when both registrations share the same track workout. See [[lat.md/domain#Domain Model#Scoring#One score per athlete per event per division]] for the underlying unique-key contract.
 
+### Review Status Indicators
+
+Each scored cell on the preview deep-links to the submission review page and carries a compact badge showing review state, so organizers can see what's left to review without opening every cell.
+
+Cells link to `/compete/organizer/{competitionId}/events/{eventId}/submissions/{submissionId}`. [[apps/wodsmith-start/src/server/competition-leaderboard.ts#getCompetitionLeaderboard]] fetches every video submission for a registration+event and folds them into a `reviewSummary` on each `eventResults` entry. The summary includes `totalSubmitted`, `expectedVideos` (= division `teamSize`), `reviewedCount` (anything other than `pending`/`under_review`), the distinct `statuses` present, and a `worstStatus` that picks the highest-priority status via `REVIEW_STATUS_PRIORITY` (pending > under_review > invalid > penalized > adjusted > verified). Summaries are gated by the same `divisionResults` publication check used for `videoUrl`, so unpublished event-divisions return `null` to non-organizer callers.
+
+The `ReviewStatusIndicator` in [[apps/wodsmith-start/src/components/online-competition-leaderboard-table.tsx]] renders the badge using the icon and color config from [[apps/wodsmith-start/src/components/compete/submission-status-badge.tsx#getStatusConfig]] for visual consistency with the submission-detail page. Individual divisions show a single status icon. Partner/team divisions (`expectedVideos > 1`) get an "X/Y" reviewed counter alongside the icon so an organizer sees a partner pair at "verified 1/2" rather than only the captain's status. The indicator is gated behind `linkToSubmission` so it only appears on the organizer preview, never the public leaderboard.
+
 ## Submission Windows
 
 Manages time windows during which athletes can submit video evidence for online competitions.

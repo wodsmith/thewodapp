@@ -29,7 +29,10 @@ import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
 import { teamMembershipTable } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
-import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
+import {
+  type ReviewStatus,
+  videoSubmissionsTable,
+} from "@/db/schemas/video-submissions"
 import { workouts } from "@/db/schemas/workouts"
 import {
   calculateEventPoints,
@@ -109,13 +112,64 @@ export interface CompetitionLeaderboardEntry {
     cappedRoundCount: number
     /** Total number of rounds persisted for this score (0 for single-round) */
     totalRoundCount: number
+    /**
+     * Aggregate review status across all video submissions for this event.
+     * Partner/team divisions can have multiple videos (one per teammate);
+     * the summary collapses them so the leaderboard cell can render a single
+     * indicator. `null` when the registration has no submission rows for this
+     * event yet.
+     */
+    reviewSummary: EventReviewSummary | null
   }>
+}
+
+/**
+ * Aggregate of every video submission a registration has uploaded for a
+ * single event. Powers the per-cell review indicator on the organizer
+ * leaderboard preview — individual divisions resolve to one video, partner
+ * divisions to N (one per teammate).
+ */
+export interface EventReviewSummary {
+  /** Number of video rows that exist for this (registration, event). */
+  totalSubmitted: number
+  /** Expected video count = division `teamSize` (1 for individual). */
+  expectedVideos: number
+  /**
+   * Count of submissions in a terminal review state — anything other than
+   * `pending` or `under_review`. An organizer reading the leaderboard can
+   * scan this against `totalSubmitted` to see what's still outstanding.
+   */
+  reviewedCount: number
+  /** Distinct review statuses present across submissions, deduped. */
+  statuses: ReviewStatus[]
+  /**
+   * The single status to surface when collapsing to one badge — picks the
+   * highest-priority status across all submissions (see `REVIEW_STATUS_PRIORITY`).
+   * Bias toward statuses that need organizer attention (pending > verified).
+   */
+  worstStatus: ReviewStatus
 }
 
 /** Round-cap summary for a single score */
 interface RoundCapSummary {
   cappedRoundCount: number
   totalRoundCount: number
+}
+
+/**
+ * Priority ordering used to collapse multiple review statuses into a single
+ * "worst" status for the leaderboard cell indicator. Higher number = more
+ * organizer attention required, so it wins. `pending` outranks any reviewed
+ * status because an unreviewed video on a partner team is the actionable
+ * state the organizer cares about even if the captain's video is verified.
+ */
+const REVIEW_STATUS_PRIORITY: Record<ReviewStatus, number> = {
+  pending: 6,
+  under_review: 5,
+  invalid: 4,
+  penalized: 3,
+  adjusted: 2,
+  verified: 1,
 }
 
 export interface EventLeaderboardEntry {
@@ -792,18 +846,95 @@ export async function getCompetitionLeaderboard(params: {
             registrationId: videoSubmissionsTable.registrationId,
             trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
             videoUrl: videoSubmissionsTable.videoUrl,
+            videoIndex: videoSubmissionsTable.videoIndex,
+            reviewStatus: videoSubmissionsTable.reviewStatus,
           })
           .from(videoSubmissionsTable)
           .where(inArray(videoSubmissionsTable.registrationId, registrationIds))
       : []
 
-  // Index video submissions by registrationId+trackWorkoutId for fast lookup
+  // Index video submissions by registrationId+trackWorkoutId for fast lookup.
+  // Two indexes are kept side by side:
+  // - `videoMap` returns a single representative (lowest videoIndex first, so
+  //   the captain's video is preferred) for the existing url/submissionId
+  //   accessors.
+  // - `videoSubmissionsByKey` keeps the full list per (registration, event)
+  //   so we can build a `reviewSummary` covering every teammate's video.
   const videoMap = new Map<string, { url: string; submissionId: string }>()
-  for (const vs of videoSubmissions) {
-    videoMap.set(`${vs.registrationId}:${vs.trackWorkoutId}`, {
-      url: vs.videoUrl,
-      submissionId: vs.id,
+  const videoSubmissionsByKey = new Map<
+    string,
+    Array<{ id: string; videoIndex: number; reviewStatus: ReviewStatus }>
+  >()
+  // Sort so videoIndex 0 (captain) is the representative entry in `videoMap`.
+  const sortedVideoSubmissions = [...videoSubmissions].sort(
+    (a, b) => a.videoIndex - b.videoIndex,
+  )
+  for (const vs of sortedVideoSubmissions) {
+    const key = `${vs.registrationId}:${vs.trackWorkoutId}`
+    if (!videoMap.has(key)) {
+      videoMap.set(key, {
+        url: vs.videoUrl,
+        submissionId: vs.id,
+      })
+    }
+    const list = videoSubmissionsByKey.get(key) ?? []
+    list.push({
+      id: vs.id,
+      videoIndex: vs.videoIndex,
+      reviewStatus: vs.reviewStatus as ReviewStatus,
     })
+    videoSubmissionsByKey.set(key, list)
+  }
+
+  // teamSize lookup per registration so we can compute "expected videos"
+  // for partner divisions when building the per-cell review summary.
+  const teamSizeByRegistrationId = new Map<string, number>()
+  for (const reg of filteredRegistrations) {
+    teamSizeByRegistrationId.set(
+      reg.registration.id,
+      reg.division?.teamSize ?? 1,
+    )
+  }
+
+  /**
+   * Collapse the set of submissions for a (registration, event) into a single
+   * `reviewSummary`. Returns `null` when the registration has no rows for
+   * this event so the UI can fall back to "no submission yet".
+   */
+  function buildReviewSummary(
+    registrationId: string,
+    trackWorkoutId: string,
+  ): EventReviewSummary | null {
+    const submissions = videoSubmissionsByKey.get(
+      `${registrationId}:${trackWorkoutId}`,
+    )
+    if (!submissions || submissions.length === 0) return null
+
+    const expectedVideos = teamSizeByRegistrationId.get(registrationId) ?? 1
+    const statusSet = new Set<ReviewStatus>()
+    let reviewedCount = 0
+    let worst: ReviewStatus = submissions[0].reviewStatus
+
+    for (const sub of submissions) {
+      statusSet.add(sub.reviewStatus)
+      if (sub.reviewStatus !== "pending" && sub.reviewStatus !== "under_review") {
+        reviewedCount++
+      }
+      if (
+        REVIEW_STATUS_PRIORITY[sub.reviewStatus] >
+        REVIEW_STATUS_PRIORITY[worst]
+      ) {
+        worst = sub.reviewStatus
+      }
+    }
+
+    return {
+      totalSubmitted: submissions.length,
+      expectedVideos,
+      reviewedCount,
+      statuses: Array.from(statusSet),
+      worstStatus: worst,
+    }
   }
 
   // Helper: check if an event+division is published (for gating video visibility)
@@ -870,8 +1001,18 @@ export async function getCompetitionLeaderboard(params: {
 
   // Process each scorable event (standalone + children, skip parents)
   for (const trackWorkout of scorableEvents) {
-    // Get scores for this event, grouped by division
-    const eventScoresByDivision = new Map<string, typeof allScores>()
+    // Get scores for this event, grouped by division.
+    //
+    // A single (userId, competitionEventId) can have more than one row when a
+    // score was re-submitted under a different scaling level or when a team
+    // captain's submission was copied across divisions. We must keep exactly
+    // one authoritative score per registration per event: otherwise both
+    // duplicates get ranked, inflating `activeCount` and, with it, the
+    // `activeCount + 1` penalty handed to registrations that never submitted
+    // — which lets a no-show team out-rank teams who submitted but placed
+    // poorly. Prefer the row whose `scalingLevelId` matches the registration's
+    // `divisionId`; otherwise keep the first row seen.
+    const dedupedByReg = new Map<string, (typeof allScores)[number]>()
 
     let scoresSeenForEvent = 0
     let scoresMissingRegistration = 0
@@ -898,9 +1039,30 @@ export async function getCompetitionLeaderboard(params: {
         continue
       }
 
-      const existing = eventScoresByDivision.get(scoreDivisionId) || []
+      const regId = registration.registration.id
+      const regDivisionId = registration.registration.divisionId || "open"
+      const existing = dedupedByReg.get(regId)
+      if (!existing) {
+        dedupedByReg.set(regId, score)
+        continue
+      }
+      const existingMatches = existing.scalingLevelId === regDivisionId
+      const candidateMatches = score.scalingLevelId === regDivisionId
+      if (candidateMatches && !existingMatches) {
+        dedupedByReg.set(regId, score)
+      }
+    }
+
+    const eventScoresByDivision = new Map<string, typeof allScores>()
+    for (const [regId, score] of dedupedByReg) {
+      const registration = filteredRegistrations.find(
+        (r) => r.registration.id === regId,
+      )
+      if (!registration) continue
+      const divisionId = registration.registration.divisionId || "open"
+      const existing = eventScoresByDivision.get(divisionId) || []
       existing.push(score)
-      eventScoresByDivision.set(scoreDivisionId, existing)
+      eventScoresByDivision.set(divisionId, existing)
     }
 
     let gatedOut = 0
@@ -935,6 +1097,22 @@ export async function getCompetitionLeaderboard(params: {
         trackWorkout.workout.scoreType ||
         getDefaultScoreType(trackWorkout.workout.scheme)
       const eventScoreInputs: EventScoreInput[] = divisionScores.map((s) => {
+        // Invalid scores must rank last, not sort by their zeroed scoreValue.
+        // The mark-invalid write path sets `scoreValue=0, status="scored"` —
+        // for ascending schemes (time) that 0 would otherwise sort to first
+        // place on the organizer preview (the public path already excludes
+        // invalids in `fetchScores`). Routing through the inactive branch as
+        // "dnf" makes every algorithm honor `statusHandling.dnf`
+        // (default `last_place`).
+        if (s.verificationStatus === "invalid") {
+          return {
+            userId: s.userId,
+            value: 0,
+            status: "dnf" as const,
+            sortKey: null,
+          }
+        }
+
         const roundSummary = roundCapSummariesByScoreId.get(s.id)
         const recomputedSortKey = computeSortKey({
           scheme: s.scheme as WorkoutScheme,
@@ -1009,7 +1187,13 @@ export async function getCompetitionLeaderboard(params: {
         const scoreScheme = score.scheme as WorkoutScheme
 
         let formattedScore: string
-        if (score.status === "dns") {
+        if (score.verificationStatus === "invalid") {
+          // The mark-invalid write path zeros scoreValue and keeps
+          // status="scored". Surface the verification state explicitly so the
+          // leaderboard cell doesn't render a misleading "0:00" for the
+          // invalidated entry.
+          formattedScore = "Invalid"
+        } else if (score.status === "dns") {
           formattedScore = "DNS"
         } else if (score.status === "dnf") {
           formattedScore = "DNF"
@@ -1118,6 +1302,10 @@ export async function getCompetitionLeaderboard(params: {
           isParentEvent: false,
           cappedRoundCount: roundSummary.cappedRoundCount,
           totalRoundCount: roundSummary.totalRoundCount,
+          reviewSummary: buildReviewSummary(
+            registration.registration.id,
+            trackWorkout.id,
+          ),
         })
 
         entry.totalPoints += points
@@ -1181,6 +1369,10 @@ export async function getCompetitionLeaderboard(params: {
           isParentEvent: false,
           cappedRoundCount: 0,
           totalRoundCount: 0,
+          reviewSummary: buildReviewSummary(
+            reg.registration.id,
+            trackWorkout.id,
+          ),
         })
 
         entry.totalPoints += missingPoints
@@ -1235,6 +1427,12 @@ export async function getCompetitionLeaderboard(params: {
           isParentEvent: false,
           cappedRoundCount: 0,
           totalRoundCount: 0,
+          reviewSummary: isEventDivisionPublished(
+            trackWorkout.id,
+            entry.divisionId,
+          )
+            ? buildReviewSummary(regId, trackWorkout.id)
+            : null,
         })
       }
     }
