@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "841d31af177c",
+  "session_id": "f151e611-6ecb-4627-b334-360a22881888",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-21T05:13:16.8673Z",
+  "branch": "claude/enhance-leaderboard-preview-0jBGD",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/src/server/competition-leaderboard.ts",
+    "lat.md/domain.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "201b94b8-5cb9-4611-876f-7e95ab264c50",
+  "token_usage": {
+    "input_tokens": 90,
+    "cache_creation_tokens": 157773,
+    "cache_read_tokens": 5863740,
+    "output_tokens": 32212,
+    "api_call_count": 65
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-21T05:13:16.6762Z",
+    "agent_lines": 35,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 35,
+    "agent_percentage": 100
+  }
+}
