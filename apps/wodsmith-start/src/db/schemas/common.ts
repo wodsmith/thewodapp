@@ -136,3 +136,6 @@ export const createEventDivisionMappingId = () => `edm_${ulid()}`
 // Broadcast ID generators
 export const createBroadcastId = () => `bcast_${ulid()}`
 export const createBroadcastRecipientId = () => `brcpt_${ulid()}`
+
+// Competition invite ID generators
+export const createCompetitionInviteSourceId = () => `cisrc_${ulid()}`
