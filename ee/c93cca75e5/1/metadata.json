@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "eec93cca75e5",
+  "session_id": "58c66a3a-c69c-41df-97ce-e198e96041b3",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-21T04:54:03.614097Z",
+  "branch": "claude/enhance-leaderboard-preview-0jBGD",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "lat.md/organizer-dashboard.md"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 20,
+    "cache_creation_tokens": 43132,
+    "cache_read_tokens": 356862,
+    "output_tokens": 2280,
+    "api_call_count": 10
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-21T04:54:03.496315Z",
+    "agent_lines": 0,
+    "human_added": 694,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 696,
+    "agent_percentage": 0
+  }
+}

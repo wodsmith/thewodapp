@@ -1,0 +1,6 @@
+clear the build cache for wodsmith-start
+
+---
+
+Stop hook feedback:
+`lat check` found 1 error(s). Run `lat check`, fix the errors, and repeat until it passes.
