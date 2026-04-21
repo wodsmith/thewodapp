@@ -12,6 +12,8 @@ import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import { getSessionFromCookie } from "@/utils/auth"
 
+const WETIME_PREVIEW_TIMEOUT_MS = 5000
+
 const inputSchema = z.object({
   videoId: z
     .string()
@@ -29,21 +31,43 @@ export const resolveWeTimeVideoUrlFn = createServerFn({ method: "GET" })
     }
 
     const previewUrl = `https://wetime.io/preview/${data.videoId}`
-    const res = await fetch(previewUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; WodsmithBot/1.0; +https://wodsmith.com)",
-      },
-    })
-    if (!res.ok) {
-      throw new Error(`WeTime preview fetch failed: ${res.status}`)
-    }
+    const controller = new AbortController()
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      WETIME_PREVIEW_TIMEOUT_MS,
+    )
 
-    const html = await res.text()
-    const match = html.match(/<source\s+src="([^"]+\.mp4[^"]*)"/i)
-    if (!match?.[1]) {
-      throw new Error("Could not locate video source in WeTime preview")
-    }
+    try {
+      const res = await fetch(previewUrl, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (compatible; WodsmithBot/1.0; +https://wodsmith.com)",
+        },
+        signal: controller.signal,
+      })
+      if (!res.ok) {
+        throw new Error(`WeTime preview fetch failed: ${res.status}`)
+      }
 
-    return { videoUrl: match[1] }
+      const html = await res.text()
+      // Match any <source> whose src ends with .mp4 (optionally followed by
+      // query params). Attributes on <source> may appear in any order, so scan
+      // each <source ...> tag for a matching src.
+      let mp4Url: string | null = null
+      const sourceTagRegex = /<source\b[^>]*>/gi
+      for (const tag of html.match(sourceTagRegex) ?? []) {
+        const srcMatch = tag.match(/\bsrc\s*=\s*"([^"]+\.mp4[^"]*)"/i)
+        if (srcMatch?.[1]) {
+          mp4Url = srcMatch[1]
+          break
+        }
+      }
+      if (!mp4Url) {
+        throw new Error("Could not locate video source in WeTime preview")
+      }
+
+      return { videoUrl: mp4Url }
+    } finally {
+      clearTimeout(timeoutId)
+    }
   })
