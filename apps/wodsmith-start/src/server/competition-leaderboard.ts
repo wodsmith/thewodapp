@@ -1056,6 +1056,22 @@ export async function getCompetitionLeaderboard(params: {
         trackWorkout.workout.scoreType ||
         getDefaultScoreType(trackWorkout.workout.scheme)
       const eventScoreInputs: EventScoreInput[] = divisionScores.map((s) => {
+        // Invalid scores must rank last, not sort by their zeroed scoreValue.
+        // The mark-invalid write path sets `scoreValue=0, status="scored"` —
+        // for ascending schemes (time) that 0 would otherwise sort to first
+        // place on the organizer preview (the public path already excludes
+        // invalids in `fetchScores`). Routing through the inactive branch as
+        // "dnf" makes every algorithm honor `statusHandling.dnf`
+        // (default `last_place`).
+        if (s.verificationStatus === "invalid") {
+          return {
+            userId: s.userId,
+            value: 0,
+            status: "dnf" as const,
+            sortKey: null,
+          }
+        }
+
         const roundSummary = roundCapSummariesByScoreId.get(s.id)
         const recomputedSortKey = computeSortKey({
           scheme: s.scheme as WorkoutScheme,
@@ -1123,7 +1139,13 @@ export async function getCompetitionLeaderboard(params: {
         const scoreScheme = score.scheme as WorkoutScheme
 
         let formattedScore: string
-        if (score.status === "dns") {
+        if (score.verificationStatus === "invalid") {
+          // The mark-invalid write path zeros scoreValue and keeps
+          // status="scored". Surface the verification state explicitly so the
+          // leaderboard cell doesn't render a misleading "0:00" for the
+          // invalidated entry.
+          formattedScore = "Invalid"
+        } else if (score.status === "dns") {
           formattedScore = "DNS"
         } else if (score.status === "dnf") {
           formattedScore = "DNF"

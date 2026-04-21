@@ -242,6 +242,8 @@ The adjust inputs mirror the athlete submission form: `parseScore` validates ent
 
 The Adjust Score form's penalty-tiebreak state is seeded from `submission.score.tiebreakValue` (the decoded display string) rather than the empty string, so editing other fields without touching the tiebreak input preserves the existing value. Without that seed, the server would receive `tieBreakScore: undefined`, fail the `if (data.tieBreakScore && score.tiebreakScheme)` truthiness check, and persist `tiebreakValue: null`, silently erasing a previously-entered tiebreak.
 
+Mark Invalid zeros `scoreValue`, keeps `status = "scored"`, and sets `verificationStatus = "invalid"` on `scoresTable`. The public leaderboard excludes invalid rows entirely via `fetchScores`, but the organizer preview (`bypassPublicationFilter`) includes them so the cell can render the review state. Without special handling the preview would feed the zeroed row into the scoring algorithm and — for ascending schemes like `time` — rank it first. [[apps/wodsmith-start/src/server/competition-leaderboard.ts#getCompetitionLeaderboard]] short-circuits invalid rows when building `eventScoreInputs`, forcing `status: "dnf"` with a null `sortKey` so every algorithm routes them through the inactive-score branch and honors `statusHandling.dnf` (default `"last_place"`). The leaderboard cell also formats invalid entries as `"Invalid"` rather than decoding the zeroed value into `"0:00"`.
+
 ### Manual Score Entry
 
 When an athlete uploads a video without filling in the score field, the sidebar renders [[apps/wodsmith-start/src/components/compete/enter-score-form.tsx#EnterScoreForm]] instead of the placeholder, letting the reviewer create the missing score in one step.

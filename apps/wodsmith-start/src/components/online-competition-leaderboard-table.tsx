@@ -282,11 +282,9 @@ function PenaltyIndicator({
 }: {
   result: CompetitionLeaderboardEntry["eventResults"][number]
 }) {
-  if (!result.penaltyType && !result.isDirectlyModified) return null
+  if (!result.penaltyType) return null
 
-  const label = result.penaltyType
-    ? `${result.penaltyType === "major" ? "Major" : "Minor"} Penalty${result.penaltyPercentage != null ? ` (${result.penaltyPercentage}%)` : ""}`
-    : "Score Adjusted"
+  const label = `${result.penaltyType === "major" ? "Major" : "Minor"} Penalty${result.penaltyPercentage != null ? ` (${result.penaltyPercentage}%)` : ""}`
 
   return (
     <span title={label}>

@@ -30,6 +30,11 @@ interface StatusConfig {
   iconClassName: string
 }
 
+// Palette is organized as a progression rather than six unrelated hues.
+// Positive path (under_review → verified) shares the emerald family with
+// increasing lightness so "Reviewed" reads as "close to verified" at a glance.
+// Slate (pending) and zinc (invalid) are intentionally different neutrals so
+// a waiting cell and a rejected cell don't collide when sitting side-by-side.
 const statusConfig: Record<ReviewStatus, StatusConfig> = {
   pending: {
     label: "Pending Review",
@@ -41,13 +46,12 @@ const statusConfig: Record<ReviewStatus, StatusConfig> = {
     iconClassName: "text-slate-500 dark:text-slate-400",
   },
   under_review: {
-    label: "Under Review",
-    description:
-      "An organizer is currently reviewing your video submission and verifying your score.",
+    label: "Reviewed",
+    description: "An organizer has marked this submission as reviewed.",
     icon: Eye,
     className:
-      "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:border-blue-800",
-    iconClassName: "text-blue-500 dark:text-blue-400",
+      "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-900",
+    iconClassName: "text-emerald-500 dark:text-emerald-400",
   },
   verified: {
     label: "Verified",
@@ -55,8 +59,8 @@ const statusConfig: Record<ReviewStatus, StatusConfig> = {
       "Your score has been reviewed and confirmed as correct. No changes were made.",
     icon: CheckCircle2,
     className:
-      "bg-green-100 text-green-700 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-800",
-    iconClassName: "text-green-500 dark:text-green-400",
+      "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900 dark:text-emerald-200 dark:border-emerald-800",
+    iconClassName: "text-emerald-600 dark:text-emerald-300",
   },
   adjusted: {
     label: "Score Adjusted",
@@ -64,8 +68,8 @@ const statusConfig: Record<ReviewStatus, StatusConfig> = {
       "Your score was modified during review. The official score may differ from your claimed score.",
     icon: Edit3,
     className:
-      "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900 dark:text-amber-300 dark:border-amber-800",
-    iconClassName: "text-amber-500 dark:text-amber-400",
+      "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-900",
+    iconClassName: "text-amber-600 dark:text-amber-400",
   },
   penalized: {
     label: "Penalized",
@@ -73,8 +77,8 @@ const statusConfig: Record<ReviewStatus, StatusConfig> = {
       "Penalties were applied to your submission. This may affect your final score or ranking.",
     icon: AlertTriangle,
     className:
-      "bg-red-100 text-red-700 border-red-200 dark:bg-red-900 dark:text-red-300 dark:border-red-800",
-    iconClassName: "text-red-500 dark:text-red-400",
+      "bg-red-50 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-900",
+    iconClassName: "text-red-600 dark:text-red-400",
   },
   invalid: {
     label: "Invalid",
@@ -82,8 +86,8 @@ const statusConfig: Record<ReviewStatus, StatusConfig> = {
       "This submission has been marked as invalid. The workout score has been zeroed, but other competition scores are unaffected.",
     icon: Ban,
     className:
-      "bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600",
-    iconClassName: "text-gray-500 dark:text-gray-400",
+      "bg-zinc-100 text-zinc-700 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700",
+    iconClassName: "text-zinc-500 dark:text-zinc-400",
   },
 }
 
