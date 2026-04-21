@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "eec93cca75e5",
+  "strategy": "manual-commit",
+  "branch": "claude/enhance-leaderboard-preview-0jBGD",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "apps/wodsmith-start/src/components/compete/submission-status-badge.tsx",
+    "apps/wodsmith-start/src/components/leaderboard-page-content.tsx",
+    "apps/wodsmith-start/src/server/competition-leaderboard.ts",
+    "lat.md/domain.md",
+    "lat.md/organizer-dashboard.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ee/c93cca75e5/0/metadata.json",
+      "transcript": "/ee/c93cca75e5/0/full.jsonl",
+      "context": "/ee/c93cca75e5/0/context.md",
+      "content_hash": "/ee/c93cca75e5/0/content_hash.txt",
+      "prompt": "/ee/c93cca75e5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 9059,
+    "cache_creation_tokens": 380804,
+    "cache_read_tokens": 6373556,
+    "output_tokens": 33988,
+    "api_call_count": 48
+  }
+}
