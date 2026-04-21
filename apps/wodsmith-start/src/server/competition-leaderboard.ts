@@ -233,6 +233,7 @@ async function fetchScores(params: {
       verificationStatus: scoresTable.verificationStatus,
       penaltyType: scoresTable.penaltyType,
       penaltyPercentage: scoresTable.penaltyPercentage,
+      scalingLevelId: scoresTable.scalingLevelId,
     })
     .from(scoresTable)
     .where(
@@ -1000,8 +1001,18 @@ export async function getCompetitionLeaderboard(params: {
 
   // Process each scorable event (standalone + children, skip parents)
   for (const trackWorkout of scorableEvents) {
-    // Get scores for this event, grouped by division
-    const eventScoresByDivision = new Map<string, typeof allScores>()
+    // Get scores for this event, grouped by division.
+    //
+    // A single (userId, competitionEventId) can have more than one row when a
+    // score was re-submitted under a different scaling level or when a team
+    // captain's submission was copied across divisions. We must keep exactly
+    // one authoritative score per registration per event: otherwise both
+    // duplicates get ranked, inflating `activeCount` and, with it, the
+    // `activeCount + 1` penalty handed to registrations that never submitted
+    // — which lets a no-show team out-rank teams who submitted but placed
+    // poorly. Prefer the row whose `scalingLevelId` matches the registration's
+    // `divisionId`; otherwise keep the first row seen.
+    const dedupedByReg = new Map<string, (typeof allScores)[number]>()
 
     let scoresSeenForEvent = 0
     let scoresMissingRegistration = 0
@@ -1018,6 +1029,26 @@ export async function getCompetitionLeaderboard(params: {
         continue
       }
 
+      const regId = registration.registration.id
+      const regDivisionId = registration.registration.divisionId || "open"
+      const existing = dedupedByReg.get(regId)
+      if (!existing) {
+        dedupedByReg.set(regId, score)
+        continue
+      }
+      const existingMatches = existing.scalingLevelId === regDivisionId
+      const candidateMatches = score.scalingLevelId === regDivisionId
+      if (candidateMatches && !existingMatches) {
+        dedupedByReg.set(regId, score)
+      }
+    }
+
+    const eventScoresByDivision = new Map<string, typeof allScores>()
+    for (const [regId, score] of dedupedByReg) {
+      const registration = filteredRegistrations.find(
+        (r) => r.registration.id === regId,
+      )
+      if (!registration) continue
       const divisionId = registration.registration.divisionId || "open"
       const existing = eventScoresByDivision.get(divisionId) || []
       existing.push(score)
