@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/tabs"
 import { ChampionshipRosterTable } from "@/components/organizer/invites/championship-roster-table"
 import { InviteSourcesList } from "@/components/organizer/invites/invite-sources-list"
+import { SeriesSourceSubTabs } from "@/components/organizer/invites/series-source-sub-tabs"
 import {
   getChampionshipRosterFn,
   listInviteSourcesFn,
@@ -123,6 +124,15 @@ function InvitesPage() {
             sources={sources}
             competitionNamesById={{}}
             seriesNamesById={{}}
+            renderSourceExtras={(source) =>
+              source.kind === "series" ? (
+                <SeriesSourceSubTabs
+                  source={source}
+                  comps={[]}
+                  globalView={null}
+                />
+              ) : null
+            }
           />
         </TabsContent>
 

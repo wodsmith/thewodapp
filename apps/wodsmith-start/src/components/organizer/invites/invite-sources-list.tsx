@@ -6,6 +6,7 @@
  * (matches `project/invites/sources.jsx` modulo visual polish).
  */
 
+import type React from "react"
 import { Layers, Trophy } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -25,6 +26,9 @@ interface InviteSourcesListProps {
   onEdit?: (source: CompetitionInviteSource) => void
   onDelete?: (source: CompetitionInviteSource) => void
   onAdd?: () => void
+  /** Optional render-prop for extra content inside a source card (used to
+   *  drop in the series per-comp + global sub-tabs). */
+  renderSourceExtras?: (source: CompetitionInviteSource) => React.ReactNode
 }
 
 function allocatedSpotsFor(source: CompetitionInviteSource): number {
@@ -41,6 +45,7 @@ export function InviteSourcesList({
   onEdit,
   onDelete,
   onAdd,
+  renderSourceExtras,
 }: InviteSourcesListProps) {
   const totalAllocated = sources.reduce(
     (acc, s) => acc + allocatedSpotsFor(s),
@@ -154,6 +159,9 @@ export function InviteSourcesList({
                   </div>
                 </CardContent>
               )}
+              {renderSourceExtras ? (
+                <CardContent>{renderSourceExtras(source)}</CardContent>
+              ) : null}
             </Card>
           )
         })}
