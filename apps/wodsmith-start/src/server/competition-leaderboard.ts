@@ -234,7 +234,6 @@ async function fetchScores(params: {
       verificationStatus: scoresTable.verificationStatus,
       penaltyType: scoresTable.penaltyType,
       penaltyPercentage: scoresTable.penaltyPercentage,
-      scalingLevelId: scoresTable.scalingLevelId,
     })
     .from(scoresTable)
     .where(
