@@ -21,8 +21,13 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs"
+import { ChampionshipRosterTable } from "@/components/organizer/invites/championship-roster-table"
 import { InviteSourcesList } from "@/components/organizer/invites/invite-sources-list"
-import { listInviteSourcesFn } from "@/server-fns/competition-invite-fns"
+import {
+  getChampionshipRosterFn,
+  listInviteSourcesFn,
+} from "@/server-fns/competition-invite-fns"
+import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 
@@ -31,7 +36,7 @@ export const Route = createFileRoute(
 )({
   staleTime: 10_000,
   component: InvitesPage,
-  loader: async ({ params, context }) => {
+  loader: async ({ params, context, parentMatchPromise }) => {
     const session = context.session
     if (!session?.user?.id) {
       throw redirect({
@@ -42,19 +47,46 @@ export const Route = createFileRoute(
       })
     }
 
+    const parentMatch = await parentMatchPromise
+    const { competition } = parentMatch.loaderData!
+
     // listInviteSourcesFn enforces MANAGE_COMPETITIONS on the championship
     // team; it throws on missing permission, which the parent route's
     // error boundary handles consistently with the rest of the dashboard.
-    const { sources } = await listInviteSourcesFn({
-      data: { championshipCompetitionId: params.competitionId },
-    })
+    const [{ sources }, divisionsResult] = await Promise.all([
+      listInviteSourcesFn({
+        data: { championshipCompetitionId: params.competitionId },
+      }),
+      getCompetitionDivisionsWithCountsFn({
+        data: {
+          competitionId: params.competitionId,
+          teamId: competition.organizingTeamId,
+        },
+      }),
+    ])
 
-    return { sources }
+    const divisions = (divisionsResult.divisions ?? []).map(
+      (d: { id: string; label: string }) => ({ id: d.id, label: d.label }),
+    )
+
+    // Load roster for the first division only; the UI can switch divisions
+    // client-side in later phases.
+    const firstDivisionId = divisions[0]?.id
+    const roster = firstDivisionId
+      ? await getChampionshipRosterFn({
+          data: {
+            championshipCompetitionId: params.competitionId,
+            divisionId: firstDivisionId,
+          },
+        })
+      : { rows: [] }
+
+    return { sources, divisions, roster, activeDivisionId: firstDivisionId }
   },
 })
 
 function InvitesPage() {
-  const { sources } = Route.useLoaderData()
+  const { sources, roster } = Route.useLoaderData()
   const { competition } = parentRoute.useLoaderData()
   const [tab, setTab] = useState("roster")
 
@@ -83,9 +115,7 @@ function InvitesPage() {
         </TabsList>
 
         <TabsContent value="roster" className="mt-4">
-          <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-            Roster table arrives in the next commit.
-          </div>
+          <ChampionshipRosterTable rows={roster.rows} />
         </TabsContent>
 
         <TabsContent value="sources" className="mt-4">

@@ -31,6 +31,7 @@ import {
   logEntityUpdated,
   withRequestContext,
 } from "@/lib/logging"
+import { getChampionshipRoster } from "@/server/competition-invites/roster"
 import {
   createSource,
   deleteSource,
@@ -88,6 +89,16 @@ const updateInviteSourceInputSchema = z.object({
 const deleteInviteSourceInputSchema = z.object({
   id: z.string().min(1),
   championshipCompetitionId: z.string().min(1),
+})
+
+const getChampionshipRosterInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
+  divisionId: z.string().min(1),
+  filters: z
+    .object({
+      statuses: z.array(z.string()).optional(),
+    })
+    .optional(),
 })
 
 // ============================================================================
@@ -348,6 +359,41 @@ export const deleteInviteSourceFn = createServerFn({ method: "POST" })
         })
 
         return { ok: true as const }
+      },
+    )
+  })
+
+export const getChampionshipRosterFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    getChampionshipRosterInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "getChampionshipRosterFn",
+        attributes: {
+          championshipCompetitionId: data.championshipCompetitionId,
+          divisionId: data.divisionId,
+        },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+        const { rows } = await getChampionshipRoster({
+          championshipId: data.championshipCompetitionId,
+          divisionId: data.divisionId,
+          filters: data.filters,
+        })
+        return { rows }
       },
     )
   })
