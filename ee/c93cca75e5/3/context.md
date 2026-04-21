@@ -1,0 +1,17 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+for the @apps/wodsmith-start/src/components/online-competition-leaderboard-table.tsx we should not show adjusted score with the little label. only show major and minor penalties. [Image #1]
+
+### Prompt 2
+
+[Image: source: /Users/zacjones/.claude/image-cache/920a5fad-7b5a-46a3-88ae-8ac7e75f73d1/1.png]
+
+### Prompt 3
+
+Stop hook feedback:
+The codebase has changes (500 lines) but `lat.md/` may not be fully in sync (8 lines changed). Verify `lat.md/` is in sync — run `lat search` to find relevant sections. Run `lat check` at the end.
+

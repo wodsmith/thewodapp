@@ -3,10 +3,11 @@
   "checkpoint_id": "eec93cca75e5",
   "strategy": "manual-commit",
   "branch": "claude/enhance-leaderboard-preview-0jBGD",
-  "checkpoints_count": 5,
+  "checkpoints_count": 6,
   "files_touched": [
     "apps/wodsmith-start/src/components/compete/submission-status-badge.tsx",
     "apps/wodsmith-start/src/components/leaderboard-page-content.tsx",
+    "apps/wodsmith-start/src/components/online-competition-leaderboard-table.tsx",
     "apps/wodsmith-start/src/server/competition-leaderboard.ts",
     "lat.md/domain.md",
     "lat.md/organizer-dashboard.md"
@@ -32,13 +33,20 @@
       "context": "/ee/c93cca75e5/2/context.md",
       "content_hash": "/ee/c93cca75e5/2/content_hash.txt",
       "prompt": "/ee/c93cca75e5/2/prompt.txt"
+    },
+    {
+      "metadata": "/ee/c93cca75e5/3/metadata.json",
+      "transcript": "/ee/c93cca75e5/3/full.jsonl",
+      "context": "/ee/c93cca75e5/3/context.md",
+      "content_hash": "/ee/c93cca75e5/3/content_hash.txt",
+      "prompt": "/ee/c93cca75e5/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 9108,
-    "cache_creation_tokens": 502904,
-    "cache_read_tokens": 8651829,
-    "output_tokens": 47292,
-    "api_call_count": 83
+    "input_tokens": 9124,
+    "cache_creation_tokens": 570433,
+    "cache_read_tokens": 8980688,
+    "output_tokens": 48651,
+    "api_call_count": 89
   }
 }
