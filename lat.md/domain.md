@@ -168,9 +168,9 @@ Submissions link to a score and include a video URL (e.g., Vimeo). A valid score
 
 ### Supported Video Platforms
 
-YouTube, Vimeo, and WodProof URLs are validated and parsed by [[apps/wodsmith-start/src/schemas/video-url.ts#parseVideoUrl]].
+YouTube, Vimeo, WodProof, and WeTime URLs are validated and parsed by [[apps/wodsmith-start/src/schemas/video-url.ts#parseVideoUrl]].
 
-YouTube and Vimeo use iframe embeds. WodProof cloud URLs (`wodproofapp.com/cloud/?v=ID`) are resolved to direct S3 MP4 URLs via [[apps/wodsmith-start/src/schemas/video-url.ts#getWodProofVideoUrl]] and rendered with a native `<video>` element in both the athlete-facing [[apps/wodsmith-start/src/components/video-embed.tsx#VideoEmbed]] and the interactive [[apps/wodsmith-start/src/components/compete/video-player-embed.tsx#VideoPlayerEmbed]] components.
+YouTube and Vimeo use iframe embeds with their JS player APIs, which drive the review UI's seek-to-note and timestamp-capture features. WodProof cloud URLs (`wodproofapp.com/cloud/?v=ID`) are resolved to direct S3 MP4 URLs via [[apps/wodsmith-start/src/schemas/video-url.ts#getWodProofVideoUrl]] and rendered with a native `<video>` element in both the athlete-facing [[apps/wodsmith-start/src/components/video-embed.tsx#VideoEmbed]] and the interactive [[apps/wodsmith-start/src/components/compete/video-player-embed.tsx#VideoPlayerEmbed]] components. WeTime share links (`wetime.io/preview/ID`) don't expose a direct media URL from the share token, so [[apps/wodsmith-start/src/server-fns/wetime-resolve-fns.ts#resolveWeTimeVideoUrlFn]] fetches the preview HTML on the server, extracts the `<source>` CloudFront MP4, and both embed components play it in a native `<video>` (the iframe-the-whole-page approach was rejected because WeTime's preview page wraps the video in heavy chrome, breaking the 16:9 layout). Because the result is a native video element, WeTime inherits full interactive-playback support (seek, `getCurrentTime`) for reviewer timestamp capture.
 
 ### Multi-Division Submission
 

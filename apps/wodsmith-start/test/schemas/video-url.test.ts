@@ -168,6 +168,50 @@ describe("Video URL Validation", () => {
 		})
 		})
 
+		describe("WeTime URLs", () => {
+			it("parses canonical preview URL", () => {
+				const result = parseVideoUrl(
+					"https://wetime.io/preview/iPlmEp0fxKzPA5vm",
+				)
+				expect(result).not.toBeNull()
+				expect(result?.platform).toBe("wetime")
+				expect(result?.videoId).toBe("iPlmEp0fxKzPA5vm")
+				expect(result?.embedUrl).toBe(
+					"https://wetime.io/preview/iPlmEp0fxKzPA5vm",
+				)
+				expect(result?.supportsEmbed).toBe(true)
+			})
+
+			it("parses URL without https prefix", () => {
+				const result = parseVideoUrl("wetime.io/preview/iPlmEp0fxKzPA5vm")
+				expect(result?.platform).toBe("wetime")
+				expect(result?.videoId).toBe("iPlmEp0fxKzPA5vm")
+			})
+
+			it("parses URL with www subdomain", () => {
+				const result = parseVideoUrl(
+					"https://www.wetime.io/preview/iPlmEp0fxKzPA5vm",
+				)
+				expect(result?.platform).toBe("wetime")
+				expect(result?.videoId).toBe("iPlmEp0fxKzPA5vm")
+			})
+
+			it("strips trailing query params from ID", () => {
+				const result = parseVideoUrl(
+					"https://wetime.io/preview/iPlmEp0fxKzPA5vm?utm_source=share",
+				)
+				expect(result?.videoId).toBe("iPlmEp0fxKzPA5vm")
+				expect(result?.embedUrl).toBe(
+					"https://wetime.io/preview/iPlmEp0fxKzPA5vm",
+				)
+			})
+
+			it("returns null for non-preview wetime paths", () => {
+				expect(parseVideoUrl("https://wetime.io/home")).toBeNull()
+				expect(parseVideoUrl("https://wetime.io/embed/abc123")).toBeNull()
+			})
+		})
+
 		describe("Invalid URLs", () => {
 			it("returns null for non-video URLs", () => {
 				expect(parseVideoUrl("https://google.com")).toBeNull()
