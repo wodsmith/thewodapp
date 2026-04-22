@@ -23,6 +23,9 @@ interface InviteSourcesListProps {
   sources: CompetitionInviteSource[]
   competitionNamesById: Record<string, string>
   seriesNamesById: Record<string, string>
+  /** Number of competitions per series groupId, used to scale
+   *  `directSpotsPerComp` into a total allocation. */
+  seriesCompCountsById?: Record<string, number>
   onEdit?: (source: CompetitionInviteSource) => void
   onDelete?: (source: CompetitionInviteSource) => void
   onAdd?: () => void
@@ -31,9 +34,17 @@ interface InviteSourcesListProps {
   renderSourceExtras?: (source: CompetitionInviteSource) => React.ReactNode
 }
 
-function allocatedSpotsFor(source: CompetitionInviteSource): number {
+function allocatedSpotsFor(
+  source: CompetitionInviteSource,
+  seriesCompCountsById: Record<string, number>,
+): number {
   if (source.kind === "series") {
-    return (source.directSpotsPerComp ?? 0) + (source.globalSpots ?? 0)
+    const compCount = source.sourceGroupId
+      ? (seriesCompCountsById[source.sourceGroupId] ?? 0)
+      : 0
+    return (
+      (source.directSpotsPerComp ?? 0) * compCount + (source.globalSpots ?? 0)
+    )
   }
   return source.globalSpots ?? 0
 }
@@ -42,13 +53,14 @@ export function InviteSourcesList({
   sources,
   competitionNamesById,
   seriesNamesById,
+  seriesCompCountsById = {},
   onEdit,
   onDelete,
   onAdd,
   renderSourceExtras,
 }: InviteSourcesListProps) {
   const totalAllocated = sources.reduce(
-    (acc, s) => acc + allocatedSpotsFor(s),
+    (acc, s) => acc + allocatedSpotsFor(s, seriesCompCountsById),
     0,
   )
 
@@ -81,7 +93,7 @@ export function InviteSourcesList({
             : (source.sourceCompetitionId
                 ? competitionNamesById[source.sourceCompetitionId]
                 : undefined) ?? "Unknown competition"
-          const allocated = allocatedSpotsFor(source)
+          const allocated = allocatedSpotsFor(source, seriesCompCountsById)
           return (
             <Card key={source.id}>
               <CardHeader className="flex flex-row items-start gap-4">

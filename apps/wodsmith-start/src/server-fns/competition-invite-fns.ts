@@ -16,7 +16,7 @@
 // @lat: [[competition-invites#Source server fns]]
 
 import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
+import { eq, inArray, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { COMPETITION_INVITE_SOURCE_KIND } from "@/db/schemas/competition-invites"
@@ -209,7 +209,75 @@ export const listInviteSourcesFn = createServerFn({ method: "GET" })
         const sources = await listSourcesForChampionship(
           data.championshipCompetitionId,
         )
-        return { sources }
+
+        const competitionIds = Array.from(
+          new Set(
+            sources
+              .map((s) => s.sourceCompetitionId)
+              .filter((v): v is string => !!v),
+          ),
+        )
+        const groupIds = Array.from(
+          new Set(
+            sources
+              .map((s) => s.sourceGroupId)
+              .filter((v): v is string => !!v),
+          ),
+        )
+
+        const db = getDb()
+        const [compNameRows, groupRows, seriesCompCountRows] = await Promise.all([
+          competitionIds.length > 0
+            ? db
+                .select({
+                  id: competitionsTable.id,
+                  name: competitionsTable.name,
+                })
+                .from(competitionsTable)
+                .where(inArray(competitionsTable.id, competitionIds))
+            : Promise.resolve<Array<{ id: string; name: string }>>([]),
+          groupIds.length > 0
+            ? db
+                .select({
+                  id: competitionGroupsTable.id,
+                  name: competitionGroupsTable.name,
+                })
+                .from(competitionGroupsTable)
+                .where(inArray(competitionGroupsTable.id, groupIds))
+            : Promise.resolve<Array<{ id: string; name: string }>>([]),
+          groupIds.length > 0
+            ? db
+                .select({
+                  groupId: competitionsTable.groupId,
+                  count: sql<number>`count(*)`,
+                })
+                .from(competitionsTable)
+                .where(inArray(competitionsTable.groupId, groupIds))
+                .groupBy(competitionsTable.groupId)
+            : Promise.resolve<Array<{ groupId: string | null; count: number }>>(
+                [],
+              ),
+        ])
+
+        const competitionNamesById: Record<string, string> = Object.fromEntries(
+          compNameRows.map((r) => [r.id, r.name]),
+        )
+        const seriesNamesById: Record<string, string> = Object.fromEntries(
+          groupRows.map((r) => [r.id, r.name]),
+        )
+        const seriesCompCountsById: Record<string, number> =
+          Object.fromEntries(
+            seriesCompCountRows
+              .filter((r): r is { groupId: string; count: number } => !!r.groupId)
+              .map((r) => [r.groupId, Number(r.count)]),
+          )
+
+        return {
+          sources,
+          competitionNamesById,
+          seriesNamesById,
+          seriesCompCountsById,
+        }
       },
     )
   })

@@ -13,22 +13,23 @@
  */
 // @lat: [[competition-invites#Organizer route shell]]
 
-import { createFileRoute, getRouteApi, redirect } from "@tanstack/react-router"
-import { useState } from "react"
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
+  createFileRoute,
+  getRouteApi,
+  redirect,
+  useNavigate,
+} from "@tanstack/react-router"
+import { useEffect, useState } from "react"
 import { ChampionshipRosterTable } from "@/components/organizer/invites/championship-roster-table"
 import { InviteSourcesList } from "@/components/organizer/invites/invite-sources-list"
 import { SeriesSourceSubTabs } from "@/components/organizer/invites/series-source-sub-tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { usePostHog } from "@/lib/posthog"
+import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import {
   getChampionshipRosterFn,
   listInviteSourcesFn,
 } from "@/server-fns/competition-invite-fns"
-import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 
@@ -54,7 +55,7 @@ export const Route = createFileRoute(
     // listInviteSourcesFn enforces MANAGE_COMPETITIONS on the championship
     // team; it throws on missing permission, which the parent route's
     // error boundary handles consistently with the rest of the dashboard.
-    const [{ sources }, divisionsResult] = await Promise.all([
+    const [sourcesResult, divisionsResult] = await Promise.all([
       listInviteSourcesFn({
         data: { championshipCompetitionId: params.competitionId },
       }),
@@ -65,6 +66,12 @@ export const Route = createFileRoute(
         },
       }),
     ])
+    const {
+      sources,
+      competitionNamesById,
+      seriesNamesById,
+      seriesCompCountsById,
+    } = sourcesResult
 
     const divisions = (divisionsResult.divisions ?? []).map(
       (d: { id: string; label: string }) => ({ id: d.id, label: d.label }),
@@ -82,21 +89,59 @@ export const Route = createFileRoute(
         })
       : { rows: [] }
 
-    return { sources, divisions, roster, activeDivisionId: firstDivisionId }
+    return {
+      sources,
+      competitionNamesById,
+      seriesNamesById,
+      seriesCompCountsById,
+      divisions,
+      roster,
+      activeDivisionId: firstDivisionId,
+    }
   },
 })
 
 function InvitesPage() {
-  const { sources, roster } = Route.useLoaderData()
+  const {
+    sources,
+    competitionNamesById,
+    seriesNamesById,
+    seriesCompCountsById,
+    roster,
+  } = Route.useLoaderData()
   const { competition } = parentRoute.useLoaderData()
+  const { competitionId } = Route.useParams()
+  const { posthog } = usePostHog()
+  const navigate = useNavigate()
+  const [flagEnabled, setFlagEnabled] = useState(() =>
+    posthog.isFeatureEnabled("competition-invites"),
+  )
+  useEffect(() => {
+    const unsubscribe = posthog.onFeatureFlags(() => {
+      setFlagEnabled(posthog.isFeatureEnabled("competition-invites"))
+    })
+    return unsubscribe
+  }, [posthog])
+  useEffect(() => {
+    if (flagEnabled === false) {
+      navigate({
+        to: "/compete/organizer/$competitionId",
+        replace: true,
+        params: { competitionId },
+      })
+    }
+  }, [flagEnabled, competitionId, navigate])
   const [tab, setTab] = useState("roster")
+
+  if (flagEnabled === false) return null
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Invites</h1>
         <p className="text-muted-foreground">
-          Define qualification sources and invite athletes to {competition.name}.
+          Define qualification sources and invite athletes to {competition.name}
+          .
         </p>
       </div>
 
@@ -122,8 +167,9 @@ function InvitesPage() {
         <TabsContent value="sources" className="mt-4">
           <InviteSourcesList
             sources={sources}
-            competitionNamesById={{}}
-            seriesNamesById={{}}
+            competitionNamesById={competitionNamesById}
+            seriesNamesById={seriesNamesById}
+            seriesCompCountsById={seriesCompCountsById}
             renderSourceExtras={(source) =>
               source.kind === "series" ? (
                 <SeriesSourceSubTabs

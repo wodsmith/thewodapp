@@ -20,6 +20,8 @@ The write-time constraint "exactly one of `sourceCompetitionId` / `sourceGroupId
 
 The organizer endpoints live in [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts]] — `listInviteSourcesFn`, `createInviteSourceFn`, `updateInviteSourceFn`, `deleteInviteSourceFn` — gated by `MANAGE_COMPETITIONS` on the championship's organizing team.
 
+`listInviteSourcesFn` returns the source rows plus resolved display lookups: `competitionNamesById` (for single-comp sources), `seriesNamesById` (for series sources), and `seriesCompCountsById` (number of competitions in each referenced series). The counts feed [[apps/wodsmith-start/src/components/organizer/invites/invite-sources-list.tsx]]'s `allocatedSpotsFor`, which computes a series' total contribution as `directSpotsPerComp * compCount + globalSpots` — `directSpotsPerComp` is per-comp so scaling by the series size matters for multi-comp series.
+
 When a source references another competition or series, [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#requireSourcePermissions]] also requires `MANAGE_COMPETITIONS` on that source's organizing team. Per ADR Open Question 6 (same-org only for MVP) the two organizing teams must currently match; cross-org references throw. The policy lives in the server fn so a future phase can relax it by deleting a single check. Each fn wraps its handler in `withRequestContext` so `logEntityCreated` / `logEntityUpdated` / `logEntityDeleted` calls carry correlation IDs.
 
 ## Roster computation
@@ -28,11 +30,19 @@ When a source references another competition or series, [[apps/wodsmith-start/sr
 
 The function loads all sources, delegates to [[apps/wodsmith-start/src/server/competition-leaderboard.ts#getCompetitionLeaderboard]] for single-comp sources and [[apps/wodsmith-start/src/server/series-leaderboard.ts#getSeriesLeaderboard]] for series sources, resolves each source's division mapping, and flags rows below each source's spot allocation as `belowCutoff`. Pure helpers (`parseDivisionMappings`, `resolveSourceDivisionId`, `resolveSpotsForDivision`, `aggregateQualifyingRows`) are extracted and unit-tested directly so the cutoff + skip-already-qualified logic can be exercised without mocking the leaderboard stack. The server fn `getChampionshipRosterFn` gates this with `MANAGE_COMPETITIONS` on the championship.
 
+"Already qualified" in [[apps/wodsmith-start/src/server/competition-invites/roster.ts#aggregateQualifyingRows]] means fully qualified in a higher-priority source — being on a prior source's waitlist does not block the same athlete from qualifying in a later source. When a later source promotes a previously waitlisted athlete, the earlier waitlist row is removed so each athlete appears at most once (qualified rows win; waitlist rows dedupe across sources).
+
 ## Organizer route shell
 
 The Phase-1 organizer route is [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/invites/index.tsx]]. It renders five tabs — Roster, Sources, Round History, Email Templates, Series Global — with Roster and Sources live and the others placeholders for later phases.
 
 The loader loads sources, divisions, and the first division's roster in parallel via `Promise.all` and passes them to child components. The sidebar ([[apps/wodsmith-start/src/components/competition-sidebar.tsx]]) gains an "Invites" entry under the Athletes section. Series sources within the Sources tab render per-comp tabs plus a series-global tab via [[apps/wodsmith-start/src/components/organizer/invites/series-source-sub-tabs.tsx]] — Phase 1 is read-only, so the component receives data from the loader rather than fetching its own, and invite pills are deliberately omitted until Phase 2.
+
+## Feature-flag gate
+
+Both the sidebar link and the route page are gated on the PostHog feature flag `competition-invites`. When disabled the link is hidden from [[apps/wodsmith-start/src/components/competition-sidebar.tsx]] and the route component redirects to the competition overview.
+
+Pattern mirrors the existing `competition-global-leaderboard` gate in [[apps/wodsmith-start/src/routes/compete/organizer/series/$groupId/leaderboard.tsx]] — `posthog.isFeatureEnabled()` seeds state, `posthog.onFeatureFlags()` subscribes to flag updates. The gate only compares `=== true` / `=== false` so the `undefined` pre-load state neither shows the link nor triggers a redirect, avoiding flicker.
 
 ## Seed data
 

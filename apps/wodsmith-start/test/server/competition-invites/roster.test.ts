@@ -143,6 +143,65 @@ describe("aggregateQualifyingRows", () => {
     ])
   })
 
+  it("promotes a waitlisted athlete when a lower-priority source qualifies them", () => {
+    const s1 = baseSource({ id: "cisrc_1", sortOrder: 0 })
+    const s2 = baseSource({ id: "cisrc_2", sortOrder: 1 })
+    const out = aggregateQualifyingRows([
+      {
+        source: s1,
+        rows: [
+          baseRow({ userId: "u1", sourceId: "cisrc_1" }),
+          baseRow({ userId: "u2", sourceId: "cisrc_1" }),
+          baseRow({ userId: "u3", sourceId: "cisrc_1" }),
+          baseRow({ userId: "u5", sourceId: "cisrc_1" }),
+        ],
+        cutoff: 3,
+      },
+      {
+        source: s2,
+        rows: [
+          baseRow({ userId: "u5", sourceId: "cisrc_2" }),
+          baseRow({ userId: "u6", sourceId: "cisrc_2" }),
+        ],
+        cutoff: 2,
+      },
+    ])
+    // u5 was on s1's waitlist but qualifies under s2 — the s1 waitlist row
+    // should be dropped, and u5 should appear as a s2 qualifier.
+    const u5Rows = out.filter((r) => r.userId === "u5")
+    expect(u5Rows).toHaveLength(1)
+    expect(u5Rows[0]).toMatchObject({
+      sourceId: "cisrc_2",
+      belowCutoff: false,
+    })
+  })
+
+  it("dedupes waitlist rows across sources", () => {
+    const s1 = baseSource({ id: "cisrc_1", sortOrder: 0 })
+    const s2 = baseSource({ id: "cisrc_2", sortOrder: 1 })
+    const out = aggregateQualifyingRows([
+      {
+        source: s1,
+        rows: [
+          baseRow({ userId: "u1", sourceId: "cisrc_1" }),
+          baseRow({ userId: "u5", sourceId: "cisrc_1" }),
+        ],
+        cutoff: 1,
+      },
+      {
+        source: s2,
+        rows: [
+          baseRow({ userId: "u2", sourceId: "cisrc_2" }),
+          baseRow({ userId: "u5", sourceId: "cisrc_2" }),
+        ],
+        cutoff: 1,
+      },
+    ])
+    const u5Rows = out.filter((r) => r.userId === "u5")
+    expect(u5Rows).toHaveLength(1)
+    expect(u5Rows[0].belowCutoff).toBe(true)
+  })
+
   it("sorts sources by sortOrder before aggregation", () => {
     const s1 = baseSource({ id: "cisrc_1", sortOrder: 10 })
     const s2 = baseSource({ id: "cisrc_2", sortOrder: 0 })

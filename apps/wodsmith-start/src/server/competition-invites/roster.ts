@@ -128,6 +128,12 @@ export function resolveSpotsForDivision(params: {
  * Aggregate qualifying rows across multiple sources, honoring each
  * source's spot allocation and skipping athletes already qualified by a
  * higher-priority source (series "direct-qualified skip-already").
+ *
+ * "Already qualified" means fully qualified somewhere higher — being on a
+ * prior source's waitlist does NOT suppress the same athlete from
+ * qualifying in a later source. Waitlist rows are deduped separately so
+ * an athlete appears at most once across waitlists, and any waitlist row
+ * is dropped if the same athlete qualifies anywhere else.
  */
 export function aggregateQualifyingRows(
   rowsBySource: Array<{
@@ -136,23 +142,36 @@ export function aggregateQualifyingRows(
     cutoff: number
   }>,
 ): RosterRow[] {
-  const seen = new Set<string>()
+  const qualifiedKeys = new Set<string>()
+  const waitlistKeys = new Set<string>()
   const out: RosterRow[] = []
   const sorted = [...rowsBySource].sort(
     (a, b) => a.source.sortOrder - b.source.sortOrder,
   )
-  for (const { source, rows, cutoff } of sorted) {
+  for (const { rows, cutoff } of sorted) {
     let qualifiedCount = 0
     for (const row of rows) {
       const key = row.userId ?? `name:${row.athleteName}`
-      if (seen.has(key)) continue // skip-already-qualified
+      if (qualifiedKeys.has(key)) continue // skip-already-qualified
       const belowCutoff = qualifiedCount >= cutoff
-      seen.add(key)
-      out.push({ ...row, belowCutoff })
+      if (belowCutoff) {
+        if (waitlistKeys.has(key)) continue
+        waitlistKeys.add(key)
+        out.push({ ...row, belowCutoff: true })
+      } else {
+        qualifiedKeys.add(key)
+        // Drop any earlier waitlist row for this athlete — a later
+        // qualifier supersedes a higher-priority waitlist placement.
+        const idx = out.findIndex(
+          (r) =>
+            r.belowCutoff &&
+            (r.userId ?? `name:${r.athleteName}`) === key,
+        )
+        if (idx !== -1) out.splice(idx, 1)
+        waitlistKeys.delete(key)
+        out.push({ ...row, belowCutoff: false })
+      }
       qualifiedCount += 1
-      // Keep only cutoff + 10 waitlist per source; truncation happens
-      // upstream. We still emit all rows so callers can choose.
-      void source
     }
   }
   return out
