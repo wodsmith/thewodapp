@@ -107,9 +107,14 @@ const getChampionshipRosterInputSchema = z.object({
 
 /**
  * Resolve the organizing team for a competition. Throws if the
- * competition does not exist. Exported for reuse by roster helpers.
+ * competition does not exist.
+ *
+ * Not exported: keeping this internal lets the tanstack-start compiler's
+ * dead-code-elimination prune this function (and its `getDb` import
+ * chain) from the client bundle. Exporting would pin the `cloudflare:workers`
+ * import through `@/db` and break the dev server's client environment.
  */
-export async function getCompetitionOrganizingTeamId(
+async function getCompetitionOrganizingTeamId(
   competitionId: string,
 ): Promise<string> {
   const db = getDb()
