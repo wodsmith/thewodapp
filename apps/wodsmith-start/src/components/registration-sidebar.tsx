@@ -4,6 +4,7 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
+  HandHeart,
   MapPin,
   Plus,
   Users,
@@ -272,6 +273,23 @@ export function RegistrationSidebar({
                 Registration closes {formatDeadlineDate(regClosesAt)}
               </p>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Volunteer Sign-Up Card — secondary action for non-volunteers */}
+      {!isVolunteer && (
+        <Card className="border-white/10 bg-white/5 backdrop-blur-md">
+          <CardContent className="p-4">
+            <Button asChild variant="outline" size="sm" className="w-full">
+              <Link
+                to="/compete/$slug/volunteer"
+                params={{ slug: competition.slug }}
+              >
+                <HandHeart className="mr-2 h-4 w-4" />
+                Sign Up to Volunteer
+              </Link>
+            </Button>
           </CardContent>
         </Card>
       )}
