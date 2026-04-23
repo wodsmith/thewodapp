@@ -69,6 +69,7 @@ export const Route = createFileRoute("/compete/organizer/$competitionId")({
 const routeLabels: Record<string, string> = {
   divisions: "Divisions",
   athletes: "Registrations",
+  invites: "Invites",
   events: "Events",
   "event-divisions": "Event Divisions",
   "submission-windows": "Submission Windows",

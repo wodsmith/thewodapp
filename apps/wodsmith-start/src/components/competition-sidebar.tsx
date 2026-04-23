@@ -19,6 +19,7 @@ import {
   Grid3X3,
   Home,
   Layers,
+  Mail,
   MapPin,
   Medal,
   Megaphone,
@@ -100,6 +101,7 @@ const getNavigation = (
           : []),
         { label: "Scoring", href: `${basePath}/scoring`, icon: Calculator },
         { label: "Registrations", href: `${basePath}/athletes`, icon: Users },
+        { label: "Invites", href: `${basePath}/invites`, icon: Mail },
         {
           label: "Waivers",
           href: `${basePath}/waivers`,

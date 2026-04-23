@@ -6,6 +6,8 @@ import type { Connection } from "mysql2/promise"
  */
 export async function cleanup(client: Connection): Promise<void> {
 	const tables = [
+		// Competition invites (before competitions)
+		"competition_invite_sources",
 		// Broadcasts (before competitions)
 		"competition_broadcast_recipients",
 		"competition_broadcasts",

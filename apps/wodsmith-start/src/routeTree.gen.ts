@@ -137,6 +137,7 @@ import { Route as AdminTeamsScheduleClassesRouteImport } from './routes/admin/te
 import { Route as AdminTeamsTeamIdSchedulingRouteImport } from './routes/admin/teams/$teamId/scheduling'
 import { Route as CompeteOrganizerSeriesGroupIdIndexRouteImport } from './routes/compete/organizer/series/$groupId/index'
 import { Route as CompeteOrganizerDashboardSeriesIndexRouteImport } from './routes/compete/organizer/_dashboard/series/index'
+import { Route as CompeteOrganizerCompetitionIdInvitesIndexRouteImport } from './routes/compete/organizer/$competitionId/invites/index'
 import { Route as CompeteOrganizerCompetitionIdEventsIndexRouteImport } from './routes/compete/organizer/$competitionId/events/index'
 import { Route as CompeteOrganizerCompetitionIdAthletesIndexRouteImport } from './routes/compete/organizer/$competitionId/athletes/index'
 import { Route as CompeteSlugTeamsRegistrationIdIndexRouteImport } from './routes/compete/$slug/teams/$registrationId/index'
@@ -875,6 +876,12 @@ const CompeteOrganizerDashboardSeriesIndexRoute =
     path: '/series/',
     getParentRoute: () => CompeteOrganizerDashboardRoute,
   } as any)
+const CompeteOrganizerCompetitionIdInvitesIndexRoute =
+  CompeteOrganizerCompetitionIdInvitesIndexRouteImport.update({
+    id: '/invites/',
+    path: '/invites/',
+    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+  } as any)
 const CompeteOrganizerCompetitionIdEventsIndexRoute =
   CompeteOrganizerCompetitionIdEventsIndexRouteImport.update({
     id: '/events/',
@@ -1253,6 +1260,7 @@ export interface FileRoutesByFullPath {
   '/compete/$slug/teams/$registrationId': typeof CompeteSlugTeamsRegistrationIdIndexRoute
   '/compete/organizer/$competitionId/athletes': typeof CompeteOrganizerCompetitionIdAthletesIndexRoute
   '/compete/organizer/$competitionId/events': typeof CompeteOrganizerCompetitionIdEventsIndexRoute
+  '/compete/organizer/$competitionId/invites': typeof CompeteOrganizerCompetitionIdInvitesIndexRoute
   '/compete/organizer/series': typeof CompeteOrganizerDashboardSeriesIndexRoute
   '/compete/organizer/series/$groupId/': typeof CompeteOrganizerSeriesGroupIdIndexRoute
   '/compete/organizer/$competitionId/events/$eventId/submissions': typeof CompeteOrganizerCompetitionIdEventsEventIdSubmissionsRouteWithChildren
@@ -1406,6 +1414,7 @@ export interface FileRoutesByTo {
   '/compete/$slug/teams/$registrationId': typeof CompeteSlugTeamsRegistrationIdIndexRoute
   '/compete/organizer/$competitionId/athletes': typeof CompeteOrganizerCompetitionIdAthletesIndexRoute
   '/compete/organizer/$competitionId/events': typeof CompeteOrganizerCompetitionIdEventsIndexRoute
+  '/compete/organizer/$competitionId/invites': typeof CompeteOrganizerCompetitionIdInvitesIndexRoute
   '/compete/organizer/series': typeof CompeteOrganizerDashboardSeriesIndexRoute
   '/compete/organizer/series/$groupId': typeof CompeteOrganizerSeriesGroupIdIndexRoute
   '/compete/organizer/series/$groupId/events/$eventId': typeof CompeteOrganizerSeriesGroupIdEventsEventIdRoute
@@ -1573,6 +1582,7 @@ export interface FileRoutesById {
   '/compete/$slug/teams/$registrationId/': typeof CompeteSlugTeamsRegistrationIdIndexRoute
   '/compete/organizer/$competitionId/athletes/': typeof CompeteOrganizerCompetitionIdAthletesIndexRoute
   '/compete/organizer/$competitionId/events/': typeof CompeteOrganizerCompetitionIdEventsIndexRoute
+  '/compete/organizer/$competitionId/invites/': typeof CompeteOrganizerCompetitionIdInvitesIndexRoute
   '/compete/organizer/_dashboard/series/': typeof CompeteOrganizerDashboardSeriesIndexRoute
   '/compete/organizer/series/$groupId/': typeof CompeteOrganizerSeriesGroupIdIndexRoute
   '/compete/organizer/$competitionId/events/$eventId/submissions': typeof CompeteOrganizerCompetitionIdEventsEventIdSubmissionsRouteWithChildren
@@ -1739,6 +1749,7 @@ export interface FileRouteTypes {
     | '/compete/$slug/teams/$registrationId'
     | '/compete/organizer/$competitionId/athletes'
     | '/compete/organizer/$competitionId/events'
+    | '/compete/organizer/$competitionId/invites'
     | '/compete/organizer/series'
     | '/compete/organizer/series/$groupId/'
     | '/compete/organizer/$competitionId/events/$eventId/submissions'
@@ -1892,6 +1903,7 @@ export interface FileRouteTypes {
     | '/compete/$slug/teams/$registrationId'
     | '/compete/organizer/$competitionId/athletes'
     | '/compete/organizer/$competitionId/events'
+    | '/compete/organizer/$competitionId/invites'
     | '/compete/organizer/series'
     | '/compete/organizer/series/$groupId'
     | '/compete/organizer/series/$groupId/events/$eventId'
@@ -2058,6 +2070,7 @@ export interface FileRouteTypes {
     | '/compete/$slug/teams/$registrationId/'
     | '/compete/organizer/$competitionId/athletes/'
     | '/compete/organizer/$competitionId/events/'
+    | '/compete/organizer/$competitionId/invites/'
     | '/compete/organizer/_dashboard/series/'
     | '/compete/organizer/series/$groupId/'
     | '/compete/organizer/$competitionId/events/$eventId/submissions'
@@ -3006,6 +3019,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompeteOrganizerDashboardSeriesIndexRouteImport
       parentRoute: typeof CompeteOrganizerDashboardRoute
     }
+    '/compete/organizer/$competitionId/invites/': {
+      id: '/compete/organizer/$competitionId/invites/'
+      path: '/invites'
+      fullPath: '/compete/organizer/$competitionId/invites'
+      preLoaderRoute: typeof CompeteOrganizerCompetitionIdInvitesIndexRouteImport
+      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+    }
     '/compete/organizer/$competitionId/events/': {
       id: '/compete/organizer/$competitionId/events/'
       path: '/events'
@@ -3568,6 +3588,7 @@ interface CompeteOrganizerCompetitionIdRouteChildren {
   CompeteOrganizerCompetitionIdEventsEventIdRoute: typeof CompeteOrganizerCompetitionIdEventsEventIdRouteWithChildren
   CompeteOrganizerCompetitionIdAthletesIndexRoute: typeof CompeteOrganizerCompetitionIdAthletesIndexRoute
   CompeteOrganizerCompetitionIdEventsIndexRoute: typeof CompeteOrganizerCompetitionIdEventsIndexRoute
+  CompeteOrganizerCompetitionIdInvitesIndexRoute: typeof CompeteOrganizerCompetitionIdInvitesIndexRoute
 }
 
 const CompeteOrganizerCompetitionIdRouteChildren: CompeteOrganizerCompetitionIdRouteChildren =
@@ -3618,6 +3639,8 @@ const CompeteOrganizerCompetitionIdRouteChildren: CompeteOrganizerCompetitionIdR
       CompeteOrganizerCompetitionIdAthletesIndexRoute,
     CompeteOrganizerCompetitionIdEventsIndexRoute:
       CompeteOrganizerCompetitionIdEventsIndexRoute,
+    CompeteOrganizerCompetitionIdInvitesIndexRoute:
+      CompeteOrganizerCompetitionIdInvitesIndexRoute,
   }
 
 const CompeteOrganizerCompetitionIdRouteWithChildren =
