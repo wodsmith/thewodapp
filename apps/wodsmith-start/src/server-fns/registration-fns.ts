@@ -67,6 +67,12 @@ import {
   registerForCompetition,
 } from "@/lib/registration-stubs"
 import { getStripe } from "@/lib/stripe"
+import {
+  assertInviteClaimable,
+  InviteNotClaimableError,
+  resolveInviteByToken,
+} from "@/server/competition-invites/claim"
+import { normalizeInviteEmail } from "@/server/competition-invites/issue"
 import { validateCoupon, recordRedemption } from "@/server/coupons"
 import type { ProductCoupon } from "@/db/schema"
 import { requireVerifiedEmail } from "@/utils/auth"
@@ -121,6 +127,15 @@ const initiateRegistrationPaymentInputSchema = z.object({
       }),
     )
     .optional(),
+  /**
+   * Optional competition-invite claim token. When present:
+   *  - re-validates the invite (email-locked to the session),
+   *  - skips the registration-window check (invite-holders can register
+   *    before public open / after close),
+   *  - tags the Stripe purchase metadata with `inviteId` so the webhook
+   *    workflow can flip the invite to `accepted_paid`.
+   */
+  inviteToken: z.string().min(1).optional(),
 })
 
 const getRegistrationFeeBreakdownInputSchema = z.object({
@@ -254,6 +269,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
         competitionId: input.competitionId,
         divisionCount: input.items.length,
         divisionIds: input.items.map((i) => i.divisionId).join(","),
+        hasInviteToken: !!input.inviteToken,
       },
     })
 
@@ -269,23 +285,68 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       throw new Error("Competition not found")
     }
 
-    // 2. Validate registration window (using competition's timezone)
-    const competitionTimezone = competition.timezone || DEFAULT_TIMEZONE
-    if (
-      !hasDateStartedInTimezone(
-        competition.registrationOpensAt,
-        competitionTimezone,
-      )
-    ) {
-      throw new Error("Registration has not opened yet")
+    // 1a. Invite-aware registration. If a claim token was supplied, resolve
+    // and identity-check it against the session email before any window
+    // validation. A matching invite lets the user bypass the registration
+    // window and carries the invite id through to Stripe purchase metadata
+    // so the webhook workflow can flip the invite to `accepted_paid`.
+    let inviteIdForPurchase: string | null = null
+    let inviteDivisionIdForPurchase: string | null = null
+    if (input.inviteToken) {
+      const invite = await resolveInviteByToken(input.inviteToken)
+      if (!invite) {
+        throw new Error("Invite link is invalid or expired")
+      }
+      try {
+        assertInviteClaimable(invite)
+      } catch (err) {
+        if (err instanceof InviteNotClaimableError) {
+          throw new Error(`Invite link is not usable: ${err.reason}`)
+        }
+        throw err
+      }
+      if (invite.championshipCompetitionId !== input.competitionId) {
+        throw new Error("Invite does not match this competition")
+      }
+      if (
+        !input.items.some(
+          (i) => i.divisionId === invite.championshipDivisionId,
+        )
+      ) {
+        throw new Error(
+          "Invite is locked to a different division than the one selected",
+        )
+      }
+      const sessionEmail = normalizeInviteEmail(session.user.email ?? "")
+      if (sessionEmail !== normalizeInviteEmail(invite.email)) {
+        throw new Error(
+          "Invite is locked to a different email — sign in as that address to claim it",
+        )
+      }
+      inviteIdForPurchase = invite.id
+      inviteDivisionIdForPurchase = invite.championshipDivisionId
     }
-    if (
-      isDeadlinePassedInTimezone(
-        competition.registrationClosesAt,
-        competitionTimezone,
-      )
-    ) {
-      throw new Error("Registration has closed")
+
+    // 2. Validate registration window (using competition's timezone) —
+    // unless an invite bypasses it.
+    const competitionTimezone = competition.timezone || DEFAULT_TIMEZONE
+    if (!inviteIdForPurchase) {
+      if (
+        !hasDateStartedInTimezone(
+          competition.registrationOpensAt,
+          competitionTimezone,
+        )
+      ) {
+        throw new Error("Registration has not opened yet")
+      }
+      if (
+        isDeadlinePassedInTimezone(
+          competition.registrationClosesAt,
+          competitionTimezone,
+        )
+      ) {
+        throw new Error("Registration has closed")
+      }
     }
 
     // 3. Check not already registered for any of these divisions (exclude removed registrations)
@@ -605,6 +666,11 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
           answers: input.answers,
           couponCode: input.couponCode,
           couponDiscountCents: itemDiscount,
+          inviteId:
+            inviteIdForPurchase &&
+            item.divisionId === inviteDivisionIdForPurchase
+              ? inviteIdForPurchase
+              : null,
         }),
       })
 

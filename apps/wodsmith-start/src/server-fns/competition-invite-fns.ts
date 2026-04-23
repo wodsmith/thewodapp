@@ -15,21 +15,26 @@
  */
 // @lat: [[competition-invites#Source server fns]]
 
+import { render } from "@react-email/render"
 import { createServerFn } from "@tanstack/react-start"
+import { env } from "cloudflare:workers"
 import { eq, inArray, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+  COMPETITION_INVITE_ORIGIN,
   COMPETITION_INVITE_SOURCE_KIND,
   COMPETITION_INVITE_STATUS,
+  type CompetitionInvite,
 } from "@/db/schemas/competition-invites"
 import {
   competitionGroupsTable,
   competitionsTable,
 } from "@/db/schemas/competitions"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { TEAM_PERMISSIONS, teamTable } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
+import { getAppUrl } from "@/lib/env"
 import {
   logEntityCreated,
   logEntityDeleted,
@@ -38,6 +43,11 @@ import {
   logWarning,
   withRequestContext,
 } from "@/lib/logging"
+import { CompetitionInviteEmail } from "@/react-email/competition-invites/invite-email"
+import {
+  type InviteEmailMessage,
+  type QueueEmailMessage,
+} from "@/server/broadcast-queue-consumer"
 import {
   assertInviteClaimable,
   type InviteClaimableError,
@@ -45,7 +55,17 @@ import {
   resolveInviteByToken,
 } from "@/server/competition-invites/claim"
 import { declineInvite } from "@/server/competition-invites/decline"
-import { normalizeInviteEmail } from "@/server/competition-invites/issue"
+import {
+  createBespokeInvite as createBespokeInviteHelper,
+  createBespokeInvitesBulk as createBespokeInvitesBulkHelper,
+} from "@/server/competition-invites/bespoke"
+import {
+  FreeCompetitionNotEligibleError,
+  issueInvitesForRecipients,
+  type IssueInviteRecipient,
+  normalizeInviteEmail,
+  reissueInvite,
+} from "@/server/competition-invites/issue"
 import { getChampionshipRoster } from "@/server/competition-invites/roster"
 import {
   createSource,
@@ -124,6 +144,43 @@ const getInviteByTokenInputSchema = z.object({
 const declineInviteInputSchema = z.object({
   token: z.string().min(1),
   slug: z.string().min(1),
+})
+
+const issueInvitesRecipientSchema = z.object({
+  email: z.string().email().max(255),
+  origin: z.enum([COMPETITION_INVITE_ORIGIN.SOURCE, COMPETITION_INVITE_ORIGIN.BESPOKE]),
+  sourceId: z.string().min(1).nullable().optional(),
+  sourceCompetitionId: z.string().min(1).nullable().optional(),
+  sourcePlacement: z.number().int().positive().nullable().optional(),
+  sourcePlacementLabel: z.string().max(255).nullable().optional(),
+  bespokeReason: z.string().max(255).nullable().optional(),
+  inviteeFirstName: z.string().max(255).nullable().optional(),
+  inviteeLastName: z.string().max(255).nullable().optional(),
+  userId: z.string().min(1).nullable().optional(),
+})
+
+const issueInvitesInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
+  championshipDivisionId: z.string().min(1),
+  rsvpDeadlineAt: z.coerce.date(),
+  subject: z.string().min(1).max(255),
+  bodyText: z.string().max(10_000).optional(),
+  recipients: z.array(issueInvitesRecipientSchema).min(1).max(500),
+})
+
+const bespokeInviteInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
+  championshipDivisionId: z.string().min(1),
+  email: z.string().email().max(255),
+  inviteeFirstName: z.string().max(255).nullable().optional(),
+  inviteeLastName: z.string().max(255).nullable().optional(),
+  bespokeReason: z.string().max(255).nullable().optional(),
+})
+
+const bespokeBulkInviteInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
+  championshipDivisionId: z.string().min(1),
+  pasteText: z.string().max(200_000),
 })
 
 // ============================================================================
@@ -693,6 +750,333 @@ export const declineInviteFn = createServerFn({ method: "POST" })
         })
 
         return { ok: true as const }
+      },
+    )
+  })
+
+// ============================================================================
+// Organizer-facing: issue invites
+// ============================================================================
+
+/**
+ * Render the competition invite email HTML for one invite row.
+ *
+ * The claim URL embeds the plaintext token — this is the *only* place the
+ * plaintext escapes process memory. The decline URL is included as a
+ * secondary CTA in the email body.
+ */
+async function renderInviteEmailHtml(params: {
+  invite: CompetitionInvite
+  plaintextToken: string
+  championshipSlug: string
+  championshipName: string
+  divisionLabel: string
+  organizerTeamName: string
+  subject: string
+  bodyText?: string
+  rsvpDeadlineLabel?: string
+}): Promise<string> {
+  const baseUrl = getAppUrl()
+  const claimUrl = `${baseUrl}/compete/${params.championshipSlug}/claim/${params.plaintextToken}`
+  const declineUrl = `${claimUrl}/decline`
+  const athleteName = params.invite.inviteeFirstName || params.invite.email
+
+  return render(
+    CompetitionInviteEmail({
+      championshipName: params.championshipName,
+      divisionLabel: params.divisionLabel,
+      claimUrl,
+      declineUrl,
+      athleteName,
+      organizerTeamName: params.organizerTeamName,
+      subject: params.subject,
+      bodyText: params.bodyText,
+      rsvpDeadlineLabel: params.rsvpDeadlineLabel,
+      sourceLabel: params.invite.sourcePlacementLabel,
+    }),
+  )
+}
+
+/**
+ * Send invites to a set of recipients for a specific championship division.
+ *
+ * Composes the Phase 2 pipeline: insert or reissue rows, render per-recipient
+ * HTML, enqueue invite messages onto the shared email queue. "Already active
+ * draft" bespoke rows get activated via reissue; "already active with token"
+ * rows come back as skipped so the organizer can choose to re-send
+ * explicitly via a re-issue flow (sub-arc D).
+ *
+ * Permission: `MANAGE_COMPETITIONS` on the championship's organizing team.
+ * Free divisions are rejected inside the issue helpers.
+ */
+export const issueInvitesFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => issueInvitesInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "issueInvitesFn",
+        attributes: {
+          championshipCompetitionId: data.championshipCompetitionId,
+          divisionId: data.championshipDivisionId,
+          recipientCount: data.recipients.length,
+        },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+
+        const db = getDb()
+        const [championship, division, organizingTeam] = await Promise.all([
+          db
+            .select({
+              id: competitionsTable.id,
+              slug: competitionsTable.slug,
+              name: competitionsTable.name,
+            })
+            .from(competitionsTable)
+            .where(eq(competitionsTable.id, data.championshipCompetitionId))
+            .limit(1)
+            .then((rows) => rows[0] ?? null),
+          db
+            .select({
+              id: scalingLevelsTable.id,
+              label: scalingLevelsTable.label,
+            })
+            .from(scalingLevelsTable)
+            .where(eq(scalingLevelsTable.id, data.championshipDivisionId))
+            .limit(1)
+            .then((rows) => rows[0] ?? null),
+          db
+            .select({ id: teamTable.id, name: teamTable.name })
+            .from(teamTable)
+            .where(eq(teamTable.id, championshipTeamId))
+            .limit(1)
+            .then((rows) => rows[0] ?? null),
+        ])
+
+        if (!championship) throw new Error("Championship not found")
+        if (!division) throw new Error("Division not found")
+
+        const recipients: IssueInviteRecipient[] = data.recipients.map((r) => ({
+          email: r.email,
+          origin: r.origin,
+          sourceId: r.sourceId ?? null,
+          sourceCompetitionId: r.sourceCompetitionId ?? null,
+          sourcePlacement: r.sourcePlacement ?? null,
+          sourcePlacementLabel: r.sourcePlacementLabel ?? null,
+          bespokeReason: r.bespokeReason ?? null,
+          inviteeFirstName: r.inviteeFirstName ?? null,
+          inviteeLastName: r.inviteeLastName ?? null,
+          userId: r.userId ?? null,
+        }))
+
+        let issueResult
+        try {
+          issueResult = await issueInvitesForRecipients({
+            championshipCompetitionId: data.championshipCompetitionId,
+            championshipDivisionId: data.championshipDivisionId,
+            rsvpDeadlineAt: data.rsvpDeadlineAt,
+            recipients,
+          })
+        } catch (err) {
+          if (err instanceof FreeCompetitionNotEligibleError) {
+            throw new Error(err.message)
+          }
+          throw err
+        }
+
+        // Activate draft bespoke rows that came back as alreadyActive+isDraft.
+        const activated: Array<{
+          invite: CompetitionInvite
+          plaintextToken: string
+        }> = []
+        for (const prior of issueResult.alreadyActive) {
+          if (!prior.isDraft) continue
+          const rotated = await reissueInvite({
+            inviteId: prior.existingInviteId,
+            newExpiresAt: data.rsvpDeadlineAt,
+          })
+          activated.push({
+            invite: rotated.invite,
+            plaintextToken: rotated.plaintextToken,
+          })
+        }
+
+        const allToDispatch = [...issueResult.inserted, ...activated]
+
+        const rsvpDeadlineLabel = data.rsvpDeadlineAt.toLocaleDateString(
+          "en-US",
+          { month: "long", day: "numeric", year: "numeric" },
+        )
+
+        // Render + enqueue per invite. Render is intentionally sequential
+        // to keep memory bounded when a round targets hundreds of recipients.
+        const queue = (env as unknown as Record<string, unknown>)
+          .BROADCAST_EMAIL_QUEUE as Queue<QueueEmailMessage> | undefined
+
+        for (const { invite, plaintextToken } of allToDispatch) {
+          const bodyHtml = await renderInviteEmailHtml({
+            invite,
+            plaintextToken,
+            championshipSlug: championship.slug,
+            championshipName: championship.name,
+            divisionLabel: division.label,
+            organizerTeamName: organizingTeam?.name ?? "Organizer",
+            subject: data.subject,
+            bodyText: data.bodyText,
+            rsvpDeadlineLabel,
+          })
+
+          const message: InviteEmailMessage = {
+            kind: "competition-invite",
+            inviteId: invite.id,
+            sendAttempt: invite.sendAttempt,
+            competitionId: invite.championshipCompetitionId,
+            email: invite.email,
+            subject: data.subject,
+            bodyHtml,
+          }
+
+          if (queue) {
+            await queue.send(message)
+          } else {
+            logInfo({
+              message: "[Invites] No queue binding — logging invite email",
+              attributes: { inviteId: invite.id, email: invite.email },
+            })
+          }
+
+          logEntityCreated({
+            entity: "competition_invite",
+            id: invite.id,
+            parentEntity: "competition",
+            parentId: invite.championshipCompetitionId,
+            attributes: {
+              origin: invite.origin,
+              sendAttempt: invite.sendAttempt,
+              activeMarker: invite.activeMarker,
+            },
+          })
+        }
+
+        const skipped = issueResult.alreadyActive.filter((r) => !r.isDraft)
+
+        logInfo({
+          message: "[Invites] issueInvitesFn dispatched",
+          attributes: {
+            championshipCompetitionId: data.championshipCompetitionId,
+            divisionId: data.championshipDivisionId,
+            sent: allToDispatch.length,
+            skipped: skipped.length,
+          },
+        })
+
+        return {
+          sentCount: allToDispatch.length,
+          skipped,
+        }
+      },
+    )
+  })
+
+// ============================================================================
+// Organizer-facing: bespoke invite staging
+// ============================================================================
+
+export const createBespokeInviteFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => bespokeInviteInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "createBespokeInviteFn",
+        attributes: {
+          championshipCompetitionId: data.championshipCompetitionId,
+        },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+
+        const invite = await createBespokeInviteHelper({
+          championshipCompetitionId: data.championshipCompetitionId,
+          championshipDivisionId: data.championshipDivisionId,
+          email: data.email,
+          inviteeFirstName: data.inviteeFirstName,
+          inviteeLastName: data.inviteeLastName,
+          bespokeReason: data.bespokeReason,
+        })
+
+        logEntityCreated({
+          entity: "competition_invite",
+          id: invite.id,
+          parentEntity: "competition",
+          parentId: data.championshipCompetitionId,
+          attributes: { origin: COMPETITION_INVITE_ORIGIN.BESPOKE, draft: true },
+        })
+
+        return { invite }
+      },
+    )
+  })
+
+export const createBespokeInvitesBulkFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => bespokeBulkInviteInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "createBespokeInvitesBulkFn",
+        attributes: {
+          championshipCompetitionId: data.championshipCompetitionId,
+        },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+
+        const result = await createBespokeInvitesBulkHelper({
+          championshipCompetitionId: data.championshipCompetitionId,
+          championshipDivisionId: data.championshipDivisionId,
+          pasteText: data.pasteText,
+        })
+
+        logInfo({
+          message: "[Invites] Bulk bespoke upload processed",
+          attributes: {
+            championshipCompetitionId: data.championshipCompetitionId,
+            created: result.created.length,
+            duplicates: result.duplicates.length,
+            invalid: result.invalid.length,
+          },
+        })
+
+        return result
       },
     )
   })

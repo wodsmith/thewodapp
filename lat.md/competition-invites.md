@@ -104,6 +104,42 @@ Phase 2 sub-arc B wires three pages: `$token.tsx` (claim landing), `$token/decli
 
 `invite-pending.tsx` is the landing that wrong-account visitors bounce to after signing out and back in — it tells them to re-open the email rather than guessing a URL. The claim route's wrong-account page also links here via `/sign-in?redirect=/compete/$slug/invite-pending&email=<invite.email>`.
 
+## Email delivery
+
+Invite emails ride the existing broadcast queue binding (`BROADCAST_EMAIL_QUEUE`) with a discriminator.
+
+[[apps/wodsmith-start/src/server/broadcast-queue-consumer.ts]] exports a union `QueueEmailMessage = BroadcastEmailMessage | InviteEmailMessage` and dispatches per-message on the `kind` field. Broadcast messages without `kind` stay backward-compatible.
+
+[[apps/wodsmith-start/src/server/broadcast-queue-consumer.ts#InviteEmailMessage]] carries one invite per message (HTML is pre-rendered per-recipient because each claim URL is unique). The consumer calls Resend with `Idempotency-Key: invite-<inviteId>-<sendAttempt>` so re-sends after an extend/reissue actually dispatch — the suffix rotates on each attempt, preventing Resend from silently deduplicating. Delivery outcome flips `competition_invites.emailDeliveryStatus` to `sent` / `failed` (with `emailLastError` captured). The message is acked on failure to avoid duplicate sends on transient 5xx retries — organizers see the failure state on the roster and choose to re-send.
+
+In dev (no `RESEND_API_KEY`) the consumer logs the preview and marks delivery as `skipped` so seeded + test flows don't block on external HTTP.
+
+[[apps/wodsmith-start/src/react-email/competition-invites/invite-email.tsx]] renders the branded email: hero/headline, division + source + deadline card, primary claim CTA, and a secondary decline link. The subject + body text are organizer-supplied at send time (Phase 2 uses a single default; Phase 4 introduces templates).
+
+## Send pipeline
+
+[[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#issueInvitesFn]] is the organizer's send button. Permission: `MANAGE_COMPETITIONS` on the championship's organizing team. Steps:
+
+1. Resolves the championship, division, and organizing team display data.
+2. Calls [[apps/wodsmith-start/src/server/competition-invites/issue.ts#issueInvitesForRecipients]] to insert new rows and detect `alreadyActive` overlaps. Free divisions are rejected here (ADR-0011 "Capacity Math").
+3. For each `alreadyActive` row flagged `isDraft: true` (bespoke drafts with no token yet) calls [[apps/wodsmith-start/src/server/competition-invites/issue.ts#reissueInvite]] to activate — rotates in a fresh token, sets `expiresAt`, bumps `sendAttempt` from 0 to 1.
+4. Renders email HTML per invite via [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts]]'s `renderInviteEmailHtml` — claim URL embeds the plaintext token (the only place it escapes process memory) and the decline URL is `<claim>/decline`.
+5. Enqueues `InviteEmailMessage` per invite onto `BROADCAST_EMAIL_QUEUE`. In dev without the binding, logs instead of sending.
+6. Returns `{ sentCount, skipped }` where `skipped` is non-draft `alreadyActive` rows the caller chose not to re-issue.
+
+[[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#createBespokeInviteFn]] and [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#createBespokeInvitesBulkFn]] wrap the helpers from [[apps/wodsmith-start/src/server/competition-invites/bespoke.ts]] with the standard permission gate and logging. Bulk returns `{ created, duplicates, invalid }` so the UI can surface row-level feedback.
+
+## Registration hand-off + Stripe workflow
+
+[[apps/wodsmith-start/src/server-fns/registration-fns.ts]]'s `initiateRegistrationPaymentFn` accepts an optional `inviteToken`. When supplied:
+
+- The token is resolved + claimability-checked + email-matched against the session — any of these failing short-circuits with an error that the registration form can surface.
+- The invite's `championshipDivisionId` must match one of the selected items (ADR: invites are locked per division).
+- The registration-window check is skipped for invite-holders (invites often precede public-open or survive past close).
+- The matching item's purchase metadata gets `inviteId` tagged. Non-matching items (multi-division registrations) don't inherit the tag.
+
+[[apps/wodsmith-start/src/workflows/stripe-checkout-workflow.ts]] reads `inviteId` from the purchase metadata inside `create-registration`, threads it through `RegistrationStepResult`, and runs a new `update-competition-invite-status` step after registration creation. The step flips the invite to `accepted_paid`, sets `paidAt`, sets `claimedRegistrationId`, and nulls `claimTokenHash` so a replay of the original email link short-circuits. Idempotent via the `status = "pending"` guard on the update predicate so a workflow retry doesn't double-flip. `processCheckoutInline` (local-dev path) runs the same helper to keep behavior consistent without Cloudflare Workflows.
+
 ## Auth route extensions for invites
 
 Sign-in and sign-up accept `?email=<email>&invite=<token>` in addition to their existing search params. See [[apps/wodsmith-start/src/routes/_auth/sign-in.tsx]] and [[apps/wodsmith-start/src/routes/_auth/sign-up.tsx]].
