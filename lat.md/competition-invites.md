@@ -152,9 +152,9 @@ The draft-bespoke section renders inline below the roster table, pulling from `l
 
 ## Registration hand-off from claim
 
-The claim route's "Continue to registration" CTA now links to `/compete/$slug/register?invite=<token>`.
+The claim route's "Continue to registration" CTA now links to `/compete/$slug/register?invite=<token>&divisionId=<id>`.
 
-The register route's `validateSearch` accepts `invite`. The route forwards the token to `RegistrationForm` as the `inviteToken` prop, which passes it to `initiateRegistrationPaymentFn` on submit. Combined with the purchase-metadata + Stripe-workflow wiring from sub-arc C, this closes the Organizer Send → athlete claim → Stripe → `accepted_paid` loop end-to-end.
+The register route's `validateSearch` accepts both `invite` (the plaintext token) and `divisionId` (the invited division — invites are locked to one division at issue time). The route forwards the token to `RegistrationForm` as the `inviteToken` prop, which passes it to `initiateRegistrationPaymentFn` on submit. The `divisionId` lets the form pre-select (and pin) the right division. Combined with the purchase-metadata + Stripe-workflow wiring from sub-arc C, this closes the Organizer Send → athlete claim → Stripe → `accepted_paid` loop end-to-end.
 
 ## Invite expiry sweep
 
