@@ -770,30 +770,22 @@ class StripeCheckoutWorkflowBase extends WorkflowEntrypoint<
     }
 
     // Step 2a: Flip competition invite status to `accepted_paid` when the
-    // purchase originated from an invite. Non-critical for the registration
-    // itself — wrapped in try/catch so a failure here doesn't block email.
-    try {
-      await step.do(
-        "update-competition-invite-status",
-        {
-          retries: { limit: 3, delay: "1 second", backoff: "exponential" },
-        },
-        async () => {
-          await updateCompetitionInviteStatus(registrationResult)
-        },
-      )
-    } catch (inviteErr) {
-      logWarning({
-        message:
-          "[Workflow] Invite-status step failed after retries, continuing",
-        error: inviteErr,
-        attributes: {
-          purchaseId,
-          registrationId: registrationResult.registrationId,
-          inviteId: registrationResult.inviteId ?? null,
-        },
-      })
-    }
+    // purchase originated from an invite. Critical for invite-backed
+    // purchases — silently continuing on failure would strand the invite
+    // in `pending` forever, because Cloudflare Workflows cache successful
+    // step outputs and a re-running workflow would skip step 1 (already
+    // succeeded) without re-attempting this step. Surface the failure so
+    // the workflow itself fails and gets retried by Stripe's webhook
+    // delivery, or alerts on a permanent fault.
+    await step.do(
+      "update-competition-invite-status",
+      {
+        retries: { limit: 3, delay: "1 second", backoff: "exponential" },
+      },
+      async () => {
+        await updateCompetitionInviteStatus(registrationResult)
+      },
+    )
 
     // Step 2: Send confirmation email (non-critical, retries independently)
     // Wrapped in try-catch so email failure doesn't block Slack notification
