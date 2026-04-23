@@ -37,6 +37,7 @@ import {
 } from "@/lib/logging"
 import { getEvlog } from "@/lib/evlog"
 import { requireVerifiedEmail } from "@/utils/auth"
+import { getCohostPermissions } from "@/server/cohost"
 
 // ============================================================================
 // Initiate Purchase Transfer
@@ -353,17 +354,32 @@ export const cancelPurchaseTransferFn = createServerFn({ method: "POST" })
 
       const competition = await db.query.competitionsTable.findFirst({
         where: eq(competitionsTable.id, purchase.competitionId),
-        columns: { id: true, organizingTeamId: true },
+        columns: { id: true, organizingTeamId: true, competitionTeamId: true },
       })
 
       if (!competition) throw new Error("Competition not found")
 
       if (session.user?.role !== ROLES_ENUM.ADMIN) {
-        const team = session.teams?.find(
+        const organizerTeam = session.teams?.find(
           (t) => t.id === competition.organizingTeamId,
         )
-        if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS)) {
-          throw new Error("Missing required permission: manage_competitions")
+        const hasOrganizerPerm = organizerTeam?.permissions.includes(
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+
+        let hasCohostPerm = false
+        if (!hasOrganizerPerm) {
+          const cohostPerms = await getCohostPermissions(
+            session,
+            competition.competitionTeamId,
+          )
+          hasCohostPerm = cohostPerms?.editRegistrations === true
+        }
+
+        if (!hasOrganizerPerm && !hasCohostPerm) {
+          throw new Error(
+            "Missing required permission: manage_competitions or cohost editRegistrations",
+          )
         }
       }
     }

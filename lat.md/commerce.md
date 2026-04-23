@@ -24,7 +24,7 @@ Organizers create coupons per competition with percentage or fixed-amount discou
 
 Registered athletes can transfer their registration to another person.
 
-Transfer functions in `src/server-fns/purchase-transfer-fns.ts` and `purchase-transfer-accept-fns.ts` handle creating, accepting, and cancelling transfers.
+Transfer functions in `src/server-fns/purchase-transfer-fns.ts` and `purchase-transfer-accept-fns.ts` handle creating, accepting, and cancelling transfers. Cancel accepts either `MANAGE_COMPETITIONS` on the organizing team or cohost `editRegistrations` on the competition team.
 
 ## Entitlements
 

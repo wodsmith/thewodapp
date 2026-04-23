@@ -54,6 +54,7 @@ import { cohostGetEventFn } from "@/server-fns/cohost/cohost-workout-fns"
 import { cohostGetDivisionsWithCountsFn } from "@/server-fns/cohost/cohost-division-fns"
 import { cohostGetOrganizerSubmissionsFn } from "@/server-fns/cohost/cohost-submission-fns"
 import { cn } from "@/utils/cn"
+import { isSafeUrl } from "@/utils/url"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 
 const FLAGGED_THRESHOLD = 3
@@ -545,17 +546,24 @@ function SubmissionsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <a
-                        href={submission.videoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Play className="h-3.5 w-3.5" />
-                        Watch
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
+                      {isSafeUrl(submission.videoUrl) ? (
+                        <a
+                          href={submission.videoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Play className="h-3.5 w-3.5" />
+                          Watch
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+                          <Play className="h-3.5 w-3.5" />
+                          Unsafe URL
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {submission.reviewStatus === "reviewed" ? (

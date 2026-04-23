@@ -299,6 +299,7 @@ export function InviteCohostDialog(props: InviteCohostDialogProps) {
                   <PopoverTrigger asChild>
                     {/* biome-ignore lint/a11y/useSemanticElements: Custom combobox */}
                     <Button
+                      type="button"
                       variant="outline"
                       role="combobox"
                       aria-expanded={compPopoverOpen}
