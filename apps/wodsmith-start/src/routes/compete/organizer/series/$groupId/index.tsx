@@ -393,6 +393,7 @@ const PERMISSION_LABELS: Record<string, string> = {
   locations: "Locations",
   volunteers: "Volunteers",
   results: "Results",
+  leaderboardPreview: "Leaderboard preview",
   pricing: "Pricing",
   revenue: "Revenue",
   coupons: "Coupons",

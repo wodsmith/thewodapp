@@ -30,6 +30,8 @@ export interface CohostMembershipMetadata {
   volunteers: boolean
   /** Results sidebar item — score entry, review submissions, publish results */
   results: boolean
+  /** Leaderboard preview sidebar item — organizer-style preview leaderboard including unpublished division results */
+  leaderboardPreview: boolean
 
   // Business (defaults OFF)
   /** Pricing sidebar item */
@@ -70,6 +72,8 @@ export function parseCohostMetadata(json: string | null | undefined): CohostMemb
       locations: bool("locations") ?? DEFAULT_COHOST_PERMISSIONS.locations,
       volunteers: bool("volunteers") ?? DEFAULT_COHOST_PERMISSIONS.volunteers,
       results: bool("results") ?? DEFAULT_COHOST_PERMISSIONS.results,
+      leaderboardPreview:
+        bool("leaderboardPreview") ?? DEFAULT_COHOST_PERMISSIONS.leaderboardPreview,
       pricing: bool("pricing") ?? DEFAULT_COHOST_PERMISSIONS.pricing,
       revenue: bool("revenue") ?? DEFAULT_COHOST_PERMISSIONS.revenue,
       coupons: bool("coupons") ?? DEFAULT_COHOST_PERMISSIONS.coupons,
@@ -99,6 +103,7 @@ export const DEFAULT_COHOST_PERMISSIONS: Omit<
   locations: true,
   volunteers: true,
   results: true,
+  leaderboardPreview: true,
 
   // Business (defaults OFF)
   pricing: false,

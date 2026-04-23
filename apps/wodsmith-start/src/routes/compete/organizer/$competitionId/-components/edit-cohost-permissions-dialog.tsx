@@ -33,6 +33,7 @@ const PERMISSION_GROUPS = [
       { key: "locations" as const, label: "Locations" },
       { key: "volunteers" as const, label: "Volunteers" },
       { key: "results" as const, label: "Results" },
+      { key: "leaderboardPreview" as const, label: "Leaderboard preview" },
     ],
   },
   {
@@ -76,6 +77,7 @@ export function EditCohostPermissionsDialog(props: EditCohostPermissionsDialogPr
     locations: currentPermissions.locations,
     volunteers: currentPermissions.volunteers,
     results: currentPermissions.results,
+    leaderboardPreview: currentPermissions.leaderboardPreview,
     pricing: currentPermissions.pricing,
     revenue: currentPermissions.revenue,
     coupons: currentPermissions.coupons,
@@ -96,6 +98,7 @@ export function EditCohostPermissionsDialog(props: EditCohostPermissionsDialogPr
         locations: currentPermissions.locations,
         volunteers: currentPermissions.volunteers,
         results: currentPermissions.results,
+        leaderboardPreview: currentPermissions.leaderboardPreview,
         pricing: currentPermissions.pricing,
         revenue: currentPermissions.revenue,
         coupons: currentPermissions.coupons,

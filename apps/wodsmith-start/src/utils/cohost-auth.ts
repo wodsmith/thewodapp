@@ -41,6 +41,7 @@ export async function requireCohostPermission(
       locations: true,
       volunteers: true,
       results: true,
+      leaderboardPreview: true,
       pricing: true,
       revenue: true,
       coupons: true,

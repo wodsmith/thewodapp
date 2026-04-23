@@ -116,6 +116,7 @@ function CohostCompetitionLayout() {
           locations: false,
           volunteers: false,
           results: false,
+          leaderboardPreview: false,
           pricing: false,
           revenue: false,
           coupons: false,

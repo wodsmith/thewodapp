@@ -54,6 +54,7 @@ const formSchema = z.object({
   locations: z.boolean(),
   volunteers: z.boolean(),
   results: z.boolean(),
+  leaderboardPreview: z.boolean(),
   pricing: z.boolean(),
   revenue: z.boolean(),
   coupons: z.boolean(),
@@ -97,6 +98,7 @@ const PERMISSION_GROUPS = [
       { key: "locations" as const, label: "Locations" },
       { key: "volunteers" as const, label: "Volunteers" },
       { key: "results" as const, label: "Results" },
+      { key: "leaderboardPreview" as const, label: "Leaderboard preview" },
     ],
   },
   {
@@ -155,6 +157,7 @@ export function InviteCohostDialog(props: InviteCohostDialogProps) {
         locations: data.locations,
         volunteers: data.volunteers,
         results: data.results,
+        leaderboardPreview: data.leaderboardPreview,
         pricing: data.pricing,
         revenue: data.revenue,
         coupons: data.coupons,

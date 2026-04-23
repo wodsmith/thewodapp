@@ -57,6 +57,7 @@ export const cohostGetPermissionsFn = createServerFn({ method: "GET" })
         locations: true,
         volunteers: true,
         results: true,
+        leaderboardPreview: true,
         pricing: true,
         revenue: true,
         coupons: true,

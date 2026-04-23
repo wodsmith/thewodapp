@@ -645,6 +645,7 @@ export function LeaderboardPageContent({
             events={events}
             selectedEventId={effectiveEventId}
             scoringAlgorithm={scoringAlgorithm}
+            preview={preview}
           />
         )}
       </div>

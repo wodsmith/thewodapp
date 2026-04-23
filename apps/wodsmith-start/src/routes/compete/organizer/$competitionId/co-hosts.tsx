@@ -261,6 +261,7 @@ const PERMISSION_GROUPS_DISPLAY = [
       { key: "locations", label: "Locations" },
       { key: "volunteers", label: "Volunteers" },
       { key: "results", label: "Results" },
+      { key: "leaderboardPreview", label: "Leaderboard preview" },
     ],
   },
   {
