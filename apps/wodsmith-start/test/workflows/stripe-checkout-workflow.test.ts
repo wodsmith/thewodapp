@@ -254,10 +254,15 @@ describe('StripeCheckoutWorkflow', () => {
 
       await workflow.run(event as any, step as any)
 
-      // Verify all 3 steps were executed
-      expect(step.do).toHaveBeenCalledTimes(3)
+      // Verify all 4 steps were executed
+      expect(step.do).toHaveBeenCalledTimes(4)
       expect(step.do).toHaveBeenCalledWith(
         'create-registration',
+        expect.any(Object),
+        expect.any(Function),
+      )
+      expect(step.do).toHaveBeenCalledWith(
+        'update-competition-invite-status',
         expect.any(Object),
         expect.any(Function),
       )

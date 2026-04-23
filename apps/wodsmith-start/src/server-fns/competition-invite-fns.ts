@@ -63,6 +63,7 @@ import {
   FreeCompetitionNotEligibleError,
   issueInvitesForRecipients,
   type IssueInviteRecipient,
+  type IssueInvitesResult,
   normalizeInviteEmail,
   reissueInvite,
 } from "@/server/competition-invites/issue"
@@ -879,7 +880,7 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
           userId: r.userId ?? null,
         }))
 
-        let issueResult
+        let issueResult: IssueInvitesResult
         try {
           issueResult = await issueInvitesForRecipients({
             championshipCompetitionId: data.championshipCompetitionId,
