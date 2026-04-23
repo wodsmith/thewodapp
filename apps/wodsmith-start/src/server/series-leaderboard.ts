@@ -350,12 +350,15 @@ export async function getSeriesLeaderboard(params: {
     new Set<string>(dedupedRegistrations.map((r) => r.user.id)),
   )
 
-  // 11. Load all scores for these track workouts and users
+  // 11. Load all scores for these track workouts and users. Include
+  // scalingLevelId so we can map scores to the correct series division when an
+  // athlete is registered in multiple divisions for a shared workout.
   const allScores = await db
     .select({
       id: scoresTable.id,
       userId: scoresTable.userId,
       competitionEventId: scoresTable.competitionEventId,
+      scalingLevelId: scoresTable.scalingLevelId,
       scheme: scoresTable.scheme,
       scoreValue: scoresTable.scoreValue,
       tiebreakScheme: scoresTable.tiebreakScheme,
@@ -412,17 +415,26 @@ export async function getSeriesLeaderboard(params: {
       twIds.includes(s.competitionEventId ?? ""),
     )
 
-    // Map from userId to score
+    // Map from (userId, seriesDivisionId) to score. Keying by userId alone
+    // collapses an athlete's multiple-division entries onto one score — the
+    // partner-division score would overwrite the individual-division score
+    // (or vice versa). Resolve each score to its series division via the
+    // score's scalingLevelId and the competition→series division mapping.
     const userScoreMap = new Map<string, (typeof eventScores)[number]>()
     for (const score of eventScores) {
-      userScoreMap.set(score.userId, score)
+      const compDivId = score.scalingLevelId
+      const seriesDivId = compDivId
+        ? divisionMappingLookup.get(compDivId)
+        : undefined
+      if (!seriesDivId) continue
+      userScoreMap.set(`${score.userId}::${seriesDivId}`, score)
     }
 
     // Group by series divisionId
     const divisionScores = new Map<string, EventScoreInput[]>()
     for (const reg of dedupedRegistrations) {
       const divId = reg.seriesDivisionId
-      const score = userScoreMap.get(reg.user.id)
+      const score = userScoreMap.get(`${reg.user.id}::${divId}`)
       const input: EventScoreInput = score
         ? {
             userId: reg.user.id,
@@ -462,7 +474,9 @@ export async function getSeriesLeaderboard(params: {
         const rank = pointsResult?.rank ?? 0
         const points = pointsResult?.points ?? 0
 
-        const rawScore = userScoreMap.get(reg.user.id)
+        const rawScore = userScoreMap.get(
+          `${reg.user.id}::${reg.seriesDivisionId}`,
+        )
         let formattedScore = "—"
         let formattedTiebreak: string | null = null
 

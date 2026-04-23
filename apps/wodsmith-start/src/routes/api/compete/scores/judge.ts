@@ -24,7 +24,7 @@
 
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
-import { and, eq } from "drizzle-orm"
+import { and, eq, isNull } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -328,15 +328,17 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
                 },
               })
 
+            const finalScoreConditions = [
+              eq(scoresTable.competitionEventId, data.trackWorkoutId),
+              eq(scoresTable.userId, data.userId),
+              data.divisionId
+                ? eq(scoresTable.scalingLevelId, data.divisionId)
+                : isNull(scoresTable.scalingLevelId),
+            ]
             const [finalScore] = await tx
               .select({ id: scoresTable.id })
               .from(scoresTable)
-              .where(
-                and(
-                  eq(scoresTable.competitionEventId, data.trackWorkoutId),
-                  eq(scoresTable.userId, data.userId),
-                ),
-              )
+              .where(and(...finalScoreConditions))
               .limit(1)
 
             if (!finalScore) throw new Error("Failed to retrieve score after upsert")

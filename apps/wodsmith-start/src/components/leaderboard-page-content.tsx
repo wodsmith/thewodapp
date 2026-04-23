@@ -4,6 +4,10 @@ import { useNavigate, useSearch } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { BarChart3, Eye, EyeOff } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import {
+  getStatusConfig,
+  reviewStatusOrder,
+} from "@/components/compete/submission-status-badge"
 import { CompetitionLeaderboardTable } from "@/components/competition-leaderboard-table"
 import { OnlineCompetitionLeaderboardTable } from "@/components/online-competition-leaderboard-table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -25,6 +29,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { WorkoutPreview } from "@/components/workout-preview"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { cn } from "@/lib/utils"
 import {
   type DivisionDescription,
   getPublicEventDetailsFn,
@@ -61,6 +66,45 @@ interface LeaderboardPageContentProps {
    * for routing this only to authorized organizer views.
    */
   preview?: boolean
+}
+
+/**
+ * Legend for the review-status badges shown on the organizer-preview
+ * leaderboard. Mirrors the icon + color config from `ReviewStatusIndicator`
+ * in [[online-competition-leaderboard-table.tsx]] so organizers can decode
+ * the inline cell badges at a glance.
+ */
+function ReviewStatusLegend() {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
+      <span className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.08em] font-semibold text-muted-foreground">
+        Review
+        <span
+          aria-hidden
+          className="h-px w-6 bg-border"
+        />
+      </span>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {reviewStatusOrder.map((status) => {
+          const config = getStatusConfig(status)
+          const Icon = config.icon
+          return (
+            <span
+              key={status}
+              title={config.description}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 font-medium tabular-nums",
+                config.className,
+              )}
+            >
+              <Icon className={cn("h-3 w-3", config.iconClassName)} />
+              {config.label}
+            </span>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 /**
@@ -549,6 +593,11 @@ export function LeaderboardPageContent({
             </span>
           )}
         </div>
+
+        {/* Review-status legend (organizer preview, online only) */}
+        {preview && competition.competitionType === "online" && (
+          <ReviewStatusLegend />
+        )}
       </div>
 
       {/* Desktop: Collapsible workout preview */}

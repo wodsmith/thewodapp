@@ -243,7 +243,9 @@ const VideoUrlInput = React.forwardRef<HTMLInputElement, VideoUrlInputProps>(
                       ? "YouTube"
                       : parsedUrl.platform === "vimeo"
                         ? "Vimeo"
-                        : "WodProof"}
+                        : parsedUrl.platform === "wetime"
+                          ? "WeTime"
+                          : "WodProof"}
                   </span>
                 )}
                 {showPreviewLink && (

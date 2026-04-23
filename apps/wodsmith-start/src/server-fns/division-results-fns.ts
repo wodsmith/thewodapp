@@ -359,7 +359,9 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
         }
       }
 
-      // Get scores for the target events
+      // Get scores for the target events. Include scalingLevelId so that a
+      // user's score in one division isn't counted toward their "scored"
+      // status in another division on a shared workout.
       const eventIds = targetEvents.map((e) => e.id)
       const allScores =
         eventIds.length > 0
@@ -367,6 +369,7 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
               .select({
                 userId: scoresTable.userId,
                 competitionEventId: scoresTable.competitionEventId,
+                scalingLevelId: scoresTable.scalingLevelId,
               })
               .from(scoresTable)
               .where(
@@ -377,13 +380,13 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
               )
           : []
 
-      // Build a map of eventId -> set of userIds with scores
+      // Build a map of eventId -> set of "userId::divisionId" with scores
       const eventScoreMap = new Map<string, Set<string>>()
       for (const score of allScores) {
         if (score.competitionEventId) {
           const existing =
             eventScoreMap.get(score.competitionEventId) ?? new Set()
-          existing.add(score.userId)
+          existing.add(`${score.userId}::${score.scalingLevelId ?? ""}`)
           eventScoreMap.set(score.competitionEventId, existing)
         }
       }
@@ -402,12 +405,14 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
           // Count registrations in this division
           const divisionRegCount = registrationCountMap.get(d.id) ?? 0
 
-          // Count scored athletes in this division for this event
+          // Count scored athletes in this division for this event. Match by
+          // (userId, divisionId) so a score in a different division doesn't
+          // mark the athlete as scored here.
           let scoredCount = 0
           let missingCount = 0
           for (const reg of registrations) {
             if (reg.divisionId === d.id) {
-              if (scoredUsers.has(reg.userId)) {
+              if (scoredUsers.has(`${reg.userId}::${d.id}`)) {
                 scoredCount++
               } else {
                 missingCount++

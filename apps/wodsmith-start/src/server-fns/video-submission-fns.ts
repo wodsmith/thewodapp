@@ -5,7 +5,16 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, count, eq, inArray, isNotNull, ne, sql } from "drizzle-orm"
+import {
+  and,
+  asc,
+  count,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  ne,
+} from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -422,16 +431,16 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
     // Score belongs to the captain (or the individual athlete)
     const scoreUserId = registration.captainUserId ?? session.userId
 
-    // Scope score lookup by division when available
+    // Scope score lookup by division — null divisionId is its own scope
+    // (isNull), not a wildcard that would leak across divisions on a shared
+    // workout.
     const scoreConditions = [
       eq(scoresTable.competitionEventId, data.trackWorkoutId),
       eq(scoresTable.userId, scoreUserId),
+      registration.divisionId
+        ? eq(scoresTable.scalingLevelId, registration.divisionId)
+        : isNull(scoresTable.scalingLevelId),
     ]
-    if (registration.divisionId) {
-      scoreConditions.push(
-        eq(scoresTable.scalingLevelId, registration.divisionId),
-      )
-    }
 
     const [score] = await db
       .select({
@@ -1158,7 +1167,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
               eq(scoresTable.userId, session.userId),
               registration.divisionId
                 ? eq(scoresTable.scalingLevelId, registration.divisionId)
-                : sql`1=1`,
+                : isNull(scoresTable.scalingLevelId),
             ),
           )
           .limit(1)
@@ -1241,7 +1250,15 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
         scalingLevelsTable,
         eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
       )
-      .where(eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId))
+      .where(
+        and(
+          eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
+          ne(
+            competitionRegistrationsTable.status,
+            REGISTRATION_STATUS.REMOVED,
+          ),
+        ),
+      )
       .orderBy(asc(videoSubmissionsTable.videoIndex))
 
     // Workout details drive how we format the claimed score (multi-round
@@ -1486,11 +1503,21 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
 /**
  * Get submission counts grouped by trackWorkoutId for the review index page.
  * Returns total submissions and reviewed count (users with scores) per event.
+ *
+ * Requires organizer or volunteer-review access for the given competition, and
+ * filters the requested `trackWorkoutIds` down to events that actually belong
+ * to that competition (via its programming track). Event IDs that don't belong
+ * — or don't exist — come back with zeroed counts rather than leaking data.
+ *
+ * Excludes submissions whose registration has been marked REMOVED so the
+ * counts stay consistent with the public leaderboard and the in-person results
+ * entry grid (both of which apply the same filter).
  */
 export const getSubmissionCountsByEventFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) =>
     z
       .object({
+        competitionId: z.string().min(1),
         trackWorkoutIds: z.array(z.string().min(1)).min(1),
       })
       .parse(data),
@@ -1498,38 +1525,94 @@ export const getSubmissionCountsByEventFn = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const db = getDb()
 
-    // Query 1: total submissions per trackWorkoutId
-    const submissionCounts = await autochunk(
-      { items: data.trackWorkoutIds },
-      async (chunk) =>
-        db
-          .select({
-            trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
-            total: count(),
-          })
-          .from(videoSubmissionsTable)
-          .where(inArray(videoSubmissionsTable.trackWorkoutId, chunk))
-          .groupBy(videoSubmissionsTable.trackWorkoutId),
-    )
+    // Gate on organizer permission OR volunteer score-input entitlement.
+    // Same check the per-event detail endpoints use.
+    await requireSubmissionReviewAccess(data.competitionId)
 
-    // Query 2: reviewed count — submissions where reviewedAt is set
-    const reviewedCounts = await autochunk(
+    // Restrict the requested IDs to events that actually belong to this
+    // competition so a caller can't enumerate counts across tenants by
+    // passing arbitrary trackWorkoutIds. We resolve ownership through
+    // programming_tracks (the same source of truth verifyEventBelongsToCompetition
+    // falls back on for sub-events without competition_events rows).
+    const allowedRows = await autochunk(
       { items: data.trackWorkoutIds },
       async (chunk) =>
         db
-          .select({
-            trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
-            reviewed: count(),
-          })
-          .from(videoSubmissionsTable)
+          .select({ id: trackWorkoutsTable.id })
+          .from(trackWorkoutsTable)
+          .innerJoin(
+            programmingTracksTable,
+            eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+          )
           .where(
             and(
-              inArray(videoSubmissionsTable.trackWorkoutId, chunk),
-              isNotNull(videoSubmissionsTable.reviewedAt),
+              inArray(trackWorkoutsTable.id, chunk),
+              eq(programmingTracksTable.competitionId, data.competitionId),
             ),
-          )
-          .groupBy(videoSubmissionsTable.trackWorkoutId),
+          ),
     )
+    const allowedIds = allowedRows.map((r) => r.id)
+
+    // Query 1: total submissions per trackWorkoutId
+    const submissionCounts =
+      allowedIds.length > 0
+        ? await autochunk({ items: allowedIds }, async (chunk) =>
+            db
+              .select({
+                trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+                total: count(),
+              })
+              .from(videoSubmissionsTable)
+              .innerJoin(
+                competitionRegistrationsTable,
+                eq(
+                  videoSubmissionsTable.registrationId,
+                  competitionRegistrationsTable.id,
+                ),
+              )
+              .where(
+                and(
+                  inArray(videoSubmissionsTable.trackWorkoutId, chunk),
+                  ne(
+                    competitionRegistrationsTable.status,
+                    REGISTRATION_STATUS.REMOVED,
+                  ),
+                ),
+              )
+              .groupBy(videoSubmissionsTable.trackWorkoutId),
+          )
+        : []
+
+    // Query 2: reviewed count — submissions where reviewedAt is set
+    const reviewedCounts =
+      allowedIds.length > 0
+        ? await autochunk({ items: allowedIds }, async (chunk) =>
+            db
+              .select({
+                trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+                reviewed: count(),
+              })
+              .from(videoSubmissionsTable)
+              .innerJoin(
+                competitionRegistrationsTable,
+                eq(
+                  videoSubmissionsTable.registrationId,
+                  competitionRegistrationsTable.id,
+                ),
+              )
+              .where(
+                and(
+                  inArray(videoSubmissionsTable.trackWorkoutId, chunk),
+                  isNotNull(videoSubmissionsTable.reviewedAt),
+                  ne(
+                    competitionRegistrationsTable.status,
+                    REGISTRATION_STATUS.REMOVED,
+                  ),
+                ),
+              )
+              .groupBy(videoSubmissionsTable.trackWorkoutId),
+          )
+        : []
 
     // Build result map
     const subMap = new Map(
@@ -1616,7 +1699,16 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
       return { submission: null }
     }
 
-    // Get score for this user + event
+    // Get score for this user + event, scoped to the submission's division so
+    // we don't surface a different division's score on a shared workout. Null
+    // divisionId is its own scope (isNull), not a wildcard.
+    const scoreLookupConditions = [
+      eq(scoresTable.competitionEventId, submission.trackWorkoutId),
+      eq(scoresTable.userId, submission.userId),
+      submission.divisionId
+        ? eq(scoresTable.scalingLevelId, submission.divisionId)
+        : isNull(scoresTable.scalingLevelId),
+    ]
     const [score] = await db
       .select({
         id: scoresTable.id,
@@ -1625,12 +1717,7 @@ export const getOrganizerSubmissionDetailFn = createServerFn({ method: "GET" })
         scheme: scoresTable.scheme,
       })
       .from(scoresTable)
-      .where(
-        and(
-          eq(scoresTable.competitionEventId, submission.trackWorkoutId),
-          eq(scoresTable.userId, submission.userId),
-        ),
-      )
+      .where(and(...scoreLookupConditions))
       .limit(1)
 
     let displayScore: string | null = null

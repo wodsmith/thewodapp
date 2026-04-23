@@ -10,7 +10,12 @@ import { z } from "zod"
 /**
  * Supported video platforms
  */
-export const VIDEO_PLATFORMS = ["youtube", "vimeo", "wodproof"] as const
+export const VIDEO_PLATFORMS = [
+  "youtube",
+  "vimeo",
+  "wodproof",
+  "wetime",
+] as const
 export type VideoPlatform = (typeof VIDEO_PLATFORMS)[number]
 
 /**
@@ -102,6 +107,20 @@ const WODPROOF_PATTERNS = [
 ] as const
 
 /**
+ * WeTime URL patterns:
+ *
+ * WeTime is a competition timing/video-proof service. Shareable links look like
+ * https://wetime.io/preview/ID where ID is a short alphanumeric token.
+ * The preview page itself embeds a <video> with a CloudFront-hosted MP4, but
+ * the ID → MP4 mapping requires fetching the page — we iframe the preview URL
+ * directly instead. CSP `frame-ancestors 'self' *` permits cross-origin framing.
+ */
+const WETIME_PATTERNS = [
+  // Canonical share URL: wetime.io/preview/ID
+  /^(?:https?:\/\/)?(?:www\.)?wetime\.io\/preview\/([a-zA-Z0-9_-]+)(?:[/?#].*)?$/,
+] as const
+
+/**
  * Extract the video ID from a WodProof URL.
  * For cloud URLs (wodproofapp.com/cloud/?v=ID), extracts the `v` query parameter.
  * For other WodProof URLs, falls back to the path as an identifier.
@@ -139,6 +158,19 @@ function extractWodProofId(url: string): string | null {
  */
 export function getWodProofVideoUrl(videoId: string): string {
   return `https://s3.us-east-1.amazonaws.com/wodproof-cloud/${videoId}.mp4`
+}
+
+/**
+ * Extract the video ID from a WeTime preview URL.
+ */
+function extractWeTimeId(url: string): string | null {
+  for (const pattern of WETIME_PATTERNS) {
+    const match = url.match(pattern)
+    if (match?.[1]) {
+      return match[1]
+    }
+  }
+  return null
 }
 
 /**
@@ -222,6 +254,19 @@ export function parseVideoUrl(url: string): ParsedVideoUrl | null {
     }
   }
 
+  // Try WeTime
+  const wetimeId = extractWeTimeId(trimmedUrl)
+  if (wetimeId) {
+    return {
+      platform: "wetime",
+      videoId: wetimeId,
+      originalUrl: trimmedUrl,
+      embedUrl: `https://wetime.io/preview/${wetimeId}`,
+      thumbnailUrl: "",
+      supportsEmbed: true,
+    }
+  }
+
   return null
 }
 
@@ -236,7 +281,7 @@ export function isSupportedVideoUrl(url: string): boolean {
  * Get a human-readable list of supported platforms
  */
 export function getSupportedPlatformsText(): string {
-  return "YouTube, Vimeo, or WodProof"
+  return "YouTube, Vimeo, WodProof, or WeTime"
 }
 
 /**
