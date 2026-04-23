@@ -263,6 +263,11 @@ type Props = {
   removedDivisionIds?: string[]
   previousAnswers?: Array<{ questionId: string; answer: string }>
   signedWaiverIds?: string[]
+  /** ADR-0011 Phase 2 — invite claim token forwarded from the claim route.
+   *  When set, bypasses the registration-window check and tags the Stripe
+   *  purchase metadata with the invite id so the workflow can flip the
+   *  invite to `accepted_paid`. */
+  inviteToken?: string
 }
 
 export function RegistrationForm({
@@ -285,6 +290,7 @@ export function RegistrationForm({
   removedDivisionIds = [],
   previousAnswers = [],
   signedWaiverIds = [],
+  inviteToken,
 }: Props) {
   const navigate = useNavigate()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -594,6 +600,7 @@ export function RegistrationForm({
           affiliateName: affiliateName || undefined,
           answers,
           couponCode: activeCoupon?.code,
+          inviteToken,
         },
       })
 

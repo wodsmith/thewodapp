@@ -37,6 +37,7 @@ const baseRow = (
   sourceCompetitionId: "comp_src",
   userId: "usr_a",
   athleteName: "A",
+  athleteEmail: null,
   championshipDivisionId: "div_rxm",
   inviteId: null,
   inviteStatus: null,

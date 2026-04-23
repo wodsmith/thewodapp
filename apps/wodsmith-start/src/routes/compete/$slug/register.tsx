@@ -395,7 +395,7 @@ function RegisterPage() {
     signedWaiverIds,
   } = Route.useLoaderData()
 
-  const { canceled } = Route.useSearch()
+  const { canceled, invite } = Route.useSearch()
 
   // Show error if divisions are not configured
   if (!divisionsConfigured || !scalingGroup) {
@@ -437,6 +437,7 @@ function RegisterPage() {
         removedDivisionIds={removedDivisionIds}
         previousAnswers={previousAnswers}
         signedWaiverIds={signedWaiverIds}
+        inviteToken={invite}
       />
     </div>
   )

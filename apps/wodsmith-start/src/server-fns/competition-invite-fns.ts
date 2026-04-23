@@ -25,6 +25,7 @@ import {
   COMPETITION_INVITE_ORIGIN,
   COMPETITION_INVITE_SOURCE_KIND,
   COMPETITION_INVITE_STATUS,
+  competitionInvitesTable,
   type CompetitionInvite,
 } from "@/db/schemas/competition-invites"
 import {
@@ -176,6 +177,11 @@ const bespokeInviteInputSchema = z.object({
   inviteeFirstName: z.string().max(255).nullable().optional(),
   inviteeLastName: z.string().max(255).nullable().optional(),
   bespokeReason: z.string().max(255).nullable().optional(),
+})
+
+const listBespokeInvitesInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
+  championshipDivisionId: z.string().min(1),
 })
 
 const bespokeBulkInviteInputSchema = z.object({
@@ -1078,6 +1084,53 @@ export const createBespokeInvitesBulkFn = createServerFn({ method: "POST" })
         })
 
         return result
+      },
+    )
+  })
+
+/**
+ * List all active invites for a championship+division. Used by the
+ * organizer invites route to render the bespoke section + invite state
+ * overlays on source roster rows. Phase 2: returns every active row
+ * regardless of origin so the UI can classify.
+ */
+export const listActiveInvitesFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    listBespokeInvitesInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "listActiveInvitesFn",
+        attributes: {
+          championshipCompetitionId: data.championshipCompetitionId,
+        },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+
+        const db = getDb()
+        const invites = await db
+          .select()
+          .from(competitionInvitesTable)
+          .where(
+            eq(
+              competitionInvitesTable.championshipCompetitionId,
+              data.championshipCompetitionId,
+            ),
+          )
+
+        return { invites }
       },
     )
   })

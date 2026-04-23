@@ -140,6 +140,30 @@ In dev (no `RESEND_API_KEY`) the consumer logs the preview and marks delivery as
 
 [[apps/wodsmith-start/src/workflows/stripe-checkout-workflow.ts]] reads `inviteId` from the purchase metadata inside `create-registration`, threads it through `RegistrationStepResult`, and runs a new `update-competition-invite-status` step after registration creation. The step flips the invite to `accepted_paid`, sets `paidAt`, sets `claimedRegistrationId`, and nulls `claimTokenHash` so a replay of the original email link short-circuits. Idempotent via the `status = "pending"` guard on the update predicate so a workflow retry doesn't double-flip. `processCheckoutInline` (local-dev path) runs the same helper to keep behavior consistent without Cloudflare Workflows.
 
+## Organizer send UX
+
+Phase 2D makes the organizer invite buttons clickable. See [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/invites/index.tsx]] for the shell.
+
+Three dialogs sit in [[apps/wodsmith-start/src/components/organizer/invites/add-bespoke-invitee-dialog.tsx]], [[apps/wodsmith-start/src/components/organizer/invites/bulk-add-invitees-dialog.tsx]], and [[apps/wodsmith-start/src/components/organizer/invites/send-invites-dialog.tsx]]. Add/Bulk dialogs wrap the bespoke staging server fns; Send wraps `issueInvitesFn`. The route header carries the three buttons (Add invitee / Bulk add / Send invites N); Send is disabled when no recipients are selected.
+
+[[apps/wodsmith-start/src/components/organizer/invites/championship-roster-table.tsx]] now accepts optional `selectedKeys` / `onToggleSelection` / `onToggleAll` props. When the parent supplies them a checkbox column appears; rows with no `athleteEmail` are disabled with a "No email on file" tooltip so the organizer can't try to invite an athlete without a resolvable address. [[apps/wodsmith-start/src/server/competition-invites/roster.ts#RosterRow]] now carries `athleteEmail` — hydrated at the end of `getChampionshipRoster` via a single bulk `userTable` lookup so the Send dialog has an email to put on each recipient.
+
+The draft-bespoke section renders inline below the roster table, pulling from `listActiveInvitesFn`. Checked draft rows flow into the recipient list alongside selected source rows; the Send dialog shows a union of both with a recipient-count chip. After a successful send the route invalidates so the just-activated bespoke rows fall off the draft list (they now have tokens).
+
+## Registration hand-off from claim
+
+The claim route's "Continue to registration" CTA now links to `/compete/$slug/register?invite=<token>`.
+
+The register route's `validateSearch` accepts `invite`. The route forwards the token to `RegistrationForm` as the `inviteToken` prop, which passes it to `initiateRegistrationPaymentFn` on submit. Combined with the purchase-metadata + Stripe-workflow wiring from sub-arc C, this closes the Organizer Send → athlete claim → Stripe → `accepted_paid` loop end-to-end.
+
+## Invite expiry sweep
+
+[[apps/wodsmith-start/src/server/competition-invites/expiry.ts#sweepExpiredInvites]] paginates expired pending invites and flips them to `expired` in batches.
+
+On each row it nulls `activeMarker` + `claimTokenHash` so the link dies immediately and the unique-active index unblocks a future re-invite.
+
+Idempotent: the update predicate re-asserts `status = "pending"` so a status change that happened between the candidate SELECT and the UPDATE doesn't get stomped. Intended for hourly Cloudflare Cron Trigger wiring — Phase 2D ships the helper; the alchemy cron configuration lands with the round-builder in Phase 3 (when expiry semantics broaden to per-round deadlines).
+
 ## Auth route extensions for invites
 
 Sign-in and sign-up accept `?email=<email>&invite=<token>` in addition to their existing search params. See [[apps/wodsmith-start/src/routes/_auth/sign-in.tsx]] and [[apps/wodsmith-start/src/routes/_auth/sign-up.tsx]].

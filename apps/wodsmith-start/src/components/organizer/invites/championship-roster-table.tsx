@@ -1,16 +1,21 @@
 "use client"
 
 /**
- * Championship Roster Table — Phase 1 read-only view.
+ * Championship Roster Table.
  *
  * Renders rank + athlete + source + status columns for each row, with
  * filter chips above and a dashed cutoff separator between qualified and
- * waitlist rows. Invite state is always `not_invited` in Phase 1;
- * Phase 2 attaches real invite status and the StatusPill becomes live.
+ * waitlist rows.
+ *
+ * Phase 2 adds optional per-row selection checkboxes for the Send Invites
+ * flow. Rows without an email (no userId resolved from `userTable`) are
+ * marked non-selectable — the organizer sees a tooltip-hint via
+ * `title="No email on file"`.
  */
 
 import { Fragment } from "react"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Table,
   TableBody,
@@ -21,8 +26,17 @@ import {
 } from "@/components/ui/table"
 import type { RosterRow } from "@/server/competition-invites/roster"
 
+export function rosterRowKey(row: RosterRow): string {
+  return `${row.sourceId}-${row.userId ?? row.athleteName}`
+}
+
 interface ChampionshipRosterTableProps {
   rows: RosterRow[]
+  /** Optional selection state. When provided the table renders a
+   *  checkbox column; when omitted the table is read-only. */
+  selectedKeys?: Set<string>
+  onToggleSelection?: (key: string, row: RosterRow) => void
+  onToggleAll?: (selectAll: boolean) => void
 }
 
 function RankCell({ placement }: { placement: number | null }) {
@@ -66,8 +80,19 @@ function FilterChips() {
 
 export function ChampionshipRosterTable({
   rows,
+  selectedKeys,
+  onToggleSelection,
+  onToggleAll,
 }: ChampionshipRosterTableProps) {
   let cutoffDrawn = false
+  const selectionEnabled =
+    !!selectedKeys && !!onToggleSelection && !!onToggleAll
+  const selectableRows = rows.filter((r) => !!r.athleteEmail)
+  const allSelected =
+    selectionEnabled &&
+    selectableRows.length > 0 &&
+    selectableRows.every((r) => selectedKeys?.has(rosterRowKey(r)))
+  const colSpan = selectionEnabled ? 5 : 4
 
   return (
     <div className="space-y-4">
@@ -80,6 +105,15 @@ export function ChampionshipRosterTable({
         <Table>
           <TableHeader>
             <TableRow>
+              {selectionEnabled ? (
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={(v) => onToggleAll?.(v === true)}
+                    aria-label="Select all rows"
+                  />
+                </TableHead>
+              ) : null}
               <TableHead className="w-16">Rank</TableHead>
               <TableHead>Athlete</TableHead>
               <TableHead>Qualified via</TableHead>
@@ -90,13 +124,14 @@ export function ChampionshipRosterTable({
             {rows.map((row) => {
               const showCutoff = row.belowCutoff && !cutoffDrawn
               if (showCutoff) cutoffDrawn = true
-              const rowKey = `${row.sourceId}-${row.userId ?? row.athleteName}`
+              const rowKey = rosterRowKey(row)
+              const rowSelectable = selectionEnabled && !!row.athleteEmail
               return (
                 <Fragment key={rowKey}>
                   {showCutoff ? (
                     <TableRow className="border-t-2 border-dashed">
                       <TableCell
-                        colSpan={4}
+                        colSpan={colSpan}
                         className="py-2 text-center text-xs uppercase text-muted-foreground"
                       >
                         Cutoff · waitlist begins
@@ -104,6 +139,24 @@ export function ChampionshipRosterTable({
                     </TableRow>
                   ) : null}
                   <TableRow>
+                    {selectionEnabled ? (
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedKeys?.has(rowKey) ?? false}
+                          disabled={!rowSelectable}
+                          onCheckedChange={() =>
+                            rowSelectable &&
+                            onToggleSelection?.(rowKey, row)
+                          }
+                          aria-label={`Select ${row.athleteName}`}
+                          title={
+                            rowSelectable
+                              ? undefined
+                              : "No email on file for this athlete"
+                          }
+                        />
+                      </TableCell>
+                    ) : null}
                     <TableCell>
                       <RankCell placement={row.sourcePlacement} />
                     </TableCell>

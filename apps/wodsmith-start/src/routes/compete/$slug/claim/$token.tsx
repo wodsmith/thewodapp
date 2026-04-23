@@ -111,9 +111,11 @@ function ClaimPage() {
     )
   }
 
+  const { token } = Route.useParams()
   return (
     <ClaimablePage
       slug={slug}
+      token={token}
       divisionId={data.divisionId}
       divisionLabel={data.divisionLabel}
       championshipName={data.championshipName}
@@ -127,6 +129,7 @@ function ClaimPage() {
 
 function ClaimablePage(props: {
   slug: string
+  token: string
   divisionId: string
   divisionLabel: string
   championshipName: string
@@ -157,11 +160,12 @@ function ClaimablePage(props: {
               params={{ slug: props.slug }}
               search={{
                 canceled: undefined,
+                // Forward the invite token so the paid registration can
+                // flip the invite to accepted_paid via Stripe webhook.
+                invite: props.token,
                 // Forward the invited division id so the registration form
                 // pre-selects (and pins) the right division — invites are
-                // locked to a single division at issue time. Phase 2D adds
-                // `invite=<token>` to this same hop so the paid registration
-                // can flip the invite to accepted_paid.
+                // locked to a single division at issue time.
                 divisionId: props.divisionId,
               }}
             >
