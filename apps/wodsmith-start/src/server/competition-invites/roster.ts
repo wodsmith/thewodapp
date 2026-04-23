@@ -15,12 +15,15 @@
  */
 // @lat: [[competition-invites#Roster computation]]
 
-import { getCompetitionLeaderboard } from "@/server/competition-leaderboard"
-import { getSeriesLeaderboard } from "@/server/series-leaderboard"
+import { and, eq } from "drizzle-orm"
+import { getDb } from "@/db"
 import type {
   CompetitionInviteSource,
   CompetitionInviteSourceKind,
 } from "@/db/schemas/competition-invites"
+import { seriesDivisionMappingsTable } from "@/db/schemas/series"
+import { getCompetitionLeaderboard } from "@/server/competition-leaderboard"
+import { getSeriesLeaderboard } from "@/server/series-leaderboard"
 import type { DivisionMapping } from "./sources"
 import { listSourcesForChampionship } from "./sources"
 
@@ -214,6 +217,78 @@ async function loadSingleCompetitionRows(
   }))
 }
 
+/**
+ * Per-comp direct qualifiers for a series source: top `directSpotsPerComp`
+ * finishers of each comp (in its mapped division) qualify directly. Uses
+ * `seriesDivisionMappingsTable` to resolve each comp's division that maps
+ * to the series template division, then calls
+ * `getCompetitionLeaderboard` for that comp.
+ */
+async function loadSeriesDirectRows(
+  source: CompetitionInviteSource,
+  championshipDivisionId: string,
+): Promise<Array<Omit<RosterRow, "belowCutoff">>> {
+  if (
+    !source.sourceGroupId ||
+    !source.directSpotsPerComp ||
+    source.directSpotsPerComp <= 0
+  ) {
+    return []
+  }
+  const directSpotsPerComp = source.directSpotsPerComp
+  const mappings = parseDivisionMappings(source.divisionMappings)
+  const seriesDivisionId = resolveSourceDivisionId(
+    mappings,
+    championshipDivisionId,
+  )
+  if (!seriesDivisionId) return []
+
+  const db = getDb()
+  const perComp = await db
+    .select({
+      competitionId: seriesDivisionMappingsTable.competitionId,
+      competitionDivisionId: seriesDivisionMappingsTable.competitionDivisionId,
+    })
+    .from(seriesDivisionMappingsTable)
+    .where(
+      and(
+        eq(seriesDivisionMappingsTable.groupId, source.sourceGroupId),
+        eq(seriesDivisionMappingsTable.seriesDivisionId, seriesDivisionId),
+      ),
+    )
+  if (perComp.length === 0) return []
+
+  const leaderboards = await Promise.all(
+    perComp.map(({ competitionId, competitionDivisionId }) =>
+      getCompetitionLeaderboard({
+        competitionId,
+        divisionId: competitionDivisionId,
+      }).then((lb) => ({ competitionId, entries: lb.entries })),
+    ),
+  )
+
+  const out: Array<Omit<RosterRow, "belowCutoff">> = []
+  for (const { competitionId, entries } of leaderboards) {
+    entries.slice(0, directSpotsPerComp).forEach((e, idx) => {
+      out.push({
+        sourcePlacement: idx + 1,
+        sourcePlacementLabel: `${ordinal(idx + 1)} — series comp direct`,
+        sourceId: source.id,
+        sourceKind: source.kind,
+        sourceCompetitionId: competitionId,
+        userId: e.userId,
+        athleteName: e.athleteName,
+        championshipDivisionId,
+        inviteId: null,
+        inviteStatus: null,
+        roundId: null,
+        roundNumber: null,
+      })
+    })
+  }
+  return out
+}
+
 async function loadSeriesGlobalRows(
   source: CompetitionInviteSource,
   championshipDivisionId: string,
@@ -268,15 +343,38 @@ export async function getChampionshipRoster(
   }> = []
   for (const source of sources) {
     const mappings = parseDivisionMappings(source.divisionMappings)
-    const cutoff = resolveSpotsForDivision({
-      source,
-      mappings,
-      championshipDivisionId: input.divisionId,
-    })
-    const rows =
-      source.kind === "series"
-        ? await loadSeriesGlobalRows(source, input.divisionId)
-        : await loadSingleCompetitionRows(source, input.divisionId)
+    let rows: Array<Omit<RosterRow, "belowCutoff">>
+    let cutoff: number
+    if (source.kind === "series") {
+      // Series sources qualify athletes two ways: top-N direct from each
+      // comp + top-N from the series-global leaderboard. Direct qualifiers
+      // are listed first; globals are appended with direct-athletes
+      // filtered out. The source's cutoff expands to cover both tiers.
+      const [direct, global] = await Promise.all([
+        loadSeriesDirectRows(source, input.divisionId),
+        loadSeriesGlobalRows(source, input.divisionId),
+      ])
+      const directKeys = new Set(
+        direct.map((r) => r.userId ?? `name:${r.athleteName}`),
+      )
+      const globalFiltered = global.filter(
+        (r) => !directKeys.has(r.userId ?? `name:${r.athleteName}`),
+      )
+      rows = [...direct, ...globalFiltered]
+      const globalCutoff = resolveSpotsForDivision({
+        source,
+        mappings,
+        championshipDivisionId: input.divisionId,
+      })
+      cutoff = direct.length + globalCutoff
+    } else {
+      rows = await loadSingleCompetitionRows(source, input.divisionId)
+      cutoff = resolveSpotsForDivision({
+        source,
+        mappings,
+        championshipDivisionId: input.divisionId,
+      })
+    }
     perSource.push({ source, rows, cutoff })
   }
   const rows = aggregateQualifyingRows(perSource)

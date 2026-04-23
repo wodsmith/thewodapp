@@ -22,7 +22,6 @@ import {
 import { useEffect, useState } from "react"
 import { ChampionshipRosterTable } from "@/components/organizer/invites/championship-roster-table"
 import { InviteSourcesList } from "@/components/organizer/invites/invite-sources-list"
-import { SeriesSourceSubTabs } from "@/components/organizer/invites/series-source-sub-tabs"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { usePostHog } from "@/lib/posthog"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
@@ -170,15 +169,6 @@ function InvitesPage() {
             competitionNamesById={competitionNamesById}
             seriesNamesById={seriesNamesById}
             seriesCompCountsById={seriesCompCountsById}
-            renderSourceExtras={(source) =>
-              source.kind === "series" ? (
-                <SeriesSourceSubTabs
-                  source={source}
-                  comps={[]}
-                  globalView={null}
-                />
-              ) : null
-            }
           />
         </TabsContent>
 

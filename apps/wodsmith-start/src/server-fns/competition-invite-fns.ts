@@ -142,10 +142,15 @@ async function getSeriesOrganizingTeamId(groupId: string): Promise<string> {
  * Require `MANAGE_COMPETITIONS` on both the championship and any referenced
  * source (competition or series). Per ADR Open Question 6, the two
  * organizing teams must currently match (same-org only for MVP).
+ *
+ * The source reference is resolved via `kind` (not "whichever id is set")
+ * so a request like `kind: "series"` with both a benign
+ * `sourceCompetitionId` and an attacker-controlled `sourceGroupId`
+ * cannot bypass the series-side permission check.
  */
 async function requireSourcePermissions(params: {
   championshipCompetitionId: string
-  kind?: "competition" | "series"
+  kind: "competition" | "series"
   sourceCompetitionId?: string | null
   sourceGroupId?: string | null
 }): Promise<{ championshipTeamId: string }> {
@@ -158,11 +163,19 @@ async function requireSourcePermissions(params: {
   )
 
   let sourceTeamId: string | null = null
-  if (params.sourceCompetitionId) {
+  if (params.kind === COMPETITION_INVITE_SOURCE_KIND.COMPETITION) {
+    if (!params.sourceCompetitionId) {
+      throw new Error(
+        'kind "competition" requires sourceCompetitionId',
+      )
+    }
     sourceTeamId = await getCompetitionOrganizingTeamId(
       params.sourceCompetitionId,
     )
-  } else if (params.sourceGroupId) {
+  } else if (params.kind === COMPETITION_INVITE_SOURCE_KIND.SERIES) {
+    if (!params.sourceGroupId) {
+      throw new Error('kind "series" requires sourceGroupId')
+    }
     sourceTeamId = await getSeriesOrganizingTeamId(params.sourceGroupId)
   }
 
