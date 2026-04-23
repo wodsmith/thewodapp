@@ -70,6 +70,28 @@ describe("parseBespokePasteLine", () => {
     // With tab as delimiter the first comma stays inside the firstName field.
     expect(row?.inviteeFirstName).toBe("Alice,Smith")
   })
+
+  it("respects double-quoted CSV fields containing commas", () => {
+    const row = parseBespokePasteLine(
+      'jane@example.com,"Doe, Jane",Smith,,Wildcard',
+      6,
+    )
+    expect(row).toEqual({
+      rowNumber: 6,
+      email: "jane@example.com",
+      inviteeFirstName: "Doe, Jane",
+      inviteeLastName: "Smith",
+      bespokeReason: "Wildcard",
+    })
+  })
+
+  it("decodes doubled quotes inside a quoted CSV field", () => {
+    const row = parseBespokePasteLine(
+      'jane@example.com,"O""Brien",Smith,,',
+      7,
+    )
+    expect(row?.inviteeFirstName).toBe('O"Brien')
+  })
 })
 
 describe("parseBespokePaste", () => {

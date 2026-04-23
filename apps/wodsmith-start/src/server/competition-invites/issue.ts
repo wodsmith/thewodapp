@@ -112,6 +112,13 @@ export function normalizeInviteEmail(email: string): string {
   return email.trim().toLowerCase()
 }
 
+/**
+ * Permissive email pattern used at write boundaries (issue + bespoke
+ * staging). Not RFC 5322 — but tight enough to reject the obvious
+ * garbage that would otherwise slip into the queue.
+ */
+export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 export function assertRecipientOriginValid(r: IssueInviteRecipient): void {
   if (r.origin === COMPETITION_INVITE_ORIGIN.SOURCE) {
     if (!r.sourceId) {
@@ -172,7 +179,11 @@ export async function issueInvitesForRecipients(
 
   const normalized = input.recipients.map((r) => {
     assertRecipientOriginValid(r)
-    return { ...r, email: normalizeInviteEmail(r.email) }
+    const email = normalizeInviteEmail(r.email)
+    if (!EMAIL_PATTERN.test(email)) {
+      throw new InviteIssueValidationError(`Invalid email: ${r.email}`)
+    }
+    return { ...r, email }
   })
 
   const emails = Array.from(new Set(normalized.map((r) => r.email)))
@@ -213,7 +224,13 @@ export async function issueInvitesForRecipients(
         alreadyActive.push({
           email: r.email,
           existingInviteId: existingRow.id,
-          isDraft: !existingRow.claimTokenHash,
+          // A draft is a bespoke row staged without a token (`pending` +
+          // null hash). `accepted_paid` rows also null `claimTokenHash`
+          // while keeping `activeMarker = "active"` — the status guard
+          // keeps them out of the draft bucket.
+          isDraft:
+            !existingRow.claimTokenHash &&
+            existingRow.status === COMPETITION_INVITE_STATUS.PENDING,
         })
       } else {
         toInsertInputs.push(r)
@@ -306,6 +323,11 @@ export interface ReissueInviteInput {
  * remain correlated across attempts. Rejects when the target division's
  * registration fee is $0.
  *
+ * The UPDATE pins `status IN (pending, expired)` in the WHERE clause so
+ * a concurrent claim/decline/revoke between read and write can't be
+ * silently overwritten. A 0-row outcome forces a re-read to tell apart
+ * "row vanished" from "row terminal-transitioned mid-flight".
+ *
  * Returns the rotated invite + the new plaintext token.
  */
 export async function reissueInvite(
@@ -345,7 +367,7 @@ export async function reissueInvite(
   const nextSendAttempt = existing.sendAttempt + 1
   const now = new Date()
 
-  await db
+  const updateResult = await db
     .update(competitionInvitesTable)
     .set({
       claimTokenHash: artifacts.hash,
@@ -359,7 +381,29 @@ export async function reissueInvite(
       roundId: input.roundId ?? existing.roundId,
       updatedAt: now,
     })
-    .where(eq(competitionInvitesTable.id, input.inviteId))
+    .where(
+      and(
+        eq(competitionInvitesTable.id, input.inviteId),
+        inArray(competitionInvitesTable.status, [
+          COMPETITION_INVITE_STATUS.PENDING,
+          COMPETITION_INVITE_STATUS.EXPIRED,
+        ]),
+      ),
+    )
+
+  const affected = (updateResult as unknown as { affectedRows?: number })
+    .affectedRows
+  if (affected === 0) {
+    const fresh = await db
+      .select({ status: competitionInvitesTable.status })
+      .from(competitionInvitesTable)
+      .where(eq(competitionInvitesTable.id, input.inviteId))
+      .limit(1)
+      .then((rows) => rows[0] ?? null)
+    throw new InviteIssueValidationError(
+      `Invite ${input.inviteId} cannot be reissued — concurrently transitioned to ${fresh?.status ?? "unknown"}`,
+    )
+  }
 
   const rotated: CompetitionInvite = {
     ...existing,

@@ -108,4 +108,25 @@ describe("issueInvitesForRecipients", () => {
       }),
     ).rejects.toBeInstanceOf(FreeCompetitionNotEligibleError)
   })
+
+  it("rejects malformed email addresses before opening a transaction", async () => {
+    const { getRegistrationFee } = await import(
+      "@/server/commerce/fee-calculator"
+    )
+    vi.mocked(getRegistrationFee).mockResolvedValueOnce(2500)
+
+    await expect(
+      issueInvitesForRecipients({
+        championshipCompetitionId: "comp_c",
+        championshipDivisionId: "div_rxm",
+        rsvpDeadlineAt: new Date("2026-05-01T00:00:00Z"),
+        recipients: [
+          {
+            email: "not-an-email",
+            origin: COMPETITION_INVITE_ORIGIN.BESPOKE,
+          },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(InviteIssueValidationError)
+  })
 })

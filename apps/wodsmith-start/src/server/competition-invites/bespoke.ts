@@ -38,6 +38,7 @@ import {
 } from "@/db/schemas/competition-invites"
 import { getRegistrationFee } from "@/server/commerce/fee-calculator"
 import {
+  EMAIL_PATTERN,
   FreeCompetitionNotEligibleError,
   InviteIssueValidationError,
   normalizeInviteEmail,
@@ -61,8 +62,6 @@ export interface CreateBespokeInviteInput {
   inviteeLastName?: string | null
   bespokeReason?: string | null
 }
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 async function assertDivisionIsPaid(params: {
   competitionId: string
@@ -89,72 +88,78 @@ export async function createBespokeInvite(
 
   const db = getDb()
 
-  const existing = await db
-    .select()
-    .from(competitionInvitesTable)
-    .where(
-      and(
-        eq(
-          competitionInvitesTable.championshipCompetitionId,
-          input.championshipCompetitionId,
+  // Wrapped in a transaction so the existence check + insert can't race
+  // a concurrent bespoke create / batch issue from raising a raw
+  // `ER_DUP_ENTRY` (the active-marker unique index would otherwise leak
+  // through). Matches the pattern in `issueInvitesForRecipients`.
+  return db.transaction(async (tx) => {
+    const existing = await tx
+      .select()
+      .from(competitionInvitesTable)
+      .where(
+        and(
+          eq(
+            competitionInvitesTable.championshipCompetitionId,
+            input.championshipCompetitionId,
+          ),
+          eq(
+            competitionInvitesTable.championshipDivisionId,
+            input.championshipDivisionId,
+          ),
+          eq(competitionInvitesTable.email, email),
+          eq(
+            competitionInvitesTable.activeMarker,
+            COMPETITION_INVITE_ACTIVE_MARKER,
+          ),
         ),
-        eq(
-          competitionInvitesTable.championshipDivisionId,
-          input.championshipDivisionId,
-        ),
-        eq(competitionInvitesTable.email, email),
-        eq(
-          competitionInvitesTable.activeMarker,
-          COMPETITION_INVITE_ACTIVE_MARKER,
-        ),
-      ),
-    )
-    .limit(1)
-    .then((rows) => rows[0] ?? null)
+      )
+      .limit(1)
+      .then((rows) => rows[0] ?? null)
 
-  if (existing) {
-    throw new InviteIssueValidationError(
-      `${email} already has an active invite for this championship division`,
-    )
-  }
+    if (existing) {
+      throw new InviteIssueValidationError(
+        `${email} already has an active invite for this championship division`,
+      )
+    }
 
-  const id = createCompetitionInviteId()
-  const now = new Date()
-  const row: CompetitionInvite = {
-    id,
-    championshipCompetitionId: input.championshipCompetitionId,
-    roundId: "",
-    origin: COMPETITION_INVITE_ORIGIN.BESPOKE,
-    sourceId: null,
-    sourceCompetitionId: null,
-    sourcePlacement: null,
-    sourcePlacementLabel: null,
-    bespokeReason: input.bespokeReason ?? null,
-    championshipDivisionId: input.championshipDivisionId,
-    email,
-    userId: null,
-    inviteeFirstName: input.inviteeFirstName ?? null,
-    inviteeLastName: input.inviteeLastName ?? null,
-    claimTokenHash: null,
-    claimTokenLast4: null,
-    expiresAt: null,
-    sendAttempt: 0,
-    status: COMPETITION_INVITE_STATUS.PENDING,
-    paidAt: null,
-    declinedAt: null,
-    revokedAt: null,
-    revokedByUserId: null,
-    claimedRegistrationId: null,
-    emailDeliveryStatus: COMPETITION_INVITE_EMAIL_DELIVERY_STATUS.SKIPPED,
-    emailLastError: null,
-    activeMarker: COMPETITION_INVITE_ACTIVE_MARKER,
-    createdAt: now,
-    updatedAt: now,
-    updateCounter: 0,
-  }
+    const id = createCompetitionInviteId()
+    const now = new Date()
+    const row: CompetitionInvite = {
+      id,
+      championshipCompetitionId: input.championshipCompetitionId,
+      roundId: "",
+      origin: COMPETITION_INVITE_ORIGIN.BESPOKE,
+      sourceId: null,
+      sourceCompetitionId: null,
+      sourcePlacement: null,
+      sourcePlacementLabel: null,
+      bespokeReason: input.bespokeReason ?? null,
+      championshipDivisionId: input.championshipDivisionId,
+      email,
+      userId: null,
+      inviteeFirstName: input.inviteeFirstName ?? null,
+      inviteeLastName: input.inviteeLastName ?? null,
+      claimTokenHash: null,
+      claimTokenLast4: null,
+      expiresAt: null,
+      sendAttempt: 0,
+      status: COMPETITION_INVITE_STATUS.PENDING,
+      paidAt: null,
+      declinedAt: null,
+      revokedAt: null,
+      revokedByUserId: null,
+      claimedRegistrationId: null,
+      emailDeliveryStatus: COMPETITION_INVITE_EMAIL_DELIVERY_STATUS.SKIPPED,
+      emailLastError: null,
+      activeMarker: COMPETITION_INVITE_ACTIVE_MARKER,
+      createdAt: now,
+      updatedAt: now,
+      updateCounter: 0,
+    }
 
-  await db.insert(competitionInvitesTable).values(row)
-  return row
+    await tx.insert(competitionInvitesTable).values(row)
+    return row
+  })
 }
 
 // ============================================================================
@@ -196,6 +201,42 @@ export interface CreateBespokeInvitesBulkInput {
 }
 
 /**
+ * Quote-aware CSV splitter. Handles `"Doe, Jane",jane@x.com,...` by
+ * keeping the comma inside the quoted field. Doubled quotes inside a
+ * quoted field decode to a single quote (`""` → `"`). For TSV input we
+ * skip this entirely — tabs can't appear inside a tab-delimited field.
+ */
+function splitCsvLine(line: string): string[] {
+  const out: string[] = []
+  let buf = ""
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i]
+    if (inQuotes) {
+      if (c === '"') {
+        if (line[i + 1] === '"') {
+          buf += '"'
+          i++
+        } else {
+          inQuotes = false
+        }
+      } else {
+        buf += c
+      }
+    } else if (c === '"') {
+      inQuotes = true
+    } else if (c === ",") {
+      out.push(buf)
+      buf = ""
+    } else {
+      buf += c
+    }
+  }
+  out.push(buf)
+  return out
+}
+
+/**
  * Parse a single paste-body line into a candidate row. Emits null if the
  * line is blank or looks like a header (literal "email" in the first
  * column, case-insensitive). The parser auto-detects tab vs comma delimiter
@@ -208,8 +249,10 @@ export function parseBespokePasteLine(
   const trimmed = line.trim()
   if (trimmed === "") return null
 
-  const delimiter = trimmed.includes("\t") ? "\t" : ","
-  const fields = trimmed.split(delimiter).map((f) => f.trim())
+  const fields =
+    trimmed.includes("\t")
+      ? trimmed.split("\t").map((f) => f.trim())
+      : splitCsvLine(trimmed).map((f) => f.trim())
 
   const emailField = fields[0] ?? ""
   if (emailField === "") return null
