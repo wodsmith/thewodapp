@@ -94,7 +94,7 @@ export const Route = createFileRoute("/compete/$slug/claim/$token")({
 })
 
 function ClaimPage() {
-  const { slug } = Route.useParams()
+  const { slug, token } = Route.useParams()
   const data = Route.useLoaderData()
 
   if (data.kind === "invalid") {
@@ -111,7 +111,6 @@ function ClaimPage() {
     )
   }
 
-  const { token } = Route.useParams()
   return (
     <ClaimablePage
       slug={slug}
