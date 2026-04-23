@@ -21,7 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { identityMatch } from "@/server/competition-invites/claim"
+import { identityMatch } from "@/server/competition-invites/identity"
 import {
   declineInviteFn,
   getInviteByTokenFn,

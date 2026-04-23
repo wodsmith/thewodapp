@@ -30,7 +30,7 @@ import {
 import {
   identityMatch,
   type InviteClaimableError,
-} from "@/server/competition-invites/claim"
+} from "@/server/competition-invites/identity"
 import { getInviteByTokenFn } from "@/server-fns/competition-invite-fns"
 
 type Branch =
@@ -272,7 +272,6 @@ function invalidReasonCopy(reason: InviteClaimableError): {
         description:
           "This invite has already been claimed and paid. Head to your competitions dashboard to see the event.",
       }
-    case "not_found":
     default:
       return {
         title: "This invite link isn't valid",
