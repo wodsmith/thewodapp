@@ -9,7 +9,7 @@
  */
 
 import { useServerFn } from "@tanstack/react-start"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -65,6 +65,17 @@ export function BulkAddInviteesDialog({
     setError(null)
     setSummary(null)
   }
+
+  // Reset whenever the dialog closes — covers Cancel, Close, Escape,
+  // click-outside, and any external `open={false}` toggle. Inlined so
+  // biome's useExhaustiveDependencies stays happy without pinning `reset`.
+  useEffect(() => {
+    if (open) return
+    setPasteText("")
+    setDivisionId(defaultDivisionId)
+    setError(null)
+    setSummary(null)
+  }, [open, defaultDivisionId])
 
   const onSubmit = async () => {
     setSubmitting(true)

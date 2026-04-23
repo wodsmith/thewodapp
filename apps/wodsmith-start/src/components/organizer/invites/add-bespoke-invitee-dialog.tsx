@@ -9,7 +9,7 @@
  */
 
 import { useServerFn } from "@tanstack/react-start"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -63,6 +63,21 @@ export function AddBespokeInviteeDialog({
     setDivisionId(defaultDivisionId)
     setError(null)
   }
+
+  // Reset whenever the dialog closes — covers Cancel, Escape, click-outside,
+  // and any external `open={false}` toggle. Without this, stale input or a
+  // prior error message reappears the next time the parent re-opens it.
+  // Inlined (instead of calling `reset()`) so biome's
+  // useExhaustiveDependencies stays happy without pinning the function.
+  useEffect(() => {
+    if (open) return
+    setEmail("")
+    setFirstName("")
+    setLastName("")
+    setReason("")
+    setDivisionId(defaultDivisionId)
+    setError(null)
+  }, [open, defaultDivisionId])
 
   const onSubmit = async () => {
     setSubmitting(true)

@@ -50,9 +50,15 @@ interface SendInvitesDialogProps {
 }
 
 function defaultDeadline(): string {
+  // Build a YYYY-MM-DD string from local-date components. Using
+  // `toISOString().slice(0, 10)` would shift forward/backward a day for
+  // anyone east/west of UTC at the time-of-day boundary.
   const d = new Date()
   d.setDate(d.getDate() + 14)
-  return d.toISOString().slice(0, 10)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
 }
 
 export function SendInvitesDialog({
@@ -75,11 +81,19 @@ export function SendInvitesDialog({
   } | null>(null)
 
   const onSubmit = async () => {
+    if (!deadline) {
+      setError("Pick an RSVP deadline before sending.")
+      return
+    }
+    const rsvpDeadlineAt = new Date(`${deadline}T23:59:59`)
+    if (Number.isNaN(rsvpDeadlineAt.getTime())) {
+      setError("RSVP deadline isn't a valid date.")
+      return
+    }
     setSubmitting(true)
     setError(null)
     setResult(null)
     try {
-      const rsvpDeadlineAt = new Date(`${deadline}T23:59:59`)
       const response = await issueInvites({
         data: {
           championshipCompetitionId,
@@ -192,7 +206,12 @@ export function SendInvitesDialog({
           {!result ? (
             <Button
               onClick={onSubmit}
-              disabled={submitting || recipients.length === 0 || !subject}
+              disabled={
+                submitting ||
+                recipients.length === 0 ||
+                !subject ||
+                !deadline
+              }
             >
               {submitting ? "Sending…" : `Send ${recipients.length} invite${recipients.length === 1 ? "" : "s"}`}
             </Button>

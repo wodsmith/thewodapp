@@ -18,10 +18,11 @@
 import { render } from "@react-email/render"
 import { createServerFn } from "@tanstack/react-start"
 import { env } from "cloudflare:workers"
-import { eq, inArray, sql } from "drizzle-orm"
+import { and, eq, inArray, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+  COMPETITION_INVITE_ACTIVE_MARKER,
   COMPETITION_INVITE_ORIGIN,
   COMPETITION_INVITE_SOURCE_KIND,
   COMPETITION_INVITE_STATUS,
@@ -1124,9 +1125,19 @@ export const listActiveInvitesFn = createServerFn({ method: "GET" })
           .select()
           .from(competitionInvitesTable)
           .where(
-            eq(
-              competitionInvitesTable.championshipCompetitionId,
-              data.championshipCompetitionId,
+            and(
+              eq(
+                competitionInvitesTable.championshipCompetitionId,
+                data.championshipCompetitionId,
+              ),
+              eq(
+                competitionInvitesTable.championshipDivisionId,
+                data.championshipDivisionId,
+              ),
+              eq(
+                competitionInvitesTable.activeMarker,
+                COMPETITION_INVITE_ACTIVE_MARKER,
+              ),
             ),
           )
 

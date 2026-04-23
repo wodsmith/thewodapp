@@ -96,7 +96,10 @@ export const Route = createFileRoute(
     )
 
     // Load roster for the first division only; the UI can switch divisions
-    // client-side in later phases.
+    // client-side in later phases. Skip the active-invites lookup entirely
+    // when no division exists yet — the schema requires a non-empty
+    // `championshipDivisionId` and an empty-state UI handles the no-division
+    // case downstream.
     const firstDivisionId = divisions[0]?.id
     const [roster, activeInvitesResult] = await Promise.all([
       firstDivisionId
@@ -107,12 +110,14 @@ export const Route = createFileRoute(
             },
           })
         : Promise.resolve({ rows: [] }),
-      listActiveInvitesFn({
-        data: {
-          championshipCompetitionId: params.competitionId,
-          championshipDivisionId: firstDivisionId ?? "",
-        },
-      }),
+      firstDivisionId
+        ? listActiveInvitesFn({
+            data: {
+              championshipCompetitionId: params.competitionId,
+              championshipDivisionId: firstDivisionId,
+            },
+          })
+        : Promise.resolve({ invites: [] as CompetitionInvite[] }),
     ])
 
     return {
@@ -189,6 +194,7 @@ function InvitesPage() {
         (inv) =>
           inv.origin === COMPETITION_INVITE_ORIGIN.BESPOKE &&
           inv.championshipDivisionId === activeDivisionId &&
+          inv.activeMarker === "active" &&
           !inv.claimTokenHash,
       ),
     [activeInvites, activeDivisionId],
