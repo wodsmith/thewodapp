@@ -75,6 +75,7 @@ function SubmissionWindowsPage() {
     name: event.workout?.name || `Event #${event.trackOrder}`,
     workoutType: event.workout?.scheme || "for-time",
     trackOrder: event.trackOrder,
+    parentEventId: event.parentEventId ?? null,
   }))
 
   // Build override callback that maps teamId -> competitionTeamId for cohost server fn

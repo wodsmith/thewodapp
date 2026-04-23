@@ -321,7 +321,11 @@ export const cohostGetSubmissionDetailFn = createServerFn({ method: "GET" })
         workoutName: workouts.name,
         workoutDescription: workouts.description,
         workoutScheme: workouts.scheme,
+        workoutScoreType: workouts.scoreType,
         workoutTimeCap: workouts.timeCap,
+        workoutRoundsToScore: workouts.roundsToScore,
+        workoutRepsPerRound: workouts.repsPerRound,
+        workoutTiebreakScheme: workouts.tiebreakScheme,
       })
       .from(trackWorkoutsTable)
       .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
@@ -340,7 +344,11 @@ export const cohostGetSubmissionDetailFn = createServerFn({ method: "GET" })
         name: trackWorkout.workoutName,
         description: trackWorkout.workoutDescription,
         scheme: trackWorkout.workoutScheme,
+        scoreType: trackWorkout.workoutScoreType,
         timeCap: trackWorkout.workoutTimeCap,
+        roundsToScore: trackWorkout.workoutRoundsToScore,
+        repsPerRound: trackWorkout.workoutRepsPerRound,
+        tiebreakScheme: trackWorkout.workoutTiebreakScheme,
       },
       submissionWindow: {
         opensAt: competitionEvent?.submissionOpensAt ?? null,
