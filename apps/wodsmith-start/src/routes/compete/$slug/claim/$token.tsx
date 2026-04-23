@@ -155,7 +155,15 @@ function ClaimablePage(props: {
             <Link
               to="/compete/$slug/register"
               params={{ slug: props.slug }}
-              search={{ canceled: undefined }}
+              search={{
+                canceled: undefined,
+                // Forward the invited division id so the registration form
+                // pre-selects (and pins) the right division — invites are
+                // locked to a single division at issue time. Phase 2D adds
+                // `invite=<token>` to this same hop so the paid registration
+                // can flip the invite to accepted_paid.
+                divisionId: props.divisionId,
+              }}
             >
               Continue to registration
             </Link>

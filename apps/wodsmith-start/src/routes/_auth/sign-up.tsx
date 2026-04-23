@@ -118,7 +118,10 @@ function SignUpPage() {
   const claimError =
     "claimError" in routeData ? (routeData.claimError as string) : undefined
 
-  const inviteFlow = !!invite
+  // Invite flow only locks the email field when both an invite token and
+  // an email are present. A bare `?invite=` would otherwise disable the
+  // field with an empty value and stop sign-up cold.
+  const inviteFlow = !!invite && !!inviteEmailParam
 
   const form = useForm<SignUpInput>({
     resolver: standardSchemaResolver(signUpSchema),

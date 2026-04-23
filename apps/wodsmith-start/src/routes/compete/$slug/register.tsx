@@ -32,6 +32,13 @@ import { getLocalDateKey } from "@/utils/date-utils"
 // Search params validation
 const registerSearchSchema = z.object({
   canceled: z.enum(["true", "false"]).optional().catch(undefined),
+  // Set when arriving from a competition-invite claim. The token is
+  // forwarded into `initiateRegistrationPaymentFn` so the paid registration
+  // flips the invite to `accepted_paid`. The invited division id is also
+  // passed through so the form pre-selects (and pins) the right division
+  // — invites are locked to the division they were issued for.
+  invite: z.string().min(1).optional().catch(undefined),
+  divisionId: z.string().min(1).optional().catch(undefined),
 })
 
 // Server function to get ALL user registrations for a competition

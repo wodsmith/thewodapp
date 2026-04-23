@@ -74,7 +74,15 @@ export async function resolveInviteByToken(
   const rows = await db
     .select()
     .from(competitionInvitesTable)
-    .where(eq(competitionInvitesTable.claimTokenHash, hash))
+    .where(
+      and(
+        eq(competitionInvitesTable.claimTokenHash, hash),
+        eq(
+          competitionInvitesTable.activeMarker,
+          COMPETITION_INVITE_ACTIVE_MARKER,
+        ),
+      ),
+    )
     .limit(1)
   return rows[0] ?? null
 }

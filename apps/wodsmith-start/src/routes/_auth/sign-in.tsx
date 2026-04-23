@@ -75,7 +75,10 @@ function SignInPage() {
   // Use useServerFn for client-side calls
   const signIn = useServerFn(signInFn)
 
-  const inviteFlow = !!invite
+  // Invite flow only locks the email field when both an invite token and
+  // an email are present. A bare `?invite=` would otherwise disable the
+  // field with an empty value and stop sign-in cold.
+  const inviteFlow = !!invite && !!inviteEmailParam
 
   const form = useForm<SignInInput>({
     resolver: standardSchemaResolver(signInSchema),
