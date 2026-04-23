@@ -9,6 +9,7 @@
 
 import { Link, useRouterState } from "@tanstack/react-router"
 import {
+  BarChart3,
   Calculator,
   Calendar,
   ClipboardSignature,
@@ -96,6 +97,9 @@ const getNavigation = (
                 : []),
             ]
           : []),
+        ...(permissions?.locations
+          ? [{ label: "Locations", href: `${basePath}/locations`, icon: MapPin }]
+          : []),
         ...(permissions?.scoringConfig
           ? [{ label: "Scoring", href: `${basePath}/scoring`, icon: Calculator }]
           : []),
@@ -125,9 +129,6 @@ const getNavigation = (
               },
             ]
           : []),
-        ...(permissions?.locations
-          ? [{ label: "Locations", href: `${basePath}/locations`, icon: MapPin }]
-          : []),
         ...(permissions?.volunteers
           ? [
               {
@@ -143,6 +144,15 @@ const getNavigation = (
                 label: competitionType === "online" ? "Submissions" : "Results",
                 href: `${basePath}/results`,
                 icon: Medal,
+              },
+            ]
+          : []),
+        ...(permissions?.leaderboardPreview
+          ? [
+              {
+                label: "Leaderboard Preview",
+                href: `${basePath}/leaderboard-preview`,
+                icon: BarChart3,
               },
             ]
           : []),
