@@ -435,7 +435,11 @@ async function getRegistrationCountForDivision({
 export const cohostGetDivisionsWithCountsFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => cohostDivisionsInputSchema.parse(data))
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "divisions")
+    await requireCohostPermission(data.competitionTeamId, [
+      "divisions",
+      "leaderboardPreview",
+      "results",
+    ])
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 

@@ -21,7 +21,9 @@ import { and, eq } from "drizzle-orm"
  */
 export async function requireCohostPermission(
   competitionTeamId: string,
-  permissionKey?: keyof CohostMembershipMetadata,
+  permissionKey?:
+    | keyof CohostMembershipMetadata
+    | Array<keyof CohostMembershipMetadata>,
 ): Promise<CohostMembershipMetadata> {
   const session = await getSessionFromCookie()
   if (!session) {
@@ -54,10 +56,14 @@ export async function requireCohostPermission(
     throw new Error("FORBIDDEN: Not a cohost for this competition")
   }
 
-  if (permissionKey && !permissions[permissionKey]) {
-    throw new Error(
-      "FORBIDDEN: This action is not enabled for your cohost role",
-    )
+  if (permissionKey) {
+    const keys = Array.isArray(permissionKey) ? permissionKey : [permissionKey]
+    const hasAny = keys.some((k) => permissions[k])
+    if (!hasAny) {
+      throw new Error(
+        "FORBIDDEN: This action is not enabled for your cohost role",
+      )
+    }
   }
 
   return permissions
