@@ -82,6 +82,34 @@ Bespoke staging lives in [[apps/wodsmith-start/src/server/competition-invites/be
 
 The line parser auto-detects delimiter per line — tab wins when present so a Google Sheets column paste keeps comma-containing fields intact — and skips literal header rows whose first column is `email` (case-insensitive). A division-hint column is accepted for copy-paste compatibility but ignored in Phase 2 (the caller always passes `championshipDivisionId` explicitly).
 
+## Claim resolution
+
+Read-side helpers for the `/compete/$slug/claim/$token` route live in [[apps/wodsmith-start/src/server/competition-invites/claim.ts]]. The module is side-effect-free beyond DB reads so the claim route loader, the decline server fn, and any future integration test can all reuse it.
+
+[[apps/wodsmith-start/src/server/competition-invites/claim.ts#resolveInviteByToken]] hashes the plaintext token via [[apps/wodsmith-start/src/lib/competition-invites/tokens.ts#hashInviteClaimToken]] and looks up the row on `claimTokenHash`. It returns `null` on miss so the route can render the generic "invalid link" page without leaking whether a hash ever existed. [[apps/wodsmith-start/src/server/competition-invites/claim.ts#assertInviteClaimable]] throws [[apps/wodsmith-start/src/server/competition-invites/claim.ts#InviteNotClaimableError]] when status, `claimTokenHash`, `expiresAt`, or `activeMarker` fail the live checks — each terminal state maps to a distinct `reason` (`expired`, `declined`, `revoked`, `already_paid`, `not_found`) so the route can render tailored copy.
+
+[[apps/wodsmith-start/src/server/competition-invites/claim.ts#identityMatch]] is the pure email-lock gate. Given `{ email }` from the session (or `null`) plus the invite plus an `accountExistsForInviteEmail` boolean (resolved by the caller against `userTable`), it returns the discriminated result the route loader branches on: `{ ok: true }`, `{ ok: false, reason: "wrong_account" | "needs_sign_in" | "needs_sign_up" }`. Case-insensitive on both sides via [[apps/wodsmith-start/src/server/competition-invites/issue.ts#normalizeInviteEmail]] so `Mike@Example.com` and `mike@example.com` compare equal.
+
+## Claim routes
+
+The athlete-facing surfaces live under `apps/wodsmith-start/src/routes/compete/$slug/claim/`.
+
+Phase 2 sub-arc B wires three pages: `$token.tsx` (claim landing), `$token/decline.tsx` (explicit decline), and a sibling `invite-pending.tsx` page for wrong-account recovery.
+
+`$token.tsx` is the entry point clicked from the email. The loader calls [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#getInviteByTokenFn]] — a public (session-free) server fn that resolves the token, confirms the invite's championship slug matches the URL (anti-typo guard), and returns either `{ kind: "not_claimable", reason }` or `{ kind: "claimable", invite, championshipName, divisionLabel, accountExistsForInviteEmail }`. The loader then runs `identityMatch` against `context.session`. The four-way branch is: happy-path → render pre-attached registration CTA; `wrong_account` → render "this invite is for a different account" page; `needs_sign_in` / `needs_sign_up` → `redirect` into `/sign-in?redirect=…&email=<invite.email>&invite=<token>` (or sign-up equivalent) so post-auth re-entry lands back on the claim page with a session that matches.
+
+`$token/decline.tsx` uses the same loader branches, then POSTs through [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#declineInviteFn]] on confirmation. The server fn re-runs resolve + identity-match (server is the authority — a forged POST can't bypass email-lock) before calling [[apps/wodsmith-start/src/server/competition-invites/decline.ts#declineInvite]], which transitions `pending → declined` and nulls `activeMarker` + `claimTokenHash` so the link dies immediately. Declines are idempotent at the DB level: a zero-affected-rows outcome re-reads to tell "already terminal" apart from "row missing".
+
+`invite-pending.tsx` is the landing that wrong-account visitors bounce to after signing out and back in — it tells them to re-open the email rather than guessing a URL. The claim route's wrong-account page also links here via `/sign-in?redirect=/compete/$slug/invite-pending&email=<invite.email>`.
+
+## Auth route extensions for invites
+
+Sign-in and sign-up accept `?email=<email>&invite=<token>` in addition to their existing search params. See [[apps/wodsmith-start/src/routes/_auth/sign-in.tsx]] and [[apps/wodsmith-start/src/routes/_auth/sign-up.tsx]].
+
+When `invite` is present the email field is pre-filled from `email` and locked (disabled) so the user can't accidentally sign in / sign up with a different address — the whole point of the email-lock is that only this address can claim the invite.
+
+We deliberately use `invite` rather than the existing `claim` param. `claim` is reserved for the KV-backed placeholder-user flow (see `/sign-up` + `validateClaimTokenFn` in [[apps/wodsmith-start/src/server-fns/auth-fns.ts]]), where the token is a plaintext KV entry pointing at an existing `users` row. Invite tokens are hashed at DB and the user account may not exist yet, so the lookup mechanism and post-auth behavior differ enough that collapsing both into one param would muddy both flows. Post-signup the user lands at the `redirect` param — always the original `/compete/$slug/claim/$token` URL — so the claim loader re-runs with the new session cookie and resolves to `identityMatch → ok`.
+
 ## Seed data
 
 Running `pnpm db:seed` populates `competition_invite_sources` with a ready-to-demo scenario so the organizer `/invites` route renders non-empty. Phase 1 has no source-creation UI, so seeding is the only path to exercise the live tabs.

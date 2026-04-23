@@ -42,9 +42,16 @@ export const Route = createFileRoute("/_auth/sign-up")({
   component: SignUpPage,
   validateSearch: (
     search: Record<string, unknown>,
-  ): { redirect: string; claim?: string } => ({
+  ): {
+    redirect: string
+    claim?: string
+    invite?: string
+    email?: string
+  } => ({
     redirect: (search.redirect as string) || REDIRECT_AFTER_SIGN_IN,
     claim: (search.claim as string) || undefined,
+    invite: (search.invite as string) || undefined,
+    email: (search.email as string) || undefined,
   }),
   beforeLoad: async ({ search }) => {
     const session = await getSessionFn()
@@ -78,7 +85,12 @@ export const Route = createFileRoute("/_auth/sign-up")({
 
 function SignUpPage() {
   const router = useRouter()
-  const { redirect: redirectPath, claim } = Route.useSearch()
+  const {
+    redirect: redirectPath,
+    claim,
+    invite,
+    email: inviteEmailParam,
+  } = Route.useSearch()
   const routeData = Route.useRouteContext()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -106,10 +118,12 @@ function SignUpPage() {
   const claimError =
     "claimError" in routeData ? (routeData.claimError as string) : undefined
 
+  const inviteFlow = !!invite
+
   const form = useForm<SignUpInput>({
     resolver: standardSchemaResolver(signUpSchema),
     defaultValues: {
-      email: "",
+      email: inviteFlow ? (inviteEmailParam ?? "") : "",
       firstName: "",
       lastName: "",
       password: "",
@@ -273,7 +287,9 @@ function SignUpPage() {
                         type="email"
                         placeholder="you@example.com"
                         disabled={
-                          isLoading || (claim != null && claimValid === true)
+                          isLoading ||
+                          (claim != null && claimValid === true) ||
+                          inviteFlow
                         }
                         {...field}
                       />

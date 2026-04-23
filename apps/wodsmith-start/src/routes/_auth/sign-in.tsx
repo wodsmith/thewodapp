@@ -38,9 +38,13 @@ import {
 
 export const Route = createFileRoute("/_auth/sign-in")({
   component: SignInPage,
-  validateSearch: (search: Record<string, unknown>) => {
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { redirect: string; email?: string; invite?: string } => {
     return {
       redirect: (search.redirect as string) || REDIRECT_AFTER_SIGN_IN,
+      email: (search.email as string) || undefined,
+      invite: (search.invite as string) || undefined,
     }
   },
   beforeLoad: async ({ search }) => {
@@ -56,7 +60,11 @@ export const Route = createFileRoute("/_auth/sign-in")({
 
 function SignInPage() {
   const router = useRouter()
-  const { redirect: redirectPath } = Route.useSearch()
+  const {
+    redirect: redirectPath,
+    email: inviteEmailParam,
+    invite,
+  } = Route.useSearch()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -67,10 +75,12 @@ function SignInPage() {
   // Use useServerFn for client-side calls
   const signIn = useServerFn(signInFn)
 
+  const inviteFlow = !!invite
+
   const form = useForm<SignInInput>({
     resolver: standardSchemaResolver(signInSchema),
     defaultValues: {
-      email: "",
+      email: inviteFlow ? (inviteEmailParam ?? "") : "",
       password: "",
     },
   })
@@ -138,7 +148,7 @@ function SignInPage() {
                       <Input
                         placeholder="name@example.com"
                         type="email"
-                        disabled={isLoading}
+                        disabled={isLoading || inviteFlow}
                         {...field}
                       />
                     </FormControl>
